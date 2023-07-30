@@ -58,7 +58,7 @@ module Decode =
     |> Dval.asString
     |> unwrap $"Expected '{name}' field to be a string" []
 
-  let list(name : string) (m : DvalMap) : List<Dval> =
+  let list (name : string) (m : DvalMap) : List<Dval> =
     m
     |> field name
     |> Dval.asList
@@ -70,7 +70,7 @@ module Decode =
     |> List.map (fun s ->
       s |> Dval.asString |> unwrap $"Expected string values in '{name}' list" [])
 
-  let int64(name : string) (m : DvalMap) : int64 =
+  let int64 (name : string) (m : DvalMap) : int64 =
     m
     |> field name
     |> Dval.asInt
@@ -996,10 +996,7 @@ module TypeDeclaration =
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumField =
       match d with
       | DRecord(_, fields) ->
-        let typ =
-          fields
-          |> D.field "typ"
-          |> TypeReference.fromDT
+        let typ = fields |> D.field "typ" |> TypeReference.fromDT
 
         let label =
           match Map.get "label" fields with
@@ -1086,8 +1083,7 @@ module TypeDeclaration =
     match d with
     | DRecord(_, fields) ->
       let typeParams = D.stringList "typeParams" fields
-      let definition =
-        fields |> D.field "definition" |> Definition.fromDT
+      let definition = fields |> D.field "definition" |> Definition.fromDT
 
       { typeParams = typeParams; definition = definition }
 
@@ -1203,9 +1199,10 @@ module UserType =
     | DRecord(_, fields) ->
       let tlid = fields |> D.uint64 "tlid"
       let name = fields |> D.field "name" |> TypeName.UserProgram.fromDT
-      let declaration =fields |>  D.field "declaration" |> TypeDeclaration.fromDT
+      let declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
       let description = fields |> D.string "description"
-      let deprecated =fields |> D.field "deprecated" |> Deprecation.fromDT TypeName.fromDT
+      let deprecated =
+        fields |> D.field "deprecated" |> Deprecation.fromDT TypeName.fromDT
 
       { tlid = tlid
         name = name
@@ -1262,7 +1259,8 @@ module UserFunction =
       let parameters = fields |> D.list "parameters" |> List.map Parameter.fromDT
       let returnType = fields |> D.field "returnType" |> TypeReference.fromDT
       let description = fields |> D.string "description"
-      let deprecated = fields |> D.field "deprecated" |> Deprecation.fromDT FnName.fromDT
+      let deprecated =
+        fields |> D.field "deprecated" |> Deprecation.fromDT FnName.fromDT
       let body = fields |> D.field "body" |> Expr.fromDT
 
       { tlid = tlid
@@ -1296,7 +1294,8 @@ module UserConstant =
       let name = fields |> D.field "name" |> ConstantName.UserProgram.fromDT
       let body = fields |> D.field "body" |> Const.fromDT
       let description = fields |> D.string "description"
-      let deprecated = fields |> D.field "deprecated" |> Deprecation.fromDT ConstantName.fromDT
+      let deprecated =
+        fields |> D.field "deprecated" |> Deprecation.fromDT ConstantName.fromDT
 
       { tlid = tlid
         name = name
@@ -1349,7 +1348,8 @@ module PackageType =
       let name = fields |> D.field "name" |> TypeName.Package.fromDT
       let declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
       let description = fields |> D.string "description"
-      let deprecated = fields |> D.field "deprecated" |> Deprecation.fromDT TypeName.fromDT
+      let deprecated =
+        fields |> D.field "deprecated" |> Deprecation.fromDT TypeName.fromDT
 
       { tlid = tlid
         id = id
@@ -1410,7 +1410,8 @@ module PackageFn =
       let parameters = fields |> D.list "parameters" |> List.map Parameter.fromDT
       let returnType = fields |> D.field "returnType" |> TypeReference.fromDT
       let description = fields |> D.string "description"
-      let deprecated = fields |> D.field "deprecated" |> Deprecation.fromDT FnName.fromDT
+      let deprecated =
+        fields |> D.field "deprecated" |> Deprecation.fromDT FnName.fromDT
 
       { tlid = tlid
         id = id
@@ -1444,8 +1445,9 @@ module PackageConstant =
       let id = fields |> D.uuid "id"
       let name = fields |> D.field "name" |> ConstantName.Package.fromDT
       let body = fields |> D.field "body" |> Const.fromDT
-      let description =  fields |> D.string "description"
-      let deprecated = fields |> D.field "deprecated" |> Deprecation.fromDT ConstantName.fromDT
+      let description = fields |> D.string "description"
+      let deprecated =
+        fields |> D.field "deprecated" |> Deprecation.fromDT ConstantName.fromDT
 
       { tlid = tlid
         id = id
