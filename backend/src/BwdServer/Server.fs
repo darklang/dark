@@ -36,7 +36,7 @@ module Canvas = LibBackend.Canvas
 module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 
-module HttpMiddleware = HttpMiddleware.Http
+module LibHttpMiddleware = LibHttpMiddleware.Http
 
 module RealExe = LibRealExecution.RealExecution
 
@@ -50,7 +50,7 @@ module CTPusher = ClientTypes.Pusher
 // HttpHandlerTODO there are still a number of things in this file that were
 // written with the original Http handler+middleware in mind, and aren't
 // appropriate more generally. Much of this should be migrated to the module in
-// HttpMiddleware.Http.fs.
+// LibHttpMiddleware.Http.fs.
 
 // ---------------
 // Read from HttpContext
@@ -325,7 +325,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           // Do request
           use _ = Telemetry.child "executeHandler" []
 
-          let request = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
+          let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
             RealExe.executeHandler
@@ -337,7 +337,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               inputVars
               (RealExe.InitialExecution(desc, "request", request))
 
-          let result = HttpMiddleware.Response.toHttpResponse result
+          let result = LibHttpMiddleware.Response.toHttpResponse result
 
           do! writeResponseToContext ctx result.statusCode result.headers result.body
           Telemetry.addTag "http.completion_reason" "success"
@@ -348,7 +348,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
           // TODO: reenable using CloudStorage
           // FireAndForget.fireAndForgetTask "store-event" (fun () ->
-          //   let request = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
+          //   let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
           //   TI.storeEvent canvasID traceID desc request)
 
           return! unmatchedRouteResponse ctx requestPath route
@@ -361,7 +361,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         // TODO: reenable using CloudStorage
         // let! reqBody = getBody ctx
         // let reqHeaders = getHeadersWithoutMergingKeys ctx
-        // let event = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
+        // let event = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
         // let! timestamp = TI.storeEvent canvasID traceID desc event
 
         // CLEANUP: move pusher into storeEvent

@@ -38,7 +38,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "QueueWorker", "src\QueueWor
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibCloudExecution", "src\StdLibCloudExecution\StdLibCloudExecution.fsproj", "{82CA75E9-53BD-4324-B86B-44F280BAF331}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "HttpMiddleware", "src\HttpMiddleware\HttpMiddleware.fsproj", "{DAE2B2E9-40AF-4D99-A5B0-79678F94BFDA}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibHttpMiddleware", "src\LibHttpMiddleware\LibHttpMiddleware.fsproj", "{DAE2B2E9-40AF-4D99-A5B0-79678F94BFDA}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ProdExec", "src\ProdExec\ProdExec.fsproj", "{00488B6E-9BB3-49AA-AE42-C120799D803C}"
 EndProject

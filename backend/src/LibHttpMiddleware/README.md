@@ -1,4 +1,4 @@
-# HttpMiddleware
+# LibHttpMiddleware
 
 HTTP Middleware modules to support BwdServer.
 
