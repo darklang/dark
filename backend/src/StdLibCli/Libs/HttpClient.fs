@@ -192,7 +192,7 @@ let types : List<BuiltInType> =
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn ["CLI"; "HttpClient" ] "request" 0
+  [ { name = fn [ "CLI"; "HttpClient" ] "request" 0
       typeParams = []
       parameters =
         [ Param.make "method" TString ""
