@@ -25,7 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
-    <ProjectReference Include="../Parser/Parser.fsproj" />
+    <ProjectReference Include="../LibParser/LibParser.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="WasmHelpers.fs" />

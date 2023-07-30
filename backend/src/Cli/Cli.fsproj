@@ -49,7 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../Parser/Parser.fsproj" />
+    <ProjectReference Include="../LibParser/LibParser.fsproj" />
     <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
     <ProjectReference Include="../LibCliExecution/LibCliExecution.fsproj" />
     <ProjectReference Include="../StdLibCli/StdLibCli.fsproj" />
