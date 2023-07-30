@@ -16,7 +16,6 @@
     <!-- <PublishReadyToRun>false</PublishReadyToRun> -->
     <!-- <SelfContained>true</SelfContained> -->
   </PropertyGroup>
-
   <!--
     +++++++++++++++++++++++++++
     This creates build-time values that we use to make version info
@@ -45,11 +44,9 @@
       </AssemblyAttribute>
     </ItemGroup>
   </Target>
-
-
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
-  <ItemGroup><None Include="paket.references" /></ItemGroup>
-
+  <ItemGroup>
+    <None Include="paket.references" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../Parser/Parser.fsproj" />
@@ -57,10 +54,10 @@
     <ProjectReference Include="../LibCliExecution/LibCliExecution.fsproj" />
     <ProjectReference Include="../StdLibCli/StdLibCli.fsproj" />
   </ItemGroup>
-
   <ItemGroup>
     <Compile Include="Libs/Cli.fs" />
     <Compile Include="StdLib.fs" />
     <Compile Include="Cli.fs" />
   </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

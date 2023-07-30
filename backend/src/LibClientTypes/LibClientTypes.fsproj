@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
@@ -8,16 +9,14 @@
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
-
-
-  <ItemGroup><None Include="paket.references" /></ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
-
+  <ItemGroup>
+    <None Include="paket.references" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
   </ItemGroup>
-
   <ItemGroup>
     <Compile Include="ClientPusherTypes.fs" />
   </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

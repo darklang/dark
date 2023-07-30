@@ -14,11 +14,9 @@
          break. When we get source generators going, this might improve. -->
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
-
-
-  <ItemGroup><None Include="paket.references" /></ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
-
+  <ItemGroup>
+    <None Include="paket.references" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Prelude/Prelude.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
@@ -30,11 +28,11 @@
     <ProjectReference Include="../../src/StdLibCloudExecution/StdLibCloudExecution.fsproj" />
     <ProjectReference Include="../../src/StdLibDarkInternal/StdLibDarkInternal.fsproj" />
   </ItemGroup>
-
   <ItemGroup>
     <Compile Include="Libs/Experiments.fs" />
     <Compile Include="StdLib.fs" />
     <Compile Include="DangerExecution.fs" />
     <Compile Include="Server.fs" />
   </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
