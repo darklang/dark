@@ -1,0 +1,63 @@
+module Darklang =
+  module Cli =
+    type Command =
+      | RunScript of String * List<String>
+      | Help
+      | Infer of String
+      | Invalid of List<String>
+
+
+    let parseArguments (args: List<String>) : PACKAGE.Darklang.Cli.Command =
+      match args with
+      | [ "-h" ] -> PACKAGE.Darklang.Cli.Command.Help
+      | [ "--help" ] -> PACKAGE.Darklang.Cli.Command.Help
+      | [ "--prompt"; prompt ] -> PACKAGE.Darklang.Cli.Command.Infer prompt
+      | scriptPath :: args -> PACKAGE.Darklang.Cli.Command.RunScript(scriptPath, args)
+
+
+    let executeCommand (command: PACKAGE.Darklang.Cli.Command) : Int =
+      match command with
+      | RunScript(scriptPath, args) ->
+        match File.read scriptPath with
+        | Error e ->
+          print e
+          1
+        | Ok script ->
+          let script = String.fromBytes script
+
+          match
+            Cli.parseAndExecuteScript scriptPath script (Dict { args = args })
+          with
+          | Ok i -> i
+          | Error e ->
+            print $"Error executing script {scriptPath}"
+            print e.msg
+            e.metadata |> Dict.iter (fun (k, v) -> print $"  {k}: {v}")
+            1
+
+
+      | Help ->
+        let helpText =
+          """Usage: darklang [options] [SCRIPT]
+Options:
+  -h, --help          Show this help message and exit
+  --prompt PROMPT     Infer a script from the given prompt using OpenAI"""
+
+        print helpText
+        0
+
+      | Infer(prompt, scriptPath) ->
+        // let script = System.IO.File.ReadAllText scriptPath
+        // Call OpenAI API with the prompt and script to generate a new script
+        // let generatedScript = callOpenAI(prompt, script)
+        // Execute the generated script here
+        1
+
+      | Invalid args ->
+        let args = args |> String.join " "
+        print $"Invalid command {args}. Use --help for more information."
+        1
+
+
+    let executeCliCommand (args: List<String>) : Int =
+      args |> PACKAGE.Darklang.Cli.parseArguments |> PACKAGE.Darklang.Cli.executeCommand
