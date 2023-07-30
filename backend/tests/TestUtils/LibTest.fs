@@ -54,7 +54,7 @@ let constants : List<BuiltInConstant> =
 
 let fns : List<BuiltInFn> =
 
-  [ { name = fn "typeError" 0
+  [ { name = fn "runtimeError" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
       returnType = TInt

@@ -27,7 +27,7 @@ module Darklang =
     let throwsException () : DateTime =
       Test.raiseException "throwsException message"
 
-    let derrorFn (msg: String) : String = msg ++ Test.typeError_v0 msg
+    let derrorFn (msg: String) : String = msg ++ Test.runtimeError msg
 
     module Constants =
       let stringConst = "test"

@@ -81,7 +81,7 @@ module AddToTestEnumDBs =
                                              MyEnum2.E
                                              MyEnum2.F MyEnum.A ]
 
-  (let test1 = DB.set MyEnum.D "test1" TestEnumDB2 in (DB.getAll TestEnumDB2)) = Test.typeError_v0
+  (let test1 = DB.set MyEnum.D "test1" TestEnumDB2 in (DB.getAll TestEnumDB2)) = Test.runtimeError
     "There is no case named `D` in MyEnum"
 
   (let testQuery =
@@ -321,8 +321,8 @@ module Roundtrip =
 
 module ValueMissingColumnGivesGoodError =
   // TYPESCLEANUP: can we test a missing column against the DB anymore?
-  // (DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Test.typeError_v0 "Found but did not expect: [y]"
-  (DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Test.typeError_v0
+  // (DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Test.runtimeError "Found but did not expect: [y]"
+  (DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Test.runtimeError
     "DB XDB's value should be a X. However, a XY (XY {  ...) was passed instead.\n\nExpected: X\nActual: a XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
 
 
