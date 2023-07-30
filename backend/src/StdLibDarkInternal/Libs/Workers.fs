@@ -20,7 +20,7 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
       do! fn canvasID handlerName
       let! s = SchedulingRules.getWorkerSchedules canvasID
       // Pusher.push
-      //   ClientTypes2BackendTypes.Pusher.eventSerializer
+      //   LibClientTypesToCloudTypes.Pusher.eventSerializer
       //   canvasID
       //   (Pusher.UpdateWorkerStates s)
       //   None

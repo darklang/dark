@@ -180,7 +180,7 @@ let processNotification
                   // TODO: reenable using CloudStorage
                   // let! timestamp = TI.storeEvent c.id traceID desc event.value
                   // Pusher.push
-                  //   ClientTypes2BackendTypes.Pusher.eventSerializer
+                  //   LibClientTypesToCloudTypes.Pusher.eventSerializer
                   //   c.id
                   //   (Pusher.New404(
                   //     event.module',
@@ -207,7 +207,7 @@ let processNotification
                     let program = Canvas.toProgram c
                     let! (result, traceResults) =
                       CloudExecution.executeHandler
-                        ClientTypes2BackendTypes.Pusher.eventSerializer
+                        LibClientTypesToCloudTypes.Pusher.eventSerializer
                         (PT2RT.Handler.toRT h)
                         program
                         config

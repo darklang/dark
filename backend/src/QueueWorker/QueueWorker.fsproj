@@ -15,7 +15,7 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../LibCloudExecution/LibCloudExecution.fsproj" />
-    <ProjectReference Include="../ClientTypes2BackendTypes/ClientTypes2BackendTypes.fsproj" />
+    <ProjectReference Include="../LibClientTypesToCloudTypes/LibClientTypesToCloudTypes.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />

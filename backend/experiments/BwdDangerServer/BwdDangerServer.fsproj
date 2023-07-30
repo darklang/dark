@@ -24,7 +24,7 @@
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../../src/LibHttpMiddleware/LibHttpMiddleware.fsproj" />
-    <ProjectReference Include="../../src/ClientTypes2BackendTypes/ClientTypes2BackendTypes.fsproj" />
+    <ProjectReference Include="../../src/LibClientTypesToCloudTypes/LibClientTypesToCloudTypes.fsproj" />
     <ProjectReference Include="../../src/Parser/Parser.fsproj" />
     <ProjectReference Include="../../src/StdLibExecution/StdLibExecution.fsproj" />
     <ProjectReference Include="../../src/StdLibCloudExecution/StdLibCloudExecution.fsproj" />

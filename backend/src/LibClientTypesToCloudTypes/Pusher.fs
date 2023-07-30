@@ -1,4 +1,4 @@
-module ClientTypes2BackendTypes.Pusher
+module LibClientTypesToCloudTypes.Pusher
 
 open Prelude
 
