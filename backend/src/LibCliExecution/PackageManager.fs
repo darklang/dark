@@ -62,6 +62,14 @@ module LanguageToolsTypesFork =
       type BuiltIn = FQName.BuiltIn<Name>
       type Package = FQName.Package<Name>
 
+    module ConstantName =
+      type Name = ConstantName of string
+      type T = FQName.T<Name>
+      type BuiltIn = FQName.BuiltIn<Name>
+      type Package = FQName.Package<Name>
+
+
+
     type TypeReference =
       | TVariable of String
       | TUnit
@@ -150,6 +158,8 @@ module LanguageToolsTypesFork =
       | EChar of ID * string
       | EString of ID * List<StringSegment>
 
+      | EConstant of ID * NameResolution<ConstantName.T>
+
       | EList of ID * List<Expr>
       | EDict of ID * List<String * Expr>
       | ETuple of ID * Expr * Expr * List<Expr>
@@ -222,6 +232,25 @@ module LanguageToolsTypesFork =
           returnType : TypeReference
           description : String
           deprecated : Deprecation<FnName.T> }
+
+    type Const =
+      | CInt of int64
+      | CBool of bool
+      | CString of string
+      | CChar of string
+      | CFloat of Sign * string * string
+      | CUnit
+      | CTuple of first : Const * second : Const * rest : List<Const>
+      | CEnum of NameResolution<TypeName.T> * caseName : string * List<Const> // TYPESTODO NameResolution
+
+    module PackageConstant =
+      type T =
+        { tlid : TLID
+          id : Guid
+          name : ConstantName.Package
+          description : String
+          deprecated : Deprecation<ConstantName.T>
+          body : Const }
 
 module ET = LanguageToolsTypesFork
 module EPT = ET.ProgramTypes
@@ -336,6 +365,41 @@ module ExternalTypesToProgramTypes =
       | EPT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
       | EPT.FQName.Package p -> PT.FQName.Package(Package.toPT p)
 
+  module ConstantName =
+    module BuiltIn =
+      let toPT (b : EPT.ConstantName.BuiltIn) : PT.ConstantName.BuiltIn =
+        { modules = b.modules
+          name =
+            match b.name with
+            | EPT.ConstantName.Name.ConstantName name ->
+              PT.ConstantName.ConstantName name
+          version = b.version }
+
+    module Package =
+      let toPT (p : EPT.ConstantName.Package) : PT.ConstantName.Package =
+        { owner = p.owner
+          modules =
+            match p.modules with
+            | [] ->
+              raise (
+                Exception.raiseInternal
+                  "Expected non-empty modules"
+                  [ "name", p.name ]
+              )
+            | head :: tail -> { Head = head; Tail = tail }
+          name =
+            match p.name with
+            | EPT.ConstantName.Name.ConstantName name ->
+              PT.ConstantName.ConstantName name
+          version = p.version }
+
+    let toPT (fqfn : EPT.ConstantName.T) : PT.ConstantName.T =
+      match fqfn with
+      | EPT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
+      | EPT.FQName.Package p -> PT.FQName.Package(Package.toPT p)
+
+
+
   module InfixFnName =
     let toPT (name : ET.ProgramTypes.InfixFnName) : PT.InfixFnName =
       match name with
@@ -425,6 +489,8 @@ module ExternalTypesToProgramTypes =
         PT.EFloat(id, Sign.toPT sign, whole, fraction)
       | EPT.EBool(id, b) -> PT.EBool(id, b)
       | EPT.EUnit id -> PT.EUnit id
+      | EPT.EConstant(id, name) ->
+        PT.EConstant(id, NameResolution.toPT ConstantName.toPT name)
       | EPT.EVariable(id, var) -> PT.EVariable(id, var)
       | EPT.EFieldAccess(id, obj, fieldname) ->
         PT.EFieldAccess(id, toPT obj, fieldname)
@@ -588,6 +654,34 @@ module ExternalTypesToProgramTypes =
         id = pt.id
         tlid = pt.tlid }
 
+  module Const =
+    let rec toPT (c : EPT.Const) : PT.Const =
+      match c with
+      | EPT.CInt i -> PT.CInt i
+      | EPT.CBool b -> PT.CBool b
+      | EPT.CString s -> PT.CString s
+      | EPT.CChar c -> PT.CChar c
+      | EPT.CFloat(s, w, f) -> PT.CFloat(Sign.toPT s, w, f)
+      | EPT.CUnit -> PT.CUnit
+      | EPT.CTuple(first, second, rest) ->
+        PT.CTuple(toPT first, toPT second, List.map toPT rest)
+      | EPT.CEnum(typeName, caseName, fields) ->
+        PT.CEnum(
+          NameResolution.toPT TypeName.toPT typeName,
+          caseName,
+          List.map toPT fields
+        )
+
+  module PackageConstant =
+    let toPT (c : EPT.PackageConstant.T) : PT.PackageConstant.T =
+      { name = ConstantName.Package.toPT c.name
+        description = c.description
+        deprecated = Deprecation.toPT ConstantName.toPT c.deprecated
+        id = c.id
+        tlid = c.tlid
+        body = Const.toPT c.body }
+
+
 
 module ET2PT = ExternalTypesToProgramTypes
 
@@ -637,6 +731,21 @@ let packageManager : RT.PackageManager =
     }
     |> cachedPly (TimeSpan.FromMinutes 1.)
 
+  let getAllConstants =
+    uply {
+      let! response =
+        httpClient.GetAsync "http://dark-packages.dlio.localhost:11003/constants"
+      let! allConstantsStr = response.Content.ReadAsStringAsync()
+
+      let parsedConstants =
+        Json.Vanilla.deserialize<List<LanguageToolsTypesFork.ProgramTypes.PackageConstant.T>>
+          allConstantsStr
+
+      return
+        parsedConstants
+        |> List.map (ET2PT.PackageConstant.toPT >> PT2RT.PackageConstant.toRT)
+    }
+
   { getType =
       fun typeName ->
         uply {
@@ -652,6 +761,17 @@ let packageManager : RT.PackageManager =
           let! allFns = allFns
           let found =
             List.find (fun (typ : RT.PackageFn.T) -> typ.name = fnName) allFns
+          return found
+        }
+
+    getConstant =
+      fun constantName ->
+        uply {
+          let! allConstants = getAllConstants
+          let found =
+            List.find
+              (fun (typ : RT.PackageConstant.T) -> typ.name = constantName)
+              allConstants
           return found
         }
 

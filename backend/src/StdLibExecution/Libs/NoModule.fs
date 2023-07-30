@@ -101,6 +101,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EChar(_, char1), EChar(_, char2) -> char1 = char2
   | EFloat(_, float1), EFloat(_, float2) -> float1 = float2
   | EUnit _, EUnit _ -> true
+  | EConstant(_, name1), EConstant(_, name2) -> name1 = name2
   | ELet(_, pattern1, expr1, body1), ELet(_, pattern2, expr2, body2) ->
     equalsLetPattern pattern1 pattern2
     && equalsExpr expr1 expr2
@@ -172,6 +173,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EChar _, _
   | EFloat _, _
   | EUnit _, _
+  | EConstant _, _
   | ELet _, _
   | EIf _, _
   | ELambda _, _
@@ -261,6 +263,7 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
 let varA = TVariable "a"
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
 
 let fn = fn []
 
@@ -414,4 +417,4 @@ let fns : List<BuiltInFn> =
     //   deprecated = NotDeprecated }
     ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

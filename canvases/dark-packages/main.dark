@@ -1,6 +1,7 @@
 // CLEANUP : reference package types directly
 type PackageType = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T
 type PackageFn = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T
+type PackageConstant = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T
 
 [<DB>]
 type PackageTypeDB = PackageType
@@ -8,6 +9,8 @@ type PackageTypeDB = PackageType
 [<DB>]
 type PackageFnDB = PackageFn
 
+[<DB>]
+type PackageConstantDB = PackageConstant
 
 [<HttpHandler("POST", "/types")>]
 let _handler _req =
@@ -49,6 +52,23 @@ let _handler _req =
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
 
+[<HttpHandler("POST", "/constants")>]
+let _handler _req =
+  let c = request.body |> String.fromBytes |> Json.parse<PackageConstant> |> unwrap
+
+  let constantToSave =
+    PackageConstant
+      { tlid = c.tlid
+        id = c.id
+        name = c.name
+        body = c.body
+        description = fn.description
+        deprecated = fn.deprecated }
+
+  let key = DB.generateKey_v0 () // TODO: use id instead
+  DB.set constantToSave key PackageConstantDB
+
+  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
 
 
 [<HttpHandler("GET", "/stats")>]

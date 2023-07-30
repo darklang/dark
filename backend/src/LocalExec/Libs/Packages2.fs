@@ -69,18 +69,27 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DString contents; DString path ] ->
           uply {
-            let (fns, types) = Parser.Parser.parsePackage resolver path contents
+            let (fns, types, constants) =
+              Parser.Parser.parsePackage resolver path contents
 
             let packagesFns = fns |> List.map (fun fn -> PT2DT.PackageFn.toDT fn)
 
             let packagesTypes =
               types |> List.map (fun typ -> PT2DT.PackageType.toDT typ)
 
+            let packagesConstants =
+              constants
+              |> List.map (fun constant -> PT2DT.PackageConstant.toDT constant)
+
             return
               Dval.resultOk (
                 DRecord(
                   FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0),
-                  Map([ ("fns", DList packagesFns); ("types", DList packagesTypes) ])
+                  Map(
+                    [ ("fns", DList packagesFns)
+                      ("types", DList packagesTypes)
+                      ("constants", DList packagesConstants) ]
+                  )
                 )
               )
           }
@@ -100,9 +109,11 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DString contents; DString path ] ->
           uply {
-            let (fns, types) = Parser.Parser.parsePackage resolver path contents
+            let (fns, types, constants) =
+              Parser.Parser.parsePackage resolver path contents
             do! LibBackend.PackageManager.savePackageFunctions fns
             do! LibBackend.PackageManager.savePackageTypes types
+            do! LibBackend.PackageManager.savePackageConstants constants
 
             return DUnit
           }
@@ -112,4 +123,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let contents : LibExecution.StdLib.Contents = (fns, [])
+let contents : LibExecution.StdLib.Contents = (fns, [], [])

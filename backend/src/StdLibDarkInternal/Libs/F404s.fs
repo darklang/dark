@@ -31,7 +31,7 @@ let types : List<BuiltInType> =
       deprecated = NotDeprecated
       description = "404 record" } ]
 
-
+let constants : List<BuiltInConstant> = []
 let fns : List<BuiltInFn> = []
 // [ { name = fn "delete" 0
 //     typeParams = []
@@ -84,4 +84,4 @@ let fns : List<BuiltInFn> = []
 //     previewable = Impure
 //     deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

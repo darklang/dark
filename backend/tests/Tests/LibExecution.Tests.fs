@@ -60,6 +60,7 @@ let t
   (dbs : List<PT.DB.T>)
   (types : List<PT.UserType.T>)
   (functions : List<PT.UserFunction.T>)
+  (constants : List<PT.UserConstant.T>)
   (workers : List<string>)
   : Test =
   testTask $"line{lineNumber}" {
@@ -88,8 +89,22 @@ let t
            (fn.name, fn))
          |> Map.ofList)
 
+      let rtConstants =
+        (constants
+         |> List.map (fun c ->
+           let c = PT2RT.UserConstant.toRT c
+           (c.name, c))
+         |> Map.ofList)
+
       let! (state : RT.ExecutionState) =
-        executionStateFor canvasID internalFnsAllowed false rtDBs rtTypes rtFunctions
+        executionStateFor
+          canvasID
+          internalFnsAllowed
+          false
+          rtDBs
+          rtTypes
+          rtFunctions
+          rtConstants
       let red = "\u001b[31m"
       let green = "\u001b[32m"
       let bold = "\u001b[1;37m"
@@ -165,6 +180,7 @@ let fileTests () : Test =
         // Within a module, tests have access to
         let fns = modules |> List.map (fun m -> m.fns) |> List.concat
         let types = modules |> List.map (fun m -> m.types) |> List.concat
+        let constants = modules |> List.map (fun m -> m.constants) |> List.concat
         let tests =
           modules
           |> List.map (fun m ->
@@ -180,6 +196,7 @@ let fileTests () : Test =
                 m.dbs
                 types
                 fns
+                constants
                 []))
           |> List.concat
 

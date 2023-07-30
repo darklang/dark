@@ -16,7 +16,10 @@ let debug (arg : string) = WasmHelpers.callJSFunction "console.log" [ arg ]
 
 
 /// Source of the editor (types, functions)
-type EditorSource = { types : List<UserType.T>; fns : List<UserFunction.T> }
+type EditorSource =
+  { types : List<UserType.T>
+    fns : List<UserFunction.T>
+    constants : List<UserConstant.T> }
 
 
 let stdLib =
@@ -64,7 +67,12 @@ let LoadClient (canvasName : string) : Task<string> =
       }
 
     let! initialState =
-      let state = getStateForEval stdLib clientSource.types clientSource.fns
+      let state =
+        getStateForEval
+          stdLib
+          clientSource.types
+          clientSource.fns
+          clientSource.constants
       Ply.toTask (
         LibExecution.Interpreter.callFn
           state
@@ -79,6 +87,7 @@ let LoadClient (canvasName : string) : Task<string> =
       Libs.Editor.editor <-
         { Types = clientSource.types
           Functions = clientSource.fns
+          Constants = clientSource.constants
           CurrentState = initialState }
 
       return LibExecution.DvalReprDeveloper.toRepr result
@@ -93,7 +102,11 @@ let LoadClient (canvasName : string) : Task<string> =
 let HandleEvent (serializedEvent : string) : Task<string> =
   task {
     let state =
-      getStateForEval stdLib Libs.Editor.editor.Types Libs.Editor.editor.Functions
+      getStateForEval
+        stdLib
+        Libs.Editor.editor.Types
+        Libs.Editor.editor.Functions
+        Libs.Editor.editor.Constants
 
     let! result =
       Ply.toTask (

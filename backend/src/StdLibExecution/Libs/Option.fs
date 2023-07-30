@@ -20,6 +20,7 @@ let optionA = Param.make "option" (TypeReference.option varA) ""
 let fnAToB = Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ]
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "Option" ]
 
@@ -61,4 +62,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

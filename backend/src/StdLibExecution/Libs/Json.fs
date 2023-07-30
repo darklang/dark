@@ -529,6 +529,7 @@ let parse
 
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "Json" ]
 
@@ -578,4 +579,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

@@ -226,160 +226,166 @@
                                                     },
                                                     [
                                                       {
-                                                        "TInt": []
-                                                      },
-                                                      {
-                                                        "TFloat": []
-                                                      },
-                                                      {
-                                                        "TBool": []
-                                                      },
-                                                      {
-                                                        "TUnit": []
-                                                      },
-                                                      {
-                                                        "TString": []
-                                                      },
-                                                      {
-                                                        "TList": [
-                                                          {
-                                                            "TInt": []
-                                                          }
-                                                        ]
-                                                      },
-                                                      {
                                                         "TTuple": [
                                                           {
-                                                            "TBool": []
+                                                            "TInt": []
                                                           },
                                                           {
-                                                            "TBool": []
+                                                            "TFloat": []
                                                           },
                                                           [
                                                             {
                                                               "TBool": []
-                                                            }
-                                                          ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TDict": [
-                                                          {
-                                                            "TBool": []
-                                                          }
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TDB": [
-                                                          {
-                                                            "TBool": []
-                                                          }
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TCustomType": [
-                                                          {
-                                                            "Ok": [
-                                                              {
-                                                                "UserProgram": [
+                                                            },
+                                                            {
+                                                              "TUnit": []
+                                                            },
+                                                            {
+                                                              "TString": []
+                                                            },
+                                                            {
+                                                              "TList": [
+                                                                {
+                                                                  "TInt": []
+                                                                }
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TTuple": [
+                                                                {
+                                                                  "TBool": []
+                                                                },
+                                                                {
+                                                                  "TBool": []
+                                                                },
+                                                                [
                                                                   {
-                                                                    "modules": [
-                                                                      "Mod"
-                                                                    ],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "User"
-                                                                      ]
-                                                                    },
-                                                                    "version": 0
+                                                                    "TBool": []
                                                                   }
                                                                 ]
-                                                              }
-                                                            ]
-                                                          },
-                                                          [
+                                                              ]
+                                                            },
                                                             {
-                                                              "TBool": []
-                                                            }
-                                                          ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TCustomType": [
-                                                          {
-                                                            "Ok": [
-                                                              {
-                                                                "BuiltIn": [
-                                                                  {
-                                                                    "modules": [
-                                                                      "Mod"
-                                                                    ],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "User"
+                                                              "TDict": [
+                                                                {
+                                                                  "TBool": []
+                                                                }
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TDB": [
+                                                                {
+                                                                  "TBool": []
+                                                                }
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TCustomType": [
+                                                                {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "UserProgram": [
+                                                                        {
+                                                                          "modules": [
+                                                                            "Mod"
+                                                                          ],
+                                                                          "name": {
+                                                                            "TypeName": [
+                                                                              "User"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
                                                                       ]
-                                                                    },
-                                                                    "version": 0
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                [
+                                                                  {
+                                                                    "TBool": []
                                                                   }
                                                                 ]
-                                                              }
-                                                            ]
-                                                          },
-                                                          [
+                                                              ]
+                                                            },
                                                             {
-                                                              "TBool": []
-                                                            }
-                                                          ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TCustomType": [
-                                                          {
-                                                            "Ok": [
-                                                              {
-                                                                "Package": [
-                                                                  {
-                                                                    "owner": "dark",
-                                                                    "modules": [
-                                                                      "Mod1",
-                                                                      "Mod2"
-                                                                    ],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "Pack"
+                                                              "TCustomType": [
+                                                                {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "BuiltIn": [
+                                                                        {
+                                                                          "modules": [
+                                                                            "Mod"
+                                                                          ],
+                                                                          "name": {
+                                                                            "TypeName": [
+                                                                              "User"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
                                                                       ]
-                                                                    },
-                                                                    "version": 0
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                [
+                                                                  {
+                                                                    "TBool": []
                                                                   }
                                                                 ]
-                                                              }
-                                                            ]
-                                                          },
-                                                          [
+                                                              ]
+                                                            },
                                                             {
-                                                              "TBool": []
+                                                              "TCustomType": [
+                                                                {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "Package": [
+                                                                        {
+                                                                          "owner": "dark",
+                                                                          "modules": [
+                                                                            "Mod1",
+                                                                            "Mod2"
+                                                                          ],
+                                                                          "name": {
+                                                                            "TypeName": [
+                                                                              "Pack"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                [
+                                                                  {
+                                                                    "TBool": []
+                                                                  }
+                                                                ]
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TBytes": []
+                                                            },
+                                                            {
+                                                              "TVariable": [
+                                                                "test"
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TFn": [
+                                                                [
+                                                                  {
+                                                                    "TBool": []
+                                                                  }
+                                                                ],
+                                                                {
+                                                                  "TBool": []
+                                                                }
+                                                              ]
                                                             }
                                                           ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TBytes": []
-                                                      },
-                                                      {
-                                                        "TVariable": [
-                                                          "test"
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TFn": [
-                                                          [
-                                                            {
-                                                              "TBool": []
-                                                            }
-                                                          ],
-                                                          {
-                                                            "TBool": []
-                                                          }
                                                         ]
                                                       }
                                                     ],
@@ -1526,160 +1532,166 @@
                                                     },
                                                     [
                                                       {
-                                                        "TInt": []
-                                                      },
-                                                      {
-                                                        "TFloat": []
-                                                      },
-                                                      {
-                                                        "TBool": []
-                                                      },
-                                                      {
-                                                        "TUnit": []
-                                                      },
-                                                      {
-                                                        "TString": []
-                                                      },
-                                                      {
-                                                        "TList": [
-                                                          {
-                                                            "TInt": []
-                                                          }
-                                                        ]
-                                                      },
-                                                      {
                                                         "TTuple": [
                                                           {
-                                                            "TBool": []
+                                                            "TInt": []
                                                           },
                                                           {
-                                                            "TBool": []
+                                                            "TFloat": []
                                                           },
                                                           [
                                                             {
                                                               "TBool": []
-                                                            }
-                                                          ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TDict": [
-                                                          {
-                                                            "TBool": []
-                                                          }
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TDB": [
-                                                          {
-                                                            "TBool": []
-                                                          }
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TCustomType": [
-                                                          {
-                                                            "Ok": [
-                                                              {
-                                                                "UserProgram": [
+                                                            },
+                                                            {
+                                                              "TUnit": []
+                                                            },
+                                                            {
+                                                              "TString": []
+                                                            },
+                                                            {
+                                                              "TList": [
+                                                                {
+                                                                  "TInt": []
+                                                                }
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TTuple": [
+                                                                {
+                                                                  "TBool": []
+                                                                },
+                                                                {
+                                                                  "TBool": []
+                                                                },
+                                                                [
                                                                   {
-                                                                    "modules": [
-                                                                      "Mod"
-                                                                    ],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "User"
-                                                                      ]
-                                                                    },
-                                                                    "version": 0
+                                                                    "TBool": []
                                                                   }
                                                                 ]
-                                                              }
-                                                            ]
-                                                          },
-                                                          [
+                                                              ]
+                                                            },
                                                             {
-                                                              "TBool": []
-                                                            }
-                                                          ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TCustomType": [
-                                                          {
-                                                            "Ok": [
-                                                              {
-                                                                "BuiltIn": [
-                                                                  {
-                                                                    "modules": [
-                                                                      "Mod"
-                                                                    ],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "User"
+                                                              "TDict": [
+                                                                {
+                                                                  "TBool": []
+                                                                }
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TDB": [
+                                                                {
+                                                                  "TBool": []
+                                                                }
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TCustomType": [
+                                                                {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "UserProgram": [
+                                                                        {
+                                                                          "modules": [
+                                                                            "Mod"
+                                                                          ],
+                                                                          "name": {
+                                                                            "TypeName": [
+                                                                              "User"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
                                                                       ]
-                                                                    },
-                                                                    "version": 0
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                [
+                                                                  {
+                                                                    "TBool": []
                                                                   }
                                                                 ]
-                                                              }
-                                                            ]
-                                                          },
-                                                          [
+                                                              ]
+                                                            },
                                                             {
-                                                              "TBool": []
-                                                            }
-                                                          ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TCustomType": [
-                                                          {
-                                                            "Ok": [
-                                                              {
-                                                                "Package": [
-                                                                  {
-                                                                    "owner": "dark",
-                                                                    "modules": [
-                                                                      "Mod1",
-                                                                      "Mod2"
-                                                                    ],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "Pack"
+                                                              "TCustomType": [
+                                                                {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "BuiltIn": [
+                                                                        {
+                                                                          "modules": [
+                                                                            "Mod"
+                                                                          ],
+                                                                          "name": {
+                                                                            "TypeName": [
+                                                                              "User"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
                                                                       ]
-                                                                    },
-                                                                    "version": 0
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                [
+                                                                  {
+                                                                    "TBool": []
                                                                   }
                                                                 ]
-                                                              }
-                                                            ]
-                                                          },
-                                                          [
+                                                              ]
+                                                            },
                                                             {
-                                                              "TBool": []
+                                                              "TCustomType": [
+                                                                {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "Package": [
+                                                                        {
+                                                                          "owner": "dark",
+                                                                          "modules": [
+                                                                            "Mod1",
+                                                                            "Mod2"
+                                                                          ],
+                                                                          "name": {
+                                                                            "TypeName": [
+                                                                              "Pack"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                [
+                                                                  {
+                                                                    "TBool": []
+                                                                  }
+                                                                ]
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TBytes": []
+                                                            },
+                                                            {
+                                                              "TVariable": [
+                                                                "test"
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TFn": [
+                                                                [
+                                                                  {
+                                                                    "TBool": []
+                                                                  }
+                                                                ],
+                                                                {
+                                                                  "TBool": []
+                                                                }
+                                                              ]
                                                             }
                                                           ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TBytes": []
-                                                      },
-                                                      {
-                                                        "TVariable": [
-                                                          "test"
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TFn": [
-                                                          [
-                                                            {
-                                                              "TBool": []
-                                                            }
-                                                          ],
-                                                          {
-                                                            "TBool": []
-                                                          }
                                                         ]
                                                       }
                                                     ],
@@ -2829,160 +2841,166 @@
                                                     },
                                                     [
                                                       {
-                                                        "TInt": []
-                                                      },
-                                                      {
-                                                        "TFloat": []
-                                                      },
-                                                      {
-                                                        "TBool": []
-                                                      },
-                                                      {
-                                                        "TUnit": []
-                                                      },
-                                                      {
-                                                        "TString": []
-                                                      },
-                                                      {
-                                                        "TList": [
-                                                          {
-                                                            "TInt": []
-                                                          }
-                                                        ]
-                                                      },
-                                                      {
                                                         "TTuple": [
                                                           {
-                                                            "TBool": []
+                                                            "TInt": []
                                                           },
                                                           {
-                                                            "TBool": []
+                                                            "TFloat": []
                                                           },
                                                           [
                                                             {
                                                               "TBool": []
-                                                            }
-                                                          ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TDict": [
-                                                          {
-                                                            "TBool": []
-                                                          }
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TDB": [
-                                                          {
-                                                            "TBool": []
-                                                          }
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TCustomType": [
-                                                          {
-                                                            "Ok": [
-                                                              {
-                                                                "UserProgram": [
+                                                            },
+                                                            {
+                                                              "TUnit": []
+                                                            },
+                                                            {
+                                                              "TString": []
+                                                            },
+                                                            {
+                                                              "TList": [
+                                                                {
+                                                                  "TInt": []
+                                                                }
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TTuple": [
+                                                                {
+                                                                  "TBool": []
+                                                                },
+                                                                {
+                                                                  "TBool": []
+                                                                },
+                                                                [
                                                                   {
-                                                                    "modules": [
-                                                                      "Mod"
-                                                                    ],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "User"
-                                                                      ]
-                                                                    },
-                                                                    "version": 0
+                                                                    "TBool": []
                                                                   }
                                                                 ]
-                                                              }
-                                                            ]
-                                                          },
-                                                          [
+                                                              ]
+                                                            },
                                                             {
-                                                              "TBool": []
-                                                            }
-                                                          ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TCustomType": [
-                                                          {
-                                                            "Ok": [
-                                                              {
-                                                                "BuiltIn": [
-                                                                  {
-                                                                    "modules": [
-                                                                      "Mod"
-                                                                    ],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "User"
+                                                              "TDict": [
+                                                                {
+                                                                  "TBool": []
+                                                                }
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TDB": [
+                                                                {
+                                                                  "TBool": []
+                                                                }
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TCustomType": [
+                                                                {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "UserProgram": [
+                                                                        {
+                                                                          "modules": [
+                                                                            "Mod"
+                                                                          ],
+                                                                          "name": {
+                                                                            "TypeName": [
+                                                                              "User"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
                                                                       ]
-                                                                    },
-                                                                    "version": 0
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                [
+                                                                  {
+                                                                    "TBool": []
                                                                   }
                                                                 ]
-                                                              }
-                                                            ]
-                                                          },
-                                                          [
+                                                              ]
+                                                            },
                                                             {
-                                                              "TBool": []
-                                                            }
-                                                          ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TCustomType": [
-                                                          {
-                                                            "Ok": [
-                                                              {
-                                                                "Package": [
-                                                                  {
-                                                                    "owner": "dark",
-                                                                    "modules": [
-                                                                      "Mod1",
-                                                                      "Mod2"
-                                                                    ],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "Pack"
+                                                              "TCustomType": [
+                                                                {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "BuiltIn": [
+                                                                        {
+                                                                          "modules": [
+                                                                            "Mod"
+                                                                          ],
+                                                                          "name": {
+                                                                            "TypeName": [
+                                                                              "User"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
                                                                       ]
-                                                                    },
-                                                                    "version": 0
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                [
+                                                                  {
+                                                                    "TBool": []
                                                                   }
                                                                 ]
-                                                              }
-                                                            ]
-                                                          },
-                                                          [
+                                                              ]
+                                                            },
                                                             {
-                                                              "TBool": []
+                                                              "TCustomType": [
+                                                                {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "Package": [
+                                                                        {
+                                                                          "owner": "dark",
+                                                                          "modules": [
+                                                                            "Mod1",
+                                                                            "Mod2"
+                                                                          ],
+                                                                          "name": {
+                                                                            "TypeName": [
+                                                                              "Pack"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                [
+                                                                  {
+                                                                    "TBool": []
+                                                                  }
+                                                                ]
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TBytes": []
+                                                            },
+                                                            {
+                                                              "TVariable": [
+                                                                "test"
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TFn": [
+                                                                [
+                                                                  {
+                                                                    "TBool": []
+                                                                  }
+                                                                ],
+                                                                {
+                                                                  "TBool": []
+                                                                }
+                                                              ]
                                                             }
                                                           ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TBytes": []
-                                                      },
-                                                      {
-                                                        "TVariable": [
-                                                          "test"
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TFn": [
-                                                          [
-                                                            {
-                                                              "TBool": []
-                                                            }
-                                                          ],
-                                                          {
-                                                            "TBool": []
-                                                          }
                                                         ]
                                                       }
                                                     ],
@@ -4129,160 +4147,166 @@
                                                     },
                                                     [
                                                       {
-                                                        "TInt": []
-                                                      },
-                                                      {
-                                                        "TFloat": []
-                                                      },
-                                                      {
-                                                        "TBool": []
-                                                      },
-                                                      {
-                                                        "TUnit": []
-                                                      },
-                                                      {
-                                                        "TString": []
-                                                      },
-                                                      {
-                                                        "TList": [
-                                                          {
-                                                            "TInt": []
-                                                          }
-                                                        ]
-                                                      },
-                                                      {
                                                         "TTuple": [
                                                           {
-                                                            "TBool": []
+                                                            "TInt": []
                                                           },
                                                           {
-                                                            "TBool": []
+                                                            "TFloat": []
                                                           },
                                                           [
                                                             {
                                                               "TBool": []
-                                                            }
-                                                          ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TDict": [
-                                                          {
-                                                            "TBool": []
-                                                          }
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TDB": [
-                                                          {
-                                                            "TBool": []
-                                                          }
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TCustomType": [
-                                                          {
-                                                            "Ok": [
-                                                              {
-                                                                "UserProgram": [
+                                                            },
+                                                            {
+                                                              "TUnit": []
+                                                            },
+                                                            {
+                                                              "TString": []
+                                                            },
+                                                            {
+                                                              "TList": [
+                                                                {
+                                                                  "TInt": []
+                                                                }
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TTuple": [
+                                                                {
+                                                                  "TBool": []
+                                                                },
+                                                                {
+                                                                  "TBool": []
+                                                                },
+                                                                [
                                                                   {
-                                                                    "modules": [
-                                                                      "Mod"
-                                                                    ],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "User"
-                                                                      ]
-                                                                    },
-                                                                    "version": 0
+                                                                    "TBool": []
                                                                   }
                                                                 ]
-                                                              }
-                                                            ]
-                                                          },
-                                                          [
+                                                              ]
+                                                            },
                                                             {
-                                                              "TBool": []
-                                                            }
-                                                          ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TCustomType": [
-                                                          {
-                                                            "Ok": [
-                                                              {
-                                                                "BuiltIn": [
-                                                                  {
-                                                                    "modules": [
-                                                                      "Mod"
-                                                                    ],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "User"
+                                                              "TDict": [
+                                                                {
+                                                                  "TBool": []
+                                                                }
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TDB": [
+                                                                {
+                                                                  "TBool": []
+                                                                }
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TCustomType": [
+                                                                {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "UserProgram": [
+                                                                        {
+                                                                          "modules": [
+                                                                            "Mod"
+                                                                          ],
+                                                                          "name": {
+                                                                            "TypeName": [
+                                                                              "User"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
                                                                       ]
-                                                                    },
-                                                                    "version": 0
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                [
+                                                                  {
+                                                                    "TBool": []
                                                                   }
                                                                 ]
-                                                              }
-                                                            ]
-                                                          },
-                                                          [
+                                                              ]
+                                                            },
                                                             {
-                                                              "TBool": []
-                                                            }
-                                                          ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TCustomType": [
-                                                          {
-                                                            "Ok": [
-                                                              {
-                                                                "Package": [
-                                                                  {
-                                                                    "owner": "dark",
-                                                                    "modules": [
-                                                                      "Mod1",
-                                                                      "Mod2"
-                                                                    ],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "Pack"
+                                                              "TCustomType": [
+                                                                {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "BuiltIn": [
+                                                                        {
+                                                                          "modules": [
+                                                                            "Mod"
+                                                                          ],
+                                                                          "name": {
+                                                                            "TypeName": [
+                                                                              "User"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
                                                                       ]
-                                                                    },
-                                                                    "version": 0
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                [
+                                                                  {
+                                                                    "TBool": []
                                                                   }
                                                                 ]
-                                                              }
-                                                            ]
-                                                          },
-                                                          [
+                                                              ]
+                                                            },
                                                             {
-                                                              "TBool": []
+                                                              "TCustomType": [
+                                                                {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "Package": [
+                                                                        {
+                                                                          "owner": "dark",
+                                                                          "modules": [
+                                                                            "Mod1",
+                                                                            "Mod2"
+                                                                          ],
+                                                                          "name": {
+                                                                            "TypeName": [
+                                                                              "Pack"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                [
+                                                                  {
+                                                                    "TBool": []
+                                                                  }
+                                                                ]
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TBytes": []
+                                                            },
+                                                            {
+                                                              "TVariable": [
+                                                                "test"
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TFn": [
+                                                                [
+                                                                  {
+                                                                    "TBool": []
+                                                                  }
+                                                                ],
+                                                                {
+                                                                  "TBool": []
+                                                                }
+                                                              ]
                                                             }
                                                           ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TBytes": []
-                                                      },
-                                                      {
-                                                        "TVariable": [
-                                                          "test"
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TFn": [
-                                                          [
-                                                            {
-                                                              "TBool": []
-                                                            }
-                                                          ],
-                                                          {
-                                                            "TBool": []
-                                                          }
                                                         ]
                                                       }
                                                     ],
@@ -5210,25 +5234,166 @@
         "name": "User",
         "version": 0,
         "typ": {
-          "TCustomType": [
+          "TTuple": [
             {
-              "Ok": [
-                {
-                  "UserProgram": [
+              "TInt": []
+            },
+            {
+              "TFloat": []
+            },
+            [
+              {
+                "TBool": []
+              },
+              {
+                "TUnit": []
+              },
+              {
+                "TString": []
+              },
+              {
+                "TList": [
+                  {
+                    "TInt": []
+                  }
+                ]
+              },
+              {
+                "TTuple": [
+                  {
+                    "TBool": []
+                  },
+                  {
+                    "TBool": []
+                  },
+                  [
                     {
-                      "modules": [],
-                      "name": {
-                        "TypeName": [
-                          "User"
-                        ]
-                      },
-                      "version": 0
+                      "TBool": []
                     }
                   ]
-                }
-              ]
-            },
-            []
+                ]
+              },
+              {
+                "TDict": [
+                  {
+                    "TBool": []
+                  }
+                ]
+              },
+              {
+                "TDB": [
+                  {
+                    "TBool": []
+                  }
+                ]
+              },
+              {
+                "TCustomType": [
+                  {
+                    "Ok": [
+                      {
+                        "UserProgram": [
+                          {
+                            "modules": [
+                              "Mod"
+                            ],
+                            "name": {
+                              "TypeName": [
+                                "User"
+                              ]
+                            },
+                            "version": 0
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  [
+                    {
+                      "TBool": []
+                    }
+                  ]
+                ]
+              },
+              {
+                "TCustomType": [
+                  {
+                    "Ok": [
+                      {
+                        "BuiltIn": [
+                          {
+                            "modules": [
+                              "Mod"
+                            ],
+                            "name": {
+                              "TypeName": [
+                                "User"
+                              ]
+                            },
+                            "version": 0
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  [
+                    {
+                      "TBool": []
+                    }
+                  ]
+                ]
+              },
+              {
+                "TCustomType": [
+                  {
+                    "Ok": [
+                      {
+                        "Package": [
+                          {
+                            "owner": "dark",
+                            "modules": [
+                              "Mod1",
+                              "Mod2"
+                            ],
+                            "name": {
+                              "TypeName": [
+                                "Pack"
+                              ]
+                            },
+                            "version": 0
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  [
+                    {
+                      "TBool": []
+                    }
+                  ]
+                ]
+              },
+              {
+                "TBytes": []
+              },
+              {
+                "TVariable": [
+                  "test"
+                ]
+              },
+              {
+                "TFn": [
+                  [
+                    {
+                      "TBool": []
+                    }
+                  ],
+                  {
+                    "TBool": []
+                  }
+                ]
+              }
+            ]
           ]
         }
       }
@@ -5256,36 +5421,12 @@
             "typ": {
               "TTuple": [
                 {
-                  "TList": [
-                    {
-                      "TDict": [
-                        {
-                          "TDB": [
-                            {
-                              "TFn": [
-                                [
-                                  {
-                                    "TFloat": []
-                                  }
-                                ],
-                                {
-                                  "TUnit": []
-                                }
-                              ]
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
                   "TInt": []
                 },
+                {
+                  "TFloat": []
+                },
                 [
-                  {
-                    "TFloat": []
-                  },
                   {
                     "TBool": []
                   },
@@ -5305,39 +5446,31 @@
                   {
                     "TTuple": [
                       {
-                        "TInt": []
+                        "TBool": []
                       },
                       {
-                        "TString": []
+                        "TBool": []
                       },
-                      []
+                      [
+                        {
+                          "TBool": []
+                        }
+                      ]
                     ]
                   },
                   {
                     "TDict": [
                       {
-                        "TInt": []
+                        "TBool": []
                       }
                     ]
                   },
                   {
                     "TDB": [
                       {
-                        "TInt": []
+                        "TBool": []
                       }
                     ]
-                  },
-                  {
-                    "TDateTime": []
-                  },
-                  {
-                    "TChar": []
-                  },
-                  {
-                    "TPassword": []
-                  },
-                  {
-                    "TUuid": []
                   },
                   {
                     "TCustomType": [
@@ -5351,7 +5484,7 @@
                                 ],
                                 "name": {
                                   "TypeName": [
-                                    "name"
+                                    "User"
                                   ]
                                 },
                                 "version": 0
@@ -5360,7 +5493,69 @@
                           }
                         ]
                       },
-                      []
+                      [
+                        {
+                          "TBool": []
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "TCustomType": [
+                      {
+                        "Ok": [
+                          {
+                            "BuiltIn": [
+                              {
+                                "modules": [
+                                  "Mod"
+                                ],
+                                "name": {
+                                  "TypeName": [
+                                    "User"
+                                  ]
+                                },
+                                "version": 0
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      [
+                        {
+                          "TBool": []
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "TCustomType": [
+                      {
+                        "Ok": [
+                          {
+                            "Package": [
+                              {
+                                "owner": "dark",
+                                "modules": [
+                                  "Mod1",
+                                  "Mod2"
+                                ],
+                                "name": {
+                                  "TypeName": [
+                                    "Pack"
+                                  ]
+                                },
+                                "version": 0
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      [
+                        {
+                          "TBool": []
+                        }
+                      ]
                     ]
                   },
                   {
@@ -5368,18 +5563,18 @@
                   },
                   {
                     "TVariable": [
-                      "v"
+                      "test"
                     ]
                   },
                   {
                     "TFn": [
                       [
                         {
-                          "TInt": []
+                          "TBool": []
                         }
                       ],
                       {
-                        "TInt": []
+                        "TBool": []
                       }
                     ]
                   }
@@ -5392,36 +5587,12 @@
         "returnType": {
           "TTuple": [
             {
-              "TList": [
-                {
-                  "TDict": [
-                    {
-                      "TDB": [
-                        {
-                          "TFn": [
-                            [
-                              {
-                                "TFloat": []
-                              }
-                            ],
-                            {
-                              "TUnit": []
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
-            {
               "TInt": []
             },
+            {
+              "TFloat": []
+            },
             [
-              {
-                "TFloat": []
-              },
               {
                 "TBool": []
               },
@@ -5441,39 +5612,31 @@
               {
                 "TTuple": [
                   {
-                    "TInt": []
+                    "TBool": []
                   },
                   {
-                    "TString": []
+                    "TBool": []
                   },
-                  []
+                  [
+                    {
+                      "TBool": []
+                    }
+                  ]
                 ]
               },
               {
                 "TDict": [
                   {
-                    "TInt": []
+                    "TBool": []
                   }
                 ]
               },
               {
                 "TDB": [
                   {
-                    "TInt": []
+                    "TBool": []
                   }
                 ]
-              },
-              {
-                "TDateTime": []
-              },
-              {
-                "TChar": []
-              },
-              {
-                "TPassword": []
-              },
-              {
-                "TUuid": []
               },
               {
                 "TCustomType": [
@@ -5487,7 +5650,7 @@
                             ],
                             "name": {
                               "TypeName": [
-                                "name"
+                                "User"
                               ]
                             },
                             "version": 0
@@ -5496,7 +5659,69 @@
                       }
                     ]
                   },
-                  []
+                  [
+                    {
+                      "TBool": []
+                    }
+                  ]
+                ]
+              },
+              {
+                "TCustomType": [
+                  {
+                    "Ok": [
+                      {
+                        "BuiltIn": [
+                          {
+                            "modules": [
+                              "Mod"
+                            ],
+                            "name": {
+                              "TypeName": [
+                                "User"
+                              ]
+                            },
+                            "version": 0
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  [
+                    {
+                      "TBool": []
+                    }
+                  ]
+                ]
+              },
+              {
+                "TCustomType": [
+                  {
+                    "Ok": [
+                      {
+                        "Package": [
+                          {
+                            "owner": "dark",
+                            "modules": [
+                              "Mod1",
+                              "Mod2"
+                            ],
+                            "name": {
+                              "TypeName": [
+                                "Pack"
+                              ]
+                            },
+                            "version": 0
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  [
+                    {
+                      "TBool": []
+                    }
+                  ]
                 ]
               },
               {
@@ -5504,18 +5729,18 @@
               },
               {
                 "TVariable": [
-                  "v"
+                  "test"
                 ]
               },
               {
                 "TFn": [
                   [
                     {
-                      "TInt": []
+                      "TBool": []
                     }
                   ],
                   {
-                    "TInt": []
+                    "TBool": []
                   }
                 ]
               }
@@ -5751,160 +5976,166 @@
                                                     },
                                                     [
                                                       {
-                                                        "TInt": []
-                                                      },
-                                                      {
-                                                        "TFloat": []
-                                                      },
-                                                      {
-                                                        "TBool": []
-                                                      },
-                                                      {
-                                                        "TUnit": []
-                                                      },
-                                                      {
-                                                        "TString": []
-                                                      },
-                                                      {
-                                                        "TList": [
-                                                          {
-                                                            "TInt": []
-                                                          }
-                                                        ]
-                                                      },
-                                                      {
                                                         "TTuple": [
                                                           {
-                                                            "TBool": []
+                                                            "TInt": []
                                                           },
                                                           {
-                                                            "TBool": []
+                                                            "TFloat": []
                                                           },
                                                           [
                                                             {
                                                               "TBool": []
-                                                            }
-                                                          ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TDict": [
-                                                          {
-                                                            "TBool": []
-                                                          }
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TDB": [
-                                                          {
-                                                            "TBool": []
-                                                          }
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TCustomType": [
-                                                          {
-                                                            "Ok": [
-                                                              {
-                                                                "UserProgram": [
+                                                            },
+                                                            {
+                                                              "TUnit": []
+                                                            },
+                                                            {
+                                                              "TString": []
+                                                            },
+                                                            {
+                                                              "TList": [
+                                                                {
+                                                                  "TInt": []
+                                                                }
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TTuple": [
+                                                                {
+                                                                  "TBool": []
+                                                                },
+                                                                {
+                                                                  "TBool": []
+                                                                },
+                                                                [
                                                                   {
-                                                                    "modules": [
-                                                                      "Mod"
-                                                                    ],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "User"
-                                                                      ]
-                                                                    },
-                                                                    "version": 0
+                                                                    "TBool": []
                                                                   }
                                                                 ]
-                                                              }
-                                                            ]
-                                                          },
-                                                          [
+                                                              ]
+                                                            },
                                                             {
-                                                              "TBool": []
-                                                            }
-                                                          ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TCustomType": [
-                                                          {
-                                                            "Ok": [
-                                                              {
-                                                                "BuiltIn": [
-                                                                  {
-                                                                    "modules": [
-                                                                      "Mod"
-                                                                    ],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "User"
+                                                              "TDict": [
+                                                                {
+                                                                  "TBool": []
+                                                                }
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TDB": [
+                                                                {
+                                                                  "TBool": []
+                                                                }
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TCustomType": [
+                                                                {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "UserProgram": [
+                                                                        {
+                                                                          "modules": [
+                                                                            "Mod"
+                                                                          ],
+                                                                          "name": {
+                                                                            "TypeName": [
+                                                                              "User"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
                                                                       ]
-                                                                    },
-                                                                    "version": 0
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                [
+                                                                  {
+                                                                    "TBool": []
                                                                   }
                                                                 ]
-                                                              }
-                                                            ]
-                                                          },
-                                                          [
+                                                              ]
+                                                            },
                                                             {
-                                                              "TBool": []
-                                                            }
-                                                          ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TCustomType": [
-                                                          {
-                                                            "Ok": [
-                                                              {
-                                                                "Package": [
-                                                                  {
-                                                                    "owner": "dark",
-                                                                    "modules": [
-                                                                      "Mod1",
-                                                                      "Mod2"
-                                                                    ],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "Pack"
+                                                              "TCustomType": [
+                                                                {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "BuiltIn": [
+                                                                        {
+                                                                          "modules": [
+                                                                            "Mod"
+                                                                          ],
+                                                                          "name": {
+                                                                            "TypeName": [
+                                                                              "User"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
                                                                       ]
-                                                                    },
-                                                                    "version": 0
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                [
+                                                                  {
+                                                                    "TBool": []
                                                                   }
                                                                 ]
-                                                              }
-                                                            ]
-                                                          },
-                                                          [
+                                                              ]
+                                                            },
                                                             {
-                                                              "TBool": []
+                                                              "TCustomType": [
+                                                                {
+                                                                  "Ok": [
+                                                                    {
+                                                                      "Package": [
+                                                                        {
+                                                                          "owner": "dark",
+                                                                          "modules": [
+                                                                            "Mod1",
+                                                                            "Mod2"
+                                                                          ],
+                                                                          "name": {
+                                                                            "TypeName": [
+                                                                              "Pack"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                [
+                                                                  {
+                                                                    "TBool": []
+                                                                  }
+                                                                ]
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TBytes": []
+                                                            },
+                                                            {
+                                                              "TVariable": [
+                                                                "test"
+                                                              ]
+                                                            },
+                                                            {
+                                                              "TFn": [
+                                                                [
+                                                                  {
+                                                                    "TBool": []
+                                                                  }
+                                                                ],
+                                                                {
+                                                                  "TBool": []
+                                                                }
+                                                              ]
                                                             }
                                                           ]
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TBytes": []
-                                                      },
-                                                      {
-                                                        "TVariable": [
-                                                          "test"
-                                                        ]
-                                                      },
-                                                      {
-                                                        "TFn": [
-                                                          [
-                                                            {
-                                                              "TBool": []
-                                                            }
-                                                          ],
-                                                          {
-                                                            "TBool": []
-                                                          }
                                                         ]
                                                       }
                                                     ],
@@ -6820,6 +7051,69 @@
     ]
   },
   {
+    "TLConstant": [
+      {
+        "tlid": 0,
+        "name": {
+          "modules": [],
+          "name": {
+            "ConstantName": [
+              "Pi"
+            ]
+          },
+          "version": 0
+        },
+        "description": "constant description",
+        "deprecated": {
+          "DeprecatedBecause": [
+            "some reason"
+          ]
+        },
+        "body": {
+          "CTuple": [
+            {
+              "CInt": [
+                314
+              ]
+            },
+            {
+              "CBool": [
+                true
+              ]
+            },
+            [
+              {
+                "CString": [
+                  "string"
+                ]
+              },
+              {
+                "CUnit": []
+              },
+              {
+                "CFloat": [
+                  {
+                    "Positive": []
+                  },
+                  "3",
+                  "14"
+                ]
+              },
+              {
+                "CChar": [
+                  "c"
+                ]
+              },
+              {
+                "CUnit": []
+              }
+            ]
+          ]
+        }
+      }
+    ]
+  },
+  {
     "TLType": [
       {
         "tlid": 0,
@@ -6843,36 +7137,12 @@
                 "typ": {
                   "TTuple": [
                     {
-                      "TList": [
-                        {
-                          "TDict": [
-                            {
-                              "TDB": [
-                                {
-                                  "TFn": [
-                                    [
-                                      {
-                                        "TFloat": []
-                                      }
-                                    ],
-                                    {
-                                      "TUnit": []
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
                       "TInt": []
                     },
+                    {
+                      "TFloat": []
+                    },
                     [
-                      {
-                        "TFloat": []
-                      },
                       {
                         "TBool": []
                       },
@@ -6892,39 +7162,31 @@
                       {
                         "TTuple": [
                           {
-                            "TInt": []
+                            "TBool": []
                           },
                           {
-                            "TString": []
+                            "TBool": []
                           },
-                          []
+                          [
+                            {
+                              "TBool": []
+                            }
+                          ]
                         ]
                       },
                       {
                         "TDict": [
                           {
-                            "TInt": []
+                            "TBool": []
                           }
                         ]
                       },
                       {
                         "TDB": [
                           {
-                            "TInt": []
+                            "TBool": []
                           }
                         ]
-                      },
-                      {
-                        "TDateTime": []
-                      },
-                      {
-                        "TChar": []
-                      },
-                      {
-                        "TPassword": []
-                      },
-                      {
-                        "TUuid": []
                       },
                       {
                         "TCustomType": [
@@ -6938,7 +7200,7 @@
                                     ],
                                     "name": {
                                       "TypeName": [
-                                        "name"
+                                        "User"
                                       ]
                                     },
                                     "version": 0
@@ -6947,7 +7209,69 @@
                               }
                             ]
                           },
-                          []
+                          [
+                            {
+                              "TBool": []
+                            }
+                          ]
+                        ]
+                      },
+                      {
+                        "TCustomType": [
+                          {
+                            "Ok": [
+                              {
+                                "BuiltIn": [
+                                  {
+                                    "modules": [
+                                      "Mod"
+                                    ],
+                                    "name": {
+                                      "TypeName": [
+                                        "User"
+                                      ]
+                                    },
+                                    "version": 0
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          [
+                            {
+                              "TBool": []
+                            }
+                          ]
+                        ]
+                      },
+                      {
+                        "TCustomType": [
+                          {
+                            "Ok": [
+                              {
+                                "Package": [
+                                  {
+                                    "owner": "dark",
+                                    "modules": [
+                                      "Mod1",
+                                      "Mod2"
+                                    ],
+                                    "name": {
+                                      "TypeName": [
+                                        "Pack"
+                                      ]
+                                    },
+                                    "version": 0
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          [
+                            {
+                              "TBool": []
+                            }
+                          ]
                         ]
                       },
                       {
@@ -6955,18 +7279,18 @@
                       },
                       {
                         "TVariable": [
-                          "v"
+                          "test"
                         ]
                       },
                       {
                         "TFn": [
                           [
                             {
-                              "TInt": []
+                              "TBool": []
                             }
                           ],
                           {
-                            "TInt": []
+                            "TBool": []
                           }
                         ]
                       }
@@ -7018,36 +7342,12 @@
                       "typ": {
                         "TTuple": [
                           {
-                            "TList": [
-                              {
-                                "TDict": [
-                                  {
-                                    "TDB": [
-                                      {
-                                        "TFn": [
-                                          [
-                                            {
-                                              "TFloat": []
-                                            }
-                                          ],
-                                          {
-                                            "TUnit": []
-                                          }
-                                        ]
-                                      }
-                                    ]
-                                  }
-                                ]
-                              }
-                            ]
-                          },
-                          {
                             "TInt": []
                           },
+                          {
+                            "TFloat": []
+                          },
                           [
-                            {
-                              "TFloat": []
-                            },
                             {
                               "TBool": []
                             },
@@ -7067,39 +7367,31 @@
                             {
                               "TTuple": [
                                 {
-                                  "TInt": []
+                                  "TBool": []
                                 },
                                 {
-                                  "TString": []
+                                  "TBool": []
                                 },
-                                []
+                                [
+                                  {
+                                    "TBool": []
+                                  }
+                                ]
                               ]
                             },
                             {
                               "TDict": [
                                 {
-                                  "TInt": []
+                                  "TBool": []
                                 }
                               ]
                             },
                             {
                               "TDB": [
                                 {
-                                  "TInt": []
+                                  "TBool": []
                                 }
                               ]
-                            },
-                            {
-                              "TDateTime": []
-                            },
-                            {
-                              "TChar": []
-                            },
-                            {
-                              "TPassword": []
-                            },
-                            {
-                              "TUuid": []
                             },
                             {
                               "TCustomType": [
@@ -7113,7 +7405,7 @@
                                           ],
                                           "name": {
                                             "TypeName": [
-                                              "name"
+                                              "User"
                                             ]
                                           },
                                           "version": 0
@@ -7122,7 +7414,69 @@
                                     }
                                   ]
                                 },
-                                []
+                                [
+                                  {
+                                    "TBool": []
+                                  }
+                                ]
+                              ]
+                            },
+                            {
+                              "TCustomType": [
+                                {
+                                  "Ok": [
+                                    {
+                                      "BuiltIn": [
+                                        {
+                                          "modules": [
+                                            "Mod"
+                                          ],
+                                          "name": {
+                                            "TypeName": [
+                                              "User"
+                                            ]
+                                          },
+                                          "version": 0
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                [
+                                  {
+                                    "TBool": []
+                                  }
+                                ]
+                              ]
+                            },
+                            {
+                              "TCustomType": [
+                                {
+                                  "Ok": [
+                                    {
+                                      "Package": [
+                                        {
+                                          "owner": "dark",
+                                          "modules": [
+                                            "Mod1",
+                                            "Mod2"
+                                          ],
+                                          "name": {
+                                            "TypeName": [
+                                              "Pack"
+                                            ]
+                                          },
+                                          "version": 0
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                [
+                                  {
+                                    "TBool": []
+                                  }
+                                ]
                               ]
                             },
                             {
@@ -7130,18 +7484,18 @@
                             },
                             {
                               "TVariable": [
-                                "v"
+                                "test"
                               ]
                             },
                             {
                               "TFn": [
                                 [
                                   {
-                                    "TInt": []
+                                    "TBool": []
                                   }
                                 ],
                                 {
-                                  "TInt": []
+                                  "TBool": []
                                 }
                               ]
                             }

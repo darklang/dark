@@ -25,6 +25,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EChar _
   | EUnit _
   | EVariable _
+  | EConstant _
   | EFloat _ -> expr
   | ELet(id, pat, rhs, next) -> ELet(id, pat, f rhs, f next)
   | EString(id, strs) ->
@@ -67,6 +68,7 @@ let rec preTraversal
   (typeRefFn : TypeReference -> TypeReference)
   (fqtnFn : TypeName.T -> TypeName.T)
   (fqfnFn : FnName.T -> FnName.T)
+  (fqctFn : ConstantName.T -> ConstantName.T)
   (letPatternFn : LetPattern -> LetPattern)
   (matchPatternFn : MatchPattern -> MatchPattern)
   (expr : Expr)
@@ -121,6 +123,7 @@ let rec preTraversal
       typeRefFn
       fqtnFn
       fqfnFn
+      fqctFn
       letPatternFn
       matchPatternFn
 
@@ -144,6 +147,7 @@ let rec preTraversal
   | EBool _
   | EChar _
   | EUnit _
+  | EConstant _
   | EVariable _
   | EFloat _ -> expr
   | EString(id, strs) ->

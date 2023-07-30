@@ -94,10 +94,12 @@ type T =
     dbs : Map<tlid, PT.DB.T>
     userFunctions : Map<tlid, PT.UserFunction.T>
     userTypes : Map<tlid, PT.UserType.T>
+    userConstants : Map<tlid, PT.UserConstant.T>
     deletedHandlers : Map<tlid, PT.Handler.T>
     deletedDBs : Map<tlid, PT.DB.T>
     deletedUserFunctions : Map<tlid, PT.UserFunction.T>
     deletedUserTypes : Map<tlid, PT.UserType.T>
+    deletedUserConstants : Map<tlid, PT.UserConstant.T>
     secrets : Map<string, PT.Secret.T> }
 
 let addToplevel (deleted : Serialize.Deleted) (tl : PT.Toplevel.T) (c : T) : T =
@@ -112,7 +114,8 @@ let addToplevel (deleted : Serialize.Deleted) (tl : PT.Toplevel.T) (c : T) : T =
     { c with userTypes = Map.add tlid t c.userTypes }
   | Serialize.NotDeleted, PT.Toplevel.TLFunction f ->
     { c with userFunctions = Map.add tlid f c.userFunctions }
-
+  | Serialize.NotDeleted, PT.Toplevel.TLConstant cn ->
+    { c with userConstants = Map.add tlid cn c.userConstants }
   | Serialize.Deleted, PT.Toplevel.TLHandler h ->
     { c with deletedHandlers = Map.add tlid h c.deletedHandlers }
   | Serialize.Deleted, PT.Toplevel.TLDB db ->
@@ -121,6 +124,9 @@ let addToplevel (deleted : Serialize.Deleted) (tl : PT.Toplevel.T) (c : T) : T =
     { c with deletedUserTypes = Map.add tlid t c.deletedUserTypes }
   | Serialize.Deleted, PT.Toplevel.TLFunction f ->
     { c with deletedUserFunctions = Map.add tlid f c.deletedUserFunctions }
+  | Serialize.Deleted, PT.Toplevel.TLConstant cn ->
+    { c with deletedUserConstants = Map.add tlid cn c.deletedUserConstants }
+
 
 let addToplevels (tls : List<Serialize.Deleted * PT.Toplevel.T>) (canvas : T) : T =
   List.fold canvas (fun c (deleted, tl) -> addToplevel deleted tl c) tls
@@ -131,7 +137,8 @@ let toplevels (c : T) : Map<tlid, PT.Toplevel.T> =
   [ map PT.Toplevel.TLHandler c.handlers
     map PT.Toplevel.TLDB c.dbs
     map PT.Toplevel.TLType c.userTypes
-    map PT.Toplevel.TLFunction c.userFunctions ]
+    map PT.Toplevel.TLFunction c.userFunctions
+    map PT.Toplevel.TLConstant c.userConstants ]
   |> Seq.concat
   |> Map
 
@@ -141,7 +148,8 @@ let deletedToplevels (c : T) : Map<tlid, PT.Toplevel.T> =
   [ map PT.Toplevel.TLHandler c.deletedHandlers
     map PT.Toplevel.TLDB c.deletedDBs
     map PT.Toplevel.TLType c.deletedUserTypes
-    map PT.Toplevel.TLFunction c.deletedUserFunctions ]
+    map PT.Toplevel.TLFunction c.deletedUserFunctions
+    map PT.Toplevel.TLConstant c.deletedUserConstants ]
   |> Seq.concat
   |> Map
 
@@ -254,10 +262,12 @@ let empty (id : CanvasID) =
     dbs = Map.empty
     userFunctions = Map.empty
     userTypes = Map.empty
+    userConstants = Map.empty
     deletedHandlers = Map.empty
     deletedDBs = Map.empty
     deletedUserFunctions = Map.empty
     deletedUserTypes = Map.empty
+    deletedUserConstants = Map.empty
     secrets = Map.empty }
 
 let loadFrom (id : CanvasID) (tlids : List<tlid>) : Task<T> =
@@ -423,6 +433,7 @@ let saveTLIDs
               )
           | PT.Toplevel.TLDB _
           | PT.Toplevel.TLType _
+          | PT.Toplevel.TLConstant _
           | PT.Toplevel.TLFunction _ -> None
 
         let (module_, name, modifier) =
@@ -541,11 +552,20 @@ let toProgram (c : T) : RT.Program =
       (PT2RT.TypeName.UserProgram.toRT t.name, PT2RT.UserType.toRT t))
     |> Map.ofList
 
+
+  let userConstants =
+    c.userConstants
+    |> Map.values
+    |> List.map (fun c ->
+      (PT2RT.ConstantName.UserProgram.toRT c.name, PT2RT.UserConstant.toRT c))
+    |> Map.ofList
+
   let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
 
   { canvasID = c.id
     internalFnsAllowed = List.contains c.id Config.allowedDarkInternalCanvasIDs
     fns = userFns
     types = userTypes
+    constants = userConstants
     dbs = dbs
     secrets = secrets }

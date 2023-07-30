@@ -19,11 +19,13 @@ type WTTest =
 type WTModule =
   { name : List<string>
     types : List<WT.UserType.T>
-    dbs : List<WT.DB.T>
     fns : List<WT.UserFunction.T>
+    constants : List<WT.UserConstant.T>
+    dbs : List<WT.DB.T>
     tests : List<WTTest> }
 
-let emptyWTModule = { name = []; types = []; dbs = []; fns = []; tests = [] }
+let emptyWTModule =
+  { name = []; types = []; constants = []; fns = []; dbs = []; tests = [] }
 
 type PTTest =
   { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
@@ -31,11 +33,13 @@ type PTTest =
 type PTModule =
   { name : List<string>
     types : List<PT.UserType.T>
-    dbs : List<PT.DB.T>
     fns : List<PT.UserFunction.T>
+    constants : List<PT.UserConstant.T>
+    dbs : List<PT.DB.T>
     tests : List<PTTest> }
 
-let emptyPTModule = { name = []; types = []; dbs = []; fns = []; tests = [] }
+let emptyPTModule =
+  { name = []; types = []; fns = []; constants = []; dbs = []; tests = [] }
 
 type RTTest =
   { name : string; lineNumber : int; actual : RT.Expr; expected : RT.Expr }
@@ -43,12 +47,14 @@ type RTTest =
 type RTModule =
   { name : List<string>
     types : List<PT.UserType.T>
-    dbs : List<PT.DB.T>
     fns : List<PT.UserFunction.T>
+    constants : List<PT.UserConstant.T>
+    dbs : List<PT.DB.T>
     tests : List<RTTest> }
 
 
-let emptyRTModule = { name = []; types = []; dbs = []; fns = []; tests = [] }
+let emptyRTModule =
+  { name = []; types = []; fns = []; constants = []; dbs = []; tests = [] }
 
 
 module UserDB =
@@ -105,6 +111,19 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
       else
         [], [ FS2WT.UserType.fromSynTypeDefn moduleName typeDefn ]
 
+  let parseSynBinding
+    (moduleName : List<string>)
+    (binding : SynBinding)
+    : List<WT.UserFunction.T> * List<WT.UserConstant.T> =
+    match binding with
+    | SynBinding(_, _, _, _, _, _, _, signature, _, expr, _, _, _) ->
+      match signature with
+      | SynPat.LongIdent(SynLongIdent _, _, _, _, _, _) ->
+        [ FS2WT.UserFunction.fromSynBinding moduleName binding ], []
+      | SynPat.Named _ ->
+        [], [ FS2WT.UserConstant.fromSynBinding moduleName binding ]
+      | _ -> Exception.raiseInternal $"Unsupported binding" [ "binding", binding ]
+
   let rec parseModule
     (moduleName : List<string>)
     (parentDBs : List<WT.DB.T>)
@@ -116,9 +135,12 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
         (fun (m, nested) decl ->
           match decl with
           | SynModuleDecl.Let(_, bindings, _) ->
-            let newUserFns =
-              List.map (FS2WT.UserFunction.fromSynBinding moduleName) bindings
-            ({ m with fns = m.fns @ newUserFns }, nested)
+            let (newUserFns, newUserConstants) =
+              bindings |> List.map (parseSynBinding moduleName) |> List.unzip
+            ({ m with
+                fns = m.fns @ List.concat newUserFns
+                constants = m.constants @ List.concat newUserConstants },
+             nested)
 
           | SynModuleDecl.Types(defns, _) ->
             let (dbs, types) =
@@ -171,6 +193,7 @@ let rec toPT (resolver : NameResolver.NameResolver) (m : WTModule) : PTModule =
   { name = m.name
     fns = m.fns |> List.map (WT2PT.UserFunction.toPT resolver m.name)
     types = m.types |> List.map (WT2PT.UserType.toPT resolver m.name)
+    constants = m.constants |> List.map (WT2PT.UserConstant.toPT resolver m.name)
     dbs = m.dbs |> List.map (WT2PT.DB.toPT resolver m.name)
     tests =
       m.tests
@@ -179,7 +202,6 @@ let rec toPT (resolver : NameResolver.NameResolver) (m : WTModule) : PTModule =
           expected = WT2PT.Expr.toPT resolver m.name test.expected
           lineNumber = test.lineNumber
           name = test.name }) }
-
 
 
 
@@ -196,15 +218,20 @@ let parseTestFile
     |> parseAsFSharpSourceFile filename
     |> parseFile
 
-
   let fns = modules |> List.map (fun m -> m.fns) |> List.concat
   let fnNames = fns |> List.map (fun fn -> fn.name) |> Set.ofList
 
   let types = modules |> List.map (fun m -> m.types) |> List.concat
   let typeNames = types |> List.map (fun typ -> typ.name) |> Set.ofList
 
+  let constants = modules |> List.map (fun m -> m.constants) |> List.concat
+  let constantNames = constants |> List.map (fun c -> c.name) |> Set.ofList
+
   let programResolver =
-    { NameResolver.empty with userFns = fnNames; userTypes = typeNames }
+    { NameResolver.empty with
+        userFns = fnNames
+        userTypes = typeNames
+        userConstants = constantNames }
   let resolver = NameResolver.merge baseResolver programResolver
 
   modules |> List.map (toPT resolver)

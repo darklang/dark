@@ -171,6 +171,55 @@ module NameResolution =
     | Error err -> Error(Error.toPT err)
 
 
+
+module ConstantName =
+  module BuiltIn =
+    let toST (b : PT.ConstantName.BuiltIn) : ST.ConstantName.BuiltIn =
+      let (PT.ConstantName.ConstantName name) = b.name
+      { modules = b.modules; name = name; version = b.version }
+
+    let toPT (b : ST.ConstantName.BuiltIn) : PT.ConstantName.BuiltIn =
+      { modules = b.modules
+        name = PT.ConstantName.ConstantName b.name
+        version = b.version }
+
+  module UserProgram =
+    let toST (u : PT.ConstantName.UserProgram) : ST.ConstantName.UserProgram =
+      let (PT.ConstantName.ConstantName name) = u.name
+      { modules = u.modules; name = name; version = u.version }
+
+    let toPT (u : ST.ConstantName.UserProgram) : PT.ConstantName.UserProgram =
+      { modules = u.modules
+        name = PT.ConstantName.ConstantName u.name
+        version = u.version }
+
+  module Package =
+    let toST (p : PT.ConstantName.Package) : ST.ConstantName.Package =
+      let (PT.ConstantName.ConstantName name) = p.name
+      { owner = p.owner
+        modules = { head = p.modules.Head; tail = p.modules.Tail }
+        name = name
+        version = p.version }
+
+    let toPT (p : ST.ConstantName.Package) : PT.ConstantName.Package =
+      { owner = p.owner
+        modules = { Head = p.modules.head; Tail = p.modules.tail }
+        name = PT.ConstantName.ConstantName p.name
+        version = p.version }
+
+  let toST (fqConstant : PT.ConstantName.T) : ST.ConstantName.T =
+    match fqConstant with
+    | PT.FQName.BuiltIn s -> ST.ConstantName.BuiltIn(BuiltIn.toST s) // ConstantName.BuiltIn(BuiltIn.toST s)
+    | PT.FQName.UserProgram u -> ST.ConstantName.UserProgram(UserProgram.toST u)
+    | PT.FQName.Package p -> ST.ConstantName.Package(Package.toST p)
+
+  let toPT (fqConstant : ST.ConstantName.T) : PT.ConstantName.T =
+    match fqConstant with
+    | ST.ConstantName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
+    | ST.ConstantName.UserProgram u -> PT.FQName.UserProgram(UserProgram.toPT u)
+    | ST.ConstantName.Package p -> PT.FQName.Package(Package.toPT p)
+
+
 module InfixFnName =
   let toST (name : PT.InfixFnName) : ST.InfixFnName =
     match name with
@@ -325,6 +374,8 @@ module Expr =
     | PT.EFloat(id, sign, whole, fraction) -> ST.EFloat(id, sign, whole, fraction)
     | PT.EBool(id, b) -> ST.EBool(id, b)
     | PT.EUnit id -> ST.EUnit id
+    | PT.EConstant(id, name) ->
+      ST.EConstant(id, NameResolution.toST ConstantName.toST name)
     | PT.EVariable(id, var) -> ST.EVariable(id, var)
     | PT.EFieldAccess(id, obj, fieldname) -> ST.EFieldAccess(id, toST obj, fieldname)
     | PT.EApply(id, fn, typeArgs, args) ->
@@ -413,6 +464,8 @@ module Expr =
     | ST.EFloat(id, sign, whole, fraction) -> PT.EFloat(id, sign, whole, fraction)
     | ST.EBool(id, b) -> PT.EBool(id, b)
     | ST.EUnit id -> PT.EUnit id
+    | ST.EConstant(id, name) ->
+      PT.EConstant(id, NameResolution.toPT ConstantName.toPT name)
     | ST.EVariable(id, var) -> PT.EVariable(id, var)
     | ST.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
     | ST.EApply(id, fn, typeArgs, args) ->
@@ -488,6 +541,43 @@ module Expr =
         caseName,
         List.map toPT fields
       )
+
+
+module Const =
+  let rec toST (c : PT.Const) : ST.Const =
+    match c with
+    | PT.Const.CInt i -> ST.Const.CInt i
+    | PT.Const.CBool b -> ST.Const.CBool b
+    | PT.Const.CString s -> ST.Const.CString s
+    | PT.Const.CChar c -> ST.Const.CChar c
+    | PT.Const.CFloat(sign, w, f) -> ST.Const.CFloat(sign, w, f)
+    | PT.Const.CUnit -> ST.Const.CUnit
+    | PT.Const.CTuple(first, second, rest) ->
+      ST.Const.CTuple(toST first, toST second, List.map toST rest)
+    | PT.Const.CEnum(typeName, caseName, fields) ->
+      ST.Const.CEnum(
+        NameResolution.toST TypeName.toST typeName,
+        caseName,
+        List.map toST fields
+      )
+
+  let rec toPT (c : ST.Const) : PT.Const =
+    match c with
+    | ST.Const.CInt i -> PT.Const.CInt i
+    | ST.Const.CBool b -> PT.Const.CBool b
+    | ST.Const.CString s -> PT.Const.CString s
+    | ST.Const.CChar c -> PT.Const.CChar c
+    | ST.Const.CFloat(sign, w, f) -> PT.Const.CFloat(sign, w, f)
+    | ST.Const.CUnit -> PT.Const.CUnit
+    | ST.Const.CTuple(first, second, rest) ->
+      PT.Const.CTuple(toPT first, toPT second, List.map toPT rest)
+    | ST.Const.CEnum(typeName, caseName, fields) ->
+      PT.Const.CEnum(
+        NameResolution.toPT TypeName.toPT typeName,
+        caseName,
+        List.map toPT fields
+      )
+
 
 module Deprecation =
   type Deprecation<'name> =
@@ -686,6 +776,21 @@ module UserFunction =
       deprecated = Deprecation.toPT FnName.toPT f.deprecated
       body = Expr.toPT f.body }
 
+module UserConstant =
+  let toST (c : PT.UserConstant.T) : ST.UserConstant.T =
+    { tlid = c.tlid
+      name = ConstantName.UserProgram.toST c.name
+      description = c.description
+      deprecated = Deprecation.toST ConstantName.toST c.deprecated
+      body = Const.toST c.body }
+
+  let toPT (c : ST.UserConstant.T) : PT.UserConstant.T =
+    { tlid = c.tlid
+      name = ConstantName.UserProgram.toPT c.name
+      description = c.description
+      deprecated = Deprecation.toPT ConstantName.toPT c.deprecated
+      body = Const.toPT c.body }
+
 module Toplevel =
   let toST (tl : PT.Toplevel.T) : ST.Toplevel.T =
     match tl with
@@ -693,6 +798,7 @@ module Toplevel =
     | PT.Toplevel.TLDB db -> ST.Toplevel.TLDB(DB.toST db)
     | PT.Toplevel.TLFunction f -> ST.Toplevel.TLFunction(UserFunction.toST f)
     | PT.Toplevel.TLType ut -> ST.Toplevel.TLType(UserType.toST ut)
+    | PT.Toplevel.TLConstant c -> ST.Toplevel.TLConstant(UserConstant.toST c)
 
   let toPT (tl : ST.Toplevel.T) : PT.Toplevel.T =
     match tl with
@@ -700,6 +806,7 @@ module Toplevel =
     | ST.Toplevel.TLDB db -> PT.Toplevel.TLDB(DB.toPT db)
     | ST.Toplevel.TLFunction f -> PT.Toplevel.TLFunction(UserFunction.toPT f)
     | ST.Toplevel.TLType ut -> PT.Toplevel.TLType(UserType.toPT ut)
+    | ST.Toplevel.TLConstant c -> PT.Toplevel.TLConstant(UserConstant.toPT c)
 
 module PackageFn =
   module Parameter =
@@ -747,3 +854,20 @@ module PackageType =
       deprecated = Deprecation.toPT TypeName.toPT pt.deprecated
       id = pt.id
       tlid = pt.tlid }
+
+module PackageConstant =
+  let toST (pc : PT.PackageConstant.T) : ST.PackageConstant.T =
+    { tlid = pc.tlid
+      id = pc.id
+      name = ConstantName.Package.toST pc.name
+      body = Const.toST pc.body
+      description = pc.description
+      deprecated = Deprecation.toST ConstantName.toST pc.deprecated }
+
+  let toPT (pc : ST.PackageConstant.T) : PT.PackageConstant.T =
+    { tlid = pc.tlid
+      id = pc.id
+      name = ConstantName.Package.toPT pc.name
+      body = Const.toPT pc.body
+      description = pc.description
+      deprecated = Deprecation.toPT ConstantName.toPT pc.deprecated }

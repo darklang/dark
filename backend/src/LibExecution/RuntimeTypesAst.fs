@@ -68,6 +68,7 @@ let rec preTraversal
   | EChar _
   | EUnit _
   | EVariable _
+  | EConstant _
   | EFloat _ -> expr
   | EString(id, strs) ->
     EString(
@@ -174,6 +175,7 @@ let rec postTraversal
    | EChar _
    | EUnit _
    | EVariable _
+   | EConstant _
    | EFloat _ -> expr
    | EString(id, strs) ->
      EString(

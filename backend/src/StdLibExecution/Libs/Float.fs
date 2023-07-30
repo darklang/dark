@@ -9,6 +9,7 @@ open LibExecution.StdLib.Shortcuts
 module Errors = LibExecution.Errors
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "Float" ]
 
@@ -433,4 +434,4 @@ let fns : List<BuiltInFn> =
 
     ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

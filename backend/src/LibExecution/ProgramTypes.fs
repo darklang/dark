@@ -225,6 +225,75 @@ module FnName =
         "unwrap"
         "unwrap_v0" ]
 
+/// A Fully-Qualified Constant Name
+/// Includes package, module, and version information where relevant.
+module ConstantName =
+  type Name = ConstantName of string
+  type T = FQName.T<Name>
+  type BuiltIn = FQName.BuiltIn<Name>
+  type UserProgram = FQName.UserProgram<Name>
+  type Package = FQName.Package<Name>
+
+  let pattern = @"^[a-z][a-z0-9A-Z_']*$"
+  let assert' (ConstantName name : Name) : unit =
+    assertRe "Constant name must match" pattern name
+
+  let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
+    FQName.builtin assert' modules (ConstantName name) version
+
+  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : T =
+    FQName.fqBuiltIn assert' modules (ConstantName name) version
+
+  let userProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : UserProgram =
+    FQName.userProgram assert' modules (ConstantName name) version
+
+  let fqUserProgram (modules : List<string>) (name : string) (version : int) : T =
+    FQName.fqUserProgram assert' modules (ConstantName name) version
+
+  let package
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (name : string)
+    (version : int)
+    : Package =
+    FQName.package assert' owner modules (ConstantName name) version
+
+  let fqPackage
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (name : string)
+    (version : int)
+    : T =
+    FQName.fqPackage assert' owner modules (ConstantName name) version
+
+  let toString (name : T) : string =
+    FQName.toString (fun (ConstantName name) -> name) name
+
+
+  /// Used in a transformation from fn with the empty args list to constant
+  let fromFnName (name : FnName.T) : T =
+    match name with
+    | FQName.BuiltIn fn ->
+      let (FnName.FnName fnName) = fn.name
+      let newBuiltIn =
+        FQName.builtin assert' fn.modules (ConstantName fnName) fn.version
+      FQName.BuiltIn newBuiltIn
+    | FQName.UserProgram fn ->
+      let (FnName.FnName fnName) = fn.name
+      let newUserProgram =
+        FQName.userProgram assert' fn.modules (ConstantName fnName) fn.version
+      FQName.UserProgram newUserProgram
+    | FQName.Package fn ->
+      let (FnName.FnName fnName) = fn.name
+      let newPackage =
+        FQName.package assert' fn.owner fn.modules (ConstantName fnName) fn.version
+      FQName.Package newPackage
+
+
 
 // In ProgramTypes, names (FnNames, TypeNames, ConstantNames) have already been
 // resolved. The user wrote them in WrittenTypes, and the WrittenTypesToProgramTypes
@@ -336,6 +405,7 @@ type Expr =
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
   | EFloat of id * Sign * string * string
   | EUnit of id
+  | EConstant of id * NameResolution<ConstantName.T>
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | EInfix of id * Infix * Expr * Expr
@@ -408,6 +478,7 @@ module Expr =
     | EChar(id, _)
     | EFloat(id, _, _, _)
     | EUnit id
+    | EConstant(id, _)
     | ELet(id, _, _, _)
     | EIf(id, _, _, _)
     | EInfix(id, _, _, _)
@@ -505,6 +576,26 @@ module UserType =
       deprecated : Deprecation<TypeName.T> }
 
 
+
+
+type Const =
+  | CInt of int64
+  | CBool of bool
+  | CString of string
+  | CChar of string
+  | CFloat of Sign * string * string
+  | CUnit
+  | CTuple of first : Const * second : Const * rest : List<Const>
+  | CEnum of NameResolution<TypeName.T> * caseName : string * List<Const>
+
+module UserConstant =
+  type T =
+    { tlid : tlid
+      name : ConstantName.UserProgram
+      description : string
+      deprecated : Deprecation<ConstantName.T>
+      body : Const }
+
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
@@ -524,6 +615,7 @@ module Toplevel =
     | TLDB of DB.T
     | TLFunction of UserFunction.T
     | TLType of UserType.T
+    | TLConstant of UserConstant.T
 
   let toTLID (tl : T) : tlid =
     match tl with
@@ -531,9 +623,19 @@ module Toplevel =
     | TLDB db -> db.tlid
     | TLFunction f -> f.tlid
     | TLType t -> t.tlid
+    | TLConstant c -> c.tlid
 
 module Secret =
   type T = { name : string; value : string; version : int }
+
+module PackageConstant =
+  type T =
+    { tlid : tlid
+      id : System.Guid
+      name : ConstantName.Package
+      description : string
+      deprecated : Deprecation<ConstantName.T>
+      body : Const }
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }

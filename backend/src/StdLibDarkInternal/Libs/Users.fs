@@ -14,6 +14,7 @@ let fn = fn modules
 
 // only accessible to the LibBackend.Config.allowedDarkInternalCanvasID canvas
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "create" 0
@@ -33,4 +34,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

@@ -11,6 +11,7 @@ module StdLib = LibExecution.StdLib
 open StdLib.Shortcuts
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "Environment" ]
 
@@ -61,4 +62,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let contents : StdLib.Contents = (fns, types)
+let contents : StdLib.Contents = (fns, types, constants)

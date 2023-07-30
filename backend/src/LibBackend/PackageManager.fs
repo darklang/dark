@@ -88,6 +88,23 @@ let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
     |> Sql.executeStatementAsync)
 
 
+let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
+  constants
+  |> Task.iterInParallel (fun c ->
+    let (PT.ConstantName.ConstantName name) = c.name.name
+    Sql.query
+      "INSERT INTO package_constants_v0 (tlid, id, owner, modules, name, version, definition)
+       VALUES (@tlid, @id, @owner, @modules, @name, @version, @definition)"
+    |> Sql.parameters
+      [ "tlid", Sql.tlid c.tlid
+        "id", Sql.uuid c.id
+        "owner", Sql.string c.name.owner
+        "modules", Sql.string (c.name.modules |> String.concat ".")
+        "name", Sql.string name
+        "version", Sql.int c.name.version
+        "definition", Sql.bytea (BinarySerialization.serializePackageConstant c) ]
+    |> Sql.executeStatementAsync)
+
 
 // ------------------
 // Fetching
@@ -118,6 +135,19 @@ let allTypes : Task<List<PT.PackageType.T>> =
         BinarySerialization.deserializePackageType id def)
   }
 
+let allConstants : Task<List<PT.PackageConstant.T>> =
+  task {
+    let! constants =
+      Sql.query "SELECT id, definition FROM package_constants_v0"
+      |> Sql.parameters []
+      |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytea "definition"))
+
+    return
+      constants
+      |> List.map (fun (id, def) ->
+        BinarySerialization.deserializePackageConstant id def)
+  }
+
 open System
 
 let cachedTask (expiration : TimeSpan) (f : Task<'a>) : Task<'a> =
@@ -137,6 +167,7 @@ let cachedTask (expiration : TimeSpan) (f : Task<'a>) : Task<'a> =
 let packageManager : RT.PackageManager =
   let allTypes = cachedTask (TimeSpan.FromMinutes 1.) allTypes
   let allFunctions = cachedTask (TimeSpan.FromMinutes 1.) allFunctions
+  let allConstants = cachedTask (TimeSpan.FromMinutes 1.) allConstants
 
   { getType =
       fun typ ->
@@ -164,6 +195,21 @@ let packageManager : RT.PackageManager =
             |> Map.ofList
 
           return fns.TryFind fn
+        }
+
+    getConstant =
+      fun c ->
+        uply {
+          let! constants = allConstants
+
+          let constants =
+            constants
+            |> List.map (fun (c : PT.PackageConstant.T) ->
+              (c.name |> PT2RT.ConstantName.Package.toRT,
+               PT2RT.PackageConstant.toRT c))
+            |> Map.ofList
+
+          return constants.TryFind c
         }
 
     init = uply { return () } }

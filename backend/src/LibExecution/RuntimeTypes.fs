@@ -258,6 +258,54 @@ module FnName =
   let isInternalFn (fnName : BuiltIn) : bool =
     List.tryHead fnName.modules = Some "DarkInternal"
 
+/// A Fully-Qualified Constant Name
+/// Includes package, module, and version information where relevant.
+module ConstantName =
+  type Name = ConstantName of string
+  type T = FQName.T<Name>
+  type BuiltIn = FQName.BuiltIn<Name>
+  type UserProgram = FQName.UserProgram<Name>
+  type Package = FQName.Package<Name>
+
+  let pattern = @"^[a-z][a-z0-9A-Z_']*$"
+  let assert' (ConstantName name : Name) : unit =
+    assertRe "Constant name must match" pattern name
+
+  let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
+    FQName.builtin assert' modules (ConstantName name) version
+
+  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : T =
+    FQName.fqBuiltIn assert' modules (ConstantName name) version
+
+  let userProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : UserProgram =
+    FQName.userProgram assert' modules (ConstantName name) version
+
+  let fqUserProgram (modules : List<string>) (name : string) (version : int) : T =
+    FQName.fqUserProgram assert' modules (ConstantName name) version
+
+  let package
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (name : string)
+    (version : int)
+    : Package =
+    FQName.package assert' owner modules (ConstantName name) version
+
+  let fqPackage
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (name : string)
+    (version : int)
+    : T =
+    FQName.fqPackage assert' owner modules (ConstantName name) version
+
+  let toString (name : T) : string =
+    FQName.toString name (fun (ConstantName name) -> name)
+
 
 module DarkDateTime =
   open NodaTime
@@ -360,7 +408,7 @@ type Expr =
   | EChar of id * string
   | EFloat of id * double
   | EUnit of id
-
+  | EConstant of id * ConstantName.T
   // <summary>
   // Composed of binding pattern, the expression to create bindings for,
   // and the expression that follows, where the bound values are available
@@ -588,6 +636,7 @@ module Expr =
     | EChar(id, _)
     | EBool(id, _)
     | EUnit id
+    | EConstant(id, _)
     | EFloat(id, _)
     | EVariable(id, _)
     | EFieldAccess(id, _, _)
@@ -850,6 +899,9 @@ module UserType =
   type T =
     { tlid : tlid; name : TypeName.UserProgram; declaration : TypeDeclaration.T }
 
+module UserConstant =
+  type T = { tlid : tlid; name : ConstantName.UserProgram; body : Dval }
+
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference }
 
@@ -867,6 +919,7 @@ module Toplevel =
     | TLDB of DB.T
     | TLFunction of UserFunction.T
     | TLType of UserType.T
+    | TLConstant of UserConstant.T
 
   let toTLID (tl : T) : tlid =
     match tl with
@@ -874,6 +927,7 @@ module Toplevel =
     | TLDB db -> db.tlid
     | TLFunction f -> f.tlid
     | TLType t -> t.tlid
+    | TLConstant c -> c.tlid
 
 module Secret =
   type T = { name : string; value : string }
@@ -897,6 +951,8 @@ module PackageFn =
 module PackageType =
   type T = { name : TypeName.Package; declaration : TypeDeclaration.T }
 
+module PackageConstant =
+  type T = { tlid : tlid; name : ConstantName.Package; body : Dval }
 
 // <summary>
 // Used to mark whether a function can be run on the client rather than backend.
@@ -977,6 +1033,13 @@ type BuiltInType =
     description : string
     deprecated : Deprecation<TypeName.T> }
 
+type BuiltInConstant =
+  { name : ConstantName.BuiltIn
+    typ : TypeReference
+    description : string
+    deprecated : Deprecation<ConstantName.T>
+    body : Dval }
+
 // A built-in standard library function
 type BuiltInFn =
   { name : FnName.BuiltIn
@@ -1050,6 +1113,7 @@ and Program =
     dbs : Map<string, DB.T>
     fns : Map<FnName.UserProgram, UserFunction.T>
     types : Map<TypeName.UserProgram, UserType.T>
+    constants : Map<ConstantName.UserProgram, UserConstant.T>
     secrets : List<Secret.T> }
 
 /// Set of callbacks used to trace the interpreter, and other context needed to run code
@@ -1071,17 +1135,20 @@ and TestContext =
 // Functionally written in F# and shipped with the executable
 and BuiltIns =
   { types : Map<TypeName.BuiltIn, BuiltInType>
+    constants : Map<ConstantName.BuiltIn, BuiltInConstant>
     fns : Map<FnName.BuiltIn, BuiltInFn> }
 
 // Functionality written in Dark stored and managed outside of user space
 and PackageManager =
   { getType : TypeName.Package -> Ply<Option<PackageType.T>>
     getFn : FnName.Package -> Ply<Option<PackageFn.T>>
+    getConstant : ConstantName.Package -> Ply<Option<PackageConstant.T>>
     init : Ply<unit> }
 
   static member Empty =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
+      getConstant = (fun _ -> Ply None)
       init = uply { return () } }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit

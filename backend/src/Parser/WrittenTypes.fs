@@ -136,6 +136,17 @@ and PipeExpr =
   | EPipeVariableOrUserFunction of id * string
 
 
+type Const =
+  | CInt of int64
+  | CBool of bool
+  | CString of string
+  | CChar of string
+  | CFloat of Sign * string * string
+  | CUnit
+  | CTuple of first : Const * second : Const * rest : List<Const>
+  | CEnum of Name * caseName : string * List<Const>
+
+
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }
 
@@ -190,6 +201,10 @@ module UserFunction =
       description : string
       body : Expr }
 
+module UserConstant =
+  type T = { name : PT.ConstantName.UserProgram; description : string; body : Const }
+
+
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
@@ -206,3 +221,6 @@ module PackageType =
     { name : PT.TypeName.Package
       declaration : TypeDeclaration.T
       description : string }
+
+module PackageConstant =
+  type T = { name : PT.ConstantName.Package; description : string; body : Const }

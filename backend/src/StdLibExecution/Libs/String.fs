@@ -16,9 +16,19 @@ open LibExecution.StdLib.Shortcuts
 
 module Errors = LibExecution.Errors
 
-let types : List<BuiltInType> = []
 
-let fn = fn [ "String" ]
+let modules = [ "String" ]
+let fn = fn modules
+let constant = constant modules
+
+let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> =
+  [ { name = constant "newline" 0
+      typ = TString
+      description = "Returns a string containing a single '\n'"
+      body = DString "\n"
+      deprecated = NotDeprecated } ]
+
 
 let fns : List<BuiltInFn> =
   [ { name = fn "isEmpty" 0
@@ -73,21 +83,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "newline" 0
-      typeParams = []
-      parameters = []
-      returnType = TString
-      description = "Returns a string containing a single '\n'"
-      fn =
-        (function
-        | _, _, [] -> Ply(DString "\n")
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
 
     { name = fn "toList" 0
       typeParams = []
@@ -999,4 +994,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

@@ -16,18 +16,26 @@ type WTCanvasModule =
   { name : List<string>
     types : List<WT.UserType.T>
     fns : List<WT.UserFunction.T>
+    constants : List<WT.UserConstant.T>
     dbs : List<WT.DB.T>
     // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
     handlers : List<WT.Handler.Spec * WT.Expr>
     exprs : List<WT.Expr> }
 
 let emptyWTModule =
-  { name = []; types = []; fns = []; dbs = []; handlers = []; exprs = [] }
+  { name = []
+    types = []
+    fns = []
+    constants = []
+    dbs = []
+    handlers = []
+    exprs = [] }
 
 type PTCanvasModule =
   { types : List<PT.UserType.T>
     fns : List<PT.UserFunction.T>
     dbs : List<PT.DB.T>
+    constants : List<PT.UserConstant.T>
     // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
     handlers : List<PT.Handler.Spec * PT.Expr>
     exprs : List<PT.Expr> }
@@ -194,7 +202,8 @@ let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
 let toResolver (canvas : WTCanvasModule) : NameResolver.NameResolver =
   let fns = canvas.fns |> List.map (fun fn -> fn.name)
   let types = canvas.types |> List.map (fun typ -> typ.name)
-  NameResolver.create [] [] types fns
+  let constants = canvas.constants |> List.map (fun c -> c.name)
+  NameResolver.create [] [] [] types fns constants
 
 let toPT
   (nameResolver : NameResolver.NameResolver)
@@ -202,6 +211,7 @@ let toPT
   : PTCanvasModule =
   { types = m.types |> List.map (WT2PT.UserType.toPT nameResolver m.name)
     fns = m.fns |> List.map (WT2PT.UserFunction.toPT nameResolver m.name)
+    constants = m.constants |> List.map (WT2PT.UserConstant.toPT nameResolver m.name)
     dbs = m.dbs |> List.map (WT2PT.DB.toPT nameResolver m.name)
     handlers =
       m.handlers

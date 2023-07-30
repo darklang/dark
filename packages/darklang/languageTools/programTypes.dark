@@ -82,6 +82,21 @@ module Darklang =
         type Package =
           PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.Package<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name>
 
+      module ConstantName =
+        type Name = ConstantName of String
+
+        type T =
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.T<PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Name>
+
+        type BuiltIn =
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.BuiltIn<PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Name>
+
+        type UserProgram =
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.UserProgram<PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Name>
+
+        type Package =
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.Package<PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Name>
+
       type NameResolution<'a> =
         PACKAGE.Darklang.Stdlib.Result.Result<'a, PACKAGE.Darklang.LanguageTools.Errors.NameResolution.Error>
 
@@ -122,6 +137,22 @@ module Darklang =
         | TFn of
           List<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference> *
           PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference
+
+      type Const =
+        | CInt of Int
+        | CFloat of PACKAGE.Darklang.LanguageTools.Sign * String * String
+        | CBool of Bool
+        | CChar of Char
+        | CString of String
+        | CUnit
+        | CTuple of
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.Const *
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.Const *
+          List<PACKAGE.Darklang.LanguageTools.ProgramTypes.Const>
+        | CEnum of
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T> *
+          caseName: String *
+          fields: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.Const>
 
       type LetPattern =
         | LPVariable of PACKAGE.Darklang.LanguageTools.ID * name: String
@@ -313,6 +344,10 @@ module Darklang =
           String
 
         | EVariable of PACKAGE.Darklang.LanguageTools.ID * String
+
+        | EConstant of
+          PACKAGE.Darklang.LanguageTools.ID *
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.T>
 
 
         // control flow
@@ -520,6 +555,16 @@ module Darklang =
               PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T>
             body: PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr }
 
+      module UserConstant =
+        type T =
+          { tlid: PACKAGE.Darklang.LanguageTools.TLID
+            name:
+              PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.UserProgram
+            description: String
+            deprecated:
+              PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T>
+            body: PACKAGE.Darklang.LanguageTools.ProgramTypes.Const }
+
 
       // module Toplevel =
       //   type T =
@@ -570,6 +615,16 @@ module Darklang =
             parameters:
               List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter>
             returnType: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference
+            description: String
+            deprecated:
+              PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T> }
+
+      module PackageConstant =
+        type T =
+          { tlid: PACKAGE.Darklang.LanguageTools.TLID
+            id: Uuid
+            name: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Package
+            body: PACKAGE.Darklang.LanguageTools.ProgramTypes.Const
             description: String
             deprecated:
               PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T> }

@@ -108,8 +108,26 @@ module Expr =
     | WT.EFloat(id, sign, whole, fraction) -> PT.EFloat(id, sign, whole, fraction)
     | WT.EBool(id, b) -> PT.EBool(id, b)
     | WT.EUnit id -> PT.EUnit id
-    | WT.EVariable(id, var) -> PT.EVariable(id, var)
+    | WT.EVariable(id, var) ->
+      // This could be a UserConstant
+      let constant =
+        NameResolver.ConstantName.resolve
+          resolver
+          currentModule
+          (WT.Unresolved [ var ])
+      match constant with
+      | Ok _ as name -> PT.EConstant(id, name)
+      | Error _ -> PT.EVariable(id, var)
     | WT.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
+    | WT.EApply(id, (WT.EFnName(_, name) as eFnName), [], []) ->
+      // This must be a constant, as there are no arguments?
+      let constant = NameResolver.ConstantName.resolve resolver currentModule name
+      match constant with
+      | Ok _ as name -> PT.EConstant(id, name)
+      | Error _ ->
+        // There are no arguments, so surely this is an error? TODO: maybe we
+        // can have a better error message here
+        PT.EApply(id, toPT eFnName, [], [])
     | WT.EApply(id, name, typeArgs, args) ->
       PT.EApply(
         id,
@@ -210,6 +228,29 @@ module Expr =
         caseName,
         List.map toPT fields
       )
+
+module Const =
+  let rec toPT
+    (resolver : NameResolver)
+    (currentModule : List<string>)
+    (c : WT.Const)
+    : PT.Const =
+    let toPT = toPT resolver currentModule
+    match c with
+    | WT.CInt i -> PT.CInt i
+    | WT.CChar c -> PT.CChar c
+    | WT.CFloat(sign, w, f) -> PT.CFloat(sign, w, f)
+    | WT.CBool b -> PT.CBool b
+    | WT.CString s -> PT.CString s
+    | WT.CTuple(first, second, theRest) ->
+      PT.CTuple(toPT first, toPT second, List.map toPT theRest)
+    | WT.CEnum(typeName, caseName, fields) ->
+      PT.CEnum(
+        NameResolver.TypeName.resolve resolver currentModule typeName,
+        caseName,
+        List.map toPT fields
+      )
+    | WT.CUnit -> PT.CUnit
 
 
 module TypeDeclaration =
@@ -354,6 +395,18 @@ module UserFunction =
       deprecated = PT.NotDeprecated
       body = Expr.toPT resolver currentModule f.body }
 
+module UserConstant =
+  let toPT
+    (resolver : NameResolver)
+    (currentModule : List<string>)
+    (c : WT.UserConstant.T)
+    : PT.UserConstant.T =
+    { tlid = gid ()
+      name = c.name
+      description = c.description
+      deprecated = PT.NotDeprecated
+      body = Const.toPT resolver currentModule c.body }
+
 module PackageFn =
   module Parameter =
     let toPT
@@ -390,5 +443,18 @@ module PackageType =
       description = pt.description
       declaration = TypeDeclaration.toPT resolver currentModule pt.declaration
       deprecated = PT.NotDeprecated
+      id = System.Guid.NewGuid()
+      tlid = gid () }
+
+module PackageConstant =
+  let toPT
+    (resolver : NameResolver)
+    (currentModule : List<string>)
+    (c : WT.PackageConstant.T)
+    : PT.PackageConstant.T =
+    { name = c.name
+      description = c.description
+      deprecated = PT.NotDeprecated
+      body = Const.toPT resolver currentModule c.body
       id = System.Guid.NewGuid()
       tlid = gid () }

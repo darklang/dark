@@ -39,6 +39,7 @@ let handleUnexpectedExceptionDuringQuery
     LibBackend.SqlCompiler.error "An error occurred while querying the Datastore"
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "DB" ]
 
@@ -420,4 +421,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

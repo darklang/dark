@@ -41,6 +41,6 @@ let parsePackage
   (resolver : NameResolver.NameResolver)
   (path : string)
   (contents : string)
-  : List<PT.PackageFn.T> * List<PT.PackageType.T> =
+  : List<PT.PackageFn.T> * List<PT.PackageType.T> * List<PT.PackageConstant.T> =
   let pModule = Package.parse resolver path contents
-  (pModule.fns, pModule.types)
+  (pModule.fns, pModule.types, pModule.constants)

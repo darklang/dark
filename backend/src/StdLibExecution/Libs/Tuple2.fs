@@ -10,6 +10,7 @@ module Interpreter = LibExecution.Interpreter
 module StdLib = LibExecution.StdLib
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "Tuple2" ]
 
@@ -156,4 +157,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

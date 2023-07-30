@@ -16,13 +16,14 @@ module Exe = LibExecution.Execution
 
 
 let builtIns : RT.BuiltIns =
-  let (fns, types) =
+  let (fns, types, constants) =
     LibExecution.StdLib.combine
       [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents ]
       []
       []
   { types = types |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
-    fns = fns |> Tablecloth.Map.fromListBy (fun fn -> fn.name) }
+    fns = fns |> Tablecloth.Map.fromListBy (fun fn -> fn.name)
+    constants = constants |> Tablecloth.Map.fromListBy (fun c -> c.name) }
 
 let packageManager = LibCliExecution.PackageManager.packageManager
 
@@ -46,6 +47,10 @@ let execute
           mod'.types
           |> List.map (fun typ -> PT2RT.UserType.toRT typ)
           |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
+        constants =
+          mod'.constants
+          |> List.map (fun c -> PT2RT.UserConstant.toRT c)
+          |> Tablecloth.Map.fromListBy (fun c -> c.name)
         dbs = Map.empty
         secrets = [] }
 
@@ -140,4 +145,5 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let constants : List<BuiltInConstant> = []
+let contents = (fns, types, constants)

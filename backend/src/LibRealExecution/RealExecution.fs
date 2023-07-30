@@ -26,8 +26,10 @@ let builtins : LibExecution.StdLib.Contents =
     []
     []
 let builtIns : RT.BuiltIns =
-  { types = builtins |> Tuple2.second |> Map.fromListBy (fun typ -> typ.name)
-    fns = builtins |> Tuple2.first |> Map.fromListBy (fun fn -> fn.name) }
+  let (fns, types, constants) = builtins
+  { types = types |> Map.fromListBy (fun typ -> typ.name)
+    fns = fns |> Map.fromListBy (fun fn -> fn.name)
+    constants = constants |> Map.fromListBy (fun c -> c.name) }
 
 let packageManager = PackageManager.packageManager
 

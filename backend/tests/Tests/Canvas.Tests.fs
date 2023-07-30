@@ -50,7 +50,7 @@ let testHttpOplistRoundtrip =
 
 let testHttpOplistLoadsUserTypes =
   testTask "httpOplistLoadsUserTypes" {
-    let! canvasID = initializeTestCanvas "http_oplist_loads_user_tipes"
+    let! canvasID = initializeTestCanvas "http_oplist_loads_user_types"
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
     let typ =
       testUserRecordType

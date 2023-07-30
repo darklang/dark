@@ -9,12 +9,15 @@ let getStateForEval
   (stdlib : LibExecution.StdLib.Contents)
   (types : List<UserType.T>)
   (fns : List<UserFunction.T>)
+  (constants : List<UserConstant.T>)
+
   : ExecutionState =
 
   let builtIns : BuiltIns =
-    let builtInFns, builtInTypes = stdlib
+    let builtInFns, builtInTypes, builtInConstants = stdlib
     { types = builtInTypes |> List.map (fun typ -> typ.name, typ) |> Map
-      fns = builtInFns |> List.map (fun fn -> fn.name, fn) |> Map }
+      fns = builtInFns |> List.map (fun fn -> fn.name, fn) |> Map
+      constants = builtInConstants |> List.map (fun c -> c.name, c) |> Map }
 
   // TODO
   let packageManager : PackageManager = PackageManager.Empty
@@ -27,6 +30,7 @@ let getStateForEval
       dbs = Map.empty
       fns = Map.fromListBy (fun fn -> fn.name) fns
       types = Map.fromListBy (fun typ -> typ.name) types
+      constants = Map.fromListBy (fun c -> c.name) constants
       secrets = List.empty }
 
   { builtIns = builtIns

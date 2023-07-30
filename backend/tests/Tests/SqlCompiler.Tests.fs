@@ -38,7 +38,8 @@ let compile
     let userTypes = Map [ typeName, userType ]
     let typeReference = TCustomType(FQName.UserProgram typeName, [])
 
-    let! state = executionStateFor canvasID false false Map.empty userTypes Map.empty
+    let! state =
+      executionStateFor canvasID false false Map.empty userTypes Map.empty Map.empty
 
     try
       let! sql, args = C.compileLambda state symtable paramName typeReference expr
@@ -152,7 +153,14 @@ let partialEvaluation =
       task {
         let canvasID = System.Guid.NewGuid()
         let! state =
-          executionStateFor canvasID false false Map.empty Map.empty Map.empty
+          executionStateFor
+            canvasID
+            false
+            false
+            Map.empty
+            Map.empty
+            Map.empty
+            Map.empty
         let expr = p expr
         let result = C.partiallyEvaluate state "x" (Map vars) expr
         let! (dvals, result) = Ply.TplPrimitives.runPlyAsTask result

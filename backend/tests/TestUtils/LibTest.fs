@@ -22,9 +22,35 @@ open LibBackend.Db
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let fn = fn [ "Test" ]
+let modules = [ "Test" ]
+let constant = constant modules
+let fn = fn modules
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> =
+  [ { name = constant "incomplete" 0
+      typ = TVariable "a"
+      description = "Return a DIncomplet"
+      body = DIncomplete(SourceNone)
+      deprecated = NotDeprecated }
+
+    { name = constant "nan" 0
+      typ = TFloat
+      description = "Return a NaN"
+      body = DFloat(System.Double.NaN)
+      deprecated = NotDeprecated }
+
+    { name = constant "infinity" 0
+      typ = TFloat
+      description = "Returns positive infitity"
+      body = DFloat(System.Double.PositiveInfinity)
+      deprecated = NotDeprecated }
+
+    { name = constant "negativeInfinity" 0
+      typ = TFloat
+      description = "Returns negative infinity"
+      body = DFloat(System.Double.NegativeInfinity)
+      deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
 
@@ -41,20 +67,6 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "incomplete" 0
-      typeParams = []
-      parameters = []
-      returnType = TVariable "a"
-      description = "Return a DIncomplet"
-      fn =
-        (function
-        | _, _, [] -> Ply(DIncomplete(SourceNone))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "sqlError" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
@@ -70,35 +82,6 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-
-    { name = fn "nan" 0
-      typeParams = []
-      parameters = []
-      returnType = TFloat
-      description = "Return a NaN"
-      fn =
-        (function
-        | _, _, [] -> Ply(DFloat(System.Double.NaN))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "infinity" 0
-      typeParams = []
-      parameters = []
-      returnType = TFloat
-      description = "Returns positive infitity"
-      fn =
-        (function
-        | _, _, [] -> Ply(DFloat(System.Double.PositiveInfinity))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "toChar" 0
       typeParams = []
       parameters = [ Param.make "c" TString "" ]
@@ -113,20 +96,6 @@ let fns : List<BuiltInFn> =
             chars |> Seq.toList |> (fun l -> l[0] |> DChar |> Dval.optionJust |> Ply)
           else
             Ply(Dval.optionNothing)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "negativeInfinity" 0
-      typeParams = []
-      parameters = []
-      returnType = TFloat
-      description = "Returns negative infinity"
-      fn =
-        (function
-        | _, _, [] -> Ply(DFloat(System.Double.NegativeInfinity))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -377,4 +346,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

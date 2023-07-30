@@ -29,7 +29,7 @@ let fn = fn modules
 
 
 let types : List<BuiltInType> = []
-
+let constants : List<BuiltInConstant> = []
 let fns : List<BuiltInFn> =
   [ { name = fn "all" 0
       typeParams = []
@@ -57,4 +57,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

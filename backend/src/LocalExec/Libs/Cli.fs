@@ -14,7 +14,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
 let builtIns : RT.BuiltIns =
-  let (fns, types) =
+  let (fns, types, constants) =
     LibExecution.StdLib.combine
       [ StdLibExecution.StdLib.contents
         StdLibCli.StdLib.contents
@@ -22,7 +22,8 @@ let builtIns : RT.BuiltIns =
       []
       []
   { types = types |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
-    fns = fns |> Tablecloth.Map.fromListBy (fun fn -> fn.name) }
+    fns = fns |> Tablecloth.Map.fromListBy (fun fn -> fn.name)
+    constants = constants |> Tablecloth.Map.fromListBy (fun c -> c.name) }
 
 let packageManager : RT.PackageManager = RT.PackageManager.Empty
 
@@ -47,6 +48,11 @@ let execute
           mod'.types
           |> List.map (fun typ -> PT2RT.UserType.toRT typ)
           |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
+        constants =
+          mod'.constants
+          |> List.map (fun c -> PT2RT.UserConstant.toRT c)
+          |> Tablecloth.Map.fromListBy (fun c -> c.name)
+
         dbs = Map.empty
         secrets = [] }
 
@@ -71,6 +77,8 @@ let execute
     else // mod'.exprs.Length > 1
       return DError(SourceNone, "Multiple expressions to execute")
   }
+
+let constants : List<BuiltInConstant> = []
 
 let types : List<BuiltInType> =
   [ { name = typ [ "LocalExec" ] "ExecutionError" 0
@@ -124,7 +132,8 @@ let fns : List<BuiltInFn> =
                   // TODO: this may need more builtins, and packages
                   Parser.NameResolver.fromBuiltins (
                     Map.values builtIns.fns |> Seq.toList,
-                    Map.values builtIns.types |> Seq.toList
+                    Map.values builtIns.types |> Seq.toList,
+                    Map.values builtIns.constants |> Seq.toList
                   )
                 Parser.CanvasV2.parse resolver filename code |> Ok
               with e ->
@@ -172,4 +181,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

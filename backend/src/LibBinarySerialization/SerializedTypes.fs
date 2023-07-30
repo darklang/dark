@@ -5,6 +5,7 @@ module LibBinarySerialization.SerializedTypes
 type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
+type Password = Prelude.Password
 
 // The types in this files are serialized using MessagePack.
 //
@@ -156,6 +157,48 @@ module NameResolution =
 type NameResolution<'a> = Result<'a, NameResolution.Error>
 
 
+/// A Fully-Qualified Constant Name
+/// Includes package, module, and version information where relevant.
+module ConstantName =
+  /// Standard Library Constant Name
+  [<MessagePack.MessagePackObject>]
+  type BuiltIn =
+    { [<MessagePack.Key 0>]
+      modules : List<string>
+      [<MessagePack.Key 1>]
+      name : string
+      [<MessagePack.Key 2>]
+      version : int }
+
+  /// A UserConstan is a constant written by a Developer in their canvas
+  [<MessagePack.MessagePackObject>]
+  type UserProgram =
+    { [<MessagePack.Key 0>]
+      modules : List<string>
+      [<MessagePack.Key 1>]
+      name : string
+      [<MessagePack.Key 2>]
+      version : int }
+
+  /// The name of a constant in the package manager
+  [<MessagePack.MessagePackObject>]
+  type Package =
+    { [<MessagePack.Key 0>]
+      owner : string
+      [<MessagePack.Key 1>]
+      modules : NonEmptyList<string>
+      [<MessagePack.Key 2>]
+      name : string
+      [<MessagePack.Key 3>]
+      version : int }
+
+  [<MessagePack.MessagePackObject>]
+  type T =
+    | UserProgram of UserProgram
+    | BuiltIn of BuiltIn
+    | Package of Package
+
+
 [<MessagePack.MessagePackObject>]
 type TypeReference =
   | TInt
@@ -235,6 +278,7 @@ type Expr =
   | EChar of id * string
   | EFloat of id * Sign * string * string
   | EUnit of id
+  | EConstant of id * NameResolution<ConstantName.T>
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | ELambda of id * List<id * string> * Expr
@@ -383,6 +427,30 @@ module UserType =
       [<MessagePack.Key 5>]
       deprecated : Deprecation<TypeName.T> }
 
+[<MessagePack.MessagePackObject>]
+type Const =
+  | CInt of int64
+  | CBool of bool
+  | CString of string
+  | CChar of string
+  | CFloat of Sign * string * string
+  | CUnit
+  | CTuple of first : Const * second : Const * rest : List<Const>
+  | CEnum of NameResolution<TypeName.T> * caseName : string * List<Const>
+
+module UserConstant =
+  [<MessagePack.MessagePackObject>]
+  type T =
+    { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
+      name : ConstantName.UserProgram
+      [<MessagePack.Key 2>]
+      description : string
+      [<MessagePack.Key 3>]
+      deprecated : Deprecation<ConstantName.T>
+      [<MessagePack.Key 4>]
+      body : Const }
 
 module UserFunction =
   [<MessagePack.MessagePackObject>]
@@ -460,6 +528,21 @@ module PackageType =
       [<MessagePack.Key 5>]
       deprecated : Deprecation<TypeName.T> }
 
+module PackageConstant =
+  [<MessagePack.MessagePackObject>]
+  type T =
+    { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
+      id : System.Guid
+      [<MessagePack.Key 2>]
+      name : ConstantName.Package
+      [<MessagePack.Key 3>]
+      body : Const
+      [<MessagePack.Key 4>]
+      description : string
+      [<MessagePack.Key 5>]
+      deprecated : Deprecation<ConstantName.T> }
 
 module Toplevel =
   [<MessagePack.MessagePackObject>]
@@ -468,3 +551,4 @@ module Toplevel =
     | TLDB of DB.T
     | TLFunction of UserFunction.T
     | TLType of UserType.T
+    | TLConstant of UserConstant.T

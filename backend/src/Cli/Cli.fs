@@ -42,7 +42,7 @@ let info () =
 // ---------------------
 
 let builtIns : RT.BuiltIns =
-  let (fns, types) =
+  let (fns, types, constants) =
     LibExecution.StdLib.combine
       [ StdLibExecution.StdLib.contents
         StdLibCli.StdLib.contents
@@ -50,7 +50,8 @@ let builtIns : RT.BuiltIns =
       []
       []
   { types = types |> Map.fromListBy (fun typ -> typ.name)
-    fns = fns |> Map.fromListBy (fun fn -> fn.name) }
+    fns = fns |> Map.fromListBy (fun fn -> fn.name)
+    constants = constants |> Map.fromListBy (fun c -> c.name) }
 
 let packageManager = LibCliExecution.PackageManager.packageManager
 
@@ -75,6 +76,10 @@ let execute
           mod'.types
           |> List.map (fun typ -> PT2RT.UserType.toRT typ)
           |> Map.fromListBy (fun typ -> typ.name)
+        constants =
+          mod'.constants
+          |> List.map (fun c -> PT2RT.UserConstant.toRT c)
+          |> Map.fromListBy (fun c -> c.name)
         dbs = Map.empty
         secrets = [] }
 
@@ -125,7 +130,8 @@ let main (args : string[]) =
       // TODO: this may need more builtins, and packages
       Parser.NameResolver.fromBuiltins (
         Map.values builtIns.fns,
-        Map.values builtIns.types
+        Map.values builtIns.types,
+        Map.values builtIns.constants
       )
 
 

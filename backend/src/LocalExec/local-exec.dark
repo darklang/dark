@@ -56,6 +56,28 @@ let saveTypeToCanvas
 
   ()
 
+let saveConstantToCanvas
+  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T)
+  : Unit =
+  let reqBody =
+    p
+    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T>
+    |> unwrap
+    |> String.toBytes
+
+  let response =
+    HttpClient.request
+      "POST"
+      ("http://dark-packages.dlio.localhost:11003/constants")
+      []
+      reqBody
+
+  let response = unwrap response
+
+  // TODO: ensure 200 OK
+
+  ()
+
 let loadPackageFile (filename: String) : Unit =
   filename
   |> LocalExec.File.read
@@ -76,6 +98,8 @@ let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
 
   package.types |> List.iter (fun t -> saveTypeToCanvas t)
 
+  package.constants |> List.iter (fun t -> saveConstantToCanvas t)
+
 
 let printPackageFunction (p: LocalExec.Packages.Function) : Unit =
   let modules = p.modules |> String.join "."
@@ -86,12 +110,19 @@ let printPackageType (p: LocalExec.Packages.Type) : Unit =
   let modules = p.modules |> String.join "."
   print $"Package Type {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
 
+let printPackageConstant (p: LocalExec.Packages.Constant) : Unit =
+  let modules = p.modules |> String.join "."
+  print $"Package Constant {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
+
 let printAllPackages () : Unit =
   let functions = LocalExec.Packages.listFunctions ()
   functions |> List.iter (fun p -> printPackageFunction p)
 
   let types = LocalExec.Packages.listTypes ()
   types |> List.iter (fun p -> printPackageType p)
+
+  let constants = LocalExec.Packages.listConstants ()
+  constants |> List.iter (fun p -> printPackageConstant p)
 
 
 // Running scripts

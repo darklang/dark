@@ -19,8 +19,12 @@ let varB = TVariable "b"
 let varC = TVariable "c"
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
+
+let fn = fn [ "Result" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "Result" ] "map2" 0
+  [ { name = fn "map2" 0
       typeParams = []
       parameters =
         [ Param.make "result1" (TypeReference.result varA varErr) ""
@@ -58,4 +62,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

@@ -12,12 +12,18 @@ module PT = LibExecution.ProgramTypes
 
 open Utils
 
-type WTPackageModule = { fns : List<WT.PackageFn.T>; types : List<WT.PackageType.T> }
-let emptyWTModule = { fns = []; types = [] }
+type WTPackageModule =
+  { fns : List<WT.PackageFn.T>
+    types : List<WT.PackageType.T>
+    constants : List<WT.PackageConstant.T> }
+let emptyWTModule = { fns = []; types = []; constants = [] }
 
-type PTPackageModule = { fns : List<PT.PackageFn.T>; types : List<PT.PackageType.T> }
+type PTPackageModule =
+  { fns : List<PT.PackageFn.T>
+    types : List<PT.PackageType.T>
+    constants : List<PT.PackageConstant.T> }
 
-let emptyPTModule = { fns = []; types = [] }
+let emptyPTModule = { fns = []; types = []; constants = [] }
 
 
 /// Update a CanvasModule by parsing a single F# let binding
@@ -25,11 +31,15 @@ let emptyPTModule = { fns = []; types = [] }
 let parseLetBinding
   (modules : List<string>)
   (letBinding : SynBinding)
-  : WT.PackageFn.T =
+  : List<WT.PackageFn.T> * List<WT.PackageConstant.T> =
   match modules with
   | owner :: modules ->
     let modules = NonEmptyList.ofList modules
-    FS2WT.PackageFn.fromSynBinding owner modules letBinding
+    try
+      [ FS2WT.PackageFn.fromSynBinding owner modules letBinding ], []
+    with _ ->
+      [], [ FS2WT.PackageConstant.fromSynBinding owner modules letBinding ]
+
   | _ ->
     Exception.raiseInternal
       "Expected owner, and at least 1 other modules"
@@ -56,8 +66,11 @@ let rec parseDecls
       // debuG "decl" decl
       match decl with
       | SynModuleDecl.Let(_, bindings, _) ->
-        let fns = List.map (parseLetBinding moduleNames) bindings
-        { m with fns = m.fns @ fns }
+        let (fns, constants) =
+          bindings |> List.map (parseLetBinding moduleNames) |> List.unzip
+        { m with
+            fns = m.fns @ List.flatten fns
+            constants = m.constants @ List.flatten constants }
 
       | SynModuleDecl.Types(defns, _) ->
         let types = List.map (parseTypeDef moduleNames) defns
@@ -81,7 +94,9 @@ let rec parseDecls
           moduleNames @ (nestedModuleNames |> List.map (fun id -> id.idText))
         let nestedDecls = parseDecls moduleNames nested
 
-        { fns = m.fns @ nestedDecls.fns; types = m.types @ nestedDecls.types }
+        { fns = m.fns @ nestedDecls.fns
+          types = m.types @ nestedDecls.types
+          constants = m.constants @ nestedDecls.constants }
 
 
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
@@ -118,8 +133,13 @@ let parse
       modul.types
       |> List.map (fun typ ->
         WT2PT.PackageType.toPT resolver (nameToModules typ.name) typ)
+    let constants =
+      modul.constants
+      |> List.map (fun constant ->
+        WT2PT.PackageConstant.toPT resolver (nameToModules constant.name) constant)
 
-    { fns = fns; types = types }
+    { fns = fns; types = types; constants = constants }
+
   // in the parsed package, types are being read as user, as opposed to the package that's right there
   | decl ->
     Exception.raiseInternal "Unsupported Package declaration" [ "decl", decl ]

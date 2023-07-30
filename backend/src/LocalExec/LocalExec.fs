@@ -15,7 +15,7 @@ module StdLibCli = StdLibCli.StdLib
 
 
 let builtIns : RT.BuiltIns =
-  let (fns, types) =
+  let (fns, types, constants) =
     LibExecution.StdLib.combine
       [ StdLibExecution.StdLib.contents
         StdLibCli.StdLib.contents
@@ -24,7 +24,8 @@ let builtIns : RT.BuiltIns =
       []
       []
   { types = types |> Map.fromListBy (fun typ -> typ.name)
-    fns = fns |> Map.fromListBy (fun fn -> fn.name) }
+    fns = fns |> Map.fromListBy (fun fn -> fn.name)
+    constants = constants |> Map.fromListBy (fun c -> c.name) }
 
 
 let defaultTLID = 7UL
@@ -48,6 +49,10 @@ let execute
           mod'.types
           |> List.map (fun typ -> PT2RT.UserType.toRT typ)
           |> Map.fromListBy (fun typ -> typ.name)
+        constants =
+          mod'.constants
+          |> List.map (fun c -> PT2RT.UserConstant.toRT c)
+          |> Map.fromListBy (fun c -> c.name)
         dbs = Map.empty
         secrets = [] }
 
@@ -112,6 +117,7 @@ let sourceOf
       identity
       identity
       identity
+      identity
       e
     |> ignore<PT.Expr>)
   let (fnName, body, expr) = result
@@ -144,7 +150,8 @@ let main (args : string[]) : int =
       // TODO: this may need more builtins, and packages
       Parser.NameResolver.fromBuiltins (
         Map.values builtIns.fns |> Seq.toList,
-        Map.values builtIns.types |> Seq.toList
+        Map.values builtIns.types |> Seq.toList,
+        Map.values builtIns.constants |> Seq.toList
       )
     let modul = Parser.CanvasV2.parseFromFile resolver mainFile
 

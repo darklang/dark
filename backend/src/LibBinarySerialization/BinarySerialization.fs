@@ -93,10 +93,23 @@ let serializePackageType (pt : PT.PackageType.T) : byte[] =
     let v = PT2ST.PackageType.toST pt
     MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
 
+let serializePackageConstant (constant : PT.PackageConstant.T) : byte[] =
+  wrapSerializationException (string constant.id) (fun () ->
+    let v = PT2ST.PackageConstant.toST constant
+    MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
+
 let deserializePackageType (uuid : System.Guid) (data : byte[]) : PT.PackageType.T =
   wrapSerializationException (string uuid) (fun () ->
     MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
     |> PT2ST.PackageType.toPT)
+
+let deserializePackageConstant
+  (uuid : System.Guid)
+  (data : byte[])
+  : PT.PackageConstant.T =
+  wrapSerializationException (string uuid) (fun () ->
+    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
+    |> PT2ST.PackageConstant.toPT)
 
 let deserializePackageFn (uuid : System.Guid) (data : byte[]) : PT.PackageFn.T =
   wrapSerializationException (string uuid) (fun () ->

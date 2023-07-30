@@ -121,7 +121,7 @@ let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
   { tlid = gid (); name = name; typ = typ; version = 0 }
 
 let builtIns : RT.BuiltIns =
-  let (fns, types) =
+  let (fns, types, constants) =
     LibExecution.StdLib.combine
       [ LibTest.contents
         LibRealExecution.RealExecution.builtins
@@ -129,14 +129,16 @@ let builtIns : RT.BuiltIns =
       []
       []
   { types = types |> Map.fromListBy (fun typ -> typ.name)
-    fns = fns |> Map.fromListBy (fun fn -> fn.name) }
+    fns = fns |> Map.fromListBy (fun fn -> fn.name)
+    constants = constants |> Map.fromListBy (fun c -> c.name) }
 
 // A resolver that only knows about builtins. If you need user code in the parser,
 // you need to add in the names of the fns/types/etc
 let builtinResolver =
   Parser.NameResolver.fromBuiltins (
     Map.values builtIns.fns,
-    Map.values builtIns.types
+    Map.values builtIns.types,
+    Map.values builtIns.constants
   )
 
 let executionStateFor
@@ -146,6 +148,7 @@ let executionStateFor
   (dbs : Map<string, RT.DB.T>)
   (userTypes : Map<RT.TypeName.UserProgram, RT.UserType.T>)
   (userFunctions : Map<RT.FnName.UserProgram, RT.UserFunction.T>)
+  (userConstants : Map<RT.ConstantName.UserProgram, RT.UserConstant.T>)
   : Task<RT.ExecutionState> =
   task {
     let! domains = Canvas.domainsForCanvasID canvasID
@@ -159,6 +162,7 @@ let executionStateFor
         fns = userFunctions
         types = userTypes
         dbs = dbs
+        constants = userConstants
         secrets = [] }
 
     let testContext : RT.TestContext =
@@ -548,6 +552,7 @@ module Expect =
       List.iter2 checkSegment s s'
     | EChar(_, v), EChar(_, v')
     | EVariable(_, v), EVariable(_, v') -> check path v v'
+    | EConstant(_, name), EConstant(_, name') -> check path name name'
     | EInt(_, v), EInt(_, v') -> check path v v'
     | EFloat(_, v), EFloat(_, v') -> check path v v'
     | EBool(_, v), EBool(_, v') -> check path v v'
@@ -641,6 +646,7 @@ module Expect =
     | EString _, _
     | EChar _, _
     | EVariable _, _
+    | EConstant _, _
     | EBool _, _
     | EFloat _, _
     | ELet _, _

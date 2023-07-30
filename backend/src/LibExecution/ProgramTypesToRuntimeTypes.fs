@@ -124,12 +124,55 @@ module FnName =
     | PT.FQName.UserProgram u -> RT.FQName.UserProgram(UserProgram.toRT u)
     | PT.FQName.Package p -> RT.FQName.Package(Package.toRT p)
 
-  let fromRT (fqfn : RT.FnName.T) : Option<PT.FnName.T> =
-    match fqfn with
-    | RT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.fromRT s) |> Some
-    | RT.FQName.UserProgram u -> PT.FQName.UserProgram(UserProgram.fromRT u) |> Some
-    | RT.FQName.Package p -> PT.FQName.Package(Package.fromRT p) |> Some
-    | RT.FQName.Unknown _ -> None
+
+module ConstantName =
+
+  module BuiltIn =
+    let toRT (c : PT.ConstantName.BuiltIn) : RT.ConstantName.BuiltIn =
+      let (PT.ConstantName.ConstantName name) = c.name
+      { modules = c.modules
+        name = RT.ConstantName.ConstantName name
+        version = c.version }
+
+    let fromRT (c : RT.ConstantName.BuiltIn) : PT.ConstantName.BuiltIn =
+      let (RT.ConstantName.ConstantName name) = c.name
+      { modules = c.modules
+        name = PT.ConstantName.ConstantName name
+        version = c.version }
+
+  module UserProgram =
+    let toRT (c : PT.ConstantName.UserProgram) : RT.ConstantName.UserProgram =
+      let (PT.ConstantName.ConstantName name) = c.name
+      { modules = c.modules
+        name = RT.ConstantName.ConstantName name
+        version = c.version }
+
+    let fromRT (c : RT.ConstantName.UserProgram) : PT.ConstantName.UserProgram =
+      let (RT.ConstantName.ConstantName name) = c.name
+      { modules = c.modules
+        name = PT.ConstantName.ConstantName name
+        version = c.version }
+
+  module Package =
+    let toRT (c : PT.ConstantName.Package) : RT.ConstantName.Package =
+      let (PT.ConstantName.ConstantName name) = c.name
+      { owner = c.owner
+        modules = c.modules
+        name = RT.ConstantName.ConstantName name
+        version = c.version }
+
+    let fromRT (c : RT.ConstantName.Package) : PT.ConstantName.Package =
+      let (RT.ConstantName.ConstantName name) = c.name
+      { owner = c.owner
+        modules = c.modules
+        name = PT.ConstantName.ConstantName name
+        version = c.version }
+
+  let toRT (fqConstant : PT.ConstantName.T) : RT.ConstantName.T =
+    match fqConstant with
+    | PT.FQName.BuiltIn s -> RT.FQName.BuiltIn(BuiltIn.toRT s)
+    | PT.FQName.UserProgram u -> RT.FQName.UserProgram(UserProgram.toRT u)
+    | PT.FQName.Package p -> RT.FQName.Package(Package.toRT p)
 
 module InfixFnName =
   let toFnName (name : PT.InfixFnName) : (List<string> * string * int) =
@@ -188,6 +231,9 @@ module Expr =
       RT.EFloat(id, makeFloat sign whole fraction)
     | PT.EBool(id, b) -> RT.EBool(id, b)
     | PT.EUnit id -> RT.EUnit id
+    | PT.EConstant(id, Ok name) -> RT.EConstant(id, ConstantName.toRT name)
+    | PT.EConstant(id, Error name) ->
+      RT.EError(id, $"Invalid constantr name {name}", [])
     | PT.EVariable(id, var) -> RT.EVariable(id, var)
     | PT.EFieldAccess(id, obj, fieldname) -> RT.EFieldAccess(id, toRT obj, fieldname)
     | PT.EApply(id, fnName, typeArgs, args) ->
@@ -310,6 +356,21 @@ module Expr =
     | PT.StringText text -> RT.StringText text
     | PT.StringInterpolation expr -> RT.StringInterpolation(toRT expr)
 
+module Const =
+  let rec toRT (c : PT.Const) : RT.Dval =
+    match c with
+    | PT.Const.CInt i -> RT.DInt i
+    | PT.Const.CBool b -> RT.DBool b
+    | PT.Const.CString s -> RT.DString s
+    | PT.Const.CChar c -> RT.DChar c
+    | PT.Const.CFloat(sign, w, f) -> RT.DFloat(makeFloat sign w f)
+    | PT.Const.CUnit -> RT.DUnit
+    | PT.Const.CTuple(first, second, rest) ->
+      RT.DTuple(toRT first, toRT second, List.map toRT rest)
+    | PT.Const.CEnum(Ok typeName, caseName, fields) ->
+      RT.DEnum(TypeName.toRT typeName, caseName, List.map toRT fields)
+    | PT.Const.CEnum(Error msg, caseName, fields) ->
+      RT.DError(RT.SourceNone, "Invalid const name: {msg}")
 
 module TypeDeclaration =
   module RecordField =
@@ -384,6 +445,12 @@ module UserType =
       name = TypeName.UserProgram.toRT t.name
       declaration = TypeDeclaration.toRT t.declaration }
 
+module UserConstant =
+  let toRT (c : PT.UserConstant.T) : RT.UserConstant.T =
+    { tlid = c.tlid
+      name = ConstantName.UserProgram.toRT c.name
+      body = Const.toRT c.body }
+
 module UserFunction =
   module Parameter =
     let toRT (p : PT.UserFunction.Parameter) : RT.UserFunction.Parameter =
@@ -404,6 +471,7 @@ module Toplevel =
     | PT.Toplevel.TLDB db -> RT.Toplevel.TLDB(DB.toRT db)
     | PT.Toplevel.TLFunction f -> RT.Toplevel.TLFunction(UserFunction.toRT f)
     | PT.Toplevel.TLType t -> RT.Toplevel.TLType(UserType.toRT t)
+    | PT.Toplevel.TLConstant c -> RT.Toplevel.TLConstant(UserConstant.toRT c)
 
 module Secret =
   let toRT (s : PT.Secret.T) : RT.Secret.T = { name = s.name; value = s.value }
@@ -425,3 +493,9 @@ module PackageType =
   let toRT (t : PT.PackageType.T) : RT.PackageType.T =
     { name = TypeName.Package.toRT t.name
       declaration = TypeDeclaration.toRT t.declaration }
+
+module PackageConstant =
+  let toRT (c : PT.PackageConstant.T) : RT.PackageConstant.T =
+    { tlid = c.tlid
+      name = ConstantName.Package.toRT c.name
+      body = Const.toRT c.body }

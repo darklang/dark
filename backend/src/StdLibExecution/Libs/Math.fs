@@ -12,42 +12,34 @@ open LibExecution.StdLib.Shortcuts
 
 let varA = TVariable "a"
 
-let types : List<BuiltInType> = []
 
-let fn = fn [ "Math" ]
+let modules = [ "Math" ]
+let fn = fn modules
+let constant = constant modules
 
-let fns : List<BuiltInFn> =
-  [ { name = fn "pi" 0
-      typeParams = []
-      parameters = []
-      returnType = TFloat
+let constants : List<BuiltInConstant> =
+  [ { name = constant "pi" 0
+      typ = TFloat
       description =
-        "Returns an approximation for the mathematical constant {{π}}, the ratio of a
-         circle's circumference to its diameter."
-      fn =
-        (function
-        | _, _, [] -> Ply(DFloat System.Math.PI)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
+        "Returns an approximation for the mathematical constant {{π}},
+        the ratio of a circle's circumference to its diameter."
+      body = DFloat System.Math.PI
       deprecated = NotDeprecated }
 
-
-    { name = fn "tau" 0
-      typeParams = []
-      parameters = []
-      returnType = TFloat
+    { name = constant "tau" 0
+      typ = TFloat
       description =
         "Returns an approximation for the mathematical constant {{τ}}, the number of
          radians in one turn. Equivalent to {{Float.multiply Math.pi 2}}."
-      fn =
-        (function
-        | _, _, [] -> Ply(DFloat System.Math.Tau)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
+      body = DFloat System.Math.Tau
       deprecated = NotDeprecated }
 
+    ]
+
+let types : List<BuiltInType> = []
+
+let fns : List<BuiltInFn> =
+  [
 
     { name = fn "degrees" 0
       typeParams = []
@@ -295,4 +287,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

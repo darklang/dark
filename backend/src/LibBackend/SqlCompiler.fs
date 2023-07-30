@@ -265,6 +265,7 @@ type CompiledSqlQuery =
 let rec lambdaToSql
   (fns : Map<FnName.BuiltIn, BuiltInFn>)
   (types : Types)
+  (constants : Map<ConstantName.BuiltIn, BuiltInConstant>)
   (symtable : DvalMap)
   (paramName : string)
   (dbTypeRef : TypeReference)
@@ -273,14 +274,27 @@ let rec lambdaToSql
   : Ply<CompiledSqlQuery> =
   uply {
     let lts (expectedType : TypeReference) (expr : Expr) : Ply<CompiledSqlQuery> =
-      lambdaToSql fns types symtable paramName dbTypeRef expectedType expr
+      lambdaToSql fns types constants symtable paramName dbTypeRef expectedType expr
 
     let! (sql, vars, actualType) =
       uply {
         match expr with
+        | EConstant(_, (FQName.BuiltIn name as fqName)) ->
+          let nameStr = ConstantName.toString fqName
+          match Map.get name constants with
+          | Some c ->
+            typecheck nameStr c.typ expectedType
+            let random = randomString 8
+            let newname = $"{nameStr}_{random}"
+            let (sqlValue, actualType) = dvalToSql expectedType c.body
+            return ($"(@{newname})", [ newname, sqlValue ], actualType)
+          | None ->
+            return
+              error
+                $"Only builtin constants can be used in queries right now; {nameStr} is not a builtin constant"
+
         | EApply(_, EFnName(_, (FQName.BuiltIn name as fqName)), [], args) ->
           let nameStr = FnName.toString fqName
-
           match Map.get name fns with
           | Some fn ->
             // check the abstract type here. We will check the concrete type later
@@ -656,6 +670,7 @@ let partiallyEvaluate
         | EFloat _
         | EBool _
         | EUnit _
+        | EConstant _
         | EChar _
         | ELet _
         | EIf _
@@ -689,6 +704,7 @@ let partiallyEvaluate
             | EChar _
             | EBool _
             | EUnit _
+            | EConstant _
             | EFloat _ -> return expr
             | ELet(id, pat, rhs, next) ->
               let! rhs = r rhs
@@ -810,7 +826,15 @@ let compileLambda
     let types = ExecutionState.availableTypes state
 
     let! compiled =
-      lambdaToSql state.builtIns.fns types symtable paramName dbType TBool body
+      lambdaToSql
+        state.builtIns.fns
+        types
+        state.builtIns.constants
+        symtable
+        paramName
+        dbType
+        TBool
+        body
 
     return (compiled.sql, compiled.vars)
   }

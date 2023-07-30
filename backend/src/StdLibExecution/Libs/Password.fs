@@ -6,6 +6,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "Password" ]
 
@@ -63,4 +64,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

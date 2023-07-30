@@ -94,6 +94,23 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | EFloat(_id, value) -> return DFloat value
     | EUnit _id -> return DUnit
     | EChar(_id, s) -> return DChar s
+    | EConstant(id, name) ->
+      match name with
+      | FQName.UserProgram c ->
+        match state.program.constants.TryFind c with
+        | None -> return err id $"There is no user defined constant named: {name}"
+        | Some constant -> return constant.body
+      | FQName.BuiltIn c ->
+        match state.builtIns.constants.TryFind c with
+        | None -> return err id $"There is no builtin constant named: {name}"
+        | Some constant -> return constant.body
+      | FQName.Package c ->
+        match! state.packageManager.getConstant c with
+        | None -> return err id $"There is no package constant named: {name}"
+        | Some constant -> return constant.body
+      | FQName.Unknown names ->
+        let name = String.concat "." names
+        return err id $"There is no constant named: {name}"
 
     | ELet(id, pattern, rhs, body) ->
       /// Returns `incomplete` traces for subpatterns of an unmatched pattern

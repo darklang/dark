@@ -243,6 +243,42 @@ module FnName =
   let toDT (u : PT.FnName.T) : Dval = FQName.toDT Name.toDT u
   let fromDT (d : Dval) : PT.FnName.T = FQName.fromDT Name.fromDT d
 
+module ConstantName =
+  module Name =
+    let toDT (u : PT.ConstantName.Name) : Dval =
+      let caseName, fields =
+        match u with
+        | PT.ConstantName.ConstantName name -> "ConstantName", [ DString name ]
+
+      DEnum(ptTyp [ "ConstantName" ] "Name" 0, caseName, fields)
+
+    let fromDT (d : Dval) : PT.ConstantName.Name =
+      match d with
+      | DEnum(_, "ConstantName", [ DString name ]) ->
+        PT.ConstantName.ConstantName(name)
+      | _ -> Exception.raiseInternal "Invalid ConstantName" []
+
+  module BuiltIn =
+    let toDT (u : PT.ConstantName.BuiltIn) : Dval = FQName.BuiltIn.toDT Name.toDT u
+    let fromDT (d : Dval) : PT.ConstantName.BuiltIn =
+      FQName.BuiltIn.fromDT Name.fromDT d
+
+  module UserProgram =
+    let toDT (u : PT.ConstantName.UserProgram) : Dval =
+      FQName.UserProgram.toDT Name.toDT u
+
+    let fromDT (d : Dval) : PT.ConstantName.UserProgram =
+      FQName.UserProgram.fromDT Name.fromDT d
+
+  module Package =
+    let toDT (u : PT.ConstantName.Package) : Dval = FQName.Package.toDT Name.toDT u
+    let fromDT (d : Dval) : PT.ConstantName.Package =
+      FQName.Package.fromDT Name.fromDT d
+
+  let toDT (u : PT.ConstantName.T) : Dval = FQName.toDT Name.toDT u
+  let fromDT (d : Dval) : PT.ConstantName.T = FQName.fromDT Name.fromDT d
+
+
 
 module NameResolution =
   module ErrorType =
@@ -566,7 +602,6 @@ module PipeExpr =
       match s with
       | PT.EPipeVariable(id, varName) ->
         "EPipeVariable", [ DInt(int64 id); DString varName ]
-
       | PT.EPipeLambda(id, args, body) ->
         let variables =
           args
@@ -723,6 +758,9 @@ module Expr =
 
         "ELambda", [ DInt(int64 id); variables; toDT body ]
 
+      | PT.EConstant(id, name) ->
+        "EConstant", [ DInt(int64 id); NameResolution.toDT ConstantName.toDT name ]
+
       | PT.EApply(id, name, typeArgs, args) ->
         "EApply",
         [ DInt(int64 id)
@@ -858,6 +896,45 @@ module Expr =
 
     | e -> Exception.raiseInternal "Invalid Expr" [ "e", e ]
 
+
+module Const =
+  let rec toDT (c : PT.Const) : Dval =
+    let name, fields =
+      match c with
+      | PT.Const.CInt i -> "CInt", [ DInt i ]
+      | PT.Const.CBool b -> "CBool", [ DBool b ]
+      | PT.Const.CString s -> "CString", [ DString s ]
+      | PT.Const.CChar c -> "CChar", [ DChar c ]
+      | PT.Const.CFloat(sign, w, f) ->
+        "CFloat", [ Sign.toDT sign; DString w; DString f ]
+      | PT.Const.CUnit -> "CUnit", []
+      | PT.Const.CTuple(first, second, rest) ->
+        "CTuple", [ toDT first; toDT second; DList(List.map toDT rest) ]
+      | PT.Const.CEnum(typeName, caseName, fields) ->
+        "CEnum",
+        [ NameResolution.toDT TypeName.toDT typeName
+          DString caseName
+          DList(List.map toDT fields) ]
+    DEnum(ptTyp [] "Const" 0, name, fields)
+
+  let rec fromDT (d : Dval) : PT.Const =
+    match d with
+    | DEnum(_, "CInt", [ DInt i ]) -> PT.Const.CInt i
+    | DEnum(_, "CBool", [ DBool b ]) -> PT.Const.CBool b
+    | DEnum(_, "CString", [ DString s ]) -> PT.Const.CString s
+    | DEnum(_, "CChar", [ DChar c ]) -> PT.Const.CChar c
+    | DEnum(_, "CFloat", [ sign; DString w; DString f ]) ->
+      PT.Const.CFloat(Sign.fromDT sign, w, f)
+    | DEnum(_, "CUnit", []) -> PT.Const.CUnit
+    | DEnum(_, "CTuple", [ first; second; DList rest ]) ->
+      PT.Const.CTuple(fromDT first, fromDT second, List.map fromDT rest)
+    | DEnum(_, "CEnum", [ typeName; DString caseName; DList fields ]) ->
+      PT.Const.CEnum(
+        NameResolution.fromDT TypeName.fromDT typeName,
+        caseName,
+        List.map fromDT fields
+      )
+    | _ -> Exception.raiseInternal "Invalid Const" []
 
 module Deprecation =
   let toDT (inner : 'a -> Dval) (d : PT.Deprecation<'a>) : Dval =
@@ -1292,6 +1369,44 @@ module UserFunction =
 
     | _ -> Exception.raiseInternal "Invalid UserFunction" []
 
+module UserConstant =
+  let toDT (userConstant : PT.UserConstant.T) : Dval =
+    DRecord(
+      ptTyp [ "UserConstant" ] "T" 0,
+      Map
+        [ "tlid", DInt(int64 userConstant.tlid)
+          "name", ConstantName.UserProgram.toDT userConstant.name
+          "body", Const.toDT userConstant.body
+          "description", DString userConstant.description
+          "deprecated", Deprecation.toDT ConstantName.toDT userConstant.deprecated ]
+    )
+
+  let fromDT (d : Dval) : PT.UserConstant.T =
+    match d with
+    | DRecord(_, fields) ->
+      let tlid =
+        match Map.find "tlid" fields with
+        | DInt tlid -> uint64 tlid
+        | _ -> Exception.raiseInternal "Expected tlid to be a tlid" []
+
+      let name = ConstantName.UserProgram.fromDT (Map.find "name" fields)
+      let body = Const.fromDT (Map.find "body" fields)
+
+      let description =
+        match Map.find "description" fields with
+        | DString description -> description
+        | _ -> Exception.raiseInternal "Expected description to be a string" []
+
+      let deprecated =
+        Deprecation.fromDT ConstantName.fromDT (Map.find "deprecated" fields)
+
+      { tlid = tlid
+        name = name
+        body = body
+        description = description
+        deprecated = deprecated }
+
+    | _ -> Exception.raiseInternal "Invalid UserConstant" []
 
 module Secret =
   let toDT (s : PT.Secret.T) : Dval =
@@ -1470,3 +1585,49 @@ module PackageFn =
         deprecated = deprecated }
 
     | _ -> Exception.raiseInternal "Invalid PackageFn" []
+
+module PackageConstant =
+  let toDT (p : PT.PackageConstant.T) : Dval =
+    DRecord(
+      ptTyp [ "PackageConstant" ] "T" 0,
+      Map
+        [ "tlid", DInt(int64 p.tlid)
+          "id", DUuid p.id
+          "name", ConstantName.Package.toDT p.name
+          "body", Const.toDT p.body
+          "description", DString p.description
+          "deprecated", Deprecation.toDT ConstantName.toDT p.deprecated ]
+    )
+
+  let fromDT (d : Dval) : PT.PackageConstant.T =
+    match d with
+    | DRecord(_, fields) ->
+      let tlid =
+        match Map.find "tlid" fields with
+        | DInt tlid -> uint64 tlid
+        | _ -> Exception.raiseInternal "Expected tlid to be a tlid" []
+
+      let id =
+        match Map.find "id" fields with
+        | DUuid id -> id
+        | _ -> Exception.raiseInternal "Expected id to be a uuid" []
+
+      let name = ConstantName.Package.fromDT (Map.find "name" fields)
+      let body = Const.fromDT (Map.find "body" fields)
+
+      let description =
+        match Map.find "description" fields with
+        | DString description -> description
+        | _ -> Exception.raiseInternal "Expected description to be a string" []
+
+      let deprecated =
+        Deprecation.fromDT ConstantName.fromDT (Map.find "deprecated" fields)
+
+      { tlid = tlid
+        id = id
+        name = name
+        body = body
+        description = description
+        deprecated = deprecated }
+
+    | _ -> Exception.raiseInternal "Invalid PackageConstant" []

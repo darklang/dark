@@ -19,7 +19,7 @@ module Interpreter = LibExecution.Interpreter
 open LibBackend
 
 let builtIns : RT.BuiltIns =
-  let (fns, types) =
+  let (fns, types, constants) =
     LibExecution.StdLib.combine
       [ StdLibExecution.StdLib.contents
         StdLibCloudExecution.StdLib.contents
@@ -28,7 +28,8 @@ let builtIns : RT.BuiltIns =
       []
       []
   { types = types |> Map.fromListBy (fun typ -> typ.name)
-    fns = fns |> Map.fromListBy (fun fn -> fn.name) }
+    fns = fns |> Map.fromListBy (fun fn -> fn.name)
+    constants = constants |> Map.fromListBy (fun c -> c.name) }
 
 let packageManager = PackageManager.packageManager
 

@@ -13,40 +13,54 @@ module RT = LibExecution.RuntimeTypes
 type NameResolver =
   { builtinTypes : Set<PT.TypeName.BuiltIn>
     builtinFns : Set<PT.FnName.BuiltIn>
+    builtinConstants : Set<PT.ConstantName.BuiltIn>
 
     userTypes : Set<PT.TypeName.UserProgram>
-    userFns : Set<PT.FnName.UserProgram> }
+    userFns : Set<PT.FnName.UserProgram>
+    userConstants : Set<PT.ConstantName.UserProgram> }
 
 let empty : NameResolver =
   { builtinTypes = Set.empty
     builtinFns = Set.empty
+    builtinConstants = Set.empty
 
     userTypes = Set.empty
-    userFns = Set.empty }
+    userFns = Set.empty
+    userConstants = Set.empty }
 
 let create
   (builtinTypes : List<PT.TypeName.BuiltIn>)
   (builtinFns : List<PT.FnName.BuiltIn>)
+  (builtinConstants : List<PT.ConstantName.BuiltIn>)
   (userTypes : List<PT.TypeName.UserProgram>)
   (userFns : List<PT.FnName.UserProgram>)
+  (userConstants : List<PT.ConstantName.UserProgram>)
   : NameResolver =
   { builtinTypes = Set.ofList builtinTypes
     builtinFns = Set.ofList builtinFns
+    builtinConstants = Set.ofList builtinConstants
 
     userTypes = Set.ofList userTypes
-    userFns = Set.ofList userFns }
+    userFns = Set.ofList userFns
+    userConstants = Set.ofList userConstants }
 
 // TODO: this isn't a great way to deal with this but it'll do for now. When packages
 // are included, this doesn't make much sense.
 let merge (a : NameResolver) (b : NameResolver) : NameResolver =
   { builtinTypes = Set.union a.builtinTypes b.builtinTypes
     builtinFns = Set.union a.builtinFns b.builtinFns
+    builtinConstants = Set.union a.builtinConstants b.builtinConstants
 
     userTypes = Set.union a.userTypes b.userTypes
-    userFns = Set.union a.userFns b.userFns }
+    userFns = Set.union a.userFns b.userFns
+    userConstants = Set.union a.userConstants b.userConstants
+
+  }
 
 
-let fromBuiltins ((fns, types) : LibExecution.StdLib.Contents) : NameResolver =
+let fromBuiltins
+  ((fns, types, constants) : LibExecution.StdLib.Contents)
+  : NameResolver =
   { builtinTypes =
       types
       |> List.map (fun typ -> PT2RT.TypeName.BuiltIn.fromRT typ.name)
@@ -54,8 +68,14 @@ let fromBuiltins ((fns, types) : LibExecution.StdLib.Contents) : NameResolver =
     builtinFns =
       fns |> List.map (fun fn -> PT2RT.FnName.BuiltIn.fromRT fn.name) |> Set.ofList
 
+    builtinConstants =
+      constants
+      |> List.map (fun fn -> PT2RT.ConstantName.BuiltIn.fromRT fn.name)
+      |> Set.ofList
+
     userTypes = Set.empty
-    userFns = Set.empty }
+    userFns = Set.empty
+    userConstants = Set.empty }
 
 
 let fromExecutionState (state : RT.ExecutionState) : NameResolver =
@@ -69,6 +89,11 @@ let fromExecutionState (state : RT.ExecutionState) : NameResolver =
       |> Map.keys
       |> List.map PT2RT.FnName.BuiltIn.fromRT
       |> Set.ofList
+    builtinConstants =
+      state.builtIns.constants
+      |> Map.keys
+      |> List.map PT2RT.ConstantName.BuiltIn.fromRT
+      |> Set.ofList
 
     userTypes =
       state.program.types
@@ -79,6 +104,11 @@ let fromExecutionState (state : RT.ExecutionState) : NameResolver =
       state.program.fns
       |> Map.keys
       |> List.map PT2RT.FnName.UserProgram.fromRT
+      |> Set.ofList
+    userConstants =
+      state.program.constants
+      |> Map.keys
+      |> List.map PT2RT.ConstantName.UserProgram.fromRT
       |> Set.ofList }
 
 
@@ -254,5 +284,21 @@ module FnName =
       FS2WT.Expr.parseFn
       resolver.builtinFns
       resolver.userFns
+      currentModule
+      name
+
+module ConstantName =
+  let resolve
+    (resolver : NameResolver)
+    (currentModule : List<string>)
+    (name : WT.Name)
+    : PT.NameResolution<PT.ConstantName.T> =
+    resolve
+      PT.ConstantName.assert'
+      LibExecution.Errors.NameResolution.Constant
+      PT.ConstantName.ConstantName
+      FS2WT.Expr.parseFn // same format
+      resolver.builtinConstants
+      resolver.userConstants
       currentModule
       name

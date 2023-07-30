@@ -41,7 +41,8 @@ let hardToRepresentTests =
 
       let symtable = Map.ofList args
 
-      let! state = executionStateFor meta false false Map.empty Map.empty Map.empty
+      let! state =
+        executionStateFor meta false false Map.empty Map.empty Map.empty Map.empty
       let! actual =
         LibExecution.Execution.executeExpr state symtable (PT2RT.Expr.toRT ast)
       return Expect.dvalEquality actual expected
