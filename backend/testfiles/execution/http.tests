@@ -7,15 +7,15 @@
 // | Ok date -> PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Expires = date; ``Max-Age`` = 3600; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = true; SameSite = "Strict" }) = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=3600; HttpOnly; Expires=Sun, 28 Jul 2019 22:42:00 GMT; Domain=darklang.com"}
 
 // module Errors =
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Expires = 5 } = Test.typeError_v0 "Expected `Expires` to be a date, but it was `5`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { ``Max-Age`` = "foo" } = Test.typeError_v0 "Expected `Max-Age` to be a `Int` representing seconds, but it was `\"foo\"`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Domain = 5 } = Test.typeError_v0 "Expected ``Path` or `Domain`` to be a String, but it was `5`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Path = 5 } = Test.typeError_v0 "Expected ``Path` or `Domain`` to be a String, but it was `5`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Secure = 5 } = Test.typeError_v0 "Expected `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { HttpOnly = 5 } = Test.typeError_v0 "Expected `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { SameSite = 5 } = Test.typeError_v0 "Expected `SameSite` to be `Strict`, `Lax`, or `None`, but it was `5`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" {``Max-Age`` = 3600; SameSite = "allthesecures" } = Test.typeError_v0 "Expected `SameSite` to be `Strict`, `Lax`, or `None`, but it was `\"allthesecures\"`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Fake = "fake"} = Test.typeError_v0 "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake"
+//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Expires = 5 } = Test.runtimeError "Expected `Expires` to be a date, but it was `5`"
+//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { ``Max-Age`` = "foo" } = Test.runtimeError "Expected `Max-Age` to be a `Int` representing seconds, but it was `\"foo\"`"
+//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Domain = 5 } = Test.runtimeError "Expected ``Path` or `Domain`` to be a String, but it was `5`"
+//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Path = 5 } = Test.runtimeError "Expected ``Path` or `Domain`` to be a String, but it was `5`"
+//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Secure = 5 } = Test.runtimeError "Expected `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
+//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { HttpOnly = 5 } = Test.runtimeError "Expected `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
+//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { SameSite = 5 } = Test.runtimeError "Expected `SameSite` to be `Strict`, `Lax`, or `None`, but it was `5`"
+//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" {``Max-Age`` = 3600; SameSite = "allthesecures" } = Test.runtimeError "Expected `SameSite` to be `Strict`, `Lax`, or `None`, but it was `\"allthesecures\"`"
+//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Fake = "fake"} = Test.runtimeError "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake"
 
 
 PACKAGE.Darklang.Stdlib.Http.badRequest_v0 "Your request resulted in an error" =

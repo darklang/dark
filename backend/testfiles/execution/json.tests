@@ -208,7 +208,7 @@ Json.parse<List<Dict<MyString>>> """[{"name": "Alice", "role": "admin"}, {"name"
 
 // not proper lists
 Json.serialize<List<Int>> [1, 2, "three"] =
-  Test.typeError "Json.serialize's 1st argument (`arg`) should be a List<Int>. However, an (Int, Int, String) ((1, 2, ...) was passed instead.\n\nExpected: (arg: 'a)\nActual: an (Int, Int, String): (1, 2, \"three\")"
+  Test.runtimeError "Json.serialize's 1st argument (`arg`) should be a List<Int>. However, an (Int, Int, String) ((1, 2, ...) was passed instead.\n\nExpected: (arg: 'a)\nActual: an (Int, Int, String): (1, 2, \"three\")"
 
 Json.parse<List<Int>> "[1, 2, \"three\"]" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
 Json.parse<List<Int>> "[1, 2, ]" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
@@ -345,7 +345,7 @@ type Person1 = { Name: String; Age: Int }
 type Person2 = { Name: String; Age: Int }
 
 Json.serialize<Person2> (Person1 { Name = "Bob"; Age = 42 }) =
-  Test.typeError "Json.serialize's 1st argument (`arg`) should be a Person2. However, a Person1 (Person1...) was passed instead.\n\nExpected: (arg: 'a)\nActual: a Person1: Person1 {\n  Age: 42,\n  Name: \"Bob\"\n}"
+  Test.runtimeError "Json.serialize's 1st argument (`arg`) should be a Person2. However, a Person1 (Person1...) was passed instead.\n\nExpected: (arg: 'a)\nActual: a Person1: Person1 {\n  Age: 42,\n  Name: \"Bob\"\n}"
 
 type StringResult<’a> = PACKAGE.Darklang.Stdlib.Result.Result<’a, String>
 Json.serialize<StringResult<Int>> (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"PACKAGE.Darklang.Stdlib.Result.Result.Ok\":1}"
@@ -384,12 +384,12 @@ Json.serialize<StringResult<Int>> (PACKAGE.Darklang.Stdlib.Result.Result.Error 1
 //Json.parse<TODO> "1,0/0,0" = null
 //Json.parse<TODO> "1" = 1
 
-//Json.parse<TODO> "{Id : 1.0}" = Test.typeError_v0 "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
-//Json.parse<TODO> "{\"Id\" : 1.}" = Test.typeError_v0 "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10."
-//Json.parse<TODO> "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Test.typeError_v0 "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+//Json.parse<TODO> "{Id : 1.0}" = Test.runtimeError "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+//Json.parse<TODO> "{\"Id\" : 1.}" = Test.runtimeError "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10."
+//Json.parse<TODO> "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Test.runtimeError "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
 //Json.parse<TODO> "\"\"" = ""
 
-//Json.parse<TODO> "" = Test.typeError "JSON string was empty"
+//Json.parse<TODO> "" = Test.runtimeError "JSON string was empty"
 
 //Json.parse<TODO> "[97.8, -2, false, true, -0.0]" = [97.8, -2, false, true, -0.0]
 //Json.parse<TODO> "{ \"v\": 4611686018427387903 }" = { v = 4611686018427387903L }
@@ -397,12 +397,12 @@ Json.serialize<StringResult<Int>> (PACKAGE.Darklang.Stdlib.Result.Result.Error 1
 
 
 
-//Json.parse<TODO> "''" = Test.typeError_v0 "''' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 0."
-//Json.parse<TODO> "" = Test.typeError_v0 "JSON string was empty"
-//Json.parse<TODO> "[97, 2, 30, 4,]" = Test.typeError "The JSON array contains a trailing comma at the end, at on line 0, position 14"
-//Json.parse<TODO> "{Id : 1.0}" = Test.typeError_v0 "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
-//Json.parse<TODO> "{\"Id\" : 1.}" = Test.typeError_v0 "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10.")"
-//Json.parse<TODO> "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Test.typeError_v0 "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+//Json.parse<TODO> "''" = Test.runtimeError "''' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 0."
+//Json.parse<TODO> "" = Test.runtimeError "JSON string was empty"
+//Json.parse<TODO> "[97, 2, 30, 4,]" = Test.runtimeError "The JSON array contains a trailing comma at the end, at on line 0, position 14"
+//Json.parse<TODO> "{Id : 1.0}" = Test.runtimeError "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+//Json.parse<TODO> "{\"Id\" : 1.}" = Test.runtimeError "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10.")"
+//Json.parse<TODO> "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Test.runtimeError "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
 
 //Json.parse<TODO> "[97.8, -2, false, true, -0.0]" = PACKAGE.Darklang.Stdlib.Result.Result.Ok [97.8, -2, false, true, -0.0]
 

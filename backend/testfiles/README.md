@@ -30,7 +30,7 @@ this are not very good, but there are a few things to be careful of:
 
 - to produce results that are hard to otherwise create, you can add functions
   to LibTest.fs. For example, `Test.nan_v0` produces a `NaN` float, and
-  `Test.typeError` produces a built-in error.
+  `Test.runtimeError` produces a built-in error.
 
 When new langauge constructs are added to Dark, updates are often also required
 in `Parser.fs`.

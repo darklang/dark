@@ -35,7 +35,7 @@ String.join_v0 ["👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️"; "
 String.join_v0 ["🧟‍♀️🧟‍♂️‍"; "🧟‍♀️🧑🏽‍🦰‍‍"] "" = "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
 String.join_v0 ["🧑🏽‍🦰‍"; "🧑🏼‍💻‍‍"] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
 String.join_v0 ["a"; 0] "" =
-  Test.typeError_v0 "In String.join's 1st argument (`l`), the nested value `l[1]` should be a String. However, an Int (0) was passed instead.\n\nExpected: String\nActual: an Int: 0"
+  Test.runtimeError "In String.join's 1st argument (`l`), the nested value `l[1]` should be a String. However, an Int (0) was passed instead.\n\nExpected: String\nActual: an Int: 0"
 
 
 Bytes.length (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
@@ -253,7 +253,7 @@ String.slugify "{|}~\x7F" = ""
 String.fromList [] = ""
 String.fromList [c "a"] = "a"
 String.fromList [c "👩‍👩‍👧‍👦"; c "🏳️‍⚧️‍️"; c "👱🏾"; c "Z̤͔ͧ̑̓"] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
-String.fromList ["a"] = Test.typeError_v0 "In String.fromList's 1st argument (`l`), the nested value `l[0]` should be a Char. However, a String (\"a\") was passed instead.\n\nExpected: Char\nActual: a String: \"a\""
+String.fromList ["a"] = Test.runtimeError "In String.fromList's 1st argument (`l`), the nested value `l[0]` should be a Char. However, a String (\"a\") was passed instead.\n\nExpected: Char\nActual: a String: \"a\""
 
 
 String.toList "" = []

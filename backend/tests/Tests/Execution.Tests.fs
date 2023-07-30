@@ -192,7 +192,7 @@ let testIfPreview : Test =
         AT.NonExecutedResult(DString "then"),
         AT.NonExecutedResult(DString "else")))
       // fakevals
-      (eFn [ "Test" ] "typeError" 0 [] [ eStr "test" ],
+      (eFn [ "Test" ] "runtimeError" 0 [] [ eStr "test" ],
        (AT.ExecutedResult(DError(SourceNone, "test")),
         AT.NonExecutedResult(DString "then"),
         AT.NonExecutedResult(DString "else")))

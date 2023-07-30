@@ -8,8 +8,8 @@ module Float =
   Float.multiply 6.02e22 -10.0 = -6.02e23
 
 module Let =
-  (let x = Test.typeError_v0 "a" in 5) = Test.typeError "a"
-  (let x = Test.typeError_v0 "a" in Test.typeError_v0 "b") = Test.typeError_v0 "a"
+  (let x = Test.runtimeError "a" in 5) = Test.runtimeError "a"
+  (let x = Test.runtimeError "a" in Test.runtimeError "b") = Test.runtimeError "a"
   (let x = 5 in x) = 5
   (let x = 5 in let x = 6 in x) = 6
 
@@ -24,8 +24,8 @@ module Let =
   (let (d, d, d) = (2, 1, 3) in d) = 3
   (let (_, _, _) = (1, 2, 3) in 2) = 2
 
-  (let (_, _, _) = (1, 2, Test.typeError_v0 "test") in 2) = Test.typeError_v0 "test"
-  (let (_, _, _) = (Test.typeError_v0 "test1", 2, Test.typeError_v0 "test2") in 2) = Test.typeError_v0 "test1"
+  (let (_, _, _) = (1, 2, Test.runtimeError "test") in 2) = Test.runtimeError "test"
+  (let (_, _, _) = (Test.runtimeError "test1", 2, Test.runtimeError "test2") in 2) = Test.runtimeError "test1"
 
   // With multiple levels of nested destructuring
   (let ((a, ((b, (c, d)), e)), f) = ((1, ((2, (3, 4)), 5)), 6) in c) =3
@@ -37,8 +37,8 @@ module Lists =
   [1] = [1]
   [1; 2] = [1; 2]
   [ 5; Int.add_v0 1 5; 0 ] = [5; 6; 0]
-  [ 5; Test.typeError_v0 "test"; 0 ] = Test.typeError_v0 "test"
-  [ 5; Test.typeError_v0 "1"; Test.typeError_v0 "2" ] = Test.typeError_v0 "1"
+  [ 5; Test.runtimeError "test"; 0 ] = Test.runtimeError "test"
+  [ 5; Test.runtimeError "1"; Test.runtimeError "2" ] = Test.runtimeError "1"
 
 
 module Tuple =
@@ -47,8 +47,8 @@ module Tuple =
   (1, 2+3, 4) = (1, 5, 4)
   // note: there is no upper limit set on Tuple size
   (1, 2, 3, 4, 5, 6, 7, 8, 9) = (1, 2, 3, 4, 5, 6, 7, 8, 9)
-  (1, Test.typeError_v0 "test", 3) = Test.typeError_v0 "test"
-  (1, Test.typeError_v0 "error1", Test.typeError_v0 "error2") = Test.typeError_v0 "error1"
+  (1, Test.runtimeError "test", 3) = Test.runtimeError "test"
+  (1, Test.runtimeError "error1", Test.runtimeError "error2") = Test.runtimeError "error1"
 
 module Alias =
   // simple alias
@@ -57,7 +57,7 @@ module Alias =
   Something { ID = "2"; Data = "test" } = Something { ID = "2"; Data = "test" }
   Something { ID = 2; Data = "test" } =
     // TODO: would be better if this indicated that it was an Id originally
-    Test.typeError "Alias.Something's `ID` field should be a String. However, an Int (2) was passed instead.\n\nExpected: ({ ID: Alias.Id; ... })\nActual: an Int: 2"
+    Test.runtimeError "Alias.Something's `ID` field should be a String. However, an Int (2) was passed instead.\n\nExpected: ({ ID: Alias.Id; ... })\nActual: an Int: 2"
 
   // record alias
   type Person = { name: String }
@@ -104,7 +104,7 @@ module Alias =
   let getUserID(credential:UserCredential) : Id = credential |> Tuple2.second
   getUserID(("Alice", "EMP123")) = "EMP123"
   getUserID(("Alice", 123)) =
-    Test.typeError "In Alias.getUserID's 1st argument (`credential`), the nested value `credential[1]` should be a String. However, an Int (123) was passed instead.\n\nExpected: Alias.Id\nActual: an Int: 123"
+    Test.runtimeError "In Alias.getUserID's 1st argument (`credential`), the nested value `credential[1]` should be a String. However, an Int (123) was passed instead.\n\nExpected: Alias.Id\nActual: an Int: 123"
 
   type UserProfile = { credential: UserCredential; name: String; role: UserRole }
   type EmployeeProfile = UserProfile
@@ -144,18 +144,18 @@ module Records =
 
   Cols1 { col1 = 1 ; col1 = 2 } = Cols1 { col1 = 2 }
   Cols2 { col1 = 1 ; col2 = 3 } = Cols2 { col1 = 1 ; col2 = 3 }
-  Cols2 { col1 = 2 ; col2 = Test.typeError_v0 "test" } = Test.typeError_v0 "test"
+  Cols2 { col1 = 2 ; col2 = Test.runtimeError "test" } = Test.runtimeError "test"
 
   // Invalid column contents
-  Cols2 { col1 = 2 ; ___ = 3 } = Test.typeError "Unexpected field `` in Records.Cols2"
-  Cols2 { col1 = 2 } = Test.typeError "Missing key `col2` in Records.Cols2"
-  Cols2 { col1 = 2; other = 3 } = Test.typeError "Unexpected field `other` in Records.Cols2"
-  Cols2 { col1 = 2; col2 = 3; col3 = 4 } = Test.typeError "Unexpected field `col3` in Records.Cols2"
-  Cols1 { col1 = "" } = Test.typeError "Records.Cols1's `col1` field should be an Int. However, a String (\"\") was passed instead.\n\nExpected: ({ col1: Int; ... })\nActual: a String: \"\""
+  Cols2 { col1 = 2 ; ___ = 3 } = Test.runtimeError "Unexpected field `` in Records.Cols2"
+  Cols2 { col1 = 2 } = Test.runtimeError "Missing key `col2` in Records.Cols2"
+  Cols2 { col1 = 2; other = 3 } = Test.runtimeError "Unexpected field `other` in Records.Cols2"
+  Cols2 { col1 = 2; col2 = 3; col3 = 4 } = Test.runtimeError "Unexpected field `col3` in Records.Cols2"
+  Cols1 { col1 = "" } = Test.runtimeError "Records.Cols1's `col1` field should be an Int. However, a String (\"\") was passed instead.\n\nExpected: ({ col1: Int; ... })\nActual: a String: \"\""
 
   // Invalid type
-  MyNonExistantType { col1 = 2 } = Test.typeError "There is no type named MyNonExistantType"
-  AnEnum { col1 = 2 } = Test.typeError "Expected a record but Records.AnEnum is an enum"
+  MyNonExistantType { col1 = 2 } = Test.runtimeError "There is no type named MyNonExistantType"
+  AnEnum { col1 = 2 } = Test.runtimeError "Expected a record but Records.AnEnum is an enum"
 
   module Polymorphism =
     type MyRecord<'a> = { col1 : 'a; col2 : Int }
@@ -178,37 +178,37 @@ module Records =
      (let myRec = RecordForUpdateMultipe {x = 4; y = 1; z = 0} in {myRec with z = 3; x = 42; y = 11}) = RecordForUpdateMultipe {x = 42 ; y = 11; z = 3}
      // Invalid type and content
      (let myRec = RecordForUpdateMultipe {x = 4; y = 1; z = 0} in {myRec with z = 3; x = 42; y = 11; p = 10}) =
-       Test.typeError "Unexpected field `p` in Records.Update.RecordForUpdateMultipe"
+       Test.runtimeError "Unexpected field `p` in Records.Update.RecordForUpdateMultipe"
      (let myRec = RecordForUpdate {x = 4; y = 1} in {myRec with other = 2}) =
-       Test.typeError "Unexpected field `other` in Records.Update.RecordForUpdate_v0"
+       Test.runtimeError "Unexpected field `other` in Records.Update.RecordForUpdate_v0"
      (let myRec = RecordForUpdate {x = 4; y = 1} in {myRec with y = "2"}) =
-       Test.typeError "Records.Update.RecordForUpdate's `y` field should be an Int. However, a String (\"2\") was passed instead.\n\nExpected: ({ y: Int; ... })\nActual: a String: \"2\""
+       Test.runtimeError "Records.Update.RecordForUpdate's `y` field should be an Int. However, a String (\"2\") was passed instead.\n\nExpected: ({ y: Int; ... })\nActual: a String: \"2\""
 
 module Enums =
   PACKAGE.Darklang.Stdlib.Option.Option.Nothing = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
   ((List.head []) == PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = true
   (List.head []) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-  PACKAGE.Darklang.Stdlib.Result.Result.Ok (Test.typeError_v0 "err") = Test.typeError_v0 "err"
-  PACKAGE.Darklang.Stdlib.Option.Option.Just (Test.typeError_v0 "err") = Test.typeError_v0 "err"
-  PACKAGE.Darklang.Stdlib.Result.Result.Error (Test.typeError_v0 "err") = Test.typeError_v0 "err"
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok (Test.runtimeError "err") = Test.runtimeError "err"
+  PACKAGE.Darklang.Stdlib.Option.Option.Just (Test.runtimeError "err") = Test.runtimeError "err"
+  PACKAGE.Darklang.Stdlib.Result.Result.Error (Test.runtimeError "err") = Test.runtimeError "err"
 
   module Errors =
     module Builtins =
-      PACKAGE.Darklang.Stdlib.Option.Option.Nothing 5 = Test.typeError "Case `Nothing` expected 0 fields but got 1"
-      PACKAGE.Darklang.Stdlib.Option.Option.Just(5,6) = Test.typeError "Case `Just` expected 1 fields but got 2"
+      PACKAGE.Darklang.Stdlib.Option.Option.Nothing 5 = Test.runtimeError "Case `Nothing` expected 0 fields but got 1"
+      PACKAGE.Darklang.Stdlib.Option.Option.Just(5,6) = Test.runtimeError "Case `Just` expected 1 fields but got 2"
 
     module User =
       type MyEnum = | A | B | C of String
-      MyEnum.D = Test.typeError "There is no case named `D` in Enums.Errors.User.MyEnum"
-      MyEnum.C = Test.typeError "Case `C` expected 1 fields but got 0"
-      MyEnum.B 5 = Test.typeError "Case `B` expected 0 fields but got 1"
+      MyEnum.D = Test.runtimeError "There is no case named `D` in Enums.Errors.User.MyEnum"
+      MyEnum.C = Test.runtimeError "Case `C` expected 1 fields but got 0"
+      MyEnum.B 5 = Test.runtimeError "Case `B` expected 0 fields but got 1"
       (match MyEnum.C "test" with | C v -> v) = "test"
       // TYPESCLEANUP
-      // (match MyEnum.C "test" with | C -> v) = Test.typeError "TODO"
-      // (match MyEnum.C "test" with | D -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.typeError "TODO"
-      // (match MyEnum.C "test" with | 5 -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.typeError "TODO"
+      // (match MyEnum.C "test" with | C -> v) = Test.runtimeError "TODO"
+      // (match MyEnum.C "test" with | D -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.runtimeError "TODO"
+      // (match MyEnum.C "test" with | 5 -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.runtimeError "TODO"
       (MyEnum.C 5) =
-        Test.typeError "Enums.Errors.User.MyEnum.C's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: (_unnamed: String)\nActual: an Int: 5"
+        Test.runtimeError "Enums.Errors.User.MyEnum.C's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: (_unnamed: String)\nActual: an Int: 5"
 
 
   module Simple =
@@ -239,13 +239,13 @@ module Enums =
     (EnumOfMixedCases.Y 1 == EnumOfMixedCases.Y 1) = true
 
     EnumOfMixedCases.X 1 =
-      Test.typeError "Enums.MixedCases.EnumOfMixedCases.X's 1st argument should be a String. However, an Int (1) was passed instead.\n\nExpected: (_unnamed: String)\nActual: an Int: 1"
+      Test.runtimeError "Enums.MixedCases.EnumOfMixedCases.X's 1st argument should be a String. However, an Int (1) was passed instead.\n\nExpected: (_unnamed: String)\nActual: an Int: 1"
     EnumOfMixedCases.Y "test" =
-      Test.typeError "Enums.MixedCases.EnumOfMixedCases.Y's 1st argument (`i`) should be an Int. However, a String (\"test\") was passed instead.\n\nExpected: (i: Int)\nActual: a String: \"test\""
+      Test.runtimeError "Enums.MixedCases.EnumOfMixedCases.Y's 1st argument (`i`) should be an Int. However, a String (\"test\") was passed instead.\n\nExpected: (i: Int)\nActual: a String: \"test\""
     EnumOfMixedCases.Z 1 =
-      Test.typeError "Case `Z` expected 2 fields but got 1"
+      Test.runtimeError "Case `Z` expected 2 fields but got 1"
     // Test ordering of evaluation
-    EnumOfMixedCases.Z(Test.typeError "1", Test.typeError "2") = Test.typeError "1"
+    EnumOfMixedCases.Z(Test.runtimeError "1", Test.runtimeError "2") = Test.runtimeError "1"
 
     (let values = [EnumOfMixedCases.W;
                    EnumOfMixedCases.X "testX";
@@ -269,12 +269,12 @@ module Enums =
 
     (match Tuples.NotTuple("printer broke", 7) with
     | NotTuple(reason, 7) -> reason) = "printer broke"
-    (Tuples.NotTuple(("printer broke", 7))) = Test.typeError "Case `NotTuple` expected 2 fields but got 1"
+    (Tuples.NotTuple(("printer broke", 7))) = Test.runtimeError "Case `NotTuple` expected 2 fields but got 1"
 
     (match Tuples.Tuple(("printer broke", 7)) with
     | Tuple((reason, 7)) -> reason) = "printer broke"
 
-    Tuples.Tuple("printer broke", 7) = Test.typeError "Case `Tuple` expected 1 fields but got 2"
+    Tuples.Tuple("printer broke", 7) = Test.runtimeError "Case `Tuple` expected 1 fields but got 2"
 
 
   module Recursive =
@@ -337,18 +337,18 @@ module FieldAccess =
 
   module Errors =
 
-    (let x = MyRecord { col1 = 1 } in x.___) = Test.typeError "Field name is empty"
+    (let x = MyRecord { col1 = 1 } in x.___) = Test.runtimeError "Field name is empty"
 
-    (let x = MyRecord { col1 = 1 } in x.fieldName) = Test.typeError
+    (let x = MyRecord { col1 = 1 } in x.fieldName) = Test.runtimeError
       "No field named fieldName in FieldAccess.MyRecord record"
 
-    (Test.typeError_v0 "error").fieldName = Test.typeError_v0 "error"
+    (Test.runtimeError "error").fieldName = Test.runtimeError "error"
 
-    (let x = 6 in x.fieldName) = Test.typeError_v0
+    (let x = 6 in x.fieldName) = Test.runtimeError
       "Attempting to access field 'fieldName' of a Int (field access only works with records)"
 
 module Variable =
-  myvar = Test.typeError_v0 "There is no variable named: myvar"
+  myvar = Test.runtimeError "There is no variable named: myvar"
   (let x = 5 in x) = 5
 
 module Dict =
@@ -360,24 +360,24 @@ module Dict =
 module InterpolatedString =
   $"""test {"1"}""" = "test 1"
   (let one = "1" in  $"test {one}") = "test 1"
-  (let one = 1.0 in  $"test {one}") = Test.typeError_v0 "Expected string, got 1.0"
-  (let one = 1 in  $"test {one}") = Test.typeError_v0 "Expected string, got 1"
+  (let one = 1.0 in  $"test {one}") = Test.runtimeError "Expected string, got 1.0"
+  (let one = 1 in  $"test {one}") = Test.runtimeError "Expected string, got 1"
   (let name = "John" in let age = "30" in $"Name: {name}, Age: {age} years old.") = "Name: John, Age: 30 years old."
-  (let two = 2 in "test 1" == $"test {one}") = Test.typeError_v0 "There is no variable named: one"
+  (let two = 2 in "test 1" == $"test {one}") = Test.runtimeError "There is no variable named: one"
   (let one = 1 in $"test {Int.toString one}") = "test 1"
 
 
 
 module FnCall =
   5 + 3 = 8
-  5 + true = Test.typeError_v0 "Int.add's 2nd argument (`b`) should be an Int. However, a Bool (true) was passed instead.\n\nExpected: (b: Int)\nActual: a Bool: true"
-  5 + (Test.typeError_v0 "error") = Test.typeError_v0 "error"
-  (Test.typeError_v0 "error") + 5 = Test.typeError_v0 "error"
-  (Test.typeError_v0 "one") + (Test.typeError_v0 "two") = Test.typeError_v0 "one" // CLEANUP
+  5 + true = Test.runtimeError "Int.add's 2nd argument (`b`) should be an Int. However, a Bool (true) was passed instead.\n\nExpected: (b: Int)\nActual: a Bool: true"
+  5 + (Test.runtimeError "error") = Test.runtimeError "error"
+  (Test.runtimeError "error") + 5 = Test.runtimeError "error"
+  (Test.runtimeError "one") + (Test.runtimeError "two") = Test.runtimeError "one" // CLEANUP
   "xx" ++ "yy" = "xxyy"
   (5 + (3)) = 8
   Int.add_v0 5 3 = 8
-  Int.add_v0 5 = Test.typeError_v0 "Int.add has 0 type parameters and 2 parameters, but here was called with 0 type arguments and 1 arguments."
+  Int.add_v0 5 = Test.runtimeError "Int.add has 0 type parameters and 2 parameters, but here was called with 0 type arguments and 1 arguments."
 
   // TODO - not yet suppported
   // (let fn = (fun x -> x + 1)
@@ -386,26 +386,26 @@ module FnCall =
 
 module If =
   (if true then "correct" else 0) = "correct"
-  (if true then Test.typeError_v0 "a" else 0) = Test.typeError_v0 "a"
-  (if false then 0 else Test.typeError_v0 "a") = Test.typeError_v0 "a"
-  (if false then Test.typeError_v0 "a" else 0) = 0
-  (if true then 0 else Test.typeError_v0 "a") = 0
+  (if true then Test.runtimeError "a" else 0) = Test.runtimeError "a"
+  (if false then 0 else Test.runtimeError "a") = Test.runtimeError "a"
+  (if false then Test.runtimeError "a" else 0) = 0
+  (if true then 0 else Test.runtimeError "a") = 0
   (if false then "" else "correct") = "correct"
-  (if () then "" else "") = Test.typeError_v0 "If only supports Booleans"
-  (if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "msg"
-  (if 5 then "" else "") = Test.typeError_v0 "If only supports Booleans"
+  (if () then "" else "") = Test.runtimeError "If only supports Booleans"
+  (if Test.runtimeError "msg" then "" else "") = Test.runtimeError "msg"
+  (if 5 then "" else "") = Test.runtimeError "If only supports Booleans"
 
 module And =
   (true && true) = true
   (true && false) = false
   (false && true) = false
   (false && false) = false
-  (true && Test.typeError_v0 "msg") = Test.typeError_v0 "msg"
-  (true && 5) = Test.typeError_v0 "&& only supports Booleans"
-  (false && Test.typeError_v0 "msg") = false
+  (true && Test.runtimeError "msg") = Test.runtimeError "msg"
+  (true && 5) = Test.runtimeError "&& only supports Booleans"
+  (false && Test.runtimeError "msg") = false
   (false && 5) = false
-  (Test.typeError_v0 "msg" && Test.typeError_v0 "msg") = Test.typeError_v0 "msg"
-  (5 && true) = Test.typeError_v0 "&& only supports Booleans"
+  (Test.runtimeError "msg" && Test.runtimeError "msg") = Test.runtimeError "msg"
+  (5 && true) = Test.runtimeError "&& only supports Booleans"
   (true |> (&&) true) = true
   (true |> (&&) false) = false
   (false |> (&&) true) = false
@@ -417,12 +417,12 @@ module Or =
   (true || false) = true
   (false || true) = true
   (false || false) = false
-  (true || Test.typeError_v0 "msg") = true
+  (true || Test.runtimeError "msg") = true
   (true || 5) = true
-  (false || Test.typeError_v0 "msg") = Test.typeError_v0 "msg"
-  (false || 5) = Test.typeError_v0 "|| only supports Booleans"
-  (Test.typeError_v0 "msg1" || Test.typeError_v0 "msg2") = Test.typeError_v0 "msg1"
-  (5 || true) = Test.typeError_v0 "|| only supports Booleans"
+  (false || Test.runtimeError "msg") = Test.runtimeError "msg"
+  (false || 5) = Test.runtimeError "|| only supports Booleans"
+  (Test.runtimeError "msg1" || Test.runtimeError "msg2") = Test.runtimeError "msg1"
+  (5 || true) = Test.runtimeError "|| only supports Booleans"
   (true |> (||) true) = true
   (true |> (||) false) = true
   (false |> (||) true) = true
@@ -433,11 +433,11 @@ module Lambdas =
   List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
   (let y = (fun x ___ -> x + 1) in List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ]
   (let y = (fun x -> x + 1) in List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ]
-  (let y = (fun msg -> Test.typeError msg) in List.map_v0 ["1";"2";"3";"4"] y) = Test.typeError "1"
-  (let y = (fun msg -> Test.typeError msg) in List.map_v0 [] y) = []
+  (let y = (fun msg -> Test.runtimeError msg) in List.map_v0 ["1";"2";"3";"4"] y) = Test.runtimeError "1"
+  (let y = (fun msg -> Test.runtimeError msg) in List.map_v0 [] y) = []
   // (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
   (let y = (fun a b -> a * b) in List.fold_v0 [1; 2; 3; 4] 1 y) = 24
-  (List.fold_v0 [4] 1 (Test.typeError "test")) = Test.typeError "test"
+  (List.fold_v0 [4] 1 (Test.runtimeError "test")) = Test.runtimeError "test"
 
   (let x = 5 in
   let y = (fun c -> x + c) in
@@ -449,8 +449,8 @@ module Lambdas =
       (String.toList "some string")
       (fun var -> String.toUppercase (String.fromChar var))) "") = "SOME STRING"
 
-  (let y = (fun c -> if c > 2 then Test.typeError_v0 "err" else 18) in
-   [1; 2; 3; 4] |> List.map_v0 y) = Test.typeError_v0 "err"
+  (let y = (fun c -> if c > 2 then Test.runtimeError "err" else 18) in
+   [1; 2; 3; 4] |> List.map_v0 y) = Test.runtimeError "err"
 
 
 module Pipes =
@@ -462,7 +462,7 @@ module Pipes =
   // nested function
   ([] |> List.push_v0 (Int.add_v0 1 (Int.add_v0 1 3))) = [5]
   ([] |> List.push_v0 (Int.add_v0 1 ((+) 1 3))) = [5]
-  ([] |> List.push_v0 (Test.typeError_v0 "err")) = Test.typeError_v0 "err"
+  ([] |> List.push_v0 (Test.runtimeError "err")) = Test.runtimeError "err"
 
   // general
   (4 |> (-) 3 ) = 1
@@ -483,14 +483,14 @@ module Pipes =
 
   (let x = fun a b -> a + 1 in
    (7
-   |> x)) = Test.typeError_v0 "Expected 2 arguments, got 1"
+   |> x)) = Test.runtimeError "Expected 2 arguments, got 1"
 
   // only lambda might be placed into the variable used in the middle of the pipe
   (let x = 1 in
    (5
    |> x
    |> x
-   |> (+) 3)) = Test.typeError_v0 "Expected a function value, got something else: 1"
+   |> (+) 3)) = Test.runtimeError "Expected a function value, got something else: 1"
 
   // dict
   type Z = { a : List<Int> }
@@ -565,14 +565,14 @@ module Match =
   (match [1;2] with | [] -> "fail" | [i;j] -> "pass" | [i] -> "fail") = "pass"
 
   // Errors
-  (match "nothing matches" with | "not this" -> "fail") = Test.typeError "No match"
-  (match Test.typeError_v0 "cond is error" with | 5 -> "fail" | 6 -> "pass" | var -> "fail") = Test.typeError_v0 "cond is error"
-  (match Test.typeError_v0 "cond is error, wildcard" with | 5 -> 5 | _ -> 6) = Test.typeError_v0 "cond is error, wildcard"
-  (match 1 with | 1 -> Test.typeError_v0 "a" | 6 -> "pass" | var -> "fail") = Test.typeError_v0 "a"
-  (match 1 with | 2 -> Test.typeError_v0 "a" | 1 -> "pass" | var -> "fail") = "pass"
-  (match 1 with | 1 -> "pass" | 6 -> Test.typeError_v0 "a" | var -> "fail") = "pass"
-  (match 1 with | 2 -> "pass" | 1 -> Test.typeError_v0 "a" | var -> "fail") = Test.typeError_v0 "a"
-  (match 3 with | 2 -> "pass" | 1 -> Test.typeError_v0 "a" | var -> "pass") = "pass"
+  (match "nothing matches" with | "not this" -> "fail") = Test.runtimeError "No match"
+  (match Test.runtimeError "cond is error" with | 5 -> "fail" | 6 -> "pass" | var -> "fail") = Test.runtimeError "cond is error"
+  (match Test.runtimeError "cond is error, wildcard" with | 5 -> 5 | _ -> 6) = Test.runtimeError "cond is error, wildcard"
+  (match 1 with | 1 -> Test.runtimeError "a" | 6 -> "pass" | var -> "fail") = Test.runtimeError "a"
+  (match 1 with | 2 -> Test.runtimeError "a" | 1 -> "pass" | var -> "fail") = "pass"
+  (match 1 with | 1 -> "pass" | 6 -> Test.runtimeError "a" | var -> "fail") = "pass"
+  (match 1 with | 2 -> "pass" | 1 -> Test.runtimeError "a" | var -> "fail") = Test.runtimeError "a"
+  (match 3 with | 2 -> "pass" | 1 -> Test.runtimeError "a" | var -> "pass") = "pass"
 
   // int
   (match 5 with
@@ -771,7 +771,7 @@ module Match =
   | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
   | [i] -> "list:" ++ i
   | (1, 2) -> "1 and 2"
-  | Nothing -> "constructor nothing") = Test.typeError "No match"
+  | Nothing -> "constructor nothing") = Test.runtimeError "No match"
 
   module ListCons =
     (match [1; 2; 3] with | 1::2::[3] -> 42) = 42
@@ -840,32 +840,32 @@ module Match =
 
 
 module Error =
-  List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
+  List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.runtimeError "Expected 2 arguments, got 1"
   Option.map2_v0 (PACKAGE.Darklang.Stdlib.Option.Option.Just 10) "not an option" (fun (a,b) -> "1") =
-    Test.typeError_v0 "Option.map2's 2nd argument (`option2`) should be a PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, a String (\"not an...) was passed instead.\n\nExpected: (option2: PACKAGE.Darklang.Stdlib.Option.Option<'b>)\nActual: a String: \"not an option\""
+    Test.runtimeError "Option.map2's 2nd argument (`option2`) should be a PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, a String (\"not an...) was passed instead.\n\nExpected: (option2: PACKAGE.Darklang.Stdlib.Option.Option<'b>)\nActual: a String: \"not an option\""
 
   // Check we get previous errors before later ones
-  (List.map_v0 [1;2;3;4;5] (fun x -> Test.typeError "X")) |> List.fakeFunction =
-    Test.typeError_v0 "X"
+  (List.map_v0 [1;2;3;4;5] (fun x -> Test.runtimeError "X")) |> List.fakeFunction =
+    Test.runtimeError "X"
 
 module ErrorPropagation =
   type EPRec = { i: Int; m: Int; j: Int; n: Int }
-  List.head (Test.typeError_v0 "test") = Test.typeError_v0 "test"
-  (if Test.typeError_v0 "test" then 5 else 6) = Test.typeError_v0 "test"
-  (List.head (Test.typeError_v0 "test")).field = Test.typeError_v0 "test"
-  [ 5; 6; List.head (Test.typeError_v0 "test") ] = Test.typeError_v0 "test"
-  [ 5; 6; Test.typeError_v0 "test"] = Test.typeError_v0 "test"
-  EPRec { i = Test.typeError_v0 "1"; m = 5; j = List.head (Test.typeError_v0 "2"); n = 6 } = Test.typeError_v0 "1"
-  5 |> (+) (Test.typeError_v0 "test") |> (+) 3564 = Test.typeError_v0 "test"
-  5 |> (+) (Test.typeError_v0 "test") = Test.typeError_v0 "test"
-  ("test" |> Test.typeError_v0) = Test.typeError_v0 "test"
-  PACKAGE.Darklang.Stdlib.Option.Option.Just (Test.typeError_v0 "test") = Test.typeError_v0 "test"
-  PACKAGE.Darklang.Stdlib.Result.Result.Error (Test.typeError_v0 "test") = Test.typeError_v0 "test"
-  PACKAGE.Darklang.Stdlib.Result.Result.Ok (Test.typeError_v0 "test") = Test.typeError_v0 "test"
+  List.head (Test.runtimeError "test") = Test.runtimeError "test"
+  (if Test.runtimeError "test" then 5 else 6) = Test.runtimeError "test"
+  (List.head (Test.runtimeError "test")).field = Test.runtimeError "test"
+  [ 5; 6; List.head (Test.runtimeError "test") ] = Test.runtimeError "test"
+  [ 5; 6; Test.runtimeError "test"] = Test.runtimeError "test"
+  EPRec { i = Test.runtimeError "1"; m = 5; j = List.head (Test.runtimeError "2"); n = 6 } = Test.runtimeError "1"
+  5 |> (+) (Test.runtimeError "test") |> (+) 3564 = Test.runtimeError "test"
+  5 |> (+) (Test.runtimeError "test") = Test.runtimeError "test"
+  ("test" |> Test.runtimeError) = Test.runtimeError "test"
+  PACKAGE.Darklang.Stdlib.Option.Option.Just (Test.runtimeError "test") = Test.runtimeError "test"
+  PACKAGE.Darklang.Stdlib.Result.Result.Error (Test.runtimeError "test") = Test.runtimeError "test"
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok (Test.runtimeError "test") = Test.runtimeError "test"
 
 
   // pipe into error
-  ("test" |> Test.typeError_v0 |> (++) "3") = Test.typeError "test"
+  ("test" |> Test.runtimeError |> (++) "3") = Test.runtimeError "test"
 
 
 // ---------------------------
@@ -887,7 +887,7 @@ module Shadowing =
 // ---------------------------
 module Darkinternal =
  (let _ = Test.setExpectedExceptionCount 1 in
-  DarkInternal.Infra.SchedulingRule.list ()) = Test.typeError_v0 "Unknown error"
+  DarkInternal.Infra.SchedulingRule.list ()) = Test.runtimeError "Unknown error"
 
 // ---------------------------
 // Equality
@@ -901,17 +901,17 @@ module Equality =
   (5.6 == 5.6) = true
   (-55555555555555555555555555555.5 == -55555555555555555555555555555.5) = true
   (5.6 != 5.7) = true
-  (5.7 != 6) = Test.typeError_v0 "Both values must be the same type"
-  (5.7 != 5) = Test.typeError_v0 "Both values must be the same type"
-  (Test.typeError_v0 "test" != Test.typeError_v0 "different msg") = Test.typeError_v0 "test"
+  (5.7 != 6) = Test.runtimeError "Both values must be the same type"
+  (5.7 != 5) = Test.runtimeError "Both values must be the same type"
+  (Test.runtimeError "test" != Test.runtimeError "different msg") = Test.runtimeError "test"
   (true == true) = true
   (false == false) = true
   (true != false) = true
   (() == ()) = true
-  (() != PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = Test.typeError_v0 "Both values must be the same type"
-  (() != false) = Test.typeError_v0 "Both values must be the same type"
-  (() != 0) = Test.typeError_v0 "Both values must be the same type"
-  (() != 0.0) = Test.typeError_v0 "Both values must be the same type"
+  (() != PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = Test.runtimeError "Both values must be the same type"
+  (() != false) = Test.runtimeError "Both values must be the same type"
+  (() != 0) = Test.runtimeError "Both values must be the same type"
+  (() != 0.0) = Test.runtimeError "Both values must be the same type"
   ([ 1; 2; 3 ] == [ 1; 2; 3 ]) = true
   ([ 1; 2; 3 ] != [ 3; 2; 1 ]) = true
   (ERec { x = 6; y = 7 } == ERec { x = 6; y = 7 }) = true
@@ -943,7 +943,7 @@ module Equality =
   type MyDBType = { x : String; y: String }
   [<DB>] type MyDB = MyDBType
   (MyDB == MyDB) = true
-  (MyDB != 5) = Test.typeError_v0 "Both values must be the same type"
+  (MyDB != 5) = Test.runtimeError "Both values must be the same type"
 
 
 // ---------------------------
@@ -983,7 +983,7 @@ module UserDefined =
     Test.raiseException "throwsException message"
 
   let derrorFn (msg:String) : String =
-    msg ++ Test.typeError_v0 msg
+    msg ++ Test.runtimeError msg
 
   let fnWithTypeArgs<'a, 'b> (a : 'a) (b : 'b) : 'a = a
 
@@ -1004,21 +1004,21 @@ module UserDefined =
     fnWithTypedReturn<Int> () = 5
 
   module InvalidFnCalls =
-    functionWhichDoesntExist 6 = Test.typeError "There is no function named functionWhichDoesntExist"
-    stringFn 5 = Test.typeError "UserDefined.stringFn's 1st argument (`key`) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
-    stringFn "str1" "str2" = Test.typeError "UserDefined.stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
+    functionWhichDoesntExist 6 = Test.runtimeError "There is no function named functionWhichDoesntExist"
+    stringFn 5 = Test.runtimeError "UserDefined.stringFn's 1st argument (`key`) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
+    stringFn "str1" "str2" = Test.runtimeError "UserDefined.stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
 
-    fnWithTypeArgAndOneParam 1 = Test.typeError "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
-    fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
-    fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
-    fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
-    fnWithTypeArgAndOneParam<Int> "str2" = Test.typeError "UserDefined.fnWithTypeArgAndOneParam's 1st argument (`arg`) should be an Int. However, a String (\"str2\") was passed instead.\n\nExpected: (arg: 'a)\nActual: a String: \"str2\""
+    fnWithTypeArgAndOneParam 1 = Test.runtimeError "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
+    fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.runtimeError "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
+    fnWithTypeArgAndOneParam<Int, String> 1 = Test.runtimeError "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
+    fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.runtimeError "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
+    fnWithTypeArgAndOneParam<Int> "str2" = Test.runtimeError "UserDefined.fnWithTypeArgAndOneParam's 1st argument (`arg`) should be an Int. However, a String (\"str2\") was passed instead.\n\nExpected: (arg: 'a)\nActual: a String: \"str2\""
 
-    fnWithTypedReturn<String> () = Test.typeError "UserDefined.fnWithTypedReturn's return value should be a String. However, an Int (5) was passed instead.\n\nExpected: 'a\nActual: an Int: 5"
+    fnWithTypedReturn<String> () = Test.runtimeError "UserDefined.fnWithTypedReturn's return value should be a String. However, an Int (5) was passed instead.\n\nExpected: 'a\nActual: an Int: 5"
 
     (let _ = Test.setExpectedExceptionCount 1 in
-    throwsException ()) = Test.typeError "Unknown error"
-    derrorFn "msg" = Test.typeError "msg"
+    throwsException ()) = Test.runtimeError "Unknown error"
+    derrorFn "msg" = Test.runtimeError "msg"
 
 
   let myUserFunction (str:String) : Int =
@@ -1078,17 +1078,17 @@ module Packages =
   PACKAGE.Darklang.Test.returnsResultError () = PACKAGE.Darklang.Stdlib.Result.Result.Error false
 
   module Invalid =
-    PACKAGE.Darklang.Test.stringFn 5 = Test.typeError "PACKAGE.Darklang.Test.stringFn's 1st argument (`key`) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
-    PACKAGE.Darklang.Test.stringFn "str1" "str2" = Test.typeError "PACKAGE.Darklang.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
-    PACKAGE.Darklang.Test.derrorFn "test" = Test.typeError "test"
+    PACKAGE.Darklang.Test.stringFn 5 = Test.runtimeError "PACKAGE.Darklang.Test.stringFn's 1st argument (`key`) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
+    PACKAGE.Darklang.Test.stringFn "str1" "str2" = Test.runtimeError "PACKAGE.Darklang.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
+    PACKAGE.Darklang.Test.derrorFn "test" = Test.runtimeError "test"
 
     (let _ = Test.setExpectedExceptionCount 1 in
-     PACKAGE.Darklang.Test.throwsException ()) = Test.typeError "Unknown error"
+     PACKAGE.Darklang.Test.throwsException ()) = Test.runtimeError "Unknown error"
 
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam 1 = Test.typeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam 1 = Test.runtimeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.runtimeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 = Test.runtimeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.runtimeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
 
   module Constants =
     PACKAGE.Darklang.Test.Constants.stringConst = "test"
