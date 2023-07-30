@@ -181,7 +181,7 @@ system_migrations_v0
 
 
 CREATE TYPE toplevel_type AS
-ENUM ('handler', 'db', 'user_function', 'user_tipe');
+ENUM ('handler', 'db', 'user_function', 'user_type', 'user_constant');
 
 CREATE TABLE IF NOT EXISTS
 toplevels_v0

@@ -47,7 +47,8 @@ let loadToplevels
           AND (
               ((tipe = 'handler'::toplevel_type OR tipe = 'db'::toplevel_type))
               OR tipe = 'user_function'::toplevel_type
-              OR tipe = 'user_tipe'::toplevel_type)"
+              OR tipe = 'user_type'::toplevel_type
+              OR tipe = 'user_constant'::toplevel_type)"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
       |> Sql.executeAsync (fun read ->
         (read.tlid "tlid", read.bytea "data", read.bool "deleted"))
