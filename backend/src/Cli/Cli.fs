@@ -56,10 +56,7 @@ let builtIns : RT.BuiltIns =
 let packageManager = LibCliExecution.PackageManager.packageManager
 
 
-let execute
-  (mod' : Parser.CanvasV2.PTCanvasModule)
-  (symtable : Map<string, RT.Dval>)
-  : Task<RT.Dval> =
+let execute (symtable : Map<string, RT.Dval>) (args : PT.Expr) : Task<RT.Dval> =
 
   task {
     let config : RT.Config =
@@ -68,18 +65,9 @@ let execute
     let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
-        fns =
-          mod'.fns
-          |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
-          |> Map.fromListBy (fun fn -> fn.name)
-        types =
-          mod'.types
-          |> List.map (fun typ -> PT2RT.UserType.toRT typ)
-          |> Map.fromListBy (fun typ -> typ.name)
-        constants =
-          mod'.constants
-          |> List.map (fun c -> PT2RT.UserConstant.toRT c)
-          |> Map.fromListBy (fun c -> c.name)
+        fns = Map.empty
+        types = Map.empty
+        constants = Map.empty
         dbs = Map.empty
         secrets = [] }
 
@@ -104,12 +92,24 @@ let execute
         program
         config
 
-    if mod'.exprs.Length = 1 then
-      return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
-    else if mod'.exprs.Length = 0 then
-      return RT.DError(RT.SourceNone, "No expressions to execute")
-    else // mod'.exprs.Length > 1
-      return RT.DError(RT.SourceNone, "Multiple expressions to execute")
+    let callFn =
+      PT.EApply(
+        gid (),
+        PT.EFnName(
+          gid (),
+          Ok(
+            PT.FQName.Package(
+              { owner = "Darklang"
+                modules = NonEmptyList.ofList [ "Cli" ]
+                name = PT.FnName.FnName "executeCliCommand"
+                version = 0 }
+            )
+          )
+        ),
+        [],
+        [ args ]
+      )
+    return! Exe.executeExpr state symtable (PT2RT.Expr.toRT callFn)
   }
 
 let initSerializers () =
@@ -133,16 +133,13 @@ let main (args : string[]) =
         Map.values builtIns.types,
         Map.values builtIns.constants
       )
+    let args =
+      args
+      |> Array.toList
+      |> List.map (fun arg -> PT.EString(gid (), [ PT.StringText arg ]))
+    let args = PT.EList(gid (), args)
 
-
-    let hostScript =
-      Parser.CanvasV2.parseFromFile
-        resolver
-        "/home/dark/app/backend/src/Cli/cli-host.dark"
-
-    let args = args |> Array.toList |> List.map RT.DString |> RT.DList
-
-    let result = execute hostScript (Map [ "args", args ])
+    let result = execute (Map.empty) args
     let result = result.Result
 
     NonBlockingConsole.wait ()
