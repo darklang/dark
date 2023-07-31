@@ -135,7 +135,7 @@ let builtIns : RT.BuiltIns =
 // A resolver that only knows about builtins. If you need user code in the parser,
 // you need to add in the names of the fns/types/etc
 let builtinResolver =
-  Parser.NameResolver.fromBuiltins (
+  LibParser.NameResolver.fromBuiltins (
     Map.values builtIns.fns,
     Map.values builtIns.types,
     Map.values builtIns.constants

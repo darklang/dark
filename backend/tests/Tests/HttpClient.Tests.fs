@@ -155,7 +155,7 @@ let makeTest versionName filename =
         // CLEANUP: this doesn't use the correct length, as it might be latin1 or
         // compressed
         |> String.replace "LENGTH" (string response.body.Length)
-        |> Parser.TestModule.parseSingleTestFromFile
+        |> LibParser.TestModule.parseSingleTestFromFile
           builtinResolver
           "httpclient.tests.fs"
 

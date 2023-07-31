@@ -187,14 +187,14 @@ let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> 
   task {
     let! (canvasID, domain) = initializeTestCanvas' $"bwdserver-{testName}"
     let resolver =
-      Parser.NameResolver.fromBuiltins LibCloudExecution.CloudExecution.builtins
+      LibParser.NameResolver.fromBuiltins LibCloudExecution.CloudExecution.builtins
 
     // Handlers
     let oplists =
       test.handlers
       |> List.map (fun handler ->
         let source =
-          Parser.Parser.parsePTExpr resolver "BwdServer.Tests.fs" handler.code
+          LibParser.Parser.parsePTExpr resolver "BwdServer.Tests.fs" handler.code
 
         let spec =
           match handler.version with

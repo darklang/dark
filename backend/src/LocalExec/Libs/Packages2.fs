@@ -4,10 +4,6 @@ module LocalExec.Libs.Packages2
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
-open Npgsql
-open LibCloud.Db
-
 open Prelude
 open Tablecloth
 open LibExecution.RuntimeTypes
@@ -32,10 +28,10 @@ let resolver =
       []
       []
     // TODO: this may need more builtins, and packages
-    |> Parser.NameResolver.fromBuiltins
+    |> LibParser.NameResolver.fromBuiltins
 
   let thisResolver =
-    { Parser.NameResolver.empty with
+    { LibParser.NameResolver.empty with
         builtinFns =
           Set
             [ LibExecution.ProgramTypes.FnName.builtIn
@@ -47,7 +43,7 @@ let resolver =
                 "parse"
                 0 ] }
 
-  Parser.NameResolver.merge stdlibResolver thisResolver
+  LibParser.NameResolver.merge stdlibResolver thisResolver
 
 
 
@@ -70,7 +66,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString contents; DString path ] ->
           uply {
             let (fns, types, constants) =
-              Parser.Parser.parsePackage resolver path contents
+              LibParser.Parser.parsePackage resolver path contents
 
             let packagesFns = fns |> List.map (fun fn -> PT2DT.PackageFn.toDT fn)
 
@@ -110,7 +106,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString contents; DString path ] ->
           uply {
             let (fns, types, constants) =
-              Parser.Parser.parsePackage resolver path contents
+              LibParser.Parser.parsePackage resolver path contents
             do! LibCloud.PackageManager.savePackageFunctions fns
             do! LibCloud.PackageManager.savePackageTypes types
             do! LibCloud.PackageManager.savePackageConstants constants

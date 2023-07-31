@@ -1,5 +1,5 @@
 /// Entrypoint to parsing functions
-module Parser.Parser
+module LibParser.Parser
 
 open Prelude
 open Tablecloth

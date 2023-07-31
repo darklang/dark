@@ -1,4 +1,4 @@
-module internal Parser.FSharpToWrittenTypes
+module internal LibParser.FSharpToWrittenTypes
 
 open FSharp.Compiler
 open FSharp.Compiler.CodeAnalysis

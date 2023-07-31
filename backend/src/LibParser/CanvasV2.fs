@@ -1,4 +1,4 @@
-module Parser.CanvasV2
+module LibParser.CanvasV2
 
 open FSharp.Compiler.Syntax
 

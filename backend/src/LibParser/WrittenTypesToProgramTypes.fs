@@ -1,5 +1,5 @@
 /// Conversion functions from WrittenTypes to ProgramTypes
-module Parser.WrittenTypesToProgramTypes
+module LibParser.WrittenTypesToProgramTypes
 
 open Prelude
 open Tablecloth

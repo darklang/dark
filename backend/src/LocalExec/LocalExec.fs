@@ -31,7 +31,7 @@ let builtIns : RT.BuiltIns =
 let defaultTLID = 7UL
 
 let execute
-  (mod' : Parser.CanvasV2.PTCanvasModule)
+  (mod' : LibParser.CanvasV2.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
   : Task<RT.Dval> =
   task {
@@ -92,7 +92,7 @@ let sourceOf
   (filename : string)
   (tlid : tlid)
   (id : id)
-  (modul : Parser.CanvasV2.PTCanvasModule)
+  (modul : LibParser.CanvasV2.PTCanvasModule)
   : string =
   let data =
     if tlid = defaultTLID then
@@ -148,12 +148,12 @@ let main (args : string[]) : int =
     let mainFile = "/home/dark/app/backend/src/LocalExec/local-exec.dark"
     let resolver =
       // TODO: this may need more builtins, and packages
-      Parser.NameResolver.fromBuiltins (
+      LibParser.NameResolver.fromBuiltins (
         Map.values builtIns.fns |> Seq.toList,
         Map.values builtIns.types |> Seq.toList,
         Map.values builtIns.constants |> Seq.toList
       )
-    let modul = Parser.CanvasV2.parseFromFile resolver mainFile
+    let modul = LibParser.CanvasV2.parseFromFile resolver mainFile
 
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
 
