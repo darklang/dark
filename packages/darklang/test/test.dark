@@ -29,6 +29,14 @@ module Darklang =
 
     let derrorFn (msg: String) : String = msg ++ Test.runtimeError msg
 
+    type X<'a> =
+      | A of Int
+      | B of 'a
+
+    let polyFn (a: X<'a>) : X<'a> = a
+    let strFn (a: X<String>) : X<String> = a
+    let definedPolyFn<'a> (a: X<'a>) : X<'a> = a
+
     module Constants =
       let stringConst = "test"
       let intConst = 5

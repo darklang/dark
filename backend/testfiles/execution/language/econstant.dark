@@ -1,0 +1,63 @@
+module UserDefined =
+  let stringConst = "test"
+  stringConst = "test"
+  "test" = stringConst
+  UserDefined.stringConst = "test"
+
+  let intConst = 5
+  intConst = 5
+  UserDefined.intConst = 5
+
+  let floatConst = 5.6
+  floatConst = 5.6
+  UserDefined.floatConst = 5.6
+
+  let boolConst = true
+  boolConst = true
+  UserDefined.boolConst = true
+
+  let tupleConst = (1, 2, 3)
+  tupleConst = (1, 2, 3)
+  UserDefined.tupleConst = (1, 2, 3)
+
+  let charConst = 'c'
+  charConst = 'c'
+  UserDefined.charConst = 'c'
+
+  let unitConst = ()
+  unitConst = ()
+  UserDefined.unitConst = ()
+
+  let enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
+  enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
+  UserDefined.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
+
+
+module Package =
+  PACKAGE.Darklang.Test.Constants.stringConst = "test"
+  "test" = PACKAGE.Darklang.Test.Constants.stringConst
+  PACKAGE.Darklang.Test.Constants.stringConst = "test"
+
+  PACKAGE.Darklang.Test.Constants.intConst = 5
+  PACKAGE.Darklang.Test.Constants.intConst = 5
+
+  PACKAGE.Darklang.Test.Constants.floatConst = 5.6
+  PACKAGE.Darklang.Test.Constants.floatConst = 5.6
+
+  PACKAGE.Darklang.Test.Constants.boolConst = true
+  PACKAGE.Darklang.Test.Constants.boolConst = true
+
+  PACKAGE.Darklang.Test.Constants.tupleConst = (1, 2, 3)
+  PACKAGE.Darklang.Test.Constants.tupleConst = (1, 2, 3)
+
+  PACKAGE.Darklang.Test.Constants.charConst = 'c'
+  PACKAGE.Darklang.Test.Constants.charConst = 'c'
+
+  PACKAGE.Darklang.Test.Constants.unitConst = ()
+  PACKAGE.Darklang.Test.Constants.unitConst = ()
+
+  PACKAGE.Darklang.Test.Constants.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just
+    5
+
+  PACKAGE.Darklang.Test.Constants.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just
+    5

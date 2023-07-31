@@ -1,0 +1,364 @@
+// TODO - check for incomplete pattern matches
+
+(match 6 with
+ | 5 -> "fail"
+ | 6 -> "pass"
+ | var -> "fail") = "pass"
+
+(match "x" with
+ | "y" -> "fail"
+ | "x" -> "pass"
+ | var -> "fail") = "pass"
+
+(match true with
+ | false -> "fail"
+ | true -> "pass"
+ | var -> "fail") = "pass"
+
+(match 2.0 with
+ | 1.0 -> "fail"
+ | 2.0 -> "pass"
+ | var -> "fail") = "pass"
+
+(match () with
+ | () -> "pass"
+ | var -> "fail") = "pass"
+
+(match 999999999999999I with
+ | 0 -> "fail"
+ | 999999999999999I -> "pass") = "pass"
+
+(match [] with
+ | [ i ] -> "fail"
+ | [] -> "pass"
+ | [ i; j ] -> "fail") = "pass"
+
+(match [ 1 ] with
+ | [] -> "fail"
+ | [ i ] -> "pass"
+ | [ i; j ] -> "fail") = "pass"
+
+(match [ 1; 2 ] with
+ | [] -> "fail"
+ | [ i; j ] -> "pass"
+ | [ i ] -> "fail") = "pass"
+
+// Errors
+(match "nothing matches" with
+ | "not this" -> "fail") = Test.runtimeError "No match"
+
+(match Test.runtimeError "cond is error" with
+ | 5 -> "fail"
+ | 6 -> "pass"
+ | var -> "fail") = Test.runtimeError "cond is error"
+
+(match Test.runtimeError "cond is error, wildcard" with
+ | 5 -> 5
+ | _ -> 6) = Test.runtimeError "cond is error, wildcard"
+
+(match 1 with
+ | 1 -> Test.runtimeError "a"
+ | 6 -> "pass"
+ | var -> "fail") = Test.runtimeError "a"
+
+(match 1 with
+ | 2 -> Test.runtimeError "a"
+ | 1 -> "pass"
+ | var -> "fail") = "pass"
+
+(match 1 with
+ | 1 -> "pass"
+ | 6 -> Test.runtimeError "a"
+ | var -> "fail") = "pass"
+
+(match 1 with
+ | 2 -> "pass"
+ | 1 -> Test.runtimeError "a"
+ | var -> "fail") = Test.runtimeError "a"
+
+(match 3 with
+ | 2 -> "pass"
+ | 1 -> Test.runtimeError "a"
+ | var -> "pass") = "pass"
+
+// int
+(match 5 with
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | () -> "()"
+ | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | 5 -> "int"
+ | (1, 2) -> "1 and 2"
+ | [ i ] -> "list:" ++ i
+ | name -> name ++ "var") = "int"
+
+// float
+(match 5.6 with
+ | 5 -> "int"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | () -> "()"
+ | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | 5.6 -> "float"
+ | (1, 2) -> "1 and 2"
+ | [ i ] -> "list:" ++ i
+ | name -> name ++ "var") = "float"
+
+// float 2
+(match 1.1 with
+ | 5 -> "int"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | () -> "()"
+ | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | 1.1 -> "float"
+ | (1, 2) -> "1 and 2"
+ | [ i ] -> "list:" ++ i
+ | name -> name ++ "var") = "float"
+
+// bool
+(match false with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | "myStr" -> "string"
+ | () -> "()"
+ | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | false -> "bool"
+ | (1, 2) -> "1 and 2"
+ | [ i ] -> "list:" ++ i
+ | name -> name ++ "var") = "bool"
+
+// string
+(match "myStr" with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | () -> "()"
+ | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | "myStr" -> "string"
+ | (1, 2) -> "1 and 2"
+ | [ i ] -> "list:" ++ i
+ | name -> name ++ "var") = "string"
+
+// string 2string 2string 2string 2
+(match "otherStr" with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | () -> "()"
+ | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | (1, 2) -> "1 and 2"
+ | [ i ] -> "list:" ++ i
+ | name -> name ++ "var") = "otherStrvar"
+
+// ()
+(match () with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | () -> "()"
+ | (1, 2) -> "1 and 2"
+ | [ i ] -> "list:" ++ i
+ | name -> name ++ "var") = "()"
+
+// constructor with arg
+(match PACKAGE.Darklang.Stdlib.Result.Result.Ok "x" with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | () -> "()"
+ | Nothing -> "constructor nothing"
+ | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
+ | (1, 2) -> "1 and 2"
+ | [ i ] -> "list:" ++ i
+ | name -> name ++ "var") = "PACKAGE.Darklang.Stdlib.Result.Result.Ok: x"
+
+// simple tuple
+(let tpl = (1, 2) in
+
+ match tpl with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | () -> "()"
+ | Nothing -> "constructor nothing"
+ | [ i ] -> "list:" ++ i
+ | (1, 1) -> "1 and 1"
+ | (1, 2) -> "1 and 2"
+ | (2, 2) -> "2 and 2"
+ | name -> name ++ "var") = "1 and 2"
+
+// nested tuple
+(let tpl = (1, 2, (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1, "four"), 5) in
+
+ match tpl with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | () -> "()"
+ | Nothing -> "constructor nothing"
+ | [ i ] -> "list:" ++ i
+ | (1, 1) -> "1 and 1"
+ | (1, 2, (Ok "one", "four"), 5) -> "non-matching pattern chosen"
+ | (1, 2, (Ok 1, "four"), 5) -> "correct pattern matched"
+ | (1, 2, (Ok 1, x), 5) -> "wrong matching pattern chosen"
+ | (2, 2) -> "2 and 2"
+ | name -> name ++ "var") = "correct pattern matched"
+
+// nested list
+(let lst = [ [ 1; 2 ]; [ 3; 4 ]; [ 5 ] ] in
+
+ match lst with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | () -> "()"
+ | Nothing -> "constructor nothing"
+ | [ i ] -> "list:" ++ i
+ | [ [ 1; 2 ]; [ 3; 4 ]; [ 5 ] ] -> "correct pattern matched"
+ | [ [ 1; 2 ]; [ 3; 4 ]; [ 5; 6 ] ] -> "wrong matching pattern chosen"
+ | name -> name ++ "var") = "correct pattern matched"
+
+
+// duplicate tuple variables
+(let tpl = (1, 2, (3, 4), 5) in
+
+ match tpl with
+ | (a, b, (a, b), a) -> (a, b)
+ | name -> name ++ "var") = (5, 4)
+
+// duplicate list variables
+(match [ 1; 2; 5 ] with
+ | [ a; a; a ] -> a
+ | name -> name ++ "var") = 5
+
+// empty constructor
+(match PACKAGE.Darklang.Stdlib.Option.Option.Nothing with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | () -> "()"
+ | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | [ i ] -> "list:" ++ i
+ | (1, 2) -> "1 and 2"
+ | name -> name ++ "var") = "constructor nothing"
+
+// wildcard match
+(match "not matched: " with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | () -> "()"
+ | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | [ i ] -> "list:" ++ i
+ | (1, 2) -> "1 and 2"
+ | name -> name ++ "var") = "not matched: var"
+
+(match "not matched: " with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | () -> "()"
+ | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
+ | [ i ] -> "list:" ++ i
+ | (1, 2) -> "1 and 2"
+ | Nothing -> "constructor nothing") = Test.runtimeError "No match"
+
+module ListCons =
+  (match [ 1; 2; 3 ] with
+   | 1 :: 2 :: [ 3 ] -> 42) = 42
+
+  (match [ 1; 2; 3 ] with
+   | 1 :: 2 :: [ 3 ] -> 42
+   | [] -> 4
+   | _ -> 2) = 42
+
+  (match [ 1; 2; 3 ] with
+   | [] -> 4
+   | 1 :: 2 :: [ 3 ] -> 42
+   | _ -> 2) = 42
+
+  (match [ 1; 2; 3 ] with
+   | _ -> 2
+   | 1 :: 2 :: [ 3 ] -> 42
+   | [] -> 4) = 2
+
+  (match [ 1; 2; 3 ] with
+   | head :: rest -> head + (rest |> List.head |> unwrap)) = 3
+
+  // head tail
+  let headTail (list: List<Int>) : (Int * List<Int>) =
+    match list with
+    | head :: tail -> (head, tail)
+    | [] -> (0, [])
+
+  (headTail []) = (0, [])
+  (headTail [ 1 ]) = (1, [])
+  (headTail [ 1; 2 ]) = (1, [ 2 ])
+  (headTail [ 1; 2; 3 ]) = (1, [ 2; 3 ])
+
+  (match [ "dd"; "aa"; "fff"; "gg" ] with
+   | head :: tail -> (head, tail)) = ("dd", [ "aa"; "fff"; "gg" ])
+
+  // heads tail
+  let sequence (list: List<Int>) : Int =
+    match list with
+    | a :: b :: c :: rest -> a + b + c
+    | a :: b :: rest -> a + b - 1
+    | [] -> 0
+    | _ -> -1
+
+  (sequence []) = 0
+  (sequence [ 1 ]) = -1
+  (sequence [ 1; 2 ]) = 2
+  (sequence [ 1; 2; 3 ]) = 6
+  (sequence [ 1; 2; 3; 0 ]) = 6
+
+  // nested
+  let complexSum (list: List<List<Int>>) : Int =
+    match list with
+    | (a1 :: a2 :: ar) :: (b1 :: b2 :: br) :: (c1 :: cr) :: rest ->
+      a1 + a2 + b1 + b2 + c1
+    | (a :: ar) :: (b :: brest) :: rest -> a + b
+    | _ -> 0
+
+  (complexSum []) = 0
+  (complexSum [ [ 1; 2 ]; [ 3; 4 ] ]) = 4
+  (complexSum [ [ 1; 2; 3 ]; [ 3; 4; 5 ]; [ 4; 5; 6 ] ]) = 14
+
+  // wildcard
+  (match [ 1; 2; 3; 4 ] with
+   | 1 :: a :: [ 4; 3 ] -> a + 1
+   | _ :: a :: _ -> a + 2
+   | 1 :: a :: rest -> a + 3) = 4
+
+  // misc
+  (match [ 1; 2; 3; 4 ] with
+   | 2 :: a :: [ 3; 4 ] -> a + 1
+   | 1 :: a :: [ 4; 3 ] -> a + 2
+   | 1 :: a :: [ 3; 4 ] -> a + 3
+   | 1 :: a :: rest -> a + 4) = 5
+
+  (match [ 1; 2; 3; 4 ] with
+   | 2 :: a :: rest -> a - 1
+   | 1 :: a :: rest -> a * 2) = 4

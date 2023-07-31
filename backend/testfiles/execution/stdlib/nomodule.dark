@@ -1,0 +1,159 @@
+// CLEANUP move all these to LibMisc
+
+module Equals =
+  type ERec = { x: Int; y: Int }
+
+  type EEnum =
+    | E1
+    | E2
+    | E3 of Int
+
+  (5 == 5) = true
+  (5 != 6) = true
+
+  (5.6 == 5.6) = true
+  (-55555555555555555555555555555.5 == -55555555555555555555555555555.5) = true
+  (5.6 != 5.7) = true
+
+  ("asd" == "asd") = true
+  ("asd" != "sad") = true
+
+  (true == true) = true
+  (false == false) = true
+  (true != false) = true
+
+  (() == ()) = true
+
+  ([ 1; 2; 3 ] == [ 1; 2; 3 ]) = true
+  ([ 1; 2; 3 ] != [ 3; 2; 1 ]) = true
+
+  ((String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")
+   == (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
+
+  ((DateTime.parse "2019-07-28T22:42:36Z")
+   == (DateTime.parse "2019-07-28T22:42:36Z")) = true
+
+  ((DateTime.parse "2019-07-28T22:42:37Z")
+   != (DateTime.parse "2019-07-28T22:42:36Z")) = true
+
+  (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
+   == Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+
+  (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e"
+   != Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+
+  (fun x -> y) = (fun x -> y)
+  ((fun x -> let y = 1 in y) == (fun x -> let y = 1 in y)) = true
+  ((fun x -> let y = 1 in y) != (fun x -> let y = 2 in x)) = true
+
+  (ERec { x = 6; y = 7 } == ERec { x = 6; y = 7 }) = true
+  (ERec { x = 6; y = 7 } == ERec { y = 7; x = 6 }) = true
+  (ERec { x = 6; y = 7 } != ERec { x = 7; y = 6 }) = true
+
+  (EEnum.E1 == EEnum.E1) = true
+  (EEnum.E1 != EEnum.E2) = true
+  (EEnum.E3 5 == EEnum.E3 5) = true
+  (EEnum.E3 5 != EEnum.E3 6) = true
+
+  (PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+   == PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = true
+
+  (PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+   != PACKAGE.Darklang.Stdlib.Option.Option.Just
+     PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = true
+
+  (PACKAGE.Darklang.Stdlib.Option.Option.Just 5
+   == PACKAGE.Darklang.Stdlib.Option.Option.Just 5) = true
+
+  (PACKAGE.Darklang.Stdlib.Option.Option.Just 5
+   != PACKAGE.Darklang.Stdlib.Option.Option.Just 6) = true
+
+  (PACKAGE.Darklang.Stdlib.Option.Option.Just(
+    PACKAGE.Darklang.Stdlib.Option.Option.Just 0
+   )
+   != PACKAGE.Darklang.Stdlib.Option.Option.Just(
+     PACKAGE.Darklang.Stdlib.Option.Option.Just 1
+   )) = true
+
+  (PACKAGE.Darklang.Stdlib.Option.Option.Just(
+    PACKAGE.Darklang.Stdlib.Option.Option.Just 0
+   )
+   == PACKAGE.Darklang.Stdlib.Option.Option.Just(
+     PACKAGE.Darklang.Stdlib.Option.Option.Just 0
+   )) = true
+
+  (PACKAGE.Darklang.Stdlib.Result.Result.Error 0
+   == PACKAGE.Darklang.Stdlib.Result.Result.Error 0) = true
+
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+   == PACKAGE.Darklang.Stdlib.Result.Result.Ok 0) = true
+
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+   != PACKAGE.Darklang.Stdlib.Result.Result.Error 0) = true
+
+
+  type MyDBType = { x: String; y: String }
+
+  [<DB>]
+  type MyDB = MyDBType
+
+  (MyDB == MyDB) = true
+
+  module TypeErrors =
+    (5.7 != 6) = Test.runtimeError "Both values must be the same type"
+    (5.7 != 5) = Test.runtimeError "Both values must be the same type"
+
+    (Test.runtimeError "test" != Test.runtimeError "different msg") = Test.runtimeError
+      "test"
+
+    (() != PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = Test.runtimeError
+      "Both values must be the same type"
+
+    (() != false) = Test.runtimeError "Both values must be the same type"
+    (() != 0) = Test.runtimeError "Both values must be the same type"
+    (() != 0.0) = Test.runtimeError "Both values must be the same type"
+    (MyDB != 5) = Test.runtimeError "Both values must be the same type"
+
+  // Other ways to call it
+  equals_v0 1 1 = true
+  (==) 1 1 = true
+  1 == 1 = true
+
+
+module NotEquals =
+  notEquals_v0 1 1 = false
+  notEquals_v0 "abc" "abc" = false
+  notEquals_v0 "abd" "abc" = true
+
+  notEquals_v0
+    (DateTime.parse "2021-07-28T22:42:36Z")
+    (DateTime.parse "2019-07-28T22:42:36Z") = true
+
+  (!=) 1 1 = false
+  (!=) "abc" "abc" = false
+  (!=) "abd" "abc" = true
+
+  (!=)
+    (DateTime.parse "2021-07-28T22:42:36Z")
+    (DateTime.parse "2019-07-28T22:42:36Z") = true
+
+  1 != 1 = false
+  "abc" != "abc" = false
+  "abd" != "abc" = true
+
+  (DateTime.parse "2021-07-28T22:42:36Z")
+  != (DateTime.parse "2019-07-28T22:42:36Z") = true
+
+
+// Moving to packages
+// AWS.urlencode_v0 "%" = "" // Edge case bug(?) in OCaml implementation that F# needs to replicate
+// AWS.urlencode_v0 "%%" = "" // Edge case bug(?) in OCaml implementation that F# needs to replicate
+// AWS.urlencode_v0 "%A" = "A" // Edge case bug(?) in OCaml implementation that F# needs to replicate
+// AWS.urlencode_v0 "%AA" = "%AA"
+// AWS.urlencode_v0 "" = ""
+// AWS.urlencode_v0 "殢" = "%E6%AE%A2"
+// AWS.urlencode_v0 "https://google.com?q=left shark&l=en" = "https%3A//google.com%3Fq%3Dleft%20shark%26l%3Den" // Test fails without a comment here
+// AWS.urlencode_v0 "گچپژ" = "%DA%AF%DA%86%D9%BE%DA%98"
+// AWS.urlencode_v0 "<foo val=”bar“ />" = "%3Cfoo%20val%3D%E2%80%9Dbar%E2%80%9C%20/%3E"
+// AWS.urlencode_v0 "表ポあA鷗ŒéＢ逍Üßªąñ丂㐀𠀀" = "%E8%A1%A8%E3%83%9D%E3%81%82A%E9%B7%97%C5%92%C3%A9%EF%BC%A2%E9%80%8D%C3%9C%C3%9F%C2%AA%C4%85%C3%B1%E4%B8%82%E3%90%80%F0%A0%80%80"
+// Twitter.urlencode_v0 "https://google.com?q=left shark&l=en" = "https%3A%2F%2Fgoogle.com%3Fq%3Dleft%20shark%26l%3Den" // URL percent encoding

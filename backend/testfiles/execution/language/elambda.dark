@@ -1,0 +1,24 @@
+List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -> -4.611686018e+18) ]
+(let y = (fun x ___ -> x + 1) in List.map_v0 [ 1; 2; 3; 4 ] y) = [ 2; 3; 4; 5 ]
+(let y = (fun x -> x + 1) in List.map_v0 [ 1; 2; 3; 4 ] y) = [ 2; 3; 4; 5 ]
+
+(let y = (fun msg -> Test.runtimeError msg) in List.map_v0 [ "1"; "2"; "3"; "4" ] y) = Test.runtimeError
+  "1"
+
+(let y = (fun msg -> Test.runtimeError msg) in List.map_v0 [] y) = []
+// (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
+(let y = (fun a b -> a * b) in List.fold_v0 [ 1; 2; 3; 4 ] 1 y) = 24
+(List.fold_v0 [ 4 ] 1 (Test.runtimeError "test")) = Test.runtimeError "test"
+
+(let x = 5 in
+ let y = (fun c -> x + c) in
+ let x = 6 in
+ [ 1; 2; 3; 4 ] |> List.map_v0 y) = [ 6; 7; 8; 9 ]
+
+(String.join_v0
+  (List.map_v0 (String.toList "some string") (fun var ->
+    String.toUppercase (String.fromChar var)))
+  "") = "SOME STRING"
+
+(let y = (fun c -> if c > 2 then Test.runtimeError "err" else 18) in
+ [ 1; 2; 3; 4 ] |> List.map_v0 y) = Test.runtimeError "err"

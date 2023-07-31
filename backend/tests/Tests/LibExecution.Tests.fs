@@ -5,8 +5,6 @@
 /// syntax.
 module Tests.LibExecution
 
-let baseDir = "testfiles/execution/"
-
 open Expecto
 
 open System.Threading.Tasks
@@ -158,53 +156,58 @@ let t
           ""
   }
 
+let baseDir = "testfiles/execution/"
+
 // Read all test files. The test file format is described in README.md
 let fileTests () : Test =
-  System.IO.Directory.GetFiles(baseDir, "*.tests")
-  |> Array.filter ((<>) "README.md")
-  |> Array.filter ((<>) ".gitattributes")
-  |> Array.map (fun file ->
+  System.IO.Directory.GetDirectories(baseDir, "*")
+  |> Array.map (fun dir ->
+    System.IO.Directory.GetFiles(dir, "*.dark")
+    |> Array.map (fun file ->
 
-    let filename = System.IO.Path.GetFileName file
-    let testName = System.IO.Path.GetFileNameWithoutExtension file
-    let initializeCanvas = testName = "internal"
-    let shouldSkip = String.startsWith "_" filename
+      let filename = System.IO.Path.GetFileName file
+      let testName = System.IO.Path.GetFileNameWithoutExtension file
+      let initializeCanvas = testName = "internal"
+      let shouldSkip = String.startsWith "_" filename
 
-    if shouldSkip then
-      testList $"skipped - {testName}" []
-    else
-      try
-        let modules =
-          (baseDir + filename) |> LibParser.TestModule.parseTestFile builtinResolver
+      if shouldSkip then
+        testList $"skipped - {testName}" []
+      else
+        try
+          let modules =
+            $"{dir}/{filename}"
+            |> LibParser.TestModule.parseTestFile builtinResolver
 
-        // Within a module, tests have access to
-        let fns = modules |> List.map (fun m -> m.fns) |> List.concat
-        let types = modules |> List.map (fun m -> m.types) |> List.concat
-        let constants = modules |> List.map (fun m -> m.constants) |> List.concat
-        let tests =
-          modules
-          |> List.map (fun m ->
-            m.tests
-            |> List.map (fun test ->
-              t
-                initializeCanvas
-                test.name
-                test.actual
-                test.expected
-                filename
-                test.lineNumber
-                m.dbs
-                types
-                fns
-                constants
-                []))
-          |> List.concat
+          // Within a module, tests have access to
+          let fns = modules |> List.map (fun m -> m.fns) |> List.concat
+          let types = modules |> List.map (fun m -> m.types) |> List.concat
+          let constants = modules |> List.map (fun m -> m.constants) |> List.concat
+          let tests =
+            modules
+            |> List.map (fun m ->
+              m.tests
+              |> List.map (fun test ->
+                t
+                  initializeCanvas
+                  test.name
+                  test.actual
+                  test.expected
+                  filename
+                  test.lineNumber
+                  m.dbs
+                  types
+                  fns
+                  constants
+                  []))
+            |> List.concat
 
 
-        testList testName tests
-      with e ->
-        print $"Exception in {file}: {e.Message}"
-        reraise ())
+          testList testName tests
+        with e ->
+          print $"Exception in {file}: {e.Message}"
+          reraise ())
+    |> Array.toList
+    |> testList dir)
   |> Array.toList
   |> testList "All"
 
