@@ -12,8 +12,11 @@ Dict.fromListOverwritingDuplicates_v0 [("duplicate_key",1); ("b",2); ("duplicate
 Dict.fromListOverwritingDuplicates_v0 [("a",1); ("b",2); ("c",3)] = (Dict { c = 3 ; b = 2 ; a= 1 })
 Dict.fromListOverwritingDuplicates_v0 [] = (Dict {})
 Dict.fromListOverwritingDuplicates_v0 [Test.runtimeError ""] = Test.runtimeError ""
-Dict.fromListOverwritingDuplicates_v0 [("a",1); 2; ("c",3)] =
-  Test.runtimeError "In Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int (2) was passed instead.\n\nExpected: (String, 'b)\nActual: an Int: 2"
+Dict.fromListOverwritingDuplicates_v0 [(1, 2)] =
+  // CLEANUP this error message is the goal once Dvals include typeRefs:
+  // In Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int (2) was passed instead.\n\nExpected: (String, 'b)\nActual: an Int: 2
+  Test.runtimeError "Expected `key` to be a `String`, but it was `1`"
+Dict.fromListOverwritingDuplicates_v0 [1] = Test.runtimeError "All list items must be `(key, value)`"
 
 
 // CLEANUP the first test here feels surprising - should it error or something?
@@ -23,10 +26,11 @@ Dict.fromList_v0 [("Content-Length",0); ("Server", "dark") ] = PACKAGE.Darklang.
 Dict.fromList_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.Just (Dict {})
 Dict.fromList_v0 [Test.runtimeError ""] = Test.runtimeError ""
 
+
 Dict.fromList_v0 [(1,1)] =
-  Test.runtimeError "In Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int (1) was passed instead.\n\nExpected: String\nActual: an Int: 1"
-Dict.fromList_v0 [("a",1); ("b",2); ("c",3,3)] =
-  Test.runtimeError "In Dict.fromList's 1st argument (`entries`), the nested value `entries[2]` should be a (String, 'b). However, a (String, Int, Int) ((\"c\", 3...) was passed instead.\n\nExpected: (String, 'b)\nActual: a (String, Int, Int): (\"c\", 3, 3)"
+  // CLEANUP this error message is the goal once Dvals include typeRefs:
+  //Test.runtimeError "In Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int (1) was passed instead.\n\nExpected: String\nActual: an Int: 1"
+  Test.runtimeError "Expected `key` to be a `String`, but it was `1`"
 
 Dict.get (Dict { key1 = "val1" }) "key1" = PACKAGE.Darklang.Stdlib.Option.Option.Just "val1"
 
