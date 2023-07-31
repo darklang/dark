@@ -5,8 +5,6 @@
 /// syntax.
 module Tests.LibExecution
 
-let baseDir = "testfiles/execution/"
-
 open Expecto
 
 open System.Threading.Tasks
@@ -158,11 +156,13 @@ let t
           ""
   }
 
+let baseDir = "testfiles/execution/"
+
 // Read all test files. The test file format is described in README.md
 let fileTests () : Test =
   System.IO.Directory.GetDirectories(baseDir, "*")
   |> Array.map (fun dir ->
-    System.IO.Directory.GetFiles(dir, "*.tests")
+    System.IO.Directory.GetFiles(dir, "*.dark")
     |> Array.map (fun file ->
 
       let filename = System.IO.Path.GetFileName file
