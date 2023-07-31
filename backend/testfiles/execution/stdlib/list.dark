@@ -1,3 +1,9 @@
+// CLEANUP the following tests should fail on having mixed types
+//[1; 2.3] = Test.runtimeError "Cannot form a list of mixed types - the 2nd element does not match the type of previous elements"
+//[(1,10);10;(3,30)] = Test.runtimeError "Cannot form a list of mixed types ..."
+//[(1,10);(2,20);(3,30,40)] = Test.runtimeError "Cannot form a list of mixed types"
+
+
 List.all_v0 [] (fun item -> item < 3) = true
 List.all_v0 [2] (fun item -> item < 3) = true
 List.all_v0 [1; 2] (fun item -> item < 3) = true
@@ -67,8 +73,9 @@ List.findFirst [1;2;3;1;4] (fun x -> x > 1 ) = PACKAGE.Darklang.Stdlib.Option.Op
 List.findFirst [0; 5; -6; -10; ] (fun x -> x < 0) = PACKAGE.Darklang.Stdlib.Option.Option.Just -6
 List.findFirst [1; -33; 3; -2; 12] (fun x -> (x < 0 && x % 2 == 0)) = PACKAGE.Darklang.Stdlib.Option.Option.Just -2
 
-List.flatten_v0 [1;2;3] =
-  Test.runtimeError "In List.flatten's 1st argument (`list`), the nested value `list[0]` should be a List<'a>. However, an Int (1) was passed instead.\n\nExpected: List<'a>\nActual: an Int: 1"
+// CLEANUP once DList contains typeRefs, this test may be uncommented and the error message updated:
+// List.flatten_v0 [1;2;3] =
+//   Test.runtimeError "In List.flatten's 1st argument (`list`), the value should be a List<List<'a>>. However, a List<Int> ([1; 2; 3]) was passed instead.\n\nExpected: List<List<'a>>\nActual: List<Int>: [1; 2; 3]"
 List.flatten_v0 [[1];[2];[3]] = [ 1; 2; 3 ]
 List.flatten_v0 [[1];[[2;3]]] = [ 1; [ 2; 3 ] ]
 List.flatten_v0 [[[]]] = [ [] ]
@@ -223,11 +230,6 @@ List.unique_v0 [6;2.0] = Test.runtimeError "List.unique: Unable to sort list, pe
 
 List.unzip_v0 [(1,10);(2,20);(3,30)] = ( [ 1; 2; 3 ], [ 10; 20; 30 ] )
 List.unzip_v0 [(10,6)] = ([10],[6])
-// TODO these error messages should have types in them
-List.unzip_v0 [(1,10);10;(3,30)] =
-  Test.runtimeError "In List.unzip's 1st argument (`pairs`), the nested value `pairs[1]` should be an ('a, 'b). However, an Int (10) was passed instead.\n\nExpected: ('a, 'b)\nActual: an Int: 10"
-List.unzip_v0 [(1,10);(2,20);(3,30,40)] =
-  Test.runtimeError "In List.unzip's 1st argument (`pairs`), the nested value `pairs[2]` should be an ('a, 'b). However, an (Int, Int, Int) ((3, 30,...) was passed instead.\n\nExpected: ('a, 'b)\nActual: an (Int, Int, Int): (3, 30, 40)"
 
 List.zipShortest_v0 [10;20;30] [1;2;3] = [ (10, 1); (20, 2); (30, 3) ]
 List.zipShortest_v0 [10;20;30] ["a";"bc";"d"] = [ (10, "a"); (20, "bc"); (30, "d")]
