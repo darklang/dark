@@ -1,0 +1,14 @@
+(true && true) = true
+(true && false) = false
+(false && true) = false
+(false && false) = false
+(true && Test.runtimeError "msg") = Test.runtimeError "msg"
+(true && 5) = Test.runtimeError "&& only supports Booleans"
+(false && Test.runtimeError "msg") = false
+(false && 5) = false
+(Test.runtimeError "msg" && Test.runtimeError "msg") = Test.runtimeError "msg"
+(5 && true) = Test.runtimeError "&& only supports Booleans"
+(true |> (&&) true) = true
+(true |> (&&) false) = false
+(false |> (&&) true) = false
+(false |> (&&) false) = false

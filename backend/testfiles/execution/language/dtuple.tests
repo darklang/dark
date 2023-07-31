@@ -1,0 +1,11 @@
+(1, 2) = (1, 2)
+(1, 2, 3) = (1, 2, 3)
+(1, 2 + 3, 4) = (1, 5, 4)
+
+// note: there is no upper limit set on Tuple size
+(1, 2, 3, 4, 5, 6, 7, 8, 9) = (1, 2, 3, 4, 5, 6, 7, 8, 9)
+
+(1, Test.runtimeError "test", 3) = Test.runtimeError "test"
+
+(1, Test.runtimeError "error1", Test.runtimeError "error2") = Test.runtimeError
+  "error1"

@@ -1,0 +1,15 @@
+type MyRecord = { col1: Int }
+
+(let x = MyRecord { col1 = 1 } in x.col1) = 1
+
+module Errors =
+
+  (let x = MyRecord { col1 = 1 } in x.___) = Test.runtimeError "Field name is empty"
+
+  (let x = MyRecord { col1 = 1 } in x.fieldName) = Test.runtimeError
+    "No field named fieldName in MyRecord record"
+
+  (Test.runtimeError "error").fieldName = Test.runtimeError "error"
+
+  (let x = 6 in x.fieldName) = Test.runtimeError
+    "Attempting to access field 'fieldName' of a Int (field access only works with records)"
