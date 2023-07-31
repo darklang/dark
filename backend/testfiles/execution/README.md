@@ -1,6 +1,6 @@
 # Dark Execution test files
 
-The files in this directory are unit tests for the Dark language and standard
+The files in these directories are unit tests for the Dark language and standard
 libraries. A typical test is a single line, such as:
 
 `String.length_v0 "abcdef" = 6`
@@ -54,9 +54,17 @@ let myFn (x : int) (y : string) : bool =
   ...
 ```
 
+## Constant
+
+Constants are declared in the normal way:
+
+```fsharp
+let myConstant = 5
+```
+
 ## Types
 
-You can add types to a canvas by declaring a type:
+Types are declared in the normal way. Note that Darklang types are capitalized.
 
 ```fsharp
 type MyType = {
@@ -66,24 +74,13 @@ type MyType = {
 
 ## DBs
 
-You can create a DB by making a type with a DB annotation:
+You can create a DB by making a type alias with a DB annotation:
 
 ```fsharp
 [<DB>]
-type MyType = {
-  anInt : string
-}
+type MyTypeDB = MyDB
 ```
 
 ## Packages
 
-You can turn modules into packages using a `Package` annotation:
-
-```fsharp
-[<Package("test", "test", "Test")>]
-module Packages =
-  let myFn (key:string) =
-    key ++ " appended string"
-```
-
-The example creates a package function called `test/test/Test.myFn_v0`
+Packages should be defined in the packages directory, perhaps in the Darklang.Test namespace.
