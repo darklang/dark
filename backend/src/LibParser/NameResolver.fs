@@ -1,5 +1,5 @@
 /// Conversion functions from WrittenTypes to ProgramTypes
-module Parser.NameResolver
+module LibParser.NameResolver
 
 open Prelude
 open Tablecloth

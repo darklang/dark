@@ -27,7 +27,7 @@ module SR = LibCloud.QueueSchedulingRules
 module TCS = LibCloud.TraceCloudStorage
 
 let p (code : string) : PT.Expr =
-  Parser.Parser.parsePTExpr builtinResolver "Queue.Tests.fs" code
+  LibParser.Parser.parsePTExpr builtinResolver "Queue.Tests.fs" code
 
 // This doesn't actually test input, since it's a cron handler and not an actual event handler
 

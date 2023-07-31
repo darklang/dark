@@ -20,7 +20,7 @@ module Serialize = LibCloud.Serialize
 module SR = LibCloud.QueueSchedulingRules
 
 let p (code : string) : PT.Expr =
-  Parser.Parser.parsePTExpr builtinResolver "queueschedulingrules.fs" code
+  LibParser.Parser.parsePTExpr builtinResolver "queueschedulingrules.fs" code
 
 
 let testGetWorkerSchedulesForCanvas =

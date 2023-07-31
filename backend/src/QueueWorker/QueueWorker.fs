@@ -26,7 +26,7 @@ module LD = LibService.LaunchDarkly
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
-module CTPusher = ClientTypes.Pusher
+module CTPusher = LibClientTypes.Pusher
 
 let mutable shouldShutdown = false
 
@@ -180,7 +180,7 @@ let processNotification
                   // TODO: reenable using CloudStorage
                   // let! timestamp = TI.storeEvent c.id traceID desc event.value
                   // Pusher.push
-                  //   ClientTypes2BackendTypes.Pusher.eventSerializer
+                  //   LibClientTypesToCloudTypes.Pusher.eventSerializer
                   //   c.id
                   //   (Pusher.New404(
                   //     event.module',
@@ -207,7 +207,7 @@ let processNotification
                     let program = Canvas.toProgram c
                     let! (result, traceResults) =
                       CloudExecution.executeHandler
-                        ClientTypes2BackendTypes.Pusher.eventSerializer
+                        LibClientTypesToCloudTypes.Pusher.eventSerializer
                         (PT2RT.Handler.toRT h)
                         program
                         config

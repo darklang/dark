@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
@@ -19,7 +20,7 @@
     <Compile Include="WrittenTypesToProgramTypes.fs" />
     <Compile Include="TestModule.fs" />
     <Compile Include="Package.fs" />
-    <Compile Include="CanvasV2.fs" />
+    <Compile Include="Canvas.fs" />
     <Compile Include="Parser.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

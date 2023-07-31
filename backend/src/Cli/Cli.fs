@@ -100,7 +100,7 @@ let execute (symtable : Map<string, RT.Dval>) (args : PT.Expr) : Task<RT.Dval> =
           Ok(
             PT.FQName.Package(
               { owner = "Darklang"
-                modules = NonEmptyList.ofList [ "Cli" ]
+                modules = NEList.ofList "Cli" []
                 name = PT.FnName.FnName "executeCliCommand"
                 version = 0 }
             )
@@ -128,7 +128,7 @@ let main (args : string[]) =
 
     let resolver =
       // TODO: this may need more builtins, and packages
-      Parser.NameResolver.fromBuiltins (
+      LibParser.NameResolver.fromBuiltins (
         Map.values builtIns.fns,
         Map.values builtIns.types,
         Map.values builtIns.constants

@@ -1,5 +1,5 @@
 /// The types that the user writes. Think of this as the Syntax Tree.
-module Parser.WrittenTypes
+module LibParser.WrittenTypes
 
 open Prelude
 

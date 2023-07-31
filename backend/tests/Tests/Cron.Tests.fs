@@ -16,7 +16,7 @@ module Cron = LibCloud.Cron
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 
-let p (code : string) : PT.Expr = Parser.Parser.parseSimple "cron.tests.fs" code
+let p (code : string) : PT.Expr = LibParser.Parser.parseSimple "cron.tests.fs" code
 
 
 let testCronFetchActiveCrons =

@@ -14,20 +14,18 @@
          break. When we get source generators going, this might improve. -->
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
-
-
-  <ItemGroup><None Include="paket.references" /></ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
-
+  <ItemGroup>
+    <None Include="paket.references" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../LibCloudExecution/LibCloudExecution.fsproj" />
     <ProjectReference Include="../LibHttpMiddleware/LibHttpMiddleware.fsproj" />
-    <ProjectReference Include="../ClientTypes2BackendTypes/ClientTypes2BackendTypes.fsproj" />
+    <ProjectReference Include="../LibClientTypesToCloudTypes/LibClientTypesToCloudTypes.fsproj" />
   </ItemGroup>
-
   <ItemGroup>
     <Compile Include="Server.fs" />
   </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

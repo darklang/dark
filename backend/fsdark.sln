@@ -46,7 +46,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "CronChecker", "src\CronChec
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibBinarySerialization", "src\LibBinarySerialization\LibBinarySerialization.fsproj", "{5830D9BF-CA28-47B0-964F-343FAB28751B}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Parser", "src\Parser\Parser.fsproj", "{4D8F42D9-28BA-4D96-A340-52B38E8F47DD}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibParser", "src\LibParser\LibParser.fsproj", "{4D8F42D9-28BA-4D96-A340-52B38E8F47DD}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "experiments", "experiments", "{C401FD09-18FD-45AC-B036-A5C23664036A}"
 EndProject

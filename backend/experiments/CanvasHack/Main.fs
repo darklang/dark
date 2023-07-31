@@ -58,11 +58,11 @@ let seedCanvas (canvasName : string) =
             StdLibDarkInternal.StdLib.contents ]
           []
           []
-      Parser.NameResolver.fromBuiltins builtIns
+      LibParser.NameResolver.fromBuiltins builtIns
 
     let tls =
       let modul =
-        Parser.CanvasV2.parseFromFile resolver $"{canvasDir}/{config.Main}.dark"
+        LibParser.Canvas.parseFromFile resolver $"{canvasDir}/{config.Main}.dark"
 
       let types = modul.types |> List.map PT.Toplevel.TLType
       let fns = modul.fns |> List.map PT.Toplevel.TLFunction

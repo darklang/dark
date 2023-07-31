@@ -175,7 +175,7 @@ let fileTests () : Test =
     else
       try
         let modules =
-          (baseDir + filename) |> Parser.TestModule.parseTestFile builtinResolver
+          (baseDir + filename) |> LibParser.TestModule.parseTestFile builtinResolver
 
         // Within a module, tests have access to
         let fns = modules |> List.map (fun m -> m.fns) |> List.concat

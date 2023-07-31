@@ -1,4 +1,4 @@
-# ClientTypes
+# LibClientTypes
 
 Maintains types used to communicate with the `client`/editor:
 

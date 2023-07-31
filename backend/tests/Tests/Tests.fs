@@ -9,7 +9,7 @@ open Prelude
 
 module Telemetry = LibService.Telemetry
 
-module CTPusher = ClientTypes.Pusher
+module CTPusher = LibClientTypes.Pusher
 
 let initSerializers () =
   BwdServer.Server.initSerializers ()

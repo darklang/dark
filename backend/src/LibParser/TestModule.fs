@@ -1,4 +1,4 @@
-module Parser.TestModule
+module LibParser.TestModule
 
 open FSharp.Compiler.Syntax
 

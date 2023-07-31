@@ -15,7 +15,7 @@ module S = TestUtils.RTShortcuts
 module Errors = LibExecution.Errors
 
 let p (code : string) : Expr =
-  Parser.Parser.parseRTExpr builtinResolver "sqlcompiler.tests.fs" code
+  LibParser.Parser.parseRTExpr builtinResolver "sqlcompiler.tests.fs" code
 
 let compile
   (symtable : DvalMap)
@@ -127,7 +127,7 @@ let compileTests =
 let inlineWorksAtRoot =
   test "inlineWorksAtRoot" {
     let expr =
-      Parser.Parser.parseRTExpr
+      LibParser.Parser.parseRTExpr
         builtinResolver
         "test.fs"
         "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"

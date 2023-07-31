@@ -1,4 +1,4 @@
-module internal Parser.Utils
+module internal LibParser.Utils
 
 open FSharp.Compiler
 open FSharp.Compiler.CodeAnalysis
