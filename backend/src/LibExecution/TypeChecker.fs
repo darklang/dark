@@ -110,21 +110,31 @@ let rec unify
     | TBytes, DBytes _ -> return Ok()
     | TDB _, DDB _ -> return Ok() // TODO: check DB type
     | TList nested, DList dvs ->
-      let! results =
-        dvs
-        |> Ply.List.mapSequentiallyWithIndex (fun i v ->
-          let context = ListIndex(i, nested, context)
-          unify context types typeArgSymbolTable nested v)
-      return combineErrorsUnit results
+      // let! results =
+      //   dvs
+      //   |> Ply.List.mapSequentiallyWithIndex (fun i v ->
+      //     let context = ListIndex(i, nested, context)
+      //     unify context types typeArgSymbolTable nested v)
+      // return combineErrorsUnit results
+      // CLEANUP DList should include a TypeReference, in which case
+      // the type-checking here would just be a `tNested = dNested` check.
+      // (the construction of that DList should have already checked that the
+      // types match)
+      return Ok()
     | TDict valueType, DDict dmap ->
-      let! results =
-        dmap
-        |> Map.toList
-        |> Ply.List.mapSequentially (fun (k, v) ->
-          let location = Context.toLocation context
-          let context = DictKey(k, valueType, location)
-          unify context types typeArgSymbolTable valueType v)
-      return combineErrorsUnit results
+      // let! results =
+      //   dmap
+      //   |> Map.toList
+      //   |> Ply.List.mapSequentially (fun (k, v) ->
+      //     let location = Context.toLocation context
+      //     let context = DictKey(k, valueType, location)
+      //     unify context types typeArgSymbolTable valueType v)
+      // return combineErrorsUnit results
+      // CLEANUP DDict should include a TypeReference, in which case
+      // the type-checking here would just be a `tValue = dValue` check.
+      // (the construction of that DDict should have already checked that the
+      // keys match)
+      return Ok()
 
     | TFn(argTypes, returnType), DFnVal fnVal -> return Ok() // TYPESTODO check lambdas and fnVals
     | TTuple(t1, t2, tRest), DTuple(v1, v2, vRest) ->
@@ -133,12 +143,17 @@ let rec unify
       if List.length ts <> List.length vs then
         return Error(ValueNotExpectedType(value, resolvedType, context))
       else
-        let! results =
-          List.zip ts vs
-          |> Ply.List.mapSequentiallyWithIndex (fun i (t, v) ->
-            let context = TupleIndex(i, t, context)
-            unify context types typeArgSymbolTable t v)
-        return combineErrorsUnit results
+        // let! results =
+        //   List.zip ts vs
+        //   |> Ply.List.mapSequentiallyWithIndex (fun i (t, v) ->
+        //     let context = TupleIndex(i, t, context)
+        //     unify context types typeArgSymbolTable t v)
+        // return combineErrorsUnit results
+        // CLEANUP DTuple should include a TypeReference for each part, in which
+        // case the type-checking here would just be a comparison of typeRefs.
+        // (the construction of that DTuple should have already checked that the
+        // types match)
+        return Ok()
 
     // TYPESCLEANUP: handle typeArgs
     | TCustomType(typeName, _typeArgs), value ->
@@ -163,14 +178,19 @@ let rec unify
                 getTypeReferenceFromAlias types (TCustomType(typeName, []))
               return Error(ValueNotExpectedType(value, expected, context))
             else
-              return!
-                unifyRecordFields
-                  concreteTn
-                  context
-                  types
-                  typeArgSymbolTable
-                  (firstField :: additionalFields)
-                  dmap
+              // return!
+              //   unifyRecordFields
+              //     concreteTn
+              //     context
+              //     types
+              //     typeArgSymbolTable
+              //     (firstField :: additionalFields)
+              //     dmap
+              // CLEANUP DRecord should include a TypeReference, in which case
+              // the type-checking here would just be a `tField = dField` check.
+              // (the construction of that DRecord should have already checked
+              // that the fields match)
+              return Ok()
           | _ -> return err
 
         | { definition = TypeDeclaration.Enum(firstCase, additionalCases) },
@@ -186,21 +206,26 @@ let rec unify
             | None -> return err
             | Some case ->
               if List.length case.fields = List.length valFields then
-                let! unified =
-                  List.zip case.fields valFields
-                  |> List.mapi (fun i (expected, actual) ->
-                    let context =
-                      EnumField(
-                        tn,
-                        expected,
-                        case.name,
-                        i,
-                        Context.toLocation context
-                      )
-                    unify context types typeArgSymbolTable expected.typ actual)
-                  |> Ply.List.mapSequentially identity
+                // let! unified =
+                //   List.zip case.fields valFields
+                //   |> List.mapi (fun i (expected, actual) ->
+                //     let context =
+                //       EnumField(
+                //         tn,
+                //         expected,
+                //         case.name,
+                //         i,
+                //         Context.toLocation context
+                //       )
+                //     unify context types typeArgSymbolTable expected.typ actual)
+                //   |> Ply.List.mapSequentially identity
 
-                return combineErrorsUnit unified
+                // return combineErrorsUnit unified
+                // CLEANUP DEnum should include a TypeReference, in which case
+                // the type-checking here would just be a `tField = dField` check.
+                // (the construction of that DEnum should have already checked
+                // that the fields match)
+                return Ok()
               else
                 return err
         | _, _ -> return err
