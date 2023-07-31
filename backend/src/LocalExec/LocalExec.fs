@@ -31,7 +31,7 @@ let builtIns : RT.BuiltIns =
 let defaultTLID = 7UL
 
 let execute
-  (mod' : LibParser.CanvasV2.PTCanvasModule)
+  (mod' : LibParser.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
   : Task<RT.Dval> =
   task {
@@ -92,7 +92,7 @@ let sourceOf
   (filename : string)
   (tlid : tlid)
   (id : id)
-  (modul : LibParser.CanvasV2.PTCanvasModule)
+  (modul : LibParser.Canvas.PTCanvasModule)
   : string =
   let data =
     if tlid = defaultTLID then
@@ -153,7 +153,7 @@ let main (args : string[]) : int =
         Map.values builtIns.types |> Seq.toList,
         Map.values builtIns.constants |> Seq.toList
       )
-    let modul = LibParser.CanvasV2.parseFromFile resolver mainFile
+    let modul = LibParser.Canvas.parseFromFile resolver mainFile
 
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
 

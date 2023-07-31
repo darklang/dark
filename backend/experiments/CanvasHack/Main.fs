@@ -62,7 +62,7 @@ let seedCanvas (canvasName : string) =
 
     let tls =
       let modul =
-        LibParser.CanvasV2.parseFromFile resolver $"{canvasDir}/{config.Main}.dark"
+        LibParser.Canvas.parseFromFile resolver $"{canvasDir}/{config.Main}.dark"
 
       let types = modul.types |> List.map PT.Toplevel.TLType
       let fns = modul.fns |> List.map PT.Toplevel.TLFunction

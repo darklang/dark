@@ -94,7 +94,7 @@ let fns : List<BuiltInFn> =
             try
               let canvas =
                 // TODO: this needs builtins and packages
-                LibParser.CanvasV2.parse LibParser.NameResolver.empty filename code
+                LibParser.Canvas.parse LibParser.NameResolver.empty filename code
 
               let types = List.map PT2RT.UserType.toRT canvas.types
               let fns = List.map PT2RT.UserFunction.toRT canvas.fns

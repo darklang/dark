@@ -29,7 +29,7 @@ let packageManager = LibCliExecution.PackageManager.packageManager
 
 let execute
   (parentState : RT.ExecutionState)
-  (mod' : LibParser.CanvasV2.PTCanvasModule)
+  (mod' : LibParser.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
   : Task<RT.Dval> =
 
@@ -123,7 +123,7 @@ let fns : List<BuiltInFn> =
             let parsedScript =
               try
                 let resolver = LibParser.NameResolver.fromExecutionState state
-                LibParser.CanvasV2.parse resolver filename code |> Ok
+                LibParser.Canvas.parse resolver filename code |> Ok
               with e ->
                 Error(exnError e)
 

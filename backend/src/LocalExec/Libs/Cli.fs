@@ -30,7 +30,7 @@ let packageManager : RT.PackageManager = RT.PackageManager.Empty
 
 let execute
   (parentState : RT.ExecutionState)
-  (mod' : LibParser.CanvasV2.PTCanvasModule)
+  (mod' : LibParser.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
   : Task<RT.Dval> =
 
@@ -135,7 +135,7 @@ let fns : List<BuiltInFn> =
                     Map.values builtIns.types |> Seq.toList,
                     Map.values builtIns.constants |> Seq.toList
                   )
-                LibParser.CanvasV2.parse resolver filename code |> Ok
+                LibParser.Canvas.parse resolver filename code |> Ok
               with e ->
                 Error(exnError e)
 
