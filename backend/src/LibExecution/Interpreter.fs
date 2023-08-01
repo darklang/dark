@@ -49,9 +49,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     }
 
   let recordMaybe
+    (types : Types)
     (typeName : TypeName.T)
     : Ply<Option<TypeName.T * List<TypeDeclaration.RecordField>>> =
-    let types = ExecutionState.availableTypes state
     let rec inner (typeName : TypeName.T) =
       uply {
         match! Types.find typeName types with
@@ -59,10 +59,25 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           return! inner innerTypeName
         | Some({ definition = TypeDeclaration.Record(firstField, otherFields) }) ->
           return Some(typeName, firstField :: otherFields)
-        | Some({ definition = TypeDeclaration.Enum _ }) -> return None
         | _ -> return None
       }
     inner typeName
+
+  let enumMaybe
+    (types : Types)
+    (typeName : TypeName.T)
+    : Ply<Option<TypeName.T * List<TypeDeclaration.EnumCase>>> =
+    let rec inner (typeName : TypeName.T) =
+      uply {
+        match! Types.find typeName types with
+        | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
+          return! inner innerTypeName
+        | Some({ definition = TypeDeclaration.Enum(firstCase, otherCases) }) ->
+          return Some(typeName, firstCase :: otherCases)
+        | _ -> return None
+      }
+    inner typeName
+
 
   uply {
     match e with
@@ -217,14 +232,14 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let types = ExecutionState.availableTypes state
       let! typ = Types.find typeName types
 
-      match! recordMaybe typeName with
+      match! recordMaybe types typeName with
       | None ->
         match typ with
         | None -> return err id $"There is no type named {typeStr}"
         | Some({ definition = TypeDeclaration.Enum _ }) ->
           return err id $"Expected a record but {typeStr} is an enum"
         | _ -> return err id $"Expected a record but {typeStr} is something else"
-      | Some(typename, expected) ->
+      | Some(typeName, expected) ->
         let expectedFields = expected |> List.map (fun f -> f.name, f) |> Map
         let! result =
           Ply.List.foldSequentially
@@ -254,7 +269,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                     | Error e ->
                       return err id (Errors.toString (Errors.TypeError(e)))
               })
-            (DRecord(typeName, Map.empty))
+            (DRecord(typeName, Map.empty)) // use the alias name here
             fields
         match result with
         | DRecord(_, fields) ->
@@ -272,7 +287,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | DRecord(typeName, _) ->
         let typeStr = TypeName.toString typeName
         let types = ExecutionState.availableTypes state
-        match! recordMaybe typeName with
+        match! recordMaybe types typeName with
         | None ->
           match! Types.find typeName types with
           | None -> return err id $"There is no type named {typeStr}"
@@ -628,14 +643,17 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | EEnum(id, typeName, caseName, fields) ->
       let typeStr = TypeName.toString typeName
       let types = ExecutionState.availableTypes state
-      match! Types.find typeName types with
-      | None -> return err id $"There is no type named {typeStr}"
-      | Some({ definition = TypeDeclaration.Alias _ }) ->
-        return err id $"Expected an enum but {typeStr} is an alias"
-      | Some({ definition = TypeDeclaration.Record _ }) ->
-        return err id $"Expected an enum but {typeStr} is a record"
-      | Some({ definition = TypeDeclaration.Enum(case, cases) }) ->
-        let case = (case :: cases) |> List.tryFind (fun c -> c.name = caseName)
+      let! typ = Types.find typeName types
+
+      match! enumMaybe types typeName with
+      | None ->
+        match typ with
+        | None -> return err id $"There is no type named {typeStr}"
+        | Some({ definition = TypeDeclaration.Enum _ }) ->
+          return err id $"Expected a record but {typeStr} is an enum"
+        | _ -> return err id $"Expected a record but {typeStr} is something else"
+      | Some(typeName, cases) ->
+        let case = cases |> List.tryFind (fun c -> c.name = caseName)
         match case with
         | None -> return err id $"There is no case named `{caseName}` in {typeStr}"
         | Some case ->

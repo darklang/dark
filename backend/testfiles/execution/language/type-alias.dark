@@ -8,176 +8,64 @@ Something { ID = "2"; Data = "test" } = Something { ID = "2"; Data = "test" }
 Something { ID = 2; Data = "test" } = Test.runtimeError
   "Something's `ID` field should be a String. However, an Int (2) was passed instead.\n\nExpected: ({ ID: Id; ... })\nActual: an Int: 2"
 
-// record alias
-type Person = { name: String }
-type MyPerson = Person
-type MyPerson2 = Person
 
-//CLEANUP type aliases are not currently resolved in == equality checks
-// (previously these tests passed as we took extra effort to resolve at runtime,
-//  but we had to disable this type-fetching became async)
-//
-// Soon, type aliases will be resolved as the RT values are created,
-//  such that resolution won't need to happen at all in the equality checks
-//
-//(MyPerson{ name = "test" } == Person{ name = "test" }) = true
-//(MyPerson{ name = "test" } == MyPerson2{ name = "test" }) = true
+module SimpleRecordAlias =
+  type Person = { name: String }
+  type MyPerson = Person
+  type MyPerson2 = Person
 
-let getName (p: MyPerson) : String = p.name
-getName (MyPerson { name = "test" }) = "test"
+  (MyPerson { name = "test" } == Person { name = "test" }) = true
+  (MyPerson { name = "test" } == MyPerson2 { name = "test" }) = true
 
-// enum alias
-type UserRole =
-  | Admin
-  | User
-  | Guest
+  let getName (p: MyPerson) : String = p.name
+  getName (MyPerson { name = "test" }) = "test"
 
-type User =
-  { id: Id; name: String; role: UserRole }
+module SimpleEnumAlias =
+  type UserRole =
+    | Admin
+    | User
+    | Guest
 
-type Admin = User
+  type AdminRole = UserRole
+  type GuestRole = UserRole
 
-Admin
-  { id = "1"
-    name = "Alice"
-    role = UserRole.Admin } = Admin
-  { id = "1"
-    name = "Alice"
-    role = UserRole.Admin }
+  (GuestRole.Guest == AdminRole.Guest) = true
 
-User
-  { id = "2"
-    name = "Bob"
-    role = UserRole.User } = User
-  { id = "2"
-    name = "Bob"
-    role = UserRole.User }
+module NestedAlias =
+  type UserCredential = (String * Id)
+  type EmployeeCredential = UserCredential
 
-User
-  { id = "3"
-    name = "Charlie"
-    role = UserRole.Guest } = User
-  { id = "3"
-    name = "Charlie"
-    role = UserRole.Guest }
+  let getUserID (credential: UserCredential) : Id = credential |> Tuple2.second
+  getUserID (("Alice", "EMP123")) = "EMP123"
 
-let getUserRole (u: User) : UserRole = u.role
+  getUserID (("Alice", 123)) = Test.runtimeError
+    "NestedAlias.getUserID's return value should be a String. However, an Int (123) was passed instead.\n\nExpected: Id\nActual: an Int: 123"
 
-getUserRole (
-  User
-    { id = "1"
-      name = "Alice"
-      role = UserRole.Admin }
-) = UserRole.Admin
+  type UserProfile =
+    { credential: UserCredential
+      name: String }
 
-getUserRole (
-  User
-    { id = "2"
-      name = "Bob"
-      role = UserRole.User }
-) = UserRole.User
+  type EmployeeProfile = UserProfile
+  let getEmployeeName (profile: EmployeeProfile) : String = profile.name
 
-getUserRole (
-  User
-    { id = "3"
-      name = "Charlie"
-      role = UserRole.Guest }
-) = UserRole.Guest
+  getEmployeeName (
+    UserProfile
+      { credential = ("Alice", "EMP123")
+        name = "Alice" }
+  ) = "Alice"
 
-let isAdmin (u: User) : Bool = u.role == UserRole.Admin
+module ListAlias =
+  type IntegerList = List<Int>
+  let isEmpty (il: IntegerList) : Bool = List.isEmpty_v0 il
+  isEmpty ([]) = true
+  isEmpty ([ 1; 2; 3 ]) = false
 
-isAdmin (
-  Admin
-    { id = "1"
-      name = "Alice"
-      role = UserRole.Admin }
-) = true
+module ResultAlias =
+  // result alias
+  type IntResult = PACKAGE.Darklang.Stdlib.Result.Result<Int, String>
 
-// nested alias
-type UserCredential = (String * Id)
-type EmployeeCredential = UserCredential
-let getUserID (credential: UserCredential) : Id = credential |> Tuple2.second
-getUserID (("Alice", "EMP123")) = "EMP123"
+  let getIntResultValue (ir: IntResult) : Int =
+    PACKAGE.Darklang.Stdlib.Result.withDefault_v0 ir 0
 
-getUserID (("Alice", 123)) = Test.runtimeError
-  "getUserID's return value should be a String. However, an Int (123) was passed instead.\n\nExpected: Id\nActual: an Int: 123"
-
-type UserProfile =
-  { credential: UserCredential
-    name: String
-    role: UserRole }
-
-type EmployeeProfile = UserProfile
-let getEmployeeName (profile: EmployeeProfile) : String = profile.name
-
-getEmployeeName (
-  UserProfile
-    { credential = ("Alice", "EMP123")
-      name = "Alice"
-      role = UserRole.Admin }
-) = "Alice"
-
-// option alias
-type OptionName = PACKAGE.Darklang.Stdlib.Option.Option<String>
-
-type UserInfo =
-  { id: Id
-    name: OptionName
-    roles: List<UserRole> }
-
-let userHasRole (user: UserInfo) (role: UserRole) : Bool =
-  List.member_v0 user.roles role
-
-userHasRole
-  (UserInfo
-    { id = "1"
-      name = PACKAGE.Darklang.Stdlib.Option.Option.Just "Alice"
-      roles = [ UserRole.Admin; UserRole.User ] })
-  UserRole.Admin = true
-
-userHasRole
-  (UserInfo
-    { id = "1"
-      name = PACKAGE.Darklang.Stdlib.Option.Option.Just "Alice"
-      roles = [ UserRole.Admin; UserRole.User ] })
-  UserRole.Guest = false
-
-type UserRoleOption = PACKAGE.Darklang.Stdlib.Option.Option<UserRole>
-let getUserRoleAsOption (user: UserInfo) : UserRoleOption = user.roles |> List.head
-
-getUserRoleAsOption (
-  UserInfo
-    { id = "1"
-      name = PACKAGE.Darklang.Stdlib.Option.Option.Just "Alice"
-      roles = [ UserRole.Admin; UserRole.User ] }
-) = PACKAGE.Darklang.Stdlib.Option.Option.Just UserRole.Admin
-
-getUserRoleAsOption (
-  UserInfo
-    { id = "1"
-      name = PACKAGE.Darklang.Stdlib.Option.Option.Just "Alice"
-      roles = [] }
-) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-
-(getUserRoleAsOption (
-  UserInfo
-    { id = "1"
-      name = PACKAGE.Darklang.Stdlib.Option.Option.Just "Alice"
-      roles = [ UserRole.Admin; UserRole.User ] }
- )
- == PACKAGE.Darklang.Stdlib.Option.Option.Just UserRole.Guest) = false
-
-// list alias
-type IntegerList = List<Int>
-let isEmpty (il: IntegerList) : Bool = List.isEmpty_v0 il
-isEmpty ([]) = true
-isEmpty ([ 1; 2; 3 ]) = false
-
-// result alias
-type IntResult = PACKAGE.Darklang.Stdlib.Result.Result<Int, String>
-
-let getIntResultValue (ir: IntResult) : Int =
-  PACKAGE.Darklang.Stdlib.Result.withDefault_v0 ir 0
-
-getIntResultValue (PACKAGE.Darklang.Stdlib.Result.Result.Ok 5) = 5
-getIntResultValue (PACKAGE.Darklang.Stdlib.Result.Result.Error "error") = 0
+  getIntResultValue (PACKAGE.Darklang.Stdlib.Result.Result.Ok 5) = 5
+  getIntResultValue (PACKAGE.Darklang.Stdlib.Result.Result.Error "error") = 0
