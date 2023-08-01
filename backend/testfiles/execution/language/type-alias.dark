@@ -39,12 +39,11 @@ module NestedAlias =
   getUserID (("Alice", "EMP123")) = "EMP123"
 
   getUserID (("Alice", 123)) = Test.runtimeError
-    "EnumAlias.NestedAlias.getUserID's return value should be a String. However, an Int (123) was passed instead.\n\nExpected: Id\nActual: an Int: 123"
+    "NestedAlias.getUserID's return value should be a String. However, an Int (123) was passed instead.\n\nExpected: Id\nActual: an Int: 123"
 
   type UserProfile =
     { credential: UserCredential
-      name: String
-      role: UserRole }
+      name: String }
 
   type EmployeeProfile = UserProfile
   let getEmployeeName (profile: EmployeeProfile) : String = profile.name
@@ -52,8 +51,7 @@ module NestedAlias =
   getEmployeeName (
     UserProfile
       { credential = ("Alice", "EMP123")
-        name = "Alice"
-        role = UserRole.Admin }
+        name = "Alice" }
   ) = "Alice"
 
 module ListAlias =
