@@ -51,14 +51,32 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   let recordMaybe
     (types : Types)
     (typeName : TypeName.T)
-    : Ply<Option<TypeName.T * List<TypeDeclaration.RecordField>>> =
+    : Ply<Option<TypeName.T * List<string> * List<string * TypeReference>>> =
     let rec inner (typeName : TypeName.T) =
       uply {
         match! Types.find typeName types with
-        | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
-          return! inner innerTypeName
-        | Some({ definition = TypeDeclaration.Record(firstField, otherFields) }) ->
-          return Some(typeName, firstField :: otherFields)
+        | Some({ typeParams = outerTypeParams
+                 definition = TypeDeclaration.Alias(TCustomType(innerTypeName, // Y2
+                                                                // <string, 'b>
+                                                                innerTypeArgs)) }) ->
+          let! next = inner innerTypeName // (X, [(a, TVar "a"); (b, TVar "b")]
+          return
+            next
+            |> Option.map (fun (innerTypeName, innerTypeParams, fields) ->
+              (innerTypeName,
+               outerTypeParams,
+               fields
+               |> List.map (fun (k, v) ->
+                 (k, Types.substitute innerTypeParams innerTypeArgs v))))
+
+        | Some({ typeParams = typeParams
+                 definition = TypeDeclaration.Record(firstField, otherFields) }) ->
+          return
+            Some(
+              typeName,
+              typeParams,
+              firstField :: otherFields |> List.map (fun f -> f.name, f.typ)
+            )
         | _ -> return None
       }
     inner typeName
@@ -239,8 +257,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | Some({ definition = TypeDeclaration.Enum _ }) ->
           return err id $"Expected a record but {typeStr} is an enum"
         | _ -> return err id $"Expected a record but {typeStr} is something else"
-      | Some(typeName, expected) ->
-        let expectedFields = expected |> List.map (fun f -> f.name, f) |> Map
+      | Some(typeName, typeParams, expected) ->
+        let expectedFields = Map expected
         let! result =
           Ply.List.foldSequentially
             (fun r (k, expr) ->
@@ -261,10 +279,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                       if Map.containsKey k m then
                         return err id $"Duplicate field `{k}` in {typeStr}"
                       else
-                        let field = Map.find k expectedFields
-                        let context = TypeChecker.RecordField(typeName, field, None)
+                        let fieldType = Map.find k expectedFields
+                        let context =
+                          TypeChecker.RecordField(typeName, k, fieldType, None)
                         let check =
-                          TypeChecker.unify context types Map.empty field.typ v
+                          TypeChecker.unify context types Map.empty fieldType v
                         match! check with
                         | Ok() -> return DRecord(typeName, Map.add k v m)
                         | Error e ->
@@ -296,8 +315,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           | Some({ definition = TypeDeclaration.Enum _ }) ->
             return err id $"Expected a record but {typeStr} is an enum"
           | _ -> return err id $"Expected a record but {typeStr} is something else"
-        | Some(typeName, expected) ->
-          let expectedFields = expected |> List.map (fun f -> f.name, f) |> Map
+        | Some(typeName, typeParams, expected) ->
+          let expectedFields = Map expected
           return!
             Ply.List.foldSequentially
               (fun r (k, expr) ->
@@ -310,10 +329,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   | _, _, _ when not (Map.containsKey k expectedFields) ->
                     return err id $"Unexpected field `{k}` in {typeStr}"
                   | DRecord(typeName, m), k, v ->
-                    let field = Map.find k expectedFields
-                    let context = TypeChecker.RecordField(typeName, field, None)
+                    let fieldType = Map.find k expectedFields
+                    let context =
+                      TypeChecker.RecordField(typeName, k, fieldType, None)
                     match!
-                      TypeChecker.unify context types Map.empty field.typ v
+                      TypeChecker.unify context types Map.empty fieldType v
                     with
                     | Ok() -> return DRecord(typeName, Map.add k v m)
                     | Error e ->
