@@ -224,7 +224,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | Some({ definition = TypeDeclaration.Enum _ }) ->
           return err id $"Expected a record but {typeStr} is an enum"
         | _ -> return err id $"Expected a record but {typeStr} is something else"
-      | Some(typename, expected) ->
+      | Some(typeName, expected) ->
         let expectedFields = expected |> List.map (fun f -> f.name, f) |> Map
         let! result =
           Ply.List.foldSequentially
@@ -254,7 +254,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                     | Error e ->
                       return err id (Errors.toString (Errors.TypeError(e)))
               })
-            (DRecord(typeName, Map.empty))
+            (DRecord(typeName, Map.empty)) // use the alias name here
             fields
         match result with
         | DRecord(_, fields) ->
