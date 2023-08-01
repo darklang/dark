@@ -2,11 +2,15 @@
 
 module Equals =
   type ERec = { x: Int; y: Int }
+  type ERec2 = ERec
 
   type EEnum =
     | E1
     | E2
     | E3 of Int
+
+  type EEnum2 = EEnum
+
 
   (5 == 5) = true
   (5 != 6) = true
@@ -49,11 +53,15 @@ module Equals =
   (ERec { x = 6; y = 7 } == ERec { x = 6; y = 7 }) = true
   (ERec { x = 6; y = 7 } == ERec { y = 7; x = 6 }) = true
   (ERec { x = 6; y = 7 } != ERec { x = 7; y = 6 }) = true
+  (ERec { x = 6; y = 7 } == ERec2 { y = 7; x = 6 }) = true
 
   (EEnum.E1 == EEnum.E1) = true
   (EEnum.E1 != EEnum.E2) = true
   (EEnum.E3 5 == EEnum.E3 5) = true
   (EEnum.E3 5 != EEnum.E3 6) = true
+  // aliases
+  (EEnum2.E1 == EEnum.E1) = true
+  (EEnum2.E1 != EEnum.E2) = true
 
   (PACKAGE.Darklang.Stdlib.Option.Option.Nothing
    == PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = true
