@@ -69,3 +69,16 @@ module ResultAlias =
 
   getIntResultValue (PACKAGE.Darklang.Stdlib.Result.Result.Ok 5) = 5
   getIntResultValue (PACKAGE.Darklang.Stdlib.Result.Result.Error "error") = 0
+
+module WithTypeArgs =
+  type X<'a, 'b> = { a: 'a; b: 'b }
+  type Y1<'a> = X<'a, Int>
+  type Y2<'b> = X<String, 'b>
+  type Z<'a, 'b> = X<'b, 'a>
+
+  let getXa (x: X<'a, 'b>) : 'a = x.a
+  getXa (X { a = 5; b = "test" }) = 5
+  getXa (Y1 { a = 5; b = "test" }) = 5
+  getXa (Y2 { a = 5; b = "test" }) = 5
+  getXa (Z { a = "test"; b = 5 }) = "test"
+  Y1 { a = 5; b = "test" } = Y2 { a = 5; b = "test" }
