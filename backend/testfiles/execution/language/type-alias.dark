@@ -29,7 +29,7 @@ module SimpleEnumAlias =
   type AdminRole = UserRole
   type GuestRole = UserRole
 
-  (GuestRole.Guest == AdminRole.Admin) = true
+  (GuestRole.Guest == AdminRole.Guest) = true
 
 module NestedAlias =
   type UserCredential = (String * Id)
