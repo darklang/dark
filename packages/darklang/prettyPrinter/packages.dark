@@ -10,8 +10,8 @@ module Darklang =
         { name: String
           types: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>
           fns: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>
-          submodules: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module>
           constants : List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T>
+          submodules: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module>
           }
 
       let withType
@@ -27,8 +27,8 @@ module Darklang =
                   ++ "has no modules"
                 types = []
                 fns = []
-                submodules = []
                 constants = []
+                submodules = []
                 } ]
 
         | firstModuleNamePart :: submoduleNames ->
@@ -45,8 +45,8 @@ module Darklang =
                     [ { t with
                           name = { t.name with modules = [] } } ]
                   fns = []
-                  submodules = []
                   constants = []
+                  submodules = []
                   }
 
             List.append otherModules [ newModule ]
@@ -61,11 +61,11 @@ module Darklang =
                 { name = firstModuleNamePart
                   types = []
                   fns = []
+                  constants = []
                   submodules =
                     PACKAGE.Darklang.PrettyPrinter.Packages.withType
                       []
                       typeWithoutFirstModuleNamePartOfModule
-                  constants = []
                   }
 
             List.append otherModules [ newModuleWithSubmodule ]
@@ -109,8 +109,8 @@ module Darklang =
                   ++ "has no modules"
                 types = []
                 fns = []
-                submodules = []
                 constants = []
+                submodules = []
                  } ]
 
         | firstModuleNamePart :: submoduleNames ->
@@ -126,8 +126,8 @@ module Darklang =
                   fns =
                     [ { f with
                           name = { f.name with modules = [] } } ]
-                  submodules = []
                   constants = []
+                  submodules = []
                    }
 
             List.append otherModules [ newModule ]
@@ -142,11 +142,11 @@ module Darklang =
                 { name = firstModuleNamePart
                   types = []
                   fns = []
+                  constants = []
                   submodules =
                     PACKAGE.Darklang.PrettyPrinter.Packages.withFn
                       []
                       fnWithoutFirstModuleNamePartOfModule
-                  constants = []
                   }
 
             List.append otherModules [ newModuleWithSubmodule ]
@@ -189,8 +189,8 @@ module Darklang =
                   ++ "has no modules"
                 types = []
                 fns = []
-                submodules = []
                 constants = []
+                submodules = []
                  } ]
 
         | firstModuleNamePart :: submoduleNames ->
@@ -204,10 +204,10 @@ module Darklang =
                 { name = firstModuleNamePart
                   types = []
                   fns = []
-                  submodules = []
                   constants =
                     [ { c with
                           name = { c.name with modules = [] } } ]
+                  submodules = []
                   }
 
             List.append otherModules [ newModule ]
@@ -222,11 +222,11 @@ module Darklang =
                 { name = firstModuleNamePart
                   types = []
                   fns = []
+                  constants = []
                   submodules =
                     PACKAGE.Darklang.PrettyPrinter.Packages.withConstant
                       []
                       constantWithoutFirstModuleNamePartOfModule
-                  constants = []
                   }
 
             List.append otherModules [ newModuleWithSubmodule ]
@@ -301,15 +301,6 @@ module Darklang =
           |> String.join "\n\n"
           |> PACKAGE.Darklang.Stdlib.Option.Option.Just
 
-      let submodulesPart =
-        match m.submodules with
-        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-        | submodules ->
-          submodules
-          |> List.map (fun m -> PACKAGE.Darklang.PrettyPrinter.packageModule m)
-          |> String.join "\n\n"
-          |> PACKAGE.Darklang.Stdlib.Option.Option.Just
-
       let constantsPart =
         match m.constants with
         | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
@@ -320,8 +311,17 @@ module Darklang =
           |> String.join "\n\n"
           |> PACKAGE.Darklang.Stdlib.Option.Option.Just
 
+      let submodulesPart =
+        match m.submodules with
+        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+        | submodules ->
+          submodules
+          |> List.map (fun m -> PACKAGE.Darklang.PrettyPrinter.packageModule m)
+          |> String.join "\n\n"
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Just
+
       let parts =
-        [ typesPart; fnsPart; submodulesPart; constantsPart ] |> List.filterMap (fun s -> s)
+        [ typesPart; fnsPart; constantsPart; submodulesPart ] |> List.filterMap (fun s -> s)
 
       match parts with
       | [] ->
