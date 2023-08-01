@@ -256,18 +256,20 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   if Dval.isFake v then
                     return v
                   else
-                    let field = Map.find k expectedFields
-                    let context = TypeChecker.RecordField(typeName, field, None)
-                    match!
-                      TypeChecker.unify context types Map.empty field.typ v
-                    with
-                    | Ok() ->
-                      match r with
-                      | DRecord(typeName, m) ->
-                        return DRecord(typeName, Map.add k v m)
-                      | _ -> return err id "Expected a record in typecheck"
-                    | Error e ->
-                      return err id (Errors.toString (Errors.TypeError(e)))
+                    match r with
+                    | DRecord(typeName, m) ->
+                      if Map.containsKey k m then
+                        return err id $"Duplicate field `{k}` in {typeStr}"
+                      else
+                        let field = Map.find k expectedFields
+                        let context = TypeChecker.RecordField(typeName, field, None)
+                        let check =
+                          TypeChecker.unify context types Map.empty field.typ v
+                        match! check with
+                        | Ok() -> return DRecord(typeName, Map.add k v m)
+                        | Error e ->
+                          return err id (Errors.toString (Errors.TypeError(e)))
+                    | _ -> return err id "Expected a record in typecheck"
               })
             (DRecord(typeName, Map.empty)) // use the alias name here
             fields
@@ -278,7 +280,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           else
             let expectedKeys = Map.keys expectedFields
             let key = Seq.find (fun k -> not (Map.containsKey k fields)) expectedKeys
-            return err id $"Missing key `{key}` in {typeStr}"
+            return err id $"Missing field `{key}` in {typeStr}"
         | _ -> return result
 
     | ERecordUpdate(id, baseRecord, updates) ->

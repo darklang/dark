@@ -6,7 +6,6 @@ type AnEnum =
   | B
   | C
 
-Cols1 { col1 = 1; col1 = 2 } = Cols1 { col1 = 2 } // TODO: shouldn't this error?
 Cols2 { col1 = 1; col2 = 3 } = Cols2 { col1 = 1; col2 = 3 }
 
 Cols2
@@ -29,8 +28,9 @@ module WithTypeArgs =
 
 
 module InvalidCols =
+  Cols1 { col1 = 1; col1 = 2 } = Test.runtimeError "Duplicate field `col1` in Cols1"
   Cols2 { col1 = 2; ___ = 3 } = Test.runtimeError "Unexpected field `` in Cols2"
-  Cols2 { col1 = 2 } = Test.runtimeError "Missing key `col2` in Cols2"
+  Cols2 { col1 = 2 } = Test.runtimeError "Missing field `col2` in Cols2"
 
   Cols2 { col1 = 2; other = 3 } = Test.runtimeError
     "Unexpected field `other` in Cols2"
