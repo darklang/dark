@@ -7,6 +7,10 @@
 module Darklang =
   module PrettyPrinter =
     module ProgramTypes =
+
+      let nameResolutionError (nr: PACKAGE.Darklang.LanguageTools.Errors.NameResolution.Error) : String =
+        String.join nr.names "."
+
       module FQName =
         module BuiltIn =
           let fullForReference
@@ -324,7 +328,7 @@ module Darklang =
           let typeNamePart =
             match typ with
             | Ok name -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.fullForReference name
-            | Error e ->  String.join e.names "."
+            | Error e ->  PACKAGE.Darklang.PrettyPrinter.ProgramTypes.nameResolutionError e
 
           $"{typeNamePart}{argsPart}"
 
@@ -372,7 +376,7 @@ module Darklang =
           let typeNamePart =
             match typeName with
             | Ok name -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.fullForReference name
-            | Error e -> String.join e.names "."
+            | Error e -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.nameResolutionError e
 
           match fields with
           | [] -> $"{typeNamePart}.{caseName}"
@@ -510,7 +514,7 @@ module Darklang =
           let fnNamePart =
             match fnName with
             | Ok name -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.fullForReference name
-            | Error e -> String.join e.names "."
+            | Error e -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.nameResolutionError e
 
           let typeArgsPart =
             match typeArgs with
@@ -539,7 +543,7 @@ module Darklang =
           let typeNamePart =
             match typeName with
             | Ok name -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.fullForReference name
-            | Error e -> String.join e.names "."
+            | Error e -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.nameResolutionError e
 
           match fields with
           | [] -> $"{typeNamePart}.{caseName}"
@@ -614,7 +618,7 @@ module Darklang =
           let typeNamePart =
             match typeName with
             | Ok name -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.fullForReference name
-            | Error e -> String.join e.names "."
+            | Error e -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.nameResolutionError e
 
           let fieldPart =
             fields
@@ -631,7 +635,7 @@ module Darklang =
           let typeNamePart =
             match typeName with
             | Ok name -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.fullForReference name
-            | Error e -> String.join e.names "."
+            | Error e -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.nameResolutionError e
 
           match fields with
           | [] -> $"{typeNamePart}.{caseName}"
@@ -769,7 +773,7 @@ module Darklang =
           match fnName with
           | Ok name ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.fullForReference name
-          | Error e -> String.join e.names "."
+          | Error e -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.nameResolutionError e
 
         // PACKAGE.Darklang.LanguageTools.ID *
         // record: PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr *
@@ -792,7 +796,7 @@ module Darklang =
           match constant with
           | Ok name ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.fullForReference name
-          | Error e -> String.join e.names "."
+          | Error e -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.nameResolutionError e
 
         // CLEANUP: remove this case before shipping to users
         | expr ->
