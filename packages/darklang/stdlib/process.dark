@@ -10,6 +10,6 @@ module Darklang =
         let result = Process.run command input
 
         if PACKAGE.Darklang.Stdlib.Result.exitCode == 0 then
-          Ok(stdout ++ stderr)
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(stdout ++ stderr)
         else
-          Error(result)
+          PACKAGE.Darklang.Stdlib.Result.Result.Error(result)
