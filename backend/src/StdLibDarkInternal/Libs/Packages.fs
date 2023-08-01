@@ -48,7 +48,11 @@ let fns : List<BuiltInFn> =
             return
               DRecord(
                 stdlibPackageTyp [] "Packages" 0,
-                Map([ "types", DList types; "fns", DList fns; "constants", DList constants ])
+                Map(
+                  [ "types", DList types
+                    "fns", DList fns
+                    "constants", DList constants ]
+                )
               )
           }
         | _ -> incorrectArgs ()
