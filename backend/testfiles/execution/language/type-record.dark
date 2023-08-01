@@ -13,6 +13,20 @@ Cols2
   { col1 = 2
     col2 = Test.runtimeError "test" } = Test.runtimeError "test"
 
+module WithTypeArgs =
+  type Owner<'a> = { item: 'a }
+  type CoOwner<'a> = Owner<'a>
+
+  Owner { item = 5 } = CoOwner { item = 5 }
+
+  type C<'c> = { v: 'c }
+  type B<'b> = { c: C<'b> }
+  type A<'a> = { b: B<'a> }
+
+  let getC (a: A<Int>) : Int = a.b.c.v
+
+  getC (A { b = B { c = C { v = 5 } } }) = 5
+
 
 module InvalidCols =
   Cols2 { col1 = 2; ___ = 3 } = Test.runtimeError "Unexpected field `` in Cols2"
