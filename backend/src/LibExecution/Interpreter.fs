@@ -49,9 +49,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     }
 
   let recordMaybe
+    (types : Types)
     (typeName : TypeName.T)
     : Ply<Option<TypeName.T * List<TypeDeclaration.RecordField>>> =
-    let types = ExecutionState.availableTypes state
     let rec inner (typeName : TypeName.T) =
       uply {
         match! Types.find typeName types with
@@ -217,7 +217,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let types = ExecutionState.availableTypes state
       let! typ = Types.find typeName types
 
-      match! recordMaybe typeName with
+      match! recordMaybe types typeName with
       | None ->
         match typ with
         | None -> return err id $"There is no type named {typeStr}"
@@ -272,7 +272,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | DRecord(typeName, _) ->
         let typeStr = TypeName.toString typeName
         let types = ExecutionState.availableTypes state
-        match! recordMaybe typeName with
+        match! recordMaybe types typeName with
         | None ->
           match! Types.find typeName types with
           | None -> return err id $"There is no type named {typeStr}"
