@@ -241,7 +241,7 @@ module LanguageToolsTypesFork =
       | CFloat of Sign * string * string
       | CUnit
       | CTuple of first : Const * second : Const * rest : List<Const>
-      | CEnum of NameResolution<TypeName.T> * caseName : string * List<Const> // TYPESTODO NameResolution
+      | CEnum of NameResolution<TypeName.T> * caseName : string * List<Const>
 
     module PackageConstant =
       type T =
