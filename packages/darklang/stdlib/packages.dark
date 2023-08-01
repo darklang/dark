@@ -2,4 +2,6 @@ module Darklang =
   module Stdlib =
     type Packages =
       { types: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>
-        fns: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T> }
+        fns: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>
+        constants: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T>
+        }
