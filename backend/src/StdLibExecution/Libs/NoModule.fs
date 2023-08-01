@@ -9,8 +9,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
 
-let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
-  let equals = equals types
+let rec equals (a : Dval) (b : Dval) : bool =
   match a, b with
   | DInt a, DInt b -> a = b
   | DFloat a, DFloat b -> a = b
@@ -31,8 +30,7 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
         Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
       a
   | DRecord(tn1, a), DRecord(tn2, b) ->
-    // CLEANUP: use the resolved type, not a type that may be an alias of something else
-    tn1 = tn2
+    tn1 = tn2 // these should be the fully resolved type
     && Map.count a = Map.count b
     && Map.forall
       (fun k v ->
@@ -40,7 +38,7 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
       a
   | DFnVal a, DFnVal b ->
     match a, b with
-    | Lambda a, Lambda b -> equalsLambdaImpl types a b
+    | Lambda a, Lambda b -> equalsLambdaImpl a b
     | NamedFn a, NamedFn b -> a = b
     | Lambda _, _
     | NamedFn _, _ -> false
@@ -49,7 +47,7 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
   | DUuid a, DUuid b -> a = b
   | DBytes a, DBytes b -> a = b
   | DDB a, DDB b -> a = b
-  | DEnum(a1, a2, a3), DEnum(b1, b2, b3) ->
+  | DEnum(a1, a2, a3), DEnum(b1, b2, b3) -> // these should be the fully resolved type
     a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 equals a3 b3
   // exhaustiveness check
   | DInt _, _
@@ -72,24 +70,20 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
   | DError _, _
   | DIncomplete _, _ -> Exception.raiseCode "Both values must be the same type"
 
-and equalsLambdaImpl
-  (types : Types)
-  (impl1 : LambdaImpl)
-  (impl2 : LambdaImpl)
-  : bool =
+and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
   impl1.parameters.Length = impl2.parameters.Length
   && List.forall2
     (fun (_, str1) (_, str2) -> str1 = str2)
     impl1.parameters
     impl2.parameters
-  && equalsSymtable types impl1.symtable impl2.symtable
+  && equalsSymtable impl1.symtable impl2.symtable
   && equalsExpr impl1.body impl2.body
 
-and equalsSymtable (types : Types) (a : Symtable) (b : Symtable) : bool =
+and equalsSymtable (a : Symtable) (b : Symtable) : bool =
   Map.count a = Map.count b
   && Map.forall
     (fun k v ->
-      Map.tryFind k b |> Option.map (equals types v) |> Option.defaultValue false)
+      Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
     a
 
 and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
@@ -128,7 +122,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     && elems1.Length = elems2.Length
     && List.forall2 equalsExpr elems1 elems2
   | ERecord(_, typeName, fields1), ERecord(_, typeName', fields2) ->
-    typeName = typeName'
+    typeName = typeName' // TODO: what if they're aliases?
     && fields1.Length = fields2.Length
     && List.forall2
       (fun (name1, expr1) (name2, expr2) -> name1 = name2 && equalsExpr expr1 expr2)
@@ -142,7 +136,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
       updates1
       updates2
   | EEnum(_, typeName, caseName, fields), EEnum(_, typeName', caseName', fields') ->
-    typeName = typeName'
+    typeName = typeName' // TODO: what if they're aliases?
     && caseName = caseName'
     && fields.Length = fields'.Length
     && List.forall2 equalsExpr fields fields'
@@ -275,9 +269,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if the two value are equal"
       fn =
         (function
-        | state, _, [ a; b ] ->
-          let types = ExecutionState.availableTypes state
-          equals types a b |> DBool |> Ply
+        | state, _, [ a; b ] -> equals a b |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
       previewable = Pure
@@ -291,9 +283,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if the two value are not equal"
       fn =
         (function
-        | state, _, [ a; b ] ->
-          let availableTypes = ExecutionState.availableTypes state
-          equals availableTypes a b |> not |> DBool |> Ply
+        | state, _, [ a; b ] -> equals a b |> not |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<>"
       previewable = Pure
