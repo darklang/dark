@@ -10,7 +10,9 @@ module Darklang =
         { name: String
           types: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>
           fns: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>
-          submodules: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module> }
+          submodules: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module>
+          constants : List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T>
+          }
 
       let withType
         (ms: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module>)
@@ -25,7 +27,9 @@ module Darklang =
                   ++ "has no modules"
                 types = []
                 fns = []
-                submodules = [] } ]
+                submodules = []
+                constants = []
+                } ]
 
         | firstModuleNamePart :: submoduleNames ->
           // TODO: check if firstModuleNamePart is already in m
@@ -41,7 +45,9 @@ module Darklang =
                     [ { t with
                           name = { t.name with modules = [] } } ]
                   fns = []
-                  submodules = [] }
+                  submodules = []
+                  constants = []
+                  }
 
             List.append otherModules [ newModule ]
 
@@ -58,7 +64,9 @@ module Darklang =
                   submodules =
                     PACKAGE.Darklang.PrettyPrinter.Packages.withType
                       []
-                      typeWithoutFirstModuleNamePartOfModule }
+                      typeWithoutFirstModuleNamePartOfModule
+                  constants = []
+                  }
 
             List.append otherModules [ newModuleWithSubmodule ]
 
@@ -101,7 +109,9 @@ module Darklang =
                   ++ "has no modules"
                 types = []
                 fns = []
-                submodules = [] } ]
+                submodules = []
+                constants = []
+                 } ]
 
         | firstModuleNamePart :: submoduleNames ->
           let (foundModuleMaybe, otherModules) =
@@ -116,7 +126,9 @@ module Darklang =
                   fns =
                     [ { f with
                           name = { f.name with modules = [] } } ]
-                  submodules = [] }
+                  submodules = []
+                  constants = []
+                   }
 
             List.append otherModules [ newModule ]
 
@@ -133,7 +145,9 @@ module Darklang =
                   submodules =
                     PACKAGE.Darklang.PrettyPrinter.Packages.withFn
                       []
-                      fnWithoutFirstModuleNamePartOfModule }
+                      fnWithoutFirstModuleNamePartOfModule
+                  constants = []
+                  }
 
             List.append otherModules [ newModuleWithSubmodule ]
 
@@ -162,6 +176,88 @@ module Darklang =
 
             List.append otherModules [ updatedModule ]
 
+      let withConstant
+        (ms: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module>)
+        (c: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T)
+        : List<PACKAGE.Darklang.PrettyPrinter.Packages.Module> =
+        match c.name.modules with
+        | [] ->
+          [ PACKAGE.Darklang.PrettyPrinter.Packages.Module
+              { name =
+                  (c.name
+                   |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.Package.fullForReference)
+                  ++ "has no modules"
+                types = []
+                fns = []
+                submodules = []
+                constants = []
+                 } ]
+
+        | firstModuleNamePart :: submoduleNames ->
+          let (foundModuleMaybe, otherModules) =
+            ms |> List.partition (fun m -> m.name == firstModuleNamePart)
+
+          match (foundModuleMaybe, submoduleNames) with
+          | [], [] ->
+            let newModule =
+              PACKAGE.Darklang.PrettyPrinter.Packages.Module
+                { name = firstModuleNamePart
+                  types = []
+                  fns = []
+                  submodules = []
+                  constants =
+                    [ { c with
+                          name = { c.name with modules = [] } } ]
+                  }
+
+            List.append otherModules [ newModule ]
+
+          | [], submoduleNames ->
+            let constantWithoutFirstModuleNamePartOfModule =
+              { c with
+                  name = { c.name with modules = submoduleNames } }
+
+            let newModuleWithSubmodule =
+              PACKAGE.Darklang.PrettyPrinter.Packages.Module
+                { name = firstModuleNamePart
+                  types = []
+                  fns = []
+                  submodules =
+                    PACKAGE.Darklang.PrettyPrinter.Packages.withConstant
+                      []
+                      constantWithoutFirstModuleNamePartOfModule
+                  constants = []
+                  }
+
+            List.append otherModules [ newModuleWithSubmodule ]
+
+          | [ foundModule ], [] ->
+            let updatedModule =
+              { foundModule with
+                  constants =
+                    List.append
+                      foundModule.constants
+                      [ { c with
+                            name = { c.name with modules = [] } } ] }
+
+            List.append otherModules [ updatedModule ]
+
+          | [ foundModule ], submoduleNames ->
+            let constantWithoutFirstModuleNamePartOfModule =
+              { c with
+                  name = { c.name with modules = submoduleNames } }
+
+            let updatedModule =
+              { foundModule with
+                  submodules =
+                    PACKAGE.Darklang.PrettyPrinter.Packages.withConstant
+                      foundModule.submodules
+                      constantWithoutFirstModuleNamePartOfModule }
+
+            List.append otherModules [ updatedModule ]
+
+
+
       let toModules
         (p: PACKAGE.Darklang.Stdlib.Packages)
         : List<PACKAGE.Darklang.PrettyPrinter.Packages.Module> =
@@ -175,7 +271,11 @@ module Darklang =
           List.fold p.fns modulesAfterTypes (fun (modules, f) ->
             PACKAGE.Darklang.PrettyPrinter.Packages.withFn modules f)
 
-        modulesWithTypesAndFns
+        let modulesWithTypesAndFnsAndConstants =
+          List.fold p.constants modulesWithTypesAndFns (fun (modules, c) ->
+            PACKAGE.Darklang.PrettyPrinter.Packages.withConstant modules c)
+
+        modulesWithTypesAndFnsAndConstants
 
 
     let packageModule (m: PACKAGE.Darklang.PrettyPrinter.Packages.Module) : String =
@@ -210,8 +310,18 @@ module Darklang =
           |> String.join "\n\n"
           |> PACKAGE.Darklang.Stdlib.Option.Option.Just
 
+      let constantsPart =
+        match m.constants with
+        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+        | constants ->
+          m.constants
+          |> List.map (fun c ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageConstant c)
+          |> String.join "\n\n"
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Just
+
       let parts =
-        [ typesPart; fnsPart; submodulesPart ] |> List.filterMap (fun s -> s)
+        [ typesPart; fnsPart; submodulesPart; constantsPart ] |> List.filterMap (fun s -> s)
 
       match parts with
       | [] ->
@@ -241,6 +351,15 @@ module Darklang =
                     name =
                       { f.name with
                           modules = List.append [ f.name.owner ] f.name.modules
+                          owner = "(redacted)" } })
+
+            constants =
+              p.constants
+              |> List.map (fun c ->
+                { c with
+                    name =
+                      { c.name with
+                          modules = List.append [ c.name.owner ] c.name.modules
                           owner = "(redacted)" } }) }
 
       let modules =

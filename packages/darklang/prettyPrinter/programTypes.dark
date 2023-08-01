@@ -141,6 +141,78 @@ module Darklang =
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.Package.fullForReference
               p
 
+      module ConstantName =
+        let name (name: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Name) : String =
+          match name with
+          | ConstantName name -> name
+
+        module BuiltIn =
+          let fullForReference
+            (c: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.BuiltIn)
+            : String =
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.BuiltIn.fullForReference
+              (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name c.name)
+              c
+
+
+        module UserProgram =
+          let atDefinition
+            (u: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.UserProgram)
+            : String =
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.UserProgram.atDefinition
+              (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name u.name)
+              u
+
+          let fullForReference
+            (u: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.UserProgram)
+            : String =
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.UserProgram.fullForReference
+              (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name u.name)
+              u
+
+        module Package =
+          let atDefinition
+            (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Package)
+            : String =
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.Package.atDefinition
+              (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name p.name)
+              p
+
+          let fullForReference
+            (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Package)
+            : String =
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.Package.fullForReference
+              (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name p.name)
+              p
+
+        let atDefinition
+          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.T)
+          : String =
+          match t with
+          | BuiltIn b ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.BuiltIn.fullForReference
+              b
+          | UserProgram u ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.UserProgram.atDefinition
+              u
+          | Package p ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.Package.atDefinition
+              p
+
+        let fullForReference
+          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.T)
+          : String =
+          match t with
+          | BuiltIn b ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.BuiltIn.fullForReference
+              b
+          | UserProgram u ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.UserProgram.fullForReference
+              u
+          | Package p ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.Package.fullForReference
+              p
+
 
       module FnName =
         let name (name: PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name) : String =
@@ -274,6 +346,41 @@ module Darklang =
             | Error e -> "Err" ++ e
 
           $"({s})"
+
+      let constant (c: PACKAGE.Darklang.LanguageTools.ProgramTypes.Const): String =
+        match c with
+        | CInt i -> Int.toString i
+        | CFloat(sign, whole, remainder) ->
+          let signPart = PACKAGE.Darklang.PrettyPrinter.sign sign
+          let remainderPart = PACKAGE.Darklang.PrettyPrinter.processRemainder remainder
+          $"{signPart}{whole}.{remainderPart}"
+        | CBool b -> Bool.toString b
+        | CChar c -> $"'{Char.toString c}'"
+        | CString s -> $"\"{s}\""
+        | CUnit -> "()"
+        | CTuple(first, second, theRest) ->
+          (List.append [ first; second ] theRest)
+          |> List.map (fun item ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.constant item)
+          |> String.join ", "
+          |> fun parts -> "(" ++ parts ++ ")"
+
+        | CEnum(typeName, caseName, fields) ->
+          let typeNamePart =
+            match typeName with
+            | Ok name -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.fullForReference name
+            | Error e -> String.join e.names "."
+
+          match fields with
+          | [] -> $"{typeNamePart}.{caseName}"
+          | fields ->
+            let fieldPart =
+              fields
+              |> List.map (fun field ->
+                PACKAGE.Darklang.PrettyPrinter.ProgramTypes.constant field)
+              |> String.join ", "
+
+            $"{typeNamePart}.{caseName}({fieldPart})"
 
       let letPattern (lp: PACKAGE.Darklang.LanguageTools.ProgramTypes.LetPattern) : String =
         match lp with
@@ -898,3 +1005,16 @@ module Darklang =
           |> PACKAGE.Darklang.PrettyPrinter.indent
 
         $"type {namePart}{typeParamPart} =\n{defPart}"
+
+
+      let packageConstant
+        (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T)
+        : String =
+        let namePart =
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.Package.atDefinition
+            p.name
+
+        let bodyPart =
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.constant p.body
+
+        $"{namePart} = {bodyPart}"

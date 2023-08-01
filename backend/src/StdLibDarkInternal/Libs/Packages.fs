@@ -36,16 +36,19 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DUnit ] ->
           uply {
-            let! packages = LibCloud.PackageManager.allTypes
-            let packages = List.map PT2DT.PackageType.toDT packages
+            let! types = LibCloud.PackageManager.allTypes
+            let types = List.map PT2DT.PackageType.toDT types
 
             let! fns = LibCloud.PackageManager.allFunctions
             let fns = List.map PT2DT.PackageFn.toDT fns
 
+            let! constants = LibCloud.PackageManager.allConstants
+            let constants = List.map PT2DT.PackageConstant.toDT constants
+
             return
               DRecord(
                 stdlibPackageTyp [] "Packages" 0,
-                Map([ "types", DList packages; "fns", DList fns ])
+                Map([ "types", DList types; "fns", DList fns; "constants", DList constants ])
               )
           }
         | _ -> incorrectArgs ()
