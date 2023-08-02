@@ -69,3 +69,19 @@ module ResultAlias =
 
   getIntResultValue (PACKAGE.Darklang.Stdlib.Result.Result.Ok 5) = 5
   getIntResultValue (PACKAGE.Darklang.Stdlib.Result.Result.Error "error") = 0
+
+module WithTypeArgs =
+  type X<'a, 'b> = { a: 'a; b: 'b }
+  type Y1<'a> = X<'a, Int>
+  type Y2<'b> = X<String, 'b>
+  type Z<'a, 'b> = X<'b, 'a>
+
+  let getXb (x: X<'a, 'b>) : 'b = x.b
+  getXb (X { a = "test"; b = 5 }) = 5
+  getXb (Y1 { a = "test"; b = 5 }) = 5
+  getXb (Y2 { a = "test"; b = 5 }) = 5
+  getXb (Z { a = 5; b = "test" }) = "test"
+  Y1 { a = "test"; b = 5 } = Y2 { a = "test"; b = 5 }
+
+  Y2 { a = 5; b = 6 } = Test.runtimeError
+    "WithTypeArgs.Y2's `a` field should be a String. However, an Int (5) was passed instead.\n\nExpected: ({ a: String; ... })\nActual: an Int: 5"

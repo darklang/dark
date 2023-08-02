@@ -242,7 +242,7 @@ let rec valuePath (context : TCK.Context) : string =
   match context with
   | TCK.FunctionCallParameter(fnName, parameter, paramIndex, _) -> parameter.name
   | TCK.FunctionCallResult(fnName, returnType, _) -> "result"
-  | TCK.RecordField(recordType, fieldDef, _) -> fieldDef.name
+  | TCK.RecordField(recordType, fieldName, _, _) -> fieldName
   | TCK.DictKey(key, _, _) -> $".{key}"
   | TCK.EnumField(enumType, fieldDef, caseName, paramIndex, _) -> caseName
   | TCK.DBSchemaType(dbName, expectedType, _) -> dbName
@@ -275,8 +275,8 @@ let rec contextSummary (context : TCK.Context) : List<ErrorSegment> =
       String ")" ]
   | TCK.FunctionCallResult(fnName, returnType, _) ->
     [ FunctionName fnName; String "'s return value" ]
-  | TCK.RecordField(recordType, fieldDef, _) ->
-    [ TypeName recordType; String "'s "; FieldName fieldDef.name; String " field" ]
+  | TCK.RecordField(recordType, fieldName, _, _) ->
+    [ TypeName recordType; String "'s "; FieldName fieldName; String " field" ]
   | TCK.DictKey(key, _, _) ->
     let typeName =
       FQName.BuiltIn { name = TypeName.TypeName "Dict"; modules = []; version = 0 }
@@ -328,19 +328,21 @@ let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
     [ TypeReference returnType ]
 
 
-  | TCK.RecordField(recordType, fieldDef, _) ->
+  | TCK.RecordField(recordType, fieldName, fieldType, _) ->
     // format:
+    // TODO: fetch the type and lookup the field definition as a comment
+    let comment = []
     // ({ name : string; ... }) // some description
-    let comment =
-      if fieldDef.description = "" then
-        []
-      else
-        [ String " // "; Description fieldDef.description ]
+    // let comment =
+    //   if fieldDef.description = "" then
+    //     []
+    //   else
+    //     [ String " // "; Description fieldDef.description ]
 
     [ String "({ "
-      InlineFieldName fieldDef.name
+      InlineFieldName fieldName
       String ": "
-      TypeReference fieldDef.typ
+      TypeReference fieldType
       String "; ... })" ]
     @ comment
 

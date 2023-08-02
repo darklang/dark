@@ -6,17 +6,31 @@ type AnEnum =
   | B
   | C
 
-Cols1 { col1 = 1; col1 = 2 } = Cols1 { col1 = 2 } // TODO: shouldn't this error?
 Cols2 { col1 = 1; col2 = 3 } = Cols2 { col1 = 1; col2 = 3 }
 
 Cols2
   { col1 = 2
     col2 = Test.runtimeError "test" } = Test.runtimeError "test"
 
+module WithTypeArgs =
+  type Owner<'a> = { item: 'a }
+  type CoOwner<'a> = Owner<'a>
+
+  Owner { item = 5 } = CoOwner { item = 5 }
+
+  type C<'c> = { v: 'c }
+  type B<'b> = { c: C<'b> }
+  type A<'a> = { b: B<'a> }
+
+  let getC (a: A<Int>) : Int = a.b.c.v
+
+  getC (A { b = B { c = C { v = 5 } } }) = 5
+
 
 module InvalidCols =
+  Cols1 { col1 = 1; col1 = 2 } = Test.runtimeError "Duplicate field `col1` in Cols1"
   Cols2 { col1 = 2; ___ = 3 } = Test.runtimeError "Unexpected field `` in Cols2"
-  Cols2 { col1 = 2 } = Test.runtimeError "Missing key `col2` in Cols2"
+  Cols2 { col1 = 2 } = Test.runtimeError "Missing field `col2` in Cols2"
 
   Cols2 { col1 = 2; other = 3 } = Test.runtimeError
     "Unexpected field `other` in Cols2"

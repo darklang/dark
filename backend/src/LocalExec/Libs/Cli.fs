@@ -114,9 +114,10 @@ let fns : List<BuiltInFn> =
           uply {
             let err (msg : string) (metadata : List<string * string>) =
               let metadata = metadata |> List.map (fun (k, v) -> k, DString v) |> Map
-              let fields = [ "msg", DString msg; "metadata", DDict metadata ]
               Dval.resultError (
-                DRecord(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), Map fields)
+                Dval.record
+                  (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
+                  [ "msg", DString msg; "metadata", DDict metadata ]
               )
 
 

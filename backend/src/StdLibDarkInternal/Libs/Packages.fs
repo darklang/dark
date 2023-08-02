@@ -46,14 +46,13 @@ let fns : List<BuiltInFn> =
             let constants = List.map PT2DT.PackageConstant.toDT constants
 
             return
-              DRecord(
-                stdlibPackageTyp [] "Packages" 0,
-                Map(
-                  [ "types", DList types
-                    "fns", DList fns
-                    "constants", DList constants ]
-                )
-              )
+              Dval.record
+                (stdlibPackageTyp [] "Packages" 0)
+                [ "types", DList types
+
+
+                  "fns", DList fns
+                  "constants", DList constants ]
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

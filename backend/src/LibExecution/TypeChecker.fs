@@ -26,7 +26,8 @@ type Context =
     location : Location
   | RecordField of
     recordTypeName : TypeName.T *
-    fieldDef : TypeDeclaration.RecordField *
+    fieldName : string *
+    fieldType : TypeReference *
     location : Location
   | DictKey of key : string * typ : TypeReference * Location
   | EnumField of
@@ -52,7 +53,7 @@ module Context =
     match c with
     | FunctionCallParameter(_, _, _, location) -> location
     | FunctionCallResult(_, _, location) -> location
-    | RecordField(_, _, location) -> location
+    | RecordField(_, _, _, location) -> location
     | DictKey(_, _, location) -> location
     | EnumField(_, _, _, _, location) -> location
     | DBQueryVariable(_, _, location) -> location
@@ -169,7 +170,8 @@ let rec unify
           return! unify context types typeArgSymbolTable resolvedAliasType value
 
         | { definition = TypeDeclaration.Record(firstField, additionalFields) },
-          DRecord(tn, dmap) ->
+          DRecord(tn, _, dmap) ->
+          // TYPESCLEANUP: this search should no longer be required
           let! aliasedType = getTypeReferenceFromAlias types (TCustomType(tn, []))
           match aliasedType with
           | TCustomType(concreteTn, typeArgs) ->
@@ -280,7 +282,7 @@ and unifyRecordFields
         |> Exception.unwrapOptionInternal
           "field name missing from type"
           [ "fieldName", fieldName ]
-      let context = RecordField(recordType, fieldDef, location)
+      let context = RecordField(recordType, fieldDef.name, fieldDef.typ, location)
       unify context types typeArgSymbolTable fieldDef.typ fieldValue)
     |> Ply.List.flatten
     |> Ply.map combineErrorsUnit

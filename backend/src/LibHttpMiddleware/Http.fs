@@ -45,6 +45,7 @@ module Response =
                                      modules = { head = "Stdlib"; tail = [ "Http" ] }
                                      name = RT.TypeName.TypeName "Response"
                                      version = 0 },
+                 _,
                  fields) ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
       let code = Map.get "statusCode" fields

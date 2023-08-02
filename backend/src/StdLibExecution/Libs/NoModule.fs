@@ -29,7 +29,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
       (fun k v ->
         Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
       a
-  | DRecord(tn1, a), DRecord(tn2, b) ->
+  | DRecord(tn1, _, a), DRecord(tn2, _, b) ->
     tn1 = tn2 // these should be the fully resolved type
     && Map.count a = Map.count b
     && Map.forall

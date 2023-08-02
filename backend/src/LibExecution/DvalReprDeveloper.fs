@@ -62,7 +62,7 @@ let rec dvalTypeName (dv : Dval) : string =
     |> String.concat ", "
     |> fun s -> $"({s})"
   | DBytes _ -> "Bytes"
-  | DRecord(typeName, _) -> TypeName.toString typeName
+  | DRecord(typeName, _, _) -> TypeName.toString typeName
   | DEnum(typeName, _, _) -> TypeName.toString typeName
 
 
@@ -120,7 +120,7 @@ let toRepr (dv : Dval) : string =
       let l = [ first; second ] @ theRest
       let elems = String.concat ", " (List.map (toRepr_ indent) l)
       $"({elems})"
-    | DRecord(typeName, o) ->
+    | DRecord(_, typeName, o) ->
       let strs =
         o
         |> Map.toList
