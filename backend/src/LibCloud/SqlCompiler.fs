@@ -491,14 +491,42 @@ let rec lambdaToSql
           | _ -> return error "Expected a List"
 
 
-        | EFieldAccess(_, EVariable(_, v), fieldname) when v = paramName ->
-          // Because this is the param name, we know its type to be dbType
+        | EFieldAccess(_, subExpr, fieldname) ->
+          // returns (variable name * fieldPath)
+          // i.e. `fun (a, b) -> b.x.y` would be `(Some b, [ "x"; "y" ])`
+          let rec getPath
+            (pathSoFar : NEList<string>)
+            (subExpr : Expr)
+            : (Option<string> * NEList<string>) =
+            match subExpr with
+            | EFieldAccess(_, subExpr, childFieldName) ->
+              getPath (NEList.push pathSoFar childFieldName) subExpr
 
-          let! dbFieldType =
+            | EVariable(_, v) -> (Some v, pathSoFar)
+
+            | _ -> error "Support for field access in DB queries may be incomplete"
+
+          let (varName, fieldAccessPath) =
+            getPath (NEList.singleton fieldname) subExpr
+
+          // I don't think it's really possible for the varName to end up None,
+          // but just in case the parser did something wonky, we're prepared...
+          match varName with
+          | None ->
+            error "Did not find a final variable name in field access expression"
+          | Some v ->
+            if v <> paramName then
+              // CLEANUP
+              // Realistically - if someone is accessing a variable that isn't the
+              // variable bound in the lambda, we should just eval the expression,
+              // right?
+              return error $"We do not yet support compiling this code: {expr}"
+
+          let dbFieldType (typeRef : TypeReference) (fieldName : string) =
             uply {
-              match dbTypeRef with
-              // TYPESCLEANUP use args
-              | TCustomType(typeName, args) ->
+              match typeRef with
+              // TYPESCLEANUP use typeArgs
+              | TCustomType(typeName, _typeArgs) ->
                 match! Types.find typeName types with
                 // TODO: Deal with alias of record type
                 | Some({ definition = TypeDeclaration.Alias _ }) ->
@@ -507,12 +535,12 @@ let rec lambdaToSql
                       "The datastore's type is not a record"
                       (TypeName.toString typeName)
                 | Some({ definition = TypeDeclaration.Record(f1, fields) }) ->
-                  let field = f1 :: fields |> List.find (fun f -> f.name = fieldname)
+                  let field = f1 :: fields |> List.find (fun f -> f.name = fieldName)
                   match field with
                   | Some v -> return v.typ
                   | None ->
                     return
-                      error2 "The datastore does not have a field named" fieldname
+                      error2 "The datastore does not have a field named" fieldName
                 | Some({ definition = TypeDeclaration.Enum _ }) ->
                   return
                     error2
@@ -526,7 +554,24 @@ let rec lambdaToSql
               | _ -> return error "The datastore is not a record"
             }
 
+          let rec dbFieldTypeFromPath
+            (typeRef : TypeReference)
+            (path : List<string>)
+            =
+            uply {
+              match path with
+              | [] -> return typeRef
+              | [ fieldName ] -> return! dbFieldType typeRef fieldName
+              | fieldName :: rest ->
+                let! fieldType = dbFieldType typeRef fieldName
+                return! dbFieldTypeFromPath fieldType rest
+            }
+
+          let! dbFieldType =
+            dbFieldTypeFromPath dbTypeRef (NEList.toList fieldAccessPath)
+
           typecheck fieldname dbFieldType expectedType
+
 
           let primitiveFieldType t =
             match t with
@@ -537,10 +582,11 @@ let rec lambdaToSql
             | TDateTime -> "timestamp with time zone"
             | TChar -> "text"
             | TUuid -> "uuid"
-            | TUnit -> "bigint"
+            | TUnit -> "bigint" // CLEANUP why is this bigint?
             | _ -> error $"We do not support this type of DB field yet: {t}"
 
-          let fieldname = escapeFieldname fieldname
+          let fieldAccessPath = NEList.map escapeFieldname fieldAccessPath
+
           match dbFieldType with
           | TString
           | TInt
@@ -551,12 +597,31 @@ let rec lambdaToSql
           | TUuid
           | TUnit ->
             let typename = primitiveFieldType dbFieldType
-            return $"((data::jsonb->>'{fieldname}')::{typename})", [], dbFieldType
+
+            // for varName.a.b.c, we need to do (data::jsonb->'a'->'b'->>'c')
+            let jsonAccessPath =
+              let reversed = NEList.reverse fieldAccessPath
+              let lastPart = $"->>'{reversed.head}'"
+              let previousParts =
+                reversed.tail |> List.map (fun part -> $"->'{part}'")
+              (lastPart :: previousParts) |> List.rev |> String.concat " "
+
+            return $"((data::jsonb {jsonAccessPath})::{typename})", [], dbFieldType
+
           | TList t ->
             let typename = primitiveFieldType t
+
+            let jsonAccessPath =
+              fieldAccessPath
+              |> NEList.toList
+              |> List.map (fun fieldNamePart -> $"->'{fieldNamePart}'")
+              |> String.concat " "
+
             let sql =
-              $"(ARRAY(SELECT jsonb_array_elements_text(data::jsonb->'{fieldname}')::{typename}))::{typename}[]"
+              $"(ARRAY(SELECT jsonb_array_elements_text(data::jsonb {jsonAccessPath})::{typename}))::{typename}[]"
+
             return (sql, [], dbFieldType)
+
           | _ ->
             return
               error $"We do not support this type of DB field yet: {dbFieldType}"
