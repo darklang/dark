@@ -320,8 +320,6 @@ def execute(should):
 
   if should.backend_quick_build:
     if not backend_quick_build(): success = False
-    should.reload_packages |= success
-    should.load_packages_into_dark_canvas |= success
     should.copy_dark_wasm |= success
     should.backend_test |= success
     should.reload_backend_server |= success
