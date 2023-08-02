@@ -312,7 +312,7 @@ module Darklang =
           PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T> *
           List<String * PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
 
-        // Enums include `Just`, `Nothing`, `Error`, `Ok`, as well
+        // Enums include `Some`, `None`, `Error`, `Ok`, as well
         // as user-defined enums.
         //
         /// Given an Enum type of:

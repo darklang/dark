@@ -154,7 +154,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "msg" TString "" ]
       returnType = TypeReference.option varA
-      description = "Returns a DError in a Just"
+      description = "Returns a DError in a Some"
       fn =
         (function
         | _, _, [ DString msg ] -> Ply(Dval.optionJust (DError(SourceNone, msg)))

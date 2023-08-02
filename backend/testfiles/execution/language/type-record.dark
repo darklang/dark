@@ -55,11 +55,11 @@ module Polymorphism =
 
   (MyRecord
     { col1 =
-        PACKAGE.Darklang.Stdlib.Option.Option.Just(
+        PACKAGE.Darklang.Stdlib.Option.Option.Some(
           PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
         )
       col2 = 1 })
-    .col1 = PACKAGE.Darklang.Stdlib.Option.Option.Just(
+    .col1 = PACKAGE.Darklang.Stdlib.Option.Option.Some(
     PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
   )
 

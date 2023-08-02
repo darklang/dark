@@ -869,9 +869,9 @@ module Dval =
 
 
   let optionJust (dv : Dval) : Dval =
-    if isFake dv then dv else DEnum(optionType, "Just", [ dv ])
+    if isFake dv then dv else DEnum(optionType, "Some", [ dv ])
 
-  let optionNothing : Dval = DEnum(optionType, "Nothing", [])
+  let optionNothing : Dval = DEnum(optionType, "None", [])
 
   // Wraps in an Option after checking that the value is not a fakeval
   let option (dv : Option<Dval>) : Dval =

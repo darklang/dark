@@ -1,10 +1,10 @@
-Math.acos_v0 -1.0 = PACKAGE.Darklang.Stdlib.Option.Option.Just 3.14159265359
-Math.acos_v0 1.0 = PACKAGE.Darklang.Stdlib.Option.Option.Just 0.0
-Math.acos_v0 5.0 = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+Math.acos_v0 -1.0 = PACKAGE.Darklang.Stdlib.Option.Option.Some 3.14159265359
+Math.acos_v0 1.0 = PACKAGE.Darklang.Stdlib.Option.Option.Some 0.0
+Math.acos_v0 5.0 = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-Math.asin_v0 0.0 = PACKAGE.Darklang.Stdlib.Option.Option.Just 0.0
-Math.asin_v0 1.0 = PACKAGE.Darklang.Stdlib.Option.Option.Just 1.57079632679
-Math.asin_v0 5.0 = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+Math.asin_v0 0.0 = PACKAGE.Darklang.Stdlib.Option.Option.Some 0.0
+Math.asin_v0 1.0 = PACKAGE.Darklang.Stdlib.Option.Option.Some 1.57079632679
+Math.asin_v0 5.0 = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 Math.atan_v0 0.0 = 0.0
 Math.atan_v0 1.0 = 0.785398163397

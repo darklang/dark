@@ -988,8 +988,8 @@ module TypeDeclaration =
 
         let label =
           match Map.get "label" fields with
-          | Some(DEnum(_, "Just", [ DString label ])) -> Some label
-          | Some(DEnum(_, "Nothing", [])) -> None
+          | Some(DEnum(_, "Some", [ DString label ])) -> Some label
+          | Some(DEnum(_, "None", [])) -> None
           | _ ->
             Exception.raiseInternal "Expected label to be an option of string" []
 

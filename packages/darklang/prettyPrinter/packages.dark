@@ -283,42 +283,42 @@ module Darklang =
 
       let typesPart =
         match m.types with
-        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
         | types ->
           m.types
           |> List.map (fun t ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageType t)
           |> String.join "\n\n"
-          |> PACKAGE.Darklang.Stdlib.Option.Option.Just
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Some
 
       let fnsPart =
         match m.fns with
-        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
         | fns ->
           m.fns
           |> List.map (fun f ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn f)
           |> String.join "\n\n"
-          |> PACKAGE.Darklang.Stdlib.Option.Option.Just
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Some
 
       let constantsPart =
         match m.constants with
-        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
         | constants ->
           m.constants
           |> List.map (fun c ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageConstant c)
           |> String.join "\n\n"
-          |> PACKAGE.Darklang.Stdlib.Option.Option.Just
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Some
 
       let submodulesPart =
         match m.submodules with
-        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
         | submodules ->
           submodules
           |> List.map (fun m -> PACKAGE.Darklang.PrettyPrinter.packageModule m)
           |> String.join "\n\n"
-          |> PACKAGE.Darklang.Stdlib.Option.Option.Just
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Some
 
       let parts =
         [ typesPart; fnsPart; constantsPart; submodulesPart ] |> List.filterMap (fun s -> s)

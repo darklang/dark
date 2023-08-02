@@ -69,7 +69,7 @@ module RuntimeTypes =
 
   let matchPatterns : List<RT.MatchPattern> =
     [ RT.MPVariable(123UL, "test")
-      RT.MPEnum(1234UL, "Just", [ RT.MPVariable(746385UL, "var") ])
+      RT.MPEnum(1234UL, "Some", [ RT.MPVariable(746385UL, "var") ])
       RT.MPInt(756385UL, 7857395)
       RT.MPBool(8759375UL, true)
       RT.MPChar(4875843UL, "8jgkdjsfg")
@@ -154,7 +154,7 @@ module RuntimeTypes =
         RT.FQName.BuiltIn(
           { modules = []; name = RT.TypeName.TypeName "Option"; version = 0 }
         ),
-        "Just",
+        "Some",
         [ RT.EUnit(8173UL) ]
       )
       RT.EMatch(
@@ -228,7 +228,7 @@ module ProgramTypes =
 
   let matchPatterns : List<PT.MatchPattern> =
     [ PT.MPVariable(1234123UL, "var8481")
-      PT.MPEnum(7471263UL, "Nothing", [])
+      PT.MPEnum(7471263UL, "None", [])
       PT.MPInt(74816UL, 84871728)
       PT.MPBool(66453UL, false)
       PT.MPChar(83749178UL, "w")
@@ -487,7 +487,7 @@ module ProgramTypes =
                                              version = 0 }
                                          )
                                        ),
-                                       "Just",
+                                       "Some",
                                        [ PT.EEnum(
                                            957916875UL,
                                            Ok(
@@ -497,7 +497,7 @@ module ProgramTypes =
                                                  version = 0 }
                                              )
                                            ),
-                                           "Nothing",
+                                           "None",
                                            []
                                          ) ]
                                      ) ]

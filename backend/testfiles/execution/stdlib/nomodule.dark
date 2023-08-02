@@ -63,31 +63,31 @@ module Equals =
   (EEnum2.E1 == EEnum.E1) = true
   (EEnum2.E1 != EEnum.E2) = true
 
-  (PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-   == PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = true
+  (PACKAGE.Darklang.Stdlib.Option.Option.None
+   == PACKAGE.Darklang.Stdlib.Option.Option.None) = true
 
-  (PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-   != PACKAGE.Darklang.Stdlib.Option.Option.Just
-     PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = true
+  (PACKAGE.Darklang.Stdlib.Option.Option.None
+   != PACKAGE.Darklang.Stdlib.Option.Option.Some
+     PACKAGE.Darklang.Stdlib.Option.Option.None) = true
 
-  (PACKAGE.Darklang.Stdlib.Option.Option.Just 5
-   == PACKAGE.Darklang.Stdlib.Option.Option.Just 5) = true
+  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5
+   == PACKAGE.Darklang.Stdlib.Option.Option.Some 5) = true
 
-  (PACKAGE.Darklang.Stdlib.Option.Option.Just 5
-   != PACKAGE.Darklang.Stdlib.Option.Option.Just 6) = true
+  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5
+   != PACKAGE.Darklang.Stdlib.Option.Option.Some 6) = true
 
-  (PACKAGE.Darklang.Stdlib.Option.Option.Just(
-    PACKAGE.Darklang.Stdlib.Option.Option.Just 0
+  (PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    PACKAGE.Darklang.Stdlib.Option.Option.Some 0
    )
-   != PACKAGE.Darklang.Stdlib.Option.Option.Just(
-     PACKAGE.Darklang.Stdlib.Option.Option.Just 1
+   != PACKAGE.Darklang.Stdlib.Option.Option.Some(
+     PACKAGE.Darklang.Stdlib.Option.Option.Some 1
    )) = true
 
-  (PACKAGE.Darklang.Stdlib.Option.Option.Just(
-    PACKAGE.Darklang.Stdlib.Option.Option.Just 0
+  (PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    PACKAGE.Darklang.Stdlib.Option.Option.Some 0
    )
-   == PACKAGE.Darklang.Stdlib.Option.Option.Just(
-     PACKAGE.Darklang.Stdlib.Option.Option.Just 0
+   == PACKAGE.Darklang.Stdlib.Option.Option.Some(
+     PACKAGE.Darklang.Stdlib.Option.Option.Some 0
    )) = true
 
   (PACKAGE.Darklang.Stdlib.Result.Result.Error 0
@@ -114,7 +114,7 @@ module Equals =
     (Test.runtimeError "test" != Test.runtimeError "different msg") = Test.runtimeError
       "test"
 
-    (() != PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = Test.runtimeError
+    (() != PACKAGE.Darklang.Stdlib.Option.Option.None) = Test.runtimeError
       "Both values must be the same type"
 
     (() != false) = Test.runtimeError "Both values must be the same type"

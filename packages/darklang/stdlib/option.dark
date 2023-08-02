@@ -3,32 +3,32 @@ module Darklang =
     module Option =
 
       type Option<'v> =
-        | Just of 'v
-        | Nothing
+        | Some of 'v
+        | None
 
-      /// If <param option> is {{Just <var value>}}, returns {{fn <var value>}}. The
+      /// If <param option> is {{Some <var value>}}, returns {{fn <var value>}}. The
       /// lambda <fn fn> is applied to <var value> and the result is wrapped in
-      /// {{Just}}. Otherwise, returns {{Nothing}}
+      /// {{Some}}. Otherwise, returns {{None}}
       let map (option: PACKAGE.Darklang.Stdlib.Option.Option<'a>) (fn: 'a -> 'b) : PACKAGE.Darklang.Stdlib.Option.Option<'b> =
         match option with
-        | Just v -> PACKAGE.Darklang.Stdlib.Option.Option.Just (v |> fn)
-        | Nothing -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+        | Some v -> PACKAGE.Darklang.Stdlib.Option.Option.Some (v |> fn)
+        | None -> PACKAGE.Darklang.Stdlib.Option.Option.None
 
 
-      /// If <param option> is {{Just <var value>}}, returns {{fn <var value>}}. The
+      /// If <param option> is {{Some <var value>}}, returns {{fn <var value>}}. The
       /// lambda <fn fn> is applied to <var value> and the result is wrapped in
-      /// {{Just}}. Otherwise, returns {{Nothing}}
+      /// {{Some}}. Otherwise, returns {{None}}
       let andThen (option: PACKAGE.Darklang.Stdlib.Option.Option<'a>) (fn: 'a -> PACKAGE.Darklang.Stdlib.Option.Option<'b>) : PACKAGE.Darklang.Stdlib.Option.Option<'b> =
         match option with
-        | Just v -> v |> fn
-        | Nothing -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+        | Some v -> v |> fn
+        | None -> PACKAGE.Darklang.Stdlib.Option.Option.None
 
-      /// If <param option> is {{Just <var value>}}, returns <var value>. Otherwise,
+      /// If <param option> is {{Some <var value>}}, returns <var value>. Otherwise,
       /// returns <param default>
       let withDefault (option: PACKAGE.Darklang.Stdlib.Option.Option<'a>) (default_: 'a) : 'a =
         match option with
-        | Just v -> v
-        | Nothing -> default_
+        | Some v -> v
+        | None -> default_
 
 
 

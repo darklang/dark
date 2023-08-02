@@ -295,7 +295,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "value" (TVariable "optOrRes") "" ]
       returnType = TVariable "a"
       description =
-        "Unwrap an Option or Result, returning the value or a DError if Nothing"
+        "Unwrap an Option or Result, returning the value or a DError if None"
       fn =
         (function
         | _,
@@ -308,8 +308,8 @@ let fns : List<BuiltInFn> =
                   [ value ]) ] ->
           uply {
             match caseName with
-            | "Just" -> return value
-            | "Nothing" ->
+            | "Some" -> return value
+            | "None" ->
               return DError(SourceNone, LibExecution.DvalReprDeveloper.toRepr value)
             | _ -> return (DError(SourceNone, "Invalid Result"))
           }

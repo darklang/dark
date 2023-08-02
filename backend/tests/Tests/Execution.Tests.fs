@@ -419,8 +419,8 @@ let testMatchPreview : Test =
            EVariable(okVarRhsVarId, "x") ]
        ))
 
-      // | Nothing -> "enum nothing"
-      (MPEnum(pNothingId, "Nothing", []),
+      // | None -> "enum nothing"
+      (MPEnum(pNothingId, "None", []),
        EString(nothingRhsId, [ StringText "enum nothing" ]))
 
       // | (2, y) -> "tuple"
@@ -654,7 +654,7 @@ let testMatchPreview : Test =
       t
         "nothing"
         (let typeName = Dval.optionType
-         eEnum typeName "Nothing" [])
+         eEnum typeName "None" [])
         [ (pNothingId, "nothing pat", er (Dval.optionNothing))
           (nothingRhsId, "rhs", er (DString "enum nothing")) ]
 

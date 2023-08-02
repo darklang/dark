@@ -826,9 +826,9 @@ module Darklang =
           (d: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField)
           : String =
           match d.label with
-          | Nothing ->
+          | None ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference d.typ
-          | Just label ->
+          | Some label ->
             $"{label}: {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference d.typ}"
 
         let enumCase

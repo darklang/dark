@@ -210,13 +210,13 @@ let getField (node: SyntaxTreeNode) (fieldName: String): SyntaxTreeNode =
     children
     |> List.findFirst (fun c ->
       match c.fieldName with
-      | Just fName -> fName == fieldName
-      | Nothing -> false
+      | Some fName -> fName == fieldName
+      | None -> false
     )
 
   match found with
-  | Just c -> c
-  | Nothing -> err ("Could not 1 field of name" ++ fieldName ++ " in node " ++ node.typ)
+  | Some c -> c
+  | None -> err ("Could not 1 field of name" ++ fieldName ++ " in node " ++ node.typ)
 
 let getText (node: SyntaxTreeNode): String =
   node.text

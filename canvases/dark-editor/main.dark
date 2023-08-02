@@ -137,13 +137,13 @@ let _handler _req =
 
   let take =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
-    | Nothing -> 100
-    | Just take -> take |> Int.parse |> rUnwrap
+    | None -> 100
+    | Some take -> take |> Int.parse |> rUnwrap
 
   let drop =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
-    | Nothing -> 0
-    | Just drop -> drop |> Int.parse |> rUnwrap
+    | None -> 0
+    | Some drop -> drop |> Int.parse |> rUnwrap
 
   match DarkInternal.Canvas.fullProgram canvasId with
   | Ok program ->
@@ -173,13 +173,13 @@ let _handler _req =
 
   let take =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
-    | Nothing -> 100
-    | Just take -> take |> Int.parse |> rUnwrap
+    | None -> 100
+    | Some take -> take |> Int.parse |> rUnwrap
 
   let drop =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
-    | Nothing -> 0
-    | Just drop -> drop |> Int.parse |> rUnwrap
+    | None -> 0
+    | Some drop -> drop |> Int.parse |> rUnwrap
 
   match DarkInternal.Canvas.fullProgram canvasId with
   | Ok program ->
@@ -204,13 +204,13 @@ let _handler _req =
 
   let take =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
-    | Nothing -> 100
-    | Just take -> take |> Int.parse |> rUnwrap
+    | None -> 100
+    | Some take -> take |> Int.parse |> rUnwrap
 
   let drop =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
-    | Nothing -> 0
-    | Just drop -> drop |> Int.parse |> rUnwrap
+    | None -> 0
+    | Some drop -> drop |> Int.parse |> rUnwrap
 
 
   match DarkInternal.Canvas.fullProgram canvasId with

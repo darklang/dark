@@ -3,7 +3,7 @@ module Error =
     "Expected 2 arguments, got 1"
 
   Option.map2_v0
-    (PACKAGE.Darklang.Stdlib.Option.Option.Just 10)
+    (PACKAGE.Darklang.Stdlib.Option.Option.Some 10)
     "not an option"
     (fun (a, b) -> "1") = Test.runtimeError
     "Option.map2's 2nd argument (`option2`) should be a PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, a String (\"not an...) was passed instead.\n\nExpected: (option2: PACKAGE.Darklang.Stdlib.Option.Option<'b>)\nActual: a String: \"not an option\""
@@ -30,7 +30,7 @@ module ErrorPropagation =
   5 |> (+) (Test.runtimeError "test") = Test.runtimeError "test"
   ("test" |> Test.runtimeError) = Test.runtimeError "test"
 
-  PACKAGE.Darklang.Stdlib.Option.Option.Just(Test.runtimeError "test") = Test.runtimeError
+  PACKAGE.Darklang.Stdlib.Option.Option.Some(Test.runtimeError "test") = Test.runtimeError
     "test"
 
   PACKAGE.Darklang.Stdlib.Result.Result.Error(Test.runtimeError "test") = Test.runtimeError

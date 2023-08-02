@@ -580,17 +580,17 @@ String.padEnd_v0 "🧟‍♀️🧟‍♂️" "0" 5 = PACKAGE.Darklang.Stdlib.Re
 String.padEnd_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷000000"
 String.padEnd_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "鷝"
 
-String.indexOf_v0 "hello world" "world" = PACKAGE.Darklang.Stdlib.Option.Option.Just 6
-String.indexOf_v0 "hello world" "earth" = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-String.indexOf_v0 "" "" =  PACKAGE.Darklang.Stdlib.Option.Option.Just 0
-String.indexOf_v0 "hello" "" =  PACKAGE.Darklang.Stdlib.Option.Option.Just 0
-String.indexOf_v0 "" "hello" = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽"  = PACKAGE.Darklang.Stdlib.Option.Option.Just 6
-String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏿"  = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦" = PACKAGE.Darklang.Stdlib.Option.Option.Just 11
-String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = PACKAGE.Darklang.Stdlib.Option.Option.Just 4
-String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "👱🏽" = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🧑🏻‍🍼" = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+String.indexOf_v0 "hello world" "world" = PACKAGE.Darklang.Stdlib.Option.Option.Some 6
+String.indexOf_v0 "hello world" "earth" = PACKAGE.Darklang.Stdlib.Option.Option.None
+String.indexOf_v0 "" "" =  PACKAGE.Darklang.Stdlib.Option.Option.Some 0
+String.indexOf_v0 "hello" "" =  PACKAGE.Darklang.Stdlib.Option.Option.Some 0
+String.indexOf_v0 "" "hello" = PACKAGE.Darklang.Stdlib.Option.Option.None
+String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽"  = PACKAGE.Darklang.Stdlib.Option.Option.Some 6
+String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏿"  = PACKAGE.Darklang.Stdlib.Option.Option.None
+String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦" = PACKAGE.Darklang.Stdlib.Option.Option.Some 11
+String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = PACKAGE.Darklang.Stdlib.Option.Option.Some 4
+String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "👱🏽" = PACKAGE.Darklang.Stdlib.Option.Option.None
+String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🧑🏻‍🍼" = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 
 // Check that map executes the right number of times

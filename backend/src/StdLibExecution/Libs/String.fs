@@ -980,7 +980,7 @@ let fns : List<BuiltInFn> =
             "The string to search for within <param str>" ]
       returnType = TypeReference.option TInt
       description =
-        "Returns {{Just index}} of the first occurrence of <param searchFor> in <param str>, or returns {{Nothing}} if <param searchFor> does not occur."
+        "Returns {{Some index}} of the first occurrence of <param searchFor> in <param str>, or returns {{None}} if <param searchFor> does not occur."
       fn =
         (function
         | _, _, [ DString str; DString search ] ->

@@ -1,11 +1,11 @@
-PACKAGE.Darklang.Stdlib.Option.Option.Nothing = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-((List.head []) == PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = true
-(List.head []) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+PACKAGE.Darklang.Stdlib.Option.Option.None = PACKAGE.Darklang.Stdlib.Option.Option.None
+((List.head []) == PACKAGE.Darklang.Stdlib.Option.Option.None) = true
+(List.head []) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 PACKAGE.Darklang.Stdlib.Result.Result.Ok(Test.runtimeError "err") = Test.runtimeError
   "err"
 
-PACKAGE.Darklang.Stdlib.Option.Option.Just(Test.runtimeError "err") = Test.runtimeError
+PACKAGE.Darklang.Stdlib.Option.Option.Some(Test.runtimeError "err") = Test.runtimeError
   "err"
 
 PACKAGE.Darklang.Stdlib.Result.Result.Error(Test.runtimeError "err") = Test.runtimeError
@@ -13,11 +13,11 @@ PACKAGE.Darklang.Stdlib.Result.Result.Error(Test.runtimeError "err") = Test.runt
 
 module Errors =
   module Builtins =
-    PACKAGE.Darklang.Stdlib.Option.Option.Nothing 5 = Test.runtimeError
-      "Case `Nothing` expected 0 fields but got 1"
+    PACKAGE.Darklang.Stdlib.Option.Option.None 5 = Test.runtimeError
+      "Case `None` expected 0 fields but got 1"
 
-    PACKAGE.Darklang.Stdlib.Option.Option.Just(5, 6) = Test.runtimeError
-      "Case `Just` expected 1 fields but got 2"
+    PACKAGE.Darklang.Stdlib.Option.Option.Some(5, 6) = Test.runtimeError
+      "Case `Some` expected 1 fields but got 2"
 
   module User =
     type MyEnum =
@@ -93,8 +93,8 @@ module MixedCases =
       EnumOfMixedCases.Z("testZ", 2) ]
 
    match List.getAt values 3 with
-   | Just z -> PACKAGE.Darklang.Stdlib.Result.Result.Ok z
-   | Nothing -> PACKAGE.Darklang.Stdlib.Result.Result.Error "Failure") = PACKAGE
+   | Some z -> PACKAGE.Darklang.Stdlib.Result.Result.Ok z
+   | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error "Failure") = PACKAGE
     .Darklang
     .Stdlib
     .Result

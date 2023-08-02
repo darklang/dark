@@ -17,8 +17,8 @@ module LanguageToolsTypesFork =
   type TLID = uint64
 
   type NonStandardOption<'a> =
-    | Nothing
-    | Just of 'a
+    | None
+    | Some of 'a
 
   type Sign =
     | Positive
@@ -598,8 +598,8 @@ module ExternalTypesToProgramTypes =
         { typ = TypeReference.toPT f.typ
           label =
             match f.label with
-            | ET.Nothing -> None
-            | ET.Just v -> Some v
+            | ET.None -> None
+            | ET.Some v -> Some v
           description = f.description }
 
     module EnumCase =
