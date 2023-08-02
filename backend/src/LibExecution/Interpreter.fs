@@ -51,15 +51,40 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   let recordMaybe
     (types : Types)
     (typeName : TypeName.T)
+    // TypeName, typeParam list, fully-resolved (except for typeParam) field list
     : Ply<Option<TypeName.T * List<string> * List<string * TypeReference>>> =
     let rec inner (typeName : TypeName.T) =
       uply {
         match! Types.find typeName types with
         | Some({ typeParams = outerTypeParams
-                 definition = TypeDeclaration.Alias(TCustomType(innerTypeName, // Y2
-                                                                // <string, 'b>
-                                                                innerTypeArgs)) }) ->
-          let! next = inner innerTypeName // (X, [(a, TVar "a"); (b, TVar "b")]
+                 definition = TypeDeclaration.Alias(TCustomType(innerTypeName,
+                                                                outerTypeArgs)) }) ->
+          // Here we have found an alias, so we need to combine the type's
+          // typeArgs with the aliased type's typeParams.
+          // Eg in
+          //   type Var = Result<Int, String>
+          // we need to combine Var's typeArgs (<Int, String>) with Result's
+          // typeParams (<`Ok, `Error>)
+          //
+          // To do this, we use typeArgs from the alias definition
+          // (outerTypeArgs) and apply them to the aliased type
+          // (innerTypeName)'s params (which are returned from the lookup and
+          // used as innerTypeParams below).
+          // Example: suppose we have
+          //   type Outer<'a> = Inner<'a, Int>
+          //   type Inner<'a, 'b> = { a : 'a; b : 'b }
+          // The recursive search for Inner will get:
+          //   innerTypeName = "Inner"
+          //   innerTypeParams = ["a"; "b"]
+          //   fields = [("a", TVar "a"); ("b", TVar "b")]
+          // The Outer definition provides:
+          //   outerTypeArgs = [TVar "a"; TConst "Int"]
+          // We combine this with innerTypeParams to get:
+          //   fields = [("a", TVar "a"); ("b", TInt)]
+          //   outerTypeParams = ["a"]
+          // So the effective result of this is:
+          //   type Outer<'a> = { a : 'a; b : Int }
+          let! next = inner innerTypeName
           return
             next
             |> Option.map (fun (innerTypeName, innerTypeParams, fields) ->
@@ -67,7 +92,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                outerTypeParams,
                fields
                |> List.map (fun (k, v) ->
-                 (k, Types.substitute innerTypeParams innerTypeArgs v))))
+                 (k, Types.substitute innerTypeParams outerTypeArgs v))))
 
         | Some({ typeParams = typeParams
                  definition = TypeDeclaration.Record(firstField, otherFields) }) ->
