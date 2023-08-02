@@ -325,7 +325,7 @@ let rec debugDval (v : Dval) : string =
     $"DString '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
   | DDateTime d ->
     $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
-  | DRecord(tn, o) ->
+  | DRecord(tn, _, o) ->
     let typeStr = TypeName.toString tn
     o
     |> Map.toList
@@ -375,7 +375,7 @@ module Expect =
     | DList vs -> List.all check vs
     | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
     | DDict vs -> vs |> Map.values |> List.all check
-    | DRecord(_, vs) -> vs |> Map.values |> List.all check
+    | DRecord(_, _, vs) -> vs |> Map.values |> List.all check
     | DString str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
     | DEnum(_typeName, _caseName, fields) -> fields |> List.all check
@@ -731,7 +731,7 @@ module Expect =
         rs
       check ("Length" :: path) (Map.count ls) (Map.count rs)
 
-    | DRecord(ltn, ls), DRecord(rtn, rs) ->
+    | DRecord(ltn, _, ls), DRecord(rtn, _, rs) ->
       userTypeNameEqualityBaseFn path ltn rtn errorFn
       // check keys from ls are in both, check matching values
       Map.forEachWithIndex
@@ -839,7 +839,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     match dv with
     // Keep for exhaustiveness checking
     | DDict map -> Map.values map |> List.map visit |> ignore<List<unit>>
-    | DRecord(_, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
+    | DRecord(_, _, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
     | DEnum(_typeName, _caseName, fields) ->
       fields |> List.map visit |> ignore<List<unit>>
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
@@ -975,30 +975,34 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("record",
      DRecord(
        S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0,
+       S.fqUserTypeName [ "Two"; "Modules" ] "FooAlias" 0,
        Map.ofList [ "foo", Dval.int 5 ]
      ),
      TCustomType(S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0, []))
     ("record2",
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
+       S.fqUserTypeName [] "FooAlias" 0,
        Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
      ),
      TCustomType(S.fqUserTypeName [] "Foo" 0, []))
     ("record3",
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
+       S.fqUserTypeName [] "Foo" 0,
        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
      TCustomType(S.fqUserTypeName [] "Foo" 0, []))
     // More Json.NET tests
     ("record4",
-     DRecord(S.fqUserTypeName [] "Foo" 0, Map.ofList [ "foo\\\\bar", Dval.int 5 ]),
+     DRecord(S.fqUserTypeName [] "Foo" 0, S.fqUserTypeName [] "Foo" 0,Map.ofList [ "foo\\\\bar", Dval.int 5 ]),
      TCustomType(S.fqUserTypeName [] "Foo" 0, []))
     ("record5",
-     DRecord(S.fqUserTypeName [] "Foo" 0, Map.ofList [ "$type", Dval.int 5 ]),
+     DRecord(S.fqUserTypeName [] "Foo" 0, S.fqUserTypeName [] "Foo" 0,Map.ofList [ "$type", Dval.int 5 ]),
      TCustomType(S.fqUserTypeName [] "Foo" 0, []))
     ("record with error",
      DRecord(
+       S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
        Map.ofList [ "v", DError(SourceNone, "some error string") ]
      ),

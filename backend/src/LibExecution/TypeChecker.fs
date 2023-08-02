@@ -170,7 +170,8 @@ let rec unify
           return! unify context types typeArgSymbolTable resolvedAliasType value
 
         | { definition = TypeDeclaration.Record(firstField, additionalFields) },
-          DRecord(tn, dmap) ->
+          DRecord(tn, _, dmap) ->
+          // TYPESCLEANUP: this search should no longer be required
           let! aliasedType = getTypeReferenceFromAlias types (TCustomType(tn, []))
           match aliasedType with
           | TCustomType(concreteTn, typeArgs) ->

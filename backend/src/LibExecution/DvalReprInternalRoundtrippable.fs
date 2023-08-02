@@ -159,7 +159,7 @@ module FormatV0 =
     | DPassword of byte array // We are allowed serialize this here, so don't use the Password type which doesn't deserialize
     | DUuid of System.Guid
     | DBytes of byte array
-    | DRecord of TypeName.T * DvalMap
+    | DRecord of runtimeTypeName : TypeName.T * sourceTypeName : TypeName.T * DvalMap
     | DEnum of TypeName.T * caseName : string * List<Dval>
 
   let rec toRT (dv : Dval) : RT.Dval =
@@ -186,7 +186,8 @@ module FormatV0 =
     | DTuple(first, second, theRest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)
     | DDict o -> RT.DDict(Map.map toRT o)
-    | DRecord(typeName, o) -> RT.DRecord(TypeName.toRT typeName, Map.map toRT o)
+    | DRecord(typeName, original, o) ->
+      RT.DRecord(TypeName.toRT typeName, TypeName.toRT original, Map.map toRT o)
     | DBytes bytes -> RT.DBytes bytes
     | DEnum(typeName, caseName, fields) ->
       RT.DEnum(TypeName.toRT typeName, caseName, List.map toRT fields)
@@ -213,7 +214,8 @@ module FormatV0 =
     | RT.DTuple(first, second, theRest) ->
       DTuple(fromRT first, fromRT second, List.map fromRT theRest)
     | RT.DDict o -> DDict(Map.map fromRT o)
-    | RT.DRecord(typeName, o) -> DRecord(TypeName.fromRT typeName, Map.map fromRT o)
+    | RT.DRecord(typeName, original, o) ->
+      DRecord(TypeName.fromRT typeName, TypeName.fromRT original, Map.map fromRT o)
     | RT.DBytes bytes -> DBytes bytes
     | RT.DEnum(typeName, caseName, fields) ->
       DEnum(TypeName.fromRT typeName, caseName, List.map fromRT fields)
@@ -252,7 +254,7 @@ module Test =
     | RT.DEnum(_typeName, _caseName, fields) -> List.all isRoundtrippableDval fields
     | RT.DList dvals -> List.all isRoundtrippableDval dvals
     | RT.DDict map -> map |> Map.values |> List.all isRoundtrippableDval
-    | RT.DRecord(_, map) -> map |> Map.values |> List.all isRoundtrippableDval
+    | RT.DRecord(_, _, map) -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DUuid _ -> true
     | RT.DTuple(v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
     | RT.DDB _

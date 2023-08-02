@@ -257,7 +257,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | Some({ definition = TypeDeclaration.Enum _ }) ->
           return err id $"Expected a record but {typeStr} is an enum"
         | _ -> return err id $"Expected a record but {typeStr} is something else"
-      | Some(typeName, typeParams, expected) ->
+      | Some(aliasTypeName, typeParams, expected) ->
         let expectedFields = Map expected
         let! result =
           Ply.List.foldSequentially
@@ -275,25 +275,25 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                     return v
                   else
                     match r with
-                    | DRecord(typeName, m) ->
+                    | DRecord(typeName, original, m) ->
                       if Map.containsKey k m then
                         return err id $"Duplicate field `{k}` in {typeStr}"
                       else
                         let fieldType = Map.find k expectedFields
                         let context =
-                          TypeChecker.RecordField(typeName, k, fieldType, None)
+                          TypeChecker.RecordField(original, k, fieldType, None)
                         let check =
                           TypeChecker.unify context types Map.empty fieldType v
                         match! check with
-                        | Ok() -> return DRecord(typeName, Map.add k v m)
+                        | Ok() -> return DRecord(typeName, original, Map.add k v m)
                         | Error e ->
                           return err id (Errors.toString (Errors.TypeError(e)))
                     | _ -> return err id "Expected a record in typecheck"
               })
-            (DRecord(typeName, Map.empty)) // use the alias name here
+            (DRecord(aliasTypeName, typeName, Map.empty)) // use the alias name here
             fields
         match result with
-        | DRecord(_, fields) ->
+        | DRecord(_, _, fields) ->
           if Map.count fields = Map.count expectedFields then
             return result
           else
@@ -305,7 +305,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | ERecordUpdate(id, baseRecord, updates) ->
       let! baseRecord = eval state st baseRecord
       match baseRecord with
-      | DRecord(typeName, _) ->
+      | DRecord(typeName, original, _) ->
         let typeStr = TypeName.toString typeName
         let types = ExecutionState.availableTypes state
         match! recordMaybe types typeName with
@@ -328,14 +328,14 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   | _, "", _ -> return err id $"Empty key for value `{v}`"
                   | _, _, _ when not (Map.containsKey k expectedFields) ->
                     return err id $"Unexpected field `{k}` in {typeStr}"
-                  | DRecord(typeName, m), k, v ->
+                  | DRecord(typeName, original, m), k, v ->
                     let fieldType = Map.find k expectedFields
                     let context =
                       TypeChecker.RecordField(typeName, k, fieldType, None)
                     match!
                       TypeChecker.unify context types Map.empty fieldType v
                     with
-                    | Ok() -> return DRecord(typeName, Map.add k v m)
+                    | Ok() -> return DRecord(typeName, original, Map.add k v m)
                     | Error e ->
                       return err id (Errors.toString (Errors.TypeError(e)))
                   | _ ->
@@ -385,7 +385,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return err id "Field name is empty"
       else
         match obj with
-        | DRecord(typeName, o) ->
+        | DRecord(_, typeName, o) ->
           match Map.tryFind field o with
           | Some v -> return v
           | None ->

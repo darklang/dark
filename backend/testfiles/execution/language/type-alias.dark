@@ -84,4 +84,4 @@ module WithTypeArgs =
   Y1 { a = "test"; b = 5 } = Y2 { a = "test"; b = 5 }
 
   Y2 { a = 5; b = 6 } = Test.runtimeError
-    "WithTypeArgs.Y2's `a` field should be a String. However, an Int (5) was passed instead.\n\nExpected: ({ b: String; ... })\nActual: an Int: 6"
+    "WithTypeArgs.Y2's `a` field should be a String. However, an Int (5) was passed instead.\n\nExpected: ({ a: String; ... })\nActual: an Int: 5"

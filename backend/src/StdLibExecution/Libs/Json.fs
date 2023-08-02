@@ -180,7 +180,7 @@ let rec serialize
 
         | TypeDeclaration.Record(firstField, additionalFields) ->
           match dval with
-          | DRecord(actualTypeName, dvalMap) when actualTypeName = typeName ->
+          | DRecord(actualTypeName, _, dvalMap) when actualTypeName = typeName ->
             let fieldDefs = firstField :: additionalFields
 
             do!
@@ -201,7 +201,7 @@ let rec serialize
                     Types.substitute decl.typeParams typeArgs matchingFieldDef.typ
                   r typ dval))
 
-          | DRecord(actualTypeName, _) ->
+          | DRecord(actualTypeName, _, _) ->
             Exception.raiseInternal
               "Incorrect record type"
               [ "actual", actualTypeName; "expected", typeName ]
@@ -474,7 +474,7 @@ let parse
               |> Ply.List.flatten
               |> Ply.map Map.ofList
 
-            return DRecord(typeName, fields)
+            return DRecord(typeName, typeName, fields)
       }
 
 

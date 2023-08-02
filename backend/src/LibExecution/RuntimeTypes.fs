@@ -543,7 +543,7 @@ and [<NoComparison>] Dval =
   | DBytes of byte array
 
   | DDict of DvalMap
-  | DRecord of TypeName.T * DvalMap
+  | DRecord of runtimeTypeName : TypeName.T * sourceTypeName : TypeName.T * DvalMap
   | DEnum of TypeName.T * caseName : string * List<Dval>
 
 
@@ -733,7 +733,7 @@ module Dval =
     | DFnVal(Lambda l), TFn(parameters, _) ->
       List.length parameters = List.length l.parameters
 
-    | DRecord(typeName, fields), TCustomType(typeName', typeArgs) ->
+    | DRecord(typeName, _, fields), TCustomType(typeName', typeArgs) ->
       // TYPESCLEANUP: should load type by name
       // TYPESCLEANUP: are we handling type arguments here?
       // TYPESCLEANUP: do we need to check fields?
@@ -808,7 +808,7 @@ module Dval =
   let record (typeName : TypeName.T) (fields : List<string * Dval>) : Dval =
     // Give a warning for duplicate keys
     List.fold
-      (DRecord(typeName, Map.empty))
+      (DRecord(typeName, typeName, Map.empty))
       (fun m (k, v) ->
         match m, k, v with
         // TYPESCLEANUP: remove hacks
@@ -817,12 +817,12 @@ module Dval =
         // Errors should propagate (but only if we're not already propagating an error)
         | DRecord _, _, v when isFake v -> v
         // Skip empty rows
-        | _, "", _ -> DError(SourceNone, $"Empty key: {k}")
+        | _, "", _ -> DError(SourceNone, $"Empty ke{k}")
         // Error if the key appears twice
-        | DRecord(_, m), k, _v when Map.containsKey k m ->
+        | DRecord(_, _, m), k, _v when Map.containsKey k m ->
           DError(SourceNone, $"Duplicate key: {k}")
         // Otherwise add it
-        | DRecord(tn, m), k, v -> DRecord(tn, Map.add k v m)
+        | DRecord(tn, o, m), k, v -> DRecord(tn, o, Map.add k v m)
         // If we haven't got a DDict we're propagating an error so let it go
         | m, _, _ -> m)
       fields
