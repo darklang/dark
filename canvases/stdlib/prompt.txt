@@ -89,7 +89,7 @@ some examples:
   parameters = [ keysParam; tableParam ]
   returnType = TypeReference.option varA
   description =
-    "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB::getExisting)"
+    "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Some list of [values], otherwise returns None (to ignore missing keys, use DB::getExisting)"
   fn =
     (function
     | state, _, [ DList keys; DDB dbname ] ->

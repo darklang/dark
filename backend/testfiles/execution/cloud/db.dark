@@ -392,10 +392,10 @@ module SetCharUpserts =
 
 
 module Get =
-  // return nothing for empty store
+  // return none for empty store
   (DB.get "lol" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-  // return nothing for invalid key
+  // return none for invalid key
   (let _ = DB.set (X { x = "hello" }) "key" XDB in DB.get "lol" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
   // returns single value
