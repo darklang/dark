@@ -79,14 +79,11 @@ let fns : List<BuiltInFn> =
 
             return
               Dval.resultOk (
-                DRecord(
-                  FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0),
-                  Map(
-                    [ ("fns", DList packagesFns)
-                      ("types", DList packagesTypes)
-                      ("constants", DList packagesConstants) ]
-                  )
-                )
+                Dval.record
+                  (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0))
+                  [ ("fns", DList packagesFns)
+                    ("types", DList packagesTypes)
+                    ("constants", DList packagesConstants) ]
               )
           }
         | _ -> incorrectArgs ()

@@ -133,16 +133,13 @@ let fns : List<BuiltInFn> =
               (DList(
                 packages
                 |> List.map (fun (owner, fnname, modules, version) ->
-                  DRecord(
-                    FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0),
-                    Map(
-                      [ ("owner", DString owner)
-                        ("modules",
-                         modules |> String.split "." |> List.map DString |> DList)
-                        ("name", DString fnname)
-                        ("version", DInt version) ]
-                    )
-                  ))
+                  Dval.record
+                    (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0))
+                    [ ("owner", DString owner)
+                      ("modules",
+                       modules |> String.split "." |> List.map DString |> DList)
+                      ("name", DString fnname)
+                      ("version", DInt version) ])
               ))
           }
         | _ -> incorrectArgs ()
@@ -175,16 +172,13 @@ let fns : List<BuiltInFn> =
               (DList(
                 packages
                 |> List.map (fun (owner, typename, modules, version) ->
-                  DRecord(
-                    FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0),
-                    Map(
-                      [ ("owner", DString owner)
-                        ("modules",
-                         modules |> String.split "." |> List.map DString |> DList)
-                        ("name", DString typename)
-                        ("version", DInt version) ]
-                    )
-                  ))
+                  Dval.record
+                    (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0))
+                    [ ("owner", DString owner)
+                      ("modules",
+                       modules |> String.split "." |> List.map DString |> DList)
+                      ("name", DString typename)
+                      ("version", DInt version) ])
               ))
           }
         | _ -> incorrectArgs ()
@@ -220,16 +214,13 @@ let fns : List<BuiltInFn> =
               (DList(
                 packages
                 |> List.map (fun (owner, fnname, modules, version) ->
-                  DRecord(
-                    FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0),
-                    Map(
-                      [ ("owner", DString owner)
-                        ("modules",
-                         modules |> String.split "." |> List.map DString |> DList)
-                        ("name", DString fnname)
-                        ("version", DInt version) ]
-                    )
-                  ))
+                  Dval.record
+                    (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0))
+                    [ ("owner", DString owner)
+                      ("modules",
+                       modules |> String.split "." |> List.map DString |> DList)
+                      ("name", DString fnname)
+                      ("version", DInt version) ])
               ))
           }
         | _ -> incorrectArgs ()

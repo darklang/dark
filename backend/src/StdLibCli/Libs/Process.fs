@@ -50,13 +50,11 @@ let fns : List<BuiltInFn> =
 
           p.WaitForExit()
 
-          DRecord(
-            TypeName.fqBuiltIn [ "Process" ] "Error" 0,
-            Map
-              [ ("exitCode", DInt(p.ExitCode))
-                ("stdout", DString(stdout))
-                ("stderr", DString(stderr)) ]
-          )
+          Dval.record
+            (TypeName.fqBuiltIn [ "Process" ] "Error" 0)
+            [ ("exitCode", DInt(p.ExitCode))
+              ("stdout", DString(stdout))
+              ("stderr", DString(stderr)) ]
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
