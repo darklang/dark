@@ -655,7 +655,7 @@ let testMatchPreview : Test =
         "nothing"
         (let typeName = Dval.optionType
          eEnum typeName "None" [])
-        [ (pNothingId, "nothing pat", er (Dval.optionNothing))
+        [ (pNothingId, "nothing pat", er (Dval.optionNone))
           (nothingRhsId, "rhs", er (DString "enum nothing")) ]
 
       // TODO: test enum around a literal

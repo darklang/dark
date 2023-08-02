@@ -106,9 +106,9 @@ some examples:
         let! items = UserDB.getMany state db skeys
 
         if List.length items = List.length skeys then
-          return items |> DList |> Dval.optionJust
+          return items |> DList |> Dval.optionSome
         else
-          return Dval.optionNothing
+          return Dval.optionNone
       }
     | _ -> incorrectArgs ())
   sqlSpec = NotQueryable

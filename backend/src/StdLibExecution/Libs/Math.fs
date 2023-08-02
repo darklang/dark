@@ -170,9 +170,9 @@ let fns : List<BuiltInFn> =
           let res = System.Math.Acos r in
 
           if System.Double.IsNaN res then
-            Ply(Dval.optionNothing)
+            Ply(Dval.optionNone)
           else
-            Ply(Dval.optionJust (DFloat res))
+            Ply(Dval.optionSome (DFloat res))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -197,9 +197,9 @@ let fns : List<BuiltInFn> =
           let res = System.Math.Asin r in
 
           if System.Double.IsNaN res then
-            Ply(Dval.optionNothing)
+            Ply(Dval.optionNone)
           else
-            Ply(Dval.optionJust (DFloat res))
+            Ply(Dval.optionSome (DFloat res))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

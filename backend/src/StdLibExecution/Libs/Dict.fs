@@ -176,8 +176,8 @@ let fns : List<BuiltInFn> =
           let result = List.fold (Some Map.empty) f l
 
           match result with
-          | Some map -> Ply(Dval.optionJust (DDict(map)))
-          | None -> Ply(Dval.optionNothing)
+          | Some map -> Ply(Dval.optionSome (DDict(map)))
+          | None -> Ply(Dval.optionNone)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

@@ -105,9 +105,9 @@ let fns : List<BuiltInFn> =
             let! items = UserDB.getMany state db skeys
 
             if List.length items = List.length skeys then
-              return items |> DList |> Dval.optionJust
+              return items |> DList |> Dval.optionSome
             else
-              return Dval.optionNothing
+              return Dval.optionNone
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -362,8 +362,8 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.query state db b
 
               match results with
-              | [ (_, v) ] -> return Dval.optionJust v
-              | _ -> return Dval.optionNothing
+              | [ (_, v) ] -> return Dval.optionSome v
+              | _ -> return Dval.optionNone
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }
@@ -388,8 +388,8 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.query state db b
 
               match results with
-              | [ (key, dv) ] -> return Dval.optionJust (DTuple(DString key, dv, []))
-              | _ -> return Dval.optionNothing
+              | [ (key, dv) ] -> return Dval.optionSome (DTuple(DString key, dv, []))
+              | _ -> return Dval.optionNone
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }

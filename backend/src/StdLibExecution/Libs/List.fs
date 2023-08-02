@@ -1195,7 +1195,7 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList l1; DList l2; DFnVal b ] ->
           uply {
             if List.length l1 <> List.length l2 then
-              return Dval.optionNothing
+              return Dval.optionNone
             else
               let list = List.zip l1 l2
 
@@ -1205,7 +1205,7 @@ let fns : List<BuiltInFn> =
                     Interpreter.applyFnVal state 0UL b [] [ dv1; dv2 ])
                   list
 
-              return Dval.optionJust (Dval.list result)
+              return Dval.optionSome (Dval.list result)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -1272,12 +1272,12 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DList l1; DList l2 ] ->
           if List.length l1 <> List.length l2 then
-            Ply(Dval.optionNothing)
+            Ply(Dval.optionNone)
           else
             List.zip l1 l2
             |> List.map (fun (val1, val2) -> DTuple(val1, val2, []))
             |> Dval.list
-            |> Dval.optionJust
+            |> Dval.optionSome
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -1355,7 +1355,7 @@ let fns : List<BuiltInFn> =
          empty."
       fn =
         (function
-        | _, _, [ DList [] ] -> Ply(Dval.optionNothing)
+        | _, _, [ DList [] ] -> Ply(Dval.optionNone)
         | _, _, [ DList l ] ->
           // Will return <= (length - 1)
           // Maximum value is Int64.MaxValue which is half of UInt64.MaxValue, but

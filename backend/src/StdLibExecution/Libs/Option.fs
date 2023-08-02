@@ -46,11 +46,11 @@ let fns : List<BuiltInFn> =
           uply {
             match (caseName1, dvs1, caseName2, dvs2) with
             | "None", _, _, _
-            | _, _, "None", _ -> return Dval.optionNothing
+            | _, _, "None", _ -> return Dval.optionNone
             | "Some", [ dv1 ], "Some", [ dv2 ] ->
               let! result = Interpreter.applyFnVal state 0UL b [] [ dv1; dv2 ]
 
-              return Dval.optionJust result
+              return Dval.optionSome result
             | _ ->
               return
                 Exception.raiseInternal
