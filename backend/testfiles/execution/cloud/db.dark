@@ -35,7 +35,7 @@ type EnumTestRecord = { x: String; y: MyEnum }
 
 type InnerRecord = { age: Int }
 type OuterRecord = { name: String; details: InnerRecord }
-
+type AliasOfRecord = OuterRecord
 
 [<DB>]
 
@@ -51,6 +51,10 @@ type TestEnumDB3 = MyEnum2
 [<DB>]
 type TestNestedRecord = OuterRecord
 
+[<DB>]
+type TestNestedAliasRecord = AliasOfRecord
+
+
 module NestedRecordQuerying =
   (DB.set
     (OuterRecord
@@ -59,16 +63,36 @@ module NestedRecordQuerying =
     "jjj"
     TestNestedRecord
 
-   let _ =
-     DB.set
-       (OuterRecord
-         { name = "frank"
-           details = InnerRecord { age = 22 } })
-       "fff"
-       TestNestedRecord
+   DB.set
+     (OuterRecord
+       { name = "frank"
+         details = InnerRecord { age = 22 } })
+     "fff"
+     TestNestedRecord
 
    let shouldBeJustJoe = DB.query TestNestedRecord (fun p -> p.details.age == 41)
    List.length shouldBeJustJoe) = 1
+
+  (DB.set
+    (AliasOfRecord
+      { name = "jeremy"
+        details = InnerRecord { age = 38 } })
+    "ignored"
+    TestNestedAliasRecord
+
+   DB.set
+     (AliasOfRecord
+       { name = "josephine"
+         details = InnerRecord { age = 29 } })
+     "alsoIgnored"
+     TestNestedAliasRecord
+
+   let shouldBeJustJeremy =
+     DB.query TestNestedAliasRecord (fun p -> p.details.age == 38)
+
+   List.length shouldBeJustJeremy) = 1
+
+
 
 
 module AddToTestEnumDBs =
