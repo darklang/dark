@@ -12,10 +12,10 @@ module Darklang =
 
     let returnsString () : String = "string"
 
-    let returnsOptionJust () : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
+    let returnsOptionSome () : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
       PACKAGE.Darklang.Stdlib.Option.Option.Some 5
 
-    let returnsOptionNothing () : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+    let returnsOptionNone () : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
       PACKAGE.Darklang.Stdlib.Option.Option.None
 
     let returnsResultOk () : PACKAGE.Darklang.Stdlib.Result.Result<Int, String> =

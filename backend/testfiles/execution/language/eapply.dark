@@ -30,10 +30,10 @@ module UserDefined =
 
   let returnsString () : String = "string"
 
-  let returnsOptionJust () : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
+  let returnsOptionSome () : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
     PACKAGE.Darklang.Stdlib.Option.Option.Some 5
 
-  let returnsOptionNothing () : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
+  let returnsOptionNone () : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
     PACKAGE.Darklang.Stdlib.Option.Option.None
 
   let returnsResultOk () : PACKAGE.Darklang.Stdlib.Result.Result<Int, 'err> =
@@ -65,9 +65,9 @@ module UserDefined =
   twoStringFn "str1" "str2" = "str1 appended str2"
   returnsInt () = 5
   returnsString () = "string"
-  returnsOptionJust () = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
-  (returnsOptionJust ()) |> unwrap = 5
-  returnsOptionNothing () = PACKAGE.Darklang.Stdlib.Option.Option.None
+  returnsOptionSome () = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
+  (returnsOptionSome ()) |> unwrap = 5
+  returnsOptionNone () = PACKAGE.Darklang.Stdlib.Option.Option.None
   returnsResultOk () = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
   (returnsResultOk ()) |> unwrap = 5
   fnWithTypeArgAndOneParam<Int> 1 = 1
@@ -130,11 +130,11 @@ module Packages =
   PACKAGE.Darklang.Test.returnsInt () = 5
   PACKAGE.Darklang.Test.returnsString () = "string"
 
-  PACKAGE.Darklang.Test.returnsOptionJust () = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  PACKAGE.Darklang.Test.returnsOptionSome () = PACKAGE.Darklang.Stdlib.Option.Option.Some
     5
 
-  (PACKAGE.Darklang.Test.returnsOptionJust ()) |> unwrap = 5
-  PACKAGE.Darklang.Test.returnsOptionNothing () = PACKAGE.Darklang.Stdlib.Option.Option.None
+  (PACKAGE.Darklang.Test.returnsOptionSome ()) |> unwrap = 5
+  PACKAGE.Darklang.Test.returnsOptionNone () = PACKAGE.Darklang.Stdlib.Option.Option.None
 
   PACKAGE.Darklang.Test.returnsResultOk () = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     5
