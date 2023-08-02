@@ -33,6 +33,12 @@ type MyEnum2 =
 
 type EnumTestRecord = { x: String; y: MyEnum }
 
+type InnerRecord = { age: Int }
+type OuterRecord = { name: String; details: InnerRecord }
+
+
+[<DB>]
+
 [<DB>]
 type TestEnumDB = EnumTestRecord
 
@@ -41,6 +47,29 @@ type TestEnumDB2 = MyEnum
 
 [<DB>]
 type TestEnumDB3 = MyEnum2
+
+[<DB>]
+type TestNestedRecord = OuterRecord
+
+module NestedRecordQuerying =
+  (DB.set
+    (OuterRecord
+      { name = "joe"
+        details = InnerRecord { age = 41 } })
+    "jjj"
+    TestNestedRecord
+
+   let _ =
+     DB.set
+       (OuterRecord
+         { name = "frank"
+           details = InnerRecord { age = 22 } })
+       "fff"
+       TestNestedRecord
+
+   let shouldBeJustJoe = DB.query TestNestedRecord (fun p -> p.details.age == 41)
+   List.length shouldBeJustJoe) = 1
+
 
 module AddToTestEnumDBs =
   (let test1 =

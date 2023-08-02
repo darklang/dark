@@ -238,6 +238,7 @@ type System.Exception with
 /// Non-empty list
 type NEList<'a> = { head : 'a; tail : List<'a> }
 
+/// Non-empty list
 module NEList =
   let toList (l : NEList<'a>) : List<'a> = l.head :: l.tail
 
@@ -256,12 +257,22 @@ module NEList =
     | [] -> Exception.raiseInternal msg metadata
     | head :: tail -> { head = head; tail = tail }
 
-
-
   let ofSeq (head : 'a) (seq : seq<'a>) : NEList<'a> =
     { head = head; tail = List.ofSeq seq }
 
   let singleton (head : 'a) : NEList<'a> = { head = head; tail = [] }
+
+  let push (l : NEList<'a>) (head : 'a) : NEList<'a> =
+    { head = head; tail = l.head :: l.tail }
+
+  let reverse (l : NEList<'a>) : NEList<'a> =
+    match toList l with
+    | [] -> Exception.raiseInternal "Unexpected empty NEList" []
+    | head :: tail ->
+      let reversedTail = List.rev tail
+      match tail with
+      | [] -> { head = head; tail = [] }
+      | first :: rest -> { head = first; tail = rest @ [ head ] }
 
 
 // ----------------------
