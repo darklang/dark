@@ -995,10 +995,18 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      TCustomType(S.fqUserTypeName [] "Foo" 0, []))
     // More Json.NET tests
     ("record4",
-     DRecord(S.fqUserTypeName [] "Foo" 0, S.fqUserTypeName [] "Foo" 0,Map.ofList [ "foo\\\\bar", Dval.int 5 ]),
+     DRecord(
+       S.fqUserTypeName [] "Foo" 0,
+       S.fqUserTypeName [] "Foo" 0,
+       Map.ofList [ "foo\\\\bar", Dval.int 5 ]
+     ),
      TCustomType(S.fqUserTypeName [] "Foo" 0, []))
     ("record5",
-     DRecord(S.fqUserTypeName [] "Foo" 0, S.fqUserTypeName [] "Foo" 0,Map.ofList [ "$type", Dval.int 5 ]),
+     DRecord(
+       S.fqUserTypeName [] "Foo" 0,
+       S.fqUserTypeName [] "Foo" 0,
+       Map.ofList [ "$type", Dval.int 5 ]
+     ),
      TCustomType(S.fqUserTypeName [] "Foo" 0, []))
     ("record with error",
      DRecord(

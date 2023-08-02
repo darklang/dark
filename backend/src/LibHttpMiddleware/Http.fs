@@ -44,7 +44,8 @@ module Response =
     | RT.DRecord(RT.FQName.Package { owner = "Darklang"
                                      modules = { head = "Stdlib"; tail = [ "Http" ] }
                                      name = RT.TypeName.TypeName "Response"
-                                     version = 0 }, _,
+                                     version = 0 },
+                 _,
                  fields) ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
       let code = Map.get "statusCode" fields

@@ -1281,9 +1281,7 @@ module Secret =
   let toDT (s : PT.Secret.T) : Dval =
     Dval.record
       (ptTyp [ "Secret" ] "T" 0)
-      [ "name", DString s.name
-        "value", DString s.value
-        "version", DInt s.version ]
+      [ "name", DString s.name; "value", DString s.value; "version", DInt s.version ]
 
   let fromDT (d : Dval) : PT.Secret.T =
     match d with
