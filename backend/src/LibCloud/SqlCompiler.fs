@@ -267,6 +267,7 @@ let rec lambdaToSql
   (types : Types)
   (constants : Map<ConstantName.BuiltIn, BuiltInConstant>)
   (symtable : DvalMap)
+  // TODO: pass in (typeArgTable: Map<String, TypeReference>) for any resolved typeArgs
   (paramName : string)
   (dbTypeRef : TypeReference)
   (expectedType : TypeReference)
@@ -522,18 +523,18 @@ let rec lambdaToSql
               // right?
               return error $"We do not yet support compiling this code: {expr}"
 
-          let dbFieldType (typeRef : TypeReference) (fieldName : string) =
+          let rec dbFieldType
+            (typeRef : TypeReference)
+            (fieldName : string)
+            : Ply<TypeReference> =
             uply {
               match typeRef with
               // TYPESCLEANUP use typeArgs
               | TCustomType(typeName, _typeArgs) ->
                 match! Types.find typeName types with
-                // TODO: Deal with alias of record type
-                | Some({ definition = TypeDeclaration.Alias _ }) ->
-                  return
-                    error2
-                      "The datastore's type is not a record"
-                      (TypeName.toString typeName)
+                | Some({ definition = TypeDeclaration.Alias aliasedType }) ->
+                  return! dbFieldType aliasedType fieldName
+
                 | Some({ definition = TypeDeclaration.Record(f1, fields) }) ->
                   let field = f1 :: fields |> List.find (fun f -> f.name = fieldName)
                   match field with
@@ -541,11 +542,13 @@ let rec lambdaToSql
                   | None ->
                     return
                       error2 "The datastore does not have a field named" fieldName
+
                 | Some({ definition = TypeDeclaration.Enum _ }) ->
                   return
                     error2
-                      "The datastore's type is not a record"
+                      "The datastore's type is not a record - it's an enum"
                       (TypeName.toString typeName)
+
                 | None ->
                   return
                     error2
@@ -572,7 +575,6 @@ let rec lambdaToSql
 
           typecheck fieldname dbFieldType expectedType
 
-
           let primitiveFieldType t =
             match t with
             | TString -> "text"
@@ -586,7 +588,6 @@ let rec lambdaToSql
             | _ -> error $"We do not support this type of DB field yet: {t}"
 
           let fieldAccessPath = NEList.map escapeFieldname fieldAccessPath
-
           match dbFieldType with
           | TString
           | TInt
@@ -623,6 +624,9 @@ let rec lambdaToSql
             return (sql, [], dbFieldType)
 
           | _ ->
+            debuG "varName" varName
+            debuG "fieldAccessPath" fieldAccessPath
+            debuG "dbFieldType" dbFieldType
             return
               error $"We do not support this type of DB field yet: {dbFieldType}"
         | _ -> return error $"We do not yet support compiling this code: {expr}"
