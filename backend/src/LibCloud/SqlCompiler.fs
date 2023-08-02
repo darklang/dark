@@ -624,9 +624,6 @@ let rec lambdaToSql
             return (sql, [], dbFieldType)
 
           | _ ->
-            debuG "varName" varName
-            debuG "fieldAccessPath" fieldAccessPath
-            debuG "dbFieldType" dbFieldType
             return
               error $"We do not support this type of DB field yet: {dbFieldType}"
         | _ -> return error $"We do not yet support compiling this code: {expr}"
