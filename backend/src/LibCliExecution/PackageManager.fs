@@ -190,9 +190,7 @@ module LanguageToolsTypesFork =
       type RecordField = { name : string; typ : TypeReference; description : string }
 
       type EnumField =
-        { typ : TypeReference
-          label : Option<string>
-          description : string }
+        { typ : TypeReference; label : Option<string>; description : string }
 
       type EnumCase =
         { name : string; fields : List<EnumField>; description : string }
@@ -592,10 +590,7 @@ module ExternalTypesToProgramTypes =
     module EnumField =
       let toPT (f : EPT.TypeDeclaration.EnumField) : PT.TypeDeclaration.EnumField =
         { typ = TypeReference.toPT f.typ
-          label =
-            match f.label with
-            | ET.None -> None
-            | ET.Some v -> Some v
+          label = f.label
           description = f.description }
 
     module EnumCase =
