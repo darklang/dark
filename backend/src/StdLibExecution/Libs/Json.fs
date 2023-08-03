@@ -143,7 +143,7 @@ let rec serialize
 
         | TypeDeclaration.Enum cases ->
           match dval with
-          | DEnum(dTypeName, caseName, fields) ->
+          | DEnum(dTypeName, _, caseName, fields) ->
             let matchingCase = cases |> NEList.filter (fun c -> c.name = caseName)
 
             match matchingCase with
@@ -433,7 +433,8 @@ let parse
                   convert typ j)
                 |> Ply.List.flatten
 
-              return DEnum(typeName, caseName, mapped)
+              // TYPESCLEANUP: we should have the original type here as well as the alias-resolved type
+              return DEnum(typeName, typeName, caseName, mapped)
 
             | _ -> return Exception.raiseInternal "TODO" []
 

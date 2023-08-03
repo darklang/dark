@@ -194,7 +194,8 @@ let rec unify
               return Ok()
           | _ -> return err
 
-        | { definition = TypeDeclaration.Enum cases }, DEnum(tn, caseName, valFields) ->
+        | { definition = TypeDeclaration.Enum cases },
+          DEnum(tn, _, caseName, valFields) ->
           // TODO: deal with aliased type?
           if tn <> typeName then
             return Error(ValueNotExpectedType(value, resolvedType, context))

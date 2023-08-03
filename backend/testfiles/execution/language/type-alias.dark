@@ -165,13 +165,11 @@ module EnumWithTypeArgs =
   Outer2.A "str" = Outer1.A "str"
   Outer2.B 5 = Outer1.B 5
 
-  // TODO: update typename
   Outer1.B "b" = Test.runtimeError
-    "EnumWithTypeArgs.Inner.B's 1st argument should be an Int. However, a String (\"b\") was passed instead.\n\nExpected: Int\nActual: a String: \"b\""
+    "EnumWithTypeArgs.Outer1.B's 1st argument should be an Int. However, a String (\"b\") was passed instead.\n\nExpected: Int\nActual: a String: \"b\""
 
-  // TODO: update typename
   Outer2.A 5 = Test.runtimeError
-    "EnumWithTypeArgs.Inner.A's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: String\nActual: an Int: 5"
+    "EnumWithTypeArgs.Outer2.A's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: String\nActual: an Int: 5"
 
 // module RecordWithTypeArgsDifferentName =
 //   type Inner<'a, 'b> = { a: 'a; b: 'b }

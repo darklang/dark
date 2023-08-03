@@ -548,7 +548,11 @@ and [<NoComparison>] Dval =
 
   | DDict of DvalMap
   | DRecord of runtimeTypeName : TypeName.T * sourceTypeName : TypeName.T * DvalMap
-  | DEnum of TypeName.T * caseName : string * List<Dval>
+  | DEnum of
+    runtimeTypeName : TypeName.T *
+    sourceTypeName : TypeName.T *
+    caseName : string *
+    List<Dval>
 
 
 and DvalTask = Ply<Dval>
@@ -753,7 +757,7 @@ module Dval =
       // TYPESCLEANUP: do we need to check fields?
       typeName = typeName'
 
-    | DEnum(typeName, casename, fields), TCustomType(typeName', typeArgs) ->
+    | DEnum(typeName, _, casename, fields), TCustomType(typeName', typeArgs) ->
       // TYPESCLEANUP: should load type by name
       // TYPESCLEANUP: are we handling type arguments here?
       // TYPESCLEANUP: do we need to check fields?
@@ -841,6 +845,11 @@ module Dval =
         | m, _, _ -> m)
       fields
 
+  let enum (typeName : TypeName.T) (caseName : string) (fields : List<Dval>) : Dval =
+    match List.find isFake fields with
+    | Some v -> v
+    | None -> DEnum(typeName, typeName, caseName, fields)
+
   // CLEANUP - this fn was unused so I commented it out
   // emove? or will it be handy?
   // let dict (fields : List<string * Dval>) : Dval =
@@ -873,9 +882,9 @@ module Dval =
     TypeName.fqPackage "Darklang" (NEList.ofList "Stdlib" [ "Option" ]) "Option" 0
 
   let resultOk (dv : Dval) : Dval =
-    if isFake dv then dv else DEnum(resultType, "Ok", [ dv ])
+    if isFake dv then dv else DEnum(resultType, resultType, "Ok", [ dv ])
   let resultError (dv : Dval) : Dval =
-    if isFake dv then dv else DEnum(resultType, "Error", [ dv ])
+    if isFake dv then dv else DEnum(resultType, resultType, "Error", [ dv ])
 
   // Wraps in a Result after checking that the value is not a fakeval
   let result (dv : Result<Dval, Dval>) : Dval =
@@ -885,9 +894,9 @@ module Dval =
 
 
   let optionSome (dv : Dval) : Dval =
-    if isFake dv then dv else DEnum(optionType, "Some", [ dv ])
+    if isFake dv then dv else DEnum(optionType, optionType, "Some", [ dv ])
 
-  let optionNone : Dval = DEnum(optionType, "None", [])
+  let optionNone : Dval = DEnum(optionType, optionType, "None", [])
 
   // Wraps in an Option after checking that the value is not a fakeval
   let option (dv : Option<Dval>) : Dval =

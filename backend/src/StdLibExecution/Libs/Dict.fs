@@ -382,6 +382,7 @@ let fns : List<BuiltInFn> =
                                                        tail = [ "Option" ] }
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
+                          _,
                           "Some",
                           [ o ]) -> return Some o
                   | DEnum(FQName.Package { owner = "Darklang"
@@ -389,6 +390,7 @@ let fns : List<BuiltInFn> =
                                                        tail = [ "Option" ] }
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
+                          _,
                           "None",
                           []) -> return None
                   | (DIncomplete _ | DError _) as dv ->

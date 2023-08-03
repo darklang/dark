@@ -41,7 +41,7 @@ module DvalComparator =
     | DRecord(tn1, _, o1), DRecord(tn2, _, o2) ->
       let c = compare tn1 tn2
       if c = 0 then compareMaps (Map.toList o1) (Map.toList o2) else c
-    | DEnum(tn1, c1, f1), DEnum(tn2, c2, f2) ->
+    | DEnum(tn1, _, c1, f1), DEnum(tn2, _, c2, f2) ->
       let c = compare tn1 tn2
       if c = 0 then
         let c = compare c1 c2
@@ -903,6 +903,7 @@ let fns : List<BuiltInFn> =
                                                        tail = [ "Option" ] }
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
+                          _,
                           "Some",
                           [ o ]) -> return Some o
                   | DEnum(FQName.Package { owner = "Darklang"
@@ -910,6 +911,7 @@ let fns : List<BuiltInFn> =
                                                        tail = [ "Option" ] }
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
+                          _,
                           "None",
                           []) -> return None
                   | (DIncomplete _ | DError _) as dv ->

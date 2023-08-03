@@ -153,7 +153,7 @@ let rec private toJsonV0
                   })
                 fields)
 
-        | TypeDeclaration.Enum(cases), DEnum(_, caseName, fields) ->
+        | TypeDeclaration.Enum(cases), DEnum(_, _, caseName, fields) ->
 
           let matchingCase =
             cases
@@ -349,7 +349,8 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 |> Seq.toList
                 |> Ply.List.flatten
 
-              return DEnum(typeName, caseName, fields)
+              // TYPESCLEANUP: I don't think the original is name right here?
+              return DEnum(typeName, typeName, caseName, fields)
           | _, _ ->
             return
               Exception.raiseInternal
@@ -398,7 +399,7 @@ module Test =
     | DUuid _ -> true
     | DList dvals -> List.all isQueryableDval dvals
     | DDict map -> map |> Map.values |> List.all isQueryableDval
-    | DEnum(_typeName, _caseName, fields) -> fields |> List.all isQueryableDval
+    | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all isQueryableDval
     | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
 
     // TODO support
