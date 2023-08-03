@@ -1039,11 +1039,11 @@ module TypeDeclaration =
       | DEnum(_, "Alias", [ typeRef ]) ->
         PT.TypeDeclaration.Alias(TypeReference.fromDT typeRef)
 
-      | DEnum(_, "Record", [ firstField; DList additionalFields ]) ->
+      | DEnum(_, "Record", [ DList(firstField :: additionalFields) ]) ->
         let fields = NEList.ofList firstField additionalFields
         PT.TypeDeclaration.Record(NEList.map RecordField.fromDT fields)
 
-      | DEnum(_, "Enum", [ firstCase; DList additionalCases ]) ->
+      | DEnum(_, "Enum", [ DList(firstCase :: additionalCases) ]) ->
         let cases = NEList.ofList firstCase additionalCases
         PT.TypeDeclaration.Enum(NEList.map EnumCase.fromDT cases)
 
