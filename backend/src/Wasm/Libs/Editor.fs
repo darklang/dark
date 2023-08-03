@@ -41,7 +41,8 @@ let fns : List<BuiltInFn> =
       typeParams = [ "state" ]
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TypeReference.result (TVariable "a") TString
-      description = "TODO"
+      description =
+        "Get the editor's global current state (maintained in the WASM runtime)"
       fn =
         (function
         | _, [ _typeParam ], [ DUnit ] ->
@@ -64,7 +65,8 @@ let fns : List<BuiltInFn> =
       typeParams = [ "a" ]
       parameters = [ Param.make "state" (TVariable "a") "" ]
       returnType = TypeReference.result (TVariable "a") TString
-      description = "TODO"
+      description =
+        "Set the editor's global current state (maintained in the WASM runtime)"
       fn =
         (function
         | _, [ _typeParam ], [ v ] ->

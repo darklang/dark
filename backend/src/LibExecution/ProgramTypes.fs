@@ -210,21 +210,6 @@ module FnName =
   let toString (name : T) : string = FQName.toString nameToString name
 
 
-  // CLEANUP: this isn't referenced anywhere - delete? (ideally, I suppose, we'd
-  // derive this list from the stdlib, rather than maintain this list)
-  let oneWordFunctions =
-    Set
-      [ "equals"
-        "equals_v0"
-        "notEquals"
-        "notEquals_v0"
-        "emit"
-        "emit_v0"
-        "print"
-        "print_v0"
-        "unwrap"
-        "unwrap_v0" ]
-
 /// A Fully-Qualified Constant Name
 /// Includes package, module, and version information where relevant.
 module ConstantName =
