@@ -375,34 +375,28 @@ module Const =
 module TypeDeclaration =
   module RecordField =
     let toRT (f : PT.TypeDeclaration.RecordField) : RT.TypeDeclaration.RecordField =
-      { name = f.name; typ = TypeReference.toRT f.typ; description = f.description }
+      { name = f.name; typ = TypeReference.toRT f.typ }
 
   module EnumField =
-    let toRT (f : PT.TypeDeclaration.EnumField) : RT.TypeDeclaration.EnumField =
-      { typ = TypeReference.toRT f.typ
-        label = f.label
-        description = f.description }
+    let toRT (f : PT.TypeDeclaration.EnumField) : RT.TypeReference =
+      TypeReference.toRT f.typ
 
   module EnumCase =
     let toRT (c : PT.TypeDeclaration.EnumCase) : RT.TypeDeclaration.EnumCase =
-      { name = c.name
-        fields = List.map EnumField.toRT c.fields
-        description = c.description }
+      { name = c.name; fields = List.map EnumField.toRT c.fields }
 
   module Definition =
     let toRT (d : PT.TypeDeclaration.Definition) : RT.TypeDeclaration.Definition =
       match d with
       | PT.TypeDeclaration.Definition.Alias(typ) ->
         RT.TypeDeclaration.Alias(TypeReference.toRT typ)
-      | PT.TypeDeclaration.Record(firstField, additionalFields) ->
+      | PT.TypeDeclaration.Record fields ->
         RT.TypeDeclaration.Record(
-          RecordField.toRT firstField,
-          List.map RecordField.toRT additionalFields
+          NEList.map RecordField.toRT fields
         )
-      | PT.TypeDeclaration.Enum(firstCase, additionalCases) ->
+      | PT.TypeDeclaration.Enum cases ->
         RT.TypeDeclaration.Enum(
-          EnumCase.toRT firstCase,
-          List.map EnumCase.toRT additionalCases
+          NEList.map EnumCase.toRT cases
         )
 
   let toRT (t : PT.TypeDeclaration.T) : RT.TypeDeclaration.T =

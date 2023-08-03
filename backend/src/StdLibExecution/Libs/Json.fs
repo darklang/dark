@@ -141,12 +141,10 @@ let rec serialize
           let typ = Types.substitute decl.typeParams typeArgs typ
           return! r typ dv
 
-        | TypeDeclaration.Enum(firstCase, additionalCases) ->
+        | TypeDeclaration.Enum cases ->
           match dval with
           | DEnum(dTypeName, caseName, fields) ->
-            let matchingCase =
-              (firstCase :: additionalCases)
-              |> List.filter (fun c -> c.name = caseName)
+            let matchingCase = cases |> NEList.filter (fun c -> c.name = caseName)
 
             match matchingCase with
             | [] ->
@@ -168,9 +166,9 @@ let rec serialize
                   w.WritePropertyName caseName
                   w.writeArray (fun () ->
                     List.zip matchingCase.fields fields
-                    |> Ply.List.iterSequentially (fun (fieldDef, fieldVal) ->
+                    |> Ply.List.iterSequentially (fun (fieldType, fieldVal) ->
                       let typ =
-                        Types.substitute decl.typeParams typeArgs fieldDef.typ
+                        Types.substitute decl.typeParams typeArgs fieldType
                       r typ fieldVal)))
 
             | _ -> Exception.raiseInternal "Too many matching cases" []
@@ -178,11 +176,9 @@ let rec serialize
 
           | _ -> Exception.raiseInternal "Expected a DEnum but got something else" []
 
-        | TypeDeclaration.Record(firstField, additionalFields) ->
+        | TypeDeclaration.Record fields ->
           match dval with
           | DRecord(actualTypeName, _, dvalMap) when actualTypeName = typeName ->
-            let fieldDefs = firstField :: additionalFields
-
             do!
               w.writeObject (fun () ->
                 dvalMap
@@ -191,8 +187,8 @@ let rec serialize
                   w.WritePropertyName fieldName
 
                   let matchingFieldDef =
-                    fieldDefs
-                    |> List.tryFind (fun def -> def.name = fieldName)
+                    fields
+                    |> NEList.find (fun def -> def.name = fieldName)
                     |> Exception.unwrapOptionInternal
                       "Couldn't find matching field"
                       []
@@ -403,7 +399,7 @@ let parse
             let aliasType = Types.substitute decl.typeParams typeArgs alias
             return! convert aliasType j
 
-          | TypeDeclaration.Enum(firstCase, additionalCases) ->
+          | TypeDeclaration.Enum cases ->
             if jsonValueKind <> JsonValueKind.Object then
               Exception.raiseInternal
                 "Expected an object for an enum"
@@ -417,8 +413,8 @@ let parse
             match enumerated with
             | [ (caseName, j) ] ->
               let matchingCase =
-                (firstCase :: additionalCases)
-                |> List.tryFind (fun c -> c.name = caseName)
+                cases
+                |> NEList.find (fun c -> c.name = caseName)
                 |> Exception.unwrapOptionInternal
                   "Couldn't find matching case"
                   [ "caseName ", caseName ]
@@ -433,7 +429,7 @@ let parse
               let! mapped =
                 List.zip matchingCase.fields j
                 |> List.map (fun (typ, j) ->
-                  let typ = Types.substitute decl.typeParams typeArgs typ.typ
+                  let typ = Types.substitute decl.typeParams typeArgs typ
                   convert typ j)
                 |> Ply.List.flatten
 
@@ -441,17 +437,17 @@ let parse
 
             | _ -> return Exception.raiseInternal "TODO" []
 
-          | TypeDeclaration.Record(firstField, additionalFields) ->
+          | TypeDeclaration.Record fields ->
             if jsonValueKind <> JsonValueKind.Object then
               Exception.raiseInternal
                 "Expected an object for a record"
                 [ "type", typeName; "value", j ]
 
-            let fieldDefs = firstField :: additionalFields
             let enumerated = j.EnumerateObject() |> Seq.toList
 
             let! fields =
-              fieldDefs
+              fields
+              |> NEList.toList
               |> List.map (fun def ->
                 uply {
                   let correspondingValue =

@@ -506,10 +506,10 @@ module TypeDeclaration =
     | Alias of TypeReference
 
     /// `type MyRecord = { a : int; b : string }`
-    | Record of firstField : RecordField * additionalFields : List<RecordField>
+    | Record of NEList<RecordField>
 
     /// `type MyEnum = A | B of int | C of int * (label: string)`
-    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+    | Enum of NEList<EnumCase>
 
   /// Combined the RHS definition, with the list of type parameters. Eg type
   /// MyType<'a> = List<'a>

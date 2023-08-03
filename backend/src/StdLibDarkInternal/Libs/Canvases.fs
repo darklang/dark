@@ -32,10 +32,10 @@ let types : List<BuiltInType> =
         { typeParams = []
           definition =
             TypeDeclaration.Record(
-              { name = "id"; typ = TUuid; description = "" },
-              [ { name = "types"
-                  typ = TList(TCustomType(ptTyp [] "UserType" 0, []))
-                  description = "All typed defined within this canvas" }
+              NEList.ofList
+                { name = "id"; typ = TUuid }
+                [ { name = "types"
+                    typ = TList(TCustomType(ptTyp [] "UserType" 0, [])) }
 
                 // { name = "dbs"
                 //   typ = TList(TCustomType(FQName.BuiltIn(typ "DB" 0), []))

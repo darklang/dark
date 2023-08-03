@@ -864,9 +864,7 @@ module Darklang =
 
           "{\n" ++ (PACKAGE.Darklang.PrettyPrinter.indent fieldsPart) ++ "\n}"
 
-        | Enum(firstCase, additionalCases) ->
-          let cases = List.append [ firstCase ] additionalCases
-
+        | Enum cases  ->
           cases
           |> List.map (fun case ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeDeclaration.enumCase case)

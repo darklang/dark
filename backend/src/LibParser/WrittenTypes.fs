@@ -157,8 +157,8 @@ module TypeDeclaration =
 
   type Definition =
     | Alias of TypeReference
-    | Record of firstField : RecordField * additionalFields : List<RecordField>
-    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+    | Record of NEList<RecordField>
+    | Enum of NEList<EnumCase>
 
   type T = { typeParams : List<string>; definition : Definition }
 

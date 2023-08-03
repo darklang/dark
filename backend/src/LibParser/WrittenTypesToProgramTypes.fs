@@ -296,15 +296,13 @@ module TypeDeclaration =
       match d with
       | WT.TypeDeclaration.Alias typ ->
         PT.TypeDeclaration.Alias(TypeReference.toPT resolver currentModule typ)
-      | WT.TypeDeclaration.Record(firstField, additionalFields) ->
+      | WT.TypeDeclaration.Record fields ->
         PT.TypeDeclaration.Record(
-          RecordField.toPT resolver currentModule firstField,
-          List.map (RecordField.toPT resolver currentModule) additionalFields
+          NEList.map (RecordField.toPT resolver currentModule) fields
         )
-      | WT.TypeDeclaration.Enum(firstCase, additionalCases) ->
+      | WT.TypeDeclaration.Enum cases ->
         PT.TypeDeclaration.Enum(
-          EnumCase.toPT resolver currentModule firstCase,
-          List.map (EnumCase.toPT resolver currentModule) additionalCases
+          NEList.map (EnumCase.toPT resolver currentModule) cases
         )
 
 

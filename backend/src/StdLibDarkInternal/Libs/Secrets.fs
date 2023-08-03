@@ -21,9 +21,10 @@ let types : List<BuiltInType> =
         { typeParams = []
           definition =
             TypeDeclaration.Record(
-              { name = "name"; typ = TString; description = "" },
-              [ { name = "value"; typ = TString; description = "" }
-                { name = "version"; typ = TInt; description = "" } ]
+              NEList.ofList
+                { name = "name"; typ = TString}
+                [ { name = "value"; typ = TString}
+                  { name = "version"; typ = TInt } ]
             ) }
       description = "A secret"
       deprecated = NotDeprecated } ]

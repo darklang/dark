@@ -544,8 +544,8 @@ let rec lambdaToSql
                 | Some({ definition = TypeDeclaration.Alias aliasedType }) ->
                   return! dbFieldType aliasedType fieldName
 
-                | Some({ definition = TypeDeclaration.Record(f1, fields) }) ->
-                  let field = f1 :: fields |> List.find (fun f -> f.name = fieldName)
+                | Some({ definition = TypeDeclaration.Record fields }) ->
+                  let field = fields |> NEList.find (fun f -> f.name = fieldName)
                   match field with
                   | Some v -> return v.typ
                   | None ->

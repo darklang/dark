@@ -288,17 +288,12 @@ let rec contextSummary (context : TCK.Context) : List<ErrorSegment> =
       FQName.BuiltIn { name = TypeName.TypeName "Dict"; modules = []; version = 0 }
     [ TypeName typeName; String "'s "; FieldName key; String " value" ]
   | TCK.EnumField(enumType, fieldDef, caseName, paramIndex, _) ->
-    let fieldName =
-      match fieldDef.label with
-      | None -> []
-      | Some l -> [ String " ("; FieldName l; String ")" ]
     [ TypeName enumType
       String "."
       InlineFieldName caseName
       String "'s "
       Ordinal(paramIndex + 1)
       String " argument" ]
-    @ fieldName
 
   | TCK.DBSchemaType(dbName, expectedType, _) ->
     [ String "DB "; DBName dbName; String "'s value" ]
@@ -363,24 +358,12 @@ let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
       String "; ... })" ]
 
 
-  | TCK.EnumField(enumType, fieldDef, caseName, paramIndex, _) ->
+  | TCK.EnumField(enumType, fieldType, caseName, paramIndex, _) ->
     // format:
-    // (_unnamed : string) // some description
-    let comment =
-      if fieldDef.description = "" then
-        []
-      else
-        [ String " // "; Description fieldDef.description ]
-    let paramName =
-      match fieldDef.label with
-      | None -> "_unnamed"
-      | Some l -> l
-    [ String "("
-      InlineParamName paramName
-      String ": "
-      TypeReference fieldDef.typ
-      String ")" ]
-    @ comment
+    // TODO: we'd like to do something like this:
+    //   (..., string, ...) // some description
+    // but we'll have to extract that info from the definition later
+    [ TypeReference fieldType ]
 
 
   | TCK.DBSchemaType(dbName, expectedType, _) ->
