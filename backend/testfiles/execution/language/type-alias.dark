@@ -193,33 +193,12 @@ module EnumWithTypeArgsDifferentName =
     "EnumWithTypeArgsDifferentName.MostOutest.B's 1st argument should be a String. However, an Int (6) was passed instead.\n\nExpected: String\nActual: an Int: 6"
 
 
-// module RecordWithRecursiveTypeArgs =
-//   type Inner<'a> =
-//     { a: 'a
-//       b: PACKAGE.Darklang.Stdlib.Result.Result<Inner<'a>, String> }
+module EnumWithRecursiveTypeArgs =
+  type Inner<'a> =
+   | A of a: 'a
+   | B of b : PACKAGE.Darklang.Stdlib.Result.Result<Alias<'a>, String>
 
-//   Inner
-//     { a = 5
-//       b =
-//         PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-//           Inner
-//             { a = 6
-//               b =
-//                 PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-//                   Inner
-//                     { a = 7
-//                       b = PACKAGE.Darklang.Stdlib.Result.Result.Error "test" }
-//                 ) }
-//         ) } = Inner
-//     { a = 5
-//       b =
-//         PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-//           Inner
-//             { a = 6
-//               b =
-//                 PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-//                   Inner
-//                     { a = 7
-//                       b = PACKAGE.Darklang.Stdlib.Result.Result.Error "test" }
-//                 ) }
-//         ) }
+  type Alias<'x> = Inner<'x>
+
+  Alias.B (PACKAGE.Darklang.Stdlib.Result.Result.Ok (Alias.A 5)) =
+  Inner.B (PACKAGE.Darklang.Stdlib.Result.Result.Ok (Inner.A 5))
