@@ -110,7 +110,9 @@ module RecordWithTypeArgsDifferentName =
 module RecordWithRecursiveTypeArgs =
   type Inner<'a> =
     { a: 'a
-      b: PACKAGE.Darklang.Stdlib.Result.Result<Inner<'a>, String> }
+      b: PACKAGE.Darklang.Stdlib.Result.Result<Alias<'a>, String> }
+
+  type Alias<'x> = Inner<'x>
 
   Inner
     { a = 5
@@ -124,15 +126,15 @@ module RecordWithRecursiveTypeArgs =
                     { a = 7
                       b = PACKAGE.Darklang.Stdlib.Result.Result.Error "test" }
                 ) }
-        ) } = Inner
+        ) } = Alias
     { a = 5
       b =
         PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-          Inner
+          Alias
             { a = 6
               b =
                 PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-                  Inner
+                  Alias
                     { a = 7
                       b = PACKAGE.Darklang.Stdlib.Result.Result.Error "test" }
                 ) }
