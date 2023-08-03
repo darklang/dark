@@ -384,7 +384,7 @@ let testMatchPreview : Test =
        pTuple2IdY) =
     gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid ()
 
-  let pNothingId, nothingRhsId = gid (), gid ()
+  let pNoneId, noneRhsId = gid (), gid ()
   let pVarId, varRhsId = gid (), gid ()
 
   let patternsToMatchAgainst =
@@ -419,9 +419,8 @@ let testMatchPreview : Test =
            EVariable(okVarRhsVarId, "x") ]
        ))
 
-      // | Nothing -> "enum nothing"
-      (MPEnum(pNothingId, "Nothing", []),
-       EString(nothingRhsId, [ StringText "enum nothing" ]))
+      // | None -> "enum none"
+      (MPEnum(pNoneId, "None", []), EString(noneRhsId, [ StringText "enum none" ]))
 
       // | (2, y) -> "tuple"
       (MPTuple(pTupleId, MPInt(pTupleIdX, 2L), MPVariable(pTupleIdY, "y"), []),
@@ -586,8 +585,8 @@ let testMatchPreview : Test =
 
           // An Enum pattern in just a name, not a type ref, so we can't know
           // what DEnum was supposed to be here at runtime
-          (pNothingId, "nothing pat", ner (inc pNothingId)) // TODO: provide this value in the trace
-          (nothingRhsId, "nothing pat rhs", ner (DString "enum nothing"))
+          (pNoneId, "none pat", ner (inc pNoneId)) // TODO: provide this value in the trace
+          (noneRhsId, "none pat rhs", ner (DString "enum none"))
 
           (pTupleId, "tuple pat", ner (inc pTupleId))
           (pTupleIdX, "tuple pat x", ner (inc pTupleIdX)) // TODO: provide this value in the trace
@@ -652,11 +651,11 @@ let testMatchPreview : Test =
           (varRhsId, "2nd matching rhs", ner (DTuple(DInt 2L, DString "sample", []))) ]
 
       t
-        "nothing"
+        "none"
         (let typeName = Dval.optionType
-         eEnum typeName "Nothing" [])
-        [ (pNothingId, "nothing pat", er (Dval.optionNothing))
-          (nothingRhsId, "rhs", er (DString "enum nothing")) ]
+         eEnum typeName "None" [])
+        [ (pNoneId, "none pat", er (Dval.optionNone))
+          (noneRhsId, "rhs", er (DString "enum none")) ]
 
       // TODO: test enum around a literal
       // TODO: enum around a variable

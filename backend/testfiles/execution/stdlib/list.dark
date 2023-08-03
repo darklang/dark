@@ -56,22 +56,22 @@ List.empty_v0 = []
 
 
 
-List.filter [1;2;3] (fun item -> match item with | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing | 2 -> false | 3 -> true) = Test.runtimeError "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.Nothing`"
+List.filter [1;2;3] (fun item -> match item with | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None | 2 -> false | 3 -> true) = Test.runtimeError "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.None`"
 List.filter [true;false;true] (fun item -> "a") = Test.runtimeError "Expected `fn` to return a Bool, but it returned `\"a\"`"
 List.filter [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = [ 1; 3 ]
 List.filter [] (fun item -> true) = []
 List.filter [-20; 5; 9;] (fun x -> x > 20) = []
 List.filter [] (fun item -> "a") = []
 
-List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then PACKAGE.Darklang.Stdlib.Option.Option.Nothing else (PACKAGE.Darklang.Stdlib.Option.Option.Just (item * 2))) = [ 2; 6 ]
-List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then false else (PACKAGE.Darklang.Stdlib.Option.Option.Just (item * 2))) = Test.runtimeError "Expected `fn` to return a PACKAGE.Darklang.Stdlib.Option.Option<'b>, but it returned `false`"
+List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then PACKAGE.Darklang.Stdlib.Option.Option.None else (PACKAGE.Darklang.Stdlib.Option.Option.Some (item * 2))) = [ 2; 6 ]
+List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then false else (PACKAGE.Darklang.Stdlib.Option.Option.Some (item * 2))) = Test.runtimeError "Expected `fn` to return a PACKAGE.Darklang.Stdlib.Option.Option<'b>, but it returned `false`"
 List.filterMap_v0 [] (fun item -> 0) = []
 
-List.findFirst [1;2;3] (fun x -> x > 5) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-List.findFirst [] (fun x -> x) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-List.findFirst [1;2;3;1;4] (fun x -> x > 1 ) = PACKAGE.Darklang.Stdlib.Option.Option.Just 2
-List.findFirst [0; 5; -6; -10; ] (fun x -> x < 0) = PACKAGE.Darklang.Stdlib.Option.Option.Just -6
-List.findFirst [1; -33; 3; -2; 12] (fun x -> (x < 0 && x % 2 == 0)) = PACKAGE.Darklang.Stdlib.Option.Option.Just -2
+List.findFirst [1;2;3] (fun x -> x > 5) = PACKAGE.Darklang.Stdlib.Option.Option.None
+List.findFirst [] (fun x -> x) = PACKAGE.Darklang.Stdlib.Option.Option.None
+List.findFirst [1;2;3;1;4] (fun x -> x > 1 ) = PACKAGE.Darklang.Stdlib.Option.Option.Some 2
+List.findFirst [0; 5; -6; -10; ] (fun x -> x < 0) = PACKAGE.Darklang.Stdlib.Option.Option.Some -6
+List.findFirst [1; -33; 3; -2; 12] (fun x -> (x < 0 && x % 2 == 0)) = PACKAGE.Darklang.Stdlib.Option.Option.Some -2
 
 // CLEANUP once DList contains typeRefs, this test may be uncommented and the error message updated:
 // List.flatten_v0 [1;2;3] =
@@ -86,18 +86,18 @@ List.fold_v0 ["a"; "b"; "c"; "d"] "x" (fun accum curr -> accum ++ curr) = "xabcd
 List.fold_v0 [1;2;3;4;5] [] (fun accum curr -> List.pushBack_v0 accum (curr + 1)) = [2;3;4;5;6]
 List.fold_v0 [] [] (fun accum curr -> 5) = []
 
-List.getAt ["a"; "b"; "c"; "d"] -1 = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-List.getAt [0] 1 = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-List.getAt [] 1 = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-List.getAt [1; 2; 3; 4] 6018427387902I = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-List.getAt [1; 2; 3; 4] 4611686018427387902I = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-List.getAt [1;2;3;4] 0 = PACKAGE.Darklang.Stdlib.Option.Option.Just 1
-List.getAt [3; 3; 3] -5 = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-List.getAt [3; 3; 3] 2147483648I = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+List.getAt ["a"; "b"; "c"; "d"] -1 = PACKAGE.Darklang.Stdlib.Option.Option.None
+List.getAt [0] 1 = PACKAGE.Darklang.Stdlib.Option.Option.None
+List.getAt [] 1 = PACKAGE.Darklang.Stdlib.Option.Option.None
+List.getAt [1; 2; 3; 4] 6018427387902I = PACKAGE.Darklang.Stdlib.Option.Option.None
+List.getAt [1; 2; 3; 4] 4611686018427387902I = PACKAGE.Darklang.Stdlib.Option.Option.None
+List.getAt [1;2;3;4] 0 = PACKAGE.Darklang.Stdlib.Option.Option.Some 1
+List.getAt [3; 3; 3] -5 = PACKAGE.Darklang.Stdlib.Option.Option.None
+List.getAt [3; 3; 3] 2147483648I = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-List.head [1; 2; 3] = PACKAGE.Darklang.Stdlib.Option.Option.Just 1
+List.head [1; 2; 3] = PACKAGE.Darklang.Stdlib.Option.Option.Some 1
 List.head [Test.runtimeError "test"] = Test.runtimeError "test"
-List.head [] = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+List.head [] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 List.indexedMap_v0 [3;2;1] (fun i v -> v - i) = [ 3; 1; -1 ]
 List.indexedMap_v0 [] (fun i v -> v - i) = []
@@ -119,9 +119,9 @@ List.interpose_v0 ["a"; "b"; "c"] 0 = ["a"; 0; "b"; 0; "c"]
 List.isEmpty_v0 [1] = false
 List.isEmpty_v0 [] = true
 
-List.last [1; 2; 3] = PACKAGE.Darklang.Stdlib.Option.Option.Just 3
+List.last [1; 2; 3] = PACKAGE.Darklang.Stdlib.Option.Option.Some 3
 List.last [Test.runtimeError "test"] = Test.runtimeError "test"
-List.last [] = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+List.last [] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 List.length_v0 [1;2;3] = 3
 List.length_v0 [] = 0
@@ -131,9 +131,9 @@ List.map_v0 [1; 2; 3] (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 0) (I
 List.map_v0 [1; 2] (fun x -> x + 1) = [2; 3]
 List.map_v0 [] (fun x -> x + 1) = []
 
-List.map2_v0 [10;20;30] [1;2;3] (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Just [ 9; 18; 27 ]
-List.map2_v0 [10;20] [1;2;3] (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-List.map2_v0 [] [] (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Just []
+List.map2_v0 [10;20;30] [1;2;3] (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Some [ 9; 18; 27 ]
+List.map2_v0 [10;20] [1;2;3] (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.None
+List.map2_v0 [] [] (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Some []
 
 List.map2shortest_v0 [10;20;30] [1;2;3] (fun a b -> a - b) = [ 9; 18; 27 ]
 List.map2shortest_v0 [10;20] [1;2;3] (fun a b -> a - b) = [ 9; 18 ]
@@ -149,7 +149,7 @@ List.partition_v0 [] (fun item -> true) = ([], [])
 List.partition_v0 [] (fun item -> "a") = ([], [])
 List.partition_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = ([ 1; 3 ], [2])
 List.partition_v0 [true;false;true] (fun item -> "a") = (Test.runtimeError "Expected `fn` to return a Bool, but it returned `\"a\"`", [])
-List.partition_v0 [1;2;3] (fun item -> match item with | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing | 2 -> false | 3 -> true) = (Test.runtimeError "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.Nothing`", [])
+List.partition_v0 [1;2;3] (fun item -> match item with | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None | 2 -> false | 3 -> true) = (Test.runtimeError "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.None`", [])
 
 List.pushBack_v0 [2;3] 1 = [2;3;1]
 List.pushBack_v0 [] 1 = [1]
@@ -157,9 +157,9 @@ List.pushBack_v0 [] 1 = [1]
 List.push_v0 [2;3] 1 = [1;2;3]
 List.push_v0 [] 1 = [1]
 
-List.randomElement_v0 [1] = PACKAGE.Darklang.Stdlib.Option.Option.Just 1
+List.randomElement_v0 [1] = PACKAGE.Darklang.Stdlib.Option.Option.Some 1
 List.randomElement_v0 [Test.runtimeError "test"] = Test.runtimeError "test"
-List.randomElement_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+List.randomElement_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 List.range_v0 -1 0 = [-1; 0]
 List.range_v0 -5 5 = [-5; -4; -3; -2; -1; 0; 1; 2; 3; 4; 5;]
@@ -196,8 +196,8 @@ List.sortByComparator_v0 [] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) =
 List.sortByComparator_v0 [3;1;2;67;3;-1;6;3;5;6;2;5;63;2;3;5;-1;-1;-1] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok [-1; -1; -1; -1; 1; 2; 2; 2; 3; 3; 3; 3; 5; 5; 5; 6; 6; 63; 67]
 List.sortByComparator_v0 [6;2.0] (fun x -> x) = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `fn` to return -1, 0, 1, but it returned `<error: Expected 1 arguments, got 2>`"
 
-List.tail_v0 [10; 20; 30; 40] = PACKAGE.Darklang.Stdlib.Option.Option.Just [20; 30; 40]
-List.tail_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+List.tail_v0 [10; 20; 30; 40] = PACKAGE.Darklang.Stdlib.Option.Option.Some [20; 30; 40]
+List.tail_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 List.take_v0 ["a"; "b"; "c"; "d"] -1 = []
 List.take_v0 ["a"; "b"; "c"; "d"] 2147483648I = ["a"; "b"; "c"; "d"]
@@ -241,10 +241,10 @@ List.zipShortest_v0 ["b";"v";"z"] [] = []
 List.zipShortest_v0 [] ["b";"v";"z"] = []
 
 
-List.zip_v0 [10;20;30] [1;2;3] = PACKAGE.Darklang.Stdlib.Option.Option.Just [ (10, 1); (20, 2); (30, 3) ]
-List.zip_v0 [10;20] [1;2;3] = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-List.zip_v0 [] [] = PACKAGE.Darklang.Stdlib.Option.Option.Just []
-List.zip_v0 [Test.runtimeError "msg"] [Just ""] = Test.runtimeError "msg"
+List.zip_v0 [10;20;30] [1;2;3] = PACKAGE.Darklang.Stdlib.Option.Option.Some [ (10, 1); (20, 2); (30, 3) ]
+List.zip_v0 [10;20] [1;2;3] = PACKAGE.Darklang.Stdlib.Option.Option.None
+List.zip_v0 [] [] = PACKAGE.Darklang.Stdlib.Option.Option.Some []
+List.zip_v0 [Test.runtimeError "msg"] [Some ""] = Test.runtimeError "msg"
 
 
 List.groupByWithKey_v0 [1; 2; 3; 4; 5] (fun x -> Int.mod_v0 x 2) = [(1, [1; 3; 5]); (0, [2; 4])]

@@ -159,9 +159,9 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the arc cosine of <param ratio>, as an <type Option>.
 
-         If <param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns {{Just
+         If <param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns {{Some
          result}} where <var result> is in radians and is between {{0.0}} and <fn
-         Math.pi>. Otherwise, returns {{Nothing}}.
+         Math.pi>. Otherwise, returns {{None}}.
 
          This function is the inverse of <fn Math.cos>."
       fn =
@@ -170,9 +170,9 @@ let fns : List<BuiltInFn> =
           let res = System.Math.Acos r in
 
           if System.Double.IsNaN res then
-            Ply(Dval.optionNothing)
+            Ply(Dval.optionNone)
           else
-            Ply(Dval.optionJust (DFloat res))
+            Ply(Dval.optionSome (DFloat res))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -186,9 +186,9 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the arc sine of <param ratio>, as an <type Option>.
 
-         If <param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns {{Just
+         If <param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns {{Some
          result}} where <var result> is in radians and is between {{-Math.pi/2}} and
-         {{Math.pi/2}}. Otherwise, returns {{Nothing}}.
+         {{Math.pi/2}}. Otherwise, returns {{None}}.
 
          This function is the inverse of <fn Math.sin>."
       fn =
@@ -197,9 +197,9 @@ let fns : List<BuiltInFn> =
           let res = System.Math.Asin r in
 
           if System.Double.IsNaN res then
-            Ply(Dval.optionNothing)
+            Ply(Dval.optionNone)
           else
-            Ply(Dval.optionJust (DFloat res))
+            Ply(Dval.optionSome (DFloat res))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

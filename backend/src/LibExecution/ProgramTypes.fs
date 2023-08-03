@@ -425,7 +425,7 @@ type Expr =
   | ERecord of id * NameResolution<TypeName.T> * List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
 
-  // Enums include `Just`, `Nothing`, `Error`, `Ok`, as well
+  // Enums include `Some`, `None`, `Error`, `Ok`, as well
   // as user-defined enums.
   //
   /// Given an Enum type of:

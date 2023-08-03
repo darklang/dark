@@ -868,16 +868,16 @@ module Dval =
     | Error dv -> resultError dv
 
 
-  let optionJust (dv : Dval) : Dval =
-    if isFake dv then dv else DEnum(optionType, "Just", [ dv ])
+  let optionSome (dv : Dval) : Dval =
+    if isFake dv then dv else DEnum(optionType, "Some", [ dv ])
 
-  let optionNothing : Dval = DEnum(optionType, "Nothing", [])
+  let optionNone : Dval = DEnum(optionType, "None", [])
 
   // Wraps in an Option after checking that the value is not a fakeval
   let option (dv : Option<Dval>) : Dval =
     match dv with
-    | Some dv -> optionJust dv // checks isFake
-    | None -> optionNothing
+    | Some dv -> optionSome dv // checks isFake
+    | None -> optionNone
 
   let errStr (s : string) : Dval = DError(SourceNone, s)
 

@@ -28,9 +28,9 @@ module UserDefined =
   unitConst = ()
   UserDefined.unitConst = ()
 
-  let enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
-  enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
-  UserDefined.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
+  let enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
+  enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
+  UserDefined.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
 
 
 module Package =
@@ -56,8 +56,8 @@ module Package =
   PACKAGE.Darklang.Test.Constants.unitConst = ()
   PACKAGE.Darklang.Test.Constants.unitConst = ()
 
-  PACKAGE.Darklang.Test.Constants.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just
+  PACKAGE.Darklang.Test.Constants.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some
     5
 
-  PACKAGE.Darklang.Test.Constants.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just
+  PACKAGE.Darklang.Test.Constants.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some
     5

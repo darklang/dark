@@ -61,9 +61,9 @@ let openAIcompletion
       match Json.parse<OpenAIChatCompletionResponse> (String.fromBytes r.body) with
       | Ok r ->
         match List.head r.choices with
-        | Just c -> Ok c.message.content
+        | Some c -> Ok c.message.content
 
-        | Nothing -> Error("No choices returned")
+        | None -> Error("No choices returned")
       | Error err -> Error("Couldn't parse open ai completino response - " ++ err)
     | Error e -> Error("OpenAI API request failed\n" ++ e)
   | Error e -> Error("Couldn't serialize request" ++ e)
@@ -218,8 +218,8 @@ let update (model: Model) (msg: Msg) : Model =
 
       let newtasks =
         match taskIndex with
-        | Nothing -> []
-        | Just taskIndex ->
+        | None -> []
+        | Some taskIndex ->
           apiResponseTasks
           |> String.slice_v0 taskIndex (String.length apiResponseTasks)
           |> String.split "\n"
@@ -248,7 +248,7 @@ let update (model: Model) (msg: Msg) : Model =
                 [ CodeSnippet
                     { id = snippetId
                       code = text
-                      eval = PACKAGE.Darklang.Stdlib.Option.Option.Nothing } ]
+                      eval = PACKAGE.Darklang.Stdlib.Option.Option.None } ]
 
             let updatedResponseParts =
               List.append responseParts [ BotResponseItem.CodeSnippet snippetId ]
@@ -283,8 +283,8 @@ let update (model: Model) (msg: Msg) : Model =
       model.codeSnippets |> List.partition (fun cs -> cs.id == id)
 
     match List.head snippetToUpdate with
-    | Nothing -> log "couldn't find snippet"
-    | Just snippetToUpdate ->
+    | None -> log "couldn't find snippet"
+    | Some snippetToUpdate ->
       let parsedAndSerialized = parseAndSerializeProgram codeSnippet
 
       match parsedAndSerialized with
@@ -300,7 +300,7 @@ let update (model: Model) (msg: Msg) : Model =
               [ CodeSnippet
                   { id = snippetToUpdate.id
                     code = codeSnippet
-                    eval = PACKAGE.Darklang.Stdlib.Option.Option.Just evalPgm } ]
+                    eval = PACKAGE.Darklang.Stdlib.Option.Option.Some evalPgm } ]
               otherSnippets
 
           Model
@@ -332,7 +332,7 @@ let update (model: Model) (msg: Msg) : Model =
           CodeSnippet
             { id = "evaluated-program"
               code = code
-              eval = PACKAGE.Darklang.Stdlib.Option.Option.Just evalPgm }
+              eval = PACKAGE.Darklang.Stdlib.Option.Option.Some evalPgm }
 
         Model
           { isLoading = false
@@ -400,7 +400,7 @@ let init () : Model =
       CodeSnippet
         { id = (String.random 5) |> unwrap
           code = "let incr (i: Int): Int = i + 1\n\nincr 5"
-          eval = PACKAGE.Darklang.Stdlib.Option.Option.Nothing }
+          eval = PACKAGE.Darklang.Stdlib.Option.Option.None }
 
     let demoAction =
       [ Action

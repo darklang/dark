@@ -93,9 +93,9 @@ let fns : List<BuiltInFn> =
           let chars = String.toEgcSeq s
 
           if Seq.length chars = 1 then
-            chars |> Seq.toList |> (fun l -> l[0] |> DChar |> Dval.optionJust |> Ply)
+            chars |> Seq.toList |> (fun l -> l[0] |> DChar |> Dval.optionSome |> Ply)
           else
-            Ply(Dval.optionNothing)
+            Ply(Dval.optionNone)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -154,10 +154,10 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "msg" TString "" ]
       returnType = TypeReference.option varA
-      description = "Returns a DError in a Just"
+      description = "Returns a DError in a Some"
       fn =
         (function
-        | _, _, [ DString msg ] -> Ply(Dval.optionJust (DError(SourceNone, msg)))
+        | _, _, [ DString msg ] -> Ply(Dval.optionSome (DError(SourceNone, msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

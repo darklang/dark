@@ -242,7 +242,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TypeReference.option varA
       description =
-        "Returns {{Just}} the head (first value) of a list. Returns {{Nothing}} if
+        "Returns {{Some}} the head (first value) of a list. Returns {{None}} if
          the list is empty."
       fn =
         (function
@@ -258,8 +258,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TypeReference.option (TList varA)
       description =
-        "If <param list> contains at least one value, returns {{Just}} with a list of
-         every value other than the first. Otherwise, returns {{Nothing}}."
+        "If <param list> contains at least one value, returns {{Some}} with a list of
+         every value other than the first. Otherwise, returns {{None}}."
       fn =
         // This matches Elm's implementation, with the added benefit that the error rail
         // means you don't need to handle unwrapping the option
@@ -307,7 +307,7 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.option varA
       description =
         "Returns the last value in <param list>, wrapped in an option (<param
-         Nothing> if the list is empty)"
+         None> if the list is empty)"
       fn =
         (function
         | _, _, [ DList l ] -> l |> List.tryLast |> Dval.option |> Ply
@@ -338,8 +338,8 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
       returnType = TypeReference.option varA
       description =
-        "Returns {{Just firstMatch}} where <var firstMatch> is the first value of the
-         list for which <param fn> returns {{true}}. Returns {{Nothing}} if no such
+        "Returns {{Some firstMatch}} where <var firstMatch> is the first value of the
+         list for which <param fn> returns {{true}}. Returns {{None}} if no such
          value exists"
       fn =
         (function
@@ -877,9 +877,9 @@ let fns : List<BuiltInFn> =
         "Calls <param fn> on every <var val> in <param list>, returning a list that
          drops some values (filter) and transforms others (map).
 
-         If {{fn val}} returns {{Nothing}}, drops <var val> from the list.
+         If {{fn val}} returns {{None}}, drops <var val> from the list.
 
-         If {{fn val}} returns {{Just newValue}}, replaces <var val> with <var newValue>.
+         If {{fn val}} returns {{Some newValue}}, replaces <var val> with <var newValue>.
 
          Preserves the order of values that were not dropped.
 
@@ -903,14 +903,14 @@ let fns : List<BuiltInFn> =
                                                        tail = [ "Option" ] }
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
-                          "Just",
+                          "Some",
                           [ o ]) -> return Some o
                   | DEnum(FQName.Package { owner = "Darklang"
                                            modules = { head = "Stdlib"
                                                        tail = [ "Option" ] }
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
-                          "Nothing",
+                          "None",
                           []) -> return None
                   | (DIncomplete _ | DError _) as dv ->
                     abortReason.Value <- Some dv
@@ -1179,7 +1179,7 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "fn" (TFn([ varA; varB ], varC)) "" [ "a"; "b" ] ]
       returnType = TypeReference.option varC
       description =
-        "If the lists are the same length, returns {{Just list}} formed by mapping
+        "If the lists are the same length, returns {{Some list}} formed by mapping
          <param fn> over <param as> and <param bs> in parallel, calling {{fn a b}} on
          every pair of values from <param as> and <param bs>.
 
@@ -1187,7 +1187,7 @@ let fns : List<BuiltInFn> =
          {{[\"x\",\"y\",\"z\"]}}, returns {{[(fn 1 \"x\"), (f 2 \"y\"), (f 3
          \"z\")]}}.
 
-         If the lists differ in length, returns {{Nothing}} (consider <fn
+         If the lists differ in length, returns {{None}} (consider <fn
          List.map2shortest> if you want to drop values from the longer list
          instead)."
       fn =
@@ -1195,7 +1195,7 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList l1; DList l2; DFnVal b ] ->
           uply {
             if List.length l1 <> List.length l2 then
-              return Dval.optionNothing
+              return Dval.optionNone
             else
               let list = List.zip l1 l2
 
@@ -1205,7 +1205,7 @@ let fns : List<BuiltInFn> =
                     Interpreter.applyFnVal state 0UL b [] [ dv1; dv2 ])
                   list
 
-              return Dval.optionJust (Dval.list result)
+              return Dval.optionSome (Dval.list result)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -1256,7 +1256,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
       returnType = TypeReference.option (TList(TTuple(varA, varB, [])))
       description =
-        "If the lists have the same length, returns {{Just list of tuples}} formed from
+        "If the lists have the same length, returns {{Some list of tuples}} formed from
         parallel pairs in <param as> and <param bs>.
 
         For example, if <param as> is {{[1,2,3]}} and <param bs> is
@@ -1265,19 +1265,19 @@ let fns : List<BuiltInFn> =
         See <fn List.unzip> if you want to deconstruct <var list> into <param as>
         and <param bs> again.
 
-        If the lists differ in length, returns {{Nothing}} (consider
+        If the lists differ in length, returns {{None}} (consider
         <fn List.zipShortest> if you want to drop values from the longer list
         instead)."
       fn =
         (function
         | _, _, [ DList l1; DList l2 ] ->
           if List.length l1 <> List.length l2 then
-            Ply(Dval.optionNothing)
+            Ply(Dval.optionNone)
           else
             List.zip l1 l2
             |> List.map (fun (val1, val2) -> DTuple(val1, val2, []))
             |> Dval.list
-            |> Dval.optionJust
+            |> Dval.optionSome
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -1333,8 +1333,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
       returnType = TypeReference.option varA
       description =
-        "Returns {{Just value}} at <param index> in <param list> if <param index> is
-         less than the length of the list otherwise returns {{Nothing}}."
+        "Returns {{Some value}} at <param index> in <param list> if <param index> is
+         less than the length of the list otherwise returns {{None}}."
       fn =
         (function
         | _, _, [ DList l; DInt index ] ->
@@ -1350,12 +1350,12 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TypeReference.option varA
       description =
-        "Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly
-         selected value in <param list>. Returns {{Nothing}} if <param list> is
+        "Returns {{Some <var randomValue>}}, where <var randomValue> is a randomly
+         selected value in <param list>. Returns {{None}} if <param list> is
          empty."
       fn =
         (function
-        | _, _, [ DList [] ] -> Ply(Dval.optionNothing)
+        | _, _, [ DList [] ] -> Ply(Dval.optionNone)
         | _, _, [ DList l ] ->
           // Will return <= (length - 1)
           // Maximum value is Int64.MaxValue which is half of UInt64.MaxValue, but

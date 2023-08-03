@@ -52,9 +52,9 @@ module OpenAI =
           with
           | Ok r ->
             match List.head r.choices with
-            | Just c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.text
+            | Some c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.text
 
-            | Nothing -> PACKAGE.Darklang.Stdlib.Result.Result.Error("No choices returned")
+            | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error("No choices returned")
         | Error err -> PACKAGE.Darklang.Stdlib.Result.Result.Error("Couldn't parse OpenAI completion response - " ++ err)
         | Error e -> PACKAGE.Darklang.Stdlib.Result.Result.Error("OpenAI API request failed\n" ++ e)
       | Error e -> PACKAGE.Darklang.Stdlib.Result.Result.Error("Couldn't serialize request" ++ e)
@@ -110,12 +110,12 @@ module OpenAI =
 
       let options =
         match options with
-        | Just o ->
+        | Some o ->
           { o with
               messages =
                 [ PACKAGE.OpenAI.ChatCompletion.RequestMessage
                     { role = "user"; content = prompt } ] }
-        | Nothing ->
+        | None ->
           { (PACKAGE.OpenAI.ChatCompletion.completionOptionsDefault ()) with
               messages =
                 [ PACKAGE.OpenAI.ChatCompletion.RequestMessage
@@ -145,9 +145,9 @@ module OpenAI =
           with
           | Ok r ->
             match List.head r.choices with
-            | Just c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.message.content
+            | Some c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.message.content
 
-            | Nothing -> PACKAGE.Darklang.Stdlib.Result.Result.Error("No choices returned")
+            | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error("No choices returned")
           | Error err -> PACKAGE.Darklang.Stdlib.Result.Result.Error("Couldn't parse OpenAI completion response - " ++ err)
         | Error e -> PACKAGE.Darklang.Stdlib.Result.Result.Error("OpenAI API request failed\n" ++ e)
       | Error e -> PACKAGE.Darklang.Stdlib.Result.Result.Error("Couldn't serialize request" ++ e)
@@ -185,9 +185,9 @@ module OpenAI =
           with
           | Ok r ->
             match List.head r.choices with
-            | Just c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.message.content
+            | Some c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.message.content
 
-            | Nothing -> PACKAGE.Darklang.Stdlib.Result.Result.Error("No choices returned")
+            | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error("No choices returned")
           | Error err -> PACKAGE.Darklang.Stdlib.Result.Result.Error("Couldn't parse OpenAI completion response - " ++ err)
         | Error e -> PACKAGE.Darklang.Stdlib.Result.Result.Error("OpenAI API request failed\n" ++ e)
       | Error e -> PACKAGE.Darklang.Stdlib.Result.Result.Error("Couldn't serialize request" ++ e)
@@ -227,8 +227,8 @@ module OpenAI =
           with
           | Ok r ->
             match List.head r.data with
-            | Just d -> PACKAGE.Darklang.Stdlib.Result.Result.Ok d.url
-            | Nothing -> PACKAGE.Darklang.Stdlib.Result.Result.Error("No data returned")
+            | Some d -> PACKAGE.Darklang.Stdlib.Result.Result.Ok d.url
+            | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error("No data returned")
         | Error err ->
           PACKAGE.Darklang.Stdlib.Result.Result.Error("Couldn't parse open ai image generation response - " ++ err)
         | Error e -> PACKAGE.Darklang.Stdlib.Result.Result.Error("OpenAI API request failed\n" ++ e)

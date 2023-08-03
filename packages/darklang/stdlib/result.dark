@@ -74,22 +74,22 @@ module Darklang =
         | Error _ -> default_
 
 
-      /// Turn an option into a result, using <param error> as the error message for Error. Specifically, if <param option> is {{Just <var value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}} otherwise.
+      /// Turn an option into a result, using <param error> as the error message for Error. Specifically, if <param option> is {{Some <var value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}} otherwise.
       let fromOption
         (option: PACKAGE.Darklang.Stdlib.Option.Option<'t>)
         (error: 'e)
         : PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e> =
         match option with
-        | Just value -> PACKAGE.Darklang.Stdlib.Result.Result.Ok value
-        | Nothing -> PACKAGE.Darklang.Stdlib.Result.Result.Error error
+        | Some value -> PACKAGE.Darklang.Stdlib.Result.Result.Ok value
+        | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error error
 
       /// Turn a <type Result> into an <type Option>
       let toOption
         (result: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>)
         : PACKAGE.Darklang.Stdlib.Option.Option<'t> =
         match result with
-        | Ok value -> PACKAGE.Darklang.Stdlib.Option.Option.Just value
-        | Error _ -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+        | Ok value -> PACKAGE.Darklang.Stdlib.Option.Option.Some value
+        | Error _ -> PACKAGE.Darklang.Stdlib.Option.Option.None
 
 
       /// Collect a list of results into a single result. If any of the results

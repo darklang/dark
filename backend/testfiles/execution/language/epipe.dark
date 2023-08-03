@@ -42,31 +42,31 @@ type MyEnum = A of Int * Int * Int
 (3 |> PACKAGE.Darklang.Stdlib.Result.Result.Ok) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   3
 
-(4 |> (+) 3 |> PACKAGE.Darklang.Stdlib.Option.Option.Just) = PACKAGE.Darklang.Stdlib.Option.Option.Just
+(4 |> (+) 3 |> PACKAGE.Darklang.Stdlib.Option.Option.Some) = PACKAGE.Darklang.Stdlib.Option.Option.Some
   7
 
-(PACKAGE.Darklang.Stdlib.Option.Option.Nothing
- |> PACKAGE.Darklang.Stdlib.Option.Option.Just) = PACKAGE.Darklang.Stdlib.Option.Option.Just
-  PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+(PACKAGE.Darklang.Stdlib.Option.Option.None
+ |> PACKAGE.Darklang.Stdlib.Option.Option.Some) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  PACKAGE.Darklang.Stdlib.Option.Option.None
 
 
-(let x = PACKAGE.Darklang.Stdlib.Option.Option.Just 3
+(let x = PACKAGE.Darklang.Stdlib.Option.Option.Some 3
 
  x
  |> PACKAGE.Darklang.Stdlib.Option.map (fun a -> a)
- |> PACKAGE.Darklang.Stdlib.Option.map (fun a -> a + 1)) = PACKAGE.Darklang.Stdlib.Option.Option.Just
+ |> PACKAGE.Darklang.Stdlib.Option.map (fun a -> a + 1)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
   4
 
 (let x = fun x -> PACKAGE.Darklang.Stdlib.Option.map x (fun a -> a) in
 
- (PACKAGE.Darklang.Stdlib.Option.Option.Just 3)
+ (PACKAGE.Darklang.Stdlib.Option.Option.Some 3)
  |> x
- |> PACKAGE.Darklang.Stdlib.Option.map (fun a -> a + 1)) = PACKAGE.Darklang.Stdlib.Option.Option.Just
+ |> PACKAGE.Darklang.Stdlib.Option.map (fun a -> a + 1)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
   4
 
-((PACKAGE.Darklang.Stdlib.Option.Option.Just 3)
+((PACKAGE.Darklang.Stdlib.Option.Option.Some 3)
  |> PACKAGE.Darklang.Stdlib.Option.withDefault_v0
-   PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+   PACKAGE.Darklang.Stdlib.Option.Option.None
  |> (+) 3) = 6
 
 ((PACKAGE.Darklang.Stdlib.Result.Result.Ok 3)
@@ -83,24 +83,24 @@ type MyEnum = A of Int * Int * Int
 (let x =
   fun x ->
     PACKAGE.Darklang.Stdlib.Option.andThen_v0
-      (PACKAGE.Darklang.Stdlib.Option.Option.Just x)
-      (fun x -> PACKAGE.Darklang.Stdlib.Option.Option.Just(1 + x)) in
+      (PACKAGE.Darklang.Stdlib.Option.Option.Some x)
+      (fun x -> PACKAGE.Darklang.Stdlib.Option.Option.Some(1 + x)) in
 
- 3 |> x) = PACKAGE.Darklang.Stdlib.Option.Option.Just 4
+ 3 |> x) = PACKAGE.Darklang.Stdlib.Option.Option.Some 4
 
 (let x =
   fun x ->
     PACKAGE.Darklang.Stdlib.Option.andThen_v0 x (fun x ->
-      PACKAGE.Darklang.Stdlib.Option.Option.Just(1 + x)) in
+      PACKAGE.Darklang.Stdlib.Option.Option.Some(1 + x)) in
 
- 3 |> PACKAGE.Darklang.Stdlib.Option.Option.Just |> x) = PACKAGE.Darklang.Stdlib.Option.Option.Just
+ 3 |> PACKAGE.Darklang.Stdlib.Option.Option.Some |> x) = PACKAGE.Darklang.Stdlib.Option.Option.Some
   4
 
 (3
- |> PACKAGE.Darklang.Stdlib.Option.Option.Just
+ |> PACKAGE.Darklang.Stdlib.Option.Option.Some
  |> PACKAGE.Darklang.Stdlib.Result.fromOption "test") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   3
 
-(PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+(PACKAGE.Darklang.Stdlib.Option.Option.None
  |> PACKAGE.Darklang.Stdlib.Result.fromOption "test") = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "test"

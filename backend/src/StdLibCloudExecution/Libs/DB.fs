@@ -88,7 +88,7 @@ let fns : List<BuiltInFn> =
       parameters = [ keysParam; tableParam ]
       returnType = TypeReference.option (TList valType)
       description =
-        "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB.etExisting)"
+        "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Some a list of [values], otherwise returns None (to ignore missing keys, use DB.etExisting)"
       fn =
         (function
         | state, _, [ DList keys; DDB dbname ] ->
@@ -105,9 +105,9 @@ let fns : List<BuiltInFn> =
             let! items = UserDB.getMany state db skeys
 
             if List.length items = List.length skeys then
-              return items |> DList |> Dval.optionJust
+              return items |> DList |> Dval.optionSome
             else
-              return Dval.optionNothing
+              return Dval.optionNone
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -352,7 +352,7 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam; queryParam ]
       returnType = TypeReference.option valType
       description =
-        "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
+        "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Some value and if there is none or more than 1 found, it returns None. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
         | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
@@ -362,8 +362,8 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.query state db b
 
               match results with
-              | [ (_, v) ] -> return Dval.optionJust v
-              | _ -> return Dval.optionNothing
+              | [ (_, v) ] -> return Dval.optionSome v
+              | _ -> return Dval.optionNone
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }
@@ -378,7 +378,7 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam; queryParam ]
       returnType = TypeReference.option (TTuple(TString, valType, []))
       description =
-        "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
+        "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Some {key: value} and if there is none or more than 1 found, it returns None. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
         | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
@@ -388,8 +388,8 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.query state db b
 
               match results with
-              | [ (key, dv) ] -> return Dval.optionJust (DTuple(DString key, dv, []))
-              | _ -> return Dval.optionNothing
+              | [ (key, dv) ] -> return Dval.optionSome (DTuple(DString key, dv, []))
+              | _ -> return Dval.optionNone
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }

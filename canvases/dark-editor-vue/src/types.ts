@@ -104,10 +104,10 @@ export function fromSerializedDarkModel(serializedDarkModel: string): Model {
     let evalData = snip.eval[evalType]
 
     switch (evalType) {
-      case 'Nothing':
+      case 'None':
         return { id: snip.id, code: snip.code, eval: null }
 
-      case 'Just':
+      case 'Some':
         return { id: snip.id, code: snip.code, eval: evalData }
 
       default:

@@ -47,22 +47,22 @@ PACKAGE.Darklang.Stdlib.Result.collect [] = PACKAGE.Darklang.Stdlib.Result.Resul
 
 
 
-PACKAGE.Darklang.Stdlib.Result.fromOption (PACKAGE.Darklang.Stdlib.Option.Option.Just 6) "test" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+PACKAGE.Darklang.Stdlib.Result.fromOption (PACKAGE.Darklang.Stdlib.Option.Option.Some 6) "test" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   6
 
-PACKAGE.Darklang.Stdlib.Result.fromOption PACKAGE.Darklang.Stdlib.Option.Option.Nothing "test" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+PACKAGE.Darklang.Stdlib.Result.fromOption PACKAGE.Darklang.Stdlib.Option.Option.None "test" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "test"
 
 PACKAGE.Darklang.Stdlib.Result.fromOption
-  (PACKAGE.Darklang.Stdlib.Option.Option.Just(PACKAGE.Darklang.Stdlib.Result.Result.Error "test"))
+  (PACKAGE.Darklang.Stdlib.Option.Option.Some(PACKAGE.Darklang.Stdlib.Result.Result.Error "test"))
   "test" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
   PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
 )
 
-PACKAGE.Darklang.Stdlib.Result.fromOption PACKAGE.Darklang.Stdlib.Option.Option.Nothing (1, 2, 3) = PACKAGE.Darklang.Stdlib.Result.Result.Error((1, 2, 3))
+PACKAGE.Darklang.Stdlib.Result.fromOption PACKAGE.Darklang.Stdlib.Option.Option.None (1, 2, 3) = PACKAGE.Darklang.Stdlib.Result.Result.Error((1, 2, 3))
 
-PACKAGE.Darklang.Stdlib.Result.fromOption PACKAGE.Darklang.Stdlib.Option.Option.Nothing PACKAGE.Darklang.Stdlib.Option.Option.Nothing = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+PACKAGE.Darklang.Stdlib.Result.fromOption PACKAGE.Darklang.Stdlib.Option.Option.None PACKAGE.Darklang.Stdlib.Option.Option.None = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.Option.Option.None
 
 
 
@@ -115,11 +115,11 @@ PACKAGE.Darklang.Stdlib.Result.map
 
 PACKAGE.Darklang.Stdlib.Result.toOption (
   PACKAGE.Darklang.Stdlib.Result.Result.Ok "test"
-) = PACKAGE.Darklang.Stdlib.Option.Option.Just "test"
+) = PACKAGE.Darklang.Stdlib.Option.Option.Some "test"
 
 PACKAGE.Darklang.Stdlib.Result.toOption (
   PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 
 

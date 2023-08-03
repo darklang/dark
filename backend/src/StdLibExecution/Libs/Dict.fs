@@ -154,10 +154,10 @@ let fns : List<BuiltInFn> =
         "Each value in <param entries> must be a {{(key, value)}} tuple, where <var
          key> is a <type String>.
 
-         If <param entries> contains no duplicate keys, returns {{Just <var dict>}}
+         If <param entries> contains no duplicate keys, returns {{Some <var dict>}}
          where <var dict> has <param entries>.
 
-         Otherwise, returns {{Nothing}} (use <fn Dict.fromListOverwritingDuplicates>
+         Otherwise, returns {{None}} (use <fn Dict.fromListOverwritingDuplicates>
          if you want to overwrite duplicate keys)."
       fn =
         (function
@@ -176,8 +176,8 @@ let fns : List<BuiltInFn> =
           let result = List.fold (Some Map.empty) f l
 
           match result with
-          | Some map -> Ply(Dval.optionJust (DDict(map)))
-          | None -> Ply(Dval.optionNothing)
+          | Some map -> Ply(Dval.optionSome (DDict(map)))
+          | None -> Ply(Dval.optionNone)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -190,7 +190,7 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.option varA
       description =
         "If the <param dict> contains <param key>, returns the corresponding value,
-         wrapped in an <type Option>: {{Just value}}. Otherwise, returns {{Nothing}}."
+         wrapped in an <type Option>: {{Some value}}. Otherwise, returns {{None}}."
       fn =
         (function
         | _, _, [ DDict o; DString s ] -> Map.tryFind s o |> Dval.option |> Ply
@@ -359,8 +359,8 @@ let fns : List<BuiltInFn> =
       returnType = TDict varB
       description =
         "Calls <param fn> on every entry in <param dict>, returning a <type dict> that drops some entries (filter) and transforms others (map).
-          If {{fn key value}} returns {{Nothing}}, does not add <var key> or <var value> to the new dictionary, dropping the entry.
-          If {{fn key value}} returns {{Just newValue}}, adds the entry <var key>: <var newValue> to the new dictionary.
+          If {{fn key value}} returns {{None}}, does not add <var key> or <var value> to the new dictionary, dropping the entry.
+          If {{fn key value}} returns {{Some newValue}}, adds the entry <var key>: <var newValue> to the new dictionary.
           This function combines <fn Dict.filter> and <fn Dict.map>."
       fn =
         (function
@@ -382,14 +382,14 @@ let fns : List<BuiltInFn> =
                                                        tail = [ "Option" ] }
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
-                          "Just",
+                          "Some",
                           [ o ]) -> return Some o
                   | DEnum(FQName.Package { owner = "Darklang"
                                            modules = { head = "Stdlib"
                                                        tail = [ "Option" ] }
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
-                          "Nothing",
+                          "None",
                           []) -> return None
                   | (DIncomplete _ | DError _) as dv ->
                     abortReason.Value <- Some dv
