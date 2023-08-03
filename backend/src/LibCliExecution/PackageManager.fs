@@ -16,11 +16,6 @@ module LanguageToolsTypesFork =
   type ID = uint64
   type TLID = uint64
 
-  // CLEANUP can be removed (just use the standard Option)
-  type NonStandardOption<'a> =
-    | None
-    | Some of 'a
-
   type Sign =
     | Positive
     | Negative
@@ -196,7 +191,7 @@ module LanguageToolsTypesFork =
 
       type EnumField =
         { typ : TypeReference
-          label : NonStandardOption<string>
+          label : Option<string>
           description : string }
 
       type EnumCase =
