@@ -111,8 +111,7 @@ let testUserRecordType
       { typeParams = []
         definition =
           PT.TypeDeclaration.Record(
-            mapField firstField,
-            List.map mapField additionalFields
+            NEList.ofList firstField additionalFields |> NEList.map mapField
           ) } }
 
 

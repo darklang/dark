@@ -135,12 +135,12 @@ let rec private toJsonV0
       | None -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
       | Some decl ->
         match decl.definition, dv with
-        | TypeDeclaration.Alias(typeRef), dv ->
+        | TypeDeclaration.Alias typeRef, dv ->
           let typ = Types.substitute decl.typeParams typeArgs typeRef
           do! writeDval typ dv
 
-        | TypeDeclaration.Record(f1, fs), DRecord(_, _, dm) ->
-          let fields = f1 :: fs
+        | TypeDeclaration.Record fields, DRecord(_, _, dm) ->
+          let fields = NEList.toList fields
           do!
             w.writeObject (fun () ->
               Ply.List.iterSequentially
@@ -153,20 +153,18 @@ let rec private toJsonV0
                   })
                 fields)
 
-        | TypeDeclaration.Enum(firstCase, additionalCases),
-          DEnum(_, caseName, fields) ->
+        | TypeDeclaration.Enum(cases), DEnum(_, caseName, fields) ->
 
           let matchingCase =
-            firstCase :: additionalCases
-            |> List.find (fun c -> c.name = caseName)
+            cases
+            |> NEList.find (fun c -> c.name = caseName)
             |> Exception.unwrapOptionInternal
               $"Couldn't find matching case for {caseName}"
               []
 
           let fieldDefs =
             matchingCase.fields
-            |> List.map (fun def ->
-              Types.substitute decl.typeParams typeArgs def.typ)
+            |> List.map (Types.substitute decl.typeParams typeArgs)
 
           if List.length fieldDefs <> List.length fields then
             Exception.raiseInternal
@@ -300,8 +298,8 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
             return! convert typ j
 
           // JS object with the named fields
-          | TypeDeclaration.Record(f1, fs), JsonValueKind.Object ->
-            let fields = f1 :: fs
+          | TypeDeclaration.Record fields, JsonValueKind.Object ->
+            let fields = NEList.toList fields
             let objFields =
               j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
             if Map.count objFields = List.length fields then
@@ -326,8 +324,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                   "Record has incorrect field count"
                   [ "expected", List.length fields; "actual", Map.count objFields ]
 
-          | TypeDeclaration.Enum(f1, fs), JsonValueKind.Object ->
-            let fieldDefs = f1 :: fs
+          | TypeDeclaration.Enum cases, JsonValueKind.Object ->
             let objFields =
               j.EnumerateObject()
               |> Seq.toList
@@ -338,14 +335,13 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
             | _ :: _ :: _ -> return Exception.raiseInternal "Invalid enum" []
             | [ caseName, fields ] ->
               let caseDesc =
-                fieldDefs
-                |> List.find (fun c -> c.name = caseName)
+                cases
+                |> NEList.find (fun c -> c.name = caseName)
                 |> Exception.unwrapOptionInternal "Couldn't find matching case" []
 
               let fieldTypes =
                 caseDesc.fields
-                |> List.map (fun def ->
-                  Types.substitute decl.typeParams typeArgs def.typ)
+                |> List.map (Types.substitute decl.typeParams typeArgs)
 
               let! fields =
                 fields.EnumerateArray()

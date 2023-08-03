@@ -197,8 +197,8 @@ module LanguageToolsTypesFork =
 
       type Definition =
         | Alias of TypeReference
-        | Record of firstField : RecordField * additionalFields : List<RecordField>
-        | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+        | Record of NEList<RecordField>
+        | Enum of NEList<EnumCase>
 
       type T = { typeParams : List<string>; definition : Definition }
 
@@ -604,16 +604,10 @@ module ExternalTypesToProgramTypes =
         match d with
         | EPT.TypeDeclaration.Alias typ ->
           PT.TypeDeclaration.Alias(TypeReference.toPT typ)
-        | EPT.TypeDeclaration.Record(firstField, additionalFields) ->
-          PT.TypeDeclaration.Record(
-            RecordField.toPT firstField,
-            List.map RecordField.toPT additionalFields
-          )
-        | EPT.TypeDeclaration.Enum(firstCase, additionalCases) ->
-          PT.TypeDeclaration.Enum(
-            EnumCase.toPT firstCase,
-            List.map EnumCase.toPT additionalCases
-          )
+        | EPT.TypeDeclaration.Record fields ->
+          PT.TypeDeclaration.Record(NEList.map RecordField.toPT fields)
+        | EPT.TypeDeclaration.Enum cases ->
+          PT.TypeDeclaration.Enum(NEList.map EnumCase.toPT cases)
 
     let toPT (d : EPT.TypeDeclaration.T) : PT.TypeDeclaration.T =
       { typeParams = d.typeParams; definition = Definition.toPT d.definition }

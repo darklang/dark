@@ -859,8 +859,8 @@ module TypeDeclaration =
     | firstField :: additionalFields ->
 
       WT.TypeDeclaration.Record(
-        RecordField.parseField firstField,
-        List.map RecordField.parseField additionalFields
+        NEList.ofList firstField additionalFields
+        |> NEList.map RecordField.parseField
       )
 
   module Definition =
@@ -868,18 +868,17 @@ module TypeDeclaration =
       typeDef
       (cases : List<SynUnionCase>)
       : WT.TypeDeclaration.Definition =
-      let firstCase, additionalCases =
-        match cases with
-        | [] ->
-          Exception.raiseInternal
-            $"Can't parse enum without any cases"
-            [ "typeDef", typeDef ]
-        | firstCase :: additionalCases -> firstCase, additionalCases
+      match cases with
+      | [] ->
+        Exception.raiseInternal
+          $"Can't parse enum without any cases"
+          [ "typeDef", typeDef ]
+      | firstCase :: additionalCases ->
+        NEList.ofList firstCase additionalCases
+        |> NEList.map EnumCase.parseCase
+        |> WT.TypeDeclaration.Enum
 
-      WT.TypeDeclaration.Enum(
-        EnumCase.parseCase firstCase,
-        List.map EnumCase.parseCase additionalCases
-      )
+
 
 
     let fromSynTypeDefn

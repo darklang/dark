@@ -187,9 +187,10 @@ let types : List<BuiltInType> =
         { typeParams = []
           definition =
             TypeDeclaration.Record(
-              { name = "statusCode"; typ = TInt; description = "" },
-              [ { name = "headers"; typ = headersType; description = "" }
-                { name = "body"; typ = TBytes; description = "" } ]
+              NEList.ofList
+                { name = "statusCode"; typ = TInt }
+                [ { name = "headers"; typ = headersType }
+                  { name = "body"; typ = TBytes } ]
             ) }
       description = "The response from a HTTP request"
       deprecated = NotDeprecated } ]

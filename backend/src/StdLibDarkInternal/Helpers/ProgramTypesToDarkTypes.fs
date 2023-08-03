@@ -1026,14 +1026,11 @@ module TypeDeclaration =
         match d with
         | PT.TypeDeclaration.Alias typeRef -> "Alias", [ TypeReference.toDT typeRef ]
 
-        | PT.TypeDeclaration.Record(firstField, additionalFields) ->
-          "Record",
-          [ RecordField.toDT firstField
-            DList(List.map RecordField.toDT additionalFields) ]
+        | PT.TypeDeclaration.Record fields ->
+          "Record", [ fields |> NEList.toList |> List.map RecordField.toDT |> DList ]
 
-        | PT.TypeDeclaration.Enum(firstCase, additionalCases) ->
-          "Enum",
-          [ EnumCase.toDT firstCase; DList(List.map EnumCase.toDT additionalCases) ]
+        | PT.TypeDeclaration.Enum cases ->
+          "Enum", [ cases |> NEList.toList |> List.map EnumCase.toDT |> DList ]
 
       DEnum(ptTyp [ "TypeDeclaration" ] "Definition" 0, caseName, fields)
 
@@ -1042,17 +1039,13 @@ module TypeDeclaration =
       | DEnum(_, "Alias", [ typeRef ]) ->
         PT.TypeDeclaration.Alias(TypeReference.fromDT typeRef)
 
-      | DEnum(_, "Record", [ firstField; DList additionalFields ]) ->
-        PT.TypeDeclaration.Record(
-          RecordField.fromDT firstField,
-          List.map RecordField.fromDT additionalFields
-        )
+      | DEnum(_, "Record", [ DList(firstField :: additionalFields) ]) ->
+        let fields = NEList.ofList firstField additionalFields
+        PT.TypeDeclaration.Record(NEList.map RecordField.fromDT fields)
 
-      | DEnum(_, "Enum", [ firstCase; DList additionalCases ]) ->
-        PT.TypeDeclaration.Enum(
-          EnumCase.fromDT firstCase,
-          List.map EnumCase.fromDT additionalCases
-        )
+      | DEnum(_, "Enum", [ DList(firstCase :: additionalCases) ]) ->
+        let cases = NEList.ofList firstCase additionalCases
+        PT.TypeDeclaration.Enum(NEList.map EnumCase.fromDT cases)
 
       | _ -> Exception.raiseInternal "Invalid TypeDeclaration.Definition" []
 

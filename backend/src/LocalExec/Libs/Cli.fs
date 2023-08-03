@@ -87,10 +87,9 @@ let types : List<BuiltInType> =
         { typeParams = []
           definition =
             TypeDeclaration.Record(
-              { name = "msg"; typ = TString; description = "The error message" },
-              [ { name = "metadata"
-                  typ = TDict TString
-                  description = "List of metadata as strings" } ]
+              NEList.ofList
+                { name = "msg"; typ = TString }
+                [ { name = "metadata"; typ = TDict TString } ]
             ) }
       deprecated = NotDeprecated } ]
 

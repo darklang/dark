@@ -467,17 +467,11 @@ module Darklang =
 
           /// `type MyRecord = { a : int; b : String }`
           | Record of
-            firstField:
-              PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField *
-            additionalFields:
-              List<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField>
+            List<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField>
 
           /// `type MyEnum = A | B of int | C of int * (label: String)`
           | Enum of
-            firstCase:
-              PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase *
-            additionalCases:
-              List<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase>
+            List<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase>
 
         type T =
           { typeParams: List<String>

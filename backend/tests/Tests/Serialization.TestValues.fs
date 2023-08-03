@@ -719,7 +719,7 @@ module ProgramTypes =
           definition =
             let firstField : PT.TypeDeclaration.RecordField =
               { name = "prop1"; typ = typeReference; description = "desc1" }
-            PT.TypeDeclaration.Record(firstField, []) } }
+            PT.TypeDeclaration.Record(NEList.singleton firstField) } }
 
   let userEnumType : PT.UserType.T =
     { tlid = 0UL
@@ -730,11 +730,12 @@ module ProgramTypes =
         { typeParams = [ "a" ]
           definition =
             PT.TypeDeclaration.Enum(
-              { name = "caseA"; fields = []; description = "" },
-              [ { name = "caseB"
-                  fields =
-                    [ { typ = typeReference; label = Some "i"; description = "" } ]
-                  description = "" } ]
+              NEList.ofList
+                { name = "caseA"; fields = []; description = "" }
+                [ { name = "caseB"
+                    fields =
+                      [ { typ = typeReference; label = Some "i"; description = "" } ]
+                    description = "" } ]
             ) } }
 
   let userTypes : List<PT.UserType.T> = [ userRecordType; userEnumType ]
@@ -778,11 +779,12 @@ module ProgramTypes =
         { typeParams = [ "a" ]
           definition =
             PT.TypeDeclaration.Enum(
-              { name = "caseA"; fields = []; description = "" },
-              [ { name = "caseB"
-                  fields =
-                    [ { typ = typeReference; label = Some "i"; description = "" } ]
-                  description = "" } ]
+              NEList.ofList
+                { name = "caseA"; fields = []; description = "" }
+                [ { name = "caseB"
+                    fields =
+                      [ { typ = typeReference; label = Some "i"; description = "" } ]
+                    description = "" } ]
             ) }
       id = uuid
       description = "test"

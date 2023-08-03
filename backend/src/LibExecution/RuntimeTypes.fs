@@ -623,18 +623,13 @@ type Deprecation<'name> =
 
 
 module TypeDeclaration =
-  type RecordField = { name : string; typ : TypeReference; description : string }
-  type Alias = { typ : TypeReference }
-
-  type EnumField =
-    { typ : TypeReference; label : Option<string>; description : string }
-
-  type EnumCase = { name : string; fields : List<EnumField>; description : string }
+  type RecordField = { name : string; typ : TypeReference }
+  type EnumCase = { name : string; fields : List<TypeReference> }
 
   type Definition =
     | Alias of TypeReference
-    | Record of firstField : RecordField * additionalFields : List<RecordField>
-    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+    | Record of NEList<RecordField>
+    | Enum of NEList<EnumCase>
 
   type T = { typeParams : List<string>; definition : Definition }
 

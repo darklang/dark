@@ -17,9 +17,10 @@ let types : List<BuiltInType> =
         { typeParams = []
           definition =
             TypeDeclaration.Record(
-              { name = "exitCode"; typ = TInt; description = "The exit code" },
-              [ { name = "stdout"; typ = TBytes; description = "The stdout" }
-                { name = "stderr"; typ = TBytes; description = "The stderr" } ]
+              NEList.ofList
+                { name = "exitCode"; typ = TInt }
+                [ { name = "stdout"; typ = TBytes }
+                  { name = "stderr"; typ = TBytes } ]
             ) }
       deprecated = NotDeprecated } ]
 

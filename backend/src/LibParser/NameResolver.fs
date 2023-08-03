@@ -123,8 +123,8 @@ let fromExecutionState (state : RT.ExecutionState) : NameResolver =
 // - 2. Check exact name is a user name
 // - 3. Check exact name is a builtin name
 // - 4. Check exact name in
-//   - a. current module // NOT IMPLEMENTED
-//   - b. parent module(s) // NOT IMPLEMENTED
+//   - a. current module
+//   - b. parent module(s)
 //   - c. darklang.stdlib package space // NOT IMPLEMENTED
 let resolve
   (nameValidator : PT.FQName.NameValidator<'name>)
@@ -213,7 +213,7 @@ let resolve
     // 4. Check name in
     //   - a. exact name
     //   - b. current module
-    //   - c. parent module(s) // NOT IMPLEMENTED
+    //   - c. parent module(s)
     //   - d. darklang.stdlib package space // NOT IMPLEMENTED
 
     // Look in the current module and all parent modules

@@ -22,18 +22,11 @@ let types : List<BuiltInType> =
         { typeParams = []
           definition =
             TypeDeclaration.Record(
-              { name = "owner"
-                typ = TString
-                description = "The username of the owner of the function" },
-              [ { name = "modules"
-                  typ = TList TString
-                  description = "The modules the function is in" }
-                { name = "name"
-                  typ = TString
-                  description = "The name of the function" }
-                { name = "version"
-                  typ = TInt
-                  description = "The version of the function" } ]
+              NEList.ofList
+                { name = "owner"; typ = TString }
+                [ { name = "modules"; typ = TList TString }
+                  { name = "name"; typ = TString }
+                  { name = "version"; typ = TInt } ]
             ) }
       deprecated = NotDeprecated }
 
@@ -44,18 +37,11 @@ let types : List<BuiltInType> =
         { typeParams = []
           definition =
             TypeDeclaration.Record(
-              { name = "owner"
-                typ = TString
-                description = "The username of the owner of the function" },
-              [ { name = "modules"
-                  typ = TList TString
-                  description = "The module the type is in" }
-                { name = "name"
-                  typ = TString
-                  description = "The name of the type" }
-                { name = "version"
-                  typ = TInt
-                  description = "The version of the type" } ]
+              NEList.ofList
+                { name = "owner"; typ = TString }
+                [ { name = "modules"; typ = TList TString }
+                  { name = "name"; typ = TString }
+                  { name = "version"; typ = TInt } ]
             ) }
       deprecated = NotDeprecated }
 
@@ -65,18 +51,11 @@ let types : List<BuiltInType> =
         { typeParams = []
           definition =
             TypeDeclaration.Record(
-              { name = "owner"
-                typ = TString
-                description = "The username of the owner of the function" },
-              [ { name = "modules"
-                  typ = TList TString
-                  description = "The module the constant is in" }
-                { name = "name"
-                  typ = TString
-                  description = "The name of the constant" }
-                { name = "version"
-                  typ = TInt
-                  description = "The version of the constant" } ]
+              NEList.ofList
+                { name = "owner"; typ = TString }
+                [ { name = "modules"; typ = TList TString }
+                  { name = "name"; typ = TString }
+                  { name = "version"; typ = TInt } ]
             ) }
       deprecated = NotDeprecated } ]
 

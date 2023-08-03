@@ -28,13 +28,13 @@ let compile
 
     let typeName : TypeName.UserProgram =
       { modules = []; name = TypeName.TypeName "MyType"; version = 0 }
-    let field : TypeDeclaration.RecordField =
-      { name = rowName; typ = rowType; description = "" }
+    let field : TypeDeclaration.RecordField = { name = rowName; typ = rowType }
     let userType : UserType.T =
       { tlid = gid ()
         name = typeName
         declaration =
-          { typeParams = []; definition = TypeDeclaration.Record(field, []) } }
+          { typeParams = []
+            definition = TypeDeclaration.Record(NEList.singleton field) } }
     let userTypes = Map [ typeName, userType ]
     let typeReference = TCustomType(FQName.UserProgram typeName, [])
 

@@ -271,6 +271,12 @@ module NEList =
     | head :: tail -> { head = head; tail = tail }
 
 
+  let find (f : 'a -> bool) (l : NEList<'a>) : Option<'a> =
+    if f l.head then Some l.head else List.tryFind f l.tail
+
+  let filter (f : 'a -> bool) (l : NEList<'a>) : List<'a> =
+    if f l.head then l.head :: List.filter f l.tail else List.filter f l.tail
+
 
 // ----------------------
 // Regex patterns

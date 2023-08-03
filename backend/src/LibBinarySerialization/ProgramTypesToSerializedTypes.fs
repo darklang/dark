@@ -9,6 +9,11 @@ module ST = SerializedTypes
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 
+module NEList =
+  let toST (l : NEList<'a>) : ST.NEList<'a> = { head = l.head; tail = l.tail }
+
+  let toPT (l : ST.NEList<'a>) : NEList<'a> = { head = l.head; tail = l.tail }
+
 module TypeName =
 
   module BuiltIn =
@@ -643,31 +648,21 @@ module TypeDeclaration =
       match d with
       | PT.TypeDeclaration.Alias typ ->
         ST.TypeDeclaration.Alias(TypeReference.toST typ)
-      | PT.TypeDeclaration.Record(firstField, additionalFields) ->
-        ST.TypeDeclaration.Record(
-          RecordField.toST firstField,
-          List.map RecordField.toST additionalFields
-        )
-      | PT.TypeDeclaration.Enum(firstCase, additionalCases) ->
-        ST.TypeDeclaration.Enum(
-          EnumCase.toST firstCase,
-          List.map EnumCase.toST additionalCases
-        )
+      | PT.TypeDeclaration.Record fields ->
+        ST.TypeDeclaration.Record(NEList.map RecordField.toST fields |> NEList.toST)
+      | PT.TypeDeclaration.Enum cases ->
+        ST.TypeDeclaration.Enum(NEList.map EnumCase.toST cases |> NEList.toST)
 
     let toPT (d : ST.TypeDeclaration.Definition) : PT.TypeDeclaration.Definition =
       match d with
       | ST.TypeDeclaration.Alias typ ->
         PT.TypeDeclaration.Alias(TypeReference.toPT typ)
-      | ST.TypeDeclaration.Record(firstField, additionalFields) ->
+      | ST.TypeDeclaration.Record fields ->
         PT.TypeDeclaration.Record(
-          RecordField.toPT firstField,
-          List.map RecordField.toPT additionalFields
+          fields |> NEList.toPT |> NEList.map RecordField.toPT
         )
-      | ST.TypeDeclaration.Enum(firstCase, additionalCases) ->
-        PT.TypeDeclaration.Enum(
-          EnumCase.toPT firstCase,
-          List.map EnumCase.toPT additionalCases
-        )
+      | ST.TypeDeclaration.Enum cases ->
+        PT.TypeDeclaration.Enum(cases |> NEList.toPT |> NEList.map EnumCase.toPT)
 
   let toST (d : PT.TypeDeclaration.T) : ST.TypeDeclaration.T =
     { typeParams = d.typeParams; definition = Definition.toST d.definition }

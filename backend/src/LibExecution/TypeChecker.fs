@@ -32,7 +32,7 @@ type Context =
   | DictKey of key : string * typ : TypeReference * Location
   | EnumField of
     enumTypeName : TypeName.T *
-    definition : TypeDeclaration.EnumField *
+    fieldType : TypeReference *
     caseName : string *
     paramIndex : int *  // nth argument to the enum constructor
     location : Location
@@ -169,8 +169,7 @@ let rec unify
           let! resolvedAliasType = getTypeReferenceFromAlias types aliasType
           return! unify context types typeArgSymbolTable resolvedAliasType value
 
-        | { definition = TypeDeclaration.Record(firstField, additionalFields) },
-          DRecord(tn, _, dmap) ->
+        | { definition = TypeDeclaration.Record _ }, DRecord(tn, _, dmap) ->
           // TYPESCLEANUP: this search should no longer be required
           let! aliasedType = getTypeReferenceFromAlias types (TCustomType(tn, []))
           match aliasedType with
@@ -195,14 +194,13 @@ let rec unify
               return Ok()
           | _ -> return err
 
-        | { definition = TypeDeclaration.Enum(firstCase, additionalCases) },
-          DEnum(tn, caseName, valFields) ->
+        | { definition = TypeDeclaration.Enum cases }, DEnum(tn, caseName, valFields) ->
           // TODO: deal with aliased type?
           if tn <> typeName then
             return Error(ValueNotExpectedType(value, resolvedType, context))
           else
             let matchingCase : Option<TypeDeclaration.EnumCase> =
-              firstCase :: additionalCases |> List.find (fun c -> c.name = caseName)
+              cases |> NEList.find (fun c -> c.name = caseName)
 
             match matchingCase with
             | None -> return err

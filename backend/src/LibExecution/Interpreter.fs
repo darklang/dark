@@ -77,18 +77,18 @@ let rec eval'
           // used as innerTypeParams below).
           // Example: suppose we have
           //   type Outer<'a> = Inner<'a, Int>
-          //   type Inner<'a, 'b> = { a : 'a; b : 'b }
+          //   type Inner<'x, 'y> = { x : 'x; y : 'y }
           // The recursive search for Inner will get:
           //   innerTypeName = "Inner"
-          //   innerTypeParams = ["a"; "b"]
-          //   fields = [("a", TVar "a"); ("b", TVar "b")]
+          //   innerTypeParams = ["x"; "y"]
+          //   fields = [("x", TVar "x"); ("y", TVar "y")]
           // The Outer definition provides:
-          //   outerTypeArgs = [TVar "a"; TConst "Int"]
+          //   outerTypeArgs = [TVar "a"; TInt]
           // We combine this with innerTypeParams to get:
-          //   fields = [("a", TVar "a"); ("b", TInt)]
+          //   fields = [("x", TVar "a"); ("b", TInt)]
           //   outerTypeParams = ["a"]
           // So the effective result of this is:
-          //   type Outer<'a> = { a : 'a; b : Int }
+          //   type Outer<'a> = { x : 'a; y : Int }
           let! next = inner innerTypeName
           return
             next
@@ -100,12 +100,12 @@ let rec eval'
                  (k, Types.substitute innerTypeParams outerTypeArgs v))))
 
         | Some({ typeParams = typeParams
-                 definition = TypeDeclaration.Record(firstField, otherFields) }) ->
+                 definition = TypeDeclaration.Record fields }) ->
           return
             Some(
               typeName,
               typeParams,
-              firstField :: otherFields |> List.map (fun f -> f.name, f.typ)
+              fields |> NEList.toList |> List.map (fun f -> f.name, f.typ)
             )
         | _ -> return None
       }
@@ -114,7 +114,7 @@ let rec eval'
   let enumMaybe
     (types : Types)
     (typeName : TypeName.T)
-    : Ply<Option<TypeName.T * List<TypeDeclaration.EnumCase>>> =
+    : Ply<Option<TypeName.T * NEList<TypeDeclaration.EnumCase>>> =
     let rec inner (typeName : TypeName.T) =
       uply {
         match! Types.find typeName types with
@@ -122,8 +122,8 @@ let rec eval'
                                                                 _typeArgs)) }) ->
           // TODO: need to apply the type args here-ish, and include them in `tat`
           return! inner innerTypeName
-        | Some({ definition = TypeDeclaration.Enum(firstCase, otherCases) }) ->
-          return Some(typeName, firstCase :: otherCases)
+        | Some({ definition = TypeDeclaration.Enum cases }) ->
+          return Some(typeName, cases)
         | _ -> return None
       }
     inner typeName
@@ -714,7 +714,7 @@ let rec eval'
           return err id $"Expected a record but {typeStr} is an enum"
         | _ -> return err id $"Expected a record but {typeStr} is something else"
       | Some(typeName, cases) ->
-        let case = cases |> List.tryFind (fun c -> c.name = caseName)
+        let case = cases |> NEList.find (fun c -> c.name = caseName)
         match case with
         | None -> return err id $"There is no case named `{caseName}` in {typeStr}"
         | Some case ->
@@ -726,7 +726,7 @@ let rec eval'
             let fields = List.zip case.fields fields
             return!
               Ply.List.foldSequentiallyWithIndex
-                (fun i r ((enumField : TypeDeclaration.EnumField), expr) ->
+                (fun i r ((enumFieldType : TypeReference), expr) ->
                   uply {
                     if Dval.isFake r then
                       do! preview tat st expr
@@ -739,14 +739,14 @@ let rec eval'
                         let context =
                           TypeChecker.EnumField(
                             typeName,
-                            enumField,
+                            enumFieldType,
                             case.name,
                             i,
                             None
                           )
 
                         match!
-                          TypeChecker.unify context types Map.empty enumField.typ v
+                          TypeChecker.unify context types Map.empty enumFieldType v
                         with
                         | Ok() ->
                           match r with

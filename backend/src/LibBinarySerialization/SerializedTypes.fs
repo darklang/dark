@@ -361,8 +361,8 @@ module TypeDeclaration =
   [<MessagePack.MessagePackObject>]
   type Definition =
     | Alias of TypeReference
-    | Record of firstField : RecordField * additionalFields : List<RecordField>
-    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+    | Record of NEList<RecordField>
+    | Enum of NEList<EnumCase>
 
   [<MessagePack.MessagePackObject>]
   type T =
