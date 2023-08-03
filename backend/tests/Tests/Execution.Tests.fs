@@ -420,8 +420,7 @@ let testMatchPreview : Test =
        ))
 
       // | None -> "enum none"
-      (MPEnum(pNoneId, "None", []),
-       EString(noneRhsId, [ StringText "enum none" ]))
+      (MPEnum(pNoneId, "None", []), EString(noneRhsId, [ StringText "enum none" ]))
 
       // | (2, y) -> "tuple"
       (MPTuple(pTupleId, MPInt(pTupleIdX, 2L), MPVariable(pTupleIdY, "y"), []),
