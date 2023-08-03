@@ -122,6 +122,3 @@ let _handler _req =
     |> String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
-
-
-  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes allFns) 200
