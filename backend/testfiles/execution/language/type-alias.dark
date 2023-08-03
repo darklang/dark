@@ -105,3 +105,35 @@ module RecordWithTypeArgsDifferentName =
 
   MostOutest { a = 5; b = 6 } = Test.runtimeError
     "RecordWithTypeArgsDifferentName.MostOutest's `b` field should be a String. However, an Int (6) was passed instead.\n\nExpected: ({ b: String; ... })\nActual: an Int: 6"
+
+
+module RecordWithRecursiveTypeArgs =
+  type Inner<'a> =
+    { a: 'a
+      b: PACKAGE.Darklang.Stdlib.Result.Result<Inner<'a>, String> }
+
+  Inner
+    { a = 5
+      b =
+        PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+          Inner
+            { a = 6
+              b =
+                PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+                  Inner
+                    { a = 7
+                      b = PACKAGE.Darklang.Stdlib.Result.Result.Error "test" }
+                ) }
+        ) } = Inner
+    { a = 5
+      b =
+        PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+          Inner
+            { a = 6
+              b =
+                PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+                  Inner
+                    { a = 7
+                      b = PACKAGE.Darklang.Stdlib.Result.Result.Error "test" }
+                ) }
+        ) }
