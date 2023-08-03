@@ -171,20 +171,24 @@ module EnumWithTypeArgs =
   Outer2.A 5 = Test.runtimeError
     "EnumWithTypeArgs.Outer2.A's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: String\nActual: an Int: 5"
 
-// module RecordWithTypeArgsDifferentName =
-//   type Inner<'a, 'b> = { a: 'a; b: 'b }
-//   type LessInner<'b, 'a> = Inner<'a, 'b>
-//   type Outer<'x> = LessInner<'x, Int>
-//   type Outest<'y> = Outer<'y>
-//   type MostOutest = Outest<String> // { a: Int; b: String }
+module EnumWithTypeArgsDifferentName =
+  type Inner<'a, 'b> =
+    | A of 'a
+    | B of 'b
 
-//   MostOutest { a = 5; b = "string" } = Inner { a = 5; b = "string" }
+  type LessInner<'b, 'a> = Inner<'a, 'b>
+  type Outer<'x> = LessInner<'x, Int>
+  type Outest<'y> = Outer<'y>
+  type MostOutest = Outest<String> // | A of Int | B of String
 
-//   MostOutest { a = "not allowed"; b = "string" } = Test.runtimeError
-//     "RecordWithTypeArgsDifferentName.MostOutest's `a` field should be an Int. However, a String (\"not al...) was passed instead.\n\nExpected: ({ a: Int; ... })\nActual: a String: \"not allowed\""
+  MostOutest.A 5 = Inner.A 5
+  MostOutest.B "test" = Inner.B "test"
 
-//   MostOutest { a = 5; b = 6 } = Test.runtimeError
-//     "RecordWithTypeArgsDifferentName.MostOutest's `b` field should be a String. However, an Int (6) was passed instead.\n\nExpected: ({ b: String; ... })\nActual: an Int: 6"
+  MostOutest.A "not allowed" = Test.runtimeError
+    "EnumWithTypeArgsDifferentName.MostOutest.A's 1st argument should be an Int. However, a String (\"not al...) was passed instead.\n\nExpected: Int\nActual: a String: \"not allowed\""
+
+  MostOutest.B 6 = Test.runtimeError
+    "EnumWithTypeArgsDifferentName.MostOutest.B's 1st argument should be a String. However, an Int (6) was passed instead.\n\nExpected: String\nActual: an Int: 6"
 
 
 // module RecordWithRecursiveTypeArgs =
