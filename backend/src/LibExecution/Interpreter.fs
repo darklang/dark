@@ -77,18 +77,18 @@ let rec eval'
           // used as innerTypeParams below).
           // Example: suppose we have
           //   type Outer<'a> = Inner<'a, Int>
-          //   type Inner<'a, 'b> = { a : 'a; b : 'b }
+          //   type Inner<'x, 'y> = { x : 'x; y : 'y }
           // The recursive search for Inner will get:
           //   innerTypeName = "Inner"
-          //   innerTypeParams = ["a"; "b"]
-          //   fields = [("a", TVar "a"); ("b", TVar "b")]
+          //   innerTypeParams = ["x"; "y"]
+          //   fields = [("x", TVar "x"); ("y", TVar "y")]
           // The Outer definition provides:
-          //   outerTypeArgs = [TVar "a"; TConst "Int"]
+          //   outerTypeArgs = [TVar "a"; TInt]
           // We combine this with innerTypeParams to get:
-          //   fields = [("a", TVar "a"); ("b", TInt)]
+          //   fields = [("x", TVar "a"); ("b", TInt)]
           //   outerTypeParams = ["a"]
           // So the effective result of this is:
-          //   type Outer<'a> = { a : 'a; b : Int }
+          //   type Outer<'a> = { x : 'a; y : Int }
           let! next = inner innerTypeName
           return
             next
