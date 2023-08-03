@@ -158,9 +158,9 @@ module Packages =
   PACKAGE.Darklang.Test.strFn (PACKAGE.Darklang.Test.A.B "str") = PACKAGE.Darklang.Test.A.B
     "str"
 
-  // TYPESCLEANUP - support userFn declaration with type arguments
-  // definedPolyFn<String>(A.A 5) = definedPolyFn (A.A 5)
-  // definedPolyFn<String>(A.B "str") = definedPolyFn (A.B "str")
+  // TYPESCLEANUP - support packageFn declaration with type arguments
+  // PACKAGE.Darklang.Test.definedPolyFn<String>(A.A 5) = PACKAGE.Darklang.Test.definedPolyFn (A.A 5)
+  // PACKAGE.Darklang.Test.definedPolyFn<String>(A.B "str") = PACKAGE.Darklang.Test.definedPolyFn (A.B "str")
 
 
 

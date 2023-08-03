@@ -1,5 +1,3 @@
-// TODO: let ignore (z: ): Unit
-
 let log (s: String) : Unit =
   let _ = WASM.Editor.callJSFunction "console.log" [ s ]
   ()
@@ -166,34 +164,19 @@ let update (model: Model) (msg: Msg) : Model =
 
     match systemPrompt with
     | Ok response ->
-      Model
-        { isLoading = model.isLoading
-          chatHistory = model.chatHistory
-          codeSnippets = model.codeSnippets
-          tasks = model.tasks
-          actions = model.actions
-          functions = model.functions
-          types = model.types
-
-          // CLEANUP: update this syntax to { model with systemPrompt = systemPrompt } when we can
-          systemPrompt = response.body |> String.fromBytes }
+      { response with
+          systemPrompt = String.fromBytes response.body }
     | Error err -> logErr "Couldn't load system prompt"
 
 
   | UserGavePrompt userPrompt ->
     let newModel =
-      Model
-        { isLoading = true
-          systemPrompt = model.systemPrompt
+      { model with
+          isLoading = true
           chatHistory =
             List.append
               model.chatHistory
-              [ ChatHistoryItem.UserPrompt (unwrap (String.random 5)) userPrompt ]
-          codeSnippets = model.codeSnippets
-          tasks = model.tasks
-          actions = model.actions
-          functions = model.functions
-          types = model.types }
+              [ ChatHistoryItem.UserPrompt (unwrap (String.random 5)) userPrompt ] }
 
     updateStateInJS newModel
 

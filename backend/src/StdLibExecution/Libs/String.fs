@@ -213,7 +213,8 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // CLEANUP move to stdlib
+    // CLEANUP move implementation to Darklang, in package space, in darklang stdlib
+    // (blocked by lack of RegEx support in Dark)
     { name = fn "slugify" 0
       typeParams = []
       parameters = [ Param.make "string" TString "" ]

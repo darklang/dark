@@ -182,7 +182,8 @@ module Polymorphism =
 
   let toList (tree: RBTree<'a>) : List<'a> = toList' tree []
 
-  // CLEANUP: tuples should allow destructuring
+  // CLEANUP: we should support tuple destructuring in lambdas
+  // i.e. update to `fun (x, y) -> ...`
   (let intCmp =
     fun pair ->
       let (x, y) = pair

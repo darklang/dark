@@ -144,27 +144,33 @@ let foundFakeDval (dv : Dval) : 'a = raise (FakeDvalFound dv)
 /// Segments allow us to build error messages where the UI and CLI can both
 /// decorate/link to the sources in a native way
 type ErrorSegment =
-  // Basic types
+  // -- Basic types
   | String of string
   | Int of int
   | Ordinal of int // 1st, 2nd, etc
   | IndefiniteArticle // "a" or "an" (chosen based on the next segment)
-  // Functions
+
+  // -- Functions
   | FunctionName of FnName.T
-  | Description of string // description from StdLib description fields. Has markers like <param name>, that should be parsed and displayed (TODO: why parse?)
+  /// Description from StdLib description fields.
+  /// Has markers like <param name>, that should be parsed and displayed (TODO: why parse?)
+  | Description of string
   | ParamName of string
   | InlineParamName of string
-  // Types
+
+  // -- Types
   | TypeName of TypeName.T
   | TypeReference of TypeReference
   | TypeOfValue of Dval
   | FieldName of string // records and enums
   | InlineFieldName of string // records and enums
-  // Variables
+
+  // -- Variables
   | DBName of string
   | VarName of string
   | InlineVarName of string
-  // Dvals
+
+  // -- Dvals
   | InlineValue of Dval // possibly shortened to be shown inline
   | FullValue of Dval
 

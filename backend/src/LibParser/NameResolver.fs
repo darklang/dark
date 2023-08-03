@@ -112,7 +112,7 @@ let fromExecutionState (state : RT.ExecutionState) : NameResolver =
       |> Set.ofList }
 
 
-// TODO: there's a lot going on her to resolve the outer portion of the name and to
+// TODO: there's a lot going on here to resolve the outer portion of the name and to
 // avoid repeat work for package/modules, but it's also adding a lot of code and
 // complexity. Perhaps this changes when packages become identified by ID
 

@@ -320,8 +320,7 @@ module Darklang =
         /// , this is the expression
         ///   `C (1, "title")`
         /// represented as
-        ///   `EEnum(Some UserType.MyEnum, "C", [EInt(1), EString("title")]`
-        /// TODO: the UserTypeName should eventually be a non-optional TypeName.
+        ///   `EEnum(UserType.MyEnum, "C", [EInt(1), EString("title")]`
         | EEnum of
           PACKAGE.Darklang.LanguageTools.ID *
           typeName:

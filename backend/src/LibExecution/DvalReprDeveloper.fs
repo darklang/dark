@@ -103,7 +103,7 @@ let toRepr (dv : Dval) : string =
     | DUnit -> "unit"
     | DFnVal _ ->
       // TODO: we should print this, as this use case is safe
-      // See docs/dblock-serialization.ml
+      // See docs/dblock-serialization.md
       justType
     | DIncomplete _ -> justType
     | DError(_, msg) -> $"<error: {msg}>"
