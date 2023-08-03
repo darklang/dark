@@ -30,7 +30,7 @@ Since most of our tags are rendered as color-coded-text, and more importantly be
 
 To mark a code block, simply wrap the text in `{{ }}`. 
 
-Code blocks can contain tags, such as `{{Just <var value>}}`. But a code block cannot contain other code blocks.
+Code blocks can contain tags, such as `{{Some <var value>}}`. But a code block cannot contain other code blocks.
 
 ### Link tag
 
