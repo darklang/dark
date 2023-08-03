@@ -254,9 +254,10 @@ jobs:
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - build-gcp-containers
-      - persist_to_workspace:
-          root: "."
-          paths: ["gcr-image-ids.json"]
+      # LIGHTTODO re-enable
+      # - persist_to_workspace:
+      #     root: "."
+      #     paths: ["gcr-image-ids.json"]
       # LIGHTTODO push containers
       # - run: scripts/deployment/shipit containers push
       - slack-notify-job-failure
