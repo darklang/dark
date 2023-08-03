@@ -10,14 +10,6 @@
 // - an endpoint to export to (`POST /save-export`)
 // - an endpoint to import from (`GET /latest-export`)
 
-let unwrap (result: Result<String, 'a>) : String =
-  match result with
-  | Ok value -> value
-  | Error error ->
-    // TODO: ensure this actually fails
-    // (it should because of the type signature conflicting with the return type)
-    ()
-
 type CanvasExport = { name: String; content: String }
 
 type DataExport =
