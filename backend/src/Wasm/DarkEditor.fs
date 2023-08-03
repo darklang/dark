@@ -76,6 +76,7 @@ let LoadClient (canvasName : string) : Task<string> =
       Ply.toTask (
         LibExecution.Interpreter.callFn
           state
+          Map.empty
           (gid ())
           (FnName.fqUserProgram [] "init" 0)
           []
@@ -112,6 +113,7 @@ let HandleEvent (serializedEvent : string) : Task<string> =
       Ply.toTask (
         LibExecution.Interpreter.callFn
           state
+          Map.empty
           (gid ())
           (FnName.fqUserProgram [] "handleEvent" 0)
           []

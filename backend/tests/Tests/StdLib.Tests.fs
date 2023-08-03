@@ -60,7 +60,11 @@ let hardToRepresentTests =
          RT.DList []
 
          RT.DFnVal(
-           RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EUnit 1UL }
+           RT.Lambda
+             { parameters = []
+               typeArgTable = Map.empty
+               symtable = Map.empty
+               body = RT.EUnit 1UL }
          ) ]),
       (RT.DError(RT.SourceNone, "Expected 0 arguments, got 2")),
       true ]

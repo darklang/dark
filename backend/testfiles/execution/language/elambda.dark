@@ -22,3 +22,11 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -> -4.611686018e+18) ]
 
 (let y = (fun c -> if c > 2 then Test.runtimeError "err" else 18) in
  [ 1; 2; 3; 4 ] |> List.map_v0 y) = Test.runtimeError "err"
+
+(let t = true in List.all [ 1; 2 ] (fun _ -> t)) = true
+(let f = false in List.all [ 1; 2 ] (fun _ -> f)) = false
+
+(let x = 1
+ let f = fun _ -> x
+ let x = 2
+ List.map [ 1; 2; 3 ] f) = [ 1; 1; 1 ]

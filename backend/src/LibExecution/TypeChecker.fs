@@ -79,7 +79,7 @@ type Error =
 let rec unify
   (context : Context)
   (types : Types)
-  (typeArgSymbolTable : Map<string, TypeReference>)
+  (typeArgSymbolTable : TypeArgTable)
   (expected : TypeReference)
   (value : Dval)
   : Ply<Result<unit, Error>> =
@@ -259,7 +259,7 @@ and unifyRecordFields
   (recordType : TypeName.T)
   (context : Context)
   (types : Types)
-  (typeArgSymbolTable : Map<string, TypeReference>)
+  (typeArgSymbolTable : TypeArgTable)
   (defs : List<TypeDeclaration.RecordField>)
   (values : DvalMap)
   : Ply<Result<unit, Error>> =
@@ -315,7 +315,7 @@ and unifyRecordFields
 
 let checkFunctionCall
   (types : Types)
-  (typeArgSymbolTable : Map<string, TypeReference>)
+  (typeArgSymbolTable : TypeArgTable)
   (fn : Fn)
   (args : List<Dval>)
   : Ply<Result<unit, Error>> =
@@ -332,7 +332,7 @@ let checkFunctionCall
 
 let checkFunctionReturnType
   (types : Types)
-  (typeArgSymbolTable : Map<string, TypeReference>)
+  (typeArgSymbolTable : TypeArgTable)
   (fn : Fn)
   (result : Dval)
   : Ply<Result<unit, Error>> =

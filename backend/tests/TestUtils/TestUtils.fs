@@ -1032,6 +1032,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DFnVal(
        Lambda
          { body = RT.EUnit(id 1234)
+           typeArgTable = Map.empty
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }
      ),
@@ -1082,6 +1083,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                  ) ]
              )
            symtable = Map.empty
+           typeArgTable = Map.empty
            parameters = [ (id 5678, "a") ] }
      ),
      TFn([ TInt ], TInt))

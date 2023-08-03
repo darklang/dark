@@ -474,7 +474,11 @@ and MatchPattern =
 
 type DvalMap = Map<string, Dval>
 
-and LambdaImpl = { parameters : List<id * string>; symtable : Symtable; body : Expr }
+and LambdaImpl =
+  { typeArgTable : TypeArgTable
+    symtable : Symtable
+    parameters : List<id * string>
+    body : Expr }
 
 and FnValImpl =
   | Lambda of LambdaImpl // A fn value
@@ -549,8 +553,23 @@ and [<NoComparison>] Dval =
 
 and DvalTask = Ply<Dval>
 
+/// our record of any variable bindings in scope
+///
+/// i.e. within the execution of `x+y` in
+///  `let x = 1; let y = 2; x + y`
+/// , we would have a Symtable of
+///   `{ "x" => DInt 1; "y" => DInt 2 }`
 and Symtable = Map<string, Dval>
 
+/// Our record of any type arguments in scope
+///
+/// i.e. within the execution of
+///   `let serialize<'a> (x : 'a) : string = ...`,
+/// called with inputs
+///   `serialize<int> 1`,
+/// we would have a TypeArgTable of
+///  { "a" => TInt }
+and TypeArgTable = Map<string, TypeReference>
 
 
 // Record the source of an incomplete or error. Would be useful to add more

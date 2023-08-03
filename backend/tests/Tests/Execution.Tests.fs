@@ -339,6 +339,7 @@ let testLambdaPreview : Test =
              DFnVal(
                Lambda(
                  { parameters = [ (p2ID, "var") ]
+                   typeArgTable = Map.empty
                    symtable = Map.empty
                    body = EString(65UL, [ StringText "body" ]) }
                )

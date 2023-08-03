@@ -42,7 +42,8 @@ let compile
       executionStateFor canvasID false false Map.empty userTypes Map.empty Map.empty
 
     try
-      let! sql, args = C.compileLambda state symtable paramName typeReference expr
+      let! sql, args =
+        C.compileLambda state Map.empty symtable paramName typeReference expr
 
       let args = Map.ofList args
       return sql, args
@@ -162,7 +163,7 @@ let partialEvaluation =
             Map.empty
             Map.empty
         let expr = p expr
-        let result = C.partiallyEvaluate state "x" (Map vars) expr
+        let result = C.partiallyEvaluate state Map.empty (Map vars) "x" expr
         let! (dvals, result) = Ply.TplPrimitives.runPlyAsTask result
         match result with
         | EVariable(_, name) -> return (Map.find name dvals)
