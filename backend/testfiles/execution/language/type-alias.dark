@@ -70,18 +70,38 @@ module ResultAlias =
   getIntResultValue (PACKAGE.Darklang.Stdlib.Result.Result.Ok 5) = 5
   getIntResultValue (PACKAGE.Darklang.Stdlib.Result.Result.Error "error") = 0
 
-module WithTypeArgs =
-  type X<'a, 'b> = { a: 'a; b: 'b }
-  type Y1<'a> = X<'a, Int>
-  type Y2<'b> = X<String, 'b>
-  type Z<'a, 'b> = X<'b, 'a>
+module RecordWithTypeArgs =
+  type Inner<'a, 'b> = { a: 'a; b: 'b }
 
-  let getXb (x: X<'a, 'b>) : 'b = x.b
-  getXb (X { a = "test"; b = 5 }) = 5
-  getXb (Y1 { a = "test"; b = 5 }) = 5
-  getXb (Y2 { a = "test"; b = 5 }) = 5
-  getXb (Z { a = 5; b = "test" }) = "test"
-  Y1 { a = "test"; b = 5 } = Y2 { a = "test"; b = 5 }
+  type Outer1<'a> = Inner<'a, Int>
+  type Outer2<'b> = Inner<String, 'b>
 
-  Y2 { a = 5; b = 6 } = Test.runtimeError
-    "WithTypeArgs.Y2's `a` field should be a String. However, an Int (5) was passed instead.\n\nExpected: ({ a: String; ... })\nActual: an Int: 5"
+  let getInnerField (x: Inner<'a, 'b>) : 'b = x.b
+  getInnerField (Inner { a = "test"; b = 5 }) = 5
+  getInnerField (Outer1 { a = "test"; b = 5 }) = 5
+  getInnerField (Outer2 { a = "test"; b = 5 }) = 5
+  Outer1 { a = "test"; b = 5 } = Inner { a = "test"; b = 5 }
+  Outer1 { a = "test"; b = 5 } = Outer2 { a = "test"; b = 5 }
+
+  Outer2 { a = 5; b = 6 } = Outer2 { a = 5; b = 6 }
+
+  Outer1 { a = "a"; b = "b" } = Test.runtimeError
+    "RecordWithTypeArgs.Outer1's `b` field should be an Int. However, a String (\"b\") was passed instead.\n\nExpected: ({ b: Int; ... })\nActual: a String: \"b\""
+
+  Outer2 { a = 5; b = 6 } = Test.runtimeError
+    "RecordWithTypeArgs.Outer2's `a` field should be a String. However, an Int (5) was passed instead.\n\nExpected: ({ a: String; ... })\nActual: an Int: 5"
+
+module RecordWithTypeArgsDifferentName =
+  type Inner<'a, 'b> = { a: 'a; b: 'b }
+  type LessInner<'b, 'a> = Inner<'a, 'b>
+  type Outer<'x> = LessInner<'x, Int>
+  type Outest<'y> = Outer<'y>
+  type MostOutest = Outest<String> // { a: Int; b: String }
+
+  MostOutest { a = 5; b = "string" } = Inner { a = 5; b = "string" }
+
+  MostOutest { a = "not allowed"; b = "string" } = Test.runtimeError
+    "RecordWithTypeArgsDifferentName.MostOutest's `a` field should be an Int. However, a String (\"not al...) was passed instead.\n\nExpected: ({ a: Int; ... })\nActual: a String: \"not allowed\""
+
+  MostOutest { a = 5; b = 6 } = Test.runtimeError
+    "RecordWithTypeArgsDifferentName.MostOutest's `b` field should be a String. However, an Int (6) was passed instead.\n\nExpected: ({ b: String; ... })\nActual: an Int: 6"
