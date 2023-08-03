@@ -37,7 +37,7 @@ module Errors =
     // (match MyEnum.C "test" with | D -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.runtimeError "TODO"
     // (match MyEnum.C "test" with | 5 -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.runtimeError "TODO"
     (MyEnum.C 5) = Test.runtimeError
-      "Errors.User.MyEnum.C's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: (_unnamed: String)\nActual: an Int: 5"
+      "Errors.User.MyEnum.C's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: String\nActual: an Int: 5"
 
 
 module Simple =
@@ -76,10 +76,10 @@ module MixedCases =
   (EnumOfMixedCases.Y 1 == EnumOfMixedCases.Y 1) = true
 
   EnumOfMixedCases.X 1 = Test.runtimeError
-    "MixedCases.EnumOfMixedCases.X's 1st argument should be a String. However, an Int (1) was passed instead.\n\nExpected: (_unnamed: String)\nActual: an Int: 1"
+    "MixedCases.EnumOfMixedCases.X's 1st argument should be a String. However, an Int (1) was passed instead.\n\nExpected: String\nActual: an Int: 1"
 
   EnumOfMixedCases.Y "test" = Test.runtimeError
-    "MixedCases.EnumOfMixedCases.Y's 1st argument (`i`) should be an Int. However, a String (\"test\") was passed instead.\n\nExpected: (i: Int)\nActual: a String: \"test\""
+    "MixedCases.EnumOfMixedCases.Y's 1st argument should be an Int. However, a String (\"test\") was passed instead.\n\nExpected: Int\nActual: a String: \"test\""
 
   EnumOfMixedCases.Z 1 = Test.runtimeError "Case `Z` expected 2 fields but got 1"
   // Test ordering of evaluation
