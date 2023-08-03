@@ -22,8 +22,8 @@ let types : List<BuiltInType> =
           definition =
             TypeDeclaration.Record(
               NEList.ofList
-                { name = "name"; typ = TString}
-                [ { name = "value"; typ = TString}
+                { name = "name"; typ = TString }
+                [ { name = "value"; typ = TString }
                   { name = "version"; typ = TInt } ]
             ) }
       description = "A secret"

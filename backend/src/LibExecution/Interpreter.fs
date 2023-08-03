@@ -122,7 +122,7 @@ let rec eval'
                                                                 _typeArgs)) }) ->
           // TODO: need to apply the type args here-ish, and include them in `tat`
           return! inner innerTypeName
-        | Some({ definition = TypeDeclaration.Enum cases  }) ->
+        | Some({ definition = TypeDeclaration.Enum cases }) ->
           return Some(typeName, cases)
         | _ -> return None
       }

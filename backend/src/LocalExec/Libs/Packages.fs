@@ -23,14 +23,10 @@ let types : List<BuiltInType> =
           definition =
             TypeDeclaration.Record(
               NEList.ofList
-                { name = "owner"
-                  typ = TString }
-                [ { name = "modules"
-                    typ = TList TString }
-                  { name = "name"
-                    typ = TString }
-                  { name = "version"
-                    typ = TInt } ]
+                { name = "owner"; typ = TString }
+                [ { name = "modules"; typ = TList TString }
+                  { name = "name"; typ = TString }
+                  { name = "version"; typ = TInt } ]
             ) }
       deprecated = NotDeprecated }
 
@@ -42,14 +38,10 @@ let types : List<BuiltInType> =
           definition =
             TypeDeclaration.Record(
               NEList.ofList
-                { name = "owner"
-                  typ = TString }
-                [ { name = "modules"
-                    typ = TList TString }
-                  { name = "name"
-                    typ = TString }
-                  { name = "version"
-                    typ = TInt } ]
+                { name = "owner"; typ = TString }
+                [ { name = "modules"; typ = TList TString }
+                  { name = "name"; typ = TString }
+                  { name = "version"; typ = TInt } ]
             ) }
       deprecated = NotDeprecated }
 
@@ -60,14 +52,10 @@ let types : List<BuiltInType> =
           definition =
             TypeDeclaration.Record(
               NEList.ofList
-                { name = "owner"
-                  typ = TString }
-                [ { name = "modules"
-                    typ = TList TString }
-                  { name = "name"
-                    typ = TString }
-                  { name = "version"
-                    typ = TInt } ]
+                { name = "owner"; typ = TString }
+                [ { name = "modules"; typ = TList TString }
+                  { name = "name"; typ = TString }
+                  { name = "version"; typ = TInt } ]
             ) }
       deprecated = NotDeprecated } ]
 

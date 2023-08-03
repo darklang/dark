@@ -391,13 +391,9 @@ module TypeDeclaration =
       | PT.TypeDeclaration.Definition.Alias(typ) ->
         RT.TypeDeclaration.Alias(TypeReference.toRT typ)
       | PT.TypeDeclaration.Record fields ->
-        RT.TypeDeclaration.Record(
-          NEList.map RecordField.toRT fields
-        )
+        RT.TypeDeclaration.Record(NEList.map RecordField.toRT fields)
       | PT.TypeDeclaration.Enum cases ->
-        RT.TypeDeclaration.Enum(
-          NEList.map EnumCase.toRT cases
-        )
+        RT.TypeDeclaration.Enum(NEList.map EnumCase.toRT cases)
 
   let toRT (t : PT.TypeDeclaration.T) : RT.TypeDeclaration.T =
     { typeParams = t.typeParams; definition = Definition.toRT t.definition }

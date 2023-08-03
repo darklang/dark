@@ -50,11 +50,11 @@ let types : List<BuiltInType> =
           definition =
             TypeDeclaration.Record(
               NEList.ofList
-                { name = "id"; typ = TInt}
-                [ { name = "ruleType"; typ = TString}
-                  { name = "canvasID"; typ = TUuid}
-                  { name = "handlerName"; typ = TString}
-                  { name = "createdAt"; typ = TDateTime} ]
+                { name = "id"; typ = TInt }
+                [ { name = "ruleType"; typ = TString }
+                  { name = "canvasID"; typ = TUuid }
+                  { name = "handlerName"; typ = TString }
+                  { name = "createdAt"; typ = TDateTime } ]
             ) }
       deprecated = NotDeprecated
       description = "A scheduling rule for a worker" } ]

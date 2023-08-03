@@ -605,13 +605,9 @@ module ExternalTypesToProgramTypes =
         | EPT.TypeDeclaration.Alias typ ->
           PT.TypeDeclaration.Alias(TypeReference.toPT typ)
         | EPT.TypeDeclaration.Record fields ->
-          PT.TypeDeclaration.Record(
-            NEList.map RecordField.toPT fields
-          )
+          PT.TypeDeclaration.Record(NEList.map RecordField.toPT fields)
         | EPT.TypeDeclaration.Enum cases ->
-          PT.TypeDeclaration.Enum(
-            NEList.map EnumCase.toPT cases
-          )
+          PT.TypeDeclaration.Enum(NEList.map EnumCase.toPT cases)
 
     let toPT (d : EPT.TypeDeclaration.T) : PT.TypeDeclaration.T =
       { typeParams = d.typeParams; definition = Definition.toPT d.definition }

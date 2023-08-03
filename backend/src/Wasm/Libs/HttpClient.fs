@@ -190,7 +190,7 @@ let types : List<BuiltInType> =
               NEList.ofList
                 { name = "statusCode"; typ = TInt }
                 [ { name = "headers"; typ = headersType }
-                  { name = "body"; typ = TBytes} ]
+                  { name = "body"; typ = TBytes } ]
             ) }
       description = "The response from a HTTP request"
       deprecated = NotDeprecated } ]

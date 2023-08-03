@@ -23,15 +23,13 @@ let types : List<BuiltInType> =
             TypeDeclaration.Record(
               NEList.ofList
                 // Number of bytes on disk
-                { name = "disk"; typ = TInt}
+                { name = "disk"; typ = TInt }
                 // Number of rows
-                [ { name = "rows"; typ = TInt}
+                [ { name = "rows"; typ = TInt }
                   // Disk space in human readable form
-                  { name = "diskHuman"
-                    typ = TString }
+                  { name = "diskHuman"; typ = TString }
                   // Number of rows in human readable form
-                  { name = "rowsHuman"
-                    typ = TString } ]
+                  { name = "rowsHuman"; typ = TString } ]
             ) }
       deprecated = NotDeprecated
       description = "Size info for Postgres tables" } ]

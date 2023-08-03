@@ -22,12 +22,11 @@ let types : List<BuiltInType> =
           definition =
             TypeDeclaration.Record(
               NEList.ofList
-                { name = "name"; typ = TString}
-                [ { name = "description"; typ = TString}
+                { name = "name"; typ = TString }
+                [ { name = "description"; typ = TString }
                   { name = "parameters"
-                    typ = TList(TCustomType(FQName.BuiltIn(typ "Parameter" 0), []))
-                    }
-                  { name = "returnType"; typ = TString} ]
+                    typ = TList(TCustomType(FQName.BuiltIn(typ "Parameter" 0), [])) }
+                  { name = "returnType"; typ = TString } ]
             ) }
       deprecated = NotDeprecated
       description = "A Darklang stdlib function" }
@@ -37,8 +36,8 @@ let types : List<BuiltInType> =
           definition =
             TypeDeclaration.Record(
               NEList.ofList
-                { name = "name"; typ = TString}
-                [ { name = "type"; typ = TString} ]
+                { name = "name"; typ = TString }
+                [ { name = "type"; typ = TString } ]
             ) }
       deprecated = NotDeprecated
       description = "A function parameter" } ]

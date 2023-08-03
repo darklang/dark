@@ -84,8 +84,7 @@ let types : List<BuiltInType> =
             TypeDeclaration.Definition.Record(
               NEList.ofList
                 { name = "msg"; typ = TString }
-                [ { name = "metadata"
-                    typ = TDict TString } ]
+                [ { name = "metadata"; typ = TDict TString } ]
             ) }
       description = "Result of Execution"
       deprecated = NotDeprecated } ]

@@ -21,8 +21,7 @@ let types : List<BuiltInType> =
           definition =
             TypeDeclaration.Record(
               NEList.ofList
-                { name = "space"
-                  typ = TString }
+                { name = "space"; typ = TString }
                 [ { name = "path"; typ = TString }
                   { name = "modifier"; typ = TString }
                   { name = "timestamp"; typ = TDateTime }
