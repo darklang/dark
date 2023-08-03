@@ -114,16 +114,28 @@ let rec eval'
   let enumMaybe
     (types : Types)
     (typeName : TypeName.T)
-    : Ply<Option<TypeName.T * NEList<TypeDeclaration.EnumCase>>> =
+    : Ply<Option<TypeName.T * List<string> * NEList<TypeDeclaration.EnumCase>>> =
     let rec inner (typeName : TypeName.T) =
       uply {
         match! Types.find typeName types with
-        | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName,
-                                                                _typeArgs)) }) ->
-          // TODO: need to apply the type args here-ish, and include them in `tat`
-          return! inner innerTypeName
-        | Some({ definition = TypeDeclaration.Enum cases }) ->
-          return Some(typeName, cases)
+        | Some({ typeParams = outerTypeParams
+                 definition = TypeDeclaration.Alias(TCustomType(innerTypeName,
+                                                                outerTypeArgs)) }) ->
+          let! next = inner innerTypeName
+          return
+            next
+            |> Option.map (fun (innerTypeName, innerTypeParams, cases) ->
+              (innerTypeName,
+               outerTypeParams,
+               cases
+               |> NEList.map (fun (c : TypeDeclaration.EnumCase) ->
+                 { c with
+                     fields =
+                       List.map
+                         (Types.substitute innerTypeParams outerTypeArgs)
+                         c.fields })))
+        | Some({ typeParams = typeParams; definition = TypeDeclaration.Enum cases }) ->
+          return Some(typeName, typeParams, cases)
         | _ -> return None
       }
     inner typeName
@@ -347,7 +359,7 @@ let rec eval'
           | Some({ definition = TypeDeclaration.Enum _ }) ->
             return err id $"Expected a record but {typeStr} is an enum"
           | _ -> return err id $"Expected a record but {typeStr} is something else"
-        | Some(typeName, typeParams, expected) ->
+        | Some(typeName, _, expected) ->
           let expectedFields = Map expected
           return!
             Ply.List.foldSequentially
@@ -713,7 +725,7 @@ let rec eval'
         | Some({ definition = TypeDeclaration.Enum _ }) ->
           return err id $"Expected a record but {typeStr} is an enum"
         | _ -> return err id $"Expected a record but {typeStr} is something else"
-      | Some(typeName, cases) ->
+      | Some(typeName, _, cases) ->
         let case = cases |> NEList.find (fun c -> c.name = caseName)
         match case with
         | None -> return err id $"There is no case named `{caseName}` in {typeStr}"
