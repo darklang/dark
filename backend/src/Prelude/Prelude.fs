@@ -266,13 +266,10 @@ module NEList =
     { head = head; tail = l.head :: l.tail }
 
   let reverse (l : NEList<'a>) : NEList<'a> =
-    match toList l with
+    match l |> toList |> List.rev with
     | [] -> Exception.raiseInternal "Unexpected empty NEList" []
-    | head :: tail ->
-      let reversedTail = List.rev tail
-      match tail with
-      | [] -> { head = head; tail = [] }
-      | first :: rest -> { head = first; tail = rest @ [ head ] }
+    | head :: tail -> { head = head; tail = tail }
+
 
 
 // ----------------------

@@ -266,8 +266,8 @@ let rec lambdaToSql
   (fns : Map<FnName.BuiltIn, BuiltInFn>)
   (types : Types)
   (constants : Map<ConstantName.BuiltIn, BuiltInConstant>)
+  (tat : TypeArgTable)
   (symtable : DvalMap)
-  // TODO: pass in (typeArgTable: Map<String, TypeReference>) for any resolved typeArgs
   (paramName : string)
   (dbTypeRef : TypeReference)
   (expectedType : TypeReference)
@@ -275,7 +275,16 @@ let rec lambdaToSql
   : Ply<CompiledSqlQuery> =
   uply {
     let lts (expectedType : TypeReference) (expr : Expr) : Ply<CompiledSqlQuery> =
-      lambdaToSql fns types constants symtable paramName dbTypeRef expectedType expr
+      lambdaToSql
+        fns
+        types
+        constants
+        tat
+        symtable
+        paramName
+        dbTypeRef
+        expectedType
+        expr
 
     let! (sql, vars, actualType) =
       uply {
@@ -575,7 +584,7 @@ let rec lambdaToSql
 
           typecheck fieldname dbFieldType expectedType
 
-          let primitiveFieldType t =
+          let rec primitiveFieldType t =
             match t with
             | TString -> "text"
             | TInt -> "bigint"
@@ -585,6 +594,11 @@ let rec lambdaToSql
             | TChar -> "text"
             | TUuid -> "uuid"
             | TUnit -> "bigint" // CLEANUP why is this bigint?
+            | TVariable varName ->
+              match Map.get varName tat with
+              | Some found -> primitiveFieldType found
+              | None ->
+                error $"Could not resolve type variable in lambdaToSql: {varName}"
             | _ -> error $"We do not support this type of DB field yet: {t}"
 
           let fieldAccessPath = NEList.map escapeFieldname fieldAccessPath
@@ -596,6 +610,7 @@ let rec lambdaToSql
           | TDateTime
           | TChar
           | TUuid
+          | TVariable _
           | TUnit ->
             let typename = primitiveFieldType dbFieldType
 
@@ -671,8 +686,9 @@ let rec lambdaToSql
 //  needs in the right place.
 let partiallyEvaluate
   (state : ExecutionState)
-  (paramName : string)
+  (tat : TypeArgTable)
   (symtable : Symtable)
+  (paramName : string)
   (body : Expr)
   : Ply.Ply<DvalMap * Expr> =
   uply {
@@ -684,7 +700,7 @@ let partiallyEvaluate
     let exec (expr : Expr) : Ply.Ply<Expr> =
       uply {
         let newName = "dark_generated_" + randomString 8
-        let! value = LibExecution.Interpreter.eval state symtable.Value expr
+        let! value = LibExecution.Interpreter.eval state tat symtable.Value expr
         symtable.Value <- Map.add newName value symtable.Value
         return (EVariable(gid (), newName))
       }
@@ -871,6 +887,7 @@ let partiallyEvaluate
 
 let compileLambda
   (state : ExecutionState)
+  (tat : TypeArgTable)
   (symtable : DvalMap)
   (paramName : string)
   (dbType : TypeReference)
@@ -886,7 +903,7 @@ let compileLambda
       |> inline' paramName Map.empty
       // Replace expressions which can be calculated now with their result. See
       // comment for more details.
-      |> partiallyEvaluate state paramName symtable
+      |> partiallyEvaluate state tat symtable paramName
       |> Ply.TplPrimitives.runPlyAsTask
 
     let types = ExecutionState.availableTypes state
@@ -896,6 +913,7 @@ let compileLambda
         state.builtIns.fns
         types
         state.builtIns.constants
+        tat
         symtable
         paramName
         dbType

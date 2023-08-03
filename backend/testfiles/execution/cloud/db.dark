@@ -1,3 +1,4 @@
+// really simple data stores of Records
 type X = { x: String }
 
 [<DB>]
@@ -21,6 +22,9 @@ type SortedX = { x: String; sortBy: Int }
 [<DB>]
 type SortedXDB = SortedX
 
+// simple data stores of Enums
+// , and Records containing Enums
+
 type MyEnum =
   | A
   | B
@@ -33,12 +37,6 @@ type MyEnum2 =
 
 type EnumTestRecord = { x: String; y: MyEnum }
 
-type InnerRecord = { age: Int }
-type OuterRecord = { name: String; details: InnerRecord }
-type AliasOfRecord = OuterRecord
-
-[<DB>]
-
 [<DB>]
 type TestEnumDB = EnumTestRecord
 
@@ -48,51 +46,82 @@ type TestEnumDB2 = MyEnum
 [<DB>]
 type TestEnumDB3 = MyEnum2
 
+
+// Nested field accessing
+type VeryInnerRecord = { age: Int }
+type AliasOfVeryInnerRecord = VeryInnerRecord
+type InnerRecord = { numbers: AliasOfVeryInnerRecord }
+type OuterRecord = { name: String; details: InnerRecord }
+type AliasOfRecord = OuterRecord
+
 [<DB>]
 type TestNestedRecord = OuterRecord
 
 [<DB>]
 type TestNestedAliasRecord = AliasOfRecord
 
-
-module NestedRecordQuerying =
+module NestedRecordFieldAccess =
+  // can use lambda like (fun p -> p.details.numbers.age)
   (DB.set
     (OuterRecord
       { name = "joe"
-        details = InnerRecord { age = 41 } })
+        details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 41 } } })
     "jjj"
     TestNestedRecord
 
    DB.set
      (OuterRecord
        { name = "frank"
-         details = InnerRecord { age = 22 } })
+         details = InnerRecord { numbers = VeryInnerRecord { age = 22 } } })
      "fff"
      TestNestedRecord
 
-   let shouldBeJustJoe = DB.query TestNestedRecord (fun p -> p.details.age == 41)
+   let shouldBeJustJoe =
+     DB.query TestNestedRecord (fun p -> p.details.numbers.age == 41)
+
    List.length shouldBeJustJoe) = 1
 
+  // same as above, but with aliases
   (DB.set
     (AliasOfRecord
       { name = "jeremy"
-        details = InnerRecord { age = 38 } })
+        details = InnerRecord { numbers = VeryInnerRecord { age = 38 } } })
     "ignored"
     TestNestedAliasRecord
 
    DB.set
      (AliasOfRecord
        { name = "josephine"
-         details = InnerRecord { age = 29 } })
+         details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 29 } } })
      "alsoIgnored"
      TestNestedAliasRecord
 
    let shouldBeJustJeremy =
-     DB.query TestNestedAliasRecord (fun p -> p.details.age == 38)
+     DB.query TestNestedAliasRecord (fun p -> p.details.numbers.age == 38)
 
    List.length shouldBeJustJeremy) = 1
 
 
+
+// Query data from a type with generics
+type GenericThing<'a> = { name: 'a }
+type RecordWithGenericThing = GenericThing<String>
+
+[<DB>]
+type TestRecordWithGenericThing = RecordWithGenericThing
+
+// module AccessDataInGenericField =
+//   (DB.set (RecordWithGenericThing { name = "joe" }) "jjj" TestRecordWithGenericThing
+
+//    DB.set
+//      (RecordWithGenericThing { name = "frank" })
+//      "fff"
+//      TestRecordWithGenericThing
+
+//    let shouldBeJustJoe =
+//      DB.query TestRecordWithGenericThing (fun p -> p.name == "joe")
+
+//    List.length shouldBeJustJoe) = 1
 
 
 module AddToTestEnumDBs =

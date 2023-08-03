@@ -230,7 +230,13 @@ let doQuery
       | _ -> Exception.raiseInternal "wrong number of args" [ "args", b.parameters ]
 
     let! sql, vars =
-      SqlCompiler.compileLambda state b.symtable paramName db.typ b.body
+      SqlCompiler.compileLambda
+        state
+        b.typeArgTable
+        b.symtable
+        paramName
+        db.typ
+        b.body
 
     return
       Sql.query
