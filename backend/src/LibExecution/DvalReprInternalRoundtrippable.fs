@@ -160,7 +160,11 @@ module FormatV0 =
     | DUuid of System.Guid
     | DBytes of byte array
     | DRecord of runtimeTypeName : TypeName.T * sourceTypeName : TypeName.T * DvalMap
-    | DEnum of TypeName.T * caseName : string * List<Dval>
+    | DEnum of
+      runtimeTypeName : TypeName.T *
+      sourceTypeName : TypeName.T *
+      caseName : string *
+      List<Dval>
 
   let rec toRT (dv : Dval) : RT.Dval =
     match dv with
@@ -193,8 +197,13 @@ module FormatV0 =
     | DRecord(typeName, original, o) ->
       RT.DRecord(TypeName.toRT typeName, TypeName.toRT original, Map.map toRT o)
     | DBytes bytes -> RT.DBytes bytes
-    | DEnum(typeName, caseName, fields) ->
-      RT.DEnum(TypeName.toRT typeName, caseName, List.map toRT fields)
+    | DEnum(typeName, original, caseName, fields) ->
+      RT.DEnum(
+        TypeName.toRT typeName,
+        TypeName.toRT original,
+        caseName,
+        List.map toRT fields
+      )
 
 
   let rec fromRT (dv : RT.Dval) : Dval =
@@ -221,8 +230,13 @@ module FormatV0 =
     | RT.DRecord(typeName, original, o) ->
       DRecord(TypeName.fromRT typeName, TypeName.fromRT original, Map.map fromRT o)
     | RT.DBytes bytes -> DBytes bytes
-    | RT.DEnum(typeName, caseName, fields) ->
-      DEnum(TypeName.fromRT typeName, caseName, List.map fromRT fields)
+    | RT.DEnum(typeName, original, caseName, fields) ->
+      DEnum(
+        TypeName.fromRT typeName,
+        TypeName.fromRT original,
+        caseName,
+        List.map fromRT fields
+      )
 
 
 let toJsonV0 (dv : RT.Dval) : string =
@@ -255,7 +269,8 @@ module Test =
     | RT.DBytes _
     | RT.DDateTime _
     | RT.DPassword _ -> true
-    | RT.DEnum(_typeName, _caseName, fields) -> List.all isRoundtrippableDval fields
+    | RT.DEnum(_typeName, _, _caseName, fields) ->
+      List.all isRoundtrippableDval fields
     | RT.DList dvals -> List.all isRoundtrippableDval dvals
     | RT.DDict map -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DRecord(_, _, map) -> map |> Map.values |> List.all isRoundtrippableDval

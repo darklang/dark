@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
         (function
         | state,
           _,
-          [ DEnum(_, caseName1, dvs1); DEnum(_, caseName2, dvs2); DFnVal b ] ->
+          [ DEnum(_, _, caseName1, dvs1); DEnum(_, _, caseName2, dvs2); DFnVal b ] ->
           uply {
             match (caseName1, dvs1, caseName2, dvs2) with
             | "None", _, _, _

@@ -63,7 +63,7 @@ let rec dvalTypeName (dv : Dval) : string =
     |> fun s -> $"({s})"
   | DBytes _ -> "Bytes"
   | DRecord(typeName, _, _) -> TypeName.toString typeName
-  | DEnum(typeName, _, _) -> TypeName.toString typeName
+  | DEnum(typeName, _, _, _) -> TypeName.toString typeName
 
 
 // SERIALIZER_DEF Custom DvalReprDeveloper.toRepr
@@ -141,7 +141,7 @@ let toRepr (dv : Dval) : string =
         let elems = String.concat $",{inl}" strs
         "{" + $"{inl}{elems}{nl}" + "}"
     | DBytes bytes -> Base64.defaultEncodeToString bytes
-    | DEnum(typeName, caseName, fields) ->
+    | DEnum(_, typeName, caseName, fields) ->
       let fieldStr =
         fields |> List.map (fun value -> toRepr_ indent value) |> String.concat ", "
 

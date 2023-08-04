@@ -114,16 +114,28 @@ let rec eval'
   let enumMaybe
     (types : Types)
     (typeName : TypeName.T)
-    : Ply<Option<TypeName.T * NEList<TypeDeclaration.EnumCase>>> =
+    : Ply<Option<TypeName.T * List<string> * NEList<TypeDeclaration.EnumCase>>> =
     let rec inner (typeName : TypeName.T) =
       uply {
         match! Types.find typeName types with
-        | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName,
-                                                                _typeArgs)) }) ->
-          // TODO: need to apply the type args here-ish, and include them in `tat`
-          return! inner innerTypeName
-        | Some({ definition = TypeDeclaration.Enum cases }) ->
-          return Some(typeName, cases)
+        | Some({ typeParams = outerTypeParams
+                 definition = TypeDeclaration.Alias(TCustomType(innerTypeName,
+                                                                outerTypeArgs)) }) ->
+          let! next = inner innerTypeName
+          return
+            next
+            |> Option.map (fun (innerTypeName, innerTypeParams, cases) ->
+              (innerTypeName,
+               outerTypeParams,
+               cases
+               |> NEList.map (fun (c : TypeDeclaration.EnumCase) ->
+                 { c with
+                     fields =
+                       List.map
+                         (Types.substitute innerTypeParams outerTypeArgs)
+                         c.fields })))
+        | Some({ typeParams = typeParams; definition = TypeDeclaration.Enum cases }) ->
+          return Some(typeName, typeParams, cases)
         | _ -> return None
       }
     inner typeName
@@ -337,7 +349,7 @@ let rec eval'
     | ERecordUpdate(id, baseRecord, updates) ->
       let! baseRecord = eval state tat st baseRecord
       match baseRecord with
-      | DRecord(typeName, original, _) ->
+      | DRecord(typeName, _, _) ->
         let typeStr = TypeName.toString typeName
         let types = ExecutionState.availableTypes state
         match! recordMaybe types typeName with
@@ -347,7 +359,7 @@ let rec eval'
           | Some({ definition = TypeDeclaration.Enum _ }) ->
             return err id $"Expected a record but {typeStr} is an enum"
           | _ -> return err id $"Expected a record but {typeStr} is something else"
-        | Some(typeName, typeParams, expected) ->
+        | Some(_, _, expected) ->
           let expectedFields = Map expected
           return!
             Ply.List.foldSequentially
@@ -378,7 +390,7 @@ let rec eval'
               updates
       | _ -> return err id "Expected a record in record update"
 
-    | EDict(id, fields) ->
+    | EDict(_, fields) ->
       return!
         Ply.List.foldSequentially
           (fun r (k, expr) ->
@@ -507,7 +519,7 @@ let rec eval'
 
         | MPEnum(id, caseName, fieldPats) ->
           match dv with
-          | DEnum(_dTypeName, dCaseName, dFields) when
+          | DEnum(_dTypeName, _oTypeName, dCaseName, dFields) when
             List.length dFields = List.length fieldPats && caseName = dCaseName
             ->
             let (passResults, newVarResults, traceResults) =
@@ -713,7 +725,7 @@ let rec eval'
         | Some({ definition = TypeDeclaration.Enum _ }) ->
           return err id $"Expected a record but {typeStr} is an enum"
         | _ -> return err id $"Expected a record but {typeStr} is something else"
-      | Some(typeName, cases) ->
+      | Some(aliasTypeName, _, cases) ->
         let case = cases |> NEList.find (fun c -> c.name = caseName)
         match case with
         | None -> return err id $"There is no case named `{caseName}` in {typeStr}"
@@ -750,14 +762,19 @@ let rec eval'
                         with
                         | Ok() ->
                           match r with
-                          | DEnum(typeName, caseName, existing) ->
+                          | DEnum(typeName, original, caseName, existing) ->
                             return
-                              DEnum(typeName, caseName, List.append existing [ v ])
+                              DEnum(
+                                typeName,
+                                original,
+                                caseName,
+                                List.append existing [ v ]
+                              )
                           | _ -> return err id "Expected an enum"
                         | Error e ->
                           return err id (Errors.toString (Errors.TypeError(e)))
                   })
-                (DEnum(typeName, caseName, []))
+                (DEnum(aliasTypeName, typeName, caseName, []))
                 fields
     | EError(id, msg, exprs) ->
       let! args = Ply.List.mapSequentially (eval state tat st) exprs

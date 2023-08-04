@@ -41,8 +41,8 @@ let fns : List<BuiltInFn> =
         (function
         | state,
           _,
-          [ DEnum(_typeName1, case1, [ arg1 ])
-            DEnum(_typeName2, case2, [ arg2 ])
+          [ DEnum(_typeName1, _, case1, [ arg1 ])
+            DEnum(_typeName2, _, case2, [ arg2 ])
             DFnVal b ] ->
           uply {
             match case1, case2 with

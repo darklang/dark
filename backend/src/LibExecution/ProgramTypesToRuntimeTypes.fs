@@ -368,7 +368,13 @@ module Const =
     | PT.Const.CTuple(first, second, rest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT rest)
     | PT.Const.CEnum(Ok typeName, caseName, fields) ->
-      RT.DEnum(TypeName.toRT typeName, caseName, List.map toRT fields)
+      // TYPESTODO: this uses the original type name, so if it's an alias, it won't be equal to the
+      RT.DEnum(
+        TypeName.toRT typeName,
+        TypeName.toRT typeName,
+        caseName,
+        List.map toRT fields
+      )
     | PT.Const.CEnum(Error msg, caseName, fields) ->
       RT.DError(RT.SourceNone, "Invalid const name: {msg}")
 

@@ -110,7 +110,9 @@ module RecordWithTypeArgsDifferentName =
 module RecordWithRecursiveTypeArgs =
   type Inner<'a> =
     { a: 'a
-      b: PACKAGE.Darklang.Stdlib.Result.Result<Inner<'a>, String> }
+      b: PACKAGE.Darklang.Stdlib.Result.Result<Alias<'a>, String> }
+
+  type Alias<'x> = Inner<'x>
 
   Inner
     { a = 5
@@ -124,16 +126,79 @@ module RecordWithRecursiveTypeArgs =
                     { a = 7
                       b = PACKAGE.Darklang.Stdlib.Result.Result.Error "test" }
                 ) }
-        ) } = Inner
+        ) } = Alias
     { a = 5
       b =
         PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-          Inner
+          Alias
             { a = 6
               b =
                 PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-                  Inner
+                  Alias
                     { a = 7
                       b = PACKAGE.Darklang.Stdlib.Result.Result.Error "test" }
                 ) }
         ) }
+
+
+module EnumWithTypeArgs =
+  type Inner<'a, 'b> =
+    | A of 'a
+    | B of 'b
+
+  type Outer1<'a> = Inner<'a, Int>
+  type Outer2<'b> = Inner<String, 'b>
+
+  let getInnerField (x: Inner<'a, 'b>) (default': 'b) : 'b =
+    match x with
+    | A _ -> default'
+    | B b -> b
+
+  getInnerField (Inner.A 5) 6 = 6
+  getInnerField (Inner.B 5) 6 = 5
+  getInnerField (Outer1.A 5) 6 = 6
+  getInnerField (Outer1.B 5) 6 = 5
+  getInnerField (Outer2.A "str") "str2" = "str2"
+  getInnerField (Outer2.B "str") "str2" = "str"
+
+  Outer1.A 5 = Inner.A 5
+  Outer1.B 5 = Inner.B 5
+
+  Outer2.A "str" = Outer1.A "str"
+  Outer2.B 5 = Outer1.B 5
+
+  Outer1.B "b" = Test.runtimeError
+    "EnumWithTypeArgs.Outer1.B's 1st argument should be an Int. However, a String (\"b\") was passed instead.\n\nExpected: Int\nActual: a String: \"b\""
+
+  Outer2.A 5 = Test.runtimeError
+    "EnumWithTypeArgs.Outer2.A's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: String\nActual: an Int: 5"
+
+module EnumWithTypeArgsDifferentName =
+  type Inner<'a, 'b> =
+    | A of 'a
+    | B of 'b
+
+  type LessInner<'b, 'a> = Inner<'a, 'b>
+  type Outer<'x> = LessInner<'x, Int>
+  type Outest<'y> = Outer<'y>
+  type MostOutest = Outest<String> // | A of Int | B of String
+
+  MostOutest.A 5 = Inner.A 5
+  MostOutest.B "test" = Inner.B "test"
+
+  MostOutest.A "not allowed" = Test.runtimeError
+    "EnumWithTypeArgsDifferentName.MostOutest.A's 1st argument should be an Int. However, a String (\"not al...) was passed instead.\n\nExpected: Int\nActual: a String: \"not allowed\""
+
+  MostOutest.B 6 = Test.runtimeError
+    "EnumWithTypeArgsDifferentName.MostOutest.B's 1st argument should be a String. However, an Int (6) was passed instead.\n\nExpected: String\nActual: an Int: 6"
+
+
+module EnumWithRecursiveTypeArgs =
+  type Inner<'a> =
+   | A of a: 'a
+   | B of b : PACKAGE.Darklang.Stdlib.Result.Result<Alias<'a>, String>
+
+  type Alias<'x> = Inner<'x>
+
+  Alias.B (PACKAGE.Darklang.Stdlib.Result.Result.Ok (Alias.A 5)) =
+  Inner.B (PACKAGE.Darklang.Stdlib.Result.Result.Ok (Inner.A 5))

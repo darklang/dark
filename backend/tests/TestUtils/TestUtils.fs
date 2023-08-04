@@ -377,7 +377,7 @@ module Expect =
     | DRecord(_, _, vs) -> vs |> Map.values |> List.all check
     | DString str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
-    | DEnum(_typeName, _caseName, fields) -> fields |> List.all check
+    | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all check
 
   type Path = string list
 
@@ -749,7 +749,7 @@ module Expect =
       check ("Length" :: path) (Map.count ls) (Map.count rs)
 
 
-    | DEnum(typeName, caseName, fields), DEnum(typeName', caseName', fields') ->
+    | DEnum(typeName, _, caseName, fields), DEnum(typeName', _, caseName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
       check ("caseName" :: path) caseName caseName'
 
@@ -839,7 +839,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     // Keep for exhaustiveness checking
     | DDict map -> Map.values map |> List.map visit |> ignore<List<unit>>
     | DRecord(_, _, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
-    | DEnum(_typeName, _caseName, fields) ->
+    | DEnum(_typeName, _, _caseName, fields) ->
       fields |> List.map visit |> ignore<List<unit>>
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
     | DTuple(first, second, theRest) ->
