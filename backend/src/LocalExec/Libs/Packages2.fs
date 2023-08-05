@@ -24,7 +24,8 @@ let resolver =
         Packages.contents
         Cli.contents
         TestUtils.LibTest.contents
-        StdLibCloudExecution.StdLib.contents ]
+        StdLibCloudExecution.StdLib.contents
+        StdLibCliHost.StdLib.contents ]
       []
       []
     // TODO: this may need more builtins, and packages
