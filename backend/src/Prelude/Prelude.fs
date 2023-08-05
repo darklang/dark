@@ -262,20 +262,47 @@ module NEList =
 
   let singleton (head : 'a) : NEList<'a> = { head = head; tail = [] }
 
-  let push (l : NEList<'a>) (head : 'a) : NEList<'a> =
+  let push (head : 'a) (l : NEList<'a>) : NEList<'a> =
     { head = head; tail = l.head :: l.tail }
+
+  let pushBack (tail : 'a) (l : NEList<'a>) : NEList<'a> =
+    { head = l.head; tail = l.tail @ [ tail ] }
+
+  let prependList (list : List<'a>) (l : NEList<'a>) : NEList<'a> =
+    match list with
+    | [] -> l
+    | head :: tail -> { head = head; tail = tail @ toList l }
 
   let reverse (l : NEList<'a>) : NEList<'a> =
     match l |> toList |> List.rev with
     | [] -> Exception.raiseInternal "Unexpected empty NEList" []
     | head :: tail -> { head = head; tail = tail }
 
-
   let find (f : 'a -> bool) (l : NEList<'a>) : Option<'a> =
     if f l.head then Some l.head else List.tryFind f l.tail
 
+  let all (f : 'a -> bool) (l : NEList<'a>) : bool = f l.head && List.forall f l.tail
+
   let filter (f : 'a -> bool) (l : NEList<'a>) : List<'a> =
     if f l.head then l.head :: List.filter f l.tail else List.filter f l.tail
+
+  let last (l : NEList<'a>) : 'a =
+    match l.tail with
+    | [] -> l.head
+    | _ -> List.last l.tail
+
+  let initial (l : NEList<'a>) : List<'a> =
+    let rec listInitial (l : List<'a>) : List<'a> =
+      match l with
+      | [] -> []
+      | [ _ ] -> [] // drop the last one
+      | head :: head2 :: tail -> head :: listInitial (head2 :: tail)
+    match l.tail with
+    | [] -> [] // drop head
+    | _ -> l.head :: (listInitial l.tail)
+
+  let splitLast (l : NEList<'a>) : (List<'a> * 'a) = initial l, last l
+
 
 
 // ----------------------
