@@ -1,0 +1,21 @@
+module Darklang =
+  module Stdlib =
+    module List =
+
+      let dropLast (list: List<'a>) : List<'a> =
+        match list with
+        | [] -> []
+        | _ ->
+          match (List.length_v0 list) with
+          | 1 -> []
+          | _ ->
+            let x = List.head list
+            let xs =
+              match (List.tail_v0 list) with
+              | Some tail -> tail
+              | None -> []
+
+            match x with
+            | Some value -> List.append_v0 (List.singleton_v0 value) (PACKAGE.Darklang.Stdlib.List.dropLast xs)
+            | None -> []
+
