@@ -19,8 +19,7 @@ let builtIns : RT.BuiltIns =
       [ StdLibExecution.StdLib.contents
         StdLibCli.StdLib.contents
         StdLibDarkInternal.StdLib.contents
-        StdLibCliHost.StdLib.contents
-         ]
+        StdLibCliHost.StdLib.contents ]
       []
       []
   { types = types |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
