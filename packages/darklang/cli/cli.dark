@@ -3,8 +3,102 @@ module Darklang =
     type Command =
       | RunScript of String * List<String>
       | Help
+      | Show of String
       | Infer of String
       | Invalid of List<String>
+
+
+    let showFn (fnName: String) (owner: String) (modules: List<String>) : Int =
+
+      print $"Show function {fnName}"
+
+      let fns =
+        CLI.HttpClient.request
+          "GET"
+          ("http://dark-packages.dlio.localhost:11003/functions/")
+          []
+          Bytes.empty
+
+      let statusCode =
+        fns
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+        |> unwrap
+
+      if statusCode == 200 then
+        let parsedFns =
+          fns
+          |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+          |> unwrap
+          |> String.fromBytes
+          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>>
+          |> unwrap
+
+        let filtredResult =
+          (List.filter parsedFns (fun x ->
+            x.name.name
+            == PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name.FnName(
+              fnName
+            )
+            && x.name.owner == owner
+            && x.name.modules == modules))
+          |> List.head
+
+        let result =
+          match filtredResult with
+          | Some r -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn r
+          | None -> "Function not found"
+
+        print result
+        0
+      else
+        print $"error"
+        1
+
+    let showType (typeName: String) (owner: String) (modules: List<String>) : Int =
+
+      print $"Show type {typeName}"
+
+      let types =
+        CLI.HttpClient.request
+          "GET"
+          ("http://dark-packages.dlio.localhost:11003/types")
+          []
+          Bytes.empty
+
+      let statusCode =
+        types
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+        |> unwrap
+
+      if statusCode == 200 then
+        let parsedTypes =
+          types
+          |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+          |> unwrap
+          |> String.fromBytes
+          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>>
+          |> unwrap
+
+        let filtredResult =
+          (List.filter parsedTypes (fun x ->
+            x.name.name
+            == PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name.TypeName(
+              typeName
+            )
+            && x.name.owner == owner
+            && x.name.modules == modules))
+          |> List.head
+
+        let result =
+          match filtredResult with
+          | Some r -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageType r
+          | None -> "Type not found"
+
+        print result
+        0
+      else
+        print $"error"
+        1
 
 
     let parseArguments (args: List<String>) : PACKAGE.Darklang.Cli.Command =
@@ -14,7 +108,7 @@ module Darklang =
       | [ "--prompt"; prompt ] -> PACKAGE.Darklang.Cli.Command.Infer prompt
       | scriptPath :: args ->
         PACKAGE.Darklang.Cli.Command.RunScript(scriptPath, args)
-
+      | _ -> PACKAGE.Darklang.Cli.Command.Invalid [ "Invalid arguments" ]
 
     let executeCommand (command: PACKAGE.Darklang.Cli.Command) : Int =
       match command with
@@ -42,10 +136,39 @@ module Darklang =
           """Usage: darklang [options] [SCRIPT]
 Options:
   -h, --help          Show this help message and exit
+  --show              Show a package function or a package type
   --prompt PROMPT     Infer a script from the given prompt using OpenAI"""
 
         print helpText
         0
+
+      | Show(name) ->
+
+        // remove the @
+        let fullName = name |> String.dropFirst_v0 1 |> String.split "."
+
+        let owner = fullName |> List.head |> unwrap
+
+        let modules =
+          fullName |> (List.drop 1) |> PACKAGE.Darklang.Stdlib.List.dropLast
+
+        let name =
+          name
+          |> String.dropFirst_v0 1
+          |> String.split "."
+          |> List.map (fun x -> x |> String.trim)
+          |> List.last
+          |> unwrap
+
+        let typOrFn =
+          match String.toList name with
+          | [] -> false
+          | l -> (List.head l) |> unwrap |> Char.isUppercase_v0
+
+        if typOrFn then
+          PACKAGE.Darklang.Cli.showType name owner modules
+        else
+          PACKAGE.Darklang.Cli.showFn name owner modules
 
       | Infer(prompt, scriptPath) ->
         // let script = System.IO.File.ReadAllText scriptPath
