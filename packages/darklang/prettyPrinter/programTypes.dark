@@ -907,9 +907,9 @@ module Darklang =
         | Alias typeRef ->
           PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference typeRef
 
-        | Record(firstField, additionalFields) ->
+        | Record fields ->
           let fieldsPart =
-            (List.append [ firstField ] additionalFields)
+            fields
             |> List.map (fun field ->
               PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeDeclaration.recordField
                 field)
