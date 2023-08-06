@@ -160,10 +160,12 @@ type ErrorSegment =
 
   // -- Types
   | TypeName of TypeName.T
+  | ShortTypeName of TypeName.T // Just the last bit of the TypeName, eg Result vs PACKAGE.Darklang.Stdlib.Result.Result
   | TypeReference of TypeReference
   | TypeOfValue of Dval
   | FieldName of string // records and enums
   | InlineFieldName of string // records and enums
+
 
   // -- Variables
   | DBName of string
@@ -195,6 +197,7 @@ module ErrorSegment =
           // Inline versions don't have quotes
           | InlineParamName p -> p
           | TypeName t -> TypeName.toString t
+          | ShortTypeName t -> TypeName.toShortName t
           | TypeReference t -> DvalReprDeveloper.typeName t
           | TypeOfValue dv -> DvalReprDeveloper.dvalTypeName dv
           | FieldName f -> "`" + f + "`"
@@ -250,7 +253,8 @@ let rec valuePath (context : TCK.Context) : string =
   | TCK.FunctionCallResult(fnName, returnType, _) -> "result"
   | TCK.RecordField(recordType, fieldName, _, _) -> fieldName
   | TCK.DictKey(key, _, _) -> $".{key}"
-  | TCK.EnumField(enumType, fieldDef, caseName, paramIndex, _) -> caseName
+  | TCK.EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType, _) ->
+    caseName
   | TCK.DBSchemaType(dbName, expectedType, _) -> dbName
   | TCK.DBQueryVariable(varName, expected, _) -> varName
   | TCK.ListIndex(index, typ, parent) -> valuePath parent + $"[{index}]"
@@ -287,12 +291,12 @@ let rec contextSummary (context : TCK.Context) : List<ErrorSegment> =
     let typeName =
       FQName.BuiltIn { name = TypeName.TypeName "Dict"; modules = []; version = 0 }
     [ TypeName typeName; String "'s "; FieldName key; String " value" ]
-  | TCK.EnumField(enumType, fieldDef, caseName, paramIndex, _) ->
+  | TCK.EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType, _) ->
     [ TypeName enumType
       String "."
       InlineFieldName caseName
       String "'s "
-      Ordinal(paramIndex + 1)
+      Ordinal(fieldIndex + 1)
       String " argument" ]
 
   | TCK.DBSchemaType(dbName, expectedType, _) ->
@@ -350,7 +354,7 @@ let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
 
   | TCK.DictKey(key, typ, _) ->
     // format:
-    // ({ "name" : string; ... })
+    // ({ "name" : String; ... })
     [ String "({ "
       InlineFieldName key
       String ": "
@@ -358,12 +362,20 @@ let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
       String "; ... })" ]
 
 
-  | TCK.EnumField(enumType, fieldType, caseName, paramIndex, _) ->
+  | TCK.EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType, _) ->
     // format:
-    // TODO: we'd like to do something like this:
-    //   (..., string, ...) // some description
-    // but we'll have to extract that info from the definition later
-    [ TypeReference fieldType ]
+    //   Ok (..., string, ...) // some description
+    // TODO: extract description from the type definition later
+    let prefix = if fieldIndex = 0 then [] else [ String "..., " ]
+    let suffix = if fieldIndex = fieldCount - 1 then [] else [ String ", ..." ]
+    let openParen = if fieldCount > 0 then [ String "(" ] else []
+    let closeParen = if fieldCount > 0 then [ String ")" ] else []
+    [ ShortTypeName enumType; String "."; InlineFieldName caseName; String " " ]
+    @ openParen
+    @ prefix
+    @ [ IndefiniteArticle; TypeReference fieldType ]
+    @ suffix
+    @ closeParen
 
 
   | TCK.DBSchemaType(dbName, expectedType, _) ->
