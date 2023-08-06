@@ -366,10 +366,8 @@ type TypeReference =
   | TUuid
   | TBytes
   // A named variable, eg `a` in `List<a>`, matches anything
-  | TVariable of string // replaces TAny
-  | TFn of
-    List<TypeReference> *  // CLEANUP: NEList
-    TypeReference // replaces TLambda
+  | TVariable of string
+  | TFn of NEList<TypeReference> * TypeReference
 
   /// A type defined by a standard library module, a canvas/user, or a package
   /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
@@ -381,7 +379,7 @@ type TypeReference =
 type Expr =
   | EInt of id * int64
   | EBool of id * bool
-  | EString of id * List<StringSegment>
+  | EString of id * NEList<StringSegment>
   /// A character is an Extended Grapheme Cluster (hence why we use a string). This
   /// is equivalent to one screen-visible "character" in Unicode.
   | EChar of id * string
@@ -396,7 +394,7 @@ type Expr =
   | EInfix of id * Infix * Expr * Expr
   // the id in the varname list is the analysis id, used to get a livevalue
   // from the analysis engine
-  | ELambda of id * List<id * string> * Expr
+  | ELambda of id * NEList<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
   | EApply of id * Expr * typeArgs : List<TypeReference> * args : List<Expr>
@@ -404,11 +402,11 @@ type Expr =
   | EList of id * List<Expr>
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | EPipe of id * Expr * PipeExpr * List<PipeExpr>
+  | EPipe of id * Expr * NEList<PipeExpr>
 
   // See NameResolution comment above
-  | ERecord of id * NameResolution<TypeName.T> * List<string * Expr>
-  | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
+  | ERecord of id * NameResolution<TypeName.T> * NEList<string * Expr>
+  | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
 
   // Enums include `Some`, `None`, `Error`, `Ok`, as well
   // as user-defined enums.
@@ -441,7 +439,7 @@ and StringSegment =
 
 and PipeExpr =
   | EPipeVariable of id * string
-  | EPipeLambda of id * List<id * string> * Expr
+  | EPipeLambda of id * NEList<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of
     id *
@@ -588,7 +586,7 @@ module UserFunction =
     { tlid : tlid
       name : FnName.UserProgram
       typeParams : List<string>
-      parameters : List<Parameter>
+      parameters : NEList<Parameter>
       returnType : TypeReference
       description : string
       deprecated : Deprecation<FnName.T>
@@ -631,7 +629,7 @@ module PackageFn =
       name : FnName.Package
       body : Expr
       typeParams : List<string>
-      parameters : List<Parameter>
+      parameters : NEList<Parameter>
       returnType : TypeReference
       description : string
       deprecated : Deprecation<FnName.T> }
