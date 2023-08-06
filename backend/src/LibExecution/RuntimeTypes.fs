@@ -202,6 +202,16 @@ module TypeName =
   let toString (name : T) : string =
     FQName.toString name (fun (TypeName name) -> name)
 
+  let toShortName (name : T) : string =
+    match name with
+    | FQName.BuiltIn { name = TypeName name; version = version }
+    | FQName.UserProgram { name = TypeName name; version = version }
+    | FQName.Package { name = TypeName name; version = version } ->
+      if version = 0 then name else $"{name}_v{version}"
+    | FQName.Unknown [] -> "[name not provided]"
+    | FQName.Unknown(head :: tail) ->
+      NEList.ofList head tail |> NEList.reverse |> NEList.last
+
 
 module FnName =
   type Name = FnName of string

@@ -510,7 +510,7 @@ let rec lambdaToSql
             : (Option<string> * NEList<string>) =
             match subExpr with
             | EFieldAccess(_, subExpr, childFieldName) ->
-              getPath (NEList.push pathSoFar childFieldName) subExpr
+              getPath (NEList.push childFieldName pathSoFar) subExpr
 
             | EVariable(_, v) -> (Some v, pathSoFar)
 
