@@ -168,10 +168,10 @@ module EnumWithTypeArgs =
   Outer2.B 5 = Outer1.B 5
 
   Outer1.B "b" = Test.runtimeError
-    "EnumWithTypeArgs.Outer1.B's 1st argument should be an Int. However, a String (\"b\") was passed instead.\n\nExpected: Int\nActual: a String: \"b\""
+    "EnumWithTypeArgs.Outer1.B's 1st argument should be an Int. However, a String (\"b\") was passed instead.\n\nExpected: Outer1.B (Int)\nActual: Outer1.B (String)"
 
   Outer2.A 5 = Test.runtimeError
-    "EnumWithTypeArgs.Outer2.A's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: String\nActual: an Int: 5"
+    "EnumWithTypeArgs.Outer2.A's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: Outer2.A (String)\nActual: Outer2.A (Int)"
 
 module EnumWithTypeArgsDifferentName =
   type Inner<'a, 'b> =
@@ -187,10 +187,10 @@ module EnumWithTypeArgsDifferentName =
   MostOutest.B "test" = Inner.B "test"
 
   MostOutest.A "not allowed" = Test.runtimeError
-    "EnumWithTypeArgsDifferentName.MostOutest.A's 1st argument should be an Int. However, a String (\"not al...) was passed instead.\n\nExpected: Int\nActual: a String: \"not allowed\""
+    "EnumWithTypeArgsDifferentName.MostOutest.A's 1st argument should be an Int. However, a String (\"not al...) was passed instead.\n\nExpected: MostOutest.A (Int)\nActual: MostOutest.A (String)"
 
   MostOutest.B 6 = Test.runtimeError
-    "EnumWithTypeArgsDifferentName.MostOutest.B's 1st argument should be a String. However, an Int (6) was passed instead.\n\nExpected: String\nActual: an Int: 6"
+    "EnumWithTypeArgsDifferentName.MostOutest.B's 1st argument should be a String. However, an Int (6) was passed instead.\n\nExpected: MostOutest.B (String)\nActual: MostOutest.B (Int)"
 
 
 module EnumWithRecursiveTypeArgs =

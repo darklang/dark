@@ -249,16 +249,15 @@ module TCK = TypeChecker
 
 let rec valuePath (context : TCK.Context) : string =
   match context with
-  | TCK.FunctionCallParameter(fnName, parameter, paramIndex, _) -> parameter.name
-  | TCK.FunctionCallResult(fnName, returnType, _) -> "result"
-  | TCK.RecordField(recordType, fieldName, _, _) -> fieldName
+  | TCK.FunctionCallParameter(_, parameter, _, _) -> parameter.name
+  | TCK.FunctionCallResult(_, _, _) -> "result"
+  | TCK.RecordField(_, fieldName, _, _) -> fieldName
   | TCK.DictKey(key, _, _) -> $".{key}"
-  | TCK.EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType, _) ->
-    caseName
-  | TCK.DBSchemaType(dbName, expectedType, _) -> dbName
-  | TCK.DBQueryVariable(varName, expected, _) -> varName
-  | TCK.ListIndex(index, typ, parent) -> valuePath parent + $"[{index}]"
-  | TCK.TupleIndex(index, typ, parent) -> valuePath parent + $"[{index}]"
+  | TCK.EnumField(_, caseName, _, _, _, _) -> caseName
+  | TCK.DBSchemaType(dbName, _, _) -> dbName
+  | TCK.DBQueryVariable(varName, _, _) -> varName
+  | TCK.ListIndex(index, _, parent) -> valuePath parent + $"[{index}]"
+  | TCK.TupleIndex(index, _, parent) -> valuePath parent + $"[{index}]"
 
 let rec rootContext (context : TCK.Context) : TCK.Context =
   match context with
@@ -291,7 +290,7 @@ let rec contextSummary (context : TCK.Context) : List<ErrorSegment> =
     let typeName =
       FQName.BuiltIn { name = TypeName.TypeName "Dict"; modules = []; version = 0 }
     [ TypeName typeName; String "'s "; FieldName key; String " value" ]
-  | TCK.EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType, _) ->
+  | TCK.EnumField(enumType, caseName, fieldIndex, _, _, _) ->
     [ TypeName enumType
       String "."
       InlineFieldName caseName
@@ -309,7 +308,17 @@ let rec contextSummary (context : TCK.Context) : List<ErrorSegment> =
     @ contextSummary rootContext
     @ [ String ", the nested value "; VarName(valuePath context) ]
 
-let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
+let rec contextAsActualExpected
+  (argument : Dval)
+  (context : TCK.Context)
+  : List<ErrorSegment> * List<ErrorSegment> =
+
+  // TODO: We do actual and expected in the same function so that we can display
+  // them the same way. This hasn't been ported for all Context types, but
+  // should be.
+  let defaultActual =
+    [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
+
   match context with
   | TCK.FunctionCallParameter(fnName, parameter, paramIndex, _) ->
     // format:
@@ -319,18 +328,19 @@ let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
         []
       else
         [ String " // "; Description "" (*parameter.comment*) ]
-    [ String "("
-      InlineParamName parameter.name
-      String ": "
-      TypeReference parameter.typ
-      String ")" ]
-    @ comment
+    (defaultActual,
+     [ String "("
+       InlineParamName parameter.name
+       String ": "
+       TypeReference parameter.typ
+       String ")" ]
+     @ comment)
 
 
   | TCK.FunctionCallResult(fnName, returnType, _) ->
     // format:
     // Option<String>
-    [ TypeReference returnType ]
+    defaultActual, [ TypeReference returnType ]
 
 
   | TCK.RecordField(recordType, fieldName, fieldType, _) ->
@@ -344,22 +354,24 @@ let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
     //   else
     //     [ String " // "; Description fieldDef.description ]
 
-    [ String "({ "
-      InlineFieldName fieldName
-      String ": "
-      TypeReference fieldType
-      String "; ... })" ]
-    @ comment
+    defaultActual,
+    ([ String "({ "
+       InlineFieldName fieldName
+       String ": "
+       TypeReference fieldType
+       String "; ... })" ]
+     @ comment)
 
 
   | TCK.DictKey(key, typ, _) ->
     // format:
     // ({ "name" : String; ... })
-    [ String "({ "
-      InlineFieldName key
-      String ": "
-      TypeReference typ
-      String "; ... })" ]
+    defaultActual,
+    ([ String "({ "
+       InlineFieldName key
+       String ": "
+       TypeReference typ
+       String "; ... })" ])
 
 
   | TCK.EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType, _) ->
@@ -370,37 +382,40 @@ let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
     let suffix = if fieldIndex = fieldCount - 1 then [] else [ String ", ..." ]
     let openParen = if fieldCount > 0 then [ String "(" ] else []
     let closeParen = if fieldCount > 0 then [ String ")" ] else []
-    [ ShortTypeName enumType; String "."; InlineFieldName caseName; String " " ]
-    @ openParen
-    @ prefix
-    @ [ IndefiniteArticle; TypeReference fieldType ]
-    @ suffix
-    @ closeParen
+    let display typ =
+      [ ShortTypeName enumType; String "."; InlineFieldName caseName; String " " ]
+      @ openParen
+      @ prefix
+      @ typ
+      @ suffix
+      @ closeParen
+
+
+    (display [ TypeOfValue argument ]), (display [ TypeReference fieldType ])
 
 
   | TCK.DBSchemaType(dbName, expectedType, _) ->
     // format:
     // String
-    [ TypeReference expectedType ]
+    defaultActual, [ TypeReference expectedType ]
 
 
   | TCK.DBQueryVariable(varName, expected, _) ->
     // format:
     // (varName : string) // some description
-    [ String "("
-      InlineVarName varName
+    defaultActual,
+    ([ String "("
+       InlineVarName varName
 
-      String ": "
-      TypeReference expected
-      String ")" ]
-
-
-  | TCK.ListIndex(index, typ, parent) -> [ TypeReference typ ]
+       String ": "
+       TypeReference expected
+       String ")" ])
 
 
-  | TCK.TupleIndex(index, typ, parent) -> [ TypeReference typ ]
+  | TCK.ListIndex(index, typ, parent) -> defaultActual, [ TypeReference typ ]
 
 
+  | TCK.TupleIndex(index, typ, parent) -> defaultActual, [ TypeReference typ ]
 
 let contextVerb (context : TCK.Context) : string =
   match context with
@@ -431,13 +446,12 @@ let toSegments (e : Error) : ErrorOutput =
         InlineValue argument
         String ") was passed instead." ]
 
-    let actual =
-      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
+    let (actual, expected) = contextAsActualExpected argument context
 
     { summary = summary
       extraExplanation = extraExplanation
       actual = actual
-      expected = contextAsExpected context }
+      expected = expected }
 
   | TypeError(TCK.MismatchedRecordFields(typeName, extra, missing, _)) ->
     let summary = [ TypeName typeName; String " has incorrect fields" ]
@@ -496,8 +510,12 @@ let toSegments (e : Error) : ErrorOutput =
       expected = expected }
 
   | NameResolutionError({ errorType = NameResolution.MissingModuleName } as e) ->
-    let summary =
-      [ String "We need more modules: "; VarName(String.concat "." e.names) ]
+    let suffix =
+      if e.names = [] then
+        []
+      else
+        [ String ": "; VarName(String.concat "." e.names) ]
+    let summary = [ String "Missing module name" ] @ suffix
 
     let extraExplanation = []
     let actual = []
