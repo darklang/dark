@@ -17,7 +17,7 @@ module FQName =
   /// The name of a thing in the package manager
   // TODO: We plan to use UUIDs for this, but this is a placeholder
   type Package<'name> =
-    { owner : string; modules : NEList<string>; name : 'name; version : int }
+    { owner : string; modules : NEList<string>; name : 'name; version : int } // NEList
 
   type T<'name> =
     | BuiltIn of BuiltIn<'name>
@@ -504,10 +504,10 @@ module TypeDeclaration =
     | Alias of TypeReference
 
     /// `type MyRecord = { a : int; b : string }`
-    | Record of NEList<RecordField>
+    | Record of NEList<RecordField> // NEList
 
     /// `type MyEnum = A | B of int | C of int * (label: string)`
-    | Enum of NEList<EnumCase>
+    | Enum of NEList<EnumCase> // NEList
 
   /// Combined the RHS definition, with the list of type parameters. Eg type
   /// MyType<'a> = List<'a>
