@@ -94,6 +94,22 @@ module MatchPattern =
 
 
 module Expr =
+  let resolveTypeName
+    (resolver : NameResolver)
+    (currentModule : List<string>)
+    (names : List<string>)
+    : PT.NameResolution<PT.TypeName.T> =
+    match names with
+    | [] ->
+      Error(
+        { nameType = LibExecution.Errors.NameResolution.Type
+          errorType = LibExecution.Errors.NameResolution.MissingModuleName
+          names = names }
+      )
+    | head :: tail ->
+      let name = NEList.ofList head tail |> WT.Unresolved
+      NameResolver.TypeName.resolve resolver currentModule name
+
   let rec toPT
     (resolver : NameResolver)
     (currentModule : List<string>)
@@ -114,7 +130,7 @@ module Expr =
         NameResolver.ConstantName.resolve
           resolver
           currentModule
-          (WT.Unresolved [ var ])
+          (WT.Unresolved(NEList.singleton var))
       match constant with
       | Ok _ as name -> PT.EConstant(id, name)
       | Error _ -> PT.EVariable(id, var)
@@ -165,11 +181,9 @@ module Expr =
         List.map (pipeExprToPT resolver currentModule) rest
       )
     | WT.EEnum(id, typeName, caseName, exprs) ->
-      // NAMETODO: Should we be checking casenames here? At least for warnings? Do we
-      // check them in the interpreter at construction time?
       PT.EEnum(
         id,
-        NameResolver.TypeName.resolve resolver currentModule typeName,
+        resolveTypeName resolver currentModule typeName,
         caseName,
         List.map toPT exprs
       )
@@ -202,7 +216,7 @@ module Expr =
     match pipeExpr with
     | WT.EPipeVariableOrUserFunction(id, name) ->
       let resolved =
-        let asUserFnName = WT.Name.Unresolved [ name ]
+        let asUserFnName = WT.Name.Unresolved(NEList.singleton name)
         NameResolver.FnName.resolve resolver currentModule asUserFnName
 
       match resolved with
@@ -224,7 +238,7 @@ module Expr =
     | WT.EPipeEnum(id, typeName, caseName, fields) ->
       PT.EPipeEnum(
         id,
-        NameResolver.TypeName.resolve resolver currentModule typeName,
+        resolveTypeName resolver currentModule typeName,
         caseName,
         List.map toPT fields
       )
@@ -246,7 +260,7 @@ module Const =
       PT.CTuple(toPT first, toPT second, List.map toPT theRest)
     | WT.CEnum(typeName, caseName, fields) ->
       PT.CEnum(
-        NameResolver.TypeName.resolve resolver currentModule typeName,
+        Expr.resolveTypeName resolver currentModule typeName,
         caseName,
         List.map toPT fields
       )

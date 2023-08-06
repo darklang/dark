@@ -32,9 +32,10 @@ type Context =
   | DictKey of key : string * typ : TypeReference * Location
   | EnumField of
     enumTypeName : TypeName.T *
-    fieldType : TypeReference *
     caseName : string *
-    paramIndex : int *  // nth argument to the enum constructor
+    fieldIndex : int *  // nth argument to the enum constructor
+    fieldCount : int *
+    fieldType : TypeReference *
     location : Location
   | DBQueryVariable of
     varName : string *
@@ -55,7 +56,7 @@ module Context =
     | FunctionCallResult(_, _, location) -> location
     | RecordField(_, _, _, location) -> location
     | DictKey(_, _, location) -> location
-    | EnumField(_, _, _, _, location) -> location
+    | EnumField(_, _, _, _, _, location) -> location
     | DBQueryVariable(_, _, location) -> location
     | DBSchemaType(_, _, location) -> location
     | ListIndex(_, _, parent) -> toLocation parent

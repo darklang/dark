@@ -751,9 +751,10 @@ let rec eval'
                         let context =
                           TypeChecker.EnumField(
                             typeName,
-                            enumFieldType,
                             case.name,
                             i,
+                            List.length fields,
+                            enumFieldType,
                             None
                           )
 

@@ -42,18 +42,30 @@ let (|IdentExprPat|_|) (input : SynExpr) =
   | SynExpr.Ident name -> Some [ name.idText ]
   | _ -> None
 
+let parseExprName (e : SynExpr) : NEList<string> =
+  match e with
+  | SynExpr.LongIdent(_, SynLongIdent(head :: tail, _, _), _, _) ->
+    NEList.ofList head tail |> NEList.map (fun i -> i.idText)
+  | SynExpr.Ident name -> NEList.singleton name.idText
+  | _ -> Exception.raiseInternal "Bad format in expr name" [ "e", e ]
+
+let parseTypeName (t : SynType) : NEList<string> =
+  match t with
+  | SynType.LongIdent(SynLongIdent(head :: tail, _, _)) ->
+    NEList.ofList head tail |> NEList.map (fun i -> i.idText)
+  | _ -> Exception.raiseInternal "Bad format in type name" [ "t", t ]
+
+
+
 module TypeReference =
 
   let rec fromNamesAndTypeArgs
-    (names : List<Ident>)
+    (names : NEList<string>)
     (typeArgs : List<SynType>)
     : WT.TypeReference =
-    let modules =
-      List.initial names
-      |> Option.defaultValue []
-      |> List.map (fun name -> name.idText)
-    let name = List.last names |> Exception.unwrapOptionInternal "typeName" []
-    match modules, name.idText, typeArgs with
+    let modules = NEList.initial names
+    let name = NEList.last names
+    match modules, name, typeArgs with
     // no type args
     | [], "Bool", [] -> WT.TBool
     | [], "Bytes", [] -> WT.TBytes
@@ -72,9 +84,7 @@ module TypeReference =
     // TYPESCLEANUP - don't use word Tuple here
     | [], "Tuple", first :: second :: theRest ->
       WT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
-    | _ ->
-      let tn = WT.Unresolved(modules @ [ name.idText ])
-      WT.TCustomType(tn, List.map fromSynType typeArgs)
+    | _ -> WT.TCustomType(WT.Unresolved(names), List.map fromSynType typeArgs)
 
   and fromSynType (typ : SynType) : WT.TypeReference =
     let c = fromSynType
@@ -110,15 +120,13 @@ module TypeReference =
     // - built-in F# types like `bool`
     // - Stdlib-defined types
     // - User-defined types
-    | SynType.App(SynType.LongIdent(SynLongIdent(names, _, _)),
-                  _,
-                  typeArgs,
-                  _,
-                  _,
-                  _,
-                  range) -> fromNamesAndTypeArgs names typeArgs
+    | SynType.App(name, _, typeArgs, _, _, _, range) ->
+      let name = parseTypeName name
+      fromNamesAndTypeArgs name typeArgs
 
-    | SynType.LongIdent(SynLongIdent(names, _, _)) -> fromNamesAndTypeArgs names []
+    | SynType.LongIdent _ as name ->
+      let name = parseTypeName name
+      fromNamesAndTypeArgs name []
 
     | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
 
@@ -247,13 +255,6 @@ module Expr =
       Ok(name, (int version))
     | Regex "^([A-Z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
     | _ -> Error "Bad format in type name"
-
-  let parseNames (e : SynExpr) : List<string> =
-    match e with
-    | SynExpr.LongIdent(_, SynLongIdent(names, _, _), _, _) ->
-      names |> List.map (fun i -> i.idText)
-    | SynExpr.Ident name -> [ name.idText ]
-    | _ -> Exception.raiseInternal "Bad format in names" [ "e", e ]
 
 
   let private ops =
@@ -403,21 +404,19 @@ module Expr =
       WT.ETuple(id, c first, c second, List.map c rest)
 
     // Enum/FnCalls - e.g. `Result.Ok` or `Result.mapSecond`
-    | IdentExprPat names when
-      (names |> List.initial |> Option.unwrap [] |> List.all String.isCapitalized)
+    | IdentExprPat(head :: tail) when
+      (head :: tail
+       |> List.initial
+       |> Option.unwrap []
+       |> List.all String.isCapitalized)
       ->
-      let modules = List.initial names |> Option.unwrap []
-      let name = List.last names |> Exception.unwrapOptionInternal "empty list" []
+      let names = NEList.ofList head tail
+      let (modules, name) = NEList.splitLast names
 
       if String.isCapitalized name then
-        WT.EEnum(gid (), WT.Unresolved modules, name, [])
+        WT.EEnum(gid (), modules, name, [])
       else
-        WT.EApply(
-          gid (),
-          WT.EFnName(gid (), WT.Unresolved(modules @ [ name ])),
-          [],
-          []
-        )
+        WT.EApply(gid (), WT.EFnName(gid (), WT.Unresolved(names)), [], [])
 
 
     // Enums are expected to be fully qualified
@@ -427,12 +426,12 @@ module Expr =
     // e.g. `Json.serialize<T>`
     // e.g. `Module1.Module2.fnName<String>`
     | SynExpr.TypeApp(IdentExprPat names, _, typeArgs, _, _, _, _) ->
+      let names = NEList.ofListUnsafe "Empty function name" [] names
 
       let typeArgs =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
       WT.EApply(gid (), WT.EFnName(gid (), WT.Unresolved names), typeArgs, [])
-
 
 
     // Field access: a.b.c.d
@@ -576,12 +575,11 @@ module Expr =
 
     // Records: MyRecord { x = 5 } or Dict { x = 5 }
     | SynExpr.App(_, _, name, SynExpr.Record(_, _, fields, _), _) when
-      List.all (fun n -> String.isCapitalized n) (parseNames name)
+      NEList.all (fun n -> String.isCapitalized n) (parseExprName name)
       ->
-      let names = parseNames name
-      let typename =
-        List.last names |> Exception.unwrapOptionInternal "empty list" []
-      let modules = List.initial names |> Option.unwrap []
+      let names = parseExprName name
+      let typename = NEList.last names
+      let modules = NEList.initial names
 
       let fields =
         fields
@@ -591,10 +589,10 @@ module Expr =
             (nameOrBlank name.idText, c expr)
           | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
 
-      if names = [ "Dict" ] then
+      if names = NEList.singleton "Dict" then
         WT.EDict(id, fields)
       else
-        WT.ERecord(id, WT.Unresolved(modules @ [ typename ]), fields)
+        WT.ERecord(id, WT.Unresolved names, fields)
 
     // Record update: {myRecord with x = 5 }
     | SynExpr.Record(_, Some(baseRecord, _), updates, _) ->
@@ -623,12 +621,17 @@ module Expr =
         WT.EPipe(id, arg1, arg2, rest @ [ synToPipeExpr arg ])
       | WT.EVariable(id, name) ->
         if String.isCapitalized name then
-          WT.EEnum(id, WT.Unresolved [], name, convertEnumArg arg)
+          WT.EEnum(id, [], name, convertEnumArg arg)
         else
-          WT.EApply(id, WT.EFnName(gid (), WT.Unresolved [ name ]), [], [ c arg ])
+          WT.EApply(
+            id,
+            WT.EFnName(gid (), WT.Unresolved(NEList.singleton name)),
+            [],
+            [ c arg ]
+          )
       // Enums
-      | WT.EEnum(id, typeName, caseName, fields) ->
-        WT.EEnum(id, typeName, caseName, fields @ convertEnumArg arg)
+      | WT.EEnum(id, names, caseName, fields) ->
+        WT.EEnum(id, names, caseName, fields @ convertEnumArg arg)
 
       | e ->
         Exception.raiseInternal
@@ -678,16 +681,12 @@ module Function =
       { name = id.idText; typ = TypeReference.fromSynType typ }
 
     | SynPat.Typed(SynPat.Typed _ as nested,
-                   SynType.App(SynType.LongIdent(SynLongIdent(names, _, _)),
-                               _,
-                               args,
-                               _,
-                               _,
-                               _,
-                               _),
+                   SynType.App(name, _, args, _, _, _, _),
                    _) ->
+      let name = parseTypeName name
       let nested = r nested
-      { name = nested.name; typ = TypeReference.fromNamesAndTypeArgs names args }
+
+      { name = nested.name; typ = TypeReference.fromNamesAndTypeArgs name args }
 
     | _ -> Exception.raiseInternal "Unsupported paramPattern" [ "pat", pat ]
 

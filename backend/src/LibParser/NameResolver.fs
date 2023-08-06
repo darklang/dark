@@ -143,14 +143,14 @@ let resolve
     Ok(PT.FQName.fqBuiltIn nameValidator modules (constructor name) version)
 
   // Packages are unambiguous
-  | WT.Unresolved(("PACKAGE" :: owner :: rest) as names) ->
+  | WT.Unresolved({ head = "PACKAGE"; tail = owner :: rest } as names) ->
     match List.rev rest with
     | [] ->
       // This is a totally empty name, which _really_ shouldn't happen.
       Error(
         { nameType = nameErrorType
           errorType = LibExecution.Errors.NameResolution.MissingModuleName
-          names = names }
+          names = NEList.toList names }
       )
     | name :: modules ->
       match parser name with
@@ -165,51 +165,40 @@ let resolve
         Error(
           { nameType = nameErrorType
             errorType = LibExecution.Errors.NameResolution.InvalidPackageName
-            names = names }
+            names = NEList.toList names }
         )
 
 
   | WT.Unresolved given ->
-    let resolve (names : List<string>) : PT.NameResolution<PT.FQName.T<'name>> =
-      match List.rev names with
-      | [] ->
-        // This is a totally empty name, which _really_ shouldn't happen.
+    let resolve (names : NEList<string>) : PT.NameResolution<PT.FQName.T<'name>> =
+      let (modules, name) = NEList.splitLast names
+      match parser name with
+      | Error _msg ->
         Error(
           { nameType = nameErrorType
-            errorType = LibExecution.Errors.NameResolution.MissingModuleName
-            names = names }
+            errorType = LibExecution.Errors.NameResolution.InvalidPackageName
+            names = NEList.toList names }
         )
+      | Ok(name, version) ->
+        // 2. Name exactly matches something in the UserProgram space
+        let (userProgram : PT.FQName.UserProgram<'name>) =
+          { modules = modules; name = constructor name; version = version }
 
-      | name :: modules ->
-        match parser name with
-        | Error _msg ->
-          Error(
-            { nameType = nameErrorType
-              errorType = LibExecution.Errors.NameResolution.InvalidPackageName
-              names = names }
-          )
-        | Ok(name, version) ->
-          let modules = List.reverse modules
-
-          // 2. Name exactly matches something in the UserProgram space
-          let (userProgram : PT.FQName.UserProgram<'name>) =
+        if Set.contains userProgram userThings then
+          Ok(PT.FQName.UserProgram userProgram)
+        else
+          // 3. Name exactly matches a BuiltIn thing
+          let (builtIn : PT.FQName.BuiltIn<'name>) =
             { modules = modules; name = constructor name; version = version }
 
-          if Set.contains userProgram userThings then
-            Ok(PT.FQName.UserProgram userProgram)
+          if Set.contains builtIn builtinThings then
+            Ok(PT.FQName.BuiltIn builtIn)
           else
-            // 3. Name exactly matches a BuiltIn thing
-            let (builtIn : PT.FQName.BuiltIn<'name>) =
-              { modules = modules; name = constructor name; version = version }
-
-            if Set.contains builtIn builtinThings then
-              Ok(PT.FQName.BuiltIn builtIn)
-            else
-              Error(
-                { nameType = nameErrorType
-                  errorType = LibExecution.Errors.NameResolution.NotFound
-                  names = names }
-              )
+            Error(
+              { nameType = nameErrorType
+                errorType = LibExecution.Errors.NameResolution.NotFound
+                names = NEList.toList names }
+            )
     // 4. Check name in
     //   - a. exact name
     //   - b. current module
@@ -224,26 +213,26 @@ let resolve
     // X.Y
 
     // List of modules lists, in order of priority
-    let modulesToTry =
-      let rec loop (modules : List<string>) : List<List<string>> =
+    let modulesToTry : List<NEList<string>> =
+      let rec loop (modules : List<string>) : List<NEList<string>> =
         match modules with
         | [] -> [ given ]
         | _ ->
           let rest = List.initial modules |> Option.unwrap []
-          [ modules @ given ] @ loop rest
+          (NEList.prependList modules given) :: loop rest
       loop currentModule
 
     let notFound =
       Error(
         { nameType = nameErrorType
           errorType = LibExecution.Errors.NameResolution.NotFound
-          names = given }
+          names = NEList.toList given }
         : LibExecution.Errors.NameResolution.Error
       )
 
     List.fold
       notFound
-      (fun currentResult modules ->
+      (fun currentResult (modules : NEList<string>) ->
         match currentResult with
         | Ok _ -> currentResult
         | Error _ ->
