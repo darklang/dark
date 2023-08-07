@@ -176,6 +176,12 @@ let createTelemetryTracer
                   args
                   |> DvalReprInternalHash.hash
                     DvalReprInternalHash.currentHashVersion
+
+                let resultType =
+                  result
+                  |> RT.Dval.toValueType
+                  |> LibExecution.DvalReprDeveloper.valueTypeName
+
                 Telemetry.addEvent
                   $"function result for {name}"
                   [ "fnName", stringifiedName
@@ -183,8 +189,8 @@ let createTelemetryTracer
                     "id", id
                     "argCount", List.length args
                     "hash", hash
-                    "resultType",
-                    LibExecution.DvalReprDeveloper.dvalTypeName result :> obj ]
+                    "resultType", resultType ]
+
                 standardTracing.storeFnResult (tlid, name, id) args result)
             traceTLID =
               fun tlid ->

@@ -399,6 +399,49 @@ module TypeReference =
     )
 
 
+// the actual type of a dval
+type ValueType =
+  | VTUnit
+  | VTBool
+  | VTInt
+  | VTFloat
+  | VTChar
+  | VTString
+  | VTUuid
+  | VTBytes
+  | VTDateTime
+  | VTPassword
+  | VTList of ConcreteType
+
+  // let tpl = (None, 1, "true") // CTTuple(CTCustomType(...), CTInt, [CTString])
+  // since every element of the tuple is a dval, we get a concrete type
+  // reference for all of them
+  | VTTuple of ValueType * ValueType * List<ValueType>
+
+  // let y1 = (fun x -> x) //
+  // let y2 = (fun (x: Int) -> x) // : CTFn([Some CTInt], None)
+  // let y3 = (fun (x: Int) -> 5)
+  // let z1 = (fun (x: String) -> 5)
+  // let z2 = (fun (x: Int) -> "str")
+  // z1 not compatible w/ any ys
+  // z2 may be compatible with some ys for now, but not later? hm
+  // [y; z] // : List<Fn<'a, 'a>>
+  | VTFn of List<ConcreteType> * ConcreteType
+
+  | VTDB of ValueType
+
+  /// let n = None          // type args: [None]
+  /// let s = Some(5)       // type args: [Some CTInt]
+  /// let o = Ok (5)        // type args: [Some CTInt, None]
+  /// let e = Error ("str") // type args: [None, Some CTString]
+  | VTCustomType of TypeName.T * typeArgs : List<ConcreteType>
+
+  // let myDict = {} // CTDIct(None)
+  | VTDict of ConcreteType
+
+and ConcreteType = Option<ValueType>
+
+
 // Expressions here are runtime variants of the AST in ProgramTypes, having had
 // superfluous information removed.
 type Expr =
@@ -497,6 +540,12 @@ and FnValImpl =
 and DDateTime = NodaTime.LocalDate
 
 // We use NoComparison here to avoid accidentally using structural comparison
+//
+// CLEANUP make it impossible to (in our F# code) directly construct these values
+//  Rather, provide fns such as Dval.list to construct them, so we
+//  ensure type safety
+//
+// VTTODO continue adding ConcreteTypes here where relevant
 and [<NoComparison>] Dval =
   | DInt of int64
   | DFloat of double
@@ -506,7 +555,7 @@ and [<NoComparison>] Dval =
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
 
   // compound types
-  | DList of List<Dval>
+  | DList of ConcreteType * List<Dval>
   | DTuple of Dval * Dval * List<Dval>
 
   | DFnVal of FnValImpl
@@ -584,6 +633,22 @@ and Symtable = Map<string, Dval>
 /// we would have a TypeArgTable of
 ///  { "a" => TInt }
 and TypeArgTable = Map<string, TypeReference>
+
+and ValueTypeTable = Map<string, ValueType>
+
+
+
+(*
+
+  let's say we're calling
+    Json.serialize<'a>()
+
+  we need to get 'a from the typeTable (which one?)
+
+  'a needs to be fully concrete - no TVariable allowed
+
+  implies:
+*)
 
 
 // Record the source of an incomplete or error. Would be useful to add more
@@ -726,6 +791,48 @@ module Dval =
     | DDict obj -> Ok(Map.toList obj)
     | _ -> Error "expecting str"
 
+  let todoValueType () = Exception.raiseInternal "" []
+
+
+  let rec toValueType (dv : Dval) : ValueType =
+    match dv with
+    | DUnit -> VTUnit
+    | DBool _ -> VTBool
+    | DInt _ -> VTInt
+    | DFloat _ -> VTFloat
+    | DChar _ -> VTChar
+    | DString _ -> VTString
+    | DUuid _ -> VTUuid
+    | DBytes _ -> VTBytes
+    | DDateTime _ -> VTDateTime
+    | DPassword _ -> VTPassword
+    | DList(t, _) -> VTList t
+
+    | DTuple(first, second, theRest) ->
+      VTTuple(toValueType first, toValueType second, theRest |> List.map toValueType)
+    | DFnVal _ -> VTFn([], None)
+    | DDict _ -> VTDict None
+    | DRecord(typeName, _, fields) ->
+      // VTCustomType(
+      //   typeName,
+      //   fields |> Map.toList |> List.map (fun (_, v) -> toValueType v) |> List.map Option.some
+      // )
+      todoValueType ()
+    | DEnum(typeName, _, caseName, fields) ->
+      // VTCustomType(
+      //   typeName,
+      //   fields |> List.map toValueType |> List.map Option.some
+      // )
+
+      todoValueType ()
+
+    | DDB _ ->
+      // follow up when DDB has a typeReference
+      todoValueType ()
+
+    | DError _
+    | DIncomplete _ -> Exception.raiseInternal "these are being moved out of dval" []
+
 
   // <summary>
   // Checks if a runtime's value matches a given type
@@ -738,62 +845,65 @@ module Dval =
   // accuracy is better, as the runtime is perfectly accurate.
   // </summary>
   let rec typeMatches (typ : TypeReference) (dv : Dval) : bool =
-    match (dv, typ) with
-    | _, TVariable _ -> true
-    | DInt _, TInt
-    | DFloat _, TFloat
-    | DBool _, TBool
-    | DUnit, TUnit
-    | DString _, TString
-    | DDateTime _, TDateTime
-    | DPassword _, TPassword
-    | DUuid _, TUuid
-    | DChar _, TChar
-    | DDB _, TDB _
-    | DBytes _, TBytes -> true
-    | DTuple(first, second, theRest), TTuple(firstType, secondType, otherTypes) ->
-      let pairs =
-        [ (first, firstType); (second, secondType) ] @ List.zip theRest otherTypes
+    // match (dv, typ) with
+    // | _, TVariable _ -> true
+    // | DInt _, TInt
+    // | DFloat _, TFloat
+    // | DBool _, TBool
+    // | DUnit, TUnit
+    // | DString _, TString
+    // | DDateTime _, TDateTime
+    // | DPassword _, TPassword
+    // | DUuid _, TUuid
+    // | DChar _, TChar
+    // | DDB _, TDB _
+    // | DBytes _, TBytes -> true
+    // | DTuple(first, second, theRest), TTuple(firstType, secondType, otherTypes) ->
+    //   let pairs =
+    //     [ (first, firstType); (second, secondType) ] @ List.zip theRest otherTypes
 
-      pairs |> List.all (fun (v, subtype) -> typeMatches subtype v)
-    | DList l, TList t -> List.all (typeMatches t) l
-    | DDict m, TDict t -> Map.all (typeMatches t) m
-    | DFnVal(Lambda l), TFn(parameters, _) ->
-      List.length parameters = List.length l.parameters
+    //   pairs |> List.all (fun (v, subtype) -> typeMatches subtype v)
+    // | DList (typ, l), TList t -> List.all (typeMatches t) l
+    // | DDict m, TDict t -> Map.all (typeMatches t) m
+    // | DFnVal(Lambda l), TFn(parameters, _) ->
+    //   List.length parameters = List.length l.parameters
 
-    | DRecord(typeName, _, fields), TCustomType(typeName', typeArgs) ->
-      // TYPESCLEANUP: should load type by name
-      // TYPESCLEANUP: are we handling type arguments here?
-      // TYPESCLEANUP: do we need to check fields?
-      typeName = typeName'
+    // | DRecord(typeName, _, fields), TCustomType(typeName', typeArgs) ->
+    //   // TYPESCLEANUP: should load type by name
+    //   // TYPESCLEANUP: are we handling type arguments here?
+    //   // TYPESCLEANUP: do we need to check fields?
+    //   typeName = typeName'
 
-    | DEnum(typeName, _, casename, fields), TCustomType(typeName', typeArgs) ->
-      // TYPESCLEANUP: should load type by name
-      // TYPESCLEANUP: are we handling type arguments here?
-      // TYPESCLEANUP: do we need to check fields?
-      typeName = typeName'
+    // | DEnum(typeName, _, casename, fields), TCustomType(typeName', typeArgs) ->
+    //   // TYPESCLEANUP: should load type by name
+    //   // TYPESCLEANUP: are we handling type arguments here?
+    //   // TYPESCLEANUP: do we need to check fields?
+    //   typeName = typeName'
 
-    // Dont match these fakevals, functions do not have these types
-    | DError _, _
-    | DIncomplete _, _ -> false
-    // exhaustiveness checking
-    | DInt _, _
-    | DFloat _, _
-    | DBool _, _
-    | DUnit, _
-    | DString _, _
-    | DDateTime _, _
-    | DPassword _, _
-    | DUuid _, _
-    | DChar _, _
-    | DDB _, _
-    | DBytes _, _
-    | DList _, _
-    | DTuple _, _
-    | DDict _, _
-    | DRecord _, _
-    | DFnVal _, _
-    | DEnum _, _ -> false
+    // // Dont match these fakevals, functions do not have these types
+    // | DError _, _
+    // | DIncomplete _, _ -> false
+    // // exhaustiveness checking
+    // | DInt _, _
+    // | DFloat _, _
+    // | DBool _, _
+    // | DUnit, _
+    // | DString _, _
+    // | DDateTime _, _
+    // | DPassword _, _
+    // | DUuid _, _
+    // | DChar _, _
+    // | DDB _, _
+    // | DBytes _, _
+    // | DList _, _
+    // | DTuple _, _
+    // | DDict _, _
+    // | DRecord _, _
+    // | DFnVal _, _
+    // | DEnum _, _ -> false
+
+    // CTRTODO:
+    false
 
 
   let int (i : int) = DInt(int64 i)
@@ -804,13 +914,125 @@ module Dval =
   // interpreter where they are discarded instead of propagated; still they are
   // never put into other dvals). These static members check before creating the values
 
+  // TODO: replace all of these with specialized errors..
+  type SomeErrorType = string
+
+  let rec mergeValueTypes
+    (left : ValueType)
+    (right : ValueType)
+    : Result<ValueType, SomeErrorType> =
+    match left, right with
+    | VTUnit, VTUnit -> VTUnit  |> Ok
+    | VTBool, VTBool -> VTBool  |> Ok
+    | VTInt, VTInt -> VTInt  |> Ok
+    | VTFloat, VTFloat -> VTFloat  |> Ok
+    | VTChar, VTChar -> VTChar  |> Ok
+    | VTString, VTString -> VTString  |> Ok
+    | VTUuid, VTUuid -> VTUuid  |> Ok
+    | VTBytes, VTBytes -> VTBytes  |> Ok
+    | VTDateTime, VTDateTime -> VTDateTime  |> Ok
+    | VTPassword, VTPassword -> VTPassword  |> Ok
+
+    //
+    | VTList left, VTList right -> mergeConcreteTypes left right |> Result.map VTList
+
+    | VTTuple(l1, l2, ls), VTTuple(r1, r2, rs) ->
+      let firstMerged = mergeValueTypes l1 r1
+      let secondMerged = mergeValueTypes l2 r2
+      let restMerged =
+        List.map2 (fun l r -> mergeValueTypes l r) ls rs |> Tablecloth.Result.collect
+
+      match firstMerged, secondMerged, restMerged with
+      | Ok first, Ok second, Ok rest -> Ok(VTTuple(first, second, rest))
+
+      | _ -> Error "todo"
+
+    | VTCustomType(lName, lArgs), VTCustomType(rName, rArgs) ->
+      if lName <> rName then
+        Error "todo"
+      else if List.length lArgs <> List.length rArgs then
+        Error "todo"
+      else
+        List.map2 mergeConcreteTypes lArgs rArgs
+        |> Tablecloth.Result.collect
+        |> Result.map (fun args -> VTCustomType(lName, args))
+
+    | VTFn(lArgs, lRet), VTFn(rArgs, rRet) ->
+      let argsMerged = List.map2 mergeConcreteTypes lArgs rArgs |> Tablecloth.Result.collect
+      let retMerged = mergeConcreteTypes lRet rRet
+
+      match argsMerged, retMerged with
+      | Ok args, Ok ret -> Ok(VTFn(args, ret))
+      | _ -> Error "todo"
+
+
+    | _ -> Error "todo (just trying to compile)"
+
+  and mergeConcreteTypes
+    (left : ConcreteType)
+    (right : ConcreteType)
+    : Result<ConcreteType, SomeErrorType> =
+    // if fails, we eventually want "can't put a string in an Int list"
+    match left, right with
+    | None, v
+    | v, None -> Ok v
+
+    | Some left, Some right -> mergeValueTypes left right |> Result.map Some
+
+
+
+
+  let listPush
+    (list : List<Dval>)
+    (listType : ConcreteType)
+    (dv : Dval)
+    : Result<ConcreteType * List<Dval>, SomeErrorType> =
+    // what happens if we insert 5 into a list of strings here?
+    // we should return Error
+
+    // if we try to insert an Error (with the _error_ type known)
+    // into a list of Oks (with the _ok_ type known),
+    // then we merge those types (result: TCustomType with both OK and Error types)
+
+    // VTCustomType("Result", [None, Some VTString])
+    // VTCustomType("Result", [Some VTInt, None])
+    // merges to be come
+    // VTCustomType("Result", [Some VTInt, Some VTString])
+
+    let dvalType = toValueType dv
+    let newType = mergeConcreteTypes listType (Some dvalType)
+
+    match newType with
+    | Ok newType -> Ok(newType, dv :: list)
+    | Error e -> Error e
+
+
+
+
+
+
   let list (list : List<Dval>) : Dval =
-    List.find (fun (dv : Dval) -> isFake dv) list
-    |> Option.defaultValue (DList list)
+    let fake = List.find (fun (dv : Dval) -> isFake dv) list
+    match fake with
+    | Some fake -> fake
+    | None ->
+      let (init: Result<ConcreteType * List<Dval>, SomeErrorType>) =
+        (Ok (None, []))
+
+      let result =
+        List.fold init (fun (acc) (dv: Dval) ->
+          match acc with
+          | Ok (typ, dvs) -> listPush dvs typ dv
+          | Error e -> Error e
+        ) (List.rev list)
+
+      match result with
+      | Ok (typ, dvs) -> DList(typ, dvs)
+      | Error e -> DError(SourceNone, e)
 
   let asList (dv : Dval) : Option<List<Dval>> =
     match dv with
-    | DList l -> Some l
+    | DList (_, l) -> Some l
     | _ -> None
 
   let asString (dv : Dval) : Option<string> =
@@ -1217,6 +1439,8 @@ and ExecutionState =
     // users are doing, etc.
     notify : Notifier
 
+    // CLEANUP some of the below doesn't seem to belong (i.e. tlid, callstack, onExecutionPath)
+
     // TLID of the currently executing handler/fn
     tlid : tlid
 
@@ -1248,80 +1472,6 @@ module ExecutionState =
       package = state.packageManager.getType
       userProgram = state.program.types }
 
-module Types =
-  let empty =
-    { builtIn = Map.empty; package = (fun _ -> Ply None); userProgram = Map.empty }
-
-  let find (name : TypeName.T) (types : Types) : Ply<Option<TypeDeclaration.T>> =
-    match name with
-    | FQName.BuiltIn b ->
-      Map.tryFind b types.builtIn |> Option.map (fun t -> t.declaration) |> Ply
-    | FQName.UserProgram user ->
-      Map.tryFind user types.userProgram
-      |> Option.map (fun t -> t.declaration)
-      |> Ply
-    | FQName.Package pkg ->
-      types.package pkg |> Ply.map (Option.map (fun t -> t.declaration))
-    | FQName.Unknown _ -> Ply None
-
-  // Swap concrete types for type parameters
-  let rec substitute
-    (typeParams : List<string>)
-    (typeArguments : List<TypeReference>)
-    (typ : TypeReference)
-    : TypeReference =
-    let substitute = substitute typeParams typeArguments
-    match typ with
-    | TVariable v ->
-      if typeParams.Length = typeArguments.Length then
-        List.zip typeParams typeArguments
-        |> List.find (fun (param, _) -> param = v)
-        |> Option.map snd
-        |> Exception.unwrapOptionInternal
-          "No type argument found for type parameter"
-          []
-      else
-        Exception.raiseInternal
-          $"typeParams and typeArguments have different lengths"
-          [ "typeParams", typeParams; "typeArguments", typeArguments ]
-
-
-    | TUnit
-    | TBool
-    | TInt
-    | TFloat
-    | TChar
-    | TString
-    | TUuid
-    | TBytes
-    | TDateTime
-    | TPassword -> typ
-
-    | TList t -> TList(substitute t)
-    | TTuple(t1, t2, rest) ->
-      TTuple(substitute t1, substitute t2, List.map substitute rest)
-    | TFn _ -> typ // TYPESTODO
-    | TDB _ -> typ // TYPESTODO
-    | TCustomType(typeName, typeArgs) ->
-      TCustomType(typeName, List.map substitute typeArgs)
-    | TDict t -> TDict(substitute t)
-
-
-
-let rec getTypeReferenceFromAlias
-  (types : Types)
-  (typ : TypeReference)
-  : Ply<TypeReference> =
-  match typ with
-  | TCustomType(typeName, typeArgs) ->
-    uply {
-      match! Types.find typeName types with
-      | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
-        return!
-          getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
-      | _ -> return typ
-    }
-  | _ -> Ply typ
 
 
 let consoleReporter : ExceptionReporter =

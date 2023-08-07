@@ -37,34 +37,52 @@ let rec typeName (t : TypeReference) : string =
     TypeName.toString t + typeArgsPortion
   | TBytes -> "Bytes"
 
-let rec dvalTypeName (dv : Dval) : string =
-  match dv with
-  | DIncomplete _ -> "Incomplete"
-  | DError _ -> "Error"
-  | DInt _ -> "Int"
-  | DFloat _ -> "Float"
-  | DBool _ -> "Bool"
-  | DUnit -> "Unit"
-  | DChar _ -> "Char"
-  | DString _ -> "String"
-  | DList [] -> "List<'a>"
-  | DList(v :: _) -> "List<" + dvalTypeName v + ">"
-  | DDict _ -> "Dict"
-  | DFnVal(Lambda _) -> "Lambda"
-  | DFnVal(NamedFn n) -> FnName.toString n
-  | DDB _ -> "Datastore"
-  | DDateTime _ -> "DateTime"
-  | DPassword _ -> "Password"
-  | DUuid _ -> "Uuid"
-  | DTuple(t1, t2, trest) ->
+
+
+let rec valueTypeName (vt : ValueType) : string =
+  match vt with
+  | VTInt _ -> "Int"
+  | VTFloat _ -> "Float"
+  | VTBool _ -> "Bool"
+  | VTUnit -> "Unit"
+  | VTChar _ -> "Char"
+  | VTString _ -> "String"
+  | VTDB _ -> "Datastore"
+  | VTDateTime _ -> "DateTime"
+  | VTPassword _ -> "Password"
+  | VTUuid _ -> "Uuid"
+  | VTBytes _ -> "Bytes"
+
+  | VTList typ -> $"List<{concreteTypeName typ}>"
+  | VTDict typ -> $"Dict<{concreteTypeName typ}>"
+  | VTFn (argTypes, retType) ->
+    argTypes @ [retType]
+    |> List.map concreteTypeName
+    |> String.concat " -> "
+    |> fun s -> "(" + s + ")" // VTTODO: maybe not include ()?
+
+  | VTTuple(t1, t2, trest) ->
     t1 :: t2 :: trest
-    |> List.map dvalTypeName
+    |> List.map valueTypeName
     |> String.concat ", "
     |> fun s -> $"({s})"
-  | DBytes _ -> "Bytes"
-  | DRecord(typeName, _, _) -> TypeName.toString typeName
-  | DEnum(typeName, _, _, _) -> TypeName.toString typeName
 
+  | VTCustomType(name, typeArgs) ->
+    let typeArgsPortion =
+      match typeArgs with
+      | [] -> ""
+      | args ->
+        args
+        |> List.map (fun t -> concreteTypeName t)
+        |> String.concat ", "
+        |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+
+    TypeName.toString name + typeArgsPortion
+
+and concreteTypeName (typ: ConcreteType): string =
+  match typ with
+  | Some typ -> valueTypeName typ
+  | None -> "_"
 
 // SERIALIZER_DEF Custom DvalReprDeveloper.toRepr
 /// For printing something for the developer to read, as a live-value, error
@@ -79,7 +97,7 @@ let toRepr (dv : Dval) : string =
     let nl = "\n" + makeSpaces indent
     let inl = "\n" + makeSpaces (indent + 2)
     let indent = indent + 2
-    let typename = dvalTypeName dv
+    let typename = dv |> Dval.toValueType |> valueTypeName
     let wrap str = $"<{typename}: {str}>"
     let justType = $"<{typename}>"
 
@@ -110,7 +128,7 @@ let toRepr (dv : Dval) : string =
     | DDateTime d -> wrap (DarkDateTime.toIsoString d)
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)
-    | DList l ->
+    | DList (_, l) ->
       if List.isEmpty l then
         "[]"
       else

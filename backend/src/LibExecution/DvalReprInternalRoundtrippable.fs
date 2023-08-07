@@ -134,6 +134,103 @@ module FormatV0 =
       | RT.FQName.Unknown names -> FQName.Unknown names
 
 
+  // the actual type of a dval
+  type ValueType =
+    | VTUnit
+    | VTBool
+    | VTInt
+    | VTFloat
+    | VTChar
+    | VTString
+    | VTUuid
+    | VTBytes
+    | VTDateTime
+    | VTPassword
+    | VTList of ConcreteType
+
+    // let tpl = (None, 1, "true") // CTTuple(CTCustomType(...), CTInt, [CTString])
+    // since every element of the tuple is a dval, we get a concrete type
+    // reference for all of them
+    | VTTuple of ValueType * ValueType * List<ValueType>
+
+    // let y1 = (fun x -> x) //
+    // let y2 = (fun (x: Int) -> x) // : CTFn([Some CTInt], None)
+    // let y3 = (fun (x: Int) -> 5)
+    // let z1 = (fun (x: String) -> 5)
+    // let z2 = (fun (x: Int) -> "str")
+    // z1 not compatible w/ any ys
+    // z2 may be compatible with some ys for now, but not later? hm
+    // [y; z] // : List<Fn<'a, 'a>>
+    | VTFn of List<ConcreteType> * ConcreteType
+
+    | VTDB of ValueType
+
+    /// let n = None          // type args: [None]
+    /// let s = Some(5)       // type args: [Some CTInt]
+    /// let o = Ok (5)        // type args: [Some CTInt, None]
+    /// let e = Error ("str") // type args: [None, Some CTString]
+    | VTCustomType of TypeName.T * typeArgs : List<ConcreteType>
+
+    // let myDict = {} // CTDIct(None)
+    | VTDict of ConcreteType
+
+  and ConcreteType = Option<ValueType>
+
+
+  module ConcreteType =
+    let rec valueTypeToRT (t: ValueType): RT.ValueType =
+      let v = valueTypeToRT
+      let c = toRT
+
+      match t with
+      | VTUnit -> RT.VTUnit
+      | VTBool -> RT.VTBool
+      | VTInt -> RT.VTInt
+      | VTFloat -> RT.VTFloat
+      | VTChar -> RT.VTChar
+      | VTString -> RT.VTString
+      | VTUuid -> RT.VTUuid
+      | VTBytes -> RT.VTBytes
+      | VTDateTime -> RT.VTDateTime
+      | VTPassword -> RT.VTPassword
+      | VTList typ -> RT.VTList(c typ)
+      | VTTuple(first, second, theRest) ->
+        RT.VTTuple(v first, v second, List.map v theRest)
+      | VTFn(args, ret) -> RT.VTFn(List.map c args, c ret)
+      | VTDB typ -> RT.VTDB(v typ)
+      | VTCustomType(typeName, typeArgs) ->
+        RT.VTCustomType(TypeName.toRT typeName, List.map c typeArgs)
+      | VTDict typ -> RT.VTDict(c typ)
+
+    and valueTypeFromRT (t: RT.ValueType): ValueType =
+      let v = valueTypeFromRT
+      let c = fromRT
+
+      match t with
+      | RT.VTUnit -> VTUnit
+      | RT.VTBool -> VTBool
+      | RT.VTInt -> VTInt
+      | RT.VTFloat -> VTFloat
+      | RT.VTChar -> VTChar
+      | RT.VTString -> VTString
+      | RT.VTUuid -> VTUuid
+      | RT.VTBytes -> VTBytes
+      | RT.VTDateTime -> VTDateTime
+      | RT.VTPassword -> VTPassword
+      | RT.VTList typ -> VTList(c typ)
+      | RT.VTTuple(first, second, theRest) ->
+        VTTuple(v first, v second, List.map v theRest)
+      | RT.VTFn(args, ret) -> VTFn(List.map c args, c ret)
+      | RT.VTDB typ -> VTDB(v typ)
+      | RT.VTCustomType(typeName, typeArgs) ->
+        VTCustomType(TypeName.fromRT typeName, List.map c typeArgs)
+      | RT.VTDict typ -> VTDict(c typ)
+
+    and toRT (t : ConcreteType) : RT.ConcreteType =
+      Option.map valueTypeToRT t
+
+    and fromRT (t : RT.ConcreteType) : ConcreteType =
+      Option.map valueTypeFromRT t
 
 
   type DvalMap = Map<string, Dval>
@@ -148,7 +245,7 @@ module FormatV0 =
     | DUnit
     | DString of string
     | DChar of string
-    | DList of List<Dval>
+    | DList of ConcreteType * List<Dval>
     | DTuple of Dval * Dval * List<Dval>
     | DLambda // See docs/dblock-serialization.md
     | DDict of DvalMap
@@ -190,7 +287,7 @@ module FormatV0 =
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
     | DPassword pw -> RT.DPassword(Password pw)
-    | DList l -> RT.DList(List.map toRT l)
+    | DList(typ, l) -> RT.DList(ConcreteType.toRT typ, List.map toRT l)
     | DTuple(first, second, theRest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)
     | DDict o -> RT.DDict(Map.map toRT o)
@@ -223,7 +320,7 @@ module FormatV0 =
     | RT.DDB name -> DDB name
     | RT.DUuid uuid -> DUuid uuid
     | RT.DPassword(Password pw) -> DPassword pw
-    | RT.DList l -> DList(List.map fromRT l)
+    | RT.DList(typ, l) -> DList(ConcreteType.fromRT typ, List.map fromRT l)
     | RT.DTuple(first, second, theRest) ->
       DTuple(fromRT first, fromRT second, List.map fromRT theRest)
     | RT.DDict o -> DDict(Map.map fromRT o)
@@ -248,7 +345,7 @@ let parseJsonV0 (json : string) : RT.Dval =
 let toHashV2 (dvals : list<RT.Dval>) : string =
   dvals
   |> List.map FormatV0.fromRT
-  |> FormatV0.DList
+  |> fun dv -> FormatV0.DList(None, dv)
   |> Json.Vanilla.serialize
   |> UTF8.toBytes
   |> System.IO.Hashing.XxHash64.Hash // fastest in .NET, does not need to be secure
@@ -271,7 +368,7 @@ module Test =
     | RT.DPassword _ -> true
     | RT.DEnum(_typeName, _, _caseName, fields) ->
       List.all isRoundtrippableDval fields
-    | RT.DList dvals -> List.all isRoundtrippableDval dvals
+    | RT.DList (_, dvals) -> List.all isRoundtrippableDval dvals
     | RT.DDict map -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DRecord(_, _, map) -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DUuid _ -> true

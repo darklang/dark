@@ -15,6 +15,7 @@
     <Compile Include="VendoredTablecloth.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="RuntimeTypesAst.fs" />
+    <Compile Include="Types.fs" />
     <Compile Include="DvalReprInternalQueryable.fs" />
     <Compile Include="DvalReprInternalRoundtrippable.fs" />
     <Compile Include="DvalReprInternalHash.fs" />

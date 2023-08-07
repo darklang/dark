@@ -538,7 +538,7 @@ let fns : List<BuiltInFn> =
       description = "Serializes a Dark value to a JSON string."
       fn =
         (function
-        | state, [ typeArg ], [ arg ] ->
+        | state, tat, [ typeArg ], [ arg ] ->
           uply {
             // TODO: somehow collect list of TVariable -> TypeReference
             // "'b = Int",

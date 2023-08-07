@@ -75,17 +75,17 @@ type Error =
     Context
   | TypeDoesntExist of TypeName.T * Context
 
-
+//let something (expected: TypeReference) (actual: ConcreteType)
 
 let rec unify
   (context : Context)
   (types : Types)
-  (typeArgSymbolTable : TypeArgTable)
+  (tat : TypeArgTable)
   (expected : TypeReference)
   (value : Dval)
-  : Ply<Result<unit, Error>> =
+  : Ply<Result<TypeArgTable, Error>> =
   uply {
-    let! resolvedType = getTypeReferenceFromAlias types expected
+    let! resolvedType = Types.getTypeReferenceFromAlias types expected
 
     match (resolvedType, value) with
     // Any should be removed, but we currently allow it as a param type
@@ -94,12 +94,12 @@ let rec unify
     // Potentially needs to be removed before we use this type checker for DBs?
     //   - Could always have a type checking context that allows/disallows any
     | TVariable name, _ ->
-      match Map.get name typeArgSymbolTable with
+      match Map.get name tat with
       // for now, allow undefined type variables. In the future, we would create a
       // type from the value and return any variables defined this way for usage in
       // further arguments and return values.
-      | None -> return Ok()
-      | Some t -> return! unify context types typeArgSymbolTable t value
+      | None -> return Ok tat
+      | Some t -> return! unify context types tat t value
     | TInt, DInt _ -> return Ok()
     | TFloat, DFloat _ -> return Ok()
     | TBool, DBool _ -> return Ok()
@@ -111,18 +111,26 @@ let rec unify
     | TChar, DChar _ -> return Ok()
     | TBytes, DBytes _ -> return Ok()
     | TDB _, DDB _ -> return Ok() // TODO: check DB type
-    | TList nested, DList dvs ->
-      // let! results =
-      //   dvs
-      //   |> Ply.List.mapSequentiallyWithIndex (fun i v ->
-      //     let context = ListIndex(i, nested, context)
-      //     unify context types typeArgSymbolTable nested v)
-      // return combineErrorsUnit results
-      // CLEANUP DList should include a TypeReference, in which case
-      // the type-checking here would just be a `tNested = dNested` check.
-      // (the construction of that DList should have already checked that the
-      // types match)
+    | TList nested, DList (typ, dvs) ->
+      // Hmm:
+      // let's say `nested` above is a TVar "a"
+      // and `typ` is a VTInt
+      // the next TVar "a" is required to be VTInt
+      // how?
+
+      (*
+        let i = [5]
+        let s = ["str"]
+        let f (a: List<'a>): List<'a> =
+          [6]
+
+        f i // should return [6]
+        f s // should ERROR
+      *)
+
+
       return Ok()
+
     | TDict valueType, DDict dmap ->
       // let! results =
       //   dmap
@@ -168,7 +176,7 @@ let rec unify
         match ut, value with
         | { definition = TypeDeclaration.Alias aliasType }, _ ->
           let! resolvedAliasType = getTypeReferenceFromAlias types aliasType
-          return! unify context types typeArgSymbolTable resolvedAliasType value
+          return! unify context types tat resolvedAliasType value
 
         | { definition = TypeDeclaration.Record _ }, DRecord(tn, _, dmap) ->
           // TYPESCLEANUP: this search should no longer be required

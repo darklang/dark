@@ -262,10 +262,7 @@ let rec eval'
 
     | EList(_id, exprs) ->
       let! results = Ply.List.mapSequentially (eval state tat st) exprs
-
-      match List.tryFind Dval.isFake results with
-      | Some fakeDval -> return fakeDval
-      | None -> return DList results
+      return Dval.list results
 
 
     | ETuple(_id, first, second, theRest) ->
@@ -443,9 +440,11 @@ let rec eval'
           return err id msg
         | _ when Dval.isFake obj -> return obj
         | _ ->
+          let typeName = obj |> Dval.toValueType |> DvalReprDeveloper.valueTypeName
+
           let msg =
             $"Attempting to access field '{field}' of a "
-            + $"{DvalReprDeveloper.dvalTypeName obj} (field access only works with records)"
+            + $"{typeName} (field access only works with records)"
           return err id msg
 
 
@@ -483,6 +482,12 @@ let rec eval'
               parameters = parameters
               body = body }
         )
+
+    (*
+      let myFn<'a> (x: 'a) (y: 'b): Int =
+        List.map (fun (c: 'c) -> Json.serialize<'c> c)
+        List.map (fun _ -> Json.serialize<'b> y)
+    *)
 
 
     | EMatch(id, matchExpr, cases) ->
@@ -578,10 +583,15 @@ let rec eval'
 
         | MPListCons(id, headPat, tailPat) ->
           match dv with
-          | DList(headVal :: tailVals) ->
+          // note: if we have the following:
+          //   match [1] with
+          //   | head :: tail ->
+          // , the input list was a List<Int> and so we expect the result to
+          // also be a List<Int> even though it's empty
+          | DList(typ, headVal :: tailVals) ->
             let (headPass, headVars, headTraces) = checkPattern headVal headPat
             let (tailPass, tailVars, tailTraces) =
-              checkPattern (DList tailVals) tailPat
+              checkPattern (DList (typ, tailVals)) tailPat
 
             let allSubVars = headVars @ tailVars
             let allSubTraces = headTraces @ tailTraces
@@ -596,7 +606,7 @@ let rec eval'
 
         | MPList(id, pats) ->
           match dv with
-          | DList vals ->
+          | DList (_, vals) ->
             if List.length vals = List.length pats then
               let (passResults, newVarResults, traceResults) =
                 List.zip vals pats
@@ -849,11 +859,13 @@ and executeLambda
         (List.zip l.parameters args)
 
       let paramSyms = List.zip parameters args |> Map
+      let paramTypes = Map.empty // TODO support type args from type params in lambdas
       // paramSyms is higher priority
 
       let newSymtable = Map.mergeFavoringRight l.symtable paramSyms
+      let newTypeTable = Map.mergeFavoringRight l.typeArgTable paramTypes
 
-      eval state l.typeArgTable newSymtable l.body
+      eval state newTypeTable newSymtable l.body
 
 and callFn
   (state : ExecutionState)
@@ -961,13 +973,26 @@ and execFn
       let types = ExecutionState.availableTypes state
 
       let typeArgsResolvedInFn = List.zip fn.typeParams typeArgs |> Map
-      let typeArgTable = Map.mergeFavoringRight tat typeArgsResolvedInFn
+      let tat = Map.mergeFavoringRight tat typeArgsResolvedInFn
 
-      match! TypeChecker.checkFunctionCall types typeArgTable fn args with
+      (*
+        let fn<'a> (a : 'a) (b1: 'b) (b2: 'b) (aList: List<'a>) (aResult: Result<'a, Int>) (bList: List<'b>) (bResult: Result<'b, String>)
+                    (subFn: 'a -> List<'b> -> 'c)
+                    : ('a, 'b, 'c) =
+
+          let something = Result.map (fun a -> a + 1) aResult
+          let something2 = Json.serialize<'b> b2
+          (a, b2, subFn a bList)
+      *)
+
+      // VTTODO
+      // need to have the below include any new typeArgs
+      // i.e. "a" -> Int
+      match! TypeChecker.checkFunctionCall types tat fn args with
       | Error err ->
         let msg = Errors.toString (Errors.TypeError(err))
         return DError(sourceID, msg)
-      | Ok() ->
+      | Ok tat ->
 
         let! result =
           match fn.fn with
@@ -1022,13 +1047,16 @@ and execFn
               |> List.map2 (fun dv p -> (p.name, dv)) args
               |> Map.ofList
               |> withGlobals state
-            eval state typeArgTable symTable body
+            eval state tat symTable body
 
         if Dval.isFake result then
           return result
         else
+          // VTTODO
+          // use typeArg table (incl anything returned by checkFnParams or whatever)
+          // to make sure this works
           match!
-            TypeChecker.checkFunctionReturnType types typeArgTable fn result
+            TypeChecker.checkFunctionReturnType types tat fn result
           with
           | Error err ->
             let msg = Errors.toString (Errors.TypeError(err))

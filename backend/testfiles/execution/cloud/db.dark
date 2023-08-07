@@ -1,3 +1,13 @@
+// test case to add
+// [5] |> List.tail // empty int list
+// store this in an List<Int> data store
+// try to add a string to the list
+// should get a type error (expected int got string)
+
+// also, if we try to store a MyType Int in a MyType String data store,
+// we should get a type error
+
+
 // really simple data stores of Records
 type X = { x: String }
 

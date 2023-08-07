@@ -540,7 +540,7 @@ let rec lambdaToSql
               match typeRef with
               // TYPESCLEANUP use typeArgs
               | TCustomType(typeName, _typeArgs) ->
-                match! Types.find typeName types with
+                match! LibExecution.Types.find typeName types with
                 | Some({ definition = TypeDeclaration.Alias aliasedType }) ->
                   return! dbFieldType aliasedType fieldName
 
