@@ -12,7 +12,8 @@ module Darklang =
       | [ "-h" ] -> PACKAGE.Darklang.Cli.Command.Help
       | [ "--help" ] -> PACKAGE.Darklang.Cli.Command.Help
       | [ "--prompt"; prompt ] -> PACKAGE.Darklang.Cli.Command.Infer prompt
-      | scriptPath :: args -> PACKAGE.Darklang.Cli.Command.RunScript(scriptPath, args)
+      | scriptPath :: args ->
+        PACKAGE.Darklang.Cli.Command.RunScript(scriptPath, args)
 
 
     let executeCommand (command: PACKAGE.Darklang.Cli.Command) : Int =
@@ -60,4 +61,6 @@ Options:
 
 
     let executeCliCommand (args: List<String>) : Int =
-      args |> PACKAGE.Darklang.Cli.parseArguments |> PACKAGE.Darklang.Cli.executeCommand
+      args
+      |> PACKAGE.Darklang.Cli.parseArguments
+      |> PACKAGE.Darklang.Cli.executeCommand

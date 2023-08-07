@@ -5,7 +5,11 @@ let _handler _req =
     |> PACKAGE.Darklang.Stdlib.Result.withDefault Bytes.empty
 
   let contentType =
-    match (String.split path ".") |> List.last |> PACKAGE.Darklang.Stdlib.Option.withDefault "" with
+    match
+      (String.split path ".")
+      |> List.last
+      |> PACKAGE.Darklang.Stdlib.Option.withDefault ""
+    with
     | "wasm" -> "application/wasm"
     | "js" -> "text/javascript"
     | "dll" -> "application/octet-stream"
@@ -18,15 +22,14 @@ let _handler _req =
     request.headers
     |> List.findFirst (fun t -> Tuple2.first t == "origin")
     |> PACKAGE.Darklang.Stdlib.Option.map (fun t -> Tuple2.second t)
-    |> PACKAGE.Darklang.Stdlib.Option.withDefault "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
+    |> PACKAGE.Darklang.Stdlib.Option.withDefault
+      "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
 
   let headers =
-      [
-        ("Access-Control-Allow-Origin", incomingHost)
-        ("Access-Control-Allow-Credentials", "true")
-        ("Content-type", contentType)
-        ("Accept-Ranges", "bytes")
-      ]
+    [ ("Access-Control-Allow-Origin", incomingHost)
+      ("Access-Control-Allow-Credentials", "true")
+      ("Content-type", contentType)
+      ("Accept-Ranges", "bytes") ]
 
   PACKAGE.Darklang.Stdlib.Http.responseWithHeaders body headers 200
 
@@ -144,24 +147,22 @@ let _indexHandler _req =
 </html>
   """
 
-  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders (String.toBytes body) [("Content-Type", "text/html")] 200
+  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+    (String.toBytes body)
+    [ ("Content-Type", "text/html") ]
+    200
 
 
-// TODO: this currently just returns 0, and I'm not sure why.
-//
-// I tried appending the big int with an L, but the parser seems to fail.
-let gid (): Int =
-  Int.random 0 9223372036854775807
+let gid () : Int = Int.random 0 9223372036854775807I
 
 
-let err (msg: String): Unit =
+let err (msg: String) : Unit =
   // TODO: maybe something with the msg?
-  let _ = 1.0/0.0
+  let _ = 1.0 / 0.0
   ()
 
 
-type PTTypeReference =
-  | TInt
+type PTTypeReference = | TInt
 
 
 // TODO: the types of the 'id' fields should be something more like `type id = Int`
@@ -169,7 +170,7 @@ type PTExpr =
   | EInt of id: Int * Int
   | ELet of id: Int * identifier: String * expr: PTExpr * body: PTExpr
   | EVariable of id: Int * String
-  | EFnCall of id: Int * fnName: String * args : List<PTExpr>
+  | EFnCall of id: Int * fnName: String * args: List<PTExpr>
 
 
 type PTUserFunctionParameter =
@@ -201,7 +202,7 @@ type SyntaxTreeNode =
 /// whose fieldName matches the one specified
 ///
 /// TODO: should return Option<SyntaxTreeNode>
-let getField (node: SyntaxTreeNode) (fieldName: String): SyntaxTreeNode =
+let getField (node: SyntaxTreeNode) (fieldName: String) : SyntaxTreeNode =
   let children = node.children
 
   // TOOD: ensure only 1 child of this type exists
@@ -211,66 +212,62 @@ let getField (node: SyntaxTreeNode) (fieldName: String): SyntaxTreeNode =
     |> List.findFirst (fun c ->
       match c.fieldName with
       | Some fName -> fName == fieldName
-      | None -> false
-    )
+      | None -> false)
 
   match found with
   | Some c -> c
   | None -> err ("Could not 1 field of name" ++ fieldName ++ " in node " ++ node.typ)
 
-let getText (node: SyntaxTreeNode): String =
-  node.text
+let getText (node: SyntaxTreeNode) : String = node.text
 
 // TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTExpr, String>
-let parseExprCase (node: SyntaxTreeNode): PTExpr =
+let parseExprCase (node: SyntaxTreeNode) : PTExpr =
   match node.typ with
-  | "identifier" -> PTExpr.EVariable (gid(), getText node)
+  | "identifier" -> PTExpr.EVariable(gid (), getText node)
 
   | "integer" ->
     let i = Int.parse (getText node)
-    PTExpr.EInt (gid(), i)
+    PTExpr.EInt(gid (), i)
 
   | "let_expression" ->
     let identifier = (getField node "identifier") |> getText
     let expr = (getField node "expr") |> parseExpr
     let body = (getField node "body") |> parseExpr
-    PTExpr.ELet (gid(), identifier, expr, body)
+    PTExpr.ELet(gid (), identifier, expr, body)
 
   | "function_call" ->
     let fnName = (getField node "fn") |> getText
 
     let args = getField node "args"
-    let args =
-      args.children
-      |> List.map (fun c -> parseExpr c)
+    let args = args.children |> List.map (fun c -> parseExpr c)
 
-    PTExpr.EFnCall (gid(), fnName, args)
+    PTExpr.EFnCall(gid (), fnName, args)
 
   | "infix_operation" ->
     let op = (getField node "operator") |> getText
 
-    let id = gid()
+    let id = gid ()
 
     let left = parseExpr (getField node "left")
     let right = parseExpr (getField node "right")
 
     match op with
-    | "+" -> PTExpr.EFnCall (id, "Int.add", [left; right])
-    | "-" -> PTExpr.EFnCall (id, "Int.subtract", [left; right])
+    | "+" -> PTExpr.EFnCall(id, "Int.add", [ left; right ])
+    | "-" -> PTExpr.EFnCall(id, "Int.subtract", [ left; right ])
 
 
 // TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTExpr, String>
-let parseExpr (node: SyntaxTreeNode): PTExpr =
+let parseExpr (node: SyntaxTreeNode) : PTExpr =
   if node.typ != "expression" then
     err "bad expr"
 
   match node.children with
-  | [single] -> single |> parseExprCase
+  | [ single ] -> single |> parseExprCase
   | _ -> err "expression has 0 or 2+ children"
 
 
 // TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTTypeReference, String>
-let parseTypeReference (node: SyntaxTreeNode): PTTypeReference =
+let parseTypeReference (node: SyntaxTreeNode) : PTTypeReference =
   // TODO: support additional types
   PTTypeReference.TInt
 
@@ -279,18 +276,18 @@ let parseTypeReference (node: SyntaxTreeNode): PTTypeReference =
 // e.g. `let doSomething () = ...`
 //
 // TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTUserFunctionParameter, String>
-let parseUserFunctionParam (node: SyntaxTreeNode): PTUserFunctionParameter =
+let parseUserFunctionParam (node: SyntaxTreeNode) : PTUserFunctionParameter =
   if node.typ != "fn_param_def" then
     err "fn param def wrong"
 
   PTUserFunctionParameter
-    { id = gid()
+    { id = gid ()
       name = (getField node "identifier") |> getText
       typ = (getField node "typ") |> parseTypeReference
       description = "TODO" }
 
 
-let parseUserFunctionParams (node: SyntaxTreeNode): List<PTUserFunctionParameter> =
+let parseUserFunctionParams (node: SyntaxTreeNode) : List<PTUserFunctionParameter> =
   if node.typ != "fn_params_def" then
     err "fn params def wrong"
 
@@ -298,19 +295,18 @@ let parseUserFunctionParams (node: SyntaxTreeNode): List<PTUserFunctionParameter
   let first = getField node "first"
   let additional = getField node "additional"
 
-  [ first; additional ]
-  |> List.map(fun p -> parseUserFunctionParam p)
+  [ first; additional ] |> List.map (fun p -> parseUserFunctionParam p)
 
 
 // TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTUserFunction, String>
-let parseUserFunction (node: SyntaxTreeNode): PTUserFunction =
+let parseUserFunction (node: SyntaxTreeNode) : PTUserFunction =
   if node.typ != "fn_def" then
     err "fn def wrong"
 
   let params = (getField node "params") |> parseUserFunctionParams
 
   PTUserFunction
-    { tlid = gid()
+    { tlid = gid ()
       name = (getField node "name") |> getText
       parameters = params
       typeParams = []
@@ -337,16 +333,17 @@ let _handler _req =
 
     let userFn =
       match root.children with
-      | [userFunction] -> parseUserFunction userFunction
+      | [ userFunction ] -> parseUserFunction userFunction
 
     match Json.serialize<PTUserFunction> userFn with
     | Ok serialized ->
       let respHeaders = [ ("content-type", "application/json") ]
 
-      PACKAGE.Darklang.Stdlib.Http.responseWithHeaders (String.toBytes serialized) respHeaders 200
+      PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+        (String.toBytes serialized)
+        respHeaders
+        200
 
-    | Error e ->
-      PACKAGE.Darklang.Stdlib.Http.response (String.toBytes_v0 e) 500
+    | Error e -> PACKAGE.Darklang.Stdlib.Http.response (String.toBytes_v0 e) 500
 
-  | Error e ->
-    PACKAGE.Darklang.Stdlib.Http.response (String.toBytes_v0 e) 400
+  | Error e -> PACKAGE.Darklang.Stdlib.Http.response (String.toBytes_v0 e) 400

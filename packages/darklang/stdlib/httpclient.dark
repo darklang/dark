@@ -9,10 +9,15 @@ module Darklang =
         (password: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<(String * String), String> =
         if String.contains "-" username then
-          PACKAGE.Darklang.Stdlib.Result.Result.Error "Username cannot contain a hyphen"
+          PACKAGE.Darklang.Stdlib.Result.Result.Error
+            "Username cannot contain a hyphen"
         else
           let encoded = String.base64encode $"{username}:{password}"
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok("authorization", $"basic {encoded}")
+
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+            "authorization",
+            $"basic {encoded}"
+          )
 
       /// Returns a header <type (String*String))> with {{'authorization'}} set to <param token>
       let bearerToken (token: String) : (String * String) =

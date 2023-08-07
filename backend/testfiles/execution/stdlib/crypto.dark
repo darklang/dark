@@ -1,9 +1,18 @@
 Bytes.hexEncode_v0 (Crypto.md5_v0 (String.toBytes_v0 "")) = "D41D8CD98F00B204E9800998ECF8427E"
 Bytes.hexEncode_v0 (Crypto.sha256_v0 (String.toBytes_v0 "")) = "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
 Bytes.hexEncode_v0 (Crypto.sha384_v0 (String.toBytes_v0 "")) = "38B060A751AC96384CD9327EB1B1E36A21FDB71114BE07434C0CC7BF63F6E1DA274EDEBFE76F65FBD51AD2F14898B95B"
-Bytes.hexEncode_v0 (Crypto.md5_v0 (String.toBytes_v0 "a longer string that's more interesting")) = "D95E619F023B430CAAAEB6778A0B9BD1"
-Bytes.hexEncode_v0 (Crypto.sha256_v0 (String.toBytes_v0 "a longer string that's more interesting")) = "1316F78627BC453D44D27E3133902CF798859572E814EED4B5FB56BB1447F05F"
-Bytes.hexEncode_v0 (Crypto.sha384_v0 (String.toBytes_v0 "a longer string that's more interesting")) = "AD7273EF514770D80B516D067354CB300FE458C042CE084EC97125718678C3C21415FE224658839963F0B2D90137AA7B"
+
+Bytes.hexEncode_v0 (
+  Crypto.md5_v0 (String.toBytes_v0 "a longer string that's more interesting")
+) = "D95E619F023B430CAAAEB6778A0B9BD1"
+
+Bytes.hexEncode_v0 (
+  Crypto.sha256_v0 (String.toBytes_v0 "a longer string that's more interesting")
+) = "1316F78627BC453D44D27E3133902CF798859572E814EED4B5FB56BB1447F05F"
+
+Bytes.hexEncode_v0 (
+  Crypto.sha384_v0 (String.toBytes_v0 "a longer string that's more interesting")
+) = "AD7273EF514770D80B516D067354CB300FE458C042CE084EC97125718678C3C21415FE224658839963F0B2D90137AA7B"
 
 // sha256hmac
 (let secretBytes = String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY" in
@@ -18,7 +27,7 @@ Bytes.hexEncode_v0 (Crypto.sha384_v0 (String.toBytes_v0 "a longer string that's 
 // aws
 (let scope = "20150830/us-east-1/iam/aws4_request" in
  let content = "f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59" in
- let strs = ["AWS4-HMAC-SHA256";"20150830T123600Z";scope;content] in
+ let strs = [ "AWS4-HMAC-SHA256"; "20150830T123600Z"; scope; content ] in
  let strToSign = String.join_v0 strs String.newline_v0 in
  let secret = String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY" in
  let data = String.toBytes_v0 "20150830" in
