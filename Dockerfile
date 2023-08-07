@@ -414,7 +414,7 @@ dotnet --help
 EOF
 
 # formatting
-RUN dotnet tool install fantomas --version 6.0.4 -g
+RUN dotnet tool install fantomas --version 6.1.2 -g
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
 #############
