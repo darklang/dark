@@ -1,598 +1,837 @@
-let c (arg: String) : Char =
-  (Test.toChar_v0 arg) |> unwrap
+let c (arg: String) : Char = (Test.toChar_v0 arg) |> unwrap
 
-"" ++ "" = ""
-"a" ++ "̂" = "â"
-"hello" ++ " world" = "hello world"
-"ᄀ" ++ "ᅡᆨ" = "각"
-"" ++ "a" = "a"
-"a" ++ "" = "a"
-"a" ++ "̂" = "â"
-"Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-"﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-"Είναι προικισμένοι με λογική" = "Είναι προικισμένοι με λογική"
-"👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+module Equality =
+  "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+  "Είναι προικισμένοι με λογική" = "Είναι προικισμένοι με λογική"
+  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 
+module Append =
+  "" ++ "" = ""
+  "a" ++ "̂" = "â"
+  "hello" ++ " world" = "hello world"
+  "ᄀ" ++ "ᅡᆨ" = "각"
+  "" ++ "a" = "a"
+  "a" ++ "" = "a"
+  "a" ++ "̂" = "â"
 
-String.append "a" "̂" = "â"
-String.append "" "" = ""
-String.append "hello" " world" = "hello world"
-String.append "hello" "world" = "helloworld" // String.append works for ASCII range
-String.append "ᄀ" "ᅡᆨ" = "각"
-String.append "żółw" "😄" = "żółw😄" // String.append works on non-ascii strings
-String.append "🧑🏼‍💻" "🧑🏻‍🍼" = "🧑🏼‍💻🧑🏻‍🍼"
-String.append "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-String.append "🧟‍♂️🧟‍♀️" "🧟‍♂️" = "🧟‍♂️🧟‍♀️🧟‍♂️"
-String.append  "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "👨‍❤️‍💋‍👨"= "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇👨‍❤️‍💋‍👨"
-
-
-(String.join_v0 ["a"; "̂"] "") |> String.base64Encode_v0 = "w6I"
-String.join_v0 ["hello"; " world"] "" = "hello world"
-String.join_v0 ["﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"; "🧟‍♀️"] "" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽🧟‍♀️"
-String.join_v0 ["👱👱🏻👱🏼👱🏽👱🏾👱🏿"; "👨‍❤️‍💋‍👨"; "﷽﷽﷽"] "" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿👨‍❤️‍💋‍👨﷽﷽﷽"
-String.join_v0 ["🧟‍♀️🧟‍♂️"; "🧟‍♀️🧑🏽‍🦰"] "" = "🧟‍♀️🧟‍♂️🧟‍♀️🧑🏽‍🦰"
-String.join_v0 ["👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️"; "‍⚧️‍️🇵🇷"] "" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-String.join_v0 ["🧟‍♀️🧟‍♂️‍"; "🧟‍♀️🧑🏽‍🦰‍‍"] "" = "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
-String.join_v0 ["🧑🏽‍🦰‍"; "🧑🏼‍💻‍‍"] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
+  String.append "a" "̂" = "â"
+  String.append "" "" = ""
+  String.append "hello" " world" = "hello world"
+  String.append "hello" "world" = "helloworld" // String.append works for ASCII range
+  String.append "ᄀ" "ᅡᆨ" = "각"
+  String.append "żółw" "😄" = "żółw😄" // String.append works on non-ascii strings
+  String.append "🧑🏼‍💻" "🧑🏻‍🍼" = "🧑🏼‍💻🧑🏻‍🍼"
+  String.append "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+  String.append "🧟‍♂️🧟‍♀️" "🧟‍♂️" = "🧟‍♂️🧟‍♀️🧟‍♂️"
+  String.append "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "👨‍❤️‍💋‍👨" = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇👨‍❤️‍💋‍👨"
 
 
-Bytes.length (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
-Bytes.length (String.toBytes_v0 "😄APPLE🍏") = 13
-Bytes.length (String.toBytes_v0 "Είναι προικισμένοι με λογική") = 53
-Bytes.length (String.toBytes_v0 "") = 0
-Bytes.length (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
-Bytes.length (String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = 48
-Bytes.length (String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = 44
-Bytes.length (String.toBytes_v0 "🧟‍♀️🧟‍♂️") = 26
-Bytes.length (String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷") = 82
-Bytes.length (String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = 49
-Bytes.length (String.toBytes_v0 "") = 0
+module Join =
+  (String.join_v0 [ "a"; "̂" ] "") |> String.base64Encode_v0 = "w6I"
+  String.join_v0 [ "hello"; " world" ] "" = "hello world"
+  String.join_v0 [ "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"; "🧟‍♀️" ] "" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽🧟‍♀️"
+  String.join_v0 [ "👱👱🏻👱🏼👱🏽👱🏾👱🏿"; "👨‍❤️‍💋‍👨"; "﷽﷽﷽" ] "" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿👨‍❤️‍💋‍👨﷽﷽﷽"
+  String.join_v0 [ "🧟‍♀️🧟‍♂️"; "🧟‍♀️🧑🏽‍🦰" ] "" = "🧟‍♀️🧟‍♂️🧟‍♀️🧑🏽‍🦰"
+  String.join_v0 [ "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️"; "‍⚧️‍️🇵🇷" ] "" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+  String.join_v0 [ "🧟‍♀️🧟‍♂️‍"; "🧟‍♀️🧑🏽‍🦰‍‍" ] "" = "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
+  String.join_v0 [ "🧑🏽‍🦰‍"; "🧑🏼‍💻‍‍" ] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
+
+module ToBytes =
+  Bytes.length (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
+  Bytes.length (String.toBytes_v0 "😄APPLE🍏") = 13
+  Bytes.length (String.toBytes_v0 "Είναι προικισμένοι με λογική") = 53
+  Bytes.length (String.toBytes_v0 "") = 0
+  Bytes.length (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
+  Bytes.length (String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = 48
+  Bytes.length (String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = 44
+  Bytes.length (String.toBytes_v0 "🧟‍♀️🧟‍♂️") = 26
+  Bytes.length (String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷") = 82
+  Bytes.length (String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = 49
+  Bytes.length (String.toBytes_v0 "") = 0
+
+module StartsWith =
+  String.startsWith_v0 "a string" "a s" = true
+  String.startsWith_v0 "a string" " s" = false
+  String.startsWith_v0 "żółw" "żó" = true
+  String.startsWith_v0 "żółw" "r22" = false
+  String.startsWith_v0 "👩🏻‍🚀🍇" "🍇" = false
+  String.startsWith_v0 "123456" "123" = true
+  String.startsWith_v0 "" "" = true
+  String.startsWith_v0 "E" "\u0014\u0004" = false
+  String.startsWith_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏾‍🦰" = false
+  String.startsWith_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚" = true
+  String.startsWith_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" = true
+  String.startsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏿" = false
+  String.startsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = false
+
+  String.startsWith_v0
+    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️" = true
+
+  String.startsWith_v0 "a string" "" = true
+
+module EndsWith =
+  String.endsWith_v0 "a string" "in" = false
+  String.endsWith_v0 "a string" "ing" = true
+  String.endsWith_v0 "a string" "" = true
+  String.endsWith_v0 "żółw" "żó" = false
+  String.endsWith_v0 "żółw" "łw" = true
+  String.endsWith_v0 "👩🏻‍🚀🍇" "🍇" = true
+  String.endsWith_v0 "123456" "56" = true
+  String.endsWith_v0 "" "" = true
+  String.endsWith_v0 "E" "\u0014\u0004" = false
+  String.endsWith_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "✋✋🏿✋🏿" = false
+  String.endsWith_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ǧ̗͚̚o̙̔ͮ̇͐̇" = true
+  String.endsWith_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "12xsd" = false
+  String.endsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "﷽" = false
+  String.endsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♀️" = false
+  String.endsWith_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "‍⚧️‍️🇵🇷" = true
 
 
-String.startsWith_v0 "a string" "a s" = true
-String.startsWith_v0 "a string" " s" = false
-String.startsWith_v0 "żółw" "żó" = true
-String.startsWith_v0 "żółw" "r22" = false
-String.startsWith_v0 "👩🏻‍🚀🍇" "🍇" = false
-String.startsWith_v0 "123456" "123" = true
-String.startsWith_v0 "" "" = true
-String.startsWith_v0 "E" "\u0014\u0004" = false
-String.startsWith_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏾‍🦰" = false
-String.startsWith_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚" = true
-String.startsWith_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" = true
-String.startsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏿" = false
-String.startsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = false
-String.startsWith_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️"= true
-String.startsWith_v0 "a string" "" = true
+module Map =
+  String.map "a string" (fun x -> x) = "a string"
+  String.map "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" (fun x -> x) = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  String.map "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" (fun x -> x) = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+  String.map "👱👱🏻👱🏼👱🏽👱🏾👱🏿" (fun x -> x) = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+  String.map "🧟‍♀️🧟‍♂️" (fun x -> x) = "🧟‍♀️🧟‍♂️"
+  String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> x) = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+
+  // Check that map executes the right number of times
+  (let v =
+    String.map "a string" (fun x ->
+      let _ = Test.incrementSideEffectCounter_v0 false in 'c') in
+
+   (v, Test.sideEffectCount_v0 ())) = ("cccccccc", 8)
 
 
-String.endsWith_v0 "a string" "in" = false
-String.endsWith_v0 "a string" "ing" = true
-String.endsWith_v0 "a string" "" = true
-String.endsWith_v0 "żółw" "żó" = false
-String.endsWith_v0 "żółw" "łw" = true
-String.endsWith_v0 "👩🏻‍🚀🍇" "🍇" = true
-String.endsWith_v0 "123456" "56" = true
-String.endsWith_v0 "" "" = true
-String.endsWith_v0 "E" "\u0014\u0004" = false
-String.endsWith_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "✋✋🏿✋🏿" = false
-String.endsWith_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ǧ̗͚̚o̙̔ͮ̇͐̇" = true
-String.endsWith_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "12xsd" = false
-String.endsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "﷽" = false
-String.endsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♀️" = false
-String.endsWith_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "‍⚧️‍️🇵🇷"= true
+module FromChar =
+  String.fromChar 'a' = "a"
+  String.fromChar (c "1") = "1"
+  String.fromChar (c "👩‍👩‍👧‍👦") = "👩‍👩‍👧‍👦"
+  String.fromChar (c "🏳️‍⚧️‍️") = "🏳️‍⚧️‍️"
+  String.fromChar (c "👱🏾") = "👱🏾"
+  String.fromChar (c "Z̤͔ͧ̑̓") = "Z̤͔ͧ̑̓"
 
 
-String.map "a string" (fun x -> x) = "a string"
-String.map "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" (fun x -> x) = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-String.map "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" (fun x -> x) = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-String.map "👱👱🏻👱🏼👱🏽👱🏾👱🏿" (fun x -> x) = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-String.map "🧟‍♀️🧟‍♂️" (fun x -> x) = "🧟‍♀️🧟‍♂️"
-String.map  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> x) = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+
+module Base64Decode =
+  String.base64Decode_v0 "random string" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Not a valid base64 string"
+
+  String.base64Decode_v0 "illegal chars&@:" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Not a valid base64 string"
+
+  String.base64Decode_v0 "Kw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "+"
+  String.base64Decode_v0 "yLo" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "Ⱥ"
+
+  String.base64Decode_v0 "xbzDs8WCdw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "żółw"
+
+  String.base64Decode_v0 "LyotKygmQDk4NTIx" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "/*-+(&@98521"
+
+  String.base64Decode_v0 "" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "" // empty case
 
 
-String.fromChar 'a' = "a"
-String.fromChar (c "1") = "1"
-String.fromChar (c "👩‍👩‍👧‍👦") = "👩‍👩‍👧‍👦"
-String.fromChar (c "🏳️‍⚧️‍️") = "🏳️‍⚧️‍️"
-String.fromChar (c "👱🏾") = "👱🏾"
-String.fromChar (c "Z̤͔ͧ̑̓") = "Z̤͔ͧ̑̓"
+  // Test cases from the spec with padding added
+  String.base64Decode_v0 "Zg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "f"
+  String.base64Decode_v0 "Zg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "f"
+  String.base64Decode_v0 "Zm8" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "fo"
+  String.base64Decode_v0 "Zm8=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "fo"
+  String.base64Decode_v0 "Zm9v" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foo"
+  String.base64Decode_v0 "Zm9vYg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foob"
+  String.base64Decode_v0 "Zm9vYg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foob"
+  String.base64Decode_v0 "Zm9vYmE" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "fooba"
+
+  String.base64Decode_v0 "Zm9vYmE=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "fooba"
+
+  String.base64Decode_v0 "Zm9vYmFy" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "foobar"
 
 
-String.base64Decode_v0 "random string" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a valid base64 string"
-String.base64Decode_v0 "illegal chars&@:" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a valid base64 string"
-String.base64Decode_v0 "Kw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "+"
-String.base64Decode_v0 "yLo" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "Ⱥ"
-String.base64Decode_v0 "xbzDs8WCdw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok  "żółw"
-String.base64Decode_v0 "LyotKygmQDk4NTIx" = PACKAGE.Darklang.Stdlib.Result.Result.Ok  "/*-+(&@98521"
-String.base64Decode_v0 "" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "" // empty case
-// Test cases from the spec with padding added
-String.base64Decode_v0 "Zg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "f"
-String.base64Decode_v0 "Zg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "f"
-String.base64Decode_v0 "Zm8" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "fo"
-String.base64Decode_v0 "Zm8=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "fo"
-String.base64Decode_v0 "Zm9v" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foo"
-String.base64Decode_v0 "Zm9vYg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foob"
-String.base64Decode_v0 "Zm9vYg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foob"
-String.base64Decode_v0 "Zm9vYmE" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "fooba"
-String.base64Decode_v0 "Zm9vYmE=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "fooba"
-String.base64Decode_v0 "Zm9vYmFy" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foobar"
-// "Impossible cases" from apache
-// https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
-String.base64Decode_v0 "ZE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "d"
-String.base64Decode_v0 "ZmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "f`"
-String.base64Decode_v0 "Zm9vYE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foo`"
-String.base64Decode_v0 "Zm9vYmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foob`"
-String.base64Decode_v0 "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "from=06/07/2013 query=\"Καλώς ορίσατε\""
-String.base64Decode_v0 "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-// These produce strings of bytes which are technically legal it seems
-String.base64Decode_v0 "-p" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "�"
-String.base64Decode_v0 "lI" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "�"
-String.base64Decode_v0 "5Sk" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "�)"
+  // "Impossible cases" from apache
+  // https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
+  String.base64Decode_v0 "ZE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "d"
+  String.base64Decode_v0 "ZmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "f`"
+  String.base64Decode_v0 "Zm9vYE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foo`"
+
+  String.base64Decode_v0 "Zm9vYmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "foob`"
+
+  String.base64Decode_v0
+    "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "from=06/07/2013 query=\"Καλώς ορίσατε\""
+
+  String.base64Decode_v0
+    "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
 
 
-String.base64Encode_v0 "+" = "Kw"
-String.base64Encode_v0 "Ⱥ" = "yLo"
-String.base64Encode_v0 "żółw" = "xbzDs8WCdw"
-String.base64Encode_v0 "/*-+(&@98521" = "LyotKygmQDk4NTIx"
-String.base64Encode_v0 "" = ""
-String.base64Encode_v0 "f" = "Zg"
-String.base64Encode_v0 "fo" = "Zm8"
-String.base64Encode_v0 "foo" = "Zm9v"
-String.base64Encode_v0 "foob" = "Zm9vYg"
-String.base64Encode_v0 "fooba" = "Zm9vYmE"
-String.base64Encode_v0 "foobar" = "Zm9vYmFy"
-String.base64Encode_v0 "Hello World" = "SGVsbG8gV29ybGQ"
-String.base64Encode_v0 "from=06/07/2013 query=\"Καλώς ορίσατε\"" = "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig"
-String.base64Encode_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78"
+  // These produce strings of bytes which are technically legal it seems
+  String.base64Decode_v0 "-p" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "�"
+  String.base64Decode_v0 "lI" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "�"
+  String.base64Decode_v0 "5Sk" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "�)"
 
 
-String.digest_v0 "" = "OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb"
-String.digest_v0 "😄" = "Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA"
-String.digest_v0 "ελπίδα" = "j4uJEeBe6g8QrzbuxoI2roUgapGQiExE8CWEQqZao61eZVN1iSZ8cV39IM1nGqsa"
-String.digest_v0 "/*-+(&@98521" = "wSGXFkLMpPufNoF2mUBAjT4YlUEb9cl0Iliy4qohwt1XFpg51PRJVTWndn5PewSr"
-String.digest_v0 "👩🏻‍🚀🍇" = "hVrNUSbFOfYXwZe6zQRUFFfGPe90qr-aROG2n-hMk8kAC-xodOyHOqecLWb9HIKJ"
-String.digest_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = "7Fo0ImavUzoUM_9kdjucgh6pYAHk5VovpTOUObvxacS31QoCTkcE4rpcQbJJpshE"
-String.digest_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "U2v72uGbUR_UIiD5qF6L21pKzYi4B6OB76HGtbpM0o-2_4YB3ytPjJ7w9png3L9k"
-String.digest_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "c1Wm67axXlBaejcJZxct80MvexdTtyyrTK9J9-_4RqgP1pf4Bk9SoMZpsnXpvLIx"
-String.digest_v0 "🧟‍♀️🧟‍♂️" = "FBnrDureCzgPeGP9qOuW1BIiF2Wz5WejO5XtJWa81qCxcD6cZ4A_WAB0ZJzhOErc"
-String.digest_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= "3QFqrhTPpxeje6XUNObFt2eJZZ1t0pAcX42AFdFVv42hco0bTOopQK3py4KMBT0m"
+module Base64Encode =
+  String.base64Encode_v0 "+" = "Kw"
+  String.base64Encode_v0 "Ⱥ" = "yLo"
+  String.base64Encode_v0 "żółw" = "xbzDs8WCdw"
+  String.base64Encode_v0 "/*-+(&@98521" = "LyotKygmQDk4NTIx"
+  String.base64Encode_v0 "" = ""
+  String.base64Encode_v0 "f" = "Zg"
+  String.base64Encode_v0 "fo" = "Zm8"
+  String.base64Encode_v0 "foo" = "Zm9v"
+  String.base64Encode_v0 "foob" = "Zm9vYg"
+  String.base64Encode_v0 "fooba" = "Zm9vYmE"
+  String.base64Encode_v0 "foobar" = "Zm9vYmFy"
+  String.base64Encode_v0 "Hello World" = "SGVsbG8gV29ybGQ"
+  String.base64Encode_v0 "from=06/07/2013 query=\"Καλώς ορίσατε\"" = "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig"
+  String.base64Encode_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78"
 
 
-(String.random 5) == (String.random 5) = false
-String.random -1 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `length` to be positive, but it was `-1`"
-String.length ((String.random 10) |> unwrap) = 10
-String.length ((String.random 5) |> unwrap) = 5
-String.length ((String.random 0) |> unwrap) = 0
+module Digest =
+  String.digest_v0 "" = "OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb"
+  String.digest_v0 "😄" = "Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA"
+  String.digest_v0 "ελπίδα" = "j4uJEeBe6g8QrzbuxoI2roUgapGQiExE8CWEQqZao61eZVN1iSZ8cV39IM1nGqsa"
+  String.digest_v0 "/*-+(&@98521" = "wSGXFkLMpPufNoF2mUBAjT4YlUEb9cl0Iliy4qohwt1XFpg51PRJVTWndn5PewSr"
+  String.digest_v0 "👩🏻‍🚀🍇" = "hVrNUSbFOfYXwZe6zQRUFFfGPe90qr-aROG2n-hMk8kAC-xodOyHOqecLWb9HIKJ"
+  String.digest_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = "7Fo0ImavUzoUM_9kdjucgh6pYAHk5VovpTOUObvxacS31QoCTkcE4rpcQbJJpshE"
+  String.digest_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "U2v72uGbUR_UIiD5qF6L21pKzYi4B6OB76HGtbpM0o-2_4YB3ytPjJ7w9png3L9k"
+  String.digest_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "c1Wm67axXlBaejcJZxct80MvexdTtyyrTK9J9-_4RqgP1pf4Bk9SoMZpsnXpvLIx"
+  String.digest_v0 "🧟‍♀️🧟‍♂️" = "FBnrDureCzgPeGP9qOuW1BIiF2Wz5WejO5XtJWa81qCxcD6cZ4A_WAB0ZJzhOErc"
+  String.digest_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "3QFqrhTPpxeje6XUNObFt2eJZZ1t0pAcX42AFdFVv42hco0bTOopQK3py4KMBT0m"
 
 
-String.htmlEscape_v0 "test<>&\"" = "test&lt;&gt;&amp;&quot;" // HTML escaping works reasonably
-String.htmlEscape_v0 "<html><head></head><body><h1>This is f#</h1></body></html>" = "&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;This is f#&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;" // HTML escaping works reasonably
-String.htmlEscape_v0 "<html><head><!-- head definitions go here --></head><body><!-- the content goes here --></body></html>" = "&lt;html&gt;&lt;head&gt;&lt;!-- head definitions go here --&gt;&lt;/head&gt;&lt;body&gt;&lt;!-- the content goes here --&gt;&lt;/body&gt;&lt;/html&gt;"
-String.htmlEscape_v0 "" = ""
-String.htmlEscape_v0 "😄" = "😄"
-String.htmlEscape_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-String.htmlEscape_v0 "<html><head></head><body><h1>﷽﷽﷽﷽﷽</h1></body></html>" = "&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;﷽﷽﷽﷽﷽&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;"
-String.htmlEscape_v0 "<head>🧟‍♀️🧟‍♂️</head>" = "&lt;head&gt;🧟‍♀️🧟‍♂️&lt;/head&gt;"
-String.htmlEscape_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+module Random =
+  (String.random 5) == (String.random 5) = false
+
+  String.random -1 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Expected `length` to be positive, but it was `-1`"
+
+  String.length ((String.random 10) |> unwrap) = 10
+  String.length ((String.random 5) |> unwrap) = 5
+  String.length ((String.random 0) |> unwrap) = 0
 
 
-String.isEmpty_v0 "" = true
-String.isEmpty_v0 "a" = false
-String.isEmpty_v0 "🧑🏼‍💻🧑🏻‍🍼" = false
-String.isEmpty_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = false
-String.isEmpty_v0 "﷽﷽﷽﷽﷽" = false
-String.isEmpty_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = false
-String.isEmpty_v0 "🧟‍♀️🧟‍♂️" = false
-String.isEmpty_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= false
+module HtmlEscape =
+  String.htmlEscape_v0 "test<>&\"" = "test&lt;&gt;&amp;&quot;" // HTML escaping works reasonably
+  String.htmlEscape_v0 "<html><head></head><body><h1>This is f#</h1></body></html>" = "&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;This is f#&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;" // HTML escaping works reasonably
+
+  String.htmlEscape_v0
+    "<html><head><!-- head definitions go here --></head><body><!-- the content goes here --></body></html>" = "&lt;html&gt;&lt;head&gt;&lt;!-- head definitions go here --&gt;&lt;/head&gt;&lt;body&gt;&lt;!-- the content goes here --&gt;&lt;/body&gt;&lt;/html&gt;"
+
+  String.htmlEscape_v0 "" = ""
+  String.htmlEscape_v0 "😄" = "😄"
+  String.htmlEscape_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  String.htmlEscape_v0 "<html><head></head><body><h1>﷽﷽﷽﷽﷽</h1></body></html>" = "&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;﷽﷽﷽﷽﷽&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;"
+  String.htmlEscape_v0 "<head>🧟‍♀️🧟‍♂️</head>" = "&lt;head&gt;🧟‍♀️🧟‍♂️&lt;/head&gt;"
+  String.htmlEscape_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 
 
-String.newline_v0 = "\n"
+module IsEmpty =
+  String.isEmpty_v0 "" = true
+  String.isEmpty_v0 "a" = false
+  String.isEmpty_v0 "🧑🏼‍💻🧑🏻‍🍼" = false
+  String.isEmpty_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = false
+  String.isEmpty_v0 "﷽﷽﷽﷽﷽" = false
+  String.isEmpty_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = false
+  String.isEmpty_v0 "🧟‍♀️🧟‍♂️" = false
+  String.isEmpty_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = false
 
 
-String.length "😄" = 1
-String.length "" = 0
-String.length "abcdef" = 6
-String.length "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = 6
-String.length "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = 5
-String.length "﷽﷽﷽﷽﷽" = 5
-String.length "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = 6
-String.length "🧟‍♀️🧟‍♂️" = 2
-String.length  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= 4
+module NewLine =
+  String.newline_v0 = "\n"
 
 
-String.prepend_v0 "hello" "world" = "worldhello" // String.prepend works for ASCII range
-String.prepend_v0 "hello" "" = "hello"
-String.prepend_v0 "" "hello" = "hello"
-String.prepend_v0 "żółw" "😄" = "😄żółw" // String.prepend works on non-ascii strings
-String.prepend_v0 "123" "456" = "456123"
-String.prepend_v0 "óñÜá" "abc" = "abcóñÜá"
-String.prepend_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓"= "Z̤͔ͧ̑̓Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-String.prepend_v0 "﷽﷽﷽﷽﷽" "👨‍❤️‍💋‍👨" = "👨‍❤️‍💋‍👨﷽﷽﷽﷽﷽"
-String.prepend_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-String.prepend_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "✋🏻"= "✋🏻👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-String.prepend_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = "🧟‍♂️🧟‍♀️🧟‍♂️"
-String.prepend_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨" = "👨‍❤️‍💋‍👨👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-String.prepend_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧟‍♂️"= "🧟‍♂️żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+module Length =
+  String.length "😄" = 1
+  String.length "" = 0
+  String.length "abcdef" = 6
+  String.length "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = 6
+  String.length "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = 5
+  String.length "﷽﷽﷽﷽﷽" = 5
+  String.length "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = 6
+  String.length "🧟‍♀️🧟‍♂️" = 2
+  String.length "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = 4
 
 
-String.replaceAll_v0 "abcABCcbaCBA" "b" "x" = "axcABCcxaCBA"
-String.replaceAll_v0 "abcABCcbaCBA" "" "x" = "xaxbxcxAxBxCxcxbxaxCxBxAx"
-String.replaceAll_v0 "" "" "&" = "&"
-String.replaceAll_v0 "abcABCcbaCBA" "b" "" = "acABCcaCBA"
-String.replaceAll_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ä͖̭̈̇" "$" = "Z̤͔ͧ̑̓$lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-String.replaceAll_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽" "$" = "$$$$$$$$"
-String.replaceAll_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏽" "✋🏻"= "👱👱🏻👱🏼✋🏻👱🏾👱🏿"
-String.replaceAll_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" "🧑🏽‍🦰" = "🧟‍♀️🧑🏽‍🦰"
-String.replaceAll_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨" "👨‍❤️‍💋‍👨" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-String.replaceAll_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏻‍🍼" "🧟‍♂️"= "żółw🧑🏽‍🦰🧟‍♂️✋✋🏻✋🏿"
+module Prepend =
+  String.prepend_v0 "hello" "world" = "worldhello" // String.prepend works for ASCII range
+  String.prepend_v0 "hello" "" = "hello"
+  String.prepend_v0 "" "hello" = "hello"
+  String.prepend_v0 "żółw" "😄" = "😄żółw" // String.prepend works on non-ascii strings
+  String.prepend_v0 "123" "456" = "456123"
+  String.prepend_v0 "óñÜá" "abc" = "abcóñÜá"
+  String.prepend_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓" = "Z̤͔ͧ̑̓Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  String.prepend_v0 "﷽﷽﷽﷽﷽" "👨‍❤️‍💋‍👨" = "👨‍❤️‍💋‍👨﷽﷽﷽﷽﷽"
+  String.prepend_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+  String.prepend_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "✋🏻" = "✋🏻👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+  String.prepend_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = "🧟‍♂️🧟‍♀️🧟‍♂️"
+  String.prepend_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨" = "👨‍❤️‍💋‍👨👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+  String.prepend_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧟‍♂️" = "🧟‍♂️żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
 
 
-String.slugify "  M@y  'super'  Really- exce+llent *Uber_ ama\"zing* ~very   5x5 ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-5x5-clever-thing-coffee"
-String.slugify "  m@y  'super'  really- excellent *uber_ amazing* ~very  ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-clever-thing-coffee"
-String.slugify "" = ""
-String.slugify "ABCD-45646sassa" = "abcd-45646sassa"
-String.slugify "ddsd516ds125sd12sd12Ü" = "ddsd516ds125sd12sd12"
-String.slugify "q=\u0002$\u001a<+MC" = "qmc"
-String.slugify "🎁🎄Ǣʚ231" = "231"
-String.slugify "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = ""
-String.slugify "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "zlo"
-String.slugify "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = ""
-String.slugify "🧟‍♀️🧟‍♂️" = ""
-String.slugify "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = ""
-String.slugify "b\x01c\x02d\x03e\x04f\x05g\x06h\x07i\x08j\x09k\x0Al\x0Bm\x0Cn\x0Do\x0Ep\x0Fq" = "bcdefghij-k-lm-n-opq"
-String.slugify "a\x10b\x11c\x12d\x13e\x14f\x15g\x16h\x17i\x18j\x19k\x1Al\x1Bm\x1Cn\x1Do\x1Ep\x1Fq" = "abcdefghijklmnopq"
-String.slugify "!\"#$%&'()*+,-./" = "-"
-String.slugify ":;<=>?@" = ""
-String.slugify "[\\]^_`" = "-"
-String.slugify "{|}~\x7F" = ""
+module ReplaceAll =
+  String.replaceAll_v0 "abcABCcbaCBA" "b" "x" = "axcABCcxaCBA"
+  String.replaceAll_v0 "abcABCcbaCBA" "" "x" = "xaxbxcxAxBxCxcxbxaxCxBxAx"
+  String.replaceAll_v0 "" "" "&" = "&"
+  String.replaceAll_v0 "abcABCcbaCBA" "b" "" = "acABCcaCBA"
+  String.replaceAll_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ä͖̭̈̇" "$" = "Z̤͔ͧ̑̓$lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  String.replaceAll_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽" "$" = "$$$$$$$$"
+  String.replaceAll_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏽" "✋🏻" = "👱👱🏻👱🏼✋🏻👱🏾👱🏿"
+  String.replaceAll_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" "🧑🏽‍🦰" = "🧟‍♀️🧑🏽‍🦰"
+
+  String.replaceAll_v0
+    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+    "👨‍❤️‍💋‍👨"
+    "👨‍❤️‍💋‍👨" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+
+  String.replaceAll_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏻‍🍼" "🧟‍♂️" = "żółw🧑🏽‍🦰🧟‍♂️✋✋🏻✋🏿"
 
 
-String.fromList [] = ""
-String.fromList [c "a"] = "a"
-String.fromList [c "👩‍👩‍👧‍👦"; c "🏳️‍⚧️‍️"; c "👱🏾"; c "Z̤͔ͧ̑̓"] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
-String.fromList ["a"] =
+module Slugify =
+  String.slugify
+    "  M@y  'super'  Really- exce+llent *Uber_ ama\"zing* ~very   5x5 ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-5x5-clever-thing-coffee"
+
+  String.slugify
+    "  m@y  'super'  really- excellent *uber_ amazing* ~very  ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-clever-thing-coffee"
+
+  String.slugify "" = ""
+  String.slugify "ABCD-45646sassa" = "abcd-45646sassa"
+  String.slugify "ddsd516ds125sd12sd12Ü" = "ddsd516ds125sd12sd12"
+  String.slugify "q=\u0002$\u001a<+MC" = "qmc"
+  String.slugify "🎁🎄Ǣʚ231" = "231"
+  String.slugify "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = ""
+  String.slugify "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "zlo"
+  String.slugify "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = ""
+  String.slugify "🧟‍♀️🧟‍♂️" = ""
+  String.slugify "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = ""
+
+  String.slugify
+    "b\x01c\x02d\x03e\x04f\x05g\x06h\x07i\x08j\x09k\x0Al\x0Bm\x0Cn\x0Do\x0Ep\x0Fq" = "bcdefghij-k-lm-n-opq"
+
+  String.slugify
+    "a\x10b\x11c\x12d\x13e\x14f\x15g\x16h\x17i\x18j\x19k\x1Al\x1Bm\x1Cn\x1Do\x1Ep\x1Fq" = "abcdefghijklmnopq"
+
+  String.slugify "!\"#$%&'()*+,-./" = "-"
+  String.slugify ":;<=>?@" = ""
+  String.slugify "[\\]^_`" = "-"
+  String.slugify "{|}~\x7F" = ""
+
+
+module FromList =
+  String.fromList [] = ""
+  String.fromList [ c "a" ] = "a"
+  String.fromList [ c "👩‍👩‍👧‍👦"; c "🏳️‍⚧️‍️"; c "👱🏾"; c "Z̤͔ͧ̑̓" ] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
+
   // CLEANUP when DList contains typeRef:
   //Test.runtimeError "In String.fromList's 1st argument (`l`), the value should be a List<Char>. However, a List<String> ([\"a\"]) was passed instead.\n\nExpected: List<Char>\nActual: a List<String>: [\"a\"]"
   // Note: the below error comes from the implementation itself, not normal typechecking,
   //   otherwise we could expect the message to include `[\"a\"] instead of `\"a\"`.
-  Test.runtimeError "Expected `l` to be a `List<Char>`, but it was `\"a\"`"
+  String.fromList [ "a" ] = Test.runtimeError
+    "Expected `l` to be a `List<Char>`, but it was `\"a\"`"
 
 
-String.toList "" = []
-String.toList "ab" = ['a'; 'b']
-String.toList "👨‍👩‍👧‍👦" = [ c "👨‍👩‍👧‍👦" ]
-String.toList "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ c "Z̤͔ͧ̑̓"; c "ä͖̭̈̇"; c "lͮ̒ͫ"; c "ǧ̗͚̚"; c "o̙̔ͮ̇͐̇" ]
-String.toList "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = [ c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽" ]
-String.toList "🧟‍♀️🧟‍♂️" = [ c "🧟‍♀️"; c "🧟‍♂️" ]
-String.toList "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = [ c "👱"; c "👱🏻"; c "👱🏼"; c "👱🏽"; c "👱🏾"; c "👱🏿" ]
-String.toList "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = [ c "ż"; c "ó"; c "ł"; c "w"; c "🧑🏽‍🦰"; c "🧑🏻‍🍼"; c "✋"; c "✋🏻"; c "✋🏿" ]
-("ab1" |> String.toList |> String.fromList) = "ab1"
-("@Ǣá1" |> String.toList |> String.fromList) = "@Ǣá1"
-("👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓" |> String.toList |> String.fromList) = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
+module ToList =
+  String.toList "" = []
+  String.toList "ab" = [ 'a'; 'b' ]
+  String.toList "👨‍👩‍👧‍👦" = [ c "👨‍👩‍👧‍👦" ]
+
+  String.toList "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ c
+                                                     "Z̤͔ͧ̑̓"
+                                                     c
+                                                     "ä͖̭̈̇"
+                                                     c
+                                                     "lͮ̒ͫ"
+                                                     c
+                                                     "ǧ̗͚̚"
+                                                     c
+                                                     "o̙̔ͮ̇͐̇" ]
 
 
-String.split "hello😄world" "😄" = [ "hello"; "world" ]
-String.split "hello&&&&world" "&&&&" = [ "hello"; "world" ]
-String.split "hello34564world34564sun" "😄" = [ "hello34564world34564sun" ]
-String.split "hello34564world34564sun" "34564" = [ "hello"; "world"; "sun" ]
-String.split "" "34564" = [""]
-String.split "34564" "" = [ "3"; "4"; "5"; "6"; "4" ]
-String.split "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏻‍🍼" = [ "🧑🏽‍🦰🧑🏼‍💻"; "✋✋🏻✋🏿" ]
-String.split "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [""; ""]
-String.split "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" = [ ""; ""; ""; ""; "" ]
-String.split "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽" = [ "👱👱🏻"; "👱🏾👱🏿" ]
-String.split "🧟‍♀️🧟‍♂️" "👱🏽" = [ "🧟‍♀️🧟‍♂️" ]
-String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦"= [ "👨‍❤️‍💋‍👨"; "🏳️‍⚧️‍️🇵🇷" ]
-String.split "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = [ "żółw"; "🧑🏻‍🍼✋✋🏻✋🏿" ]
-String.split "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ" = [ ""; "ǧ̗͚̚o̙̔ͮ̇͐̇" ]
-String.split "666666" "6" = [""; ""; ""; ""; ""; ""; ""]
-String.split "55555" "5" = [""; ""; ""; ""; ""; ""]
-String.split "4444" "4" = [""; ""; ""; ""; ""]
-String.split "333" "3" = [""; ""; ""; ""]
-String.split "22" "2" = [""; ""; ""]
-String.split "1" "1" = [""; ""]
-String.split "" "" = []
-String.split "666666x" "6" = [""; ""; ""; ""; ""; ""; "x"]
-String.split "55555x" "5" = [""; ""; ""; ""; ""; "x"]
-String.split "4444x" "4" = [""; ""; ""; ""; "x"]
-String.split "333x" "3" = [""; ""; ""; "x"]
-String.split "22x" "2" = [""; ""; "x"]
-String.split "1x" "1" = [""; "x"]
-String.split "x666666" "6" = ["x"; ""; ""; ""; ""; ""; ""]
-String.split "x55555" "5" = ["x"; ""; ""; ""; ""; ""]
-String.split "x4444" "4" = ["x"; ""; ""; ""; ""]
-String.split "x333" "3" = ["x"; ""; ""; ""]
-String.split "x22" "2" = ["x"; ""; ""]
-String.split "x1" "1" = ["x"; ""]
-String.split "x666666y" "6" = ["x"; ""; ""; ""; ""; ""; "y"]
-String.split "x55555y" "5" = ["x"; ""; ""; ""; ""; "y"]
-String.split "x4444y" "4" = ["x"; ""; ""; ""; "y"]
-String.split "x333y" "3" = ["x"; ""; ""; "y"]
-String.split "x22y" "2" = ["x"; ""; "y"]
-String.split "x1y" "1" = ["x"; "y"]
-String.split "6a6aa6aaa6aaaa" "a" = ["6"; "6"; ""; "6"; ""; ""; "6"; ""; ""; ""; ""]
-String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = ["👨‍❤️‍💋‍👨"; "👩‍👩‍👧‍👦"; "🏳️‍⚧️‍️"; "🇵🇷"]
-String.split "👨‍👩‍👧‍👦" "👩" = ["👨‍👩‍👧‍👦"]
+  String.toList "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = [ c
+                                         "﷽"
+                                         c
+                                         "﷽"
+                                         c
+                                         "﷽"
+                                         c
+                                         "﷽"
+                                         c
+                                         "﷽"
+                                         c
+                                         "﷽"
+                                         c
+                                         "﷽"
+                                         c
+                                         "﷽"
+                                         c
+                                         "﷽"
+                                         c
+                                         "﷽"
+                                         c
+                                         "﷽"
+                                         c
+                                         "﷽"
+                                         c
+                                         "﷽"
+                                         c
+                                         "﷽"
+                                         c
+                                         "﷽"
+                                         c
+                                         "﷽" ]
+
+  String.toList "🧟‍♀️🧟‍♂️" = [ c "🧟‍♀️"; c "🧟‍♂️" ]
+
+  String.toList "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = [ c
+                                               "👱"
+                                               c
+                                               "👱🏻"
+                                               c
+                                               "👱🏼"
+                                               c
+                                               "👱🏽"
+                                               c
+                                               "👱🏾"
+                                               c
+                                               "👱🏿" ]
+
+  String.toList "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = [ c "ż"
+                                                c "ó"
+                                                c "ł"
+                                                c "w"
+                                                c "🧑🏽‍🦰"
+                                                c "🧑🏻‍🍼"
+                                                c "✋"
+                                                c "✋🏻"
+                                                c "✋🏿" ]
+
+  ("ab1" |> String.toList |> String.fromList) = "ab1"
+  ("@Ǣá1" |> String.toList |> String.fromList) = "@Ǣá1"
+  ("👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓" |> String.toList |> String.fromList) = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
 
 
-String.toLowercase "HELLO😄WORLD" = "hello😄world"
-String.toLowercase "" = ""
-String.toLowercase "ABCDEF" = "abcdef" // String.toLowercase_v0 works for ASCII range
-String.toLowercase "AB323CDEF" = "ab323cdef"
-String.toLowercase "SÁNCHEZ" = "sánchez" // not lowercase a
-String.toLowercase "sánchez" = "sánchez"
-String.toLowercase "ŻÓŁW" = "żółw" // String.toLowercase works on non-ascii strings
-String.toLowercase "😄ORANGE" = "😄orange"
-String.toLowercase "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-String.toLowercase "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-String.toLowercase "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-String.toLowercase "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️"
-String.toLowercase "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-String.toLowercase "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-String.toLowercase "Ჾ" = "ჾ"
-String.toLowercase "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇" = "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-String.toLowercase "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕" = "h̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈w̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠b̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅt͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝w͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕"
+module Split =
+  String.split "hello😄world" "😄" = [ "hello"; "world" ]
+  String.split "hello&&&&world" "&&&&" = [ "hello"; "world" ]
+  String.split "hello34564world34564sun" "😄" = [ "hello34564world34564sun" ]
+  String.split "hello34564world34564sun" "34564" = [ "hello"; "world"; "sun" ]
+  String.split "" "34564" = [ "" ]
+  String.split "34564" "" = [ "3"; "4"; "5"; "6"; "4" ]
+
+  String.split "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏻‍🍼" = [ "🧑🏽‍🦰🧑🏼‍💻"
+                                                            "✋✋🏻✋🏿" ]
+
+  String.split "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ ""
+                                                                                   "" ]
+
+  String.split "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" = [ ""; ""; ""; ""; "" ]
+  String.split "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽" = [ "👱👱🏻"; "👱🏾👱🏿" ]
+  String.split "🧟‍♀️🧟‍♂️" "👱🏽" = [ "🧟‍♀️🧟‍♂️" ]
+
+  String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦" = [ "👨‍❤️‍💋‍👨"
+                                                                      "🏳️‍⚧️‍️🇵🇷" ]
+
+  String.split "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = [ "żółw"; "🧑🏻‍🍼✋✋🏻✋🏿" ]
+
+  String.split "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ" = [ ""
+                                                                       "ǧ̗͚̚o̙̔ͮ̇͐̇" ]
+
+  String.split "666666" "6" = [ ""; ""; ""; ""; ""; ""; "" ]
+  String.split "55555" "5" = [ ""; ""; ""; ""; ""; "" ]
+  String.split "4444" "4" = [ ""; ""; ""; ""; "" ]
+  String.split "333" "3" = [ ""; ""; ""; "" ]
+  String.split "22" "2" = [ ""; ""; "" ]
+  String.split "1" "1" = [ ""; "" ]
+  String.split "" "" = []
+  String.split "666666x" "6" = [ ""; ""; ""; ""; ""; ""; "x" ]
+  String.split "55555x" "5" = [ ""; ""; ""; ""; ""; "x" ]
+  String.split "4444x" "4" = [ ""; ""; ""; ""; "x" ]
+  String.split "333x" "3" = [ ""; ""; ""; "x" ]
+  String.split "22x" "2" = [ ""; ""; "x" ]
+  String.split "1x" "1" = [ ""; "x" ]
+  String.split "x666666" "6" = [ "x"; ""; ""; ""; ""; ""; "" ]
+  String.split "x55555" "5" = [ "x"; ""; ""; ""; ""; "" ]
+  String.split "x4444" "4" = [ "x"; ""; ""; ""; "" ]
+  String.split "x333" "3" = [ "x"; ""; ""; "" ]
+  String.split "x22" "2" = [ "x"; ""; "" ]
+  String.split "x1" "1" = [ "x"; "" ]
+  String.split "x666666y" "6" = [ "x"; ""; ""; ""; ""; ""; "y" ]
+  String.split "x55555y" "5" = [ "x"; ""; ""; ""; ""; "y" ]
+  String.split "x4444y" "4" = [ "x"; ""; ""; ""; "y" ]
+  String.split "x333y" "3" = [ "x"; ""; ""; "y" ]
+  String.split "x22y" "2" = [ "x"; ""; "y" ]
+  String.split "x1y" "1" = [ "x"; "y" ]
+
+  String.split "6a6aa6aaa6aaaa" "a" = [ "6"
+                                        "6"
+                                        ""
+                                        "6"
+                                        ""
+                                        ""
+                                        "6"
+                                        ""
+                                        ""
+                                        ""
+                                        "" ]
+
+  String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = [ "👨‍❤️‍💋‍👨"
+                                                             "👩‍👩‍👧‍👦"
+                                                             "🏳️‍⚧️‍️"
+                                                             "🇵🇷" ]
+
+  String.split "👨‍👩‍👧‍👦" "👩" = [ "👨‍👩‍👧‍👦" ]
 
 
-String.toUppercase "" = ""
-String.toUppercase "hello😄world" = "HELLO😄WORLD"
-String.toUppercase "abcdef" = "ABCDEF"
-String.toUppercase "ab323cdef" = "AB323CDEF"
-String.toUppercase "sánchez" = "SÁNCHEZ" // not lowercase a
-String.toUppercase "SÁNChEZ" = "SÁNCHEZ"
-String.toUppercase "żółw" = "ŻÓŁW"
-String.toUppercase "😄orange" = "😄ORANGE"
-String.toUppercase "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-String.toUppercase "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-String.toUppercase "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-String.toUppercase "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️"
-String.toUppercase "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-String.toUppercase "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-String.toUppercase "ჾ" = "Ჾ"
+module ToLowercase =
+  String.toLowercase "HELLO😄WORLD" = "hello😄world"
+  String.toLowercase "" = ""
+  String.toLowercase "ABCDEF" = "abcdef" // String.toLowercase_v0 works for ASCII range
+  String.toLowercase "AB323CDEF" = "ab323cdef"
+  String.toLowercase "SÁNCHEZ" = "sánchez" // not lowercase a
+  String.toLowercase "sánchez" = "sánchez"
+  String.toLowercase "ŻÓŁW" = "żółw" // String.toLowercase works on non-ascii strings
+  String.toLowercase "😄ORANGE" = "😄orange"
+  String.toLowercase "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  String.toLowercase "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+  String.toLowercase "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+  String.toLowercase "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️"
+  String.toLowercase "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+  String.toLowercase "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  String.toLowercase "Ჾ" = "ჾ"
+  String.toLowercase "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇" = "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
 
-// TODO: There are two types of unicode case "mapping" (conversion), "simple"
-// and "full". .NET supports simple mapping, which maps a single character to a
-// single character. It does not support "full" mapping, which maps a single
-// character to multiple characters. OCaml does correctly support this however,
-// so some of these tests need to be disabled for now while we come up with a
-// solution.
-
-// Discussed at https://github.com/dotnet/runtime/issues/30960, specifially
-// https://github.com/dotnet/runtime/issues/30960#issuecomment-535274401
-
-// A possible solution is to write our own case mapper, or reuse an existing
-// one. A potential candidate is
-// https://github.com/dotnet/corefxlab/tree/archive/src/System.Text.CaseFolding
-// (packaged at
-// https://dnceng.visualstudio.com/public/_packaging?_a=package&feed=dotnet-experimental&view=overview&package=System.Text.CaseFolding&version=0.1.2-alpha.21059.1&protocolType=NuGet)
-
-String.toUppercase "ﬁﬂ" = "ﬁﬂ" // should be "FIFL"
-String.toUppercase "և" = "և" // should be "ԵՒ"
-
-String.toUppercase "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇"
-
-String.toUppercase "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕" = "H̬̤̗̤͝E͜ ̜̥̝̻͍̟́W̕H̖̯͓O̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭A̺̪͍Į͈͕̭͙̯̜T̶̼̮S̘͙͖̕ ̠̫̠B̻͍͙͉̳ΙE̵H̵̬͇̫͙I̹͓̳̳̮͎̫̕N͟D̴̪̜̖ ̰͉̩͇͙̲͞ΙT͖̼͓̪͢H͏͓̮̻E̬̝̟Ι ̤̹̝W͙̞̝͔͇͝ΙA͏͓͔̹̼̣L̴͔̰̤̟͔Ḽ̫.͕"
+  String.toLowercase
+    "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕" = "h̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈w̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠b̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅt͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝w͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕"
 
 
-String.trimEnd_v0 "      " = ""
-String.trimEnd_v0 "" = ""
-String.trimEnd_v0 "  foo  " = "  foo"
-String.trimEnd_v0 "  foo bar  " = "  foo bar"
-String.trimEnd_v0 "  foo" = "  foo"
-String.trimEnd_v0 " 😄foobar😄 " = " 😄foobar😄"
-String.trimEnd_v0 "  foo bar  " = "  foo bar"
-String.trimEnd_v0 "foo  " = "foo"
-String.trimEnd_v0 "foo" = "foo"
-String.trimEnd_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83"
-String.trimEnd_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84"
-String.trimEnd_v0 "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   " = "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-String.trimEnd_v0 "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  " = "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-String.trimEnd_v0 "       ﷽﷽  " = "       ﷽﷽"
-String.trimEnd_v0 " 🧟‍♀️🧟‍♂️ " = " 🧟‍♀️🧟‍♂️"
-String.trimEnd_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-String.trimEnd_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " = "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-String.trimEnd_v0 "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸" = "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸"
+
+module ToUppercase =
+  String.toUppercase "" = ""
+  String.toUppercase "hello😄world" = "HELLO😄WORLD"
+  String.toUppercase "abcdef" = "ABCDEF"
+  String.toUppercase "ab323cdef" = "AB323CDEF"
+  String.toUppercase "sánchez" = "SÁNCHEZ" // not lowercase a
+  String.toUppercase "SÁNChEZ" = "SÁNCHEZ"
+  String.toUppercase "żółw" = "ŻÓŁW"
+  String.toUppercase "😄orange" = "😄ORANGE"
+  String.toUppercase "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  String.toUppercase "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+  String.toUppercase "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+  String.toUppercase "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️"
+  String.toUppercase "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+  String.toUppercase "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  String.toUppercase "ჾ" = "Ჾ"
+
+  // TODO: There are two types of unicode case "mapping" (conversion), "simple"
+  // and "full". .NET supports simple mapping, which maps a single character to a
+  // single character. It does not support "full" mapping, which maps a single
+  // character to multiple characters. OCaml does correctly support this however,
+  // so some of these tests need to be disabled for now while we come up with a
+  // solution.
+
+  // Discussed at https://github.com/dotnet/runtime/issues/30960, specifially
+  // https://github.com/dotnet/runtime/issues/30960#issuecomment-535274401
+
+  // A possible solution is to write our own case mapper, or reuse an existing
+  // one. A potential candidate is
+  // https://github.com/dotnet/corefxlab/tree/archive/src/System.Text.CaseFolding
+  // (packaged at
+  // https://dnceng.visualstudio.com/public/_packaging?_a=package&feed=dotnet-experimental&view=overview&package=System.Text.CaseFolding&version=0.1.2-alpha.21059.1&protocolType=NuGet)
+
+  String.toUppercase "ﬁﬂ" = "ﬁﬂ" // should be "FIFL"
+  String.toUppercase "և" = "և" // should be "ԵՒ"
+
+  String.toUppercase "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇"
+
+  String.toUppercase
+    "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕" = "H̬̤̗̤͝E͜ ̜̥̝̻͍̟́W̕H̖̯͓O̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭A̺̪͍Į͈͕̭͙̯̜T̶̼̮S̘͙͖̕ ̠̫̠B̻͍͙͉̳ΙE̵H̵̬͇̫͙I̹͓̳̳̮͎̫̕N͟D̴̪̜̖ ̰͉̩͇͙̲͞ΙT͖̼͓̪͢H͏͓̮̻E̬̝̟Ι ̤̹̝W͙̞̝͔͇͝ΙA͏͓͔̹̼̣L̴͔̰̤̟͔Ḽ̫.͕"
 
 
-String.trimStart_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "
-String.trimStart_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "
-String.trimStart_v0 "      " = ""
-String.trimStart_v0 "" = ""
-String.trimStart_v0 "  foo  " = "foo  "
-String.trimStart_v0 "  foo bar  " = "foo bar  "
-String.trimStart_v0 "  foo" = "foo"
-String.trimStart_v0 " 😄foobar😄 " = "😄foobar😄 "
-String.trimStart_v0 "  foo bar  " = "foo bar  "
-String.trimStart_v0 "foo  " = "foo  "
-String.trimStart_v0 "foo" = "foo"
-String.trimStart_v0 "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   " = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   "
-String.trimStart_v0 "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  " = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  "
-String.trimStart_v0 "       ﷽﷽  " = "﷽﷽  "
-String.trimStart_v0 " 🧟‍♀️🧟‍♂️ " = "🧟‍♀️🧟‍♂️ "
-String.trimStart_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     "
-String.trimStart_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  "
+
+module TrimEnd =
+  String.trimEnd_v0 "      " = ""
+  String.trimEnd_v0 "" = ""
+  String.trimEnd_v0 "  foo  " = "  foo"
+  String.trimEnd_v0 "  foo bar  " = "  foo bar"
+  String.trimEnd_v0 "  foo" = "  foo"
+  String.trimEnd_v0 " 😄foobar😄 " = " 😄foobar😄"
+  String.trimEnd_v0 "  foo bar  " = "  foo bar"
+  String.trimEnd_v0 "foo  " = "foo"
+  String.trimEnd_v0 "foo" = "foo"
+  String.trimEnd_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83"
+  String.trimEnd_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84"
+  String.trimEnd_v0 "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   " = "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  String.trimEnd_v0 "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  " = "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  String.trimEnd_v0 "       ﷽﷽  " = "       ﷽﷽"
+  String.trimEnd_v0 " 🧟‍♀️🧟‍♂️ " = " 🧟‍♀️🧟‍♂️"
+  String.trimEnd_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+  String.trimEnd_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " = "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  String.trimEnd_v0 "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸" = "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸"
 
 
-String.trim_v0 "      " = ""
-String.trim_v0 "" = ""
-String.trim_v0 "  foo  " = "foo" // String trims both leading + trailing spaces
-String.trim_v0 "  foo bar  " = "foo bar" // String trims both leading + trailing spaces, leaving inner untouched
-String.trim_v0 "  foo" = "foo" // String trims leading spaces
-String.trim_v0 " 😄foobar😄 " = "😄foobar😄" // String trims both leading + trailing spaces, preserving emoji
-String.trim_v0 "  foo bar " = "foo bar" // String trims both leading + trailing spaces, leaving inner untouched w/ unicode spaces
-String.trim_v0 "foo  " = "foo" // String trims trailing spaces
-String.trim_v0 "foo" = "foo" // String trim noops
-String.trim_v0 "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   " = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-String.trim_v0 "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  " = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-String.trim_v0 "       ﷽﷽" = "﷽﷽"
-String.trim_v0 " 🧟‍♀️🧟‍♂️ " = "🧟‍♀️🧟‍♂️"
-String.trim_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-String.trim_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-String.trim_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83"
-String.trim_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84"
-String.trim_v0 "쉆ꥨ逴皪巌䖑ⱝዓ淋" = "쉆ꥨ逴皪巌䖑ⱝዓ淋"
+module TrimStart =
+  String.trimStart_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "
+  String.trimStart_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "
+  String.trimStart_v0 "      " = ""
+  String.trimStart_v0 "" = ""
+  String.trimStart_v0 "  foo  " = "foo  "
+  String.trimStart_v0 "  foo bar  " = "foo bar  "
+  String.trimStart_v0 "  foo" = "foo"
+  String.trimStart_v0 " 😄foobar😄 " = "😄foobar😄 "
+  String.trimStart_v0 "  foo bar  " = "foo bar  "
+  String.trimStart_v0 "foo  " = "foo  "
+  String.trimStart_v0 "foo" = "foo"
+  String.trimStart_v0 "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   " = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   "
+  String.trimStart_v0 "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  " = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  "
+  String.trimStart_v0 "       ﷽﷽  " = "﷽﷽  "
+  String.trimStart_v0 " 🧟‍♀️🧟‍♂️ " = "🧟‍♀️🧟‍♂️ "
+  String.trimStart_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     "
+  String.trimStart_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  "
 
 
-String.reverse_v0 "abcde" = "edcba"
-String.reverse_v0 "0abcde" = "edcba0"
-String.reverse_v0 "a" = "a"
-String.reverse_v0 "" = ""
-String.reverse_v0 "ábc" = "cbá"
-String.reverse_v0 "🎁🧸Ǆʠ123" = "321ʠǄ🧸🎁"
-String.reverse_v0 "😄foobar👽" = "👽raboof😄"
-String.reverse_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "✋🏿✋🏻✋🧑🏻‍🍼🧑🏽‍🦰włóż"
-String.reverse_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-String.reverse_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱🏿👱🏾👱🏽👱🏼👱🏻👱"
-String.reverse_v0 "🧟‍♀️🧟‍♂️" = "🧟‍♂️🧟‍♀️"
-String.reverse_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "🇵🇷🏳️‍⚧️‍️👩‍👩‍👧‍👦👨‍❤️‍💋‍👨"
-String.reverse_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "o̙̔ͮ̇͐̇ǧ̗͚̚lͮ̒ͫä͖̭̈̇Z̤͔ͧ̑̓"
+module Trim =
+  String.trim_v0 "      " = ""
+  String.trim_v0 "" = ""
+  String.trim_v0 "  foo  " = "foo" // String trims both leading + trailing spaces
+  String.trim_v0 "  foo bar  " = "foo bar" // String trims both leading + trailing spaces, leaving inner untouched
+  String.trim_v0 "  foo" = "foo" // String trims leading spaces
+  String.trim_v0 " 😄foobar😄 " = "😄foobar😄" // String trims both leading + trailing spaces, preserving emoji
+  String.trim_v0 "  foo bar " = "foo bar" // String trims both leading + trailing spaces, leaving inner untouched w/ unicode spaces
+  String.trim_v0 "foo  " = "foo" // String trims trailing spaces
+  String.trim_v0 "foo" = "foo" // String trim noops
+  String.trim_v0 "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   " = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  String.trim_v0 "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  " = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  String.trim_v0 "       ﷽﷽" = "﷽﷽"
+  String.trim_v0 " 🧟‍♀️🧟‍♂️ " = "🧟‍♀️🧟‍♂️"
+  String.trim_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+  String.trim_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  String.trim_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83"
+  String.trim_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84"
+  String.trim_v0 "쉆ꥨ逴皪巌䖑ⱝዓ淋" = "쉆ꥨ逴皪巌䖑ⱝዓ淋"
 
 
-String.dropFirst_v0 "abcd" -3 = "abcd"
-String.dropFirst_v0 "abcd" 0 = "abcd"
-String.dropFirst_v0 "abcd" 3 = "d"
-String.dropFirst_v0 "" 3 = ""
-String.dropFirst_v0 "abcd" 3 = "d"
-String.dropFirst_v0 "🍏🍒🍒" 1 = "🍒🍒"
-String.dropFirst_v0 "🍏🍒🍍" 2 = "🍍"
-String.dropFirst_v0 "🍏a🍒b🍍c" 2 = "🍒b🍍c"
-String.dropFirst_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 5 = "🧑🏻‍🍼✋✋🏻✋🏿"
-String.dropFirst_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 1 = "ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-String.dropFirst_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-String.dropFirst_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 3 = "ǧ̗͚̚o̙̔ͮ̇͐̇"
-String.dropFirst_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 1 = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-String.dropFirst_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 1 = "👱🏻👱🏼👱🏽👱🏾👱🏿"
-String.dropFirst_v0 "🧟‍♀️🧟‍♂️" 20 = ""
-String.dropFirst_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 3 = "🇵🇷"
+module Reverse =
+  String.reverse_v0 "abcde" = "edcba"
+  String.reverse_v0 "0abcde" = "edcba0"
+  String.reverse_v0 "a" = "a"
+  String.reverse_v0 "" = ""
+  String.reverse_v0 "ábc" = "cbá"
+  String.reverse_v0 "🎁🧸Ǆʠ123" = "321ʠǄ🧸🎁"
+  String.reverse_v0 "😄foobar👽" = "👽raboof😄"
+  String.reverse_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "✋🏿✋🏻✋🧑🏻‍🍼🧑🏽‍🦰włóż"
+  String.reverse_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+  String.reverse_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱🏿👱🏾👱🏽👱🏼👱🏻👱"
+  String.reverse_v0 "🧟‍♀️🧟‍♂️" = "🧟‍♂️🧟‍♀️"
+  String.reverse_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "🇵🇷🏳️‍⚧️‍️👩‍👩‍👧‍👦👨‍❤️‍💋‍👨"
+  String.reverse_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "o̙̔ͮ̇͐̇ǧ̗͚̚lͮ̒ͫä͖̭̈̇Z̤͔ͧ̑̓"
 
 
-String.dropLast_v0 "abcd" -3 = "abcd"
-String.dropLast_v0 "abcd" 0 = "abcd"
-String.dropLast_v0 "abcd" 3 = "a"
-String.dropLast_v0 "" 3 = ""
-String.dropLast_v0 "🍏🍒🍒" 1 = "🍏🍒"
-String.dropLast_v0 "🍏🍒🍍" 2 = "🍏"
-String.dropLast_v0 "🍏a🍒b🍍c" 2 = "🍏a🍒b"
-String.dropLast_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ"
-String.dropLast_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 10 = "﷽﷽﷽﷽﷽﷽"
-String.dropLast_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 3 = "👱👱🏻👱🏼"
-String.dropLast_v0 "🧟‍♀️🧟‍♂️" 20 = ""
-String.dropLast_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 2 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦"
-String.dropLast_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 4 = "żółw🧑🏽‍🦰"
+module DropFirst =
+  String.dropFirst_v0 "abcd" -3 = "abcd"
+  String.dropFirst_v0 "abcd" 0 = "abcd"
+  String.dropFirst_v0 "abcd" 3 = "d"
+  String.dropFirst_v0 "" 3 = ""
+  String.dropFirst_v0 "abcd" 3 = "d"
+  String.dropFirst_v0 "🍏🍒🍒" 1 = "🍒🍒"
+  String.dropFirst_v0 "🍏🍒🍍" 2 = "🍍"
+  String.dropFirst_v0 "🍏a🍒b🍍c" 2 = "🍒b🍍c"
+  String.dropFirst_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 5 = "🧑🏻‍🍼✋✋🏻✋🏿"
+  String.dropFirst_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 1 = "ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  String.dropFirst_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  String.dropFirst_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 3 = "ǧ̗͚̚o̙̔ͮ̇͐̇"
+  String.dropFirst_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 1 = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+  String.dropFirst_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 1 = "👱🏻👱🏼👱🏽👱🏾👱🏿"
+  String.dropFirst_v0 "🧟‍♀️🧟‍♂️" 20 = ""
+  String.dropFirst_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 3 = "🇵🇷"
 
 
-String.last_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 4 = "🧑🏻‍🍼✋✋🏻✋🏿"
-String.last_v0 "abcd" -3 = ""
-String.last_v0 "abcd" 0 = ""
-String.last_v0 "" 7 = ""
-String.last_v0 "abcd" 1 = "d"
-String.last_v0 "abcd" 2 = "cd"
-String.last_v0 "abcd" 3 = "bcd"
-String.last_v0 "🍍🍍🍏" 1 = "🍏"
-String.last_v0 "🍊🍍🍏" 2 = "🍍🍏"
-String.last_v0 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿🧑🏻‍🍼" 1 = "🧑🏻‍🍼"
-String.last_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "ǧ̗͚̚o̙̔ͮ̇͐̇"
-String.last_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 2 = "﷽﷽"
-String.last_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 3 = "👱🏽👱🏾👱🏿"
-String.last_v0 "🧟‍♀️🧟‍♂️" 1 = "🧟‍♂️"
-String.last_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 1 = "🇵🇷"
+module DropLast =
+  String.dropLast_v0 "abcd" -3 = "abcd"
+  String.dropLast_v0 "abcd" 0 = "abcd"
+  String.dropLast_v0 "abcd" 3 = "a"
+  String.dropLast_v0 "" 3 = ""
+  String.dropLast_v0 "🍏🍒🍒" 1 = "🍏🍒"
+  String.dropLast_v0 "🍏🍒🍍" 2 = "🍏"
+  String.dropLast_v0 "🍏a🍒b🍍c" 2 = "🍏a🍒b"
+  String.dropLast_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ"
+  String.dropLast_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 10 = "﷽﷽﷽﷽﷽﷽"
+  String.dropLast_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 3 = "👱👱🏻👱🏼"
+  String.dropLast_v0 "🧟‍♀️🧟‍♂️" 20 = ""
+  String.dropLast_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 2 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦"
+  String.dropLast_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 4 = "żółw🧑🏽‍🦰"
 
 
-String.contains_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "2223" = false
-String.contains_v0 "👱👱🏻👱🏼👱🏽👱🏾" "👱🏿" = false
-String.contains_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = true
-String.contains_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️🧟‍♂️" = false
-String.contains_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦" = true
-String.contains_v0 "اختبار" "اختبار" = true
-String.contains_v0 "" "" = true
-String.contains_v0 "a" "" = true
-String.contains_v0 "" "a" = false
+module Last =
+  String.last_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 4 = "🧑🏻‍🍼✋✋🏻✋🏿"
+  String.last_v0 "abcd" -3 = ""
+  String.last_v0 "abcd" 0 = ""
+  String.last_v0 "" 7 = ""
+  String.last_v0 "abcd" 1 = "d"
+  String.last_v0 "abcd" 2 = "cd"
+  String.last_v0 "abcd" 3 = "bcd"
+  String.last_v0 "🍍🍍🍏" 1 = "🍏"
+  String.last_v0 "🍊🍍🍏" 2 = "🍍🍏"
+  String.last_v0 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿🧑🏻‍🍼" 1 = "🧑🏻‍🍼"
+  String.last_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "ǧ̗͚̚o̙̔ͮ̇͐̇"
+  String.last_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 2 = "﷽﷽"
+  String.last_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 3 = "👱🏽👱🏾👱🏿"
+  String.last_v0 "🧟‍♀️🧟‍♂️" 1 = "🧟‍♂️"
+  String.last_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 1 = "🇵🇷"
 
 
-String.slice_v0 "abcd" -2 4 = "cd"
-String.slice_v0 "abcd" -5 -6 = ""
-String.slice_v0 "abcd" -5 1 = "a"
-String.slice_v0 "abcd" 0 -1 = "abc"
-String.slice_v0 "abcd" 2 3 = "c"
-String.slice_v0 "abcd" 2 6 = "cd"
-String.slice_v0 "abcd" 3 2 = ""
-String.slice_v0 "abcd" 5 6 = ""
-String.slice_v0 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 2 10 = "✋✋🏻✋🏿"
-String.slice_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 1 3 = "ä͖̭̈̇lͮ̒ͫ"
-String.slice_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 2 6 = "﷽﷽﷽﷽"
-String.slice_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 2 6 = "👱🏼👱🏽👱🏾👱🏿"
-String.slice_v0 "🧟‍♀️🧟‍♂️" 2 4 = ""
-String.slice_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 2 10 = "🏳️‍⚧️‍️🇵🇷"
-String.slice_v0 "abc" 0 4503599627370498I = "abc"
+module Contains =
+  String.contains_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "2223" = false
+  String.contains_v0 "👱👱🏻👱🏼👱🏽👱🏾" "👱🏿" = false
+  String.contains_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = true
+  String.contains_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️🧟‍♂️" = false
+  String.contains_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦" = true
+  String.contains_v0 "اختبار" "اختبار" = true
+  String.contains_v0 "" "" = true
+  String.contains_v0 "a" "" = true
+  String.contains_v0 "" "a" = false
 
 
-String.first_v0 "abcd" -3 = ""
-String.first_v0 "abcd" 0 = ""
-String.first_v0 "abcd" 1 = "a"
-String.first_v0 "abcd" 2 = "ab"
-String.first_v0 "abcd" 3 = "abc"
-String.first_v0 "abcd" 3000000000000000L = "abcd"
-String.first_v0 "" 7 = ""
-String.first_v0 "🍊🍍🍏" 1 = "🍊"
-String.first_v0 "🍊🍍🍏" 2 = "🍊🍍"
-String.first_v0 "🍊🍍🍏" 3 = "🍊🍍🍏"
-String.first_v0 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 1 = "🧑🏽‍🦰"
-String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 10 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "Z̤͔ͧ̑̓ä͖̭̈̇"
-String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 3 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ"
-String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 4 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚"
-String.first_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 1 = "﷽"
-String.first_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 2 = "👱👱🏻"
-String.first_v0 "🧟‍♀️🧟‍♂️" 1 = "🧟‍♀️"
-String.first_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 3 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️"
+module Slice =
+  String.slice_v0 "abcd" -2 4 = "cd"
+  String.slice_v0 "abcd" -5 -6 = ""
+  String.slice_v0 "abcd" -5 1 = "a"
+  String.slice_v0 "abcd" 0 -1 = "abc"
+  String.slice_v0 "abcd" 2 3 = "c"
+  String.slice_v0 "abcd" 2 6 = "cd"
+  String.slice_v0 "abcd" 3 2 = ""
+  String.slice_v0 "abcd" 5 6 = ""
+  String.slice_v0 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 2 10 = "✋✋🏻✋🏿"
+  String.slice_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 1 3 = "ä͖̭̈̇lͮ̒ͫ"
+  String.slice_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 2 6 = "﷽﷽﷽﷽"
+  String.slice_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 2 6 = "👱🏼👱🏽👱🏾👱🏿"
+  String.slice_v0 "🧟‍♀️🧟‍♂️" 2 4 = ""
+  String.slice_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 2 10 = "🏳️‍⚧️‍️🇵🇷"
+  String.slice_v0 "abc" 0 4503599627370498I = "abc"
 
 
-String.padStart_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
-String.padStart_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
-String.padStart_v0 "123" "_-" 4 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
-String.padStart_v0 "123" "" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `padWith` to be 1 character long, but it was `\"\"`"
-String.padStart_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "000123"
-String.padStart_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
-String.padStart_v0 "123🍊🍊" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123🍊🍊"
-String.padStart_v0 "🍍🍍🍊🍊" "0" 7 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "000🍍🍍🍊🍊"
-String.padStart_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "0żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-String.padStart_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok  "00000Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-String.padStart_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "0000﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-String.padStart_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "0000👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-String.padStart_v0 "🧟‍♀️🧟‍♂️" "0" 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "000🧟‍♀️🧟‍♂️"
-String.padStart_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok  "000000👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"
-String.padStart_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "鷝"
+module First =
+  String.first_v0 "abcd" -3 = ""
+  String.first_v0 "abcd" 0 = ""
+  String.first_v0 "abcd" 1 = "a"
+  String.first_v0 "abcd" 2 = "ab"
+  String.first_v0 "abcd" 3 = "abc"
+  String.first_v0 "abcd" 3000000000000000L = "abcd"
+  String.first_v0 "" 7 = ""
+  String.first_v0 "🍊🍍🍏" 1 = "🍊"
+  String.first_v0 "🍊🍍🍏" 2 = "🍊🍍"
+  String.first_v0 "🍊🍍🍏" 3 = "🍊🍍🍏"
+  String.first_v0 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 1 = "🧑🏽‍🦰"
+  String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 10 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "Z̤͔ͧ̑̓ä͖̭̈̇"
+  String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 3 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ"
+  String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 4 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚"
+  String.first_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 1 = "﷽"
+  String.first_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 2 = "👱👱🏻"
+  String.first_v0 "🧟‍♀️🧟‍♂️" 1 = "🧟‍♀️"
+  String.first_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 3 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️"
 
 
-String.padEnd_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
-String.padEnd_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
-String.padEnd_v0 "123" "_-" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
-String.padEnd_v0 "123" "" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `padWith` to be 1 character long, but it was `\"\"`"
-String.padEnd_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123000"
-String.padEnd_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
-String.padEnd_v0 "123🍊🍊" "0" 8 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123🍊🍊000"
-String.padEnd_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿0"
-String.padEnd_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇00000"
-String.padEnd_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽0000"
-String.padEnd_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "👱👱🏻👱🏼👱🏽👱🏾👱🏿0000"
-String.padEnd_v0 "🧟‍♀️🧟‍♂️" "0" 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "🧟‍♀️🧟‍♂️000"
-String.padEnd_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷000000"
-String.padEnd_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "鷝"
+module PadStart =
+  String.padStart_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
+  String.padStart_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
 
-String.indexOf_v0 "hello world" "world" = PACKAGE.Darklang.Stdlib.Option.Option.Some 6
-String.indexOf_v0 "hello world" "earth" = PACKAGE.Darklang.Stdlib.Option.Option.None
-String.indexOf_v0 "" "" =  PACKAGE.Darklang.Stdlib.Option.Option.Some 0
-String.indexOf_v0 "hello" "" =  PACKAGE.Darklang.Stdlib.Option.Option.Some 0
-String.indexOf_v0 "" "hello" = PACKAGE.Darklang.Stdlib.Option.Option.None
-String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽"  = PACKAGE.Darklang.Stdlib.Option.Option.Some 6
-String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏿"  = PACKAGE.Darklang.Stdlib.Option.Option.None
-String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦" = PACKAGE.Darklang.Stdlib.Option.Option.Some 11
-String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = PACKAGE.Darklang.Stdlib.Option.Option.Some 4
-String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "👱🏽" = PACKAGE.Darklang.Stdlib.Option.Option.None
-String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🧑🏻‍🍼" = PACKAGE.Darklang.Stdlib.Option.Option.None
+  String.padStart_v0 "123" "_-" 4 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
+
+  String.padStart_v0 "123" "" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Expected `padWith` to be 1 character long, but it was `\"\"`"
+
+  String.padStart_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "000123"
+  String.padStart_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
+
+  String.padStart_v0 "123🍊🍊" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "123🍊🍊"
+
+  String.padStart_v0 "🍍🍍🍊🍊" "0" 7 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "000🍍🍍🍊🍊"
+
+  String.padStart_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "0żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+
+  String.padStart_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "00000Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+
+  String.padStart_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "0000﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+
+  String.padStart_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "0000👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+
+  String.padStart_v0 "🧟‍♀️🧟‍♂️" "0" 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "000🧟‍♀️🧟‍♂️"
+
+  String.padStart_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "000000👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"
+
+  String.padStart_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "鷝"
 
 
-// Check that map executes the right number of times
-(let v = String.map "a string" (fun x -> let _ = Test.incrementSideEffectCounter_v0 false in 'c') in
- (v, Test.sideEffectCount_v0 ())) = ("cccccccc", 8)
+module PadEnd =
+  String.padEnd_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
+  String.padEnd_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
+
+  String.padEnd_v0 "123" "_-" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
+
+  String.padEnd_v0 "123" "" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Expected `padWith` to be 1 character long, but it was `\"\"`"
+
+  String.padEnd_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123000"
+  String.padEnd_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
+
+  String.padEnd_v0 "123🍊🍊" "0" 8 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "123🍊🍊000"
+
+  String.padEnd_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿0"
+
+  String.padEnd_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇00000"
+
+  String.padEnd_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽0000"
+
+  String.padEnd_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "👱👱🏻👱🏼👱🏽👱🏾👱🏿0000"
+
+  String.padEnd_v0 "🧟‍♀️🧟‍♂️" "0" 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "🧟‍♀️🧟‍♂️000"
+
+  String.padEnd_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷000000"
+
+  String.padEnd_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "鷝"
+
+
+module IndexOf =
+  String.indexOf_v0 "hello world" "world" = PACKAGE.Darklang.Stdlib.Option.Option.Some
+    6
+
+  String.indexOf_v0 "hello world" "earth" = PACKAGE.Darklang.Stdlib.Option.Option.None
+  String.indexOf_v0 "" "" = PACKAGE.Darklang.Stdlib.Option.Option.Some 0
+  String.indexOf_v0 "hello" "" = PACKAGE.Darklang.Stdlib.Option.Option.Some 0
+  String.indexOf_v0 "" "hello" = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+  String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽" = PACKAGE.Darklang.Stdlib.Option.Option.Some
+    6
+
+  String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏿" = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+  String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦" = PACKAGE.Darklang.Stdlib.Option.Option.Some
+    11
+
+  String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = PACKAGE.Darklang.Stdlib.Option.Option.Some
+    4
+
+  String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "👱🏽" = PACKAGE.Darklang.Stdlib.Option.Option.None
+  String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🧑🏻‍🍼" = PACKAGE.Darklang.Stdlib.Option.Option.None
