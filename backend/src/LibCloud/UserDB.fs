@@ -232,7 +232,7 @@ let doQuery
     let! sql, vars =
       SqlCompiler.compileLambda
         state
-        b.typeArgTable
+        b.typeSymbolTable
         b.symtable
         paramName
         db.typ

@@ -399,47 +399,75 @@ module TypeReference =
     )
 
 
-// the actual type of a dval
-type ValueType =
-  | VTUnit
-  | VTBool
-  | VTInt
-  | VTFloat
-  | VTChar
-  | VTString
-  | VTUuid
-  | VTBytes
-  | VTDateTime
-  | VTPassword
-  | VTList of ConcreteType
+/// A KnownType represents the type of an actual dval.
+///
+/// Many KnownTypes (such as lists and records) have nested types. Often, these
+/// nested types are unknown (such as the contents of an empty list, or the
+/// `Result.Error` type for `Ok 5`).  As such, KnownTypes always nest ValueTypes
+/// (an optional form of KnownType).
+type KnownType =
+  | KTUnit
+  | KTBool
+  | KTInt
+  | KTFloat
+  | KTChar
+  | KTString
+  | KTUuid
+  | KTBytes
+  | KTDateTime
+  | KTPassword
 
-  // let tpl = (None, 1, "true") // CTTuple(CTCustomType(...), CTInt, [CTString])
-  // since every element of the tuple is a dval, we get a concrete type
-  // reference for all of them
-  | VTTuple of ConcreteType * ConcreteType * List<ConcreteType>
+  // let empty =    [] // KTList None
+  // let intList = [1] // KTList (Some KTInt)
+  | KTList of ValueType
 
-  // let y1 = (fun x -> x) //
-  // let y2 = (fun (x: Int) -> x) // : CTFn([Some CTInt], None)
-  // let y3 = (fun (x: Int) -> 5)
-  // let z1 = (fun (x: String) -> 5)
-  // let z2 = (fun (x: Int) -> "str")
-  // z1 not compatible w/ any ys
-  // z2 may be compatible with some ys for now, but not later? hm
-  // [y; z] // : List<Fn<'a, 'a>>
-  | VTFn of List<ConcreteType> * ConcreteType
+  // Intuitively, since Dvals generate KnownTypes, you would think that we can
+  // use KnownTypes in a KTTuple.
+  //
+  // However, we sometimes construct a KTTuple to repesent the type of a Tuple
+  // which doesn't exist. For example, in `List.zip [] []`, we create the result
+  // from the types of the two lists, which themselves might be (and likely are)
+  // `None`.
+  | KTTuple of ValueType * ValueType * List<ValueType>
 
-  | VTDB of ValueType
+  // let f = (fun x -> x)        // KTFn([None], None)
+  // let intF = (fun (x: Int) -> x) // KTFn([Some KTInt], None)
+  //
+  // Note that we could theoretically know some return types by analyzing the
+  // code or type signatures of functions. We don't do this yet as it's
+  // complicated. When we do decide to do this, some incorrect programs may stop
+  // functioning (see example). Our goal is for correctly typed functions to
+  // stay working so this might be ok.
+  //
+  // For example:
+  //   let z1 = (fun x -> 5)
+  //   let z2 = (fun x -> "str")
+  // `[z1, z2]` is allowed now but might not be allowed later
+
+  | KTFn of List<ValueType> * ValueType
+
+  // At time of writing, all DBs are of a specific type, and DBs may only be
+  // referenced directly, but we expect to eventually allow references to DBs
+  // where the type may be unknown
+  // List.head ([]: List<DB<'a>>) // KTDB (None)
+  | KTDB of ValueType
 
   /// let n = None          // type args: [None]
-  /// let s = Some(5)       // type args: [Some CTInt]
-  /// let o = Ok (5)        // type args: [Some CTInt, None]
-  /// let e = Error ("str") // type args: [None, Some CTString]
-  | VTCustomType of TypeName.T * typeArgs : List<ConcreteType>
+  /// let s = Some(5)       // type args: [Some KTInt]
+  /// let o = Ok (5)        // type args: [Some KTInt, None]
+  /// let e = Error ("str") // type args: [None, Some KTString]
+  | KTCustomType of TypeName.T * typeArgs : List<ValueType>
 
-  // let myDict = {} // CTDIct(None)
-  | VTDict of ConcreteType
+  // let myDict = {} // KTDIct None
+  | KTDict of ValueType
 
-and ConcreteType = Option<ValueType>
+/// Represents the actual type of a Dval
+///
+/// "Unknown" represents the concept of "bottom" in
+///   type system / data flow analysis / lattices
+and ValueType =
+  | Unknown
+  | Known of KnownType
 
 
 // Expressions here are runtime variants of the AST in ProgramTypes, having had
@@ -528,7 +556,7 @@ and MatchPattern =
 type DvalMap = Map<string, Dval>
 
 and LambdaImpl =
-  { typeArgTable : TypeArgTable
+  { typeSymbolTable : TypeSymbolTable
     symtable : Symtable
     parameters : List<id * string>
     body : Expr }
@@ -545,7 +573,7 @@ and DDateTime = NodaTime.LocalDate
 //  Rather, provide fns such as Dval.list to construct them, so we
 //  ensure type safety
 //
-// VTTODO continue adding ConcreteTypes here where relevant
+// VTTODO continue adding ValueTypes here where relevant
 and [<NoComparison>] Dval =
   | DInt of int64
   | DFloat of double
@@ -555,7 +583,7 @@ and [<NoComparison>] Dval =
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
 
   // compound types
-  | DList of ConcreteType * List<Dval>
+  | DList of ValueType * List<Dval>
   | DTuple of Dval * Dval * List<Dval>
 
   | DFnVal of FnValImpl
@@ -634,7 +662,7 @@ and Symtable = Map<string, Dval>
 ///   `serialize<int> 1`,
 /// we would have a TypeSymbolTable of
 ///  { "a" => TInt }
-and TypeSymbolTable = Map<string, ConcreteType>
+and TypeSymbolTable = Map<string, ValueType>
 
 
 
@@ -791,44 +819,59 @@ module Dval =
     | DDict obj -> Ok(Map.toList obj)
     | _ -> Error "expecting str"
 
-  let todoValueType () = Exception.raiseInternal "" []
+  let todoKnownType () = Exception.raiseInternal "" []
 
 
-  let rec toValueType (dv : Dval) : ValueType =
+  let rec toKnownType (dv : Dval) : KnownType =
+    let toValueType dv = toKnownType dv |> Known
+
     match dv with
-    | DUnit -> VTUnit
-    | DBool _ -> VTBool
-    | DInt _ -> VTInt
-    | DFloat _ -> VTFloat
-    | DChar _ -> VTChar
-    | DString _ -> VTString
-    | DUuid _ -> VTUuid
-    | DBytes _ -> VTBytes
-    | DDateTime _ -> VTDateTime
-    | DPassword _ -> VTPassword
-    | DList(t, _) -> VTList t
+    | DUnit -> KTUnit
+    | DBool _ -> KTBool
+    | DInt _ -> KTInt
+    | DFloat _ -> KTFloat
+    | DChar _ -> KTChar
+    | DString _ -> KTString
+    | DUuid _ -> KTUuid
+    | DBytes _ -> KTBytes
+    | DDateTime _ -> KTDateTime
+    | DPassword _ -> KTPassword
+
+    | DList(t, _) -> KTList t
 
     | DTuple(first, second, theRest) ->
-      VTTuple(toValueType first, toValueType second, theRest |> List.map toValueType)
-    | DFnVal _ -> VTFn([], None)
-    | DDict _ -> VTDict None
+      KTTuple(toValueType first, toValueType second, theRest |> List.map toValueType)
+
+    | DDict _ -> KTDict Unknown // VTTODO
+
+    | DFnVal fnImpl ->
+      match fnImpl with
+      | Lambda lambda -> KTFn(List.map (fun _ -> Unknown) lambda.parameters, Unknown)
+
+      | NamedFn named ->
+        // VTTODO look up type, etc
+        KTFn([], Unknown)
+
+
     | DRecord(typeName, _, fields) ->
-      // VTCustomType(
+      // KTCustomType(
       //   typeName,
       //   fields |> Map.toList |> List.map (fun (_, v) -> toValueType v) |> List.map Option.some
       // )
-      todoValueType ()
+      // VTTODO
+      todoKnownType ()
+
     | DEnum(typeName, _, caseName, fields) ->
-      // VTCustomType(
+      // KTCustomType(
       //   typeName,
       //   fields |> List.map toValueType |> List.map Option.some
       // )
 
-      todoValueType ()
+      todoKnownType ()
 
     | DDB _ ->
       // follow up when DDB has a typeReference
-      todoValueType ()
+      todoKnownType ()
 
     | DError _
     | DIncomplete _ -> Exception.raiseInternal "these are being moved out of dval" []
@@ -917,77 +960,77 @@ module Dval =
   // TODO: replace all of these with specialized errors..
   type SomeErrorType = string
 
-  let rec mergeValueTypes
-    (left : ValueType)
-    (right : ValueType)
-    : Result<ValueType, SomeErrorType> =
+  let rec mergeKnownTypes
+    (left : KnownType)
+    (right : KnownType)
+    : Result<KnownType, SomeErrorType> =
     match left, right with
-    | VTUnit, VTUnit -> VTUnit |> Ok
-    | VTBool, VTBool -> VTBool |> Ok
-    | VTInt, VTInt -> VTInt |> Ok
-    | VTFloat, VTFloat -> VTFloat |> Ok
-    | VTChar, VTChar -> VTChar |> Ok
-    | VTString, VTString -> VTString |> Ok
-    | VTUuid, VTUuid -> VTUuid |> Ok
-    | VTBytes, VTBytes -> VTBytes |> Ok
-    | VTDateTime, VTDateTime -> VTDateTime |> Ok
-    | VTPassword, VTPassword -> VTPassword |> Ok
+    | KTUnit, KTUnit -> KTUnit |> Ok
+    | KTBool, KTBool -> KTBool |> Ok
+    | KTInt, KTInt -> KTInt |> Ok
+    | KTFloat, KTFloat -> KTFloat |> Ok
+    | KTChar, KTChar -> KTChar |> Ok
+    | KTString, KTString -> KTString |> Ok
+    | KTUuid, KTUuid -> KTUuid |> Ok
+    | KTBytes, KTBytes -> KTBytes |> Ok
+    | KTDateTime, KTDateTime -> KTDateTime |> Ok
+    | KTPassword, KTPassword -> KTPassword |> Ok
 
     //
-    | VTList left, VTList right -> mergeConcreteTypes left right |> Result.map VTList
+    | KTList left, KTList right -> mergeValueTypes left right |> Result.map KTList
 
-    | VTTuple(l1, l2, ls), VTTuple(r1, r2, rs) ->
+    | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
       let firstMerged = mergeValueTypes l1 r1
       let secondMerged = mergeValueTypes l2 r2
       let restMerged =
         List.map2 (fun l r -> mergeValueTypes l r) ls rs |> Tablecloth.Result.collect
 
       match firstMerged, secondMerged, restMerged with
-      | Ok first, Ok second, Ok rest -> Ok(VTTuple(first, second, rest))
+      | Ok first, Ok second, Ok rest -> Ok(KTTuple(first, second, rest))
 
       | _ -> Error "todo"
 
-    | VTCustomType(lName, lArgs), VTCustomType(rName, rArgs) ->
+    | KTCustomType(lName, lArgs), KTCustomType(rName, rArgs) ->
       if lName <> rName then
         Error "todo"
       else if List.length lArgs <> List.length rArgs then
         Error "todo"
       else
-        List.map2 mergeConcreteTypes lArgs rArgs
+        List.map2 mergeValueTypes lArgs rArgs
         |> Tablecloth.Result.collect
-        |> Result.map (fun args -> VTCustomType(lName, args))
+        |> Result.map (fun args -> KTCustomType(lName, args))
 
-    | VTFn(lArgs, lRet), VTFn(rArgs, rRet) ->
+    | KTFn(lArgs, lRet), KTFn(rArgs, rRet) ->
       let argsMerged =
-        List.map2 mergeConcreteTypes lArgs rArgs |> Tablecloth.Result.collect
-      let retMerged = mergeConcreteTypes lRet rRet
+        List.map2 mergeValueTypes lArgs rArgs |> Tablecloth.Result.collect
+      let retMerged = mergeValueTypes lRet rRet
 
       match argsMerged, retMerged with
-      | Ok args, Ok ret -> Ok(VTFn(args, ret))
+      | Ok args, Ok ret -> Ok(KTFn(args, ret))
       | _ -> Error "todo"
 
 
     | _ -> Error "todo (just trying to compile)"
 
-  and mergeConcreteTypes
-    (left : ConcreteType)
-    (right : ConcreteType)
-    : Result<ConcreteType, SomeErrorType> =
+  and mergeValueTypes
+    (left : ValueType)
+    (right : ValueType)
+    : Result<ValueType, SomeErrorType> =
     // if fails, we eventually want "can't put a string in an Int list"
     match left, right with
-    | None, v
-    | v, None -> Ok v
+    | Unknown, v
+    | v, Unknown -> Ok v
 
-    | Some left, Some right -> mergeValueTypes left right |> Result.map Some
+    | Known left, Known right -> mergeKnownTypes left right |> Result.map Known
 
 
 
 
   let listPush
     (list : List<Dval>)
-    (listType : ConcreteType)
+    (listType : ValueType)
     (dv : Dval)
-    : Result<ConcreteType * List<Dval>, SomeErrorType> =
+    : Result<ValueType * List<Dval>, SomeErrorType> =
     // what happens if we insert 5 into a list of strings here?
     // we should return Error
 
@@ -995,13 +1038,13 @@ module Dval =
     // into a list of Oks (with the _ok_ type known),
     // then we merge those types (result: TCustomType with both OK and Error types)
 
-    // VTCustomType("Result", [None, Some VTString])
-    // VTCustomType("Result", [Some VTInt, None])
+    // KTCustomType("Result", [None, Some KTString])
+    // KTCustomType("Result", [Some KTInt, None])
     // merges to be come
-    // VTCustomType("Result", [Some VTInt, Some VTString])
+    // KTCustomType("Result", [Some KTInt, Some KTString])
 
-    let dvalType = toValueType dv
-    let newType = mergeConcreteTypes listType (Some dvalType)
+    let dvalType = toKnownType dv
+    let newType = mergeValueTypes listType (Known dvalType)
 
     match newType with
     | Ok newType -> Ok(newType, dv :: list)
@@ -1010,12 +1053,12 @@ module Dval =
 
 
 
-  let list (initialType : ConcreteType) (list : List<Dval>) : Dval =
+  let list (initialType : ValueType) (list : List<Dval>) : Dval =
     let fake = List.find (fun (dv : Dval) -> isFake dv) list
     match fake with
     | Some fake -> fake
     | None ->
-      let (init : Result<ConcreteType * List<Dval>, SomeErrorType>) =
+      let (init : Result<ValueType * List<Dval>, SomeErrorType>) =
         (Ok(initialType, []))
 
       let result =

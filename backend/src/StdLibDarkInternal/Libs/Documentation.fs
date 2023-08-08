@@ -73,10 +73,12 @@ let fns : List<BuiltInFn> =
                       ("type", DString(typeNameToStr p.typ)) ])
               [ ("name", DString(FnName.builtinToString key))
                 ("description", DString data.description)
-                ("parameters", DList parameters)
+                // VTODO: come back and do real type
+                ("parameters", Dval.list Unknown parameters)
                 ("returnType", DString returnType) ]
             Dval.record typeName alist)
-          |> DList
+          // VTODO: come back and do real type
+          |> Dval.list Unknown
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

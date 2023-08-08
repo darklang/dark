@@ -48,11 +48,14 @@ let fns : List<BuiltInFn> =
             return
               Dval.record
                 (stdlibPackageTyp [] "Packages" 0)
-                [ "types", DList types
+              // VTTODO:come back and give it a real type
+                [ "types", Dval.list Unknown types
 
 
-                  "fns", DList fns
-                  "constants", DList constants ]
+              // VTTODO:come back and give it a real type
+                  "fns", Dval.list Unknown fns
+              // VTTODO:come back and give it a real type
+                  "constants", Dval.list Unknown constants ]
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

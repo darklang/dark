@@ -78,7 +78,7 @@ let processNotification
         [ "event.handler.name", event.name
           "event.handler.modifier", event.modifier
           "event.handler.module", event.module'
-          "event.value.type", (event.value |> DvalReprDeveloper.dvalTypeName :> obj)
+          "event.value.type", (event.value |> DvalReprDeveloper.toTypeName:> obj)
           "event.locked_at", event.lockedAt
           "event.enqueued_at", event.enqueuedAt ]
 
@@ -220,7 +220,7 @@ let processNotification
                         ))
 
                     Telemetry.addTags
-                      [ "result_type", DvalReprDeveloper.dvalTypeName result
+                      [ "result_type", DvalReprDeveloper.toTypeName result
                         "queue.success", true
                         "executed_tlids", HashSet.toList traceResults.tlids
                         "queue.completion_reason", "completed" ]

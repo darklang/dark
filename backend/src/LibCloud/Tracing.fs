@@ -179,8 +179,7 @@ let createTelemetryTracer
 
                 let resultType =
                   result
-                  |> RT.Dval.toValueType
-                  |> LibExecution.DvalReprDeveloper.valueTypeName
+                  |> LibExecution.DvalReprDeveloper.toTypeName
 
                 Telemetry.addEvent
                   $"function result for {name}"

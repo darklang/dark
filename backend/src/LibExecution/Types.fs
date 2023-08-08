@@ -83,36 +83,67 @@ let rec getTypeReferenceFromAlias
   | _ -> Ply typ
 
 // maybe move this file back to RT
-module ValueType =
+module KnownType =
   /// This assumes that TVariables have already been substituted
   /// i.e. they're not allowed, and will raise an exception
-  let rec fromFullySubstitutedTypeReference (t : TypeReference) : ValueType =
+  let rec fromFullySubstitutedTypeReference (t : TypeReference) : KnownType =
     let r = fromFullySubstitutedTypeReference
-    let c t = t |> r |> Some
+    let k t = t |> r |> Known
 
     match t with
-    | TUnit -> VTUnit
-    | TBool -> VTBool
-    | TInt -> VTInt
-    | TFloat -> VTFloat
-    | TChar -> VTChar
-    | TString -> VTString
-    | TUuid -> VTUuid
-    | TBytes -> VTBytes
-    | TDateTime -> VTDateTime
-    | TPassword -> VTPassword
+    | TUnit -> KTUnit
+    | TBool -> KTBool
+    | TInt -> KTInt
+    | TFloat -> KTFloat
+    | TChar -> KTChar
+    | TString -> KTString
+    | TUuid -> KTUuid
+    | TBytes -> KTBytes
+    | TDateTime -> KTDateTime
+    | TPassword -> KTPassword
 
-    | TList t -> VTList(c t)
-    | TTuple(t1, t2, rest) -> VTTuple(r t1, r t2, List.map r rest)
-    | TDict t -> VTDict(c t)
+    | TList t -> KTList(Known (r t))
+    | TTuple(t1, t2, rest) -> KTTuple(k t1, k t2, List.map k rest)
+    | TDict t -> KTDict(k t)
 
-    | TFn(args, ret) -> VTFn(List.map c args, c ret)
+    | TFn(args, ret) -> KTFn(List.map k args, k ret)
 
-    | TDB typ -> VTDB(r typ)
+    | TDB typ -> KTDB(k typ)
 
-    | TCustomType(t, typeArgs) -> VTCustomType(t, List.map c typeArgs)
+    | TCustomType(t, typeArgs) -> KTCustomType(t, List.map k typeArgs)
 
     | TVariable _ ->
       Exception.raiseInternal
         "TVariable should have been substituted before calling toValueType"
         []
+
+module ValueType =
+  /// This assumes that TVariables have already been substituted
+  /// i.e. they're not allowed, and will raise an exception
+  let rec fromTypeReference  (t : TypeReference) : ValueType =
+    let r = fromTypeReference
+
+    match t with
+    | TUnit -> Known KTUnit
+    | TBool -> Known KTBool
+    | TInt -> Known KTInt
+    | TFloat -> Known KTFloat
+    | TChar -> Known KTChar
+    | TString -> Known KTString
+    | TUuid -> Known KTUuid
+    | TBytes -> Known KTBytes
+    | TDateTime -> Known KTDateTime
+    | TPassword -> Known KTPassword
+
+    | TList t -> KTList(r t) |> Known
+    | TTuple(t1, t2, rest) -> KTTuple(r t1, r t2, List.map r rest)  |> Known
+    | TDict t -> KTDict(r t) |> Known
+
+    | TFn(args, ret) -> KTFn(List.map r args, r ret) |> Known
+
+    | TDB typ -> KTDB(KnownType.fromFullySubstitutedTypeReference typ |> Known) |> Known
+
+    | TCustomType(t, typeArgs) -> KTCustomType(t, List.map r typeArgs) |> Known
+
+    | TVariable _ -> Unknown
+

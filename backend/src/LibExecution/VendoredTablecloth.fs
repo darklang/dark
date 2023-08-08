@@ -78,6 +78,16 @@ module List =
   let fold (initial : 'b) (f : 'b -> 'a -> 'b) (l : List<'a>) : 'b =
     List.fold f initial l
 
+  // VTTODO untested
+  let foldi (initial : 'b) (f : int -> 'b -> 'a -> 'b) (l : List<'a>) : 'b =
+    let rec loop i accum l =
+      match l with
+      | [] -> accum
+      | x :: rest -> loop (i + 1) (f i accum x) rest
+
+    loop 0 initial l
+
+
   let foldRight (initial : 'b) (f : 'b -> 'a -> 'b) (l : List<'a>) : 'b =
     List.foldBack (fun item accum -> f accum item) l initial
 

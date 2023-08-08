@@ -377,7 +377,7 @@ let fns : List<BuiltInFn> =
         received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
         (function
-        | state, _, [ DString method; DString uri; DList reqHeaders; DBytes reqBody ] ->
+        | state, _, [ DString method; DString uri; DList (t, reqHeaders); DBytes reqBody ] ->
           let reqHeaders : Result<List<string * string>, HeaderError> =
             reqHeaders
             |> List.fold (Ok []) (fun agg item ->
@@ -425,7 +425,7 @@ let fns : List<BuiltInFn> =
                       DString(String.toLowercase v),
                       []
                     ))
-                  |> DList
+                  |> Dval.list (Known (KTTuple(Known KTString, Known KTString, [])))
 
                 let typ =
                   FQName.BuiltIn(TypeName.builtIn [ "HttpClient" ] "Response" 0)

@@ -358,7 +358,8 @@ let parse
       |> Seq.map (convert nested)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map DList
+      // VTTODO maybe we can determine a Known?
+      |> Ply.map (fun l -> (Dval.list Unknown l))
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let values = j.EnumerateArray() |> Seq.toList
@@ -389,14 +390,14 @@ let parse
     | TCustomType(typeName, typeArgs), jsonValueKind ->
 
       uply {
-        match! Types.find typeName types with
+        match! LibExecution.Types.find typeName types with
         | None ->
           return
             Exception.raiseInternal "TODO - type not found" [ "typeName", typeName ]
         | Some decl ->
           match decl.definition with
           | TypeDeclaration.Alias alias ->
-            let aliasType = Types.substitute decl.typeParams typeArgs alias
+            let aliasType = LibExecution.Types.substitute decl.typeParams typeArgs alias
             return! convert aliasType j
 
           | TypeDeclaration.Enum cases ->
@@ -429,7 +430,7 @@ let parse
               let! mapped =
                 List.zip matchingCase.fields j
                 |> List.map (fun (typ, j) ->
-                  let typ = Types.substitute decl.typeParams typeArgs typ
+                  let typ = LibExecution.Types.substitute decl.typeParams typeArgs typ
                   convert typ j)
                 |> Ply.List.flatten
 
@@ -464,7 +465,7 @@ let parse
                     | [ matchingFieldDef ] -> matchingFieldDef.Value
                     | _ -> Exception.raiseInternal "Too many matching fields" []
 
-                  let typ = Types.substitute decl.typeParams typeArgs def.typ
+                  let typ = LibExecution.Types.substitute decl.typeParams typeArgs def.typ
                   let! converted = convert typ correspondingValue
                   return (def.name, converted)
                 })
@@ -538,7 +539,7 @@ let fns : List<BuiltInFn> =
       description = "Serializes a Dark value to a JSON string."
       fn =
         (function
-        | state, tat, [ typeArg ], [ arg ] ->
+        | state, [ typeArg ], [ arg ] ->
           uply {
             // TODO: somehow collect list of TVariable -> TypeReference
             // "'b = Int",

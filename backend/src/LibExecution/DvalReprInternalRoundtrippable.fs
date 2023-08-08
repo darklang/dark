@@ -135,103 +135,89 @@ module FormatV0 =
 
 
   // the actual type of a dval
-  type ValueType =
-    | VTUnit
-    | VTBool
-    | VTInt
-    | VTFloat
-    | VTChar
-    | VTString
-    | VTUuid
-    | VTBytes
-    | VTDateTime
-    | VTPassword
-    | VTList of ConcreteType
+  type KnownType =
+    | KTUnit
+    | KTBool
+    | KTInt
+    | KTFloat
+    | KTChar
+    | KTString
+    | KTUuid
+    | KTBytes
+    | KTDateTime
+    | KTPassword
 
-    // let tpl = (None, 1, "true") // CTTuple(CTCustomType(...), CTInt, [CTString])
-    // since every element of the tuple is a dval, we get a concrete type
-    // reference for all of them
-    | VTTuple of ValueType * ValueType * List<ValueType>
+    | KTList of ValueType
+    | KTTuple of ValueType * ValueType * List<ValueType>
+    | KTDict of ValueType
 
-    // let y1 = (fun x -> x) //
-    // let y2 = (fun (x: Int) -> x) // : CTFn([Some CTInt], None)
-    // let y3 = (fun (x: Int) -> 5)
-    // let z1 = (fun (x: String) -> 5)
-    // let z2 = (fun (x: Int) -> "str")
-    // z1 not compatible w/ any ys
-    // z2 may be compatible with some ys for now, but not later? hm
-    // [y; z] // : List<Fn<'a, 'a>>
-    | VTFn of List<ConcreteType> * ConcreteType
+    | KTFn of List<ValueType> * ValueType
 
-    | VTDB of ValueType
+    | KTDB of ValueType
 
-    /// let n = None          // type args: [None]
-    /// let s = Some(5)       // type args: [Some CTInt]
-    /// let o = Ok (5)        // type args: [Some CTInt, None]
-    /// let e = Error ("str") // type args: [None, Some CTString]
-    | VTCustomType of TypeName.T * typeArgs : List<ConcreteType>
-
-    // let myDict = {} // CTDIct(None)
-    | VTDict of ConcreteType
-
-  and ConcreteType = Option<ValueType>
+    | KTCustomType of TypeName.T * typeArgs : List<ValueType>
 
 
-  module ConcreteType =
-    let rec valueTypeToRT (t: ValueType): RT.ValueType =
-      let v = valueTypeToRT
-      let c = toRT
+  and ValueType = | Unknown | Known of KnownType
+
+  module ValueType =
+    let rec knownTypeToRT (t: KnownType): RT.KnownType =
+      let k = knownTypeToRT
+      let v = toRT
 
       match t with
-      | VTUnit -> RT.VTUnit
-      | VTBool -> RT.VTBool
-      | VTInt -> RT.VTInt
-      | VTFloat -> RT.VTFloat
-      | VTChar -> RT.VTChar
-      | VTString -> RT.VTString
-      | VTUuid -> RT.VTUuid
-      | VTBytes -> RT.VTBytes
-      | VTDateTime -> RT.VTDateTime
-      | VTPassword -> RT.VTPassword
-      | VTList typ -> RT.VTList(c typ)
-      | VTTuple(first, second, theRest) ->
-        RT.VTTuple(v first, v second, List.map v theRest)
-      | VTFn(args, ret) -> RT.VTFn(List.map c args, c ret)
-      | VTDB typ -> RT.VTDB(v typ)
-      | VTCustomType(typeName, typeArgs) ->
-        RT.VTCustomType(TypeName.toRT typeName, List.map c typeArgs)
-      | VTDict typ -> RT.VTDict(c typ)
+      | KTUnit -> RT.KTUnit
+      | KTBool -> RT.KTBool
+      | KTInt -> RT.KTInt
+      | KTFloat -> RT.KTFloat
+      | KTChar -> RT.KTChar
+      | KTString -> RT.KTString
+      | KTUuid -> RT.KTUuid
+      | KTBytes -> RT.KTBytes
+      | KTDateTime -> RT.KTDateTime
+      | KTPassword -> RT.KTPassword
+      | KTList typ -> RT.KTList(v typ)
+      | KTTuple(first, second, theRest) ->
+        RT.KTTuple(v first, v second, List.map v theRest)
+      | KTFn(args, ret) -> RT.KTFn(List.map v args, v ret)
+      | KTDB typ -> RT.KTDB(v typ)
+      | KTCustomType(typeName, typeArgs) ->
+        RT.KTCustomType(TypeName.toRT typeName, List.map v typeArgs)
+      | KTDict typ -> RT.KTDict(v typ)
 
-    and valueTypeFromRT (t: RT.ValueType): ValueType =
-      let v = valueTypeFromRT
-      let c = fromRT
+    and knownTypeFromRT (t: RT.KnownType): KnownType =
+      let k = knownTypeFromRT
+      let v = fromRT
 
       match t with
-      | RT.VTUnit -> VTUnit
-      | RT.VTBool -> VTBool
-      | RT.VTInt -> VTInt
-      | RT.VTFloat -> VTFloat
-      | RT.VTChar -> VTChar
-      | RT.VTString -> VTString
-      | RT.VTUuid -> VTUuid
-      | RT.VTBytes -> VTBytes
-      | RT.VTDateTime -> VTDateTime
-      | RT.VTPassword -> VTPassword
-      | RT.VTList typ -> VTList(c typ)
-      | RT.VTTuple(first, second, theRest) ->
-        VTTuple(v first, v second, List.map v theRest)
-      | RT.VTFn(args, ret) -> VTFn(List.map c args, c ret)
-      | RT.VTDB typ -> VTDB(v typ)
-      | RT.VTCustomType(typeName, typeArgs) ->
-        VTCustomType(TypeName.fromRT typeName, List.map c typeArgs)
-      | RT.VTDict typ -> VTDict(c typ)
+      | RT.KTUnit -> KTUnit
+      | RT.KTBool -> KTBool
+      | RT.KTInt -> KTInt
+      | RT.KTFloat -> KTFloat
+      | RT.KTChar -> KTChar
+      | RT.KTString -> KTString
+      | RT.KTUuid -> KTUuid
+      | RT.KTBytes -> KTBytes
+      | RT.KTDateTime -> KTDateTime
+      | RT.KTPassword -> KTPassword
+      | RT.KTList typ -> KTList(v typ)
+      | RT.KTTuple(first, second, theRest) ->
+        KTTuple(v first, v second, List.map v theRest)
+      | RT.KTFn(args, ret) -> KTFn(List.map v args, v ret)
+      | RT.KTDB typ -> KTDB(v typ)
+      | RT.KTCustomType(typeName, typeArgs) ->
+        KTCustomType(TypeName.fromRT typeName, List.map v typeArgs)
+      | RT.KTDict typ -> KTDict(v typ)
 
-    and toRT (t : ConcreteType) : RT.ConcreteType =
-      Option.map valueTypeToRT t
+    and toRT (t : ValueType) : RT.ValueType =
+      match t with
+      | Unknown -> RT.Unknown
+      | Known t -> RT.Known (knownTypeToRT t)
 
-    and fromRT (t : RT.ConcreteType) : ConcreteType =
-      Option.map valueTypeFromRT t
-
+    and fromRT (t : RT.ValueType) : ValueType =
+      match t with
+      | RT.Unknown -> Unknown
+      | RT.Known t -> Known(knownTypeFromRT t)
 
   type DvalMap = Map<string, Dval>
   and DvalSource =
@@ -245,7 +231,7 @@ module FormatV0 =
     | DUnit
     | DString of string
     | DChar of string
-    | DList of ConcreteType * List<Dval>
+    | DList of ValueType * List<Dval>
     | DTuple of Dval * Dval * List<Dval>
     | DLambda // See docs/dblock-serialization.md
     | DDict of DvalMap
@@ -274,7 +260,7 @@ module FormatV0 =
     | DLambda ->
       RT.DFnVal(
         RT.Lambda
-          { typeArgTable = Map []
+          { typeSymbolTable = Map []
             symtable = Map []
             parameters = []
             body = RT.Expr.EUnit 0UL }
@@ -287,7 +273,7 @@ module FormatV0 =
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
     | DPassword pw -> RT.DPassword(Password pw)
-    | DList(typ, l) -> RT.DList(ConcreteType.toRT typ, List.map toRT l)
+    | DList(typ, l) -> RT.DList(ValueType.toRT typ, List.map toRT l)
     | DTuple(first, second, theRest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)
     | DDict o -> RT.DDict(Map.map toRT o)
@@ -320,7 +306,7 @@ module FormatV0 =
     | RT.DDB name -> DDB name
     | RT.DUuid uuid -> DUuid uuid
     | RT.DPassword(Password pw) -> DPassword pw
-    | RT.DList(typ, l) -> DList(ConcreteType.fromRT typ, List.map fromRT l)
+    | RT.DList(typ, l) -> DList(ValueType.fromRT typ, List.map fromRT l)
     | RT.DTuple(first, second, theRest) ->
       DTuple(fromRT first, fromRT second, List.map fromRT theRest)
     | RT.DDict o -> DDict(Map.map fromRT o)
@@ -345,7 +331,7 @@ let parseJsonV0 (json : string) : RT.Dval =
 let toHashV2 (dvals : list<RT.Dval>) : string =
   dvals
   |> List.map FormatV0.fromRT
-  |> fun dv -> FormatV0.DList(None, dv)
+  |> fun dv -> FormatV0.DList(FormatV0.Unknown, dv)
   |> Json.Vanilla.serialize
   |> UTF8.toBytes
   |> System.IO.Hashing.XxHash64.Hash // fastest in .NET, does not need to be secure

@@ -91,7 +91,8 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! rules = SchedulingRules.getSchedulingRules canvasID
-            return rules |> List.map ruleToDval |> DList
+            // VTTODO: give this a real type
+            return rules |> List.map ruleToDval |> Dval.list Unknown
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -135,7 +136,8 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUnit ] ->
           uply {
             let! rules = SchedulingRules.getAllSchedulingRules ()
-            return rules |> List.map ruleToDval |> DList
+            // VTTODO: give this a real type
+            return rules |> List.map ruleToDval |> Dval.list Unknown
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

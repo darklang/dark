@@ -68,7 +68,7 @@ let typeErrorMsg
   (actual : Dval)
   : string =
   let expected = DvalReprDeveloper.typeName expected
-  let actualType = actual |> Dval.toValueType |> DvalReprDeveloper.valueTypeName
+  let actualType = actual |> DvalReprDeveloper.toTypeName
 
   $"Expected a value of type {expected} but got a {actualType} (`{actual}`)"
   + $" in column {colName}"
@@ -199,7 +199,7 @@ module ErrorSegment =
           | TypeName t -> TypeName.toString t
           | ShortTypeName t -> TypeName.toShortName t
           | TypeReference t -> DvalReprDeveloper.typeName t
-          | TypeOfValue dv -> dv |> Dval.toValueType |> DvalReprDeveloper.valueTypeName
+          | TypeOfValue dv -> dv |> DvalReprDeveloper.toTypeName
           | FieldName f -> "`" + f + "`"
           | InlineFieldName f -> f
           | DBName db -> db
@@ -538,6 +538,12 @@ let toSegments (e : Error) : ErrorOutput =
       extraExplanation = extraExplanation
       actual = actual
       expected = expected }
+  | TypeError(_) ->
+
+    { summary = [String "VTTODO"]
+      extraExplanation = []
+      actual = []
+      expected =[]  }
 
 let toString (e : Error) : string =
   let s = toSegments e

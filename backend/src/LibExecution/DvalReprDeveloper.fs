@@ -39,50 +39,56 @@ let rec typeName (t : TypeReference) : string =
 
 
 
-let rec valueTypeName (vt : ValueType) : string =
+let rec knownTypeName (vt : KnownType) : string =
   match vt with
-  | VTInt _ -> "Int"
-  | VTFloat _ -> "Float"
-  | VTBool _ -> "Bool"
-  | VTUnit -> "Unit"
-  | VTChar _ -> "Char"
-  | VTString _ -> "String"
-  | VTDB _ -> "Datastore"
-  | VTDateTime _ -> "DateTime"
-  | VTPassword _ -> "Password"
-  | VTUuid _ -> "Uuid"
-  | VTBytes _ -> "Bytes"
+  | KTInt -> "Int"
+  | KTFloat -> "Float"
+  | KTBool -> "Bool"
+  | KTUnit -> "Unit"
+  | KTChar -> "Char"
+  | KTString -> "String"
+  | KTDateTime -> "DateTime"
+  | KTPassword -> "Password"
+  | KTUuid -> "Uuid"
+  | KTBytes -> "Bytes"
 
-  | VTList typ -> $"List<{concreteTypeName typ}>"
-  | VTDict typ -> $"Dict<{concreteTypeName typ}>"
-  | VTFn (argTypes, retType) ->
+  | KTList typ -> $"List<{valueTypeName typ}>"
+  | KTDict typ -> $"Dict<{valueTypeName typ}>"
+  | KTDB typ -> $"Datastore<{valueTypeName typ}>"
+
+  | KTFn (argTypes, retType) ->
     argTypes @ [retType]
-    |> List.map concreteTypeName
+    |> List.map valueTypeName
     |> String.concat " -> "
     |> fun s -> "(" + s + ")" // VTTODO: maybe not include ()?
 
-  | VTTuple(t1, t2, trest) ->
+  | KTTuple(t1, t2, trest) ->
     t1 :: t2 :: trest
     |> List.map valueTypeName
     |> String.concat ", "
     |> fun s -> $"({s})"
 
-  | VTCustomType(name, typeArgs) ->
+  | KTCustomType(name, typeArgs) ->
     let typeArgsPortion =
       match typeArgs with
       | [] -> ""
       | args ->
         args
-        |> List.map (fun t -> concreteTypeName t)
+        |> List.map (fun t -> valueTypeName t)
         |> String.concat ", "
         |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
     TypeName.toString name + typeArgsPortion
 
-and concreteTypeName (typ: ConcreteType): string =
+and valueTypeName (typ: ValueType): string =
   match typ with
-  | Some typ -> valueTypeName typ
-  | None -> "_"
+  | Known typ -> knownTypeName typ
+  | Unknown -> "_"
+
+let toTypeName (dv : Dval) : string =
+  dv
+  |> Dval.toKnownType
+  |> knownTypeName
 
 // SERIALIZER_DEF Custom DvalReprDeveloper.toRepr
 /// For printing something for the developer to read, as a live-value, error
@@ -97,7 +103,7 @@ let toRepr (dv : Dval) : string =
     let nl = "\n" + makeSpaces indent
     let inl = "\n" + makeSpaces (indent + 2)
     let indent = indent + 2
-    let typename = dv |> Dval.toValueType |> valueTypeName
+    let typename = dv |> toTypeName
     let wrap str = $"<{typename}: {str}>"
     let justType = $"<{typename}>"
 

@@ -62,7 +62,7 @@ let hardToRepresentTests =
          RT.DFnVal(
            RT.Lambda
              { parameters = []
-               typeArgTable = Map.empty
+               typeSymbolTable = Map.empty
                symtable = Map.empty
                body = RT.EUnit 1UL }
          ) ]),

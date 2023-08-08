@@ -19,6 +19,9 @@ module Request =
   let typ =
     RT.TypeName.fqPackage "Darklang" (NEList.ofList "Stdlib" [ "Http" ]) "Request" 0
 
+  let headerKnownType =
+    RT.Known(RT.KTTuple(RT.Known RT.KTString, RT.Known RT.KTString, []))
+
   let fromRequest
     (uri : string)
     (headers : HttpHeaders.T)
@@ -28,7 +31,7 @@ module Request =
       headers
       |> lowercaseHeaderKeys
       |> List.map (fun (k, v) -> RT.DTuple(RT.DString(k), RT.DString(v), []))
-      |> fun headers -> RT.DList(Some (RT.VTTuple(RT.VTString, RT.VTString, [])),  headers)
+      |> fun headers -> RT.DList(headerKnownType, headers)
 
     [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]
     |> RT.Dval.record typ
@@ -37,6 +40,9 @@ module Request =
 module Response =
   type HttpResponse =
     { statusCode : int; body : byte array; headers : HttpHeaders.T }
+
+  let headerKnownType =
+    RT.Known(RT.KTTuple(RT.Known RT.KTString, RT.Known RT.KTString, []))
 
   let toHttpResponse (result : RT.Dval) : HttpResponse =
     match result with
@@ -52,7 +58,9 @@ module Response =
       let headers = Map.get "headers" fields
       let body = Map.get "body" fields
       match code, headers, body with
-      | Some(RT.DInt code), Some(RT.DList(Some (RT.VTTuple(RT.VTString, RT.VTString, [])), headers)), Some(RT.DBytes body) ->
+      | Some(RT.DInt code),
+        Some(RT.DList(headerKnownType, headers)),
+        Some(RT.DBytes body) ->
         let headers =
           headers
           |> List.fold (Ok []) (fun acc v ->
@@ -84,7 +92,9 @@ module Response =
       { statusCode = 500
         headers = [ "Content-Type", "text/plain; charset=utf-8" ]
         body =
-          let typeName = result |> RT.Dval.toValueType |>  LibExecution.DvalReprDeveloper.valueTypeName
+          let typeName =
+            result
+            |> LibExecution.DvalReprDeveloper.toTypeName
           let message =
             [ $"Application error: expected a HTTP response, got:"
               $"type {typeName}:"

@@ -81,9 +81,10 @@ let fns : List<BuiltInFn> =
               Dval.resultOk (
                 Dval.record
                   (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0))
-                  [ ("fns", DList packagesFns)
-                    ("types", DList packagesTypes)
-                    ("constants", DList packagesConstants) ]
+                  // VTTODO: the below 3 should be Known, lazy
+                  [ ("fns", Dval.list Unknown packagesFns)
+                    ("types", Dval.list Unknown packagesTypes)
+                    ("constants", Dval.list Unknown packagesConstants) ]
               )
           }
         | _ -> incorrectArgs ()

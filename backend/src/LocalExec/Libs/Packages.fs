@@ -110,8 +110,8 @@ let fns : List<BuiltInFn> =
                  read.int "version"))
             return
               Dval.list
-                (Some(
-                  VTCustomType(
+                (Known(
+                  KTCustomType(
                     FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0),
                     []
                   )
@@ -122,10 +122,10 @@ let fns : List<BuiltInFn> =
                      (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0))
                      [ ("owner", DString owner)
                        ("modules",
-                        modules
-                        |> String.split "."
-                        |> List.map DString
-                        |> Dval.list (Some VTString)
+                          modules
+                          |> String.split "."
+                          |> List.map DString
+                          |> Dval.list (Known KTString))
                        ("name", DString fnname)
                        ("version", DInt version) ]))
           }
@@ -157,8 +157,8 @@ let fns : List<BuiltInFn> =
                  read.int "version"))
             return
               Dval.list
-                (Some(
-                  VTCustomType(
+                (Known(
+                  KTCustomType(
                     FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0),
                     []
                   )
@@ -172,7 +172,7 @@ let fns : List<BuiltInFn> =
                         modules
                         |> String.split "."
                         |> List.map DString
-                        |> Dval.list (Some VTString) m)
+                        |> Dval.list (Known KTString))
                        ("name", DString typename)
                        ("version", DInt version) ]))
           }
@@ -207,8 +207,8 @@ let fns : List<BuiltInFn> =
                  read.int "version"))
             return
               Dval.list
-                (Some(
-                  VTCustomType(
+                (Known(
+                  KTCustomType(
                     FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0),
                     []
                   )
@@ -222,7 +222,7 @@ let fns : List<BuiltInFn> =
                         modules
                         |> String.split "."
                         |> List.map DString
-                        |> Dval.list (Some VTString) m)
+                        |> Dval.list (Known KTString))
                        ("name", DString fnname)
                        ("version", DInt version) ]))
           }

@@ -68,9 +68,8 @@ let fns : List<BuiltInFn> =
         | _, _, [ DDict o ] ->
           o
           |> Map.keys
-          |> Seq.map (fun k -> DString k)
-          |> Seq.toList
-          |> fun l -> DList l
+          |> List.map DString
+          |> Dval.list (Known KTString)
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -86,9 +85,10 @@ let fns : List<BuiltInFn> =
         "Returns <param dict>'s values in a <type List>, in an arbitrary order"
       fn =
         (function
-        | _, _, [ DDict o ] ->
-          o |> Map.values |> Seq.toList |> (fun l -> DList l |> Ply)
-        | _ -> incorrectArgs ())
+          | _, _, [ DDict o ] ->
+            // VTTODO: use type from o
+            o |> Map.values |> Seq.toList |> Dval.list Unknown |> Ply
+          | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
@@ -105,7 +105,8 @@ let fns : List<BuiltInFn> =
         | _, _, [ DDict o ] ->
           Map.toList o
           |> List.map (fun (k, v) -> DTuple(DString k, v, []))
-          |> DList
+          // VTTODO: use type from o
+          |> Dval.list Unknown
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

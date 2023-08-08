@@ -17,7 +17,9 @@ module DvalComparator =
     | DUnit, DUnit -> 0
     | DString s1, DString s2 -> compare s1 s2
     | DChar c1, DChar c2 -> compare c1 c2
-    | DList l1, DList l2 -> compareLists l1 l2
+    | DList (typ1, l1), DList (typ2, l2) ->
+      // VTTODO should we do something with the typs?
+      compareLists l1 l2
     | DTuple(a1, b1, l1), DTuple(a2, b2, l2) ->
       compareLists (a1 :: b1 :: l1) (a2 :: b2 :: l2)
     | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
@@ -219,7 +221,7 @@ let constants : List<BuiltInConstant> =
   [ { name = constant "empty" 0
       typ = TList varA
       description = "Returns an empty list"
-      body = DList []
+      body = Dval.list Unknown []
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
@@ -230,7 +232,9 @@ let fns : List<BuiltInFn> =
       description = "Returns a one-element list containing the given <param val>"
       fn =
         (function
-        | _, _, [ v ] -> Ply(DList [ v ])
+        | _, _, [ v ] ->
+          // VTTODO we could get a Known type here - but probably not needed?
+          Ply(Dval.list Unknown [ v ])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -246,7 +250,9 @@ let fns : List<BuiltInFn> =
          the list is empty."
       fn =
         (function
-        | _, _, [ DList l ] -> l |> List.tryHead |> Dval.option |> Ply
+        | _, _, [ DList (typ, l) ] ->
+          // VTTODO we could get a Known type here (for the Option)
+          l |> List.tryHead |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -265,8 +271,8 @@ let fns : List<BuiltInFn> =
         // means you don't need to handle unwrapping the option
         // unless the passed list is truly empty (which shouldn't happen in most practical uses).
         (function
-        | _, _, [ DList l ] ->
-          (if List.isEmpty l then None else Some(DList l.Tail)) |> Dval.option |> Ply
+        | _, _, [ DList (typ, l) ] ->
+          (if List.isEmpty l then None else Some(Dval.list typ l.Tail)) |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -280,7 +286,7 @@ let fns : List<BuiltInFn> =
       fn =
         // fakeval handled by call
         (function
-        | _, _, [ DList l; i ] -> Ply(DList(i :: l))
+        | _, _, [ DList (typ, l); i ] -> Ply(Dval.list typ (i :: l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -294,7 +300,9 @@ let fns : List<BuiltInFn> =
       description = "Add element <param val> to back of <type list> <param list>"
       fn =
         (function
-        | _, _, [ DList l; i ] -> Ply(DList(l @ [ i ]))
+        | _, _, [ DList (typ, l); i ] ->
+          // VTTODO we could get a Known type here
+          Ply(Dval.list typ (l @ [ i ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -310,7 +318,9 @@ let fns : List<BuiltInFn> =
          None> if the list is empty)"
       fn =
         (function
-        | _, _, [ DList l ] -> l |> List.tryLast |> Dval.option |> Ply
+        | _, _, [ DList (_, l) ] ->
+          // VTTODO we could get a Known type here (for the Option)
+          l |> List.tryLast |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -324,7 +334,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a reversed copy of <param list>"
       fn =
         (function
-        | _, _, [ DList l ] -> Ply(DList(List.rev l))
+        | _, _, [ DList (typ, l) ] -> Ply(Dval.list typ (List.rev l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -343,7 +353,7 @@ let fns : List<BuiltInFn> =
          value exists"
       fn =
         (function
-        | state, _, [ DList l; DFnVal fn ] ->
+        | state, _, [ DList (_, l); DFnVal fn ] ->
           uply {
             let f (dv : Dval) : Ply<bool> =
               uply {
@@ -353,6 +363,7 @@ let fns : List<BuiltInFn> =
               }
 
             let! result = Ply.List.findSequentially f l
+            // VTTODO we could get a Known type here (for the Option)
             return Dval.option result
           }
         | _ -> incorrectArgs ())
@@ -368,7 +379,7 @@ let fns : List<BuiltInFn> =
       description = "Returns {{true}} if <param val> is in the list"
       fn =
         (function
-        | _, _, [ DList l; i ] -> Ply(DBool(List.contains i l))
+        | _, _, [ DList (_, l); i ] -> Ply(DBool(List.contains i l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -391,7 +402,8 @@ let fns : List<BuiltInFn> =
             Errors.argumentWasnt "less than 2147483647" "times" (DInt times)
             |> errPipe
           else
-            List.replicate (int times) v |> DList |> Dval.resultOk |> Ply
+            // VTTODO we could get a Known type here
+            List.replicate (int times) v |> Dval.list Unknown |> Dval.resultOk |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -405,7 +417,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the number of values in <param list>"
       fn =
         (function
-        | _, _, [ DList l ] -> Ply(Dval.int (l.Length))
+        | _, _, [ DList (_, l) ] -> Ply(Dval.int (l.Length))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -425,7 +437,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DInt start; DInt stop ] ->
-          [ start..stop ] |> List.map DInt |> DList |> Ply
+          [ start..stop ] |> List.map DInt |> Dval.list (Known KTInt) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -448,7 +460,7 @@ let fns : List<BuiltInFn> =
          any two pairs."
       fn =
         (function
-        | state, _, [ DList l; init; DFnVal b ] ->
+        | state, _, [ DList (_,l); init; DFnVal b ] ->
           // Fake cf should be propagated by the blocks so we dont need to check
           uply {
             let f (accum : DvalTask) (item : Dval) : DvalTask =
@@ -457,6 +469,8 @@ let fns : List<BuiltInFn> =
                 return! Interpreter.applyFnVal state 0UL b [] [ accum; item ]
               }
 
+            // VTTODO it seems possible to get a Known type here
+            // in case of an empty resultant list
             return! List.fold f (Ply init) l
           }
         | _ -> incorrectArgs ())
@@ -474,13 +488,14 @@ let fns : List<BuiltInFn> =
          list> (does not recursively flatten nested lists)"
       fn =
         (function
-        | _, _, [ DList l ] ->
+        | _, _, [ DList (_, l) ] ->
           let f acc i =
             match i with
-            | DList l -> List.append acc l
+            | DList (_, l) -> List.append acc l
             | _ -> Exception.raiseCode "Flattening non-lists"
 
-          List.fold f [] l |> DList |> Ply
+          // VTTODO we could get a Known type here
+          List.fold f [] l |> Dval.list Unknown |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -495,7 +510,7 @@ let fns : List<BuiltInFn> =
         "Returns a single list containing the values of <param list> separated by <param sep>"
       fn =
         (function
-        | _, _, [ DList l; i ] ->
+        | _, _, [ DList (typ, l); i ] ->
           let rec join ls =
             match ls with
             | [] -> []
@@ -504,7 +519,7 @@ let fns : List<BuiltInFn> =
                | [] -> [ h ]
                | t -> [ h ] @ [ i ] @ join t)
 
-          Ply(DList(join l))
+          Ply(Dval.list typ (join l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -522,7 +537,7 @@ let fns : List<BuiltInFn> =
          other list."
       fn =
         (function
-        | _, _, [ DList l1; DList l2 ] ->
+        | _, _, [ DList (typ, l1); DList (_, l2) ] ->
           let rec f l1 l2 =
             match l1 with
             | [] -> l2
@@ -531,7 +546,7 @@ let fns : List<BuiltInFn> =
                | [] -> l1
                | y :: ys -> x :: y :: f xs ys)
 
-          Ply(DList(f l1 l2))
+          Ply(DList(typ, f l1 l2))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -550,7 +565,7 @@ let fns : List<BuiltInFn> =
          order will not be maintained."
       fn =
         (function
-        | state, _, [ DList l; DFnVal b ] ->
+        | state, _, [ DList (typ, l); DFnVal b ] ->
           uply {
             try
               let! projected =
@@ -569,7 +584,7 @@ let fns : List<BuiltInFn> =
                 |> List.distinctBy snd
                 |> List.map fst
                 |> List.sortWith DvalComparator.compareDval
-                |> DList
+                |> Dval.list typ
             with _ ->
               // TODO: we should prevent this as soon as the different types are added
               // Ideally we'd catch the exception thrown during comparison but the sort
@@ -595,11 +610,11 @@ let fns : List<BuiltInFn> =
          order will not be maintained."
       fn =
         (function
-        | _, _, [ DList l ] ->
+        | _, _, [ DList (typ, l) ] ->
           try
             List.distinct l
             |> List.sortWith DvalComparator.compareDval
-            |> DList
+            |> Dval.list typ
             |> Ply
           with _ ->
             // TODO: we should prevent this as soon as the different types are added
@@ -621,7 +636,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if <param list> has no values"
       fn =
         (function
-        | _, _, [ DList l ] -> Ply(DBool(List.isEmpty l))
+        | _, _, [ DList (_, l) ] -> Ply(DBool(List.isEmpty l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -641,9 +656,9 @@ let fns : List<BuiltInFn> =
          control over the sorting process."
       fn =
         (function
-        | _, _, [ DList list ] ->
+        | _, _, [ DList (typ, list) ] ->
           try
-            list |> List.sortWith DvalComparator.compareDval |> DList |> Ply
+            list |> List.sortWith DvalComparator.compareDval |> Dval.list typ |> Ply
           with _ ->
             // TODO: we should prevent this as soon as the different types are added
             // Ideally we'd catch the exception thrown during comparison but the sort
@@ -674,7 +689,7 @@ let fns : List<BuiltInFn> =
          List.sortByComparator> if you want more control over the sorting process."
       fn =
         (function
-        | state, _, [ DList list; DFnVal b ] ->
+        | state, _, [ DList (typ, list); DFnVal b ] ->
           uply {
             try
               let fn dv = Interpreter.applyFnVal state 0UL b [] [ dv ]
@@ -691,7 +706,7 @@ let fns : List<BuiltInFn> =
                 |> List.sortWith (fun (k1, _) (k2, _) ->
                   DvalComparator.compareDval k1 k2)
                 |> List.map snd
-                |> DList
+                |> Dval.list typ
             with _ ->
               // TODO: we should prevent this as soon as the different types are added
               // Ideally we'd catch the exception thrown during comparison but the sort
@@ -724,7 +739,7 @@ let fns : List<BuiltInFn> =
          of control."
       fn =
         (function
-        | state, _, [ DList list; DFnVal f ] ->
+        | state, _, [ DList (typ, list); DFnVal f ] ->
           let fn (dv1 : Dval) (dv2 : Dval) : Ply<int> =
             uply {
               let! result = Interpreter.applyFnVal state 0UL f [] [ dv1; dv2 ]
@@ -743,7 +758,7 @@ let fns : List<BuiltInFn> =
               let array = List.toArray list
               do! Sort.sort fn array
               // CLEANUP: check fakevals
-              return array |> Array.toList |> DList |> Dval.resultOk
+              return array |> Array.toList |> Dval.list typ |> Dval.resultOk
             with e ->
               return Dval.resultError (DString e.Message)
           }
@@ -765,7 +780,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DList(typ1, l1); DList(typ2, l2) ] ->
           // merge the 2
-          match Dval.mergeConcreteTypes typ1 typ2 with
+          match Dval.mergeValueTypes typ1 typ2 with
           | Ok typ -> Ply(DList(typ, List.append l1 l2)) // no checking for DError required
           | Error _ -> incorrectArgs () // VTTODO is this right?
         | _ -> incorrectArgs ())
@@ -933,7 +948,7 @@ let fns : List<BuiltInFn> =
             let! result = Ply.List.filterMapSequentially f l
 
             match abortReason.Value with
-            | None -> return Dval.list None result // VTTODO: consider using output type of passed-in fn
+            | None -> return Dval.list Unknown result // VTTODO: consider using output type of passed-in fn
             | Some v -> return v
           }
         | _ -> incorrectArgs ())
@@ -1098,7 +1113,7 @@ let fns : List<BuiltInFn> =
                 (fun dv -> Interpreter.applyFnVal state 0UL b [] [ dv ])
                 l
 
-            return Dval.list None result // VTTODO could use the return type of the passed-in fn
+            return Dval.list Unknown result // VTTODO could use the return type of the passed-in fn
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -1129,7 +1144,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state 0UL b [] [ DInt(int64 i); dv ])
                 list
 
-            return Dval.list None result // VTTODO could use the return type of the passed-in fn
+            return Dval.list Unknown result // VTTODO could use the return type of the passed-in fn
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -1171,7 +1186,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state 0UL b [] [ dv1; dv2 ])
                 list
 
-            return Dval.list None result // VTTODO could use the return type of the passed-in fn
+            return Dval.list Unknown result // VTTODO could use the return type of the passed-in fn
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -1215,7 +1230,7 @@ let fns : List<BuiltInFn> =
 
               return
                 result
-                |> Dval.list None // VTTODO could use the return type of the passed-in fn
+                |> Dval.list Unknown // VTTODO could use the return type of the passed-in fn
                 |> Dval.optionSome
           }
         | _ -> incorrectArgs ())
@@ -1253,7 +1268,7 @@ let fns : List<BuiltInFn> =
 
           List.zip l1 l2
           |> List.map (fun (val1, val2) -> DTuple(val1, val2, []))
-          |> Dval.list (Some(VTTuple(typ1, typ2, [])))
+          |> Dval.list (Known(KTTuple(typ1, typ2, [])))
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -1287,7 +1302,7 @@ let fns : List<BuiltInFn> =
           else
             List.zip l1 l2
             |> List.map (fun (val1, val2) -> DTuple(val1, val2, []))
-            |> Dval.list (Some(VTTuple(typ1, typ2, [])))
+            |> Dval.list (Known(KTTuple(typ1, typ2, [])))
             |> Dval.optionSome
             |> Ply
         | _ -> incorrectArgs ())
@@ -1323,7 +1338,7 @@ let fns : List<BuiltInFn> =
                   $". It has length {2 + List.length xs} but should have length 2"
                 | _ ->
                   let typeName =
-                    v |> Dval.toValueType |> DvalReprDeveloper.valueTypeName
+                    v  |> DvalReprDeveloper.toTypeName
                   $". It is of type {typeName} instead of `Tuple`"
 
               Exception.raiseCode (
@@ -1333,8 +1348,8 @@ let fns : List<BuiltInFn> =
 
           let (typ1, typ2) =
             match typ with
-            | Some(VTTuple(typ1, typ2, [])) -> typ1, typ2
-            | None -> None, None
+            | Known(KTTuple(typ1, typ2, [])) -> typ1, typ2
+            | Unknown -> Unknown, Unknown
             | _ -> incorrectArgs ()
 
           let (l1, l2) = l |> List.rev |> List.fold f ([], [])
@@ -1424,7 +1439,7 @@ let fns : List<BuiltInFn> =
             match fakeKey with
             | Some(key, _) -> return key
             | None ->
-              let keyType = None // VTTODO we could extract this from the passed-in fn
+              let keyType = Unknown // VTTODO we could extract this from the passed-in fn
 
               let groups =
                 result
@@ -1432,7 +1447,7 @@ let fns : List<BuiltInFn> =
                 |> List.map (fun (key, elementsWithKey) ->
                   let l = List.map snd elementsWithKey
                   DTuple(key, Dval.list typ l, []))
-                |> Dval.list (Some(VTTuple(keyType, typ, [])))
+                |> Dval.list (Known(KTTuple(keyType, typ, [])))
 
               return groups
           }

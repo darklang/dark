@@ -84,6 +84,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+
     { name = fn "toList" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
@@ -96,7 +97,7 @@ let fns : List<BuiltInFn> =
            |> String.toEgcSeq
            |> Seq.map (fun c -> DChar c)
            |> Seq.toList
-           |> DList
+           |> Dval.list (Known KTChar)
            |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -291,13 +292,13 @@ let fns : List<BuiltInFn> =
             result |> ResizeArray.toList
 
           if sep = "" then
-            s |> String.toEgcSeq |> Seq.toList |> List.map DString |> DList |> Ply
+            s |> String.toEgcSeq |> Seq.toList |> List.map DString |> Dval.list (Known KTString) |> Ply
           else
             ecgStringSplit
               (s |> String.toEgcSeq |> Seq.toList)
               (sep |> String.toEgcSeq |> Seq.toList)
             |> List.map DString
-            |> DList
+            |> Dval.list (Known KTString)
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -313,7 +314,7 @@ let fns : List<BuiltInFn> =
       description = "Combines a list of strings with the provided separator"
       fn =
         (function
-        | _, _, [ DList l; DString sep ] ->
+        | _, _, [ DList (_, l); DString sep ] ->
           let strs =
             List.map
               (fun s ->
@@ -339,7 +340,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the list of characters as a string"
       fn =
         (function
-        | _, _, [ DList l ] ->
+        | _, _, [ DList(_, l) ] ->
           DString(
             l
             |> List.map (fun dval ->
@@ -576,7 +577,6 @@ let fns : List<BuiltInFn> =
             |> fun i -> if i < 0L then length + i else i // account for - values
             |> min length
             |> max 0L
-
 
           let f = normalize first |> int
           let l = normalize last |> int

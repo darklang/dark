@@ -258,12 +258,12 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
 
 
     // nested structures
-    | TList nested, JsonValueKind.Array ->
+    | TList nested, JsonValueKind.Array -> // VTTODO
       j.EnumerateArray()
       |> Seq.map (convert nested)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (fun l -> DList( Types.ValueType.fromFullySubstitutedTypeReference nested |> Some, l))
+      |> Ply.map (fun l -> DList( Types.KnownType.fromFullySubstitutedTypeReference nested |> Known, l))
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let arr = j.EnumerateArray() |> Seq.toList

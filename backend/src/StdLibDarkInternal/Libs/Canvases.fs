@@ -62,7 +62,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUnit ] ->
           uply {
             let! hosts = Canvas.allCanvasIDs ()
-            return hosts |> List.map DUuid |> DList
+            return hosts |> List.map DUuid |> Dval.list (Known KTUuid)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -174,14 +174,16 @@ let fns : List<BuiltInFn> =
               |> Map.values
               |> Seq.toList
               |> List.map PT2DT.UserType.toDT
-              |> DList
+              // VTTODO: add a real type later
+              |> Dval.list Unknown
 
             let fns =
               canvas.userFunctions
               |> Map.values
               |> Seq.toList
               |> List.map PT2DT.UserFunction.toDT
-              |> DList
+              // VTTODO: add a real type later
+              |> Dval.list Unknown
             // let dbs =
             //   Map.values canvas.dbs
             //   |> Seq.toList

@@ -968,7 +968,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("int string2", DString "-1039485", TString)
     ("int string3", DString "0", TString)
     ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6", TString)
-    ("list", Dval.list (Some VTInt) [ Dval.int 4 ], TList TInt)
+    ("list", Dval.list (Some KTInt) [ Dval.int 4 ], TList TInt)
     ("list with derror",
      DList(None, [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ]),
      TList TInt)
@@ -1032,7 +1032,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DFnVal(
        Lambda
          { body = RT.EUnit(id 1234)
-           typeArgTable = Map.empty
+           typeSymbolTable = Map.empty
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }
      ),
@@ -1083,7 +1083,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                  ) ]
              )
            symtable = Map.empty
-           typeArgTable = Map.empty
+           typeSymbolTable = Map.empty
            parameters = [ (id 5678, "a") ] }
      ),
      TFn([ TInt ], TInt))

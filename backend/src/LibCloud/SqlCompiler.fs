@@ -279,7 +279,7 @@ let rec lambdaToSql
         fns
         types
         constants
-        tat
+        tst
         symtable
         paramName
         dbTypeRef
@@ -595,9 +595,11 @@ let rec lambdaToSql
             | TUuid -> "uuid"
             | TUnit -> "bigint" // CLEANUP why is this bigint?
             | TVariable varName ->
-              match Map.get varName tat with
-              | Some found -> primitiveFieldType found
-              | None ->
+              // VTTODO
+              // match Map.get varName tst with
+              // | Some found ->
+              //   primitiveFieldType found
+              // | None ->
                 error $"Could not resolve type variable in lambdaToSql: {varName}"
             | _ -> error $"We do not support this type of DB field yet: {t}"
 
@@ -700,7 +702,7 @@ let partiallyEvaluate
     let exec (expr : Expr) : Ply.Ply<Expr> =
       uply {
         let newName = "dark_generated_" + randomString 8
-        let! value = LibExecution.Interpreter.eval state tat symtable.Value expr
+        let! value = LibExecution.Interpreter.eval state tst symtable.Value expr
         symtable.Value <- Map.add newName value symtable.Value
         return (EVariable(gid (), newName))
       }
@@ -903,7 +905,7 @@ let compileLambda
       |> inline' paramName Map.empty
       // Replace expressions which can be calculated now with their result. See
       // comment for more details.
-      |> partiallyEvaluate state tat symtable paramName
+      |> partiallyEvaluate state tst symtable paramName
       |> Ply.TplPrimitives.runPlyAsTask
 
     let types = ExecutionState.availableTypes state
@@ -913,7 +915,7 @@ let compileLambda
         state.builtIns.fns
         types
         state.builtIns.constants
-        tat
+        tst
         symtable
         paramName
         dbType
