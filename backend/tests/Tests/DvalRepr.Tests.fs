@@ -21,7 +21,7 @@ module S = TestUtils.RTShortcuts
 
 
 let defaultTypes () =
-  { RT.Types.empty with package = LibCloud.PackageManager.packageManager.getType }
+  { LibExecution.Types.empty with package = LibCloud.PackageManager.packageManager.getType }
 
 let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
   dv
@@ -95,7 +95,7 @@ let testToDeveloperRepr =
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(1, 2, 3)"
           RT.DDict(Map.ofList [ "", RT.DUnit ]), "{\n  : unit\n}"
-          RT.DList [ RT.DUnit ], "[\n  unit\n]" ] ]
+          RT.Dval.list RT.Unknown [ RT.DUnit ], "[\n  unit\n]" ] ]
 
 module ToHashableRepr =
   open LibExecution.RuntimeTypes
@@ -230,7 +230,7 @@ module Password =
       let typeRef = S.userTypeReference [] "MyType" 0
 
       let availableTypes =
-        { RT.Types.empty with
+        { LibExecution.Types.empty with
             userProgram =
               Map
                 [ typeName,

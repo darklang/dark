@@ -102,7 +102,8 @@ let rec serialize
 
 
     // Nested types
-    | TList ltype, DList l ->
+    | TList ltype, DList (_typ, l) ->
+      // VTTODO is there any reason to use the typ here instead?
       do! w.writeArray (fun () -> Ply.List.iterSequentially (r ltype) l)
 
     | TDict objType, DDict fields ->
@@ -132,13 +133,13 @@ let rec serialize
 
     | TCustomType(typeName, typeArgs), dval ->
 
-      match! Types.find typeName types with
+      match! LibExecution.Types.find typeName types with
       | None -> Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
       | Some decl ->
 
         match decl.definition with
         | TypeDeclaration.Alias typ ->
-          let typ = Types.substitute decl.typeParams typeArgs typ
+          let typ = LibExecution.Types.substitute decl.typeParams typeArgs typ
           return! r typ dv
 
         | TypeDeclaration.Enum cases ->
@@ -168,7 +169,7 @@ let rec serialize
                     List.zip matchingCase.fields fields
                     |> Ply.List.iterSequentially (fun (fieldType, fieldVal) ->
                       let typ =
-                        Types.substitute decl.typeParams typeArgs fieldType
+                        LibExecution.Types.substitute decl.typeParams typeArgs fieldType
                       r typ fieldVal)))
 
             | _ -> Exception.raiseInternal "Too many matching cases" []
@@ -194,7 +195,7 @@ let rec serialize
                       []
 
                   let typ =
-                    Types.substitute decl.typeParams typeArgs matchingFieldDef.typ
+                    LibExecution.Types.substitute decl.typeParams typeArgs matchingFieldDef.typ
                   r typ dval))
 
           | DRecord(actualTypeName, _, _) ->
@@ -204,7 +205,7 @@ let rec serialize
           | _ ->
             Exception.raiseInternal
               "Expected a DRecord but got something else"
-              [ "type", LibExecution.DvalReprDeveloper.dvalTypeName dval ]
+              [ "type", LibExecution.DvalReprDeveloper.toTypeName dval ]
 
 
     // Not supported

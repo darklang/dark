@@ -55,9 +55,9 @@ let hardToRepresentTests =
     "hardToRepresent"
     execute
     [ (fnName [ "List" ] "fold" 0,
-       [ RT.DList [ RT.DBool true; RT.DInt 0L ]
+       [ RT.Dval.list RT.Unknown [ RT.DBool true; RT.DInt 0L ]
 
-         RT.DList []
+         RT.Dval.list RT.Unknown []
 
          RT.DFnVal(
            RT.Lambda

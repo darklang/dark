@@ -129,7 +129,7 @@ let fns : List<BuiltInFn> =
          This function is the opposite of <fn Dict.toList>."
       fn =
         (function
-        | _, _, [ DList l ] ->
+        | _, _, [ DList (_typ, l) ] ->
 
           let f acc e =
             match e with
@@ -139,6 +139,7 @@ let fns : List<BuiltInFn> =
             | (DIncomplete _ | DError _) as dv -> Errors.foundFakeDval dv
             | _ -> Exception.raiseCode "All list items must be `(key, value)`"
 
+          // VTTODO: maybe use the typ from the list?
           let result = List.fold Map.empty f l
           Ply(DDict result)
         | _ -> incorrectArgs ())
@@ -162,7 +163,9 @@ let fns : List<BuiltInFn> =
          if you want to overwrite duplicate keys)."
       fn =
         (function
-        | _, _, [ DList l ] ->
+        | _, _, [ DList (_typ, l) ] ->
+          // VTTODO maybe use the typ from the list somehwere?
+          
           let f acc e =
             match acc, e with
             | Some acc, DTuple(DString k, _, _) when Map.containsKey k acc -> None

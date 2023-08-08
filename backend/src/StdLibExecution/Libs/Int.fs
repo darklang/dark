@@ -350,7 +350,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the sum of all the ints in the list"
       fn =
         (function
-        | _, _, [ DList l as ldv ] ->
+        | _, _, [ DList (_typ, l) as ldv ] ->
           let ints =
             List.map
               (fun i ->
@@ -362,6 +362,7 @@ let fns : List<BuiltInFn> =
                   ))
               l
 
+          // VTTODO maybe use the typ from the list?
           let sum = List.fold (fun acc elem -> acc + elem) 0L ints
           Ply(DInt sum)
         | _ -> incorrectArgs ())
