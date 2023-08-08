@@ -3,17 +3,24 @@
 
 // Tests that don't use the internet
 module NoInternal =
-  PACKAGE.Darklang.Stdlib.HttpClient.formContentType_v0 () = ("content-type", "application/x-www-form-urlencoded")
+  PACKAGE.Darklang.Stdlib.HttpClient.formContentType_v0 () = ("content-type",
+                                                              "application/x-www-form-urlencoded")
 
-  PACKAGE.Darklang.Stdlib.HttpClient.jsonContentType_v0 () = ("content-type", "application/json; charset=utf-8")
+  PACKAGE.Darklang.Stdlib.HttpClient.jsonContentType_v0 () = ("content-type",
+                                                              "application/json; charset=utf-8")
 
-  PACKAGE.Darklang.Stdlib.HttpClient.plainTextContentType_v0 () = ("content-type", "text/plain; charset=utf-8")
+  PACKAGE.Darklang.Stdlib.HttpClient.plainTextContentType_v0 () = ("content-type",
+                                                                   "text/plain; charset=utf-8")
 
-  PACKAGE.Darklang.Stdlib.HttpClient.htmlContentType_v0 () = ("content-type", "text/html; charset=utf-8")
+  PACKAGE.Darklang.Stdlib.HttpClient.htmlContentType_v0 () = ("content-type",
+                                                              "text/html; charset=utf-8")
 
-  PACKAGE.Darklang.Stdlib.HttpClient.bearerToken "YWxhZGRpbjpvcGVuc2VzYW1l" = (("authorization", "bearer YWxhZGRpbjpvcGVuc2VzYW1l"))
+  PACKAGE.Darklang.Stdlib.HttpClient.bearerToken "YWxhZGRpbjpvcGVuc2VzYW1l" = (("authorization",
+                                                                                "bearer YWxhZGRpbjpvcGVuc2VzYW1l"))
 
-  HttpClient.basicAuth "username" "password" = ("authorization", "basic dXNlcm5hbWU6cGFzc3dvcmQ=")
+  HttpClient.basicAuth "username" "password" = ("authorization",
+                                                "basic dXNlcm5hbWU6cGFzc3dvcmQ=")
+
   HttpClient.basicAuth "" "" = ("authorization", "basic Og==")
   HttpClient.basicAuth "-" "" = Test.runtimeError "Username cannot contain a hyphen"
   HttpClient.basicAuth "" "-" = ("authorization", "basic Oi0=")
@@ -24,125 +31,222 @@ module NoInternal =
 // Tests that try to make requests to the internet
 
 // basic requests work
-((HttpClient.request "get" "https://example.com" [] Bytes.empty) |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)) = PACKAGE.Darklang.Stdlib.Result.Result.Ok 200
-((HttpClient.request "get" "http://example.com" [] Bytes.empty) |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)) = PACKAGE.Darklang.Stdlib.Result.Result.Ok 200
+((HttpClient.request "get" "https://example.com" [] Bytes.empty)
+ |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  200
+
+((HttpClient.request "get" "http://example.com" [] Bytes.empty)
+ |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  200
 
 // type errors for bad `headers` are OK
-HttpClient.request "get" "https://darklang.com" [1] Bytes.empty =
-  // CLEANUP this would be better once DList includes typeRefs:
-  //Test.runtimeError "In HttpClient.request's 3rd argument (`headers`), the value should be a List<String * String>. However, a List<Int> ([1]) was passed instead.\n\nExpected: List<String * String>\nActual: an List<Int>: [1]"
-  Test.runtimeError "Expected request headers to be a `List<String*String>`, but got: 1"
+// CLEANUP this would be better once DList includes typeRefs:
+//Test.runtimeError "In HttpClient.request's 3rd argument (`headers`), the value should be a List<String * String>. However, a List<Int> ([1]) was passed instead.\n\nExpected: List<String * String>\nActual: an List<Int>: [1]"
+HttpClient.request "get" "https://darklang.com" [ 1 ] Bytes.empty = Test.runtimeError
+  "Expected request headers to be a `List<String*String>`, but got: 1"
 
-HttpClient.request "get" "https://darklang.com" [("", "")] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "Empty request header key provided"
+HttpClient.request "get" "https://darklang.com" [ ("", "") ] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Empty request header key provided"
 
 // type errors for bad `method` are OK
-HttpClient.request "" "https://darklang.com" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected valid HTTP method (e.g. 'get' or 'POST')"
-HttpClient.request " get " "https://darklang.com" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected valid HTTP method (e.g. 'get' or 'POST')"
-HttpClient.request "🇵🇷" "https://darklang.com" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected valid HTTP method (e.g. 'get' or 'POST')"
+HttpClient.request "" "https://darklang.com" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected valid HTTP method (e.g. 'get' or 'POST')"
+
+HttpClient.request " get " "https://darklang.com" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected valid HTTP method (e.g. 'get' or 'POST')"
+
+HttpClient.request "🇵🇷" "https://darklang.com" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected valid HTTP method (e.g. 'get' or 'POST')"
 
 // unsupported protocols
-HttpClient.request "get" "ftp://darklang.com" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Unsupported Protocol"
-HttpClient.request "put" "file:///etc/passwd" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Unsupported Protocol"
-HttpClient.request "put" "/just-a-path" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Unsupported Protocol"
+HttpClient.request "get" "ftp://darklang.com" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Bad URL: Unsupported Protocol"
+
+HttpClient.request "put" "file:///etc/passwd" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Bad URL: Unsupported Protocol"
+
+HttpClient.request "put" "/just-a-path" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Bad URL: Unsupported Protocol"
 
 // totally bogus URLs
-HttpClient.request "get" "" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Invalid URI"
-HttpClient.request "post" "{ ] nonsense ^#( :" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Invalid URI"
+HttpClient.request "get" "" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Bad URL: Invalid URI"
+
+HttpClient.request "post" "{ ] nonsense ^#( :" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Bad URL: Invalid URI"
 
 // URLs we can't actually communicate with
-HttpClient.request "get" "http://google.com:79" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "Request timed out"
+HttpClient.request "get" "http://google.com:79" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Request timed out"
 
 // Check for banned urls in the host name
 module Disallowed =
 
-  HttpClient.request "get" "http://0.0.0.0" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Invalid host"
-  HttpClient.request "get" "http://0" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Invalid host"
-  HttpClient.request "get" "http://[0:0:0:0:0:0:0:0]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::]:80) Could not connect"
+  HttpClient.request "get" "http://0.0.0.0" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Bad URL: Invalid host"
 
-  HttpClient.request "get" "localhost" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Invalid URI"
-  HttpClient.request "get" "http://localhost" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Invalid host"
+  HttpClient.request "get" "http://0" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Bad URL: Invalid host"
 
-  HttpClient.request "get" "http://127.0.0.1" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Invalid host"
-  HttpClient.request "get" "http://[::1]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::1]:80) Could not connect"
-  HttpClient.request "get" "http://[0:0:0:0:0:0:0:1]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::1]:80) Could not connect"
-  HttpClient.request "get" "http://[0000:0000:0000:0000:0000:0000:0000:0001]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::1]:80) Could not connect"
+  HttpClient.request "get" "http://[0:0:0:0:0:0:0:0]" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::]:80) Could not connect"
 
-  HttpClient.request "get" "http://127.0.0.17" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Invalid host"
-  HttpClient.request "get" "http://[::ffff:7f00:11]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::ffff:127.0.0.17]:80) Could not connect"
-  HttpClient.request "get" "http://[0:0:0:0:0:ffff:7f00:0011]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::ffff:127.0.0.17]:80) Could not connect"
-  HttpClient.request "get" "http://[0000:0000:0000:0000:0000:ffff:7f00:0011]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::ffff:127.0.0.17]:80) Could not connect"
-  HttpClient.request "get" "http://127.255.174.17" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Invalid host"
+  HttpClient.request "get" "localhost" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Bad URL: Invalid URI"
+
+  HttpClient.request "get" "http://localhost" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Bad URL: Invalid host"
+
+  HttpClient.request "get" "http://127.0.0.1" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Bad URL: Invalid host"
+
+  HttpClient.request "get" "http://[::1]" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::1]:80) Could not connect"
+
+  HttpClient.request "get" "http://[0:0:0:0:0:0:0:1]" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::1]:80) Could not connect"
+
+  HttpClient.request
+    "get"
+    "http://[0000:0000:0000:0000:0000:0000:0000:0001]"
+    []
+    Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::1]:80) Could not connect"
+
+  HttpClient.request "get" "http://127.0.0.17" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Bad URL: Invalid host"
+
+  HttpClient.request "get" "http://[::ffff:7f00:11]" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::ffff:127.0.0.17]:80) Could not connect"
+
+  HttpClient.request "get" "http://[0:0:0:0:0:ffff:7f00:0011]" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::ffff:127.0.0.17]:80) Could not connect"
+
+  HttpClient.request
+    "get"
+    "http://[0000:0000:0000:0000:0000:ffff:7f00:0011]"
+    []
+    Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::ffff:127.0.0.17]:80) Could not connect"
+
+  HttpClient.request "get" "http://127.255.174.17" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Bad URL: Invalid host"
 
 
-  HttpClient.request "get" "http://metadata.google.internal" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Invalid host"
-  HttpClient.request "get" "http://metadata" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Invalid host"
-  HttpClient.request "get" "http://169.254.169.254" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Invalid host"
-  HttpClient.request "get" "http://[::ffff:a9fe:a9fe]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::ffff:169.254.169.254]:80) Could not connect"
-  HttpClient.request "get" "http://[0:0:0:0:0:ffff:a9fe:a9fe]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::ffff:169.254.169.254]:80) Could not connect"
-  HttpClient.request "get" "http://[0000:0000:0000:0000:0000:ffff:a9fe:a9fe]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::ffff:169.254.169.254]:80) Could not connect"
-  HttpClient.request "get" "http://169.254.0.0" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Invalid host"
+  HttpClient.request "get" "http://metadata.google.internal" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Bad URL: Invalid host"
 
-  HttpClient.request "get" "http://172.16.0.1" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Invalid host"
-  HttpClient.request "get" "http://[::ffff:ac10:1]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::ffff:172.16.0.1]:80) Could not connect"
-  HttpClient.request "get" "http://[0:0:0:0:0:ffff:ac10:0001]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::ffff:172.16.0.1]:80) Could not connect"
-  HttpClient.request "get" "http://[0000:0000:0000:0000:0000:ffff:ac10:0001]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::ffff:172.16.0.1]:80) Could not connect"
+  HttpClient.request "get" "http://metadata" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Bad URL: Invalid host"
 
-  HttpClient.request "get" "http://192.168.1.1" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Bad URL: Invalid host"
-  HttpClient.request "get" "http://[::ffff:c0a8:101]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::ffff:192.168.1.1]:80) Could not connect"
-  HttpClient.request "get" "http://[0:0:0:0:0:ffff:c0a8:0101]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::ffff:192.168.1.1]:80) Could not connect"
-  HttpClient.request "get" "http://[0000:0000:0000:0000:0000:ffff:c0a8:0101]" [] Bytes.empty =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect ([::ffff:192.168.1.1]:80) Could not connect"
+  HttpClient.request "get" "http://169.254.169.254" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Bad URL: Invalid host"
+
+  HttpClient.request "get" "http://[::ffff:a9fe:a9fe]" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::ffff:169.254.169.254]:80) Could not connect"
+
+  HttpClient.request "get" "http://[0:0:0:0:0:ffff:a9fe:a9fe]" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::ffff:169.254.169.254]:80) Could not connect"
+
+  HttpClient.request
+    "get"
+    "http://[0000:0000:0000:0000:0000:ffff:a9fe:a9fe]"
+    []
+    Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::ffff:169.254.169.254]:80) Could not connect"
+
+  HttpClient.request "get" "http://169.254.0.0" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Bad URL: Invalid host"
+
+  HttpClient.request "get" "http://172.16.0.1" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Bad URL: Invalid host"
+
+  HttpClient.request "get" "http://[::ffff:ac10:1]" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::ffff:172.16.0.1]:80) Could not connect"
+
+  HttpClient.request "get" "http://[0:0:0:0:0:ffff:ac10:0001]" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::ffff:172.16.0.1]:80) Could not connect"
+
+  HttpClient.request
+    "get"
+    "http://[0000:0000:0000:0000:0000:ffff:ac10:0001]"
+    []
+    Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::ffff:172.16.0.1]:80) Could not connect"
+
+  HttpClient.request "get" "http://192.168.1.1" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Bad URL: Invalid host"
+
+  HttpClient.request "get" "http://[::ffff:c0a8:101]" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::ffff:192.168.1.1]:80) Could not connect"
+
+  HttpClient.request "get" "http://[0:0:0:0:0:ffff:c0a8:0101]" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::ffff:192.168.1.1]:80) Could not connect"
+
+  HttpClient.request
+    "get"
+    "http://[0000:0000:0000:0000:0000:ffff:c0a8:0101]"
+    []
+    Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect ([::ffff:192.168.1.1]:80) Could not connect"
 
   // Check for sneaky banned urls - blocked via connection callback
   // 127.0.0.1
-  HttpClient.request "get" "http://localtest.me" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect (localtest.me:80) Could not connect"
+  HttpClient.request "get" "http://localtest.me" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect (localtest.me:80) Could not connect"
   // 0.0.0.0
-  HttpClient.request "get" "http://c.cx" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "Could not connect (c.cx:80) Could not connect"
+  HttpClient.request "get" "http://c.cx" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Could not connect (c.cx:80) Could not connect"
 
   // invalid headers
-  HttpClient.request "get" "http://google.com" [("Metadata-Flavor", "Google") ] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  HttpClient.request
+    "get"
+    "http://google.com"
+    [ ("Metadata-Flavor", "Google") ]
+    Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Bad URL: Invalid request"
-  HttpClient.request "get" "http://google.com" [("metadata-flavor", "Google") ] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+
+  HttpClient.request
+    "get"
+    "http://google.com"
+    [ ("metadata-flavor", "Google") ]
+    Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Bad URL: Invalid request"
-  HttpClient.request "get" "http://google.com" [("Metadata-Flavor", "google") ] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+
+  HttpClient.request
+    "get"
+    "http://google.com"
+    [ ("Metadata-Flavor", "google") ]
+    Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Bad URL: Invalid request"
-  HttpClient.request "get" "http://google.com" [("Metadata-Flavor", " Google ") ] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+
+  HttpClient.request
+    "get"
+    "http://google.com"
+    [ ("Metadata-Flavor", " Google ") ]
+    Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Bad URL: Invalid request"
-  HttpClient.request "get" "http://google.com" [("X-Google-Metadata-Request", " True ") ] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+
+  HttpClient.request
+    "get"
+    "http://google.com"
+    [ ("X-Google-Metadata-Request", " True ") ]
+    Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Bad URL: Invalid request"
-  HttpClient.request "get" "http://google.com" [(" x-Google-metaData-Request", " True ") ] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+
+  HttpClient.request
+    "get"
+    "http://google.com"
+    [ (" x-Google-metaData-Request", " True ") ]
+    Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Bad URL: Invalid request"
 
 module BadSSL =
-  HttpClient.request "get" "http://thenonexistingurlforsure.com" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "Name or service not known (thenonexistingurlforsure.com:80) Name or service not known"
-  HttpClient.request "get" "https://self-signed.badssl.com" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot"
+  HttpClient.request "get" "http://thenonexistingurlforsure.com" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Name or service not known (thenonexistingurlforsure.com:80) Name or service not known"
+
+  HttpClient.request "get" "https://self-signed.badssl.com" [] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot"
 
 
 
