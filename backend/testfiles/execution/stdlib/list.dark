@@ -392,3 +392,8 @@ List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x -> ((Int.mod_v0 x 2), "test")) =
                                                                                       4 ]) ]
 
 List.groupByWithKey_v0 [] (fun x -> x) = []
+
+
+PACKAGE.Darklang.Stdlib.List.dropLast [ 1; 2; 3; 4; 5 ] = [ 1; 2; 3; 4 ]
+PACKAGE.Darklang.Stdlib.List.dropLast [ 1 ] = []
+PACKAGE.Darklang.Stdlib.List.dropLast [] = []
