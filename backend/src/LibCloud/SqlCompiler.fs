@@ -142,11 +142,11 @@ let typecheckDval
   (types : Types)
   (dval : Dval)
   (expectedType : TypeReference)
-  =
+  : Ply<unit> =
   uply {
     let context = TypeChecker.DBQueryVariable(name, expectedType, None)
     match! TypeChecker.unify context types Map.empty expectedType dval with
-    | Ok() -> return ()
+    | Ok _tat -> return () // VTTODO stop swallowing type arg table
     | Error err -> return error (Errors.toString (Errors.TypeError err))
   }
 
@@ -266,7 +266,7 @@ let rec lambdaToSql
   (fns : Map<FnName.BuiltIn, BuiltInFn>)
   (types : Types)
   (constants : Map<ConstantName.BuiltIn, BuiltInConstant>)
-  (tat : TypeArgTable)
+  (tst : TypeSymbolTable)
   (symtable : DvalMap)
   (paramName : string)
   (dbTypeRef : TypeReference)
@@ -686,7 +686,7 @@ let rec lambdaToSql
 //  needs in the right place.
 let partiallyEvaluate
   (state : ExecutionState)
-  (tat : TypeArgTable)
+  (tst : TypeSymbolTable)
   (symtable : Symtable)
   (paramName : string)
   (body : Expr)
@@ -887,7 +887,7 @@ let partiallyEvaluate
 
 let compileLambda
   (state : ExecutionState)
-  (tat : TypeArgTable)
+  (tst : TypeSymbolTable)
   (symtable : DvalMap)
   (paramName : string)
   (dbType : TypeReference)

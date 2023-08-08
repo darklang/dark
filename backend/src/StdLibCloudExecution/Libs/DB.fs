@@ -220,7 +220,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAll state db
-            return results |> List.map snd |> Dval.list
+            return results |> List.map snd |> Dval.list None // VTTODO follow up when DDB has a type
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -314,7 +314,7 @@ let fns : List<BuiltInFn> =
             try
               let db = state.program.dbs[dbname]
               let! results = UserDB.queryValues state db b
-              return results |> Dval.list
+              return results |> Dval.list None // VTTODO follow up when DDB has a type
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }

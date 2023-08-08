@@ -33,7 +33,7 @@ let withGlobals (state : ExecutionState) (symtable : Symtable) : Symtable =
 /// (or task that should result in such)
 let rec eval'
   (state : ExecutionState)
-  (tat : TypeArgTable)
+  (tst : TypeSymbolTable)
   (st : Symtable)
   (e : Expr)
   : DvalTask =
@@ -45,7 +45,7 @@ let rec eval'
   let err id msg = Dval.errSStr (sourceID id) msg
 
   /// This function ensures any value not on the execution path is evaluated.
-  let preview (tat : TypeArgTable) (st : Symtable) (expr : Expr) : Ply<unit> =
+  let preview (tst : TypeSymbolTable) (st : Symtable) (expr : Expr) : Ply<unit> =
     uply {
       if state.tracing.realOrPreview = Preview then
         let state = { state with onExecutionPath = false }
@@ -262,7 +262,7 @@ let rec eval'
 
     | EList(_id, exprs) ->
       let! results = Ply.List.mapSequentially (eval state tat st) exprs
-      return Dval.list results
+      return Dval.list None results
 
 
     | ETuple(_id, first, second, theRest) ->
@@ -326,7 +326,9 @@ let rec eval'
                         let check =
                           TypeChecker.unify context types Map.empty fieldType v
                         match! check with
-                        | Ok() -> return DRecord(typeName, original, Map.add k v m)
+                        | Ok tat ->
+                          // VTTODO stop swallowing the typeArgTable
+                          return DRecord(typeName, original, Map.add k v m)
                         | Error e ->
                           return err id (Errors.toString (Errors.TypeError(e)))
                     | _ -> return err id "Expected a record in typecheck"
@@ -376,7 +378,9 @@ let rec eval'
                     match!
                       TypeChecker.unify context types Map.empty fieldType v
                     with
-                    | Ok() -> return DRecord(typeName, original, Map.add k v m)
+                    | Ok tat ->
+                      // VTTODO stop swallowing the typeArgTable
+                      return DRecord(typeName, original, Map.add k v m)
                     | Error e ->
                       return err id (Errors.toString (Errors.TypeError(e)))
                   | _ ->
@@ -591,7 +595,7 @@ let rec eval'
           | DList(typ, headVal :: tailVals) ->
             let (headPass, headVars, headTraces) = checkPattern headVal headPat
             let (tailPass, tailVars, tailTraces) =
-              checkPattern (DList (typ, tailVals)) tailPat
+              checkPattern (DList(typ, tailVals)) tailPat
 
             let allSubVars = headVars @ tailVars
             let allSubTraces = headTraces @ tailTraces
@@ -606,7 +610,7 @@ let rec eval'
 
         | MPList(id, pats) ->
           match dv with
-          | DList (_, vals) ->
+          | DList(_, vals) ->
             if List.length vals = List.length pats then
               let (passResults, newVarResults, traceResults) =
                 List.zip vals pats
@@ -771,7 +775,8 @@ let rec eval'
                         match!
                           TypeChecker.unify context types Map.empty enumFieldType v
                         with
-                        | Ok() ->
+                        | Ok tat ->
+                          // VTTODO stop swallowing the typeArgTable
                           match r with
                           | DEnum(typeName, original, caseName, existing) ->
                             return
@@ -800,7 +805,7 @@ let rec eval'
 /// (or a task that results in a dval)
 and eval
   (state : ExecutionState)
-  (tat : TypeArgTable)
+  (tst : TypeSymbolTable)
   (st : Symtable)
   (e : Expr)
   : DvalTask =
@@ -869,7 +874,7 @@ and executeLambda
 
 and callFn
   (state : ExecutionState)
-  (tat : TypeArgTable)
+  (tst : TypeSymbolTable)
   (callerID : id)
   (desc : FnName.T)
   (typeArgs : List<TypeReference>)
@@ -934,16 +939,16 @@ and callFn
         match checkArgsLength fn with
         | Error errMsg -> return (DError(sourceID, errMsg))
         | Ok() ->
-          let newlyBoundTypeArgs = List.zip fn.typeParams typeArgs |> Map
-          let updatedTypeArgTable = Map.mergeFavoringRight tat newlyBoundTypeArgs
-          return! execFn state updatedTypeArgTable desc callerID fn typeArgs args
+          let newlyBoundTypeSymbols = List.zip fn.typeParams typeArgs |> Map
+          let updatedTypeSymbolTable = Map.mergeFavoringRight tst newlyBoundTypeSymbols
+          return! execFn state updatedTypeSymbolTable desc callerID fn typeArgs args
   }
 
 
 
 and execFn
   (state : ExecutionState)
-  (tat : TypeArgTable)
+  (tst : TypeSymbolTable)
   (fnDesc : FnName.T)
   (id : id)
   (fn : Fn)
@@ -1055,11 +1060,9 @@ and execFn
           // VTTODO
           // use typeArg table (incl anything returned by checkFnParams or whatever)
           // to make sure this works
-          match!
-            TypeChecker.checkFunctionReturnType types tat fn result
-          with
+          match! TypeChecker.checkFunctionReturnType types tat fn result with
           | Error err ->
             let msg = Errors.toString (Errors.TypeError(err))
             return DError(sourceID, msg)
-          | Ok() -> return result
+          | Ok tat -> return result
   }

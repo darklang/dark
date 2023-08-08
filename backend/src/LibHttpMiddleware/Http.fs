@@ -28,7 +28,7 @@ module Request =
       headers
       |> lowercaseHeaderKeys
       |> List.map (fun (k, v) -> RT.DTuple(RT.DString(k), RT.DString(v), []))
-      |> RT.DList
+      |> fun headers -> RT.DList(Some (RT.VTTuple(RT.VTString, RT.VTString, [])),  headers)
 
     [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]
     |> RT.Dval.record typ
@@ -52,7 +52,7 @@ module Response =
       let headers = Map.get "headers" fields
       let body = Map.get "body" fields
       match code, headers, body with
-      | Some(RT.DInt code), Some(RT.DList headers), Some(RT.DBytes body) ->
+      | Some(RT.DInt code), Some(RT.DList(Some (RT.VTTuple(RT.VTString, RT.VTString, [])), headers)), Some(RT.DBytes body) ->
         let headers =
           headers
           |> List.fold (Ok []) (fun acc v ->
@@ -84,7 +84,7 @@ module Response =
       { statusCode = 500
         headers = [ "Content-Type", "text/plain; charset=utf-8" ]
         body =
-          let typeName = LibExecution.DvalReprDeveloper.dvalTypeName result
+          let typeName = result |> RT.Dval.toValueType |>  LibExecution.DvalReprDeveloper.valueTypeName
           let message =
             [ $"Application error: expected a HTTP response, got:"
               $"type {typeName}:"

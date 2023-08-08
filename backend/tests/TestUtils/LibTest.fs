@@ -230,7 +230,7 @@ let fns : List<BuiltInFn> =
             let results =
               results
               |> List.map (fun x -> DString(LibExecution.DvalReprDeveloper.toRepr x))
-            return Dval.list results
+            return Dval.list (Some VTString) results
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -245,7 +245,7 @@ let fns : List<BuiltInFn> =
       description = "Turns a list of ints into bytes"
       fn =
         (function
-        | _, _, [ DList (Some VTInt, l) ] ->
+        | _, _, [ DList(_, l) ] ->
           l
           |> List.map (fun x ->
             match x with
@@ -281,7 +281,7 @@ let fns : List<BuiltInFn> =
       description = "Create a bytes structure from an array of ints"
       fn =
         (function
-        | _, _, [ DList (Some VTInt, bytes) ] ->
+        | _, _, [ DList(_, bytes) ] ->
           bytes
           |> List.toArray
           |> Array.map (fun dval ->

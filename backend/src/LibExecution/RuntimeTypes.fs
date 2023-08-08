@@ -416,7 +416,7 @@ type ValueType =
   // let tpl = (None, 1, "true") // CTTuple(CTCustomType(...), CTInt, [CTString])
   // since every element of the tuple is a dval, we get a concrete type
   // reference for all of them
-  | VTTuple of ValueType * ValueType * List<ValueType>
+  | VTTuple of ConcreteType * ConcreteType * List<ConcreteType>
 
   // let y1 = (fun x -> x) //
   // let y2 = (fun (x: Int) -> x) // : CTFn([Some CTInt], None)
@@ -628,13 +628,13 @@ and Symtable = Map<string, Dval>
 ///
 /// i.e. within the execution of
 ///   `let serialize<'a> (x : 'a) : string = ...`,
+/// or
+///   `let serialize (x : 'a) : string = ...`,
 /// called with inputs
 ///   `serialize<int> 1`,
-/// we would have a TypeArgTable of
+/// we would have a TypeSymbolTable of
 ///  { "a" => TInt }
-and TypeArgTable = Map<string, TypeReference>
-
-and ValueTypeTable = Map<string, ValueType>
+and TypeSymbolTable = Map<string, ConcreteType>
 
 
 
@@ -922,16 +922,16 @@ module Dval =
     (right : ValueType)
     : Result<ValueType, SomeErrorType> =
     match left, right with
-    | VTUnit, VTUnit -> VTUnit  |> Ok
-    | VTBool, VTBool -> VTBool  |> Ok
-    | VTInt, VTInt -> VTInt  |> Ok
-    | VTFloat, VTFloat -> VTFloat  |> Ok
-    | VTChar, VTChar -> VTChar  |> Ok
-    | VTString, VTString -> VTString  |> Ok
-    | VTUuid, VTUuid -> VTUuid  |> Ok
-    | VTBytes, VTBytes -> VTBytes  |> Ok
-    | VTDateTime, VTDateTime -> VTDateTime  |> Ok
-    | VTPassword, VTPassword -> VTPassword  |> Ok
+    | VTUnit, VTUnit -> VTUnit |> Ok
+    | VTBool, VTBool -> VTBool |> Ok
+    | VTInt, VTInt -> VTInt |> Ok
+    | VTFloat, VTFloat -> VTFloat |> Ok
+    | VTChar, VTChar -> VTChar |> Ok
+    | VTString, VTString -> VTString |> Ok
+    | VTUuid, VTUuid -> VTUuid |> Ok
+    | VTBytes, VTBytes -> VTBytes |> Ok
+    | VTDateTime, VTDateTime -> VTDateTime |> Ok
+    | VTPassword, VTPassword -> VTPassword |> Ok
 
     //
     | VTList left, VTList right -> mergeConcreteTypes left right |> Result.map VTList
@@ -958,7 +958,8 @@ module Dval =
         |> Result.map (fun args -> VTCustomType(lName, args))
 
     | VTFn(lArgs, lRet), VTFn(rArgs, rRet) ->
-      let argsMerged = List.map2 mergeConcreteTypes lArgs rArgs |> Tablecloth.Result.collect
+      let argsMerged =
+        List.map2 mergeConcreteTypes lArgs rArgs |> Tablecloth.Result.collect
       let retMerged = mergeConcreteTypes lRet rRet
 
       match argsMerged, retMerged with
@@ -1009,30 +1010,30 @@ module Dval =
 
 
 
-
-
-  let list (list : List<Dval>) : Dval =
+  let list (initialType : ConcreteType) (list : List<Dval>) : Dval =
     let fake = List.find (fun (dv : Dval) -> isFake dv) list
     match fake with
     | Some fake -> fake
     | None ->
-      let (init: Result<ConcreteType * List<Dval>, SomeErrorType>) =
-        (Ok (None, []))
+      let (init : Result<ConcreteType * List<Dval>, SomeErrorType>) =
+        (Ok(initialType, []))
 
       let result =
-        List.fold init (fun (acc) (dv: Dval) ->
-          match acc with
-          | Ok (typ, dvs) -> listPush dvs typ dv
-          | Error e -> Error e
-        ) (List.rev list)
+        List.fold
+          init
+          (fun (acc) (dv : Dval) ->
+            match acc with
+            | Ok(typ, dvs) -> listPush dvs typ dv
+            | Error e -> Error e)
+          (List.rev list)
 
       match result with
-      | Ok (typ, dvs) -> DList(typ, dvs)
+      | Ok(typ, dvs) -> DList(typ, dvs)
       | Error e -> DError(SourceNone, e)
 
   let asList (dv : Dval) : Option<List<Dval>> =
     match dv with
-    | DList (_, l) -> Some l
+    | DList(_, l) -> Some l
     | _ -> None
 
   let asString (dv : Dval) : Option<string> =
