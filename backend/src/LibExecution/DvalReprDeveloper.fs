@@ -56,8 +56,8 @@ let rec knownTypeName (vt : KnownType) : string =
   | KTDict typ -> $"Dict<{valueTypeName typ}>"
   | KTDB typ -> $"Datastore<{valueTypeName typ}>"
 
-  | KTFn (argTypes, retType) ->
-    argTypes @ [retType]
+  | KTFn(argTypes, retType) ->
+    argTypes @ [ retType ]
     |> List.map valueTypeName
     |> String.concat " -> "
     |> fun s -> "(" + s + ")" // VTTODO: maybe not include ()?
@@ -80,15 +80,12 @@ let rec knownTypeName (vt : KnownType) : string =
 
     TypeName.toString name + typeArgsPortion
 
-and valueTypeName (typ: ValueType): string =
+and valueTypeName (typ : ValueType) : string =
   match typ with
   | Known typ -> knownTypeName typ
   | Unknown -> "_"
 
-let toTypeName (dv : Dval) : string =
-  dv
-  |> Dval.toKnownType
-  |> knownTypeName
+let toTypeName (dv : Dval) : string = dv |> Dval.toKnownType |> knownTypeName
 
 // SERIALIZER_DEF Custom DvalReprDeveloper.toRepr
 /// For printing something for the developer to read, as a live-value, error
@@ -134,7 +131,7 @@ let toRepr (dv : Dval) : string =
     | DDateTime d -> wrap (DarkDateTime.toIsoString d)
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)
-    | DList (_, l) ->
+    | DList(_, l) ->
       if List.isEmpty l then
         "[]"
       else

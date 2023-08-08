@@ -102,7 +102,7 @@ module KnownType =
     | TDateTime -> KTDateTime
     | TPassword -> KTPassword
 
-    | TList t -> KTList(Known (r t))
+    | TList t -> KTList(Known(r t))
     | TTuple(t1, t2, rest) -> KTTuple(k t1, k t2, List.map k rest)
     | TDict t -> KTDict(k t)
 
@@ -120,7 +120,7 @@ module KnownType =
 module ValueType =
   /// This assumes that TVariables have already been substituted
   /// i.e. they're not allowed, and will raise an exception
-  let rec fromTypeReference  (t : TypeReference) : ValueType =
+  let rec fromTypeReference (t : TypeReference) : ValueType =
     let r = fromTypeReference
 
     match t with
@@ -136,14 +136,14 @@ module ValueType =
     | TPassword -> Known KTPassword
 
     | TList t -> KTList(r t) |> Known
-    | TTuple(t1, t2, rest) -> KTTuple(r t1, r t2, List.map r rest)  |> Known
+    | TTuple(t1, t2, rest) -> KTTuple(r t1, r t2, List.map r rest) |> Known
     | TDict t -> KTDict(r t) |> Known
 
     | TFn(args, ret) -> KTFn(List.map r args, r ret) |> Known
 
-    | TDB typ -> KTDB(KnownType.fromFullySubstitutedTypeReference typ |> Known) |> Known
+    | TDB typ ->
+      KTDB(KnownType.fromFullySubstitutedTypeReference typ |> Known) |> Known
 
     | TCustomType(t, typeArgs) -> KTCustomType(t, List.map r typeArgs) |> Known
 
     | TVariable _ -> Unknown
-

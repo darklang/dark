@@ -110,7 +110,7 @@ let rec private toJsonV0
       hashed |> Base64.defaultEncodeToString |> w.WriteStringValue
 
     // nested types
-    | TList ltype, DList (_typ, l) ->
+    | TList ltype, DList(_typ, l) ->
       // VTTODO need to output an object that includes the type
       // (do this as part of SqlCompiler round)
       do! w.writeArray (fun () -> Ply.List.iterSequentially (writeDval ltype) l)
@@ -263,7 +263,8 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
       |> Seq.map (convert nested)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (fun l -> DList( Types.KnownType.fromFullySubstitutedTypeReference nested |> Known, l))
+      |> Ply.map (fun l ->
+        DList(Types.KnownType.fromFullySubstitutedTypeReference nested |> Known, l))
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let arr = j.EnumerateArray() |> Seq.toList
@@ -399,7 +400,7 @@ module Test =
     | DChar _
     | DFloat _
     | DUuid _ -> true
-    | DList (_, dvals) -> List.all isQueryableDval dvals
+    | DList(_, dvals) -> List.all isQueryableDval dvals
     | DDict map -> map |> Map.values |> List.all isQueryableDval
     | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all isQueryableDval
     | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)

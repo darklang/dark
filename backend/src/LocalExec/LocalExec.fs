@@ -155,7 +155,11 @@ let main (args : string[]) : int =
       )
     let modul = LibParser.Canvas.parseFromFile resolver mainFile
 
-    let args = args |> Array.toList |> List.map RT.DString |> RT.Dval.list (RT.Known RT.KTString)
+    let args =
+      args
+      |> Array.toList
+      |> List.map RT.DString
+      |> RT.Dval.list (RT.Known RT.KTString)
 
     let result = execute modul (Map [ "args", args ])
 

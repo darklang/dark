@@ -133,10 +133,10 @@ type Error =
 *)
 
 let rec unifyType
-  (context: Context)
-  (tst: TypeSymbolTable)
-  (expected: TypeReference)
-  (actual: ValueType)
+  (context : Context)
+  (tst : TypeSymbolTable)
+  (expected : TypeReference)
+  (actual : ValueType)
   : Result<TypeSymbolTable, Error> =
   match (expected, actual) with
   | TVariable name, actual ->
@@ -145,7 +145,7 @@ let rec unifyType
     | Some t ->
       match Dval.mergeValueTypes t actual with
       | Ok merged -> Ok(Map.add name merged tst)
-      | Error err -> Error (VTTODOMergedValueTypeWrapper err)
+      | Error err -> Error(VTTODOMergedValueTypeWrapper err)
 
   | TUnit, Known KTUnit -> Ok tst
   | TBool, Known KTBool -> Ok tst
@@ -158,58 +158,50 @@ let rec unifyType
   | TDateTime, Known KTDateTime -> Ok tst
   | TPassword, Known KTPassword -> Ok tst
 
-  | TList tInner , Known (KTList vtInner) ->
-    unifyType context tst tInner vtInner
+  | TList tInner, Known(KTList vtInner) -> unifyType context tst tInner vtInner
 
-  | TDict tInner, Known (KTDict vtInner) ->
-    unifyType context tst tInner vtInner
+  | TDict tInner, Known(KTDict vtInner) -> unifyType context tst tInner vtInner
 
   // VTTODO: test case like ('a, List<'a>, ...) // where an early var is used later
-  | TTuple(t1, t2, tRest), Known (KTTuple(v1, v2, vRest)) ->
+  | TTuple(t1, t2, tRest), Known(KTTuple(v1, v2, vRest)) ->
     let expectedTypes = t1 :: t2 :: tRest
     let actualTypes = v1 :: v2 :: vRest
     if List.length expectedTypes <> List.length actualTypes then
       Exception.raiseInternal "Incorrect number of params" []
     else
       List.zip expectedTypes actualTypes
-      |> List.fold
-        (Ok tst)
-        (fun acc (e, a) ->
-          match acc with
-          | Ok tst -> unifyType context tst e a
-          | Error _ as err -> err)
+      |> List.fold (Ok tst) (fun acc (e, a) ->
+        match acc with
+        | Ok tst -> unifyType context tst e a
+        | Error _ as err -> err)
 
   // VTTODO: test where early arg types are used later
-  | TFn (expectedArgs, expectedRet), Known (KTFn (actualArgs, actualRet)) ->
-    let expectedTypes = expectedArgs @ [expectedRet]
-    let actualTypes = actualArgs @ [actualRet]
+  | TFn(expectedArgs, expectedRet), Known(KTFn(actualArgs, actualRet)) ->
+    let expectedTypes = expectedArgs @ [ expectedRet ]
+    let actualTypes = actualArgs @ [ actualRet ]
     if List.length expectedTypes <> List.length actualTypes then
       Exception.raiseInternal "Incorrect number of params" []
     else
       List.zip expectedTypes actualTypes
-      |> List.fold
-        (Ok tst)
-        (fun acc (e, a) ->
-          match acc with
-          | Ok tst -> unifyType context tst e a
-          | Error _ as err -> err)
+      |> List.fold (Ok tst) (fun acc (e, a) ->
+        match acc with
+        | Ok tst -> unifyType context tst e a
+        | Error _ as err -> err)
 
-  | TDB inner, Known _ ->
-    unifyType context tst inner actual
+  | TDB inner, Known _ -> unifyType context tst inner actual
 
-  | TCustomType (expectedName, expectedTypeArgs), Known (KTCustomType(actualName, actualTypeArgs)) ->
+  | TCustomType(expectedName, expectedTypeArgs),
+    Known(KTCustomType(actualName, actualTypeArgs)) ->
     if expectedName <> actualName then
       Error VTTODOMismatchedType
     else if List.length expectedTypeArgs <> List.length actualTypeArgs then
       Exception.raiseInternal "Incorrect name of params" []
     else
       List.zip expectedTypeArgs actualTypeArgs
-      |> List.fold
-        (Ok tst)
-        (fun acc (e, a) ->
-          match acc with
-          | Ok tst -> unifyType context tst e a
-          | Error _ as err -> err)
+      |> List.fold (Ok tst) (fun acc (e, a) ->
+        match acc with
+        | Ok tst -> unifyType context tst e a
+        | Error _ as err -> err)
 
 
 
@@ -246,17 +238,18 @@ let rec unifyType
 //   (actual: ValueType)
 //   : Result<TypeSymbolTable, Error> =
 let unify
-  (context: Context)
+  (context : Context)
   (types : Types)
-  (tst: TypeSymbolTable)
-  (expected: TypeReference)
-  (actual: Dval)
-   : Ply<Result<TypeSymbolTable, Error>> = uply {
+  (tst : TypeSymbolTable)
+  (expected : TypeReference)
+  (actual : Dval)
+  : Ply<Result<TypeSymbolTable, Error>> =
+  uply {
     let! resolvedType = Types.getTypeReferenceFromAlias types expected
     let actualType = Dval.toKnownType actual
     return unifyType context tst resolvedType (Known actualType)
-    // VTTODO: use or delete: Error(ValueNotExpectedType(value, resolvedType, context))
-   }
+  // VTTODO: use or delete: Error(ValueNotExpectedType(value, resolvedType, context))
+  }
 
 
 // VTTODO: there are missing type checks around type arguments that we should backfill.
@@ -293,8 +286,8 @@ let checkFunctionCall
         match acc with
         | Error _ as err -> return err
         | Ok tst ->
-              let context = FunctionCallParameter(fn.name, param, i, None)
-              return! unify context types tst param.typ value
+          let context = FunctionCallParameter(fn.name, param, i, None)
+          return! unify context types tst param.typ value
       })
     (Ok tst)
     (List.zip fn.parameters args)

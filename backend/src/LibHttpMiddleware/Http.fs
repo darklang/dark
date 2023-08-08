@@ -92,9 +92,7 @@ module Response =
       { statusCode = 500
         headers = [ "Content-Type", "text/plain; charset=utf-8" ]
         body =
-          let typeName =
-            result
-            |> LibExecution.DvalReprDeveloper.toTypeName
+          let typeName = result |> LibExecution.DvalReprDeveloper.toTypeName
           let message =
             [ $"Application error: expected a HTTP response, got:"
               $"type {typeName}:"

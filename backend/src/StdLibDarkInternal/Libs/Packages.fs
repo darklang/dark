@@ -48,13 +48,13 @@ let fns : List<BuiltInFn> =
             return
               Dval.record
                 (stdlibPackageTyp [] "Packages" 0)
-              // VTTODO:come back and give it a real type
+                // VTTODO:come back and give it a real type
                 [ "types", Dval.list Unknown types
 
 
-              // VTTODO:come back and give it a real type
+                  // VTTODO:come back and give it a real type
                   "fns", Dval.list Unknown fns
-              // VTTODO:come back and give it a real type
+                  // VTTODO:come back and give it a real type
                   "constants", Dval.list Unknown constants ]
           }
         | _ -> incorrectArgs ()

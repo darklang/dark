@@ -942,7 +942,8 @@ and callFn
           let newlyBoundTypeSymbols =
             List.zip
               fn.typeParams
-              (List.map Types.KnownType.fromFullySubstitutedTypeReference typeArgs |> List.map Known)
+              (List.map Types.KnownType.fromFullySubstitutedTypeReference typeArgs
+               |> List.map Known)
             |> Map
           let updatedTypeSymbolTable =
             Map.mergeFavoringRight tst newlyBoundTypeSymbols

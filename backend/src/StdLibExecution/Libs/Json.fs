@@ -102,7 +102,7 @@ let rec serialize
 
 
     // Nested types
-    | TList ltype, DList (_typ, l) ->
+    | TList ltype, DList(_typ, l) ->
       // VTTODO is there any reason to use the typ here instead?
       do! w.writeArray (fun () -> Ply.List.iterSequentially (r ltype) l)
 
@@ -169,7 +169,10 @@ let rec serialize
                     List.zip matchingCase.fields fields
                     |> Ply.List.iterSequentially (fun (fieldType, fieldVal) ->
                       let typ =
-                        LibExecution.Types.substitute decl.typeParams typeArgs fieldType
+                        LibExecution.Types.substitute
+                          decl.typeParams
+                          typeArgs
+                          fieldType
                       r typ fieldVal)))
 
             | _ -> Exception.raiseInternal "Too many matching cases" []
@@ -195,7 +198,10 @@ let rec serialize
                       []
 
                   let typ =
-                    LibExecution.Types.substitute decl.typeParams typeArgs matchingFieldDef.typ
+                    LibExecution.Types.substitute
+                      decl.typeParams
+                      typeArgs
+                      matchingFieldDef.typ
                   r typ dval))
 
           | DRecord(actualTypeName, _, _) ->
@@ -398,7 +404,8 @@ let parse
         | Some decl ->
           match decl.definition with
           | TypeDeclaration.Alias alias ->
-            let aliasType = LibExecution.Types.substitute decl.typeParams typeArgs alias
+            let aliasType =
+              LibExecution.Types.substitute decl.typeParams typeArgs alias
             return! convert aliasType j
 
           | TypeDeclaration.Enum cases ->
@@ -431,7 +438,8 @@ let parse
               let! mapped =
                 List.zip matchingCase.fields j
                 |> List.map (fun (typ, j) ->
-                  let typ = LibExecution.Types.substitute decl.typeParams typeArgs typ
+                  let typ =
+                    LibExecution.Types.substitute decl.typeParams typeArgs typ
                   convert typ j)
                 |> Ply.List.flatten
 
@@ -466,7 +474,8 @@ let parse
                     | [ matchingFieldDef ] -> matchingFieldDef.Value
                     | _ -> Exception.raiseInternal "Too many matching fields" []
 
-                  let typ = LibExecution.Types.substitute decl.typeParams typeArgs def.typ
+                  let typ =
+                    LibExecution.Types.substitute decl.typeParams typeArgs def.typ
                   let! converted = convert typ correspondingValue
                   return (def.name, converted)
                 })

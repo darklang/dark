@@ -122,10 +122,10 @@ let fns : List<BuiltInFn> =
                      (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0))
                      [ ("owner", DString owner)
                        ("modules",
-                          modules
-                          |> String.split "."
-                          |> List.map DString
-                          |> Dval.list (Known KTString))
+                        modules
+                        |> String.split "."
+                        |> List.map DString
+                        |> Dval.list (Known KTString))
                        ("name", DString fnname)
                        ("version", DInt version) ]))
           }

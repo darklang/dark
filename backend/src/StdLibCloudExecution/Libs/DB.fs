@@ -125,7 +125,7 @@ let fns : List<BuiltInFn> =
         "Finds many values in <param table> by <param keys> (ignoring any missing items), returning a {{ [value] }} list of values"
       fn =
         (function
-        | state, _, [ DList (_, keys); DDB dbname ] ->
+        | state, _, [ DList(_, keys); DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
 
@@ -154,7 +154,7 @@ let fns : List<BuiltInFn> =
         "Finds many values in <param table> by <param keys>, returning a {{ {key:{value}, key2: {value2} } }} object of keys and values"
       fn =
         (function
-        | state, _, [ DList (_, keys); DDB dbname ] ->
+        | state, _, [ DList(_, keys); DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
 
@@ -296,7 +296,8 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAllKeys state db
-            return results |> List.map (fun k -> DString k) |> Dval.list (Known KTString)
+            return
+              results |> List.map (fun k -> DString k) |> Dval.list (Known KTString)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

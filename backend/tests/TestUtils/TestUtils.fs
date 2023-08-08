@@ -970,7 +970,10 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6", TString)
     ("list", Dval.list (Known KTInt) [ Dval.int 4 ], TList TInt)
     ("list with derror",
-     DList(Unknown, [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ]),
+     DList(
+       Unknown,
+       [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ]
+     ),
      TList TInt)
     ("record",
      DRecord(

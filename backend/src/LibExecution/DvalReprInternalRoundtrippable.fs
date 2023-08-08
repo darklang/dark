@@ -158,10 +158,12 @@ module FormatV0 =
     | KTCustomType of TypeName.T * typeArgs : List<ValueType>
 
 
-  and ValueType = | Unknown | Known of KnownType
+  and ValueType =
+    | Unknown
+    | Known of KnownType
 
   module ValueType =
-    let rec knownTypeToRT (t: KnownType): RT.KnownType =
+    let rec knownTypeToRT (t : KnownType) : RT.KnownType =
       let k = knownTypeToRT
       let v = toRT
 
@@ -185,7 +187,7 @@ module FormatV0 =
         RT.KTCustomType(TypeName.toRT typeName, List.map v typeArgs)
       | KTDict typ -> RT.KTDict(v typ)
 
-    and knownTypeFromRT (t: RT.KnownType): KnownType =
+    and knownTypeFromRT (t : RT.KnownType) : KnownType =
       let k = knownTypeFromRT
       let v = fromRT
 
@@ -212,7 +214,7 @@ module FormatV0 =
     and toRT (t : ValueType) : RT.ValueType =
       match t with
       | Unknown -> RT.Unknown
-      | Known t -> RT.Known (knownTypeToRT t)
+      | Known t -> RT.Known(knownTypeToRT t)
 
     and fromRT (t : RT.ValueType) : ValueType =
       match t with
@@ -354,7 +356,7 @@ module Test =
     | RT.DPassword _ -> true
     | RT.DEnum(_typeName, _, _caseName, fields) ->
       List.all isRoundtrippableDval fields
-    | RT.DList (_, dvals) -> List.all isRoundtrippableDval dvals
+    | RT.DList(_, dvals) -> List.all isRoundtrippableDval dvals
     | RT.DDict map -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DRecord(_, _, map) -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DUuid _ -> true

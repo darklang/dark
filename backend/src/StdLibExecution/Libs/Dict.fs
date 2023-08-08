@@ -66,11 +66,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict o ] ->
-          o
-          |> Map.keys
-          |> List.map DString
-          |> Dval.list (Known KTString)
-          |> Ply
+          o |> Map.keys |> List.map DString |> Dval.list (Known KTString) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -85,10 +81,10 @@ let fns : List<BuiltInFn> =
         "Returns <param dict>'s values in a <type List>, in an arbitrary order"
       fn =
         (function
-          | _, _, [ DDict o ] ->
-            // VTTODO: use type from o
-            o |> Map.values |> Seq.toList |> Dval.list Unknown |> Ply
-          | _ -> incorrectArgs ())
+        | _, _, [ DDict o ] ->
+          // VTTODO: use type from o
+          o |> Map.values |> Seq.toList |> Dval.list Unknown |> Ply
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
@@ -129,7 +125,7 @@ let fns : List<BuiltInFn> =
          This function is the opposite of <fn Dict.toList>."
       fn =
         (function
-        | _, _, [ DList (_typ, l) ] ->
+        | _, _, [ DList(_typ, l) ] ->
 
           let f acc e =
             match e with
@@ -163,9 +159,9 @@ let fns : List<BuiltInFn> =
          if you want to overwrite duplicate keys)."
       fn =
         (function
-        | _, _, [ DList (_typ, l) ] ->
+        | _, _, [ DList(_typ, l) ] ->
           // VTTODO maybe use the typ from the list somehwere?
-          
+
           let f acc e =
             match acc, e with
             | Some acc, DTuple(DString k, _, _) when Map.containsKey k acc -> None

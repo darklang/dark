@@ -286,7 +286,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the sum of all the floats in the list"
       fn =
         (function
-        | _, _, [ DList (_, l) as ldv ] ->
+        | _, _, [ DList(_, l) as ldv ] ->
           let floats =
             List.map
               (fun f ->

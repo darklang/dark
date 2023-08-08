@@ -75,7 +75,8 @@ let executeFunction
   : Task<RT.Dval> =
   task {
     let typeSymbolTable = Map.empty
-    let! result = Interpreter.callFn state typeSymbolTable callerID name typeArgs args
+    let! result =
+      Interpreter.callFn state typeSymbolTable callerID name typeArgs args
     // Does nothing in non-tests
     state.test.postTestExecutionHook state.test result
     return result

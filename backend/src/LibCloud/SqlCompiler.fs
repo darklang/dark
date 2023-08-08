@@ -600,7 +600,7 @@ let rec lambdaToSql
               // | Some found ->
               //   primitiveFieldType found
               // | None ->
-                error $"Could not resolve type variable in lambdaToSql: {varName}"
+              error $"Could not resolve type variable in lambdaToSql: {varName}"
             | _ -> error $"We do not support this type of DB field yet: {t}"
 
           let fieldAccessPath = NEList.map escapeFieldname fieldAccessPath

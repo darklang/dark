@@ -177,9 +177,7 @@ let createTelemetryTracer
                   |> DvalReprInternalHash.hash
                     DvalReprInternalHash.currentHashVersion
 
-                let resultType =
-                  result
-                  |> LibExecution.DvalReprDeveloper.toTypeName
+                let resultType = result |> LibExecution.DvalReprDeveloper.toTypeName
 
                 Telemetry.addEvent
                   $"function result for {name}"

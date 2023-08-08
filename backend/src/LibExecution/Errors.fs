@@ -540,10 +540,10 @@ let toSegments (e : Error) : ErrorOutput =
       expected = expected }
   | TypeError(_) ->
 
-    { summary = [String "VTTODO"]
+    { summary = [ String "VTTODO" ]
       extraExplanation = []
       actual = []
-      expected =[]  }
+      expected = [] }
 
 let toString (e : Error) : string =
   let s = toSegments e

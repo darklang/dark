@@ -292,7 +292,12 @@ let fns : List<BuiltInFn> =
             result |> ResizeArray.toList
 
           if sep = "" then
-            s |> String.toEgcSeq |> Seq.toList |> List.map DString |> Dval.list (Known KTString) |> Ply
+            s
+            |> String.toEgcSeq
+            |> Seq.toList
+            |> List.map DString
+            |> Dval.list (Known KTString)
+            |> Ply
           else
             ecgStringSplit
               (s |> String.toEgcSeq |> Seq.toList)
@@ -314,7 +319,7 @@ let fns : List<BuiltInFn> =
       description = "Combines a list of strings with the provided separator"
       fn =
         (function
-        | _, _, [ DList (_, l); DString sep ] ->
+        | _, _, [ DList(_, l); DString sep ] ->
           let strs =
             List.map
               (fun s ->

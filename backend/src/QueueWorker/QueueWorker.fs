@@ -78,7 +78,7 @@ let processNotification
         [ "event.handler.name", event.name
           "event.handler.modifier", event.modifier
           "event.handler.module", event.module'
-          "event.value.type", (event.value |> DvalReprDeveloper.toTypeName:> obj)
+          "event.value.type", (event.value |> DvalReprDeveloper.toTypeName :> obj)
           "event.locked_at", event.lockedAt
           "event.enqueued_at", event.enqueuedAt ]
 

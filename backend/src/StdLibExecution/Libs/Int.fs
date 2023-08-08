@@ -350,7 +350,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the sum of all the ints in the list"
       fn =
         (function
-        | _, _, [ DList (_typ, l) as ldv ] ->
+        | _, _, [ DList(_typ, l) as ldv ] ->
           let ints =
             List.map
               (fun i ->
