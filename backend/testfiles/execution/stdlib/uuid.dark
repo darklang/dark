@@ -1,8 +1,25 @@
-Uuid.parse_v0 "👱🏼" = PACKAGE.Darklang.Stdlib.Result.Result.Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-Uuid.parse_v0 "1111111🍇-2222-3333-4444-555555555555" = PACKAGE.Darklang.Stdlib.Result.Result.Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-Uuid.parse_v0 "psp-soslsls==" = PACKAGE.Darklang.Stdlib.Result.Result.Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-Uuid.parse_v0 "123456" = PACKAGE.Darklang.Stdlib.Result.Result.Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-Uuid.parse_v0 "d388ff30-667f-11eb-ae93" = PACKAGE.Darklang.Stdlib.Result.Result.Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-Uuid.parse_v0 "d388ff30-667f-11eb-ae93-0242ac13000" = PACKAGE.Darklang.Stdlib.Result.Result.Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-(Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") |> unwrap |> Uuid.toString = "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
-(Uuid.parse_v0 "11111111-2222-3333-4444-555555555555") |> unwrap |> Uuid.toString = "11111111-2222-3333-4444-555555555555"
+Uuid.parse_v0 "👱🏼" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+
+Uuid.parse_v0 "1111111🍇-2222-3333-4444-555555555555" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+
+Uuid.parse_v0 "psp-soslsls==" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+
+Uuid.parse_v0 "123456" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+
+Uuid.parse_v0 "d388ff30-667f-11eb-ae93" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+
+Uuid.parse_v0 "d388ff30-667f-11eb-ae93-0242ac13000" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+
+(Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
+|> unwrap
+|> Uuid.toString = "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
+
+(Uuid.parse_v0 "11111111-2222-3333-4444-555555555555")
+|> unwrap
+|> Uuid.toString = "11111111-2222-3333-4444-555555555555"

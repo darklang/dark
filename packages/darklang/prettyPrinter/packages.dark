@@ -10,9 +10,9 @@ module Darklang =
         { name: String
           types: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>
           fns: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>
-          constants : List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T>
-          submodules: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module>
-          }
+          constants:
+            List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T>
+          submodules: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module> }
 
       let withType
         (ms: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module>)
@@ -28,8 +28,7 @@ module Darklang =
                 types = []
                 fns = []
                 constants = []
-                submodules = []
-                } ]
+                submodules = [] } ]
 
         | firstModuleNamePart :: submoduleNames ->
           // TODO: check if firstModuleNamePart is already in m
@@ -46,8 +45,7 @@ module Darklang =
                           name = { t.name with modules = [] } } ]
                   fns = []
                   constants = []
-                  submodules = []
-                  }
+                  submodules = [] }
 
             List.append otherModules [ newModule ]
 
@@ -65,8 +63,7 @@ module Darklang =
                   submodules =
                     PACKAGE.Darklang.PrettyPrinter.Packages.withType
                       []
-                      typeWithoutFirstModuleNamePartOfModule
-                  }
+                      typeWithoutFirstModuleNamePartOfModule }
 
             List.append otherModules [ newModuleWithSubmodule ]
 
@@ -110,8 +107,7 @@ module Darklang =
                 types = []
                 fns = []
                 constants = []
-                submodules = []
-                 } ]
+                submodules = [] } ]
 
         | firstModuleNamePart :: submoduleNames ->
           let (foundModuleMaybe, otherModules) =
@@ -127,8 +123,7 @@ module Darklang =
                     [ { f with
                           name = { f.name with modules = [] } } ]
                   constants = []
-                  submodules = []
-                   }
+                  submodules = [] }
 
             List.append otherModules [ newModule ]
 
@@ -146,8 +141,7 @@ module Darklang =
                   submodules =
                     PACKAGE.Darklang.PrettyPrinter.Packages.withFn
                       []
-                      fnWithoutFirstModuleNamePartOfModule
-                  }
+                      fnWithoutFirstModuleNamePartOfModule }
 
             List.append otherModules [ newModuleWithSubmodule ]
 
@@ -190,8 +184,7 @@ module Darklang =
                 types = []
                 fns = []
                 constants = []
-                submodules = []
-                 } ]
+                submodules = [] } ]
 
         | firstModuleNamePart :: submoduleNames ->
           let (foundModuleMaybe, otherModules) =
@@ -207,8 +200,7 @@ module Darklang =
                   constants =
                     [ { c with
                           name = { c.name with modules = [] } } ]
-                  submodules = []
-                  }
+                  submodules = [] }
 
             List.append otherModules [ newModule ]
 
@@ -226,8 +218,7 @@ module Darklang =
                   submodules =
                     PACKAGE.Darklang.PrettyPrinter.Packages.withConstant
                       []
-                      constantWithoutFirstModuleNamePartOfModule
-                  }
+                      constantWithoutFirstModuleNamePartOfModule }
 
             List.append otherModules [ newModuleWithSubmodule ]
 
@@ -321,7 +312,8 @@ module Darklang =
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
 
       let parts =
-        [ typesPart; fnsPart; constantsPart; submodulesPart ] |> List.filterMap (fun s -> s)
+        [ typesPart; fnsPart; constantsPart; submodulesPart ]
+        |> List.filterMap (fun s -> s)
 
       match parts with
       | [] ->

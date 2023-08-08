@@ -195,10 +195,11 @@ module EnumWithTypeArgsDifferentName =
 
 module EnumWithRecursiveTypeArgs =
   type Inner<'a> =
-   | A of a: 'a
-   | B of b : PACKAGE.Darklang.Stdlib.Result.Result<Alias<'a>, String>
+    | A of a: 'a
+    | B of b: PACKAGE.Darklang.Stdlib.Result.Result<Alias<'a>, String>
 
   type Alias<'x> = Inner<'x>
 
-  Alias.B (PACKAGE.Darklang.Stdlib.Result.Result.Ok (Alias.A 5)) =
-  Inner.B (PACKAGE.Darklang.Stdlib.Result.Result.Ok (Inner.A 5))
+  Alias.B(PACKAGE.Darklang.Stdlib.Result.Result.Ok(Alias.A 5)) = Inner.B(
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok(Inner.A 5)
+  )
