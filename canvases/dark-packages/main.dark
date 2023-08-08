@@ -5,7 +5,8 @@ type PackageTypeDB = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T
 type PackageFnDB = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T
 
 [<DB>]
-type PackageConstantDB = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T
+type PackageConstantDB =
+  PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T
 
 
 [<HttpHandler("POST", "/types")>]

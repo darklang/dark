@@ -8,5 +8,7 @@ module Darklang =
         | head :: tail ->
           match tail with
           | [] -> []
-          | _ -> List.append_v0 (List.singleton_v0 head) (PACKAGE.Darklang.Stdlib.List.dropLast tail)
-
+          | _ ->
+            List.append_v0
+              (List.singleton_v0 head)
+              (PACKAGE.Darklang.Stdlib.List.dropLast tail)
