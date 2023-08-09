@@ -3,6 +3,7 @@ module Darklang =
     type Command =
       | RunScript of String * List<String>
       | Help
+      | Show of String
       | Infer of String
       | Invalid of List<String>
 
@@ -12,8 +13,14 @@ module Darklang =
       | [ "-h" ] -> PACKAGE.Darklang.Cli.Command.Help
       | [ "--help" ] -> PACKAGE.Darklang.Cli.Command.Help
       | [ "--prompt"; prompt ] -> PACKAGE.Darklang.Cli.Command.Infer prompt
+      | [ "--show"; fnName ] ->
+        if String.startsWith fnName "@" then
+          PACKAGE.Darklang.Cli.Command.Show fnName
+        else
+          PACKAGE.Darklang.Cli.Command.Invalid [ "Invalid package name" ]
       | scriptPath :: args ->
         PACKAGE.Darklang.Cli.Command.RunScript(scriptPath, args)
+      | _ -> PACKAGE.Darklang.Cli.Command.Invalid [ "Invalid arguments" ]
 
 
     let executeCommand (command: PACKAGE.Darklang.Cli.Command) : Int =
@@ -42,10 +49,67 @@ module Darklang =
           """Usage: darklang [options] [SCRIPT]
 Options:
   -h, --help          Show this help message and exit
+  --show              Show a package, function, type, constant, or module
   --prompt PROMPT     Infer a script from the given prompt using OpenAI"""
 
         print helpText
         0
+
+
+      | Show(name) ->
+
+        let fullName = name |> String.dropFirst_v0 1
+
+        let whatIsIt =
+          CLI.HttpClient.request
+            "GET"
+            ("http://dark-packages.dlio.localhost:11003/byName/" ++ fullName)
+            []
+            Bytes.empty
+
+
+        let statusCode =
+          whatIsIt
+          |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+          |> unwrap
+
+        let whatIsIt =
+          if statusCode == 200 then
+            whatIsIt
+            |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+            |> unwrap
+            |> String.fromBytes
+          else
+            "Error" |> String.toBytes
+
+        let result = whatIsIt |> Json.parse<Tuple<String, String>> |> unwrap
+
+        match result with
+        | ("function", fn) -> print fn
+        | ("type", t) -> print t
+        | ("constant", c) -> print c
+        | ("modules", m) ->
+          let result =
+            CLI.HttpClient.request
+              "GET"
+              ("http://dark-packages.dlio.localhost:11003/modules/" ++ m)
+              []
+              Bytes.empty
+          print (result |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body) |> unwrap |> String.fromBytes)
+
+        | ("owner", o) ->
+          let result =
+            CLI.HttpClient.request
+              "GET"
+              ("http://dark-packages.dlio.localhost:11003/owner/" ++ o)
+              []
+              Bytes.empty
+          print (result |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body) |> unwrap |> String.fromBytes)
+
+        | _ -> print "Not found"
+
+        0
+
 
       | Infer(prompt, scriptPath) ->
         // let script = System.IO.File.ReadAllText scriptPath

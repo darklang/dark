@@ -1,3 +1,19 @@
+type PackageItem =
+  | Fn of PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T
+  | Type of PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T
+  | Constant of PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T
+
+
+type NameToItem =
+  { owner: String
+    name: PACKAGE.Darklang.Stdlib.Option.Option<String>
+    modules: List<String>
+    whatIsIt: PackageItem }
+
+[<DB>]
+type NamesDB = NameToItem
+
+
 [<DB>]
 type PackageTypeDB = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T
 
@@ -7,6 +23,10 @@ type PackageFnDB = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T
 [<DB>]
 type PackageConstantDB =
   PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T
+
+
+[<DB>]
+type PackageItemDB = PackageItem
 
 
 [<HttpHandler("POST", "/types")>]
@@ -26,8 +46,19 @@ let _handler _req =
         description = typ.description
         deprecated = typ.deprecated }
 
+  let item =
+    NameToItem
+      { owner = typ.name.owner
+        name =
+          PACKAGE.Darklang.Stdlib.Option.Option.Some(
+            typ.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.name
+          )
+        modules = typ.name.modules
+        whatIsIt = PackageItem.Type typeToSave }
+
   let key = DB.generateKey_v0 () // TODO: use id instead
   DB.set typeToSave key PackageTypeDB
+  DB.set item key NamesDB
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
 
@@ -52,8 +83,19 @@ let _handler _req =
         description = fn.description
         deprecated = fn.deprecated }
 
+  let item =
+    NameToItem
+      { owner = fn.name.owner
+        name =
+          PACKAGE.Darklang.Stdlib.Option.Option.Some(
+            fn.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.name
+          )
+        modules = fn.name.modules
+        whatIsIt = PackageItem.Fn fnToSave }
+
   let key = DB.generateKey_v0 () // TODO: use id instead
   DB.set fnToSave key PackageFnDB
+  DB.set item key NamesDB
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
 
@@ -74,8 +116,19 @@ let _handler _req =
         description = c.description
         deprecated = c.deprecated }
 
+  let item =
+    NameToItem
+      { owner = c.name.owner
+        name =
+          PACKAGE.Darklang.Stdlib.Option.Option.Some(
+            c.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name
+          )
+        modules = c.name.modules
+        whatIsIt = PackageItem.Constant constantToSave }
+
   let key = DB.generateKey_v0 () // TODO: use id instead
   DB.set constantToSave key PackageConstantDB
+  DB.set item key NamesDB
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
 
@@ -83,10 +136,10 @@ let _handler _req =
 [<HttpHandler("GET", "/stats")>]
 let _handler _req =
   let stats =
-    [ ("types", (DB.getAll PackageTypeDB) |> PACKAGE.Darklang.Stdlib.List.length)
-      ("fns", (DB.getAll PackageFnDB) |> PACKAGE.Darklang.Stdlib.List.length)
-      ("constants",
-       (DB.getAll PackageConstantDB) |> PACKAGE.Darklang.Stdlib.List.length) ]
+    [ ("types", (DB.getAll PackageTypeDB) |> List.length)
+      ("fns", (DB.getAll PackageFnDB) |> List.length)
+      ("constants", (DB.getAll PackageConstantDB) |> List.length)
+      ("items", (DB.getAll NamesDB) |> List.length) ]
     |> Dict.fromListOverwritingDuplicates_v0
 
   let body = (Json.serialize<Dict<Int>> stats) |> unwrap |> String.toBytes
@@ -123,3 +176,76 @@ let _handler _req =
     |> String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
+
+
+[<HttpHandler("GET", "/owner/:owner")>]
+let _handler _req =
+  let listOfItems = (DB.query NamesDB (fun item -> item.owner == owner))
+
+  let item =
+    listOfItems
+    |> List.map
+      (fun item ->
+        match item.whatIsIt with
+        | Fn fn -> fn |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn
+        | Type typ -> typ |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageType
+        | Constant c -> c |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageConstant
+      )
+
+    |> String.join "\n\n"
+    |> String.toBytes
+
+  PACKAGE.Darklang.Stdlib.Http.response item 200
+
+
+[<HttpHandler("GET", "/modules/:modules")>]
+let _handler _req =
+  let listOfItems = (DB.getAll NamesDB) |> List.filter (fun item -> (item.modules |> String.join ".") == modules)
+  let item =
+    listOfItems
+    |> List.map
+      (fun item ->
+        match item.whatIsIt with
+        | Fn fn -> fn |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn
+        | Type typ -> typ |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageType
+        | Constant c -> c |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageConstant
+      )
+
+    |> String.join "\n\n"
+    |> String.toBytes
+
+  PACKAGE.Darklang.Stdlib.Http.response item 200
+
+
+[<HttpHandler("GET", "/byName/:name")>]
+let _handler _req =
+  let fullName = name |> String.split "."
+  let owner = fullName |> List.head |> unwrap
+  let name =
+    fullName
+    |> List.last
+    |> unwrap
+
+  let modules = fullName |> (List.drop 1) |> PACKAGE.Darklang.Stdlib.List.dropLast
+  let modulesWithoutItem = fullName |> (List.drop 1)
+
+  let getall = DB.getAll NamesDB
+
+  let res =
+    getall
+    |> List.filter (fun item -> item.owner == owner && item.modules == modules && item.name == PACKAGE.Darklang.Stdlib.Option.Option.Some(name))
+    |> List.map (fun item -> item.whatIsIt)
+    |> List.head
+
+  let found =
+    match res with
+    | Some (Fn fn) -> ("function" , (fn |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn)) |> Json.serialize<Tuple<String, String>> |> unwrap |> String.toBytes
+    | Some (Type typ) -> ("type" , (typ |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageType)) |> Json.serialize<Tuple<String, String>> |> unwrap |> String.toBytes
+    | Some (Constant c) -> ("constant" , (c |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageConstant)) |> Json.serialize<Tuple<String, String>> |> unwrap |> String.toBytes
+    | None ->
+      match (List.length fullName) with
+      | 0 -> "not found" |> String.toBytes
+      | 1 -> ("owner", owner) |> Json.serialize<Tuple<String, String>> |> unwrap |> String.toBytes
+      | _ -> ("modules", modulesWithoutItem |> String.join ".") |> Json.serialize<Tuple<String, String>> |> unwrap |> String.toBytes
+
+  PACKAGE.Darklang.Stdlib.Http.response found 200
