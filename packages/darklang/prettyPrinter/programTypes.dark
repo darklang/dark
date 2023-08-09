@@ -1099,4 +1099,4 @@ module Darklang =
 
         let bodyPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.constant p.body
 
-        $"{namePart} = {bodyPart}"
+        $"let {namePart} = {bodyPart}"
