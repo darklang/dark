@@ -538,7 +538,8 @@ let toSegments (e : Error) : ErrorOutput =
       extraExplanation = extraExplanation
       actual = actual
       expected = expected }
-  | TypeError(_) ->
+
+  | TypeError err ->
 
     { summary = [ String "VTTODO" ]
       extraExplanation = []

@@ -819,7 +819,9 @@ module Dval =
     | DDict obj -> Ok(Map.toList obj)
     | _ -> Error "expecting str"
 
-  let todoKnownType () = Exception.raiseInternal "" []
+  let todoKnownType () =
+    //Exception.raiseInternal "" []
+    KTUnit
 
 
   let rec toKnownType (dv : Dval) : KnownType =

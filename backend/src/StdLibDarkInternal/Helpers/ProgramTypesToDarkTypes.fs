@@ -23,6 +23,9 @@ let languageToolsTyp
 let ptTyp (submodules : List<string>) (name : string) (version : int) : TypeName.T =
   languageToolsTyp ("ProgramTypes" :: submodules) name version
 
+let ptKTyp (submodules : List<string>) (name : string) (version : int) : ValueType =
+  Known (KTCustomType (ptTyp submodules name version, []))
+
 let errorsTyp
   (submodules : List<string>)
   (name : string)
@@ -30,6 +33,13 @@ let errorsTyp
   : TypeName.T =
   languageToolsTyp ("Errors" :: submodules) name version
 
+
+module ValueTypes =
+  let typeReference = ptKTyp [] "TypeReference" 0
+  let letPattern = ptKTyp [] "LetPattern" 0
+  let matchPattern = ptKTyp [] "MatchPattern" 0
+  let expr = ptKTyp [] "Expr" 0
+  let pipeExpr = ptKTyp [] "PipeExpr" 0
 
 // This isn't in PT but I'm not sure where else to put it...
 // maybe rename this file to InternalTypesToDarkTypes?
@@ -383,21 +393,18 @@ module TypeReference =
       | PT.TList inner -> "TList", [ toDT inner ]
 
       | PT.TTuple(first, second, theRest) ->
-        // VTTODO: come back and give it a real type
-        "TTuple", [ toDT first; toDT second; DList(Unknown, List.map toDT theRest) ]
+        "TTuple", [ toDT first; toDT second; DList(ValueTypes.typeReference, List.map toDT theRest) ]
 
       | PT.TDict inner -> "TDict", [ toDT inner ]
 
       | PT.TCustomType(typeName, typeArgs) ->
         "TCustomType",
-        // VTTODO: come back and give it a real type
         [ NameResolution.toDT TypeName.toDT typeName
-          DList(Unknown, List.map toDT typeArgs) ]
+          DList(ValueTypes.typeReference, List.map toDT typeArgs) ]
 
       | PT.TDB inner -> "TDB", [ toDT inner ]
       | PT.TFn(args, ret) ->
-        // VTTODO: come back and give it a real type
-        "TFn", [ DList(Unknown, List.map toDT args); toDT ret ]
+        "TFn", [ DList(ValueTypes.typeReference, List.map toDT args); toDT ret ]
 
     Dval.enum (ptTyp [] "TypeReference" 0) name fields
 
@@ -442,11 +449,10 @@ module LetPattern =
       | PT.LPVariable(id, name) -> "LPVariable", [ DInt(int64 id); DString name ]
       | PT.LPTuple(id, first, second, theRest) ->
         "LPTuple",
-        // VTTODO: come back and give it a real type
         [ DInt(int64 id)
           toDT first
           toDT second
-          DList(Unknown, List.map toDT theRest) ]
+          DList(ValueTypes.letPattern, List.map toDT theRest) ]
 
     Dval.enum (ptTyp [] "LetPattern" 0) name fields
 
@@ -476,21 +482,18 @@ module MatchPattern =
       | PT.MPString(id, s) -> "MPString", [ DInt(int64 id); DString s ]
 
       | PT.MPList(id, inner) ->
-        // VTTODO: come back and give it a real type
-        "MPList", [ DInt(int64 id); DList(Unknown, List.map toDT inner) ]
+        "MPList", [ DInt(int64 id); DList(ValueTypes.matchPattern, List.map toDT inner) ]
       | PT.MPListCons(id, head, tail) ->
         "MPListCons", [ DInt(int64 id); toDT head; toDT tail ]
       | PT.MPTuple(id, first, second, theRest) ->
         "MPTuple",
-        // VTTODO: come back and give it a real type
         [ DInt(int64 id)
           toDT first
           toDT second
-          DList(Unknown, List.map toDT theRest) ]
+          DList(ValueTypes.matchPattern, List.map toDT theRest) ]
       | PT.MPEnum(id, caseName, fieldPats) ->
         "MPEnum",
-        // VTTODO: come back and give it a real type
-        [ DInt(int64 id); DString caseName; DList(Unknown, List.map toDT fieldPats) ]
+        [ DInt(int64 id); DString caseName; DList(ValueTypes.matchPattern, List.map toDT fieldPats) ]
 
     Dval.enum (ptTyp [] "MatchPattern" 0) name fields
 
@@ -620,7 +623,6 @@ module PipeExpr =
 
         "EPipeLambda", [ DInt(int64 id); variables; exprToDT body ]
 
-
       | PT.EPipeInfix(id, infix, expr) ->
         "EPipeInfix", [ DInt(int64 id); Infix.toDT infix; exprToDT expr ]
 
@@ -709,8 +711,7 @@ module Expr =
 
       // structures of data
       | PT.EList(id, inner) ->
-        // VTTODO: come back and give it a real type
-        "EList", [ DInt(int64 id); DList(Unknown, List.map toDT inner) ]
+        "EList", [ DInt(int64 id); DList(ValueTypes.expr, List.map toDT inner) ]
 
       | PT.EDict(id, pairs) ->
         "EDict",
@@ -723,11 +724,10 @@ module Expr =
 
       | PT.ETuple(id, first, second, theRest) ->
         "ETuple",
-        // VTTODO: come back and give it a real type
         [ DInt(int64 id)
           toDT first
           toDT second
-          DList(Unknown, List.map toDT theRest) ]
+          DList(ValueTypes.expr, List.map toDT theRest) ]
 
       | PT.ERecord(id, name, fields) ->
         let fields =
@@ -745,8 +745,7 @@ module Expr =
         [ DInt(int64 id)
           NameResolution.toDT TypeName.toDT typeName
           DString caseName
-          // VTTODO: come back and give it a real type
-          DList(Unknown, List.map toDT fields) ]
+          DList(ValueTypes.expr, List.map toDT fields) ]
 
       // declaring and accessing variables
       | PT.ELet(id, lp, expr, body) ->
@@ -777,7 +776,7 @@ module Expr =
           toDT expr
           PipeExpr.toDT toDT pipeExpr
           // VTTODO: come back and give it a real type
-          Dval.list Unknown (List.map (PipeExpr.toDT toDT) pipeExprs) ]
+          Dval.list ValueTypes.pipeExpr (List.map (PipeExpr.toDT toDT) pipeExprs) ]
 
 
       // function calls
@@ -797,14 +796,13 @@ module Expr =
       | PT.EConstant(id, name) ->
         "EConstant", [ DInt(int64 id); NameResolution.toDT ConstantName.toDT name ]
 
-      | PT.EApply(id, name, typeArgs, args) ->
+      | PT.EApply(id, expr, typeArgs, args) ->
         "EApply",
         [ DInt(int64 id)
-          toDT name
+          toDT expr
           // VTTODO: come back and give it a real type
           DList(Unknown, List.map TypeReference.toDT typeArgs)
-          // VTTODO: come back and give it a real type
-          DList(Unknown, List.map toDT args) ]
+          DList(ValueTypes.expr, List.map toDT args) ]
 
       | PT.EFnName(id, name) ->
         "EFnName", [ DInt(int64 id); NameResolution.toDT FnName.toDT name ]
