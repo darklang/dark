@@ -85,9 +85,15 @@ Options:
         let result = whatIsIt |> Json.parse<Tuple<String, String>> |> unwrap
 
         match result with
-        | ("function", fn) -> print fn
-        | ("type", t) -> print t
-        | ("constant", c) -> print c
+        | ("function", fn) ->
+          print fn
+          0
+        | ("type", t) ->
+          print t
+          0
+        | ("constant", c) ->
+          print c
+          0
         | ("modules", m) ->
           let result =
             CLI.HttpClient.request
@@ -95,7 +101,24 @@ Options:
               ("http://dark-packages.dlio.localhost:11003/modules/" ++ m)
               []
               Bytes.empty
-          print (result |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body) |> unwrap |> String.fromBytes)
+
+          let statusCode =
+            result
+            |> PACKAGE.Darklang.Stdlib.Result.map (fun response ->
+              response.statusCode)
+            |> unwrap
+
+          let modules =
+            if statusCode == 200 then
+              result
+              |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+              |> unwrap
+              |> String.fromBytes
+            else
+              $"Error getting module {m}. Received status code: {statusCode |> Int.toString}"
+
+          print modules
+          0
 
         | ("owner", o) ->
           let result =
@@ -104,11 +127,26 @@ Options:
               ("http://dark-packages.dlio.localhost:11003/owner/" ++ o)
               []
               Bytes.empty
-          print (result |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body) |> unwrap |> String.fromBytes)
 
-        | _ -> print "Not found"
+          let statusCode =
+            result
+            |> PACKAGE.Darklang.Stdlib.Result.map (fun response ->
+              response.statusCode)
+            |> unwrap
 
-        0
+
+          let owner =
+            if statusCode == 200 then
+              result
+              |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+              |> unwrap
+              |> String.fromBytes
+
+            else
+              $"Error getting owner {o}. Received status code: {statusCode |> Int.toString}"
+
+          print owner
+          0
 
 
       | Infer(prompt, scriptPath) ->
