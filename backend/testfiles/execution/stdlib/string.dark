@@ -808,3 +808,28 @@ module IndexOf =
 
   String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "👱🏽" = PACKAGE.Darklang.Stdlib.Option.Option.None
   String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🧑🏻‍🍼" = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+
+module Ellipsis =
+  PACKAGE.Darklang.Stdlib.String.ellipsis_v0 "hello world" 5 = "hello..."
+  PACKAGE.Darklang.Stdlib.String.ellipsis_v0 "hello world" 9 = "hello wor..."
+  PACKAGE.Darklang.Stdlib.String.ellipsis_v0 "hello world" 11 = "hello world"
+  PACKAGE.Darklang.Stdlib.String.ellipsis_v0 "hello world" 12 = "hello world"
+  PACKAGE.Darklang.Stdlib.String.ellipsis_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 5 = "👱👱🏻👱🏼👱🏽👱🏾..."
+  PACKAGE.Darklang.Stdlib.String.ellipsis_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 3 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ..."
+  PACKAGE.Darklang.Stdlib.String.ellipsis_v0 "👩‍👩‍👧‍👦" 2 = "👩‍👩‍👧‍👦"
+
+  PACKAGE.Darklang.Stdlib.String.ellipsis_v0
+    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷✋✋🏻✋🏿"
+    4 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷..."
+
+  String.ellipsis "hello world" 5 = "hello..."
+  String.ellipsis "hello world" 9 = "hello wor..."
+  String.ellipsis "hello world" 11 = "hello world"
+  String.ellipsis "hello world" 12 = "hello world"
+  String.ellipsis_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 3 = "Z̤͔..."
+  String.ellipsis "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 2 = "👱..."
+  String.ellipsis "👩‍👩‍👧‍👦" 2 = "👩‍👩‍👧‍👦"
+  String.ellipsis "✋🏻" 1 = "✋🏻"
+  String.ellipsis "✋🏻✋🏿" 1 = "✋..."
+  String.ellipsis "✋🏻✋🏿" 2 = "✋🏻✋🏿"
