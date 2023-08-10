@@ -8,6 +8,162 @@ module Darklang =
       | Invalid of List<String>
 
 
+    let showFn (name: String) (owner: String) (modules: List<String>) : Int =
+      let fns =
+        CLI.HttpClient.request
+          "GET"
+          ("http://dark-packages.dlio.localhost:11003/functions/")
+          []
+          Bytes.empty
+
+      let statusCode =
+        fns
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+        |> unwrap
+
+      let parsedFns =
+        if statusCode == 200 then
+          fns
+          |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+          |> unwrap
+          |> String.fromBytes
+          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>>
+          |> unwrap
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Some
+        else
+          PACKAGE.Darklang.Stdlib.Option.Option.None
+
+      match parsedFns with
+      | None ->
+        print "Error getting functions"
+        1
+      | Some fn ->
+        let packageSpecificFunction =
+          (List.filter fn (fun f ->
+            f.name.name
+            == PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name.FnName(name)
+            && f.name.owner == owner
+            && f.name.modules == modules))
+          |> List.head
+
+        let result =
+          match packageSpecificFunction with
+          | Some f ->
+            print (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn f)
+            0
+          | None ->
+            print "Function not found"
+            1
+
+        result
+
+    let showType (name: String) (owner: String) (modules: List<String>) : Int =
+      let types =
+        CLI.HttpClient.request
+          "GET"
+          ("http://dark-packages.dlio.localhost:11003/types/")
+          []
+          Bytes.empty
+
+      let statusCode =
+        types
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+        |> unwrap
+
+      let parsedTypes =
+        if statusCode == 200 then
+          types
+          |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+          |> unwrap
+          |> String.fromBytes
+          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>>
+          |> unwrap
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Some
+        else
+          PACKAGE.Darklang.Stdlib.Option.Option.None
+
+      match parsedTypes with
+      | None ->
+        print "Error getting types"
+        1
+      | Some types ->
+        let packageSpecificType =
+          (List.filter types (fun t ->
+            t.name.name
+            == PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name.TypeName(
+              name
+            )
+            && t.name.owner == owner
+            && t.name.modules == modules))
+          |> List.head
+
+        let result =
+          match packageSpecificType with
+          | Some t ->
+            print (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageType t)
+            0
+          | None ->
+            print "Type not found"
+            1
+
+        result
+
+    let showConstant (name: String) (owner: String) (modules: List<String>) : Int =
+      let constants =
+        CLI.HttpClient.request
+          "GET"
+          ("http://dark-packages.dlio.localhost:11003/constants/")
+          []
+          Bytes.empty
+
+      let statusCode =
+        constants
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+        |> unwrap
+
+      let parsedConstants =
+        if statusCode == 200 then
+          constants
+          |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+          |> unwrap
+          |> String.fromBytes
+          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T>>
+          |> unwrap
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Some
+        else
+          PACKAGE.Darklang.Stdlib.Option.Option.None
+
+      match parsedConstants with
+      | None ->
+        print "Error getting constants"
+        1
+      | Some constants ->
+        let packageSpecificConstant =
+          (List.filter constants (fun c ->
+            c.name.name
+            == PACKAGE
+              .Darklang
+              .LanguageTools
+              .ProgramTypes
+              .ConstantName
+              .Name
+              .ConstantName(name)
+            && c.name.owner == owner
+            && c.name.modules == modules))
+          |> List.head
+
+        let result =
+          match packageSpecificConstant with
+          | Some c ->
+            print (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageConstant c)
+            0
+          | None ->
+            print "Constant not found"
+            1
+
+        result
+
+
     let parseArguments (args: List<String>) : PACKAGE.Darklang.Cli.Command =
       match args with
       | [ "-h" ] -> PACKAGE.Darklang.Cli.Command.Help
@@ -60,13 +216,23 @@ Options:
 
         let fullName = name |> String.dropFirst_v0 1
 
+        let owner = fullName |> String.split "." |> List.head |> unwrap
+
+        let modules =
+          fullName
+          |> String.split "."
+          |> (List.drop 1)
+          |> PACKAGE.Darklang.Stdlib.List.dropLast
+
+        let name =
+          name |> String.dropFirst_v0 1 |> String.split "." |> List.last |> unwrap
+
         let whatIsIt =
           CLI.HttpClient.request
             "GET"
             ("http://dark-packages.dlio.localhost:11003/byName/" ++ fullName)
             []
             Bytes.empty
-
 
         let statusCode =
           whatIsIt
@@ -82,71 +248,14 @@ Options:
           else
             "Error" |> String.toBytes
 
-        let result = whatIsIt |> Json.parse<Tuple<String, String>> |> unwrap
+        match whatIsIt with
+        | "fn" -> PACKAGE.Darklang.Cli.showFn name owner modules
+        | "type" -> PACKAGE.Darklang.Cli.showType name owner modules
+        | "constant" -> PACKAGE.Darklang.Cli.showConstant name owner modules
+        | _ ->
+          print "Not found"
+          1
 
-        match result with
-        | ("function", fn) ->
-          print fn
-          0
-        | ("type", t) ->
-          print t
-          0
-        | ("constant", c) ->
-          print c
-          0
-        | ("modules", m) ->
-          let result =
-            CLI.HttpClient.request
-              "GET"
-              ("http://dark-packages.dlio.localhost:11003/modules/" ++ m)
-              []
-              Bytes.empty
-
-          let statusCode =
-            result
-            |> PACKAGE.Darklang.Stdlib.Result.map (fun response ->
-              response.statusCode)
-            |> unwrap
-
-          let modules =
-            if statusCode == 200 then
-              result
-              |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
-              |> unwrap
-              |> String.fromBytes
-            else
-              $"Error getting module {m}. Received status code: {statusCode |> Int.toString}"
-
-          print modules
-          0
-
-        | ("owner", o) ->
-          let result =
-            CLI.HttpClient.request
-              "GET"
-              ("http://dark-packages.dlio.localhost:11003/owner/" ++ o)
-              []
-              Bytes.empty
-
-          let statusCode =
-            result
-            |> PACKAGE.Darklang.Stdlib.Result.map (fun response ->
-              response.statusCode)
-            |> unwrap
-
-
-          let owner =
-            if statusCode == 200 then
-              result
-              |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
-              |> unwrap
-              |> String.fromBytes
-
-            else
-              $"Error getting owner {o}. Received status code: {statusCode |> Int.toString}"
-
-          print owner
-          0
 
 
       | Infer(prompt, scriptPath) ->
