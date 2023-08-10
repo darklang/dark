@@ -40,7 +40,7 @@ module Domains =
   module Roundtrip =
     ((Test.getCanvasID ())
      |> DarkInternal.Canvas.Domain.get
-     |> List.head
+     |> PACKAGE.Darklang.Stdlib.List.head
      |> unwrap
      |> DarkInternal.Canvas.Domain.toCanvasID) = PACKAGE
       .Darklang

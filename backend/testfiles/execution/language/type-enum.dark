@@ -1,6 +1,9 @@
 PACKAGE.Darklang.Stdlib.Option.Option.None = PACKAGE.Darklang.Stdlib.Option.Option.None
-((List.head []) == PACKAGE.Darklang.Stdlib.Option.Option.None) = true
-(List.head []) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+((PACKAGE.Darklang.Stdlib.List.head [])
+ == PACKAGE.Darklang.Stdlib.Option.Option.None) = true
+
+(PACKAGE.Darklang.Stdlib.List.head []) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 PACKAGE.Darklang.Stdlib.Result.Result.Ok(Test.runtimeError "err") = Test.runtimeError
   "err"
@@ -178,7 +181,7 @@ module Polymorphism =
     match tree with
     | Empty -> acc
     | Node(_, left, value, right) ->
-      toList' left (List.push (toList' right acc) value)
+      toList' left (PACKAGE.Darklang.Stdlib.List.push (toList' right acc) value)
 
   let toList (tree: RBTree<'a>) : List<'a> = toList' tree []
 

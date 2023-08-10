@@ -28,7 +28,7 @@ let _handler _req =
     let contentType =
       match
         (String.split path ".")
-        |> List.last
+        |> PACKAGE.Darklang.Stdlib.List.last
         |> PACKAGE.Darklang.Stdlib.Option.withDefault ""
       with
       | "js" -> "application/javascript"

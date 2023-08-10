@@ -168,7 +168,7 @@ Json.parse<Float> "\"42\n\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not 
 
 // Chars
 //let charFromString (s: String) =
-//  (String.toList s) |> List.head |> unwrap
+//  (String.toList s) |> PACKAGE.Darklang.Stdlib.List.head |> unwrap
 
 Json.serialize<Char> 'a' = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"a\""
 Json.parse<Char> "\"a\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 'a'
