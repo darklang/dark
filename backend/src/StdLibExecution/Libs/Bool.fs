@@ -14,7 +14,22 @@ let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "and" 0
+  [ { name = fn "not" 0
+      typeParams = []
+      parameters = [ Param.make "b" TBool "" ]
+      returnType = TBool
+      description =
+        "Returns the inverse of <param b>: {{true}} if <param b> is {{false}} and {{false}} if <param b> is {{true}}"
+      fn =
+        (function
+        | _, _, [ DBool b ] -> Ply(DBool(not b))
+        | _ -> incorrectArgs ())
+      sqlSpec = SqlFunction "not"
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "and" 0
       typeParams = []
       parameters = [ Param.make "a" TBool ""; Param.make "b" TBool "" ]
       returnType = TBool
