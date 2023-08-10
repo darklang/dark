@@ -1,4 +1,6 @@
-PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -> -4.611686018e+18) ]
+PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x ->
+                                                                          -4.611686018e+18) ]
+
 (let y = (fun x ___ -> x + 1) in List.map_v0 [ 1; 2; 3; 4 ] y) = [ 2; 3; 4; 5 ]
 (let y = (fun x -> x + 1) in List.map_v0 [ 1; 2; 3; 4 ] y) = [ 2; 3; 4; 5 ]
 

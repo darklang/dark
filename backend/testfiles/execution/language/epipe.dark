@@ -6,7 +6,9 @@ let userFn () : Int = 6
 // nested function
 ([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Int.add_v0 1 (Int.add_v0 1 3))) = [ 5 ]
 ([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Int.add_v0 1 ((+) 1 3))) = [ 5 ]
-([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Test.runtimeError "err")) = Test.runtimeError "err"
+
+([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Test.runtimeError "err")) = Test.runtimeError
+  "err"
 
 // general
 (4 |> (-) 3) = 1

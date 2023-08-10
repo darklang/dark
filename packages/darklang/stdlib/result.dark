@@ -102,6 +102,8 @@ module Darklang =
         |> List.fold (PACKAGE.Darklang.Stdlib.Result.Result.Ok []) (fun acc result ->
           match (acc, result) with
           | (Ok acc, Ok result) ->
-            PACKAGE.Darklang.Stdlib.Result.Result.Ok(PACKAGE.Darklang.Stdlib.List.pushBack acc result)
+            PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+              PACKAGE.Darklang.Stdlib.List.pushBack acc result
+            )
           | (Ok _, Error err) -> PACKAGE.Darklang.Stdlib.Result.Result.Error err
           | (Error err, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error err)
