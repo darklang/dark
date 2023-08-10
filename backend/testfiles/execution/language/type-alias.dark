@@ -56,7 +56,10 @@ module NestedAlias =
 
 module ListAlias =
   type IntegerList = List<Int>
-  let isEmpty (il: IntegerList) : Bool = List.isEmpty_v0 il
+
+  let isEmpty (il: IntegerList) : Bool =
+    PACKAGE.Darklang.Stdlib.List.isEmpty_v0 il
+
   isEmpty ([]) = true
   isEmpty ([ 1; 2; 3 ]) = false
 

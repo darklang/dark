@@ -47,3 +47,36 @@ module Darklang =
           match tail with
           | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Some head
           | _ -> PACKAGE.Darklang.Stdlib.List.last tail
+
+
+      /// Returns a reversed copy of <param list>
+      let reverse (list: List<'a>) : List<'a> =
+        match list with
+        | [] -> []
+        | head :: tail ->
+          List.append_v0
+            (PACKAGE.Darklang.Stdlib.List.reverse tail)
+            (List.singleton_v0 head)
+
+
+      /// Returns the number of values in <param list>
+      let ``length`` (list: List<'a>) : Int =
+        match list with
+        | [] -> 0
+        | _ :: tail -> 1 + (PACKAGE.Darklang.Stdlib.List.length tail)
+
+
+      /// Returns a single list containing the values of every list directly in <paramlist>
+      /// (does not recursively flatten nested lists)
+      let flatten (list: List<List<'a>>) : List<'a> =
+        match list with
+        | [] -> []
+        | head :: tail ->
+          List.append_v0 head (PACKAGE.Darklang.Stdlib.List.flatten tail)
+
+
+      /// Returns true if <param list> has no values
+      let isEmpty (list: List<'a>) : Bool =
+        match list with
+        | [] -> true
+        | _ -> false

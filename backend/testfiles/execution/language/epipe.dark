@@ -36,7 +36,7 @@ type Y = { z: Z }
 type X = { y: Y }
 
 (let x = X { y = Y { z = Z { a = [ 1; 2; 3; 4; 5 ] } } } in
- (x.y.z.a |> List.length_v0)) = 5
+ (x.y.z.a |> PACKAGE.Darklang.Stdlib.List.length_v0)) = 5
 
 type MyEnum = A of Int * Int * Int
 (33 |> MyEnum.A 21 42) = MyEnum.A 33 21 42

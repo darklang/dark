@@ -237,20 +237,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "reverse" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TList varA
-      description = "Returns a reversed copy of <param list>"
-      fn =
-        (function
-        | _, _, [ DList l ] -> Ply(DList(List.rev l))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "findFirst" 0
       typeParams = []
       parameters =
@@ -384,7 +370,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-
+    //used only in listDirectoryRecursive local-exec.dark
     { name = fn "flatten" 0
       typeParams = []
       parameters = [ Param.make "list" (TList(TList varA)) "" ]
@@ -528,20 +514,6 @@ let fns : List<BuiltInFn> =
             "List.unique: Unable to sort list, perhaps the list elements are different types"
             |> Dval.errStr
             |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "isEmpty" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TBool
-      description = "Returns true if <param list> has no values"
-      fn =
-        (function
-        | _, _, [ DList l ] -> Ply(DBool(List.isEmpty l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

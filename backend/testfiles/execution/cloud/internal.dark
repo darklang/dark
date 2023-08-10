@@ -2,7 +2,7 @@
 // Misc
 // ---------------
 module Documentation =
-  (List.length_v0 (DarkInternal.Documentation.list ()) > 100) = true
+  (PACKAGE.Darklang.Stdlib.List.length_v0 (DarkInternal.Documentation.list ()) > 100) = true
 
   ((DarkInternal.Documentation.list_v0 ())
    |> List.map (fun f -> (f.name, f))
@@ -103,7 +103,9 @@ module Toplevels =
     [<DB>]
     type TLXDB = X
 
-    (Test.getCanvasID ()) |> DarkInternal.Canvas.DB.unlocked |> List.length = 1
+    (Test.getCanvasID ())
+    |> DarkInternal.Canvas.DB.unlocked
+    |> PACKAGE.Darklang.Stdlib.List.length = 1
 
   module NoDB =
     (Test.getCanvasID ()) |> DarkInternal.Canvas.DB.unlocked = []
@@ -121,7 +123,9 @@ module UnlockedDB =
     [<DB>]
     type UXDB = X
     // one
-    (Test.getCanvasID ()) |> DarkInternal.Canvas.DB.unlocked |> List.length = 1
+    (Test.getCanvasID ())
+    |> DarkInternal.Canvas.DB.unlocked
+    |> PACKAGE.Darklang.Stdlib.List.length = 1
 
     // one but locked
     (let _ = DB.set (X { x = "str" }) "test" UXDB in

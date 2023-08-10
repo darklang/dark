@@ -115,13 +115,13 @@ List.findFirst [ 1; -33; 3; -2; 12 ] (fun x -> (x < 0 && x % 2 == 0)) = PACKAGE.
   -2
 
 // CLEANUP once DList contains typeRefs, this test may be uncommented and the error message updated:
-// List.flatten_v0 [1;2;3] =
+// PACKAGE.Darklang.Stdlib.List.flatten_v0 [1;2;3] =
 //   Test.runtimeError "In List.flatten's 1st argument (`list`), the value should be a List<List<'a>>. However, a List<Int> ([1; 2; 3]) was passed instead.\n\nExpected: List<List<'a>>\nActual: List<Int>: [1; 2; 3]"
-List.flatten_v0 [ [ 1 ]; [ 2 ]; [ 3 ] ] = [ 1; 2; 3 ]
-List.flatten_v0 [ [ 1 ]; [ [ 2; 3 ] ] ] = [ 1; [ 2; 3 ] ]
-List.flatten_v0 [ [ [] ] ] = [ [] ]
-List.flatten_v0 [ [] ] = []
-List.flatten_v0 [] = []
+PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1 ]; [ 2 ]; [ 3 ] ] = [ 1; 2; 3 ]
+PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1 ]; [ [ 2; 3 ] ] ] = [ 1; [ 2; 3 ] ]
+PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ [] ] ] = [ [] ]
+PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [] ] = []
+PACKAGE.Darklang.Stdlib.List.flatten_v0 [] = []
 
 List.fold_v0 [ "a"; "b"; "c"; "d" ] "x" (fun accum curr -> accum ++ curr) = "xabcd"
 
@@ -164,8 +164,8 @@ List.interpose_v0 [ 1 ] 5 = [ 1 ]
 List.interpose_v0 [] 5 = []
 List.interpose_v0 [ "a"; "b"; "c" ] 0 = [ "a"; 0; "b"; 0; "c" ]
 
-List.isEmpty_v0 [ 1 ] = false
-List.isEmpty_v0 [] = true
+PACKAGE.Darklang.Stdlib.List.isEmpty_v0 [ 1 ] = false
+PACKAGE.Darklang.Stdlib.List.isEmpty_v0 [] = true
 
 PACKAGE.Darklang.Stdlib.List.last [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
   3
@@ -175,8 +175,8 @@ PACKAGE.Darklang.Stdlib.List.last [ Test.runtimeError "test" ] = Test.runtimeErr
 
 PACKAGE.Darklang.Stdlib.List.last [] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-List.length_v0 [ 1; 2; 3 ] = 3
-List.length_v0 [] = 0
+PACKAGE.Darklang.Stdlib.List.length_v0 [ 1; 2; 3 ] = 3
+PACKAGE.Darklang.Stdlib.List.length_v0 [] = 0
 
 List.map_v0 (List.range_v0 1 5) (fun x -> x + 1) = [ 2; 3; 4; 5; 6 ]
 
@@ -255,9 +255,13 @@ List.repeat_v0 5 "a" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
 List.repeat_v0 -4 "a" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Expected `times` to be positive, but it was `-4`"
 
-List.reverse_v0 [ "a"; "b"; "c"; "d" ] = [ "d"; "c"; "b"; "a" ]
-List.reverse_v0 [ 5; 4; 3; 2; 1 ] = [ 1; 2; 3; 4; 5 ]
-List.reverse_v0 [] = []
+PACKAGE.Darklang.Stdlib.List.reverse_v0 [ "a"; "b"; "c"; "d" ] = [ "d"
+                                                                   "c"
+                                                                   "b"
+                                                                   "a" ]
+
+PACKAGE.Darklang.Stdlib.List.reverse_v0 [ 5; 4; 3; 2; 1 ] = [ 1; 2; 3; 4; 5 ]
+PACKAGE.Darklang.Stdlib.List.reverse_v0 [] = []
 
 List.singleton_v0 1 = [ 1 ]
 
