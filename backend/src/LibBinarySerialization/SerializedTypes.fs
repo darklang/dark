@@ -131,6 +131,34 @@ module FnName =
     | Package of Package
 
 
+module NameResolutionError =
+  [<MessagePack.MessagePackObject>]
+  type ErrorType =
+    | NotFound
+    | MissingModuleName
+    | InvalidPackageName
+    | ExpectedEnumButNot
+    | ExpectedRecordButNot
+
+  [<MessagePack.MessagePackObject>]
+  type NameType =
+    | Function
+    | Type
+    | Constant
+
+  [<MessagePack.MessagePackObject>]
+  type Error =
+    { [<MessagePack.Key 0>]
+      errorType : ErrorType
+      [<MessagePack.Key 1>]
+      nameType : NameType
+      [<MessagePack.Key 2>]
+      names : List<string> }
+
+[<MessagePack.MessagePackObject>]
+type NameResolution<'a> = Result<'a, NameResolutionError.Error>
+
+
 /// A Fully-Qualified Constant Name
 /// Includes package, module, and version information where relevant.
 module ConstantName =
@@ -172,32 +200,6 @@ module ConstantName =
     | BuiltIn of BuiltIn
     | Package of Package
 
-
-
-module NameResolution =
-  [<MessagePack.MessagePackObject>]
-  type ErrorType =
-    | NotFound
-    | MissingModuleName
-    | InvalidPackageName
-
-  [<MessagePack.MessagePackObject>]
-  type NameType =
-    | Function
-    | Type
-    | Constant
-
-  [<MessagePack.MessagePackObject>]
-  type Error =
-    { [<MessagePack.Key 0>]
-      errorType : ErrorType
-      [<MessagePack.Key 1>]
-      nameType : NameType
-      [<MessagePack.Key 2>]
-      names : List<string> }
-
-[<MessagePack.MessagePackObject>]
-type NameResolution<'a> = Result<'a, NameResolution.Error>
 
 
 

@@ -13,7 +13,7 @@ open LibExecution.RuntimeTypes
 
 open LibExecution.StdLib.Shortcuts
 
-module PT2DT = StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 let types : List<BuiltInType> =
   [ { name = typ [ "LocalExec"; "Packages" ] "Function" 0
@@ -91,7 +91,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TList(
           TCustomType(
-            FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0),
+            Ok(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0)),
             []
           )
         )
@@ -132,7 +132,10 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
         TList(
-          TCustomType(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0), [])
+          TCustomType(
+            Ok(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0)),
+            []
+          )
         )
       description = "List all package types"
       fn =
@@ -172,7 +175,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TList(
           TCustomType(
-            FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0),
+            Ok(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0)),
             []
           )
         )

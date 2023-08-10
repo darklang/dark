@@ -97,4 +97,4 @@ module Shortcuts =
     (name : string)
     (version : int)
     : TypeReference =
-    TCustomType((TypeName.fqBuiltIn modules name version), [])
+    TCustomType((Ok(TypeName.fqBuiltIn modules name version)), [])

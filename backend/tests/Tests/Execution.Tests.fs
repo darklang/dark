@@ -194,12 +194,17 @@ let testIfPreview : Test =
         AT.NonExecutedResult(DString "then"),
         AT.ExecutedResult(DString "else")))
       (eUnit (),
-       (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
+       (AT.ExecutedResult(
+         DError(
+           SourceID(7UL, ifID),
+           RuntimeError.oldError "If only supports Booleans"
+         )
+        ),
         AT.NonExecutedResult(DString "then"),
         AT.NonExecutedResult(DString "else")))
       // fakevals
       (eFn [ "Test" ] "runtimeError" 0 [] [ eStr "test" ],
-       (AT.ExecutedResult(DError(SourceNone, "test")),
+       (AT.ExecutedResult(DError(SourceNone, RuntimeError.oldError "test")),
         AT.NonExecutedResult(DString "then"),
         AT.NonExecutedResult(DString "else")))
       // others are true
@@ -208,11 +213,21 @@ let testIfPreview : Test =
         AT.ExecutedResult(DString "then"),
         AT.NonExecutedResult(DString "else")))
       (eInt 5,
-       (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
+       (AT.ExecutedResult(
+         DError(
+           SourceID(7UL, ifID),
+           RuntimeError.oldError "If only supports Booleans"
+         )
+        ),
         AT.NonExecutedResult(DString "then"),
         AT.NonExecutedResult(DString "else")))
       (eStr "test",
-       (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
+       (AT.ExecutedResult(
+         DError(
+           SourceID(7UL, ifID),
+           RuntimeError.oldError "If only supports Booleans"
+         )
+        ),
         AT.NonExecutedResult(DString "then"),
         AT.NonExecutedResult(DString "else"))) ]
 
@@ -256,7 +271,12 @@ let testOrPreview : Test =
       ((eBool false, eStr "test"),
        (AT.ExecutedResult(DBool false),
         AT.ExecutedResult(DString "test"),
-        AT.ExecutedResult(DError(SourceID(7UL, orID), "|| only supports Booleans"))))
+        AT.ExecutedResult(
+          DError(
+            SourceID(7UL, orID),
+            RuntimeError.oldError "|| only supports Booleans"
+          )
+        )))
       ((eBool true, eStr "test"),
        (AT.ExecutedResult(DBool true),
         AT.NonExecutedResult(DString "test"),
@@ -264,11 +284,21 @@ let testOrPreview : Test =
       ((EString(999UL, [ StringText "test" ]), eBool false),
        (AT.ExecutedResult(DString "test"),
         AT.NonExecutedResult(DBool false),
-        AT.ExecutedResult(DError(SourceID(7UL, orID), "|| only supports Booleans"))))
+        AT.ExecutedResult(
+          DError(
+            SourceID(7UL, orID),
+            RuntimeError.oldError "|| only supports Booleans"
+          )
+        )))
       ((EString(999UL, [ StringText "test" ]), eBool true),
        (AT.ExecutedResult(DString "test"),
         AT.NonExecutedResult(DBool true),
-        AT.ExecutedResult(DError(SourceID(7UL, orID), "|| only supports Booleans")))) ]
+        AT.ExecutedResult(
+          DError(
+            SourceID(7UL, orID),
+            RuntimeError.oldError "|| only supports Booleans"
+          )
+        ))) ]
 
 let testAndPreview : Test =
   let andID = gid ()
@@ -314,15 +344,30 @@ let testAndPreview : Test =
       ((eBool true, eStr "test"),
        (AT.ExecutedResult(DBool true),
         AT.ExecutedResult(DString "test"),
-        AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans"))))
+        AT.ExecutedResult(
+          DError(
+            SourceID(7UL, andID),
+            RuntimeError.oldError "&& only supports Booleans"
+          )
+        )))
       ((EString(999UL, [ StringText "test" ]), eBool false),
        (AT.ExecutedResult(DString "test"),
         AT.NonExecutedResult(DBool false),
-        AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans"))))
+        AT.ExecutedResult(
+          DError(
+            SourceID(7UL, andID),
+            RuntimeError.oldError "&& only supports Booleans"
+          )
+        )))
       ((EString(999UL, [ StringText "test" ]), eBool true),
        (AT.ExecutedResult(DString "test"),
         AT.NonExecutedResult(DBool true),
-        AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans")))) ]
+        AT.ExecutedResult(
+          DError(
+            SourceID(7UL, andID),
+            RuntimeError.oldError "&& only supports Booleans"
+          )
+        ))) ]
 
 
 let testLambdaPreview : Test =
@@ -754,7 +799,11 @@ let testLetPreview : Test =
 
         Expect.equal
           (Map.get (Expr.toID assignExpr) result)
-          (Some(AT.ExecutedResult(DError(SourceNone, "Division by zero"))))
+          (Some(
+            AT.ExecutedResult(
+              DError(SourceNone, RuntimeError.oldError "Division by zero")
+            )
+          ))
           "the whole tuple is a type error due to division by zero in y"
 
         Expect.equal

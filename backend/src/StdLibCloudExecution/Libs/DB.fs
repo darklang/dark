@@ -315,7 +315,9 @@ let fns : List<BuiltInFn> =
             try
               let db = state.program.dbs[dbname]
               let! results = UserDB.queryValues state db b
-              return results |> Dval.list
+              match results with
+              | Ok results -> return results |> Dval.list
+              | Error err -> return DError(SourceNone, err)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }
@@ -338,7 +340,9 @@ let fns : List<BuiltInFn> =
             try
               let db = state.program.dbs[dbname]
               let! results = UserDB.query state db b
-              return results |> Map.ofList |> DDict
+              match results with
+              | Ok results -> return results |> Map.ofList |> DDict
+              | Error err -> return DError(SourceNone, err)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }
@@ -363,8 +367,9 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.query state db b
 
               match results with
-              | [ (_, v) ] -> return Dval.optionSome v
-              | _ -> return Dval.optionNone
+              | Ok [ (_, v) ] -> return Dval.optionSome v
+              | Ok _ -> return Dval.optionNone
+              | Error err -> return DError(SourceNone, err)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }
@@ -389,8 +394,10 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.query state db b
 
               match results with
-              | [ (key, dv) ] -> return Dval.optionSome (DTuple(DString key, dv, []))
-              | _ -> return Dval.optionNone
+              | Ok [ (key, dv) ] ->
+                return Dval.optionSome (DTuple(DString key, dv, []))
+              | Ok _ -> return Dval.optionNone
+              | Error err -> return DError(SourceNone, err)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }
@@ -413,7 +420,9 @@ let fns : List<BuiltInFn> =
             try
               let db = state.program.dbs[dbname]
               let! result = UserDB.queryCount state db b
-              return Dval.int result
+              match result with
+              | Ok result -> return Dval.int result
+              | Error err -> return DError(SourceNone, err)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }

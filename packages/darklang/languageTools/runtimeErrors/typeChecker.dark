@@ -1,0 +1,48 @@
+module Darklang =
+  module LanguageTools =
+    module RuntimeErrors =
+      module TypeChecker =
+        type Location = Option<tlid * id>
+
+        type Context =
+          | FunctionCallParameter of
+            fnName: FnName.T *
+            parameter: Param *
+            paramIndex: int *
+            location: Location
+          | FunctionCallResult of
+            fnName: FnName.T *
+            returnType: TypeReference *
+            location: Location
+          | RecordField of
+            recordTypeName: TypeName.T *
+            fieldName: string *
+            fieldType: TypeReference *
+            location: Location
+          | DictKey of key: string * typ: TypeReference * Location
+          | EnumField of
+            enumTypeName: TypeName.T *
+            caseName: string *
+            fieldIndex: int *  // nth argument to the enum constructor
+            fieldCount: int *
+            fieldType: TypeReference *
+            location: Location
+          | DBQueryVariable of
+            varName: string *
+            expected: TypeReference *
+            location: Location
+          | DBSchemaType of
+            name: string *
+            expectedType: TypeReference *
+            location: Location
+          | ListIndex of index: int * listTyp: TypeReference * parent: Context
+          | TupleIndex of index: int * elementType: TypeReference * parent: Context
+
+        type Error =
+          | ValueNotExpectedType of
+            actualValue: Dval *
+            expectedType: TypeReference *
+            Context
+          | VTTODOMismatchedType of string
+          | TypeDoesntExist of TypeName.T * Context
+          | VTTODOMergedValueTypeWrapper of Dval.SomeErrorType

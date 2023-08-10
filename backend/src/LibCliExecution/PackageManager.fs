@@ -12,289 +12,296 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 open System
 
-module LanguageToolsTypesFork =
-  type ID = uint64
-  type TLID = uint64
+type ID = uint64
+type TLID = uint64
 
-  type Sign =
-    | Positive
-    | Negative
-
-  module NameResolution =
-    type ErrorType =
-      | NotFound
-      | MissingModuleName
-      | InvalidPackageName
-
-    type NameType =
-      | Function
-      | Type
-      | Constant
-
-    type Error = { errorType : ErrorType; nameType : NameType; names : List<string> }
-
-  module ProgramTypes =
-    type NameResolution<'a> = Result<'a, NameResolution.Error>
-
-    module FQName =
-      type BuiltIn<'name> = { modules : List<string>; name : 'name; version : int }
-
-      type Package<'name> =
-        { owner : string; modules : List<string>; name : 'name; version : int }
-
-      type T<'name> =
-        | BuiltIn of BuiltIn<'name>
-        | Package of Package<'name>
-
-    module TypeName =
-      type Name = TypeName of String
-      type T = FQName.T<Name>
-      type BuiltIn = FQName.BuiltIn<Name>
-      type Package = FQName.Package<Name>
-
-    module FnName =
-      type Name = FnName of String
-      type T = FQName.T<Name>
-      type BuiltIn = FQName.BuiltIn<Name>
-      type Package = FQName.Package<Name>
-
-    module ConstantName =
-      type Name = ConstantName of string
-      type T = FQName.T<Name>
-      type BuiltIn = FQName.BuiltIn<Name>
-      type Package = FQName.Package<Name>
+type Sign =
+  | Positive
+  | Negative
 
 
+module NameResolutionError =
+  type ErrorType =
+    | NotFound
+    | ExpectedEnumButNot
+    | ExpectedRecordButNot
+    | MissingModuleName
+    | InvalidPackageName
 
-    type TypeReference =
-      | TVariable of String
-      | TUnit
-      | TBool
-      | TInt
-      | TFloat
-      | TChar
-      | TString
-      | TDateTime
-      | TUuid
-      | TBytes
-      | TPassword
-      | TList of TypeReference
-      | TTuple of TypeReference * TypeReference * List<TypeReference>
-      | TDict of TypeReference
-      | TCustomType of NameResolution<TypeName.T> * typeArgs : List<TypeReference>
-      | TDB of TypeReference
-      | TFn of NEList<TypeReference> * TypeReference
+  type NameType =
+    | Function
+    | Type
+    | Constant
 
-    type LetPattern =
-      | LPVariable of ID * name : String
-      | LPTuple of ID * LetPattern * LetPattern * List<LetPattern>
-
-    type MatchPattern =
-      | MPVariable of ID * String
-      | MPUnit of ID
-      | MPBool of ID * bool
-      | MPInt of ID * int
-      | MPFloat of ID * Sign * String * String
-      | MPChar of ID * String
-      | MPString of ID * String
-      | MPList of ID * List<MatchPattern>
-      | MPListCons of ID * head : MatchPattern * tail : MatchPattern
-      | MPTuple of ID * MatchPattern * MatchPattern * List<MatchPattern>
-      | MPEnum of ID * caseName : String * fieldPats : List<MatchPattern>
-
-    type BinaryOperation =
-      | BinOpAnd
-      | BinOpOr
-
-    type InfixFnName =
-      | ArithmeticPlus
-      | ArithmeticMinus
-      | ArithmeticMultiply
-      | ArithmeticDivide
-      | ArithmeticModulo
-      | ArithmeticPower
-      | ComparisonGreaterThan
-      | ComparisonGreaterThanOrEqual
-      | ComparisonLessThan
-      | ComparisonLessThanOrEqual
-      | ComparisonEquals
-      | ComparisonNotEquals
-      | StringConcat
-
-    type Infix =
-      | InfixFnCall of InfixFnName
-      | BinOp of BinaryOperation
-
-    type StringSegment =
-      | StringText of string
-      | StringInterpolation of Expr
-
-    and PipeExpr =
-      | EPipeVariable of ID * string
-      | EPipeLambda of ID * NEList<ID * string> * Expr
-      | EPipeInfix of ID * Infix * Expr
-      | EPipeFnCall of
-        ID *
-        NameResolution<FnName.T> *
-        typeArgs : List<TypeReference> *
-        args : List<Expr>
-      | EPipeEnum of
-        ID *
-        typeName : NameResolution<TypeName.T> *
-        caseName : String *
-        fields : List<Expr>
+  type Error = { errorType : ErrorType; nameType : NameType; names : List<string> }
 
 
-    and Expr =
-      | EUnit of ID
+module ProgramTypes =
+  type NameResolution<'a> = Result<'a, NameResolutionError.Error>
 
-      | EBool of ID * bool
-      | EInt of ID * int
-      | EFloat of ID * Sign * string * string
-      | EChar of ID * string
-      | EString of ID * List<StringSegment>
+  module FQName =
+    type BuiltIn<'name> = { modules : List<string>; name : 'name; version : int }
 
-      | EConstant of ID * NameResolution<ConstantName.T>
+    type Package<'name> =
+      { owner : string; modules : List<string>; name : 'name; version : int }
 
-      | EList of ID * List<Expr>
-      | EDict of ID * List<String * Expr>
-      | ETuple of ID * Expr * Expr * List<Expr>
-      | ERecord of ID * NameResolution<TypeName.T> * List<string * Expr>
-      | ERecordUpdate of ID * record : Expr * updates : NEList<String * Expr>
-      | EEnum of
-        ID *
-        typeName : NameResolution<TypeName.T> *
-        caseName : String *
-        fields : List<Expr>
-
-      | ELet of ID * LetPattern * Expr * Expr
-      | EFieldAccess of ID * Expr * String
-      | EVariable of ID * String
-
-      | EIf of ID * Expr * Expr * Expr
-      | EMatch of ID * arg : Expr * cases : List<MatchPattern * Expr>
-      | EPipe of ID * Expr * List<PipeExpr>
-
-      | EInfix of ID * Infix * Expr * Expr
-      | ELambda of ID * NEList<ID * string> * Expr
-      | EApply of ID * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
-      | EFnName of ID * NameResolution<FnName.T>
-
-    type Deprecation<'name> =
-      | NotDeprecated
-      | RenamedTo of 'name
-      | ReplacedBy of 'name
-      | DeprecatedBecause of string
-
-    module TypeDeclaration =
-      type RecordField = { name : string; typ : TypeReference; description : string }
-
-      type EnumField =
-        { typ : TypeReference; label : Option<string>; description : string }
-
-      type EnumCase =
-        { name : string; fields : List<EnumField>; description : string }
-
-      type Definition =
-        | Alias of TypeReference
-        | Record of NEList<RecordField>
-        | Enum of NEList<EnumCase>
-
-      type T = { typeParams : List<string>; definition : Definition }
+    type FQName<'name> =
+      | BuiltIn of BuiltIn<'name>
+      | Package of Package<'name>
 
 
-    module PackageType =
-      type T =
-        { tlid : TLID
-          id : Guid
-          name : TypeName.Package
-          declaration : TypeDeclaration.T
-          description : string
-          deprecated : Deprecation<TypeName.T> }
+  module TypeName =
+    type Name = TypeName of String
+    type TypeName = FQName.FQName<Name>
+    type BuiltIn = FQName.BuiltIn<Name>
+    type Package = FQName.Package<Name>
+
+  module FnName =
+    type Name = FnName of String
+    type FnName = FQName.FQName<Name>
+    type BuiltIn = FQName.BuiltIn<Name>
+    type Package = FQName.Package<Name>
+
+  module ConstantName =
+    type Name = ConstantName of string
+    type ConstantName = FQName.FQName<Name>
+    type BuiltIn = FQName.BuiltIn<Name>
+    type Package = FQName.Package<Name>
 
 
-    module PackageFn =
-      type Parameter = { name : String; typ : TypeReference; description : String }
+  type TypeReference =
+    | TVariable of String
+    | TUnit
+    | TBool
+    | TInt
+    | TFloat
+    | TChar
+    | TString
+    | TDateTime
+    | TUuid
+    | TBytes
+    | TPassword
+    | TList of TypeReference
+    | TTuple of TypeReference * TypeReference * List<TypeReference>
+    | TDict of TypeReference
+    | TCustomType of
+      NameResolution<TypeName.TypeName> *
+      typeArgs : List<TypeReference>
+    | TDB of TypeReference
+    | TFn of NEList<TypeReference> * TypeReference
 
-      type T =
-        { tlid : TLID
-          id : Guid
-          name : FnName.Package
-          body : Expr
-          typeParams : List<String>
-          parameters : NEList<Parameter>
-          returnType : TypeReference
-          description : String
-          deprecated : Deprecation<FnName.T> }
+  type LetPattern =
+    | LPVariable of ID * name : String
+    | LPTuple of ID * LetPattern * LetPattern * List<LetPattern>
 
-    type Const =
-      | CInt of int64
-      | CBool of bool
-      | CString of string
-      | CChar of string
-      | CFloat of Sign * string * string
-      | CUnit
-      | CTuple of first : Const * second : Const * rest : List<Const>
-      | CEnum of NameResolution<TypeName.T> * caseName : string * List<Const>
+  type MatchPattern =
+    | MPVariable of ID * String
+    | MPUnit of ID
+    | MPBool of ID * bool
+    | MPInt of ID * int
+    | MPFloat of ID * Sign * String * String
+    | MPChar of ID * String
+    | MPString of ID * String
+    | MPList of ID * List<MatchPattern>
+    | MPListCons of ID * head : MatchPattern * tail : MatchPattern
+    | MPTuple of ID * MatchPattern * MatchPattern * List<MatchPattern>
+    | MPEnum of ID * caseName : String * fieldPats : List<MatchPattern>
 
-    module PackageConstant =
-      type T =
-        { tlid : TLID
-          id : Guid
-          name : ConstantName.Package
-          description : String
-          deprecated : Deprecation<ConstantName.T>
-          body : Const }
+  type BinaryOperation =
+    | BinOpAnd
+    | BinOpOr
 
-module ET = LanguageToolsTypesFork
-module EPT = ET.ProgramTypes
+  type InfixFnName =
+    | ArithmeticPlus
+    | ArithmeticMinus
+    | ArithmeticMultiply
+    | ArithmeticDivide
+    | ArithmeticModulo
+    | ArithmeticPower
+    | ComparisonGreaterThan
+    | ComparisonGreaterThanOrEqual
+    | ComparisonLessThan
+    | ComparisonLessThanOrEqual
+    | ComparisonEquals
+    | ComparisonNotEquals
+    | StringConcat
+
+  type Infix =
+    | InfixFnCall of InfixFnName
+    | BinOp of BinaryOperation
+
+  type StringSegment =
+    | StringText of string
+    | StringInterpolation of Expr
+
+  and PipeExpr =
+    | EPipeVariable of ID * string
+    | EPipeLambda of ID * NEList<ID * string> * Expr
+    | EPipeInfix of ID * Infix * Expr
+    | EPipeFnCall of
+      ID *
+      NameResolution<FnName.FnName> *
+      typeArgs : List<TypeReference> *
+      args : List<Expr>
+    | EPipeEnum of
+      ID *
+      typeName : NameResolution<TypeName.TypeName> *
+      caseName : String *
+      fields : List<Expr>
+
+
+  and Expr =
+    | EUnit of ID
+
+    | EBool of ID * bool
+    | EInt of ID * int
+    | EFloat of ID * Sign * string * string
+    | EChar of ID * string
+    | EString of ID * List<StringSegment>
+
+    | EConstant of ID * NameResolution<ConstantName.ConstantName>
+
+    | EList of ID * List<Expr>
+    | EDict of ID * List<String * Expr>
+    | ETuple of ID * Expr * Expr * List<Expr>
+    | ERecord of ID * NameResolution<TypeName.TypeName> * List<string * Expr>
+    | EEnum of
+      ID *
+      typeName : NameResolution<TypeName.TypeName> *
+      caseName : String *
+      fields : List<Expr>
+
+    | ELet of ID * LetPattern * Expr * Expr
+    | EFieldAccess of ID * Expr * String
+    | EVariable of ID * String
+
+    | EIf of ID * Expr * Expr * Expr
+    | EMatch of ID * arg : Expr * cases : List<MatchPattern * Expr>
+    | EPipe of ID * Expr * List<PipeExpr>
+
+    | EInfix of ID * Infix * Expr * Expr
+    | ELambda of ID * NEList<ID * string> * Expr
+    | EApply of ID * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
+    | EFnName of ID * NameResolution<FnName.FnName>
+    | ERecordUpdate of ID * record : Expr * updates : NEList<String * Expr>
+
+
+  type Deprecation<'name> =
+    | NotDeprecated
+    | RenamedTo of 'name
+    | ReplacedBy of 'name
+    | DeprecatedBecause of string
+
+
+  module TypeDeclaration =
+    type RecordField = { name : string; typ : TypeReference; description : string }
+
+    type EnumField =
+      { typ : TypeReference; label : Option<string>; description : string }
+
+    type EnumCase = { name : string; fields : List<EnumField>; description : string }
+
+    type Definition =
+      | Alias of TypeReference
+      | Record of NEList<RecordField>
+      | Enum of NEList<EnumCase>
+
+    type TypeDeclaration = { typeParams : List<string>; definition : Definition }
+
+
+  type PackageType =
+    { tlid : TLID
+      id : Guid
+      name : TypeName.Package
+      declaration : TypeDeclaration.TypeDeclaration
+      description : string
+      deprecated : Deprecation<TypeName.TypeName> }
+
+
+  module PackageFn =
+    type Parameter = { name : String; typ : TypeReference; description : String }
+
+    type PackageFn =
+      { tlid : TLID
+        id : Guid
+        name : FnName.Package
+        body : Expr
+        typeParams : List<String>
+        parameters : NEList<Parameter>
+        returnType : TypeReference
+        description : String
+        deprecated : Deprecation<FnName.FnName> }
+
+  type Const =
+    | CInt of int64
+    | CBool of bool
+    | CString of string
+    | CChar of string
+    | CFloat of Sign * string * string
+    | CUnit
+    | CTuple of first : Const * second : Const * rest : List<Const>
+    | CEnum of NameResolution<TypeName.TypeName> * caseName : string * List<Const>
+
+  type PackageConstant =
+    { tlid : TLID
+      id : Guid
+      name : ConstantName.Package
+      description : String
+      deprecated : Deprecation<ConstantName.ConstantName>
+      body : Const }
+
+module EPT = ProgramTypes
 
 module ExternalTypesToProgramTypes =
-  module NameResolution =
+  module NameResolutionError =
     module NameType =
-
       let toPT
-        (nameType : ET.NameResolution.NameType)
-        : LibExecution.Errors.NameResolution.NameType =
+        (nameType : NameResolutionError.NameType)
+        : LibExecution.NameResolutionError.NameType =
         match nameType with
-        | ET.NameResolution.Type -> LibExecution.Errors.NameResolution.Type
-        | ET.NameResolution.Function -> LibExecution.Errors.NameResolution.Function
-        | ET.NameResolution.Constant -> LibExecution.Errors.NameResolution.Constant
+        | NameResolutionError.Type -> LibExecution.NameResolutionError.Type
+        | NameResolutionError.Function -> LibExecution.NameResolutionError.Function
+        | NameResolutionError.Constant -> LibExecution.NameResolutionError.Constant
 
     module ErrorType =
       let toPT
-        (err : ET.NameResolution.ErrorType)
-        : LibExecution.Errors.NameResolution.ErrorType =
+        (err : NameResolutionError.ErrorType)
+        : LibExecution.NameResolutionError.ErrorType =
         match err with
-        | ET.NameResolution.ErrorType.NotFound ->
-          LibExecution.Errors.NameResolution.NotFound
-        | ET.NameResolution.MissingModuleName ->
-          LibExecution.Errors.NameResolution.MissingModuleName
-        | ET.NameResolution.InvalidPackageName ->
-          LibExecution.Errors.NameResolution.InvalidPackageName
+        | NameResolutionError.ErrorType.NotFound ->
+          LibExecution.NameResolutionError.NotFound
+        | NameResolutionError.MissingModuleName ->
+          LibExecution.NameResolutionError.MissingModuleName
+        | NameResolutionError.InvalidPackageName ->
+          LibExecution.NameResolutionError.InvalidPackageName
+        | NameResolutionError.ExpectedEnumButNot ->
+          LibExecution.NameResolutionError.ExpectedEnumButNot
+        | NameResolutionError.ExpectedRecordButNot ->
+          LibExecution.NameResolutionError.ExpectedRecordButNot
 
     module Error =
       let toPT
-        (err : ET.NameResolution.Error)
-        : LibExecution.Errors.NameResolution.Error =
+        (err : NameResolutionError.Error)
+        : LibExecution.NameResolutionError.Error =
         { errorType = ErrorType.toPT err.errorType
           nameType = NameType.toPT err.nameType
           names = err.names }
 
+  module NameResolution =
     let toPT
       (f : 's -> 'p)
       (result : EPT.NameResolution<'s>)
       : PT.NameResolution<'p> =
       match result with
       | Ok name -> Ok(f name)
-      | Error err -> Error(Error.toPT err)
+      | Error err -> Error(NameResolutionError.Error.toPT err)
 
 
   module Sign =
-    let toPT (s : ET.Sign) : Sign =
+    let toPT (s : Sign) : Prelude.Sign =
       match s with
-      | ET.Positive -> Positive
-      | ET.Negative -> Negative
+      | Positive -> Prelude.Positive
+      | Negative -> Prelude.Negative
 
   module TypeName =
     module BuiltIn =
@@ -314,7 +321,7 @@ module ExternalTypesToProgramTypes =
             | EPT.TypeName.Name.TypeName name -> PT.TypeName.TypeName name
           version = p.version }
 
-    let toPT (fqfn : EPT.TypeName.T) : PT.TypeName.T =
+    let toPT (fqfn : EPT.TypeName.TypeName) : PT.TypeName.T =
       match fqfn with
       | EPT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
       | EPT.FQName.Package p -> PT.FQName.Package(Package.toPT p)
@@ -338,7 +345,7 @@ module ExternalTypesToProgramTypes =
             | EPT.FnName.Name.FnName name -> PT.FnName.FnName name
           version = p.version }
 
-    let toPT (fqfn : EPT.FnName.T) : PT.FnName.T =
+    let toPT (fqfn : EPT.FnName.FnName) : PT.FnName.T =
       match fqfn with
       | EPT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
       | EPT.FQName.Package p -> PT.FQName.Package(Package.toPT p)
@@ -363,7 +370,7 @@ module ExternalTypesToProgramTypes =
               PT.ConstantName.ConstantName name
           version = p.version }
 
-    let toPT (fqfn : EPT.ConstantName.T) : PT.ConstantName.T =
+    let toPT (fqfn : EPT.ConstantName.ConstantName) : PT.ConstantName.T =
       match fqfn with
       | EPT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
       | EPT.FQName.Package p -> PT.FQName.Package(Package.toPT p)
@@ -371,7 +378,7 @@ module ExternalTypesToProgramTypes =
 
 
   module InfixFnName =
-    let toPT (name : ET.ProgramTypes.InfixFnName) : PT.InfixFnName =
+    let toPT (name : ProgramTypes.InfixFnName) : PT.InfixFnName =
       match name with
       | EPT.ArithmeticPlus -> PT.ArithmeticPlus
       | EPT.ArithmeticMinus -> PT.ArithmeticMinus
@@ -538,12 +545,6 @@ module ExternalTypesToProgramTypes =
         )
 
   module Deprecation =
-    type Deprecation<'name> =
-      | NotDeprecated
-      | RenamedTo of 'name
-      | ReplacedBy of 'name
-      | DeprecatedBecause of string
-
     let toPT
       (f : 'name1 -> 'name2)
       (d : EPT.Deprecation<'name1>)
@@ -585,7 +586,7 @@ module ExternalTypesToProgramTypes =
         | EPT.TypeDeclaration.Enum cases ->
           PT.TypeDeclaration.Enum(NEList.map EnumCase.toPT cases)
 
-    let toPT (d : EPT.TypeDeclaration.T) : PT.TypeDeclaration.T =
+    let toPT (d : EPT.TypeDeclaration.TypeDeclaration) : PT.TypeDeclaration.T =
       { typeParams = d.typeParams; definition = Definition.toPT d.definition }
 
   module PackageFn =
@@ -595,7 +596,7 @@ module ExternalTypesToProgramTypes =
           typ = TypeReference.toPT p.typ
           description = p.description }
 
-    let toPT (fn : EPT.PackageFn.T) : PT.PackageFn.T =
+    let toPT (fn : EPT.PackageFn.PackageFn) : PT.PackageFn.T =
       { name = FnName.Package.toPT fn.name
         parameters = NEList.map Parameter.toPT fn.parameters
         returnType = TypeReference.toPT fn.returnType
@@ -607,7 +608,7 @@ module ExternalTypesToProgramTypes =
         tlid = fn.tlid }
 
   module PackageType =
-    let toPT (pt : EPT.PackageType.T) : PT.PackageType.T =
+    let toPT (pt : EPT.PackageType) : PT.PackageType.T =
       { name = TypeName.Package.toPT pt.name
         description = pt.description
         declaration = TypeDeclaration.toPT pt.declaration
@@ -634,7 +635,7 @@ module ExternalTypesToProgramTypes =
         )
 
   module PackageConstant =
-    let toPT (c : EPT.PackageConstant.T) : PT.PackageConstant.T =
+    let toPT (c : EPT.PackageConstant) : PT.PackageConstant.T =
       { name = ConstantName.Package.toPT c.name
         description = c.description
         deprecated = Deprecation.toPT ConstantName.toPT c.deprecated
@@ -645,6 +646,7 @@ module ExternalTypesToProgramTypes =
 
 
 module ET2PT = ExternalTypesToProgramTypes
+
 
 let cachedPly (expiration : TimeSpan) (f : Ply<'a>) : Ply<'a> =
   let mutable value = None
@@ -673,8 +675,7 @@ let packageManager : RT.PackageManager =
       let! allTypesStr = response.Content.ReadAsStringAsync()
 
       return
-        Json.Vanilla.deserialize<List<LanguageToolsTypesFork.ProgramTypes.PackageType.T>>
-          allTypesStr
+        Json.Vanilla.deserialize<List<ProgramTypes.PackageType>> allTypesStr
         |> List.map (ET2PT.PackageType.toPT >> PT2RT.PackageType.toRT)
     }
     |> cachedPly (TimeSpan.FromMinutes 1.)
@@ -686,8 +687,7 @@ let packageManager : RT.PackageManager =
       let! allTypesStr = response.Content.ReadAsStringAsync()
 
       return
-        Json.Vanilla.deserialize<List<LanguageToolsTypesFork.ProgramTypes.PackageFn.T>>
-          allTypesStr
+        Json.Vanilla.deserialize<List<ProgramTypes.PackageFn.PackageFn>> allTypesStr
         |> List.map (ET2PT.PackageFn.toPT >> PT2RT.PackageFn.toRT)
     }
     |> cachedPly (TimeSpan.FromMinutes 1.)
@@ -699,8 +699,7 @@ let packageManager : RT.PackageManager =
       let! allConstantsStr = response.Content.ReadAsStringAsync()
 
       let parsedConstants =
-        Json.Vanilla.deserialize<List<LanguageToolsTypesFork.ProgramTypes.PackageConstant.T>>
-          allConstantsStr
+        Json.Vanilla.deserialize<List<ProgramTypes.PackageConstant>> allConstantsStr
 
       return
         parsedConstants

@@ -552,7 +552,6 @@ let toProgram (c : T) : RT.Program =
       (PT2RT.TypeName.UserProgram.toRT t.name, PT2RT.UserType.toRT t))
     |> Map.ofList
 
-
   let userConstants =
     c.userConstants
     |> Map.values

@@ -36,17 +36,23 @@ let compile
           { typeParams = []
             definition = TypeDeclaration.Record(NEList.singleton field) } }
     let userTypes = Map [ typeName, userType ]
-    let typeReference = TCustomType(FQName.UserProgram typeName, [])
+    let typeReference = TCustomType(Ok(FQName.UserProgram typeName), [])
 
     let! state =
       executionStateFor canvasID false false Map.empty userTypes Map.empty Map.empty
 
     try
-      let! sql, args =
+      let! compiled =
         C.compileLambda state Map.empty symtable paramName typeReference expr
 
-      let args = Map.ofList args
-      return sql, args
+      match compiled with
+      | Ok compiled ->
+        let vars = Map.ofList compiled.vars
+        return compiled.sql, vars
+      | Error err ->
+        return
+          Exception.raiseInternal "could not compile lambda to sql" [ "err", err ]
+
     with e ->
       return
         Exception.raiseInternal e.Message [ "paramName", paramName; "expr", expr ]

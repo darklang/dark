@@ -113,9 +113,11 @@ let execute (symtable : Map<string, RT.Dval>) (args : PT.Expr) : Task<RT.Dval> =
   }
 
 let initSerializers () =
-  Json.Vanilla.allow<List<LibCliExecution.PackageManager.LanguageToolsTypesFork.ProgramTypes.PackageType.T>>
+  Json.Vanilla.allow<List<LibCliExecution.PackageManager.ProgramTypes.PackageType>>
     "PackageManager"
-  Json.Vanilla.allow<List<LibCliExecution.PackageManager.LanguageToolsTypesFork.ProgramTypes.PackageFn.T>>
+  Json.Vanilla.allow<List<LibCliExecution.PackageManager.ProgramTypes.PackageFn.PackageFn>>
+    "PackageManager"
+  Json.Vanilla.allow<List<LibCliExecution.PackageManager.ProgramTypes.PackageConstant>>
     "PackageManager"
 
 [<EntryPoint>]

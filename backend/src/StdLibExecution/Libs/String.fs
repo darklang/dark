@@ -59,7 +59,9 @@ let fns : List<BuiltInFn> =
                      (function
                      | DChar c -> c
                      | dv ->
-                       Exception.raiseCode (Errors.expectedLambdaType "fn" TChar dv))
+                       Exception.raiseInternal
+                         (Errors.expectedLambdaType "fn" TChar dv)
+                         [])
                      dvals
 
                  let str = String.concat "" chars
@@ -291,9 +293,9 @@ let fns : List<BuiltInFn> =
                 match s with
                 | DString st -> st
                 | dv ->
-                  Exception.raiseCode (
-                    Errors.argumentWasntType (TList TString) "l" dv
-                  ))
+                  Exception.raiseInternal
+                    (Errors.argumentWasntType (TList TString) "l" dv)
+                    [])
               l
 
           Ply(DString((String.concat sep strs).Normalize()))

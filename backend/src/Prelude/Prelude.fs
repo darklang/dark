@@ -56,14 +56,6 @@ type InternalException(message : string, metadata : Metadata, inner : exn) =
   new(msg : string, metadata : Metadata) = InternalException(msg, metadata, null)
   new(msg : string, inner : exn) = InternalException(msg, [], inner)
 
-// A grand user exception was caused by the incorrect actions of a grand user. The
-// msg is suitable to show to the grand user. We don't care about grandUser
-// exceptions, they're normal. When a message can be safely propagated to show to the
-// grand user, it's safe to use this exception, even if it's more properly defined by
-// another exception type.
-type GrandUserException(message : string, inner : exn) =
-  inherit System.Exception(message, inner)
-  new(msg : string) = GrandUserException(msg, null)
 
 /// An error during code execution, which is the responsibility of the
 /// User/Developer. The message can be shown to the developer. You can alternatively
@@ -113,7 +105,6 @@ module Exception =
       | :? InternalException as e -> e.metadata
       | :? EditorException
       | :? CodeException
-      | :? GrandUserException
       | _ -> []
     thisMetadata
 
@@ -126,7 +117,6 @@ module Exception =
       | :? InternalException as e -> e.metadata
       | :? EditorException
       | :? CodeException
-      | :? GrandUserException
       | _ -> []
     thisMetadata @ innerMetadata
 
@@ -141,11 +131,9 @@ module Exception =
       System.Console.WriteLine e.StackTrace
 
 
-  let raiseGrandUser (msg : string) =
-    let e = GrandUserException(msg)
-    callExceptionCallback e
-    raise e
-
+  // TODO: delete this.
+  // most of the errors caught by this can now be raiseInternals,
+  // as the type-checker should have prevented them
   let raiseCode (msg : string) =
     let e = CodeException(msg)
     callExceptionCallback e
@@ -161,15 +149,12 @@ module Exception =
     | Ok v -> v
     | Error msg -> raiseCode msg
 
-  let raiseEditor (msg : string) =
-    let e = EditorException(msg)
-    callExceptionCallback e
-    raise e
-
   let raiseInternal (msg : string) (tags : Metadata) =
     let e = InternalException(msg, tags)
     callExceptionCallback e
     raise e
+
+
 
   let unwrapOptionInternal (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
     match o with
@@ -187,11 +172,6 @@ module Exception =
     raise e
 
   let unknownErrorMessage = "Unknown error"
-
-  let toGrandUserMessage (e : exn) : string =
-    match e with
-    | :? GrandUserException as e -> e.Message
-    | _ -> unknownErrorMessage
 
   let taskCatch (f : unit -> Task<'r>) : Task<Option<'r>> =
     task {

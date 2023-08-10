@@ -44,21 +44,27 @@ module RuntimeTypes =
       RT.TDict RT.TBool
       RT.TDB RT.TBool
       RT.TCustomType(
-        RT.FQName.UserProgram
-          { modules = []; name = RT.TypeName.TypeName "User"; version = 0 },
+        Ok(
+          RT.FQName.UserProgram
+            { modules = []; name = RT.TypeName.TypeName "User"; version = 0 }
+        ),
         [ RT.TBool ]
       )
       RT.TCustomType(
-        RT.FQName.BuiltIn
-          { modules = [ "Mod" ]; name = RT.TypeName.TypeName "User"; version = 0 },
+        Ok(
+          RT.FQName.BuiltIn
+            { modules = [ "Mod" ]; name = RT.TypeName.TypeName "User"; version = 0 }
+        ),
         [ RT.TBool ]
       )
       RT.TCustomType(
-        RT.FQName.Package
-          { owner = "dark"
-            modules = [ "Mod1"; "Mod2" ]
-            name = RT.TypeName.TypeName "Pack"
-            version = 0 },
+        Ok(
+          RT.FQName.Package
+            { owner = "dark"
+              modules = [ "Mod1"; "Mod2" ]
+              name = RT.TypeName.TypeName "Pack"
+              version = 0 }
+        ),
         [ RT.TBool ]
       )
       RT.TBytes

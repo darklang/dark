@@ -4,8 +4,9 @@ open System.Text.Json
 
 open Prelude
 open LibExecution.RuntimeTypes
-
 open LibExecution.StdLib.Shortcuts
+
+module DarkDateTime = LibExecution.DarkDateTime
 
 
 
@@ -130,7 +131,7 @@ let rec serialize
         w.writeArray (fun () ->
           Ply.List.iterSequentially (fun (t, d) -> r t d) zipped)
 
-    | TCustomType(typeName, typeArgs), dval ->
+    | TCustomType(Ok typeName, typeArgs), dval ->
 
       match! Types.find typeName types with
       | None -> Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
@@ -386,7 +387,7 @@ let parse
       |> Ply.List.flatten
       |> Ply.map (fun fields -> Map fields |> DDict)
 
-    | TCustomType(typeName, typeArgs), jsonValueKind ->
+    | TCustomType(Ok typeName, typeArgs), jsonValueKind ->
 
       uply {
         match! Types.find typeName types with

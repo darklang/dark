@@ -131,20 +131,12 @@ let printAllPackages () : Unit =
   constants |> LocalExec.BuiltIns.List.iter (fun p -> printPackageConstant p)
 
 
-// Running scripts
-let runScript (path: String) (args: List<String>) : Int =
-  let script = (File.read path) |> unwrap |> String.fromBytes
-  let result = (LocalExec.parseAndExecuteScript path script args) |> unwrap
-  result
-
-
 // parse args and execute
 type CliOptions =
   | Help
   | LoadPackages
   | LoadPackagesIntoDarkCanvas
   | ListPackages
-  | RunScript of path: String * args: List<String>
   | BadOption of String
 
 let usage () : String =
@@ -155,7 +147,6 @@ let usage () : String =
       load-packages       Load packages from disk into internal DB
       load-packages-dark  Load packages from disk into dark packages canvas
       list-packages       List packages
-      run-script          Parse and run .dark script
   "
 
 
@@ -169,9 +160,6 @@ let parseArgs (args: List<String>) : CliOptions =
   | [ "load-packages" ] -> CliOptions.LoadPackages
   | [ "load-packages-dark" ] -> CliOptions.LoadPackagesIntoDarkCanvas
 
-  | [ "run-script" ] ->
-    CliOptions.BadOption "Missing path to script after `run-script`"
-  | "run-script" :: path :: args -> CliOptions.RunScript(path, args)
   | _ -> CliOptions.BadOption "Invalid arguments"
 
 
@@ -196,10 +184,6 @@ let main (args: List<String>) : Int =
 
     print "Done loading packages"
     0
-
-  | RunScript(path, args) ->
-    print $"Running script with LocalExec: {path}"
-    runScript path args
 
   | LoadPackagesIntoDarkCanvas ->
     let files = listPackageFilesOnDisk "/home/dark/app/packages"

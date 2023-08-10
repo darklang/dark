@@ -1,0 +1,22 @@
+module Darklang =
+  module LanguageTools =
+    module RuntimeErrors =
+      module NameResolution =
+        type ErrorType =
+          | NotFound
+          | ExpectedEnumButNot
+          | ExpectedRecordButNot
+          | MissingModuleName
+          | InvalidPackageName
+
+        type NameType =
+          | Function
+          | Type
+          | Constant
+
+        type Error =
+          { errorType: ErrorType
+            nameType: NameType
+            // The `.`-delimited name _parts_ e.g. `List.fakeFunction` is `["List";
+            // "fakeFunction"]`
+            names: List<string> }

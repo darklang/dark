@@ -25,7 +25,7 @@ let rec typeName (t : TypeReference) : string =
   | TDateTime -> "DateTime"
   | TPassword -> "Password"
   | TUuid -> "Uuid"
-  | TCustomType(t, typeArgs) ->
+  | TCustomType(Ok t, typeArgs) ->
     let typeArgsPortion =
       match typeArgs with
       | [] -> ""
@@ -35,6 +35,8 @@ let rec typeName (t : TypeReference) : string =
         |> String.concat ", "
         |> fun betweenBrackets -> "<" + betweenBrackets + ">"
     TypeName.toString t + typeArgsPortion
+  | TCustomType(Error _nre, _) -> "(Error during function resolution)"
+
   | TBytes -> "Bytes"
 
 let rec dvalTypeName (dv : Dval) : string =

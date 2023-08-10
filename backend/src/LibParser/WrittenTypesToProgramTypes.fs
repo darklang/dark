@@ -7,6 +7,7 @@ open Tablecloth
 module WT = WrittenTypes
 module PT = LibExecution.ProgramTypes
 module FS2WT = FSharpToWrittenTypes
+module NRE = LibExecution.NameResolutionError
 type NameResolver = NameResolver.NameResolver
 
 module InfixFnName =
@@ -102,9 +103,7 @@ module Expr =
     match names with
     | [] ->
       Error(
-        { nameType = LibExecution.Errors.NameResolution.Type
-          errorType = LibExecution.Errors.NameResolution.MissingModuleName
-          names = names }
+        { nameType = NRE.Type; errorType = NRE.MissingModuleName; names = names }
       )
     | head :: tail ->
       let name = NEList.ofList head tail |> WT.Unresolved

@@ -8,6 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
+module DarkDateTime = LibExecution.DarkDateTime
 module SchedulingRules = LibCloud.QueueSchedulingRules
 module Pusher = LibCloud.Pusher
 module Queue = LibCloud.Queue
@@ -30,7 +31,8 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
 
 let schedulingRuleTypeName = typ [ "DarkInternal"; "SchedulingRule" ] "Rule" 0
 
-let schedulingRuleTypeRef = TCustomType(FQName.BuiltIn(schedulingRuleTypeName), [])
+let schedulingRuleTypeRef =
+  TCustomType(Ok(FQName.BuiltIn(schedulingRuleTypeName)), [])
 
 let ruleToDval (r : SchedulingRules.SchedulingRule.T) : Dval =
   let typeName = FQName.BuiltIn schedulingRuleTypeName

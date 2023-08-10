@@ -369,7 +369,7 @@ let fns : List<BuiltInFn> =
           Param.make "body" TBytes "" ]
       returnType =
         TypeReference.result
-          (TCustomType(FQName.BuiltIn(typ [ "HttpClient" ] "Response" 0), []))
+          (TCustomType(Ok(FQName.BuiltIn(typ [ "HttpClient" ] "Response" 0)), []))
           TString
       description =
         "Make blocking HTTP call to <param uri>. Returns a <type Result> where
@@ -455,7 +455,8 @@ let fns : List<BuiltInFn> =
             uply {
               match reqHeadersErr with
               | BadInput details -> return Dval.resultError (DString details)
-              | TypeMismatch details -> return DError(SourceNone, details)
+              | TypeMismatch details ->
+                return DError(SourceNone, RuntimeError.oldError details)
             }
 
           | _, None ->

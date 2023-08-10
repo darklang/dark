@@ -9,6 +9,7 @@ module WT = WrittenTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT = LibExecution.RuntimeTypes
+module NRE = LibExecution.NameResolutionError
 
 type NameResolver =
   { builtinTypes : Set<PT.TypeName.BuiltIn>
@@ -112,6 +113,7 @@ let fromExecutionState (state : RT.ExecutionState) : NameResolver =
       |> Set.ofList }
 
 
+
 // TODO: there's a lot going on here to resolve the outer portion of the name and to
 // avoid repeat work for package/modules, but it's also adding a lot of code and
 // complexity. Perhaps this changes when packages become identified by ID
@@ -128,7 +130,7 @@ let fromExecutionState (state : RT.ExecutionState) : NameResolver =
 //   - c. darklang.stdlib package space // NOT IMPLEMENTED
 let resolve
   (nameValidator : PT.FQName.NameValidator<'name>)
-  (nameErrorType : LibExecution.Errors.NameResolution.NameType)
+  (nameErrorType : NRE.NameType)
   (constructor : string -> 'name)
   (parser : string -> Result<string * int, string>)
   (builtinThings : Set<PT.FQName.BuiltIn<'name>>)
@@ -149,8 +151,9 @@ let resolve
       // This is a totally empty name, which _really_ shouldn't happen.
       Error(
         { nameType = nameErrorType
-          errorType = LibExecution.Errors.NameResolution.MissingModuleName
+          errorType = NRE.ErrorType.MissingModuleName
           names = NEList.toList names }
+
       )
     | name :: modules ->
       match parser name with
@@ -162,10 +165,9 @@ let resolve
       | Error _ ->
         Error(
           { nameType = nameErrorType
-            errorType = LibExecution.Errors.NameResolution.InvalidPackageName
+            errorType = NRE.InvalidPackageName
             names = NEList.toList names }
         )
-
 
   | WT.Unresolved given ->
     let resolve (names : NEList<string>) : PT.NameResolution<PT.FQName.T<'name>> =
@@ -174,7 +176,7 @@ let resolve
       | Error _msg ->
         Error(
           { nameType = nameErrorType
-            errorType = LibExecution.Errors.NameResolution.InvalidPackageName
+            errorType = NRE.InvalidPackageName
             names = NEList.toList names }
         )
       | Ok(name, version) ->
@@ -194,7 +196,7 @@ let resolve
           else
             Error(
               { nameType = nameErrorType
-                errorType = LibExecution.Errors.NameResolution.NotFound
+                errorType = NRE.NotFound
                 names = NEList.toList names }
             )
     // 4. Check name in
@@ -220,16 +222,11 @@ let resolve
           (NEList.prependList modules given) :: loop rest
       loop currentModule
 
-    let notFound =
-      Error(
-        { nameType = nameErrorType
-          errorType = LibExecution.Errors.NameResolution.NotFound
-          names = NEList.toList given }
-        : LibExecution.Errors.NameResolution.Error
-      )
-
     List.fold
-      notFound
+      (Error
+        { nameType = nameErrorType
+          errorType = NRE.NotFound
+          names = NEList.toList given })
       (fun currentResult (modules : NEList<string>) ->
         match currentResult with
         | Ok _ -> currentResult
@@ -250,7 +247,7 @@ module TypeName =
     : PT.NameResolution<PT.TypeName.T> =
     resolve
       PT.TypeName.assert'
-      LibExecution.Errors.NameResolution.Type
+      NRE.Type
       PT.TypeName.TypeName
       // TODO: move parsing fn into PT or WT
       FS2WT.Expr.parseTypeName
@@ -267,7 +264,7 @@ module FnName =
     : PT.NameResolution<PT.FnName.T> =
     resolve
       PT.FnName.assert'
-      LibExecution.Errors.NameResolution.Function
+      NRE.Function
       PT.FnName.FnName
       // TODO: move parsing fn into PT or WT
       FS2WT.Expr.parseFn
@@ -284,7 +281,7 @@ module ConstantName =
     : PT.NameResolution<PT.ConstantName.T> =
     resolve
       PT.ConstantName.assert'
-      LibExecution.Errors.NameResolution.Constant
+      NRE.Constant
       PT.ConstantName.ConstantName
       FS2WT.Expr.parseFn // same format
       resolver.builtinConstants

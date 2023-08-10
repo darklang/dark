@@ -14,13 +14,11 @@ module Config = LibCloud.Config
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
-module PT2DT = StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
-
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
 module V = SerializationTestValues
-
 
 
 module RoundtripTests =
@@ -52,7 +50,7 @@ module RoundtripTests =
               [ "LanguageTools"; "ProgramTypes" ]
               "expr"
               0),
-          returnType = RT.TCustomType(typeName, []),
+          returnType = RT.TCustomType(Ok typeName, []),
           location = None
         )
 
@@ -61,15 +59,13 @@ module RoundtripTests =
           context
           types
           Map.empty
-          (RT.TCustomType(typeName, []))
+          (RT.TCustomType(Ok typeName, []))
           firstDT
         |> Ply.toTask
 
       let msg =
         match typeChecked with
-        | Error e ->
-          let error = LibExecution.Errors.TypeError e
-          $"typechecking failed: {LibExecution.Errors.toString error}"
+        | Error e -> string e
         | Ok _ -> $"typechecking succeeded"
 
       Expect.isOk typeChecked msg

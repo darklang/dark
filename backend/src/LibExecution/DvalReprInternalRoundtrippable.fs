@@ -12,6 +12,8 @@ module RT = RuntimeTypes
 
 module FormatV0 =
 
+
+
   // In the past, we used bespoke serialization formats, that were terrifying to
   // change. Going forward, if we want to use a format that we want to save and
   // reload, but don't need to search for, let's just use the simplest possible
@@ -33,7 +35,6 @@ module FormatV0 =
       | BuiltIn of BuiltIn<'name>
       | UserProgram of UserProgram<'name>
       | Package of Package<'name>
-      | Unknown of List<string>
 
 
   module TypeName =
@@ -59,7 +60,6 @@ module FormatV0 =
             modules = modules
             name = RT.TypeName.TypeName name
             version = version }
-      | FQName.Unknown names -> RT.FQName.Unknown names
 
     let fromRT (t : RT.TypeName.T) : T =
       match t with
@@ -81,7 +81,6 @@ module FormatV0 =
             modules = modules
             name = TypeName name
             version = version }
-      | RT.FQName.Unknown names -> FQName.Unknown names
 
   module FnName =
     type Name = FnName of string
@@ -106,7 +105,6 @@ module FormatV0 =
             modules = modules
             name = RT.FnName.FnName name
             version = version }
-      | FQName.Unknown names -> RT.FQName.Unknown names
 
     let fromRT (t : RT.FnName.T) : T =
       match t with
@@ -125,7 +123,6 @@ module FormatV0 =
                             version = version } ->
         FQName.Package
           { owner = owner; modules = modules; name = FnName name; version = version }
-      | RT.FQName.Unknown names -> FQName.Unknown names
 
 
 
@@ -146,8 +143,7 @@ module FormatV0 =
     | DTuple of Dval * Dval * List<Dval>
     | DLambda // See docs/dblock-serialization.md
     | DDict of DvalMap
-    | DError of DvalSource * string
-    | DIncomplete of DvalSource
+    | DIncomplete of DvalSource // CLEANUP remove
     | DDB of string
     | DDateTime of NodaTime.LocalDateTime
     | DPassword of byte array // We are allowed serialize this here, so don't use the Password type which doesn't deserialize
@@ -178,8 +174,6 @@ module FormatV0 =
       )
     | DIncomplete SourceNone -> RT.DIncomplete RT.SourceNone
     | DIncomplete(SourceID(tlid, id)) -> RT.DIncomplete(RT.SourceID(tlid, id))
-    | DError(SourceNone, msg) -> RT.DError(RT.SourceNone, msg)
-    | DError(SourceID(tlid, id), msg) -> RT.DError(RT.SourceID(tlid, id), msg)
     | DDateTime d -> RT.DDateTime d
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
@@ -211,8 +205,7 @@ module FormatV0 =
     | RT.DFnVal _ -> DLambda
     | RT.DIncomplete RT.SourceNone -> DIncomplete SourceNone
     | RT.DIncomplete(RT.SourceID(tlid, id)) -> DIncomplete(SourceID(tlid, id))
-    | RT.DError(RT.SourceNone, msg) -> DError(SourceNone, msg)
-    | RT.DError(RT.SourceID(tlid, id), msg) -> DError(SourceID(tlid, id), msg)
+    | RT.DError _ -> Exception.raiseInternal "Can't happen" []
     | RT.DDateTime d -> DDateTime d
     | RT.DDB name -> DDB name
     | RT.DUuid uuid -> DUuid uuid

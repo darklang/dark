@@ -61,7 +61,8 @@ let fns : List<BuiltInFn> =
       description = "Return a value representing a type error"
       fn =
         (function
-        | _, _, [ DString errorString ] -> Ply(DError(SourceNone, errorString))
+        | _, _, [ DString errorString ] ->
+          Ply(DError(SourceNone, RuntimeError.oldError errorString))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -76,7 +77,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString errorString ] ->
           let msg = LibCloud.SqlCompiler.errorTemplate + errorString
-          Ply(DError(SourceNone, msg))
+          Ply(DError(SourceNone, RuntimeError.oldError msg))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -157,7 +158,8 @@ let fns : List<BuiltInFn> =
       description = "Returns a DError in a Some"
       fn =
         (function
-        | _, _, [ DString msg ] -> Ply(Dval.optionSome (DError(SourceNone, msg)))
+        | _, _, [ DString msg ] ->
+          Ply(Dval.optionSome (DError(SourceNone, RuntimeError.oldError msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -171,7 +173,8 @@ let fns : List<BuiltInFn> =
       description = "Returns a DError in an OK"
       fn =
         (function
-        | _, _, [ DString msg ] -> Ply(Dval.resultOk (DError(SourceNone, msg)))
+        | _, _, [ DString msg ] ->
+          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -185,7 +188,8 @@ let fns : List<BuiltInFn> =
       description = "Returns a DError in a Result.Error"
       fn =
         (function
-        | _, _, [ DString msg ] -> Ply(Dval.resultOk (DError(SourceNone, msg)))
+        | _, _, [ DString msg ] ->
+          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

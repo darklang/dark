@@ -1,11 +1,12 @@
-module StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
+module LibExecution.ProgramTypesToDarkTypes
 
 open Prelude
 open Tablecloth
 
-open LibExecution.RuntimeTypes
-module PT = LibExecution.ProgramTypes
-open LibExecution.StdLib.Shortcuts
+open RuntimeTypes
+module PT = ProgramTypes
+module NRE = LibExecution.NameResolutionError
+module D = LibExecution.DvalDecoder
 
 let languageToolsTyp
   (submodules : List<string>)
@@ -13,7 +14,6 @@ let languageToolsTyp
   (version : int)
   : TypeName.T =
   TypeName.fqPackage "Darklang" ("LanguageTools" :: submodules) name version
-
 
 
 let ptTyp (submodules : List<string>) (name : string) (version : int) : TypeName.T =
@@ -42,65 +42,14 @@ module Sign =
     | DEnum(_, _, "Negative", []) -> Negative
     | _ -> Exception.raiseInternal "Invalid sign" []
 
-module Decode =
-  let unwrap = Exception.unwrapOptionInternal
-
-  let field (name : string) (m : DvalMap) : Dval =
-    m |> Map.get name |> unwrap $"Expected {name}' field" []
-
-  let string (name : string) (m : DvalMap) : string =
-    m
-    |> field name
-    |> Dval.asString
-    |> unwrap $"Expected '{name}' field to be a string" []
-
-  let list (name : string) (m : DvalMap) : List<Dval> =
-    m
-    |> field name
-    |> Dval.asList
-    |> unwrap $"Expected '{name}' field to be a list" []
-
-  let stringList (name : string) (m : DvalMap) : List<string> =
-    m
-    |> list name
-    |> List.map (fun s ->
-      s |> Dval.asString |> unwrap $"Expected string values in '{name}' list" [])
-
-  let int64 (name : string) (m : DvalMap) : int64 =
-    m
-    |> field name
-    |> Dval.asInt
-    |> unwrap $"Expected '{name}' field to be an int" []
-
-  let uint64 (name : string) (m : DvalMap) : uint64 =
-    m
-    |> field name
-    |> Dval.asInt
-    |> unwrap $"Expected '{name}' field to be an int" []
-    |> uint64
-
-  let int (name : string) (m : DvalMap) : int = m |> int64 name |> int
-
-  let uuid (name : string) (m : DvalMap) : System.Guid =
-    m
-    |> field name
-    |> Dval.asUuid
-    |> unwrap $"Expected '{name}' field to be a uuid" []
-
-
-
-module D = Decode
 
 
 module FQName =
-
-
   let ownerField = D.string "owner"
   let modulesField = D.stringList "modules"
 
   let nameField = D.field "name"
   let versionField = D.int "version"
-
 
   module BuiltIn =
     let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.BuiltIn<'name>) : Dval =
@@ -283,78 +232,22 @@ module ConstantName =
   let toDT (u : PT.ConstantName.T) : Dval = FQName.toDT Name.toDT u
   let fromDT (d : Dval) : PT.ConstantName.T = FQName.fromDT Name.fromDT d
 
-
-
 module NameResolution =
-  module ErrorType =
-
-    let toDT (err : LibExecution.Errors.NameResolution.ErrorType) : Dval =
-      let caseName, fields =
-        match err with
-        | LibExecution.Errors.NameResolution.NotFound -> "NotFound", []
-        | LibExecution.Errors.NameResolution.MissingModuleName ->
-          "MissingModuleName", []
-        | LibExecution.Errors.NameResolution.InvalidPackageName ->
-          "InvalidPackageName", []
-
-      Dval.enum (errorsTyp [ "NameResolution" ] "ErrorType" 0) caseName fields
-
-    let fromDT (d : Dval) : LibExecution.Errors.NameResolution.ErrorType =
-      match d with
-      | DEnum(_, _, "NotFound", []) -> LibExecution.Errors.NameResolution.NotFound
-      | DEnum(_, _, "MissingModuleName", []) ->
-        LibExecution.Errors.NameResolution.MissingModuleName
-      | DEnum(_, _, "InvalidPackageName", []) ->
-        LibExecution.Errors.NameResolution.InvalidPackageName
-      | _ -> Exception.raiseInternal "Invalid NameResolutionErrorType" []
-
-  module NameType =
-    let toDT (err : LibExecution.Errors.NameResolution.NameType) : Dval =
-      let caseName, fields =
-        match err with
-        | LibExecution.Errors.NameResolution.Function -> "Function", []
-        | LibExecution.Errors.NameResolution.Type -> "Type", []
-        | LibExecution.Errors.NameResolution.Constant -> "Constant", []
-
-      Dval.enum (errorsTyp [ "NameResolution" ] "NameType" 0) caseName fields
-
-    let fromDT (d : Dval) : LibExecution.Errors.NameResolution.NameType =
-      match d with
-      | DEnum(_, _, "Function", []) -> LibExecution.Errors.NameResolution.Function
-      | DEnum(_, _, "Type", []) -> LibExecution.Errors.NameResolution.Type
-      | DEnum(_, _, "Constant", []) -> LibExecution.Errors.NameResolution.Constant
-      | _ -> Exception.raiseInternal "Invalid NameResolutionNameType" []
-
-
-  module Error =
-    let toDT (err : LibExecution.Errors.NameResolution.Error) : Dval =
-      Dval.record
-        (errorsTyp [ "NameResolution" ] "Error" 0)
-        [ "errorType", ErrorType.toDT err.errorType
-          "nameType", NameType.toDT err.nameType
-          "names", DList(List.map DString err.names) ]
-
-    let fromDT (d : Dval) : LibExecution.Errors.NameResolution.Error =
-      match d with
-      | DRecord(_, _, fields) ->
-        let errorType = fields |> D.field "errorType" |> ErrorType.fromDT
-        let nameType = fields |> D.field "nameType" |> NameType.fromDT
-        let names = fields |> D.stringList "names"
-
-        { errorType = errorType; names = names; nameType = nameType }
-
-      | _ -> Exception.raiseInternal "Invalid NameResolutionError" []
-
   let toDT (f : 'p -> Dval) (result : PT.NameResolution<'p>) : Dval =
     match result with
     | Ok name -> Dval.resultOk (f name)
-    | Error err -> Dval.resultError (Error.toDT err)
-
+    | Error err ->
+      Dval.resultError (
+        err |> NRE.RTE.toRuntimeError |> RuntimeTypes.RuntimeError.toDT
+      )
 
   let fromDT (f : Dval -> 'a) (d : Dval) : PT.NameResolution<'a> =
     match d with
     | DEnum(tn, _, "Ok", [ v ]) when tn = Dval.resultType -> Ok(f v)
-    | DEnum(tn, _, "Error", [ v ]) when tn = Dval.resultType -> Error(Error.fromDT v)
+
+    | DEnum(tn, _, "Error", [ v ]) when tn = Dval.resultType ->
+      Error(NRE.RTE.fromRuntimeError (RuntimeError.fromDT v))
+
     | _ -> Exception.raiseInternal "Invalid NameResolution" []
 
 module TypeReference =
