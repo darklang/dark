@@ -370,7 +370,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    //used only in listDirectoryRecursive local-exec.dark
+    //CLEANUP: used only in listDirectoryRecursive local-exec.dark
     { name = fn "flatten" 0
       typeParams = []
       parameters = [ Param.make "list" (TList(TList varA)) "" ]
