@@ -381,7 +381,7 @@ module Darklang =
             PACKAGE.Darklang.PrettyPrinter.processRemainder remainder
 
           $"{signPart}{whole}.{remainderPart}"
-        | CBool b -> Bool.toString b
+        | CBool b -> PACKAGE.Darklang.Stdlib.Bool.toString b
         | CChar c -> $"'{Char.toString c}'"
         | CString s -> $"\"{s}\""
         | CUnit -> "()"
@@ -433,7 +433,7 @@ module Darklang =
         match mp with
         | MPVariable(_id, name) -> name
         | MPUnit _id -> "()"
-        | MPBool(_id, b) -> Bool.toString b
+        | MPBool(_id, b) -> PACKAGE.Darklang.Stdlib.Bool.toString b
         | MPInt(_id, i) -> Int.toString i
         | MPFloat(_id, sign, whole, remainder) ->
           let remainderPart =
@@ -598,7 +598,7 @@ module Darklang =
         | EUnit _id -> "()"
 
         // simple data
-        | EBool(_id, b) -> Bool.toString b
+        | EBool(_id, b) -> PACKAGE.Darklang.Stdlib.Bool.toString b
         | EInt(_id, i) -> Int.toString i
         | EFloat(_id, sign, whole, remainder) ->
           let signPart = PACKAGE.Darklang.PrettyPrinter.sign sign
