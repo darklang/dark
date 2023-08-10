@@ -5,6 +5,7 @@ type Instant = NodaTime.Instant
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
+module DarkDateTime = LibExecution.DarkDateTime
 
 let ISO8601Format = "yyyy-MM-ddTHH:mm:ssZ"
 

@@ -10,7 +10,7 @@ open LibExecution.RuntimeTypes
 
 open LibExecution.StdLib.Shortcuts
 
-module PT2DT = StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 let resolver =
   let stdlibResolver =
@@ -57,7 +57,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TypeReference.result
           (TCustomType(
-            FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0),
+            Ok(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0)),
             []
           ))
           TString

@@ -141,11 +141,9 @@ module Exception =
       System.Console.WriteLine e.StackTrace
 
 
-  let raiseGrandUser (msg : string) =
-    let e = GrandUserException(msg)
-    callExceptionCallback e
-    raise e
-
+  // TODO: delete this.
+  // most of the errors caught by this can now be raiseInternals,
+  // as the type-checker should have prevented them
   let raiseCode (msg : string) =
     let e = CodeException(msg)
     callExceptionCallback e
@@ -160,11 +158,6 @@ module Exception =
     match r with
     | Ok v -> v
     | Error msg -> raiseCode msg
-
-  let raiseEditor (msg : string) =
-    let e = EditorException(msg)
-    callExceptionCallback e
-    raise e
 
   let raiseInternal (msg : string) (tags : Metadata) =
     let e = InternalException(msg, tags)

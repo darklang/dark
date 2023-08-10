@@ -131,12 +131,14 @@ module FnName =
     | Package of Package
 
 
-module NameResolution =
+module NameResolutionError =
   [<MessagePack.MessagePackObject>]
   type ErrorType =
     | NotFound
     | MissingModuleName
     | InvalidPackageName
+    | ExpectedEnumButNot
+    | ExpectedRecordButNot
 
   [<MessagePack.MessagePackObject>]
   type NameType =
@@ -154,7 +156,7 @@ module NameResolution =
       names : List<string> }
 
 [<MessagePack.MessagePackObject>]
-type NameResolution<'a> = Result<'a, NameResolution.Error>
+type NameResolution<'a> = Result<'a, NameResolutionError.Error>
 
 
 /// A Fully-Qualified Constant Name

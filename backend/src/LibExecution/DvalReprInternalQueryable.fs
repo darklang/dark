@@ -286,7 +286,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
       |> Ply.map (Map >> DDict)
 
 
-    | TCustomType(typeName, typeArgs), valueKind ->
+    | TCustomType(Ok typeName, typeArgs), valueKind ->
       uply {
         match! Types.find typeName types with
         | None ->

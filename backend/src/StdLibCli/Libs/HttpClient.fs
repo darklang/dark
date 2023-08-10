@@ -202,7 +202,7 @@ let fns : List<BuiltInFn> =
           Param.make "body" TBytes "" ]
       returnType =
         TypeReference.result
-          (TCustomType(FQName.BuiltIn(typ [ "HttpClient" ] "Response" 0), []))
+          (TCustomType(Ok(FQName.BuiltIn(typ [ "HttpClient" ] "Response" 0)), []))
           TString
 
       description =
@@ -226,9 +226,9 @@ let fns : List<BuiltInFn> =
 
               | (_, notAPair) ->
                 // this should be a DError, not a "normal" error
-                TypeMismatch
+                Exception.raiseInternal
                   $"Expected request headers to be a `List<String*String>`, but got: {DvalReprDeveloper.toRepr notAPair}"
-                |> Error)
+                  [])
             |> Result.map (fun pairs -> List.rev pairs)
 
           let method =
@@ -286,7 +286,8 @@ let fns : List<BuiltInFn> =
             uply {
               match reqHeadersErr with
               | BadInput details -> return Dval.resultError (DString details)
-              | TypeMismatch details -> return DError(SourceNone, details)
+              | TypeMismatch details ->
+                return DError(SourceNone, RuntimeError.oldError details)
             }
 
           | _, None ->

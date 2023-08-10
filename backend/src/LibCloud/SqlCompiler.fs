@@ -23,12 +23,12 @@ module Errors = LibExecution.Errors
 let errorTemplate =
   "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
 
-let error (str : string) : 'a = Exception.raiseCode (errorTemplate + str)
+exception SqlCompilerException of string
+exception SqlCompilerRuntimeError of RuntimeError
+
+let error (str : string) : 'a = raise (SqlCompilerException(errorTemplate + str))
 
 let error2 (msg : string) (v : string) : 'a = error $"{msg}: {v}"
-
-let error3 (msg : string) (v1 : string) (v2 : string) : 'a =
-  error $"{msg}: {v1}, {v2}"
 
 type position =
   | First
@@ -54,12 +54,12 @@ let rec dvalToSql
   | _, DPassword _ // CLEANUP allow
   | _, DBytes _ // CLEANUP allow
   | _, DEnum _ // TODO: revisit
-  | _, DRecord _
-  | _, DTuple _ ->
+  | _, DRecord _ // CLEANUP allow
+  | _, DTuple _ -> // CLEANUP allow
     error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
   | TVariable _, DDateTime date
   | TDateTime, DDateTime date ->
-    (date |> DarkDateTime.toDateTimeUtc |> Sql.timestamptz, TDateTime)
+    (date |> LibExecution.DarkDateTime.toDateTimeUtc |> Sql.timestamptz, TDateTime)
   | TVariable _, DInt i
   | TInt, DInt i -> Sql.int64 i, TInt
   | TVariable _, DFloat v
@@ -147,7 +147,7 @@ let typecheckDval
     let context = TypeChecker.DBQueryVariable(name, expectedType, None)
     match! TypeChecker.unify context types Map.empty expectedType dval with
     | Ok() -> return ()
-    | Error err -> return error (Errors.toString (Errors.TypeError err))
+    | Error err -> raise (SqlCompilerRuntimeError err)
   }
 
 let escapeFieldname (str : string) : string =
@@ -539,7 +539,7 @@ let rec lambdaToSql
             uply {
               match typeRef with
               // TYPESCLEANUP use typeArgs
-              | TCustomType(typeName, _typeArgs) ->
+              | TCustomType(Ok typeName, _typeArgs) ->
                 match! Types.find typeName types with
                 | Some({ definition = TypeDeclaration.Alias aliasedType }) ->
                   return! dbFieldType aliasedType fieldName
@@ -884,6 +884,7 @@ let partiallyEvaluate
   }
 
 
+type CompileLambdaResult = { sql : string; vars : List<string * SqlValue> }
 
 let compileLambda
   (state : ExecutionState)
@@ -892,33 +893,36 @@ let compileLambda
   (paramName : string)
   (dbType : TypeReference)
   (body : Expr)
-  : Ply<string * List<string * SqlValue>> =
+  : Ply<Result<CompileLambdaResult, RuntimeError>> =
   uply {
-    let! symtable, body =
-      body
-      // Replace threads with nested function calls - simplifies all later passes
-      |> canonicalize
-      // Inline the rhs of any let within the lambda body. See comment for more
-      // details.
-      |> inline' paramName Map.empty
-      // Replace expressions which can be calculated now with their result. See
-      // comment for more details.
-      |> partiallyEvaluate state tat symtable paramName
-      |> Ply.TplPrimitives.runPlyAsTask
-
-    let types = ExecutionState.availableTypes state
-
-    let! compiled =
-      lambdaToSql
-        state.builtIns.fns
-        types
-        state.builtIns.constants
-        tat
-        symtable
-        paramName
-        dbType
-        TBool
+    try
+      let! symtable, body =
         body
+        // Simplify for later passes
+        |> canonicalize
+        // Inline the RHS of any let within the lambda body. See comment for more
+        // details.
+        |> inline' paramName Map.empty
+        // Replace expressions which can be calculated now with their result. See
+        // comment for more details.
+        |> partiallyEvaluate state tat symtable paramName
 
-    return (compiled.sql, compiled.vars)
+      let types = ExecutionState.availableTypes state
+
+      let! compiled =
+        lambdaToSql
+          state.builtIns.fns
+          types
+          state.builtIns.constants
+          tat
+          symtable
+          paramName
+          dbType
+          TBool
+          body
+
+      return Ok { sql = compiled.sql; vars = compiled.vars }
+
+    with SqlCompilerRuntimeError err ->
+      return Error err
   }

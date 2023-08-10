@@ -163,6 +163,7 @@ let main (args : string[]) : int =
 
     match result.Result with
     | RT.DError(RT.SourceID(tlid, id), msg) ->
+      // TODO: execute the Package LocalExec.Errors.toSegments
       System.Console.WriteLine $"Error: {msg}"
       System.Console.WriteLine $"Failure at: {sourceOf mainFile tlid id modul}"
       // System.Console.WriteLine $"module is: {modul}"

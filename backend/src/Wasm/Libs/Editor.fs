@@ -149,7 +149,7 @@ let fns : List<BuiltInFn> =
               LibExecution.Execution.executeExpr state inputVars expr
 
             match result with
-            | DError(_source, err) -> return Dval.resultError (DString err)
+            | DError(_source, err)-> return Dval.resultError (DString (string err))
             | result ->
               return
                 LibExecution.DvalReprDeveloper.toRepr result

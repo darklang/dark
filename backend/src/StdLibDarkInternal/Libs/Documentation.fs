@@ -25,7 +25,7 @@ let types : List<BuiltInType> =
                 { name = "name"; typ = TString }
                 [ { name = "description"; typ = TString }
                   { name = "parameters"
-                    typ = TList(TCustomType(FQName.BuiltIn(typ "Parameter" 0), [])) }
+                    typ = TList(TCustomType(Ok(FQName.BuiltIn(typ "Parameter" 0)), [])) }
                   { name = "returnType"; typ = TString } ]
             ) }
       deprecated = NotDeprecated
@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "list" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TCustomType(FQName.BuiltIn(typ "Function" 0), []))
+      returnType = TList(TCustomType(Ok(FQName.BuiltIn(typ "Function" 0)), []))
       description =
         "Returns a list of Function records, representing the functions available in the standard library. Does not return DarkInternal functions"
       fn =

@@ -33,8 +33,6 @@ open FSharp.Control.Tasks
 open Prelude
 open VendoredTablecloth
 
-module J = Prelude.Json
-
 /// Used to name where type/function/etc lives, eg a BuiltIn module, a User module,
 /// or a Package module.
 module FQName =
@@ -54,7 +52,6 @@ module FQName =
     | BuiltIn of BuiltIn<'name>
     | UserProgram of UserProgram<'name>
     | Package of Package<'name>
-    | Unknown of List<string>
 
   type NameValidator<'name> = 'name -> unit
   type NamePrinter<'name> = 'name -> string
@@ -146,7 +143,6 @@ module FQName =
     | BuiltIn b -> builtinToString b f
     | UserProgram user -> userProgramToString user f
     | Package pkg -> packageToString pkg f
-    | Unknown names -> String.concat "." names
 
 module TypeName =
   type Name = TypeName of string
@@ -208,9 +204,6 @@ module TypeName =
     | FQName.UserProgram { name = TypeName name; version = version }
     | FQName.Package { name = TypeName name; version = version } ->
       if version = 0 then name else $"{name}_v{version}"
-    | FQName.Unknown [] -> "[name not provided]"
-    | FQName.Unknown(head :: tail) ->
-      NEList.ofList head tail |> NEList.reverse |> NEList.last
 
 
 module FnName =
@@ -317,27 +310,10 @@ module ConstantName =
     FQName.toString name (fun (ConstantName name) -> name)
 
 
-module DarkDateTime =
-  open NodaTime
-  // A datetime in Dark is always in UTC, so we don't include the utc info
-  type T = LocalDateTime
-  let utc = DateTimeZone.Utc
-
-  let toZonedDateTime (dt : T) = ZonedDateTime(dt, utc, Offset.Zero)
-
-  let toInstant (dt : T) = (toZonedDateTime dt).ToInstant()
-
-  let toDateTimeUtc (dt : T) = (toInstant dt).ToDateTimeUtc()
-
-  let fromInstant (i : Instant) : T = i.toUtcLocalTimeZone ()
-
-  let fromDateTime (dt : System.DateTime) : T =
-    Instant.FromDateTimeUtc dt |> fromInstant
-
-  let toIsoString (d : T) : string = (toInstant d).toIsoString ()
+type NameResolution<'a> = Result<'a, RuntimeError>
 
 // Dark runtime type
-type TypeReference =
+and TypeReference =
   | TUnit
   | TBool
   | TInt
@@ -353,7 +329,7 @@ type TypeReference =
   | TFn of List<TypeReference> * TypeReference
   | TDB of TypeReference
   | TVariable of string
-  | TCustomType of TypeName.T * typeArgs : List<TypeReference> // CLEANUP check all uses
+  | TCustomType of NameResolution<TypeName.T> * typeArgs : List<TypeReference>
   | TDict of TypeReference // CLEANUP add key type
 
   member this.isFn() : bool =
@@ -385,23 +361,10 @@ type TypeReference =
       | TPassword -> true
     isConcrete this
 
-module TypeReference =
-  let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
-    TCustomType(
-      TypeName.fqPackage "Darklang" (NEList.ofList "Stdlib" [ "Result" ]) "Result" 0,
-      [ t1; t2 ]
-    )
-
-  let option (t : TypeReference) : TypeReference =
-    TCustomType(
-      TypeName.fqPackage "Darklang" (NEList.ofList "Stdlib" [ "Option" ]) "Option" 0,
-      [ t ]
-    )
-
 
 // Expressions here are runtime variants of the AST in ProgramTypes, having had
 // superfluous information removed.
-type Expr =
+and Expr =
   | EInt of id * int64
   | EBool of id * bool
   | EString of id * List<StringSegment>
@@ -455,7 +418,7 @@ type Expr =
   // adapt this to include more information as we go, possibly using a standard Error
   // type (the same as used in DErrors and Results). This list of exprs is the
   // subexpressions to evaluate before evaluating the error.
-  | EError of id * string * List<Expr>
+  | EError of id * RuntimeError * List<Expr>
 
 and LetPattern =
   | LPVariable of id * name : string
@@ -482,7 +445,7 @@ and MatchPattern =
   | MPList of id * List<MatchPattern>
   | MPListCons of id * head : MatchPattern * tail : MatchPattern
 
-type DvalMap = Map<string, Dval>
+and DvalMap = Map<string, Dval>
 
 and LambdaImpl =
   { typeArgTable : TypeArgTable
@@ -495,6 +458,8 @@ and FnValImpl =
   | NamedFn of FnName.T // A reference to an Fn in the executionState
 
 and DDateTime = NodaTime.LocalDate
+
+and RuntimeError = private RuntimeError of Dval
 
 // We use NoComparison here to avoid accidentally using structural comparison
 and [<NoComparison>] Dval =
@@ -515,7 +480,7 @@ and [<NoComparison>] Dval =
   /// that should have been reported elsewhere. It's usually a type error of
   /// some kind, but occasionally we'll paint ourselves into a corner and need
   /// to represent a runtime error using this.
-  | DError of DvalSource * string
+  | DError of DvalSource * RuntimeError
 
   /// <summary>
   /// A DIncomplete represents incomplete computation, whose source is
@@ -557,7 +522,10 @@ and [<NoComparison>] Dval =
   | DBytes of byte array
 
   | DDict of DvalMap
-  | DRecord of runtimeTypeName : TypeName.T * sourceTypeName : TypeName.T * DvalMap
+  | DRecord of
+    runtimeTypeName : TypeName.T *
+    sourceTypeName : TypeName.T *
+    DvalMap
   | DEnum of
     runtimeTypeName : TypeName.T *
     sourceTypeName : TypeName.T *
@@ -620,6 +588,69 @@ and BuiltInParam =
     { name = name; typ = typ; description = description; blockArgs = blockArgs }
 
 and Param = { name : string; typ : TypeReference }
+
+
+
+
+module TypeReference =
+  let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
+    TCustomType(
+      Ok(
+        TypeName.fqPackage
+          "Darklang"
+          (NEList.ofList "Stdlib" [ "Result" ])
+          "Result"
+          0
+      ),
+      [ t1; t2 ]
+    )
+
+  let option (t : TypeReference) : TypeReference =
+    TCustomType(
+      Ok(
+        TypeName.fqPackage
+          "Darklang"
+          (NEList.ofList "Stdlib" [ "Option" ])
+          "Option"
+          0
+      ),
+      [ t ]
+    )
+
+module RuntimeError =
+  let name (modules : List<string>) (typeName : string) (version : int) =
+    TypeName.fqPackage
+      "Darklang"
+      (NEList.ofList "LanguageTools" ("RuntimeErrors" ::  modules))
+      typeName
+      version
+
+  let enum
+    (modules : List<string>)
+    (typeName : string)
+    (version : int)
+    (caseName : string)
+    (args : List<Dval>)
+    : RuntimeError =
+    let typeName = name modules typeName version
+    DEnum(typeName, typeName, caseName, args) |> RuntimeError
+
+  let record
+    (modules : List<string>)
+    (typeName : string)
+    (fields : List<string * Dval>)
+    : RuntimeError =
+    let typeName = name modules typeName 0
+    DRecord(typeName, typeName, Map fields) |> RuntimeError
+
+  // TODO remove all usages of this in favor of better error cases
+  let oldError (msg : string) : RuntimeError =
+    enum [] "Error" 0 "UnorganizedStringTODO" [ DString msg ]
+
+  let toDT (RuntimeError e : RuntimeError) : Dval = e
+  let fromDT (dv : Dval) : RuntimeError = RuntimeError dv
+
+
 
 // Used to mark whether a function/type has been deprecated, and if so,
 // details about possible replacements/alternatives, and reasoning
@@ -761,13 +792,13 @@ module Dval =
     | DFnVal(Lambda l), TFn(parameters, _) ->
       List.length parameters = List.length l.parameters
 
-    | DRecord(typeName, _, fields), TCustomType(typeName', typeArgs) ->
+    | DRecord(typeName, _, fields), TCustomType(Ok typeName', typeArgs) ->
       // TYPESCLEANUP: should load type by name
       // TYPESCLEANUP: are we handling type arguments here?
       // TYPESCLEANUP: do we need to check fields?
       typeName = typeName'
 
-    | DEnum(typeName, _, casename, fields), TCustomType(typeName', typeArgs) ->
+    | DEnum(typeName, _, casename, fields), TCustomType(Ok typeName', typeArgs) ->
       // TYPESCLEANUP: should load type by name
       // TYPESCLEANUP: are we handling type arguments here?
       // TYPESCLEANUP: do we need to check fields?
@@ -813,6 +844,21 @@ module Dval =
     | DList l -> Some l
     | _ -> None
 
+  let asDict (dv : Dval) : Option<Map<string, Dval>> =
+    match dv with
+    | DDict d -> Some d
+    | _ -> None
+
+  let asTuple2 (dv : Dval) : Option<Dval * Dval> =
+    match dv with
+    | DTuple(first, second, _) -> Some(first, second)
+    | _ -> None
+
+  let asTuple3 (dv : Dval) : Option<Dval * Dval * Dval> =
+    match dv with
+    | DTuple(first, second, [third]) -> Some(first, second, third)
+    | _ -> None
+
   let asString (dv : Dval) : Option<string> =
     match dv with
     | DString s -> Some s
@@ -826,6 +872,11 @@ module Dval =
   let asFloat (dv : Dval) : Option<double> =
     match dv with
     | DFloat f -> Some f
+    | _ -> None
+
+  let asBool (dv : Dval) : Option<bool> =
+    match dv with
+    | DBool b -> Some b
     | _ -> None
 
   let asUuid (dv : Dval) : Option<System.Guid> =
@@ -845,10 +896,10 @@ module Dval =
         // Errors should propagate (but only if we're not already propagating an error)
         | DRecord _, _, v when isFake v -> v
         // Skip empty rows
-        | _, "", _ -> DError(SourceNone, $"Empty ke{k}")
+        | _, "", _ -> DError(SourceNone, RuntimeError.oldError $"Empty key {k}")
         // Error if the key appears twice
         | DRecord(_, _, m), k, _v when Map.containsKey k m ->
-          DError(SourceNone, $"Duplicate key: {k}")
+          DError(SourceNone, RuntimeError.oldError $"Duplicate key: {k}")
         // Otherwise add it
         | DRecord(tn, o, m), k, v -> DRecord(tn, o, Map.add k v m)
         // If we haven't got a DDict we're propagating an error so let it go
@@ -914,9 +965,10 @@ module Dval =
     | Some dv -> optionSome dv // checks isFake
     | None -> optionNone
 
-  let errStr (s : string) : Dval = DError(SourceNone, s)
+  let errStr (s : string) : Dval = DError(SourceNone, RuntimeError.oldError s)
 
-  let errSStr (source : DvalSource) (s : string) : Dval = DError(source, s)
+  let errSStr (source : DvalSource) (s : string) : Dval =
+    DError(source, RuntimeError.oldError s)
 
 module Handler =
   type CronInterval =
@@ -973,7 +1025,7 @@ module Toplevel =
     | TLConstant c -> c.tlid
 
 module Secret =
-  type T = { name : string; value : string }
+  type T = { name : string; value : string; version: int }
 
 
 // ------------
@@ -995,7 +1047,7 @@ module PackageType =
   type T = { name : TypeName.Package; declaration : TypeDeclaration.T }
 
 module PackageConstant =
-  type T = { tlid : tlid; name : ConstantName.Package; body : Dval }
+  type T = { name : ConstantName.Package; body : Dval }
 
 // <summary>
 // Used to mark whether a function can be run on the client rather than backend.
@@ -1262,7 +1314,6 @@ module Types =
       |> Ply
     | FQName.Package pkg ->
       types.package pkg |> Ply.map (Option.map (fun t -> t.declaration))
-    | FQName.Unknown _ -> Ply None
 
   // Swap concrete types for type parameters
   let rec substitute
@@ -1311,17 +1362,20 @@ module Types =
 let rec getTypeReferenceFromAlias
   (types : Types)
   (typ : TypeReference)
-  : Ply<TypeReference> =
+  : Ply<Result<TypeReference, RuntimeError>> =
   match typ with
-  | TCustomType(typeName, typeArgs) ->
+  | TCustomType(Ok typeName, typeArgs) ->
     uply {
       match! Types.find typeName types with
       | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
         return!
           getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
-      | _ -> return typ
+      | _ -> return Ok typ
     }
-  | _ -> Ply typ
+
+  | TCustomType(Error err, _) -> Ply(Error err)
+
+  | _ -> Ply(Ok typ)
 
 
 let consoleReporter : ExceptionReporter =

@@ -42,7 +42,8 @@ let rec eval'
   // TODO remove link from code or avail document - it is either gone or hidden behind login
   let sourceID id = SourceID(state.tlid, id)
   let incomplete id = DIncomplete(SourceID(state.tlid, id))
-  let err id msg = Dval.errSStr (sourceID id) msg
+  let errStr id msg = Dval.errSStr (sourceID id) msg
+  let err id e = DError(sourceID id, e)
 
   /// This function ensures any value not on the execution path is evaluated.
   let preview (tat : TypeArgTable) (st : Symtable) (expr : Expr) : Ply<unit> =
@@ -57,12 +58,12 @@ let rec eval'
     (types : Types)
     (typeName : TypeName.T)
     // TypeName, typeParam list, fully-resolved (except for typeParam) field list
-    : Ply<Option<TypeName.T * List<string> * List<string * TypeReference>>> =
+    : Ply<Result<TypeName.T * List<string> * List<string * TypeReference>, RuntimeError>> =
     let rec inner (typeName : TypeName.T) =
       uply {
         match! Types.find typeName types with
         | Some({ typeParams = outerTypeParams
-                 definition = TypeDeclaration.Alias(TCustomType(innerTypeName,
+                 definition = TypeDeclaration.Alias(TCustomType(Ok(innerTypeName),
                                                                 outerTypeArgs)) }) ->
           // Here we have found an alias, so we need to combine the type's
           // typeArgs with the aliased type's typeParams.
@@ -92,39 +93,61 @@ let rec eval'
           let! next = inner innerTypeName
           return
             next
-            |> Option.map (fun (innerTypeName, innerTypeParams, fields) ->
+            |> Result.map (fun (innerTypeName, innerTypeParams, fields) ->
               (innerTypeName,
                outerTypeParams,
                fields
                |> List.map (fun (k, v) ->
                  (k, Types.substitute innerTypeParams outerTypeArgs v))))
 
+        | Some({ definition = TypeDeclaration.Alias(TCustomType(Error e, _)) }) ->
+          return Error e
+
         | Some({ typeParams = typeParams
                  definition = TypeDeclaration.Record fields }) ->
           return
-            Some(
+            Ok(
               typeName,
               typeParams,
               fields |> NEList.toList |> List.map (fun f -> f.name, f.typ)
             )
-        | _ -> return None
+
+        | Some({ definition = TypeDeclaration.Alias(_) })
+        | Some({ definition = TypeDeclaration.Enum _ }) ->
+          let errorTypeName = RuntimeError.name [ "NameResolution" ] "ErrorType" 0
+          let nameTypeName = RuntimeError.name [ "NameResolution" ] "NameType" 0
+          let fields =
+            [ "errorType", Dval.enum errorTypeName "ExpectedRecordButNot" []
+              "nameType", Dval.enum nameTypeName "Type" []
+              "names", (DList []) ]
+          return Error(RuntimeError.record [ "NameResolution" ] "Error" fields)
+
+        | None ->
+          let errorTypeName = RuntimeError.name [ "NameResolution" ] "ErrorType" 0
+          let nameTypeName = RuntimeError.name [ "NameResolution" ] "NameType" 0
+          let fields =
+            [ "errorType", Dval.enum errorTypeName "NotFound" []
+              "nameType", Dval.enum nameTypeName "Type" []
+              "names", (DList []) ]
+
+          return Error(RuntimeError.record [ "NameResolution" ] "Error" fields)
       }
     inner typeName
 
   let enumMaybe
     (types : Types)
     (typeName : TypeName.T)
-    : Ply<Option<TypeName.T * List<string> * NEList<TypeDeclaration.EnumCase>>> =
+    : Ply<Result<TypeName.T * List<string> * NEList<TypeDeclaration.EnumCase>, RuntimeError>> =
     let rec inner (typeName : TypeName.T) =
       uply {
         match! Types.find typeName types with
         | Some({ typeParams = outerTypeParams
-                 definition = TypeDeclaration.Alias(TCustomType(innerTypeName,
+                 definition = TypeDeclaration.Alias(TCustomType(Ok(innerTypeName),
                                                                 outerTypeArgs)) }) ->
           let! next = inner innerTypeName
           return
             next
-            |> Option.map (fun (innerTypeName, innerTypeParams, cases) ->
+            |> Result.map (fun (innerTypeName, innerTypeParams, cases) ->
               (innerTypeName,
                outerTypeParams,
                cases
@@ -134,9 +157,32 @@ let rec eval'
                        List.map
                          (Types.substitute innerTypeParams outerTypeArgs)
                          c.fields })))
+
+        | Some({ definition = TypeDeclaration.Alias(TCustomType(Error e, _)) }) ->
+          return Error e
+
         | Some({ typeParams = typeParams; definition = TypeDeclaration.Enum cases }) ->
-          return Some(typeName, typeParams, cases)
-        | _ -> return None
+          return Ok(typeName, typeParams, cases)
+
+        | Some({ definition = TypeDeclaration.Alias _ })
+        | Some({ definition = TypeDeclaration.Record _ }) ->
+          let errorTypeName = RuntimeError.name [ "NameResolution" ] "ErrorType" 0
+          let nameTypeName = RuntimeError.name [ "NameResolution" ] "NameType" 0
+          let fields =
+            [ "errorType", Dval.enum errorTypeName "ExpectedEnumButNot" []
+              "nameType", Dval.enum nameTypeName "Type" []
+              "names", (DList []) ]
+          return Error(RuntimeError.record [ "NameResolution" ] "Error" fields)
+
+        | None ->
+          let errorTypeName = RuntimeError.name [ "NameResolution" ] "ErrorType" 0
+          let nameTypeName = RuntimeError.name [ "NameResolution" ] "NameType" 0
+          let fields =
+            [ "errorType", Dval.enum errorTypeName "NotFound" []
+              "nameType", Dval.enum nameTypeName "Type" []
+              "names", (DList []) ]
+
+          return Error(RuntimeError.record [ "NameResolution" ] "Error" fields)
       }
     inner typeName
 
@@ -159,7 +205,7 @@ let rec eval'
                 | DError _ -> return Error(result)
                 | dv ->
                   let msg = "Expected string, got " + DvalReprDeveloper.toRepr dv
-                  return Error(err id msg)
+                  return Error(errStr id msg)
               | Error dv, _ -> return Error dv
             })
           (Ok "")
@@ -175,19 +221,16 @@ let rec eval'
       match name with
       | FQName.UserProgram c ->
         match state.program.constants.TryFind c with
-        | None -> return err id $"There is no user defined constant named: {name}"
+        | None -> return errStr id $"There is no user defined constant named: {name}"
         | Some constant -> return constant.body
       | FQName.BuiltIn c ->
         match state.builtIns.constants.TryFind c with
-        | None -> return err id $"There is no builtin constant named: {name}"
+        | None -> return errStr id $"There is no builtin constant named: {name}"
         | Some constant -> return constant.body
       | FQName.Package c ->
         match! state.packageManager.getConstant c with
-        | None -> return err id $"There is no package constant named: {name}"
+        | None -> return errStr id $"There is no package constant named: {name}"
         | Some constant -> return constant.body
-      | FQName.Unknown names ->
-        let name = String.concat "." names
-        return err id $"There is no constant named: {name}"
 
     | ELet(id, pattern, rhs, body) ->
       /// Returns `incomplete` traces for subpatterns of an unmatched pattern
@@ -285,23 +328,17 @@ let rec eval'
 
     | EVariable(id, name) ->
       match st.TryFind name with
-      | None -> return err id $"There is no variable named: {name}"
+      | None -> return errStr id $"There is no variable named: {name}"
       | Some other -> return other
 
 
     | ERecord(id, typeName, fields) ->
       let typeStr = TypeName.toString typeName
       let types = ExecutionState.availableTypes state
-      let! typ = Types.find typeName types
 
       match! recordMaybe types typeName with
-      | None ->
-        match typ with
-        | None -> return err id $"There is no type named {typeStr}"
-        | Some({ definition = TypeDeclaration.Enum _ }) ->
-          return err id $"Expected a record but {typeStr} is an enum"
-        | _ -> return err id $"Expected a record but {typeStr} is something else"
-      | Some(aliasTypeName, typeParams, expected) ->
+      | Error e -> return err id e
+      | Ok(aliasTypeName, typeParams, expected) ->
         let expectedFields = Map expected
         let! result =
           Ply.List.foldSequentially
@@ -312,7 +349,7 @@ let rec eval'
                   return r
                 else if not (Map.containsKey k expectedFields) then
                   do! preview tat st expr
-                  return err id $"Unexpected field `{k}` in {typeStr}"
+                  return errStr id $"Unexpected field `{k}` in {typeStr}"
                 else
                   let! v = eval state tat st expr
                   if Dval.isFake v then
@@ -321,7 +358,7 @@ let rec eval'
                     match r with
                     | DRecord(typeName, original, m) ->
                       if Map.containsKey k m then
-                        return err id $"Duplicate field `{k}` in {typeStr}"
+                        return errStr id $"Duplicate field `{k}` in {typeStr}"
                       else
                         let fieldType = Map.find k expectedFields
                         let context =
@@ -330,9 +367,8 @@ let rec eval'
                           TypeChecker.unify context types Map.empty fieldType v
                         match! check with
                         | Ok() -> return DRecord(typeName, original, Map.add k v m)
-                        | Error e ->
-                          return err id (Errors.toString (Errors.TypeError(e)))
-                    | _ -> return err id "Expected a record in typecheck"
+                        | Error e -> return err id e
+                    | _ -> return errStr id "Expected a record in typecheck"
               })
             (DRecord(aliasTypeName, typeName, Map.empty)) // use the alias name here
             fields
@@ -343,7 +379,7 @@ let rec eval'
           else
             let expectedKeys = Map.keys expectedFields
             let key = Seq.find (fun k -> not (Map.containsKey k fields)) expectedKeys
-            return err id $"Missing field `{key}` in {typeStr}"
+            return errStr id $"Missing field `{key}` in {typeStr}"
         | _ -> return result
 
     | ERecordUpdate(id, baseRecord, updates) ->
@@ -353,13 +389,8 @@ let rec eval'
         let typeStr = TypeName.toString typeName
         let types = ExecutionState.availableTypes state
         match! recordMaybe types typeName with
-        | None ->
-          match! Types.find typeName types with
-          | None -> return err id $"There is no type named {typeStr}"
-          | Some({ definition = TypeDeclaration.Enum _ }) ->
-            return err id $"Expected a record but {typeStr} is an enum"
-          | _ -> return err id $"Expected a record but {typeStr} is something else"
-        | Some(_, _, expected) ->
+        | Error e -> return err id e
+        | Ok(_, _, expected) ->
           let expectedFields = Map expected
           return!
             Ply.List.foldSequentially
@@ -369,9 +400,9 @@ let rec eval'
                   match r, k, v with
                   | r, _, _ when Dval.isFake r -> return r
                   | _, _, v when Dval.isFake v -> return v
-                  | _, "", _ -> return err id $"Empty key for value `{v}`"
+                  | _, "", _ -> return errStr id $"Empty key for value `{v}`"
                   | _, _, _ when not (Map.containsKey k expectedFields) ->
-                    return err id $"Unexpected field `{k}` in {typeStr}"
+                    return errStr id $"Unexpected field `{k}` in {typeStr}"
                   | DRecord(typeName, original, m), k, v ->
                     let fieldType = Map.find k expectedFields
                     let context =
@@ -380,15 +411,14 @@ let rec eval'
                       TypeChecker.unify context types Map.empty fieldType v
                     with
                     | Ok() -> return DRecord(typeName, original, Map.add k v m)
-                    | Error e ->
-                      return err id (Errors.toString (Errors.TypeError(e)))
+                    | Error e -> return DError(SourceID(state.tlid, id), e)
                   | _ ->
                     return
-                      err id "Expected a record but {typeStr} is something else"
+                      errStr id "Expected a record but {typeStr} is something else"
                 })
               baseRecord
               updates
-      | _ -> return err id "Expected a record in record update"
+      | _ -> return errStr id "Expected a record in record update"
 
     | EDict(_, fields) ->
       return!
@@ -426,7 +456,7 @@ let rec eval'
       let! obj = eval state tat st e
 
       if field = "" then
-        return err id "Field name is empty"
+        return errStr id "Field name is empty"
       else
         match obj with
         | DRecord(_, typeName, o) ->
@@ -434,19 +464,19 @@ let rec eval'
           | Some v -> return v
           | None ->
             let typeStr = TypeName.toString typeName
-            return err id $"No field named {field} in {typeStr} record"
+            return errStr id $"No field named {field} in {typeStr} record"
         | DDB _ ->
           let msg =
             $"Attempting to access field '{field}' of a Datastore "
             + "(use `DB.*` standard library functions to interact with Datastores. "
             + "Field access only work with records)"
-          return err id msg
+          return errStr id msg
         | _ when Dval.isFake obj -> return obj
         | _ ->
           let msg =
             $"Attempting to access field '{field}' of a "
             + $"{DvalReprDeveloper.dvalTypeName obj} (field access only works with records)"
-          return err id msg
+          return errStr id msg
 
 
     | ELambda(_id, parameters, body) ->
@@ -628,7 +658,7 @@ let rec eval'
       let mutable hasMatched = false
       let mutable matchResult =
         // Even though we know it's fakeval, we still run through each pattern for analysis
-        if Dval.isFake matchVal then matchVal else err id "No match"
+        if Dval.isFake matchVal then matchVal else errStr id "No match"
 
       for (pattern, rhsExpr) in cases do
         if hasMatched && isRealExecution then
@@ -672,7 +702,7 @@ let rec eval'
       | _ ->
         do! preview tat st thenbody
         do! preview tat st elsebody
-        return err id "If only supports Booleans"
+        return errStr id "If only supports Booleans"
 
 
     | EOr(id, left, right) ->
@@ -685,13 +715,13 @@ let rec eval'
         | DBool true -> return DBool true
         | DBool false -> return DBool false
         | right when Dval.isFake right -> return right
-        | _ -> return err id "|| only supports Booleans"
+        | _ -> return errStr id "|| only supports Booleans"
       | left when Dval.isFake left ->
         do! preview tat st right
         return left
       | _ ->
         do! preview tat st right
-        return err id "|| only supports Booleans"
+        return errStr id "|| only supports Booleans"
 
 
     | EAnd(id, left, right) ->
@@ -704,36 +734,31 @@ let rec eval'
         | DBool true -> return DBool true
         | DBool false -> return DBool false
         | right when Dval.isFake right -> return right
-        | _ -> return err id "&& only supports Booleans"
+        | _ -> return errStr id "&& only supports Booleans"
       | left when Dval.isFake left ->
         do! preview tat st right
         return left
       | _ ->
         do! preview tat st right
-        return err id "&& only supports Booleans"
+        return errStr id "&& only supports Booleans"
 
 
     | EEnum(id, typeName, caseName, fields) ->
       let typeStr = TypeName.toString typeName
       let types = ExecutionState.availableTypes state
-      let! typ = Types.find typeName types
 
       match! enumMaybe types typeName with
-      | None ->
-        match typ with
-        | None -> return err id $"There is no type named {typeStr}"
-        | Some({ definition = TypeDeclaration.Enum _ }) ->
-          return err id $"Expected a record but {typeStr} is an enum"
-        | _ -> return err id $"Expected a record but {typeStr} is something else"
-      | Some(aliasTypeName, _, cases) ->
+      | Error e -> return err id e
+      | Ok(aliasTypeName, _, cases) ->
         let case = cases |> NEList.find (fun c -> c.name = caseName)
         match case with
-        | None -> return err id $"There is no case named `{caseName}` in {typeStr}"
+        | None ->
+          return errStr id $"There is no case named `{caseName}` in {typeStr}"
         | Some case ->
           if case.fields.Length <> fields.Length then
             let msg =
               $"Case `{caseName}` expected {case.fields.Length} fields but got {fields.Length}"
-            return err id msg
+            return errStr id msg
           else
             let fields = List.zip case.fields fields
             return!
@@ -771,9 +796,8 @@ let rec eval'
                                 caseName,
                                 List.append existing [ v ]
                               )
-                          | _ -> return err id "Expected an enum"
-                        | Error e ->
-                          return err id (Errors.toString (Errors.TypeError(e)))
+                          | _ -> return errStr id "Expected an enum"
+                        | Error e -> return DError(SourceID(state.tlid, id), e)
                   })
                 (DEnum(aliasTypeName, typeName, caseName, []))
                 fields
@@ -840,7 +864,8 @@ and executeLambda
       Ply(
         DError(
           SourceNone,
-          $"Expected {expectedLength} arguments, got {actualLength}"
+          RuntimeError.oldError
+            $"Expected {expectedLength} arguments, got {actualLength}"
         )
       )
     else
@@ -876,7 +901,11 @@ and callFn
       // doing this again
       match fnResult with
       | Some(result, _ts) -> result
-      | None -> DError(sourceID, $"Function {FnName.toString desc} is not found")
+      | None ->
+        DError(
+          sourceID,
+          RuntimeError.oldError $"Function {FnName.toString desc} is not found"
+        )
 
     let checkArgsLength fn : Result<unit, string> =
       let expectedTypeParamLength = List.length fn.typeParams
@@ -911,16 +940,12 @@ and callFn
             let! fn = state.packageManager.getFn pkg
             return Option.map packageFnToFn fn
           }
-        | FQName.Unknown fn ->
-          Exception.raiseInternal
-            "Unknown function should have been converted to EError by PT2RT"
-            [ "fn", fn ]
 
       match fn with
       | None -> return handleMissingFunction ()
       | Some fn ->
         match checkArgsLength fn with
-        | Error errMsg -> return (DError(sourceID, errMsg))
+        | Error errMsg -> return DError(sourceID, RuntimeError.oldError errMsg)
         | Ok() ->
           let newlyBoundTypeArgs = List.zip fn.typeParams typeArgs |> Map
           let updatedTypeArgTable = Map.mergeFavoringRight tat newlyBoundTypeArgs
@@ -964,9 +989,7 @@ and execFn
       let typeArgTable = Map.mergeFavoringRight tat typeArgsResolvedInFn
 
       match! TypeChecker.checkFunctionCall types typeArgTable fn args with
-      | Error err ->
-        let msg = Errors.toString (Errors.TypeError(err))
-        return DError(sourceID, msg)
+      | Error err -> return DError(sourceID, err)
       | Ok() ->
 
         let! result =
@@ -989,6 +1012,7 @@ and execFn
                           "typeArgs", typeArgs
                           "id", id ]
                       match e with
+                      | UncaughtRuntimeError err -> return DError(sourceID, err)
                       | Errors.IncorrectArgs ->
                         return Errors.incorrectArgsToDError sourceID fn args
                       | Errors.FakeDvalFound dv -> return dv
@@ -1030,8 +1054,6 @@ and execFn
           match!
             TypeChecker.checkFunctionReturnType types typeArgTable fn result
           with
-          | Error err ->
-            let msg = Errors.toString (Errors.TypeError(err))
-            return DError(sourceID, msg)
+          | Error err -> return DError(sourceID, err)
           | Ok() -> return result
   }

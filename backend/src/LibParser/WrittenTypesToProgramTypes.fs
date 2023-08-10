@@ -102,7 +102,7 @@ module Expr =
     match names with
     | [] ->
       Error(
-        { nameType = LibExecution.Errors.NameResolution.Type
+        { nameType = NRE.NameType.Type
           errorType = LibExecution.Errors.NameResolution.MissingModuleName
           names = names }
       )

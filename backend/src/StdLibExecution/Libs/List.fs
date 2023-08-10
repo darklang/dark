@@ -30,7 +30,10 @@ module DvalComparator =
           c
       else
         c
-    | DError(_, str1), DError(_, str2) -> compare str1 str2
+
+    | DError _, DError _ ->
+      Exception.raiseInternal "We should not be trying to compare DErrors" []
+
     | DIncomplete _, DIncomplete _ -> 0
     | DDB name1, DDB name2 -> compare name1 name2
     | DDateTime dt1, DDateTime dt2 -> compare dt1 dt2

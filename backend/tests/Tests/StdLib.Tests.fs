@@ -66,7 +66,7 @@ let hardToRepresentTests =
                symtable = Map.empty
                body = RT.EUnit 1UL }
          ) ]),
-      (RT.DError(RT.SourceNone, "Expected 0 arguments, got 2")),
+      (RT.DError(RT.SourceNone, RT.RuntimeError.oldError "Expected 0 arguments, got 2")),
       true ]
 
 let oldFunctionsAreDeprecated =

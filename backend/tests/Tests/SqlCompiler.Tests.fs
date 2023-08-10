@@ -36,7 +36,7 @@ let compile
           { typeParams = []
             definition = TypeDeclaration.Record(NEList.singleton field) } }
     let userTypes = Map [ typeName, userType ]
-    let typeReference = TCustomType(FQName.UserProgram typeName, [])
+    let typeReference = TCustomType(Ok(FQName.UserProgram typeName), [])
 
     let! state =
       executionStateFor canvasID false false Map.empty userTypes Map.empty Map.empty

@@ -298,7 +298,7 @@ module ConstantName =
 // resolved name, and the Error case models the text name of the type and some error
 // information.
 
-type NameResolution<'a> = Result<'a, Errors.NameResolution.Error>
+type NameResolution<'a> = Result<'a, NameResolutionError.Error>
 
 type LetPattern =
   | LPVariable of id * name : string

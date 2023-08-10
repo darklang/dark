@@ -95,7 +95,7 @@ let userTypeReference
   (name : string)
   (version : int)
   : TypeReference =
-  TCustomType(fqUserTypeName modules name version, [])
+  TCustomType(Ok(fqUserTypeName modules name version), [])
 
 let customTypeRecord (fields : List<string * TypeReference>) : TypeDeclaration.T =
   let fields =

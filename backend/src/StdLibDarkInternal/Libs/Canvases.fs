@@ -11,7 +11,7 @@ open LibExecution.StdLib.Shortcuts
 module PT = LibExecution.ProgramTypes
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
-module PT2DT = StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 let modules = [ "DarkInternal"; "Canvas" ]
 
@@ -35,7 +35,7 @@ let types : List<BuiltInType> =
               NEList.ofList
                 { name = "id"; typ = TUuid }
                 [ { name = "types"
-                    typ = TList(TCustomType(ptTyp [] "UserType" 0, [])) }
+                    typ = TList(TCustomType(Ok(ptTyp [] "UserType" 0), [])) }
 
                   // { name = "dbs"
                   //   typ = TList(TCustomType(FQName.BuiltIn(typ "DB" 0), []))
@@ -159,7 +159,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType =
         TypeReference.result
-          (TCustomType(FQName.BuiltIn(typ "Program" 0), []))
+          (TCustomType(Ok(FQName.BuiltIn(typ "Program" 0)), []))
           TString
       description =
         "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"

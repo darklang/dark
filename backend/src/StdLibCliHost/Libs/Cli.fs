@@ -71,9 +71,9 @@ let execute
     if mod'.exprs.Length = 1 then
       return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
     else if mod'.exprs.Length = 0 then
-      return DError(SourceNone, "No expressions to execute")
+      return DError(SourceNone, RuntimeError.oldError "No expressions to execute")
     else // mod'.exprs.Length > 1
-      return DError(SourceNone, "Multiple expressions to execute")
+      return DError(SourceNone, RuntimeError.oldError "Multiple expressions to execute")
   }
 
 let types : List<BuiltInType> =
@@ -100,7 +100,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TypeReference.result
           TInt
-          (TCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), []))
+          (TCustomType(Ok(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)), []))
       description = "Parses and executes arbitrary Dark code"
       fn =
         function
