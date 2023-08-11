@@ -94,11 +94,13 @@ let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
     |> LocalExec.Packages.parse filename
     |> unwrap
 
-  package.fns |> PACKAGE.Darklang.Stdlib.List.iter (fun fn -> saveFunctionToCanvas fn)
+  package.fns
+  |> PACKAGE.Darklang.Stdlib.List.iter (fun fn -> saveFunctionToCanvas fn)
 
   package.types |> PACKAGE.Darklang.Stdlib.List.iter (fun t -> saveTypeToCanvas t)
 
-  package.constants |> PACKAGE.Darklang.Stdlib.List.iter (fun t -> saveConstantToCanvas t)
+  package.constants
+  |> PACKAGE.Darklang.Stdlib.List.iter (fun t -> saveConstantToCanvas t)
 
 
 let printPackageFunction (p: LocalExec.Packages.Function) : Unit =

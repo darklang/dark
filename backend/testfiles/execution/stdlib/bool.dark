@@ -1,8 +1,8 @@
-PACKAGE.Darklang.Stdlib.Bool.and_v0 false false = false
-PACKAGE.Darklang.Stdlib.Bool.and_v0 false true = false
-PACKAGE.Darklang.Stdlib.Bool.and_v0 true false = false
-PACKAGE.Darklang.Stdlib.Bool.and_v0 true true = true
-PACKAGE.Darklang.Stdlib.Bool.and_v0 (8 >= 5) (6 <= 8) = true
+Bool.and_v0 false false = false
+Bool.and_v0 false true = false
+Bool.and_v0 true false = false
+Bool.and_v0 true true = true
+Bool.and_v0 (8 >= 5) (6 <= 8) = true
 
 (false && false) = false
 (false && true) = false
@@ -10,13 +10,13 @@ PACKAGE.Darklang.Stdlib.Bool.and_v0 (8 >= 5) (6 <= 8) = true
 (true && true) = true
 ((8 >= 5) && (6 <= 8)) = true
 
-PACKAGE.Darklang.Stdlib.Bool.not_v0 false = true
-PACKAGE.Darklang.Stdlib.Bool.not_v0 true = false
+Bool.not_v0 false = true
+Bool.not_v0 true = false
 
-PACKAGE.Darklang.Stdlib.Bool.or_v0 false false = false
-PACKAGE.Darklang.Stdlib.Bool.or_v0 true false = true
-PACKAGE.Darklang.Stdlib.Bool.or_v0 false true = true
-PACKAGE.Darklang.Stdlib.Bool.or_v0 true true = true
+Bool.or_v0 false false = false
+Bool.or_v0 true false = true
+Bool.or_v0 false true = true
+Bool.or_v0 true true = true
 
 (false || false) = false
 (true || false) = true

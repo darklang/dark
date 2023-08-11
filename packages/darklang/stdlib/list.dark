@@ -93,7 +93,10 @@ module Darklang =
 
       /// Returns {{Some value}} at <param index> in <param list> if <param index> is
       /// less than the length of the list otherwise returns {{None}}.
-      let getAt (list: List<'a>) (index: Int) : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+      let getAt
+        (list: List<'a>)
+        (index: Int)
+        : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
         if index < 0 then
           PACKAGE.Darklang.Stdlib.Option.Option.None
         else

@@ -14,6 +14,7 @@ let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
+  // CLEANUP: These functions are moved to packages, but we need to keep them until we find a way to make them work in DB.query
   [ { name = fn "not" 0
       typeParams = []
       parameters = [ Param.make "b" TBool "" ]

@@ -1,19 +1,20 @@
 module Darklang =
   module Stdlib =
     module Bool =
-      /// Returns the inverse of <param b>: {{true}} if <param b>
-      /// is {{false}} and {{false}} if <param b> is {{true}}
-      let not (b: Bool) : Bool = if b then false else true
 
-      /// Returns {{true}} if both <param a> and <param b> are {{true}}
-      let ``and`` (a: Bool) (b: Bool) : Bool = if a then b else false
+      // TODO: Uncomment these once we figure out how to make them work in DB.query
+      // /// Returns the inverse of <param b>: {{true}} if <param b>
+      // /// is {{false}} and {{false}} if <param b> is {{true}}
+      // let not (b: Bool) : Bool = if b then false else true
 
-      /// Returns {{true}} if either <param a> is true or <param b> is {{true}}
-      let ``or`` (a: Bool) (b: Bool) : Bool = if a then true else b
+      // /// Returns {{true}} if both <param a> and <param b> are {{true}}
+      // let ``and`` (a: Bool) (b: Bool) : Bool = if a then b else false
+
+      // /// Returns {{true}} if either <param a> is true or <param b> is {{true}}
+      // let ``or`` (a: Bool) (b: Bool) : Bool = if a then true else b
 
       /// Returns {{true}} if exactly one of <param a> and <param b> is {{true}}. Returns {{false}} if both are {{true}} or neither is {{true}}
-      let xor (a: Bool) (b: Bool) : Bool =
-        if a then PACKAGE.Darklang.Stdlib.Bool.not b else b
+      let xor (a: Bool) (b: Bool) : Bool = if a then Bool.not b else b
 
       /// Return {\"true\"} or {\"false\"}
       let toString (b: Bool) : String = if b then "true" else "false"
