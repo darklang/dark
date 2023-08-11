@@ -116,13 +116,13 @@ List.findFirst [ 1; -33; 3; -2; 12 ] (fun x -> (x < 0 && x % 2 == 0)) = PACKAGE.
   -2
 
 // CLEANUP once DList contains typeRefs, this test may be uncommented and the error message updated:
-// PACKAGE.Darklang.Stdlib.List.flatten_v0 [1;2;3] =
+// List.flatten_v0 [1;2;3] =
 //   Test.runtimeError "In List.flatten's 1st argument (`list`), the value should be a List<List<'a>>. However, a List<Int> ([1; 2; 3]) was passed instead.\n\nExpected: List<List<'a>>\nActual: List<Int>: [1; 2; 3]"
-PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1 ]; [ 2 ]; [ 3 ] ] = [ 1; 2; 3 ]
-PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1 ]; [ [ 2; 3 ] ] ] = [ 1; [ 2; 3 ] ]
-PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ [] ] ] = [ [] ]
-PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [] ] = []
-PACKAGE.Darklang.Stdlib.List.flatten_v0 [] = []
+List.flatten_v0 [ [ 1 ]; [ 2 ]; [ 3 ] ] = [ 1; 2; 3 ]
+List.flatten_v0 [ [ 1 ]; [ [ 2; 3 ] ] ] = [ 1; [ 2; 3 ] ]
+List.flatten_v0 [ [ [] ] ] = [ [] ]
+List.flatten_v0 [ [] ] = []
+List.flatten_v0 [] = []
 
 List.fold_v0 [ "a"; "b"; "c"; "d" ] "x" (fun accum curr -> accum ++ curr) = "xabcd"
 

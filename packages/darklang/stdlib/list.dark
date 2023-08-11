@@ -66,13 +66,14 @@ module Darklang =
         | _ :: tail -> 1 + (PACKAGE.Darklang.Stdlib.List.length tail)
 
 
-      /// Returns a single list containing the values of every list directly in <paramlist>
-      /// (does not recursively flatten nested lists)
-      let flatten (list: List<List<'a>>) : List<'a> =
-        match list with
-        | [] -> []
-        | head :: tail ->
-          List.append_v0 head (PACKAGE.Darklang.Stdlib.List.flatten tail)
+      // CLEANUP: this is blocked from being used until we have a live and stable package manager
+      // /// Returns a single list containing the values of every list directly in <paramlist>
+      // /// (does not recursively flatten nested lists)
+      // let flatten (list: List<List<'a>>) : List<'a> =
+      //   match list with
+      //   | [] -> []
+      //   | head :: tail ->
+      //     List.append_v0 head (PACKAGE.Darklang.Stdlib.List.flatten tail)
 
 
       /// Returns true if <param list> has no values

@@ -370,7 +370,9 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    //CLEANUP: used only in listDirectoryRecursive local-exec.dark
+
+    // CLEANUP: This can't be moved to packages until the package manager is live and stable.
+    // we can't use PACKAGE functions during the "load from disk into DB" flow
     { name = fn "flatten" 0
       typeParams = []
       parameters = [ Param.make "list" (TList(TList varA)) "" ]
@@ -1347,6 +1349,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
+
 
     // CLEANUP: This can't be moved to packages until the package manager is live and stable.
     // we can't use PACKAGE functions during the "load from disk into DB" flow
