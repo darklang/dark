@@ -66,6 +66,17 @@ module Darklang =
         | _ :: tail -> 1 + (PACKAGE.Darklang.Stdlib.List.length tail)
 
 
+      /// Returns a list of numbers where each element is {{1}} larger than the
+      /// previous. You provide the <param lowest> and <param highest> numbers in the list.
+      let range (lowest: Int) (highest: Int) : List<Int> =
+        if lowest > highest then
+          []
+        else
+          List.append_v0
+            (List.singleton_v0 lowest)
+            (PACKAGE.Darklang.Stdlib.List.range (lowest + 1) highest)
+
+
       // CLEANUP: this is blocked from being used until we have a live and stable package manager
       // /// Returns a single list containing the values of every list directly in <paramlist>
       // /// (does not recursively flatten nested lists)
@@ -109,3 +120,37 @@ module Darklang =
               PACKAGE.Darklang.Stdlib.Option.Option.Some head
             else
               PACKAGE.Darklang.Stdlib.List.getAt tail (index - 1)
+
+      /// Returns {{true}} if <param value> is in the list
+      let ``member`` (list: List<'a>) (value: 'a) : Bool =
+        match list with
+        | [] -> false
+        | head :: tail ->
+          if head == value then
+            true
+          else
+            PACKAGE.Darklang.Stdlib.List.``member`` tail value
+
+
+      /// Drops the first <param count> values from <param list>
+      let drop (list: List<'a>) (count: Int) : List<'a> =
+        if count <= 0 then
+          list
+        else
+          match list with
+          | [] -> []
+          | _ :: tail -> PACKAGE.Darklang.Stdlib.List.drop tail (count - 1)
+
+
+      /// Drops all but the first <param count> values from <param list>
+      let take (list: List<'a>) (count: Int) : List<'a> =
+        if count <= 0 then
+          []
+        else
+          match list with
+          | [] -> []
+          | head :: tail ->
+            List.append_v0
+              (List.singleton_v0 head)
+              (PACKAGE.Darklang.Stdlib.List.take tail (count - 1))
+

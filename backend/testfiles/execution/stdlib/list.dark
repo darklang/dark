@@ -17,19 +17,19 @@ List.append_v0 [ 1 ] [ 2 ] = [ 1; 2 ]
 List.append_v0 [] [] = []
 
 
-List.drop_v0 [ "a"; "b"; "c"; "d" ] -3 = [ "a"; "b"; "c"; "d" ]
-List.drop_v0 [ "a"; "b"; "c"; "d" ] 3 = [ "d" ]
-List.drop_v0 [ 1; 2; 3; 4 ] -1 = [ 1; 2; 3; 4 ]
-List.drop_v0 [ 1; 2; 3; 4 ] 0 = [ 1; 2; 3; 4 ]
-List.drop_v0 [ 1; 2; 3; 4 ] 440737095L = []
-List.drop_v0 [ 1; 2; 3; 4 ] 1184467440737095L = []
-List.drop_v0 [ 1; 2; 3; 4 ] 2 = [ 3; 4 ]
-List.drop_v0 [ 1; 2; 3; 4 ] 4 = []
-List.drop_v0 [ 1; 2; 3; 4 ] 5 = []
-List.drop_v0 [ 3; 3; 3 ] 0 = [ 3; 3; 3 ]
-List.drop_v0 [ 5; 4; 3; 2; 1 ] 5 = []
-List.drop_v0 [ 5 ] 4 = []
-List.drop_v0 [] 4 = []
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ "a"; "b"; "c"; "d" ] -3 = [ "a"; "b"; "c"; "d" ]
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ "a"; "b"; "c"; "d" ] 3 = [ "d" ]
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] -1 = [ 1; 2; 3; 4 ]
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] 0 = [ 1; 2; 3; 4 ]
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] 440737095L = []
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] 1184467440737095L = []
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] 2 = [ 3; 4 ]
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] 4 = []
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] 5 = []
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 3; 3; 3 ] 0 = [ 3; 3; 3 ]
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 5; 4; 3; 2; 1 ] 5 = []
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 5 ] 4 = []
+PACKAGE.Darklang.Stdlib.List.drop_v0 [] 4 = []
 
 List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Test.runtimeError
   "Expected `fn` to return a Bool, but it returned `-1`"
@@ -182,7 +182,11 @@ PACKAGE.Darklang.Stdlib.List.last [] = PACKAGE.Darklang.Stdlib.Option.Option.Non
 PACKAGE.Darklang.Stdlib.List.length_v0 [ 1; 2; 3 ] = 3
 PACKAGE.Darklang.Stdlib.List.length_v0 [] = 0
 
-List.map_v0 (List.range_v0 1 5) (fun x -> x + 1) = [ 2; 3; 4; 5; 6 ]
+List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 1 5) (fun x -> x + 1) = [ 2
+                                                                             3
+                                                                             4
+                                                                             5
+                                                                             6 ]
 
 List.map_v0 [ 1; 2; 3 ] (fun x ->
   Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 0) (Int.lessThanOrEqualTo_v0 x 4)) = [ true
@@ -203,9 +207,9 @@ List.map2shortest_v0 [ 10; 20 ] [ 1; 2; 3 ] (fun a b -> a - b) = [ 9; 18 ]
 List.map2shortest_v0 [] [ 1; 2; 3 ] (fun a b -> a - b) = []
 List.map2shortest_v0 [ 1; 2; 3 ] [] (fun a b -> a - b) = []
 
-List.member_v0 [ 1; 2; 3 ] 2 = true
-List.member_v0 [ 1; 2; 3 ] 4 = false
-List.member_v0 [] 1 = false
+PACKAGE.Darklang.Stdlib.List.member_v0 [ 1; 2; 3 ] 2 = true
+PACKAGE.Darklang.Stdlib.List.member_v0 [ 1; 2; 3 ] 4 = false
+PACKAGE.Darklang.Stdlib.List.member_v0 [] 1 = false
 
 List.partition_v0 [ -20; 5; 9 ] (fun x -> x > 0) = ([ 5; 9 ], [ -20 ])
 List.partition_v0 [] (fun item -> true) = ([], [])
@@ -239,9 +243,9 @@ List.randomElement_v0 [ 1 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some 1
 List.randomElement_v0 [ Test.runtimeError "test" ] = Test.runtimeError "test"
 List.randomElement_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-List.range_v0 -1 0 = [ -1; 0 ]
-List.range_v0 -5 5 = [ -5; -4; -3; -2; -1; 0; 1; 2; 3; 4; 5 ]
-List.range_v0 5 0 = []
+PACKAGE.Darklang.Stdlib.List.range_v0 -1 0 = [ -1; 0 ]
+PACKAGE.Darklang.Stdlib.List.range_v0 -5 5 = [ -5; -4; -3; -2; -1; 0; 1; 2; 3; 4; 5 ]
+PACKAGE.Darklang.Stdlib.List.range_v0 5 0 = []
 
 List.repeat_v0 0 1 = PACKAGE.Darklang.Stdlib.Result.Result.Ok []
 List.repeat_v0 1 "a" = PACKAGE.Darklang.Stdlib.Result.Result.Ok [ "a" ]
@@ -311,13 +315,13 @@ PACKAGE.Darklang.Stdlib.List.tail_v0 [ 10; 20; 30; 40 ] = PACKAGE.Darklang.Stdli
 
 PACKAGE.Darklang.Stdlib.List.tail_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-List.take_v0 [ "a"; "b"; "c"; "d" ] -1 = []
-List.take_v0 [ "a"; "b"; "c"; "d" ] 2147483648I = [ "a"; "b"; "c"; "d" ]
-List.take_v0 [ "a"; "b"; "c"; "d" ] 3 = [ "a"; "b"; "c" ]
-List.take_v0 [ 3; 3; 3 ] 0 = []
-List.take_v0 [ 5; 4; 3; 2; 1 ] 5 = [ 5; 4; 3; 2; 1 ]
-List.take_v0 [ 5 ] 4 = [ 5 ]
-List.take_v0 [] 4 = []
+PACKAGE.Darklang.Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] -1 = []
+PACKAGE.Darklang.Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] 2147483648I = [ "a"; "b"; "c"; "d" ]
+PACKAGE.Darklang.Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] 3 = [ "a"; "b"; "c" ]
+PACKAGE.Darklang.Stdlib.List.take_v0 [ 3; 3; 3 ] 0 = []
+PACKAGE.Darklang.Stdlib.List.take_v0 [ 5; 4; 3; 2; 1 ] 5 = [ 5; 4; 3; 2; 1 ]
+PACKAGE.Darklang.Stdlib.List.take_v0 [ 5 ] 4 = [ 5 ]
+PACKAGE.Darklang.Stdlib.List.take_v0 [] 4 = []
 
 List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Test.runtimeError
   "Expected `fn` to return a Bool, but it returned `-1`"
