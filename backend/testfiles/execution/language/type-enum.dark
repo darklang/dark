@@ -95,7 +95,7 @@ module MixedCases =
       EnumOfMixedCases.Y(5)
       EnumOfMixedCases.Z("testZ", 2) ]
 
-   match List.getAt values 3 with
+   match PACKAGE.Darklang.Stdlib.List.getAt values 3 with
    | Some z -> PACKAGE.Darklang.Stdlib.Result.Result.Ok z
    | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error "Failure") = PACKAGE
     .Darklang

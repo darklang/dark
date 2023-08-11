@@ -80,3 +80,27 @@ module Darklang =
         match list with
         | [] -> true
         | _ -> false
+
+
+      /// Applies the given function <param fn> to each element of the <param list>.
+      let iter (list: List<'a>) (f: 'a -> Unit) : Unit =
+        match list with
+        | [] -> ()
+        | head :: tail ->
+          head |> f
+          PACKAGE.Darklang.Stdlib.List.iter tail f
+
+
+      /// Returns {{Some value}} at <param index> in <param list> if <param index> is
+      /// less than the length of the list otherwise returns {{None}}.
+      let getAt (list: List<'a>) (index: Int) : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+        if index < 0 then
+          PACKAGE.Darklang.Stdlib.Option.Option.None
+        else
+          match list with
+          | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
+          | head :: tail ->
+            if index == 0 then
+              PACKAGE.Darklang.Stdlib.Option.Option.Some head
+            else
+              PACKAGE.Darklang.Stdlib.List.getAt tail (index - 1)

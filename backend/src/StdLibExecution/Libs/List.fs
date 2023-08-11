@@ -1222,23 +1222,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "getAt" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
-      returnType = TypeReference.option varA
-      description =
-        "Returns {{Some value}} at <param index> in <param list> if <param index> is
-         less than the length of the list otherwise returns {{None}}."
-      fn =
-        (function
-        | _, _, [ DList l; DInt index ] ->
-          (List.tryItem (int index) l) |> Dval.option |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "randomElement" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
@@ -1365,6 +1348,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+    // CLEANUP: still used in listPackageFilesOnDisk and LoadPackagesIntoDarkCanvas
     { name = fn "iter" 0
       typeParams = []
       parameters =

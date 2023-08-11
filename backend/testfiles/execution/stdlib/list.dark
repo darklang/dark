@@ -41,25 +41,25 @@ List.dropWhile_v0 [] (fun item -> item < 3) = []
 
 List.empty_v0 = []
 
-(List.iter [ 1; 2; 3 ] (fun x -> Test.incrementSideEffectCounter ())
+(PACKAGE.Darklang.Stdlib.List.iter [ 1; 2; 3 ] (fun x -> Test.incrementSideEffectCounter ())
  Test.sideEffectCount ()) = 3
 
-(List.iter [ 1; 2; 3; 4; 5 ] (fun x ->
+(PACKAGE.Darklang.Stdlib.List.iter [ 1; 2; 3; 4; 5 ] (fun x ->
   if x % 2 == 0 then
     Test.incrementSideEffectCounter ())
 
  Test.sideEffectCount ()) = 2
 
-(List.iter [] (fun x -> Test.incrementSideEffectCounter ())
+(PACKAGE.Darklang.Stdlib.List.iter [] (fun x -> Test.incrementSideEffectCounter ())
  Test.sideEffectCount ()) = 0
 
-(List.iter [ 10; 20; 30 ] (fun x ->
+(PACKAGE.Darklang.Stdlib.List.iter [ 10; 20; 30 ] (fun x ->
   Test.incrementSideEffectCounter ()
   Test.incrementSideEffectCounter ())
 
  Test.sideEffectCount ()) = 6
 
-(List.iter [ 1; 2; 3 ] (fun x ->
+(PACKAGE.Darklang.Stdlib.List.iter [ 1; 2; 3 ] (fun x ->
   if x > 2 then
     Test.incrementSideEffectCounter ())
 
@@ -130,14 +130,14 @@ List.fold_v0 [ 1; 2; 3; 4; 5 ] [] (fun accum curr ->
 
 List.fold_v0 [] [] (fun accum curr -> 5) = []
 
-List.getAt [ "a"; "b"; "c"; "d" ] -1 = PACKAGE.Darklang.Stdlib.Option.Option.None
-List.getAt [ 0 ] 1 = PACKAGE.Darklang.Stdlib.Option.Option.None
-List.getAt [] 1 = PACKAGE.Darklang.Stdlib.Option.Option.None
-List.getAt [ 1; 2; 3; 4 ] 6018427387902I = PACKAGE.Darklang.Stdlib.Option.Option.None
-List.getAt [ 1; 2; 3; 4 ] 4611686018427387902I = PACKAGE.Darklang.Stdlib.Option.Option.None
-List.getAt [ 1; 2; 3; 4 ] 0 = PACKAGE.Darklang.Stdlib.Option.Option.Some 1
-List.getAt [ 3; 3; 3 ] -5 = PACKAGE.Darklang.Stdlib.Option.Option.None
-List.getAt [ 3; 3; 3 ] 2147483648I = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.getAt [ "a"; "b"; "c"; "d" ] -1 = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.getAt [ 0 ] 1 = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.getAt [] 1 = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.getAt [ 1; 2; 3; 4 ] 6018427387902I = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.getAt [ 1; 2; 3; 4 ] 4611686018427387902I = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.getAt [ 1; 2; 3; 4 ] 0 = PACKAGE.Darklang.Stdlib.Option.Option.Some 1
+PACKAGE.Darklang.Stdlib.List.getAt [ 3; 3; 3 ] -5 = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.getAt [ 3; 3; 3 ] 2147483648I = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 PACKAGE.Darklang.Stdlib.List.head [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
   1
