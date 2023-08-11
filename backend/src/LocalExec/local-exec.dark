@@ -94,13 +94,11 @@ let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
     |> LocalExec.Packages.parse filename
     |> unwrap
 
-  package.fns
-  |> PACKAGE.Darklang.Stdlib.List.iter (fun fn -> saveFunctionToCanvas fn)
+  package.fns |> List.iter (fun fn -> saveFunctionToCanvas fn)
 
-  package.types |> PACKAGE.Darklang.Stdlib.List.iter (fun t -> saveTypeToCanvas t)
+  package.types |> List.iter (fun t -> saveTypeToCanvas t)
 
-  package.constants
-  |> PACKAGE.Darklang.Stdlib.List.iter (fun t -> saveConstantToCanvas t)
+  package.constants |> List.iter (fun t -> saveConstantToCanvas t)
 
 
 let printPackageFunction (p: LocalExec.Packages.Function) : Unit =
@@ -118,13 +116,13 @@ let printPackageConstant (p: LocalExec.Packages.Constant) : Unit =
 
 let printAllPackages () : Unit =
   let functions = LocalExec.Packages.listFunctions ()
-  functions |> PACKAGE.Darklang.Stdlib.List.iter (fun p -> printPackageFunction p)
+  functions |> List.iter (fun p -> printPackageFunction p)
 
   let types = LocalExec.Packages.listTypes ()
-  types |> PACKAGE.Darklang.Stdlib.List.iter (fun p -> printPackageType p)
+  types |> List.iter (fun p -> printPackageType p)
 
   let constants = LocalExec.Packages.listConstants ()
-  constants |> PACKAGE.Darklang.Stdlib.List.iter (fun p -> printPackageConstant p)
+  constants |> List.iter (fun p -> printPackageConstant p)
 
 
 // Running scripts

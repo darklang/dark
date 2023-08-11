@@ -82,13 +82,14 @@ module Darklang =
         | _ -> false
 
 
-      /// Applies the given function <param fn> to each element of the <param list>.
-      let iter (list: List<'a>) (f: 'a -> Unit) : Unit =
-        match list with
-        | [] -> ()
-        | head :: tail ->
-          head |> f
-          PACKAGE.Darklang.Stdlib.List.iter tail f
+      // CLEANUP: this is blocked from being used until we have a live and stable package manager
+      // /// Applies the given function <param fn> to each element of the <param list>.
+      // let iter (list: List<'a>) (f: 'a -> Unit) : Unit =
+      //   match list with
+      //   | [] -> ()
+      //   | head :: tail ->
+      //     head |> f
+      //     PACKAGE.Darklang.Stdlib.List.iter tail f
 
 
       /// Returns {{Some value}} at <param index> in <param list> if <param index> is

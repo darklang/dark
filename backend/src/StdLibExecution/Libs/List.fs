@@ -1348,7 +1348,8 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    // CLEANUP: still used in listPackageFilesOnDisk and LoadPackagesIntoDarkCanvas
+    // CLEANUP: This can't be moved to packages until the package manager is live and stable.
+    // we can't use PACKAGE functions during the "load from disk into DB" flow
     { name = fn "iter" 0
       typeParams = []
       parameters =
