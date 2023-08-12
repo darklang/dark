@@ -1,226 +1,105 @@
-// // TODO
-
-
 module Darklang =
   module LanguageTools =
     module RuntimeTypes =
-      // module FQName =
-      //   /// A name that is built into the runtime
-      //   type BuiltIn<'name> = { modules : List<string>; name : 'name; version : int }
+      module FQName =
+        /// A name that is built into the runtime
+        type BuiltIn<'name> =
+          { modules: List<String>
+            name: 'name
+            version: Int }
 
-      //   /// Part of the user's program (eg canvas or cli)
-      //   type UserProgram<'name> = { modules : List<string>; name : 'name; version : int }
+        /// Part of the user's program (e.g. canvas or CLI)
+        type UserProgram<'name> =
+          { modules: List<String>
+            name: 'name
+            version: Int }
 
-      //   /// The name of a thing in the package manager
-      //   // TODO: We plan to use UUIDs for this, but this is a placeholder
-      //   type Package<'name> =
-      //     { owner : string; modules : NEList<string>; name : 'name; version : int }
+        type Package<'name> =
+          { owner: String
+            modules: NEList<String>
+            name: 'name
+            version: Int }
 
-      //   type T<'name> =
-      //     | BuiltIn of BuiltIn<'name>
-      //     | UserProgram of UserProgram<'name>
-      //     | Package of Package<'name>
+        type FQName<'name> =
+          | BuiltIn of BuiltIn<'name>
+          | UserProgram of UserProgram<'name>
+          | Package of Package<'name>
 
-      //   type NameValidator<'name> = 'name -> unit
-      //   type NamePrinter<'name> = 'name -> string
-
-      //   // Lowercase starting letter for modules and users
-      //   let modulePattern = @"^[A-Z][a-z0-9A-Z_]*$"
-      //   let assert'
-      //     (modules : List<string>)
-      //     (name : 'name)
-      //     (version : int)
-      //     (nameValidator : 'name -> unit)
-      //     : unit =
-      //     List.iter (assertRe "modules name must match" modulePattern) modules
-      //     nameValidator name
-      //     assert_ "version can't be negative" [ "version", version ] (version >= 0)
-
-      //   let builtin
-      //     (nameValidator : NameValidator<'name>)
-      //     (modules : List<string>)
-      //     (name : 'name)
-      //     (version : int)
-      //     : BuiltIn<'name> =
-      //     assert' modules name version nameValidator
-      //     { modules = modules; name = name; version = version }
-
-      //   let fqBuiltIn
-      //     (nameValidator : NameValidator<'name>)
-      //     (modules : List<string>)
-      //     (name : 'name)
-      //     (version : int)
-      //     : T<'name> =
-      //     BuiltIn(builtin nameValidator modules name version)
-
-      //   let userProgram
-      //     (nameValidator : NameValidator<'name>)
-      //     (modules : List<string>)
-      //     (name : 'name)
-      //     (version : int)
-      //     : UserProgram<'name> =
-      //     assert' modules name version nameValidator
-      //     { modules = modules; name = name; version = version }
-
-      //   let fqUserProgram
-      //     (nameValidator : NameValidator<'name>)
-      //     (modules : List<string>)
-      //     (name : 'name)
-      //     (version : int)
-      //     : T<'name> =
-      //     UserProgram(userProgram nameValidator modules name version)
-
-      //   let package
-      //     (nameValidator : NameValidator<'name>)
-      //     (owner : string)
-      //     (modules : NEList<string>)
-      //     (name : 'name)
-      //     (version : int)
-      //     : Package<'name> =
-      //     assert' (NEList.toList modules) name version nameValidator
-      //     { owner = owner; modules = modules; name = name; version = version }
-
-      //   let fqPackage
-      //     (nameValidator : NameValidator<'name>)
-      //     (owner : string)
-      //     (modules : NEList<string>)
-      //     (name : 'name)
-      //     (version : int)
-      //     : T<'name> =
-      //     Package(package nameValidator owner modules name version)
-
-      //   let builtinToString (s : BuiltIn<'name>) (f : NamePrinter<'name>) : string =
-      //     let name = s.modules @ [ f s.name ] |> String.concat "."
-      //     if s.version = 0 then name else $"{name}_v{s.version}"
-
-      //   let userProgramToString
-      //     (s : UserProgram<'name>)
-      //     (f : NamePrinter<'name>)
-      //     : string =
-      //     let name = s.modules @ [ f s.name ] |> String.concat "."
-      //     if s.version = 0 then name else $"{name}_v{s.version}"
-
-      //   let packageToString (s : Package<'name>) (f : NamePrinter<'name>) : string =
-      //     let name =
-      //       [ "PACKAGE"; s.owner ] @ NEList.toList s.modules @ [ f s.name ]
-      //       |> String.concat "."
-      //     if s.version = 0 then name else $"{name}_v{s.version}"
-
-      //   let toString (name : T<'name>) (f : NamePrinter<'name>) : string =
-      //     match name with
-      //     | BuiltIn b -> builtinToString b f
-      //     | UserProgram user -> userProgramToString user f
-      //     | Package pkg -> packageToString pkg f
-
-      // module TypeName =
-      //   type Name = TypeName of string
-      //   type T = FQName.T<Name>
-      //   type BuiltIn = FQName.BuiltIn<Name>
-      //   type UserProgram = FQName.UserProgram<Name>
-      //   type Package = FQName.Package<Name>
-
-      //   let pattern = @"^[A-Z][a-z0-9A-Z_]*$"
-      //   let assert' (TypeName name : Name) : unit =
-      //     assertRe "type name must match" pattern name
-      //   let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
-      //     FQName.builtin assert' modules (TypeName name) version
-
-      //   let fqBuiltIn (modules : List<string>) (name : string) (version : int) : T =
-      //     FQName.fqBuiltIn assert' modules (TypeName name) version
-
-      //   let userProgram
-      //     (modules : List<string>)
-      //     (name : string)
-      //     (version : int)
-      //     : UserProgram =
-      //     FQName.userProgram assert' modules (TypeName name) version
-
-      //   let fqUserProgram (modules : List<string>) (name : string) (version : int) : T =
-      //     FQName.fqUserProgram assert' modules (TypeName name) version
-
-      //   let package
-      //     (owner : string)
-      //     (modules : NEList<string>)
-      //     (name : string)
-      //     (version : int)
-      //     : Package =
-      //     FQName.package assert' owner modules (TypeName name) version
-
-      //   let fqPackage
-      //     (owner : string)
-      //     (modules : NEList<string>)
-      //     (name : string)
-      //     (version : int)
-      //     : T =
-      //     FQName.fqPackage assert' owner modules (TypeName name) version
-
-      //   let builtinToString (s : BuiltIn) : string =
-      //     FQName.builtinToString s (fun (TypeName name) -> name)
-
-      //   let userProgramToString (s : UserProgram) : string =
-      //     FQName.userProgramToString s (fun (TypeName name) -> name)
-
-      //   let packageToString (s : Package) : string =
-      //     FQName.packageToString s (fun (TypeName name) -> name)
-
-      //   let toString (name : T) : string =
-      //     FQName.toString name (fun (TypeName name) -> name)
-
-      //   let toShortName (name : T) : string =
-      //     match name with
-      //     | FQName.BuiltIn { name = TypeName name; version = version }
-      //     | FQName.UserProgram { name = TypeName name; version = version }
-      //     | FQName.Package { name = TypeName name; version = version } ->
-      //       if version = 0 then name else $"{name}_v{version}"
+        type NameValidator<'name> = 'name -> Unit
+        type NamePrinter<'name> = 'name -> Serializationtring
 
 
-      // module FnName =
-      //   type Name = FnName of string
-      //   type T = FQName.T<Name>
-      //   type BuiltIn = FQName.BuiltIn<Name>
-      //   type UserProgram = FQName.UserProgram<Name>
-      //   type Package = FQName.Package<Name>
+        let builtinToString (s: BuiltIn<'name>) (f: NamePrinter<'name>) : String =
+          let name = (s.modules @ [ f s.name ]) |> String.concat "."
+          if s.version = 0 then name else $"{name}_v{s.version}"
 
-      //   let pattern = @"^[a-z][a-z0-9A-Z_]*$"
-      //   let assert' (FnName name : Name) : unit =
-      //     assertRe "Fn name must match" pattern name
+        let userProgramToString
+          (s: UserProgram<'name>)
+          (f: NamePrinter<'name>)
+          : string =
+          let name = (s.modules @ [ f s.name ]) |> String.concat "."
+          if s.version = 0 then name else $"{name}_v{s.version}"
 
-      //   let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
-      //     FQName.builtin assert' modules (FnName name) version
+        let packageToString (s: Package<'name>) (f: NamePrinter<'name>) : string =
+          let name =
+            ([ "PACKAGE"; s.owner ] @ NEList.toList s.modules @ [ f s.name ])
+            |> String.concat "."
 
-      //   let fqBuiltIn (modules : List<string>) (name : string) (version : int) : T =
-      //     FQName.fqBuiltIn assert' modules (FnName name) version
+          if s.version = 0 then name else $"{name}_v{s.version}"
 
-      //   let userProgram
-      //     (modules : List<string>)
-      //     (name : string)
-      //     (version : int)
-      //     : UserProgram =
-      //     FQName.userProgram assert' modules (FnName name) version
+        let toString (name: T<'name>) (f: NamePrinter<'name>) : String =
+          match name with
+          | BuiltIn b -> builtinToString b f
+          | UserProgram user -> userProgramToString user f
+          | Package pkg -> packageToString pkg f
 
-      //   let fqUserProgram (modules : List<string>) (name : string) (version : int) : T =
-      //     FQName.fqUserProgram assert' modules (FnName name) version
+      module TypeName =
+        type Name = TypeName of String
+        type T = FQName.T<Name>
+        type BuiltIn = FQName.BuiltIn<Name>
+        type UserProgram = FQName.UserProgram<Name>
+        type Package = FQName.Package<Name>
 
-      //   let package
-      //     (owner : string)
-      //     (modules : NEList<string>)
-      //     (name : string)
-      //     (version : int)
-      //     : Package =
-      //     FQName.package assert' owner modules (FnName name) version
+      // let builtinToString (s: BuiltIn) : String =
+      //   FQName.builtinToString s (fun (TypeName name) -> name)
 
-      //   let fqPackage
-      //     (owner : string)
-      //     (modules : NEList<string>)
-      //     (name : string)
-      //     (version : int)
-      //     : T =
-      //     FQName.fqPackage assert' owner modules (FnName name) version
+      // let userProgramToString (s: UserProgram) : String =
+      //   FQName.userProgramToString s (fun (TypeName name) -> name)
+
+      // let packageToString (s: Package) : String =
+      //   FQName.packageToString s (fun (TypeName name) -> name)
+
+      // let toString (name: T) : String =
+      //   FQName.toString name (fun (TypeName name) -> name)
+
+      // let toShortName (name: T) : String =
+      //   match name with
+      //   | FQName.BuiltIn { name = TypeName name
+      //                      version = version } ->
+      //     if version = 0 then name else $"{name}_v{version}"
+
+      //   | FQName.UserProgram { name = TypeName name
+      //                          version = version } ->
+      //     if version = 0 then name else $"{name}_v{version}"
+
+      //   | FQName.Package { name = TypeName name
+      //                      version = version } ->
+      //     if version = 0 then name else $"{name}_v{version}"
+
+
+      module FnName =
+        type Name = FnName of String
+        type T = FQName.T<Name>
+        type BuiltIn = FQName.BuiltIn<Name>
+        type UserProgram = FQName.UserProgram<Name>
+        type Package = FQName.Package<Name>
 
       //   let builtinToString (s : BuiltIn) : string =
       //     FQName.builtinToString s (fun (FnName name) -> name)
+
       //   let userProgramToString (s : UserProgram) : string =
       //     FQName.userProgramToString s (fun (FnName name) -> name)
+
       //   let packageToString (s : Package) : string =
       //     FQName.packageToString s (fun (FnName name) -> name)
 
@@ -229,279 +108,138 @@ module Darklang =
       //   let isInternalFn (fnName : BuiltIn) : bool =
       //     List.tryHead fnName.modules = Some "DarkInternal"
 
-      // /// A Fully-Qualified Constant Name
-      // /// Includes package, module, and version information where relevant.
-      // module ConstantName =
-      //   type Name = ConstantName of string
-      //   type T = FQName.T<Name>
-      //   type BuiltIn = FQName.BuiltIn<Name>
-      //   type UserProgram = FQName.UserProgram<Name>
-      //   type Package = FQName.Package<Name>
-
-      //   let pattern = @"^[a-z][a-z0-9A-Z_']*$"
-      //   let assert' (ConstantName name : Name) : unit =
-      //     assertRe "Constant name must match" pattern name
-
-      //   let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
-      //     FQName.builtin assert' modules (ConstantName name) version
-
-      //   let fqBuiltIn (modules : List<string>) (name : string) (version : int) : T =
-      //     FQName.fqBuiltIn assert' modules (ConstantName name) version
-
-      //   let userProgram
-      //     (modules : List<string>)
-      //     (name : string)
-      //     (version : int)
-      //     : UserProgram =
-      //     FQName.userProgram assert' modules (ConstantName name) version
-
-      //   let fqUserProgram (modules : List<string>) (name : string) (version : int) : T =
-      //     FQName.fqUserProgram assert' modules (ConstantName name) version
-
-      //   let package
-      //     (owner : string)
-      //     (modules : NEList<string>)
-      //     (name : string)
-      //     (version : int)
-      //     : Package =
-      //     FQName.package assert' owner modules (ConstantName name) version
-
-      //   let fqPackage
-      //     (owner : string)
-      //     (modules : NEList<string>)
-      //     (name : string)
-      //     (version : int)
-      //     : T =
-      //     FQName.fqPackage assert' owner modules (ConstantName name) version
+      /// A Fully-Qualified Constant Name
+      /// Includes package, module, and version information where relevant.
+      module ConstantName =
+        type Name = ConstantName of String
+        type T = FQName.T<Name>
+        type BuiltIn = FQName.BuiltIn<Name>
+        type UserProgram = FQName.UserProgram<Name>
+        type Package = FQName.Package<Name>
 
       //   let toString (name : T) : string =
       //     FQName.toString name (fun (ConstantName name) -> name)
 
 
-      // type NameResolution<'a> = Result<'a, RuntimeError>
+      type NameResolution<'a> = Result<'a, RuntimeError>
 
-      // // Dark runtime type
-      // and TypeReference =
-      //   | TUnit
-      //   | TBool
-      //   | TInt
-      //   | TFloat
-      //   | TChar
-      //   | TString
-      //   | TUuid
-      //   | TBytes
-      //   | TDateTime
-      //   | TPassword
-      //   | TList of TypeReference
-      //   | TTuple of TypeReference * TypeReference * List<TypeReference>
-      //   | TFn of List<TypeReference> * TypeReference
-      //   | TDB of TypeReference
-      //   | TVariable of string
-      //   | TCustomType of NameResolution<TypeName.T> * typeArgs : List<TypeReference>
-      //   | TDict of TypeReference // CLEANUP add key type
+      type TypeReference =
+        | TUnit
+        | TBool
+        | TInt
+        | TFloat
+        | TChar
+        | TString
+        | TUuid
+        | TBytes
+        | TDateTime
+        | TPassword
+        | TList of TypeReference
+        | TTuple of TypeReference * TypeReference * List<TypeReference>
+        | TFn of List<TypeReference> * TypeReference
+        | TDB of TypeReference
+        | TVariable of String
+        | TCustomType of NameResolution<TypeName.T> * typeArgs: List<TypeReference>
+        | TDict of TypeReference
 
-      //   member this.isFn() : bool =
-      //     match this with
-      //     | TFn _ -> true
-      //     | _ -> false
+      type Expr =
+        | EInt of id * Int
+        | EBool of id * Bool
+        | EString of id * List<StringSegment>
+        | EChar of id * string
+        | EFloat of id * double
+        | EUnit of id
+        | EConstant of id * ConstantName.T
+        | ELet of id * LetPattern * Expr * Expr
+        | EIf of id * Expr * Expr * Expr
+        | ELambda of id * List<id * string> * Expr
+        | EFieldAccess of id * Expr * string
+        | EVariable of id * string
+        | EApply of id * Expr * typeArgs: List<TypeReference> * args: List<Expr>
+        | EFnName of id * FnName.T
+        | EList of id * List<Expr>
+        | ETuple of id * Expr * Expr * List<Expr>
+        | ERecord of id * TypeName.T * List<string * Expr>
+        | ERecordUpdate of id * record: Expr * updates: List<string * Expr>
+        | EDict of id * List<string * Expr>
+        | EEnum of id * TypeName.T * caseName: string * fields: List<Expr>
+        | EMatch of id * Expr * List<MatchPattern * Expr>
+        | EAnd of id * Expr * Expr
+        | EOr of id * Expr * Expr
+        | EError of id * RuntimeError * List<Expr>
 
-      //   member this.isConcrete() : bool =
-      //     let rec isConcrete (t : TypeReference) : bool =
-      //       match this with
-      //       | TVariable _ -> false
-      //       | TList t -> isConcrete t
-      //       | TTuple(t1, t2, ts) ->
-      //         isConcrete t1 && isConcrete t2 && List.forall isConcrete ts
-      //       | TFn(ts, t) -> List.forall isConcrete ts && isConcrete t
-      //       | TDB t -> isConcrete t
-      //       | TCustomType(_, ts) -> List.forall isConcrete ts
-      //       | TDict t -> isConcrete t
-      //       // exhaustiveness
-      //       | TUnit
-      //       | TBool
-      //       | TInt
-      //       | TFloat
-      //       | TChar
-      //       | TString
-      //       | TUuid
-      //       | TBytes
-      //       | TDateTime
-      //       | TPassword -> true
-      //     isConcrete this
+      type LetPattern =
+        | LPVariable of id * name: String
+        | LPTuple of
+          id *
+          first: LetPattern *
+          second: LetPattern *
+          theRest: List<LetPattern>
 
+      type StringSegment =
+        | StringText of String
+        | StringInterpolation of Expr
 
-      // // Expressions here are runtime variants of the AST in ProgramTypes, having had
-      // // superfluous information removed.
-      // and Expr =
-      //   | EInt of id * int64
-      //   | EBool of id * bool
-      //   | EString of id * List<StringSegment>
+      type MatchPattern =
+        | MPVariable of id * string
+        | MPEnum of id * caseName: string * fieldPatterns: List<MatchPattern>
+        | MPInt of id * int64
+        | MPBool of id * bool
+        | MPChar of id * string
+        | MPString of id * string
+        | MPFloat of id * double
+        | MPUnit of id
+        | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+        | MPList of id * List<MatchPattern>
+        | MPListCons of id * head: MatchPattern * tail: MatchPattern
 
-      //   // A single Extended Grapheme Cluster
-      //   | EChar of id * string
-      //   | EFloat of id * double
-      //   | EUnit of id
-      //   | EConstant of id * ConstantName.T
-      //   // <summary>
-      //   // Composed of binding pattern, the expression to create bindings for,
-      //   // and the expression that follows, where the bound values are available
-      //   // </summary>
-      //   //
-      //   // <code>
-      //   // let str = expr1
-      //   // expr2
-      //   // </code>
-      //   | ELet of id * LetPattern * Expr * Expr
+      type DvalMap = Map<string, Dval>
 
-      //   // Composed of condition, expr if true, and expr if false
-      //   | EIf of id * Expr * Expr * Expr
+      type LambdaImpl =
+        { typeArgTable: TypeArgTable
+          symtable: Symtable
+          parameters: List<id * String>
+          body: Expr }
 
-      //   // Composed of a parameters * the expression itself
-      //   | ELambda of id * List<id * string> * Expr
+      type FnValImpl =
+        | Lambda of LambdaImpl
+        | NamedFn of FnName.T
 
-      //   // Access a field of some expression (e.g. `someExpr.fieldName`)
-      //   | EFieldAccess of id * Expr * string
+      type RuntimeError = RuntimeError of Dval
 
-      //   // Reference some local variable by name
-      //   //
-      //   // i.e. after a `let binding = value`, any use of `binding`
-      //   | EVariable of id * string
+      type Dval =
+        | DUnit
+        | DBool of Bool
+        | DInt of Int
+        | DFloat of double
+        | DChar of String
+        | DString of String
+        | DDateTime of DateTime
+        | DBytes of Bytes
+        | DUuid of System.Guid
 
-      //   // This is a function call, the first expression is the value of the function.
-      //   | EApply of id * Expr * typeArgs : List<TypeReference> * args : List<Expr>
-      //   | EFnName of id * FnName.T
+        | DList of List<Dval>
+        | DDict of DvalMap
+        | DTuple of Dval * Dval * List<Dval>
 
-      //   | EList of id * List<Expr>
-      //   | ETuple of id * Expr * Expr * List<Expr>
-      //   | ERecord of id * TypeName.T * List<string * Expr>
-      //   | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
-      //   | EDict of id * List<string * Expr>
-      //   | EEnum of id * TypeName.T * caseName : string * fields : List<Expr>
-      //   | EMatch of id * Expr * List<MatchPattern * Expr>
-      //   | EAnd of id * Expr * Expr
-      //   | EOr of id * Expr * Expr
+        | DFnVal of FnValImpl
 
-      //   // A runtime error. This is included so that we can allow the program to run in the
-      //   // presence of compile-time errors (which are converted to this error). We may
-      //   // adapt this to include more information as we go, possibly using a standard Error
-      //   // type (the same as used in DErrors and Results). This list of exprs is the
-      //   // subexpressions to evaluate before evaluating the error.
-      //   | EError of id * RuntimeError * List<Expr>
+        | DDB of String
+        | DPassword of Password
 
-      // and LetPattern =
-      //   | LPVariable of id * name : string
-      //   | LPTuple of
-      //     id *
-      //     first : LetPattern *
-      //     second : LetPattern *
-      //     theRest : List<LetPattern>
+        | DRecord of
+          runtimeTypeName: TypeName.T *
+          sourceTypeName: TypeName.T *
+          DvalMap
+        | DEnum of
+          runtimeTypeName: TypeName.T *
+          sourceTypeName: TypeName.T *
+          caseName: String *
+          List<Dval>
 
-      // and StringSegment =
-      //   | StringText of string
-      //   | StringInterpolation of Expr
+        | DError of DvalSource * RuntimeError
+        | DIncomplete of DvalSource
 
-      // and MatchPattern =
-      //   | MPVariable of id * string
-      //   | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
-      //   | MPInt of id * int64
-      //   | MPBool of id * bool
-      //   | MPChar of id * string
-      //   | MPString of id * string
-      //   | MPFloat of id * double
-      //   | MPUnit of id
-      //   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
-      //   | MPList of id * List<MatchPattern>
-      //   | MPListCons of id * head : MatchPattern * tail : MatchPattern
-
-      // and DvalMap = Map<string, Dval>
-
-      // and LambdaImpl =
-      //   { typeArgTable : TypeArgTable
-      //     symtable : Symtable
-      //     parameters : List<id * string>
-      //     body : Expr }
-
-      // and FnValImpl =
-      //   | Lambda of LambdaImpl // A fn value
-      //   | NamedFn of FnName.T // A reference to an Fn in the executionState
-
-      // and DDateTime = NodaTime.LocalDate
-
-      // and RuntimeError = private RuntimeError of Dval
-
-      // // We use NoComparison here to avoid accidentally using structural comparison
-      // and [<NoComparison>] Dval =
-      //   | DInt of int64
-      //   | DFloat of double
-      //   | DBool of bool
-      //   | DUnit
-      //   | DString of string
-      //   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
-
-      //   // compound types
-      //   | DList of List<Dval>
-      //   | DTuple of Dval * Dval * List<Dval>
-
-      //   | DFnVal of FnValImpl
-
-      //   /// Represents something that shouldn't have happened in the engine,
-      //   /// that should have been reported elsewhere. It's usually a type error of
-      //   /// some kind, but occasionally we'll paint ourselves into a corner and need
-      //   /// to represent a runtime error using this.
-      //   | DError of DvalSource * RuntimeError
-
-      //   /// <summary>
-      //   /// A DIncomplete represents incomplete computation, whose source is
-      //   /// always a Blank. When the code runs into a blank, it must return
-      //   /// incomplete because the code is not finished. An incomplete value
-      //   /// results in a 500 because it is a developer error.
-      //   /// </summary>
-      //   ///
-      //   /// <remarks>
-      //   /// Propagating DIncompletes is straightforward: any computation
-      //   /// relying on an incomplete must itself be incomplete.
-      //   ///
-      //   /// Some examples:
-      //   /// - calling a function with an incomplete as a parameter is an
-      //   ///   incomplete function call.
-      //   /// - an if statement with an incomplete in the cond must be incomplete.
-      //   ///
-      //   /// But computation that doesn't rely on the incomplete value can
-      //   /// ignore it:
-      //   ///
-      //   /// - an if statement which with a blank in the ifbody and a
-      //   ///   complete expression in the elsebody will execute just fine if
-      //   ///   cond is false. It has not hit any part of the program that is
-      //   ///   being worked on.
-      //   ///
-      //   /// - a list with blanks in it can just ignore the blanks.
-      //   /// - an incomplete in a list should be filtered out, because the
-      //   ///   program has not been completed, and so that list entry just
-      //   ///   doesn't "exist" yet.
-      //   /// - incompletes in keys or values of objects cause the entire row
-      //   ///   to be ignored.
-      //   /// </remarks>
-      //   | DIncomplete of DvalSource
-
-      //   | DDB of string
-      //   | DDateTime of DarkDateTime.T
-      //   | DPassword of Password
-      //   | DUuid of System.Guid
-      //   | DBytes of byte array
-
-      //   | DDict of DvalMap
-      //   | DRecord of
-      //     runtimeTypeName : TypeName.T *
-      //     sourceTypeName : TypeName.T *
-      //     DvalMap
-      //   | DEnum of
-      //     runtimeTypeName : TypeName.T *
-      //     sourceTypeName : TypeName.T *
-      //     caseName : string *
-      //     List<Dval>
-
-
-      // and DvalTask = Ply<Dval>
 
       // /// our record of any variable bindings in scope
       // ///
@@ -511,14 +249,6 @@ module Darklang =
       // ///   `{ "x" => DInt 1; "y" => DInt 2 }`
       // and Symtable = Map<string, Dval>
 
-      // /// Our record of any type arguments in scope
-      // ///
-      // /// i.e. within the execution of
-      // ///   `let serialize<'a> (x : 'a) : string = ...`,
-      // /// called with inputs
-      // ///   `serialize<int> 1`,
-      // /// we would have a TypeArgTable of
-      // ///  { "a" => TInt }
       // and TypeArgTable = Map<string, TypeReference>
 
 
@@ -538,100 +268,18 @@ module Darklang =
       //     blockArgs : List<string>
       //     description : string }
 
-      //   static member make
-      //     (name : string)
-      //     (typ : TypeReference)
-      //     (description : string)
-      //     : BuiltInParam =
-      //     assert_ "make called on TFn" [ "name", name ] (not (typ.isFn ()))
-      //     { name = name; typ = typ; description = description; blockArgs = [] }
-
-      //   static member makeWithArgs
-      //     (name : string)
-      //     (typ : TypeReference)
-      //     (description : string)
-      //     (blockArgs : List<string>)
-      //     : BuiltInParam =
-      //     assert_ "makeWithArgs not called on TFn" [ "name", name ] (typ.isFn ())
-      //     { name = name; typ = typ; description = description; blockArgs = blockArgs }
-
       // and Param = { name : string; typ : TypeReference }
 
 
-
-
-      // module TypeReference =
-      //   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
-      //     TCustomType(
-      //       Ok(
-      //         TypeName.fqPackage
-      //           "Darklang"
-      //           (NEList.ofList "Stdlib" [ "Result" ])
-      //           "Result"
-      //           0
-      //       ),
-      //       [ t1; t2 ]
-      //     )
-
-      //   let option (t : TypeReference) : TypeReference =
-      //     TCustomType(
-      //       Ok(
-      //         TypeName.fqPackage
-      //           "Darklang"
-      //           (NEList.ofList "Stdlib" [ "Option" ])
-      //           "Option"
-      //           0
-      //       ),
-      //       [ t ]
-      //     )
-
       // module RuntimeError =
-      //   let name (modules : List<string>) (typeName : string) (version : int) =
-      //     TypeName.fqPackage
-      //       "Darklang"
-      //       (NEList.ofList "LanguageTools" ("RuntimeErrors" ::  modules))
-      //       typeName
-      //       version
-
-      //   let enum
-      //     (modules : List<string>)
-      //     (typeName : string)
-      //     (version : int)
-      //     (caseName : string)
-      //     (args : List<Dval>)
-      //     : RuntimeError =
-      //     let typeName = name modules typeName version
-      //     DEnum(typeName, typeName, caseName, args) |> RuntimeError
-
-      //   let record
-      //     (modules : List<string>)
-      //     (typeName : string)
-      //     (fields : List<string * Dval>)
-      //     : RuntimeError =
-      //     let typeName = name modules typeName 0
-      //     DRecord(typeName, typeName, Map fields) |> RuntimeError
-
-      //   // TODO remove all usages of this in favor of better error cases
-      //   let oldError (msg : string) : RuntimeError =
-      //     enum [] "Error" 0 "UnorganizedStringTODO" [ DString msg ]
-
       //   let toDT (RuntimeError e : RuntimeError) : Dval = e
       //   let fromDT (dv : Dval) : RuntimeError = RuntimeError dv
 
 
-
-      // // Used to mark whether a function/type has been deprecated, and if so,
-      // // details about possible replacements/alternatives, and reasoning
       // type Deprecation<'name> =
       //   | NotDeprecated
-
-      //   // The exact same thing is available under a new, preferred name
       //   | RenamedTo of 'name
-
-      //   /// This has been deprecated and has a replacement we can suggest
       //   | ReplacedBy of 'name
-
-      //   /// This has been deprecated and not replaced, provide a message for the user
       //   | DeprecatedBecause of string
 
 
@@ -646,283 +294,6 @@ module Darklang =
 
       //   type T = { typeParams : List<string>; definition : Definition }
 
-      // // Functions for working with Dark runtime expressions
-      // module Expr =
-      //   let toID (expr : Expr) : id =
-      //     match expr with
-      //     | EInt(id, _)
-      //     | EString(id, _)
-      //     | EChar(id, _)
-      //     | EBool(id, _)
-      //     | EUnit id
-      //     | EConstant(id, _)
-      //     | EFloat(id, _)
-      //     | EVariable(id, _)
-      //     | EFieldAccess(id, _, _)
-      //     | ELambda(id, _, _)
-      //     | ELet(id, _, _, _)
-      //     | EIf(id, _, _, _)
-      //     | EApply(id, _, _, _)
-      //     | EFnName(id, _)
-      //     | EList(id, _)
-      //     | ETuple(id, _, _, _)
-      //     | ERecord(id, _, _)
-      //     | ERecordUpdate(id, _, _)
-      //     | EDict(id, _)
-      //     | EEnum(id, _, _, _)
-      //     | EMatch(id, _, _)
-      //     | EError(id, _, _)
-      //     | EAnd(id, _, _)
-      //     | EOr(id, _, _) -> id
-
-      // // Functions for working with Dark Let patterns
-      // module LetPattern =
-      //   let toID (pat : LetPattern) : id =
-      //     match pat with
-      //     | LPVariable(id, _) -> id
-      //     | LPTuple(id, _, _, _) -> id
-
-      // // Functions for working with Dark match patterns
-      // module MatchPattern =
-      //   let toID (pat : MatchPattern) : id =
-      //     match pat with
-      //     | MPInt(id, _)
-      //     | MPString(id, _)
-      //     | MPChar(id, _)
-      //     | MPBool(id, _)
-      //     | MPUnit id
-      //     | MPFloat(id, _)
-      //     | MPVariable(id, _)
-      //     | MPTuple(id, _, _, _)
-      //     | MPEnum(id, _, _)
-      //     | MPListCons(id, _, _)
-      //     | MPList(id, _) -> id
-
-      // // Functions for working with Dark runtime values
-      // module Dval =
-      //   // A Fake Dval is some control-flow that's modelled in the interpreter as a
-      //   // Dval. This is sort of like an Exception. Anytime we see a FakeDval we return
-      //   // it instead of operating on it, including when they're put in a list, in a
-      //   // value, in a record, as a parameter to a function, etc.
-      //   let isFake (dv : Dval) : bool =
-      //     match dv with
-      //     | DError _ -> true
-      //     | DIncomplete _ -> true
-      //     | _ -> false
-
-      //   let isIncomplete (dv : Dval) : bool =
-      //     match dv with
-      //     | DIncomplete _ -> true
-      //     | _ -> false
-
-      //   let isDError (dv : Dval) : bool =
-      //     match dv with
-      //     | DError _ -> true
-      //     | _ -> false
-
-      //   let toPairs (dv : Dval) : Result<List<string * Dval>, string> =
-      //     match dv with
-      //     | DDict obj -> Ok(Map.toList obj)
-      //     | _ -> Error "expecting str"
-
-
-      //   // <summary>
-      //   // Checks if a runtime's value matches a given type
-      //   // </summary>
-      //   // <remarks>
-      //   // We have nested types so they need to be checked deeper. CLEANUP:
-      //   // there is also "real" type checking elsewhere - this should be unified.
-      //   // Note, this is primarily used to figure out which argument has ALREADY not
-      //   // matched the actual runtime parameter type of the called function. So more
-      //   // accuracy is better, as the runtime is perfectly accurate.
-      //   // </summary>
-      //   let rec typeMatches (typ : TypeReference) (dv : Dval) : bool =
-      //     match (dv, typ) with
-      //     | _, TVariable _ -> true
-      //     | DInt _, TInt
-      //     | DFloat _, TFloat
-      //     | DBool _, TBool
-      //     | DUnit, TUnit
-      //     | DString _, TString
-      //     | DDateTime _, TDateTime
-      //     | DPassword _, TPassword
-      //     | DUuid _, TUuid
-      //     | DChar _, TChar
-      //     | DDB _, TDB _
-      //     | DBytes _, TBytes -> true
-      //     | DTuple(first, second, theRest), TTuple(firstType, secondType, otherTypes) ->
-      //       let pairs =
-      //         [ (first, firstType); (second, secondType) ] @ List.zip theRest otherTypes
-
-      //       pairs |> List.all (fun (v, subtype) -> typeMatches subtype v)
-      //     | DList l, TList t -> List.all (typeMatches t) l
-      //     | DDict m, TDict t -> Map.all (typeMatches t) m
-      //     | DFnVal(Lambda l), TFn(parameters, _) ->
-      //       List.length parameters = List.length l.parameters
-
-      //     | DRecord(typeName, _, fields), TCustomType(Ok typeName', typeArgs) ->
-      //       // TYPESCLEANUP: should load type by name
-      //       // TYPESCLEANUP: are we handling type arguments here?
-      //       // TYPESCLEANUP: do we need to check fields?
-      //       typeName = typeName'
-
-      //     | DEnum(typeName, _, casename, fields), TCustomType(Ok typeName', typeArgs) ->
-      //       // TYPESCLEANUP: should load type by name
-      //       // TYPESCLEANUP: are we handling type arguments here?
-      //       // TYPESCLEANUP: do we need to check fields?
-      //       typeName = typeName'
-
-      //     // Dont match these fakevals, functions do not have these types
-      //     | DError _, _
-      //     | DIncomplete _, _ -> false
-      //     // exhaustiveness checking
-      //     | DInt _, _
-      //     | DFloat _, _
-      //     | DBool _, _
-      //     | DUnit, _
-      //     | DString _, _
-      //     | DDateTime _, _
-      //     | DPassword _, _
-      //     | DUuid _, _
-      //     | DChar _, _
-      //     | DDB _, _
-      //     | DBytes _, _
-      //     | DList _, _
-      //     | DTuple _, _
-      //     | DDict _, _
-      //     | DRecord _, _
-      //     | DFnVal _, _
-      //     | DEnum _, _ -> false
-
-
-      //   let int (i : int) = DInt(int64 i)
-
-
-      //   // Dvals should never be constructed that contain fakevals - the fakeval
-      //   // should always propagate (though, there are specific cases in the
-      //   // interpreter where they are discarded instead of propagated; still they are
-      //   // never put into other dvals). These static members check before creating the values
-
-      //   let list (list : List<Dval>) : Dval =
-      //     List.find (fun (dv : Dval) -> isFake dv) list
-      //     |> Option.defaultValue (DList list)
-
-      //   let asList (dv : Dval) : Option<List<Dval>> =
-      //     match dv with
-      //     | DList l -> Some l
-      //     | _ -> None
-
-      //   let asString (dv : Dval) : Option<string> =
-      //     match dv with
-      //     | DString s -> Some s
-      //     | _ -> None
-
-      //   let asInt (dv : Dval) : Option<int64> =
-      //     match dv with
-      //     | DInt i -> Some i
-      //     | _ -> None
-
-      //   let asFloat (dv : Dval) : Option<double> =
-      //     match dv with
-      //     | DFloat f -> Some f
-      //     | _ -> None
-
-      //   let asBool (dv : Dval) : Option<bool> =
-      //     match dv with
-      //     | DBool b -> Some b
-      //     | _ -> None
-
-      //   let asUuid (dv : Dval) : Option<System.Guid> =
-      //     match dv with
-      //     | DUuid u -> Some u
-      //     | _ -> None
-
-      //   let record (typeName : TypeName.T) (fields : List<string * Dval>) : Dval =
-      //     // Give a warning for duplicate keys
-      //     List.fold
-      //       (DRecord(typeName, typeName, Map.empty))
-      //       (fun m (k, v) ->
-      //         match m, k, v with
-      //         // TYPESCLEANUP: remove hacks
-      //         // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
-      //         | m, _k, _v when isFake m -> m
-      //         // Errors should propagate (but only if we're not already propagating an error)
-      //         | DRecord _, _, v when isFake v -> v
-      //         // Skip empty rows
-      //         | _, "", _ -> DError(SourceNone, RuntimeError.oldError $"Empty key {k}")
-      //         // Error if the key appears twice
-      //         | DRecord(_, _, m), k, _v when Map.containsKey k m ->
-      //           DError(SourceNone, RuntimeError.oldError $"Duplicate key: {k}")
-      //         // Otherwise add it
-      //         | DRecord(tn, o, m), k, v -> DRecord(tn, o, Map.add k v m)
-      //         // If we haven't got a DDict we're propagating an error so let it go
-      //         | m, _, _ -> m)
-      //       fields
-
-      //   let enum (typeName : TypeName.T) (caseName : string) (fields : List<Dval>) : Dval =
-      //     match List.find isFake fields with
-      //     | Some v -> v
-      //     | None -> DEnum(typeName, typeName, caseName, fields)
-
-      //   // CLEANUP - this fn was unused so I commented it out
-      //   // emove? or will it be handy?
-      //   // let dict (fields : List<string * Dval>) : Dval =
-      //   //   // Give a warning for duplicate keys
-      //   //   List.fold
-      //   //     (DDict(Map.empty))
-      //   //     (fun m (k, v) ->
-      //   //       match m, k, v with
-      //   //       // TYPESCLEANUP: remove hacks
-      //   //       // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
-      //   //       | m, _k, _v when isFake m -> m
-      //   //       // Errors should propagate (but only if we're not already propagating an error)
-      //   //       | DDict _, _, v when isFake v -> v
-      //   //       // Skip empty rows
-      //   //       | _, "", _ -> DError(SourceNone, $"Empty key: {k}")
-      //   //       // Error if the key appears twice
-      //   //       | DDict m, k, _v when Map.containsKey k m ->
-      //   //         DError(SourceNone, $"Duplicate key: {k}")
-      //   //       // Otherwise add it
-      //   //       | DDict m, k, v -> DDict(Map.add k v m)
-      //   //       // If we haven't got a DDict we're propagating an error so let it go
-      //   //       | m, _, _ -> m)
-      //   //     fields
-
-
-      //   let resultType =
-      //     TypeName.fqPackage "Darklang" (NEList.ofList "Stdlib" [ "Result" ]) "Result" 0
-
-      //   let optionType =
-      //     TypeName.fqPackage "Darklang" (NEList.ofList "Stdlib" [ "Option" ]) "Option" 0
-
-      //   let resultOk (dv : Dval) : Dval =
-      //     if isFake dv then dv else DEnum(resultType, resultType, "Ok", [ dv ])
-      //   let resultError (dv : Dval) : Dval =
-      //     if isFake dv then dv else DEnum(resultType, resultType, "Error", [ dv ])
-
-      //   // Wraps in a Result after checking that the value is not a fakeval
-      //   let result (dv : Result<Dval, Dval>) : Dval =
-      //     match dv with
-      //     | Ok dv -> resultOk dv
-      //     | Error dv -> resultError dv
-
-
-      //   let optionSome (dv : Dval) : Dval =
-      //     if isFake dv then dv else DEnum(optionType, optionType, "Some", [ dv ])
-
-      //   let optionNone : Dval = DEnum(optionType, optionType, "None", [])
-
-      //   // Wraps in an Option after checking that the value is not a fakeval
-      //   let option (dv : Option<Dval>) : Dval =
-      //     match dv with
-      //     | Some dv -> optionSome dv // checks isFake
-      //     | None -> optionNone
-
-      //   let errStr (s : string) : Dval = DError(SourceNone, RuntimeError.oldError s)
-
-      //   let errSStr (source : DvalSource) (s : string) : Dval =
-      //     DError(source, RuntimeError.oldError s)
-
       // module Handler =
       //   type CronInterval =
       //     | EveryDay
@@ -933,12 +304,12 @@ module Darklang =
       //     | EveryMinute
 
       //   type Spec =
-      //     | HTTP of path : string * method : string
-      //     | Worker of name : string
-      //     | Cron of name : string * interval : CronInterval
-      //     | REPL of name : string
+      //     | HTTP of path: string * method: string
+      //     | Worker of name: string
+      //     | Cron of name: string * interval: CronInterval
+      //     | REPL of name: string
 
-      //   type T = { tlid : tlid; ast : Expr; spec : Spec }
+      //   type Handler = { tlid: tlid; ast: Expr; spec: Spec }
 
       // module DB =
       //   type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
@@ -978,7 +349,7 @@ module Darklang =
       //     | TLConstant c -> c.tlid
 
       // module Secret =
-      //   type T = { name : string; value : string; version: int }
+      //   type T = { name : string; value : string; version : int }
 
 
       // // ------------
@@ -1002,17 +373,6 @@ module Darklang =
       // module PackageConstant =
       //   type T = { name : ConstantName.Package; body : Dval }
 
-      // // <summary>
-      // // Used to mark whether a function can be run on the client rather than backend.
-      // // </summary>
-      // // <remarks>
-      // // The runtime needs to know whether to save a function's results when it
-      // // runs. Pure functions that can be run on the client do not need to have
-      // // their results saved.
-      // // In addition, some functions can be run without side-effects; to give
-      // // the user a good experience, we can run them as soon as they are added.
-      // // this includes DateTime.now and Int.random.
-      // // </remarks>
       // type Previewable =
       //   // The same inputs will always yield the same outputs,
       //   // so we don't need to save results. e.g. `DateTime.addSeconds`
@@ -1026,50 +386,16 @@ module Darklang =
       //   // We should save the results.
       //   | Impure
 
-      // // Used to mark whether a function has an equivalent that can be
-      // // used within a Postgres query.
       // type SqlSpec =
-      //   // Can be implemented, but we haven't yet
       //   | NotYetImplemented
-
-      //   // This is not a function which can be queried
       //   | NotQueryable
-
-      //   // A query function (it can't be called inside a query, but its argument can be a query)
       //   | QueryFunction
-
-      //   // Can be implemented by a given builtin postgres 9.6 operator with 1 arg (eg `@ x`)
       //   | SqlUnaryOp of string
-
-      //   // Can be implemented by a given builtin postgres 9.6 operator with 2 args (eg `x + y`)
       //   | SqlBinOp of string
-
-      //   // Can be implemented by a given builtin postgres 9.6 function
       //   | SqlFunction of string
-
-      //   // Can be implemented by a given builtin postgres 9.6 function with extra arguments that go first
       //   | SqlFunctionWithPrefixArgs of string * List<string>
-
-      //   // Can be implemented by a given builtin postgres 9.6 function with extra arguments that go last
       //   | SqlFunctionWithSuffixArgs of string * List<string>
-
-      //   // Can be implemented by given callback that receives 1 SQLified-string argument
-      //   // | SqlCallback of (string -> string)
-
-      //   // Can be implemented by given callback that receives 2 SQLified-string argument
       //   | SqlCallback2 of (string -> string -> string)
-
-      //   member this.isQueryable() : bool =
-      //     match this with
-      //     | NotYetImplemented
-      //     | NotQueryable
-      //     | QueryFunction -> false
-      //     | SqlUnaryOp _
-      //     | SqlBinOp _
-      //     | SqlFunction _
-      //     | SqlFunctionWithPrefixArgs _
-      //     | SqlFunctionWithSuffixArgs _
-      //     | SqlCallback2 _ -> true
 
       // // A built-in standard library type
       // type BuiltInType =
@@ -1107,13 +433,6 @@ module Darklang =
       //     returnType : TypeReference
       //     previewable : Previewable
       //     sqlSpec : SqlSpec
-
-      //     // Functions can be run in WASM if they have an implementation in LibExecution.
-      //     // Functions whose implementation is in StdLibCloudExecution can only be implemented on the server.
-
-      //     // <remarks>
-      //     // May throw an exception, though we're trying to get them to never throw exceptions.
-      //     // </remarks>
       //     fn : FnImpl }
 
       // and BuiltInFnSig =
@@ -1132,13 +451,8 @@ module Darklang =
       //   | PackageFunction of tlid * Expr
 
 
-      // // CLEANUP consider renaming to `ExecutionType`, `EvaluationMode`, etc.
-      // // Represents the context in which we're evaluating some code
       // and RealOrPreview =
-      //   // We are evaluating an expression normally
       //   | Real
-
-      //   // We are previewing the evaluation of some expression within the editor.
       //   | Preview
 
       // and FunctionRecord = tlid * FnName.T * id
@@ -1247,127 +561,4 @@ module Darklang =
       //     package : TypeName.Package -> Ply<Option<PackageType.T>>
       //     userProgram : Map<TypeName.UserProgram, UserType.T> }
 
-      // module ExecutionState =
-      //   let availableTypes (state : ExecutionState) : Types =
-      //     { builtIn = state.builtIns.types
-      //       package = state.packageManager.getType
-      //       userProgram = state.program.types }
-
-      // module Types =
-      //   let empty =
-      //     { builtIn = Map.empty; package = (fun _ -> Ply None); userProgram = Map.empty }
-
-      //   let find (name : TypeName.T) (types : Types) : Ply<Option<TypeDeclaration.T>> =
-      //     match name with
-      //     | FQName.BuiltIn b ->
-      //       Map.tryFind b types.builtIn |> Option.map (fun t -> t.declaration) |> Ply
-      //     | FQName.UserProgram user ->
-      //       Map.tryFind user types.userProgram
-      //       |> Option.map (fun t -> t.declaration)
-      //       |> Ply
-      //     | FQName.Package pkg ->
-      //       types.package pkg |> Ply.map (Option.map (fun t -> t.declaration))
-
-      //   // Swap concrete types for type parameters
-      //   let rec substitute
-      //     (typeParams : List<string>)
-      //     (typeArguments : List<TypeReference>)
-      //     (typ : TypeReference)
-      //     : TypeReference =
-      //     let substitute = substitute typeParams typeArguments
-      //     match typ with
-      //     | TVariable v ->
-      //       if typeParams.Length = typeArguments.Length then
-      //         List.zip typeParams typeArguments
-      //         |> List.find (fun (param, _) -> param = v)
-      //         |> Option.map snd
-      //         |> Exception.unwrapOptionInternal
-      //           "No type argument found for type parameter"
-      //           []
-      //       else
-      //         Exception.raiseInternal
-      //           $"typeParams and typeArguments have different lengths"
-      //           [ "typeParams", typeParams; "typeArguments", typeArguments ]
-
-
-      //     | TUnit
-      //     | TBool
-      //     | TInt
-      //     | TFloat
-      //     | TChar
-      //     | TString
-      //     | TUuid
-      //     | TBytes
-      //     | TDateTime
-      //     | TPassword -> typ
-
-      //     | TList t -> TList(substitute t)
-      //     | TTuple(t1, t2, rest) ->
-      //       TTuple(substitute t1, substitute t2, List.map substitute rest)
-      //     | TFn _ -> typ // TYPESTODO
-      //     | TDB _ -> typ // TYPESTODO
-      //     | TCustomType(typeName, typeArgs) ->
-      //       TCustomType(typeName, List.map substitute typeArgs)
-      //     | TDict t -> TDict(substitute t)
-
-
-
-      // let rec getTypeReferenceFromAlias
-      //   (types : Types)
-      //   (typ : TypeReference)
-      //   : Ply<Result<TypeReference, RuntimeError>> =
-      //   match typ with
-      //   | TCustomType(Ok typeName, typeArgs) ->
-      //     uply {
-      //       match! Types.find typeName types with
-      //       | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
-      //         return!
-      //           getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
-      //       | _ -> return Ok typ
-      //     }
-
-      //   | TCustomType(Error err, _) -> Ply(Error err)
-
-      //   | _ -> Ply(Ok typ)
-
-
-      // let consoleReporter : ExceptionReporter =
-      //   fun _state (metadata : Metadata) (exn : exn) ->
-      //     printException "runtime-error" metadata exn
-
-      // let consoleNotifier : Notifier =
-      //   fun _state msg tags ->
-      //     print $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"
-
-      // let builtInParamToParam (p : BuiltInParam) : Param = { name = p.name; typ = p.typ }
-
-      // let builtInFnToFn (fn : BuiltInFn) : Fn =
-      //   { name = FQName.BuiltIn fn.name
-      //     typeParams = fn.typeParams
-      //     parameters = List.map builtInParamToParam fn.parameters
-      //     returnType = fn.returnType
-      //     previewable = fn.previewable
-      //     sqlSpec = fn.sqlSpec
-      //     fn = BuiltInFunction fn.fn }
-
-      // let userFnToFn (fn : UserFunction.T) : Fn =
-      //   let toParam (p : UserFunction.Parameter) : Param = { name = p.name; typ = p.typ }
-
-      //   { name = FQName.UserProgram fn.name
-      //     typeParams = fn.typeParams
-      //     parameters = fn.parameters |> List.map toParam
-      //     returnType = fn.returnType
-      //     previewable = Impure
-      //     sqlSpec = NotQueryable
-      //     fn = UserProgramFunction(fn.tlid, fn.body) }
-
-      // let packageFnToFn (fn : PackageFn.T) : Fn =
-      //   let toParam (p : PackageFn.Parameter) : Param = { name = p.name; typ = p.typ }
-
-      //   { name = FQName.Package fn.name
-      //     typeParams = fn.typeParams
-      //     parameters = fn.parameters |> List.map toParam
-      //     returnType = fn.returnType
-      //     previewable = Impure
-      //     sqlSpec = NotQueryable
-      //     fn = PackageFunction(fn.tlid, fn.body) }
+      let x = 1

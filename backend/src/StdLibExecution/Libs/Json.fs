@@ -519,10 +519,9 @@ let parse
       try
         let! converted = parsed |> convert typ
         return Ok converted
-      with
-      | JsonParseError.JsonParseException ex ->
+      with JsonParseError.JsonParseException ex ->
+        // CLEANUP expose .NET error (converting to some Dark error type)
         return JsonParseError.toString ex |> Error
-      | ex -> return Error ex.Message
     }
 
 
@@ -545,6 +544,9 @@ let fns : List<BuiltInFn> =
             // "'b = Int",
             // so we can Json.serialize<'b>, if 'b is in the surrounding context
 
+            // CLEANUP this should not return a Result
+            // if anything fails due to types, it should result as an InternalException
+            // naturally
             let types = ExecutionState.availableTypes state
             let! response = writeJson (fun w -> serialize types w typeArg arg)
             return Dval.resultOk (DString response)

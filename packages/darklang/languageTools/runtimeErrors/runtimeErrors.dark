@@ -1,287 +1,98 @@
 module Darklang =
   module LanguageTools =
     module RuntimeErrors =
-      // /// ---------------
-      // /// Error pretty printing
-      // /// CLEANUP: should be moved into Dark code ASAP, and we should return error types instead
-      // /// ---------------
-      // /// Segments allow us to build error messages where the UI and CLI can both
-      // /// decorate/link to the sources in a native way
-      // type ErrorSegment =
-      //   // -- Basic types
-      //   | String of string
-      //   | Int of int
-      //   | Ordinal of int // 1st, 2nd, etc
-      //   | IndefiniteArticle // "a" or "an" (chosen based on the next segment)
+      module ErrorSegment =
+        /// ---------------
+        /// Error pretty printing
+        /// CLEANUP: should be moved into Dark code ASAP, and we should return error types instead
+        /// ---------------
+        /// Segments allow us to build error messages where the UI and CLI can both
+        /// decorate/link to the sources in a native way
+        type ErrorSegment =
+          // -- Basic types
+          | String of String
+          | Int of Int
+          | Ordinal of Int // 1st, 2nd, etc
+          | IndefiniteArticle // "a" or "an" (chosen based on the next segment)
 
-      //   // -- Functions
-      //   | FunctionName of FnName.T
-      //   /// Description from StdLib description fields.
-      //   /// Has markers like <param name>, that should be parsed and displayed (TODO: why parse?)
-      //   | Description of string
-      //   | ParamName of string
-      //   | InlineParamName of string
+          // -- Functions
+          | FunctionName of PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.FnName
+          /// Description from StdLib description fields.
+          /// Has markers like <param name>, that should be parsed and displayed (TODO: why parse?)
+          | Description of String
+          | ParamName of String
+          | InlineParamName of String
 
-      //   // -- Types
-      //   | TypeName of TypeName.T
-      //   | ShortTypeName of TypeName.T // Just the last bit of the TypeName, eg Result vs PACKAGE.Darklang.Stdlib.Result.Result
-      //   | TypeReference of TypeReference
-      //   | TypeOfValue of Dval
-      //   | FieldName of string // records and enums
-      //   | InlineFieldName of string // records and enums
-
-
-      //   // -- Variables
-      //   | DBName of string
-      //   | VarName of string
-      //   | InlineVarName of string
-
-      //   // -- Dvals
-      //   | InlineValue of Dval // possibly shortened to be shown inline
-      //   | FullValue of Dval
-
-      // module ErrorSegment =
-      //   let toString (list : List<ErrorSegment>) : string =
-      //     list
-      //     |> List.rev
-      //     |> List.fold
-      //       (fun prevSegments segment ->
-      //         let newSegment =
-      //           match segment with
-      //           | String s -> s
-      //           | Int i -> string i
-      //           | Ordinal i -> String.toOrdinal i
-      //           | IndefiniteArticle ->
-      //             match List.tryHead prevSegments with
-      //             | None -> ""
-      //             | Some prev -> String.articleFor prev + " "
-      //           | FunctionName fn -> FnName.toString fn
-      //           | Description d -> d
-      //           | ParamName p -> "`" + p + "`"
-      //           // Inline versions don't have quotes
-      //           | InlineParamName p -> p
-      //           | TypeName t -> TypeName.toString t
-      //           | ShortTypeName t -> TypeName.toShortName t
-      //           | TypeReference t -> DvalReprDeveloper.typeName t
-      //           | TypeOfValue dv -> dv |> DvalReprDeveloper.toTypeName
-      //           | FieldName f -> "`" + f + "`"
-      //           | InlineFieldName f -> f
-      //           | DBName db -> db
-      //           | VarName v -> "`" + v + "`"
-      //           | InlineVarName v -> v
-      //           | InlineValue dv ->
-      //             DvalReprDeveloper.toRepr dv
-      //             |> String.truncateWithElipsis 10
-      //             |> String.splitOnNewline
-      //             |> String.concat ""
-      //           | FullValue dv -> DvalReprDeveloper.toRepr dv
-      //         newSegment :: prevSegments)
-      //       []
-      //     |> String.concat ""
+          // -- Types
+          | TypeName of PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName
+          | ShortTypeName of
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName // Just the last bit of the TypeName, eg Result vs PACKAGE.Darklang.Stdlib.Result.Result
+          | TypeReference of
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference // another .TR?
+          | TypeOfValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
+          | FieldName of String // records and enums
+          | InlineFieldName of String // records and enums
 
 
-      // let rec valuePath (context : TCK.Context) : string =
-      //   match context with
-      //   | TCK.FunctionCallParameter(_, parameter, _, _) -> parameter.name
-      //   | TCK.FunctionCallResult(_, _, _) -> "result"
-      //   | TCK.RecordField(_, fieldName, _, _) -> fieldName
-      //   | TCK.DictKey(key, _, _) -> $".{key}"
-      //   | TCK.EnumField(_, caseName, _, _, _, _) -> caseName
-      //   | TCK.DBSchemaType(dbName, _, _) -> dbName
-      //   | TCK.DBQueryVariable(varName, _, _) -> varName
-      //   | TCK.ListIndex(index, _, parent) -> valuePath parent + $"[{index}]"
-      //   | TCK.TupleIndex(index, _, parent) -> valuePath parent + $"[{index}]"
+          // -- Variables
+          | DBName of String
+          | VarName of String
+          | InlineVarName of String
 
-      // let rec rootContext (context : TCK.Context) : TCK.Context =
-      //   match context with
-      //   | TCK.FunctionCallParameter _ -> context
-      //   | TCK.FunctionCallResult _ -> context
-      //   | TCK.RecordField _ -> context
-      //   | TCK.DictKey _ -> context
-      //   | TCK.EnumField _ -> context
-      //   | TCK.DBSchemaType _ -> context
-      //   | TCK.DBQueryVariable _ -> context
-      //   | TCK.ListIndex(_, _, parent) -> rootContext parent
-      //   | TCK.TupleIndex(_, _, parent) -> rootContext parent
+          // -- Dvals
+          | InlineValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval // possibly shortened to be shown inline
+          | FullValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
 
+        let toString (list: List<ErrorSegment>) : String =
+          list
+          |> List.rev
+          |> List.fold
+            (fun prevSegments segment ->
+              let newSegment =
+                match segment with
+                | String s -> s
+                | Int i -> string i
+                | Ordinal i -> String.toOrdinal i
+                | IndefiniteArticle ->
+                  match List.tryHead prevSegments with
+                  | None -> ""
+                  | Some prev -> String.articleFor prev + " "
+                | FunctionName fn -> FnName.toString fn
+                | Description d -> d
+                | ParamName p -> "`" + p + "`"
+                // Inline versions don't have quotes
+                | InlineParamName p -> p
+                | TypeName t -> TypeName.toString t
+                | ShortTypeName t -> TypeName.toShortName t
+                | TypeReference t -> DvalReprDeveloper.typeName t
+                | TypeOfValue dv -> dv |> DvalReprDeveloper.toTypeName
+                | FieldName f -> "`" + f + "`"
+                | InlineFieldName f -> f
+                | DBName db -> db
+                | VarName v -> "`" + v + "`"
+                | InlineVarName v -> v
+                | InlineValue dv ->
+                  (DvalReprDeveloper.toRepr dv)
+                  |> String.truncateWithElipsis 10
+                  |> String.splitOnNewline
+                  |> String.concat ""
+                | FullValue dv -> DvalReprDeveloper.toRepr dv
 
-      // // Return the segments describing the context as a short name, used in the description of errors
-      // let rec contextSummary (context : TCK.Context) : List<ErrorSegment> =
-      //   match context with
-      //   | TCK.FunctionCallParameter(fnName, parameter, paramIndex, _) ->
-      //     [ FunctionName fnName
-      //       String "'s "
-      //       Ordinal(paramIndex + 1)
-      //       String " argument ("
-      //       ParamName parameter.name
-      //       String ")" ]
-      //   | TCK.FunctionCallResult(fnName, returnType, _) ->
-      //     [ FunctionName fnName; String "'s return value" ]
-      //   | TCK.RecordField(recordType, fieldName, _, _) ->
-      //     [ TypeName recordType; String "'s "; FieldName fieldName; String " field" ]
-      //   | TCK.DictKey(key, _, _) ->
-      //     let typeName =
-      //       FQName.BuiltIn { name = TypeName.TypeName "Dict"; modules = []; version = 0 }
-      //     [ TypeName typeName; String "'s "; FieldName key; String " value" ]
-      //   | TCK.EnumField(enumType, caseName, fieldIndex, _, _, _) ->
-      //     [ TypeName enumType
-      //       String "."
-      //       InlineFieldName caseName
-      //       String "'s "
-      //       Ordinal(fieldIndex + 1)
-      //       String " argument" ]
-
-      //   | TCK.DBSchemaType(dbName, expectedType, _) ->
-      //     [ String "DB "; DBName dbName; String "'s value" ]
-      //   | TCK.DBQueryVariable(varName, _, _) -> [ String "Variable "; VarName varName ]
-      //   | TCK.TupleIndex(index, typ, parent)
-      //   | TCK.ListIndex(index, typ, parent) ->
-      //     let rootContext = rootContext parent
-      //     [ String "In " ]
-      //     @ contextSummary rootContext
-      //     @ [ String ", the nested value "; VarName(valuePath context) ]
-
-      // let rec contextAsActualExpected
-      //   (argument : Dval)
-      //   (context : TCK.Context)
-      //   : List<ErrorSegment> * List<ErrorSegment> =
-
-      //   // TODO: We do actual and expected in the same function so that we can display
-      //   // them the same way. This hasn't been ported for all Context types, but
-      //   // should be.
-      //   let defaultActual =
-      //     [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
-
-      //   match context with
-      //   | TCK.FunctionCallParameter(fnName, parameter, paramIndex, _) ->
-      //     // format:
-      //     // (json : string) // some description
-      //     let comment =
-      //       if "" (* TODO parameter.comment*) = "" then
-      //         []
-      //       else
-      //         [ String " // "; Description "" (*parameter.comment*) ]
-      //     (defaultActual,
-      //     [ String "("
-      //       InlineParamName parameter.name
-      //       String ": "
-      //       TypeReference parameter.typ
-      //       String ")" ]
-      //     @ comment)
+              newSegment :: prevSegments)
+            []
+          |> String.concat ""
 
 
-      //   | TCK.FunctionCallResult(fnName, returnType, _) ->
-      //     // format:
-      //     // Option<String>
-      //     defaultActual, [ TypeReference returnType ]
 
 
-      //   | TCK.RecordField(recordType, fieldName, fieldType, _) ->
-      //     // format:
-      //     // TODO: fetch the type and lookup the field definition as a comment
-      //     let comment = []
-      //     // ({ name : string; ... }) // some description
-      //     // let comment =
-      //     //   if fieldDef.description = "" then
-      //     //     []
-      //     //   else
-      //     //     [ String " // "; Description fieldDef.description ]
-
-      //     defaultActual,
-      //     ([ String "({ "
-      //       InlineFieldName fieldName
-      //       String ": "
-      //       TypeReference fieldType
-      //       String "; ... })" ]
-      //     @ comment)
 
 
-      //   | TCK.DictKey(key, typ, _) ->
-      //     // format:
-      //     // ({ "name" : String; ... })
-      //     defaultActual,
-      //     ([ String "({ "
-      //       InlineFieldName key
-      //       String ": "
-      //       TypeReference typ
-      //       String "; ... })" ])
-
-
-      //   | TCK.EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType, _) ->
-      //     // format:
-      //     //   Ok (..., string, ...) // some description
-      //     // TODO: extract description from the type definition later
-      //     let prefix = if fieldIndex = 0 then [] else [ String "..., " ]
-      //     let suffix = if fieldIndex = fieldCount - 1 then [] else [ String ", ..." ]
-      //     let openParen = if fieldCount > 0 then [ String "(" ] else []
-      //     let closeParen = if fieldCount > 0 then [ String ")" ] else []
-      //     let display typ =
-      //       [ ShortTypeName enumType; String "."; InlineFieldName caseName; String " " ]
-      //       @ openParen
-      //       @ prefix
-      //       @ typ
-      //       @ suffix
-      //       @ closeParen
-
-
-      //     (display [ TypeOfValue argument ]), (display [ TypeReference fieldType ])
-
-
-      //   | TCK.DBSchemaType(dbName, expectedType, _) ->
-      //     // format:
-      //     // String
-      //     defaultActual, [ TypeReference expectedType ]
-
-
-      //   | TCK.DBQueryVariable(varName, expected, _) ->
-      //     // format:
-      //     // (varName : string) // some description
-      //     defaultActual,
-      //     ([ String "("
-      //       InlineVarName varName
-
-      //       String ": "
-      //       TypeReference expected
-      //       String ")" ])
-
-
-      //   | TCK.ListIndex(index, typ, parent) -> defaultActual, [ TypeReference typ ]
-
-
-      //   | TCK.TupleIndex(index, typ, parent) -> defaultActual, [ TypeReference typ ]
-
-      // let contextVerb (context : TCK.Context) : string =
-      //   match context with
-      //   | TCK.FunctionCallParameter _ -> "passed"
-      //   | TCK.FunctionCallResult _ -> "returned"
-      //   | TCK.RecordField _ -> "passed"
-      //   | TCK.DictKey _ -> "passed"
-      //   | TCK.EnumField _ -> "passed"
-      //   | TCK.DBSchemaType _ -> "passed"
-      //   | TCK.DBQueryVariable _ -> "passed"
-      //   | TCK.ListIndex _ -> "passed"
-      //   | TCK.TupleIndex _ -> "passed"
-
-
-      // let toString (e : Error) : string =
-      //   let s = toSegments e
-      //   let explanation = ErrorSegment.toString (s.summary @ s.extraExplanation)
-      //   let actual = ErrorSegment.toString s.actual
-      //   let actual = if actual = "" then "" else "\nActual: " + actual
-      //   let expected = ErrorSegment.toString s.expected
-      //   let expected = if expected = "" then "" else "\nExpected: " + expected
-      //   if actual = "" && expected = "" then
-      //     explanation
-      //   else
-      //     $"{explanation}\n{expected}{actual}"
-
-
-      // /// The result of Exception.raiseInternal
-      // type ExceptionThrown =
-      //   // ish
-      //   { stackTrace : string
-      //     message : string
-      //     metadata : List<string * string> }
+      /// The result of Exception.raiseInternal
+      type ExceptionThrown =
+        // ish
+        { stackTrace: string
+          message: string
+          metadata: List<string * string> }
 
 
       type ErrorOutput =
@@ -292,10 +103,10 @@ module Darklang =
           expected: List<ErrorSegment> }
 
       type Error =
-        // TODO: PACAKGE....
-        | CliError of CliError
-        //| TypeError of TypeChecker.Error
-        //| NameResolutionError of NameResolution.Error
+        | CliError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Cli.Error
+        | TypeError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Error
+        | NameResolutionError of
+          PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error // TODO: PACAKGE....
         | UnorganizedStringTODO of String
       //| ExceptionThrown of ExceptionThrown
 
@@ -305,40 +116,6 @@ module Darklang =
         //
         let toSegments (e: Error) : ErrorOutput =
           //   match e with
-          //   | TypeError(TCK.ValueNotExpectedType(argument, expected, context)) ->
-
-          //     let summary =
-          //       contextSummary context
-          //       @ [ String " should be "; IndefiniteArticle; TypeReference expected ]
-
-          //     let extraExplanation =
-          //       [ String ". However, "
-          //         IndefiniteArticle
-          //         TypeOfValue argument
-          //         String " ("
-          //         InlineValue argument
-          //         String ") was passed instead." ]
-
-          //     let (actual, expected) = contextAsActualExpected argument context
-
-          //     { summary = summary
-          //       extraExplanation = extraExplanation
-          //       actual = actual
-          //       expected = expected }
-
-
-          //   | TypeError(TCK.TypeDoesntExist(typeName, _)) ->
-          //     // Perhaps this should be an internal error as this shouldn't be possible
-          //     let summary = [ TypeName typeName; String " doesn't exist" ]
-
-          //     let extraExplanation = []
-          //     let actual = []
-          //     let expected = []
-
-          //     { summary = summary
-          //       extraExplanation = extraExplanation
-          //       actual = actual
-          //       expected = expected }
 
           //   | NameResolutionError({ errorType = NameResolution.NotFound } as e) ->
           //     let nameType =
@@ -389,16 +166,17 @@ module Darklang =
           //       extraExplanation = extraExplanation
           //       actual = actual
           //       expected = expected }
-
-          //   | TypeError(TCK.VTTODOMismatchedType msg ) ->
-          //     { summary = [ String "VTTODOMismatchedType"; String msg  ]
-          //       extraExplanation = []
-          //       actual = []
-          //       expected = [] }
-
-          //   | TypeError(TCK.VTTODOMergedValueTypeWrapper err ) ->
-          //     { summary = [ String "VTTODOMergedValueTypeWrapper"; String err  ]
-          //       extraExplanation = []
-          //       actual = []
-          //       expected = [] }
           []
+
+        let toString (e: Error) : String =
+          let s = toSegments e
+          let explanation = ErrorSegment.toString (s.summary @ s.extraExplanation)
+          let actual = ErrorSegment.toString s.actual
+          let actual = if actual = "" then "" else "\nActual: " + actual
+          let expected = ErrorSegment.toString s.expected
+          let expected = if expected = "" then "" else "\nExpected: " + expected
+
+          if actual = "" && expected = "" then
+            explanation
+          else
+            $"{explanation}\n{expected}{actual}"
