@@ -924,7 +924,7 @@ module UserFunction =
     { tlid : tlid
       name : FnName.UserProgram
       typeParams : List<string>
-      parameters : List<Parameter>
+      parameters : NEList<Parameter>
       returnType : TypeReference
       body : Expr }
 
@@ -1312,6 +1312,8 @@ let builtInFnToFn (fn : BuiltInFn) : Fn =
     parameters =
       fn.parameters
       |> List.map builtInParamToParam
+      // We'd like to remove this and use NELists, but it's much too annoying to put
+      // this in every builtin fn definition
       |> NEList.ofListUnsafe "builtInFnToFn" [ "name", fn.name ]
     returnType = fn.returnType
     previewable = fn.previewable
@@ -1323,10 +1325,7 @@ let userFnToFn (fn : UserFunction.T) : Fn =
 
   { name = FQName.UserProgram fn.name
     typeParams = fn.typeParams
-    parameters =
-      fn.parameters
-      |> List.map toParam
-      |> NEList.ofListUnsafe "builtInFnToFn" [ "name", fn.name ]
+    parameters = NEList.map toParam fn.parameters
     returnType = fn.returnType
     previewable = Impure
     sqlSpec = NotQueryable

@@ -706,7 +706,8 @@ module ProgramTypes =
       name = { modules = []; name = PT.FnName.FnName "User"; version = 0 }
       typeParams = [ "a" ]
       parameters =
-        [ { name = "myparam1"; typ = typeReference; description = "param1" } ]
+        NEList.singleton
+          { name = "myparam1"; typ = typeReference; description = "param1" }
       returnType = typeReference
       description = "function description"
       deprecated = PT.DeprecatedBecause "some reason"

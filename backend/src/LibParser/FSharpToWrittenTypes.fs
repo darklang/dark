@@ -664,7 +664,7 @@ module Function =
   type T =
     { name : string
       version : int
-      parameters : List<Parameter>
+      parameters : NEList<Parameter>
       typeParams : List<string>
       returnType : WT.TypeReference
       body : WT.Expr }
@@ -705,7 +705,7 @@ module Function =
 
   let private parseSignature
     (pat : SynPat)
-    : string * List<string> * List<Parameter> =
+    : string * List<string> * NEList<Parameter> =
     match pat with
     | SynPat.LongIdent(SynLongIdent([ name ], _, _), _, typeArgPats, argPats, _, _) ->
       let typeParams =
@@ -715,7 +715,11 @@ module Function =
 
       let parameters =
         match argPats with
-        | SynArgPats.Pats pats -> List.map parseParamPattern pats
+        | SynArgPats.Pats(head :: tail) ->
+          NEList.ofList head tail |> NEList.map parseParamPattern
+
+        | SynArgPats.Pats [] ->
+          Exception.raiseInternal "No parameters found in function" []
 
         | SynArgPats.NamePatPairs _ ->
           Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
@@ -750,7 +754,7 @@ module UserFunction =
       typeParams = f.typeParams
       parameters =
         f.parameters
-        |> List.map (fun p -> { name = p.name; description = ""; typ = p.typ })
+        |> NEList.map (fun p -> { name = p.name; description = ""; typ = p.typ })
       returnType = f.returnType
       description = ""
       body = f.body }
@@ -820,7 +824,6 @@ module PackageFn =
       typeParams = f.typeParams
       parameters =
         f.parameters
-        |> NEList.ofListUnsafe "Package functions must have parameters" []
         |> NEList.map (fun p -> { name = p.name; description = ""; typ = p.typ })
       returnType = f.returnType
       description = ""

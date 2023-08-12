@@ -473,7 +473,7 @@ module UserFunction =
       [<MessagePack.Key 2>]
       typeParams : List<string>
       [<MessagePack.Key 3>]
-      parameters : List<Parameter>
+      parameters : NEList<Parameter>
       [<MessagePack.Key 4>]
       returnType : TypeReference
       [<MessagePack.Key 5>]

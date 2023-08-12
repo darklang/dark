@@ -79,7 +79,7 @@ let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
 let testUserFn
   (name : string)
   (typeParams : List<string>)
-  (parameters : string list)
+  (parameters : NEList<string>)
   (returnType : PT.TypeReference)
   (body : PT.Expr)
   : PT.UserFunction.T =
@@ -90,7 +90,7 @@ let testUserFn
     typeParams = typeParams
     deprecated = PT.NotDeprecated
     parameters =
-      List.map
+      NEList.map
         (fun p -> { name = p; typ = PT.TVariable "b"; description = "test" })
         parameters
     returnType = returnType }

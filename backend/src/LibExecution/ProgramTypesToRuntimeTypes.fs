@@ -481,7 +481,7 @@ module UserFunction =
     { tlid = f.tlid
       name = FnName.UserProgram.toRT f.name
       typeParams = f.typeParams
-      parameters = List.map Parameter.toRT f.parameters
+      parameters = NEList.map Parameter.toRT f.parameters
       returnType = TypeReference.toRT f.returnType
       body = Expr.toRT f.body }
 

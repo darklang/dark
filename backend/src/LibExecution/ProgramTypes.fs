@@ -619,7 +619,7 @@ module UserFunction =
     { tlid : tlid
       name : FnName.UserProgram
       typeParams : List<string>
-      parameters : List<Parameter>
+      parameters : NEList<Parameter>
       returnType : TypeReference
       description : string
       deprecated : Deprecation<FnName.T>

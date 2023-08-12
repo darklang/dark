@@ -1202,7 +1202,8 @@ module UserFunction =
       [ "tlid", DInt(int64 userFn.tlid)
         "name", FnName.UserProgram.toDT userFn.name
         "typeParams", DList(List.map DString userFn.typeParams)
-        "parameters", DList(List.map Parameter.toDT userFn.parameters)
+        "parameters",
+        DList(userFn.parameters |> NEList.toList |> List.map Parameter.toDT)
         "returnType", TypeReference.toDT userFn.returnType
         "body", Expr.toDT userFn.body
         "description", DString userFn.description
@@ -1214,7 +1215,11 @@ module UserFunction =
       let tlid = fields |> D.uint64 "tlid"
       let name = fields |> D.field "name" |> FnName.UserProgram.fromDT
       let typeParams = fields |> D.stringList "typeParams"
-      let parameters = fields |> D.list "parameters" |> List.map Parameter.fromDT
+      let parameters =
+        fields
+        |> D.list "parameters"
+        |> List.map Parameter.fromDT
+        |> NEList.ofListUnsafe "userFunction needs more than one parameter" []
       let returnType = fields |> D.field "returnType" |> TypeReference.fromDT
       let description = fields |> D.string "description"
       let deprecated =

@@ -69,8 +69,9 @@ let testExecFunctionTLIDs : Test =
   testTask "test that exec function returns the right tlids in the trace" {
     let! meta = initializeTestCanvas "exec-function-tlids"
     let name = "testFunction"
+    let ps = NEList.singleton "param"
     let fn =
-      testUserFn name [] [] (PT.TVariable "a") (PT.EInt(gid (), 5))
+      testUserFn name [] ps (PT.TVariable "a") (PT.EInt(gid (), 5))
       |> PT2RT.UserFunction.toRT
     let fns = Map.ofList [ (fn.name, fn) ]
     let! state = executionStateFor meta false false Map.empty Map.empty fns Map.empty
@@ -127,9 +128,9 @@ let testRecursionInEditor : Test =
         )
       )
 
+    let ps = NEList.singleton "i"
     let recurse =
-      testUserFn "recurse" [] [ "i" ] (PT.TVariable "a") fnExpr
-      |> PT2RT.UserFunction.toRT
+      testUserFn "recurse" [] ps (PT.TVariable "a") fnExpr |> PT2RT.UserFunction.toRT
     let ast = EApply(callerID, eUserFnName "recurse", [], NEList.singleton (eInt 0))
     let! results = execSaveDvals "recursion in editor" [] [] [ recurse ] [] ast
 
@@ -327,10 +328,9 @@ let testAndPreview : Test =
 let testLambdaPreview : Test =
   let lID = gid ()
   let p1ID = gid ()
-  let p2ID = gid ()
   let f body =
     task {
-      let ast = ELambda(lID, NEList.doubleton (p1ID, "") (p2ID, "var"), body)
+      let ast = ELambda(lID, NEList.singleton (p1ID, "var"), body)
       let! results = execSaveDvals "lambda-preview" [] [] [] [] ast
       return results |> Dictionary.toList |> Map
     }
@@ -343,7 +343,7 @@ let testLambdaPreview : Test =
            AT.ExecutedResult(
              DFnVal(
                Lambda(
-                 { parameters = NEList.singleton (p2ID, "var")
+                 { parameters = NEList.singleton (p1ID, "var")
                    typeArgTable = Map.empty
                    symtable = Map.empty
                    body = EString(65UL, [ StringText "body" ]) }
@@ -351,7 +351,6 @@ let testLambdaPreview : Test =
              )
            ))
           (p1ID, AT.NonExecutedResult(DIncomplete(SourceID(7UL, p1ID))))
-          (p2ID, AT.NonExecutedResult(DIncomplete(SourceID(7UL, p2ID))))
           (65UL, AT.NonExecutedResult(DString "body")) ]) ]
 
 
