@@ -29,7 +29,11 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "result1" (TypeReference.result varA varErr) ""
           Param.make "result2" (TypeReference.result varB varErr) ""
-          Param.makeWithArgs "fn" (TFn(NEList.doubleton varA varB, varC)) "" [ "v1"; "v2" ] ]
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.doubleton varA varB, varC))
+            ""
+            [ "v1"; "v2" ] ]
       returnType = (TypeReference.result varC varErr)
       description =
         "If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var
