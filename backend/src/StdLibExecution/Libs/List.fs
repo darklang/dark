@@ -267,20 +267,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "member" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
-      returnType = TBool
-      description = "Returns {{true}} if <param val> is in the list"
-      fn =
-        (function
-        | _, _, [ DList l; i ] -> Ply(DBool(List.contains i l))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "repeat" 0
       typeParams = []
       parameters = [ Param.make "times" TInt ""; Param.make "val" varA "" ]
@@ -298,40 +284,6 @@ let fns : List<BuiltInFn> =
             |> errPipe
           else
             List.replicate (int times) v |> DList |> Dval.resultOk |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "length" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TInt
-      description = "Returns the number of values in <param list>"
-      fn =
-        (function
-        | _, _, [ DList l ] -> Ply(Dval.int (l.Length))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "range" 0
-      typeParams = []
-      parameters =
-        [ Param.make "lowest" TInt "First, smallest number in the list"
-          Param.make "highest" TInt "Last, largest number in the list" ]
-      returnType = TList TInt
-      description =
-        "Returns a list of numbers where each element is {{1}} larger than the
-         previous. You provide the <param lowest> and <param highest> numbers in the
-         list."
-      fn =
-        (function
-        | _, _, [ DInt start; DInt stop ] ->
-          [ start..stop ] |> List.map DInt |> DList |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -832,23 +784,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "drop" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
-      returnType = TList varA
-      description = "Drops the first <param count> values from <param list>"
-      fn =
-        (function
-        | _, _, [ DList l; DInt c ] ->
-          if c < 0L then Ply(DList l)
-          elif c > int64 (List.length l) then Ply(DList [])
-          else Ply(DList(List.skip (int c) l))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "dropWhile" 0
       typeParams = []
       parameters =
@@ -892,23 +827,6 @@ let fns : List<BuiltInFn> =
             | None -> return DList result
             | Some v -> return v
           }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "take" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
-      returnType = TList varA
-      description = "Drops all but the first <param count> values from <param list>"
-      fn =
-        (function
-        | _, _, [ DList l; DInt c ] ->
-          if c < 0L then Ply(DList [])
-          elif c >= int64 (List.length l) then Ply(DList l)
-          else Ply(DList(List.take (int c) l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
