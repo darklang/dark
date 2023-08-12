@@ -17,7 +17,11 @@ List.append_v0 [ 1 ] [ 2 ] = [ 1; 2 ]
 List.append_v0 [] [] = []
 
 
-PACKAGE.Darklang.Stdlib.List.drop_v0 [ "a"; "b"; "c"; "d" ] -3 = [ "a"; "b"; "c"; "d" ]
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ "a"; "b"; "c"; "d" ] -3 = [ "a"
+                                                                   "b"
+                                                                   "c"
+                                                                   "d" ]
+
 PACKAGE.Darklang.Stdlib.List.drop_v0 [ "a"; "b"; "c"; "d" ] 3 = [ "d" ]
 PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] -1 = [ 1; 2; 3; 4 ]
 PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] 0 = [ 1; 2; 3; 4 ]
@@ -316,7 +320,12 @@ PACKAGE.Darklang.Stdlib.List.tail_v0 [ 10; 20; 30; 40 ] = PACKAGE.Darklang.Stdli
 PACKAGE.Darklang.Stdlib.List.tail_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 PACKAGE.Darklang.Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] -1 = []
-PACKAGE.Darklang.Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] 2147483648I = [ "a"; "b"; "c"; "d" ]
+
+PACKAGE.Darklang.Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] 2147483648I = [ "a"
+                                                                            "b"
+                                                                            "c"
+                                                                            "d" ]
+
 PACKAGE.Darklang.Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] 3 = [ "a"; "b"; "c" ]
 PACKAGE.Darklang.Stdlib.List.take_v0 [ 3; 3; 3 ] 0 = []
 PACKAGE.Darklang.Stdlib.List.take_v0 [ 5; 4; 3; 2; 1 ] 5 = [ 5; 4; 3; 2; 1 ]

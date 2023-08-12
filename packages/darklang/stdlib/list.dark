@@ -153,4 +153,3 @@ module Darklang =
             List.append_v0
               (List.singleton_v0 head)
               (PACKAGE.Darklang.Stdlib.List.take tail (count - 1))
-
