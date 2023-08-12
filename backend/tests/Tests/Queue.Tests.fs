@@ -126,7 +126,9 @@ let init () : unit =
   thread.Name <- "Queue.Tests worker"
   thread.Start()
 
-
+/// Tests that need to check that something isn't going to be run can wait until the
+/// queue is empty (locked/blocked items will be checked and then dropped) to prove
+/// that something isn't going to be run.
 let waitUntilQueueEmpty () : Task<unit> =
   task {
     let initialTime = Instant.now ()
