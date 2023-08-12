@@ -169,7 +169,7 @@ module Darklang =
       | [ "-h" ] -> PACKAGE.Darklang.Cli.Command.Help
       | [ "--help" ] -> PACKAGE.Darklang.Cli.Command.Help
       | [ "--prompt"; prompt ] -> PACKAGE.Darklang.Cli.Command.Infer prompt
-      | [ "--show"; fnName ] ->
+      | [ "show"; fnName ] ->
         if String.startsWith fnName "@" then
           PACKAGE.Darklang.Cli.Command.Show fnName
         else
