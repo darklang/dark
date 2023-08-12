@@ -211,7 +211,7 @@ let fns : List<BuiltInFn> =
             let! newFirst = Interpreter.applyFnVal state 0UL fnFirst [] args
             let args = NEList.singleton second
             let! newSecond = Interpreter.applyFnVal state 0UL fnSecond [] args
-            let args = NEList.singleton first
+            let args = NEList.singleton third
             let! newThird = Interpreter.applyFnVal state 0UL fnThird [] args
 
             // TODO: handle fakevals
