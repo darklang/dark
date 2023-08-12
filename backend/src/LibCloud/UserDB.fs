@@ -226,7 +226,7 @@ let doQuery
   task {
     let paramName =
       match b.parameters with
-      | [ (_, name) ] -> name
+      | { head = (_, name); tail = [] } -> name
       | _ -> Exception.raiseInternal "wrong number of args" [ "args", b.parameters ]
 
     let! sql, vars =

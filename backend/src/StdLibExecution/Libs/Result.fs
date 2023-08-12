@@ -29,7 +29,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "result1" (TypeReference.result varA varErr) ""
           Param.make "result2" (TypeReference.result varB varErr) ""
-          Param.makeWithArgs "fn" (TFn([ varA; varB ], varC)) "" [ "v1"; "v2" ] ]
+          Param.makeWithArgs "fn" (TFn(NEList.doubleton varA varB, varC)) "" [ "v1"; "v2" ] ]
       returnType = (TypeReference.result varC varErr)
       description =
         "If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var
@@ -49,7 +49,8 @@ let fns : List<BuiltInFn> =
             | "Error", _ -> return Dval.resultError arg1
             | "Ok", "Error" -> return Dval.resultError arg2
             | "Ok", "Ok" ->
-              let! result = Interpreter.applyFnVal state 0UL b [] [ arg1; arg2 ]
+              let args = NEList.doubleton arg1 arg2
+              let! result = Interpreter.applyFnVal state 0UL b [] args
               return Dval.resultOk result
             | _, _ ->
               return

@@ -17,7 +17,7 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 let varC = TVariable "c"
 let optionA = Param.make "option" (TypeReference.option varA) ""
-let fnAToB = Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ]
+let fnAToB = Param.makeWithArgs "fn" (TFn(NEList.singleton varA, varB)) "" [ "val" ]
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
@@ -30,7 +30,11 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "option1" (TypeReference.option varA) ""
           Param.make "option2" (TypeReference.option varB) ""
-          Param.makeWithArgs "fn" (TFn([ varA; varB ], varC)) "" [ "v1"; "v2" ] ]
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.doubleton varA varB, varC))
+            ""
+            [ "v1"; "v2" ] ]
       returnType = TypeReference.option varC
       description =
         "If both arguments are {{Some}} (<param option1> is {{Some <var v1>}} and
@@ -48,8 +52,8 @@ let fns : List<BuiltInFn> =
             | "None", _, _, _
             | _, _, "None", _ -> return Dval.optionNone
             | "Some", [ dv1 ], "Some", [ dv2 ] ->
-              let! result = Interpreter.applyFnVal state 0UL b [] [ dv1; dv2 ]
-
+              let args = NEList.doubleton dv1 dv2
+              let! result = Interpreter.applyFnVal state 0UL b [] args
               return Dval.optionSome result
             | _ ->
               return

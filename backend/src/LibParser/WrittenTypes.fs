@@ -118,7 +118,7 @@ type TypeReference =
   | TUuid
   | TBytes
   | TVariable of string
-  | TFn of List<TypeReference> * TypeReference
+  | TFn of NEList<TypeReference> * TypeReference
   | TCustomType of Name * typeArgs : List<TypeReference>
 
 
@@ -132,16 +132,16 @@ type Expr =
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | EInfix of id * Infix * Expr * Expr
-  | ELambda of id * List<id * string> * Expr
+  | ELambda of id * NEList<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EApply of id * Expr * typeArgs : List<TypeReference> * args : List<Expr>
+  | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
   | EList of id * List<Expr>
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | EPipe of id * Expr * PipeExpr * List<PipeExpr>
+  | EPipe of id * Expr * List<PipeExpr>
   | ERecord of id * Name * List<string * Expr>
-  | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
+  | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
 
   | EEnum of
     id *
@@ -150,6 +150,7 @@ type Expr =
     fields : List<Expr>
   | EMatch of id * arg : Expr * cases : List<MatchPattern * Expr>
   | EFnName of id * Name
+  | EPlaceHolder // Used to start exprs that aren't filled in yet, not in ProgramTypes
 
 and StringSegment =
   | StringText of string
@@ -158,7 +159,7 @@ and StringSegment =
 and PipeExpr =
   | EPipeInfix of id * Infix * Expr
 
-  | EPipeLambda of id * List<id * string> * Expr
+  | EPipeLambda of id * NEList<id * string> * Expr
 
   | EPipeEnum of
     id *
@@ -258,7 +259,7 @@ module PackageFn =
     { name : PT.FnName.Package
       body : Expr
       typeParams : List<string>
-      parameters : List<Parameter>
+      parameters : NEList<Parameter>
       returnType : TypeReference
       description : string }
 

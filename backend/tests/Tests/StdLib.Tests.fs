@@ -22,14 +22,14 @@ open TestUtils.TestUtils
 
 let hardToRepresentTests =
   let execute
-    ((fn, args) : PT.FnName.BuiltIn * List<RT.Dval>)
+    ((fn, args) : PT.FnName.BuiltIn * NEList<RT.Dval>)
     (expected : RT.Dval)
     : Task<bool> =
     task {
       // evaluate the fn call against both backends
       let! meta = initializeTestCanvas "ExecutePureFunction"
-      let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
-      let fnArgList = List.map (fun (name, _) -> PT.EVariable(gid (), name)) args
+      let args = NEList.mapWithIndex (fun i arg -> ($"v{i}", arg)) args
+      let fnArgList = NEList.map (fun (name, _) -> PT.EVariable(gid (), name)) args
 
       let ast =
         PT.EApply(
@@ -39,7 +39,7 @@ let hardToRepresentTests =
           fnArgList
         )
 
-      let symtable = Map.ofList args
+      let symtable = args |> NEList.toList |> Map.ofList
 
       let! state =
         executionStateFor meta false false Map.empty Map.empty Map.empty Map.empty
@@ -55,17 +55,16 @@ let hardToRepresentTests =
     "hardToRepresent"
     execute
     [ (fnName [ "List" ] "fold" 0,
-       [ RT.DList [ RT.DBool true; RT.DInt 0L ]
-
-         RT.DList []
-
-         RT.DFnVal(
-           RT.Lambda
-             { parameters = []
-               typeArgTable = Map.empty
-               symtable = Map.empty
-               body = RT.EUnit 1UL }
-         ) ]),
+       NEList.ofList
+         (RT.DList [ RT.DBool true; RT.DInt 0L ])
+         [ RT.DList []
+           RT.DFnVal(
+             RT.Lambda
+               { parameters = NEList.singleton (87345UL, "var")
+                 typeArgTable = Map.empty
+                 symtable = Map.empty
+                 body = RT.EUnit 1UL }
+           ) ]),
       (RT.DError(RT.SourceNone, "Expected 0 arguments, got 2")),
       true ]
 

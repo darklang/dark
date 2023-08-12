@@ -536,6 +536,10 @@ module Expect =
       List.iteri2 (fun i l r -> eq (string i :: path) l r) l1 l2
       check path (List.length l1) (List.length l2)
 
+    let eqNEList path (l1 : NEList<RT.Expr>) (l2 : NEList<RT.Expr>) =
+      NEList.iteri2 (fun i l r -> eq (string i :: path) l r) l1 l2
+      check path (NEList.length l1) (NEList.length l2)
+
     if checkIDs then check path (Expr.toID actual) (Expr.toID expected)
 
     match actual, expected with
@@ -579,12 +583,12 @@ module Expect =
         typeArgs
         typeArgs'
 
-      eqList path args args'
+      eqNEList path args args'
     | EFnName(_, name), EFnName(_, name') -> check path name name'
 
     | ERecord(_, typeName, fields), ERecord(_, typeName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
-      List.iter2
+      NEList.iter2
         (fun (k, v) (k', v') ->
           check path k k'
           eq (k :: path) v v')
@@ -592,7 +596,7 @@ module Expect =
         fields'
     | ERecordUpdate(_, record, updates), ERecordUpdate(_, record', updates') ->
       check path record record'
-      List.iter2
+      NEList.iter2
         (fun (k, v) (k', v') ->
           check path k k'
           eq (k :: path) v v')
@@ -619,11 +623,14 @@ module Expect =
     | ELambda(_, vars, e), ELambda(_, vars', e') ->
       let path = ("lambda" :: path)
       eq path e e'
-      List.iteri2 (fun i (_, v) (_, v') -> check (string i :: path) v v') vars vars'
+      NEList.iteri2
+        (fun i (_, v) (_, v') -> check (string i :: path) v v')
+        vars
+        vars'
     | EMatch(_, e, branches), EMatch(_, e', branches') ->
       eq ("matchCond" :: path) e e'
 
-      List.iter2
+      NEList.iter2
         (fun ((p, v) : MatchPattern * Expr) (p', v') ->
           matchPatternEqualityBaseFn checkIDs path p p' errorFn
           eq (string p :: path) v v')
@@ -761,7 +768,7 @@ module Expect =
     | DError(_, msg1), DError(_, msg2) ->
       check path (msg1.Replace("_v0", "")) (msg2.Replace("_v0", ""))
     | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
-      let vals l = List.map Tuple2.second l
+      let vals l = NEList.map Tuple2.second l
       check ("lambdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
       check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
       exprEqualityBaseFn false path l1.body l2.body errorFn
@@ -1033,9 +1040,9 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
          { body = RT.EUnit(id 1234)
            typeArgTable = Map.empty
            symtable = Map.empty
-           parameters = [ (id 5678, "a") ] }
+           parameters = NEList.singleton (id 5678, "a") }
      ),
-     TFn([ TInt ], TUnit))
+     TFn(NEList.singleton TInt, TUnit))
     ("lambda with pipe",
      DFnVal(
        Lambda
@@ -1048,7 +1055,8 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                    { modules = [ "List" ]; name = FnName.FnName "push"; version = 0 }
                )),
                [],
-               [ EApply(
+               NEList.singleton (
+                 EApply(
                    93459985UL,
                    (EFnName(
                      123123UL,
@@ -1056,7 +1064,8 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                        { modules = []; name = FnName.FnName "+"; version = 0 }
                    )),
                    [],
-                   [ EApply(
+                   (NEList.doubleton
+                     (EApply(
                        394567785UL,
                        (EFnName(
                          95723UL,
@@ -1064,7 +1073,8 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                            { modules = []; name = FnName.FnName "+"; version = 0 }
                        )),
                        [],
-                       [ EApply(
+                       (NEList.doubleton
+                         (EApply(
                            44444485UL,
                            (EFnName(
                              9473UL,
@@ -1074,18 +1084,21 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                                  version = 0 }
                            )),
                            [],
-                           [ EInt(234213618UL, 5); EInt(923423468UL, 6) ]
-                         )
-                         EInt(648327618UL, 7) ]
-                     )
-                     EInt(325843618UL, 8) ]
-                 ) ]
+                           (NEList.doubleton
+                             (EInt(234213618UL, 5))
+                             (EInt(923423468UL, 6)))
+                         ))
+                         (EInt(648327618UL, 7)))
+                     ))
+                     (EInt(325843618UL, 8)))
+                 )
+               )
              )
            symtable = Map.empty
            typeArgTable = Map.empty
-           parameters = [ (id 5678, "a") ] }
+           parameters = NEList.singleton ((id 5678, "a")) }
      ),
-     TFn([ TInt ], TInt))
+     TFn(NEList.singleton TInt, TInt))
     ("db", DDB "Visitors", TDB TInt)
     ("date",
      DDateTime(

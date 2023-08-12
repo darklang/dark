@@ -753,27 +753,17 @@ module Darklang =
           $"match {argPart} with \n{casesPart}"
 
 
-        | EPipe(_id, expr, firstPipeExpr, otherPipeExprs) ->
+        | EPipe(_id, expr, pipeExprs) ->
           // PACKAGE.Darklang.LanguageTools.ID *
           // PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr *
-          // PACKAGE.Darklang.LanguageTools.ProgramTypes.PipeExpr *
           // List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PipeExpr>
           let exprPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr expr
 
-          let firstPipePart =
-            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.pipeExpr firstPipeExpr
-
-          let otherPipeParts =
-            otherPipeExprs
+          let pipeParts =
+            pipeExprs
             |> List.map (fun (pipeExpr) ->
               PACKAGE.Darklang.PrettyPrinter.ProgramTypes.pipeExpr pipeExpr)
             |> String.join " \n|> "
-
-          let pipesPart =
-            if otherPipeParts == "" then
-              firstPipePart
-            else
-              $"{firstPipePart}\n|> {otherPipeParts}"
 
           $"{exprPart} \n|> {pipesPart}"
 

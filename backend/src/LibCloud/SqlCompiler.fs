@@ -313,7 +313,7 @@ let rec lambdaToSql
             let! (actualTypes, argSqls, sqlVars) =
               uply {
                 let paramCount = List.length fn.parameters
-                let argCount = List.length args
+                let argCount = NEList.length args
 
                 if argCount = paramCount then
                   // While checking the arguments, record the actual types for any abstract
@@ -323,7 +323,7 @@ let rec lambdaToSql
 
                   let zipped =
                     // Tablecloth's List.zip reverses the order..
-                    List.zip args fn.parameters |> List.rev
+                    List.zip (NEList.toList args) fn.parameters |> List.rev
 
                   return!
                     Ply.List.foldSequentially
@@ -742,7 +742,7 @@ let partiallyEvaluate
             | EList(_, exprs) -> List.all fullySpecified exprs
             | _ -> false
 
-          if List.all fullySpecified args && typeArgs = [] then
+          if NEList.forall fullySpecified args && typeArgs = [] then
             // TODO: should limit this further to pure functions.
             return! exec expr
           else
@@ -794,7 +794,7 @@ let partiallyEvaluate
               return ELet(id, pat, rhs, next)
             | EApply(id, fn, typeArgs, exprs) ->
               let! fn = r fn
-              let! exprs = Ply.List.mapSequentially r exprs
+              let! exprs = exprs |> Ply.NEList.mapSequentially r
               return EApply(id, fn, typeArgs, exprs)
             | EFnName _ -> return expr
             | EIf(id, cond, ifexpr, elseexpr) ->
@@ -820,7 +820,7 @@ let partiallyEvaluate
               let! mexpr = r mexpr
 
               let! pairs =
-                Ply.List.mapSequentially
+                Ply.NEList.mapSequentially
                   (fun (pat, expr) ->
                     uply {
                       let! expr = r expr
@@ -831,7 +831,7 @@ let partiallyEvaluate
               return EMatch(id, mexpr, pairs)
             | ERecord(id, typeName, fields) ->
               let! fields =
-                Ply.List.mapSequentially
+                Ply.NEList.mapSequentially
                   (fun (name, expr) ->
                     uply {
                       let! expr = r expr
@@ -842,7 +842,7 @@ let partiallyEvaluate
               return ERecord(id, typeName, fields)
             | ERecordUpdate(id, record, updates) ->
               let! updates =
-                Ply.List.mapSequentially
+                Ply.NEList.mapSequentially
                   (fun (name, expr) ->
                     uply {
                       let! expr = r expr

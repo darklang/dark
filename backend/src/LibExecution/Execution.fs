@@ -71,7 +71,7 @@ let executeFunction
   (callerID : id)
   (name : RT.FnName.T)
   (typeArgs : List<RT.TypeReference>)
-  (args : List<RT.Dval>)
+  (args : NEList<RT.Dval>)
   : Task<RT.Dval> =
   task {
     let typeArgTable = Map.empty

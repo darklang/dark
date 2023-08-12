@@ -39,14 +39,11 @@ module TypeName =
   module Package =
     let toST (p : PT.TypeName.Package) : ST.TypeName.Package =
       let (PT.TypeName.TypeName name) = p.name
-      { owner = p.owner
-        modules = { head = p.modules.head; tail = p.modules.tail }
-        name = name
-        version = p.version }
+      { owner = p.owner; modules = p.modules; name = name; version = p.version }
 
     let toPT (p : ST.TypeName.Package) : PT.TypeName.Package =
       { owner = p.owner
-        modules = { head = p.modules.head; tail = p.modules.tail }
+        modules = p.modules
         name = PT.TypeName.TypeName p.name
         version = p.version }
 
@@ -85,14 +82,11 @@ module FnName =
   module Package =
     let toST (p : PT.FnName.Package) : ST.FnName.Package =
       let (PT.FnName.FnName name) = p.name
-      { owner = p.owner
-        modules = { head = p.modules.head; tail = p.modules.tail }
-        name = name
-        version = p.version }
+      { owner = p.owner; modules = p.modules; name = name; version = p.version }
 
     let toPT (p : ST.FnName.Package) : PT.FnName.Package =
       { owner = p.owner
-        modules = { head = p.modules.head; tail = p.modules.tail }
+        modules = p.modules
         name = PT.FnName.FnName p.name
         version = p.version }
 
@@ -201,14 +195,11 @@ module ConstantName =
   module Package =
     let toST (p : PT.ConstantName.Package) : ST.ConstantName.Package =
       let (PT.ConstantName.ConstantName name) = p.name
-      { owner = p.owner
-        modules = { head = p.modules.head; tail = p.modules.tail }
-        name = name
-        version = p.version }
+      { owner = p.owner; modules = p.modules; name = name; version = p.version }
 
     let toPT (p : ST.ConstantName.Package) : PT.ConstantName.Package =
       { owner = p.owner
-        modules = { head = p.modules.head; tail = p.modules.tail }
+        modules = p.modules
         name = PT.ConstantName.ConstantName p.name
         version = p.version }
 
@@ -280,7 +271,7 @@ module TypeReference =
     | PT.TBytes -> ST.TBytes
     | PT.TVariable(name) -> ST.TVariable(name)
     | PT.TFn(paramTypes, returnType) ->
-      ST.TFn(List.map toST paramTypes, toST returnType)
+      ST.TFn(paramTypes |> NEList.map toST |> NEList.toST, toST returnType)
 
   let rec toPT (t : ST.TypeReference) : PT.TypeReference =
     match t with
@@ -303,7 +294,7 @@ module TypeReference =
     | ST.TBytes -> PT.TBytes
     | ST.TVariable(name) -> PT.TVariable(name)
     | ST.TFn(paramTypes, returnType) ->
-      PT.TFn(List.map toPT paramTypes, toPT returnType)
+      PT.TFn(paramTypes |> NEList.toPT |> NEList.map toPT, toPT returnType)
 
 module BinaryOperation =
   let toST (op : PT.BinaryOperation) : ST.BinaryOperation =
@@ -388,13 +379,13 @@ module Expr =
         id,
         toST fn,
         List.map TypeReference.toST typeArgs,
-        List.map toST args
+        args |> NEList.map toST |> NEList.toST
       )
     | PT.EInfix(id, PT.InfixFnCall name, arg1, arg2) ->
       ST.EInfix(id, ST.InfixFnCall(InfixFnName.toST name), toST arg1, toST arg2)
     | PT.EInfix(id, PT.BinOp(op), arg1, arg2) ->
       ST.EInfix(id, ST.BinOp(BinaryOperation.toST (op)), toST arg1, toST arg2)
-    | PT.ELambda(id, vars, body) -> ST.ELambda(id, vars, toST body)
+    | PT.ELambda(id, vars, body) -> ST.ELambda(id, NEList.toST vars, toST body)
     | PT.ELet(id, pat, rhs, body) ->
       ST.ELet(id, LetPattern.toST pat, toST rhs, toST body)
     | PT.EIf(id, cond, thenExpr, elseExpr) ->
@@ -412,10 +403,10 @@ module Expr =
       ST.ERecordUpdate(
         id,
         toST record,
-        updates |> List.map (fun (name, expr) -> (name, toST expr))
+        updates |> NEList.map (fun (name, expr) -> (name, toST expr)) |> NEList.toST
       )
-    | PT.EPipe(pipeID, expr1, expr2, rest) ->
-      ST.EPipe(pipeID, toST expr1, pipeExprToST expr2, List.map pipeExprToST rest)
+    | PT.EPipe(pipeID, expr1, rest) ->
+      ST.EPipe(pipeID, toST expr1, List.map pipeExprToST rest)
     | PT.EEnum(id, typeName, caseName, fields) ->
       ST.EEnum(
         id,
@@ -441,7 +432,8 @@ module Expr =
   and pipeExprToST (pipeExpr : PT.PipeExpr) : ST.PipeExpr =
     match pipeExpr with
     | PT.EPipeVariable(id, name) -> ST.EPipeVariable(id, name)
-    | PT.EPipeLambda(id, args, body) -> ST.EPipeLambda(id, args, toST body)
+    | PT.EPipeLambda(id, args, body) ->
+      ST.EPipeLambda(id, NEList.toST args, toST body)
     | PT.EPipeInfix(id, PT.InfixFnCall name, first) ->
       ST.EPipeInfix(id, ST.InfixFnCall(InfixFnName.toST name), toST first)
     | PT.EPipeInfix(id, PT.BinOp(op), first) ->
@@ -478,9 +470,9 @@ module Expr =
         id,
         toPT fn,
         List.map TypeReference.toPT typeArgs,
-        List.map toPT args
+        args |> NEList.toPT |> NEList.map toPT
       )
-    | ST.ELambda(id, vars, body) -> PT.ELambda(id, vars, toPT body)
+    | ST.ELambda(id, vars, body) -> PT.ELambda(id, NEList.toPT vars, toPT body)
     | ST.ELet(id, pat, rhs, body) ->
       PT.ELet(id, LetPattern.toPT pat, toPT rhs, toPT body)
     | ST.EIf(id, cond, thenExpr, elseExpr) ->
@@ -498,10 +490,10 @@ module Expr =
       PT.ERecordUpdate(
         id,
         toPT record,
-        updates |> List.map (fun (name, expr) -> (name, toPT expr))
+        updates |> NEList.toPT |> NEList.map (fun (name, expr) -> (name, toPT expr))
       )
-    | ST.EPipe(pipeID, expr1, expr2, rest) ->
-      PT.EPipe(pipeID, toPT expr1, pipeExprToPT expr2, List.map pipeExprToPT rest)
+    | ST.EPipe(pipeID, expr1, rest) ->
+      PT.EPipe(pipeID, toPT expr1, List.map pipeExprToPT rest)
     | ST.EEnum(id, typeName, caseName, exprs) ->
       PT.EEnum(
         id,
@@ -529,7 +521,8 @@ module Expr =
   and pipeExprToPT (pipeExpr : ST.PipeExpr) : PT.PipeExpr =
     match pipeExpr with
     | ST.EPipeVariable(id, name) -> PT.EPipeVariable(id, name)
-    | ST.EPipeLambda(id, args, body) -> PT.EPipeLambda(id, args, toPT body)
+    | ST.EPipeLambda(id, args, body) ->
+      PT.EPipeLambda(id, NEList.toPT args, toPT body)
     | ST.EPipeInfix(id, infix, first) ->
       PT.EPipeInfix(id, Infix.toPT infix, toPT first)
     | ST.EPipeFnCall(id, fnName, typeArgs, args) ->
@@ -813,7 +806,7 @@ module PackageFn =
 
   let toST (fn : PT.PackageFn.T) : ST.PackageFn.T =
     { name = FnName.Package.toST fn.name
-      parameters = List.map Parameter.toST fn.parameters
+      parameters = NEList.map Parameter.toST fn.parameters |> NEList.toST
       returnType = TypeReference.toST fn.returnType
       description = fn.description
       deprecated = Deprecation.toST FnName.toST fn.deprecated
@@ -824,7 +817,7 @@ module PackageFn =
 
   let toPT (fn : ST.PackageFn.T) : PT.PackageFn.T =
     { name = FnName.Package.toPT fn.name
-      parameters = List.map Parameter.toPT fn.parameters
+      parameters = fn.parameters |> NEList.toPT |> NEList.map Parameter.toPT
       returnType = TypeReference.toPT fn.returnType
       description = fn.description
       deprecated = Deprecation.toPT FnName.toPT fn.deprecated

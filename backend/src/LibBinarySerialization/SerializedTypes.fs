@@ -80,7 +80,7 @@ module TypeName =
     { [<MessagePack.Key 0>]
       owner : string
       [<MessagePack.Key 1>]
-      modules : NEList<string>
+      modules : List<string>
       [<MessagePack.Key 2>]
       name : string
       [<MessagePack.Key 3>]
@@ -118,7 +118,7 @@ module FnName =
     { [<MessagePack.Key 0>]
       owner : string
       [<MessagePack.Key 1>]
-      modules : NEList<string>
+      modules : List<string>
       [<MessagePack.Key 2>]
       name : string
       [<MessagePack.Key 3>]
@@ -129,32 +129,6 @@ module FnName =
     | BuiltIn of BuiltIn
     | UserProgram of UserProgram
     | Package of Package
-
-
-module NameResolution =
-  [<MessagePack.MessagePackObject>]
-  type ErrorType =
-    | NotFound
-    | MissingModuleName
-    | InvalidPackageName
-
-  [<MessagePack.MessagePackObject>]
-  type NameType =
-    | Function
-    | Type
-    | Constant
-
-  [<MessagePack.MessagePackObject>]
-  type Error =
-    { [<MessagePack.Key 0>]
-      errorType : ErrorType
-      [<MessagePack.Key 1>]
-      nameType : NameType
-      [<MessagePack.Key 2>]
-      names : List<string> }
-
-[<MessagePack.MessagePackObject>]
-type NameResolution<'a> = Result<'a, NameResolution.Error>
 
 
 /// A Fully-Qualified Constant Name
@@ -186,7 +160,7 @@ module ConstantName =
     { [<MessagePack.Key 0>]
       owner : string
       [<MessagePack.Key 1>]
-      modules : NEList<string>
+      modules : List<string>
       [<MessagePack.Key 2>]
       name : string
       [<MessagePack.Key 3>]
@@ -197,6 +171,34 @@ module ConstantName =
     | UserProgram of UserProgram
     | BuiltIn of BuiltIn
     | Package of Package
+
+
+
+module NameResolution =
+  [<MessagePack.MessagePackObject>]
+  type ErrorType =
+    | NotFound
+    | MissingModuleName
+    | InvalidPackageName
+
+  [<MessagePack.MessagePackObject>]
+  type NameType =
+    | Function
+    | Type
+    | Constant
+
+  [<MessagePack.MessagePackObject>]
+  type Error =
+    { [<MessagePack.Key 0>]
+      errorType : ErrorType
+      [<MessagePack.Key 1>]
+      nameType : NameType
+      [<MessagePack.Key 2>]
+      names : List<string> }
+
+[<MessagePack.MessagePackObject>]
+type NameResolution<'a> = Result<'a, NameResolution.Error>
+
 
 
 [<MessagePack.MessagePackObject>]
@@ -218,7 +220,7 @@ type TypeReference =
     typeArgs : List<TypeReference>
   | TBytes
   | TVariable of string
-  | TFn of List<TypeReference> * TypeReference
+  | TFn of NEList<TypeReference> * TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
 
 [<MessagePack.MessagePackObject>]
@@ -281,17 +283,17 @@ type Expr =
   | EConstant of id * NameResolution<ConstantName.T>
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * Expr * Expr * Expr
-  | ELambda of id * List<id * string> * Expr
+  | ELambda of id * NEList<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EApply of id * Expr * typeArgs : List<TypeReference> * args : List<Expr>
+  | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
   | EList of id * List<Expr>
   | ERecord of
     id *
     typeName : NameResolution<TypeName.T> *
     fields : List<string * Expr>
-  | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
-  | EPipe of id * Expr * PipeExpr * List<PipeExpr>
+  | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
+  | EPipe of id * Expr * List<PipeExpr>
   | EEnum of
     id *
     typeName : NameResolution<TypeName.T> *
@@ -309,7 +311,7 @@ and StringSegment =
 
 and [<MessagePack.MessagePackObject>] PipeExpr =
   | EPipeVariable of id * string
-  | EPipeLambda of id * List<id * string> * Expr
+  | EPipeLambda of id * NEList<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of
     id *
@@ -504,7 +506,7 @@ module PackageFn =
       [<MessagePack.Key 4>]
       typeParams : List<string>
       [<MessagePack.Key 5>]
-      parameters : List<Parameter>
+      parameters : NEList<Parameter>
       [<MessagePack.Key 6>]
       returnType : TypeReference
       [<MessagePack.Key 7>]

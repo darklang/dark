@@ -71,8 +71,8 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DIncomplete _, _ -> Exception.raiseCode "Both values must be the same type"
 
 and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
-  impl1.parameters.Length = impl2.parameters.Length
-  && List.forall2
+  NEList.length impl1.parameters = NEList.length impl2.parameters
+  && NEList.forall2
     (fun (_, str1) (_, str2) -> str1 = str2)
     impl1.parameters
     impl2.parameters
@@ -103,8 +103,11 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EIf(_, cond1, then1, else1), EIf(_, cond2, then2, else2) ->
     equalsExpr cond1 cond2 && equalsExpr then1 then2 && equalsExpr else1 else2
   | ELambda(_, parameters1, body1), ELambda(_, parameters2, body2) ->
-    parameters1.Length = parameters2.Length
-    && List.forall2 (fun (_, str1) (_, str2) -> str1 = str2) parameters1 parameters2
+    NEList.length parameters1 = NEList.length parameters2
+    && NEList.forall2
+      (fun (_, str1) (_, str2) -> str1 = str2)
+      parameters1
+      parameters2
     && equalsExpr body1 body2
   | EFieldAccess(_, target1, fieldName1), EFieldAccess(_, target2, fieldName2) ->
     equalsExpr target1 target2 && fieldName1 = fieldName2
@@ -112,7 +115,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EApply(_, name1, typeArgs1, args1), EApply(_, name2, typeArgs2, args2) ->
     equalsExpr name1 name2
     && List.forall2 (=) typeArgs1 typeArgs2
-    && List.forall2 equalsExpr args1 args2
+    && NEList.forall2 equalsExpr args1 args2
   | EFnName(_, name1), EFnName(_, name2) -> name1 = name2
   | EList(_, elems1), EList(_, elems2) ->
     elems1.Length = elems2.Length && List.forall2 equalsExpr elems1 elems2
@@ -122,28 +125,28 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     && elems1.Length = elems2.Length
     && List.forall2 equalsExpr elems1 elems2
   | ERecord(_, typeName, fields1), ERecord(_, typeName', fields2) ->
-    typeName = typeName' // TODO: what if they're aliases?
-    && fields1.Length = fields2.Length
-    && List.forall2
+    typeName = typeName'
+    && NEList.length fields1 = NEList.length fields2
+    && NEList.forall2
       (fun (name1, expr1) (name2, expr2) -> name1 = name2 && equalsExpr expr1 expr2)
       fields1
       fields2
   | ERecordUpdate(_, record1, updates1), ERecordUpdate(_, record2, updates2) ->
     record1 = record2
-    && updates1.Length = updates2.Length
-    && List.forall2
+    && NEList.length updates1 = NEList.length updates2
+    && NEList.forall2
       (fun (name1, expr1) (name2, expr2) -> name1 = name2 && equalsExpr expr1 expr2)
       updates1
       updates2
   | EEnum(_, typeName, caseName, fields), EEnum(_, typeName', caseName', fields') ->
-    typeName = typeName' // TODO: what if they're aliases?
+    typeName = typeName'
     && caseName = caseName'
     && fields.Length = fields'.Length
     && List.forall2 equalsExpr fields fields'
   | EMatch(_, target1, cases1), EMatch(_, target2, cases2) ->
     equalsExpr target1 target2
-    && cases1.Length = cases2.Length
-    && List.forall2
+    && NEList.length cases1 = NEList.length cases2
+    && NEList.forall2
       (fun (p1, e1) (p2, e2) -> equalsMatchPattern p1 p2 && equalsExpr e1 e2)
       cases1
       cases2
@@ -301,7 +304,7 @@ let fns : List<BuiltInFn> =
         | _,
           _,
           [ DEnum(FQName.Package({ owner = "Darklang"
-                                   modules = { head = "Stdlib"; tail = [ "Option" ] }
+                                   modules = [ "Stdlib"; "Option" ]
                                    name = TypeName.TypeName "Option"
                                    version = 0 }),
                   _,
@@ -317,7 +320,7 @@ let fns : List<BuiltInFn> =
         | _,
           _,
           [ DEnum(FQName.Package({ owner = "Darklang"
-                                   modules = { head = "Stdlib"; tail = [ "Result" ] }
+                                   modules = [ "Stdlib"; "Result" ]
                                    name = TypeName.TypeName "Result"
                                    version = 0 }),
                   _,

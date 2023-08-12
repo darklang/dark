@@ -101,7 +101,7 @@ module ToHashableRepr =
   open LibExecution.RuntimeTypes
 
   let testHashV2 =
-    let t (l : List<Dval>) (expected : string) : Test =
+    let t (l : NEList<Dval>) (expected : string) : Test =
       testTask $"hashV2: {l}" {
         let actual = DvalReprInternalHash.hash 2 l
 
@@ -115,7 +115,8 @@ module ToHashableRepr =
 
     testList
       "hashv2"
-      [ t [ DBytes [||] ] "Bu4AH9NVqA0"; t [ DBytes [| 128uy |] ] "ARIiVvuJZTo" ]
+      [ t (NEList.singleton (DBytes [||])) "Bu4AH9NVqA0"
+        t (NEList.singleton (DBytes [| 128uy |])) "ARIiVvuJZTo" ]
 
   let tests = testList "hashing" [ testHashV2 ]
 

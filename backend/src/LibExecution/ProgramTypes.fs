@@ -17,7 +17,11 @@ module FQName =
   /// The name of a thing in the package manager
   // TODO: We plan to use UUIDs for this, but this is a placeholder
   type Package<'name> =
-    { owner : string; modules : NEList<string>; name : 'name; version : int }
+    // Eg @darklang.latestVersion()
+    { owner : string
+      modules : List<string>
+      name : 'name
+      version : int }
 
   type T<'name> =
     | BuiltIn of BuiltIn<'name>
@@ -76,17 +80,17 @@ module FQName =
   let package
     (nameValidator : NameValidator<'name>)
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : 'name)
     (version : int)
     : Package<'name> =
-    assert' (NEList.toList modules) name version nameValidator
+    assert' modules name version nameValidator
     { owner = owner; modules = modules; name = name; version = version }
 
   let fqPackage
     (nameValidator : NameValidator<'name>)
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : 'name)
     (version : int)
     : T<'name> =
@@ -104,9 +108,7 @@ module FQName =
     if s.version = 0 then name else $"{name}_v{s.version}"
 
   let packageToString (f : NamePrinter<'name>) (s : Package<'name>) : string =
-    let name =
-      [ "PACKAGE"; s.owner ] @ NEList.toList s.modules @ [ f s.name ]
-      |> String.concat "."
+    let name = [ "PACKAGE"; s.owner ] @ s.modules @ [ f s.name ] |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
   let toString (f : NamePrinter<'name>) (name : T<'name>) : string =
@@ -143,7 +145,7 @@ module TypeName =
 
   let package
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : string)
     (version : int)
     : Package =
@@ -151,7 +153,7 @@ module TypeName =
 
   let fqPackage
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : string)
     (version : int)
     : T =
@@ -191,7 +193,7 @@ module FnName =
 
   let package
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : string)
     (version : int)
     : Package =
@@ -199,7 +201,7 @@ module FnName =
 
   let fqPackage
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : string)
     (version : int)
     : T =
@@ -241,7 +243,7 @@ module ConstantName =
 
   let package
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : string)
     (version : int)
     : Package =
@@ -249,7 +251,7 @@ module ConstantName =
 
   let fqPackage
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : string)
     (version : int)
     : T =
@@ -366,10 +368,8 @@ type TypeReference =
   | TUuid
   | TBytes
   // A named variable, eg `a` in `List<a>`, matches anything
-  | TVariable of string // replaces TAny
-  | TFn of
-    List<TypeReference> *  // CLEANUP: NEList
-    TypeReference // replaces TLambda
+  | TVariable of string
+  | TFn of NEList<TypeReference> * TypeReference
 
   /// A type defined by a standard library module, a canvas/user, or a package
   /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
@@ -382,33 +382,64 @@ type Expr =
   | EInt of id * int64
   | EBool of id * bool
   | EString of id * List<StringSegment>
+  | EUnit of id
+
   /// A character is an Extended Grapheme Cluster (hence why we use a string). This
   /// is equivalent to one screen-visible "character" in Unicode.
   | EChar of id * string
+
   // Allow the user to have arbitrarily big numbers, even if they don't make sense as
   // floats. The float is split as we want to preserve what the user entered.
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
   | EFloat of id * Sign * string * string
-  | EUnit of id
+
   | EConstant of id * NameResolution<ConstantName.T>
+
+  // <summary>
+  // Composed of binding pattern, the expression to create bindings for,
+  // and the expression that follows, where the bound values are available
+  // </summary>
+  //
+  // <code>
+  // let str = expr1
+  // expr2
+  // </code>
   | ELet of id * LetPattern * Expr * Expr
+
+  // Composed of condition, expr if true, and expr if false
   | EIf of id * Expr * Expr * Expr
-  | EInfix of id * Infix * Expr * Expr
-  // the id in the varname list is the analysis id, used to get a livevalue
+
+  // Composed of a parameters * the expression itself
+  // The id in the varname list is the analysis id, used to get a livevalue
   // from the analysis engine
-  | ELambda of id * List<id * string> * Expr
+  | ELambda of id * NEList<id * string> * Expr
+
+
+  // Access a field of some expression (e.g. `someExpr.fieldName`)
   | EFieldAccess of id * Expr * string
+
+  // Reference some local variable by name
+  //
+  // i.e. after a `let binding = value`, any use of `binding`
   | EVariable of id * string
-  | EApply of id * Expr * typeArgs : List<TypeReference> * args : List<Expr>
+
+  // This is a function call, the first expression is the value of the function.
+  | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
   | EFnName of id * NameResolution<FnName.T>
+
+  | EInfix of id * Infix * Expr * Expr
+  | EPipe of id * Expr * List<PipeExpr>
   | EList of id * List<Expr>
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | EPipe of id * Expr * PipeExpr * List<PipeExpr>
 
   // See NameResolution comment above
-  | ERecord of id * NameResolution<TypeName.T> * List<string * Expr>
-  | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
+  | ERecord of
+    id *
+    NameResolution<TypeName.T> *
+    // User is allowed type `Name {}` even if that's an error
+    List<string * Expr>
+  | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
 
   // Enums include `Some`, `None`, `Error`, `Ok`, as well
   // as user-defined enums.
@@ -428,11 +459,11 @@ type Expr =
   /// Supports `match` expressions
   /// ```fsharp
   /// match x + 2 with // arg
-  /// // cases
   /// | pattern -> expr
   /// | pattern -> expr
   /// | ...
   /// ```
+  // cases is a list to represent when a user starts typing but doesn't complete it
   | EMatch of id * arg : Expr * cases : List<MatchPattern * Expr>
 
 and StringSegment =
@@ -441,7 +472,7 @@ and StringSegment =
 
 and PipeExpr =
   | EPipeVariable of id * string
-  | EPipeLambda of id * List<id * string> * Expr
+  | EPipeLambda of id * NEList<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of
     id *
@@ -475,7 +506,7 @@ module Expr =
     | EList(id, _)
     | EDict(id, _)
     | ETuple(id, _, _, _)
-    | EPipe(id, _, _, _)
+    | EPipe(id, _, _)
     | ERecord(id, _, _)
     | ERecordUpdate(id, _, _)
     | EEnum(id, _, _, _)
@@ -631,7 +662,7 @@ module PackageFn =
       name : FnName.Package
       body : Expr
       typeParams : List<string>
-      parameters : List<Parameter>
+      parameters : NEList<Parameter>
       returnType : TypeReference
       description : string
       deprecated : Deprecation<FnName.T> }
