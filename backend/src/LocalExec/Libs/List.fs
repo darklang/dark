@@ -15,11 +15,15 @@ let constants : List<BuiltInConstant> = []
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "LocalExec"; "StdLib"; "List" ] "iter" 0
+  [ { name = fn [ "LocalExec"; "BuiltIns"; "List" ] "iter" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, TUnit)) "" [ "element" ] ]
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.singleton varA, TUnit))
+            ""
+            [ "element" ] ]
       returnType = TUnit
       description =
         "Applies the given function <param fn> to each element of the <param list>."
@@ -46,7 +50,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn [ "LocalExec"; "StdLib"; "List" ] "flatten" 0
+    { name = fn [ "LocalExec"; "BuiltIns"; "List" ] "flatten" 0
       typeParams = []
       parameters = [ Param.make "list" (TList(TList varA)) "" ]
       returnType = TList varA
