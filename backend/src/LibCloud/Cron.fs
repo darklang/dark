@@ -109,7 +109,7 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
       // trigger execution
       if Config.triggerCrons then
         do!
-          Queue.enqueue
+          Queue.enqueueNow
             cron.canvasID
             "CRON"
             cron.cronName

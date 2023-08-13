@@ -30,7 +30,7 @@ let fns : List<BuiltInFn> =
             do!
               // the "_" exists because handlers in the DB have 3 fields (eg Http, /path, GET),
               // but we don't need a 3rd one for workers
-              Queue.enqueue canvasID "WORKER" name "_" data
+              Queue.enqueueNow canvasID "WORKER" name "_" data
 
             return data
           }

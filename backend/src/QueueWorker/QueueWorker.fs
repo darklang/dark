@@ -279,12 +279,13 @@ let run () : Task<unit> =
 
     let maxEventsFn = LD.queueMaxConcurrentEventsPerWorker
     while not shouldShutdown do
+      let timeout = System.TimeSpan.FromSeconds 5
       try
         // TODO: include memory and CPU usage checks in here
         let runningCount = initialCount - semaphore.CurrentCount
         let remainingSlots = maxEventsFn () - runningCount
         if remainingSlots > 0 then
-          let! notifications = EQ.dequeue remainingSlots
+          let! notifications = EQ.dequeue timeout remainingSlots
           if notifications = [] then
             do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
           else
