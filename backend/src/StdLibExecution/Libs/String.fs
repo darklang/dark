@@ -48,7 +48,11 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "s" TString ""
-          Param.makeWithArgs "fn" (TFn([ TChar ], TChar)) "" [ "character" ] ]
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.singleton TChar, TChar))
+            ""
+            [ "character" ] ]
       returnType = TString
       description =
         "Iterate over each Character (EGC, not byte) in the string, performing the
@@ -59,7 +63,8 @@ let fns : List<BuiltInFn> =
           (String.toEgcSeq s
            |> Seq.toList
            |> Ply.List.mapSequentially (fun te ->
-             LibExecution.Interpreter.applyFnVal state 0UL b [] [ DChar te ])
+             let args = NEList.singleton (DChar te)
+             LibExecution.Interpreter.applyFnVal state 0UL b [] args)
            |> (fun dvals ->
              (uply {
                let! (dvals : List<Dval>) = dvals

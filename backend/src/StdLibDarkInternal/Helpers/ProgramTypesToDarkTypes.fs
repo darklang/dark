@@ -12,11 +12,7 @@ let languageToolsTyp
   (name : string)
   (version : int)
   : TypeName.T =
-  TypeName.fqPackage
-    "Darklang"
-    (NEList.ofList "LanguageTools" submodules)
-    name
-    version
+  TypeName.fqPackage "Darklang" ("LanguageTools" :: submodules) name version
 
 
 
@@ -154,18 +150,15 @@ module FQName =
       Dval.record
         (ptTyp [ "FQName" ] "Package" 0)
         [ "owner", DString u.owner
-          "modules", DList(List.map DString (NEList.toList u.modules)) // CLEANUP source is a NEList
+          "modules", DList(List.map DString u.modules)
           "name", nameMapper u.name
           "version", DInt u.version ]
 
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.Package<'name> =
-      let unwrap = Exception.unwrapOptionInternal
       match d with
       | DRecord(_, _, m) ->
         let owner = ownerField m
-        let modules =
-          modulesField m
-          |> NEList.ofListUnsafe "Expected modules to be a non-empty list" []
+        let modules = modulesField m
         let name = nameField m |> nameMapper
         let version = versionField m
 
@@ -393,7 +386,8 @@ module TypeReference =
         [ NameResolution.toDT TypeName.toDT typeName; DList(List.map toDT typeArgs) ]
 
       | PT.TDB inner -> "TDB", [ toDT inner ]
-      | PT.TFn(args, ret) -> "TFn", [ DList(List.map toDT args); toDT ret ]
+      | PT.TFn(args, ret) ->
+        "TFn", [ DList(args |> NEList.toList |> List.map toDT); toDT ret ]
 
     Dval.enum (ptTyp [] "TypeReference" 0) name fields
 
@@ -426,8 +420,8 @@ module TypeReference =
       )
 
     | DEnum(_, _, "TDB", [ inner ]) -> PT.TDB(fromDT inner)
-    | DEnum(_, _, "TFn", [ DList args; ret ]) ->
-      PT.TFn(List.map fromDT args, fromDT ret)
+    | DEnum(_, _, "TFn", [ DList(head :: tail); ret ]) ->
+      PT.TFn(NEList.ofList head tail |> NEList.map fromDT, fromDT ret)
     | _ -> Exception.raiseInternal "Invalid TypeReference" []
 
 
@@ -599,6 +593,7 @@ module PipeExpr =
       | PT.EPipeLambda(id, args, body) ->
         let variables =
           args
+          |> NEList.toList
           |> List.map (fun (id, varName) ->
             DTuple(DInt(int64 id), DString varName, []))
           |> DList
@@ -633,9 +628,9 @@ module PipeExpr =
     | DEnum(_, _, "EPipeLambda", [ DInt id; variables; body ]) ->
       let variables =
         match variables with
-        | DList l ->
-          l
-          |> List.map (function
+        | DList(head :: tail) ->
+          NEList.ofList head tail
+          |> NEList.map (function
             | DTuple(DInt id, DString varName, []) -> (uint64 id, varName)
             | _ -> Exception.raiseInternal "Invalid variable" [])
         | _ -> Exception.raiseInternal "Invalid variables" []
@@ -731,12 +726,9 @@ module Expr =
 
         "EMatch", [ DInt(int64 id); toDT arg; DList(cases) ]
 
-      | PT.EPipe(id, expr, pipeExpr, pipeExprs) ->
+      | PT.EPipe(id, expr, pipeExprs) ->
         "EPipe",
-        [ DInt(int64 id)
-          toDT expr
-          PipeExpr.toDT toDT pipeExpr
-          DList(List.map (PipeExpr.toDT toDT) pipeExprs) ]
+        [ DInt(int64 id); toDT expr; DList(List.map (PipeExpr.toDT toDT) pipeExprs) ]
 
 
       // function calls
@@ -746,6 +738,7 @@ module Expr =
       | PT.ELambda(id, args, body) ->
         let variables =
           args
+          |> NEList.toList
           |> List.map (fun (id, varName) ->
             DTuple(DInt(int64 id), DString varName, []))
           |> DList
@@ -760,7 +753,7 @@ module Expr =
         [ DInt(int64 id)
           toDT name
           DList(List.map TypeReference.toDT typeArgs)
-          DList(List.map toDT args) ]
+          DList(args |> NEList.toList |> List.map toDT) ]
 
       | PT.EFnName(id, name) ->
         "EFnName", [ DInt(int64 id); NameResolution.toDT FnName.toDT name ]
@@ -768,6 +761,7 @@ module Expr =
       | PT.ERecordUpdate(id, record, updates) ->
         let updates =
           updates
+          |> NEList.toList
           |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
 
         "ERecordUpdate", [ DInt(int64 id); toDT record; DList(updates) ]
@@ -846,25 +840,20 @@ module Expr =
           | _ -> [])
       PT.EMatch(uint64 id, fromDT arg, cases)
 
-    | DEnum(_, _, "EPipe", [ DInt id; expr; pipeExpr; DList pipeExprs ]) ->
-      PT.EPipe(
-        uint64 id,
-        fromDT expr,
-        PipeExpr.fromDT fromDT pipeExpr,
-        List.map (PipeExpr.fromDT fromDT) pipeExprs
-      )
+    | DEnum(_, _, "EPipe", [ DInt id; expr; DList pipeExprs ]) ->
+      PT.EPipe(uint64 id, fromDT expr, List.map (PipeExpr.fromDT fromDT) pipeExprs)
 
     // function calls
     | DEnum(_, _, "EInfix", [ DInt id; infix; lhs; rhs ]) ->
       PT.EInfix(uint64 id, Infix.fromDT infix, fromDT lhs, fromDT rhs)
 
-    | DEnum(_, _, "ELambda", [ DInt id; DList variables; body ]) ->
+    | DEnum(_, _, "ELambda", [ DInt id; DList(head :: tail); body ]) ->
       let args =
-        variables
-        |> List.collect (fun arg ->
+        NEList.ofList head tail
+        |> NEList.map (fun arg ->
           match arg with
-          | DTuple(DInt argId, DString varName, _) -> [ (uint64 argId, varName) ]
-          | _ -> [])
+          | DTuple(DInt argId, DString varName, _) -> (uint64 argId, varName)
+          | _ -> Exception.raiseInternal "Invalid lambda arg" [ "arg", arg ])
       PT.ELambda(uint64 id, args, fromDT body)
 
 
@@ -873,19 +862,20 @@ module Expr =
         uint64 id,
         fromDT name,
         List.map TypeReference.fromDT typeArgs,
-        List.map fromDT args
+        args |> NEList.ofListUnsafe "EApply" [] |> NEList.map fromDT
       )
 
     | DEnum(_, _, "EFnName", [ DInt id; name ]) ->
       PT.EFnName(uint64 id, NameResolution.fromDT FnName.fromDT name)
 
-    | DEnum(_, _, "ERecordUpdate", [ DInt id; record; DList updates ]) ->
+    | DEnum(_, _, "ERecordUpdate", [ DInt id; record; DList(head :: tail) ]) ->
       let updates =
-        updates
-        |> List.collect (fun update ->
+        NEList.ofList head tail
+        |> NEList.map (fun update ->
           match update with
-          | DTuple(DString name, expr, _) -> [ (name, fromDT expr) ]
-          | _ -> [])
+          | DTuple(DString name, expr, _) -> (name, fromDT expr)
+          | _ ->
+            Exception.raiseInternal "Invalid record update" [ "update", update ])
       PT.ERecordUpdate(uint64 id, fromDT record, updates)
 
     | e -> Exception.raiseInternal "Invalid Expr" [ "e", e ]
@@ -1212,7 +1202,8 @@ module UserFunction =
       [ "tlid", DInt(int64 userFn.tlid)
         "name", FnName.UserProgram.toDT userFn.name
         "typeParams", DList(List.map DString userFn.typeParams)
-        "parameters", DList(List.map Parameter.toDT userFn.parameters)
+        "parameters",
+        DList(userFn.parameters |> NEList.toList |> List.map Parameter.toDT)
         "returnType", TypeReference.toDT userFn.returnType
         "body", Expr.toDT userFn.body
         "description", DString userFn.description
@@ -1224,7 +1215,11 @@ module UserFunction =
       let tlid = fields |> D.uint64 "tlid"
       let name = fields |> D.field "name" |> FnName.UserProgram.fromDT
       let typeParams = fields |> D.stringList "typeParams"
-      let parameters = fields |> D.list "parameters" |> List.map Parameter.fromDT
+      let parameters =
+        fields
+        |> D.list "parameters"
+        |> List.map Parameter.fromDT
+        |> NEList.ofListUnsafe "userFunction needs more than one parameter" []
       let returnType = fields |> D.field "returnType" |> TypeReference.fromDT
       let description = fields |> D.string "description"
       let deprecated =
@@ -1349,7 +1344,7 @@ module PackageFn =
         "name", FnName.Package.toDT p.name
         "body", Expr.toDT p.body
         "typeParams", DList(List.map DString p.typeParams)
-        "parameters", DList(List.map Parameter.toDT p.parameters)
+        "parameters", DList(p.parameters |> NEList.toList |> List.map Parameter.toDT)
         "returnType", TypeReference.toDT p.returnType
         "description", DString p.description
         "deprecated", Deprecation.toDT FnName.toDT p.deprecated ]
@@ -1363,7 +1358,11 @@ module PackageFn =
       let body = fields |> D.field "body" |> Expr.fromDT
       let typeParams = fields |> D.stringList "typeParams"
 
-      let parameters = fields |> D.list "parameters" |> List.map Parameter.fromDT
+      let parameters =
+        fields
+        |> D.list "parameters"
+        |> List.map Parameter.fromDT
+        |> NEList.ofListUnsafe "PackageFn.fromDT" []
       let returnType = fields |> D.field "returnType" |> TypeReference.fromDT
       let description = fields |> D.string "description"
       let deprecated =

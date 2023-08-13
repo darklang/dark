@@ -20,55 +20,6 @@ module Exe = LibExecution.Execution
 
 open TestUtils.TestUtils
 
-let hardToRepresentTests =
-  let execute
-    ((fn, args) : PT.FnName.BuiltIn * List<RT.Dval>)
-    (expected : RT.Dval)
-    : Task<bool> =
-    task {
-      // evaluate the fn call against both backends
-      let! meta = initializeTestCanvas "ExecutePureFunction"
-      let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
-      let fnArgList = List.map (fun (name, _) -> PT.EVariable(gid (), name)) args
-
-      let ast =
-        PT.EApply(
-          gid (),
-          PT.EFnName(4534534UL, Ok(PT.FQName.BuiltIn fn)),
-          [],
-          fnArgList
-        )
-
-      let symtable = Map.ofList args
-
-      let! state =
-        executionStateFor meta false false Map.empty Map.empty Map.empty Map.empty
-      let! actual =
-        LibExecution.Execution.executeExpr state symtable (PT2RT.Expr.toRT ast)
-      return Expect.dvalEquality actual expected
-    }
-
-  let fnName mod_ function_ version = PT.FnName.builtIn mod_ function_ version
-
-  // These are hard to represent in .tests files, usually because of FakeDval behaviour
-  testMany2Task
-    "hardToRepresent"
-    execute
-    [ (fnName [ "List" ] "fold" 0,
-       [ RT.DList [ RT.DBool true; RT.DInt 0L ]
-
-         RT.DList []
-
-         RT.DFnVal(
-           RT.Lambda
-             { parameters = []
-               typeArgTable = Map.empty
-               symtable = Map.empty
-               body = RT.EUnit 1UL }
-         ) ]),
-      (RT.DError(RT.SourceNone, "Expected 0 arguments, got 2")),
-      true ]
-
 let oldFunctionsAreDeprecated =
   testTask "old functions are deprecated" {
     let counts = ref Map.empty
@@ -119,7 +70,4 @@ let oldTypesAreDeprecated =
       counts.Value
   }
 
-let tests =
-  testList
-    "stdlib"
-    [ hardToRepresentTests; oldFunctionsAreDeprecated; oldTypesAreDeprecated ]
+let tests = testList "stdlib" [ oldFunctionsAreDeprecated; oldTypesAreDeprecated ]

@@ -18,7 +18,7 @@ let stdlibPackageTyp
   (name : string)
   (version : int)
   : TypeName.T =
-  TypeName.fqPackage "Darklang" (NEList.ofList "Stdlib" submodules) name version
+  TypeName.fqPackage "Darklang" ("Stdlib" :: submodules) name version
 
 let modules = [ "DarkInternal"; "Packages" ]
 let fn = fn modules

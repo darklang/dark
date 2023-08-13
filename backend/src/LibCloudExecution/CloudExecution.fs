@@ -126,7 +126,7 @@ let reexecuteFunction
   (rootTLID : tlid)
   (name : RT.FnName.T)
   (typeArgs : List<RT.TypeReference>)
-  (args : List<RT.Dval>)
+  (args : NEList<RT.Dval>)
   : Task<RT.Dval * Tracing.TraceResults.T> =
   task {
     // FIX - the TLID here is the tlid of the toplevel in which the call exists, not

@@ -31,13 +31,12 @@ let parserTests =
           PT.EPipe(
             id,
             PT.EVariable(id, "x"),
-            PT.EPipeFnCall(
-              id,
-              Ok(PT.FnName.fqBuiltIn [ "List" ] "map" 0),
-              [],
-              [ PT.EInt(id, 5) ]
-            ),
-            []
+            [ PT.EPipeFnCall(
+                id,
+                Ok(PT.FnName.fqBuiltIn [ "List" ] "map" 0),
+                [],
+                [ PT.EInt(id, 5) ]
+              ) ]
           )
         ))
       t
@@ -57,15 +56,19 @@ let parserTests =
       t
         "lambdas with 2 args"
         "fun x y -> 8"
-        (PT.ELambda(id, [ id, "x"; id, "y" ], PT.EInt(id, 8)))
+        (PT.ELambda(id, NEList.doubleton (id, "x") (id, "y"), PT.EInt(id, 8)))
       t
         "lambdas with 3 args"
         "fun x y z -> 8"
-        (PT.ELambda(id, [ id, "x"; id, "y"; id, "z" ], PT.EInt(id, 8)))
+        (PT.ELambda(id, NEList.ofList (id, "x") [ id, "y"; id, "z" ], PT.EInt(id, 8)))
       t
         "lambdas with 4 args"
         "fun a b c d -> 8"
-        (PT.ELambda(id, [ id, "a"; id, "b"; id, "c"; id, "d" ], PT.EInt(id, 8)))
+        (PT.ELambda(
+          id,
+          NEList.ofList (id, "a") [ id, "b"; id, "c"; id, "d" ],
+          PT.EInt(id, 8)
+        ))
       t "negative zero" "(-0.0)" (PT.EFloat(id, Negative, "0", "0"))
       t
         "10 cents"

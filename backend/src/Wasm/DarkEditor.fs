@@ -80,7 +80,7 @@ let LoadClient (canvasName : string) : Task<string> =
           (gid ())
           (FnName.fqUserProgram [] "init" 0)
           []
-          [ DUnit ]
+          (NEList.singleton DUnit)
       )
 
     match ensureNonFakeDval initialState with
@@ -117,7 +117,7 @@ let HandleEvent (serializedEvent : string) : Task<string> =
           (gid ())
           (FnName.fqUserProgram [] "handleEvent" 0)
           []
-          [ DString serializedEvent ]
+          (NEList.singleton (DString serializedEvent))
       )
 
     match ensureNonFakeDval result with

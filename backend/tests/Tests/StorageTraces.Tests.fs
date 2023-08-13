@@ -1,9 +1,6 @@
 /// Tests for the cloud storage version of traces
 module Tests.StorageTraces
 
-// We duplicate existing tests and translate them for the cloud storage version. We
-// can safely delete Traces.Tests when this is done.
-
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 

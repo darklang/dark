@@ -64,8 +64,7 @@ let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
       [ "tlid", Sql.tlid fn.tlid
         "id", Sql.uuid fn.id
         "owner", Sql.string fn.name.owner
-        "modules",
-        Sql.string (fn.name.modules |> NEList.toList |> String.concat ".")
+        "modules", Sql.string (fn.name.modules |> String.concat ".")
         "fnname", Sql.string name
         "version", Sql.int fn.name.version
         "definition", Sql.bytea (BinarySerialization.serializePackageFn fn) ]
@@ -82,8 +81,7 @@ let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
       [ "tlid", Sql.tlid typ.tlid
         "id", Sql.uuid typ.id
         "owner", Sql.string typ.name.owner
-        "modules",
-        Sql.string (typ.name.modules |> NEList.toList |> String.concat ".")
+        "modules", Sql.string (typ.name.modules |> String.concat ".")
         "typename", Sql.string name
         "version", Sql.int typ.name.version
         "definition", Sql.bytea (BinarySerialization.serializePackageType typ) ]
@@ -101,7 +99,7 @@ let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
       [ "tlid", Sql.tlid c.tlid
         "id", Sql.uuid c.id
         "owner", Sql.string c.name.owner
-        "modules", Sql.string (c.name.modules |> NEList.toList |> String.concat ".")
+        "modules", Sql.string (c.name.modules |> String.concat ".")
         "name", Sql.string name
         "version", Sql.int c.name.version
         "definition", Sql.bytea (BinarySerialization.serializePackageConstant c) ]

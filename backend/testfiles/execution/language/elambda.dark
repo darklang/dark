@@ -1,6 +1,7 @@
 PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x ->
                                                                           -4.611686018e+18) ]
 
+// Test that empty parameters are removed
 (let y = (fun x ___ -> x + 1) in List.map_v0 [ 1; 2; 3; 4 ] y) = [ 2; 3; 4; 5 ]
 (let y = (fun x -> x + 1) in List.map_v0 [ 1; 2; 3; 4 ] y) = [ 2; 3; 4; 5 ]
 
@@ -24,6 +25,9 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
 
 (let y = (fun c -> if c > 2 then Test.runtimeError "err" else 18) in
  [ 1; 2; 3; 4 ] |> List.map_v0 y) = Test.runtimeError "err"
+
+(let y = (fun c -> if c > 2 then Test.runtimeError "err" else 18) in
+ [ 1; 2 ] |> List.map_v0 y) = [ 18; 18 ]
 
 (let t = true in List.all [ 1; 2 ] (fun _ -> t)) = true
 (let f = false in List.all [ 1; 2 ] (fun _ -> f)) = false

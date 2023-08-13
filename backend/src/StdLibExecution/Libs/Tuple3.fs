@@ -92,7 +92,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.makeWithArgs
             "fn"
-            (TFn([ TVariable "a" ], TVariable "d"))
+            (TFn(NEList.singleton (TVariable "a"), TVariable "d"))
             ""
             [ "val" ]
           Param.make
@@ -105,7 +105,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DFnVal fn; DTuple(first, second, [ third ]) ] ->
           uply {
-            let! newFirst = Interpreter.applyFnVal state 0UL fn [] [ first ]
+            let args = NEList.singleton first
+            let! newFirst = Interpreter.applyFnVal state 0UL fn [] args
             return DTuple(newFirst, second, [ third ])
           }
         | _ -> incorrectArgs ())
@@ -119,7 +120,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.makeWithArgs
             "fn"
-            (TFn([ TVariable "b" ], TVariable "d"))
+            (TFn(NEList.singleton (TVariable "b"), TVariable "d"))
             ""
             [ "val" ]
           Param.make
@@ -132,7 +133,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DFnVal fn; DTuple(first, second, [ third ]) ] ->
           uply {
-            let! newSecond = Interpreter.applyFnVal state 0UL fn [] [ second ]
+            let args = NEList.singleton second
+            let! newSecond = Interpreter.applyFnVal state 0UL fn [] args
             return DTuple(first, newSecond, [ third ])
           }
         | _ -> incorrectArgs ())
@@ -146,7 +148,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.makeWithArgs
             "fn"
-            (TFn([ TVariable "c" ], TVariable "d"))
+            (TFn(NEList.singleton (TVariable "c"), TVariable "d"))
             ""
             [ "val" ]
           Param.make
@@ -159,7 +161,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DFnVal fn; DTuple(first, second, [ third ]) ] ->
           uply {
-            let! newThird = Interpreter.applyFnVal state 0UL fn [] [ third ]
+            let args = NEList.singleton third
+            let! newThird = Interpreter.applyFnVal state 0UL fn [] args
             return DTuple(first, second, [ newThird ])
           }
         | _ -> incorrectArgs ())
@@ -173,19 +176,19 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.makeWithArgs
             "fnFirst"
-            (TFn([ TVariable "a" ], TVariable "d"))
+            (TFn(NEList.singleton (TVariable "a"), TVariable "d"))
             "used to map the first value in the tuple"
             [ "val" ]
 
           Param.makeWithArgs
             "fnSecond"
-            (TFn([ TVariable "b" ], TVariable "e"))
+            (TFn(NEList.singleton (TVariable "b"), TVariable "e"))
             "used to map the second value in the tuple"
             [ "val" ]
 
           Param.makeWithArgs
             "fnThird"
-            (TFn([ TVariable "c" ], TVariable "f"))
+            (TFn(NEList.singleton (TVariable "c"), TVariable "f"))
             "used to map the third value in the tuple"
             [ "val" ]
 
@@ -204,9 +207,12 @@ let fns : List<BuiltInFn> =
             DFnVal fnThird
             DTuple(first, second, [ third ]) ] ->
           uply {
-            let! newFirst = Interpreter.applyFnVal state 0UL fnFirst [] [ first ]
-            let! newSecond = Interpreter.applyFnVal state 0UL fnSecond [] [ second ]
-            let! newThird = Interpreter.applyFnVal state 0UL fnThird [] [ third ]
+            let args = NEList.singleton first
+            let! newFirst = Interpreter.applyFnVal state 0UL fnFirst [] args
+            let args = NEList.singleton second
+            let! newSecond = Interpreter.applyFnVal state 0UL fnSecond [] args
+            let args = NEList.singleton third
+            let! newThird = Interpreter.applyFnVal state 0UL fnThird [] args
 
             // TODO: handle fakevals
             return DTuple(newFirst, newSecond, [ newThird ])

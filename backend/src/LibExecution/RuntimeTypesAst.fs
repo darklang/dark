@@ -58,7 +58,7 @@ let rec preTraversal
     | TDB tr -> TDB(f tr)
     | TCustomType(name, trs) -> TCustomType(fqtnFn name, List.map f trs)
     | TDict(tr) -> TDict(f tr)
-    | TFn(trs, tr) -> TFn(List.map f trs, f tr)
+    | TFn(trs, tr) -> TFn(NEList.map f trs, f tr)
 
   let f = preTraversal exprFn typeRefFn fqtnFn fqfnFn letPatternFn matchPatternFn
 
@@ -83,7 +83,7 @@ let rec preTraversal
   | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
   | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
   | EApply(id, name, typeArgs, args) ->
-    EApply(id, f name, List.map preTraversalTypeRef typeArgs, List.map f args)
+    EApply(id, f name, List.map preTraversalTypeRef typeArgs, NEList.map f args)
   | EFnName(id, name) -> EFnName(id, fqfnFn name)
   | EAnd(id, left, right) -> EAnd(id, f left, f right)
   | EOr(id, left, right) -> EOr(id, f left, f right)
@@ -98,7 +98,7 @@ let rec preTraversal
     EMatch(
       id,
       f mexpr,
-      List.map
+      NEList.map
         (fun (pattern, expr) -> (preTraverseMatchPattern pattern, f expr))
         pairs
     )
@@ -106,13 +106,13 @@ let rec preTraversal
     ERecord(
       id,
       fqtnFn typeName,
-      List.map (fun (name, expr) -> (name, f expr)) fields
+      NEList.map (fun (name, expr) -> (name, f expr)) fields
     )
   | ERecordUpdate(id, record, updates) ->
     ERecordUpdate(
       id,
       f record,
-      List.map (fun (name, expr) -> (name, f expr)) updates
+      NEList.map (fun (name, expr) -> (name, f expr)) updates
     )
   | EError(id, msg, exprs) -> EError(id, msg, List.map f exprs)
 
@@ -166,7 +166,7 @@ let rec postTraversal
     | TDB tr -> TDB(f tr)
     | TCustomType(name, trs) -> TCustomType(fqtnFn name, List.map f trs)
     | TDict(tr) -> TDict(f tr)
-    | TFn(trs, tr) -> TFn(List.map f trs, f tr)
+    | TFn(trs, tr) -> TFn(NEList.map f trs, f tr)
 
   let f = postTraversal exprFn typeRefFn fqtnFn fqfnFn letPatternFn matchPatternFn
   (match expr with
@@ -190,7 +190,7 @@ let rec postTraversal
    | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
    | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
    | EApply(id, name, typeArgs, args) ->
-     EApply(id, f name, List.map postTraversalTypeRef typeArgs, List.map f args)
+     EApply(id, f name, List.map postTraversalTypeRef typeArgs, NEList.map f args)
    | EFnName(id, name) -> EFnName(id, fqfnFn name)
    | EAnd(id, left, right) -> EAnd(id, f left, f right)
    | EOr(id, left, right) -> EOr(id, f left, f right)
@@ -206,7 +206,7 @@ let rec postTraversal
      EMatch(
        id,
        f mexpr,
-       List.map
+       NEList.map
          (fun (pattern, expr) -> (postTraverseMatchPattern pattern, f expr))
          pairs
      )
@@ -214,13 +214,13 @@ let rec postTraversal
      ERecord(
        id,
        fqtnFn typeName,
-       List.map (fun (name, expr) -> (name, f expr)) fields
+       NEList.map (fun (name, expr) -> (name, f expr)) fields
      )
    | ERecordUpdate(id, record, updates) ->
      ERecordUpdate(
        id,
        f record,
-       List.map (fun (name, expr) -> (name, f expr)) updates
+       NEList.map (fun (name, expr) -> (name, f expr)) updates
      )
    | EError(id, msg, exprs) -> EError(id, msg, List.map f exprs))
   |> exprFn

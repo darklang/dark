@@ -21,7 +21,8 @@ let valParam = Param.make "val" valType ""
 let keyParam = Param.make "key" TString ""
 let keysParam = Param.make "keys" (TList TString) ""
 let tableParam = Param.make "table" dbType ""
-let queryParam = Param.makeWithArgs "filter" (TFn([ varA ], TBool)) "" [ "value" ]
+let queryParam =
+  Param.makeWithArgs "filter" (TFn(NEList.singleton varA, TBool)) "" [ "value" ]
 
 let handleUnexpectedExceptionDuringQuery
   (state : ExecutionState)

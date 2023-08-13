@@ -304,7 +304,9 @@ let rec eval'
       | Some(aliasTypeName, typeParams, expected) ->
         let expectedFields = Map expected
         let! result =
-          Ply.List.foldSequentially
+          fields
+          |> NEList.toList
+          |> Ply.List.foldSequentially
             (fun r (k, expr) ->
               uply {
                 if Dval.isFake r then
@@ -335,7 +337,6 @@ let rec eval'
                     | _ -> return err id "Expected a record in typecheck"
               })
             (DRecord(aliasTypeName, typeName, Map.empty)) // use the alias name here
-            fields
         match result with
         | DRecord(_, _, fields) ->
           if Map.count fields = Map.count expectedFields then
@@ -362,7 +363,9 @@ let rec eval'
         | Some(_, _, expected) ->
           let expectedFields = Map expected
           return!
-            Ply.List.foldSequentially
+            updates
+            |> NEList.toList
+            |> Ply.List.foldSequentially
               (fun r (k, expr) ->
                 uply {
                   let! v = eval state tat st expr
@@ -387,7 +390,6 @@ let rec eval'
                       err id "Expected a record but {typeStr} is something else"
                 })
               baseRecord
-              updates
       | _ -> return err id "Expected a record in record update"
 
     | EDict(_, fields) ->
@@ -412,7 +414,7 @@ let rec eval'
     | EApply(id, fnTarget, typeArgs, exprs) ->
       match! eval' state tat st fnTarget with
       | DFnVal fnVal ->
-        let! args = Ply.List.mapSequentially (eval state tat st) exprs
+        let! args = Ply.NEList.mapSequentially (eval state tat st) exprs
         return! applyFnVal state id fnVal typeArgs args
       | other when Dval.isFake other -> return other
       | other ->
@@ -453,7 +455,7 @@ let rec eval'
       if state.tracing.realOrPreview = Preview then
         // In case this never gets executed, add default analysis results
         parameters
-        |> List.iter (fun (id, _name) ->
+        |> NEList.iter (fun (id, _name) ->
           state.tracing.traceDval false id (DIncomplete(sourceID id)))
 
         // Since we return a DBlock, it's contents may never be
@@ -461,17 +463,10 @@ let rec eval'
         // live values.
         let previewST =
           parameters
-          |> List.choose (fun (id, name) ->
-            if name = "" then None else Some(name, DIncomplete(sourceID id)))
+          |> NEList.map (fun (id, name) -> (name, DIncomplete(sourceID id)))
+          |> NEList.toList
           |> Map.ofList
         do! preview tat previewST body
-
-      let parameters =
-        parameters
-        |> List.choose (fun param ->
-          match param with
-          | _, "" -> None
-          | id, name -> Some(id, name))
 
       // It is the responsibility of wherever executes the DBlock to pass in
       // args and execute the body.
@@ -630,7 +625,7 @@ let rec eval'
         // Even though we know it's fakeval, we still run through each pattern for analysis
         if Dval.isFake matchVal then matchVal else err id "No match"
 
-      for (pattern, rhsExpr) in cases do
+      for (pattern, rhsExpr) in NEList.toList cases do
         if hasMatched && isRealExecution then
           ()
         else
@@ -806,7 +801,7 @@ and applyFnVal
   (id : id)
   (fnVal : FnValImpl)
   (typeArgs : List<TypeReference>)
-  (args : List<Dval>)
+  (args : NEList<Dval>)
   : DvalTask =
   match fnVal with
   | Lambda l -> executeLambda state l args
@@ -819,23 +814,23 @@ and applyFnVal
 and executeLambda
   (state : ExecutionState)
   (l : LambdaImpl)
-  (args : List<Dval>)
+  (args : NEList<Dval>)
   : DvalTask =
 
   // If one of the args is fake value used as a marker, return it instead of
   // executing. This is the same behaviour as in fn calls.
-  let firstMarker = List.tryFind Dval.isFake args
+  let firstMarker = NEList.find Dval.isFake args
 
   match firstMarker with
   | Some dv -> Ply dv
   | None ->
-    let parameters = List.map snd l.parameters
+    let parameters = NEList.map snd l.parameters
     // One of the reasons to take a separate list of params and args is to
     // provide this error message here. We don't have this information in
     // other places, and the alternative is just to provide incompletes
     // with no context
-    let expectedLength = List.length l.parameters
-    let actualLength = List.length args
+    let expectedLength = NEList.length l.parameters
+    let actualLength = NEList.length args
     if expectedLength <> actualLength then
       Ply(
         DError(
@@ -844,11 +839,11 @@ and executeLambda
         )
       )
     else
-      List.iter
+      NEList.iter
         (fun ((id, _), dv) -> state.tracing.traceDval state.onExecutionPath id dv)
-        (List.zip l.parameters args)
+        (NEList.zip l.parameters args)
 
-      let paramSyms = List.zip parameters args |> Map
+      let paramSyms = NEList.zip parameters args |> NEList.toList |> Map
       // paramSyms is higher priority
 
       let newSymtable = Map.mergeFavoringRight l.symtable paramSyms
@@ -861,7 +856,7 @@ and callFn
   (callerID : id)
   (desc : FnName.T)
   (typeArgs : List<TypeReference>)
-  (args : List<Dval>)
+  (args : NEList<Dval>)
   : DvalTask =
   uply {
     let sourceID = SourceID(state.tlid, callerID)
@@ -880,10 +875,10 @@ and callFn
 
     let checkArgsLength fn : Result<unit, string> =
       let expectedTypeParamLength = List.length fn.typeParams
-      let expectedArgLength = List.length fn.parameters
+      let expectedArgLength = NEList.length fn.parameters
 
       let actualTypeArgLength = List.length typeArgs
-      let actualArgLength = List.length args
+      let actualArgLength = NEList.length args
 
       if
         expectedTypeParamLength = actualTypeArgLength
@@ -897,7 +892,7 @@ and callFn
         )
 
 
-    match List.tryFind Dval.isFake args with
+    match NEList.find Dval.isFake args with
     | Some fakeArg -> return fakeArg
     | None ->
       let! fn =
@@ -936,7 +931,7 @@ and execFn
   (id : id)
   (fn : Fn)
   (typeArgs : List<TypeReference>)
-  (args : List<Dval>)
+  (args : NEList<Dval>)
   : DvalTask =
   uply {
     let sourceID = SourceID(state.tlid, id) in
@@ -981,7 +976,7 @@ and execFn
                 let! result =
                   uply {
                     try
-                      return! f (state, typeArgs, args)
+                      return! f (state, typeArgs, NEList.toList args)
                     with e ->
                       let context : Metadata =
                         [ "fn", fnDesc
@@ -1019,8 +1014,8 @@ and execFn
             let state = { state with tlid = tlid }
             let symTable =
               fn.parameters // Lengths are checked in checkFunctionCall
-              |> List.map2 (fun dv p -> (p.name, dv)) args
-              |> Map.ofList
+              |> NEList.map2 (fun dv p -> (p.name, dv)) args
+              |> Map.ofNEList
               |> withGlobals state
             eval state typeArgTable symTable body
 

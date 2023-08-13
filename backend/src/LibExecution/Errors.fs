@@ -104,9 +104,9 @@ let incorrectArgsMsg (name : FnName.T) (p : Param) (actual : Dval) : string =
   + $" in {p.name}, but was actually called with {actualRepr}"
   + conversionMsg
 
-let incorrectArgsToDError (source : DvalSource) (fn : Fn) (argList : List<Dval>) =
-  let paramLength = List.length fn.parameters
-  let argLength = List.length argList
+let incorrectArgsToDError (source : DvalSource) (fn : Fn) (argList : NEList<Dval>) =
+  let paramLength = NEList.length fn.parameters
+  let argLength = NEList.length argList
 
   if paramLength <> argLength then
     (Dval.errSStr
@@ -116,8 +116,8 @@ let incorrectArgsToDError (source : DvalSource) (fn : Fn) (argList : List<Dval>)
 
   else
     let invalid =
-      List.zip fn.parameters argList
-      |> List.filter (fun (p, a) -> not (Dval.typeMatches p.typ a))
+      NEList.zip fn.parameters argList
+      |> NEList.filter (fun (p, a) -> not (Dval.typeMatches p.typ a))
 
     match invalid with
     | [] ->

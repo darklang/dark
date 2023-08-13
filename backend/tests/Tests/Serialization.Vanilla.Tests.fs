@@ -112,6 +112,7 @@ module PersistedSerializations =
                  "testFn",
                  LibExecution.DvalReprInternalHash.currentHashVersion,
                  V.RuntimeTypes.dvals
+                 |> NEList.ofListUnsafe "dvals" []
                  |> LibExecution.DvalReprInternalHash.hash
                    LibExecution.DvalReprInternalHash.currentHashVersion,
                  V.RuntimeTypes.dval

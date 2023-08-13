@@ -155,9 +155,7 @@ let resolve
     | name :: modules ->
       match parser name with
       | Ok(name, version) ->
-        let modules =
-          List.rev modules
-          |> NEList.ofListUnsafe "Missing module name" [ "names", names ]
+        let modules = List.rev modules
         Ok(
           PT.FQName.fqPackage nameValidator owner modules (constructor name) version
         )

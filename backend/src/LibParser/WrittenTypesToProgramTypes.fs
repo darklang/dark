@@ -54,7 +54,7 @@ module TypeReference =
     | WT.TBytes -> PT.TBytes
     | WT.TVariable(name) -> PT.TVariable(name)
     | WT.TFn(paramTypes, returnType) ->
-      PT.TFn(List.map toPT paramTypes, toPT returnType)
+      PT.TFn(NEList.map toPT paramTypes, toPT returnType)
 
 module BinaryOperation =
   let toPT (binop : WT.BinaryOperation) : PT.BinaryOperation =
@@ -135,21 +135,15 @@ module Expr =
       | Ok _ as name -> PT.EConstant(id, name)
       | Error _ -> PT.EVariable(id, var)
     | WT.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
-    | WT.EApply(id, (WT.EFnName(_, name) as eFnName), [], []) ->
+    | WT.EApply(id, (WT.EFnName(_, name)), [], { head = WT.EPlaceHolder }) ->
       // This must be a constant, as there are no arguments?
-      let constant = NameResolver.ConstantName.resolve resolver currentModule name
-      match constant with
-      | Ok _ as name -> PT.EConstant(id, name)
-      | Error _ ->
-        // There are no arguments, so surely this is an error? TODO: maybe we
-        // can have a better error message here
-        PT.EApply(id, toPT eFnName, [], [])
+      PT.EConstant(id, NameResolver.ConstantName.resolve resolver currentModule name)
     | WT.EApply(id, name, typeArgs, args) ->
       PT.EApply(
         id,
         toPT name,
         List.map (TypeReference.toPT resolver currentModule) typeArgs,
-        List.map toPT args
+        NEList.map toPT args
       )
     | WT.EFnName(id, name) ->
       PT.EFnName(id, NameResolver.FnName.resolve resolver currentModule name)
@@ -171,13 +165,12 @@ module Expr =
       PT.ERecordUpdate(
         id,
         toPT record,
-        updates |> List.map (fun (name, expr) -> (name, toPT expr))
+        updates |> NEList.map (fun (name, expr) -> (name, toPT expr))
       )
-    | WT.EPipe(pipeID, expr1, expr2, rest) ->
+    | WT.EPipe(pipeID, expr1, rest) ->
       PT.EPipe(
         pipeID,
         toPT expr1,
-        pipeExprToPT resolver currentModule expr2,
         List.map (pipeExprToPT resolver currentModule) rest
       )
     | WT.EEnum(id, typeName, caseName, exprs) ->
@@ -196,6 +189,8 @@ module Expr =
     | WT.EInfix(id, infix, arg1, arg2) ->
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
     | WT.EDict(id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
+    | WT.EPlaceHolder ->
+      Exception.raiseInternal "Invalid parse - placeholder not removed" []
 
   and stringSegmentToPT
     (resolver : NameResolver)
@@ -401,7 +396,7 @@ module UserFunction =
     { tlid = gid ()
       name = f.name
       typeParams = f.typeParams
-      parameters = List.map (Parameter.toPT resolver currentModule) f.parameters
+      parameters = NEList.map (Parameter.toPT resolver currentModule) f.parameters
       returnType = TypeReference.toPT resolver currentModule f.returnType
       description = f.description
       deprecated = PT.NotDeprecated
@@ -436,7 +431,7 @@ module PackageFn =
     (fn : WT.PackageFn.T)
     : PT.PackageFn.T =
     { name = fn.name
-      parameters = List.map (Parameter.toPT resolver currentModule) fn.parameters
+      parameters = NEList.map (Parameter.toPT resolver currentModule) fn.parameters
       returnType = TypeReference.toPT resolver currentModule fn.returnType
       description = fn.description
       deprecated = PT.NotDeprecated

@@ -100,14 +100,14 @@ let execute (symtable : Map<string, RT.Dval>) (args : PT.Expr) : Task<RT.Dval> =
           Ok(
             PT.FQName.Package(
               { owner = "Darklang"
-                modules = NEList.ofList "Cli" []
+                modules = [ "Cli" ]
                 name = PT.FnName.FnName "executeCliCommand"
                 version = 0 }
             )
           )
         ),
         [],
-        [ args ]
+        NEList.singleton args
       )
     return! Exe.executeExpr state symtable (PT2RT.Expr.toRT callFn)
   }
