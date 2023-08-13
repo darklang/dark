@@ -19,6 +19,7 @@ let contents : StdLib.Contents =
     [ Libs.Packages.contents
       Libs.Packages2.contents
       Libs.Cli.contents
+      Libs.List.contents
       StdLibCloudExecution.Libs.HttpClient.contents ]
     fnRenames
     typeRenames

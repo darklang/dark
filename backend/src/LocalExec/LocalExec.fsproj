@@ -32,6 +32,7 @@
     <Compile Include="Libs/Cli.fs" />
     <Compile Include="Libs/Packages.fs" />
     <Compile Include="Libs/Packages2.fs" />
+    <Compile Include="Libs/List.fs" />
     <Compile Include="StdLib.fs" />
     <Compile Include="LocalExec.fs" />
   </ItemGroup>

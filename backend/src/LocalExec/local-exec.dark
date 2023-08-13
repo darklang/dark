@@ -1,7 +1,7 @@
 let listDirectoryRecursive (dir: String) : List<String> =
   let contents = Directory.list dir
   let (files, dirs) = contents |> List.partition (fun x -> File.isNormal x)
-  let nested = dirs |> List.map (fun d -> listDirectoryRecursive d) |> List.flatten
+  let nested = dirs |> List.map (fun d -> listDirectoryRecursive d) |> LocalExec.StdLib.List.flatten
   dirs |> List.append files |> List.append nested
 
 
@@ -94,11 +94,11 @@ let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
     |> LocalExec.Packages.parse filename
     |> unwrap
 
-  package.fns |> List.iter (fun fn -> saveFunctionToCanvas fn)
+  package.fns |> LocalExec.StdLib.List.iter (fun fn -> saveFunctionToCanvas fn)
 
-  package.types |> List.iter (fun t -> saveTypeToCanvas t)
+  package.types |> LocalExec.StdLib.List.iter (fun t -> saveTypeToCanvas t)
 
-  package.constants |> List.iter (fun t -> saveConstantToCanvas t)
+  package.constants |> LocalExec.StdLib.List.iter (fun t -> saveConstantToCanvas t)
 
 
 let printPackageFunction (p: LocalExec.Packages.Function) : Unit =
@@ -116,13 +116,13 @@ let printPackageConstant (p: LocalExec.Packages.Constant) : Unit =
 
 let printAllPackages () : Unit =
   let functions = LocalExec.Packages.listFunctions ()
-  functions |> List.iter (fun p -> printPackageFunction p)
+  functions |> LocalExec.StdLib.List.iter (fun p -> printPackageFunction p)
 
   let types = LocalExec.Packages.listTypes ()
-  types |> List.iter (fun p -> printPackageType p)
+  types |> LocalExec.StdLib.List.iter (fun p -> printPackageType p)
 
   let constants = LocalExec.Packages.listConstants ()
-  constants |> List.iter (fun p -> printPackageConstant p)
+  constants |> LocalExec.StdLib.List.iter (fun p -> printPackageConstant p)
 
 
 // Running scripts
@@ -184,7 +184,7 @@ let main (args: List<String>) : Int =
     LocalExec.Packages.clear ()
     let files = listPackageFilesOnDisk "/home/dark/app/packages"
 
-    List.iter files (fun f ->
+    LocalExec.StdLib.List.iter files (fun f ->
       print $"Loading {f}"
       loadPackageFile f)
 
@@ -200,7 +200,7 @@ let main (args: List<String>) : Int =
 
     // TODO: clear packages from dark canvas first?
 
-    List.iter files (fun f ->
+    LocalExec.StdLib.List.iter files (fun f ->
       print $"Loading {f}"
       loadPackageFileIntoDarkCanvas f)
 

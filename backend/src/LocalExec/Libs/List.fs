@@ -1,0 +1,71 @@
+module LocalExec.Libs.List
+
+open Prelude
+open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
+
+
+module Errors = LibExecution.Errors
+module Interpreter = LibExecution.Interpreter
+
+let varA = TVariable "a"
+
+let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
+
+
+let fns : List<BuiltInFn> =
+  [ { name = fn [ "LocalExec"; "StdLib"; "List" ] "iter" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn([ varA ], TUnit)) "" [ "element" ] ]
+      returnType = TUnit
+      description =
+        "Applies the given function <param fn> to each element of the <param list>."
+      fn =
+        (function
+        | state, _, [ DList l; DFnVal b ] ->
+          uply {
+            do!
+              l
+              |> Ply.List.iterSequentially (fun e ->
+                uply {
+                  match! Interpreter.applyFnVal state 0UL b [] [ e ] with
+                  | DUnit -> return ()
+                  | DError _ as dv -> return Errors.foundFakeDval dv
+                  | v ->
+                    Exception.raiseCode (Errors.expectedLambdaValue "fn" "unit" v)
+                })
+            return DUnit
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn [ "LocalExec"; "StdLib"; "List" ] "flatten" 0
+      typeParams = []
+      parameters = [ Param.make "list" (TList(TList varA)) "" ]
+      returnType = TList varA
+      description =
+        "Returns a single list containing the values of every list directly in <param
+         list> (does not recursively flatten nested lists)"
+      fn =
+        (function
+        | _, _, [ DList l ] ->
+          let f acc i =
+            match i with
+            | DList l -> List.append acc l
+            | _ -> Exception.raiseCode "Flattening non-lists"
+
+          List.fold f [] l |> DList |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    ]
+
+let contents = (fns, types, constants)
