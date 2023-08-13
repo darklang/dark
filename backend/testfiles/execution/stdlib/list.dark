@@ -45,7 +45,8 @@ List.dropWhile_v0 [] (fun item -> item < 3) = []
 
 List.empty_v0 = []
 
-(PACKAGE.Darklang.Stdlib.List.iter [ 1; 2; 3 ] (fun x -> Test.incrementSideEffectCounter ())
+(PACKAGE.Darklang.Stdlib.List.iter [ 1; 2; 3 ] (fun x ->
+  Test.incrementSideEffectCounter ())
 
  Test.sideEffectCount ()) = 3
 

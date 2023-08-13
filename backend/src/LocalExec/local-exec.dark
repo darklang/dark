@@ -1,7 +1,12 @@
 let listDirectoryRecursive (dir: String) : List<String> =
   let contents = Directory.list dir
   let (files, dirs) = contents |> List.partition (fun x -> File.isNormal x)
-  let nested = dirs |> List.map (fun d -> listDirectoryRecursive d) |> LocalExec.StdLib.List.flatten
+
+  let nested =
+    dirs
+    |> List.map (fun d -> listDirectoryRecursive d)
+    |> LocalExec.StdLib.List.flatten
+
   dirs |> List.append files |> List.append nested
 
 
@@ -98,7 +103,8 @@ let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
 
   package.types |> LocalExec.StdLib.List.iter (fun t -> saveTypeToCanvas t)
 
-  package.constants |> LocalExec.StdLib.List.iter (fun t -> saveConstantToCanvas t)
+  package.constants
+  |> LocalExec.StdLib.List.iter (fun t -> saveConstantToCanvas t)
 
 
 let printPackageFunction (p: LocalExec.Packages.Function) : Unit =
