@@ -69,6 +69,25 @@ let rec waitForSuccess
   (tlid : tlid)
   (count : int)
   : Task<unit> =
+  let rec getTrace
+    (traceID)
+    (remainingAttempts : int)
+    : Task<LibExecution.AnalysisTypes.Trace> =
+    task {
+      if remainingAttempts <= 0 then
+        return Exception.raiseInternal "no trace found" []
+      else
+        try
+          // This can fail if the background task uploading the trace data hasn't
+          // finished yet
+          return! TCS.getTraceData canvasID tlid traceID
+        with
+        | (:? InternalException) as e -> return e.Reraise()
+        | _ ->
+          do! Task.Delay 500
+          return! getTrace traceID (remainingAttempts - 1)
+    }
+
   task {
     let! eventIDs = EQ.loadEventIDs canvasID ("WORKER", "test", "_")
     let! traceIDs = TCS.Test.listAllTraceIDs canvasID
@@ -76,19 +95,18 @@ let rec waitForSuccess
       do! Task.Delay 50
       return! waitForSuccess canvasID tlid count
     else
-      let! trace =
+      do!
         traceIDs
-        |> List.head
-        |> Exception.unwrapOptionInternal "expectedID" []
-        |> TCS.getTraceData canvasID tlid
-
-      let shapeIsAsExpected =
-        match (Tuple2.second trace).functionResults with
-        | [ (_, _, _, _, RT.DDateTime _) ] -> true
-        | _ -> false
-      Expect.isTrue shapeIsAsExpected "should have a date here"
+        |> Task.iterSequentially (fun traceID ->
+          task {
+            let! trace = getTrace traceID 2
+            let shapeIsAsExpected =
+              match (Tuple2.second trace).functionResults with
+              | [ (_, _, _, _, RT.DDateTime _) ] -> true
+              | _ -> false
+            return Expect.isTrue shapeIsAsExpected "should have a date here"
+          })
   }
-
 
 
 let checkSavedEvents (canvasID : CanvasID) (count : int) =
