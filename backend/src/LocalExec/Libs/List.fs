@@ -19,7 +19,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], TUnit)) "" [ "element" ] ]
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, TUnit)) "" [ "element" ] ]
       returnType = TUnit
       description =
         "Applies the given function <param fn> to each element of the <param list>."
@@ -31,7 +31,8 @@ let fns : List<BuiltInFn> =
               l
               |> Ply.List.iterSequentially (fun e ->
                 uply {
-                  match! Interpreter.applyFnVal state 0UL b [] [ e ] with
+                  let args = NEList.singleton e
+                  match! Interpreter.applyFnVal state 0UL b [] args with
                   | DUnit -> return ()
                   | DError _ as dv -> return Errors.foundFakeDval dv
                   | v ->
