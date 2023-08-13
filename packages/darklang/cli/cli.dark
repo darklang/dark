@@ -230,7 +230,7 @@ Options:
         let whatIsIt =
           CLI.HttpClient.request
             "GET"
-            ("http://dark-packages.dlio.localhost:11003/byName/" ++ fullName)
+            ("http://dark-packages.dlio.localhost:11003/category/" ++ fullName)
             []
             Bytes.empty
 

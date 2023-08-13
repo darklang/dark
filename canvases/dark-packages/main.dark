@@ -174,7 +174,7 @@ let _handler _req =
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
 
-[<HttpHandler("GET", "/byName/:name")>]
+[<HttpHandler("GET", "/category/:name")>]
 let _handler _req =
   let fullName = name |> String.split "."
   let owner = fullName |> List.head |> unwrap
