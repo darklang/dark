@@ -28,7 +28,7 @@ let _handler _req =
     let contentType =
       match
         (String.split path ".")
-        |> List.last
+        |> PACKAGE.Darklang.Stdlib.List.last
         |> PACKAGE.Darklang.Stdlib.Option.withDefault ""
       with
       | "js" -> "application/javascript"
@@ -149,8 +149,8 @@ let _handler _req =
   | Ok program ->
     let prettyTypes =
       program.types
-      |> List.drop drop
-      |> List.take take
+      |> PACKAGE.Darklang.Stdlib.List.drop drop
+      |> PACKAGE.Darklang.Stdlib.List.take take
       |> List.map (fun t -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType t)
       |> String.join "\n\n"
 
@@ -217,8 +217,8 @@ let _handler _req =
   | Ok program ->
     let prettyTypes =
       program.types
-      |> List.drop drop
-      |> List.take take
+      |> PACKAGE.Darklang.Stdlib.List.drop drop
+      |> PACKAGE.Darklang.Stdlib.List.take take
       |> List.map (fun t -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType t)
       |> String.join "\n\n"
 

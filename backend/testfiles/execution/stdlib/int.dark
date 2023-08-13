@@ -44,51 +44,31 @@ Int.remainder_v0 -15 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok -3
 Int.remainder_v0 5 0 = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "`divisor` must be non-zero"
 
-List.map_v0 (List.range_v0 -5 5) (fun v -> Int.remainder_v0 v -4) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                        -1
-                                                                      PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                        0
-                                                                      PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                        -3
-                                                                      PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                        -2
-                                                                      PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                        -1
-                                                                      PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                        0
-                                                                      PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                        1
-                                                                      PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                        2
-                                                                      PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                        3
-                                                                      PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                        0
-                                                                      PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                        1 ]
+List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5) (fun v ->
+  Int.remainder_v0 v -4) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok -3
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok -2
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok 2
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok 3
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok 1 ]
 
-List.map_v0 (List.range_v0 -5 5) (fun v -> Int.remainder_v0 v 4) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                       -1
-                                                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                       0
-                                                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                       -3
-                                                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                       -2
-                                                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                       -1
-                                                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                       0
-                                                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                       1
-                                                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                       2
-                                                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                       3
-                                                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                       0
-                                                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                       1 ]
+List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5) (fun v ->
+  Int.remainder_v0 v 4) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok -3
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok -2
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok 2
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok 3
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok 1 ]
 
 Int.mod_v0 15 5 = 0
 Int.mod_v0 15 6 = 3
@@ -99,33 +79,33 @@ Int.mod_v0 9999999999998L 3 = 2
 Int.mod_v0 5 0 = Test.runtimeError "Expected `b` to be positive, but it was `0`"
 Int.mod_v0 5 (-5) = Test.runtimeError "Expected `b` to be positive, but it was `-5`"
 
-List.map_v0 (List.range_v0 (-5) 5) (fun v -> Int.mod_v0 v 4) = [ 3
-                                                                 0
-                                                                 1
-                                                                 2
-                                                                 3
-                                                                 0
-                                                                 1
-                                                                 2
-                                                                 3
-                                                                 0
-                                                                 1 ]
+List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 (-5) 5) (fun v -> Int.mod_v0 v 4) = [ 3
+                                                                                         0
+                                                                                         1
+                                                                                         2
+                                                                                         3
+                                                                                         0
+                                                                                         1
+                                                                                         2
+                                                                                         3
+                                                                                         0
+                                                                                         1 ]
 
 15 % 5 = 0
 5 % 0 = Test.runtimeError "Expected `b` to be positive, but it was `0`"
 5 % (-5) = Test.runtimeError "Expected `b` to be positive, but it was `-5`"
 
-List.map_v0 (List.range_v0 -5 5) (fun v -> v % 4) = [ 3
-                                                      0
-                                                      1
-                                                      2
-                                                      3
-                                                      0
-                                                      1
-                                                      2
-                                                      3
-                                                      0
-                                                      1 ]
+List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5) (fun v -> v % 4) = [ 3
+                                                                              0
+                                                                              1
+                                                                              2
+                                                                              3
+                                                                              0
+                                                                              1
+                                                                              2
+                                                                              3
+                                                                              0
+                                                                              1 ]
 
 Int.power_v0 8 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok 32768
 Int.power_v0 0 1 = PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
@@ -237,28 +217,29 @@ Int.divide_v0 -8 5 = -1
 Int.divide_v0 0 1 = 0
 Int.divide_v0 1 0 = Test.runtimeError "Division by zero"
 
-(List.range_v0 1 5)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
 |> List.map_v0 (fun x -> Int.random 1 2)
 |> List.map_v0 (fun x -> (x >= 1) && (x <= 2)) = [ true; true; true; true; true ]
 
-(List.range_v0 1 5)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
 |> List.map_v0 (fun x -> Int.random 10 20)
 |> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) = [ true; true; true; true; true ]
 
-(List.range_v0 1 5)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
 |> List.map_v0 (fun x -> Int.random 2 1)
 |> List.map_v0 (fun x -> (x >= 1) && (x <= 2)) = [ true; true; true; true; true ]
 
-(List.range_v0 1 5)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
 |> List.map_v0 (fun x -> Int.random 20 10)
 |> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) = [ true; true; true; true; true ]
 
-((List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random 0 1) |> List.unique_v0) = [ 0
-                                                                                       1 ]
+((PACKAGE.Darklang.Stdlib.List.range_v0 1 100)
+ |> List.map_v0 (fun x -> Int.random 0 1)
+ |> List.unique_v0) = [ 0; 1 ]
 
-((List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random 0 2) |> List.unique_v0) = [ 0
-                                                                                       1
-                                                                                       2 ]
+((PACKAGE.Darklang.Stdlib.List.range_v0 1 100)
+ |> List.map_v0 (fun x -> Int.random 0 2)
+ |> List.unique_v0) = [ 0; 1; 2 ]
 
 Int.sum_v0 [ 1; 2 ] = 3
 

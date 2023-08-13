@@ -79,7 +79,7 @@ module NestedRecordFieldAccess =
    let shouldBeJustJoe =
      DB.query TestNestedRecord (fun p -> p.details.numbers.age == 41)
 
-   List.length shouldBeJustJoe) = 1
+   PACKAGE.Darklang.Stdlib.List.length shouldBeJustJoe) = 1
 
   // same as above, but with aliases
   (DB.set
@@ -99,7 +99,7 @@ module NestedRecordFieldAccess =
    let shouldBeJustJeremy =
      DB.query TestNestedAliasRecord (fun p -> p.details.numbers.age == 38)
 
-   List.length shouldBeJustJeremy) = 1
+   PACKAGE.Darklang.Stdlib.List.length shouldBeJustJeremy) = 1
 
 
 
@@ -121,7 +121,7 @@ type TestRecordWithGenericThing = RecordWithGenericThing
 //    let shouldBeJustJoe =
 //      DB.query TestRecordWithGenericThing (fun p -> p.name == "joe")
 
-//    List.length shouldBeJustJoe) = 1
+//    PACKAGE.Darklang.Stdlib.List.length shouldBeJustJoe) = 1
 
 
 module AddToTestEnumDBs =
@@ -388,7 +388,7 @@ module Roundtrip =
     ((fetch (fun p ->
       ((Uuid.parse "00000050-0000-0000-0000-000000000000") |> unwrap)
       == ((Uuid.parse "00000050-0000-0000-0000-000000000000") |> unwrap)))
-     |> List.length) = 2
+     |> PACKAGE.Darklang.Stdlib.List.length) = 2
 
 
 
@@ -802,10 +802,10 @@ module PartialEvaluation =
   // fieldAccesses inside query
   (friends (fun p ->
     let x = YL { y = ZL { z = AL { a = [ 1; 2; 3; 4; 5 ] } } }
-    (x.y.z.a |> List.length_v0) < p.height)) = [ " Chandler "
-                                                 "GrumpyCat"
-                                                 "Rachel"
-                                                 "Ross" ]
+    (PACKAGE.Darklang.Stdlib.List.length_v0 x.y.z.a) < p.height)) = [ " Chandler "
+                                                                      "GrumpyCat"
+                                                                      "Rachel"
+                                                                      "Ross" ]
 
   // tuple destructuring inside query
   (friends (fun p ->

@@ -83,9 +83,10 @@ let _handler _req =
 [<HttpHandler("GET", "/stats")>]
 let _handler _req =
   let stats =
-    [ ("types", (DB.getAll PackageTypeDB) |> List.length)
-      ("fns", (DB.getAll PackageFnDB) |> List.length)
-      ("constants", (DB.getAll PackageConstantDB) |> List.length) ]
+    [ ("types", (DB.getAll PackageTypeDB) |> PACKAGE.Darklang.Stdlib.List.length)
+      ("fns", (DB.getAll PackageFnDB) |> PACKAGE.Darklang.Stdlib.List.length)
+      ("constants",
+       (DB.getAll PackageConstantDB) |> PACKAGE.Darklang.Stdlib.List.length) ]
     |> Dict.fromListOverwritingDuplicates_v0
 
   let body = (Json.serialize<Dict<Int>> stats) |> unwrap |> String.toBytes

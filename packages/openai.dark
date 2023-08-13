@@ -51,7 +51,7 @@ module OpenAI =
             Json.parse<PACKAGE.OpenAI.Completion.Response> (String.fromBytes r.body)
           with
           | Ok r ->
-            match List.head r.choices with
+            match PACKAGE.Darklang.Stdlib.List.head r.choices with
             | Some c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.text
 
             | None ->
@@ -155,7 +155,7 @@ module OpenAI =
             )
           with
           | Ok r ->
-            match List.head r.choices with
+            match PACKAGE.Darklang.Stdlib.List.head r.choices with
             | Some c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.message.content
 
             | None ->
@@ -257,7 +257,7 @@ module OpenAI =
             )
           with
           | Ok r ->
-            match List.head r.data with
+            match PACKAGE.Darklang.Stdlib.List.head r.data with
             | Some d -> PACKAGE.Darklang.Stdlib.Result.Result.Ok d.url
             | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error("No data returned")
         | Error err ->

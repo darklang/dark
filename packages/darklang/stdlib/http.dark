@@ -196,8 +196,8 @@ module Darklang =
 //         ("Max-Age", cookie.maxAge |> Int.toString)
 //         ("Domain", cookie.domain)
 //         ("Path", cookie.path)
-//         ("Secure", cookie.secure |> Bool.toString)
-//         ("HttpOnly", cookie.httpOnly |> Bool.toString)
+//         ("Secure", cookie.secure |> PACKAGE.Darklang.Stdlib.Bool.toString)
+//         ("HttpOnly", cookie.httpOnly |> PACKAGE.Darklang.Stdlib.Bool.toString)
 //         ("SameSite", cookie.sameSite) ]
 //       |> List.filterMap (fun (k, v) -> if v == "" then PACKAGE.Darklang.Stdlib.Option.Option.None else PACKAGE.Darklang.Stdlib.Option.Option.Some(k, v))
 //       |> List.map (fun (k, v) -> k ++ "=" ++ v)

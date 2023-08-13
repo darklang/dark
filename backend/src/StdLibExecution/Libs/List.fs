@@ -237,100 +237,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "head" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TypeReference.option varA
-      description =
-        "Returns {{Some}} the head (first value) of a list. Returns {{None}} if
-         the list is empty."
-      fn =
-        (function
-        | _, _, [ DList l ] -> l |> List.tryHead |> Dval.option |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "tail" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TypeReference.option (TList varA)
-      description =
-        "If <param list> contains at least one value, returns {{Some}} with a list of
-         every value other than the first. Otherwise, returns {{None}}."
-      fn =
-        // This matches Elm's implementation, with the added benefit that the error rail
-        // means you don't need to handle unwrapping the option
-        // unless the passed list is truly empty (which shouldn't happen in most practical uses).
-        (function
-        | _, _, [ DList l ] ->
-          (if List.isEmpty l then None else Some(DList l.Tail)) |> Dval.option |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-    { name = fn "push" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
-      returnType = TList varA
-      description = "Add element <param val> to front of <type list> <param list>"
-      fn =
-        // fakeval handled by call
-        (function
-        | _, _, [ DList l; i ] -> Ply(DList(i :: l))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "pushBack" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
-      returnType = TList varA
-      description = "Add element <param val> to back of <type list> <param list>"
-      fn =
-        (function
-        | _, _, [ DList l; i ] -> Ply(DList(l @ [ i ]))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "last" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TypeReference.option varA
-      description =
-        "Returns the last value in <param list>, wrapped in an option (<param
-         None> if the list is empty)"
-      fn =
-        (function
-        | _, _, [ DList l ] -> l |> List.tryLast |> Dval.option |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "reverse" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TList varA
-      description = "Returns a reversed copy of <param list>"
-      fn =
-        (function
-        | _, _, [ DList l ] -> Ply(DList(List.rev l))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "findFirst" 0
       typeParams = []
       parameters =
@@ -361,20 +267,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "member" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
-      returnType = TBool
-      description = "Returns {{true}} if <param val> is in the list"
-      fn =
-        (function
-        | _, _, [ DList l; i ] -> Ply(DBool(List.contains i l))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "repeat" 0
       typeParams = []
       parameters = [ Param.make "times" TInt ""; Param.make "val" varA "" ]
@@ -392,40 +284,6 @@ let fns : List<BuiltInFn> =
             |> errPipe
           else
             List.replicate (int times) v |> DList |> Dval.resultOk |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "length" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TInt
-      description = "Returns the number of values in <param list>"
-      fn =
-        (function
-        | _, _, [ DList l ] -> Ply(Dval.int (l.Length))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "range" 0
-      typeParams = []
-      parameters =
-        [ Param.make "lowest" TInt "First, smallest number in the list"
-          Param.make "highest" TInt "Last, largest number in the list" ]
-      returnType = TList TInt
-      description =
-        "Returns a list of numbers where each element is {{1}} larger than the
-         previous. You provide the <param lowest> and <param highest> numbers in the
-         list."
-      fn =
-        (function
-        | _, _, [ DInt start; DInt stop ] ->
-          [ start..stop ] |> List.map DInt |> DList |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -465,6 +323,8 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // CLEANUP: This can't be moved to packages until the package manager is live and stable.
+    // we can't use PACKAGE functions during the "load from disk into DB" flow
     { name = fn "flatten" 0
       typeParams = []
       parameters = [ Param.make "list" (TList(TList varA)) "" ]
@@ -608,20 +468,6 @@ let fns : List<BuiltInFn> =
             "List.unique: Unable to sort list, perhaps the list elements are different types"
             |> Dval.errStr
             |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "isEmpty" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TBool
-      description = "Returns true if <param list> has no values"
-      fn =
-        (function
-        | _, _, [ DList l ] -> Ply(DBool(List.isEmpty l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -938,23 +784,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "drop" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
-      returnType = TList varA
-      description = "Drops the first <param count> values from <param list>"
-      fn =
-        (function
-        | _, _, [ DList l; DInt c ] ->
-          if c < 0L then Ply(DList l)
-          elif c > int64 (List.length l) then Ply(DList [])
-          else Ply(DList(List.skip (int c) l))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "dropWhile" 0
       typeParams = []
       parameters =
@@ -998,23 +827,6 @@ let fns : List<BuiltInFn> =
             | None -> return DList result
             | Some v -> return v
           }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "take" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
-      returnType = TList varA
-      description = "Drops all but the first <param count> values from <param list>"
-      fn =
-        (function
-        | _, _, [ DList l; DInt c ] ->
-          if c < 0L then Ply(DList [])
-          elif c >= int64 (List.length l) then Ply(DList l)
-          else Ply(DList(List.take (int c) l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -1330,23 +1142,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "getAt" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
-      returnType = TypeReference.option varA
-      description =
-        "Returns {{Some value}} at <param index> in <param list> if <param index> is
-         less than the length of the list otherwise returns {{None}}."
-      fn =
-        (function
-        | _, _, [ DList l; DInt index ] ->
-          (List.tryItem (int index) l) |> Dval.option |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "randomElement" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
@@ -1473,6 +1268,9 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+
+    // CLEANUP: This can't be moved to packages until the package manager is live and stable.
+    // we can't use PACKAGE functions during the "load from disk into DB" flow
     { name = fn "iter" 0
       typeParams = []
       parameters =

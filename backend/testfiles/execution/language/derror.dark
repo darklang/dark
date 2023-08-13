@@ -14,16 +14,24 @@ module Error =
 
 module ErrorPropagation =
   type EPRec = { i: Int; m: Int; j: Int; n: Int }
-  List.head (Test.runtimeError "test") = Test.runtimeError "test"
+
+  PACKAGE.Darklang.Stdlib.List.head (Test.runtimeError "test") = Test.runtimeError
+    "test"
+
   (if Test.runtimeError "test" then 5 else 6) = Test.runtimeError "test"
-  (List.head (Test.runtimeError "test")).field = Test.runtimeError "test"
-  [ 5; 6; List.head (Test.runtimeError "test") ] = Test.runtimeError "test"
+
+  (PACKAGE.Darklang.Stdlib.List.head (Test.runtimeError "test")).field = Test.runtimeError
+    "test"
+
+  [ 5; 6; PACKAGE.Darklang.Stdlib.List.head (Test.runtimeError "test") ] = Test.runtimeError
+    "test"
+
   [ 5; 6; Test.runtimeError "test" ] = Test.runtimeError "test"
 
   EPRec
     { i = Test.runtimeError "1"
       m = 5
-      j = List.head (Test.runtimeError "2")
+      j = PACKAGE.Darklang.Stdlib.List.head (Test.runtimeError "2")
       n = 6 } = Test.runtimeError "1"
 
   5 |> (+) (Test.runtimeError "test") |> (+) 3564 = Test.runtimeError "test"

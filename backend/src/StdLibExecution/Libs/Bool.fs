@@ -14,6 +14,7 @@ let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
+  // CLEANUP: These functions are moved to packages, but we need to keep them until we find a way to make them work in DB.query
   [ { name = fn "not" 0
       typeParams = []
       parameters = [ Param.make "b" TBool "" ]
@@ -55,40 +56,6 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "OR"
       previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "xor" 0
-      typeParams = []
-      parameters = [ Param.make "a" TBool ""; Param.make "b" TBool "" ]
-      returnType = TBool
-      description =
-        "Returns {{true}} if exactly one of <param a> and <param b> is {{true}}. Returns {{false}} if both are {{true}} or neither is {{true}}."
-      fn =
-        (function
-        | _, _, [ DBool a; DBool b ] -> Ply(DBool(a <> b))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "toString" 0
-      typeParams = []
-      parameters = [ Param.make "v" TBool "" ]
-      returnType = TString
-      description = "Return {\"true\"} or {\"false\"}"
-      fn =
-        (function
-        | _, _, [ DBool b ] ->
-          match b with
-          | true -> Ply(DString("true"))
-          | false -> Ply(DString("false"))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-    ]
+      deprecated = NotDeprecated } ]
 
 let contents = (fns, types, constants)
