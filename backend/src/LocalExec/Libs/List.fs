@@ -1,3 +1,7 @@
+// Note: These functions are used within the 'Load packages from disk to the canvas DB' process,
+// and PACKAGE functions cannot be used at that stage.
+// They can be removed once we have a live package manager in place
+
 module LocalExec.Libs.List
 
 open Prelude
