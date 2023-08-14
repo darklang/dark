@@ -81,7 +81,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.makeWithArgs
             "fn"
-            (TFn([ TVariable "a" ], TVariable "c"))
+            (TFn(NEList.singleton (TVariable "a"), TVariable "c"))
             ""
             [ "val" ]
           Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
@@ -91,7 +91,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DFnVal fn; DTuple(first, second, []) ] ->
           uply {
-            let! newFirst = Interpreter.applyFnVal state 0UL fn [] [ first ]
+            let args = NEList.singleton first
+            let! newFirst = Interpreter.applyFnVal state 0UL fn [] args
             return DTuple(newFirst, second, [])
           }
         | _ -> incorrectArgs ())
@@ -105,7 +106,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.makeWithArgs
             "fn"
-            (TFn([ TVariable "b" ], TVariable "c"))
+            (TFn(NEList.singleton (TVariable "b"), TVariable "c"))
             ""
             [ "val" ]
           Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
@@ -115,7 +116,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DFnVal fn; DTuple(first, second, []) ] ->
           uply {
-            let! newSecond = Interpreter.applyFnVal state 0UL fn [] [ second ]
+            let args = NEList.singleton second
+            let! newSecond = Interpreter.applyFnVal state 0UL fn [] args
             return DTuple(first, newSecond, [])
           }
         | _ -> incorrectArgs ())
@@ -129,13 +131,13 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.makeWithArgs
             "fnFirst"
-            (TFn([ TVariable "a" ], TVariable "c"))
+            (TFn(NEList.singleton (TVariable "a"), TVariable "c"))
             "used to map the first value in the tuple"
             [ "val" ]
 
           Param.makeWithArgs
             "fnSecond"
-            (TFn([ TVariable "b" ], TVariable "d"))
+            (TFn(NEList.singleton (TVariable "b"), TVariable "d"))
             "used to map the second value in the tuple"
             [ "val" ]
 
@@ -146,9 +148,10 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DFnVal fnFst; DFnVal fnSnd; DTuple(first, second, []) ] ->
           uply {
-            let! newFirst = Interpreter.applyFnVal state 0UL fnFst [] [ first ]
-
-            let! newSecond = Interpreter.applyFnVal state 0UL fnSnd [] [ second ]
+            let args = NEList.singleton first
+            let! newFirst = Interpreter.applyFnVal state 0UL fnFst [] args
+            let args = NEList.singleton second
+            let! newSecond = Interpreter.applyFnVal state 0UL fnSnd [] args
 
             return DTuple(newFirst, newSecond, [])
           }

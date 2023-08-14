@@ -41,9 +41,8 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     EIf(id, f cond, f ifexpr, Option.map f elseexpr)
   | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
   | EInfix(id, op, left, right) -> EInfix(id, op, f left, f right)
-  | EPipe(id, expr1, expr2, exprs) ->
-    EPipe(id, f expr1, traversePipeExpr expr2, List.map traversePipeExpr exprs)
-  | EApply(id, fn, typeArgs, exprs) -> EApply(id, f fn, typeArgs, List.map f exprs)
+  | EPipe(id, expr1, exprs) -> EPipe(id, f expr1, List.map traversePipeExpr exprs)
+  | EApply(id, fn, typeArgs, exprs) -> EApply(id, f fn, typeArgs, NEList.map f exprs)
   | ELambda(id, names, expr) -> ELambda(id, names, f expr)
   | EList(id, exprs) -> EList(id, List.map f exprs)
   | EDict(id, pairs) -> EDict(id, List.map (fun (k, v) -> (k, f v)) pairs)
@@ -57,7 +56,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     ERecordUpdate(
       id,
       f record,
-      List.map (fun (name, expr) -> (name, f expr)) updates
+      NEList.map (fun (name, expr) -> (name, f expr)) updates
     )
   | EEnum(id, typeName, caseName, fields) ->
     EEnum(id, typeName, caseName, List.map f fields)
@@ -115,7 +114,7 @@ let rec preTraversal
     | TDB tr -> TDB(f tr)
     | TCustomType(name, trs) -> TCustomType(Result.map fqtnFn name, List.map f trs)
     | TDict(tr) -> TDict(f tr)
-    | TFn(trs, tr) -> TFn(List.map f trs, f tr)
+    | TFn(trs, tr) -> TFn(NEList.map f trs, f tr)
 
   let f =
     preTraversal
@@ -165,15 +164,10 @@ let rec preTraversal
     EIf(id, f cond, f ifexpr, Option.map f elseexpr)
   | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
   | EInfix(id, op, left, right) -> EInfix(id, op, f left, f right)
-  | EPipe(id, expr1, expr2, exprs) ->
-    EPipe(
-      id,
-      f expr1,
-      preTraversalPipeExpr expr2,
-      List.map preTraversalPipeExpr exprs
-    )
+  | EPipe(id, expr1, exprs) ->
+    EPipe(id, f expr1, List.map preTraversalPipeExpr exprs)
   | EApply(id, fn, typeArgs, args) ->
-    EApply(id, f fn, List.map preTraversalTypeRef typeArgs, List.map f args)
+    EApply(id, f fn, List.map preTraversalTypeRef typeArgs, NEList.map f args)
   | ELambda(id, names, expr) -> ELambda(id, names, f expr)
   | EList(id, exprs) -> EList(id, List.map f exprs)
   | EDict(id, pairs) -> EDict(id, List.map (fun (k, v) -> (k, f v)) pairs)
@@ -199,7 +193,7 @@ let rec preTraversal
     ERecordUpdate(
       id,
       f record,
-      List.map (fun (name, expr) -> (name, f expr)) updates
+      NEList.map (fun (name, expr) -> (name, f expr)) updates
     )
   | EFnName(id, name) -> EFnName(id, Result.map fqfnFn name)
 

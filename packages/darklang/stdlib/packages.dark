@@ -3,5 +3,5 @@ module Darklang =
     type Packages =
       { types: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>
         fns: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>
-        constants: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T>
-        }
+        constants:
+          List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T> }

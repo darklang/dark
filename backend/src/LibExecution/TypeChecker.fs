@@ -6,8 +6,8 @@ open VendoredTablecloth
 open RuntimeTypes
 
 /// Returns `Ok ()` if no errors, or `Error first` otherwise
-let combineErrorsUnit (l : List<Result<unit, 'err>>) : Result<unit, 'err> =
-  l |> List.find Result.isError |> Option.unwrap (Ok())
+let combineErrorsUnit (l : NEList<Result<unit, 'err>>) : Result<unit, 'err> =
+  l |> NEList.find Result.isError |> Option.unwrap (Ok())
 
 
 
@@ -32,9 +32,10 @@ type Context =
   | DictKey of key : string * typ : TypeReference * Location
   | EnumField of
     enumTypeName : TypeName.T *
-    fieldType : TypeReference *
     caseName : string *
-    paramIndex : int *  // nth argument to the enum constructor
+    fieldIndex : int *  // nth argument to the enum constructor
+    fieldCount : int *
+    fieldType : TypeReference *
     location : Location
   | DBQueryVariable of
     varName : string *
@@ -55,7 +56,7 @@ module Context =
     | FunctionCallResult(_, _, location) -> location
     | RecordField(_, _, _, location) -> location
     | DictKey(_, _, location) -> location
-    | EnumField(_, _, _, _, location) -> location
+    | EnumField(_, _, _, _, _, location) -> location
     | DBQueryVariable(_, _, location) -> location
     | DBSchemaType(_, _, location) -> location
     | ListIndex(_, _, parent) -> toLocation parent
@@ -254,42 +255,42 @@ let rec unify
 
 
 
-and unifyRecordFields
-  (recordType : TypeName.T)
-  (context : Context)
-  (types : Types)
-  (typeArgSymbolTable : TypeArgTable)
-  (defs : List<TypeDeclaration.RecordField>)
-  (values : DvalMap)
-  : Ply<Result<unit, Error>> =
-  let completeDefinition =
-    defs
-    |> List.filterMap (fun (d : TypeDeclaration.RecordField) ->
-      if d.name = "" then None else Some(d.name, d))
-    |> Map.ofList
+// and unifyRecordFields
+//   (recordType : TypeName.T)
+//   (context : Context)
+//   (types : Types)
+//   (typeArgSymbolTable : TypeArgTable)
+//   (defs : List<TypeDeclaration.RecordField>)
+//   (values : DvalMap)
+//   : Ply<Result<unit, Error>> =
+//   let completeDefinition =
+//     defs
+//     |> List.filterMap (fun (d : TypeDeclaration.RecordField) ->
+//       if d.name = "" then None else Some(d.name, d))
+//     |> Map.ofList
 
-  let defNames = completeDefinition |> Map.keys |> Set.ofList
-  let valueNames = values |> Map.keys |> Set.ofList
+//   let defNames = completeDefinition |> Map.keys |> Set.ofList
+//   let valueNames = values |> Map.keys |> Set.ofList
 
-  if defNames = valueNames then
-    let location = Context.toLocation context
-    values
-    |> Map.toList
-    |> List.map (fun (fieldName, fieldValue) ->
-      let fieldDef =
-        Map.get fieldName completeDefinition
-        |> Exception.unwrapOptionInternal
-          "field name missing from type"
-          [ "fieldName", fieldName ]
-      let context = RecordField(recordType, fieldDef.name, fieldDef.typ, location)
-      unify context types typeArgSymbolTable fieldDef.typ fieldValue)
-    |> Ply.List.flatten
-    |> Ply.map combineErrorsUnit
-  else
-    let extraFields = Set.difference valueNames defNames
-    let missingFields = Set.difference defNames valueNames
-    Error(MismatchedRecordFields(recordType, extraFields, missingFields, context))
-    |> Ply
+//   if defNames = valueNames then
+//     let location = Context.toLocation context
+//     values
+//     |> Map.toList
+//     |> List.map (fun (fieldName, fieldValue) ->
+//       let fieldDef =
+//         Map.get fieldName completeDefinition
+//         |> Exception.unwrapOptionInternal
+//           "field name missing from type"
+//           [ "fieldName", fieldName ]
+//       let context = RecordField(recordType, fieldDef.name, fieldDef.typ, location)
+//       unify context types typeArgSymbolTable fieldDef.typ fieldValue)
+//     |> Ply.NEList.flatten
+//     |> Ply.map combineErrorsUnit
+//   else
+//     let extraFields = Set.difference valueNames defNames
+//     let missingFields = Set.difference defNames valueNames
+//     Error(MismatchedRecordFields(recordType, extraFields, missingFields, context))
+//     |> Ply
 
 
 // TODO: there are missing type checks around type arguments that we should backfill.
@@ -316,16 +317,16 @@ let checkFunctionCall
   (types : Types)
   (typeArgSymbolTable : TypeArgTable)
   (fn : Fn)
-  (args : List<Dval>)
+  (args : NEList<Dval>)
   : Ply<Result<unit, Error>> =
   // The interpreter checks these are the same length
   fn.parameters
-  |> List.mapi2
+  |> NEList.map2WithIndex
     (fun i value param ->
       let context = FunctionCallParameter(fn.name, param, i, None)
       unify context types typeArgSymbolTable param.typ value)
     args
-  |> Ply.List.mapSequentially identity
+  |> Ply.NEList.mapSequentially identity
   |> Ply.map combineErrorsUnit
 
 

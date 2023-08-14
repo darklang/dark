@@ -21,7 +21,7 @@ let fn = fn modules
 let ptTyp (submodules : List<string>) (name : string) (version : int) : TypeName.T =
   TypeName.fqPackage
     "Darklang"
-    (NEList.ofList "Stdlib" ("ProgramTypes" :: submodules))
+    ("Stdlib" :: "ProgramTypes" :: submodules)
     name
     version
 

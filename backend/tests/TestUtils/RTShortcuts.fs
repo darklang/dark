@@ -26,6 +26,7 @@ let eFn'
   (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : Expr =
+  let args = NEList.ofListUnsafe "eFn'" [] args
   EApply(gid (), (eStdFnName modules function_ version), typeArgs, args)
 
 let eFn
@@ -42,6 +43,7 @@ let eUserFn
   (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : Expr =
+  let args = NEList.ofListUnsafe "eUserFn" [] args
   EApply(gid (), (eUserFnName function_), typeArgs, args)
 
 let eApply
@@ -49,6 +51,7 @@ let eApply
   (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : Expr =
+  let args = NEList.ofListUnsafe "eApply" [] args
   EApply(gid (), target, typeArgs, args)
 
 let eStr (str : string) : Expr = EString(gid (), [ StringText str ])
@@ -71,8 +74,9 @@ let eVar (name : string) : Expr = EVariable(gid (), name)
 let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
   EFieldAccess(gid (), expr, fieldName)
 
-let eLambda (varNames : string list) (body : Expr) : Expr =
-  ELambda(gid (), List.map (fun name -> (gid (), name)) varNames, body)
+let eLambda (varNames : List<string>) (body : Expr) : Expr =
+  let varNames = NEList.ofListUnsafe "eLambda" [] varNames
+  ELambda(gid (), NEList.map (fun name -> (gid (), name)) varNames, body)
 
 let eEnum (typeName : TypeName.T) (name : string) (args : Expr list) : Expr =
   EEnum(gid (), typeName, name, args)

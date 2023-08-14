@@ -71,12 +71,13 @@ let toEventDesc t = (t.module', t.name, t.modifier)
 /// The events_v2 is the source of truth for the queue
 /// -----------------
 
-let createEvent
+let createEventAtTime
   (canvasID : CanvasID)
   (id : EventID)
   (module' : string)
   (name : string)
   (modifier : string)
+  (dt : Instant)
   (value : RT.Dval)
   : Task<unit> =
   Sql.query
@@ -85,15 +86,26 @@ let createEvent
         enqueued_at, locked_at)
      VALUES
        (@id, @canvasID, @module, @name, @modifier, @value,
-        CURRENT_TIMESTAMP, NULL)"
+        @enqueuedAt, NULL)"
   |> Sql.parameters
     [ "id", Sql.uuid id
       "canvasID", Sql.uuid canvasID
       "module", Sql.string module'
       "name", Sql.string name
       "modifier", Sql.string modifier
+      "enqueuedAt", Sql.instantWithTimeZone dt
       "value", Sql.string (DvalReprInternalRoundtrippable.toJsonV0 value) ]
   |> Sql.executeStatementAsync
+
+let createEvent
+  (canvasID : CanvasID)
+  (id : EventID)
+  (module' : string)
+  (name : string)
+  (modifier : string)
+  (value : RT.Dval)
+  : Task<unit> =
+  createEventAtTime canvasID id module' name modifier (Instant.now ()) value
 
 let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
   Sql.query
@@ -283,13 +295,12 @@ let subscriber : Lazy<Task<SubscriberServiceApiClient>> =
 
 /// Gets as many messages as allowed the next available notification in the queue, or None if it doesn't find
 /// one within a timeout
-let dequeue (count : int) : Task<List<Notification>> =
+let dequeue (timeout : System.TimeSpan) (count : int) : Task<List<Notification>> =
   task {
     let! subscriber = subscriber.Force()
     // We set a deadline in case we get the shutdown signal. We want to go back to
     // the outer loop if we're told to shutdown.
-    let expiration =
-      Google.Api.Gax.Expiration.FromTimeout(System.TimeSpan.FromSeconds 5)
+    let expiration = Google.Api.Gax.Expiration.FromTimeout timeout
     let callSettings = Google.Api.Gax.Grpc.CallSettings.FromExpiration expiration
     let! envelopes =
       task {
@@ -327,8 +338,6 @@ let dequeue (count : int) : Task<List<Notification>> =
           pubSubAckID = envelope.AckId })
   }
 
-
-
 let createNotifications (canvasID : CanvasID) (ids : List<EventID>) : Task<unit> =
   task {
     if ids <> [] then
@@ -348,11 +357,12 @@ let createNotifications (canvasID : CanvasID) (ids : List<EventID>) : Task<unit>
     return ()
   }
 
-let enqueue
+let enqueueAtTime
   (canvasID : CanvasID)
   (module' : string)
   (name : string)
   (modifier : string)
+  (dt : Instant)
   (value : RT.Dval)
   : Task<unit> =
   task {
@@ -365,10 +375,24 @@ let enqueue
           "handler.modifier", modifier ]
     // save the event
     let id = System.Guid.NewGuid()
-    do! createEvent canvasID id module' name modifier value
+    do! createEventAtTime canvasID id module' name modifier dt value
     do! createNotifications canvasID [ id ]
-    return ()
   }
+
+let enqueueNow
+  (canvasID : CanvasID)
+  (module' : string)
+  (name : string)
+  (modifier : string)
+  (value : RT.Dval)
+  : Task<unit> =
+  enqueueAtTime
+    canvasID
+    module'
+    name
+    modifier
+    (Instant.FromDateTimeUtc System.DateTime.UtcNow)
+    value
 
 /// Tell PubSub that it can try to deliver this again, waiting [delay] seconds to do
 /// so. This expiration of the ack is called NACK in the PubSub docs, and it

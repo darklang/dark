@@ -49,14 +49,10 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../LibParser/LibParser.fsproj" />
-    <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
     <ProjectReference Include="../LibCliExecution/LibCliExecution.fsproj" />
-    <ProjectReference Include="../StdLibCli/StdLibCli.fsproj" />
+    <ProjectReference Include="../StdLibCliHost/StdLibCliHost.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Libs/Cli.fs" />
-    <Compile Include="StdLib.fs" />
     <Compile Include="Cli.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

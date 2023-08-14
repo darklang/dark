@@ -48,7 +48,7 @@ module FQName =
   /// The name of a thing in the package manager
   // TODO: We plan to use UUIDs for this, but this is a placeholder
   type Package<'name> =
-    { owner : string; modules : NEList<string>; name : 'name; version : int }
+    { owner : string; modules : List<string>; name : 'name; version : int }
 
   type T<'name> =
     | BuiltIn of BuiltIn<'name>
@@ -108,17 +108,17 @@ module FQName =
   let package
     (nameValidator : NameValidator<'name>)
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : 'name)
     (version : int)
     : Package<'name> =
-    assert' (NEList.toList modules) name version nameValidator
+    assert' modules name version nameValidator
     { owner = owner; modules = modules; name = name; version = version }
 
   let fqPackage
     (nameValidator : NameValidator<'name>)
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : 'name)
     (version : int)
     : T<'name> =
@@ -136,9 +136,7 @@ module FQName =
     if s.version = 0 then name else $"{name}_v{s.version}"
 
   let packageToString (s : Package<'name>) (f : NamePrinter<'name>) : string =
-    let name =
-      [ "PACKAGE"; s.owner ] @ NEList.toList s.modules @ [ f s.name ]
-      |> String.concat "."
+    let name = [ "PACKAGE"; s.owner ] @ s.modules @ [ f s.name ] |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
   let toString (name : T<'name>) (f : NamePrinter<'name>) : string =
@@ -176,7 +174,7 @@ module TypeName =
 
   let package
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : string)
     (version : int)
     : Package =
@@ -184,7 +182,7 @@ module TypeName =
 
   let fqPackage
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : string)
     (version : int)
     : T =
@@ -201,6 +199,16 @@ module TypeName =
 
   let toString (name : T) : string =
     FQName.toString name (fun (TypeName name) -> name)
+
+  let toShortName (name : T) : string =
+    match name with
+    | FQName.BuiltIn { name = TypeName name; version = version }
+    | FQName.UserProgram { name = TypeName name; version = version }
+    | FQName.Package { name = TypeName name; version = version } ->
+      if version = 0 then name else $"{name}_v{version}"
+    | FQName.Unknown [] -> "[name not provided]"
+    | FQName.Unknown(head :: tail) ->
+      NEList.ofList head tail |> NEList.reverse |> NEList.last
 
 
 module FnName =
@@ -232,7 +240,7 @@ module FnName =
 
   let package
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : string)
     (version : int)
     : Package =
@@ -240,7 +248,7 @@ module FnName =
 
   let fqPackage
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : string)
     (version : int)
     : T =
@@ -289,7 +297,7 @@ module ConstantName =
 
   let package
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : string)
     (version : int)
     : Package =
@@ -297,7 +305,7 @@ module ConstantName =
 
   let fqPackage
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (name : string)
     (version : int)
     : T =
@@ -340,7 +348,7 @@ type TypeReference =
   | TPassword
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
-  | TFn of List<TypeReference> * TypeReference
+  | TFn of NEList<TypeReference> * TypeReference
   | TDB of TypeReference
   | TVariable of string
   | TCustomType of TypeName.T * typeArgs : List<TypeReference> // CLEANUP check all uses
@@ -358,7 +366,7 @@ type TypeReference =
       | TList t -> isConcrete t
       | TTuple(t1, t2, ts) ->
         isConcrete t1 && isConcrete t2 && List.forall isConcrete ts
-      | TFn(ts, t) -> List.forall isConcrete ts && isConcrete t
+      | TFn(ts, t) -> NEList.forall isConcrete ts && isConcrete t
       | TDB t -> isConcrete t
       | TCustomType(_, ts) -> List.forall isConcrete ts
       | TDict t -> isConcrete t
@@ -378,65 +386,41 @@ type TypeReference =
 module TypeReference =
   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
     TCustomType(
-      TypeName.fqPackage "Darklang" (NEList.ofList "Stdlib" [ "Result" ]) "Result" 0,
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0,
       [ t1; t2 ]
     )
 
   let option (t : TypeReference) : TypeReference =
     TCustomType(
-      TypeName.fqPackage "Darklang" (NEList.ofList "Stdlib" [ "Option" ]) "Option" 0,
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0,
       [ t ]
     )
 
 
 // Expressions here are runtime variants of the AST in ProgramTypes, having had
-// superfluous information removed.
+// superfluous information removed. Comments below reflect differences to ProgramTypes
 type Expr =
   | EInt of id * int64
   | EBool of id * bool
   | EString of id * List<StringSegment>
-
-  // A single Extended Grapheme Cluster
+  | EUnit of id
   | EChar of id * string
   | EFloat of id * double
-  | EUnit of id
   | EConstant of id * ConstantName.T
-  // <summary>
-  // Composed of binding pattern, the expression to create bindings for,
-  // and the expression that follows, where the bound values are available
-  // </summary>
-  //
-  // <code>
-  // let str = expr1
-  // expr2
-  // </code>
   | ELet of id * LetPattern * Expr * Expr
-
-  // Composed of condition, expr if true, and expr if false
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : option<Expr>
-
-  // Composed of a parameters * the expression itself
-  | ELambda of id * List<id * string> * Expr
-
-  // Access a field of some expression (e.g. `someExpr.fieldName`)
+  | ELambda of id * NEList<id * string> * Expr
   | EFieldAccess of id * Expr * string
-
-  // Reference some local variable by name
-  //
-  // i.e. after a `let binding = value`, any use of `binding`
   | EVariable of id * string
-
-  // This is a function call, the first expression is the value of the function.
-  | EApply of id * Expr * typeArgs : List<TypeReference> * args : List<Expr>
+  | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
   | EFnName of id * FnName.T
-
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | ERecord of id * TypeName.T * List<string * Expr>
-  | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
+  | ERecord of id * TypeName.T * NEList<string * Expr>
+  | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
   | EDict of id * List<string * Expr>
   | EEnum of id * TypeName.T * caseName : string * fields : List<Expr>
-  | EMatch of id * Expr * List<MatchPattern * Expr>
+  | EMatch of id * Expr * NEList<MatchPattern * Expr>
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
 
@@ -477,7 +461,7 @@ type DvalMap = Map<string, Dval>
 and LambdaImpl =
   { typeArgTable : TypeArgTable
     symtable : Symtable
-    parameters : List<id * string>
+    parameters : NEList<id * string>
     body : Expr }
 
 and FnValImpl =
@@ -749,7 +733,7 @@ module Dval =
     | DList l, TList t -> List.all (typeMatches t) l
     | DDict m, TDict t -> Map.all (typeMatches t) m
     | DFnVal(Lambda l), TFn(parameters, _) ->
-      List.length parameters = List.length l.parameters
+      NEList.length parameters = NEList.length l.parameters
 
     | DRecord(typeName, _, fields), TCustomType(typeName', typeArgs) ->
       // TYPESCLEANUP: should load type by name
@@ -875,11 +859,9 @@ module Dval =
   //     fields
 
 
-  let resultType =
-    TypeName.fqPackage "Darklang" (NEList.ofList "Stdlib" [ "Result" ]) "Result" 0
+  let resultType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0
 
-  let optionType =
-    TypeName.fqPackage "Darklang" (NEList.ofList "Stdlib" [ "Option" ]) "Option" 0
+  let optionType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0
 
   let resultOk (dv : Dval) : Dval =
     if isFake dv then dv else DEnum(resultType, resultType, "Ok", [ dv ])
@@ -942,7 +924,7 @@ module UserFunction =
     { tlid : tlid
       name : FnName.UserProgram
       typeParams : List<string>
-      parameters : List<Parameter>
+      parameters : NEList<Parameter>
       returnType : TypeReference
       body : Expr }
 
@@ -977,7 +959,7 @@ module PackageFn =
     { name : FnName.Package
       tlid : tlid
       typeParams : List<string>
-      parameters : List<Parameter>
+      parameters : NEList<Parameter>
       returnType : TypeReference
       body : Expr }
 
@@ -1077,7 +1059,7 @@ type BuiltInConstant =
 type BuiltInFn =
   { name : FnName.BuiltIn
     typeParams : List<string>
-    parameters : List<BuiltInParam>
+    parameters : List<BuiltInParam> // TODO: should be NEList but there's so much to change!
     returnType : TypeReference
     description : string
     previewable : Previewable
@@ -1088,7 +1070,7 @@ type BuiltInFn =
 and Fn =
   { name : FnName.T
     typeParams : List<string>
-    parameters : List<Param>
+    parameters : NEList<Param>
     returnType : TypeReference
     previewable : Previewable
     sqlSpec : SqlSpec
@@ -1132,9 +1114,9 @@ and TraceDval = bool -> id -> Dval -> unit
 
 and TraceTLID = tlid -> unit
 
-and LoadFnResult = FunctionRecord -> List<Dval> -> Option<Dval * NodaTime.Instant>
+and LoadFnResult = FunctionRecord -> NEList<Dval> -> Option<Dval * NodaTime.Instant>
 
-and StoreFnResult = FunctionRecord -> Dval list -> Dval -> unit
+and StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
 
 /// Per-runtime configuration allowing different settings for eg cloud, test, CLI
 and Config = { allowLocalHttpAccess : bool; httpclientTimeoutInMs : int }
@@ -1327,7 +1309,12 @@ let builtInParamToParam (p : BuiltInParam) : Param = { name = p.name; typ = p.ty
 let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = FQName.BuiltIn fn.name
     typeParams = fn.typeParams
-    parameters = List.map builtInParamToParam fn.parameters
+    parameters =
+      fn.parameters
+      |> List.map builtInParamToParam
+      // We'd like to remove this and use NELists, but it's much too annoying to put
+      // this in every builtin fn definition
+      |> NEList.ofListUnsafe "builtInFnToFn" [ "name", fn.name ]
     returnType = fn.returnType
     previewable = fn.previewable
     sqlSpec = fn.sqlSpec
@@ -1338,7 +1325,7 @@ let userFnToFn (fn : UserFunction.T) : Fn =
 
   { name = FQName.UserProgram fn.name
     typeParams = fn.typeParams
-    parameters = fn.parameters |> List.map toParam
+    parameters = NEList.map toParam fn.parameters
     returnType = fn.returnType
     previewable = Impure
     sqlSpec = NotQueryable
@@ -1349,7 +1336,7 @@ let packageFnToFn (fn : PackageFn.T) : Fn =
 
   { name = FQName.Package fn.name
     typeParams = fn.typeParams
-    parameters = fn.parameters |> List.map toParam
+    parameters = fn.parameters |> NEList.map toParam
     returnType = fn.returnType
     previewable = Impure
     sqlSpec = NotQueryable

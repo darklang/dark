@@ -57,11 +57,11 @@ let testProgramTypesToRuntimeTypes =
       PT.EFloat(7UL, Positive, "0", ""), RT.EFloat(7UL, 0.0)
       PT.EFloat(7UL, Positive, "", ""), RT.EFloat(7UL, 0.0)
       (PT.EMatch(9UL, u, [ PT.MPFloat(5UL, Positive, "", ""), u ]),
-       RT.EMatch(9UL, ru, [ RT.MPFloat(5UL, 0.0), ru ]))
+       RT.EMatch(9UL, ru, NEList.singleton (RT.MPFloat(5UL, 0.0), ru)))
       (PT.EMatch(9UL, u, [ PT.MPFloat(5UL, Positive, "0", ""), u ]),
-       RT.EMatch(9UL, ru, [ RT.MPFloat(5UL, 0.0), ru ]))
+       RT.EMatch(9UL, ru, NEList.singleton (RT.MPFloat(5UL, 0.0), ru)))
       (PT.EMatch(9UL, u, [ PT.MPFloat(5UL, Positive, "", "0"), u ]),
-       RT.EMatch(9UL, ru, [ RT.MPFloat(5UL, 0.0), ru ])) ]
+       RT.EMatch(9UL, ru, NEList.singleton (RT.MPFloat(5UL, 0.0), ru))) ]
 
 let testInfixProgramTypesToSerializedTypes =
   testMany

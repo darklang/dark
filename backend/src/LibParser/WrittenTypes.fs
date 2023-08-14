@@ -15,7 +15,44 @@ type Name =
   | KnownBuiltin of List<string> * string * int
   // Basically all names are unresolved at this point, and will be resolved during
   // WrittenTypesToProgramTypes
-  | Unresolved of List<string>
+  | Unresolved of NEList<string>
+
+// Ideally, we'd use a Name for the Enum typenames, like we do for ERecords and
+// EFnNames. However there are a number of problems of reusing it, that either
+// aren't problems for ERecord typenames and EFnNames, or conflict with them.
+//
+// The core problem that we're trying to model is that a Name is something the
+// user types, and the fact that users must type _something_. For DRecords or
+// EFnNames, that "at least 1 thing" is well modelled as an NEList, which avoids
+// a ton of error handling of impossible states from using empty lists (which
+// the users shouldn't even be able to type).
+//
+// However, in addition to the TypeName, EEnums have Casenames casenames (while
+// EFnName and DRecord typenames don't). If we use an NEList for the typename
+// alone, that doesn't allow someone to type `Ok`, which is allowed. (It doesn't
+// resolve to anything but we want to allow them to type it all the same.
+//
+// Looking at the four possible ways we could use Names to model EEnum:
+//
+// Name as List, plus separate casename field in EEnum:
+//  - ✅ supports [] + caseName which is valid for EEnums
+//  - ❌ supports [] for FnName and DRecord, which is invalid.
+//  - ✅ KnownBuiltin will work in EEnums
+
+// Name as List, including casename (no separate caseName field in EEnum):
+//  - 🤔 supports [] which is invalid but won't appear in practice so we can error
+//
+// Name as NEList, plus separate casename field in EEnum:
+//  - ❌ doesn't support [ "Ok" ] - can't do this
+//
+// Name as NEList, including casename (no separate caseName field in EEnum):
+//  - ❌ KnownBuiltin won't work as we won't have a caseName field, but we can
+//       error safely since we just won't do this
+//
+// Alternative: don't use Name for EEnum, and instead use List<string> plus a
+// separate caseName field.
+type UnresolvedEnumTypeName = List<string>
+
 
 type LetPattern =
   | LPVariable of id * name : string
@@ -81,7 +118,7 @@ type TypeReference =
   | TUuid
   | TBytes
   | TVariable of string
-  | TFn of List<TypeReference> * TypeReference
+  | TFn of NEList<TypeReference> * TypeReference
   | TCustomType of Name * typeArgs : List<TypeReference>
 
 
@@ -95,19 +132,25 @@ type Expr =
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : option<Expr>
   | EInfix of id * Infix * Expr * Expr
-  | ELambda of id * List<id * string> * Expr
+  | ELambda of id * NEList<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EApply of id * Expr * typeArgs : List<TypeReference> * args : List<Expr>
+  | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
   | EList of id * List<Expr>
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | EPipe of id * Expr * PipeExpr * List<PipeExpr>
+  | EPipe of id * Expr * List<PipeExpr>
   | ERecord of id * Name * List<string * Expr>
-  | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
-  | EEnum of id * Name * caseName : string * fields : List<Expr> // Name includes both CaseName and TypeName
+  | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
+
+  | EEnum of
+    id *
+    typeName : UnresolvedEnumTypeName *
+    caseName : string *
+    fields : List<Expr>
   | EMatch of id * arg : Expr * cases : List<MatchPattern * Expr>
   | EFnName of id * Name
+  | EPlaceHolder // Used to start exprs that aren't filled in yet, not in ProgramTypes
 
 and StringSegment =
   | StringText of string
@@ -116,9 +159,13 @@ and StringSegment =
 and PipeExpr =
   | EPipeInfix of id * Infix * Expr
 
-  | EPipeLambda of id * List<id * string> * Expr
+  | EPipeLambda of id * NEList<id * string> * Expr
 
-  | EPipeEnum of id * typeName : Name * caseName : string * fields : List<Expr>
+  | EPipeEnum of
+    id *
+    typeName : UnresolvedEnumTypeName *
+    caseName : string *
+    fields : List<Expr>
 
   | EPipeFnCall of
     id *
@@ -144,7 +191,7 @@ type Const =
   | CFloat of Sign * string * string
   | CUnit
   | CTuple of first : Const * second : Const * rest : List<Const>
-  | CEnum of Name * caseName : string * List<Const>
+  | CEnum of typeName : UnresolvedEnumTypeName * caseName : string * List<Const>
 
 
 module TypeDeclaration =
@@ -196,7 +243,7 @@ module UserFunction =
   type T =
     { name : PT.FnName.UserProgram
       typeParams : List<string>
-      parameters : List<Parameter>
+      parameters : NEList<Parameter>
       returnType : TypeReference
       description : string
       body : Expr }
@@ -212,7 +259,7 @@ module PackageFn =
     { name : PT.FnName.Package
       body : Expr
       typeParams : List<string>
-      parameters : List<Parameter>
+      parameters : NEList<Parameter>
       returnType : TypeReference
       description : string }
 

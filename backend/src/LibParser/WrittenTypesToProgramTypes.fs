@@ -54,7 +54,7 @@ module TypeReference =
     | WT.TBytes -> PT.TBytes
     | WT.TVariable(name) -> PT.TVariable(name)
     | WT.TFn(paramTypes, returnType) ->
-      PT.TFn(List.map toPT paramTypes, toPT returnType)
+      PT.TFn(NEList.map toPT paramTypes, toPT returnType)
 
 module BinaryOperation =
   let toPT (binop : WT.BinaryOperation) : PT.BinaryOperation =
@@ -94,6 +94,22 @@ module MatchPattern =
 
 
 module Expr =
+  let resolveTypeName
+    (resolver : NameResolver)
+    (currentModule : List<string>)
+    (names : List<string>)
+    : PT.NameResolution<PT.TypeName.T> =
+    match names with
+    | [] ->
+      Error(
+        { nameType = LibExecution.Errors.NameResolution.Type
+          errorType = LibExecution.Errors.NameResolution.MissingModuleName
+          names = names }
+      )
+    | head :: tail ->
+      let name = NEList.ofList head tail |> WT.Unresolved
+      NameResolver.TypeName.resolve resolver currentModule name
+
   let rec toPT
     (resolver : NameResolver)
     (currentModule : List<string>)
@@ -114,26 +130,20 @@ module Expr =
         NameResolver.ConstantName.resolve
           resolver
           currentModule
-          (WT.Unresolved [ var ])
+          (WT.Unresolved(NEList.singleton var))
       match constant with
       | Ok _ as name -> PT.EConstant(id, name)
       | Error _ -> PT.EVariable(id, var)
     | WT.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
-    | WT.EApply(id, (WT.EFnName(_, name) as eFnName), [], []) ->
+    | WT.EApply(id, (WT.EFnName(_, name)), [], { head = WT.EPlaceHolder }) ->
       // This must be a constant, as there are no arguments?
-      let constant = NameResolver.ConstantName.resolve resolver currentModule name
-      match constant with
-      | Ok _ as name -> PT.EConstant(id, name)
-      | Error _ ->
-        // There are no arguments, so surely this is an error? TODO: maybe we
-        // can have a better error message here
-        PT.EApply(id, toPT eFnName, [], [])
+      PT.EConstant(id, NameResolver.ConstantName.resolve resolver currentModule name)
     | WT.EApply(id, name, typeArgs, args) ->
       PT.EApply(
         id,
         toPT name,
         List.map (TypeReference.toPT resolver currentModule) typeArgs,
-        List.map toPT args
+        NEList.map toPT args
       )
     | WT.EFnName(id, name) ->
       PT.EFnName(id, NameResolver.FnName.resolve resolver currentModule name)
@@ -155,21 +165,18 @@ module Expr =
       PT.ERecordUpdate(
         id,
         toPT record,
-        updates |> List.map (fun (name, expr) -> (name, toPT expr))
+        updates |> NEList.map (fun (name, expr) -> (name, toPT expr))
       )
-    | WT.EPipe(pipeID, expr1, expr2, rest) ->
+    | WT.EPipe(pipeID, expr1, rest) ->
       PT.EPipe(
         pipeID,
         toPT expr1,
-        pipeExprToPT resolver currentModule expr2,
         List.map (pipeExprToPT resolver currentModule) rest
       )
     | WT.EEnum(id, typeName, caseName, exprs) ->
-      // NAMETODO: Should we be checking casenames here? At least for warnings? Do we
-      // check them in the interpreter at construction time?
       PT.EEnum(
         id,
-        NameResolver.TypeName.resolve resolver currentModule typeName,
+        resolveTypeName resolver currentModule typeName,
         caseName,
         List.map toPT exprs
       )
@@ -182,6 +189,8 @@ module Expr =
     | WT.EInfix(id, infix, arg1, arg2) ->
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
     | WT.EDict(id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
+    | WT.EPlaceHolder ->
+      Exception.raiseInternal "Invalid parse - placeholder not removed" []
 
   and stringSegmentToPT
     (resolver : NameResolver)
@@ -202,7 +211,7 @@ module Expr =
     match pipeExpr with
     | WT.EPipeVariableOrUserFunction(id, name) ->
       let resolved =
-        let asUserFnName = WT.Name.Unresolved [ name ]
+        let asUserFnName = WT.Name.Unresolved(NEList.singleton name)
         NameResolver.FnName.resolve resolver currentModule asUserFnName
 
       match resolved with
@@ -224,7 +233,7 @@ module Expr =
     | WT.EPipeEnum(id, typeName, caseName, fields) ->
       PT.EPipeEnum(
         id,
-        NameResolver.TypeName.resolve resolver currentModule typeName,
+        resolveTypeName resolver currentModule typeName,
         caseName,
         List.map toPT fields
       )
@@ -246,7 +255,7 @@ module Const =
       PT.CTuple(toPT first, toPT second, List.map toPT theRest)
     | WT.CEnum(typeName, caseName, fields) ->
       PT.CEnum(
-        NameResolver.TypeName.resolve resolver currentModule typeName,
+        Expr.resolveTypeName resolver currentModule typeName,
         caseName,
         List.map toPT fields
       )
@@ -387,7 +396,7 @@ module UserFunction =
     { tlid = gid ()
       name = f.name
       typeParams = f.typeParams
-      parameters = List.map (Parameter.toPT resolver currentModule) f.parameters
+      parameters = NEList.map (Parameter.toPT resolver currentModule) f.parameters
       returnType = TypeReference.toPT resolver currentModule f.returnType
       description = f.description
       deprecated = PT.NotDeprecated
@@ -422,7 +431,7 @@ module PackageFn =
     (fn : WT.PackageFn.T)
     : PT.PackageFn.T =
     { name = fn.name
-      parameters = List.map (Parameter.toPT resolver currentModule) fn.parameters
+      parameters = NEList.map (Parameter.toPT resolver currentModule) fn.parameters
       returnType = TypeReference.toPT resolver currentModule fn.returnType
       description = fn.description
       deprecated = PT.NotDeprecated

@@ -24,16 +24,10 @@ module FormatV0 =
   //    change RT.Dval.
   module FQName =
 
-    /// A name that is built into the runtime
     type BuiltIn<'name> = { modules : List<string>; name : 'name; version : int }
-
-    /// Part of the user's program (eg canvas or cli)
     type UserProgram<'name> = { modules : List<string>; name : 'name; version : int }
-
-    /// The name of a thing in the package manager
-    // TODO: We plan to use UUIDs for this, but this is a placeholder
     type Package<'name> =
-      { owner : string; modules : NEList<string>; name : 'name; version : int }
+      { owner : string; modules : List<string>; name : 'name; version : int }
 
     type T<'name> =
       | BuiltIn of BuiltIn<'name>
@@ -179,7 +173,7 @@ module FormatV0 =
         RT.Lambda
           { typeArgTable = Map []
             symtable = Map []
-            parameters = []
+            parameters = NEList.singleton (gid (), "var")
             body = RT.Expr.EUnit 0UL }
       )
     | DIncomplete SourceNone -> RT.DIncomplete RT.SourceNone

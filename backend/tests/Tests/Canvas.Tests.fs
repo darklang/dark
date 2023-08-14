@@ -117,8 +117,9 @@ let testHttpLoadIgnoresDeletedFns =
     let! canvasID = initializeTestCanvas "http-load-ignores-deleted-fns"
 
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
-    let f = testUserFn "testfn" [] [] (PT.TVariable "a") (parse "5 + 3")
-    let fNew = testUserFn "testfnNew" [] [] (PT.TVariable "a") (parse "6 + 4")
+    let ps = (NEList.singleton "param")
+    let f = testUserFn "testfn" [] ps (PT.TVariable "a") (parse "5 + 3")
+    let fNew = testUserFn "testfnNew" [] ps (PT.TVariable "a") (parse "6 + 4")
 
     do!
       Canvas.saveTLIDs
@@ -176,8 +177,9 @@ let testSetHandlerAfterDelete =
 let testSetFunctionAfterDelete =
   testTask "function set after delete" {
     let! canvasID = initializeTestCanvas "db-set-function-after-delete"
-    let f1 = testUserFn "testfn" [] [] (PT.TVariable "a") (parse "5 + 3")
-    let f2 = testUserFn "testfn" [] [] (PT.TVariable "a") (parse "6 + 4")
+    let ps = NEList.singleton "param"
+    let f1 = testUserFn "testfn" [] ps (PT.TVariable "a") (parse "5 + 3")
+    let f2 = testUserFn "testfn" [] ps (PT.TVariable "a") (parse "6 + 4")
 
     // Just the deleted handler
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLFunction f1, Serialize.Deleted) ]

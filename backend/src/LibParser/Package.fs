@@ -33,8 +33,7 @@ let parseLetBinding
   (letBinding : SynBinding)
   : List<WT.PackageFn.T> * List<WT.PackageConstant.T> =
   match modules with
-  | owner :: moduleHead :: moduleTail ->
-    let modules = NEList.ofList moduleHead moduleTail
+  | owner :: modules ->
     try
       [ FS2WT.PackageFn.fromSynBinding owner modules letBinding ], []
     with _ ->
@@ -47,9 +46,7 @@ let parseLetBinding
 
 let parseTypeDef (modules : List<string>) (defn : SynTypeDefn) : WT.PackageType.T =
   match modules with
-  | owner :: moduleHead :: moduleTail ->
-    let modules = NEList.ofList moduleHead moduleTail
-    FS2WT.PackageType.fromSynTypeDefn owner modules defn
+  | owner :: modules -> FS2WT.PackageType.fromSynTypeDefn owner modules defn
   | _ ->
     Exception.raiseInternal
       "Expected owner, and at least 1 other modules"
@@ -123,8 +120,7 @@ let parse
     let modul : WTPackageModule = parseDecls baseModule decls
 
     let nameToModules (p : PT.FQName.Package<'a>) : List<string> =
-      "PACKAGE" :: (NEList.toList p.modules)
-
+      "PACKAGE" :: p.modules
     let fns =
       modul.fns
       |> List.map (fun fn ->

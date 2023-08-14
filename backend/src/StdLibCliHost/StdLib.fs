@@ -1,9 +1,4 @@
-/// StdLib functions that are part of running the CLI
-///
-/// Aggregates functions in other modules
-module Cli.StdLib
-
-open System.Threading.Tasks
+module StdLibCliHost.StdLib
 
 open Prelude
 open LibExecution.RuntimeTypes

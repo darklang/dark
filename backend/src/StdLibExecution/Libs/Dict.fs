@@ -222,7 +222,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "dict" (TDict varA) ""
           Param.makeWithArgs
             "fn"
-            (TFn([ TString; varA ], varB))
+            (TFn(NEList.ofList TString [ varA ], varB))
             ""
             [ "key"; "value" ] ]
       returnType = TDict varB
@@ -241,7 +241,12 @@ let fns : List<BuiltInFn> =
             let! result =
               Ply.Map.mapSequentially
                 (fun ((key, dv) : string * Dval) ->
-                  Interpreter.applyFnVal state 0UL b [] [ DString key; dv ])
+                  Interpreter.applyFnVal
+                    state
+                    0UL
+                    b
+                    []
+                    (NEList.ofList (DString key) [ dv ]))
                 mapped
 
             return DDict result
@@ -258,7 +263,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "dict" (TDict varA) ""
           Param.makeWithArgs
             "fn"
-            (TFn([ TString; varA ], TUnit))
+            (TFn(NEList.ofList TString [ varA ], TUnit))
             ""
             [ "key"; "value" ] ]
       returnType = TUnit
@@ -273,9 +278,8 @@ let fns : List<BuiltInFn> =
               Ply.List.iterSequentially
                 (fun ((key, dv) : string * Dval) ->
                   uply {
-                    match!
-                      Interpreter.applyFnVal state 0UL b [] [ DString key; dv ]
-                    with
+                    let args = NEList.ofList (DString key) [ dv ]
+                    match! Interpreter.applyFnVal state 0UL b [] args with
                     | DUnit -> return ()
                     | dv ->
                       if Dval.isFake dv then
@@ -298,7 +302,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "dict" (TDict varA) ""
           Param.makeWithArgs
             "fn"
-            (TFn([ TString; varA ], TBool))
+            (TFn(NEList.doubleton TString varA, TBool))
             ""
             [ "key"; "value" ] ]
       returnType = TDict varB
@@ -319,8 +323,8 @@ let fns : List<BuiltInFn> =
               | Error dv -> Ply(Error dv)
               | Ok m ->
                 uply {
-                  let! result =
-                    Interpreter.applyFnVal state 0UL b [] [ DString key; data ]
+                  let args = NEList.ofList (DString key) [ data ]
+                  let! result = Interpreter.applyFnVal state 0UL b [] args
 
                   match result with
                   | DBool true -> return Ok(Map.add key data m)
@@ -353,7 +357,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "dict" (TDict varA) ""
           Param.makeWithArgs
             "fn"
-            (TFn([ TString; varA ], TypeReference.option varB))
+            (TFn(NEList.ofList TString [ varA ], TypeReference.option varB))
             ""
             [ "key"; "value" ] ]
       returnType = TDict varB
@@ -373,21 +377,19 @@ let fns : List<BuiltInFn> =
                 let run = abortReason.Value = None
 
                 if run then
-                  let! result =
-                    Interpreter.applyFnVal state 0UL b [] [ DString key; data ]
+                  let args = NEList.ofList (DString key) [ data ]
+                  let! result = Interpreter.applyFnVal state 0UL b [] args
 
                   match result with
                   | DEnum(FQName.Package { owner = "Darklang"
-                                           modules = { head = "Stdlib"
-                                                       tail = [ "Option" ] }
+                                           modules = [ "Stdlib"; "Option" ]
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
                           _,
                           "Some",
                           [ o ]) -> return Some o
                   | DEnum(FQName.Package { owner = "Darklang"
-                                           modules = { head = "Stdlib"
-                                                       tail = [ "Option" ] }
+                                           modules = [ "Stdlib"; "Option" ]
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
                           _,

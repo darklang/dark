@@ -1,137 +1,310 @@
-let d (datestr:String) : DateTime =
-  (DateTime.parse datestr) |> unwrap
+let d (datestr: String) : DateTime = (DateTime.parse datestr) |> unwrap
 
-let p (datestr:String) : PACKAGE.Darklang.Stdlib.Result.Result<DateTime, String> =
-  (DateTime.parse datestr) |> PACKAGE.Darklang.Stdlib.Result.map (fun x -> DateTime.toString_v0 x)
+let p (datestr: String) : PACKAGE.Darklang.Stdlib.Result.Result<DateTime, String> =
+  (DateTime.parse datestr)
+  |> PACKAGE.Darklang.Stdlib.Result.map (fun x -> DateTime.toString_v0 x)
 
 module DateParsing =
-  (DateTime.parse "2019-07-28T22:42:36Z") |> PACKAGE.Darklang.Stdlib.Result.map (fun x -> DateTime.toString_v0 x) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "2019-07-28T22:42:36Z"
-  DateTime.parse "asd" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+  (DateTime.parse "2019-07-28T22:42:36Z")
+  |> PACKAGE.Darklang.Stdlib.Result.map (fun x -> DateTime.toString_v0 x) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "2019-07-28T22:42:36Z"
+
+  DateTime.parse "asd" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Invalid date format"
 
 // Parse in both
-p "2018-09-24T18:01:24Z" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "2018-09-24T18:01:24Z"
+p "2018-09-24T18:01:24Z" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "2018-09-24T18:01:24Z"
 
 
 // Lowercase `z` aren't allowed
-p "2023-09-23T18:01:24z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+p "2023-09-23T18:01:24z" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
 
 
 // Time zones aren't allowed
-p "2000-11-22 09:10:15z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format" // special cased in F#
-p "2008-09-15T09:30:41GMT" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format" // special cased in F#
-p "2008-09-15T09:30:41UTC" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2008-09-15T09:30:41EST" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+p "2000-11-22 09:10:15z" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format" // special cased in F#
+
+p "2008-09-15T09:30:41GMT" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format" // special cased in F#
+
+p "2008-09-15T09:30:41UTC" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2008-09-15T09:30:41EST" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
 
 // Fail in both
-p "2000-11-22 09:10:15" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2000-11-22 09:10:15Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2012-01-31 23:59:59.999" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2012-01-31 23:59:59.999+0100" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2012-01-31 23:59:59.999-0100" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2018-09-09 10:43:54+0100" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2018-09-09 11:43:54+0200" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2018-09-24T17:48:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2018-09-24T18:09:24+0200" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "1999-03-22T05:06:07+01:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "1999-03-22T05:06:07.000Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2006-06-09T10:20:30.040" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2006-06-09T10:20:30.040+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "20061204T1020Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+p "2000-11-22 09:10:15" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2000-11-22 09:10:15Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2012-01-31 23:59:59.999" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2012-01-31 23:59:59.999+0100" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2012-01-31 23:59:59.999-0100" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2018-09-09 10:43:54+0100" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2018-09-09 11:43:54+0200" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2018-09-24T17:48:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2018-09-24T18:09:24+0200" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "1999-03-22T05:06:07+01:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "1999-03-22T05:06:07.000Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2006-06-09T10:20:30.040" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2006-06-09T10:20:30.040+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "20061204T1020Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
 p "20061204T1020" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2008-09-15T09:30:41.1" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2008-09-15T09:30:41.12" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2008-09-15T09:30:41.123" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2008-09-15T09:30:41.1234" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2008-09-15T09:30:41.12345" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2008-09-15T09:30:41.123456" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2008-09-15T09:30:41.1234567" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2008-09-15T09:30:41.1234567Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2008-09-15T09:30:41.7752486-07:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2008-09-15T09:30:41.7752486-04:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "20061204T10:20:54.67am" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "20061204T10:20:54.67am" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "20061204T1020am" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "20061204T1020AM" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "20061204T1020PM" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "20061204T1020pm" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "15/06/2008 08:30" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "18/08/2015 06:30:15.006542" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "Mon, 15 Sep 2008 09:30:41 GMT" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2/16/2008 12:15:12 PM" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "16/02/2008 12:15:12" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+
+p "2008-09-15T09:30:41.1" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2008-09-15T09:30:41.12" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2008-09-15T09:30:41.123" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2008-09-15T09:30:41.1234" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2008-09-15T09:30:41.12345" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2008-09-15T09:30:41.123456" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2008-09-15T09:30:41.1234567" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2008-09-15T09:30:41.1234567Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2008-09-15T09:30:41.7752486-07:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2008-09-15T09:30:41.7752486-04:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "20061204T10:20:54.67am" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "20061204T10:20:54.67am" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "20061204T1020am" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "20061204T1020AM" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "20061204T1020PM" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "20061204T1020pm" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "15/06/2008 08:30" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "18/08/2015 06:30:15.006542" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "Mon, 15 Sep 2008 09:30:41 GMT" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2/16/2008 12:15:12 PM" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "16/02/2008 12:15:12" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
 p "12 Juni 2008" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "Friday, April 10, 2009" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+
+p "Friday, April 10, 2009" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
 p "2006-06-09" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "2012-01-31" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2016-12-27 14:40:46 +0000" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+
+p "2016-12-27 14:40:46 +0000" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
 p "2017-08-02" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "2T102030Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "31-01-12" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "31-01-2012" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "Jun 5 Sun" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "Thursday, April 10, 2008" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "00:00:10.512345678" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+
+p "Thursday, April 10, 2008" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "00:00:10.512345678" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
 p "01-31-2012" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "10.5" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "10.5+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "10/04/2008" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "10:20:30.040" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "10:20:30.040+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+
+p "10:20:30.040+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
 p "11:03:01" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "13:03:15.454+0530" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+
+p "13:03:15.454+0530" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
 p "1999-03-22 AD" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "1999-03-22+01:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+
+p "1999-03-22+01:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
 p "+2006-06-09" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "+2006-06-09T10:20:30.040" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "1999-03-22T05:06:07+01:00[Europe/Paris]" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "1999-03-22T05:06:07.000+01:00[Europe/Paris]" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "1999-03-22T05:06:07.000[Europe/Paris]" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "1999-081+01:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+
+p "+2006-06-09T10:20:30.040" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "1999-03-22T05:06:07+01:00[Europe/Paris]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "1999-03-22T05:06:07.000+01:00[Europe/Paris]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "1999-03-22T05:06:07.000[Europe/Paris]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "1999-081+01:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
 p "1999-W13-2" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "19990322" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "19990322+0100" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "1999W132" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2006-06-09T+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+
+p "2006-06-09T+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
 p "2006-123" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2006-123T+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2006-123T10:20:30.040" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2006-123T10:20:30.040+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+
+p "2006-123T+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2006-123T10:20:30.040" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2006-123T10:20:30.040+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
 p "2006-W27-3" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2006-W27-3T+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2006-W27-3T10:20:30.040" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2006-W27-3T10:20:30.040+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "20061204T10203Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+
+p "2006-W27-3T+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2006-W27-3T10:20:30.040" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2006-W27-3T10:20:30.040+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "20061204T10203Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
 p "20061204T102Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "20061204T10Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "20061204T1Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2006120T102030Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "200612T102030Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+
+p "2006120T102030Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "200612T102030Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
 p "20061T102030Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "2006T102030Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "200T102030Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "20T102030Z" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "Friday the 16th of May" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "Friday, May 16th 2014" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "Sat Dec 01 00:00:00 IST 2018" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "Saturday November 2012 10:45:42.720+0100" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "Sunday, June 5, 2013" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+
+p "Friday the 16th of May" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "Friday, May 16th 2014" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "Sat Dec 01 00:00:00 IST 2018" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "Saturday November 2012 10:45:42.720+0100" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "Sunday, June 5, 2013" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
 p "T10.5" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "T10.5+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
 p "T10:20:30.040" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "T10:20:30.040+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "Thu, Aug 2 1985 08:30 PM" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "Thursday, August 2 1985 08:30 PM" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "Tue, 02 Jan 2018 18:07:59 IST" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "mardi janvier 2018 14:51:02.354+0530" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "20061204T1020 am" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "20061204T1020 AM" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2008-09-15T09:30:41 GMT" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2008-09-15T09:30.456" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+
+p "T10:20:30.040+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "Thu, Aug 2 1985 08:30 PM" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "Thursday, August 2 1985 08:30 PM" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "Tue, 02 Jan 2018 18:07:59 IST" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "mardi janvier 2018 14:51:02.354+0530" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "20061204T1020 am" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "20061204T1020 AM" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2008-09-15T09:30:41 GMT" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2008-09-15T09:30.456" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
 
 // while space isn't allowed
-p " 2006-06-09T10:20:30.040+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p "2006-06-09T10:20:30.040+02:00 " = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
-p " 2006-06-09T10:20:30.040+02:00 " = PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid date format"
+p " 2006-06-09T10:20:30.040+02:00" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p "2006-06-09T10:20:30.040+02:00 " = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
+
+p " 2006-06-09T10:20:30.040+02:00 " = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Invalid date format"
 
 module LessThan =
   DateTime.lessThan (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
@@ -153,7 +326,7 @@ module Fields =
   DateTime.year_v0 (d "2019-07-28T22:42:36Z") = 2019
   DateTime.month_v0 (d "2019-07-28T22:42:36Z") = 7
   DateTime.day_v0 (d "2019-07-28T22:42:36Z") = 28
-  DateTime.hour (d "2019-12-27T03:27:36Z")  = 3 // Leif's test case
+  DateTime.hour (d "2019-12-27T03:27:36Z") = 3 // Leif's test case
   DateTime.minute (d "2019-07-28T22:42:36Z") = 42
   DateTime.weekday_v0 (d "2019-07-22T22:42:36Z") = 1 // Monday
   DateTime.weekday_v0 (d "2019-07-23T22:42:36Z") = 2
@@ -169,7 +342,7 @@ module Epoch1919 =
   DateTime.month_v0 (d "1919-07-28T22:42:36Z") = 7
   DateTime.day_v0 (d "1919-07-28T22:42:36Z") = 28
   DateTime.weekday_v0 (d "1919-07-28T22:42:36Z") = 1
-  DateTime.hour (d "1919-12-27T03:27:36Z")  = 3
+  DateTime.hour (d "1919-12-27T03:27:36Z") = 3
   DateTime.minute (d "1919-07-28T22:42:36Z") = 42
   DateTime.second (d "1919-07-28T22:42:36Z") = 36
 
@@ -178,20 +351,20 @@ module Epoch1969 =
   DateTime.month_v0 (d "1969-07-28T22:42:36Z") = 7
   DateTime.day_v0 (d "1969-07-28T22:42:36Z") = 28
   DateTime.weekday_v0 (d "1969-07-28T22:42:36Z") = 1
-  DateTime.hour (d "1969-12-27T03:27:36Z")  = 3
+  DateTime.hour (d "1969-12-27T03:27:36Z") = 3
   DateTime.minute (d "1969-07-28T22:42:36Z") = 42
   DateTime.second (d "1969-07-28T22:42:36Z") = 36
 
 module Epoch1970 =
-  DateTime.year_v0    (d "1970-07-28T22:42:36Z") = 1970
-  DateTime.month_v0   (d "1970-07-28T22:42:36Z") = 7
-  DateTime.day_v0     (d "1970-07-28T22:42:36Z") = 28
+  DateTime.year_v0 (d "1970-07-28T22:42:36Z") = 1970
+  DateTime.month_v0 (d "1970-07-28T22:42:36Z") = 7
+  DateTime.day_v0 (d "1970-07-28T22:42:36Z") = 28
   DateTime.weekday_v0 (d "1970-07-28T22:42:36Z") = 2
-  DateTime.hour    (d "1970-12-27T03:27:36Z")  = 3
-  DateTime.minute  (d "1970-07-28T22:42:36Z") = 42
-  DateTime.minute  (d "1970-07-28T22:42:36Z") = 42
-  DateTime.second  (d "1970-07-28T22:42:36Z") = 36
-  DateTime.second  (d "1970-07-28T22:42:36Z") = 36
+  DateTime.hour (d "1970-12-27T03:27:36Z") = 3
+  DateTime.minute (d "1970-07-28T22:42:36Z") = 42
+  DateTime.minute (d "1970-07-28T22:42:36Z") = 42
+  DateTime.second (d "1970-07-28T22:42:36Z") = 36
+  DateTime.second (d "1970-07-28T22:42:36Z") = 36
 
 module Convertsion =
   DateTime.toString_v0 (d "2019-07-28T22:42:36Z") = "2019-07-28T22:42:36Z"
@@ -203,22 +376,38 @@ module Convertsion =
   DateTime.toStringISO8601BasicDate_v0 (d "2019-07-28T22:42:36Z") = "20190728"
   DateTime.toStringISO8601BasicDate_v0 (d "1069-07-28T22:42:36Z") = "10690728"
   1095379198 |> DateTime.fromSeconds_v0 |> DateTime.toSeconds_v0 = 1095379198
-  (d "2019-07-28T22:42:36Z") |> DateTime.toSeconds_v0 |> DateTime.fromSeconds_v0 |> DateTime.toString_v0 = "2019-07-28T22:42:36Z"
-  // DateTime.today_v0 |> DateTime.toString_v0 = "2020-10-17T00:00:00Z" // todo, how can we test this
+
+  (d "2019-07-28T22:42:36Z")
+  |> DateTime.toSeconds_v0
+  |> DateTime.fromSeconds_v0
+  |> DateTime.toString_v0 = "2019-07-28T22:42:36Z"
+// DateTime.today_v0 |> DateTime.toString_v0 = "2020-10-17T00:00:00Z" // todo, how can we test this
 
 module AddingSeconds =
   DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 0 = (d "2020-11-26T04:37:46Z")
   DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 1 = (d "2020-11-26T04:37:47Z")
   DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 10 = (d "2020-11-26T04:37:56Z")
-  DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 1000000 = (d "2020-12-07T18:24:26Z")
+
+  DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 1000000 = (d
+    "2020-12-07T18:24:26Z")
+
   DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") -10 = (d "2020-11-26T04:37:36Z")
 
 module SubtractingSeconds =
-  DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 0 = (d "2020-11-26T04:37:46Z")
-  DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 1 = (d "2020-11-26T04:37:45Z")
-  DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 10 = (d "2020-11-26T04:37:36Z")
-  DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 1000000 = (d "2020-11-14T14:51:06Z")
-  DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") -10 = (d "2020-11-26T04:37:56Z")
+  DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 0 = (d
+    "2020-11-26T04:37:46Z")
+
+  DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 1 = (d
+    "2020-11-26T04:37:45Z")
+
+  DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 10 = (d
+    "2020-11-26T04:37:36Z")
+
+  DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 1000000 = (d
+    "2020-11-14T14:51:06Z")
+
+  DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") -10 = (d
+    "2020-11-26T04:37:56Z")
 
 module Difference =
   DateTime.subtract (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = 0L

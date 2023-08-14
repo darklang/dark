@@ -1,0 +1,155 @@
+module Darklang =
+  module Stdlib =
+    module List =
+
+      let dropLast (list: List<'a>) : List<'a> =
+        match list with
+        | [] -> []
+        | head :: tail ->
+          match tail with
+          | [] -> []
+          | _ ->
+            List.append_v0
+              (List.singleton_v0 head)
+              (PACKAGE.Darklang.Stdlib.List.dropLast tail)
+
+      /// Returns {{Some}} the head (first value) of a list.
+      /// Returns {{None}} if the list is empty.
+      let head (list: List<'a>) : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+        match list with
+        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
+        | head :: _ -> PACKAGE.Darklang.Stdlib.Option.Option.Some head
+
+
+      /// If <param list> contains at least one value, returns {{Some}} with a list of
+      /// every value other than the first. Otherwise, returns {{None}}.
+      let tail (list: List<'a>) : PACKAGE.Darklang.Stdlib.Option.Option<List<'a>> =
+        match list with
+        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
+        | _ :: tail -> PACKAGE.Darklang.Stdlib.Option.Option.Some tail
+
+
+      /// Add element <param val> to front of <type list> <param list>
+      let push (list: List<'a>) (value: 'a) : List<'a> =
+        List.append_v0 (List.singleton_v0 value) list
+
+
+      /// Add element <param val> to back of <type list> <param list>
+      let pushBack (list: List<'a>) (value: 'a) : List<'a> =
+        List.append_v0 list (List.singleton_v0 value)
+
+
+      /// Returns the last value in <param list>, wrapped in an option (<paramNone> if the list is empty)
+      let last (list: List<'a>) : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+        match list with
+        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
+        | head :: tail ->
+          match tail with
+          | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Some head
+          | _ -> PACKAGE.Darklang.Stdlib.List.last tail
+
+
+      /// Returns a reversed copy of <param list>
+      let reverse (list: List<'a>) : List<'a> =
+        match list with
+        | [] -> []
+        | head :: tail ->
+          List.append_v0
+            (PACKAGE.Darklang.Stdlib.List.reverse tail)
+            (List.singleton_v0 head)
+
+
+      /// Returns the number of values in <param list>
+      let ``length`` (list: List<'a>) : Int =
+        match list with
+        | [] -> 0
+        | _ :: tail -> 1 + (PACKAGE.Darklang.Stdlib.List.length tail)
+
+
+      /// Returns a list of numbers where each element is {{1}} larger than the
+      /// previous. You provide the <param lowest> and <param highest> numbers in the list.
+      let range (lowest: Int) (highest: Int) : List<Int> =
+        if lowest > highest then
+          []
+        else
+          List.append_v0
+            (List.singleton_v0 lowest)
+            (PACKAGE.Darklang.Stdlib.List.range (lowest + 1) highest)
+
+
+      // CLEANUP: this is blocked from being used until we have a live and stable package manager
+      // /// Returns a single list containing the values of every list directly in <paramlist>
+      // /// (does not recursively flatten nested lists)
+      // let flatten (list: List<List<'a>>) : List<'a> =
+      //   match list with
+      //   | [] -> []
+      //   | head :: tail ->
+      //     List.append_v0 head (PACKAGE.Darklang.Stdlib.List.flatten tail)
+
+
+      /// Returns true if <param list> has no values
+      let isEmpty (list: List<'a>) : Bool =
+        match list with
+        | [] -> true
+        | _ -> false
+
+
+      // CLEANUP: this is blocked from being used until we have a live and stable package manager
+      // /// Applies the given function <param fn> to each element of the <param list>.
+      // let iter (list: List<'a>) (f: 'a -> Unit) : Unit =
+      //   match list with
+      //   | [] -> ()
+      //   | head :: tail ->
+      //     head |> f
+      //     PACKAGE.Darklang.Stdlib.List.iter tail f
+
+
+      /// Returns {{Some value}} at <param index> in <param list> if <param index> is
+      /// less than the length of the list otherwise returns {{None}}.
+      let getAt
+        (list: List<'a>)
+        (index: Int)
+        : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+        if index < 0 then
+          PACKAGE.Darklang.Stdlib.Option.Option.None
+        else
+          match list with
+          | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
+          | head :: tail ->
+            if index == 0 then
+              PACKAGE.Darklang.Stdlib.Option.Option.Some head
+            else
+              PACKAGE.Darklang.Stdlib.List.getAt tail (index - 1)
+
+      /// Returns {{true}} if <param value> is in the list
+      let ``member`` (list: List<'a>) (value: 'a) : Bool =
+        match list with
+        | [] -> false
+        | head :: tail ->
+          if head == value then
+            true
+          else
+            PACKAGE.Darklang.Stdlib.List.``member`` tail value
+
+
+      /// Drops the first <param count> values from <param list>
+      let drop (list: List<'a>) (count: Int) : List<'a> =
+        if count <= 0 then
+          list
+        else
+          match list with
+          | [] -> []
+          | _ :: tail -> PACKAGE.Darklang.Stdlib.List.drop tail (count - 1)
+
+
+      /// Drops all but the first <param count> values from <param list>
+      let take (list: List<'a>) (count: Int) : List<'a> =
+        if count <= 0 then
+          []
+        else
+          match list with
+          | [] -> []
+          | head :: tail ->
+            List.append_v0
+              (List.singleton_v0 head)
+              (PACKAGE.Darklang.Stdlib.List.take tail (count - 1))

@@ -367,7 +367,6 @@ module Darklang =
         | EPipe of
           PACKAGE.Darklang.LanguageTools.ID *
           PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr *
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.PipeExpr *
           List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PipeExpr>
 
 
@@ -421,7 +420,7 @@ module Darklang =
           | EList(id, _) -> id
           | EDict(id, _) -> id
           | ETuple(id, _, _, _) -> id
-          | EPipe(id, _, _, _) -> id
+          | EPipe(id, _, _) -> id
           | ERecord(id, _, _) -> id
           | EEnum(id, _, _, _) -> id
           | EMatch(id, _, _) -> id

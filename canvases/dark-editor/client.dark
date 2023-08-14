@@ -58,7 +58,7 @@ let openAIcompletion
     | Ok r ->
       match Json.parse<OpenAIChatCompletionResponse> (String.fromBytes r.body) with
       | Ok r ->
-        match List.head r.choices with
+        match PACKAGE.Darklang.Stdlib.List.head r.choices with
         | Some c -> Ok c.message.content
 
         | None -> Error("No choices returned")
@@ -265,7 +265,7 @@ let update (model: Model) (msg: Msg) : Model =
     let (snippetToUpdate, otherSnippets) =
       model.codeSnippets |> List.partition (fun cs -> cs.id == id)
 
-    match List.head snippetToUpdate with
+    match PACKAGE.Darklang.Stdlib.List.head snippetToUpdate with
     | None -> log "couldn't find snippet"
     | Some snippetToUpdate ->
       let parsedAndSerialized = parseAndSerializeProgram codeSnippet

@@ -83,7 +83,7 @@ module LanguageToolsTypesFork =
       | TDict of TypeReference
       | TCustomType of NameResolution<TypeName.T> * typeArgs : List<TypeReference>
       | TDB of TypeReference
-      | TFn of List<TypeReference> * TypeReference
+      | TFn of NEList<TypeReference> * TypeReference
 
     type LetPattern =
       | LPVariable of ID * name : String
@@ -131,7 +131,7 @@ module LanguageToolsTypesFork =
 
     and PipeExpr =
       | EPipeVariable of ID * string
-      | EPipeLambda of ID * List<ID * string> * Expr
+      | EPipeLambda of ID * NEList<ID * string> * Expr
       | EPipeInfix of ID * Infix * Expr
       | EPipeFnCall of
         ID *
@@ -160,6 +160,7 @@ module LanguageToolsTypesFork =
       | EDict of ID * List<String * Expr>
       | ETuple of ID * Expr * Expr * List<Expr>
       | ERecord of ID * NameResolution<TypeName.T> * List<string * Expr>
+      | ERecordUpdate of ID * record : Expr * updates : NEList<String * Expr>
       | EEnum of
         ID *
         typeName : NameResolution<TypeName.T> *
@@ -172,13 +173,12 @@ module LanguageToolsTypesFork =
 
       | EIf of ID * cond : Expr * thenExpr : Expr * elseExpr : option<Expr>
       | EMatch of ID * arg : Expr * cases : List<MatchPattern * Expr>
-      | EPipe of ID * Expr * PipeExpr * List<PipeExpr>
+      | EPipe of ID * Expr * List<PipeExpr>
 
       | EInfix of ID * Infix * Expr * Expr
-      | ELambda of ID * List<ID * string> * Expr
-      | EApply of ID * Expr * typeArgs : List<TypeReference> * args : List<Expr>
+      | ELambda of ID * NEList<ID * string> * Expr
+      | EApply of ID * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
       | EFnName of ID * NameResolution<FnName.T>
-      | ERecordUpdate of ID * record : Expr * updates : List<String * Expr>
 
     type Deprecation<'name> =
       | NotDeprecated
@@ -222,7 +222,7 @@ module LanguageToolsTypesFork =
           name : FnName.Package
           body : Expr
           typeParams : List<String>
-          parameters : List<Parameter>
+          parameters : NEList<Parameter>
           returnType : TypeReference
           description : String
           deprecated : Deprecation<FnName.T> }
@@ -308,15 +308,7 @@ module ExternalTypesToProgramTypes =
     module Package =
       let toPT (p : EPT.TypeName.Package) : PT.TypeName.Package =
         { owner = p.owner
-          modules =
-            match p.modules with
-            | [] ->
-              raise (
-                Exception.raiseInternal
-                  "Expected non-empty modules"
-                  [ "name", p.name ]
-              )
-            | head :: tail -> { head = head; tail = tail }
+          modules = p.modules
           name =
             match p.name with
             | EPT.TypeName.Name.TypeName name -> PT.TypeName.TypeName name
@@ -340,15 +332,7 @@ module ExternalTypesToProgramTypes =
     module Package =
       let toPT (p : EPT.FnName.Package) : PT.FnName.Package =
         { owner = p.owner
-          modules =
-            match p.modules with
-            | [] ->
-              raise (
-                Exception.raiseInternal
-                  "Expected non-empty modules"
-                  [ "name", p.name ]
-              )
-            | head :: tail -> { head = head; tail = tail }
+          modules = p.modules
           name =
             match p.name with
             | EPT.FnName.Name.FnName name -> PT.FnName.FnName name
@@ -372,15 +356,7 @@ module ExternalTypesToProgramTypes =
     module Package =
       let toPT (p : EPT.ConstantName.Package) : PT.ConstantName.Package =
         { owner = p.owner
-          modules =
-            match p.modules with
-            | [] ->
-              raise (
-                Exception.raiseInternal
-                  "Expected non-empty modules"
-                  [ "name", p.name ]
-              )
-            | head :: tail -> { head = head; tail = tail }
+          modules = p.modules
           name =
             match p.name with
             | EPT.ConstantName.Name.ConstantName name ->
@@ -433,7 +409,7 @@ module ExternalTypesToProgramTypes =
       | EPT.TBytes -> PT.TBytes
       | EPT.TVariable(name) -> PT.TVariable(name)
       | EPT.TFn(paramTypes, returnType) ->
-        PT.TFn(List.map toPT paramTypes, toPT returnType)
+        PT.TFn(NEList.map toPT paramTypes, toPT returnType)
 
   module BinaryOperation =
     let toPT (binop : EPT.BinaryOperation) : PT.BinaryOperation =
@@ -493,7 +469,7 @@ module ExternalTypesToProgramTypes =
           id,
           toPT name,
           List.map TypeReference.toPT typeArgs,
-          List.map toPT args
+          NEList.map toPT args
         )
       | EPT.ELambda(id, vars, body) -> PT.ELambda(id, vars, toPT body)
       | EPT.ELet(id, pat, rhs, body) ->
@@ -513,10 +489,10 @@ module ExternalTypesToProgramTypes =
         PT.ERecordUpdate(
           id,
           toPT record,
-          updates |> List.map (fun (name, expr) -> (name, toPT expr))
+          updates |> NEList.map (fun (name, expr) -> (name, toPT expr))
         )
-      | EPT.EPipe(pipeID, expr1, expr2, rest) ->
-        PT.EPipe(pipeID, toPT expr1, pipeExprToPT expr2, List.map pipeExprToPT rest)
+      | EPT.EPipe(pipeID, expr1, rest) ->
+        PT.EPipe(pipeID, toPT expr1, List.map pipeExprToPT rest)
       | EPT.EEnum(id, typeName, caseName, exprs) ->
         PT.EEnum(
           id,
@@ -621,7 +597,7 @@ module ExternalTypesToProgramTypes =
 
     let toPT (fn : EPT.PackageFn.T) : PT.PackageFn.T =
       { name = FnName.Package.toPT fn.name
-        parameters = List.map Parameter.toPT fn.parameters
+        parameters = NEList.map Parameter.toPT fn.parameters
         returnType = TypeReference.toPT fn.returnType
         description = fn.description
         deprecated = Deprecation.toPT FnName.toPT fn.deprecated

@@ -69,8 +69,9 @@ let testExecFunctionTLIDs : Test =
   testTask "test that exec function returns the right tlids in the trace" {
     let! meta = initializeTestCanvas "exec-function-tlids"
     let name = "testFunction"
+    let ps = NEList.singleton "param"
     let fn =
-      testUserFn name [] [] (PT.TVariable "a") (PT.EInt(gid (), 5))
+      testUserFn name [] ps (PT.TVariable "a") (PT.EInt(gid (), 5))
       |> PT2RT.UserFunction.toRT
     let fns = Map.ofList [ (fn.name, fn) ]
     let! state = executionStateFor meta false false Map.empty Map.empty fns Map.empty
@@ -83,7 +84,12 @@ let testExecFunctionTLIDs : Test =
             { state.tracing with traceTLID = traceFn; realOrPreview = Preview } }
 
     let! value =
-      Exe.executeFunction state (gid ()) (FQName.UserProgram fn.name) [] []
+      Exe.executeFunction
+        state
+        (gid ())
+        (FQName.UserProgram fn.name)
+        []
+        (NEList.singleton DUnit)
 
     Expect.equal (HashSet.toList tlids) [ fn.tlid ] "tlid of function is traced"
     Expect.equal value (DInt 5L) "sanity check"
@@ -119,15 +125,15 @@ let testRecursionInEditor : Test =
             skippedCallerID,
             PT.EFnName(9375UL, Ok(PT.FnName.fqUserProgram [] "recurse" 0)),
             [],
-            [ PT.EInt(gid (), 2) ]
+            (NEList.singleton (PT.EInt(gid (), 2)))
           )
         ))
       )
 
+    let ps = NEList.singleton "i"
     let recurse =
-      testUserFn "recurse" [] [ "i" ] (PT.TVariable "a") fnExpr
-      |> PT2RT.UserFunction.toRT
-    let ast = EApply(callerID, eUserFnName "recurse", [], [ eInt 0 ])
+      testUserFn "recurse" [] ps (PT.TVariable "a") fnExpr |> PT2RT.UserFunction.toRT
+    let ast = EApply(callerID, eUserFnName "recurse", [], NEList.singleton (eInt 0))
     let! results = execSaveDvals "recursion in editor" [] [] [ recurse ] [] ast
 
     Expect.equal
@@ -324,10 +330,9 @@ let testAndPreview : Test =
 let testLambdaPreview : Test =
   let lID = gid ()
   let p1ID = gid ()
-  let p2ID = gid ()
   let f body =
     task {
-      let ast = ELambda(lID, [ (p1ID, ""); (p2ID, "var") ], body)
+      let ast = ELambda(lID, NEList.singleton (p1ID, "var"), body)
       let! results = execSaveDvals "lambda-preview" [] [] [] [] ast
       return results |> Dictionary.toList |> Map
     }
@@ -340,7 +345,7 @@ let testLambdaPreview : Test =
            AT.ExecutedResult(
              DFnVal(
                Lambda(
-                 { parameters = [ (p2ID, "var") ]
+                 { parameters = NEList.singleton (p1ID, "var")
                    typeArgTable = Map.empty
                    symtable = Map.empty
                    body = EString(65UL, [ StringText "body" ]) }
@@ -348,7 +353,6 @@ let testLambdaPreview : Test =
              )
            ))
           (p1ID, AT.NonExecutedResult(DIncomplete(SourceID(7UL, p1ID))))
-          (p2ID, AT.NonExecutedResult(DIncomplete(SourceID(7UL, p2ID))))
           (65UL, AT.NonExecutedResult(DString "body")) ]) ]
 
 
@@ -418,8 +422,9 @@ let testMatchPreview : Test =
            PT.FnName.fqBuiltIn [ "String" ] "append" 0 |> PT2RT.FnName.toRT
          ),
          [],
-         [ EString(okVarRhsStrId, [ StringText "ok: " ])
-           EVariable(okVarRhsVarId, "x") ]
+         (NEList.doubleton
+           (EString(okVarRhsStrId, [ StringText "ok: " ]))
+           (EVariable(okVarRhsVarId, "x")))
        ))
 
       // | None -> "enum none"
@@ -452,6 +457,7 @@ let testMatchPreview : Test =
       // | name -> name
       // (everything should match this, except for 'fake' dvals such as errors)
       (MPVariable(pVarId, "name"), EVariable(varRhsId, "name")) ]
+    |> NEList.ofListUnsafe "" []
 
   let getSubExprIds (arg : Expr) : List<id * string> =
     let mutable argIDs = []
@@ -739,7 +745,7 @@ let testLetPreview : Test =
               PT.FnName.fqBuiltIn [ "Int" ] "divide" 0 |> PT2RT.FnName.toRT
             ),
             [],
-            [ eInt 1; eInt 0 ]
+            (NEList.doubleton (eInt 1) (eInt 0))
           )
 
         let assignExpr = eTuple (eInt 1) divisionExpr []

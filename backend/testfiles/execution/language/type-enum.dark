@@ -1,6 +1,9 @@
 PACKAGE.Darklang.Stdlib.Option.Option.None = PACKAGE.Darklang.Stdlib.Option.Option.None
-((List.head []) == PACKAGE.Darklang.Stdlib.Option.Option.None) = true
-(List.head []) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+((PACKAGE.Darklang.Stdlib.List.head [])
+ == PACKAGE.Darklang.Stdlib.Option.Option.None) = true
+
+(PACKAGE.Darklang.Stdlib.List.head []) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 PACKAGE.Darklang.Stdlib.Result.Result.Ok(Test.runtimeError "err") = Test.runtimeError
   "err"
@@ -37,7 +40,7 @@ module Errors =
     // (match MyEnum.C "test" with | D -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.runtimeError "TODO"
     // (match MyEnum.C "test" with | 5 -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.runtimeError "TODO"
     (MyEnum.C 5) = Test.runtimeError
-      "Errors.User.MyEnum.C's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: String\nActual: an Int: 5"
+      "Errors.User.MyEnum.C's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: MyEnum.C (String)\nActual: MyEnum.C (Int)"
 
 
 module Simple =
@@ -76,10 +79,10 @@ module MixedCases =
   (EnumOfMixedCases.Y 1 == EnumOfMixedCases.Y 1) = true
 
   EnumOfMixedCases.X 1 = Test.runtimeError
-    "MixedCases.EnumOfMixedCases.X's 1st argument should be a String. However, an Int (1) was passed instead.\n\nExpected: String\nActual: an Int: 1"
+    "MixedCases.EnumOfMixedCases.X's 1st argument should be a String. However, an Int (1) was passed instead.\n\nExpected: EnumOfMixedCases.X (String)\nActual: EnumOfMixedCases.X (Int)"
 
   EnumOfMixedCases.Y "test" = Test.runtimeError
-    "MixedCases.EnumOfMixedCases.Y's 1st argument should be an Int. However, a String (\"test\") was passed instead.\n\nExpected: Int\nActual: a String: \"test\""
+    "MixedCases.EnumOfMixedCases.Y's 1st argument should be an Int. However, a String (\"test\") was passed instead.\n\nExpected: EnumOfMixedCases.Y (Int)\nActual: EnumOfMixedCases.Y (String)"
 
   EnumOfMixedCases.Z 1 = Test.runtimeError "Case `Z` expected 2 fields but got 1"
   // Test ordering of evaluation
@@ -92,7 +95,7 @@ module MixedCases =
       EnumOfMixedCases.Y(5)
       EnumOfMixedCases.Z("testZ", 2) ]
 
-   match List.getAt values 3 with
+   match PACKAGE.Darklang.Stdlib.List.getAt values 3 with
    | Some z -> PACKAGE.Darklang.Stdlib.Result.Result.Ok z
    | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error "Failure") = PACKAGE
     .Darklang
@@ -178,7 +181,7 @@ module Polymorphism =
     match tree with
     | Empty -> acc
     | Node(_, left, value, right) ->
-      toList' left (List.push (toList' right acc) value)
+      toList' left (PACKAGE.Darklang.Stdlib.List.push (toList' right acc) value)
 
   let toList (tree: RBTree<'a>) : List<'a> = toList' tree []
 

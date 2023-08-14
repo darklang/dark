@@ -9,14 +9,20 @@ Tuple2.second (1, "two") = "two"
 
 Tuple2.swap ("one", 2) = (2, "one")
 Tuple2.swap (1, "two") = ("two", 1)
-Tuple2.swap(Tuple2.swap ("two swaps", "back to original")) = ("two swaps", "back to original")
+
+Tuple2.swap (Tuple2.swap ("two swaps", "back to original")) = ("two swaps",
+                                                               "back to original")
 
 Tuple2.mapFirst (fun x -> String.toUppercase x) ("one", 2) = ("ONE", 2)
 Tuple2.mapFirst (fun x -> x - 2) (1, "two") = (-1, "two")
 Tuple2.mapSecond (fun x -> x - 2) ("one", 2) = ("one", 0)
 Tuple2.mapSecond (fun x -> String.toUppercase x) (1, "two") = (1, "TWO")
-Tuple2.mapBoth (fun x -> String.toUppercase x) (fun x -> x - 2) ("one", 2) = ("ONE", 0)
-Tuple2.mapBoth (fun x -> x - 2) (fun x -> String.toUppercase x) (1, "two") = (-1, "TWO")
+
+Tuple2.mapBoth (fun x -> String.toUppercase x) (fun x -> x - 2) ("one", 2) = ("ONE",
+                                                                              0)
+
+Tuple2.mapBoth (fun x -> x - 2) (fun x -> String.toUppercase x) (1, "two") = (-1,
+                                                                              "TWO")
 
 
 // Tuple3
@@ -36,5 +42,15 @@ Tuple3.mapSecond (fun x -> x - 2) ("one", 2, "pi") = ("one", 0, "pi")
 Tuple3.mapSecond (fun x -> String.toUppercase x) (1, "two", 3.14) = (1, "TWO", 3.14)
 Tuple3.mapThird (fun x -> String.toUppercase x) ("one", 2, "pi") = ("one", 2, "PI")
 Tuple3.mapThird (fun x -> Float.roundDown_v0 x) (1, "two", 3.14) = (1, "two", 3)
-Tuple3.mapAllThree (fun x -> String.toUppercase x) (fun x -> x - 2) (fun x -> String.toUppercase x) ("one", 2, "pi") = ("ONE", 0, "PI")
-Tuple3.mapAllThree (fun x -> x - 2) (fun x -> String.toUppercase x) (fun x -> Float.roundDown_v0 x) (1, "two", 3.14) = (-1, "TWO", 3)
+
+Tuple3.mapAllThree
+  (fun x -> String.toUppercase x)
+  (fun x -> x - 2)
+  (fun x -> String.toUppercase x)
+  ("one", 2, "pi") = ("ONE", 0, "PI")
+
+Tuple3.mapAllThree
+  (fun x -> x - 2)
+  (fun x -> String.toUppercase x)
+  (fun x -> Float.roundDown_v0 x)
+  (1, "two", 3.14) = (-1, "TWO", 3)

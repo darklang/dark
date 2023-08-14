@@ -2,7 +2,7 @@ Int.absoluteValue_v0 -5 = 5
 Int.absoluteValue_v0 5 = 5
 
 Int.clamp_v0 -5 -2 5 = -2 // in bounds
-Int.clamp_v0 -3 -2 1 = -2  // below min
+Int.clamp_v0 -3 -2 1 = -2 // below min
 Int.clamp_v0 -5 1 1 = 1 // at limit
 Int.clamp_v0 1 2 1 = 1 // above max
 Int.clamp_v0 3 0 2 = 2 //  below in
@@ -40,9 +40,35 @@ Int.remainder_v0 20 8 = PACKAGE.Darklang.Stdlib.Result.Result.Ok 4
 Int.remainder_v0 -20 8 = PACKAGE.Darklang.Stdlib.Result.Result.Ok -4
 Int.remainder_v0 -20 -8 = PACKAGE.Darklang.Stdlib.Result.Result.Ok -4
 Int.remainder_v0 -15 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok -3
-Int.remainder_v0 5 0 = PACKAGE.Darklang.Stdlib.Result.Result.Error "`divisor` must be non-zero"
-List.map_v0 (List.range_v0 -5 5) (fun v -> Int.remainder_v0 v -4) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok -1; PACKAGE.Darklang.Stdlib.Result.Result.Ok 0; PACKAGE.Darklang.Stdlib.Result.Result.Ok -3; PACKAGE.Darklang.Stdlib.Result.Result.Ok -2; PACKAGE.Darklang.Stdlib.Result.Result.Ok -1; PACKAGE.Darklang.Stdlib.Result.Result.Ok 0; PACKAGE.Darklang.Stdlib.Result.Result.Ok 1; PACKAGE.Darklang.Stdlib.Result.Result.Ok 2; PACKAGE.Darklang.Stdlib.Result.Result.Ok 3; PACKAGE.Darklang.Stdlib.Result.Result.Ok 0; PACKAGE.Darklang.Stdlib.Result.Result.Ok 1 ]
-List.map_v0 (List.range_v0 -5 5) (fun v -> Int.remainder_v0 v 4) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok -1; PACKAGE.Darklang.Stdlib.Result.Result.Ok 0; PACKAGE.Darklang.Stdlib.Result.Result.Ok -3; PACKAGE.Darklang.Stdlib.Result.Result.Ok -2; PACKAGE.Darklang.Stdlib.Result.Result.Ok -1; PACKAGE.Darklang.Stdlib.Result.Result.Ok 0; PACKAGE.Darklang.Stdlib.Result.Result.Ok 1; PACKAGE.Darklang.Stdlib.Result.Result.Ok 2; PACKAGE.Darklang.Stdlib.Result.Result.Ok 3; PACKAGE.Darklang.Stdlib.Result.Result.Ok 0; PACKAGE.Darklang.Stdlib.Result.Result.Ok 1 ]
+
+Int.remainder_v0 5 0 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "`divisor` must be non-zero"
+
+List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5) (fun v ->
+  Int.remainder_v0 v -4) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok -3
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok -2
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok 2
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok 3
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                             PACKAGE.Darklang.Stdlib.Result.Result.Ok 1 ]
+
+List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5) (fun v ->
+  Int.remainder_v0 v 4) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok -3
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok -2
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok 2
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok 3
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                            PACKAGE.Darklang.Stdlib.Result.Result.Ok 1 ]
 
 Int.mod_v0 15 5 = 0
 Int.mod_v0 15 6 = 3
@@ -52,23 +78,50 @@ Int.mod_v0 (-754) 53 = 41
 Int.mod_v0 9999999999998L 3 = 2
 Int.mod_v0 5 0 = Test.runtimeError "Expected `b` to be positive, but it was `0`"
 Int.mod_v0 5 (-5) = Test.runtimeError "Expected `b` to be positive, but it was `-5`"
-List.map_v0 (List.range_v0 (-5) 5) (fun v -> Int.mod_v0 v 4) = [3;0;1;2;3;0;1;2;3;0;1]
+
+List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 (-5) 5) (fun v -> Int.mod_v0 v 4) = [ 3
+                                                                                         0
+                                                                                         1
+                                                                                         2
+                                                                                         3
+                                                                                         0
+                                                                                         1
+                                                                                         2
+                                                                                         3
+                                                                                         0
+                                                                                         1 ]
 
 15 % 5 = 0
 5 % 0 = Test.runtimeError "Expected `b` to be positive, but it was `0`"
 5 % (-5) = Test.runtimeError "Expected `b` to be positive, but it was `-5`"
-List.map_v0 (List.range_v0 -5 5) (fun v -> v % 4) = [ 3; 0; 1; 2; 3; 0; 1; 2; 3; 0; 1 ]
+
+List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5) (fun v -> v % 4) = [ 3
+                                                                              0
+                                                                              1
+                                                                              2
+                                                                              3
+                                                                              0
+                                                                              1
+                                                                              2
+                                                                              3
+                                                                              0
+                                                                              1 ]
 
 Int.power_v0 8 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok 32768
 Int.power_v0 0 1 = PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
 Int.power_v0 1 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
 Int.power_v0 1000 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
 Int.power_v0 -8 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok -32768
-Int.power_v0 200 20 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Error raising to exponent"
+
+Int.power_v0 200 20 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Error raising to exponent"
+
 Int.power_v0 200 7 = PACKAGE.Darklang.Stdlib.Result.Result.Ok 12800000000000000L
 Int.power_v0 1 2147483649I = PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
 Int.power_v0 -1 2147483649I = PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
-Int.power_v0 2 -3 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `exponent` to be positive, but it was `-3`"
+
+Int.power_v0 2 -3 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected `exponent` to be positive, but it was `-3`"
 
 5 ^ 2 = PACKAGE.Darklang.Stdlib.Result.Result.Ok 25
 -8 ^ 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok -32768
@@ -152,7 +205,10 @@ Int.subtract_v0 -55 -55 = 0
 
 Int.multiply_v0 8 8 = 64
 Int.multiply_v0 5145 5145 = 26471025
-1 * 1.0 = Test.runtimeError "Int.multiply's 2nd argument (`b`) should be an Int. However, a Float (1.0) was passed instead.\n\nExpected: (b: Int)\nActual: a Float: 1.0"
+
+1 * 1.0 = Test.runtimeError
+  "Int.multiply's 2nd argument (`b`) should be an Int. However, a Float (1.0) was passed instead.\n\nExpected: (b: Int)\nActual: a Float: 1.0"
+
 8 * 8 = 64
 
 Int.divide_v0 10 5 = 2
@@ -161,15 +217,31 @@ Int.divide_v0 -8 5 = -1
 Int.divide_v0 0 1 = 0
 Int.divide_v0 1 0 = Test.runtimeError "Division by zero"
 
-(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random  1  2) |> List.map_v0 (fun x -> (x >=  1) && (x <=  2)) = [true; true; true; true; true]
-(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random 10 20) |> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) = [true; true; true; true; true]
-(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random  2  1) |> List.map_v0 (fun x -> (x >=  1) && (x <=  2)) = [true; true; true; true; true]
-(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random 20 10) |> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) = [true; true; true; true; true]
+(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+|> List.map_v0 (fun x -> Int.random 1 2)
+|> List.map_v0 (fun x -> (x >= 1) && (x <= 2)) = [ true; true; true; true; true ]
 
-((List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random 0 1) |> List.unique_v0) = [0; 1]
-((List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random 0 2) |> List.unique_v0) = [0; 1; 2]
+(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+|> List.map_v0 (fun x -> Int.random 10 20)
+|> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) = [ true; true; true; true; true ]
 
-Int.sum_v0 [1;2] = 3
+(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+|> List.map_v0 (fun x -> Int.random 2 1)
+|> List.map_v0 (fun x -> (x >= 1) && (x <= 2)) = [ true; true; true; true; true ]
+
+(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+|> List.map_v0 (fun x -> Int.random 20 10)
+|> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) = [ true; true; true; true; true ]
+
+((PACKAGE.Darklang.Stdlib.List.range_v0 1 100)
+ |> List.map_v0 (fun x -> Int.random 0 1)
+ |> List.unique_v0) = [ 0; 1 ]
+
+((PACKAGE.Darklang.Stdlib.List.range_v0 1 100)
+ |> List.map_v0 (fun x -> Int.random 0 2)
+ |> List.unique_v0) = [ 0; 1; 2 ]
+
+Int.sum_v0 [ 1; 2 ] = 3
 
 
 Int.parse_v0 "0" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
@@ -182,28 +254,72 @@ Int.parse_v0 "-1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
 Int.parse_v0 "078" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 78 // "octal" format ignored
 Int.parse_v0 "-00001" = PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
 Int.parse_v0 "-10001" = PACKAGE.Darklang.Stdlib.Result.Result.Ok -10001
-Int.parse_v0 "-4611686018427387904" = PACKAGE.Darklang.Stdlib.Result.Result.Ok -4611686018427387904L // OCaml lower limit
-Int.parse_v0 "-4611686018427387905" = PACKAGE.Darklang.Stdlib.Result.Result.Ok -4611686018427387905L // past the OCaml upper limit
-Int.parse_v0 "-9223372036854775808" = PACKAGE.Darklang.Stdlib.Result.Result.Ok -9223372036854775808L // .NET lower limit
-Int.parse_v0 "-9223372036854775809" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"-9223372036854775809\""
-Int.parse_v0 "4611686018427387903" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 4611686018427387903L // OCaml upper limit
-Int.parse_v0 "4611686018427387904" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 4611686018427387904L // past the OCaml upper limit
-Int.parse_v0 "9223372036854775807" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 9223372036854775807L // .NET upper limit
-Int.parse_v0 "9223372036854775808" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"9223372036854775808\""
-Int.parse_v0 "1 2 3" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"1 2 3\""
-Int.parse_v0 "+ 1" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"+ 1\""
-Int.parse_v0 "- 1" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"- 1\""
-Int.parse_v0 "0xA" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"0xA\""
-Int.parse_v0 "0x123" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"0x123\""
-Int.parse_v0 "0b0100" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"0b0100\""
-Int.parse_v0 "pi" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"pi\""
-Int.parse_v0 "Math.pi" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"Math.pi\""
-Int.parse_v0 "1.23E+04" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"1.23E+04\""
-Int.parse_v0 "9223372036854775808" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"9223372036854775808\""
-Int.parse_v0 "" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"\""
-Int.parse_v0 "1I" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"1I\""
-Int.parse_v0 "one" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"one\""
-Int.parse_v0 "XIV" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected to parse String with only numbers, instead got \"XIV\""
+
+Int.parse_v0 "-4611686018427387904" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -4611686018427387904L // OCaml lower limit
+
+Int.parse_v0 "-4611686018427387905" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -4611686018427387905L // past the OCaml upper limit
+
+Int.parse_v0 "-9223372036854775808" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -9223372036854775808L // .NET lower limit
+
+Int.parse_v0 "-9223372036854775809" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"-9223372036854775809\""
+
+Int.parse_v0 "4611686018427387903" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  4611686018427387903L // OCaml upper limit
+
+Int.parse_v0 "4611686018427387904" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  4611686018427387904L // past the OCaml upper limit
+
+Int.parse_v0 "9223372036854775807" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  9223372036854775807L // .NET upper limit
+
+Int.parse_v0 "9223372036854775808" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"9223372036854775808\""
+
+Int.parse_v0 "1 2 3" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"1 2 3\""
+
+Int.parse_v0 "+ 1" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"+ 1\""
+
+Int.parse_v0 "- 1" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"- 1\""
+
+Int.parse_v0 "0xA" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"0xA\""
+
+Int.parse_v0 "0x123" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"0x123\""
+
+Int.parse_v0 "0b0100" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"0b0100\""
+
+Int.parse_v0 "pi" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"pi\""
+
+Int.parse_v0 "Math.pi" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"Math.pi\""
+
+Int.parse_v0 "1.23E+04" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"1.23E+04\""
+
+Int.parse_v0 "9223372036854775808" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"9223372036854775808\""
+
+Int.parse_v0 "" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"\""
+
+Int.parse_v0 "1I" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"1I\""
+
+Int.parse_v0 "one" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"one\""
+
+Int.parse_v0 "XIV" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"XIV\""
 
 
 Int.toString 0 = "0"

@@ -181,7 +181,7 @@ let createTelemetryTracer
                   [ "fnName", stringifiedName
                     "tlid", tlid
                     "id", id
-                    "argCount", List.length args
+                    "argCount", NEList.length args
                     "hash", hash
                     "resultType",
                     LibExecution.DvalReprDeveloper.dvalTypeName result :> obj ]

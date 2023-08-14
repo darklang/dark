@@ -18,68 +18,71 @@
 //   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Fake = "fake"} = Test.runtimeError "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake"
 
 
-PACKAGE.Darklang.Stdlib.Http.badRequest_v0 "Your request resulted in an error" =
-  PACKAGE.Darklang.Stdlib.Http.Response {
-    statusCode = 400
+PACKAGE.Darklang.Stdlib.Http.badRequest_v0 "Your request resulted in an error" = PACKAGE.Darklang.Stdlib.Http.Response
+  { statusCode = 400
     headers = []
-    body = String.toBytes "Your request resulted in an error"
-  }
+    body = String.toBytes "Your request resulted in an error" }
 
-PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "test") 200 =
-  PACKAGE.Darklang.Stdlib.Http.Response {
-    statusCode = 200
+PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "test") 200 = PACKAGE.Darklang.Stdlib.Http.Response
+  { statusCode = 200
     headers = []
-    body = String.toBytes "test"
-  }
+    body = String.toBytes "test" }
 
 PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
   (String.toBytes "test")
-  [("Content-Type", "text/html; charset=utf-8")]
-  200 =
-  PACKAGE.Darklang.Stdlib.Http.Response {
-    statusCode = 200
-    headers = [("Content-Type", "text/html; charset=utf-8")]
-    body = String.toBytes "test"
-  }
+  [ ("Content-Type", "text/html; charset=utf-8") ]
+  200 = PACKAGE.Darklang.Stdlib.Http.Response
+  { statusCode = 200
+    headers = [ ("Content-Type", "text/html; charset=utf-8") ]
+    body = String.toBytes "test" }
 
-PACKAGE.Darklang.Stdlib.Http.notFound () =
-  PACKAGE.Darklang.Stdlib.Http.response Bytes.empty 404
+PACKAGE.Darklang.Stdlib.Http.notFound () = PACKAGE.Darklang.Stdlib.Http.response
+  Bytes.empty
+  404
 
-PACKAGE.Darklang.Stdlib.Http.unauthorized () =
-  PACKAGE.Darklang.Stdlib.Http.response Bytes.empty 401
+PACKAGE.Darklang.Stdlib.Http.unauthorized () = PACKAGE.Darklang.Stdlib.Http.response
+  Bytes.empty
+  401
 
-PACKAGE.Darklang.Stdlib.Http.forbidden () =
-  PACKAGE.Darklang.Stdlib.Http.response Bytes.empty 403
+PACKAGE.Darklang.Stdlib.Http.forbidden () = PACKAGE.Darklang.Stdlib.Http.response
+  Bytes.empty
+  403
 
-PACKAGE.Darklang.Stdlib.Http.success (String.toBytes "test") =
-  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "test") 200
+PACKAGE.Darklang.Stdlib.Http.success (String.toBytes "test") = PACKAGE.Darklang.Stdlib.Http.response
+  (String.toBytes "test")
+  200
 
-PACKAGE.Darklang.Stdlib.Http.responseWithHtml "test" 200 =
-  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-    (String.toBytes "test")
-    [("Content-Type", "text/html; charset=utf-8")]
-    200
+PACKAGE.Darklang.Stdlib.Http.responseWithHtml "test" 200 = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+  (String.toBytes "test")
+  [ ("Content-Type", "text/html; charset=utf-8") ]
+  200
 
-PACKAGE.Darklang.Stdlib.Http.responseWithText "test" 200 =
-  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-    (String.toBytes "test")
-    [("Content-Type", "text/plain; charset=utf-8")]
-    200
+PACKAGE.Darklang.Stdlib.Http.responseWithText "test" 200 = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+  (String.toBytes "test")
+  [ ("Content-Type", "text/plain; charset=utf-8") ]
+  200
 
-PACKAGE.Darklang.Stdlib.Http.responseWithJson "test" 200 =
-  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-    (String.toBytes "test")
-    [("Content-Type", "application/json")]
-    200
+PACKAGE.Darklang.Stdlib.Http.responseWithJson "test" 200 = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+  (String.toBytes "test")
+  [ ("Content-Type", "application/json") ]
+  200
 
-(PACKAGE.Darklang.Stdlib.Http.redirectTo "") =
-  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders Bytes.empty [ ("Location", "")] 302
+(PACKAGE.Darklang.Stdlib.Http.redirectTo "") = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+  Bytes.empty
+  [ ("Location", "") ]
+  302
 
-(PACKAGE.Darklang.Stdlib.Http.redirectTo "bad url") =
-  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders Bytes.empty [ ("Location", "bad url") ] 302
+(PACKAGE.Darklang.Stdlib.Http.redirectTo "bad url") = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+  Bytes.empty
+  [ ("Location", "bad url") ]
+  302
 
-(PACKAGE.Darklang.Stdlib.Http.redirectTo_v0 "http://someothersite.com") =
-  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders Bytes.empty [ ("Location", "http://someothersite.com")] 302
+(PACKAGE.Darklang.Stdlib.Http.redirectTo_v0 "http://someothersite.com") = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+  Bytes.empty
+  [ ("Location", "http://someothersite.com") ]
+  302
 
-(PACKAGE.Darklang.Stdlib.Http.redirectTo_v0 "/relativeUrl") =
-  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders Bytes.empty [ ("Location", "/relativeUrl") ] 302
+(PACKAGE.Darklang.Stdlib.Http.redirectTo_v0 "/relativeUrl") = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+  Bytes.empty
+  [ ("Location", "/relativeUrl") ]
+  302

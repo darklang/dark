@@ -12,18 +12,6 @@ module PT = LibExecution.ProgramTypes
 
 open Utils
 
-// A placeholder is used to indicate what still needs to be filled
-let placeholder = WT.EString(12345678UL, [ WT.StringText "PLACEHOLDER VALUE" ])
-let pipePlaceholder =
-  WT.EPipeVariableOrUserFunction(12345678UL, "PIPE PLACEHOLDER VALUE")
-
-// This is a "Partial active pattern" that you can use as a Pattern to match a Placeholder value
-let (|Placeholder|_|) (input : WT.Expr) =
-  if input = placeholder then Some() else None
-
-let (|PipePlaceholder|_|) (input : WT.PipeExpr) =
-  if input = pipePlaceholder then Some() else None
-
 let (|LongIdentPat|_|) (names : List<string>) (input : LongIdent) =
   if longIdentToList input = names then Some() else None
 
@@ -42,18 +30,30 @@ let (|IdentExprPat|_|) (input : SynExpr) =
   | SynExpr.Ident name -> Some [ name.idText ]
   | _ -> None
 
+let parseExprName (e : SynExpr) : NEList<string> =
+  match e with
+  | SynExpr.LongIdent(_, SynLongIdent(head :: tail, _, _), _, _) ->
+    NEList.ofList head tail |> NEList.map (fun i -> i.idText)
+  | SynExpr.Ident name -> NEList.singleton name.idText
+  | _ -> Exception.raiseInternal "Bad format in expr name" [ "e", e ]
+
+let parseTypeName (t : SynType) : NEList<string> =
+  match t with
+  | SynType.LongIdent(SynLongIdent(head :: tail, _, _)) ->
+    NEList.ofList head tail |> NEList.map (fun i -> i.idText)
+  | _ -> Exception.raiseInternal "Bad format in type name" [ "t", t ]
+
+
+
 module TypeReference =
 
   let rec fromNamesAndTypeArgs
-    (names : List<Ident>)
+    (names : NEList<string>)
     (typeArgs : List<SynType>)
     : WT.TypeReference =
-    let modules =
-      List.initial names
-      |> Option.defaultValue []
-      |> List.map (fun name -> name.idText)
-    let name = List.last names |> Exception.unwrapOptionInternal "typeName" []
-    match modules, name.idText, typeArgs with
+    let modules = NEList.initial names
+    let name = NEList.last names
+    match modules, name, typeArgs with
     // no type args
     | [], "Bool", [] -> WT.TBool
     | [], "Bytes", [] -> WT.TBytes
@@ -72,9 +72,7 @@ module TypeReference =
     // TYPESCLEANUP - don't use word Tuple here
     | [], "Tuple", first :: second :: theRest ->
       WT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
-    | _ ->
-      let tn = WT.Unresolved(modules @ [ name.idText ])
-      WT.TCustomType(tn, List.map fromSynType typeArgs)
+    | _ -> WT.TCustomType(WT.Unresolved(names), List.map fromSynType typeArgs)
 
   and fromSynType (typ : SynType) : WT.TypeReference =
     let c = fromSynType
@@ -103,22 +101,20 @@ module TypeReference =
 
     // Function types
     // e.g. `'a -> bool` in `let friends (lambda: ('a -> bool)) = ...`
-    | SynType.Fun(arg, ret, _, _) -> WT.TFn([ c arg ], c ret)
+    | SynType.Fun(arg, ret, _, _) -> WT.TFn(NEList.singleton (c arg), c ret)
 
 
     // Named types. covers:
     // - built-in F# types like `bool`
     // - Stdlib-defined types
     // - User-defined types
-    | SynType.App(SynType.LongIdent(SynLongIdent(names, _, _)),
-                  _,
-                  typeArgs,
-                  _,
-                  _,
-                  _,
-                  range) -> fromNamesAndTypeArgs names typeArgs
+    | SynType.App(name, _, typeArgs, _, _, _, range) ->
+      let name = parseTypeName name
+      fromNamesAndTypeArgs name typeArgs
 
-    | SynType.LongIdent(SynLongIdent(names, _, _)) -> fromNamesAndTypeArgs names []
+    | SynType.LongIdent _ as name ->
+      let name = parseTypeName name
+      fromNamesAndTypeArgs name []
 
     | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
 
@@ -248,13 +244,6 @@ module Expr =
     | Regex "^([A-Z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
     | _ -> Error "Bad format in type name"
 
-  let parseNames (e : SynExpr) : List<string> =
-    match e with
-    | SynExpr.LongIdent(_, SynLongIdent(names, _, _), _, _) ->
-      names |> List.map (fun i -> i.idText)
-    | SynExpr.Ident name -> [ name.idText ]
-    | _ -> Exception.raiseInternal "Bad format in names" [ "e", e ]
-
 
   let private ops =
     Map.ofList
@@ -299,15 +288,18 @@ module Expr =
 
     let synToPipeExpr (e : SynExpr) : WT.PipeExpr =
       match c e with
+      | WT.EApply(id,
+                  WT.EFnName(_id, name),
+                  typeArgs,
+                  { head = WT.EPlaceHolder; tail = [] }) ->
+        WT.EPipeFnCall(id, name, typeArgs, [])
       | WT.EApply(id, WT.EFnName(_id, name), typeArgs, args) ->
-        WT.EPipeFnCall(id, name, typeArgs, args)
-      | WT.EInfix(id, op, Placeholder, arg2) -> WT.EPipeInfix(id, op, arg2)
-      | WT.EInfix(id, op, arg1, Placeholder) -> WT.EPipeInfix(id, op, arg1)
+        WT.EPipeFnCall(id, name, typeArgs, NEList.toList args)
+      | WT.EInfix(id, op, WT.EPlaceHolder, arg2) -> WT.EPipeInfix(id, op, arg2)
+      | WT.EInfix(id, op, arg1, WT.EPlaceHolder) -> WT.EPipeInfix(id, op, arg1)
       | WT.EEnum(id, typeName, caseName, fields) ->
         WT.EPipeEnum(id, typeName, caseName, fields)
       | WT.EVariable(id, name) -> WT.EPipeVariableOrUserFunction(id, name)
-      | WT.EEnum(id, typeName, caseName, fields) ->
-        WT.EPipeEnum(id, typeName, caseName, fields)
       | WT.ELambda(id, vars, body) -> WT.EPipeLambda(id, vars, body)
       | other ->
         Exception.raiseInternal
@@ -357,15 +349,15 @@ module Expr =
         |> Exception.unwrapOptionInternal
           "can't find operation"
           [ "name", ident.idText ]
-      WT.EInfix(id, WT.InfixFnCall op, placeholder, placeholder)
+      WT.EInfix(id, WT.InfixFnCall op, WT.EPlaceHolder, WT.EPlaceHolder)
 
 
     // Binary Ops: && / ||
     | SynExprLongIdentPat [ "op_BooleanAnd" ] ->
-      WT.EInfix(id, WT.BinOp WT.BinOpAnd, placeholder, placeholder)
+      WT.EInfix(id, WT.BinOp WT.BinOpAnd, WT.EPlaceHolder, WT.EPlaceHolder)
 
     | SynExprLongIdentPat [ "op_BooleanOr" ] ->
-      WT.EInfix(id, WT.BinOp WT.BinOpOr, placeholder, placeholder)
+      WT.EInfix(id, WT.BinOp WT.BinOpOr, WT.EPlaceHolder, WT.EPlaceHolder)
 
     // Negation
     | SynExprLongIdentPat [ "op_UnaryNegation" ] ->
@@ -373,7 +365,7 @@ module Expr =
         id,
         WT.EFnName(gid (), WT.KnownBuiltin([ "Int" ], "negate", 0)),
         [],
-        []
+        NEList.singleton WT.EPlaceHolder
       )
 
     // Variables
@@ -403,20 +395,23 @@ module Expr =
       WT.ETuple(id, c first, c second, List.map c rest)
 
     // Enum/FnCalls - e.g. `Result.Ok` or `Result.mapSecond`
-    | IdentExprPat names when
-      (names |> List.initial |> Option.unwrap [] |> List.all String.isCapitalized)
+    | IdentExprPat(head :: tail) when
+      (head :: tail
+       |> List.initial
+       |> Option.unwrap []
+       |> List.all String.isCapitalized)
       ->
-      let modules = List.initial names |> Option.unwrap []
-      let name = List.last names |> Exception.unwrapOptionInternal "empty list" []
+      let names = NEList.ofList head tail
+      let (modules, name) = NEList.splitLast names
 
       if String.isCapitalized name then
-        WT.EEnum(gid (), WT.Unresolved modules, name, [])
+        WT.EEnum(gid (), modules, name, [])
       else
         WT.EApply(
           gid (),
-          WT.EFnName(gid (), WT.Unresolved(modules @ [ name ])),
+          WT.EFnName(gid (), WT.Unresolved(names)),
           [],
-          []
+          NEList.singleton WT.EPlaceHolder
         )
 
 
@@ -427,12 +422,17 @@ module Expr =
     // e.g. `Json.serialize<T>`
     // e.g. `Module1.Module2.fnName<String>`
     | SynExpr.TypeApp(IdentExprPat names, _, typeArgs, _, _, _, _) ->
+      let names = NEList.ofListUnsafe "Empty function name" [] names
 
       let typeArgs =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
-      WT.EApply(gid (), WT.EFnName(gid (), WT.Unresolved names), typeArgs, [])
-
+      WT.EApply(
+        gid (),
+        WT.EFnName(gid (), WT.Unresolved names),
+        typeArgs,
+        NEList.singleton WT.EPlaceHolder
+      )
 
 
     // Field access: a.b.c.d
@@ -474,6 +474,7 @@ module Expr =
         (outerVars @ nestedVars)
         |> List.map convertLambdaVar
         |> (List.map (fun name -> (gid (), name)))
+      let vars = NEList.ofListUnsafe "Empty lambda vars" [] vars
       WT.ELambda(id, vars, c body)
 
 
@@ -534,11 +535,10 @@ module Expr =
                   SynExpr.App(_, _, nestedPipes, arg, _),
                   _) when pipe.idText = "op_PipeRight" ->
       match c nestedPipes with
-      | WT.EPipe(id, arg1, PipePlaceholder, []) ->
+      | WT.EPipe(id, arg1, []) ->
         // when we just built the lowest, the second one goes here
-        WT.EPipe(id, arg1, synToPipeExpr arg, [])
-      | WT.EPipe(id, arg1, arg2, rest) ->
-        WT.EPipe(id, arg1, arg2, rest @ [ synToPipeExpr arg ])
+        WT.EPipe(id, arg1, [ synToPipeExpr arg ])
+      | WT.EPipe(id, arg1, rest) -> WT.EPipe(id, arg1, rest @ [ synToPipeExpr arg ])
       // Exception.raiseInternal $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
       | other ->
         Exception.raiseInternal
@@ -553,7 +553,7 @@ module Expr =
                   expr,
                   _) when pipe.idText = "op_PipeRight" ->
       // the very bottom on the pipe chain, this is just the first expression
-      WT.EPipe(id, c expr, pipePlaceholder, [])
+      WT.EPipe(id, c expr, [])
 
     // e.g. MyMod.MyRecord
     | SynExpr.App(_,
@@ -572,12 +572,11 @@ module Expr =
 
     // Records: MyRecord { x = 5 } or Dict { x = 5 }
     | SynExpr.App(_, _, name, SynExpr.Record(_, _, fields, _), _) when
-      List.all (fun n -> String.isCapitalized n) (parseNames name)
+      NEList.forall (fun n -> String.isCapitalized n) (parseExprName name)
       ->
-      let names = parseNames name
-      let typename =
-        List.last names |> Exception.unwrapOptionInternal "empty list" []
-      let modules = List.initial names |> Option.unwrap []
+      let names = parseExprName name
+      let typename = NEList.last names
+      let modules = NEList.initial names
 
       let fields =
         fields
@@ -587,16 +586,19 @@ module Expr =
             (nameOrBlank name.idText, c expr)
           | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
 
-      if names = [ "Dict" ] then
+      if names = NEList.singleton "Dict" then
         WT.EDict(id, fields)
       else
-        WT.ERecord(id, WT.Unresolved(modules @ [ typename ]), fields)
+        WT.ERecord(id, WT.Unresolved names, fields)
 
     // Record update: {myRecord with x = 5 }
     | SynExpr.Record(_, Some(baseRecord, _), updates, _) ->
       let updates =
         updates
-        |> List.map (fun field ->
+        |> NEList.ofListUnsafe
+          "Record updates should not be empty"
+          [ "baseRecord", baseRecord ]
+        |> NEList.map (fun field ->
           match field with
           | SynExprRecordField((SynLongIdent([ name ], _, _), _), _, Some expr, _) ->
             (nameOrBlank name.idText, c expr)
@@ -607,24 +609,26 @@ module Expr =
     // Callers with multiple args are encoded as apps wrapping other apps.
     | SynExpr.App(_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
       match c funcExpr with
+      | WT.EApply(id, name, typeArgs, { head = WT.EPlaceHolder; tail = [] }) ->
+        WT.EApply(id, name, typeArgs, NEList.singleton (c arg))
       | WT.EApply(id, name, typeArgs, args) ->
-        WT.EApply(id, name, typeArgs, args @ [ c arg ])
-      | WT.EInfix(id, op, Placeholder, arg2) -> WT.EInfix(id, op, c arg, arg2)
-      | WT.EInfix(id, op, arg1, Placeholder) -> WT.EInfix(id, op, arg1, c arg)
-      // A pipe with one entry
-      | WT.EPipe(id, arg1, PipePlaceholder, []) ->
-        WT.EPipe(id, arg1, synToPipeExpr arg, [])
-      // A pipe with more than one entry
-      | WT.EPipe(id, arg1, arg2, rest) ->
-        WT.EPipe(id, arg1, arg2, rest @ [ synToPipeExpr arg ])
+        WT.EApply(id, name, typeArgs, NEList.pushBack (c arg) args)
+      | WT.EInfix(id, op, WT.EPlaceHolder, arg2) -> WT.EInfix(id, op, c arg, arg2)
+      | WT.EInfix(id, op, arg1, WT.EPlaceHolder) -> WT.EInfix(id, op, arg1, c arg)
+      | WT.EPipe(id, arg1, rest) -> WT.EPipe(id, arg1, rest @ [ synToPipeExpr arg ])
       | WT.EVariable(id, name) ->
         if String.isCapitalized name then
-          WT.EEnum(id, WT.Unresolved [], name, convertEnumArg arg)
+          WT.EEnum(id, [], name, convertEnumArg arg)
         else
-          WT.EApply(id, WT.EFnName(gid (), WT.Unresolved [ name ]), [], [ c arg ])
+          WT.EApply(
+            id,
+            WT.EFnName(gid (), WT.Unresolved(NEList.singleton name)),
+            [],
+            NEList.singleton (c arg)
+          )
       // Enums
-      | WT.EEnum(id, typeName, caseName, fields) ->
-        WT.EEnum(id, typeName, caseName, fields @ convertEnumArg arg)
+      | WT.EEnum(id, names, caseName, fields) ->
+        WT.EEnum(id, names, caseName, fields @ convertEnumArg arg)
 
       | e ->
         Exception.raiseInternal
@@ -656,7 +660,7 @@ module Function =
   type T =
     { name : string
       version : int
-      parameters : List<Parameter>
+      parameters : NEList<Parameter>
       typeParams : List<string>
       returnType : WT.TypeReference
       body : WT.Expr }
@@ -674,16 +678,12 @@ module Function =
       { name = id.idText; typ = TypeReference.fromSynType typ }
 
     | SynPat.Typed(SynPat.Typed _ as nested,
-                   SynType.App(SynType.LongIdent(SynLongIdent(names, _, _)),
-                               _,
-                               args,
-                               _,
-                               _,
-                               _,
-                               _),
+                   SynType.App(name, _, args, _, _, _, _),
                    _) ->
+      let name = parseTypeName name
       let nested = r nested
-      { name = nested.name; typ = TypeReference.fromNamesAndTypeArgs names args }
+
+      { name = nested.name; typ = TypeReference.fromNamesAndTypeArgs name args }
 
     | _ -> Exception.raiseInternal "Unsupported paramPattern" [ "pat", pat ]
 
@@ -701,7 +701,7 @@ module Function =
 
   let private parseSignature
     (pat : SynPat)
-    : string * List<string> * List<Parameter> =
+    : string * List<string> * NEList<Parameter> =
     match pat with
     | SynPat.LongIdent(SynLongIdent([ name ], _, _), _, typeArgPats, argPats, _, _) ->
       let typeParams =
@@ -711,7 +711,11 @@ module Function =
 
       let parameters =
         match argPats with
-        | SynArgPats.Pats pats -> List.map parseParamPattern pats
+        | SynArgPats.Pats(head :: tail) ->
+          NEList.ofList head tail |> NEList.map parseParamPattern
+
+        | SynArgPats.Pats [] ->
+          Exception.raiseInternal "No parameters found in function" []
 
         | SynArgPats.NamePatPairs _ ->
           Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
@@ -746,7 +750,7 @@ module UserFunction =
       typeParams = f.typeParams
       parameters =
         f.parameters
-        |> List.map (fun p -> { name = p.name; description = ""; typ = p.typ })
+        |> NEList.map (fun p -> { name = p.name; description = ""; typ = p.typ })
       returnType = f.returnType
       description = ""
       body = f.body }
@@ -808,7 +812,7 @@ module UserConstant =
 module PackageFn =
   let fromSynBinding
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (b : SynBinding)
     : WT.PackageFn.T =
     let f = Function.fromSynBinding b
@@ -816,7 +820,7 @@ module PackageFn =
       typeParams = f.typeParams
       parameters =
         f.parameters
-        |> List.map (fun p -> { name = p.name; description = ""; typ = p.typ })
+        |> NEList.map (fun p -> { name = p.name; description = ""; typ = p.typ })
       returnType = f.returnType
       description = ""
       body = f.body }
@@ -940,7 +944,7 @@ module UserType =
 module PackageType =
   let fromSynTypeDefn
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (typeDef : SynTypeDefn)
     : WT.PackageType.T =
     let (typeParams, names, definition) =
@@ -959,7 +963,7 @@ module PackageType =
 module PackageConstant =
   let fromSynBinding
     (owner : string)
-    (modules : NEList<string>)
+    (modules : List<string>)
     (b : SynBinding)
     : WT.PackageConstant.T =
     let c = Constant.fromSynBinding b

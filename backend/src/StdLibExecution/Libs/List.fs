@@ -21,7 +21,7 @@ module DvalComparator =
     | DTuple(a1, b1, l1), DTuple(a2, b2, l2) ->
       compareLists (a1 :: b1 :: l1) (a2 :: b2 :: l2)
     | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
-      let c = compare (List.map snd l1.parameters) (List.map snd l2.parameters)
+      let c = compare (NEList.map snd l1.parameters) (NEList.map snd l2.parameters)
       if c = 0 then
         let c = compareExprs l1.body l2.body
         if c = 0 then
@@ -237,105 +237,11 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "head" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TypeReference.option varA
-      description =
-        "Returns {{Some}} the head (first value) of a list. Returns {{None}} if
-         the list is empty."
-      fn =
-        (function
-        | _, _, [ DList l ] -> l |> List.tryHead |> Dval.option |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "tail" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TypeReference.option (TList varA)
-      description =
-        "If <param list> contains at least one value, returns {{Some}} with a list of
-         every value other than the first. Otherwise, returns {{None}}."
-      fn =
-        // This matches Elm's implementation, with the added benefit that the error rail
-        // means you don't need to handle unwrapping the option
-        // unless the passed list is truly empty (which shouldn't happen in most practical uses).
-        (function
-        | _, _, [ DList l ] ->
-          (if List.isEmpty l then None else Some(DList l.Tail)) |> Dval.option |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-    { name = fn "push" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
-      returnType = TList varA
-      description = "Add element <param val> to front of <type list> <param list>"
-      fn =
-        // fakeval handled by call
-        (function
-        | _, _, [ DList l; i ] -> Ply(DList(i :: l))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "pushBack" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
-      returnType = TList varA
-      description = "Add element <param val> to back of <type list> <param list>"
-      fn =
-        (function
-        | _, _, [ DList l; i ] -> Ply(DList(l @ [ i ]))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "last" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TypeReference.option varA
-      description =
-        "Returns the last value in <param list>, wrapped in an option (<param
-         None> if the list is empty)"
-      fn =
-        (function
-        | _, _, [ DList l ] -> l |> List.tryLast |> Dval.option |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "reverse" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TList varA
-      description = "Returns a reversed copy of <param list>"
-      fn =
-        (function
-        | _, _, [ DList l ] -> Ply(DList(List.rev l))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "findFirst" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, TBool)) "" [ "val" ] ]
       returnType = TypeReference.option varA
       description =
         "Returns {{Some firstMatch}} where <var firstMatch> is the first value of the
@@ -347,7 +253,8 @@ let fns : List<BuiltInFn> =
           uply {
             let f (dv : Dval) : Ply<bool> =
               uply {
-                let! result = Interpreter.applyFnVal state 0UL fn [] [ dv ]
+                let args = NEList.singleton dv
+                let! result = Interpreter.applyFnVal state 0UL fn [] args
 
                 return result = DBool true
               }
@@ -355,20 +262,6 @@ let fns : List<BuiltInFn> =
             let! result = Ply.List.findSequentially f l
             return Dval.option result
           }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "member" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
-      returnType = TBool
-      description = "Returns {{true}} if <param val> is in the list"
-      fn =
-        (function
-        | _, _, [ DList l; i ] -> Ply(DBool(List.contains i l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -398,40 +291,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "length" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TInt
-      description = "Returns the number of values in <param list>"
-      fn =
-        (function
-        | _, _, [ DList l ] -> Ply(Dval.int (l.Length))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "range" 0
-      typeParams = []
-      parameters =
-        [ Param.make "lowest" TInt "First, smallest number in the list"
-          Param.make "highest" TInt "Last, largest number in the list" ]
-      returnType = TList TInt
-      description =
-        "Returns a list of numbers where each element is {{1}} larger than the
-         previous. You provide the <param lowest> and <param highest> numbers in the
-         list."
-      fn =
-        (function
-        | _, _, [ DInt start; DInt stop ] ->
-          [ start..stop ] |> List.map DInt |> DList |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "fold" 0
       typeParams = []
       parameters =
@@ -439,7 +298,7 @@ let fns : List<BuiltInFn> =
           Param.make "init" varB "The initial starting value"
           Param.makeWithArgs
             "fn"
-            (TFn([ varB; varA ], varB))
+            (TFn(NEList.doubleton varB varA, varB))
             "the function taking the accumulated value and the next list item, returning the next accumulated item."
             [ "accum"; "curr" ] ]
       returnType = varB
@@ -454,7 +313,8 @@ let fns : List<BuiltInFn> =
             let f (accum : DvalTask) (item : Dval) : DvalTask =
               uply {
                 let! accum = accum
-                return! Interpreter.applyFnVal state 0UL b [] [ accum; item ]
+                let args = NEList.doubleton accum item
+                return! Interpreter.applyFnVal state 0UL b [] args
               }
 
             return! List.fold f (Ply init) l
@@ -465,6 +325,8 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // CLEANUP: This can't be moved to packages until the package manager is live and stable.
+    // we can't use PACKAGE functions during the "load from disk into DB" flow
     { name = fn "flatten" 0
       typeParams = []
       parameters = [ Param.make "list" (TList(TList varA)) "" ]
@@ -542,7 +404,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, varB)) "" [ "val" ] ]
       returnType = TList varA
       description =
         "Returns the passed list, with only unique values, where uniqueness is based
@@ -557,7 +419,8 @@ let fns : List<BuiltInFn> =
                 Ply.List.mapSequentially
                   (fun dv ->
                     uply {
-                      let! key = Interpreter.applyFnVal state 0UL b [] [ dv ]
+                      let args = NEList.singleton dv
+                      let! key = Interpreter.applyFnVal state 0UL b [] args
 
                       // TODO: type check to ensure `varB` is "comparable"
                       return (dv, key)
@@ -614,20 +477,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "isEmpty" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TBool
-      description = "Returns true if <param list> has no values"
-      fn =
-        (function
-        | _, _, [ DList l ] -> Ply(DBool(List.isEmpty l))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "sort" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
@@ -661,7 +510,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, varB)) "" [ "val" ] ]
       returnType = TList varA
       description =
         "Returns a copy of <param list>, sorted in ascending order, as if each value
@@ -677,7 +526,9 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList list; DFnVal b ] ->
           uply {
             try
-              let fn dv = Interpreter.applyFnVal state 0UL b [] [ dv ]
+              let fn dv =
+                let args = NEList.singleton dv
+                Interpreter.applyFnVal state 0UL b [] args
               let! withKeys =
                 list
                 |> Ply.List.mapSequentially (fun v ->
@@ -710,7 +561,11 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA; varA ], TInt)) "" [ "a"; "b" ] ]
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.doubleton varA varA, TInt))
+            ""
+            [ "a"; "b" ] ]
       returnType = TypeReference.result varA TString
       description =
         "Returns a copy of <param list>, sorted using {{fn a b}} to compare values
@@ -727,7 +582,8 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList list; DFnVal f ] ->
           let fn (dv1 : Dval) (dv2 : Dval) : Ply<int> =
             uply {
-              let! result = Interpreter.applyFnVal state 0UL f [] [ dv1; dv2 ]
+              let args = NEList.doubleton dv1 dv2
+              let! result = Interpreter.applyFnVal state 0UL f [] args
 
               match result with
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
@@ -776,7 +632,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs
             "fn"
-            (TFn([ varA ], TBool))
+            (TFn(NEList.singleton varA, TBool))
             "Function to be applied on all list elements"
             [ "val" ] ]
       returnType = TBool
@@ -790,7 +646,8 @@ let fns : List<BuiltInFn> =
 
             let f (dv : Dval) : Ply<bool> =
               uply {
-                let! r = Interpreter.applyFnVal state 0UL b [] [ dv ]
+                let args = NEList.singleton dv
+                let! r = Interpreter.applyFnVal state 0UL b [] args
 
                 match r with
                 | DBool b -> return b
@@ -818,7 +675,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, TBool)) "" [ "val" ] ]
       returnType = TList varA
       description =
         "Calls <param f> on every <var val> in <param list>, returning a list of only
@@ -837,7 +694,8 @@ let fns : List<BuiltInFn> =
                 let run = abortReason.Value = None
 
                 if run then
-                  let! result = Interpreter.applyFnVal state 0UL fn [] [ dv ]
+                  let args = NEList.singleton dv
+                  let! result = Interpreter.applyFnVal state 0UL fn [] args
 
                   match result with
                   | DBool b -> return b
@@ -869,7 +727,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs
             "fn"
-            (TFn([ varA ], TypeReference.option varB))
+            (TFn(NEList.singleton varA, TypeReference.option varB))
             ""
             [ "val" ] ]
       returnType = TList varB
@@ -895,20 +753,19 @@ let fns : List<BuiltInFn> =
                 let run = abortReason.Value = None
 
                 if run then
-                  let! result = Interpreter.applyFnVal state 0UL b [] [ dv ]
+                  let args = NEList.singleton dv
+                  let! result = Interpreter.applyFnVal state 0UL b [] args
 
                   match result with
                   | DEnum(FQName.Package { owner = "Darklang"
-                                           modules = { head = "Stdlib"
-                                                       tail = [ "Option" ] }
+                                           modules = [ "Stdlib"; "Option" ]
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
                           _,
                           "Some",
                           [ o ]) -> return Some o
                   | DEnum(FQName.Package { owner = "Darklang"
-                                           modules = { head = "Stdlib"
-                                                       tail = [ "Option" ] }
+                                           modules = [ "Stdlib"; "Option" ]
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
                           _,
@@ -938,28 +795,11 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "drop" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
-      returnType = TList varA
-      description = "Drops the first <param count> values from <param list>"
-      fn =
-        (function
-        | _, _, [ DList l; DInt c ] ->
-          if c < 0L then Ply(DList l)
-          elif c > int64 (List.length l) then Ply(DList [])
-          else Ply(DList(List.skip (int c) l))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "dropWhile" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, varB)) "" [ "val" ] ]
       returnType = TList varB
       description =
         "Drops the longest prefix of <param list> which satisfies the predicate <param val>"
@@ -977,7 +817,8 @@ let fns : List<BuiltInFn> =
                   let run = abortReason = None
 
                   if run then
-                    let! result = Interpreter.applyFnVal state 0UL b [] [ dv ]
+                    let args = NEList.singleton dv
+                    let! result = Interpreter.applyFnVal state 0UL b [] args
 
                     match result with
                     | DBool true -> return! f dvs
@@ -1004,28 +845,11 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "take" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
-      returnType = TList varA
-      description = "Drops all but the first <param count> values from <param list>"
-      fn =
-        (function
-        | _, _, [ DList l; DInt c ] ->
-          if c < 0L then Ply(DList [])
-          elif c >= int64 (List.length l) then Ply(DList l)
-          else Ply(DList(List.take (int c) l))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "takeWhile" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, varB)) "" [ "val" ] ]
       returnType = TList varA
       description =
         "Return the longest prefix of <param list> which satisfies the predicate <param fn>"
@@ -1043,7 +867,8 @@ let fns : List<BuiltInFn> =
                   let run = abortReason = None
 
                   if run then
-                    let! result = Interpreter.applyFnVal state 0UL b [] [ dv ]
+                    let args = NEList.singleton dv
+                    let! result = Interpreter.applyFnVal state 0UL b [] args
 
                     match result with
                     | DBool true ->
@@ -1076,7 +901,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) "The list to be operated on"
-          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, varB)) "" [ "val" ] ]
       description =
         "Calls <param fn> on every <var val> in <param list>, returning a list of the
          results of those calls.
@@ -1089,7 +914,9 @@ let fns : List<BuiltInFn> =
           uply {
             let! result =
               Ply.List.mapSequentially
-                (fun dv -> Interpreter.applyFnVal state 0UL b [] [ dv ])
+                (fun dv ->
+                  let args = NEList.singleton dv
+                  Interpreter.applyFnVal state 0UL b [] args)
                 l
 
             return Dval.list result
@@ -1104,7 +931,11 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ TInt; varA ], varB)) "" [ "index"; "val" ] ]
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.doubleton TInt varA, varB))
+            ""
+            [ "index"; "val" ] ]
       returnType = TList varB
       description =
         "Calls <fn fn> on every <var val> and its <var index> in <param list>,
@@ -1120,7 +951,8 @@ let fns : List<BuiltInFn> =
             let! result =
               Ply.List.mapSequentially
                 (fun ((i, dv) : int * Dval) ->
-                  Interpreter.applyFnVal state 0UL b [] [ DInt(int64 i); dv ])
+                  let args = NEList.doubleton (DInt(int64 i)) dv
+                  Interpreter.applyFnVal state 0UL b [] args)
                 list
 
             return Dval.list result
@@ -1136,7 +968,11 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "as" (TList varA) ""
           Param.make "bs" (TList varB) ""
-          Param.makeWithArgs "fn" (TFn([ varA; varB ], varC)) "" [ "a"; "b" ] ]
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.doubleton varA varB, varC))
+            ""
+            [ "a"; "b" ] ]
       returnType = TList varC
       description =
         "Maps <param fn> over <param as> and <param bs> in parallel, calling {{fn a
@@ -1162,7 +998,8 @@ let fns : List<BuiltInFn> =
             let! result =
               Ply.List.mapSequentially
                 (fun ((dv1, dv2) : Dval * Dval) ->
-                  Interpreter.applyFnVal state 0UL b [] [ dv1; dv2 ])
+                  let args = NEList.doubleton dv1 dv2
+                  Interpreter.applyFnVal state 0UL b [] args)
                 list
 
             return Dval.list result
@@ -1178,7 +1015,11 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "as" (TList varA) ""
           Param.make "bs" (TList varB) ""
-          Param.makeWithArgs "fn" (TFn([ varA; varB ], varC)) "" [ "a"; "b" ] ]
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.doubleton varA varB, varC))
+            ""
+            [ "a"; "b" ] ]
       returnType = TypeReference.option varC
       description =
         "If the lists are the same length, returns {{Some list}} formed by mapping
@@ -1204,7 +1045,8 @@ let fns : List<BuiltInFn> =
               let! result =
                 Ply.List.mapSequentially
                   (fun ((dv1, dv2) : Dval * Dval) ->
-                    Interpreter.applyFnVal state 0UL b [] [ dv1; dv2 ])
+                    let args = NEList.doubleton dv1 dv2
+                    Interpreter.applyFnVal state 0UL b [] args)
                   list
 
               return Dval.optionSome (Dval.list result)
@@ -1330,23 +1172,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "getAt" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
-      returnType = TypeReference.option varA
-      description =
-        "Returns {{Some value}} at <param index> in <param list> if <param index> is
-         less than the length of the list otherwise returns {{None}}."
-      fn =
-        (function
-        | _, _, [ DList l; DInt index ] ->
-          (List.tryItem (int index) l) |> Dval.option |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "randomElement" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
@@ -1375,7 +1200,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "item" ] ]
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, varB)) "" [ "item" ] ]
       returnType = TList(TTuple(varB, TList varA, []))
       description =
         "Groups <param list> into tuples (key, elements), where the key is computed by applying
@@ -1390,7 +1215,8 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList l; DFnVal fn ] ->
           uply {
             let applyFn (dval : Dval) : DvalTask =
-              Interpreter.applyFnVal state 0UL fn [] [ dval ]
+              let args = NEList.singleton dval
+              Interpreter.applyFnVal state 0UL fn [] args
 
             // apply the function to each element in the list
             let! result =
@@ -1427,7 +1253,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, TBool)) "" [ "val" ] ]
       returnType = TTuple((TList varA), (TList varA), [])
       description =
         "Calls <param f> on every <var val> in <param list>, splitting the list into
@@ -1440,7 +1266,10 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList l; DFnVal fn ] ->
           uply {
             let partition l =
-              let applyFn dval = Interpreter.applyFnVal state 0UL fn [] [ dval ]
+
+              let applyFn dval =
+                let args = NEList.singleton dval
+                Interpreter.applyFnVal state 0UL fn [] args
 
               let rec loop acc l =
                 uply {
@@ -1473,11 +1302,18 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+
+    // CLEANUP: This can't be moved to packages until the package manager is live and stable.
+    // we can't use PACKAGE functions during the "load from disk into DB" flow
     { name = fn "iter" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], TUnit)) "" [ "element" ] ]
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.singleton varA, TUnit))
+            ""
+            [ "element" ] ]
       returnType = TUnit
       description =
         "Applies the given function <param fn> to each element of the <param list>."
@@ -1489,7 +1325,8 @@ let fns : List<BuiltInFn> =
               l
               |> Ply.List.iterSequentially (fun e ->
                 uply {
-                  match! Interpreter.applyFnVal state 0UL b [] [ e ] with
+                  let args = NEList.singleton e
+                  match! Interpreter.applyFnVal state 0UL b [] args with
                   | DUnit -> return ()
                   | DError _ as dv -> return Errors.foundFakeDval dv
                   | v ->

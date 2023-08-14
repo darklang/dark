@@ -56,7 +56,10 @@ module NestedAlias =
 
 module ListAlias =
   type IntegerList = List<Int>
-  let isEmpty (il: IntegerList) : Bool = List.isEmpty_v0 il
+
+  let isEmpty (il: IntegerList) : Bool =
+    PACKAGE.Darklang.Stdlib.List.isEmpty_v0 il
+
   isEmpty ([]) = true
   isEmpty ([ 1; 2; 3 ]) = false
 
@@ -168,10 +171,10 @@ module EnumWithTypeArgs =
   Outer2.B 5 = Outer1.B 5
 
   Outer1.B "b" = Test.runtimeError
-    "EnumWithTypeArgs.Outer1.B's 1st argument should be an Int. However, a String (\"b\") was passed instead.\n\nExpected: Int\nActual: a String: \"b\""
+    "EnumWithTypeArgs.Outer1.B's 1st argument should be an Int. However, a String (\"b\") was passed instead.\n\nExpected: Outer1.B (Int)\nActual: Outer1.B (String)"
 
   Outer2.A 5 = Test.runtimeError
-    "EnumWithTypeArgs.Outer2.A's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: String\nActual: an Int: 5"
+    "EnumWithTypeArgs.Outer2.A's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: Outer2.A (String)\nActual: Outer2.A (Int)"
 
 module EnumWithTypeArgsDifferentName =
   type Inner<'a, 'b> =
@@ -187,18 +190,19 @@ module EnumWithTypeArgsDifferentName =
   MostOutest.B "test" = Inner.B "test"
 
   MostOutest.A "not allowed" = Test.runtimeError
-    "EnumWithTypeArgsDifferentName.MostOutest.A's 1st argument should be an Int. However, a String (\"not al...) was passed instead.\n\nExpected: Int\nActual: a String: \"not allowed\""
+    "EnumWithTypeArgsDifferentName.MostOutest.A's 1st argument should be an Int. However, a String (\"not al...) was passed instead.\n\nExpected: MostOutest.A (Int)\nActual: MostOutest.A (String)"
 
   MostOutest.B 6 = Test.runtimeError
-    "EnumWithTypeArgsDifferentName.MostOutest.B's 1st argument should be a String. However, an Int (6) was passed instead.\n\nExpected: String\nActual: an Int: 6"
+    "EnumWithTypeArgsDifferentName.MostOutest.B's 1st argument should be a String. However, an Int (6) was passed instead.\n\nExpected: MostOutest.B (String)\nActual: MostOutest.B (Int)"
 
 
 module EnumWithRecursiveTypeArgs =
   type Inner<'a> =
-   | A of a: 'a
-   | B of b : PACKAGE.Darklang.Stdlib.Result.Result<Alias<'a>, String>
+    | A of a: 'a
+    | B of b: PACKAGE.Darklang.Stdlib.Result.Result<Alias<'a>, String>
 
   type Alias<'x> = Inner<'x>
 
-  Alias.B (PACKAGE.Darklang.Stdlib.Result.Result.Ok (Alias.A 5)) =
-  Inner.B (PACKAGE.Darklang.Stdlib.Result.Result.Ok (Inner.A 5))
+  Alias.B(PACKAGE.Darklang.Stdlib.Result.Result.Ok(Alias.A 5)) = Inner.B(
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok(Inner.A 5)
+  )

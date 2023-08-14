@@ -544,12 +544,9 @@ let fns : List<BuiltInFn> =
             // "'b = Int",
             // so we can Json.serialize<'b>, if 'b is in the surrounding context
 
-            try
-              let types = ExecutionState.availableTypes state
-              let! response = writeJson (fun w -> serialize types w typeArg arg)
-              return Dval.resultOk (DString response)
-            with ex ->
-              return Dval.resultError (DString ex.Message)
+            let types = ExecutionState.availableTypes state
+            let! response = writeJson (fun w -> serialize types w typeArg arg)
+            return Dval.resultOk (DString response)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

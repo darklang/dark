@@ -82,7 +82,7 @@ module TypeReference =
     | PT.TBytes -> RT.TBytes
     | PT.TVariable(name) -> RT.TVariable(name)
     | PT.TFn(paramTypes, returnType) ->
-      RT.TFn(List.map toRT paramTypes, toRT returnType)
+      RT.TFn(NEList.map toRT paramTypes, toRT returnType)
 
 module FnName =
   module BuiltIn =
@@ -241,7 +241,7 @@ module Expr =
         id,
         toRT fnName,
         List.map TypeReference.toRT typeArgs,
-        List.map toRT args
+        NEList.map toRT args
       )
     | PT.EFnName(id, Ok name) -> RT.EFnName(id, FnName.toRT name)
     | PT.EFnName(id, Error name) ->
@@ -252,12 +252,21 @@ module Expr =
         RT.FQName.BuiltIn(
           { modules = modules; name = RT.FnName.FnName fn; version = version }
         )
-      RT.EApply(id, RT.EFnName(id, name), [], [ toRT arg1; toRT arg2 ])
+      RT.EApply(
+        id,
+        RT.EFnName(id, name),
+        [],
+        NEList.ofList (toRT arg1) [ toRT arg2 ]
+      )
     | PT.EInfix(id, PT.BinOp PT.BinOpAnd, expr1, expr2) ->
       RT.EAnd(id, toRT expr1, toRT expr2)
     | PT.EInfix(id, PT.BinOp PT.BinOpOr, expr1, expr2) ->
       RT.EOr(id, toRT expr1, toRT expr2)
-    | PT.ELambda(id, vars, body) -> RT.ELambda(id, vars, toRT body)
+    | PT.ELambda(id, vars, body) ->
+      let vars = vars |> NEList.filter (fun (name, v) -> v <> "")
+      match vars with
+      | [] -> RT.EError(id, "Lambda must have at least one argument", [])
+      | head :: tail -> RT.ELambda(id, NEList.ofList head tail, toRT body)
     | PT.ELet(id, pattern, rhs, body) ->
       RT.ELet(id, LetPattern.toRT pattern, toRT rhs, toRT body)
     | PT.EIf(id, cond, thenExpr, elseExpr) ->
@@ -266,7 +275,19 @@ module Expr =
     | PT.ETuple(id, first, second, theRest) ->
       RT.ETuple(id, toRT first, toRT second, List.map toRT theRest)
     | PT.ERecord(id, Ok typeName, fields) ->
-      RT.ERecord(id, TypeName.toRT typeName, List.map (Tuple2.mapSecond toRT) fields)
+      match fields with
+      | [] ->
+        RT.EError(
+          id,
+          "Record must have at least one field",
+          fields |> List.map Tuple2.second |> List.map toRT
+        )
+      | head :: tail ->
+        RT.ERecord(
+          id,
+          TypeName.toRT typeName,
+          NEList.ofList head tail |> NEList.map (Tuple2.mapSecond toRT)
+        )
     | PT.ERecord(id, Error typeName, fields) ->
       RT.EError(
         id,
@@ -275,15 +296,15 @@ module Expr =
       )
 
     | PT.ERecordUpdate(id, record, updates) ->
-      RT.ERecordUpdate(id, toRT record, List.map (Tuple2.mapSecond toRT) updates)
-    | PT.EPipe(pipeID, expr1, expr2, rest) ->
+      RT.ERecordUpdate(id, toRT record, NEList.map (Tuple2.mapSecond toRT) updates)
+    | PT.EPipe(pipeID, expr1, rest) ->
       // Convert v |> fn1 a |> fn2 |> fn3 b c
       // into fn3 (fn2 (fn1 v a)) b c
       let folder (prev : RT.Expr) (next : PT.PipeExpr) : RT.Expr =
 
         let applyFn (expr : RT.Expr) =
           let typeArgs = []
-          RT.EApply(pipeID, expr, typeArgs, [ prev ])
+          RT.EApply(pipeID, expr, typeArgs, NEList.singleton prev)
 
         match next with
         | PT.EPipeFnCall(id, Error fnName, typeArgs, exprs) ->
@@ -297,7 +318,7 @@ module Expr =
             id,
             RT.EFnName(id, FnName.toRT fnName),
             List.map TypeReference.toRT typeArgs,
-            prev :: List.map toRT exprs
+            NEList.ofList prev (List.map toRT exprs)
           )
         | PT.EPipeInfix(id, PT.InfixFnCall fnName, expr) ->
           let (modules, fn, version) = InfixFnName.toFnName fnName
@@ -310,7 +331,7 @@ module Expr =
             id,
             RT.EFnName(id, FnName.toRT name),
             typeArgs,
-            [ prev; toRT expr ]
+            NEList.doubleton prev (toRT expr)
           )
         // Binops work pretty naturally here
         | PT.EPipeInfix(id, PT.BinOp op, expr) ->
@@ -320,7 +341,7 @@ module Expr =
         | PT.EPipeEnum(id, Ok typeName, caseName, fields) ->
           let fields' = prev :: List.map toRT fields
           RT.EEnum(id, TypeName.toRT typeName, caseName, fields')
-        | PT.EPipeEnum(id, Error typeName, caseName, fields) ->
+        | PT.EPipeEnum(id, Error typeName, _, fields) ->
           RT.EError(
             id,
             Errors.toString (Errors.NameResolutionError typeName),
@@ -331,14 +352,18 @@ module Expr =
           RT.ELambda(id, vars, toRT body) |> applyFn
 
       let init = toRT expr1
-      List.fold init folder (expr2 :: rest)
+      List.fold init folder rest
 
     | PT.EMatch(id, mexpr, pairs) ->
-      RT.EMatch(
-        id,
-        toRT mexpr,
-        List.map (Tuple2.mapFirst MatchPattern.toRT << Tuple2.mapSecond toRT) pairs
-      )
+      match pairs with
+      | [] -> RT.EError(id, "Match must have at least one case", [ toRT mexpr ])
+      | head :: tail ->
+        RT.EMatch(
+          id,
+          toRT mexpr,
+          NEList.ofList head tail
+          |> NEList.map (Tuple2.mapFirst MatchPattern.toRT << Tuple2.mapSecond toRT)
+        )
     | PT.EEnum(id, Ok typeName, caseName, fields) ->
       RT.EEnum(id, TypeName.toRT typeName, caseName, List.map toRT fields)
     | PT.EEnum(id, Error typeName, caseName, fields) ->
@@ -456,7 +481,7 @@ module UserFunction =
     { tlid = f.tlid
       name = FnName.UserProgram.toRT f.name
       typeParams = f.typeParams
-      parameters = List.map Parameter.toRT f.parameters
+      parameters = NEList.map Parameter.toRT f.parameters
       returnType = TypeReference.toRT f.returnType
       body = Expr.toRT f.body }
 
@@ -482,7 +507,7 @@ module PackageFn =
       tlid = f.tlid
       body = Expr.toRT f.body
       typeParams = f.typeParams
-      parameters = List.map Parameter.toRT f.parameters
+      parameters = NEList.map Parameter.toRT f.parameters
       returnType = TypeReference.toRT f.returnType }
 
 module PackageType =
