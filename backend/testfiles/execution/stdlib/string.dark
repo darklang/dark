@@ -822,14 +822,3 @@ module Ellipsis =
   PACKAGE.Darklang.Stdlib.String.ellipsis_v0
     "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷✋✋🏻✋🏿"
     4 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷..."
-
-  String.ellipsis "hello world" 5 = "hello..."
-  String.ellipsis "hello world" 9 = "hello wor..."
-  String.ellipsis "hello world" 11 = "hello world"
-  String.ellipsis "hello world" 12 = "hello world"
-  String.ellipsis_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 3 = "Z̤͔..."
-  String.ellipsis "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 2 = "👱..."
-  String.ellipsis "👩‍👩‍👧‍👦" 2 = "👩‍👩‍👧‍👦"
-  String.ellipsis "✋🏻" 1 = "✋🏻"
-  String.ellipsis "✋🏻✋🏿" 1 = "✋..."
-  String.ellipsis "✋🏻✋🏿" 2 = "✋🏻✋🏿"

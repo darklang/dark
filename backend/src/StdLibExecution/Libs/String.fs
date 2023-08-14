@@ -998,30 +998,6 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "ellipsis" 0
-      typeParams = []
-      parameters =
-        [ Param.make "string" TString ""; Param.make "targetLength" TInt "" ]
-      returnType = TString
-      description =
-        "Truncates <param string> if its length is more than <param targetLength>. The truncated string will have an ellipsis ('...') appended.
-        If the <param string> is shorter than or equal to <param targetLength>, returns the unchanged <param string>."
-      fn =
-        (function
-        | _, _, [ DString s; DInt l ] ->
-          let targetLength = int l
-
-          if String.lengthInEgcs s > targetLength then
-            let truncatedString = s.Substring(0, targetLength)
-            truncatedString + "..." |> DString |> Ply
-          else
-            s |> DString |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
       deprecated = NotDeprecated } ]
 
 let contents = (fns, types, constants)
