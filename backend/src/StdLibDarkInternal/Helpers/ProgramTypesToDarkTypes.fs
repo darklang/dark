@@ -720,8 +720,12 @@ module Expr =
 
 
       // control flow
-      | PT.EIf(id, cond, ifTrue, ifFalse) ->
-        "EIf", [ DInt(int64 id); toDT cond; toDT ifTrue; toDT ifFalse ]
+      | PT.EIf(id, cond, thenExpr, elseExpr) ->
+        let elseExpr =
+          match elseExpr with
+          | Some elExp -> elExp
+          | None -> PT.EUnit id
+        "EIf", [ DInt(int64 id); toDT cond; toDT thenExpr; toDT elseExpr ]
 
       | PT.EMatch(id, arg, cases) ->
         let cases =
@@ -833,8 +837,12 @@ module Expr =
       PT.EVariable(uint64 id, varName)
 
     // control flow
-    | DEnum(_, _, "EIf", [ DInt id; cond; ifTrue; ifFalse ]) ->
-      PT.EIf(uint64 id, fromDT cond, fromDT ifTrue, fromDT ifFalse)
+    | DEnum(_, _, "EIf", [ DInt id; cond; thenExpr; elseExpr ]) ->
+      let elseExpr =
+        match elseExpr with
+        | DUnit _ -> None
+        | dval -> Some(fromDT dval)
+      PT.EIf(uint64 id, fromDT cond, fromDT thenExpr, elseExpr)
 
     | DEnum(_, _, "EMatch", [ DInt id; arg; DList cases ]) ->
       let cases =

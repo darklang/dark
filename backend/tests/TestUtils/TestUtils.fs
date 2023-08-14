@@ -559,10 +559,16 @@ module Expect =
       letPatternEqualityBaseFn checkIDs path pat pat' errorFn
       eq ("rhs" :: path) rhs rhs'
       eq ("body" :: path) body body'
-    | EIf(_, con, thn, els), EIf(_, con', thn', els') ->
+    | EIf(id, con, thn, els), EIf(_, con', thn', els') ->
       eq ("cond" :: path) con con'
       eq ("then" :: path) thn thn'
-      eq ("else" :: path) els els'
+      match els, els' with
+      | Some el, Some el' -> eq ("else" :: path) el el'
+      | None, None -> eq ("else" :: path) (EUnit id) (EUnit id)
+      | _ ->
+        errorFn ("else" :: path) (string actual) (string expected)
+        ()
+
     | EList(_, l), EList(_, l') -> eqList path l l'
     | ETuple(_, first, second, theRest), ETuple(_, first', second', theRest') ->
       eq ("first" :: path) first first'

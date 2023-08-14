@@ -37,7 +37,8 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
         | StringText t -> StringText t
         | StringInterpolation e -> StringInterpolation(f e))
     )
-  | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
+  | EIf(id, cond, ifexpr, elseexpr) ->
+    EIf(id, f cond, f ifexpr, Option.map f elseexpr)
   | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
   | EInfix(id, op, left, right) -> EInfix(id, op, f left, f right)
   | EPipe(id, expr1, expr2, exprs) ->
@@ -160,7 +161,8 @@ let rec preTraversal
         | StringInterpolation e -> StringInterpolation(f e))
     )
   | ELet(id, pat, rhs, next) -> ELet(id, preTraversalLetPattern pat, f rhs, f next)
-  | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
+  | EIf(id, cond, ifexpr, elseexpr) ->
+    EIf(id, f cond, f ifexpr, Option.map f elseexpr)
   | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
   | EInfix(id, op, left, right) -> EInfix(id, op, f left, f right)
   | EPipe(id, expr1, expr2, exprs) ->

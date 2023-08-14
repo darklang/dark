@@ -392,7 +392,7 @@ type Expr =
   | EUnit of id
   | EConstant of id * NameResolution<ConstantName.T>
   | ELet of id * LetPattern * Expr * Expr
-  | EIf of id * Expr * Expr * Expr
+  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : option<Expr>
   | EInfix of id * Infix * Expr * Expr
   // the id in the varname list is the analysis id, used to get a livevalue
   // from the analysis engine

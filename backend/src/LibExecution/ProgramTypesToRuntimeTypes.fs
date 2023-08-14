@@ -261,7 +261,7 @@ module Expr =
     | PT.ELet(id, pattern, rhs, body) ->
       RT.ELet(id, LetPattern.toRT pattern, toRT rhs, toRT body)
     | PT.EIf(id, cond, thenExpr, elseExpr) ->
-      RT.EIf(id, toRT cond, toRT thenExpr, toRT elseExpr)
+      RT.EIf(id, toRT cond, toRT thenExpr, Option.map toRT elseExpr)
     | PT.EList(id, exprs) -> RT.EList(id, List.map toRT exprs)
     | PT.ETuple(id, first, second, theRest) ->
       RT.ETuple(id, toRT first, toRT second, List.map toRT theRest)

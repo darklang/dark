@@ -170,7 +170,7 @@ module LanguageToolsTypesFork =
       | EFieldAccess of ID * Expr * String
       | EVariable of ID * String
 
-      | EIf of ID * Expr * Expr * Expr
+      | EIf of ID * cond : Expr * thenExpr : Expr * elseExpr : option<Expr>
       | EMatch of ID * arg : Expr * cases : List<MatchPattern * Expr>
       | EPipe of ID * Expr * PipeExpr * List<PipeExpr>
 
@@ -499,7 +499,7 @@ module ExternalTypesToProgramTypes =
       | EPT.ELet(id, pat, rhs, body) ->
         PT.ELet(id, LetPattern.toPT pat, toPT rhs, toPT body)
       | EPT.EIf(id, cond, thenExpr, elseExpr) ->
-        PT.EIf(id, toPT cond, toPT thenExpr, toPT elseExpr)
+        PT.EIf(id, toPT cond, toPT thenExpr, Option.map toPT elseExpr)
       | EPT.EList(id, exprs) -> PT.EList(id, List.map toPT exprs)
       | EPT.ETuple(id, first, second, theRest) ->
         PT.ETuple(id, toPT first, toPT second, List.map toPT theRest)

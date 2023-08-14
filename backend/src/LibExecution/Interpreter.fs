@@ -657,21 +657,24 @@ let rec eval'
 
 
     | EIf(id, cond, thenbody, elsebody) ->
+      let elsebodyUnwrapped = Option.defaultValue (EUnit id) elsebody
       match! eval state tat st cond with
       | DBool false ->
         do! preview tat st thenbody
-        return! eval state tat st elsebody
+        match elsebody with
+        | None -> return DUnit
+        | Some eb -> return! eval state tat st eb
       | DBool true ->
         let! result = eval state tat st thenbody
-        do! preview tat st elsebody
+        do! preview tat st elsebodyUnwrapped
         return result
       | cond when Dval.isFake cond ->
         do! preview tat st thenbody
-        do! preview tat st elsebody
+        do! preview tat st elsebodyUnwrapped
         return cond
       | _ ->
         do! preview tat st thenbody
-        do! preview tat st elsebody
+        do! preview tat st elsebodyUnwrapped
         return err id "If only supports Booleans"
 
 

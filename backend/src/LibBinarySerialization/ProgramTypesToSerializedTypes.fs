@@ -398,7 +398,7 @@ module Expr =
     | PT.ELet(id, pat, rhs, body) ->
       ST.ELet(id, LetPattern.toST pat, toST rhs, toST body)
     | PT.EIf(id, cond, thenExpr, elseExpr) ->
-      ST.EIf(id, toST cond, toST thenExpr, toST elseExpr)
+      ST.EIf(id, toST cond, toST thenExpr, Option.map toST elseExpr)
     | PT.EList(id, exprs) -> ST.EList(id, List.map toST exprs)
     | PT.ETuple(id, first, second, theRest) ->
       ST.ETuple(id, toST first, toST second, List.map toST theRest)
@@ -484,7 +484,7 @@ module Expr =
     | ST.ELet(id, pat, rhs, body) ->
       PT.ELet(id, LetPattern.toPT pat, toPT rhs, toPT body)
     | ST.EIf(id, cond, thenExpr, elseExpr) ->
-      PT.EIf(id, toPT cond, toPT thenExpr, toPT elseExpr)
+      PT.EIf(id, toPT cond, toPT thenExpr, Option.map toPT elseExpr)
     | ST.EList(id, exprs) -> PT.EList(id, List.map toPT exprs)
     | ST.ETuple(id, first, second, theRest) ->
       PT.ETuple(id, toPT first, toPT second, List.map toPT theRest)
