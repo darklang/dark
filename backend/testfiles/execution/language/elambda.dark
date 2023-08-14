@@ -36,3 +36,7 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
  let f = fun _ -> x
  let x = 2
  List.map [ 1; 2; 3 ] f) = [ 1; 1; 1 ]
+
+(let pairs = [(1, "one"); (2, "two"); (3, "three")] in
+ let transformer = fun (num, str) -> $"{Int.toString num}:{str}" in
+ List.map_v0 pairs transformer) = ["1:one"; "2:two"; "3:three"]
