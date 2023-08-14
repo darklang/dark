@@ -405,42 +405,43 @@ module ProgramTypes =
                             )
                           )
                         ),
-                        Some (PT.EInfix(
-                          265463935UL,
-                          PT.InfixFnCall(PT.ArithmeticPlus),
+                        Some(
                           PT.EInfix(
-                            312092282UL,
+                            265463935UL,
                             PT.InfixFnCall(PT.ArithmeticPlus),
-                            PT.EFieldAccess(
-                              974664608UL,
-                              PT.EVariable(1002893266UL, "x"),
-                              "y"
-                            ),
-                            PT.EApply(
-                              173079901UL,
-                              PT.EFnName(
-                                638434UL,
-                                Ok(
-                                  PT.FQName.BuiltIn
-                                    { modules = [ "Int" ]
-                                      name = PT.FnName.FnName "add"
-                                      version = 0 }
-                                )
+                            PT.EInfix(
+                              312092282UL,
+                              PT.InfixFnCall(PT.ArithmeticPlus),
+                              PT.EFieldAccess(
+                                974664608UL,
+                                PT.EVariable(1002893266UL, "x"),
+                                "y"
                               ),
-                              [],
-                              NEList.doubleton
-                                (PT.EInt(250221144UL, 6L))
-                                (PT.EInt(298149318UL, 2L))
+                              PT.EApply(
+                                173079901UL,
+                                PT.EFnName(
+                                  638434UL,
+                                  Ok(
+                                    PT.FQName.BuiltIn
+                                      { modules = [ "Int" ]
+                                        name = PT.FnName.FnName "add"
+                                        version = 0 }
+                                  )
+                                ),
+                                [],
+                                NEList.doubleton
+                                  (PT.EInt(250221144UL, 6L))
+                                  (PT.EInt(298149318UL, 2L))
+                              )
+                            ),
+                            PT.EList(
+                              539797095UL,
+                              [ PT.EInt(267797631UL, 5L)
+                                PT.EInt(352138743UL, 6L)
+                                PT.EInt(430871955UL, 7L) ]
                             )
-                          ),
-                          PT.EList(
-                            539797095UL,
-                            [ PT.EInt(267797631UL, 5L)
-                              PT.EInt(352138743UL, 6L)
-                              PT.EInt(430871955UL, 7L) ]
                           )
                         )
-                       )
                       ),
                       PT.ELet(
                         831830073UL,

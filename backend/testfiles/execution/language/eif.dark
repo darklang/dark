@@ -7,4 +7,6 @@
 (if () then "" else "") = Test.runtimeError "If only supports Booleans"
 (if Test.runtimeError "msg" then "" else "") = Test.runtimeError "msg"
 (if 5 then "" else "") = Test.runtimeError "If only supports Booleans"
-(if true then () ) = ()
+
+(if true then
+   ()) = ()
