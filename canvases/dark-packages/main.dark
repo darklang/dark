@@ -4,16 +4,15 @@ type PackageItem =
   | Constant
   | Module
 
-
-type NameToItem =
+type NameToCategory =
   { owner: String
     name: String
     modules: List<String>
-    whatIsIt: PackageItem }
+    category: PackageItem }
+
 
 [<DB>]
-type NamesDB = NameToItem
-
+type NamesDB = NameToCategory
 
 [<DB>]
 type PackageTypeDB = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T
@@ -24,7 +23,6 @@ type PackageFnDB = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T
 [<DB>]
 type PackageConstantDB =
   PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T
-
 
 [<DB>]
 type PackageItemDB = PackageItem
@@ -48,12 +46,12 @@ let _handler _req =
         deprecated = typ.deprecated }
 
   let item =
-    NameToItem
+    NameToCategory
       { owner = typ.name.owner
         name =
           typ.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.name
         modules = typ.name.modules
-        whatIsIt = PackageItem.Type }
+        category = PackageItem.Type }
 
   let key = DB.generateKey_v0 () // TODO: use id instead
   DB.set typeToSave key PackageTypeDB
@@ -83,18 +81,19 @@ let _handler _req =
         deprecated = fn.deprecated }
 
   let item =
-    NameToItem
+    NameToCategory
       { owner = fn.name.owner
         name =
           fn.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.name
         modules = fn.name.modules
-        whatIsIt = PackageItem.Fn }
+        category = PackageItem.Fn }
 
   let key = DB.generateKey_v0 () // TODO: use id instead
   DB.set fnToSave key PackageFnDB
   DB.set item key NamesDB
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
+
 
 [<HttpHandler("POST", "/constants")>]
 let _handler _req =
@@ -114,13 +113,13 @@ let _handler _req =
         deprecated = c.deprecated }
 
   let item =
-    NameToItem
+    NameToCategory
       { owner = c.name.owner
         name =
           (c.name.name
            |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name)
         modules = c.name.modules
-        whatIsIt = PackageItem.Constant }
+        category = PackageItem.Constant }
 
   let key = DB.generateKey_v0 () // TODO: use id instead
   DB.set constantToSave key PackageConstantDB
@@ -153,6 +152,7 @@ let _handler _req =
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
+
 [<HttpHandler("GET", "/constants")>]
 let _handler _req =
   let respBody =
@@ -162,6 +162,7 @@ let _handler _req =
     |> String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
+
 
 [<HttpHandler("GET", "/functions")>]
 let _handler _req =
@@ -177,27 +178,27 @@ let _handler _req =
 [<HttpHandler("GET", "/category/:name")>]
 let _handler _req =
   let fullName = name |> String.split "."
-  let owner = fullName |> List.head |> unwrap
-  let name = fullName |> List.last |> unwrap
+  let owner = fullName |> PACKAGE.Darklang.Stdlib.List.head |> unwrap
+  let name = fullName |> PACKAGE.Darklang.Stdlib.List.last |> unwrap
 
-  let modules = fullName |> (List.drop 1) |> PACKAGE.Darklang.Stdlib.List.dropLast
-  let modulesWithoutItem = fullName |> (List.drop 1)
+  let modules =
+    fullName
+    |> (PACKAGE.Darklang.Stdlib.List.drop 1)
+    |> PACKAGE.Darklang.Stdlib.List.dropLast
 
-  let getall = DB.getAll NamesDB
-
-  let res =
-    getall
+  let allItems =
+    (DB.getAll NamesDB)
     |> List.filter (fun item ->
       item.owner == owner && item.modules == modules && item.name == name)
-    |> List.map (fun item -> item.whatIsIt)
-    |> List.head
+    |> List.map (fun item -> item.category)
+    |> PACKAGE.Darklang.Stdlib.List.head
 
-  let found =
-    match res with
+  let respBody =
+    match allItems with
     | Some Fn -> "fn"
     | Some Type -> "type"
     | Some Constant -> "constant"
     | Some Module -> "module"
     | None -> "not found"
 
-  PACKAGE.Darklang.Stdlib.Http.response (found |> String.toBytes) 200
+  PACKAGE.Darklang.Stdlib.Http.response (respBody |> String.toBytes) 200
