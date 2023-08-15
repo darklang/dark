@@ -206,21 +206,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "absoluteValue" 0
-      typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
-      returnType = TInt
-      description =
-        "Returns the absolute value of <param a> (turning negative inputs into positive outputs)"
-      fn =
-        (function
-        | _, _, [ DInt a ] -> Ply(DInt(abs a))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "negate" 0
       typeParams = []
       parameters = [ Param.make "a" TInt "" ]
@@ -337,90 +322,6 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DInt a ] -> Ply(DFloat(float a))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "sum" 0
-      typeParams = []
-      parameters = [ Param.make "a" (TList TInt) "" ]
-      returnType = TInt
-      description = "Returns the sum of all the ints in the list"
-      fn =
-        (function
-        | _, _, [ DList l as ldv ] ->
-          let ints =
-            List.map
-              (fun i ->
-                match i with
-                | DInt it -> it
-                | _ ->
-                  Exception.raiseCode (
-                    Errors.argumentWasntType (TList TInt) "a" ldv
-                  ))
-              l
-
-          let sum = List.fold (fun acc elem -> acc + elem) 0L ints
-          Ply(DInt sum)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "max" 0
-      typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
-      returnType = TInt
-      description = "Returns the higher of <param a> and <param b>"
-      fn =
-        (function
-        | _, _, [ DInt a; DInt b ] -> Ply(DInt(max a b))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "min" 0
-      typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
-      returnType = TInt
-      description = "Returns the lower of <param a> and <param b>"
-      fn =
-        (function
-        | _, _, [ DInt a; DInt b ] -> Ply(DInt(min a b))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "clamp" 0
-      typeParams = []
-      parameters =
-        [ Param.make "value" TInt ""
-          Param.make "limitA" TInt ""
-          Param.make "limitB" TInt "" ]
-      returnType = TInt
-      description =
-        "If <param value> is within the range given by <param limitA> and <param
-         limitB>, returns <param value>.
-
-         If <param value> is outside the range, returns <param limitA> or <param
-         limitB>, whichever is closer to <param value>.
-
-         <param limitA> and <param limitB> can be provided in any order."
-      fn =
-        (function
-        | _, _, [ DInt v; DInt a; DInt b ] ->
-          let min, max = if a < b then (a, b) else (b, a)
-
-          if v < min then Ply(DInt min)
-          else if v > max then Ply(DInt max)
-          else Ply(DInt v)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
