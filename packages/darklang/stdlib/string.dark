@@ -2,8 +2,17 @@ module Darklang =
   module Stdlib =
     module String =
 
+      /// Truncates the string <param s> to the specified <param length> and appends an ellipsis ("...")
+      /// to it if the original string exceeds the given length. Otherwise, returns the original string.
       let ellipsis (s: String) (length: Int) : String =
         if String.length s > length then
           (String.slice_v0 s 0 length) ++ "..."
         else
           s
+
+      /// Returns {{true}} if <param s> is the empty string {{\"\"}
+      let isEmpty (s: String) : Bool = s == ""
+
+      /// Concatenates the two strings by prepending <param s2> to <param s1> and
+      /// returns the joined string
+      let prepend (s1: String) (s2: String) : String = s2 ++ s1

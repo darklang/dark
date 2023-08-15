@@ -232,14 +232,14 @@ module HtmlEscape =
 
 
 module IsEmpty =
-  String.isEmpty_v0 "" = true
-  String.isEmpty_v0 "a" = false
-  String.isEmpty_v0 "🧑🏼‍💻🧑🏻‍🍼" = false
-  String.isEmpty_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = false
-  String.isEmpty_v0 "﷽﷽﷽﷽﷽" = false
-  String.isEmpty_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = false
-  String.isEmpty_v0 "🧟‍♀️🧟‍♂️" = false
-  String.isEmpty_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = false
+  PACKAGE.Darklang.Stdlib.String.isEmpty_v0 "" = true
+  PACKAGE.Darklang.Stdlib.String.isEmpty_v0 "a" = false
+  PACKAGE.Darklang.Stdlib.String.isEmpty_v0 "🧑🏼‍💻🧑🏻‍🍼" = false
+  PACKAGE.Darklang.Stdlib.String.isEmpty_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = false
+  PACKAGE.Darklang.Stdlib.String.isEmpty_v0 "﷽﷽﷽﷽﷽" = false
+  PACKAGE.Darklang.Stdlib.String.isEmpty_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = false
+  PACKAGE.Darklang.Stdlib.String.isEmpty_v0 "🧟‍♀️🧟‍♂️" = false
+  PACKAGE.Darklang.Stdlib.String.isEmpty_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = false
 
 
 module NewLine =
@@ -259,19 +259,19 @@ module Length =
 
 
 module Prepend =
-  String.prepend_v0 "hello" "world" = "worldhello" // String.prepend works for ASCII range
-  String.prepend_v0 "hello" "" = "hello"
-  String.prepend_v0 "" "hello" = "hello"
-  String.prepend_v0 "żółw" "😄" = "😄żółw" // String.prepend works on non-ascii strings
-  String.prepend_v0 "123" "456" = "456123"
-  String.prepend_v0 "óñÜá" "abc" = "abcóñÜá"
-  String.prepend_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓" = "Z̤͔ͧ̑̓Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-  String.prepend_v0 "﷽﷽﷽﷽﷽" "👨‍❤️‍💋‍👨" = "👨‍❤️‍💋‍👨﷽﷽﷽﷽﷽"
-  String.prepend_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-  String.prepend_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "✋🏻" = "✋🏻👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-  String.prepend_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = "🧟‍♂️🧟‍♀️🧟‍♂️"
-  String.prepend_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨" = "👨‍❤️‍💋‍👨👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-  String.prepend_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧟‍♂️" = "🧟‍♂️żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  PACKAGE.Darklang.Stdlib.String.prepend_v0 "hello" "world" = "worldhello" // String.prepend works for ASCII range
+  PACKAGE.Darklang.Stdlib.String.prepend_v0 "hello" "" = "hello"
+  PACKAGE.Darklang.Stdlib.String.prepend_v0 "" "hello" = "hello"
+  PACKAGE.Darklang.Stdlib.String.prepend_v0 "żółw" "😄" = "😄żółw" // String.prepend works on non-ascii strings
+  PACKAGE.Darklang.Stdlib.String.prepend_v0 "123" "456" = "456123"
+  PACKAGE.Darklang.Stdlib.String.prepend_v0 "óñÜá" "abc" = "abcóñÜá"
+  PACKAGE.Darklang.Stdlib.String.prepend_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓" = "Z̤͔ͧ̑̓Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  PACKAGE.Darklang.Stdlib.String.prepend_v0 "﷽﷽﷽﷽﷽" "👨‍❤️‍💋‍👨" = "👨‍❤️‍💋‍👨﷽﷽﷽﷽﷽"
+  PACKAGE.Darklang.Stdlib.String.prepend_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+  PACKAGE.Darklang.Stdlib.String.prepend_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "✋🏻" = "✋🏻👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+  PACKAGE.Darklang.Stdlib.String.prepend_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = "🧟‍♂️🧟‍♀️🧟‍♂️"
+  PACKAGE.Darklang.Stdlib.String.prepend_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨" = "👨‍❤️‍💋‍👨👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+  PACKAGE.Darklang.Stdlib.String.prepend_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧟‍♂️" = "🧟‍♂️żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
 
 
 module ReplaceAll =

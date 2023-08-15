@@ -31,20 +31,7 @@ let constants : List<BuiltInConstant> =
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "isEmpty" 0
-      typeParams = []
-      parameters = [ Param.make "s" TString "" ]
-      returnType = TBool
-      description = "Returns {{true}} if <param s> is the empty string {{\"\"}}"
-      fn =
-        (function
-        | _, _, [ DString s ] -> Ply(DBool(s = ""))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-    { name = fn "map" 0
+  [ { name = fn "map" 0
       typeParams = []
       parameters =
         [ Param.make "s" TString ""
@@ -196,22 +183,6 @@ let fns : List<BuiltInFn> =
         // TODO add fuzzer to ensure all strings are normalized no matter what we do to them.
         | _, _, [ DString s1; DString s2 ] ->
           (s1 + s2) |> String.normalize |> DString |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "prepend" 0
-      typeParams = []
-      parameters = [ Param.make "s1" TString ""; Param.make "s2" TString "" ]
-      returnType = TString
-      description =
-        "Concatenates the two strings by prepending <param s2> to <param s1> and
-         returns the joined string."
-      fn =
-        (function
-        | _, _, [ DString s1; DString s2 ] -> Ply(DString(s2 + s1))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
