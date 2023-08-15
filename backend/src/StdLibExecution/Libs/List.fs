@@ -325,30 +325,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // CLEANUP: This can't be moved to packages until the package manager is live and stable.
-    // we can't use PACKAGE functions during the "load from disk into DB" flow
-    { name = fn "flatten" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList(TList varA)) "" ]
-      returnType = TList varA
-      description =
-        "Returns a single list containing the values of every list directly in <param
-         list> (does not recursively flatten nested lists)"
-      fn =
-        (function
-        | _, _, [ DList l ] ->
-          let f acc i =
-            match i with
-            | DList l -> List.append acc l
-            | _ -> Exception.raiseCode "Flattening non-lists"
-
-          List.fold f [] l |> DList |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "interpose" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "sep" varA "" ]
@@ -1301,44 +1277,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    // CLEANUP: This can't be moved to packages until the package manager is live and stable.
-    // we can't use PACKAGE functions during the "load from disk into DB" flow
-    { name = fn "iter" 0
-      typeParams = []
-      parameters =
-        [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs
-            "fn"
-            (TFn(NEList.singleton varA, TUnit))
-            ""
-            [ "element" ] ]
-      returnType = TUnit
-      description =
-        "Applies the given function <param fn> to each element of the <param list>."
-      fn =
-        (function
-        | state, _, [ DList l; DFnVal b ] ->
-          uply {
-            do!
-              l
-              |> Ply.List.iterSequentially (fun e ->
-                uply {
-                  let args = NEList.singleton e
-                  match! Interpreter.applyFnVal state 0UL b [] args with
-                  | DUnit -> return ()
-                  | DError _ as dv -> return Errors.foundFakeDval dv
-                  | v ->
-                    Exception.raiseCode (Errors.expectedLambdaValue "fn" "unit" v)
-                })
-            return DUnit
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
 
     ]
 
