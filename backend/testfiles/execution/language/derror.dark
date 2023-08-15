@@ -5,12 +5,105 @@ module Error =
   Option.map2_v0
     (PACKAGE.Darklang.Stdlib.Option.Option.Some 10)
     "not an option"
-    (fun (a, b) -> "1") = Test.runtimeError
-    "Option.map2's 2nd argument (`option2`) should be a PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, a String (\"not an...) was passed instead.\n\nExpected: (option2: PACKAGE.Darklang.Stdlib.Option.Option<'b>)\nActual: a String: \"not an option\""
+    (fun (a, b) -> "1") = Test.derror (
+    PACKAGE.Darklang.LanguageTools.RuntimeErrors.Error.TypeCheckerError(
+      PACKAGE
+        .Darklang
+        .LanguageTools
+        .RuntimeErrors
+        .TypeChecker
+        .Error
+        .ValueNotExpectedType(
+          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.DString("not an option"),
+          PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference.TCustomType(
+            PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+              PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.FQName.Package(
+                PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.Package
+                  { modules = [ "Stdlib"; "Option" ]
+                    name =
+                      PACKAGE
+                        .Darklang
+                        .LanguageTools
+                        .RuntimeTypes
+                        .TypeName
+                        .Name
+                        .TypeName("Option")
+                    owner = "Darklang"
+                    version = 0 }
+              )
+            ),
+            [ PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference.TVariable(
+                "b"
+              ) ]
+          ),
+          PACKAGE
+            .Darklang
+            .LanguageTools
+            .RuntimeErrors
+            .TypeChecker
+            .Context
+            .FunctionCallParameter(
+              PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.FQName.BuiltIn(
+                PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.BuiltIn
+                  { modules = [ "Option" ]
+                    name =
+                      PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.Name.FnName(
+                        "map2"
+                      )
+                    version = 0 }
+              ),
+              PACKAGE.Darklang.LanguageTools.RuntimeTypes.Param
+                { name = "option2"
+                  typ =
+                    PACKAGE
+                      .Darklang
+                      .LanguageTools
+                      .RuntimeTypes
+                      .TypeReference
+                      .TCustomType(
+                        PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+                          PACKAGE
+                            .Darklang
+                            .LanguageTools
+                            .RuntimeTypes
+                            .FQName
+                            .T
+                            .Package(
+                              PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.Package
+                                { modules = [ "Stdlib"; "Option" ]
+                                  name =
+                                    PACKAGE
+                                      .Darklang
+                                      .LanguageTools
+                                      .RuntimeTypes
+                                      .TypeName
+                                      .Name
+                                      .TypeName("Option")
+                                  owner = "Darklang"
+                                  version = 0 }
+                            )
+                        ),
+                        [ PACKAGE
+                            .Darklang
+                            .LanguageTools
+                            .RuntimeTypes
+                            .TypeReference
+                            .TVariable("b") ]
+                      ) },
+              1,
+              PACKAGE.Darklang.Stdlib.Option.Option.None
+            )
+        )
+    )
+  )
+
+
 
   // Check we get previous errors before later ones
   (List.map_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Test.runtimeError "X"))
   |> List.fakeFunction = Test.runtimeError "X"
+
+
 
 module ErrorPropagation =
   type EPRec = { i: Int; m: Int; j: Int; n: Int }

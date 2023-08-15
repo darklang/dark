@@ -22,7 +22,7 @@ let tlid : tlid = 7UL
 let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
 module RuntimeTypes =
-  let fqFnNames : List<RT.FnName.T> =
+  let fqFnNames : List<RT.FnName.FnName> =
     [ RT.FQName.UserProgram
         { modules = [ "X" ]; name = RT.FnName.FnName "userfn"; version = 0 }
       RT.FQName.BuiltIn
@@ -205,7 +205,7 @@ module ProgramTypes =
 
   let signs = [ Sign.Positive; Sign.Negative ]
 
-  let fqFnNames : List<PT.FnName.T> =
+  let fqFnNames : List<PT.FnName.FnName> =
     [ PT.FQName.UserProgram
         { modules = []; name = PT.FnName.FnName "fn"; version = 0 }
       PT.FQName.BuiltIn
@@ -787,7 +787,7 @@ module ProgramTypes =
     { name =
         { owner = "darklang"
           modules = [ "stdlib"; "Int"; "Int64" ]
-          name = PT.TypeName.TypeName "T"
+          name = PT.TypeName.TypeName "Int64"
           version = 0 }
       declaration =
         { typeParams = [ "a" ]

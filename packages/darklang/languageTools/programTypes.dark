@@ -13,8 +13,10 @@ module Darklang =
           | Constant
 
         type Error =
-          { errorType: PACKAGE.Darklang.LanguageTools.Errors.NameResolution.ErrorType
-            nameType: PACKAGE.Darklang.LanguageTools.Errors.NameResolution.NameType
+          { errorType:
+              PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType
+            nameType:
+              PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.NameType
             names: List<String> }
 
     module ProgramTypes =
@@ -56,7 +58,7 @@ module Darklang =
         type Name = TypeName of String
 
         type T =
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.T<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name>
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.FQName<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name>
 
         type BuiltIn =
           PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.BuiltIn<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name>
@@ -71,7 +73,7 @@ module Darklang =
         type Name = FnName of String
 
         type T =
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.T<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name>
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.FQName<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name>
 
         type BuiltIn =
           PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.BuiltIn<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name>
@@ -86,7 +88,7 @@ module Darklang =
         type Name = ConstantName of String
 
         type T =
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.T<PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Name>
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.FQName<PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Name>
 
         type BuiltIn =
           PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.BuiltIn<PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Name>
@@ -98,7 +100,7 @@ module Darklang =
           PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.Package<PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Name>
 
       type NameResolution<'a> =
-        PACKAGE.Darklang.Stdlib.Result.Result<'a, PACKAGE.Darklang.LanguageTools.Errors.NameResolution.Error>
+        PACKAGE.Darklang.Stdlib.Result.Result<'a, PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error>
 
       /// Darklang's available types (int, List<T>, user-defined types, etc.)
       type TypeReference =
@@ -129,7 +131,7 @@ module Darklang =
         /// e.g. `PACKAGE.Darklang.Stdlib.Result.Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
         /// `typeArgs` is the list of type arguments, if any
         | TCustomType of
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T> *
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName> *
           typeArgs: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference>
 
         | TDB of PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference
@@ -150,7 +152,7 @@ module Darklang =
           PACKAGE.Darklang.LanguageTools.ProgramTypes.Const *
           List<PACKAGE.Darklang.LanguageTools.ProgramTypes.Const>
         | CEnum of
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T> *
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName> *
           caseName: String *
           fields: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.Const>
 
@@ -242,14 +244,14 @@ module Darklang =
 
         | EPipeFnCall of
           PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T> *
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.FnName> *
           typeArgs: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference> *
           args: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
 
         | EPipeEnum of
           PACKAGE.Darklang.LanguageTools.ID *
           typeName:
-            PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T> *
+            PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName> *
           caseName: String *
           fields: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
 
@@ -309,7 +311,7 @@ module Darklang =
 
         | ERecord of
           PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T> *
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName> *
           List<String * PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
 
         // Enums include `Some`, `None`, `Error`, `Ok`, as well
@@ -324,7 +326,7 @@ module Darklang =
         | EEnum of
           PACKAGE.Darklang.LanguageTools.ID *
           typeName:
-            PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T> *
+            PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName> *
           caseName: String *
           fields: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
 
@@ -346,7 +348,7 @@ module Darklang =
 
         | EConstant of
           PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.T>
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.ConstantName>
 
 
         // control flow
@@ -391,7 +393,7 @@ module Darklang =
 
         | EFnName of
           PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T>
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.FnName>
 
         | ERecordUpdate of
           PACKAGE.Darklang.LanguageTools.ID *
@@ -525,7 +527,7 @@ module Darklang =
               PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeDeclaration.T
 
             deprecated:
-              PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T>
+              PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName>
           }
 
 
@@ -544,7 +546,7 @@ module Darklang =
             returnType: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference
             description: String
             deprecated:
-              PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T>
+              PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.FnName>
             body: PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr }
 
       module UserConstant =
@@ -554,7 +556,7 @@ module Darklang =
               PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.UserProgram
             description: String
             deprecated:
-              PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T>
+              PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.FnName>
             body: PACKAGE.Darklang.LanguageTools.ProgramTypes.Const }
 
 
@@ -589,7 +591,7 @@ module Darklang =
               PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeDeclaration.T
             description: String
             deprecated:
-              PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T> }
+              PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName> }
 
 
       module PackageFn =
@@ -609,7 +611,7 @@ module Darklang =
             returnType: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference
             description: String
             deprecated:
-              PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T> }
+              PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.FnName> }
 
       module PackageConstant =
         type T =
@@ -619,4 +621,4 @@ module Darklang =
             body: PACKAGE.Darklang.LanguageTools.ProgramTypes.Const
             description: String
             deprecated:
-              PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T> }
+              PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.FnName> }

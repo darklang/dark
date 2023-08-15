@@ -9,7 +9,7 @@ module Darklang =
     module ProgramTypes =
 
       let nameResolutionError
-        (nr: PACKAGE.Darklang.LanguageTools.Errors.NameResolution.Error)
+        (nr: PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error)
         : String =
         String.join nr.names "."
 
@@ -123,7 +123,7 @@ module Darklang =
               p
 
         let atDefinition
-          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T)
+          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName)
           : String =
           match t with
           | BuiltIn b ->
@@ -137,7 +137,7 @@ module Darklang =
               p
 
         let fullForReference
-          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T)
+          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName)
           : String =
           match t with
           | BuiltIn b ->
@@ -197,7 +197,7 @@ module Darklang =
               p
 
         let atDefinition
-          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.T)
+          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.ConstantName)
           : String =
           match t with
           | BuiltIn b ->
@@ -211,7 +211,7 @@ module Darklang =
               p
 
         let fullForReference
-          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.T)
+          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.ConstantName)
           : String =
           match t with
           | BuiltIn b ->
@@ -271,7 +271,7 @@ module Darklang =
               p
 
         let atDefinition
-          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T)
+          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.FnName)
           : String =
           match t with
           | BuiltIn _b ->
@@ -283,7 +283,7 @@ module Darklang =
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.Package.atDefinition p
 
         let fullForReference
-          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T)
+          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.FnName)
           : String =
           match t with
           | BuiltIn b ->
@@ -569,7 +569,7 @@ module Darklang =
           $"{fnNamePart}{typeArgsPart} {argsPart}"
 
         // PACKAGE.Darklang.LanguageTools.ID *
-        // typeName: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T *
+        // typeName: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName *
         // caseName: String *
         // fields: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
         | EPipeEnum(_id, typeName, caseName, fields) ->

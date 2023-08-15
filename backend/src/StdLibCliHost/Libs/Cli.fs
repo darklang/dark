@@ -32,7 +32,7 @@ module CliRuntimeError =
   module RTE =
     module Error =
       let toDT (et : Error) : RT.Dval =
-        let nameTypeName = RT.RuntimeError.name [ "NameResolution" ] "ErrorType" 0
+        let nameTypeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
         let caseName, fields =
           match et with
           | NoExpressionsToExecute -> "NoExpressionsToExecute", []

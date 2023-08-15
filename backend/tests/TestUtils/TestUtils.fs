@@ -311,9 +311,9 @@ let testListUsingPropertyAsync
       list)
 
 // Remove random things like IDs to make the tests stable
-let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
+let rec normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
-  | RT.DError(_, str) -> RT.DError(RT.SourceNone, str)
+  | RT.DError(_, err) -> RT.DError(RT.SourceNone, err)
   | RT.DIncomplete _ -> RT.DIncomplete(RT.SourceNone)
   | dv -> dv
 
@@ -419,8 +419,8 @@ module Expect =
 
   let rec userTypeNameEqualityBaseFn
     (path : Path)
-    (actual : TypeName.T)
-    (expected : TypeName.T)
+    (actual : TypeName.TypeName)
+    (expected : TypeName.TypeName)
     (errorFn : Path -> string -> string -> unit)
     : unit =
     let err () = errorFn path (string actual) (string expected)

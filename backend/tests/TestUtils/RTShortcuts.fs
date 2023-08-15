@@ -78,7 +78,7 @@ let eLambda (varNames : List<string>) (body : Expr) : Expr =
   let varNames = NEList.ofListUnsafe "eLambda" [] varNames
   ELambda(gid (), NEList.map (fun name -> (gid (), name)) varNames, body)
 
-let eEnum (typeName : TypeName.T) (name : string) (args : Expr list) : Expr =
+let eEnum (typeName : TypeName.TypeName) (name : string) (args : Expr list) : Expr =
   EEnum(gid (), typeName, name, args)
 
 let userTypeName

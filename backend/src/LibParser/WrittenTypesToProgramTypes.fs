@@ -99,7 +99,7 @@ module Expr =
     (resolver : NameResolver)
     (currentModule : List<string>)
     (names : List<string>)
-    : PT.NameResolution<PT.TypeName.T> =
+    : PT.NameResolution<PT.TypeName.TypeName> =
     match names with
     | [] ->
       Error(

@@ -512,6 +512,7 @@ let testMatchPreview : Test =
       identity
       identity
       identity
+      identity
       (fun lp ->
         argIDs <- (LetPattern.toID lp, string lp) :: argIDs
         lp)

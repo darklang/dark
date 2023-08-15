@@ -18,7 +18,11 @@ let modules = [ "DarkInternal"; "Canvas" ]
 let typ = typ modules
 let fn = fn modules
 
-let ptTyp (submodules : List<string>) (name : string) (version : int) : TypeName.T =
+let ptTyp
+  (submodules : List<string>)
+  (name : string)
+  (version : int)
+  : TypeName.TypeName =
   TypeName.fqPackage
     "Darklang"
     ("Stdlib" :: "ProgramTypes" :: submodules)

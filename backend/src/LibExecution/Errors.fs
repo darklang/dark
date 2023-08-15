@@ -83,7 +83,7 @@ let incorrectArgs () = raise IncorrectArgs
 
 let intInfixFns = Set [ "+"; "-"; "*"; ">"; ">="; "<="; "<"; "^"; "%" ]
 
-let incorrectArgsMsg (name : FnName.T) (p : Param) (actual : Dval) : string =
+let incorrectArgsMsg (name : FnName.FnName) (p : Param) (actual : Dval) : string =
   let actualRepr = DvalReprDeveloper.toRepr actual
   let expectedTypeRepr = DvalReprDeveloper.typeName p.typ
 

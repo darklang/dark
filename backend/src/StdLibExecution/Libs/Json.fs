@@ -208,6 +208,12 @@ let rec serialize
               [ "type", LibExecution.DvalReprDeveloper.dvalTypeName dval ]
 
 
+    | TCustomType(Error errTypeName, _typeArgs), dval ->
+      Exception.raiseInternal
+        "Couldn't resolve type name"
+        [ "typeName", errTypeName; "dval", dval ]
+
+
     // Not supported
     | TVariable name, dv ->
       Exception.raiseInternal
@@ -239,7 +245,7 @@ let rec serialize
     | TDict _, _ ->
       Exception.raiseInternal
         "Can't currently serialize this type/value combination"
-        [ "value", dv; "type", typ ]
+        [ "value", dv; "type", DString(LibExecution.DvalReprDeveloper.typeName typ) ]
   }
 
 /// Let's imagine we have these types:
@@ -538,7 +544,7 @@ let fns : List<BuiltInFn> =
       description = "Serializes a Dark value to a JSON string."
       fn =
         (function
-        | state, [ typeArg ], [ arg ] ->
+        | state, [ typeToSerializeAs ], [ arg ] ->
           uply {
             // TODO: somehow collect list of TVariable -> TypeReference
             // "'b = Int",
@@ -548,7 +554,8 @@ let fns : List<BuiltInFn> =
             // if anything fails due to types, it should result as an InternalException
             // naturally
             let types = ExecutionState.availableTypes state
-            let! response = writeJson (fun w -> serialize types w typeArg arg)
+            let! response =
+              writeJson (fun w -> serialize types w typeToSerializeAs arg)
             return Dval.resultOk (DString response)
           }
         | _ -> incorrectArgs ())

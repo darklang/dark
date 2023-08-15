@@ -89,10 +89,9 @@ module Darklang =
 
       /// The result of Exception.raiseInternal
       type ExceptionThrown =
-        // ish
-        { stackTrace: string
-          message: string
-          metadata: List<string * string> }
+        { stackTrace: String
+          message: String
+          metadata: List<String * String> }
 
 
       type ErrorOutput =
@@ -104,11 +103,12 @@ module Darklang =
 
       type Error =
         | CliError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Cli.Error
-        | TypeError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Error
+        | TypeCheckerError of
+          PACKAGE.Darklang.LanguageTools.RuntimeErrors.TypeChecker.Error
         | NameResolutionError of
-          PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error // TODO: PACAKGE....
-        | UnorganizedStringTODO of String
-      //| ExceptionThrown of ExceptionThrown
+          PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error
+        | OldStringErrorTODO of String
+        | ExceptionThrown of ExceptionThrown
 
       module Error =
         // TODO: move most of the logic here to the individual modules,

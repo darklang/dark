@@ -15,24 +15,24 @@ let combineErrorsUnit (l : NEList<Result<unit, 'err>>) : Result<unit, 'err> =
 type Location = Option<tlid * id>
 type Context =
   | FunctionCallParameter of
-    fnName : FnName.T *
+    fnName : FnName.FnName *
     parameter : Param *
     paramIndex : int *
     // caller : Option<tlid * id> * // TODO add caller
     location : Location
   | FunctionCallResult of
-    fnName : FnName.T *
+    fnName : FnName.FnName *
     returnType : TypeReference *
     // caller : Option<tlid * id> * // TODO add caller
     location : Location
   | RecordField of
-    recordTypeName : TypeName.T *
+    recordTypeName : TypeName.TypeName *
     fieldName : string *
     fieldType : TypeReference *
     location : Location
   | DictKey of key : string * typ : TypeReference * Location
   | EnumField of
-    enumTypeName : TypeName.T *
+    enumTypeName : TypeName.TypeName *
     caseName : string *
     fieldIndex : int *  // nth argument to the enum constructor
     fieldCount : int *
@@ -68,7 +68,7 @@ type Error =
     actualValue : Dval *
     expectedType : TypeReference *
     Context
-  | TypeDoesntExist of TypeName.T * Context
+  | TypeDoesntExist of TypeName.TypeName * Context
 
 
 module Error =
@@ -87,7 +87,7 @@ module Error =
 
   module Context =
     let rec toDT (context : Context) : Dval =
-      let nameTypeName = RuntimeError.name [ "NameResolution" ] "ErrorType" 0
+      let nameTypeName = RuntimeError.name [ "TypeChecker" ] "Context" 0
       let (caseName, fields) =
         match context with
         | FunctionCallParameter(fnName, param, paramIndex, location) ->
@@ -147,7 +147,7 @@ module Error =
           let parent = toDT parent
           "TupleIndex", [ index; elementType; parent ]
 
-      Dval.enum nameTypeName caseName []
+      Dval.enum nameTypeName caseName fields
 
 
 
@@ -160,11 +160,22 @@ module Error =
           expectedType |> RT2DT.TypeReference.toDT
           Context.toDT context ]
 
-      RuntimeError.enum [ "TypeChecker" ] "Error" 0 "ValueNotExpectedType" fields
+      RuntimeError.typeCheckerError (
+        Dval.enum
+          (RuntimeError.name [ "TypeChecker" ] "Error" 0)
+          "ValueNotExpectedType"
+          fields
+      )
+
     | TypeDoesntExist(typeName, context) ->
       let fields = [ RT2DT.TypeName.toDT typeName; Context.toDT context ]
 
-      RuntimeError.enum [ "TypeChecker" ] "Error" 0 "TypeDoesntExist" fields
+      RuntimeError.typeCheckerError (
+        Dval.enum
+          (RuntimeError.name [ "TypeChecker" ] "Error" 0)
+          "TypeDoesntExist"
+          fields
+      )
 
 
 
@@ -372,7 +383,6 @@ let rec unify
           |> Error.toRuntimeError
           |> Error
   }
-
 
 
 

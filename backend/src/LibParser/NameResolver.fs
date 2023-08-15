@@ -137,7 +137,7 @@ let resolve
   (userThings : Set<PT.FQName.UserProgram<'name>>)
   (currentModule : List<string>)
   (name : WT.Name)
-  : PT.NameResolution<PT.FQName.T<'name>> =
+  : PT.NameResolution<PT.FQName.FQName<'name>> =
 
   // These are named exactly during parsing
   match name with
@@ -170,7 +170,9 @@ let resolve
         )
 
   | WT.Unresolved given ->
-    let resolve (names : NEList<string>) : PT.NameResolution<PT.FQName.T<'name>> =
+    let resolve
+      (names : NEList<string>)
+      : PT.NameResolution<PT.FQName.FQName<'name>> =
       let (modules, name) = NEList.splitLast names
       match parser name with
       | Error _msg ->
@@ -244,7 +246,7 @@ module TypeName =
     (resolver : NameResolver)
     (currentModule : List<string>)
     (name : WT.Name)
-    : PT.NameResolution<PT.TypeName.T> =
+    : PT.NameResolution<PT.TypeName.TypeName> =
     resolve
       PT.TypeName.assert'
       NRE.Type
@@ -261,7 +263,7 @@ module FnName =
     (resolver : NameResolver)
     (currentModule : List<string>)
     (name : WT.Name)
-    : PT.NameResolution<PT.FnName.T> =
+    : PT.NameResolution<PT.FnName.FnName> =
     resolve
       PT.FnName.assert'
       NRE.Function
@@ -278,7 +280,7 @@ module ConstantName =
     (resolver : NameResolver)
     (currentModule : List<string>)
     (name : WT.Name)
-    : PT.NameResolution<PT.ConstantName.T> =
+    : PT.NameResolution<PT.ConstantName.ConstantName> =
     resolve
       PT.ConstantName.assert'
       NRE.Constant

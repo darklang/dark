@@ -123,7 +123,7 @@ let reexecuteFunction
   (callerID : id)
   (traceID : AT.TraceID.T)
   (rootTLID : tlid)
-  (name : RT.FnName.T)
+  (name : RT.FnName.FnName)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
   : Task<RT.Dval * Tracing.TraceResults.T> =

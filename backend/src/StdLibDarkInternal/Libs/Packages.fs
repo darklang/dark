@@ -17,7 +17,7 @@ let stdlibPackageTyp
   (submodules : List<string>)
   (name : string)
   (version : int)
-  : TypeName.T =
+  : TypeName.TypeName =
   TypeName.fqPackage "Darklang" ("Stdlib" :: submodules) name version
 
 let modules = [ "DarkInternal"; "Packages" ]

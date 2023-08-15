@@ -138,12 +138,23 @@ let t
         debuGList "results" (Dictionary.toList results |> List.sortBy fst)
 
       let actual = normalizeDvalResult actual
+      let expected = normalizeDvalResult expected
 
       let canonical = Expect.isCanonical actual
       if not canonical then
         debugDval actual |> debuG "not canonicalized"
         Expect.isTrue canonical "expected is canonicalized"
-      return Expect.equalDval actual expected msg
+
+      match expected, actual with
+      | RT.DError(_, expected), RT.DError(_, actual) ->
+        let expected =
+          $"DError: {LibExecution.DvalReprDeveloper.toRepr (RT.RuntimeError.toDT expected)}"
+
+        let actual =
+          $"DError: {LibExecution.DvalReprDeveloper.toRepr (RT.RuntimeError.toDT actual)}"
+
+        return Expect.equal actual expected msg
+      | _ -> return Expect.equalDval actual expected msg
     with
     | :? Expecto.AssertException as e -> e.Reraise() // let this through
     | e ->

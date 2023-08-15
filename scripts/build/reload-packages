@@ -48,8 +48,10 @@ for name in "${@}"; do
 done
 
 
-# make sure the target canvas exists
-./scripts/run-canvas-hack dark-packages
+if [[ "$TEST" != "true" ]]; then
+  # make sure the target canvas exists
+  ./scripts/run-canvas-hack dark-packages
 
-echo -e "Loading packages into dark canvas ${grey}($LOG)${reset}"
-./scripts/run-local-exec load-packages-dark > $LOG 2>&1
+  echo -e "Loading packages into dark canvas ${grey}($LOG)${reset}"
+  ./scripts/run-local-exec load-packages-dark > $LOG 2>&1
+fi

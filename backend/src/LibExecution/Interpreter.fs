@@ -56,10 +56,10 @@ let rec eval'
 
   let recordMaybe
     (types : Types)
-    (typeName : TypeName.T)
+    (typeName : TypeName.TypeName)
     // TypeName, typeParam list, fully-resolved (except for typeParam) field list
-    : Ply<Result<TypeName.T * List<string> * List<string * TypeReference>, RuntimeError>> =
-    let rec inner (typeName : TypeName.T) =
+    : Ply<Result<TypeName.TypeName * List<string> * List<string * TypeReference>, RuntimeError>> =
+    let rec inner (typeName : TypeName.TypeName) =
       uply {
         match! Types.find typeName types with
         | Some({ typeParams = outerTypeParams
@@ -119,26 +119,39 @@ let rec eval'
           let fields =
             [ "errorType", Dval.enum errorTypeName "ExpectedRecordButNot" []
               "nameType", Dval.enum nameTypeName "Type" []
-              "names", (DList []) ]
-          return Error(RuntimeError.record [ "NameResolution" ] "Error" fields)
+              "names",
+              [ TypeName.toString typeName ] |> List.map DString |> Dval.list ]
+          return
+            Error(
+              RuntimeError.nameResolutionError (
+                Dval.record (RuntimeError.name [ "NameResolution" ] "Error" 0) fields
+              )
+            )
 
         | None ->
           let errorTypeName = RuntimeError.name [ "NameResolution" ] "ErrorType" 0
           let nameTypeName = RuntimeError.name [ "NameResolution" ] "NameType" 0
+
           let fields =
             [ "errorType", Dval.enum errorTypeName "NotFound" []
               "nameType", Dval.enum nameTypeName "Type" []
-              "names", (DList []) ]
+              "names",
+              [ TypeName.toString typeName ] |> List.map DString |> Dval.list ]
 
-          return Error(RuntimeError.record [ "NameResolution" ] "Error" fields)
+          return
+            Error(
+              RuntimeError.nameResolutionError (
+                Dval.record (RuntimeError.name [ "NameResolution" ] "Error" 0) fields
+              )
+            )
       }
     inner typeName
 
   let enumMaybe
     (types : Types)
-    (typeName : TypeName.T)
-    : Ply<Result<TypeName.T * List<string> * NEList<TypeDeclaration.EnumCase>, RuntimeError>> =
-    let rec inner (typeName : TypeName.T) =
+    (typeName : TypeName.TypeName)
+    : Ply<Result<TypeName.TypeName * List<string> * NEList<TypeDeclaration.EnumCase>, RuntimeError>> =
+    let rec inner (typeName : TypeName.TypeName) =
       uply {
         match! Types.find typeName types with
         | Some({ typeParams = outerTypeParams
@@ -171,8 +184,15 @@ let rec eval'
           let fields =
             [ "errorType", Dval.enum errorTypeName "ExpectedEnumButNot" []
               "nameType", Dval.enum nameTypeName "Type" []
-              "names", (DList []) ]
-          return Error(RuntimeError.record [ "NameResolution" ] "Error" fields)
+              "names",
+              [ TypeName.toString typeName ] |> List.map DString |> Dval.list ]
+
+          return
+            Error(
+              RuntimeError.nameResolutionError (
+                Dval.record (RuntimeError.name [ "NameResolution" ] "Error" 0) fields
+              )
+            )
 
         | None ->
           let errorTypeName = RuntimeError.name [ "NameResolution" ] "ErrorType" 0
@@ -180,9 +200,17 @@ let rec eval'
           let fields =
             [ "errorType", Dval.enum errorTypeName "NotFound" []
               "nameType", Dval.enum nameTypeName "Type" []
-              "names", (DList []) ]
+              "names",
+              [ TypeName.toString typeName ] |> List.map DString |> Dval.list ]
 
-          return Error(RuntimeError.record [ "NameResolution" ] "Error" fields)
+          return
+            Error(
+              RuntimeError.case
+                "NameResolution"
+                [ Dval.record
+                    (RuntimeError.name [ "NameResolution" ] "Error" 0)
+                    fields ]
+            )
       }
     inner typeName
 
@@ -879,7 +907,7 @@ and callFn
   (state : ExecutionState)
   (tat : TypeArgTable)
   (callerID : id)
-  (desc : FnName.T)
+  (desc : FnName.FnName)
   (typeArgs : List<TypeReference>)
   (args : NEList<Dval>)
   : DvalTask =
@@ -952,7 +980,7 @@ and callFn
 and execFn
   (state : ExecutionState)
   (tat : TypeArgTable)
-  (fnDesc : FnName.T)
+  (fnDesc : FnName.FnName)
   (id : id)
   (fn : Fn)
   (typeArgs : List<TypeReference>)

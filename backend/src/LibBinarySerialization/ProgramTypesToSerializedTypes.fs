@@ -47,13 +47,13 @@ module TypeName =
         name = PT.TypeName.TypeName p.name
         version = p.version }
 
-  let toST (fqtn : PT.TypeName.T) : ST.TypeName.T =
+  let toST (fqtn : PT.TypeName.TypeName) : ST.TypeName.TypeName =
     match fqtn with
     | PT.FQName.BuiltIn s -> ST.TypeName.BuiltIn(BuiltIn.toST s)
     | PT.FQName.UserProgram u -> ST.TypeName.UserProgram(UserProgram.toST u)
     | PT.FQName.Package p -> ST.TypeName.Package(Package.toST p)
 
-  let toPT (fqfn : ST.TypeName.T) : PT.TypeName.T =
+  let toPT (fqfn : ST.TypeName.TypeName) : PT.TypeName.TypeName =
     match fqfn with
     | ST.TypeName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
     | ST.TypeName.UserProgram u -> PT.FQName.UserProgram(UserProgram.toPT u)
@@ -90,13 +90,13 @@ module FnName =
         name = PT.FnName.FnName p.name
         version = p.version }
 
-  let toST (fqfn : PT.FnName.T) : ST.FnName.T =
+  let toST (fqfn : PT.FnName.FnName) : ST.FnName.FnName =
     match fqfn with
     | PT.FQName.BuiltIn s -> ST.FnName.BuiltIn(BuiltIn.toST s)
     | PT.FQName.UserProgram u -> ST.FnName.UserProgram(UserProgram.toST u)
     | PT.FQName.Package p -> ST.FnName.Package(Package.toST p)
 
-  let toPT (fqfn : ST.FnName.T) : PT.FnName.T =
+  let toPT (fqfn : ST.FnName.FnName) : PT.FnName.FnName =
     match fqfn with
     | ST.FnName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
     | ST.FnName.UserProgram u -> PT.FQName.UserProgram(UserProgram.toPT u)
@@ -215,13 +215,17 @@ module ConstantName =
         name = PT.ConstantName.ConstantName p.name
         version = p.version }
 
-  let toST (fqConstant : PT.ConstantName.T) : ST.ConstantName.T =
+  let toST
+    (fqConstant : PT.ConstantName.ConstantName)
+    : ST.ConstantName.ConstantName =
     match fqConstant with
     | PT.FQName.BuiltIn s -> ST.ConstantName.BuiltIn(BuiltIn.toST s) // ConstantName.BuiltIn(BuiltIn.toST s)
     | PT.FQName.UserProgram u -> ST.ConstantName.UserProgram(UserProgram.toST u)
     | PT.FQName.Package p -> ST.ConstantName.Package(Package.toST p)
 
-  let toPT (fqConstant : ST.ConstantName.T) : PT.ConstantName.T =
+  let toPT
+    (fqConstant : ST.ConstantName.ConstantName)
+    : PT.ConstantName.ConstantName =
     match fqConstant with
     | ST.ConstantName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
     | ST.ConstantName.UserProgram u -> PT.FQName.UserProgram(UserProgram.toPT u)

@@ -12,18 +12,22 @@ let languageToolsTyp
   (submodules : List<string>)
   (name : string)
   (version : int)
-  : TypeName.T =
+  : TypeName.TypeName =
   TypeName.fqPackage "Darklang" ("LanguageTools" :: submodules) name version
 
 
-let ptTyp (submodules : List<string>) (name : string) (version : int) : TypeName.T =
+let ptTyp
+  (submodules : List<string>)
+  (name : string)
+  (version : int)
+  : TypeName.TypeName =
   languageToolsTyp ("ProgramTypes" :: submodules) name version
 
 let errorsTyp
   (submodules : List<string>)
   (name : string)
   (version : int)
-  : TypeName.T =
+  : TypeName.TypeName =
   languageToolsTyp ("Errors" :: submodules) name version
 
 
@@ -116,16 +120,16 @@ module FQName =
       | _ -> Exception.raiseInternal "Unexpected value" []
 
 
-  let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.T<'name>) : Dval =
+  let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.FQName<'name>) : Dval =
     let caseName, fields =
       match u with
       | PT.FQName.UserProgram u -> "UserProgram", [ UserProgram.toDT nameMapper u ]
       | PT.FQName.Package u -> "Package", [ Package.toDT nameMapper u ]
       | PT.FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameMapper u ]
 
-    Dval.enum (ptTyp [ "FQName" ] "T" 0) caseName fields
+    Dval.enum (ptTyp [ "FQName" ] "FQName" 0) caseName fields
 
-  let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.T<'name> =
+  let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.FQName<'name> =
     match d with
     | DEnum(_, _, "UserProgram", [ u ]) ->
       PT.FQName.UserProgram(UserProgram.fromDT nameMapper u)
@@ -163,8 +167,8 @@ module TypeName =
     let toDT (u : PT.TypeName.Package) : Dval = FQName.Package.toDT Name.toDT u
     let fromDT (d : Dval) : PT.TypeName.Package = FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : PT.TypeName.T) : Dval = FQName.toDT Name.toDT u
-  let fromDT (d : Dval) : PT.TypeName.T = FQName.fromDT Name.fromDT d
+  let toDT (u : PT.TypeName.TypeName) : Dval = FQName.toDT Name.toDT u
+  let fromDT (d : Dval) : PT.TypeName.TypeName = FQName.fromDT Name.fromDT d
 
 
 module FnName =
@@ -194,8 +198,8 @@ module FnName =
     let toDT (u : PT.FnName.Package) : Dval = FQName.Package.toDT Name.toDT u
     let fromDT (d : Dval) : PT.FnName.Package = FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : PT.FnName.T) : Dval = FQName.toDT Name.toDT u
-  let fromDT (d : Dval) : PT.FnName.T = FQName.fromDT Name.fromDT d
+  let toDT (u : PT.FnName.FnName) : Dval = FQName.toDT Name.toDT u
+  let fromDT (d : Dval) : PT.FnName.FnName = FQName.fromDT Name.fromDT d
 
 module ConstantName =
   module Name =
@@ -229,8 +233,8 @@ module ConstantName =
     let fromDT (d : Dval) : PT.ConstantName.Package =
       FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : PT.ConstantName.T) : Dval = FQName.toDT Name.toDT u
-  let fromDT (d : Dval) : PT.ConstantName.T = FQName.fromDT Name.fromDT d
+  let toDT (u : PT.ConstantName.ConstantName) : Dval = FQName.toDT Name.toDT u
+  let fromDT (d : Dval) : PT.ConstantName.ConstantName = FQName.fromDT Name.fromDT d
 
 module NameResolution =
   let toDT (f : 'p -> Dval) (result : PT.NameResolution<'p>) : Dval =

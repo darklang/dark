@@ -15,8 +15,12 @@ module Darklang =
           | Constant
 
         type Error =
-          { errorType: ErrorType
-            nameType: NameType
+          { errorType:
+              PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType
+
+            nameType:
+              PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.NameType
+
             // The `.`-delimited name _parts_ e.g. `List.fakeFunction` is `["List";
             // "fakeFunction"]`
-            names: List<string> }
+            names: List<String> }

@@ -43,13 +43,13 @@ module TypeName =
         name = PT.TypeName.TypeName name
         version = p.version }
 
-  let toRT (fqtn : PT.TypeName.T) : RT.TypeName.T =
+  let toRT (fqtn : PT.TypeName.TypeName) : RT.TypeName.TypeName =
     match fqtn with
     | PT.FQName.BuiltIn s -> RT.FQName.BuiltIn(BuiltIn.toRT s)
     | PT.FQName.UserProgram u -> RT.FQName.UserProgram(UserProgram.toRT u)
     | PT.FQName.Package p -> RT.FQName.Package(Package.toRT p)
 
-  let fromRT (fqtn : RT.TypeName.T) : Option<PT.TypeName.T> =
+  let fromRT (fqtn : RT.TypeName.TypeName) : Option<PT.TypeName.TypeName> =
     match fqtn with
     | RT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.fromRT s) |> Some
     | RT.FQName.UserProgram u -> PT.FQName.UserProgram(UserProgram.fromRT u) |> Some
@@ -123,7 +123,7 @@ module FnName =
         name = PT.FnName.FnName name
         version = p.version }
 
-  let toRT (fqfn : PT.FnName.T) : RT.FnName.T =
+  let toRT (fqfn : PT.FnName.FnName) : RT.FnName.FnName =
     match fqfn with
     | PT.FQName.BuiltIn s -> RT.FQName.BuiltIn(BuiltIn.toRT s)
     | PT.FQName.UserProgram u -> RT.FQName.UserProgram(UserProgram.toRT u)
@@ -173,7 +173,9 @@ module ConstantName =
         name = PT.ConstantName.ConstantName name
         version = c.version }
 
-  let toRT (fqConstant : PT.ConstantName.T) : RT.ConstantName.T =
+  let toRT
+    (fqConstant : PT.ConstantName.ConstantName)
+    : RT.ConstantName.ConstantName =
     match fqConstant with
     | PT.FQName.BuiltIn s -> RT.FQName.BuiltIn(BuiltIn.toRT s)
     | PT.FQName.UserProgram u -> RT.FQName.UserProgram(UserProgram.toRT u)

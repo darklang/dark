@@ -44,7 +44,6 @@ let execute
         fns =
           mod'.fns
           |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
-          |> debugList "fns"
           |> Map.fromListBy (fun fn -> fn.name)
         types =
           mod'.types
@@ -68,7 +67,11 @@ let execute
         metadata |> List.map (fun (k, v) -> $"  {k}: {v}") |> String.concat ", "
       print $"Notification: {msg}, {metadata}"
 
-    let sendException (state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
+    let reportException
+      (state : RT.ExecutionState)
+      (metadata : Metadata)
+      (exn : exn)
+      =
       let metadata = extraMetadata state @ metadata @ Exception.toMetadata exn
       let metadata =
         metadata |> List.map (fun (k, v) -> $"  {k}: {v}") |> String.concat "\n"
@@ -80,14 +83,13 @@ let execute
         builtIns
         LibCloud.PackageManager.packageManager
         tracing
-        sendException
+        reportException
         notify
         defaultTLID
         program
         config
 
-    return!
-      Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0] |> debug "expr")
+    return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
   }
 
 let sourceOf

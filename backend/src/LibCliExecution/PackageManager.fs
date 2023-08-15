@@ -321,7 +321,7 @@ module ExternalTypesToProgramTypes =
             | EPT.TypeName.Name.TypeName name -> PT.TypeName.TypeName name
           version = p.version }
 
-    let toPT (fqfn : EPT.TypeName.TypeName) : PT.TypeName.T =
+    let toPT (fqfn : EPT.TypeName.TypeName) : PT.TypeName.TypeName =
       match fqfn with
       | EPT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
       | EPT.FQName.Package p -> PT.FQName.Package(Package.toPT p)
@@ -345,7 +345,7 @@ module ExternalTypesToProgramTypes =
             | EPT.FnName.Name.FnName name -> PT.FnName.FnName name
           version = p.version }
 
-    let toPT (fqfn : EPT.FnName.FnName) : PT.FnName.T =
+    let toPT (fqfn : EPT.FnName.FnName) : PT.FnName.FnName =
       match fqfn with
       | EPT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
       | EPT.FQName.Package p -> PT.FQName.Package(Package.toPT p)
@@ -370,7 +370,7 @@ module ExternalTypesToProgramTypes =
               PT.ConstantName.ConstantName name
           version = p.version }
 
-    let toPT (fqfn : EPT.ConstantName.ConstantName) : PT.ConstantName.T =
+    let toPT (fqfn : EPT.ConstantName.ConstantName) : PT.ConstantName.ConstantName =
       match fqfn with
       | EPT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
       | EPT.FQName.Package p -> PT.FQName.Package(Package.toPT p)

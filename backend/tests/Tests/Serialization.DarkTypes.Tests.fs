@@ -34,7 +34,7 @@ module RoundtripTests =
 
   let testRoundtrip
     (testName : string)
-    (typeName : RT.TypeName.T)
+    (typeName : RT.TypeName.TypeName)
     (original : 'a)
     (toDT : 'a -> RT.Dval)
     (fromDT : RT.Dval -> 'a)
@@ -82,7 +82,7 @@ module RoundtripTests =
 
   let testRoundtripList
     (testName : string)
-    (typeName : RT.TypeName.T)
+    (typeName : RT.TypeName.TypeName)
     (original : List<'a>)
     (toDT : 'a -> RT.Dval)
     (fromDT : RT.Dval -> 'a)

@@ -417,8 +417,8 @@ let fns : List<BuiltInFn> =
               // Ideally we'd catch the exception thrown during comparison but the sort
               // catches it so we lose the error message
               return
-                "List.uniqueBy: Unable to sort list, perhaps the list elements are different types"
-                |> Dval.errStr
+                Dval.errStr
+                  "List.uniqueBy: Unable to sort list, perhaps the list elements are different types"
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -447,8 +447,8 @@ let fns : List<BuiltInFn> =
             // TODO: we should prevent this as soon as the different types are added
             // Ideally we'd catch the exception thrown during comparison but the sort
             // catches it so we lose the error message
-            "List.unique: Unable to sort list, perhaps the list elements are different types"
-            |> Dval.errStr
+            Dval.errStr
+              "List.unique: Unable to sort list, perhaps the list elements are different types"
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -476,8 +476,8 @@ let fns : List<BuiltInFn> =
             // TODO: we should prevent this as soon as the different types are added
             // Ideally we'd catch the exception thrown during comparison but the sort
             // catches it so we lose the error message
-            "List.sort: Unable to sort list, perhaps the list elements are different types"
-            |> Dval.errStr
+            Dval.errStr
+              "List.sort: Unable to sort list, perhaps the list elements are different types"
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -527,8 +527,8 @@ let fns : List<BuiltInFn> =
               // Ideally we'd catch the exception thrown during comparison but the sort
               // catches it so we lose the error message
               return
-                "List.sortBy: Unable to sort list, perhaps the list elements are different types"
-                |> Dval.errStr
+                Dval.errStr
+                  "List.sortBy: Unable to sort list, perhaps the list elements are different types"
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

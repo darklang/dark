@@ -23,7 +23,7 @@ module FQName =
       name : 'name
       version : int }
 
-  type T<'name> =
+  type FQName<'name> =
     | BuiltIn of BuiltIn<'name>
     | UserProgram of UserProgram<'name>
     | Package of Package<'name>
@@ -57,7 +57,7 @@ module FQName =
     (modules : List<string>)
     (name : 'name)
     (version : int)
-    : T<'name> =
+    : FQName<'name> =
     BuiltIn(builtin nameValidator modules name version)
 
   let userProgram
@@ -74,7 +74,7 @@ module FQName =
     (modules : List<string>)
     (name : 'name)
     (version : int)
-    : T<'name> =
+    : FQName<'name> =
     UserProgram(userProgram nameValidator modules name version)
 
   let package
@@ -93,7 +93,7 @@ module FQName =
     (modules : List<string>)
     (name : 'name)
     (version : int)
-    : T<'name> =
+    : FQName<'name> =
     Package(package nameValidator owner modules name version)
 
   let builtinToString (f : NamePrinter<'name>) (s : BuiltIn<'name>) : string =
@@ -111,7 +111,7 @@ module FQName =
     let name = [ "PACKAGE"; s.owner ] @ s.modules @ [ f s.name ] |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let toString (f : NamePrinter<'name>) (name : T<'name>) : string =
+  let toString (f : NamePrinter<'name>) (name : FQName<'name>) : string =
     match name with
     | BuiltIn b -> builtinToString f b
     | UserProgram user -> userProgramToString f user
@@ -119,7 +119,7 @@ module FQName =
 
 module TypeName =
   type Name = TypeName of string
-  type T = FQName.T<Name>
+  type TypeName = FQName.FQName<Name>
   type BuiltIn = FQName.BuiltIn<Name>
   type UserProgram = FQName.UserProgram<Name>
   type Package = FQName.Package<Name>
@@ -130,7 +130,7 @@ module TypeName =
   let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
     FQName.builtin assert' modules (TypeName name) version
 
-  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : T =
+  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : TypeName =
     FQName.fqBuiltIn assert' modules (TypeName name) version
 
   let userProgram
@@ -140,7 +140,11 @@ module TypeName =
     : UserProgram =
     FQName.userProgram assert' modules (TypeName name) version
 
-  let fqUserProgram (modules : List<string>) (name : string) (version : int) : T =
+  let fqUserProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : TypeName =
     FQName.fqUserProgram assert' modules (TypeName name) version
 
   let package
@@ -156,17 +160,17 @@ module TypeName =
     (modules : List<string>)
     (name : string)
     (version : int)
-    : T =
+    : TypeName =
     FQName.fqPackage assert' owner modules (TypeName name) version
 
   let nameToString (TypeName name) : string = name
 
-  let toString (name : T) : string = FQName.toString nameToString name
+  let toString (name : TypeName) : string = FQName.toString nameToString name
 
 
 module FnName =
   type Name = FnName of string
-  type T = FQName.T<Name>
+  type FnName = FQName.FQName<Name>
   type BuiltIn = FQName.BuiltIn<Name>
   type UserProgram = FQName.UserProgram<Name>
   type Package = FQName.Package<Name>
@@ -178,7 +182,7 @@ module FnName =
   let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
     FQName.builtin assert' modules (FnName name) version
 
-  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : T =
+  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : FnName =
     FQName.fqBuiltIn assert' modules (FnName name) version
 
   let userProgram
@@ -188,7 +192,11 @@ module FnName =
     : UserProgram =
     FQName.userProgram assert' modules (FnName name) version
 
-  let fqUserProgram (modules : List<string>) (name : string) (version : int) : T =
+  let fqUserProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : FnName =
     FQName.fqUserProgram assert' modules (FnName name) version
 
   let package
@@ -204,19 +212,19 @@ module FnName =
     (modules : List<string>)
     (name : string)
     (version : int)
-    : T =
+    : FnName =
     FQName.fqPackage assert' owner modules (FnName name) version
 
   let nameToString (FnName name) : string = name
 
-  let toString (name : T) : string = FQName.toString nameToString name
+  let toString (name : FnName) : string = FQName.toString nameToString name
 
 
 /// A Fully-Qualified Constant Name
 /// Includes package, module, and version information where relevant.
 module ConstantName =
   type Name = ConstantName of string
-  type T = FQName.T<Name>
+  type ConstantName = FQName.FQName<Name>
   type BuiltIn = FQName.BuiltIn<Name>
   type UserProgram = FQName.UserProgram<Name>
   type Package = FQName.Package<Name>
@@ -228,7 +236,11 @@ module ConstantName =
   let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
     FQName.builtin assert' modules (ConstantName name) version
 
-  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : T =
+  let fqBuiltIn
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : ConstantName =
     FQName.fqBuiltIn assert' modules (ConstantName name) version
 
   let userProgram
@@ -238,7 +250,11 @@ module ConstantName =
     : UserProgram =
     FQName.userProgram assert' modules (ConstantName name) version
 
-  let fqUserProgram (modules : List<string>) (name : string) (version : int) : T =
+  let fqUserProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : ConstantName =
     FQName.fqUserProgram assert' modules (ConstantName name) version
 
   let package
@@ -254,15 +270,15 @@ module ConstantName =
     (modules : List<string>)
     (name : string)
     (version : int)
-    : T =
+    : ConstantName =
     FQName.fqPackage assert' owner modules (ConstantName name) version
 
-  let toString (name : T) : string =
+  let toString (name : ConstantName) : string =
     FQName.toString (fun (ConstantName name) -> name) name
 
 
   /// Used in a transformation from fn with the empty args list to constant
-  let fromFnName (name : FnName.T) : T =
+  let fromFnName (name : FnName.FnName) : ConstantName =
     match name with
     | FQName.BuiltIn fn ->
       let (FnName.FnName fnName) = fn.name
@@ -374,7 +390,7 @@ type TypeReference =
   /// A type defined by a standard library module, a canvas/user, or a package
   /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
   /// `typeArgs` is the list of type arguments, if any
-  | TCustomType of NameResolution<TypeName.T> * typeArgs : List<TypeReference>
+  | TCustomType of NameResolution<TypeName.TypeName> * typeArgs : List<TypeReference>
 
 
 /// Expressions - the main part of the language.
@@ -393,7 +409,7 @@ type Expr =
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
   | EFloat of id * Sign * string * string
 
-  | EConstant of id * NameResolution<ConstantName.T>
+  | EConstant of id * NameResolution<ConstantName.ConstantName>
 
   // <summary>
   // Composed of binding pattern, the expression to create bindings for,
@@ -425,7 +441,7 @@ type Expr =
 
   // This is a function call, the first expression is the value of the function.
   | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
-  | EFnName of id * NameResolution<FnName.T>
+  | EFnName of id * NameResolution<FnName.FnName>
 
   | EInfix of id * Infix * Expr * Expr
   | EPipe of id * Expr * List<PipeExpr>
@@ -436,7 +452,7 @@ type Expr =
   // See NameResolution comment above
   | ERecord of
     id *
-    NameResolution<TypeName.T> *
+    NameResolution<TypeName.TypeName> *
     // User is allowed type `Name {}` even if that's an error
     List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
@@ -452,7 +468,7 @@ type Expr =
   ///   `EEnum(Some UserType.MyEnum, "C", [EInt(1), EString("title")]`
   | EEnum of
     id *
-    typeName : NameResolution<TypeName.T> *
+    typeName : NameResolution<TypeName.TypeName> *
     caseName : string *
     fields : List<Expr>
 
@@ -476,12 +492,12 @@ and PipeExpr =
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of
     id *
-    NameResolution<FnName.T> *
+    NameResolution<FnName.FnName> *
     typeArgs : List<TypeReference> *
     args : List<Expr>
   | EPipeEnum of
     id *
-    typeName : NameResolution<TypeName.T> *
+    typeName : NameResolution<TypeName.TypeName> *
     caseName : string *
     fields : List<Expr>
 
@@ -589,7 +605,7 @@ module UserType =
       name : TypeName.UserProgram
       declaration : TypeDeclaration.T
       description : string
-      deprecated : Deprecation<TypeName.T> }
+      deprecated : Deprecation<TypeName.TypeName> }
 
 
 
@@ -602,14 +618,14 @@ type Const =
   | CFloat of Sign * string * string
   | CUnit
   | CTuple of first : Const * second : Const * rest : List<Const>
-  | CEnum of NameResolution<TypeName.T> * caseName : string * List<Const>
+  | CEnum of NameResolution<TypeName.TypeName> * caseName : string * List<Const>
 
 module UserConstant =
   type T =
     { tlid : tlid
       name : ConstantName.UserProgram
       description : string
-      deprecated : Deprecation<ConstantName.T>
+      deprecated : Deprecation<ConstantName.ConstantName>
       body : Const }
 
 module UserFunction =
@@ -622,7 +638,7 @@ module UserFunction =
       parameters : NEList<Parameter>
       returnType : TypeReference
       description : string
-      deprecated : Deprecation<FnName.T>
+      deprecated : Deprecation<FnName.FnName>
       body : Expr }
 
 module Toplevel =
@@ -650,7 +666,7 @@ module PackageConstant =
       id : System.Guid
       name : ConstantName.Package
       description : string
-      deprecated : Deprecation<ConstantName.T>
+      deprecated : Deprecation<ConstantName.ConstantName>
       body : Const }
 
 module PackageFn =
@@ -665,7 +681,7 @@ module PackageFn =
       parameters : NEList<Parameter>
       returnType : TypeReference
       description : string
-      deprecated : Deprecation<FnName.T> }
+      deprecated : Deprecation<FnName.FnName> }
 
 module PackageType =
   type T =
@@ -674,4 +690,4 @@ module PackageType =
       name : TypeName.Package
       declaration : TypeDeclaration.T
       description : string
-      deprecated : Deprecation<TypeName.T> }
+      deprecated : Deprecation<TypeName.TypeName> }

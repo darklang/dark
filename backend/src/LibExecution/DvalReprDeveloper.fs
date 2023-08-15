@@ -120,8 +120,14 @@ let toRepr (dv : Dval) : string =
         $"[{inl}{elems}{nl}]"
     | DTuple(first, second, theRest) ->
       let l = [ first; second ] @ theRest
-      let elems = String.concat ", " (List.map (toRepr_ indent) l)
-      $"({elems})"
+      let short = String.concat ", " (List.map (toRepr_ indent) l)
+
+      if String.length short <= 80 then
+        $"({short})"
+      else
+        let long = String.concat $"{inl}, " (List.map (toRepr_ indent) l)
+        $"({inl}{long}{nl})"
+
     | DRecord(_, typeName, o) ->
       let strs =
         o
@@ -144,13 +150,32 @@ let toRepr (dv : Dval) : string =
         "{" + $"{inl}{elems}{nl}" + "}"
     | DBytes bytes -> Base64.defaultEncodeToString bytes
     | DEnum(_, typeName, caseName, fields) ->
-      let fieldStr =
-        fields |> List.map (fun value -> toRepr_ indent value) |> String.concat ", "
+      let short =
+        let fieldStr =
+          fields
+          |> List.map (fun value -> toRepr_ indent value)
+          |> String.concat ", "
 
-      let fieldStr = if fieldStr = "" then "" else $"({fieldStr})"
+        let fieldStr = if fieldStr = "" then "" else $"({fieldStr})"
 
-      let typeStr = TypeName.toString typeName
-      $"{typeStr}.{caseName}{fieldStr}"
+        let typeStr = TypeName.toString typeName
+        $"{typeStr}.{caseName}{fieldStr}"
+
+      if String.length short <= 80 then
+        short
+      else
+        let fieldStr =
+          fields
+          |> List.map (fun value -> toRepr_ indent value)
+          |> String.concat $",{inl}"
+
+        let fieldStr = if fieldStr = "" then "" else $"({inl}{fieldStr}{nl})"
+
+        let typeStr = TypeName.toString typeName
+        $"{typeStr}.{caseName}{fieldStr}"
+
+
+
 
 
   toRepr_ 0 dv

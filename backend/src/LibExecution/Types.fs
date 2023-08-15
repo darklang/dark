@@ -13,7 +13,10 @@ open RuntimeTypes
 let empty =
   { builtIn = Map.empty; package = (fun _ -> Ply None); userProgram = Map.empty }
 
-let find (name : TypeName.T) (types : Types) : Ply<Option<TypeDeclaration.T>> =
+let find
+  (name : TypeName.TypeName)
+  (types : Types)
+  : Ply<Option<TypeDeclaration.T>> =
   match name with
   | FQName.BuiltIn b ->
     Map.tryFind b types.builtIn |> Option.map (fun t -> t.declaration) |> Ply

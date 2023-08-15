@@ -33,6 +33,7 @@ open FSharp.Control.Tasks
 open Prelude
 open VendoredTablecloth
 
+
 /// Used to name where type/function/etc lives, eg a BuiltIn module, a User module,
 /// or a Package module.
 module FQName =
@@ -48,10 +49,11 @@ module FQName =
   type Package<'name> =
     { owner : string; modules : List<string>; name : 'name; version : int }
 
-  type T<'name> =
+  type FQName<'name> =
     | BuiltIn of BuiltIn<'name>
     | UserProgram of UserProgram<'name>
     | Package of Package<'name>
+
 
   type NameValidator<'name> = 'name -> unit
   type NamePrinter<'name> = 'name -> string
@@ -82,7 +84,7 @@ module FQName =
     (modules : List<string>)
     (name : 'name)
     (version : int)
-    : T<'name> =
+    : FQName<'name> =
     BuiltIn(builtin nameValidator modules name version)
 
   let userProgram
@@ -99,7 +101,7 @@ module FQName =
     (modules : List<string>)
     (name : 'name)
     (version : int)
-    : T<'name> =
+    : FQName<'name> =
     UserProgram(userProgram nameValidator modules name version)
 
   let package
@@ -118,7 +120,7 @@ module FQName =
     (modules : List<string>)
     (name : 'name)
     (version : int)
-    : T<'name> =
+    : FQName<'name> =
     Package(package nameValidator owner modules name version)
 
   let builtinToString (s : BuiltIn<'name>) (f : NamePrinter<'name>) : string =
@@ -136,15 +138,16 @@ module FQName =
     let name = [ "PACKAGE"; s.owner ] @ s.modules @ [ f s.name ] |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let toString (name : T<'name>) (f : NamePrinter<'name>) : string =
+  let toString (name : FQName<'name>) (f : NamePrinter<'name>) : string =
     match name with
     | BuiltIn b -> builtinToString b f
     | UserProgram user -> userProgramToString user f
     | Package pkg -> packageToString pkg f
 
+
 module TypeName =
   type Name = TypeName of string
-  type T = FQName.T<Name>
+  type TypeName = FQName.FQName<Name>
   type BuiltIn = FQName.BuiltIn<Name>
   type UserProgram = FQName.UserProgram<Name>
   type Package = FQName.Package<Name>
@@ -155,7 +158,7 @@ module TypeName =
   let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
     FQName.builtin assert' modules (TypeName name) version
 
-  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : T =
+  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : TypeName =
     FQName.fqBuiltIn assert' modules (TypeName name) version
 
   let userProgram
@@ -165,7 +168,11 @@ module TypeName =
     : UserProgram =
     FQName.userProgram assert' modules (TypeName name) version
 
-  let fqUserProgram (modules : List<string>) (name : string) (version : int) : T =
+  let fqUserProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : TypeName =
     FQName.fqUserProgram assert' modules (TypeName name) version
 
   let package
@@ -181,7 +188,7 @@ module TypeName =
     (modules : List<string>)
     (name : string)
     (version : int)
-    : T =
+    : TypeName =
     FQName.fqPackage assert' owner modules (TypeName name) version
 
   let builtinToString (s : BuiltIn) : string =
@@ -193,10 +200,10 @@ module TypeName =
   let packageToString (s : Package) : string =
     FQName.packageToString s (fun (TypeName name) -> name)
 
-  let toString (name : T) : string =
+  let toString (name : TypeName) : string =
     FQName.toString name (fun (TypeName name) -> name)
 
-  let toShortName (name : T) : string =
+  let toShortName (name : TypeName) : string =
     match name with
     | FQName.BuiltIn { name = TypeName name; version = version }
     | FQName.UserProgram { name = TypeName name; version = version }
@@ -204,9 +211,10 @@ module TypeName =
       if version = 0 then name else $"{name}_v{version}"
 
 
+
 module FnName =
   type Name = FnName of string
-  type T = FQName.T<Name>
+  type FnName = FQName.FQName<Name>
   type BuiltIn = FQName.BuiltIn<Name>
   type UserProgram = FQName.UserProgram<Name>
   type Package = FQName.Package<Name>
@@ -218,7 +226,7 @@ module FnName =
   let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
     FQName.builtin assert' modules (FnName name) version
 
-  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : T =
+  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : FnName =
     FQName.fqBuiltIn assert' modules (FnName name) version
 
   let userProgram
@@ -228,7 +236,11 @@ module FnName =
     : UserProgram =
     FQName.userProgram assert' modules (FnName name) version
 
-  let fqUserProgram (modules : List<string>) (name : string) (version : int) : T =
+  let fqUserProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : FnName =
     FQName.fqUserProgram assert' modules (FnName name) version
 
   let package
@@ -244,7 +256,7 @@ module FnName =
     (modules : List<string>)
     (name : string)
     (version : int)
-    : T =
+    : FnName =
     FQName.fqPackage assert' owner modules (FnName name) version
 
   let builtinToString (s : BuiltIn) : string =
@@ -254,7 +266,8 @@ module FnName =
   let packageToString (s : Package) : string =
     FQName.packageToString s (fun (FnName name) -> name)
 
-  let toString (name : T) : string = FQName.toString name (fun (FnName name) -> name)
+  let toString (name : FnName) : string =
+    FQName.toString name (fun (FnName name) -> name)
 
   let isInternalFn (fnName : BuiltIn) : bool =
     List.tryHead fnName.modules = Some "DarkInternal"
@@ -263,7 +276,7 @@ module FnName =
 /// Includes package, module, and version information where relevant.
 module ConstantName =
   type Name = ConstantName of string
-  type T = FQName.T<Name>
+  type ConstantName = FQName.FQName<Name>
   type BuiltIn = FQName.BuiltIn<Name>
   type UserProgram = FQName.UserProgram<Name>
   type Package = FQName.Package<Name>
@@ -275,7 +288,11 @@ module ConstantName =
   let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
     FQName.builtin assert' modules (ConstantName name) version
 
-  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : T =
+  let fqBuiltIn
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : ConstantName =
     FQName.fqBuiltIn assert' modules (ConstantName name) version
 
   let userProgram
@@ -285,7 +302,11 @@ module ConstantName =
     : UserProgram =
     FQName.userProgram assert' modules (ConstantName name) version
 
-  let fqUserProgram (modules : List<string>) (name : string) (version : int) : T =
+  let fqUserProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : ConstantName =
     FQName.fqUserProgram assert' modules (ConstantName name) version
 
   let package
@@ -301,10 +322,10 @@ module ConstantName =
     (modules : List<string>)
     (name : string)
     (version : int)
-    : T =
+    : ConstantName =
     FQName.fqPackage assert' owner modules (ConstantName name) version
 
-  let toString (name : T) : string =
+  let toString (name : ConstantName) : string =
     FQName.toString name (fun (ConstantName name) -> name)
 
 
@@ -327,7 +348,7 @@ and TypeReference =
   | TFn of NEList<TypeReference> * TypeReference
   | TDB of TypeReference
   | TVariable of string
-  | TCustomType of NameResolution<TypeName.T> * typeArgs : List<TypeReference>
+  | TCustomType of NameResolution<TypeName.TypeName> * typeArgs : List<TypeReference>
   | TDict of TypeReference // CLEANUP add key type
 
   member this.isFn() : bool =
@@ -369,20 +390,20 @@ and Expr =
   | EUnit of id
   | EChar of id * string
   | EFloat of id * double
-  | EConstant of id * ConstantName.T
+  | EConstant of id * ConstantName.ConstantName
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | ELambda of id * NEList<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
   | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
-  | EFnName of id * FnName.T
+  | EFnName of id * FnName.FnName
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | ERecord of id * TypeName.T * NEList<string * Expr>
+  | ERecord of id * TypeName.TypeName * NEList<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
   | EDict of id * List<string * Expr>
-  | EEnum of id * TypeName.T * caseName : string * fields : List<Expr>
+  | EEnum of id * TypeName.TypeName * caseName : string * fields : List<Expr>
   | EMatch of id * Expr * NEList<MatchPattern * Expr>
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
@@ -429,7 +450,7 @@ and LambdaImpl =
 
 and FnValImpl =
   | Lambda of LambdaImpl // A fn value
-  | NamedFn of FnName.T // A reference to an Fn in the executionState
+  | NamedFn of FnName.FnName // A reference to an Fn in the executionState
 
 and DDateTime = NodaTime.LocalDate
 
@@ -496,10 +517,13 @@ and [<NoComparison>] Dval =
   | DBytes of byte array
 
   | DDict of DvalMap
-  | DRecord of runtimeTypeName : TypeName.T * sourceTypeName : TypeName.T * DvalMap
+  | DRecord of
+    runtimeTypeName : TypeName.TypeName *
+    sourceTypeName : TypeName.TypeName *
+    DvalMap
   | DEnum of
-    runtimeTypeName : TypeName.T *
-    sourceTypeName : TypeName.T *
+    runtimeTypeName : TypeName.TypeName *
+    sourceTypeName : TypeName.TypeName *
     caseName : string *
     List<Dval>
 
@@ -535,6 +559,8 @@ and DvalSource =
   // Caused by an expression of `id` within the given `tlid`
   | SourceID of tlid * id
 
+// TODO should use rename this to just Param?
+// it feels a bit odd that Stdlib.Param is just an abbrev of this
 and BuiltInParam =
   { name : string
     typ : TypeReference
@@ -587,27 +613,17 @@ module RuntimeError =
       typeName
       version
 
-  let enum
-    (modules : List<string>)
-    (typeName : string)
-    (version : int)
-    (caseName : string)
-    (args : List<Dval>)
-    : RuntimeError =
-    let typeName = name modules typeName version
-    DEnum(typeName, typeName, caseName, args) |> RuntimeError
+  let case (caseName : string) (fields : List<Dval>) : RuntimeError =
+    DEnum(name [] "Error" 0, name [] "Error" 0, caseName, fields) |> RuntimeError
 
-  let record
-    (modules : List<string>)
-    (typeName : string)
-    (fields : List<string * Dval>)
-    : RuntimeError =
-    let typeName = name modules typeName 0
-    DRecord(typeName, typeName, Map fields) |> RuntimeError
+  let cliError field = case "CliError" [ field ]
+  let nameResolutionError field = case "CliError" [ field ]
+  let typeCheckerError field = case "TypeCheckerError" [ field ]
 
   // TODO remove all usages of this in favor of better error cases
   let oldError (msg : string) : RuntimeError =
-    enum [] "Error" 0 "UnorganizedStringTODO" [ DString msg ]
+    case "OldStringErrorTODO" [ DString msg ]
+
 
   let toDT (RuntimeError e : RuntimeError) : Dval = e
   let fromDT (dv : Dval) : RuntimeError = RuntimeError dv
@@ -846,7 +862,7 @@ module Dval =
     | DUuid u -> Some u
     | _ -> None
 
-  let record (typeName : TypeName.T) (fields : List<string * Dval>) : Dval =
+  let record (typeName : TypeName.TypeName) (fields : List<string * Dval>) : Dval =
     // Give a warning for duplicate keys
     List.fold
       (DRecord(typeName, typeName, Map.empty))
@@ -868,7 +884,11 @@ module Dval =
         | m, _, _ -> m)
       fields
 
-  let enum (typeName : TypeName.T) (caseName : string) (fields : List<Dval>) : Dval =
+  let enum
+    (typeName : TypeName.TypeName)
+    (caseName : string)
+    (fields : List<Dval>)
+    : Dval =
     match List.find isFake fields with
     | Some v -> v
     | None -> DEnum(typeName, typeName, caseName, fields)
@@ -1086,13 +1106,13 @@ type BuiltInType =
     // TypeDeclaration for Package and UserProgram types, where we have them in
     // ProgramTypes and don't propagate them to RuntimeTypes
     description : string
-    deprecated : Deprecation<TypeName.T> }
+    deprecated : Deprecation<TypeName.TypeName> }
 
 type BuiltInConstant =
   { name : ConstantName.BuiltIn
     typ : TypeReference
     description : string
-    deprecated : Deprecation<ConstantName.T>
+    deprecated : Deprecation<ConstantName.ConstantName>
     body : Dval }
 
 // A built-in standard library function
@@ -1103,12 +1123,12 @@ type BuiltInFn =
     returnType : TypeReference
     description : string
     previewable : Previewable
-    deprecated : Deprecation<FnName.T>
+    deprecated : Deprecation<FnName.FnName>
     sqlSpec : SqlSpec
     fn : BuiltInFnSig }
 
 and Fn =
-  { name : FnName.T
+  { name : FnName.FnName
     typeParams : List<string>
     parameters : NEList<Param>
     returnType : TypeReference
@@ -1148,7 +1168,7 @@ and RealOrPreview =
   // We are previewing the evaluation of some expression within the editor.
   | Preview
 
-and FunctionRecord = tlid * FnName.T * id
+and FunctionRecord = tlid * FnName.FnName * id
 
 and TraceDval = bool -> id -> Dval -> unit
 
@@ -1232,7 +1252,7 @@ and ExecutionState =
     // TLID of the currently executing handler/fn
     tlid : tlid
 
-    executingFnName : Option<FnName.T>
+    executingFnName : Option<FnName.FnName>
 
     // <summary>
     // Callstack of functions that have been called as part of execution
@@ -1243,7 +1263,7 @@ and ExecutionState =
     // In the editor, we call all paths to show live values,
     // but with recursion that causes infinite recursion.
     // </remarks>
-    callstack : Set<FnName.T>
+    callstack : Set<FnName.FnName>
 
     // Whether the currently executing code is really being executed
     // (as opposed to being previewed for traces)
@@ -1264,7 +1284,10 @@ module Types =
   let empty =
     { builtIn = Map.empty; package = (fun _ -> Ply None); userProgram = Map.empty }
 
-  let find (name : TypeName.T) (types : Types) : Ply<Option<TypeDeclaration.T>> =
+  let find
+    (name : TypeName.TypeName)
+    (types : Types)
+    : Ply<Option<TypeDeclaration.T>> =
     match name with
     | FQName.BuiltIn b ->
       Map.tryFind b types.builtIn |> Option.map (fun t -> t.declaration) |> Ply

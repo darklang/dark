@@ -2,50 +2,73 @@ module Darklang =
   module LanguageTools =
     module RuntimeErrors =
       module TypeChecker =
-        type Location = Option<tlid * id>
+        type Location = Option<Darklang.LanguageTools.TLID * ID>
 
         type Context =
           | FunctionCallParameter of
-            fnName: FnName.T *
-            parameter: Param *
-            paramIndex: int *
-            location: Location
+            fnName: Darklang.LanguageTools.RuntimeTypes.FnName.FnName *
+            parameter: Darklang.LanguageTools.RuntimeTypes.BuiltInParam *  // TODO should probbaly just be Param?
+            paramIndex: Int *
+            location: Darklang.LanguageTools.RuntimeErrors.TypeChecker.Location
+
           | FunctionCallResult of
-            fnName: FnName.T *
-            returnType: TypeReference *
-            location: Location
+            fnName: FnName.FnName *
+            returnType: Darklang.LanguageTools.RuntimeTypes.TypeReference *
+            location: Darklang.LanguageTools.RuntimeErrors.TypeChecker.Location
+
           | RecordField of
-            recordTypeName: TypeName.T *
-            fieldName: string *
-            fieldType: TypeReference *
-            location: Location
-          | DictKey of key: string * typ: TypeReference * Location
+            recordTypeName: TypeName.TypeName *
+            fieldName: String *
+            fieldType: Darklang.LanguageTools.RuntimeTypes.TypeReference *
+            location: Darklang.LanguageTools.RuntimeErrors.TypeChecker.Location
+
+          | DictKey of
+            key: String *
+            typ:
+              (Darklang.LanguageTools.RuntimeTypes.TypeReference *
+              Darklang.LanguageTools.RuntimeErrors.TypeChecker.Location)
+
           | EnumField of
-            enumTypeName: TypeName.T *
-            caseName: string *
-            fieldIndex: int *  // nth argument to the enum constructor
-            fieldCount: int *
-            fieldType: TypeReference *
-            location: Location
+            enumTypeName: TypeName.TypeName *
+            caseName: String *
+            fieldIndex: Int *  // nth argument to the enum constructor
+            fieldCount: Int *
+            fieldType: Darklang.LanguageTools.RuntimeTypes.TypeReference *
+            location: Darklang.LanguageTools.RuntimeErrors.TypeChecker.Location
+
           | DBQueryVariable of
-            varName: string *
-            expected: TypeReference *
-            location: Location
+            varName: String *
+            expected: Darklang.LanguageTools.RuntimeTypes.TypeReference *
+            location: Darklang.LanguageTools.RuntimeErrors.TypeChecker.Location
+
           | DBSchemaType of
-            name: string *
-            expectedType: TypeReference *
-            location: Location
-          | ListIndex of index: int * listTyp: TypeReference * parent: Context
-          | TupleIndex of index: int * elementType: TypeReference * parent: Context
+            name: String *
+            expectedType: Darklang.LanguageTools.RuntimeTypes.TypeReference *
+            location: Darklang.LanguageTools.RuntimeErrors.TypeChecker.Location
+
+          | ListIndex of
+            index: Int *
+            listTyp: Darklang.LanguageTools.RuntimeTypes.TypeReference *
+            parent: Darklang.LanguageTools.RuntimeErrors.TypeChecker.Context
+
+          | TupleIndex of
+            index: Int *
+            elementType: Darklang.LanguageTools.RuntimeTypes.TypeReference *
+            parent: Darklang.LanguageTools.RuntimeErrors.TypeChecker.Context
+
 
         type Error =
+          //| VTTODOMismatchedType of String
+          //| VTTODOMergedValueTypeWrapper of Darklang.LanguageTools.RuntimeTypes.Dval.SomeErrorType
+
           | ValueNotExpectedType of
-            actualValue: Dval *
-            expectedType: TypeReference *
-            Context
-          | VTTODOMismatchedType of String
-          | TypeDoesntExist of TypeName.T * Context
-          | VTTODOMergedValueTypeWrapper of Dval.SomeErrorType
+            actualValue: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval *
+            expectedType: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
+            PACKAGE.Darklang.LanguageTools.RuntimeErrors.TypeChecker.Context
+
+          | TypeDoesntExist of
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName *
+            Darklang.LanguageTools.RuntimeErrors.TypeChecker.Context
 
         module Error =
           // let rec valuePath (context : TCK.Context) : string =

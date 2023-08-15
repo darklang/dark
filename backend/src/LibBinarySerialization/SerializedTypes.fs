@@ -87,7 +87,7 @@ module TypeName =
       version : int }
 
   [<MessagePack.MessagePackObject>]
-  type T =
+  type TypeName =
     | BuiltIn of BuiltIn
     | UserProgram of UserProgram
     | Package of Package
@@ -125,7 +125,7 @@ module FnName =
       version : int }
 
   [<MessagePack.MessagePackObject>]
-  type T =
+  type FnName =
     | BuiltIn of BuiltIn
     | UserProgram of UserProgram
     | Package of Package
@@ -162,7 +162,7 @@ type NameResolution<'a> = Result<'a, NameResolutionError.Error>
 /// A Fully-Qualified Constant Name
 /// Includes package, module, and version information where relevant.
 module ConstantName =
-  /// Standard Library Constant Name
+  // We avoid type trickery here, to ensure we understand changes in format
   [<MessagePack.MessagePackObject>]
   type BuiltIn =
     { [<MessagePack.Key 0>]
@@ -172,7 +172,6 @@ module ConstantName =
       [<MessagePack.Key 2>]
       version : int }
 
-  /// A UserConstan is a constant written by a Developer in their canvas
   [<MessagePack.MessagePackObject>]
   type UserProgram =
     { [<MessagePack.Key 0>]
@@ -182,7 +181,6 @@ module ConstantName =
       [<MessagePack.Key 2>]
       version : int }
 
-  /// The name of a constant in the package manager
   [<MessagePack.MessagePackObject>]
   type Package =
     { [<MessagePack.Key 0>]
@@ -195,7 +193,7 @@ module ConstantName =
       version : int }
 
   [<MessagePack.MessagePackObject>]
-  type T =
+  type ConstantName =
     | UserProgram of UserProgram
     | BuiltIn of BuiltIn
     | Package of Package
@@ -218,7 +216,7 @@ type TypeReference =
   | TPassword
   | TUuid
   | TCustomType of
-    typeName : NameResolution<TypeName.T> *
+    typeName : NameResolution<TypeName.TypeName> *
     typeArgs : List<TypeReference>
   | TBytes
   | TVariable of string
@@ -282,7 +280,7 @@ type Expr =
   | EChar of id * string
   | EFloat of id * Sign * string * string
   | EUnit of id
-  | EConstant of id * NameResolution<ConstantName.T>
+  | EConstant of id * NameResolution<ConstantName.ConstantName>
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | ELambda of id * NEList<id * string> * Expr
@@ -292,20 +290,20 @@ type Expr =
   | EList of id * List<Expr>
   | ERecord of
     id *
-    typeName : NameResolution<TypeName.T> *
+    typeName : NameResolution<TypeName.TypeName> *
     fields : List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
   | EPipe of id * Expr * List<PipeExpr>
   | EEnum of
     id *
-    typeName : NameResolution<TypeName.T> *
+    typeName : NameResolution<TypeName.TypeName> *
     caseName : string *
     fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
   | EDict of id * List<string * Expr>
-  | EFnName of id * NameResolution<FnName.T>
+  | EFnName of id * NameResolution<FnName.FnName>
 
 and StringSegment =
   | StringText of string
@@ -317,12 +315,12 @@ and [<MessagePack.MessagePackObject>] PipeExpr =
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of
     id *
-    NameResolution<FnName.T> *
+    NameResolution<FnName.FnName> *
     typeArgs : List<TypeReference> *
     args : List<Expr>
   | EPipeEnum of
     id *
-    typeName : NameResolution<TypeName.T> *
+    typeName : NameResolution<TypeName.TypeName> *
     caseName : string *
     fields : List<Expr>
 
@@ -429,7 +427,7 @@ module UserType =
       [<MessagePack.Key 4>]
       description : string
       [<MessagePack.Key 5>]
-      deprecated : Deprecation<TypeName.T> }
+      deprecated : Deprecation<TypeName.TypeName> }
 
 [<MessagePack.MessagePackObject>]
 type Const =
@@ -440,7 +438,7 @@ type Const =
   | CFloat of Sign * string * string
   | CUnit
   | CTuple of first : Const * second : Const * rest : List<Const>
-  | CEnum of NameResolution<TypeName.T> * caseName : string * List<Const>
+  | CEnum of NameResolution<TypeName.TypeName> * caseName : string * List<Const>
 
 module UserConstant =
   [<MessagePack.MessagePackObject>]
@@ -452,7 +450,7 @@ module UserConstant =
       [<MessagePack.Key 2>]
       description : string
       [<MessagePack.Key 3>]
-      deprecated : Deprecation<ConstantName.T>
+      deprecated : Deprecation<ConstantName.ConstantName>
       [<MessagePack.Key 4>]
       body : Const }
 
@@ -481,7 +479,7 @@ module UserFunction =
       [<MessagePack.Key 5>]
       description : string
       [<MessagePack.Key 6>]
-      deprecated : Deprecation<FnName.T>
+      deprecated : Deprecation<FnName.FnName>
       [<MessagePack.Key 7>]
       body : Expr }
 
@@ -514,7 +512,7 @@ module PackageFn =
       [<MessagePack.Key 7>]
       description : string
       [<MessagePack.Key 8>]
-      deprecated : Deprecation<FnName.T> }
+      deprecated : Deprecation<FnName.FnName> }
 
 module PackageType =
   [<MessagePack.MessagePackObject>]
@@ -530,7 +528,7 @@ module PackageType =
       [<MessagePack.Key 4>]
       description : string
       [<MessagePack.Key 5>]
-      deprecated : Deprecation<TypeName.T> }
+      deprecated : Deprecation<TypeName.TypeName> }
 
 module PackageConstant =
   [<MessagePack.MessagePackObject>]
@@ -546,7 +544,7 @@ module PackageConstant =
       [<MessagePack.Key 4>]
       description : string
       [<MessagePack.Key 5>]
-      deprecated : Deprecation<ConstantName.T> }
+      deprecated : Deprecation<ConstantName.ConstantName> }
 
 module Toplevel =
   [<MessagePack.MessagePackObject>]
