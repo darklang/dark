@@ -1,0 +1,9 @@
+module Darklang =
+  module Stdlib =
+    module String =
+
+      let ellipsis (s: String) (length: Int) : String =
+        if String.length s > length then
+          (String.slice_v0 s 0 length) ++ "..."
+        else
+          s

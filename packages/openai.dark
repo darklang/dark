@@ -205,7 +205,7 @@ module OpenAI =
             )
           with
           | Ok r ->
-            match List.head r.choices with
+            match PACKAGE.Darklang.Stdlib.List.head r.choices with
             | Some c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.message.content
 
             | None ->

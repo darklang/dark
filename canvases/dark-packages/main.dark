@@ -1,3 +1,19 @@
+type PackageItem =
+  | Fn
+  | Type
+  | Constant
+  | Module
+
+type NameToCategory =
+  { owner: String
+    name: String
+    modules: List<String>
+    category: PackageItem }
+
+
+[<DB>]
+type NamesDB = NameToCategory
+
 [<DB>]
 type PackageTypeDB = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T
 
@@ -7,6 +23,9 @@ type PackageFnDB = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T
 [<DB>]
 type PackageConstantDB =
   PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T
+
+[<DB>]
+type PackageItemDB = PackageItem
 
 
 [<HttpHandler("POST", "/types")>]
@@ -26,8 +45,17 @@ let _handler _req =
         description = typ.description
         deprecated = typ.deprecated }
 
+  let item =
+    NameToCategory
+      { owner = typ.name.owner
+        name =
+          typ.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.name
+        modules = typ.name.modules
+        category = PackageItem.Type }
+
   let key = DB.generateKey_v0 () // TODO: use id instead
   DB.set typeToSave key PackageTypeDB
+  DB.set item key NamesDB
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
 
@@ -52,10 +80,20 @@ let _handler _req =
         description = fn.description
         deprecated = fn.deprecated }
 
+  let item =
+    NameToCategory
+      { owner = fn.name.owner
+        name =
+          fn.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.name
+        modules = fn.name.modules
+        category = PackageItem.Fn }
+
   let key = DB.generateKey_v0 () // TODO: use id instead
   DB.set fnToSave key PackageFnDB
+  DB.set item key NamesDB
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
+
 
 [<HttpHandler("POST", "/constants")>]
 let _handler _req =
@@ -74,8 +112,18 @@ let _handler _req =
         description = c.description
         deprecated = c.deprecated }
 
+  let item =
+    NameToCategory
+      { owner = c.name.owner
+        name =
+          (c.name.name
+           |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name)
+        modules = c.name.modules
+        category = PackageItem.Constant }
+
   let key = DB.generateKey_v0 () // TODO: use id instead
   DB.set constantToSave key PackageConstantDB
+  DB.set item key NamesDB
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
 
@@ -83,10 +131,10 @@ let _handler _req =
 [<HttpHandler("GET", "/stats")>]
 let _handler _req =
   let stats =
-    [ ("types", (DB.getAll PackageTypeDB) |> PACKAGE.Darklang.Stdlib.List.length)
-      ("fns", (DB.getAll PackageFnDB) |> PACKAGE.Darklang.Stdlib.List.length)
-      ("constants",
-       (DB.getAll PackageConstantDB) |> PACKAGE.Darklang.Stdlib.List.length) ]
+    [ ("types", (DB.getAll PackageTypeDB) |> List.length)
+      ("fns", (DB.getAll PackageFnDB) |> List.length)
+      ("constants", (DB.getAll PackageConstantDB) |> List.length)
+      ("items", (DB.getAll NamesDB) |> List.length) ]
     |> Dict.fromListOverwritingDuplicates_v0
 
   let body = (Json.serialize<Dict<Int>> stats) |> unwrap |> String.toBytes
@@ -104,6 +152,7 @@ let _handler _req =
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
+
 [<HttpHandler("GET", "/constants")>]
 let _handler _req =
   let respBody =
@@ -114,6 +163,7 @@ let _handler _req =
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
+
 [<HttpHandler("GET", "/functions")>]
 let _handler _req =
   let respBody =
@@ -123,3 +173,34 @@ let _handler _req =
     |> String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
+
+
+[<HttpHandler("GET", "/category/:name")>]
+let _handler _req =
+  let fullName = name |> String.split "."
+  let owner = fullName |> PACKAGE.Darklang.Stdlib.List.head |> unwrap
+  let name = fullName |> PACKAGE.Darklang.Stdlib.List.last |> unwrap
+
+  let modules =
+    fullName
+    |> (PACKAGE.Darklang.Stdlib.List.drop 1)
+    |> PACKAGE.Darklang.Stdlib.List.dropLast
+
+
+  // CLEANUP: Use DB.query instead - this is currently blocked by the unavailability of resolved typeArgs in lambdaToSql
+  let allItems =
+    (DB.getAll NamesDB)
+    |> List.filter (fun item ->
+      item.owner == owner && item.modules == modules && item.name == name)
+    |> List.map (fun item -> item.category)
+    |> PACKAGE.Darklang.Stdlib.List.head
+
+  let respBody =
+    match allItems with
+    | Some Fn -> "fn"
+    | Some Type -> "type"
+    | Some Constant -> "constant"
+    | Some Module -> "module"
+    | None -> "not found"
+
+  PACKAGE.Darklang.Stdlib.Http.response (respBody |> String.toBytes) 200
