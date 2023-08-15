@@ -21,9 +21,11 @@ do
 done
 
 if [[ "$TEST" == "true" ]]; then
-  LOG="${DARK_CONFIG_RUNDIR}/logs/test-packages.log"
+  LOG_DB="${DARK_CONFIG_RUNDIR}/logs/test-packages-db.log"
+  LOG_CANVAS="${DARK_CONFIG_RUNDIR}/logs/test-packages-canvas.log"
 else
-  LOG="${DARK_CONFIG_RUNDIR}/logs/packages.log"
+  LOG_DB="${DARK_CONFIG_RUNDIR}/logs/packages-db.log"
+  LOG_CANVAS="${DARK_CONFIG_RUNDIR}/logs/packages-canvas.log"
 fi
 
 
@@ -34,8 +36,8 @@ else
   LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net7.0/LocalExec"
 fi
 
-echo -e "Loading packages into DB ${grey}($LOG)${reset}"
-"${LOCALEXEC_EXE}" load-packages > $LOG 2>&1
+echo -e "Loading packages into DB ${grey}($LOG_DB)${reset}"
+"${LOCALEXEC_EXE}" load-packages > $LOG_DB 2>&1
 
 
 # todo: wait until the backend servers are running (ports is ready)
@@ -52,6 +54,6 @@ if [[ "$TEST" != "true" ]]; then
   # make sure the target canvas exists
   ./scripts/run-canvas-hack dark-packages
 
-  echo -e "Loading packages into dark canvas ${grey}($LOG)${reset}"
-  ./scripts/run-local-exec load-packages-dark > $LOG 2>&1
+  echo -e "Loading packages into dark canvas ${grey}($LOG_CANVAS)${reset}"
+  ./scripts/run-local-exec load-packages-dark > $LOG_CANVAS 2>&1
 fi
