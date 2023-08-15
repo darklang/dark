@@ -203,6 +203,32 @@ module Darklang =
           print result
           0
 
+    let showPackage (owner : String) : Int =
+      let packages =
+        CLI.HttpClient.request
+          "GET"
+          ("http://dark-packages.dlio.localhost:11003/packages/" ++ owner )
+          []
+          Bytes.empty
+
+      let statusCode =
+        packages
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+        |> unwrap
+
+      let parsedPackages =
+        if statusCode == 200 then
+          packages
+          |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+          |> unwrap
+          |> String.fromBytes
+          |> print
+          0
+        else
+          print "Error getting package packages"
+          1
+
+      parsedPackages
 
     let parseArguments (args: List<String>) : PACKAGE.Darklang.Cli.Command =
       match args with
@@ -297,8 +323,15 @@ Options:
         | "fn" -> PACKAGE.Darklang.Cli.showFn name owner modules
         | "type" -> PACKAGE.Darklang.Cli.showType name owner modules
         | "constant" -> PACKAGE.Darklang.Cli.showConstant name owner modules
-        | _ -> PACKAGE.Darklang.Cli.showModule fullName
-
+        | _ ->
+          let modules =
+            fullName
+            |> String.split "."
+            |> (PACKAGE.Darklang.Stdlib.List.drop 1)
+          if PACKAGE.Darklang.Stdlib.List.length modules == 0 then
+            PACKAGE.Darklang.Cli.showPackage owner
+          else
+            PACKAGE.Darklang.Cli.showModule fullName
 
 
       | Infer(prompt, scriptPath) ->

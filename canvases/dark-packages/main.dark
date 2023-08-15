@@ -175,6 +175,41 @@ let _handler _req =
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
 
+[<HttpHandler("GET", "/packages/:owner")>]
+let _handler _req =
+
+  let types = (DB.getAll PackageTypeDB) |> List.filter (fun t -> t.name.owner == owner)
+  let fns = (DB.getAll PackageFnDB) |> List.filter (fun f -> f.name.owner == owner)
+  let constants = (DB.getAll PackageConstantDB) |> List.filter (fun c -> c.name.owner == owner)
+
+  let fns =
+    fns
+    |> List.map (fun x -> (x.name.owner, x.name.modules |> String.join ".", x.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.name))
+    |> List.map (fun m -> (Tuple3.first m) ++ "." ++ (Tuple3.second m) ++ "." ++ (Tuple3.third m))
+    |> String.join "\n"
+
+  let types =
+    types
+    |> List.map (fun x -> (x.name.owner, x.name.modules |> String.join ".", x.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.name))
+    |> List.map (fun m -> (Tuple3.first m) ++ "." ++ (Tuple3.second m) ++ "." ++ (Tuple3.third m))
+    |> String.join "\n"
+
+  let constants =
+    constants
+    |> List.map (fun x -> (x.name.owner, x.name.modules |> String.join ".", x.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name))
+    |> List.map (fun m -> (Tuple3.first m) ++ "." ++ (Tuple3.second m) ++ "." ++ (Tuple3.third m))
+    |> String.join "\n"
+
+
+  let respBody =
+    if types == "" && fns == "" && constants == "" then
+      "package not found" |> String.toBytes
+    else
+      (types ++ "\n\n" ++ fns ++ "\n\n" ++ constants) |> String.toBytes
+
+  PACKAGE.Darklang.Stdlib.Http.response respBody 200
+
+
 [<HttpHandler("GET", "/modules/:name")>]
 let _handler _req =
   let owner = name |> String.split "." |> PACKAGE.Darklang.Stdlib.List.head |> unwrap
@@ -184,21 +219,15 @@ let _handler _req =
   let types = DB.getAll PackageTypeDB
   let constants = DB.getAll PackageConstantDB
 
-  let packageModule =
-    if modules == [] then
-      PACKAGE.Darklang.Stdlib.Packages
-        { types = types |> List.filter (fun t -> t.name.owner == owner)
-          fns = fns |> List.filter (fun f -> f.name.owner == owner)
-          constants = constants |> List.filter (fun c -> c.name.owner == owner)
-        }
-    else
-      PACKAGE.Darklang.Stdlib.Packages
-        { types = types |> List.filter (fun t -> t.name.owner == owner && t.name.modules == modules)
-          fns = fns |> List.filter (fun f -> f.name.owner == owner && f.name.modules == modules)
-          constants = constants |> List.filter (fun c -> c.name.owner == owner && c.name.modules == modules)
-        }
-
-  let respBody = packageModule |> Json.serialize<PACKAGE.Darklang.Stdlib.Packages> |> unwrap |> String.toBytes
+  let respBody =
+    (PACKAGE.Darklang.Stdlib.Packages
+      { types = types |> List.filter (fun t -> t.name.owner == owner && t.name.modules == modules)
+        fns = fns |> List.filter (fun f -> f.name.owner == owner && f.name.modules == modules)
+        constants = constants |> List.filter (fun c -> c.name.owner == owner && c.name.modules == modules)
+      })
+    |> Json.serialize<PACKAGE.Darklang.Stdlib.Packages>
+    |> unwrap
+    |> String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
