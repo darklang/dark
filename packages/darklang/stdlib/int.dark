@@ -7,14 +7,7 @@ module Darklang =
 
 
       /// Returns the sum of all the ints in the list
-      // let sum (lst: List<Int>) : Int =
-      //   match lst with
-      //   | [] -> 0
-      //   | head :: tail -> head + PACKAGE.Darklang.Stdlib.Int.sum tail
-
-      // sum using list.fold
-      let sum (lst: List<Int>) : Int =
-        List.fold lst 0 (fun acc x -> acc + x)
+      let sum (lst: List<Int>) : Int = List.fold lst 0 (fun acc x -> acc + x)
 
 
       /// Returns the higher of <param a> and <param b>
@@ -30,8 +23,10 @@ module Darklang =
       /// If <param value> is outside the range, returns <param limitA> or <param
       /// limitB>, whichever is closer to <param value>.
       /// <param limitA> and <param limitB> can be provided in any order.
-
       let clamp (value: Int) (limitA: Int) (limitB: Int) : Int =
         let min = if limitA < limitB then limitA else limitB
         let max = if limitA > limitB then limitA else limitB
-        if value < min then min else if value > max then max else value
+
+        if value < min then min
+        else if value > max then max
+        else value
