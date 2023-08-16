@@ -12,7 +12,12 @@ open LibExecution.StdLib.Shortcuts
 
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
-let resolver =
+// the package manager here needs to not cache,
+// as the named things may have _just_ been inserted
+let packageManager =
+  LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 0.)
+
+let resolver : Ply<LibParser.NameResolver.NameResolver> =
   let stdlibResolver =
     // CLEANUP we need a better way to determine what builtins should be
     // available to the name resolver, as this currently assumes builtins
@@ -28,7 +33,6 @@ let resolver =
         StdLibCliHost.StdLib.contents ]
       []
       []
-    // TODO: this may need more builtins, and packages
     |> LibParser.NameResolver.fromBuiltins
 
   let thisResolver =
@@ -45,6 +49,7 @@ let resolver =
                 0 ] }
 
   LibParser.NameResolver.merge stdlibResolver thisResolver
+  |> LibParser.NameResolver.withUpdatedPackages packageManager
 
 
 
@@ -66,6 +71,7 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DString contents; DString path ] ->
           uply {
+            let! resolver = resolver
             let (fns, types, constants) =
               LibParser.Parser.parsePackage resolver path contents
 
@@ -86,30 +92,6 @@ let fns : List<BuiltInFn> =
                     ("types", DList packagesTypes)
                     ("constants", DList packagesConstants) ]
               )
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-    { name = fn [ "LocalExec"; "Packages" ] "parseAndSave" 0
-      typeParams = []
-      parameters =
-        [ Param.make "package source" TString "The source code of the package"
-          Param.make "filename" TString "Used for error message" ]
-      returnType = TUnit
-      description = "Parse a package and save it to the database"
-      fn =
-        function
-        | _, _, [ DString contents; DString path ] ->
-          uply {
-            let (fns, types, constants) =
-              LibParser.Parser.parsePackage resolver path contents
-            do! LibCloud.PackageManager.savePackageFunctions fns
-            do! LibCloud.PackageManager.savePackageTypes types
-            do! LibCloud.PackageManager.savePackageConstants constants
-
-            return DUnit
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

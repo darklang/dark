@@ -211,7 +211,7 @@ let executionStateFor
     let state =
       Exe.createState
         builtIns
-        LibCloud.PackageManager.packageManager
+        (LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 1.))
         (Exe.noTracing RT.Real)
         exceptionReporter
         notifier

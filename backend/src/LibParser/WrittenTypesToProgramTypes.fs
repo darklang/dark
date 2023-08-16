@@ -126,7 +126,7 @@ module Expr =
     | WT.EVariable(id, var) ->
       // This could be a UserConstant
       let constant =
-        NameResolver.ConstantName.resolve
+        NameResolver.ConstantName.maybeResolve
           resolver
           currentModule
           (WT.Unresolved(NEList.singleton var))
@@ -211,7 +211,7 @@ module Expr =
     | WT.EPipeVariableOrUserFunction(id, name) ->
       let resolved =
         let asUserFnName = WT.Name.Unresolved(NEList.singleton name)
-        NameResolver.FnName.resolve resolver currentModule asUserFnName
+        NameResolver.FnName.maybeResolve resolver currentModule asUserFnName
 
       match resolved with
       | Ok name -> PT.EPipeFnCall(id, Ok name, [], [])

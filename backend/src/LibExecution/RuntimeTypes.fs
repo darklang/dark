@@ -1218,12 +1218,22 @@ and PackageManager =
   { getType : TypeName.Package -> Ply<Option<PackageType.T>>
     getFn : FnName.Package -> Ply<Option<PackageFn.T>>
     getConstant : ConstantName.Package -> Ply<Option<PackageConstant.T>>
+
+    getAllTypeNames : Ply<Set<TypeName.Package>>
+    getAllFnNames : Ply<Set<FnName.Package>>
+    getAllConstantNames : Ply<Set<ConstantName.Package>>
+
     init : Ply<unit> }
 
   static member Empty =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
       getConstant = (fun _ -> Ply None)
+
+      getAllTypeNames = Ply Set.empty
+      getAllFnNames = Ply Set.empty
+      getAllConstantNames = Ply Set.empty
+
       init = uply { return () } }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit

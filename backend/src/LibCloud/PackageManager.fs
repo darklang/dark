@@ -164,10 +164,10 @@ let cachedTask (expiration : TimeSpan) (f : Task<'a>) : Task<'a> =
       return newValue
   }
 
-let packageManager : RT.PackageManager =
-  let allTypes = cachedTask (TimeSpan.FromMinutes 1.) allTypes
-  let allFunctions = cachedTask (TimeSpan.FromMinutes 1.) allFunctions
-  let allConstants = cachedTask (TimeSpan.FromMinutes 1.) allConstants
+let packageManager (cacheDuration : TimeSpan) : RT.PackageManager =
+  let allTypes = cachedTask cacheDuration allTypes
+  let allFunctions = cachedTask cacheDuration allFunctions
+  let allConstants = cachedTask cacheDuration allConstants
 
   { getType =
       fun typ ->
@@ -211,5 +211,35 @@ let packageManager : RT.PackageManager =
 
           return constants.TryFind c
         }
+
+    getAllTypeNames =
+      uply {
+        let! allTypes = allTypes
+
+        return
+          allTypes
+          |> List.map (fun t -> PT2RT.TypeName.Package.toRT t.name)
+          |> Set.ofList
+      }
+
+    getAllFnNames =
+      uply {
+        let! allFunctions = allFunctions
+
+        return
+          allFunctions
+          |> List.map (fun f -> PT2RT.FnName.Package.toRT f.name)
+          |> Set.ofList
+      }
+
+    getAllConstantNames =
+      uply {
+        let! allConstants = allConstants
+
+        return
+          allConstants
+          |> List.map (fun c -> PT2RT.ConstantName.Package.toRT c.name)
+          |> Set.ofList
+      }
 
     init = uply { return () } }

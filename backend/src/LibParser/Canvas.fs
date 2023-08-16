@@ -203,7 +203,7 @@ let toResolver (canvas : WTCanvasModule) : NameResolver.NameResolver =
   let fns = canvas.fns |> List.map (fun fn -> fn.name)
   let types = canvas.types |> List.map (fun typ -> typ.name)
   let constants = canvas.constants |> List.map (fun c -> c.name)
-  NameResolver.create [] [] [] types fns constants
+  NameResolver.create [] [] [] types fns constants true Set.empty Set.empty Set.empty
 
 let toPT
   (nameResolver : NameResolver.NameResolver)

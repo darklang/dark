@@ -99,7 +99,6 @@ let rec parseDecls
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
     decls
 
-
 let parse
   (resolver : NameResolver.NameResolver)
   (filename : string)
@@ -120,7 +119,8 @@ let parse
     let modul : WTPackageModule = parseDecls baseModule decls
 
     let nameToModules (p : PT.FQName.Package<'a>) : List<string> =
-      "PACKAGE" :: p.modules
+      "PACKAGE" :: p.owner :: p.modules
+
     let fns =
       modul.fns
       |> List.map (fun fn ->

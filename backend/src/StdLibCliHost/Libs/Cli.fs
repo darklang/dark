@@ -157,10 +157,11 @@ let fns : List<BuiltInFn> =
               |> CliRuntimeError.RTE.toRuntimeError
             //err msg metadata
 
+            let! nameResolver = LibParser.NameResolver.fromExecutionState state
+
             let parsedScript =
               try
-                let resolver = LibParser.NameResolver.fromExecutionState state
-                LibParser.Canvas.parse resolver filename code |> Ok
+                LibParser.Canvas.parse nameResolver filename code |> Ok
               with e ->
                 Error(exnError e)
 
@@ -217,7 +218,7 @@ let fns : List<BuiltInFn> =
             try
               let parts = functionName.Split('.') |> List.ofArray
               let name = NEList.ofList "PACKAGE" parts
-              let resolver = LibParser.NameResolver.fromExecutionState state
+              let! resolver = LibParser.NameResolver.fromExecutionState state
               let fnName =
                 LibParser.NameResolver.FnName.resolve
                   resolver

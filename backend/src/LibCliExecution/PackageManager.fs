@@ -735,4 +735,22 @@ let packageManager : RT.PackageManager =
           return found
         }
 
+    getAllTypeNames =
+      uply {
+        let! allTypes = allTypes
+        return allTypes |> List.map (fun typ -> typ.name) |> Set.ofList
+      }
+
+    getAllFnNames =
+      uply {
+        let! allFns = allFns
+        return allFns |> List.map (fun fn -> fn.name) |> Set.ofList
+      }
+
+    getAllConstantNames =
+      uply {
+        let! allConstants = getAllConstants
+        return allConstants |> List.map (fun c -> c.name) |> Set.ofList
+      }
+
     init = uply { return () } }

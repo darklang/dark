@@ -489,11 +489,11 @@ let debugList (msg : string) (list : List<'a>) : List<'a> =
 
 let debuGSet (msg : string) (set : Set<'a>) : unit =
   if set = Set.empty then
-    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, {{}})"
   else
-    [ $"DEBUG: {msg} (len {Set.count set}, [" ]
+    [ $"DEBUG: {msg} (len {Set.count set}, {{" ]
     @ (set |> Set.toList |> List.map (fun item -> $"  {item}"))
-    @ [ $"])" ]
+    @ [ $"}})" ]
     |> String.concat "\n"
     |> NonBlockingConsole.WriteLine
 
@@ -1459,6 +1459,11 @@ module Tablecloth =
       else
         str
 
+  module List =
+    let splitLast (l : List<'a>) : Option<List<'a> * 'a> =
+      match List.rev l with
+      | [] -> None
+      | head :: tail -> Some(List.rev tail, head)
 
   module Map =
     let fromListBy (f : 'v -> 'k) (l : List<'v>) : Map<'k, 'v> =
@@ -1533,7 +1538,6 @@ module Ply =
         (Ply((0, initial)))
         list
       |> map Tablecloth.Tuple2.second
-
 
 
     let mapSequentially (f : 'a -> Ply<'b>) (list : List<'a>) : Ply<List<'b>> =

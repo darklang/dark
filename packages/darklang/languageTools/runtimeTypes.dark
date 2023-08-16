@@ -1,6 +1,12 @@
 module Darklang =
   module LanguageTools =
     module RuntimeTypes =
+      // <aliases>
+      type Option = PACKAGE.Darklang.Stdlib.Option.Option
+      type ID = PACKAGE.Darklang.LanguageTools.ID
+      type TLID = PACKAGE.Darklang.LanguageTools.TLID
+      // </aliases>
+
       module FQName =
         /// A name that is built into the runtime
         type BuiltIn<'name> =
@@ -21,35 +27,33 @@ module Darklang =
             version: Int }
 
         type FQName<'name> =
-          | BuiltIn of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.BuiltIn<'name>
-          | UserProgram of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.UserProgram<'name>
-          | Package of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.Package<'name>
+          | BuiltIn of BuiltIn<'name>
+          | UserProgram of UserProgram<'name>
+          | Package of Package<'name>
 
         type NameValidator<'name> = 'name -> Unit
         type NamePrinter<'name> = 'name -> String
 
 
         let builtinToString (s: BuiltIn<'name>) (f: NamePrinter<'name>) : String =
-          let name = (s.modules @ [ f s.name ]) |> String.concat "."
+          let name = (List.append s.modules [ f s.name ]) |> String.join "."
           if s.version = 0 then name else $"{name}_v{s.version}"
 
         let userProgramToString
           (s: UserProgram<'name>)
           (f: NamePrinter<'name>)
-          : string =
-          let name = (s.modules @ [ f s.name ]) |> String.concat "."
+          : String =
+          let name = (List.append s.modules [ f s.name ]) |> String.join "."
           if s.version = 0 then name else $"{name}_v{s.version}"
 
-        let packageToString (s: Package<'name>) (f: NamePrinter<'name>) : string =
+        let packageToString (s: Package<'name>) (f: NamePrinter<'name>) : String =
           let name =
-            ([ "PACKAGE"; s.owner ] @ s.modules @ [ f s.name ]) |> String.concat "."
+            (List.flatten [ "PACKAGE"; s.owner ] s.modules [ f s.name ])
+            |> String.join "."
 
           if s.version = 0 then name else $"{name}_v{s.version}"
 
-        let toString (name: T<'name>) (f: NamePrinter<'name>) : String =
+        let toString (name: FQName<'name>) (f: NamePrinter<'name>) : String =
           match name with
           | BuiltIn b -> builtinToString b f
           | UserProgram user -> userProgramToString user f
@@ -98,18 +102,18 @@ module Darklang =
         type UserProgram = FQName.UserProgram<Name>
         type Package = FQName.Package<Name>
 
-      //   let builtinToString (s : BuiltIn) : string =
+      //   let builtinToString (s : BuiltIn) : String =
       //     FQName.builtinToString s (fun (FnName name) -> name)
 
-      //   let userProgramToString (s : UserProgram) : string =
+      //   let userProgramToString (s : UserProgram) : String =
       //     FQName.userProgramToString s (fun (FnName name) -> name)
 
-      //   let packageToString (s : Package) : string =
+      //   let packageToString (s : Package) : String =
       //     FQName.packageToString s (fun (FnName name) -> name)
 
-      //   let toString (name : T) : string = FQName.toString name (fun (FnName name) -> name)
+      //   let toString (name : T) : String = FQName.toString name (fun (FnName name) -> name)
 
-      //   let isInternalFn (fnName : BuiltIn) : bool =
+      //   let isInternalFn (fnName : BuiltIn) : Bool =
       //     List.tryHead fnName.modules = Some "DarkInternal"
 
       /// A Fully-Qualified Constant Name
@@ -117,19 +121,18 @@ module Darklang =
       module ConstantName =
         type Name = ConstantName of String
 
-        type ConstantName =
-          FQName.FQName<PACKAGE.Darklang.LanguageTools.RuntimeTypes.ConstantName.Name>
+        type ConstantName = FQName.FQName<ConstantName.Name>
 
         type BuiltIn = FQName.BuiltIn<Name>
         type UserProgram = FQName.UserProgram<Name>
         type Package = FQName.Package<Name>
 
-      //   let toString (name : T) : string =
+      //   let toString (name : T) : String =
       //     FQName.toString name (fun (ConstantName name) -> name)
 
 
       type NameResolution<'a> =
-        Result<'a, PACKAGE.Darklang.LanguageTools.RuntimeTypes.RuntimeError>
+        PACKAGE.Darklang.Stdlib.Result.Result<'a, RuntimeError>
 
       type TypeReference =
         | TUnit
@@ -142,103 +145,46 @@ module Darklang =
         | TBytes
         | TDateTime
         | TPassword
-        | TList of PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
-        | TTuple of
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
-          List<PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference>
-        | TFn of
-          List<PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference> *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
-        | TDB of PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
+        | TList of TypeReference
+        | TTuple of TypeReference * TypeReference * List<TypeReference>
+        | TFn of List<TypeReference> * TypeReference
+        | TDB of TypeReference
         | TVariable of String
         | TCustomType of
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.NameResolution<PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName> *
-          typeArgs: List<PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference>
-        | TDict of PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
+          NameResolution<TypeName.TypeName> *
+          typeArgs: List<TypeReference>
+        | TDict of TypeReference
 
       type Expr =
-        | EInt of PACKAGE.Darklang.LanguageTools.ID * Int
-        | EBool of PACKAGE.Darklang.LanguageTools.ID * Bool
-        | EString of
-          PACKAGE.Darklang.LanguageTools.ID *
-          List<PACKAGE.Darklang.LanguageTools.RuntimeTypes.StringSegment>
-        | EChar of PACKAGE.Darklang.LanguageTools.ID * string
-        | EFloat of PACKAGE.Darklang.LanguageTools.ID * double
-        | EUnit of PACKAGE.Darklang.LanguageTools.ID
-        | EConstant of
-          PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.ConstantName.ConstantName
-        | ELet of
-          PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.LetPattern *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr
-        | EIf of
-          PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr
-        | ELambda of
-          PACKAGE.Darklang.LanguageTools.ID *
-          List<PACKAGE.Darklang.LanguageTools.ID * string> *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr
-        | EFieldAccess of
-          PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr *
-          string
-        | EVariable of PACKAGE.Darklang.LanguageTools.ID * string
-        | EApply of
-          PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr *
-          typeArgs: List<TypeReference> *
-          args: List<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr>
-        | EFnName of PACKAGE.Darklang.LanguageTools.ID * FnName.FnName
-        | EList of
-          PACKAGE.Darklang.LanguageTools.ID *
-          List<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr>
-        | ETuple of
-          PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr *
-          List<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr>
-        | ERecord of
-          PACKAGE.Darklang.LanguageTools.ID *
-          TypeName.TypeName *
-          List<string * PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr>
-        | ERecordUpdate of
-          PACKAGE.Darklang.LanguageTools.ID *
-          record: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr *
-          updates: List<string * PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr>
-        | EDict of
-          PACKAGE.Darklang.LanguageTools.ID *
-          List<string * PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr>
-        | EEnum of
-          PACKAGE.Darklang.LanguageTools.ID *
-          TypeName.TypeName *
-          caseName: string *
-          fields: List<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr>
-        | EMatch of
-          PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr *
-          List<MatchPattern * PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr>
-        | EAnd of
-          PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr
-        | EOr of
-          PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr *
-          PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr
-        | EError of
-          PACKAGE.Darklang.LanguageTools.ID *
-          RuntimeError *
-          List<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Expr>
+        | EInt of ID * Int
+        | EBool of ID * Bool
+        | EString of ID * List<StringSegment>
+        | EChar of ID * String
+        | EFloat of ID * Float
+        | EUnit of ID
+        | EConstant of ID * ConstantName.ConstantName
+        | ELet of ID * LetPattern * Expr * Expr
+        | EIf of ID * Expr * Expr * Expr
+        | ELambda of ID * List<ID * String> * Expr
+        | EFieldAccess of ID * Expr * String
+        | EVariable of ID * String
+        | EApply of ID * Expr * typeArgs: List<TypeReference> * args: List<Expr>
+        | EFnName of ID * FnName.FnName
+        | EList of ID * List<Expr>
+        | ETuple of ID * Expr * Expr * List<Expr>
+        | ERecord of ID * TypeName.TypeName * List<String * Expr>
+        | ERecordUpdate of ID * record: Expr * updates: List<String * Expr>
+        | EDict of ID * List<String * Expr>
+        | EEnum of ID * TypeName.TypeName * caseName: String * fields: List<Expr>
+        | EMatch of ID * Expr * List<MatchPattern * Expr>
+        | EAnd of ID * Expr * Expr
+        | EOr of ID * Expr * Expr
+        | EError of ID * RuntimeError * List<Expr>
 
       type LetPattern =
-        | LPVariable of PACKAGE.Darklang.LanguageTools.ID * name: String
+        | LPVariable of ID * name: String
         | LPTuple of
-          PACKAGE.Darklang.LanguageTools.ID *
+          ID *
           first: LetPattern *
           second: LetPattern *
           theRest: List<LetPattern>
@@ -248,34 +194,24 @@ module Darklang =
         | StringInterpolation of Expr
 
       type MatchPattern =
-        | MPVariable of PACKAGE.Darklang.LanguageTools.ID * string
-        | MPEnum of
-          PACKAGE.Darklang.LanguageTools.ID *
-          caseName: string *
-          fieldPatterns: List<MatchPattern>
-        | MPInt of PACKAGE.Darklang.LanguageTools.ID * int64
-        | MPBool of PACKAGE.Darklang.LanguageTools.ID * bool
-        | MPChar of PACKAGE.Darklang.LanguageTools.ID * string
-        | MPString of PACKAGE.Darklang.LanguageTools.ID * string
-        | MPFloat of PACKAGE.Darklang.LanguageTools.ID * double
-        | MPUnit of id
-        | MPTuple of
-          PACKAGE.Darklang.LanguageTools.ID *
-          MatchPattern *
-          MatchPattern *
-          List<MatchPattern>
-        | MPList of PACKAGE.Darklang.LanguageTools.ID * List<MatchPattern>
-        | MPListCons of
-          PACKAGE.Darklang.LanguageTools.ID *
-          head: MatchPattern *
-          tail: MatchPattern
+        | MPVariable of ID * String
+        | MPEnum of ID * caseName: String * fieldPatterns: List<MatchPattern>
+        | MPInt of ID * Int
+        | MPBool of ID * Bool
+        | MPChar of ID * String
+        | MPString of ID * String
+        | MPFloat of ID * Float
+        | MPUnit of ID
+        | MPTuple of ID * MatchPattern * MatchPattern * List<MatchPattern>
+        | MPList of ID * List<MatchPattern>
+        | MPListCons of ID * head: MatchPattern * tail: MatchPattern
 
-      type DvalMap = Map<string, Dval>
+      type DvalMap = Dict<Dval>
 
       type LambdaImpl =
         { typeArgTable: TypeArgTable
           symtable: Symtable
-          parameters: List<PACKAGE.Darklang.LanguageTools.ID * String>
+          parameters: List<ID * String>
           body: Expr }
 
       type FnValImpl =
@@ -288,12 +224,12 @@ module Darklang =
         | DUnit
         | DBool of Bool
         | DInt of Int
-        | DFloat of double
+        | DFloat of Float
         | DChar of String
         | DString of String
         | DDateTime of DateTime
         | DBytes of Bytes
-        | DUuid of System.Guid
+        | DUuid of Uuid
 
         | DList of List<Dval>
         | DDict of DvalMap
@@ -318,34 +254,34 @@ module Darklang =
         | DIncomplete of DvalSource
 
 
-      // /// our record of any variable bindings in scope
-      // ///
-      // /// i.e. within the execution of `x+y` in
-      // ///  `let x = 1; let y = 2; x + y`
-      // /// , we would have a Symtable of
-      // ///   `{ "x" => DInt 1; "y" => DInt 2 }`
-      // and Symtable = Map<string, Dval>
+      /// our record of any variable bindings in scope
+      ///
+      /// i.e. within the execution of `x+y` in
+      ///  `let x = 1; let y = 2; x + y`
+      /// , we would have a Symtable of
+      ///   `{ "x" => DInt 1; "y" => DInt 2 }`
+      type Symtable = Dict<Dval>
 
-      // and TypeArgTable = Map<string, TypeReference>
+      type TypeArgTable = Dict<TypeReference>
 
 
-      // // Record the source of an incomplete or error. Would be useful to add more
-      // // information later, such as the iteration count that led to this, or
-      // // something like a stack trace
-      // and DvalSource =
-      //   // We do not have context to supply an identifier
-      //   | SourceNone
+      // Record the source of an incomplete or error. Would be useful to add more
+      // information later, such as the iteration count that led to this, or
+      // something like a stack trace
+      type DvalSource =
+        // We do not have context to supply an identifier
+        | SourceNone
 
-      //   // Caused by an expression of `id` within the given `tlid`
-      //   | SourceID of tlid * id
+        // Caused by an expression of `id` within the given `tlid`
+        | SourceID of TLID * ID
 
       and BuiltInParam =
         { name: String
-          typ: Darklang.LanguageTools.RuntimeTypes.TypeReference
+          typ: TypeReference
           blockArgs: List<String>
           description: String }
 
-      // and Param = { name : string; typ : TypeReference }
+      // and Param = { name : String; typ : TypeReference }
 
 
       // module RuntimeError =
@@ -357,19 +293,19 @@ module Darklang =
       //   | NotDeprecated
       //   | RenamedTo of 'name
       //   | ReplacedBy of 'name
-      //   | DeprecatedBecause of string
+      //   | DeprecatedBecause of String
 
 
       // module TypeDeclaration =
-      //   type RecordField = { name : string; typ : TypeReference }
-      //   type EnumCase = { name : string; fields : List<TypeReference> }
+      //   type RecordField = { name : String; typ : TypeReference }
+      //   type EnumCase = { name : String; fields : List<TypeReference> }
 
       //   type Definition =
       //     | Alias of TypeReference
       //     | Record of NEList<RecordField>
       //     | Enum of NEList<EnumCase>
 
-      //   type T = { typeParams : List<string>; definition : Definition }
+      //   type T = { typeParams : List<String>; definition : Definition }
 
       // module Handler =
       //   type CronInterval =
@@ -381,15 +317,15 @@ module Darklang =
       //     | EveryMinute
 
       //   type Spec =
-      //     | HTTP of path: string * method: string
-      //     | Worker of name: string
-      //     | Cron of name: string * interval: CronInterval
-      //     | REPL of name: string
+      //     | HTTP of path: String * method: String
+      //     | Worker of name: String
+      //     | Cron of name: String * interval: CronInterval
+      //     | REPL of name: String
 
       //   type Handler = { tlid: tlid; ast: Expr; spec: Spec }
 
       // module DB =
-      //   type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
+      //   type T = { tlid : tlid; name : String; typ : TypeReference; version : int }
 
       // module UserType =
       //   type T =
@@ -399,12 +335,12 @@ module Darklang =
       //   type T = { tlid : tlid; name : ConstantName.UserProgram; body : Dval }
 
       // module UserFunction =
-      //   type Parameter = { name : string; typ : TypeReference }
+      //   type Parameter = { name : String; typ : TypeReference }
 
       //   type T =
       //     { tlid : tlid
       //       name : FnName.UserProgram
-      //       typeParams : List<string>
+      //       typeParams : List<String>
       //       parameters : List<Parameter>
       //       returnType : TypeReference
       //       body : Expr }
@@ -426,7 +362,7 @@ module Darklang =
       //     | TLConstant c -> c.tlid
 
       // module Secret =
-      //   type T = { name : string; value : string; version : int }
+      //   type T = { name : String; value : String; version : int }
 
 
       // // ------------
@@ -434,12 +370,12 @@ module Darklang =
       // // ------------
 
       // module PackageFn =
-      //   type Parameter = { name : string; typ : TypeReference }
+      //   type Parameter = { name : String; typ : TypeReference }
 
       //   type T =
       //     { name : FnName.Package
       //       tlid : tlid
-      //       typeParams : List<string>
+      //       typeParams : List<String>
       //       parameters : List<Parameter>
       //       returnType : TypeReference
       //       body : Expr }
@@ -467,12 +403,12 @@ module Darklang =
       //   | NotYetImplemented
       //   | NotQueryable
       //   | QueryFunction
-      //   | SqlUnaryOp of string
-      //   | SqlBinOp of string
-      //   | SqlFunction of string
-      //   | SqlFunctionWithPrefixArgs of string * List<string>
-      //   | SqlFunctionWithSuffixArgs of string * List<string>
-      //   | SqlCallback2 of (string -> string -> string)
+      //   | SqlUnaryOp of String
+      //   | SqlBinOp of String
+      //   | SqlFunction of String
+      //   | SqlFunctionWithPrefixArgs of String * List<String>
+      //   | SqlFunctionWithSuffixArgs of String * List<String>
+      //   | SqlCallback2 of (String -> String -> String)
 
       // // A built-in standard library type
       // type BuiltInType =
@@ -481,23 +417,23 @@ module Darklang =
       //     // description and deprecated are here because they're not needed in
       //     // TypeDeclaration for Package and UserProgram types, where we have them in
       //     // ProgramTypes and don't propagate them to RuntimeTypes
-      //     description : string
+      //     description : String
       //     deprecated : Deprecation<TypeName.TypeName> }
 
       // type BuiltInConstant =
       //   { name : ConstantName.BuiltIn
       //     typ : TypeReference
-      //     description : string
+      //     description : String
       //     deprecated : Deprecation<ConstantName.ConstantName>
       //     body : Dval }
 
       // // A built-in standard library function
       // type BuiltInFn =
       //   { name : FnName.BuiltIn
-      //     typeParams : List<string>
+      //     typeParams : List<String>
       //     parameters : List<BuiltInParam>
       //     returnType : TypeReference
-      //     description : string
+      //     description : String
       //     previewable : Previewable
       //     deprecated : Deprecation<FnName.FnName>
       //     sqlSpec : SqlSpec
@@ -505,7 +441,7 @@ module Darklang =
 
       // and Fn =
       //   { name : FnName.FnName
-      //     typeParams : List<string>
+      //     typeParams : List<String>
       //     parameters : List<Param>
       //     returnType : TypeReference
       //     previewable : Previewable
@@ -534,7 +470,7 @@ module Darklang =
 
       // and FunctionRecord = tlid * FnName.FnName * id
 
-      // and TraceDval = bool -> id -> Dval -> unit
+      // and TraceDval = Bool -> id -> Dval -> unit
 
       // and TraceTLID = tlid -> unit
 
@@ -543,13 +479,13 @@ module Darklang =
       // and StoreFnResult = FunctionRecord -> Dval list -> Dval -> unit
 
       // /// Per-runtime configuration allowing different settings for eg cloud, test, CLI
-      // and Config = { allowLocalHttpAccess : bool; httpclientTimeoutInMs : int }
+      // and Config = { allowLocalHttpAccess : Bool; httpclientTimeoutInMs : int }
 
       // /// Every part of a user's program
       // and Program =
       //   { canvasID : CanvasID
-      //     internalFnsAllowed : bool // whether this canvas is allowed call internal functions
-      //     dbs : Map<string, DB.T>
+      //     internalFnsAllowed : Bool // whether this canvas is allowed call internal functions
+      //     dbs : Map<String, DB.T>
       //     fns : Map<FnName.UserProgram, UserFunction.T>
       //     types : Map<TypeName.UserProgram, UserType.T>
       //     constants : Map<ConstantName.UserProgram, UserConstant.T>
@@ -567,7 +503,7 @@ module Darklang =
       // and TestContext =
       //   { mutable sideEffectCount : int
 
-      //     mutable exceptionReports : List<string * string * Metadata>
+      //     mutable exceptionReports : List<String * String * Metadata>
       //     mutable expectedExceptionCount : int
       //     postTestExecutionHook : TestContext -> Dval -> unit }
 
@@ -592,7 +528,7 @@ module Darklang =
 
       // and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 
-      // and Notifier = ExecutionState -> string -> Metadata -> unit
+      // and Notifier = ExecutionState -> String -> Metadata -> unit
 
       // // All state used while running a program
       // and ExecutionState =
@@ -631,7 +567,7 @@ module Darklang =
 
       //     // Whether the currently executing code is really being executed
       //     // (as opposed to being previewed for traces)
-      //     onExecutionPath : bool }
+      //     onExecutionPath : Bool }
 
       // and Types =
       //   { builtIn : Map<TypeName.BuiltIn, BuiltInType>

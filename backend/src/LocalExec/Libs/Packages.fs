@@ -61,31 +61,7 @@ let types : List<BuiltInType> =
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "LocalExec"; "Packages" ] "clear" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TUnit
-      description = "Delete all packages"
-      fn =
-        function
-        | _, _, [ DUnit ] ->
-          uply {
-            do!
-              Sql.query "DELETE FROM package_functions_v0"
-              |> Sql.executeStatementAsync
-            do! Sql.query "DELETE FROM package_types_v0" |> Sql.executeStatementAsync
-            do!
-              Sql.query "DELETE FROM package_constants_v0"
-              |> Sql.executeStatementAsync
-            return DUnit
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn [ "LocalExec"; "Packages" ] "listFunctions" 0
+  [ { name = fn [ "LocalExec"; "Packages" ] "listFunctions" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =

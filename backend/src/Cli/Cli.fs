@@ -128,13 +128,6 @@ let main (args : string[]) =
     // CLEANUP
     packageManager.init |> Ply.toTask |> Async.AwaitTask |> Async.RunSynchronously
 
-    let resolver =
-      // TODO: this may need more builtins, and packages
-      LibParser.NameResolver.fromBuiltins (
-        Map.values builtIns.fns,
-        Map.values builtIns.types,
-        Map.values builtIns.constants
-      )
     let args =
       args
       |> Array.toList

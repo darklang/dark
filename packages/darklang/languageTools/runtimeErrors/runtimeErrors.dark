@@ -26,13 +26,12 @@ module Darklang =
           // -- Types
           | TypeName of PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName
           | ShortTypeName of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName // Just the last bit of the TypeName, eg Result vs PACKAGE.Darklang.Stdlib.Result.Result
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName
           | TypeReference of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference // another .TR?
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
           | TypeOfValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
           | FieldName of String // records and enums
           | InlineFieldName of String // records and enums
-
 
           // -- Variables
           | DBName of String
@@ -45,42 +44,44 @@ module Darklang =
 
         let toString (list: List<ErrorSegment>) : String =
           list
-          |> List.rev
+          |> PACKAGE.Darklang.Stdlib.List.reverse
           |> List.fold
             (fun prevSegments segment ->
               let newSegment =
                 match segment with
                 | String s -> s
-                | Int i -> string i
-                | Ordinal i -> String.toOrdinal i
-                | IndefiniteArticle ->
-                  match List.tryHead prevSegments with
-                  | None -> ""
-                  | Some prev -> String.articleFor prev + " "
-                | FunctionName fn -> FnName.toString fn
+                | Int i -> Int.toString i
+                // | Ordinal i -> String.toOrdinal i
+                // | IndefiniteArticle ->
+                //   match List.tryHead prevSegments with
+                //   | None -> ""
+                //   | Some prev -> String.articleFor prev ++ " "
+                // | FunctionName fn -> FnName.toString fn
                 | Description d -> d
-                | ParamName p -> "`" + p + "`"
+                | ParamName p -> "`" ++ p ++ "`"
                 // Inline versions don't have quotes
                 | InlineParamName p -> p
-                | TypeName t -> TypeName.toString t
-                | ShortTypeName t -> TypeName.toShortName t
-                | TypeReference t -> DvalReprDeveloper.typeName t
-                | TypeOfValue dv -> dv |> DvalReprDeveloper.toTypeName
-                | FieldName f -> "`" + f + "`"
+                // | TypeName t -> TypeName.toString t
+                // | ShortTypeName t -> TypeName.toShortName t
+                // | TypeReference t -> DvalReprDeveloper.typeName t
+                // | TypeOfValue dv -> dv |> DvalReprDeveloper.toTypeName
+                | FieldName f -> "`" ++ f ++ "`"
                 | InlineFieldName f -> f
                 | DBName db -> db
-                | VarName v -> "`" + v + "`"
+                | VarName v -> "`" ++ v ++ "`"
                 | InlineVarName v -> v
-                | InlineValue dv ->
-                  (DvalReprDeveloper.toRepr dv)
-                  |> String.truncateWithElipsis 10
-                  |> String.splitOnNewline
-                  |> String.concat ""
-                | FullValue dv -> DvalReprDeveloper.toRepr dv
+                // | InlineValue dv ->
+                //   (DvalReprDeveloper.toRepr dv)
+                //   |> String.truncateWithElipsis 10
+                //   |> String.splitOnNewline
+                //   |> String.join ""
+                // | FullValue dv -> DvalReprDeveloper.toRepr dv
+                | segment ->
+                  $"TODO ({(Json.serialize<ErrorSegment> segment) |> unwrap})"
 
-              newSegment :: prevSegments)
+              PACKAGE.Darklang.Stdlib.List.push prevSegments newSegment)
             []
-          |> String.concat ""
+          |> String.join ""
 
 
 
@@ -95,11 +96,11 @@ module Darklang =
 
 
       type ErrorOutput =
-        { summary: List<ErrorSegment>
+        { summary: List<ErrorSegment.ErrorSegment>
           // Summary can be used on its own or concatenated with extraExplanation
-          extraExplanation: List<ErrorSegment>
-          actual: List<ErrorSegment>
-          expected: List<ErrorSegment> }
+          extraExplanation: List<ErrorSegment.ErrorSegment>
+          actual: List<ErrorSegment.ErrorSegment>
+          expected: List<ErrorSegment.ErrorSegment> }
 
       type Error =
         | CliError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Cli.Error
@@ -126,7 +127,7 @@ module Darklang =
 
           //     let summary =
           //       [ String $"There is no {nameType} named "
-          //         InlineVarName(String.concat "." e.names) ]
+          //         InlineVarName(String.join "." e.names) ]
 
           //     let extraExplanation = []
           //     let actual = []
@@ -142,7 +143,7 @@ module Darklang =
           //       if e.names = [] then
           //         []
           //       else
-          //         [ String ": "; VarName(String.concat "." e.names) ]
+          //         [ String ": "; VarName(String.join "." e.names) ]
           //     let summary = [ String "Missing module name" ] @ suffix
 
           //     let extraExplanation = []
@@ -156,7 +157,7 @@ module Darklang =
 
           //   | NameResolutionError({ errorType = NameResolution.InvalidPackageName } as e) ->
           //     let summary =
-          //       [ String "Invalid package name "; InlineVarName(String.concat "." e.names) ]
+          //       [ String "Invalid package name "; InlineVarName(String.join "." e.names) ]
 
           //     let extraExplanation = []
           //     let actual = []
@@ -166,15 +167,20 @@ module Darklang =
           //       extraExplanation = extraExplanation
           //       actual = actual
           //       expected = expected }
-          []
+          // TODO: replace with a real error from above
+          ErrorOutput
+            { summary = []
+              extraExplanation = []
+              actual = []
+              expected = [] }
 
         let toString (e: Error) : String =
           let s = toSegments e
           let explanation = ErrorSegment.toString (s.summary @ s.extraExplanation)
           let actual = ErrorSegment.toString s.actual
-          let actual = if actual = "" then "" else "\nActual: " + actual
+          let actual = if actual = "" then "" else "\nActual: " ++ actual
           let expected = ErrorSegment.toString s.expected
-          let expected = if expected = "" then "" else "\nExpected: " + expected
+          let expected = if expected = "" then "" else "\nExpected: " ++ expected
 
           if actual = "" && expected = "" then
             explanation

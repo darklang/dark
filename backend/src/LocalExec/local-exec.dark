@@ -83,13 +83,8 @@ let saveConstantToCanvas
 
   ()
 
-let loadPackageFile (filename: String) : Unit =
-  filename
-  |> LocalExec.File.read
-  |> String.fromBytes
-  |> LocalExec.Packages.parseAndSave filename
-
-
+// TODO: this should return a Result<Unit, String>
+// and the consumer should handle the error appropriately
 let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
   let package =
     filename
@@ -134,7 +129,6 @@ let printAllPackages () : Unit =
 // parse args and execute
 type CliOptions =
   | Help
-  | LoadPackages
   | LoadPackagesIntoDarkCanvas
   | ListPackages
   | BadOption of String
@@ -144,7 +138,6 @@ let usage () : String =
 
     Options:
       -h, --help          Show this help message and exit
-      load-packages       Load packages from disk into internal DB
       load-packages-dark  Load packages from disk into dark packages canvas
       list-packages       List packages
   "
@@ -157,7 +150,9 @@ let parseArgs (args: List<String>) : CliOptions =
   | [ "--help" ] -> CliOptions.Help
 
   | [ "list-packages" ] -> CliOptions.ListPackages
-  | [ "load-packages" ] -> CliOptions.LoadPackages
+  | [ "load-packages" ] ->
+    CliOptions.BadOption
+      "`load-packages` now executes in F# (not sure how you got here)"
   | [ "load-packages-dark" ] -> CliOptions.LoadPackagesIntoDarkCanvas
 
   | _ -> CliOptions.BadOption "Invalid arguments"
@@ -172,17 +167,6 @@ let main (args: List<String>) : Int =
 
   | ListPackages ->
     printAllPackages ()
-    0
-
-  | LoadPackages ->
-    LocalExec.Packages.clear ()
-    let files = listPackageFilesOnDisk "/home/dark/app/packages"
-
-    LocalExec.BuiltIns.List.iter files (fun f ->
-      print $"Loading {f}"
-      loadPackageFile f)
-
-    print "Done loading packages"
     0
 
   | LoadPackagesIntoDarkCanvas ->

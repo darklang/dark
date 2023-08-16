@@ -51,9 +51,9 @@ done
 
 
 if [[ "$TEST" != "true" ]]; then
-  # make sure the target canvas exists
+  # make sure the target canvas exists and is cleared
   ./scripts/run-canvas-hack dark-packages
 
-  echo -e "Loading packages into dark canvas ${grey}($LOG_CANVAS)${reset}"
+  echo -e "Loading packages into Dark canvas ${grey}($LOG_CANVAS)${reset}"
   ./scripts/run-local-exec load-packages-dark > $LOG_CANVAS 2>&1
 fi
