@@ -10,8 +10,10 @@ open LibExecution.StdLib.Shortcuts
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module WT = LibParser.WrittenTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
+module Json = StdLibExecution.Libs.Json
 
 
 
@@ -137,6 +139,119 @@ let fns : List<BuiltInFn> =
                   let asString = LibExecution.DvalReprDeveloper.toRepr result
                   return err $"Expected an integer" [ "actualValue", asString ]
               | Error e -> return e
+            with e ->
+              return exnError e
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn [ "Cli" ] "executeFunction" 0
+      typeParams = []
+      parameters =
+        [ Param.make "functionName" TString ""
+          Param.make "args" (TList TString) "" ]
+      returnType =
+        TypeReference.result
+          TString
+          (TCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), []))
+      description = "Executes an arbitrary Dark function"
+      fn =
+        function
+        | state, [], [ DString functionName; DList args ] ->
+          uply {
+            let err (msg : string) (metadata : List<string * string>) =
+              let metadata = metadata |> List.map (fun (k, v) -> k, DString v) |> Map
+              Dval.resultError (
+                Dval.record
+                  (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
+                  [ "msg", DString msg; "metadata", DDict metadata ]
+              )
+
+            let exnError (e : exn) : Dval =
+              let msg = Exception.getMessages e |> String.concat "\n"
+              let metadata =
+                Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
+              err msg metadata
+
+            try
+              let parts = functionName.Split('.') |> List.ofArray
+              let name = NEList.ofList "PACKAGE" parts
+              let resolver = LibParser.NameResolver.fromExecutionState state
+              let fnName =
+                LibParser.NameResolver.FnName.resolve
+                  resolver
+                  []
+                  (WT.Unresolved name)
+
+              match fnName with
+              | Ok fnName ->
+                match
+                  NEList.find Dval.isFake (NEList.ofList args.Head args.Tail)
+                with
+                | Some fakeArg -> return fakeArg
+                | None ->
+                  let desc = fnName |> PT2RT.FnName.toRT
+                  let! fn =
+                    match desc with
+                    | FQName.Package pkg ->
+                      uply {
+                        let! fn = state.packageManager.getFn pkg
+                        return Option.map packageFnToFn fn
+                      }
+
+                    | _ ->
+                      Exception.raiseInternal
+                        "Unknown function should have been converted to EError by PT2RT"
+                        [ "fn", fn ]
+
+                  match fn with
+                  | None -> return DString "fn not found"
+                  | Some f ->
+                    let types = RT.ExecutionState.availableTypes state
+
+                    let expectedType =
+                      List.append
+                        [ f.parameters.head.typ ]
+                        (f.parameters.tail |> List.map (fun p -> p.typ))
+
+                    let stringArgs =
+                      args
+                      |> List.map (fun arg ->
+                        match arg with
+                        | DString s -> s
+                        | e -> $"Expected string, got {e}")
+
+                    let! args =
+                      Ply.List.mapSequentially
+                        (fun (typ, str) ->
+                          uply {
+                            let str =
+                              if typ = TString then $"\"{str}\""
+                              else if typ = TDict TString then $"\"\"\"{str}\"\"\""
+                              else str
+
+                            match! Json.parse types typ str with
+                            | Ok v -> return v
+                            | Error e -> return (DString e)
+                          })
+                        (List.zip expectedType stringArgs)
+
+                    let! result =
+                      Exe.executeFunction
+                        state
+                        (gid ())
+                        (f.name)
+                        []
+                        (NEList.ofList args.Head args.Tail)
+                    match result with
+                    | DError(_, e) -> return Dval.resultError (DString e)
+                    | value ->
+                      let asString = LibExecution.DvalReprDeveloper.toRepr value
+                      return Dval.resultOk (DString asString)
+              | Error e -> return (DString $"Error: {e}")
             with e ->
               return exnError e
           }
