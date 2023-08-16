@@ -178,26 +178,42 @@ let _handler _req =
 [<HttpHandler("GET", "/packages/:owner")>]
 let _handler _req =
 
-  let types = (DB.getAll PackageTypeDB) |> List.filter (fun t -> t.name.owner == owner)
+  let types =
+    (DB.getAll PackageTypeDB) |> List.filter (fun t -> t.name.owner == owner)
+
   let fns = (DB.getAll PackageFnDB) |> List.filter (fun f -> f.name.owner == owner)
-  let constants = (DB.getAll PackageConstantDB) |> List.filter (fun c -> c.name.owner == owner)
+
+  let constants =
+    (DB.getAll PackageConstantDB) |> List.filter (fun c -> c.name.owner == owner)
 
   let fns =
     fns
-    |> List.map (fun x -> (x.name.owner, x.name.modules |> String.join ".", x.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.name))
-    |> List.map (fun m -> (Tuple3.first m) ++ "." ++ (Tuple3.second m) ++ "." ++ (Tuple3.third m))
+    |> List.map (fun x ->
+      (x.name.owner,
+       x.name.modules |> String.join ".",
+       x.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.name))
+    |> List.map (fun m ->
+      (Tuple3.first m) ++ "." ++ (Tuple3.second m) ++ "." ++ (Tuple3.third m))
     |> String.join "\n"
 
   let types =
     types
-    |> List.map (fun x -> (x.name.owner, x.name.modules |> String.join ".", x.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.name))
-    |> List.map (fun m -> (Tuple3.first m) ++ "." ++ (Tuple3.second m) ++ "." ++ (Tuple3.third m))
+    |> List.map (fun x ->
+      (x.name.owner,
+       x.name.modules |> String.join ".",
+       x.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.name))
+    |> List.map (fun m ->
+      (Tuple3.first m) ++ "." ++ (Tuple3.second m) ++ "." ++ (Tuple3.third m))
     |> String.join "\n"
 
   let constants =
     constants
-    |> List.map (fun x -> (x.name.owner, x.name.modules |> String.join ".", x.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name))
-    |> List.map (fun m -> (Tuple3.first m) ++ "." ++ (Tuple3.second m) ++ "." ++ (Tuple3.third m))
+    |> List.map (fun x ->
+      (x.name.owner,
+       x.name.modules |> String.join ".",
+       x.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name))
+    |> List.map (fun m ->
+      (Tuple3.first m) ++ "." ++ (Tuple3.second m) ++ "." ++ (Tuple3.third m))
     |> String.join "\n"
 
 
@@ -221,10 +237,18 @@ let _handler _req =
 
   let respBody =
     (PACKAGE.Darklang.Stdlib.Packages
-      { types = types |> List.filter (fun t -> t.name.owner == owner && t.name.modules == modules)
-        fns = fns |> List.filter (fun f -> f.name.owner == owner && f.name.modules == modules)
-        constants = constants |> List.filter (fun c -> c.name.owner == owner && c.name.modules == modules)
-      })
+      { types =
+          types
+          |> List.filter (fun t ->
+            t.name.owner == owner && t.name.modules == modules)
+        fns =
+          fns
+          |> List.filter (fun f ->
+            f.name.owner == owner && f.name.modules == modules)
+        constants =
+          constants
+          |> List.filter (fun c ->
+            c.name.owner == owner && c.name.modules == modules) })
     |> Json.serialize<PACKAGE.Darklang.Stdlib.Packages>
     |> unwrap
     |> String.toBytes

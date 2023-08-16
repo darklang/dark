@@ -164,11 +164,11 @@ module Darklang =
         result
 
 
-    let showModule (name : String) : Int =
+    let showModule (name: String) : Int =
       let modules =
         CLI.HttpClient.request
           "GET"
-          ("http://dark-packages.dlio.localhost:11003/modules/" ++ name )
+          ("http://dark-packages.dlio.localhost:11003/modules/" ++ name)
           []
           Bytes.empty
 
@@ -195,7 +195,11 @@ module Darklang =
         print "Error getting package modules"
         1
       | Some modules ->
-        if modules == PACKAGE.Darklang.Stdlib.Packages {types = []; fns = []; constants = []} then
+        if
+          modules
+          == PACKAGE.Darklang.Stdlib.Packages
+            { types = []; fns = []; constants = [] }
+        then
           print "module not found"
           1
         else
@@ -203,11 +207,11 @@ module Darklang =
           print result
           0
 
-    let showPackage (owner : String) : Int =
+    let showPackage (owner: String) : Int =
       let packages =
         CLI.HttpClient.request
           "GET"
-          ("http://dark-packages.dlio.localhost:11003/packages/" ++ owner )
+          ("http://dark-packages.dlio.localhost:11003/packages/" ++ owner)
           []
           Bytes.empty
 
@@ -223,6 +227,7 @@ module Darklang =
           |> unwrap
           |> String.fromBytes
           |> print
+
           0
         else
           print "Error getting package packages"
@@ -325,9 +330,8 @@ Options:
         | "constant" -> PACKAGE.Darklang.Cli.showConstant name owner modules
         | _ ->
           let modules =
-            fullName
-            |> String.split "."
-            |> (PACKAGE.Darklang.Stdlib.List.drop 1)
+            fullName |> String.split "." |> (PACKAGE.Darklang.Stdlib.List.drop 1)
+
           if PACKAGE.Darklang.Stdlib.List.length modules == 0 then
             PACKAGE.Darklang.Cli.showPackage owner
           else
