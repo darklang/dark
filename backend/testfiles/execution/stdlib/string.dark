@@ -51,42 +51,40 @@ module ToBytes =
   Bytes.length (String.toBytes_v0 "") = 0
 
 module StartsWith =
-  String.startsWith_v0 "a string" "a s" = true
-  String.startsWith_v0 "a string" " s" = false
-  String.startsWith_v0 "żółw" "żó" = true
-  String.startsWith_v0 "żółw" "r22" = false
-  String.startsWith_v0 "👩🏻‍🚀🍇" "🍇" = false
-  String.startsWith_v0 "123456" "123" = true
-  String.startsWith_v0 "" "" = true
-  String.startsWith_v0 "E" "\u0014\u0004" = false
-  String.startsWith_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏾‍🦰" = false
-  String.startsWith_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚" = true
-  String.startsWith_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" = true
-  String.startsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏿" = false
-  String.startsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = false
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "a string" "a s" = true
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "a string" " s" = false
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "żółw" "żó" = true
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "żółw" "r22" = false
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "👩🏻‍🚀🍇" "🍇" = false
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "123456" "123" = true
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "" "" = true
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "E" "\u0014\u0004" = false
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏾‍🦰" = false
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚" = true
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" = true
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏿" = false
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = false
 
-  String.startsWith_v0
-    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️" = true
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️" = true
 
-  String.startsWith_v0 "a string" "" = true
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "a string" "" = true
 
 module EndsWith =
-  String.endsWith_v0 "a string" "in" = false
-  String.endsWith_v0 "a string" "ing" = true
-  String.endsWith_v0 "a string" "" = true
-  String.endsWith_v0 "żółw" "żó" = false
-  String.endsWith_v0 "żółw" "łw" = true
-  String.endsWith_v0 "👩🏻‍🚀🍇" "🍇" = true
-  String.endsWith_v0 "123456" "56" = true
-  String.endsWith_v0 "" "" = true
-  String.endsWith_v0 "E" "\u0014\u0004" = false
-  String.endsWith_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "✋✋🏿✋🏿" = false
-  String.endsWith_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ǧ̗͚̚o̙̔ͮ̇͐̇" = true
-  String.endsWith_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "12xsd" = false
-  String.endsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "﷽" = false
-  String.endsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♀️" = false
-  String.endsWith_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "‍⚧️‍️🇵🇷" = true
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "a string" "in" = false
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "a string" "ing" = true
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "a string" "" = true
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "żółw" "żó" = false
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "żółw" "łw" = true
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "👩🏻‍🚀🍇" "🍇" = true
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "123456" "56" = true
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "" "" = true
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "E" "\u0014\u0004" = false
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "✋✋🏿✋🏿" = false
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ǧ̗͚̚o̙̔ͮ̇͐̇" = true
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "12xsd" = false
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "﷽" = false
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♀️" = false
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🏳️‍⚧️‍️🇵🇷" = true
 
 
 module Map =
@@ -106,12 +104,12 @@ module Map =
 
 
 module FromChar =
-  String.fromChar 'a' = "a"
-  String.fromChar (c "1") = "1"
-  String.fromChar (c "👩‍👩‍👧‍👦") = "👩‍👩‍👧‍👦"
-  String.fromChar (c "🏳️‍⚧️‍️") = "🏳️‍⚧️‍️"
-  String.fromChar (c "👱🏾") = "👱🏾"
-  String.fromChar (c "Z̤͔ͧ̑̓") = "Z̤͔ͧ̑̓"
+  PACKAGE.Darklang.Stdlib.String.fromChar 'a' = "a"
+  PACKAGE.Darklang.Stdlib.String.fromChar (c "1") = "1"
+  PACKAGE.Darklang.Stdlib.String.fromChar (c "👩‍👩‍👧‍👦") = "👩‍👩‍👧‍👦"
+  PACKAGE.Darklang.Stdlib.String.fromChar (c "🏳️‍⚧️‍️") = "🏳️‍⚧️‍️"
+  PACKAGE.Darklang.Stdlib.String.fromChar (c "👱🏾") = "👱🏾"
+  PACKAGE.Darklang.Stdlib.String.fromChar (c "Z̤͔ͧ̑̓") = "Z̤͔ͧ̑̓"
 
 
 
@@ -327,16 +325,18 @@ module Slugify =
 
 
 module FromList =
-  String.fromList [] = ""
-  String.fromList [ c "a" ] = "a"
-  String.fromList [ c "👩‍👩‍👧‍👦"; c "🏳️‍⚧️‍️"; c "👱🏾"; c "Z̤͔ͧ̑̓" ] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
+  PACKAGE.Darklang.Stdlib.String.fromList [] = ""
+  PACKAGE.Darklang.Stdlib.String.fromList [ c "a" ] = "a"
+
+  PACKAGE.Darklang.Stdlib.String.fromList
+    [ c "👩‍👩‍👧‍👦"; c "🏳️‍⚧️‍️"; c "👱🏾"; c "Z̤͔ͧ̑̓" ] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
 
   // CLEANUP when DList contains typeRef:
   //Test.runtimeError "In String.fromList's 1st argument (`l`), the value should be a List<Char>. However, a List<String> ([\"a\"]) was passed instead.\n\nExpected: List<Char>\nActual: a List<String>: [\"a\"]"
   // Note: the below error comes from the implementation itself, not normal typechecking,
   //   otherwise we could expect the message to include `[\"a\"] instead of `\"a\"`.
-  String.fromList [ "a" ] = Test.runtimeError
-    "Expected `l` to be a `List<Char>`, but it was `\"a\"`"
+  PACKAGE.Darklang.Stdlib.String.fromList [ "a" ] = Test.runtimeError
+    "Char.toString's 1st argument (`c`) should be a Char. However, a String (\"a\") was passed instead.\n\nExpected: (c: Char)\nActual: a String: \"a\""
 
 
 module ToList =
@@ -387,9 +387,12 @@ module ToList =
                                                 (c "✋🏻")
                                                 (c "✋🏿") ]
 
-  ("ab1" |> String.toList |> String.fromList) = "ab1"
-  ("@Ǣá1" |> String.toList |> String.fromList) = "@Ǣá1"
-  ("👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓" |> String.toList |> String.fromList) = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
+  ("ab1" |> String.toList |> PACKAGE.Darklang.Stdlib.String.fromList) = "ab1"
+  ("@Ǣá1" |> String.toList |> PACKAGE.Darklang.Stdlib.String.fromList) = "@Ǣá1"
+
+  ("👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
+   |> String.toList
+   |> PACKAGE.Darklang.Stdlib.String.fromList) = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
 
 
 module Split =
@@ -609,56 +612,56 @@ module Reverse =
 
 
 module DropFirst =
-  String.dropFirst_v0 "abcd" -3 = "abcd"
-  String.dropFirst_v0 "abcd" 0 = "abcd"
-  String.dropFirst_v0 "abcd" 3 = "d"
-  String.dropFirst_v0 "" 3 = ""
-  String.dropFirst_v0 "abcd" 3 = "d"
-  String.dropFirst_v0 "🍏🍒🍒" 1 = "🍒🍒"
-  String.dropFirst_v0 "🍏🍒🍍" 2 = "🍍"
-  String.dropFirst_v0 "🍏a🍒b🍍c" 2 = "🍒b🍍c"
-  String.dropFirst_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 5 = "🧑🏻‍🍼✋✋🏻✋🏿"
-  String.dropFirst_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 1 = "ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-  String.dropFirst_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-  String.dropFirst_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 3 = "ǧ̗͚̚o̙̔ͮ̇͐̇"
-  String.dropFirst_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 1 = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-  String.dropFirst_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 1 = "👱🏻👱🏼👱🏽👱🏾👱🏿"
-  String.dropFirst_v0 "🧟‍♀️🧟‍♂️" 20 = ""
-  String.dropFirst_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 3 = "🇵🇷"
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "abcd" -3 = "abcd"
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "abcd" 0 = "abcd"
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "abcd" 3 = "d"
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "" 3 = ""
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "abcd" 3 = "d"
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "🍏🍒🍒" 1 = "🍒🍒"
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "🍏🍒🍍" 2 = "🍍"
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "🍏a🍒b🍍c" 2 = "🍒b🍍c"
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 5 = "🧑🏻‍🍼✋✋🏻✋🏿"
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 1 = "ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 3 = "ǧ̗͚̚o̙̔ͮ̇͐̇"
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 1 = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 1 = "👱🏻👱🏼👱🏽👱🏾👱🏿"
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "🧟‍♀️🧟‍♂️" 20 = ""
+  PACKAGE.Darklang.Stdlib.String.dropFirst_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 3 = "🇵🇷"
 
 
 module DropLast =
-  String.dropLast_v0 "abcd" -3 = "abcd"
-  String.dropLast_v0 "abcd" 0 = "abcd"
-  String.dropLast_v0 "abcd" 3 = "a"
-  String.dropLast_v0 "" 3 = ""
-  String.dropLast_v0 "🍏🍒🍒" 1 = "🍏🍒"
-  String.dropLast_v0 "🍏🍒🍍" 2 = "🍏"
-  String.dropLast_v0 "🍏a🍒b🍍c" 2 = "🍏a🍒b"
-  String.dropLast_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ"
-  String.dropLast_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 10 = "﷽﷽﷽﷽﷽﷽"
-  String.dropLast_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 3 = "👱👱🏻👱🏼"
-  String.dropLast_v0 "🧟‍♀️🧟‍♂️" 20 = ""
-  String.dropLast_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 2 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦"
-  String.dropLast_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 4 = "żółw🧑🏽‍🦰"
+  PACKAGE.Darklang.Stdlib.String.dropLast_v0 "abcd" -3 = "abcd"
+  PACKAGE.Darklang.Stdlib.String.dropLast_v0 "abcd" 0 = "abcd"
+  PACKAGE.Darklang.Stdlib.String.dropLast_v0 "abcd" 3 = "a"
+  PACKAGE.Darklang.Stdlib.String.dropLast_v0 "" 3 = ""
+  PACKAGE.Darklang.Stdlib.String.dropLast_v0 "🍏🍒🍒" 1 = "🍏🍒"
+  PACKAGE.Darklang.Stdlib.String.dropLast_v0 "🍏🍒🍍" 2 = "🍏"
+  PACKAGE.Darklang.Stdlib.String.dropLast_v0 "🍏a🍒b🍍c" 2 = "🍏a🍒b"
+  PACKAGE.Darklang.Stdlib.String.dropLast_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ"
+  PACKAGE.Darklang.Stdlib.String.dropLast_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 10 = "﷽﷽﷽﷽﷽﷽"
+  PACKAGE.Darklang.Stdlib.String.dropLast_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 3 = "👱👱🏻👱🏼"
+  PACKAGE.Darklang.Stdlib.String.dropLast_v0 "🧟‍♀️🧟‍♂️" 20 = ""
+  PACKAGE.Darklang.Stdlib.String.dropLast_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 2 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦"
+  PACKAGE.Darklang.Stdlib.String.dropLast_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 4 = "żółw🧑🏽‍🦰"
 
 
 module Last =
-  String.last_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 4 = "🧑🏻‍🍼✋✋🏻✋🏿"
-  String.last_v0 "abcd" -3 = ""
-  String.last_v0 "abcd" 0 = ""
-  String.last_v0 "" 7 = ""
-  String.last_v0 "abcd" 1 = "d"
-  String.last_v0 "abcd" 2 = "cd"
-  String.last_v0 "abcd" 3 = "bcd"
-  String.last_v0 "🍍🍍🍏" 1 = "🍏"
-  String.last_v0 "🍊🍍🍏" 2 = "🍍🍏"
-  String.last_v0 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿🧑🏻‍🍼" 1 = "🧑🏻‍🍼"
-  String.last_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "ǧ̗͚̚o̙̔ͮ̇͐̇"
-  String.last_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 2 = "﷽﷽"
-  String.last_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 3 = "👱🏽👱🏾👱🏿"
-  String.last_v0 "🧟‍♀️🧟‍♂️" 1 = "🧟‍♂️"
-  String.last_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 1 = "🇵🇷"
+  PACKAGE.Darklang.Stdlib.String.last_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 4 = "🧑🏻‍🍼✋✋🏻✋🏿"
+  PACKAGE.Darklang.Stdlib.String.last_v0 "abcd" -3 = ""
+  PACKAGE.Darklang.Stdlib.String.last_v0 "abcd" 0 = ""
+  PACKAGE.Darklang.Stdlib.String.last_v0 "" 7 = ""
+  PACKAGE.Darklang.Stdlib.String.last_v0 "abcd" 1 = "d"
+  PACKAGE.Darklang.Stdlib.String.last_v0 "abcd" 2 = "cd"
+  PACKAGE.Darklang.Stdlib.String.last_v0 "abcd" 3 = "bcd"
+  PACKAGE.Darklang.Stdlib.String.last_v0 "🍍🍍🍏" 1 = "🍏"
+  PACKAGE.Darklang.Stdlib.String.last_v0 "🍊🍍🍏" 2 = "🍍🍏"
+  PACKAGE.Darklang.Stdlib.String.last_v0 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿🧑🏻‍🍼" 1 = "🧑🏻‍🍼"
+  PACKAGE.Darklang.Stdlib.String.last_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "ǧ̗͚̚o̙̔ͮ̇͐̇"
+  PACKAGE.Darklang.Stdlib.String.last_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 2 = "﷽﷽"
+  PACKAGE.Darklang.Stdlib.String.last_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 3 = "👱🏽👱🏾👱🏿"
+  PACKAGE.Darklang.Stdlib.String.last_v0 "🧟‍♀️🧟‍♂️" 1 = "🧟‍♂️"
+  PACKAGE.Darklang.Stdlib.String.last_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 1 = "🇵🇷"
 
 
 module Contains =
@@ -692,102 +695,102 @@ module Slice =
 
 
 module First =
-  String.first_v0 "abcd" -3 = ""
-  String.first_v0 "abcd" 0 = ""
-  String.first_v0 "abcd" 1 = "a"
-  String.first_v0 "abcd" 2 = "ab"
-  String.first_v0 "abcd" 3 = "abc"
-  String.first_v0 "abcd" 3000000000000000L = "abcd"
-  String.first_v0 "" 7 = ""
-  String.first_v0 "🍊🍍🍏" 1 = "🍊"
-  String.first_v0 "🍊🍍🍏" 2 = "🍊🍍"
-  String.first_v0 "🍊🍍🍏" 3 = "🍊🍍🍏"
-  String.first_v0 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 1 = "🧑🏽‍🦰"
-  String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 10 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-  String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "Z̤͔ͧ̑̓ä͖̭̈̇"
-  String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 3 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ"
-  String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 4 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚"
-  String.first_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 1 = "﷽"
-  String.first_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 2 = "👱👱🏻"
-  String.first_v0 "🧟‍♀️🧟‍♂️" 1 = "🧟‍♀️"
-  String.first_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 3 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "abcd" -3 = ""
+  PACKAGE.Darklang.Stdlib.String.first_v0 "abcd" 0 = ""
+  PACKAGE.Darklang.Stdlib.String.first_v0 "abcd" 1 = "a"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "abcd" 2 = "ab"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "abcd" 3 = "abc"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "abcd" 3000000000000000L = "abcd"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "" 7 = ""
+  PACKAGE.Darklang.Stdlib.String.first_v0 "🍊🍍🍏" 1 = "🍊"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "🍊🍍🍏" 2 = "🍊🍍"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "🍊🍍🍏" 3 = "🍊🍍🍏"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 1 = "🧑🏽‍🦰"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 10 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2 = "Z̤͔ͧ̑̓ä͖̭̈̇"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 3 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 4 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 1 = "﷽"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 2 = "👱👱🏻"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "🧟‍♀️🧟‍♂️" 1 = "🧟‍♀️"
+  PACKAGE.Darklang.Stdlib.String.first_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 3 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️"
 
 
 module PadStart =
-  String.padStart_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
-  String.padStart_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
 
-  String.padStart_v0 "123" "_-" 4 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "123" "_-" 4 = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
 
-  String.padStart_v0 "123" "" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "123" "" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Expected `padWith` to be 1 character long, but it was `\"\"`"
 
-  String.padStart_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "000123"
-  String.padStart_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "000123"
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
 
-  String.padStart_v0 "123🍊🍊" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "123🍊🍊" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "123🍊🍊"
 
-  String.padStart_v0 "🍍🍍🍊🍊" "0" 7 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "🍍🍍🍊🍊" "0" 7 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "000🍍🍍🍊🍊"
 
-  String.padStart_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "0żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
 
-  String.padStart_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "00000Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
 
-  String.padStart_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "0000﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
 
-  String.padStart_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "0000👱👱🏻👱🏼👱🏽👱🏾👱🏿"
 
-  String.padStart_v0 "🧟‍♀️🧟‍♂️" "0" 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "🧟‍♀️🧟‍♂️" "0" 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "000🧟‍♀️🧟‍♂️"
 
-  String.padStart_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "000000👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"
 
-  String.padStart_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "鷝"
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "鷝"
 
 
 module PadEnd =
-  String.padEnd_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
-  String.padEnd_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
 
-  String.padEnd_v0 "123" "_-" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "123" "_-" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
 
-  String.padEnd_v0 "123" "" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "123" "" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Expected `padWith` to be 1 character long, but it was `\"\"`"
 
-  String.padEnd_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123000"
-  String.padEnd_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123000"
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
 
-  String.padEnd_v0 "123🍊🍊" "0" 8 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "123🍊🍊" "0" 8 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "123🍊🍊000"
 
-  String.padEnd_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿0"
 
-  String.padEnd_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇00000"
 
-  String.padEnd_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽0000"
 
-  String.padEnd_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "👱👱🏻👱🏼👱🏽👱🏾👱🏿0000"
 
-  String.padEnd_v0 "🧟‍♀️🧟‍♂️" "0" 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "🧟‍♀️🧟‍♂️" "0" 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "🧟‍♀️🧟‍♂️000"
 
-  String.padEnd_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷000000"
 
-  String.padEnd_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "鷝"
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "鷝"
 
 
 module IndexOf =

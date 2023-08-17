@@ -17,7 +17,7 @@ let main () : Int =
     (Directory.list "containers")
     |> List.map (fun directory -> Directory.list directory)
     |> PACKAGE.Darklang.Stdlib.List.flatten
-    |> List.filter (fun filePath -> String.endsWith filePath "Dockerfile")
+    |> List.filter (fun filePath -> PACKAGE.Darklang.Stdlib.String.endsWith filePath "Dockerfile")
 
   let imageIds =
     dockerfiles

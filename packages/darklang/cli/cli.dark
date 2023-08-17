@@ -170,7 +170,7 @@ module Darklang =
       | [ "--help" ] -> PACKAGE.Darklang.Cli.Command.Help
       | [ "--prompt"; prompt ] -> PACKAGE.Darklang.Cli.Command.Infer prompt
       | [ "show"; fnName ] ->
-        if String.startsWith fnName "@" then
+        if PACKAGE.Darklang.Stdlib.String.startsWith fnName "@" then
           PACKAGE.Darklang.Cli.Command.Show fnName
         else
           PACKAGE.Darklang.Cli.Command.Invalid [ "Invalid package name" ]
@@ -214,7 +214,7 @@ Options:
 
       | Show(name) ->
 
-        let fullName = name |> String.dropFirst_v0 1
+        let fullName = name |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1
 
         let owner =
           fullName |> String.split "." |> PACKAGE.Darklang.Stdlib.List.head |> unwrap
@@ -227,7 +227,7 @@ Options:
 
         let name =
           name
-          |> String.dropFirst_v0 1
+          |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1
           |> String.split "."
           |> PACKAGE.Darklang.Stdlib.List.last
           |> unwrap
