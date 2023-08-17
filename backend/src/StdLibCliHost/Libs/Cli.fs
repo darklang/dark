@@ -229,10 +229,9 @@ let fns : List<BuiltInFn> =
                         (fun (typ, (str : string)) ->
                           uply {
                             let str =
-                              if str.StartsWith("\"") && str.EndsWith("\"") then
-                                str
-                              else
-                                $"\"{str}\""
+                              if str.StartsWith("\"") && str.EndsWith("\"") then str
+                              else if typ = TString then $"\"{str}\""
+                              else str
 
                             match! Json.parse types typ str with
                             | Ok v -> return v
