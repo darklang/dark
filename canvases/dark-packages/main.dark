@@ -175,21 +175,10 @@ let _handler _req =
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
 
-[<HttpHandler("GET", "/packages/:owner")>]
+[<HttpHandler("GET", "/owner/:owner")>]
 let _handler _req =
-
-  let types =
-    (DB.getAll PackageTypeDB) |> List.filter (fun t -> t.name.owner == owner)
-
-  let fns = (DB.getAll PackageFnDB) |> List.filter (fun f -> f.name.owner == owner)
-
-  let constants =
-    (DB.getAll PackageConstantDB) |> List.filter (fun c -> c.name.owner == owner)
-
-  let all = DB.getAll NamesDB
-
   let allItems =
-    all
+    (DB.getAll NamesDB)
     |> List.filter (fun item -> item.owner == owner)
     |> List.map (fun i -> (i.owner, i.modules |> String.join ".", i.name))
     |> List.map (fun m ->

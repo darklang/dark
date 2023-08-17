@@ -211,7 +211,7 @@ module Darklang =
       let packages =
         CLI.HttpClient.request
           "GET"
-          ("http://dark-packages.dlio.localhost:11003/packages/" ++ owner)
+          ("http://dark-packages.dlio.localhost:11003/owner/" ++ owner)
           []
           Bytes.empty
 
@@ -230,7 +230,7 @@ module Darklang =
 
           0
         else
-          print "Error getting package packages"
+          print "Error retrieving the package for the specified owner"
           1
 
       parsedPackages
