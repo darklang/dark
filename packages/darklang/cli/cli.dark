@@ -236,11 +236,7 @@ module Darklang =
 
       parsedPackages
     let runFunction (fnName: String) (args: List<String>) : Int =
-      let fn = fnName |> String.dropFirst_v0 1 |> String.split "."
-      let name = fnName |> String.dropFirst_v0 1
-      let executeFn = Cli.executeFunction name args
-
-      match executeFn with
+      match Cli.executeFunction fnName args with
       | Ok result ->
         print result
         0
@@ -262,7 +258,8 @@ module Darklang =
 
       | opt :: args ->
         if String.startsWith opt "@" then
-          PACKAGE.Darklang.Cli.Command.RunFunction opt args
+          let name = opt |> String.dropFirst_v0 1
+          PACKAGE.Darklang.Cli.Command.RunFunction name args
         else
           PACKAGE.Darklang.Cli.Command.RunScript(opt, args)
       | _ -> PACKAGE.Darklang.Cli.Command.Invalid [ "Invalid arguments" ]
