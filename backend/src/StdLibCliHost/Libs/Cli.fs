@@ -186,10 +186,10 @@ let fns : List<BuiltInFn> =
                   []
                   (WT.Unresolved name)
 
-              match fnName with
-              | Ok fnName ->
+              match fnName, args with
+              | Ok fnName, firstArg :: additionalArgs ->
                 match
-                  NEList.find Dval.isFake (NEList.ofList args.Head args.Tail)
+                  NEList.find Dval.isFake (NEList.ofList firstArg additionalArgs)
                 with
                 | Some fakeArg -> return fakeArg
                 | None ->
@@ -212,22 +212,21 @@ let fns : List<BuiltInFn> =
                   | Some f ->
                     let types = RT.ExecutionState.availableTypes state
 
-                    let expectedType =
-                      List.append
-                        [ f.parameters.head.typ ]
-                        (f.parameters.tail |> List.map (fun p -> p.typ))
+                    let expectedTypes = (NEList.toList f.parameters) |> List.map (fun p -> p.typ)
 
                     let stringArgs =
                       args
                       |> List.map (fun arg ->
                         match arg with
                         | DString s -> s
-                        | e -> $"Expected string, got {e}")
+                        | e -> Exception.raiseInternal "Expected string" [ "arg", e ])
 
                     let! args =
                       Ply.List.mapSequentially
                         (fun (typ, (str : string)) ->
                           uply {
+                            // Quote the string only if it's of type TString and isn't already quoted.
+                            // Leave it unquoted for other types or if it's already quoted.
                             let str =
                               if str.StartsWith("\"") && str.EndsWith("\"") then str
                               else if typ = TString then $"\"{str}\""
@@ -237,7 +236,7 @@ let fns : List<BuiltInFn> =
                             | Ok v -> return v
                             | Error e -> return (DString e)
                           })
-                        (List.zip expectedType stringArgs)
+                        (List.zip expectedTypes stringArgs)
 
                     let! result =
                       Exe.executeFunction
@@ -251,7 +250,7 @@ let fns : List<BuiltInFn> =
                     | value ->
                       let asString = LibExecution.DvalReprDeveloper.toRepr value
                       return Dval.resultOk (DString asString)
-              | Error e -> return (DString $"Error: {e}")
+              | _ -> return incorrectArgs ()
             with e ->
               return exnError e
           }
