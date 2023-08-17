@@ -4,7 +4,7 @@
 
 module Darklang =
   module PrettyPrinter =
-    let canvas (c: PACKAGE.Darklang.Stdlib.Canvas.T) : String =
+    let canvas (c: PACKAGE.Darklang.Canvas.Program) : String =
       // need to look at the names of all types and functions,
       // and figure out module tree before actually printing stuff
       "TODO"

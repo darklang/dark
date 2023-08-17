@@ -7,4 +7,4 @@ module Darklang =
           | NoExpressionsToExecute
           | UncaughtException of String * List<String * String>
           | NonIntReturned of
-            actuallyReturned: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
+            actuallyReturned: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval

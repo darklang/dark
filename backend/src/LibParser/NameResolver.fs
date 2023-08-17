@@ -295,7 +295,10 @@ let resolve
       if not allowError then
         Exception.raiseInternal
           "Unresolved name when not allowed"
-          [ "namesToTry", namesToTry; "error", err; "given", given ]
+          [ "namesToTry", namesToTry
+            "error", err
+            "given", given
+            "currentModule", currentModule ]
       else
         Error err
 

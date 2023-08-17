@@ -20,7 +20,9 @@ let builtIns : RT.BuiltIns =
       [ StdLibExecution.StdLib.contents
         StdLibCli.StdLib.contents
         StdLib.contents
-        StdLibCloudExecution.StdLib.contents ]
+        StdLibCliHost.StdLib.contents
+        StdLibCloudExecution.StdLib.contents
+        TestUtils.LibTest.contents ]
       []
       []
   { types = types |> Map.fromListBy (fun typ -> typ.name)

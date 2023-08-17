@@ -29,7 +29,7 @@ module Darklang =
             PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName
           | TypeReference of
             PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
-          | TypeOfValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
+          | TypeOfValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval
           | FieldName of String // records and enums
           | InlineFieldName of String // records and enums
 
@@ -39,8 +39,8 @@ module Darklang =
           | InlineVarName of String
 
           // -- Dvals
-          | InlineValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval // possibly shortened to be shown inline
-          | FullValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
+          | InlineValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval // possibly shortened to be shown inline
+          | FullValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval
 
         let toString (list: List<ErrorSegment>) : String =
           list
@@ -58,17 +58,17 @@ module Darklang =
                 //   | Some prev -> String.articleFor prev ++ " "
                 // | FunctionName fn -> FnName.toString fn
                 | Description d -> d
-                | ParamName p -> "`" ++ p ++ "`"
+                | ParamName p -> $"`{p}`"
                 // Inline versions don't have quotes
                 | InlineParamName p -> p
                 // | TypeName t -> TypeName.toString t
                 // | ShortTypeName t -> TypeName.toShortName t
                 // | TypeReference t -> DvalReprDeveloper.typeName t
                 // | TypeOfValue dv -> dv |> DvalReprDeveloper.toTypeName
-                | FieldName f -> "`" ++ f ++ "`"
+                | FieldName f -> $"`{f}`"
                 | InlineFieldName f -> f
                 | DBName db -> db
-                | VarName v -> "`" ++ v ++ "`"
+                | VarName v -> $"`{v}`"
                 | InlineVarName v -> v
                 // | InlineValue dv ->
                 //   (DvalReprDeveloper.toRepr dv)
@@ -82,9 +82,6 @@ module Darklang =
               PACKAGE.Darklang.Stdlib.List.push prevSegments newSegment)
             []
           |> String.join ""
-
-
-
 
 
 
@@ -176,13 +173,16 @@ module Darklang =
 
         let toString (e: Error) : String =
           let s = toSegments e
-          let explanation = ErrorSegment.toString (s.summary @ s.extraExplanation)
-          let actual = ErrorSegment.toString s.actual
-          let actual = if actual = "" then "" else "\nActual: " ++ actual
-          let expected = ErrorSegment.toString s.expected
-          let expected = if expected = "" then "" else "\nExpected: " ++ expected
 
-          if actual = "" && expected = "" then
+          let explanation =
+            ErrorSegment.toString (List.append s.summary s.extraExplanation)
+
+          let actual = ErrorSegment.toString s.actual
+          let actual = if actual == "" then "" else $"\nActual: {actual}"
+          let expected = ErrorSegment.toString s.expected
+          let expected = if expected == "" then "" else $"\nExpected: {expected}"
+
+          if actual == "" && expected == "" then
             explanation
           else
             $"{explanation}\n{expected}{actual}"

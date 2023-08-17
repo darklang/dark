@@ -3,8 +3,6 @@ module Darklang =
     module RuntimeTypes =
       // <aliases>
       type Option = PACKAGE.Darklang.Stdlib.Option.Option
-      type ID = PACKAGE.Darklang.LanguageTools.ID
-      type TLID = PACKAGE.Darklang.LanguageTools.TLID
       // </aliases>
 
       module FQName =
@@ -35,29 +33,29 @@ module Darklang =
         type NamePrinter<'name> = 'name -> String
 
 
-        let builtinToString (s: BuiltIn<'name>) (f: NamePrinter<'name>) : String =
-          let name = (List.append s.modules [ f s.name ]) |> String.join "."
-          if s.version = 0 then name else $"{name}_v{s.version}"
+      // let builtinToString (s: BuiltIn<'name>) (f: NamePrinter<'name>) : String =
+      //   let name = (List.append s.modules [ (f s.name) ]) |> String.join "."
+      //   if s.version = 0 then name else $"{name}_v{s.version}"
 
-        let userProgramToString
-          (s: UserProgram<'name>)
-          (f: NamePrinter<'name>)
-          : String =
-          let name = (List.append s.modules [ f s.name ]) |> String.join "."
-          if s.version = 0 then name else $"{name}_v{s.version}"
+      // let userProgramToString
+      //   (s: UserProgram<'name>)
+      //   (f: NamePrinter<'name>)
+      //   : String =
+      //   let name = (List.append s.modules [ (f s.name) ]) |> String.join "."
+      //   if s.version = 0 then name else $"{name}_v{s.version}"
 
-        let packageToString (s: Package<'name>) (f: NamePrinter<'name>) : String =
-          let name =
-            (List.flatten [ "PACKAGE"; s.owner ] s.modules [ f s.name ])
-            |> String.join "."
+      // let packageToString (s: Package<'name>) (f: NamePrinter<'name>) : String =
+      //   let name =
+      //     (List.flatten [ "PACKAGE"; s.owner ] s.modules [ f s.name ])
+      //     |> String.join "."
 
-          if s.version = 0 then name else $"{name}_v{s.version}"
+      //   if s.version = 0 then name else $"{name}_v{s.version}"
 
-        let toString (name: FQName<'name>) (f: NamePrinter<'name>) : String =
-          match name with
-          | BuiltIn b -> builtinToString b f
-          | UserProgram user -> userProgramToString user f
-          | Package pkg -> packageToString pkg f
+      // let toString (name: FQName<'name>) (f: NamePrinter<'name>) : String =
+      //   match name with
+      //   | BuiltIn b -> builtinToString b f
+      //   | UserProgram user -> userProgramToString user f
+      //   | Package pkg -> packageToString pkg f
 
 
 
@@ -121,7 +119,7 @@ module Darklang =
       module ConstantName =
         type Name = ConstantName of String
 
-        type ConstantName = FQName.FQName<ConstantName.Name>
+        type ConstantName = FQName.FQName<Name>
 
         type BuiltIn = FQName.BuiltIn<Name>
         type UserProgram = FQName.UserProgram<Name>
@@ -329,7 +327,7 @@ module Darklang =
 
       // module UserType =
       //   type T =
-      //     { tlid : tlid; name : TypeName.UserProgram; declaration : TypeDeclaration.T }
+      //     { tlid : tlid; name : TypeName.UserProgram; declaration : TypeDeclaration.TypeDeclaration }
 
       // module UserConstant =
       //   type T = { tlid : tlid; name : ConstantName.UserProgram; body : Dval }
@@ -347,10 +345,10 @@ module Darklang =
 
       // module Toplevel =
       //   type T =
-      //     | TLHandler of Handler.T
-      //     | TLDB of DB.T
-      //     | TLFunction of UserFunction.T
-      //     | TLType of UserType.T
+      //     | TLHandler of Handler.Handler
+      //     | TLDB of DB
+      //     | TLFunction of UserFunction.UserFunction
+      //     | TLType of UserType
       //     | TLConstant of UserConstant.T
 
       //   let toTLID (tl : T) : tlid =
@@ -381,7 +379,7 @@ module Darklang =
       //       body : Expr }
 
       // module PackageType =
-      //   type T = { name : TypeName.Package; declaration : TypeDeclaration.T }
+      //   type T = { name : TypeName.Package; declaration : TypeDeclaration.TypeDeclaration }
 
       // module PackageConstant =
       //   type T = { name : ConstantName.Package; body : Dval }
@@ -413,7 +411,7 @@ module Darklang =
       // // A built-in standard library type
       // type BuiltInType =
       //   { name : TypeName.BuiltIn
-      //     declaration : TypeDeclaration.T
+      //     declaration : TypeDeclaration.TypeDeclaration
       //     // description and deprecated are here because they're not needed in
       //     // TypeDeclaration for Package and UserProgram types, where we have them in
       //     // ProgramTypes and don't propagate them to RuntimeTypes
@@ -485,9 +483,9 @@ module Darklang =
       // and Program =
       //   { canvasID : CanvasID
       //     internalFnsAllowed : Bool // whether this canvas is allowed call internal functions
-      //     dbs : Map<String, DB.T>
-      //     fns : Map<FnName.UserProgram, UserFunction.T>
-      //     types : Map<TypeName.UserProgram, UserType.T>
+      //     dbs : Map<String, DB>
+      //     fns : Map<FnName.UserProgram, UserFunction.UserFunction>
+      //     types : Map<TypeName.UserProgram, UserType>
       //     constants : Map<ConstantName.UserProgram, UserConstant.T>
       //     secrets : List<Secret.T> }
 
@@ -515,9 +513,9 @@ module Darklang =
 
       // // Functionality written in Dark stored and managed outside of user space
       // and PackageManager =
-      //   { getType : TypeName.Package -> Ply<Option<PackageType.T>>
-      //     getFn : FnName.Package -> Ply<Option<PackageFn.T>>
-      //     getConstant : ConstantName.Package -> Ply<Option<PackageConstant.T>>
+      //   { getType : TypeName.Package -> Ply<Option<PackageType>>
+      //     getFn : FnName.Package -> Ply<Option<PackageFn.PackageFn>>
+      //     getConstant : ConstantName.Package -> Ply<Option<PackageConstant>>
       //     init : Ply<unit> }
 
       //   static member Empty =
@@ -571,7 +569,7 @@ module Darklang =
 
       // and Types =
       //   { builtIn : Map<TypeName.BuiltIn, BuiltInType>
-      //     package : TypeName.Package -> Ply<Option<PackageType.T>>
-      //     userProgram : Map<TypeName.UserProgram, UserType.T> }
+      //     package : TypeName.Package -> Ply<Option<PackageType>>
+      //     userProgram : Map<TypeName.UserProgram, UserType> }
 
       let x = 1
