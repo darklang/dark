@@ -212,14 +212,16 @@ let fns : List<BuiltInFn> =
                   | Some f ->
                     let types = RT.ExecutionState.availableTypes state
 
-                    let expectedTypes = (NEList.toList f.parameters) |> List.map (fun p -> p.typ)
+                    let expectedTypes =
+                      (NEList.toList f.parameters) |> List.map (fun p -> p.typ)
 
                     let stringArgs =
                       args
                       |> List.map (fun arg ->
                         match arg with
                         | DString s -> s
-                        | e -> Exception.raiseInternal "Expected string" [ "arg", e ])
+                        | e ->
+                          Exception.raiseInternal "Expected string" [ "arg", e ])
 
                     let! args =
                       Ply.List.mapSequentially

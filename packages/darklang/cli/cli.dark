@@ -235,6 +235,7 @@ module Darklang =
           1
 
       parsedPackages
+
     let runFunction (fnName: String) (args: List<String>) : Int =
       match Cli.executeFunction fnName args with
       | Ok result ->
