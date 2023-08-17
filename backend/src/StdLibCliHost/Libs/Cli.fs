@@ -227,8 +227,8 @@ let fns : List<BuiltInFn> =
                       Ply.List.mapSequentially
                         (fun (typ, (str : string)) ->
                           uply {
-                            // Quote the string only if it's of type TString and isn't already quoted.
-                            // Leave it unquoted for other types or if it's already quoted.
+                            // Quote the string only if it's of type String and isn't already quoted.
+                            // Leave it unquoted for other types.
                             let str =
                               if str.StartsWith("\"") && str.EndsWith("\"") then str
                               else if typ = TString then $"\"{str}\""
