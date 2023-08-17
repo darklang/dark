@@ -226,12 +226,13 @@ let fns : List<BuiltInFn> =
 
                     let! args =
                       Ply.List.mapSequentially
-                        (fun (typ, str) ->
+                        (fun (typ, (str : string)) ->
                           uply {
                             let str =
-                              if typ = TString then $"\"{str}\""
-                              else if typ = TDict TString then $"\"\"\"{str}\"\"\""
-                              else str
+                              if str.StartsWith("\"") && str.EndsWith("\"") then
+                                str
+                              else
+                                $"\"{str}\""
 
                             match! Json.parse types typ str with
                             | Ok v -> return v
