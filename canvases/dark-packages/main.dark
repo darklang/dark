@@ -181,7 +181,7 @@ let _handler _req =
     (DB.getAll NamesDB)
     |> List.filter (fun item -> item.owner == owner)
     |> List.map (fun i -> (i.owner, i.modules |> String.join ".", i.name))
-     |> List.map (fun m ->
+    |> List.map (fun m ->
       let (owner, modules, name) = m
       $"{owner}.{modules}.{name}")
     |> List.sort
