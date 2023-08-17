@@ -164,6 +164,77 @@ module Darklang =
         result
 
 
+    let showModule (name: String) : Int =
+      let modules =
+        CLI.HttpClient.request
+          "GET"
+          ("http://dark-packages.dlio.localhost:11003/modules/" ++ name)
+          []
+          Bytes.empty
+
+      let statusCode =
+        modules
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+        |> unwrap
+
+      let parsedModules =
+        if statusCode == 200 then
+          modules
+          |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+          |> unwrap
+          |> String.fromBytes
+          |> Json.parse<PACKAGE.Darklang.Stdlib.Packages>
+          |> unwrap
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Some
+        else
+          PACKAGE.Darklang.Stdlib.Option.Option.None
+
+
+      match parsedModules with
+      | None ->
+        print "Error getting package modules"
+        1
+      | Some modules ->
+        if
+          modules
+          == PACKAGE.Darklang.Stdlib.Packages
+            { types = []; fns = []; constants = [] }
+        then
+          print "module not found"
+          1
+        else
+          let result = modules |> PACKAGE.Darklang.PrettyPrinter.packages
+          print result
+          0
+
+    let showPackage (owner: String) : Int =
+      let packages =
+        CLI.HttpClient.request
+          "GET"
+          ("http://dark-packages.dlio.localhost:11003/owner/" ++ owner)
+          []
+          Bytes.empty
+
+      let statusCode =
+        packages
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+        |> unwrap
+
+      let parsedPackages =
+        if statusCode == 200 then
+          packages
+          |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+          |> unwrap
+          |> String.fromBytes
+          |> print
+
+          0
+        else
+          print "Error retrieving the package for the specified owner"
+          1
+
+      parsedPackages
+
     let parseArguments (args: List<String>) : PACKAGE.Darklang.Cli.Command =
       match args with
       | [ "-h" ] -> PACKAGE.Darklang.Cli.Command.Help
@@ -258,9 +329,13 @@ Options:
         | "type" -> PACKAGE.Darklang.Cli.showType name owner modules
         | "constant" -> PACKAGE.Darklang.Cli.showConstant name owner modules
         | _ ->
-          print "Not found"
-          1
+          let modules =
+            fullName |> String.split "." |> (PACKAGE.Darklang.Stdlib.List.drop 1)
 
+          if PACKAGE.Darklang.Stdlib.List.length modules == 0 then
+            PACKAGE.Darklang.Cli.showPackage owner
+          else
+            PACKAGE.Darklang.Cli.showModule fullName
 
 
       | Infer(prompt, scriptPath) ->
