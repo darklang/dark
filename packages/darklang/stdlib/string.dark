@@ -32,12 +32,9 @@ module Darklang =
       /// If <param characterCount> is negative, returns the empty string."
 
       let first (string: String) (characterCount: Int) : String =
-        if characterCount < 0 then
-          ""
-        else if characterCount > String.length string then
-          string
-        else
-          String.slice_v0 string 0 characterCount
+        if characterCount < 0 then ""
+        else if characterCount > String.length string then string
+        else String.slice_v0 string 0 characterCount
 
 
       /// Returns the last <param characterCount> characters of <param string>, as a String.
@@ -49,7 +46,10 @@ module Darklang =
         else if characterCount > String.length string then
           string
         else
-          String.slice_v0 string (String.length string - characterCount) (String.length string)
+          String.slice_v0
+            string
+            (String.length string - characterCount)
+            (String.length string)
 
       /// Returns all but the last <param characterCount> characters of <param string>, as a String.
       /// If <param characterCount> is longer than <param string>, returns the empty string.
@@ -79,7 +79,7 @@ module Darklang =
         if count <= 0 then
           ""
         else
-          string ++ PACKAGE.Darklang.Stdlib.String.repeat string (count-1)
+          string ++ PACKAGE.Darklang.Stdlib.String.repeat string (count - 1)
 
 
       /// If <param string> is shorter than <param goalLength> characters, returns a
@@ -87,32 +87,40 @@ module Darklang =
       /// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
       /// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>
 
-      let padStart (string: String) (padWith: String) (goalLength: Int) : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
+      let padStart
+        (string: String)
+        (padWith: String)
+        (goalLength: Int)
+        : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
         if String.length padWith != 1 then
-            PACKAGE.Darklang.Stdlib.Result.Result.Error $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
+          PACKAGE.Darklang.Stdlib.Result.Result.Error
+            $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
+        else if String.length string >= goalLength then
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok string
         else
-          if String.length string >= goalLength then
-            PACKAGE.Darklang.Stdlib.Result.Result.Ok string
-          else
-              let padCount = goalLength - String.length string
-              let pad = PACKAGE.Darklang.Stdlib.String.repeat padWith padCount
-              PACKAGE.Darklang.Stdlib.Result.Result.Ok (pad ++ string)
+          let padCount = goalLength - String.length string
+          let pad = PACKAGE.Darklang.Stdlib.String.repeat padWith padCount
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(pad ++ string)
 
 
       /// If <param string> is shorter than <param goalLength> characters, returns a
       /// copy of <param string> ending with enough copies of <param padWith> for the
       /// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
       /// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>.
-      let padEnd (string: String) (padWith: String) (goalLength: Int) : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
+      let padEnd
+        (string: String)
+        (padWith: String)
+        (goalLength: Int)
+        : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
         if String.length padWith != 1 then
-            PACKAGE.Darklang.Stdlib.Result.Result.Error $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
+          PACKAGE.Darklang.Stdlib.Result.Result.Error
+            $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
+        else if String.length string >= goalLength then
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok string
         else
-          if String.length string >= goalLength then
-            PACKAGE.Darklang.Stdlib.Result.Result.Ok string
-          else
-              let padCount = goalLength - String.length string
-              let pad = PACKAGE.Darklang.Stdlib.String.repeat padWith padCount
-              PACKAGE.Darklang.Stdlib.Result.Result.Ok (string ++ pad)
+          let padCount = goalLength - String.length string
+          let pad = PACKAGE.Darklang.Stdlib.String.repeat padWith padCount
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(string ++ pad)
 
 
       /// Checks if <param subject> starts with <param prefix>
@@ -122,4 +130,8 @@ module Darklang =
 
       /// Checks if <param subject> ends with <param suffix>
       let endsWith (subject: String) (suffix: String) : Bool =
-        String.slice_v0 subject (String.length subject - String.length suffix) (String.length subject) == suffix
+        String.slice_v0
+          subject
+          (String.length subject - String.length suffix)
+          (String.length subject)
+        == suffix

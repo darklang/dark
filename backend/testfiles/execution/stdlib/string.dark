@@ -59,13 +59,22 @@ module StartsWith =
   PACKAGE.Darklang.Stdlib.String.startsWith_v0 "123456" "123" = true
   PACKAGE.Darklang.Stdlib.String.startsWith_v0 "" "" = true
   PACKAGE.Darklang.Stdlib.String.startsWith_v0 "E" "\u0014\u0004" = false
-  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏾‍🦰" = false
-  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚" = true
+
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0
+    "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿"
+    "🧑🏾‍🦰" = false
+
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0
+    "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+    "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚" = true
+
   PACKAGE.Darklang.Stdlib.String.startsWith_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" = true
   PACKAGE.Darklang.Stdlib.String.startsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏿" = false
   PACKAGE.Darklang.Stdlib.String.startsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = false
 
-  PACKAGE.Darklang.Stdlib.String.startsWith_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️" = true
+  PACKAGE.Darklang.Stdlib.String.startsWith_v0
+    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️" = true
 
   PACKAGE.Darklang.Stdlib.String.startsWith_v0 "a string" "" = true
 
@@ -80,11 +89,18 @@ module EndsWith =
   PACKAGE.Darklang.Stdlib.String.endsWith_v0 "" "" = true
   PACKAGE.Darklang.Stdlib.String.endsWith_v0 "E" "\u0014\u0004" = false
   PACKAGE.Darklang.Stdlib.String.endsWith_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "✋✋🏿✋🏿" = false
-  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ǧ̗͚̚o̙̔ͮ̇͐̇" = true
+
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0
+    "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+    "ǧ̗͚̚o̙̔ͮ̇͐̇" = true
+
   PACKAGE.Darklang.Stdlib.String.endsWith_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "12xsd" = false
   PACKAGE.Darklang.Stdlib.String.endsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "﷽" = false
   PACKAGE.Darklang.Stdlib.String.endsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♀️" = false
-  PACKAGE.Darklang.Stdlib.String.endsWith_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🏳️‍⚧️‍️🇵🇷" = true
+
+  PACKAGE.Darklang.Stdlib.String.endsWith_v0
+    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+    "🏳️‍⚧️‍️🇵🇷" = true
 
 
 module Map =
@@ -717,8 +733,11 @@ module First =
 
 
 module PadStart =
-  PACKAGE.Darklang.Stdlib.String.padStart_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
-  PACKAGE.Darklang.Stdlib.String.padStart_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "123"
+
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "123"
 
   PACKAGE.Darklang.Stdlib.String.padStart_v0 "123" "_-" 4 = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
@@ -726,8 +745,11 @@ module PadStart =
   PACKAGE.Darklang.Stdlib.String.padStart_v0 "123" "" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Expected `padWith` to be 1 character long, but it was `\"\"`"
 
-  PACKAGE.Darklang.Stdlib.String.padStart_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "000123"
-  PACKAGE.Darklang.Stdlib.String.padStart_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "000123"
+
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    ""
 
   PACKAGE.Darklang.Stdlib.String.padStart_v0 "123🍊🍊" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "123🍊🍊"
@@ -750,15 +772,22 @@ module PadStart =
   PACKAGE.Darklang.Stdlib.String.padStart_v0 "🧟‍♀️🧟‍♂️" "0" 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "000🧟‍♀️🧟‍♂️"
 
-  PACKAGE.Darklang.Stdlib.String.padStart_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.padStart_v0
+    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"
+    "0"
+    10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "000000👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"
 
-  PACKAGE.Darklang.Stdlib.String.padStart_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "鷝"
+  PACKAGE.Darklang.Stdlib.String.padStart_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "鷝"
 
 
 module PadEnd =
-  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
-  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "123"
+
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "123"
 
   PACKAGE.Darklang.Stdlib.String.padEnd_v0 "123" "_-" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
@@ -766,8 +795,11 @@ module PadEnd =
   PACKAGE.Darklang.Stdlib.String.padEnd_v0 "123" "" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Expected `padWith` to be 1 character long, but it was `\"\"`"
 
-  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123000"
-  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "123000"
+
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    ""
 
   PACKAGE.Darklang.Stdlib.String.padEnd_v0 "123🍊🍊" "0" 8 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "123🍊🍊000"
@@ -790,7 +822,8 @@ module PadEnd =
   PACKAGE.Darklang.Stdlib.String.padEnd_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷000000"
 
-  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "鷝"
+  PACKAGE.Darklang.Stdlib.String.padEnd_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "鷝"
 
 
 module IndexOf =
