@@ -182,7 +182,8 @@ let _handler _req =
     |> List.filter (fun item -> item.owner == owner)
     |> List.map (fun i -> (i.owner, i.modules |> String.join ".", i.name))
     |> List.map (fun m ->
-      (Tuple3.first m) ++ "." ++ (Tuple3.second m) ++ "." ++ (Tuple3.third m))
+      let (owner, modules, name) = m
+      $"{owner}.{modules}.{name}")
     |> List.sort
     |> String.join "\n"
 
