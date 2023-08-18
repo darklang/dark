@@ -203,9 +203,7 @@ let fns : List<BuiltInFn> =
                       }
 
                     | _ ->
-                      Exception.raiseInternal
-                        "Unknown function should have been converted to EError by PT2RT"
-                        [ "fn", fn ]
+                      Exception.raiseInternal "Only package functions are executable from the CLI" [ "fn", fn ]
 
                   match fn with
                   | None -> return DString "fn not found"
