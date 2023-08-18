@@ -2,6 +2,7 @@ module Darklang =
   module Stdlib =
     module List =
 
+      /// Drops the last value from <param list>
       let dropLast (list: List<'a>) : List<'a> =
         match list with
         | [] -> []
@@ -12,6 +13,7 @@ module Darklang =
             List.append_v0
               (List.singleton_v0 head)
               (PACKAGE.Darklang.Stdlib.List.dropLast tail)
+
 
       /// Returns {{Some}} the head (first value) of a list.
       /// Returns {{None}} if the list is empty.
@@ -118,6 +120,7 @@ module Darklang =
               PACKAGE.Darklang.Stdlib.Option.Option.Some head
             else
               PACKAGE.Darklang.Stdlib.List.getAt tail (index - 1)
+
 
       /// Returns {{true}} if <param value> is in the list
       let ``member`` (list: List<'a>) (value: 'a) : Bool =
