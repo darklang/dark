@@ -32,11 +32,37 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
 (let t = true in List.all [ 1; 2 ] (fun _ -> t)) = true
 (let f = false in List.all [ 1; 2 ] (fun _ -> f)) = false
 
-(let x = 1
- let f = fun _ -> x
- let x = 2
- List.map [ 1; 2; 3 ] f) = [ 1; 1; 1 ]
+(let f = fun myarg1 -> myarg1 + 1
+ List.map [ 1; 2; 3 ] f) = [ 2; 3; 4 ]
 
-(let pairs = [(1, "one"); (2, "two"); (3, "three")] in
- let transformer = fun (num, str) -> $"{Int.toString num}:{str}" in
- List.map_v0 pairs transformer) = ["1:one"; "2:two"; "3:three"]
+List.fold_v0 [ "a"; "b" ] "x" (fun accum curr -> accum ++ curr) = "xab"
+
+(let pairs = [ (1, "one"); (2, "two") ] in
+ let transformer = fun num str -> $"{Int.toString num}:{str}" in
+ List.map_v0 pairs transformer) = [ "1:one"; "2:two" ]
+
+(let triplets = [ (1, "one", true); (2, "two", false) ] in
+
+ let transformer =
+   fun num str flag ->
+     if flag then
+       $"{Int.toString num}:{str}:TRUE"
+     else
+       $"{Int.toString num}:{str}:FALSE" in
+
+ List.map_v0 triplets transformer) = [ "1:one:TRUE"; "2:two:FALSE" ]
+
+(let triplets = [ (1, "one", true); (2, "two", false) ] in
+ let transformer = fun num str -> $"{Int.toString num}:{str}" in
+ List.map_v0 triplets transformer) = Test.runtimeError "Expected 2 arguments, got 3"
+
+(let pairs = [ (1, "one"); (2, "two") ] in
+
+ let transformer =
+   fun num str flag ->
+     if flag then
+       $"{Int.toString num}:{str}:TRUE"
+     else
+       $"{Int.toString num}:{str}:FALSE" in
+
+ List.map_v0 pairs transformer) = Test.runtimeError "Expected 3 arguments, got 2"

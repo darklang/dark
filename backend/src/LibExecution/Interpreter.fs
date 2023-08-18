@@ -4,6 +4,8 @@ module LibExecution.Interpreter
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharp.Control.Tasks.Affine.Unsafe
+open System
+open FSharp.Reflection
 
 open Prelude
 open RuntimeTypes
@@ -816,7 +818,6 @@ and executeLambda
   (l : LambdaImpl)
   (args : NEList<Dval>)
   : DvalTask =
-
   // If one of the args is fake value used as a marker, return it instead of
   // executing. This is the same behaviour as in fn calls.
   let firstMarker = NEList.find Dval.isFake args
@@ -829,26 +830,51 @@ and executeLambda
     // provide this error message here. We don't have this information in
     // other places, and the alternative is just to provide incompletes
     // with no context
-    let expectedLength = NEList.length l.parameters
-    let actualLength = NEList.length args
-    if expectedLength <> actualLength then
+
+    let paraList = parameters |> NEList.toList
+    let argsList = args |> NEList.toList
+
+    // Check destructuring
+    match argsList with
+    | [ DTuple(_, _, rest) ] when
+      paraList.Length > 1 && (rest.Length + 2 <> paraList.Length)
+      ->
       Ply(
         DError(
           SourceNone,
-          $"Expected {expectedLength} arguments, got {actualLength}"
+          $"Expected {paraList.Length} arguments, got {rest.Length + 2}"
         )
       )
-    else
+    | [ DTuple(first, second, rest) ] when paraList.Length > 1 ->
       NEList.iter
         (fun ((id, _), dv) -> state.tracing.traceDval state.onExecutionPath id dv)
-        (NEList.zip l.parameters args)
-
-      let paramSyms = NEList.zip parameters args |> NEList.toList |> Map
-      // paramSyms is higher priority
-
-      let newSymtable = Map.mergeFavoringRight l.symtable paramSyms
-
+        (NEList.zip l.parameters (NEList.ofList (first) (second :: rest)))
+      let newSymtable =
+        [ first; second ] @ rest
+        |> List.zip paraList
+        |> Map.ofList
+        |> Map.mergeFavoringRight l.symtable
       eval state l.typeArgTable newSymtable l.body
+    | _ ->
+      let expectedLength = NEList.length l.parameters
+      let actualLength = NEList.length args
+      if expectedLength <> actualLength then
+        Ply(
+          DError(
+            SourceNone,
+            $"Expected {expectedLength} arguments, got {actualLength}"
+          )
+        )
+      else
+        NEList.iter
+          (fun ((id, _), dv) -> state.tracing.traceDval state.onExecutionPath id dv)
+          (NEList.zip l.parameters args)
+
+        let paramSyms = NEList.zip parameters args |> NEList.toList |> Map
+        // paramSyms is higher priority
+
+        let newSymtable = Map.mergeFavoringRight l.symtable paramSyms
+        eval state l.typeArgTable newSymtable l.body
 
 and callFn
   (state : ExecutionState)
