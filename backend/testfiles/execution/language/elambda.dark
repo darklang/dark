@@ -20,7 +20,7 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
 
 (String.join_v0
   (List.map_v0 (String.toList "some string") (fun var ->
-    String.toUppercase (String.fromChar var)))
+    String.toUppercase (PACKAGE.Darklang.Stdlib.String.fromChar var)))
   "") = "SOME STRING"
 
 (let y = (fun c -> if c > 2 then Test.runtimeError "err" else 18) in

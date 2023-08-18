@@ -1,0 +1,32 @@
+module Darklang =
+  module Stdlib =
+    module Int =
+
+      /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
+      let absoluteValue (a: Int) : Int = if a < 0 then -a else a
+
+
+      /// Returns the sum of all the ints in the list
+      let sum (lst: List<Int>) : Int = List.fold lst 0 (fun acc x -> acc + x)
+
+
+      /// Returns the higher of <param a> and <param b>
+      let max (a: Int) (b: Int) : Int = if a > b then a else b
+
+
+      /// Returns the lower of <param a> and <param b>
+      let min (a: Int) (b: Int) : Int = if a < b then a else b
+
+
+      /// If <param value> is within the range given by <param limitA> and <param
+      /// limitB>, returns <param value>.
+      /// If <param value> is outside the range, returns <param limitA> or <param
+      /// limitB>, whichever is closer to <param value>.
+      /// <param limitA> and <param limitB> can be provided in any order.
+      let clamp (value: Int) (limitA: Int) (limitB: Int) : Int =
+        let min = if limitA < limitB then limitA else limitB
+        let max = if limitA > limitB then limitA else limitB
+
+        if value < min then min
+        else if value > max then max
+        else value

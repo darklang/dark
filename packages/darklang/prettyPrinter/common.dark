@@ -26,4 +26,4 @@ module Darklang =
 
     let processRemainder (remainder: String) : String =
       let rem = $".{remainder}" |> Float.parse
-      rem |> unwrap |> Float.toString |> String.dropFirst 2
+      rem |> unwrap |> Float.toString |> PACKAGE.Darklang.Stdlib.String.dropFirst 2
