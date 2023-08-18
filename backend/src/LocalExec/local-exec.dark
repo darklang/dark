@@ -14,7 +14,7 @@ let listDirectoryRecursive (dir: String) : List<String> =
 let listPackageFilesOnDisk (dir: String) : List<String> =
   dir
   |> listDirectoryRecursive
-  |> List.filter (fun x -> x |> String.endsWith ".dark")
+  |> List.filter (fun x -> x |> LocalExec.BuiltIns.String.endsWith ".dark")
 
 
 let saveFunctionToCanvas

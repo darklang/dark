@@ -619,24 +619,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TODO: create a copy of this function in local exec before removing this one
-    { name = fn "endsWith" 0
-      typeParams = []
-      parameters =
-        [ Param.make "subject" TString "String to test"
-          Param.make "suffix" TString "" ]
-      returnType = TBool
-      description = "Checks if <param subject> ends with <param suffix>"
-      fn =
-        (function
-        | _, _, [ DString subject; DString suffix ] ->
-          Ply(DBool(subject.EndsWith(suffix, System.StringComparison.Ordinal)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "indexOf" 0
       typeParams = []
       parameters =
