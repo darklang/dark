@@ -6,6 +6,7 @@ module Darklang =
       | Show of String
       | Infer of String
       | Invalid of List<String>
+      | RunFunction of fnName: String * args: List<String>
 
 
     let showFn (name: String) (owner: String) (modules: List<String>) : Int =
@@ -235,6 +236,16 @@ module Darklang =
 
       parsedPackages
 
+    let runFunction (fnName: String) (args: List<String>) : Int =
+      match Cli.executeFunction fnName args with
+      | Ok result ->
+        print result
+        0
+      | Error err ->
+        print err
+        1
+
+
     let parseArguments (args: List<String>) : PACKAGE.Darklang.Cli.Command =
       match args with
       | [ "-h" ] -> PACKAGE.Darklang.Cli.Command.Help
@@ -245,8 +256,13 @@ module Darklang =
           PACKAGE.Darklang.Cli.Command.Show fnName
         else
           PACKAGE.Darklang.Cli.Command.Invalid [ "Invalid package name" ]
-      | scriptPath :: args ->
-        PACKAGE.Darklang.Cli.Command.RunScript(scriptPath, args)
+
+      | opt :: args ->
+        if String.startsWith opt "@" then
+          let name = opt |> String.dropFirst_v0 1
+          PACKAGE.Darklang.Cli.Command.RunFunction name args
+        else
+          PACKAGE.Darklang.Cli.Command.RunScript(opt, args)
       | _ -> PACKAGE.Darklang.Cli.Command.Invalid [ "Invalid arguments" ]
 
 
@@ -337,6 +353,7 @@ Options:
           else
             PACKAGE.Darklang.Cli.showModule fullName
 
+      | RunFunction(fnName, args) -> PACKAGE.Darklang.Cli.runFunction fnName args
 
       | Infer(prompt, scriptPath) ->
         // let script = System.IO.File.ReadAllText scriptPath
