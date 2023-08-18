@@ -731,13 +731,9 @@ module CompiledFunctions =
   (friends (fun p -> String.trimEnd_v0 p.name == " Chandler")) = [ " Chandler " ]
   (friends (fun p -> Bool.not_v0 p.human)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> p.human && p.human)) = [ " Chandler "
-                                              "Rachel"
-                                              "Ross" ]
+  (friends (fun p -> p.human && p.human)) = [ " Chandler "; "Rachel"; "Ross" ]
 
-  (friends (fun p -> p.human || p.human)) = [ " Chandler "
-                                              "Rachel"
-                                              "Ross" ]
+  (friends (fun p -> p.human || p.human)) = [ " Chandler "; "Rachel"; "Ross" ]
 
   (friends (fun p -> DateTime.lessThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [ " Chandler "
                                                                                        "Rachel"
