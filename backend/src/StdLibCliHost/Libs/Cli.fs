@@ -202,7 +202,10 @@ let fns : List<BuiltInFn> =
                         return Option.map packageFnToFn fn
                       }
 
-                    | _ -> Exception.raiseInternal "Error constructing package function name" [ "fn", fn ]
+                    | _ ->
+                      Exception.raiseInternal
+                        "Error constructing package function name"
+                        [ "fn", fn ]
 
                   match fn with
                   | None -> return DString "fn not found"
