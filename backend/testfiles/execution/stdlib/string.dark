@@ -257,7 +257,7 @@ module IsEmpty =
 
 
 module NewLine =
-  String.newline_v0 = "\n"
+  PACKAGE.Darklang.Stdlib.String.newline = "\n"
 
 
 module Length =

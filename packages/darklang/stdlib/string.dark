@@ -2,6 +2,9 @@ module Darklang =
   module Stdlib =
     module String =
 
+      /// Returns a string containing a single '\n'
+      let newline = "\n"
+
       /// Truncates the string <param s> to the specified <param length> and appends an ellipsis ("...")
       /// to it if the original string exceeds the given length. Otherwise, returns the original string.
       let ellipsis (s: String) (length: Int) : String =

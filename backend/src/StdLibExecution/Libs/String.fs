@@ -22,12 +22,7 @@ let fn = fn modules
 let constant = constant modules
 
 let types : List<BuiltInType> = []
-let constants : List<BuiltInConstant> =
-  [ { name = constant "newline" 0
-      typ = TString
-      description = "Returns a string containing a single '\n'"
-      body = DString "\n"
-      deprecated = NotDeprecated } ]
+let constants : List<BuiltInConstant> = []
 
 
 let fns : List<BuiltInFn> =
