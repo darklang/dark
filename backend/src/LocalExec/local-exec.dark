@@ -18,11 +18,11 @@ let listPackageFilesOnDisk (dir: String) : List<String> =
 
 
 let saveFunctionToCanvas
-  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T)
+  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : Unit =
   let reqBody =
     p
-    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>
+    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
     |> unwrap
     |> String.toBytes
 
@@ -40,11 +40,11 @@ let saveFunctionToCanvas
   ()
 
 let saveTypeToCanvas
-  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T)
+  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType)
   : Unit =
   let reqBody =
     p
-    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>
+    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
     |> unwrap
     |> String.toBytes
 
@@ -62,11 +62,11 @@ let saveTypeToCanvas
   ()
 
 let saveConstantToCanvas
-  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T)
+  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant)
   : Unit =
   let reqBody =
     p
-    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T>
+    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
     |> unwrap
     |> String.toBytes
 
@@ -115,7 +115,7 @@ let printPackageConstant (p: LocalExec.Packages.Constant) : Unit =
   let modules = p.modules |> String.join "."
   print $"Package Constant {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
 
-let printAllPackages () : Unit =
+let printAllPackagesInDb () : Unit =
   let functions = LocalExec.Packages.listFunctions ()
   functions |> LocalExec.BuiltIns.List.iter (fun p -> printPackageFunction p)
 
@@ -166,7 +166,7 @@ let main (args: List<String>) : Int =
     0
 
   | ListPackages ->
-    printAllPackages ()
+    printAllPackagesInDb ()
     0
 
   | LoadPackagesIntoDarkCanvas ->
@@ -179,7 +179,7 @@ let main (args: List<String>) : Int =
       loadPackageFileIntoDarkCanvas f)
 
     print "Done loading packages from dark packages canvas"
-    printAllPackages ()
+    printAllPackagesInDb ()
     0
 
   | BadOption msg ->

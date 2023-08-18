@@ -298,7 +298,8 @@ let resolve
           [ "namesToTry", namesToTry
             "error", err
             "given", given
-            "currentModule", currentModule ]
+            "currentModule", currentModule
+            "packageThings", packageThings ]
       else
         Error err
 

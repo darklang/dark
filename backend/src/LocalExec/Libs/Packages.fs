@@ -45,6 +45,7 @@ let types : List<BuiltInType> =
             ) }
       deprecated = NotDeprecated }
 
+
     { name = typ [ "LocalExec"; "Packages" ] "Constant" 0
       description = "The name of a package constant"
       declaration =
@@ -56,6 +57,62 @@ let types : List<BuiltInType> =
                 [ { name = "modules"; typ = TList TString }
                   { name = "name"; typ = TString }
                   { name = "version"; typ = TInt } ]
+            ) }
+      deprecated = NotDeprecated }
+
+
+    { name = typ [ "LocalExec"; "Packages" ] "Package" 0
+      description = "A package, with types, constants, and functions"
+      declaration =
+        { typeParams = []
+          definition =
+            TypeDeclaration.Record(
+              NEList.ofList
+                { name = "types"
+                  typ =
+                    TList(
+                      TCustomType(
+                        Ok(
+                          TypeName.fqPackage
+                            "Darklang"
+                            [ "LanguageTools"; "Stdlib"; "ProgramTypes" ]
+                            "PackageType"
+                            0
+                        ),
+                        []
+                      )
+                    ) }
+                [ { name = "constants"
+                    typ =
+                      TList(
+                        TCustomType(
+                          Ok(
+                            TypeName.fqPackage
+                              "Darklang"
+                              [ "LanguageTools"; "Stdlib"; "ProgramTypes" ]
+                              "PackageConstant"
+                              0
+                          ),
+                          []
+                        )
+                      ) }
+                  { name = "fns"
+                    typ =
+                      TList(
+                        TCustomType(
+                          Ok(
+                            TypeName.fqPackage
+                              "Darklang"
+                              [ "LanguageTools"
+                                "Stdlib"
+                                "ProgramTypes"
+                                "PackageFn" ]
+                              "PackageFn"
+                              0
+                          ),
+                          []
+                        )
+                      ) } ]
             ) }
       deprecated = NotDeprecated } ]
 

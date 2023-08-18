@@ -15,14 +15,13 @@ type NameToCategory =
 type NamesDB = NameToCategory
 
 [<DB>]
-type PackageTypeDB = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T
+type PackageTypeDB = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType
 
 [<DB>]
-type PackageFnDB = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T
+type PackageFnDB = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
 
 [<DB>]
-type PackageConstantDB =
-  PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T
+type PackageConstantDB = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant
 
 [<DB>]
 type PackageItemDB = PackageItem
@@ -30,20 +29,11 @@ type PackageItemDB = PackageItem
 
 [<HttpHandler("POST", "/types")>]
 let _handler _req =
-  let typ =
+  let typeToSave =
     request.body
     |> String.fromBytes
-    |> Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>
+    |> Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
     |> unwrap
-
-  let typeToSave =
-    PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T
-      { tlid = typ.tlid
-        id = typ.id
-        name = typ.name
-        declaration = typ.declaration
-        description = typ.description
-        deprecated = typ.deprecated }
 
   let item =
     NameToCategory
@@ -59,26 +49,13 @@ let _handler _req =
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
 
-
 [<HttpHandler("POST", "/functions")>]
 let _handler _req =
-  let fn =
+  let fnToSave =
     request.body
     |> String.fromBytes
-    |> Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>
+    |> Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
     |> unwrap
-
-  let fnToSave =
-    PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T
-      { tlid = fn.tlid
-        id = fn.id
-        name = fn.name
-        body = fn.body
-        typeParams = fn.typeParams
-        parameters = fn.parameters
-        returnType = fn.returnType
-        description = fn.description
-        deprecated = fn.deprecated }
 
   let item =
     NameToCategory
@@ -97,20 +74,12 @@ let _handler _req =
 
 [<HttpHandler("POST", "/constants")>]
 let _handler _req =
-  let c =
+  let constantToSave =
     request.body
     |> String.fromBytes
-    |> Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T>
+    |> Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
     |> unwrap
 
-  let constantToSave =
-    PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T
-      { tlid = c.tlid
-        id = c.id
-        name = c.name
-        body = c.body
-        description = c.description
-        deprecated = c.deprecated }
 
   let item =
     NameToCategory
@@ -131,9 +100,9 @@ let _handler _req =
 [<HttpHandler("GET", "/stats")>]
 let _handler _req =
   let stats =
-    [ ("types", (DB.getAll PackageTypeDB) |> List.length)
-      ("fns", (DB.getAll PackageFnDB) |> List.length)
-      ("constants", (DB.getAll PackageConstantDB) |> List.length)
+    [ ("types", PACKAGE.Darklang.Stdlib.List.length (DB.getAll PackageTypeDB))
+      ("fns", PACKAGE.Darklang.Stdlib.List.length (DB.getAll PackageFnDB))
+      ("constants", PACKAGE.Darklang.Stdlib.List.length (DB.getAll PackageConstantDB))
       ("items", (DB.getAll NamesDB) |> List.length) ]
     |> Dict.fromListOverwritingDuplicates_v0
 
@@ -146,7 +115,7 @@ let _handler _req =
 let _handler _req =
   let respBody =
     (DB.getAll PackageTypeDB)
-    |> Json.serialize<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>>
+    |> Json.serialize<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>>
     |> unwrap
     |> String.toBytes
 
@@ -157,7 +126,7 @@ let _handler _req =
 let _handler _req =
   let respBody =
     (DB.getAll PackageConstantDB)
-    |> Json.serialize<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T>>
+    |> Json.serialize<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>>
     |> unwrap
     |> String.toBytes
 
@@ -168,7 +137,7 @@ let _handler _req =
 let _handler _req =
   let respBody =
     (DB.getAll PackageFnDB)
-    |> Json.serialize<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>>
+    |> Json.serialize<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>>
     |> unwrap
     |> String.toBytes
 

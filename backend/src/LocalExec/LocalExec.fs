@@ -83,7 +83,7 @@ let execute
     let state =
       Exe.createState
         builtIns
-        (LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 1.))
+        (LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 0.))
         tracing
         reportException
         notify
@@ -140,8 +140,8 @@ let initSerializers () =
 
 
 module PackageBootstrapping =
-  open Npgsql.FSharp
   open Npgsql
+  open Npgsql.FSharp
   open LibCloud.Db
 
   let isNormalFile (path : string) : bool =
@@ -164,7 +164,7 @@ module PackageBootstrapping =
     |> listDirectoryRecursive
     |> List.filter (fun x -> x |> String.endsWith ".dark")
 
-  let clearLocalPackageDb : Ply<unit> =
+  let clearLocalPackageDb () : Ply<unit> =
     uply {
       debuG "clearing package stuff from DB" ()
       do! Sql.query "DELETE FROM package_types_v0" |> Sql.executeStatementAsync
@@ -172,48 +172,58 @@ module PackageBootstrapping =
       do! Sql.query "DELETE FROM package_constants_v0" |> Sql.executeStatementAsync
     }
 
-  let parseAndSave
-    (nameResolver : LibParser.NameResolver.NameResolver)
-    (path : string)
-    (contents : string)
-    : Ply<unit> =
+  let savePackagesToLocalDb (packages : LibParser.Parser.Packages) : Ply<unit> =
     uply {
-      let (fns, types, constants) =
-        LibParser.Parser.parsePackage nameResolver path contents
+      let (fns, types, constants) = packages
 
       do! LibCloud.PackageManager.savePackageFunctions fns
       do! LibCloud.PackageManager.savePackageTypes types
       do! LibCloud.PackageManager.savePackageConstants constants
-
-      return ()
     }
 
-  let loadPackageFile
-    (nameResolver : LibParser.NameResolver.NameResolver)
-    (filename : string)
-    : Ply<unit> =
-    filename |> System.IO.File.ReadAllText |> parseAndSave nameResolver filename
+
+  let flattenParsedPackages
+    (packages : List<LibParser.Parser.Packages>)
+    : LibParser.Parser.Packages =
+    packages
+    |> List.unzip3
+    |> (fun (fns, types, constants) ->
+      (List.concat fns, List.concat types, List.concat constants))
 
   type PackageSourceFile = { name : string; sourceCode : string }
 
-  let loadPackagesFromDb
-    (nameResolver : LibParser.NameResolver.NameResolver)
-    : Ply<int> =
+  let loadPackagesFromDb : Ply<int> =
     uply {
-      do! clearLocalPackageDb
+      // 1. clear the local DB of any packages
+      do! clearLocalPackageDb ()
 
-      // no packages are in the DB yet, so many names are expected to not resolve
-      let nameResolver = { nameResolver with allowError = true }
+      let filesWithContents =
+        listPackageFilesOnDisk "/home/dark/app/packages"
+        |> List.map (fun fileName -> (fileName, System.IO.File.ReadAllText fileName))
 
-      let files = listPackageFilesOnDisk "/home/dark/app/packages"
-
-      // first, load all the packages, allowing unresolved names
+      // 2. parse all the packages, allowing unresolved names, and save
       // (other package items won't be available yet)
-      do!
-        files
-        |> Ply.List.iterSequentially (fun f ->
-          print $"Loading {f}"
-          loadPackageFile nameResolver f)
+      let nameResolver =
+        LibParser.NameResolver.fromBuiltins (
+          Map.values builtIns.fns |> Seq.toList,
+          Map.values builtIns.types |> Seq.toList,
+          Map.values builtIns.constants |> Seq.toList
+        )
+        |> fun nr -> { nr with allowError = true }
+
+      let packagesParsedWithUnresolvedNamesAllowed : LibParser.Parser.Packages =
+        filesWithContents
+        |> List.map (fun (path, contents) ->
+          print $"Parsing {path}, allowing unresolved names"
+          LibParser.Parser.parsePackageFile nameResolver path contents)
+        |> flattenParsedPackages
+
+      do! savePackagesToLocalDb packagesParsedWithUnresolvedNamesAllowed
+
+
+      // 3. re-parse the packages, and save
+      // this time, though, we don't allow unresolved names
+      // (any package references that may have been unresolved a second ago should now be OK)
 
       let packageManager =
         LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 0.)
@@ -221,16 +231,64 @@ module PackageBootstrapping =
         { nameResolver with allowError = false }
         |> LibParser.NameResolver.withUpdatedPackages packageManager
 
+      let packagesParsedWithUnresolvedNamesNotAllowed : LibParser.Parser.Packages =
+        filesWithContents
+        |> List.map (fun (path, contents) ->
+          print $"Parsing {path}, not allowing unresolved names"
+          LibParser.Parser.parsePackageFile nameResolver path contents)
+        |> flattenParsedPackages
 
-      // then, load all the packages again, not allowing unresolved names
-      do!
-        files
-        |> Ply.List.iterSequentially (fun f ->
-          print $"Loading {f}"
-          loadPackageFile nameResolver f)
+      do! clearLocalPackageDb ()
+      do! savePackagesToLocalDb packagesParsedWithUnresolvedNamesNotAllowed
 
       return 0
     }
+
+let runLocalExecScript (args : string[]) : Ply<int> =
+  uply {
+
+    let nameResolver =
+      // TODO: this may need more builtins, and packages
+      LibParser.NameResolver.fromBuiltins (
+        Map.values builtIns.fns |> Seq.toList,
+        Map.values builtIns.types |> Seq.toList,
+        Map.values builtIns.constants |> Seq.toList
+      )
+
+    let mainFile = "/home/dark/app/backend/src/LocalExec/local-exec.dark"
+    let! nameResolver =
+      { nameResolver with allowError = false }
+      |> LibParser.NameResolver.withUpdatedPackages (
+        LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 0.)
+      )
+    let modul = LibParser.Canvas.parseFromFile nameResolver mainFile
+
+    let args = args |> Array.toList |> List.map RT.DString |> RT.DList
+
+    let result = execute modul (Map [ "args", args ])
+
+    NonBlockingConsole.wait ()
+
+    match result.Result with
+    | RT.DError(RT.SourceID(tlid, id), msg) ->
+      // TODO: execute the Package LocalExec.Errors.toSegments
+      System.Console.WriteLine $"Error: {msg}"
+      System.Console.WriteLine $"Failure at: {sourceOf mainFile tlid id modul}"
+      // System.Console.WriteLine $"module is: {modul}"
+      // System.Console.WriteLine $"(source {tlid}, {id})"
+      return 1
+    | RT.DError(RT.SourceNone, msg) ->
+      System.Console.WriteLine $"Error: {msg}"
+      System.Console.WriteLine $"(source unknown)"
+      return 1
+    | RT.DInt i -> return (int i)
+    | dval ->
+      let output = LibExecution.DvalReprDeveloper.toRepr dval
+      System.Console.WriteLine
+        $"Error: main function must return an int, not {output}"
+      return 1
+
+  }
 
 [<EntryPoint>]
 let main (args : string[]) : int =
@@ -245,53 +303,21 @@ let main (args : string[]) : int =
 
     (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result
 
-
-    let nameResolver =
-      // TODO: this may need more builtins, and packages
-      LibParser.NameResolver.fromBuiltins (
-        Map.values builtIns.fns |> Seq.toList,
-        Map.values builtIns.types |> Seq.toList,
-        Map.values builtIns.constants |> Seq.toList
-      )
-
     match args with
     | [| "load-packages" |] ->
       System.Console.WriteLine "Loading packages to DB"
       let exitCode =
-        PackageBootstrapping.loadPackagesFromDb nameResolver
+        PackageBootstrapping.loadPackagesFromDb
         |> Ply.toTask
         |> Async.AwaitTask
         |> Async.RunSynchronously
       System.Console.WriteLine "Finished loading packages to DB"
       exitCode
     | _ ->
-      let mainFile = "/home/dark/app/backend/src/LocalExec/local-exec.dark"
-      let modul = LibParser.Canvas.parseFromFile nameResolver mainFile
-
-      let args = args |> Array.toList |> List.map RT.DString |> RT.DList
-
-      let result = execute modul (Map [ "args", args ])
-
-      NonBlockingConsole.wait ()
-
-      match result.Result with
-      | RT.DError(RT.SourceID(tlid, id), msg) ->
-        // TODO: execute the Package LocalExec.Errors.toSegments
-        System.Console.WriteLine $"Error: {msg}"
-        System.Console.WriteLine $"Failure at: {sourceOf mainFile tlid id modul}"
-        // System.Console.WriteLine $"module is: {modul}"
-        // System.Console.WriteLine $"(source {tlid}, {id})"
-        1
-      | RT.DError(RT.SourceNone, msg) ->
-        System.Console.WriteLine $"Error: {msg}"
-        System.Console.WriteLine $"(source unknown)"
-        1
-      | RT.DInt i -> (int i)
-      | dval ->
-        let output = LibExecution.DvalReprDeveloper.toRepr dval
-        System.Console.WriteLine
-          $"Error: main function must return an int, not {output}"
-        1
+      runLocalExecScript args
+      |> Ply.toTask
+      |> Async.AwaitTask
+      |> Async.RunSynchronously
   with e ->
     // Don't reraise or report as LocalExec is only run interactively
     printException "Exception" [] e

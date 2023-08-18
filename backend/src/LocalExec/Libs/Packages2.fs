@@ -72,17 +72,14 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString contents; DString path ] ->
           uply {
             let! resolver = resolver
+            let resolver = { resolver with allowError = false }
+
             let (fns, types, constants) =
-              LibParser.Parser.parsePackage resolver path contents
+              LibParser.Parser.parsePackageFile resolver path contents
 
             let packagesFns = fns |> List.map (fun fn -> PT2DT.PackageFn.toDT fn)
-
-            let packagesTypes =
-              types |> List.map (fun typ -> PT2DT.PackageType.toDT typ)
-
-            let packagesConstants =
-              constants
-              |> List.map (fun constant -> PT2DT.PackageConstant.toDT constant)
+            let packagesTypes = types |> List.map PT2DT.PackageType.toDT
+            let packagesConstants = constants |> List.map PT2DT.PackageConstant.toDT
 
             return
               Dval.resultOk (

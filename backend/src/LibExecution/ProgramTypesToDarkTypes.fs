@@ -940,7 +940,7 @@ module TypeDeclaration =
 
   let toDT (td : PT.TypeDeclaration.T) : Dval =
     Dval.record
-      (ptTyp [ "TypeDeclaration" ] "T" 0)
+      (ptTyp [ "TypeDeclaration" ] "TypeDeclaration" 0)
       [ "typeParams", DList(List.map DString td.typeParams)
         "definition", Definition.toDT td.definition ]
 
@@ -1005,7 +1005,7 @@ module Handler =
 
   let toDT (h : PT.Handler.T) : Dval =
     Dval.record
-      (ptTyp [ "Handler" ] "T" 0)
+      (ptTyp [ "Handler" ] "Handler" 0)
       [ "tlid", DInt(int64 h.tlid)
         "ast", Expr.toDT h.ast
         "spec", Spec.toDT h.spec ]
@@ -1025,7 +1025,7 @@ module Handler =
 module DB =
   let toDT (db : PT.DB.T) : Dval =
     Dval.record
-      (ptTyp [ "DB" ] "T" 0)
+      (ptTyp [] "DB" 0)
       [ "tlid", DInt(int64 db.tlid)
         "name", DString db.name
         "version", DInt db.version
@@ -1046,7 +1046,7 @@ module DB =
 module UserType =
   let toDT (userType : PT.UserType.T) : Dval =
     Dval.record
-      (ptTyp [ "UserType" ] "T" 0)
+      (ptTyp [] "UserType" 0)
       [ "tlid", DInt(int64 userType.tlid)
         "name", TypeName.UserProgram.toDT userType.name
         "description", DString userType.description
@@ -1095,7 +1095,7 @@ module UserFunction =
 
   let toDT (userFn : PT.UserFunction.T) : Dval =
     Dval.record
-      (ptTyp [ "UserFunction" ] "T" 0)
+      (ptTyp [ "UserFunction" ] "UserFunction" 0)
       [ "tlid", DInt(int64 userFn.tlid)
         "name", FnName.UserProgram.toDT userFn.name
         "typeParams", DList(List.map DString userFn.typeParams)
@@ -1137,7 +1137,7 @@ module UserFunction =
 module UserConstant =
   let toDT (userConstant : PT.UserConstant.T) : Dval =
     Dval.record
-      (ptTyp [ "UserConstant" ] "T" 0)
+      (ptTyp [] "UserConstant" 0)
       [ "tlid", DInt(int64 userConstant.tlid)
         "name", ConstantName.UserProgram.toDT userConstant.name
         "body", Const.toDT userConstant.body
@@ -1166,7 +1166,7 @@ module UserConstant =
 module Secret =
   let toDT (s : PT.Secret.T) : Dval =
     Dval.record
-      (ptTyp [ "Secret" ] "T" 0)
+      (ptTyp [] "Secret" 0)
       [ "name", DString s.name; "value", DString s.value; "version", DInt s.version ]
 
   let fromDT (d : Dval) : PT.Secret.T =
@@ -1184,7 +1184,7 @@ module Secret =
 module PackageType =
   let toDT (p : PT.PackageType.T) : Dval =
     Dval.record
-      (ptTyp [ "PackageType" ] "T" 0)
+      (ptTyp [] "PackageType" 0)
       [ "tlid", DInt(int64 p.tlid)
         "id", DUuid p.id
         "name", TypeName.Package.toDT p.name
@@ -1235,7 +1235,7 @@ module PackageFn =
 
   let toDT (p : PT.PackageFn.T) : Dval =
     Dval.record
-      (ptTyp [ "PackageFn" ] "T" 0)
+      (ptTyp [ "PackageFn" ] "PackageFn" 0)
       [ "tlid", DInt(int64 p.tlid)
         "id", DUuid p.id
         "name", FnName.Package.toDT p.name
@@ -1280,7 +1280,7 @@ module PackageFn =
 module PackageConstant =
   let toDT (p : PT.PackageConstant.T) : Dval =
     Dval.record
-      (ptTyp [ "PackageConstant" ] "T" 0)
+      (ptTyp [] "PackageConstant" 0)
       [ "tlid", DInt(int64 p.tlid)
         "id", DUuid p.id
         "name", ConstantName.Package.toDT p.name

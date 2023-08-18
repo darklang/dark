@@ -32,8 +32,11 @@ module Darklang =
 
 
       module TypeName =
+        //PACKAGE.Darklang.LanguageTools.ProgramTypes.
         type Name = TypeName of String
-        type TypeName = FQName.FQName<Name>
+
+        type TypeName =
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.FQName<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name>
 
         type BuiltIn = FQName.BuiltIn<Name>
         type UserProgram = FQName.UserProgram<Name>
@@ -45,7 +48,9 @@ module Darklang =
 
         type BuiltIn = FQName.BuiltIn<Name>
         type UserProgram = FQName.UserProgram<Name>
-        type Package = FQName.Package<Name>
+
+        type Package =
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.Package<Name>
 
       module ConstantName =
         type Name = ConstantName of String
@@ -335,7 +340,8 @@ module Darklang =
 
         type TypeDeclaration =
           { typeParams: List<String>
-            definition: Definition }
+            definition:
+              PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition }
 
 
       module Handler =
@@ -427,14 +433,14 @@ module Darklang =
       module PackageFn =
         type Parameter =
           { name: String
-            typ: TypeReference
+            typ: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference
             description: String }
 
         type PackageFn =
           { tlid: TLID
             id: Uuid
             name: FnName.Package
-            body: Expr
+            body: PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr
             typeParams: List<String>
             parameters: List<Parameter>
             returnType: TypeReference

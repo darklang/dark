@@ -37,10 +37,13 @@ let parseRTExpr
   |> parsePTExpr resolver filename
   |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
 
-let parsePackage
+type Packages =
+  List<PT.PackageFn.T> * List<PT.PackageType.T> * List<PT.PackageConstant.T>
+
+let parsePackageFile
   (resolver : NameResolver.NameResolver)
   (path : string)
   (contents : string)
-  : List<PT.PackageFn.T> * List<PT.PackageType.T> * List<PT.PackageConstant.T> =
+  : Packages =
   let pModule = Package.parse resolver path contents
   (pModule.fns, pModule.types, pModule.constants)
