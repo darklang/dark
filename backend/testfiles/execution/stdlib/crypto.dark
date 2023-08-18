@@ -28,7 +28,7 @@ Bytes.hexEncode_v0 (
 (let scope = "20150830/us-east-1/iam/aws4_request" in
  let content = "f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59" in
  let strs = [ "AWS4-HMAC-SHA256"; "20150830T123600Z"; scope; content ] in
- let strToSign = String.join_v0 strs String.newline_v0 in
+ let strToSign = String.join_v0 strs PACKAGE.Darklang.Stdlib.String.newline in
  let secret = String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY" in
  let data = String.toBytes_v0 "20150830" in
  let date = Crypto.sha256hmac_v0 secret data in

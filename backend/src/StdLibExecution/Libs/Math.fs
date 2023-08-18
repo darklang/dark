@@ -18,15 +18,7 @@ let fn = fn modules
 let constant = constant modules
 
 let constants : List<BuiltInConstant> =
-  [ { name = constant "pi" 0
-      typ = TFloat
-      description =
-        "Returns an approximation for the mathematical constant {{π}},
-        the ratio of a circle's circumference to its diameter."
-      body = DFloat System.Math.PI
-      deprecated = NotDeprecated }
-
-    { name = constant "tau" 0
+  [ { name = constant "tau" 0
       typ = TFloat
       description =
         "Returns an approximation for the mathematical constant {{τ}}, the number of

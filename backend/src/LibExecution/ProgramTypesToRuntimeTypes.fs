@@ -401,7 +401,7 @@ module Const =
         List.map toRT fields
       )
     | PT.Const.CEnum(Error msg, caseName, fields) ->
-      RT.DError(RT.SourceNone, "Invalid const name: {msg}")
+      RT.DError(RT.SourceNone, $"Invalid const name: {msg}")
 
 module TypeDeclaration =
   module RecordField =
