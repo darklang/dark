@@ -131,7 +131,7 @@ let t
         else
           state
 
-      // Run the actual program
+      // Run the actual program (left-hand-side of the =)
       let! actual = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT actualExpr)
 
       if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
@@ -145,16 +145,28 @@ let t
         debugDval actual |> debuG "not canonicalized"
         Expect.isTrue canonical "expected is canonicalized"
 
-      match expected, actual with
-      | RT.DError(_, expected), RT.DError(_, actual) ->
-        let expected =
-          $"DError: {LibExecution.DvalReprDeveloper.toRepr (RT.RuntimeError.toDT expected)}"
+      let! actual =
+        task {
+          match actual with
+          | RT.DError(_, actual) ->
+            let actual = RT.RuntimeError.toDT actual
+            let! actualErrorMessage =
+              LibExecution.Interpreter.callFn
+                state
+                Map.empty
+                0UL
+                (RT.FnName.fqPackage
+                  "Darklang"
+                  [ "LanguageTools"; "RuntimeErrors"; "Error" ]
+                  "toErrorMessage"
+                  0)
+                []
+                (NEList.ofList actual [])
+            return actualErrorMessage
+          | _ -> return actual
+        }
 
-        let actual =
-          $"DError: {LibExecution.DvalReprDeveloper.toRepr (RT.RuntimeError.toDT actual)}"
-
-        return Expect.equal actual expected msg
-      | _ -> return Expect.equalDval actual expected msg
+      return Expect.equalDval actual expected msg
     with
     | :? Expecto.AssertException as e -> e.Reraise() // let this through
     | e ->
@@ -187,7 +199,8 @@ let fileTests () : Test =
         try
           let modules =
             $"{dir}/{filename}"
-            |> LibParser.TestModule.parseTestFile builtinResolver
+            |> LibParser.TestModule.parseTestFile
+              resolverWithBuiltinsAndPackageManager
 
           // Within a module, tests have access to
           let fns = modules |> List.map (fun m -> m.fns) |> List.concat

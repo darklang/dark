@@ -351,7 +351,7 @@ module TypeReference =
 module Param =
   let toDT (p : Param) : Dval =
     Dval.record
-      (rtTyp [] "Param" 0)
+      (rtTyp [] "BuiltInParam" 0)
       [ ("name", DString p.name); ("typ", TypeReference.toDT p.typ) ]
 
 

@@ -29,7 +29,7 @@ module Darklang =
         type Context =
           | FunctionCallParameter of
             fnName: RTFnName *
-            parameter: RTBuiltInParam *  // TODO should probbaly just be Param?
+            parameter: RTBuiltInParam *  // RTETODO should probbaly just be Param?
             paramIndex: Int *
             location: Location
 
@@ -81,209 +81,232 @@ module Darklang =
           | TypeDoesntExist of RTTypeName * Context
 
         module Error =
-          // let rec valuePath (context : TCK.Context) : string =
-          //   match context with
-          //   | TCK.FunctionCallParameter(_, parameter, _, _) -> parameter.name
-          //   | TCK.FunctionCallResult(_, _, _) -> "result"
-          //   | TCK.RecordField(_, fieldName, _, _) -> fieldName
-          //   | TCK.DictKey(key, _, _) -> $".{key}"
-          //   | TCK.EnumField(_, caseName, _, _, _, _) -> caseName
-          //   | TCK.DBSchemaType(dbName, _, _) -> dbName
-          //   | TCK.DBQueryVariable(varName, _, _) -> varName
-          //   | TCK.ListIndex(index, _, parent) -> valuePath parent + $"[{index}]"
-          //   | TCK.TupleIndex(index, _, parent) -> valuePath parent + $"[{index}]"
+          let valuePath (context: Context) : String =
+            // match context with
+            // | TCK.FunctionCallParameter(_, parameter, _, _) -> parameter.name
+            // | TCK.FunctionCallResult(_, _, _) -> "result"
+            // | TCK.RecordField(_, fieldName, _, _) -> fieldName
+            // | TCK.DictKey(key, _, _) -> $".{key}"
+            // | TCK.EnumField(_, caseName, _, _, _, _) -> caseName
+            // | TCK.DBSchemaType(dbName, _, _) -> dbName
+            // | TCK.DBQueryVariable(varName, _, _) -> varName
+            // | TCK.ListIndex(index, _, parent) -> valuePath parent + $"[{index}]"
+            // | TCK.TupleIndex(index, _, parent) -> valuePath parent + $"[{index}]"
+            "RTETODO: valuePath"
 
-          // let rec rootContext (context : TCK.Context) : TCK.Context =
-          //   match context with
-          //   | TCK.FunctionCallParameter _ -> context
-          //   | TCK.FunctionCallResult _ -> context
-          //   | TCK.RecordField _ -> context
-          //   | TCK.DictKey _ -> context
-          //   | TCK.EnumField _ -> context
-          //   | TCK.DBSchemaType _ -> context
-          //   | TCK.DBQueryVariable _ -> context
-          //   | TCK.ListIndex(_, _, parent) -> rootContext parent
-          //   | TCK.TupleIndex(_, _, parent) -> rootContext parent
-
-
-          // // Return the segments describing the context as a short name, used in the description of errors
-          // let rec contextSummary (context : TCK.Context) : List<ErrorSegment> =
-          //   match context with
-          //   | TCK.FunctionCallParameter(fnName, parameter, paramIndex, _) ->
-          //     [ FunctionName fnName
-          //       String "'s "
-          //       Ordinal(paramIndex + 1)
-          //       String " argument ("
-          //       ParamName parameter.name
-          //       String ")" ]
-          //   | TCK.FunctionCallResult(fnName, returnType, _) ->
-          //     [ FunctionName fnName; String "'s return value" ]
-          //   | TCK.RecordField(recordType, fieldName, _, _) ->
-          //     [ TypeName recordType; String "'s "; FieldName fieldName; String " field" ]
-          //   | TCK.DictKey(key, _, _) ->
-          //     let typeName =
-          //       FQName.BuiltIn { name = TypeName.TypeName "Dict"; modules = []; version = 0 }
-          //     [ TypeName typeName; String "'s "; FieldName key; String " value" ]
-          //   | TCK.EnumField(enumType, caseName, fieldIndex, _, _, _) ->
-          //     [ TypeName enumType
-          //       String "."
-          //       InlineFieldName caseName
-          //       String "'s "
-          //       Ordinal(fieldIndex + 1)
-          //       String " argument" ]
-
-          //   | TCK.DBSchemaType(dbName, expectedType, _) ->
-          //     [ String "DB "; DBName dbName; String "'s value" ]
-          //   | TCK.DBQueryVariable(varName, _, _) -> [ String "Variable "; VarName varName ]
-          //   | TCK.TupleIndex(index, typ, parent)
-          //   | TCK.ListIndex(index, typ, parent) ->
-          //     let rootContext = rootContext parent
-          //     [ String "In " ]
-          //     @ contextSummary rootContext
-          //     @ [ String ", the nested value "; VarName(valuePath context) ]
-
-          // let rec contextAsActualExpected
-          //   (argument : Dval)
-          //   (context : TCK.Context)
-          //   : List<ErrorSegment> * List<ErrorSegment> =
-
-          //   // TODO: We do actual and expected in the same function so that we can display
-          //   // them the same way. This hasn't been ported for all Context types, but
-          //   // should be.
-          //   let defaultActual =
-          //     [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
-
-          //   match context with
-          //   | TCK.FunctionCallParameter(fnName, parameter, paramIndex, _) ->
-          //     // format:
-          //     // (json : string) // some description
-          //     let comment =
-          //       if "" (* TODO parameter.comment*) = "" then
-          //         []
-          //       else
-          //         [ String " // "; Description "" (*parameter.comment*) ]
-          //     (defaultActual,
-          //     [ String "("
-          //       InlineParamName parameter.name
-          //       String ": "
-          //       TypeReference parameter.typ
-          //       String ")" ]
-          //     @ comment)
+          let rootContext (context: Context) : Context =
+            match context with
+            | FunctionCallParameter _ -> context
+            | FunctionCallResult _ -> context
+            | RecordField _ -> context
+            | DictKey _ -> context
+            | EnumField _ -> context
+            | DBSchemaType _ -> context
+            | DBQueryVariable _ -> context
+            | ListIndex(_, _, parent) -> rootContext parent
+            | TupleIndex(_, _, parent) -> rootContext parent
 
 
-          //   | TCK.FunctionCallResult(fnName, returnType, _) ->
-          //     // format:
-          //     // Option<String>
-          //     defaultActual, [ TypeReference returnType ]
+          /// Return the segments describing the context as a short name, used in the description of errors
+          let contextSummary (context: Context) : List<ErrorSegment.ErrorSegment> =
+            match context with
+            | FunctionCallParameter(fnName, parameter, paramIndex, _) ->
+              [ ErrorSegment.ErrorSegment.FunctionName fnName
+                ErrorSegment.ErrorSegment.String "'s "
+                ErrorSegment.ErrorSegment.Ordinal(paramIndex + 1)
+                ErrorSegment.ErrorSegment.String " argument ("
+                ErrorSegment.ErrorSegment.ParamName parameter.name
+                ErrorSegment.ErrorSegment.String ")" ]
+
+            // | FunctionCallResult(fnName, returnType, _) ->
+            //   [ FunctionName fnName; String "'s return value" ]
+
+            // | RecordField(recordType, fieldName, _, _) ->
+            //   [ TypeName recordType; String "'s "; FieldName fieldName; String " field" ]
+
+            // | DictKey(key, _, _) ->
+            //   let typeName =
+            //     FQName.BuiltIn { name = TypeName.TypeName "Dict"; modules = []; version = 0 }
+            //   [ TypeName typeName; String "'s "; FieldName key; String " value" ]
+
+            // | EnumField(enumType, caseName, fieldIndex, _, _, _) ->
+            //   [ TypeName enumType
+            //     String "."
+            //     InlineFieldName caseName
+            //     String "'s "
+            //     Ordinal(fieldIndex + 1)
+            //     String " argument" ]
+
+            // | DBSchemaType(dbName, expectedType, _) ->
+            //   [ String "DB "; DBName dbName; String "'s value" ]
+
+            // | DBQueryVariable(varName, _, _) -> [ String "Variable "; VarName varName ]
+
+            // | TupleIndex(index, typ, parent) ->
+            //   let rootContext = rootContext parent
+            //   [ String "In " ]
+            //   @ contextSummary rootContext
+            //   @ [ String ", the nested value "; VarName(valuePath context) ]
+
+            // | ListIndex(index, typ, parent) ->
+            //   let rootContext = rootContext parent
+            //   [ String "In " ]
+            //   @ contextSummary rootContext
+            //   @ [ String ", the nested value "; VarName(valuePath context) ]
+            | context ->
+              [ ErrorSegment.ErrorSegment.String
+                  $"(RTETODO: contextSummary {(Json.serialize<Context> context) |> unwrap})" ]
+
+          let rec contextAsActualExpected
+            (argument: RuntimeTypes.Dval)
+            (context: Context)
+            : List<ErrorSegment.ErrorSegment> * List<ErrorSegment.ErrorSegment> =
+
+            // RTETODO: We do actual and expected in the same function so that we can display
+            // them the same way. This hasn't been ported for all Context types, but
+            // should be.
+            let defaultActual =
+              [ ErrorSegment.ErrorSegment.IndefiniteArticle
+                ErrorSegment.ErrorSegment.TypeOfValue argument
+                ErrorSegment.ErrorSegment.String ": "
+                ErrorSegment.ErrorSegment.FullValue argument ]
+
+            match context with
+            // | TCK.FunctionCallParameter(fnName, parameter, paramIndex, _) ->
+            //   // format:
+            //   // (json : string) // some description
+            //   let comment =
+            //     if "" (* RTETODO parameter.comment*) = "" then
+            //       []
+            //     else
+            //       [ String " // "; Description "" (*parameter.comment*) ]
+            //   (defaultActual,
+            //   [ String "("
+            //     InlineParamName parameter.name
+            //     String ": "
+            //     TypeReference parameter.typ
+            //     String ")" ]
+            //   @ comment)
 
 
-          //   | TCK.RecordField(recordType, fieldName, fieldType, _) ->
-          //     // format:
-          //     // TODO: fetch the type and lookup the field definition as a comment
-          //     let comment = []
-          //     // ({ name : string; ... }) // some description
-          //     // let comment =
-          //     //   if fieldDef.description = "" then
-          //     //     []
-          //     //   else
-          //     //     [ String " // "; Description fieldDef.description ]
-
-          //     defaultActual,
-          //     ([ String "({ "
-          //       InlineFieldName fieldName
-          //       String ": "
-          //       TypeReference fieldType
-          //       String "; ... })" ]
-          //     @ comment)
+            // | TCK.FunctionCallResult(fnName, returnType, _) ->
+            //   // format:
+            //   // Option<String>
+            //   defaultActual, [ TypeReference returnType ]
 
 
-          //   | TCK.DictKey(key, typ, _) ->
-          //     // format:
-          //     // ({ "name" : String; ... })
-          //     defaultActual,
-          //     ([ String "({ "
-          //       InlineFieldName key
-          //       String ": "
-          //       TypeReference typ
-          //       String "; ... })" ])
+            // | TCK.RecordField(recordType, fieldName, fieldType, _) ->
+            //   // format:
+            //   // TODO: fetch the type and lookup the field definition as a comment
+            //   let comment = []
+            //   // ({ name : string; ... }) // some description
+            //   // let comment =
+            //   //   if fieldDef.description = "" then
+            //   //     []
+            //   //   else
+            //   //     [ String " // "; Description fieldDef.description ]
+
+            //   defaultActual,
+            //   ([ String "({ "
+            //     InlineFieldName fieldName
+            //     String ": "
+            //     TypeReference fieldType
+            //     String "; ... })" ]
+            //   @ comment)
 
 
-          //   | TCK.EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType, _) ->
-          //     // format:
-          //     //   Ok (..., string, ...) // some description
-          //     // TODO: extract description from the type definition later
-          //     let prefix = if fieldIndex = 0 then [] else [ String "..., " ]
-          //     let suffix = if fieldIndex = fieldCount - 1 then [] else [ String ", ..." ]
-          //     let openParen = if fieldCount > 0 then [ String "(" ] else []
-          //     let closeParen = if fieldCount > 0 then [ String ")" ] else []
-          //     let display typ =
-          //       [ ShortTypeName enumType; String "."; InlineFieldName caseName; String " " ]
-          //       @ openParen
-          //       @ prefix
-          //       @ typ
-          //       @ suffix
-          //       @ closeParen
+            // | TCK.DictKey(key, typ, _) ->
+            //   // format:
+            //   // ({ "name" : String; ... })
+            //   defaultActual,
+            //   ([ String "({ "
+            //     InlineFieldName key
+            //     String ": "
+            //     TypeReference typ
+            //     String "; ... })" ])
 
 
-          //     (display [ TypeOfValue argument ]), (display [ TypeReference fieldType ])
+            // | TCK.EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType, _) ->
+            //   // format:
+            //   //   Ok (..., string, ...) // some description
+            //   // RTETODO: extract description from the type definition later
+            //   let prefix = if fieldIndex = 0 then [] else [ String "..., " ]
+            //   let suffix = if fieldIndex = fieldCount - 1 then [] else [ String ", ..." ]
+            //   let openParen = if fieldCount > 0 then [ String "(" ] else []
+            //   let closeParen = if fieldCount > 0 then [ String ")" ] else []
+            //   let display typ =
+            //     [ ShortTypeName enumType; String "."; InlineFieldName caseName; String " " ]
+            //     @ openParen
+            //     @ prefix
+            //     @ typ
+            //     @ suffix
+            //     @ closeParen
 
 
-          //   | TCK.DBSchemaType(dbName, expectedType, _) ->
-          //     // format:
-          //     // String
-          //     defaultActual, [ TypeReference expectedType ]
+            //   (display [ TypeOfValue argument ]), (display [ TypeReference fieldType ])
 
 
-          //   | TCK.DBQueryVariable(varName, expected, _) ->
-          //     // format:
-          //     // (varName : string) // some description
-          //     defaultActual,
-          //     ([ String "("
-          //       InlineVarName varName
-
-          //       String ": "
-          //       TypeReference expected
-          //       String ")" ])
+            // | TCK.DBSchemaType(dbName, expectedType, _) ->
+            //   // format:
+            //   // String
+            //   defaultActual, [ TypeReference expectedType ]
 
 
-          //   | TCK.ListIndex(index, typ, parent) -> defaultActual, [ TypeReference typ ]
+            // | TCK.DBQueryVariable(varName, expected, _) ->
+            //   // format:
+            //   // (varName : string) // some description
+            //   defaultActual,
+            //   ([ String "("
+            //     InlineVarName varName
 
+            //     String ": "
+            //     TypeReference expected
+            //     String ")" ])
 
-          //   | TCK.TupleIndex(index, typ, parent) -> defaultActual, [ TypeReference typ ]
+            // | TCK.ListIndex(index, typ, parent) -> defaultActual, [ TypeReference typ ]
 
-          // let contextVerb (context : TCK.Context) : string =
-          //   match context with
-          //   | TCK.FunctionCallParameter _ -> "passed"
-          //   | TCK.FunctionCallResult _ -> "returned"
-          //   | TCK.RecordField _ -> "passed"
-          //   | TCK.DictKey _ -> "passed"
-          //   | TCK.EnumField _ -> "passed"
-          //   | TCK.DBSchemaType _ -> "passed"
-          //   | TCK.DBQueryVariable _ -> "passed"
-          //   | TCK.ListIndex _ -> "passed"
-          //   | TCK.TupleIndex _ -> "passed"
+            // | TCK.TupleIndex(index, typ, parent) -> defaultActual, [ TypeReference typ ]
+            | _ ->
+              defaultActual,
+              [ ErrorSegment.ErrorSegment.String "RTETODO: contextAsActualExpected" ]
+
+          let contextVerb (context: Context) : String =
+            match context with
+            | FunctionCallParameter _ -> "passed"
+            | FunctionCallResult _ -> "returned"
+            | RecordField _ -> "passed"
+            | DictKey _ -> "passed"
+            | EnumField _ -> "passed"
+            | DBSchemaType _ -> "passed"
+            | DBQueryVariable _ -> "passed"
+            | ListIndex _ -> "passed"
+            | TupleIndex _ -> "passed"
 
           let toSegments (e: Error) : REErrorOutput =
-            // match e with
-            // | ValueNotExpectedType(argument, expected, context) ->
-            //   let summary =
-            //     contextSummary context
-            //     @ [ String " should be "; IndefiniteArticle; TypeReference expected ]
+            match e with
+            | ValueNotExpectedType(argument, expected, context) ->
+              let summary =
+                List.append
+                  (contextSummary context)
+                  [ ErrorSegment.ErrorSegment.String " should be "
+                    ErrorSegment.ErrorSegment.IndefiniteArticle
+                    ErrorSegment.ErrorSegment.TypeReference expected ]
 
-            //   let extraExplanation =
-            //     [ String ". However, "
-            //       IndefiniteArticle
-            //       TypeOfValue argument
-            //       String " ("
-            //       InlineValue argument
-            //       String ") was passed instead." ]
+              let extraExplanation =
+                [ ErrorSegment.ErrorSegment.String ". However, "
+                  ErrorSegment.ErrorSegment.IndefiniteArticle
+                  ErrorSegment.ErrorSegment.TypeOfValue argument
+                  ErrorSegment.ErrorSegment.String " ("
+                  ErrorSegment.ErrorSegment.InlineValue argument
+                  ErrorSegment.ErrorSegment.String ") was passed instead." ]
 
-            //   let (actual, expected) = contextAsActualExpected argument context
+              let (actual, expected) = contextAsActualExpected argument context
 
-            //   { summary = summary
-            //     extraExplanation = extraExplanation
-            //     actual = actual
-            //     expected = expected }
+              ErrorOutput
+                { summary = summary
+                  extraExplanation = extraExplanation
+                  actual = actual
+                  expected = expected }
 
             // | TypeDoesntExist(typeName, _) ->
             //   // Perhaps this should be an internal error as this shouldn't be possible
@@ -309,4 +332,9 @@ module Darklang =
             //     extraExplanation = []
             //     actual = []
             //     expected = [] }
-            ()
+            | _ ->
+              ErrorOutput
+                { summary = [ String "RTETODO typeChecker.toSegments" ]
+                  extraExplanation = []
+                  actual = []
+                  expected = [] }

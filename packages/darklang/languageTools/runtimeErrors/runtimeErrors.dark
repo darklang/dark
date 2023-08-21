@@ -43,28 +43,40 @@ module Darklang =
           | FullValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval
 
         let toString (list: List<ErrorSegment>) : String =
-          list
-          |> PACKAGE.Darklang.Stdlib.List.reverse
-          |> List.fold
-            (fun prevSegments segment ->
+          let reversed = PACKAGE.Darklang.Stdlib.List.reverse list
+
+          let parts =
+            List.fold reversed [] (fun prevSegments segment ->
               let newSegment =
                 match segment with
                 | String s -> s
                 | Int i -> Int.toString i
                 // | Ordinal i -> String.toOrdinal i
-                // | IndefiniteArticle ->
-                //   match List.tryHead prevSegments with
-                //   | None -> ""
-                //   | Some prev -> String.articleFor prev ++ " "
-                // | FunctionName fn -> FnName.toString fn
+
+                | IndefiniteArticle ->
+                  match Stdlib.List.head prevSegments with
+                  | None -> ""
+                  | Some prev -> "an " // CLEANUP: String.articleFor prev ++ " "
+
+                | FunctionName fn ->
+                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.fnName fn
+
                 | Description d -> d
                 | ParamName p -> $"`{p}`"
-                // Inline versions don't have quotes
-                | InlineParamName p -> p
+                | InlineParamName p -> p // Inline versions don't have quotes
                 // | TypeName t -> TypeName.toString t
                 // | ShortTypeName t -> TypeName.toShortName t
-                // | TypeReference t -> DvalReprDeveloper.typeName t
-                // | TypeOfValue dv -> dv |> DvalReprDeveloper.toTypeName
+                | TypeReference t ->
+                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference t
+                | TypeOfValue dv ->
+                  // once we have "KnownTypes" implemented, we can follow up here
+                  // with something like below:
+                  // dv
+                  // |> PACKAGE.Darklang.LanguageTools.Dval.toTypeRef
+                  // |> PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference t
+
+                  // for now, just want to get something out...
+                  $"(RTETODO: type of.. {(Json.serialize<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval> dv) |> unwrap})"
                 | FieldName f -> $"`{f}`"
                 | InlineFieldName f -> f
                 | DBName db -> db
@@ -77,19 +89,38 @@ module Darklang =
                 //   |> String.join ""
                 // | FullValue dv -> DvalReprDeveloper.toRepr dv
                 | segment ->
-                  $"TODO ({(Json.serialize<ErrorSegment> segment) |> unwrap})"
+                  $"(RTETODO {(Json.serialize<ErrorSegment> segment) |> unwrap})"
 
               PACKAGE.Darklang.Stdlib.List.push prevSegments newSegment)
-            []
-          |> String.join ""
+
+          String.join parts ""
 
 
 
-      /// The result of Exception.raiseInternal
-      type ExceptionThrown =
-        { stackTrace: String
-          message: String
-          metadata: List<String * String> }
+      // /// The result of Exception.raiseInternal
+      // module ExceptionThrown =
+      //   type ExceptionThrown =
+      //     { message: String
+      //       stackTrace: String
+      //       metadata: List<String * String> }
+
+      //   let toSegments (e: ExceptionThrown) : ErrorOutput =
+      //     let summary =
+      //       [ ErrorSegment.ErrorSegment.String "An internal error occurred" ]
+
+      //     let extraExplanation =
+      //       [ ErrorSegment.ErrorSegment.String "The error was: "
+      //         ErrorSegment.ErrorSegment.String e.message
+
+      //         ErrorSegment.ErrorSegment.String "\n"
+      //         ErrorSegment.ErrorSegment.String "The stack trace was: "
+      //         ErrorSegment.ErrorSegment.String e.stackTrace ]
+
+      //     ErrorOutput
+      //       { summary = summary
+      //         extraExplanation = extraExplanation
+      //         actual = []
+      //         expected = [] }
 
 
       type ErrorOutput =
@@ -106,70 +137,40 @@ module Darklang =
         | NameResolutionError of
           PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error
         | OldStringErrorTODO of String
-        | ExceptionThrown of ExceptionThrown
+      //| ExceptionThrown of ExceptionThrown.ExceptionThrown
 
       module Error =
-        // TODO: move most of the logic here to the individual modules,
+        // RTETODO: move most of the logic here to the individual modules,
         // and then follow up here
         //
         let toSegments (e: Error) : ErrorOutput =
-          //   match e with
+          match e with
+          | OldStringErrorTODO s ->
+            ErrorOutput
+              { summary = [ ErrorSegment.ErrorSegment.String s ]
+                extraExplanation = []
+                actual = []
+                expected = [] }
 
-          //   | NameResolutionError({ errorType = NameResolution.NotFound } as e) ->
-          //     let nameType =
-          //       match e.nameType with
-          //       | NameResolution.Function -> "function"
-          //       | NameResolution.Type -> "type"
-          //       | NameResolution.Constant -> "constant"
+          // | CliError err -> Cli.Error.toSegments err
 
-          //     let summary =
-          //       [ String $"There is no {nameType} named "
-          //         InlineVarName(String.join "." e.names) ]
+          | TypeCheckerError err -> TypeChecker.Error.toSegments err
 
-          //     let extraExplanation = []
-          //     let actual = []
-          //     let expected = []
+          | NameResolutionError err -> NameResolution.toSegments err
 
-          //     { summary = summary
-          //       extraExplanation = extraExplanation
-          //       actual = actual
-          //       expected = expected }
+          //| ExceptionThrown err -> ExceptionThrown.toSegments err
 
-          //   | NameResolutionError({ errorType = NameResolution.MissingModuleName } as e) ->
-          //     let suffix =
-          //       if e.names = [] then
-          //         []
-          //       else
-          //         [ String ": "; VarName(String.join "." e.names) ]
-          //     let summary = [ String "Missing module name" ] @ suffix
-
-          //     let extraExplanation = []
-          //     let actual = []
-          //     let expected = []
-
-          //     { summary = summary
-          //       extraExplanation = extraExplanation
-          //       actual = actual
-          //       expected = expected }
-
-          //   | NameResolutionError({ errorType = NameResolution.InvalidPackageName } as e) ->
-          //     let summary =
-          //       [ String "Invalid package name "; InlineVarName(String.join "." e.names) ]
-
-          //     let extraExplanation = []
-          //     let actual = []
-          //     let expected = []
-
-          //     { summary = summary
-          //       extraExplanation = extraExplanation
-          //       actual = actual
-          //       expected = expected }
-          // TODO: replace with a real error from above
-          ErrorOutput
-            { summary = []
-              extraExplanation = []
-              actual = []
-              expected = [] }
+          | _ ->
+            ErrorOutput
+              { summary =
+                  [ ErrorSegment.ErrorSegment.String "RTETODO Error.toSegments" ]
+                extraExplanation =
+                  [ e
+                    |> Json.serialize<Error>
+                    |> unwrap
+                    |> ErrorSegment.ErrorSegment.String ]
+                actual = []
+                expected = [] }
 
         let toString (e: Error) : String =
           let s = toSegments e
@@ -186,3 +187,9 @@ module Darklang =
             explanation
           else
             $"{explanation}\n{expected}{actual}"
+
+
+        type ErrorMessage = ErrorString of String
+
+        let toErrorMessage (e: Error) : ErrorMessage =
+          ErrorMessage.ErrorString(toString e)

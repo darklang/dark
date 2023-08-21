@@ -616,14 +616,28 @@ module RuntimeError =
   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
     DEnum(name [] "Error" 0, name [] "Error" 0, caseName, fields) |> RuntimeError
 
+
   let cliError field = case "CliError" [ field ]
+
   let nameResolutionError field = case "CliError" [ field ]
+
   let typeCheckerError field = case "TypeCheckerError" [ field ]
+
+  // let exceptionThrown (ex : System.Exception) : RuntimeError =
+  //   case
+  //     "ExceptionThrown"
+  //     [ DRecord(
+  //         name [ "ExceptionThrown" ] "ExceptionThrown" 0,
+  //         name [ "ExceptionThrown" ] "ExceptionThrown" 0,
+  //         Map.ofList
+  //           [ "message", DString ex.Message
+  //             "stackTrace", DString ex.StackTrace
+  //             "metadata", DList [] ]
+  //       ) ]
 
   // TODO remove all usages of this in favor of better error cases
   let oldError (msg : string) : RuntimeError =
     case "OldStringErrorTODO" [ DString msg ]
-
 
   let toDT (RuntimeError e : RuntimeError) : Dval = e
   let fromDT (dv : Dval) : RuntimeError = RuntimeError dv

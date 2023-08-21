@@ -83,7 +83,7 @@ let execute
     let state =
       Exe.createState
         builtIns
-        (LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 0.))
+        (LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 1.))
         tracing
         reportException
         notify
@@ -170,6 +170,8 @@ module PackageBootstrapping =
       do! Sql.query "DELETE FROM package_types_v0" |> Sql.executeStatementAsync
       do! Sql.query "DELETE FROM package_functions_v0" |> Sql.executeStatementAsync
       do! Sql.query "DELETE FROM package_constants_v0" |> Sql.executeStatementAsync
+
+      return ()
     }
 
   let savePackagesToLocalDb (packages : LibParser.Parser.Packages) : Ply<unit> =
@@ -179,6 +181,8 @@ module PackageBootstrapping =
       do! LibCloud.PackageManager.savePackageFunctions fns
       do! LibCloud.PackageManager.savePackageTypes types
       do! LibCloud.PackageManager.savePackageConstants constants
+
+      return ()
     }
 
 
@@ -192,7 +196,7 @@ module PackageBootstrapping =
 
   type PackageSourceFile = { name : string; sourceCode : string }
 
-  let loadPackagesFromDb : Ply<int> =
+  let loadPackagesFromDb () : Ply<int> =
     uply {
       // 1. clear the local DB of any packages
       do! clearLocalPackageDb ()
@@ -218,18 +222,28 @@ module PackageBootstrapping =
           LibParser.Parser.parsePackageFile nameResolver path contents)
         |> flattenParsedPackages
 
-      do! savePackagesToLocalDb packagesParsedWithUnresolvedNamesAllowed
-
-
       // 3. re-parse the packages, and save
       // this time, though, we don't allow unresolved names
       // (any package references that may have been unresolved a second ago should now be OK)
+      let (fns, types, consts) = packagesParsedWithUnresolvedNamesAllowed
+      let nameResolver =
+        { nameResolver with
+            allowError = false
 
-      let packageManager =
-        LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 0.)
-      let! nameResolver =
-        { nameResolver with allowError = false }
-        |> LibParser.NameResolver.withUpdatedPackages packageManager
+            packageFns =
+              fns
+              |> List.map (fun fn -> PT2RT.FnName.Package.toRT fn.name)
+              |> Set.ofList
+
+            packageTypes =
+              types
+              |> List.map (fun typ -> PT2RT.TypeName.Package.toRT typ.name)
+              |> Set.ofList
+
+            packageConstants =
+              consts
+              |> List.map (fun c -> PT2RT.ConstantName.Package.toRT c.name)
+              |> Set.ofList }
 
       let packagesParsedWithUnresolvedNamesNotAllowed : LibParser.Parser.Packages =
         filesWithContents
@@ -259,7 +273,7 @@ let runLocalExecScript (args : string[]) : Ply<int> =
     let! nameResolver =
       { nameResolver with allowError = false }
       |> LibParser.NameResolver.withUpdatedPackages (
-        LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 0.)
+        LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 1.)
       )
     let modul = LibParser.Canvas.parseFromFile nameResolver mainFile
 
@@ -287,7 +301,6 @@ let runLocalExecScript (args : string[]) : Ply<int> =
       System.Console.WriteLine
         $"Error: main function must return an int, not {output}"
       return 1
-
   }
 
 [<EntryPoint>]
@@ -307,7 +320,7 @@ let main (args : string[]) : int =
     | [| "load-packages" |] ->
       System.Console.WriteLine "Loading packages to DB"
       let exitCode =
-        PackageBootstrapping.loadPackagesFromDb
+        PackageBootstrapping.loadPackagesFromDb ()
         |> Ply.toTask
         |> Async.AwaitTask
         |> Async.RunSynchronously

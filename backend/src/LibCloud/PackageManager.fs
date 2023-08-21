@@ -9,6 +9,7 @@ open Npgsql
 open Prelude
 open Tablecloth
 open Db
+open Ply
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PT = LibExecution.ProgramTypes
@@ -110,8 +111,8 @@ let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
 // Fetching
 // ------------------
 
-let allFunctions : Task<List<PT.PackageFn.T>> =
-  task {
+let allFunctions : Ply<List<PT.PackageFn.T>> =
+  uply {
     let! fns =
       Sql.query "SELECT id, definition FROM package_functions_v0"
       |> Sql.parameters []
@@ -122,12 +123,14 @@ let allFunctions : Task<List<PT.PackageFn.T>> =
       |> List.map (fun (id, def) -> BinarySerialization.deserializePackageFn id def)
   }
 
-let allTypes : Task<List<PT.PackageType.T>> =
-  task {
+let allTypes : Ply<List<PT.PackageType.T>> =
+  uply {
     let! types =
       Sql.query "SELECT id, definition FROM package_types_v0"
       |> Sql.parameters []
       |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytea "definition"))
+
+    debuG "Fetching all types" types.Length
 
     return
       types
@@ -135,8 +138,8 @@ let allTypes : Task<List<PT.PackageType.T>> =
         BinarySerialization.deserializePackageType id def)
   }
 
-let allConstants : Task<List<PT.PackageConstant.T>> =
-  task {
+let allConstants : Ply<List<PT.PackageConstant.T>> =
+  uply {
     let! constants =
       Sql.query "SELECT id, definition FROM package_constants_v0"
       |> Sql.parameters []
@@ -150,29 +153,30 @@ let allConstants : Task<List<PT.PackageConstant.T>> =
 
 open System
 
-let cachedTask (expiration : TimeSpan) (f : Task<'a>) : Task<'a> =
+let cachedPly (expiration : TimeSpan) (f : Ply<'a>) : unit -> Ply<'a> =
   let mutable value = None
   let mutable lastUpdate = DateTime.MinValue
 
-  task {
-    match value, DateTime.Now - lastUpdate > expiration with
-    | Some value, false -> return value
-    | _ ->
-      let! newValue = f
-      value <- Some newValue
-      lastUpdate <- DateTime.Now
-      return newValue
-  }
+  fun () ->
+    uply {
+      match value, DateTime.Now - lastUpdate > expiration with
+      | Some value, false -> return value
+      | _ ->
+        let! newValue = f
+        value <- Some newValue
+        lastUpdate <- DateTime.Now
+        return newValue
+    }
 
 let packageManager (cacheDuration : TimeSpan) : RT.PackageManager =
-  let allTypes = cachedTask cacheDuration allTypes
-  let allFunctions = cachedTask cacheDuration allFunctions
-  let allConstants = cachedTask cacheDuration allConstants
+  let allTypes = cachedPly cacheDuration allTypes
+  let allFunctions = cachedPly cacheDuration allFunctions
+  let allConstants = cachedPly cacheDuration allConstants
 
   { getType =
       fun typ ->
         uply {
-          let! types = allTypes
+          let! types = allTypes ()
 
           let types =
             types
@@ -186,7 +190,7 @@ let packageManager (cacheDuration : TimeSpan) : RT.PackageManager =
     getFn =
       fun fn ->
         uply {
-          let! fns = allFunctions
+          let! fns = allFunctions ()
 
           let fns =
             fns
@@ -200,7 +204,7 @@ let packageManager (cacheDuration : TimeSpan) : RT.PackageManager =
     getConstant =
       fun c ->
         uply {
-          let! constants = allConstants
+          let! constants = allConstants ()
 
           let constants =
             constants
@@ -214,7 +218,7 @@ let packageManager (cacheDuration : TimeSpan) : RT.PackageManager =
 
     getAllTypeNames =
       uply {
-        let! allTypes = allTypes
+        let! allTypes = allTypes ()
 
         return
           allTypes
@@ -224,7 +228,7 @@ let packageManager (cacheDuration : TimeSpan) : RT.PackageManager =
 
     getAllFnNames =
       uply {
-        let! allFunctions = allFunctions
+        let! allFunctions = allFunctions ()
 
         return
           allFunctions
@@ -234,7 +238,7 @@ let packageManager (cacheDuration : TimeSpan) : RT.PackageManager =
 
     getAllConstantNames =
       uply {
-        let! allConstants = allConstants
+        let! allConstants = allConstants ()
 
         return
           allConstants

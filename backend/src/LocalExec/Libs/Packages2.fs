@@ -15,7 +15,7 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 // the package manager here needs to not cache,
 // as the named things may have _just_ been inserted
 let packageManager =
-  LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 0.)
+  LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 1.)
 
 let resolver : Ply<LibParser.NameResolver.NameResolver> =
   let stdlibResolver =

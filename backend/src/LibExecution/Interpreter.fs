@@ -1050,6 +1050,10 @@ and execFn
                         // information, so best not to show it to the user. If we'd
                         // like to show it to the user, we should catch it and give
                         // them a known safe error.
+
+                        // // TODO is this OK? or should we scrub the exception?
+                        // Edit: probably not OK - see above
+                        // return DError(sourceID, RuntimeError.exceptionThrown e)
                         return Dval.errSStr sourceID Exception.unknownErrorMessage
                   }
 

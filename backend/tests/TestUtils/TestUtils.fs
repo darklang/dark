@@ -141,6 +141,17 @@ let builtinResolver =
     Map.values builtIns.constants
   )
 
+let packageManager =
+  LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 1.)
+
+let resolverWithBuiltinsAndPackageManager =
+  builtinResolver
+  |> LibParser.NameResolver.withUpdatedPackages packageManager
+  // CLEANUP this is bad
+  |> Ply.toTask
+  |> Async.AwaitTask
+  |> Async.RunSynchronously
+
 let executionStateFor
   (canvasID : CanvasID)
   (internalFnsAllowed : bool)
@@ -211,7 +222,7 @@ let executionStateFor
     let state =
       Exe.createState
         builtIns
-        (LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 1.))
+        packageManager
         (Exe.noTracing RT.Real)
         exceptionReporter
         notifier

@@ -49,8 +49,6 @@ let fns : List<BuiltInFn> =
               Dval.record
                 (stdlibPackageTyp [] "Packages" 0)
                 [ "types", DList types
-
-
                   "fns", DList fns
                   "constants", DList constants ]
           }

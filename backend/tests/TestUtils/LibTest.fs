@@ -53,15 +53,20 @@ let constants : List<BuiltInConstant> =
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "derror" 0
+  [ { name = fn "derrorMessage" 0
       typeParams = []
-      parameters =
-        [ Param.make "error" (TCustomType(Ok(RuntimeError.name [] "Error" 0), [])) "" ]
-      returnType = TCustomType(Ok(RuntimeError.name [] "Error" 0), [])
+      parameters = [ Param.make "errorMessage" TString "" ]
+      returnType =
+        TCustomType(Ok(RuntimeError.name [ "Error" ] "ErrorMessage" 0), [])
       description = "Return a value representing a runtime type error"
       fn =
         (function
-        | _, _, [ error ] -> Ply(DError(SourceNone, RuntimeError.fromDT error))
+        | _, _, [ DString error ] ->
+          Dval.enum
+            (RuntimeError.name [ "Error" ] "ErrorMessage" 0)
+            "ErrorString"
+            [ DString error ]
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
