@@ -667,6 +667,7 @@ let cachedPly (expiration : TimeSpan) (f : Ply<'a>) : Ply<'a> =
 // TODO: what should we do when the shape of types at the corresponding endpoints change?
 let packageManager : RT.PackageManager =
   let httpClient = new System.Net.Http.HttpClient()
+  let cacheDuration = TimeSpan.FromMinutes 1.
 
   let allTypes =
     uply {
@@ -678,7 +679,7 @@ let packageManager : RT.PackageManager =
         Json.Vanilla.deserialize<List<ProgramTypes.PackageType>> allTypesStr
         |> List.map (ET2PT.PackageType.toPT >> PT2RT.PackageType.toRT)
     }
-    |> cachedPly (TimeSpan.FromMinutes 1.)
+    |> cachedPly cacheDuration
 
   let allFns =
     uply {
@@ -690,9 +691,9 @@ let packageManager : RT.PackageManager =
         Json.Vanilla.deserialize<List<ProgramTypes.PackageFn.PackageFn>> allTypesStr
         |> List.map (ET2PT.PackageFn.toPT >> PT2RT.PackageFn.toRT)
     }
-    |> cachedPly (TimeSpan.FromMinutes 1.)
+    |> cachedPly cacheDuration
 
-  let getAllConstants =
+  let allConstants =
     uply {
       let! response =
         httpClient.GetAsync "http://dark-packages.dlio.localhost:11003/constants"
@@ -705,6 +706,8 @@ let packageManager : RT.PackageManager =
         parsedConstants
         |> List.map (ET2PT.PackageConstant.toPT >> PT2RT.PackageConstant.toRT)
     }
+    |> cachedPly cacheDuration
+
 
   { getType =
       fun typeName ->
@@ -727,30 +730,12 @@ let packageManager : RT.PackageManager =
     getConstant =
       fun constantName ->
         uply {
-          let! allConstants = getAllConstants
+          let! allConstants = allConstants
           let found =
             List.find
               (fun (typ : RT.PackageConstant.T) -> typ.name = constantName)
               allConstants
           return found
         }
-
-    getAllTypeNames =
-      uply {
-        let! allTypes = allTypes
-        return allTypes |> List.map (fun typ -> typ.name) |> Set.ofList
-      }
-
-    getAllFnNames =
-      uply {
-        let! allFns = allFns
-        return allFns |> List.map (fun fn -> fn.name) |> Set.ofList
-      }
-
-    getAllConstantNames =
-      uply {
-        let! allConstants = getAllConstants
-        return allConstants |> List.map (fun c -> c.name) |> Set.ofList
-      }
 
     init = uply { return () } }

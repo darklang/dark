@@ -16,7 +16,8 @@ module Cron = LibCloud.Cron
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 
-let p (code : string) : PT.Expr = LibParser.Parser.parseSimple "cron.tests.fs" code
+let p (code : string) : Task<PT.Expr> =
+  LibParser.Parser.parseSimple "cron.tests.fs" code |> Ply.toTask
 
 
 let testCronFetchActiveCrons =
@@ -32,7 +33,8 @@ let testCronSanity =
   testTask "cron sanity" {
     let! canvasID = initializeTestCanvas "cron-sanity"
 
-    let h = testCron "test" PT.Handler.EveryDay (p " 5 + 3")
+    let! e = p "5 + 3"
+    let h = testCron "test" PT.Handler.EveryDay e
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]
 
     let cronScheduleData : Cron.CronScheduleData =
@@ -50,7 +52,8 @@ let testCronJustRan =
   testTask "test cron just ran" {
     let! canvasID = initializeTestCanvas "cron-just-ran"
 
-    let h = testCron "test" PT.Handler.EveryDay (p "5 + 3")
+    let! e = p "5 + 3"
+    let h = testCron "test" PT.Handler.EveryDay e
 
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]
 

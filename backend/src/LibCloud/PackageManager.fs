@@ -130,8 +130,6 @@ let allTypes : Ply<List<PT.PackageType.T>> =
       |> Sql.parameters []
       |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytea "definition"))
 
-    debuG "Fetching all types" types.Length
-
     return
       types
       |> List.map (fun (id, def) ->
@@ -168,7 +166,8 @@ let cachedPly (expiration : TimeSpan) (f : Ply<'a>) : unit -> Ply<'a> =
         return newValue
     }
 
-let packageManager (cacheDuration : TimeSpan) : RT.PackageManager =
+let packageManager : RT.PackageManager =
+  let cacheDuration = (System.TimeSpan.FromMinutes 1.)
   let allTypes = cachedPly cacheDuration allTypes
   let allFunctions = cachedPly cacheDuration allFunctions
   let allConstants = cachedPly cacheDuration allConstants
@@ -215,35 +214,5 @@ let packageManager (cacheDuration : TimeSpan) : RT.PackageManager =
 
           return constants.TryFind c
         }
-
-    getAllTypeNames =
-      uply {
-        let! allTypes = allTypes ()
-
-        return
-          allTypes
-          |> List.map (fun t -> PT2RT.TypeName.Package.toRT t.name)
-          |> Set.ofList
-      }
-
-    getAllFnNames =
-      uply {
-        let! allFunctions = allFunctions ()
-
-        return
-          allFunctions
-          |> List.map (fun f -> PT2RT.FnName.Package.toRT f.name)
-          |> Set.ofList
-      }
-
-    getAllConstantNames =
-      uply {
-        let! allConstants = allConstants ()
-
-        return
-          allConstants
-          |> List.map (fun c -> PT2RT.ConstantName.Package.toRT c.name)
-          |> Set.ofList
-      }
 
     init = uply { return () } }

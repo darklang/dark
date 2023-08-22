@@ -31,7 +31,7 @@ let builtIns : RT.BuiltIns =
     fns = fns |> Map.fromListBy (fun fn -> fn.name)
     constants = constants |> Map.fromListBy (fun c -> c.name) }
 
-let packageManager = PackageManager.packageManager (System.TimeSpan.FromMinutes 1.)
+let packageManager = PackageManager.packageManager
 
 let createState
   (traceID : AT.TraceID.T)

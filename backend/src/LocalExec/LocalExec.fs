@@ -83,7 +83,7 @@ let execute
     let state =
       Exe.createState
         builtIns
-        (LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 1.))
+        LibCloud.PackageManager.packageManager
         tracing
         reportException
         notify
@@ -215,42 +215,41 @@ module PackageBootstrapping =
         )
         |> fun nr -> { nr with allowError = true }
 
-      let packagesParsedWithUnresolvedNamesAllowed : LibParser.Parser.Packages =
+      let! (packagesParsedWithUnresolvedNamesAllowed : LibParser.Parser.Packages) =
         filesWithContents
-        |> List.map (fun (path, contents) ->
+        |> Ply.List.mapSequentially (fun (path, contents) ->
           print $"Parsing {path}, allowing unresolved names"
           LibParser.Parser.parsePackageFile nameResolver path contents)
-        |> flattenParsedPackages
+        |> Ply.map flattenParsedPackages
 
       // 3. re-parse the packages, and save
       // this time, though, we don't allow unresolved names
       // (any package references that may have been unresolved a second ago should now be OK)
       let (fns, types, consts) = packagesParsedWithUnresolvedNamesAllowed
+
+      let inMemPackageManager : RT.PackageManager =
+        let types = List.map PT2RT.PackageType.toRT types
+        let fns = List.map PT2RT.PackageFn.toRT fns
+        let consts = List.map PT2RT.PackageConstant.toRT consts
+
+        { getType = fun name -> types |> List.find (fun t -> t.name = name) |> Ply
+          getFn = fun name -> fns |> List.find (fun f -> f.name = name) |> Ply
+          getConstant =
+            fun name -> consts |> List.find (fun c -> c.name = name) |> Ply
+
+          init = uply { return () } }
+
       let nameResolver =
         { nameResolver with
             allowError = false
+            packageManager = Some inMemPackageManager }
 
-            packageFns =
-              fns
-              |> List.map (fun fn -> PT2RT.FnName.Package.toRT fn.name)
-              |> Set.ofList
-
-            packageTypes =
-              types
-              |> List.map (fun typ -> PT2RT.TypeName.Package.toRT typ.name)
-              |> Set.ofList
-
-            packageConstants =
-              consts
-              |> List.map (fun c -> PT2RT.ConstantName.Package.toRT c.name)
-              |> Set.ofList }
-
-      let packagesParsedWithUnresolvedNamesNotAllowed : LibParser.Parser.Packages =
+      let! (packagesParsedWithUnresolvedNamesNotAllowed : LibParser.Parser.Packages) =
         filesWithContents
-        |> List.map (fun (path, contents) ->
+        |> Ply.List.mapSequentially (fun (path, contents) ->
           print $"Parsing {path}, not allowing unresolved names"
           LibParser.Parser.parsePackageFile nameResolver path contents)
-        |> flattenParsedPackages
+        |> Ply.map flattenParsedPackages
 
       do! clearLocalPackageDb ()
       do! savePackagesToLocalDb packagesParsedWithUnresolvedNamesNotAllowed
@@ -260,7 +259,6 @@ module PackageBootstrapping =
 
 let runLocalExecScript (args : string[]) : Ply<int> =
   uply {
-
     let nameResolver =
       // TODO: this may need more builtins, and packages
       LibParser.NameResolver.fromBuiltins (
@@ -270,12 +268,11 @@ let runLocalExecScript (args : string[]) : Ply<int> =
       )
 
     let mainFile = "/home/dark/app/backend/src/LocalExec/local-exec.dark"
-    let! nameResolver =
-      { nameResolver with allowError = false }
-      |> LibParser.NameResolver.withUpdatedPackages (
-        LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 1.)
-      )
-    let modul = LibParser.Canvas.parseFromFile nameResolver mainFile
+    let nameResolver =
+      { nameResolver with
+          allowError = false
+          packageManager = Some LibCloud.PackageManager.packageManager }
+    let! modul = LibParser.Canvas.parseFromFile nameResolver mainFile
 
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
 

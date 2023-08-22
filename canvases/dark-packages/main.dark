@@ -37,10 +37,11 @@ let _handler _req =
 
   let item =
     NameToCategory
-      { owner = typ.name.owner
+      { owner = typeToSave.name.owner
         name =
-          typ.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.name
-        modules = typ.name.modules
+          typeToSave.name.name
+          |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.name
+        modules = typeToSave.name.modules
         category = PackageItem.Type }
 
   let key = DB.generateKey_v0 () // TODO: use id instead
@@ -59,10 +60,11 @@ let _handler _req =
 
   let item =
     NameToCategory
-      { owner = fn.name.owner
+      { owner = fnToSave.name.owner
         name =
-          fn.name.name |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.name
-        modules = fn.name.modules
+          fnToSave.name.name
+          |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.name
+        modules = fnToSave.name.modules
         category = PackageItem.Fn }
 
   let key = DB.generateKey_v0 () // TODO: use id instead
@@ -83,11 +85,11 @@ let _handler _req =
 
   let item =
     NameToCategory
-      { owner = c.name.owner
+      { owner = constantToSave.name.owner
         name =
-          (c.name.name
+          (constantToSave.name.name
            |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name)
-        modules = c.name.modules
+        modules = constantToSave.name.modules
         category = PackageItem.Constant }
 
   let key = DB.generateKey_v0 () // TODO: use id instead
@@ -97,16 +99,26 @@ let _handler _req =
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
 
 
+
 [<HttpHandler("GET", "/stats")>]
 let _handler _req =
-  let stats =
-    [ ("types", PACKAGE.Darklang.Stdlib.List.length (DB.getAll PackageTypeDB))
-      ("fns", PACKAGE.Darklang.Stdlib.List.length (DB.getAll PackageFnDB))
-      ("constants", PACKAGE.Darklang.Stdlib.List.length (DB.getAll PackageConstantDB))
-      ("items", (DB.getAll NamesDB) |> List.length) ]
-    |> Dict.fromListOverwritingDuplicates_v0
+  let types =
+    (DB.getAll PackageTypeDB) |> PACKAGE.Darklang.Stdlib.List.length |> Int.toString
 
-  let body = (Json.serialize<Dict<Int>> stats) |> unwrap |> String.toBytes
+  let fns =
+    (DB.getAll PackageFnDB) |> PACKAGE.Darklang.Stdlib.List.length |> Int.toString
+
+  let constants =
+    (DB.getAll PackageConstantDB)
+    |> PACKAGE.Darklang.Stdlib.List.length
+    |> Int.toString
+
+  let items =
+    (DB.getAll NamesDB) |> PACKAGE.Darklang.Stdlib.List.length |> Int.toString
+
+  let body =
+    $"Package stats:\ntypes: {types}, fns: {fns}, constants: {constants}\n\ntotal items in NamesDB: {items}"
+    |> String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response body 200
 

@@ -20,11 +20,7 @@ module Errors = LibExecution.Errors
 module S = TestUtils.RTShortcuts
 
 
-let defaultTypes () =
-  { RT.Types.empty with
-      package =
-        (LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 0.))
-          .getType }
+let defaultTypes () = { RT.Types.empty with package = packageManager.getType }
 
 let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
   dv

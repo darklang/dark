@@ -181,13 +181,15 @@ let t
 
 let baseDir = "testfiles/execution/"
 
+
+
 // Read all test files. The test file format is described in README.md
 let fileTests () : Test =
   System.IO.Directory.GetDirectories(baseDir, "*")
   |> Array.map (fun dir ->
     System.IO.Directory.GetFiles(dir, "*.dark")
-    |> Array.map (fun file ->
-
+    |> Array.toList
+    |> List.map (fun file ->
       let filename = System.IO.Path.GetFileName file
       let testName = System.IO.Path.GetFileNameWithoutExtension file
       let initializeCanvas = testName = "internal"
@@ -201,6 +203,10 @@ let fileTests () : Test =
             $"{dir}/{filename}"
             |> LibParser.TestModule.parseTestFile
               resolverWithBuiltinsAndPackageManager
+            |> Ply.toTask
+            // CLEANUP TODO BAD: I got stuck in Async hell and abandoned here
+            |> Async.AwaitTask
+            |> Async.RunSynchronously
 
           // Within a module, tests have access to
           let fns = modules |> List.map (fun m -> m.fns) |> List.concat
@@ -230,7 +236,6 @@ let fileTests () : Test =
         with e ->
           print $"Exception in {file}: {e.Message}"
           reraise ())
-    |> Array.toList
     |> testList dir)
   |> Array.toList
   |> testList "All"

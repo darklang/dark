@@ -28,7 +28,7 @@ module Darklang =
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> unwrap
           |> String.fromBytes
-          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>>
+          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>>
           |> unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
         else
@@ -77,7 +77,7 @@ module Darklang =
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> unwrap
           |> String.fromBytes
-          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>>
+          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>>
           |> unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
         else
@@ -128,7 +128,7 @@ module Darklang =
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> unwrap
           |> String.fromBytes
-          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T>>
+          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>>
           |> unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
         else
@@ -258,8 +258,8 @@ module Darklang =
           PACKAGE.Darklang.Cli.Command.Invalid [ "Invalid package name" ]
 
       | opt :: args ->
-        if String.startsWith opt "@" then
-          let name = opt |> String.dropFirst_v0 1
+        if PACKAGE.Darklang.Stdlib.String.startsWith opt "@" then
+          let name = opt |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1
           PACKAGE.Darklang.Cli.Command.RunFunction name args
         else
           PACKAGE.Darklang.Cli.Command.RunScript(opt, args)
@@ -292,7 +292,7 @@ module Darklang =
           """Usage: darklang [options] [SCRIPT]
 Options:
   -h, --help          Show this help message and exit
-  --show              Show a package, function, type, constant, or module
+  show              Show a package, function, type, constant, or module
   --prompt PROMPT     Infer a script from the given prompt using OpenAI"""
 
         print helpText

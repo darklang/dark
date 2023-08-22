@@ -103,39 +103,45 @@ let parse
   (resolver : NameResolver.NameResolver)
   (filename : string)
   (contents : string)
-  : PTPackageModule =
-  match parseAsFSharpSourceFile filename contents with
-  | ParsedImplFileInput(_,
-                        _,
-                        _,
-                        _,
-                        _,
-                        [ SynModuleOrNamespace(_, _, _, decls, _, _, _, _, _) ],
-                        _,
-                        _,
-                        _) ->
-    let baseModule = []
+  : Ply<PTPackageModule> =
+  uply {
+    match parseAsFSharpSourceFile filename contents with
+    | ParsedImplFileInput(_,
+                          _,
+                          _,
+                          _,
+                          _,
+                          [ SynModuleOrNamespace(_, _, _, decls, _, _, _, _, _) ],
+                          _,
+                          _,
+                          _) ->
+      let baseModule = []
 
-    let modul : WTPackageModule = parseDecls baseModule decls
+      let modul : WTPackageModule = parseDecls baseModule decls
 
-    let nameToModules (p : PT.FQName.Package<'a>) : List<string> =
-      "PACKAGE" :: p.owner :: p.modules
+      let nameToModules (p : PT.FQName.Package<'a>) : List<string> =
+        "PACKAGE" :: p.owner :: p.modules
 
-    let fns =
-      modul.fns
-      |> List.map (fun fn ->
-        WT2PT.PackageFn.toPT resolver (nameToModules fn.name) fn)
-    let types =
-      modul.types
-      |> List.map (fun typ ->
-        WT2PT.PackageType.toPT resolver (nameToModules typ.name) typ)
-    let constants =
-      modul.constants
-      |> List.map (fun constant ->
-        WT2PT.PackageConstant.toPT resolver (nameToModules constant.name) constant)
+      let! fns =
+        modul.fns
+        |> Ply.List.mapSequentially (fun fn ->
+          WT2PT.PackageFn.toPT resolver (nameToModules fn.name) fn)
 
-    { fns = fns; types = types; constants = constants }
+      let! types =
+        modul.types
+        |> Ply.List.mapSequentially (fun typ ->
+          WT2PT.PackageType.toPT resolver (nameToModules typ.name) typ)
 
-  // in the parsed package, types are being read as user, as opposed to the package that's right there
-  | decl ->
-    Exception.raiseInternal "Unsupported Package declaration" [ "decl", decl ]
+      let! constants =
+        modul.constants
+        |> Ply.List.mapSequentially (fun constant ->
+          WT2PT.PackageConstant.toPT resolver (nameToModules constant.name) constant)
+
+
+      return { fns = fns; types = types; constants = constants }
+
+    // in the parsed package, types are being read as user, as opposed to the package that's right there
+    | decl ->
+      return
+        Exception.raiseInternal "Unsupported Package declaration" [ "decl", decl ]
+  }

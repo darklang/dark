@@ -141,16 +141,10 @@ let builtinResolver =
     Map.values builtIns.constants
   )
 
-let packageManager =
-  LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 1.)
+let packageManager = LibCloud.PackageManager.packageManager
 
 let resolverWithBuiltinsAndPackageManager =
-  builtinResolver
-  |> LibParser.NameResolver.withUpdatedPackages packageManager
-  // CLEANUP this is bad
-  |> Ply.toTask
-  |> Async.AwaitTask
-  |> Async.RunSynchronously
+  { builtinResolver with packageManager = Some packageManager }
 
 let executionStateFor
   (canvasID : CanvasID)
@@ -320,6 +314,8 @@ let testListUsingPropertyAsync
           return (Expect.isTrue result "")
         })
       list)
+
+
 
 // Remove random things like IDs to make the tests stable
 let rec normalizeDvalResult (dv : RT.Dval) : RT.Dval =

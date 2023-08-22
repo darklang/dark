@@ -92,7 +92,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString code; DString filename ] ->
           uply {
             try
-              let canvas =
+              let! canvas =
                 // TODO: this needs builtins and packages
                 LibParser.Canvas.parse LibParser.NameResolver.empty filename code
 

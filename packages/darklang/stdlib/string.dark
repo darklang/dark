@@ -22,7 +22,7 @@ module Darklang =
 
 
       /// Returns the list of characters as a string
-      let fromList (lst: List<Character>) : String =
+      let fromList (lst: List<Char>) : String =
         (List.map lst (fun c -> Char.toString c)) |> String.join ""
 
 

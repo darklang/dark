@@ -15,9 +15,9 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 // the package manager here needs to not cache,
 // as the named things may have _just_ been inserted
 let packageManager =
-  LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 1.)
+  LibCloud.PackageManager.packageManager
 
-let resolver : Ply<LibParser.NameResolver.NameResolver> =
+let resolver : LibParser.NameResolver.NameResolver =
   let stdlibResolver =
     // CLEANUP we need a better way to determine what builtins should be
     // available to the name resolver, as this currently assumes builtins
@@ -48,8 +48,7 @@ let resolver : Ply<LibParser.NameResolver.NameResolver> =
                 "parse"
                 0 ] }
 
-  LibParser.NameResolver.merge stdlibResolver thisResolver
-  |> LibParser.NameResolver.withUpdatedPackages packageManager
+  LibParser.NameResolver.merge stdlibResolver thisResolver (Some packageManager)
 
 
 
@@ -71,10 +70,9 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DString contents; DString path ] ->
           uply {
-            let! resolver = resolver
             let resolver = { resolver with allowError = false }
 
-            let (fns, types, constants) =
+            let! (fns, types, constants) =
               LibParser.Parser.parsePackageFile resolver path contents
 
             let packagesFns = fns |> List.map (fun fn -> PT2DT.PackageFn.toDT fn)

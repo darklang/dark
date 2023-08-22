@@ -17,75 +17,41 @@ let listPackageFilesOnDisk (dir: String) : List<String> =
   |> List.filter (fun x -> x |> LocalExec.BuiltIns.String.endsWith ".dark")
 
 
-let saveFunctionToCanvas
-  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn)
-  : Unit =
-  let reqBody =
-    p
-    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
-    |> unwrap
-    |> String.toBytes
 
+
+let saveItemToCanvas
+  (json: String)
+  (name: String)
+  : PACKAGE.Darklang.Stdlib.Result.Result<Unit, String> =
   let response =
     HttpClient.request
       "POST"
-      ("http://dark-packages.dlio.localhost:11003/functions")
+      $"http://dark-packages.dlio.localhost:11003/{name}s"
       []
-      reqBody
+      (String.toBytes json)
 
-  let response = unwrap response
+  let errMsg = $"Error saving {name} to canvas"
 
-  // TODO: ensure 200 OK
+  match response with
+  | Ok response ->
+    match response.statusCode with
+    | 200 -> PACKAGE.Darklang.Stdlib.Result.Result.Ok()
+    | _ ->
+      print $"Status: {Int.toString response.statusCode}"
+      print $"Body: {response.body |> String.fromBytes}"
+      print errMsg
+      PACKAGE.Darklang.Stdlib.Result.Result.Error errMsg
+  | Error _err ->
+    print errMsg
+    PACKAGE.Darklang.Stdlib.Result.Result.Error errMsg
 
-  ()
 
-let saveTypeToCanvas
-  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType)
-  : Unit =
-  let reqBody =
-    p
-    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
-    |> unwrap
-    |> String.toBytes
-
-  let response =
-    HttpClient.request
-      "POST"
-      ("http://dark-packages.dlio.localhost:11003/types")
-      []
-      reqBody
-
-  let response = unwrap response
-
-  // TODO: ensure 200 OK
-
-  ()
-
-let saveConstantToCanvas
-  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant)
-  : Unit =
-  let reqBody =
-    p
-    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
-    |> unwrap
-    |> String.toBytes
-
-  let response =
-    HttpClient.request
-      "POST"
-      ("http://dark-packages.dlio.localhost:11003/constants")
-      []
-      reqBody
-
-  let response = unwrap response
-
-  // TODO: ensure 200 OK
-
-  ()
 
 // TODO: this should return a Result<Unit, String>
 // and the consumer should handle the error appropriately
-let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
+let loadPackageFileIntoDarkCanvas
+  (filename: String)
+  : PACKAGE.Darklang.Stdlib.Result.Result<Unit, String> =
   let package =
     filename
     |> File.read
@@ -94,12 +60,35 @@ let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
     |> LocalExec.Packages.parse filename
     |> unwrap
 
-  package.fns |> LocalExec.BuiltIns.List.iter (fun fn -> saveFunctionToCanvas fn)
+  let _fnResults =
+    package.fns
+    |> List.map (fun fn ->
+      fn
+      |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
+      |> unwrap
+      |> saveItemToCanvas "function")
 
-  package.types |> LocalExec.BuiltIns.List.iter (fun t -> saveTypeToCanvas t)
+  let _typeResults =
+    package.types
+    |> List.map (fun t ->
+      t
+      |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
+      |> unwrap
+      |> saveItemToCanvas "type")
 
-  package.constants
-  |> LocalExec.BuiltIns.List.iter (fun t -> saveConstantToCanvas t)
+  let _constantResults =
+    package.constants
+    |> List.map (fun c ->
+      c
+      |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
+      |> unwrap
+      |> saveItemToCanvas "constant")
+
+  // todo: flatten results, return first error if any are errors
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok()
+//   (PACKAGE.Darklang.Stdlib.List.flatten_v0 fnResults typeResults constantResults)
+// |>
+
 
 let printPackageFunction (p: LocalExec.Packages.Function) : Unit =
   let modules = p.modules |> String.join "."
@@ -173,9 +162,12 @@ let main (args: List<String>) : Int =
 
     // TODO: clear packages from dark canvas first?
 
-    LocalExec.BuiltIns.List.iter files (fun f ->
-      print $"Loading {f}"
-      loadPackageFileIntoDarkCanvas f)
+    let _fileResults =
+      List.map files (fun f ->
+        print $"Loading {f}"
+        loadPackageFileIntoDarkCanvas f)
+
+    // TODO: look at fileResults; fail first error if any
 
     print "Done loading packages from dark packages canvas"
     printAllPackagesInDb ()

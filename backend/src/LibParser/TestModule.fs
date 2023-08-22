@@ -189,19 +189,37 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
   parseModule [] [] decls
 
 
-let rec toPT (resolver : NameResolver.NameResolver) (m : WTModule) : PTModule =
-  { name = m.name
-    fns = m.fns |> List.map (WT2PT.UserFunction.toPT resolver m.name)
-    types = m.types |> List.map (WT2PT.UserType.toPT resolver m.name)
-    constants = m.constants |> List.map (WT2PT.UserConstant.toPT resolver m.name)
-    dbs = m.dbs |> List.map (WT2PT.DB.toPT resolver m.name)
-    tests =
+let toPT (resolver : NameResolver.NameResolver) (m : WTModule) : Ply<PTModule> =
+  uply {
+    let! fns =
+      m.fns |> Ply.List.mapSequentially (WT2PT.UserFunction.toPT resolver m.name)
+    let! types =
+      m.types |> Ply.List.mapSequentially (WT2PT.UserType.toPT resolver m.name)
+    let! constants =
+      m.constants
+      |> Ply.List.mapSequentially (WT2PT.UserConstant.toPT resolver m.name)
+    let! dbs = m.dbs |> Ply.List.mapSequentially (WT2PT.DB.toPT resolver m.name)
+    let! (tests : List<PTTest>) =
       m.tests
-      |> List.map (fun test ->
-        { actual = WT2PT.Expr.toPT resolver m.name test.actual
-          expected = WT2PT.Expr.toPT resolver m.name test.expected
-          lineNumber = test.lineNumber
-          name = test.name }) }
+      |> Ply.List.mapSequentially (fun test ->
+        uply {
+          let! actual = WT2PT.Expr.toPT resolver m.name test.actual
+          let! expected = WT2PT.Expr.toPT resolver m.name test.expected
+          return
+            { PTTest.actual = actual
+              expected = expected
+              lineNumber = test.lineNumber
+              name = test.name }
+        })
+
+    return
+      { name = m.name
+        fns = fns
+        types = types
+        constants = constants
+        dbs = dbs
+        tests = tests }
+  }
 
 
 
@@ -211,42 +229,53 @@ let rec toPT (resolver : NameResolver.NameResolver) (m : WTModule) : PTModule =
 let parseTestFile
   (baseResolver : NameResolver.NameResolver)
   (filename : string)
-  : List<PTModule> =
-  let modules =
-    filename
-    |> System.IO.File.ReadAllText
-    |> parseAsFSharpSourceFile filename
-    |> parseFile
+  : Ply<List<PTModule>> =
+  uply {
+    let modules =
+      filename
+      |> System.IO.File.ReadAllText
+      |> parseAsFSharpSourceFile filename
+      |> parseFile
 
-  let fns = modules |> List.map (fun m -> m.fns) |> List.concat
-  let fnNames = fns |> List.map (fun fn -> fn.name) |> Set.ofList
+    let fns = modules |> List.map (fun m -> m.fns) |> List.concat
+    let fnNames = fns |> List.map (fun fn -> fn.name) |> Set.ofList
 
-  let types = modules |> List.map (fun m -> m.types) |> List.concat
-  let typeNames = types |> List.map (fun typ -> typ.name) |> Set.ofList
+    let types = modules |> List.map (fun m -> m.types) |> List.concat
+    let typeNames = types |> List.map (fun typ -> typ.name) |> Set.ofList
 
-  let constants = modules |> List.map (fun m -> m.constants) |> List.concat
-  let constantNames = constants |> List.map (fun c -> c.name) |> Set.ofList
+    let constants = modules |> List.map (fun m -> m.constants) |> List.concat
+    let constantNames = constants |> List.map (fun c -> c.name) |> Set.ofList
 
-  let programResolver =
-    { NameResolver.empty with
-        userFns = fnNames
-        userTypes = typeNames
-        userConstants = constantNames }
-  let resolver = NameResolver.merge baseResolver programResolver
+    let programResolver =
+      { NameResolver.empty with
+          userFns = fnNames
+          userTypes = typeNames
+          userConstants = constantNames }
+    let resolver =
+      NameResolver.merge baseResolver programResolver baseResolver.packageManager
 
-  modules |> List.map (toPT resolver)
+    let! result = modules |> Ply.List.mapSequentially (toPT resolver)
+
+    return result
+  }
 
 let parseSingleTestFromFile
   (resolver : NameResolver.NameResolver)
   (filename : string)
   (testSource : string)
-  : RTTest =
-  let wtTest =
-    testSource
-    |> parseAsFSharpSourceFile filename
-    |> singleExprFromImplFile
-    |> parseTest
-  { actual = wtTest.actual |> WT2PT.Expr.toPT resolver [] |> PT2RT.Expr.toRT
-    expected = wtTest.expected |> WT2PT.Expr.toPT resolver [] |> PT2RT.Expr.toRT
-    lineNumber = wtTest.lineNumber
-    name = wtTest.name }
+  : Ply<RTTest> =
+  uply {
+    let wtTest =
+      testSource
+      |> parseAsFSharpSourceFile filename
+      |> singleExprFromImplFile
+      |> parseTest
+
+    let! actual = wtTest.actual |> WT2PT.Expr.toPT resolver []
+    let! expected = wtTest.expected |> WT2PT.Expr.toPT resolver []
+    return
+      { actual = actual |> PT2RT.Expr.toRT
+        expected = expected |> PT2RT.Expr.toRT
+        lineNumber = wtTest.lineNumber
+        name = wtTest.name }
+  }

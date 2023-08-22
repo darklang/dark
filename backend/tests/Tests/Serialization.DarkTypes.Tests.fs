@@ -29,9 +29,7 @@ module RoundtripTests =
 
   let types : RT.Types =
     { builtIn = builtIns.types
-      package =
-        (LibCloud.PackageManager.packageManager (System.TimeSpan.FromMinutes 1.))
-          .getType
+      package = packageManager.getType
       userProgram = Map.empty }
 
   let testRoundtrip

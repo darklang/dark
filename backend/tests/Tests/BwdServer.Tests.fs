@@ -190,19 +190,22 @@ let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> 
       LibParser.NameResolver.fromBuiltins LibCloudExecution.CloudExecution.builtins
 
     // Handlers
-    let oplists =
+    let! oplists =
       test.handlers
-      |> List.map (fun handler ->
-        let source =
-          LibParser.Parser.parsePTExpr resolver "BwdServer.Tests.fs" handler.code
+      |> Ply.List.mapSequentially (fun handler ->
+        uply {
+          let! source =
+            LibParser.Parser.parsePTExpr resolver "BwdServer.Tests.fs" handler.code
 
-        let spec =
-          match handler.version with
-          | Http -> PT.Handler.HTTP(route = handler.route, method = handler.method)
+          let spec =
+            match handler.version with
+            | Http ->
+              PT.Handler.HTTP(route = handler.route, method = handler.method)
 
-        let h : PT.Handler.T = { tlid = gid (); ast = source; spec = spec }
+          let h : PT.Handler.T = { tlid = gid (); ast = source; spec = spec }
 
-        (PT.Toplevel.TLHandler h, Serialize.NotDeleted))
+          return (PT.Toplevel.TLHandler h, Serialize.NotDeleted)
+        })
 
     do! Canvas.saveTLIDs canvasID oplists
 

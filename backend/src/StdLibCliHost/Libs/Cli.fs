@@ -157,13 +157,16 @@ let fns : List<BuiltInFn> =
               |> CliRuntimeError.RTE.toRuntimeError
             //err msg metadata
 
-            let! nameResolver = LibParser.NameResolver.fromExecutionState state
+            let nameResolver = LibParser.NameResolver.fromExecutionState state
 
-            let parsedScript =
-              try
-                LibParser.Canvas.parse nameResolver filename code |> Ok
-              with e ->
-                Error(exnError e)
+            let! parsedScript =
+              uply {
+                try
+                  return!
+                    LibParser.Canvas.parse nameResolver filename code |> Ply.map Ok
+                with e ->
+                  return Error(exnError e)
+              }
 
             try
               match parsedScript with
@@ -218,8 +221,8 @@ let fns : List<BuiltInFn> =
             try
               let parts = functionName.Split('.') |> List.ofArray
               let name = NEList.ofList "PACKAGE" parts
-              let! resolver = LibParser.NameResolver.fromExecutionState state
-              let fnName =
+              let resolver = LibParser.NameResolver.fromExecutionState state
+              let! fnName =
                 LibParser.NameResolver.FnName.resolve
                   resolver
                   []
