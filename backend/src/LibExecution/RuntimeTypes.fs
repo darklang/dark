@@ -1207,16 +1207,46 @@ and ExecutionState =
     // (as opposed to being previewed for traces)
     onExecutionPath : bool }
 
+and Functions =
+  { builtIn : Map<FnName.BuiltIn, BuiltInFn>
+    package : FnName.Package -> Ply<Option<PackageFn.T>>
+    userProgram : Map<FnName.UserProgram, UserFunction.T> }
+
 and Types =
   { builtIn : Map<TypeName.BuiltIn, BuiltInType>
     package : TypeName.Package -> Ply<Option<PackageType.T>>
     userProgram : Map<TypeName.UserProgram, UserType.T> }
+
 
 module ExecutionState =
   let availableTypes (state : ExecutionState) : Types =
     { builtIn = state.builtIns.types
       package = state.packageManager.getType
       userProgram = state.program.types }
+
+  let availableFunctions (state : ExecutionState) : Functions =
+    { builtIn = state.builtIns.fns
+      package = state.packageManager.getFn
+      userProgram = state.program.fns }
+
+module Function =
+  let empty =
+    { builtIn = Map.empty; package = (fun _ -> Ply None); userProgram = Map.empty }
+
+  let find (name : FnName.T) (functions : Functions) : Ply<Option<FnName.T>> =
+    match name with
+    | FQName.BuiltIn b ->
+      Map.tryFind b functions.builtIn
+      |> Option.map (fun f -> f.name |> FQName.BuiltIn)
+      |> Ply
+    | FQName.UserProgram user ->
+      Map.tryFind user functions.userProgram
+      |> Option.map (fun f -> f.name |> FQName.UserProgram)
+      |> Ply
+    | FQName.Package pkg ->
+      functions.package pkg |> Ply.map (Option.map (fun f -> f.name |> FQName.Package))
+    | FQName.Unknown _ -> Ply None
+
 
 module Types =
   let empty =
@@ -1225,11 +1255,15 @@ module Types =
   let find (name : TypeName.T) (types : Types) : Ply<Option<TypeDeclaration.T>> =
     match name with
     | FQName.BuiltIn b ->
-      Map.tryFind b types.builtIn |> Option.map (fun t -> t.declaration) |> Ply
+      Map.tryFind b types.builtIn
+      |> Option.map (fun t -> t.declaration)
+      |> Ply
+
     | FQName.UserProgram user ->
       Map.tryFind user types.userProgram
       |> Option.map (fun t -> t.declaration)
       |> Ply
+
     | FQName.Package pkg ->
       types.package pkg |> Ply.map (Option.map (fun t -> t.declaration))
     | FQName.Unknown _ -> Ply None
