@@ -1244,7 +1244,8 @@ module Function =
       |> Option.map (fun f -> f.name |> FQName.UserProgram)
       |> Ply
     | FQName.Package pkg ->
-      functions.package pkg |> Ply.map (Option.map (fun f -> f.name |> FQName.Package))
+      functions.package pkg
+      |> Ply.map (Option.map (fun f -> f.name |> FQName.Package))
     | FQName.Unknown _ -> Ply None
 
 
@@ -1255,9 +1256,7 @@ module Types =
   let find (name : TypeName.T) (types : Types) : Ply<Option<TypeDeclaration.T>> =
     match name with
     | FQName.BuiltIn b ->
-      Map.tryFind b types.builtIn
-      |> Option.map (fun t -> t.declaration)
-      |> Ply
+      Map.tryFind b types.builtIn |> Option.map (fun t -> t.declaration) |> Ply
 
     | FQName.UserProgram user ->
       Map.tryFind user types.userProgram

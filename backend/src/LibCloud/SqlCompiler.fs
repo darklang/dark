@@ -510,10 +510,7 @@ let rec lambdaToSql
             | FQName.Unknown u -> return error $"{u} is not a known function"
 
 
-          | None ->
-            return
-              error
-                $"Function {nameStr} not found."
+          | None -> return error $"Function {nameStr} not found."
 
         | EAnd(_, left, right) ->
           let! left = lts TBool left

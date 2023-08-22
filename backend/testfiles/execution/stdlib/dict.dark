@@ -111,7 +111,9 @@ module Map =
     { key2 = "key2val2"; key1 = "key1val1" })
 
   Dict.map_v0 (Dict { key1 = 5; key2 = 3; key3 = 3 }) (fun (k, x) ->
-    PACKAGE.Darklang.Stdlib.Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 1) (Int.lessThanOrEqualTo_v0 x 4)) = (Dict
+    PACKAGE.Darklang.Stdlib.Bool.and_v0
+      (Int.greaterThanOrEqualTo_v0 x 1)
+      (Int.lessThanOrEqualTo_v0 x 4)) = (Dict
     { key3 = true
       key2 = true
       key1 = false })
