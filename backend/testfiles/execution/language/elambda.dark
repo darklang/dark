@@ -38,7 +38,7 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
 List.fold_v0 [ "a"; "b" ] "x" (fun accum curr -> accum ++ curr) = "xab"
 
 (let pairs = [ (1, "one"); (2, "two") ] in
- let transformer = fun num str -> $"{Int.toString num}:{str}" in
+ let transformer = fun (num, str) -> $"{Int.toString num}:{str}" in
  List.map_v0 pairs transformer) = [ "1:one"; "2:two" ]
 
 (let triplets = [ (1, "one", true); (2, "two", false) ] in
