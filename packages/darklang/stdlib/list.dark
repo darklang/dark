@@ -2,6 +2,7 @@ module Darklang =
   module Stdlib =
     module List =
 
+      /// Drops the last value from <param list>
       let dropLast (list: List<'a>) : List<'a> =
         match list with
         | [] -> []
@@ -12,6 +13,7 @@ module Darklang =
             List.append_v0
               (List.singleton_v0 head)
               (PACKAGE.Darklang.Stdlib.List.dropLast tail)
+
 
       /// Returns {{Some}} the head (first value) of a list.
       /// Returns {{None}} if the list is empty.
@@ -77,14 +79,13 @@ module Darklang =
             (PACKAGE.Darklang.Stdlib.List.range (lowest + 1) highest)
 
 
-      // CLEANUP: this is blocked from being used until we have a live and stable package manager
-      // /// Returns a single list containing the values of every list directly in <paramlist>
-      // /// (does not recursively flatten nested lists)
-      // let flatten (list: List<List<'a>>) : List<'a> =
-      //   match list with
-      //   | [] -> []
-      //   | head :: tail ->
-      //     List.append_v0 head (PACKAGE.Darklang.Stdlib.List.flatten tail)
+      /// Returns a single list containing the values of every list directly in <paramlist>
+      /// (does not recursively flatten nested lists)
+      let flatten (list: List<List<'a>>) : List<'a> =
+        match list with
+        | [] -> []
+        | head :: tail ->
+          List.append_v0 head (PACKAGE.Darklang.Stdlib.List.flatten tail)
 
 
       /// Returns true if <param list> has no values
@@ -94,14 +95,13 @@ module Darklang =
         | _ -> false
 
 
-      // CLEANUP: this is blocked from being used until we have a live and stable package manager
-      // /// Applies the given function <param fn> to each element of the <param list>.
-      // let iter (list: List<'a>) (f: 'a -> Unit) : Unit =
-      //   match list with
-      //   | [] -> ()
-      //   | head :: tail ->
-      //     head |> f
-      //     PACKAGE.Darklang.Stdlib.List.iter tail f
+      /// Applies the given function <param fn> to each element of the <param list>.
+      let iter (list: List<'a>) (f: 'a -> Unit) : Unit =
+        match list with
+        | [] -> ()
+        | head :: tail ->
+          head |> f
+          PACKAGE.Darklang.Stdlib.List.iter tail f
 
 
       /// Returns {{Some value}} at <param index> in <param list> if <param index> is
@@ -120,6 +120,7 @@ module Darklang =
               PACKAGE.Darklang.Stdlib.Option.Option.Some head
             else
               PACKAGE.Darklang.Stdlib.List.getAt tail (index - 1)
+
 
       /// Returns {{true}} if <param value> is in the list
       let ``member`` (list: List<'a>) (value: 'a) : Bool =

@@ -3,17 +3,311 @@ module Darklang =
     type Command =
       | RunScript of String * List<String>
       | Help
-      | Infer of String
+      | Show of String
+      | Infer of String * String
       | Invalid of List<String>
+      | RunFunction of fnName: String * args: List<String>
+
+
+    let showFn (name: String) (owner: String) (modules: List<String>) : Int =
+      let fns =
+        CLI.HttpClient.request
+          "GET"
+          ("http://dark-packages.dlio.localhost:11003/functions/")
+          []
+          Bytes.empty
+
+      let statusCode =
+        fns
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+        |> unwrap
+
+      let parsedFns =
+        if statusCode == 200 then
+          fns
+          |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+          |> unwrap
+          |> String.fromBytes
+          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>>
+          |> unwrap
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Some
+        else
+          PACKAGE.Darklang.Stdlib.Option.Option.None
+
+      match parsedFns with
+      | None ->
+        print "Error getting functions"
+        1
+      | Some fn ->
+        let packageSpecificFunction =
+          (List.filter fn (fun f ->
+            f.name.name
+            == PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name.FnName(name)
+            && f.name.owner == owner
+            && f.name.modules == modules))
+          |> PACKAGE.Darklang.Stdlib.List.head
+
+        let result =
+          match packageSpecificFunction with
+          | Some f ->
+            print (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn f)
+            0
+          | None ->
+            print "Function not found"
+            1
+
+        result
+
+    let showType (name: String) (owner: String) (modules: List<String>) : Int =
+      let types =
+        CLI.HttpClient.request
+          "GET"
+          ("http://dark-packages.dlio.localhost:11003/types/")
+          []
+          Bytes.empty
+
+      let statusCode =
+        types
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+        |> unwrap
+
+      let parsedTypes =
+        if statusCode == 200 then
+          types
+          |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+          |> unwrap
+          |> String.fromBytes
+          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>>
+          |> unwrap
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Some
+        else
+          PACKAGE.Darklang.Stdlib.Option.Option.None
+
+      match parsedTypes with
+      | None ->
+        print "Error getting types"
+        1
+      | Some types ->
+        let packageSpecificType =
+          (List.filter types (fun t ->
+            t.name.name
+            == PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name.TypeName(
+              name
+            )
+            && t.name.owner == owner
+            && t.name.modules == modules))
+          |> PACKAGE.Darklang.Stdlib.List.head
+
+        let result =
+          match packageSpecificType with
+          | Some t ->
+            print (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageType t)
+            0
+          | None ->
+            print "Type not found"
+            1
+
+        result
+
+    let showConstant (name: String) (owner: String) (modules: List<String>) : Int =
+      let constants =
+        CLI.HttpClient.request
+          "GET"
+          ("http://dark-packages.dlio.localhost:11003/constants/")
+          []
+          Bytes.empty
+
+      let statusCode =
+        constants
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+        |> unwrap
+
+      let parsedConstants =
+        if statusCode == 200 then
+          constants
+          |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+          |> unwrap
+          |> String.fromBytes
+          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T>>
+          |> unwrap
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Some
+        else
+          PACKAGE.Darklang.Stdlib.Option.Option.None
+
+      match parsedConstants with
+      | None ->
+        print "Error getting constants"
+        1
+      | Some constants ->
+        let packageSpecificConstant =
+          (List.filter constants (fun c ->
+            c.name.name
+            == PACKAGE
+              .Darklang
+              .LanguageTools
+              .ProgramTypes
+              .ConstantName
+              .Name
+              .ConstantName(name)
+            && c.name.owner == owner
+            && c.name.modules == modules))
+          |> PACKAGE.Darklang.Stdlib.List.head
+
+        let result =
+          match packageSpecificConstant with
+          | Some c ->
+            print (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageConstant c)
+            0
+          | None ->
+            print "Constant not found"
+            1
+
+        result
+
+    let showModule (name: String) : Int =
+      let modules =
+        CLI.HttpClient.request
+          "GET"
+          ("http://dark-packages.dlio.localhost:11003/modules/" ++ name)
+          []
+          Bytes.empty
+
+      let statusCode =
+        modules
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+        |> unwrap
+
+      let parsedModules =
+        if statusCode == 200 then
+          modules
+          |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+          |> unwrap
+          |> String.fromBytes
+          |> Json.parse<PACKAGE.Darklang.Stdlib.Packages>
+          |> unwrap
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Some
+        else
+          PACKAGE.Darklang.Stdlib.Option.Option.None
+
+
+      match parsedModules with
+      | None ->
+        print "Error getting package modules"
+        1
+      | Some modules ->
+        if
+          modules
+          == PACKAGE.Darklang.Stdlib.Packages
+            { types = []; fns = []; constants = [] }
+        then
+          print "module not found"
+          1
+        else
+          let result = modules |> PACKAGE.Darklang.PrettyPrinter.packages
+          print result
+          0
+
+    let showPackage (owner: String) : Int =
+      let packages =
+        CLI.HttpClient.request
+          "GET"
+          ("http://dark-packages.dlio.localhost:11003/owner/" ++ owner)
+          []
+          Bytes.empty
+
+      let statusCode =
+        packages
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+        |> unwrap
+
+      let parsedPackages =
+        if statusCode == 200 then
+          packages
+          |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+          |> unwrap
+          |> String.fromBytes
+          |> print
+
+          0
+        else
+          print "Error retrieving the package for the specified owner"
+          1
+
+      parsedPackages
+
+
+    let runFunction (fnName: String) (args: List<String>) : Int =
+      match Cli.executeFunction fnName args with
+      | Ok result ->
+        print result
+        0
+      | Error err ->
+        print err
+        1
+
+
+    let generateCode (prompt: String) (scriptPath: String) : Int =
+
+      let prompt =
+        match File.read "canvases/dark-editor/system-prompt-cli.txt" with
+        | Ok darkPrompt -> prompt ++ "\n" ++ (darkPrompt |> String.fromBytes)
+        | Error e ->
+          print e
+          prompt
+
+      print prompt
+
+      let request =
+        CLI.HttpClient.request
+          "GET"
+          ("http://dark-packages.dlio.localhost:11003/openai-chat/" ++ prompt)
+          []
+          Bytes.empty
+
+      let statusCode =
+        request
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+        |> unwrap
+
+      let response =
+        request
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+        |> unwrap
+        |> String.fromBytes
+
+
+      if statusCode == 200 then
+        print response
+        File.write (String.toBytes response) scriptPath
+        print $"Generated code saved to {scriptPath}"
+        0
+
+      else
+        print
+          $"Error generating code.\nStatus code: {statusCode} \nResponse: {response}"
+
+        1
 
 
     let parseArguments (args: List<String>) : PACKAGE.Darklang.Cli.Command =
       match args with
       | [ "-h" ] -> PACKAGE.Darklang.Cli.Command.Help
       | [ "--help" ] -> PACKAGE.Darklang.Cli.Command.Help
-      | [ "--prompt"; prompt ] -> PACKAGE.Darklang.Cli.Command.Infer prompt
-      | scriptPath :: args ->
-        PACKAGE.Darklang.Cli.Command.RunScript(scriptPath, args)
+      | [ "--prompt"; prompt; "--script"; scriptPath ] ->
+        PACKAGE.Darklang.Cli.Command.Infer(prompt, scriptPath)
+      | [ "show"; fnName ] ->
+        if PACKAGE.Darklang.Stdlib.String.startsWith fnName "@" then
+          PACKAGE.Darklang.Cli.Command.Show fnName
+        else
+          PACKAGE.Darklang.Cli.Command.Invalid [ "Invalid package name" ]
+
+      | opt :: args ->
+        if PACKAGE.Darklang.Stdlib.String.startsWith opt "@" then
+          let name = opt |> String.dropFirst_v0 1
+          PACKAGE.Darklang.Cli.Command.RunFunction name args
+        else
+          PACKAGE.Darklang.Cli.Command.RunScript(opt, args)
+      | _ -> PACKAGE.Darklang.Cli.Command.Invalid [ "Invalid arguments" ]
 
 
     let executeCommand (command: PACKAGE.Darklang.Cli.Command) : Int =
@@ -42,17 +336,75 @@ module Darklang =
           """Usage: darklang [options] [SCRIPT]
 Options:
   -h, --help          Show this help message and exit
+  --show              Show a package, function, type, constant, or module
   --prompt PROMPT     Infer a script from the given prompt using OpenAI"""
 
         print helpText
         0
+
+
+      | Show(name) ->
+
+        let fullName = name |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1
+
+        let owner =
+          fullName |> String.split "." |> PACKAGE.Darklang.Stdlib.List.head |> unwrap
+
+        let modules =
+          fullName
+          |> String.split "."
+          |> (PACKAGE.Darklang.Stdlib.List.drop 1)
+          |> PACKAGE.Darklang.Stdlib.List.dropLast
+
+        let name =
+          name
+          |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1
+          |> String.split "."
+          |> PACKAGE.Darklang.Stdlib.List.last
+          |> unwrap
+
+        let categoryRequest =
+          CLI.HttpClient.request
+            "GET"
+            ("http://dark-packages.dlio.localhost:11003/category/" ++ fullName)
+            []
+            Bytes.empty
+
+        let statusCode =
+          categoryRequest
+          |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+          |> unwrap
+
+        let category =
+          if statusCode == 200 then
+            categoryRequest
+            |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+            |> unwrap
+            |> String.fromBytes
+          else
+            "Error" |> String.toBytes
+
+        match category with
+        | "fn" -> PACKAGE.Darklang.Cli.showFn name owner modules
+        | "type" -> PACKAGE.Darklang.Cli.showType name owner modules
+        | "constant" -> PACKAGE.Darklang.Cli.showConstant name owner modules
+        | _ ->
+          let modules =
+            fullName |> String.split "." |> (PACKAGE.Darklang.Stdlib.List.drop 1)
+
+          if PACKAGE.Darklang.Stdlib.List.length modules == 0 then
+            PACKAGE.Darklang.Cli.showPackage owner
+          else
+            PACKAGE.Darklang.Cli.showModule fullName
+
+      | RunFunction(fnName, args) -> PACKAGE.Darklang.Cli.runFunction fnName args
 
       | Infer(prompt, scriptPath) ->
         // let script = System.IO.File.ReadAllText scriptPath
         // Call OpenAI API with the prompt and script to generate a new script
         // let generatedScript = callOpenAI(prompt, script)
         // Execute the generated script here
-        1
+        PACKAGE.Darklang.Cli.generateCode prompt scriptPath
 
       | Invalid args ->
         let args = args |> String.join " "

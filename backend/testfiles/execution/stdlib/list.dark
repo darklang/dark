@@ -45,26 +45,27 @@ List.dropWhile_v0 [] (fun item -> item < 3) = []
 
 List.empty_v0 = []
 
-(List.iter [ 1; 2; 3 ] (fun x -> Test.incrementSideEffectCounter ())
+(PACKAGE.Darklang.Stdlib.List.iter [ 1; 2; 3 ] (fun x ->
+  Test.incrementSideEffectCounter ())
 
  Test.sideEffectCount ()) = 3
 
-(List.iter [ 1; 2; 3; 4; 5 ] (fun x ->
+(PACKAGE.Darklang.Stdlib.List.iter [ 1; 2; 3; 4; 5 ] (fun x ->
   if x % 2 == 0 then
     Test.incrementSideEffectCounter ())
 
  Test.sideEffectCount ()) = 2
 
-(List.iter [] (fun x -> Test.incrementSideEffectCounter ())
+(PACKAGE.Darklang.Stdlib.List.iter [] (fun x -> Test.incrementSideEffectCounter ())
  Test.sideEffectCount ()) = 0
 
-(List.iter [ 10; 20; 30 ] (fun x ->
+(PACKAGE.Darklang.Stdlib.List.iter [ 10; 20; 30 ] (fun x ->
   Test.incrementSideEffectCounter ()
   Test.incrementSideEffectCounter ())
 
  Test.sideEffectCount ()) = 6
 
-(List.iter [ 1; 2; 3 ] (fun x ->
+(PACKAGE.Darklang.Stdlib.List.iter [ 1; 2; 3 ] (fun x ->
   if x > 2 then
     Test.incrementSideEffectCounter ())
 
@@ -120,13 +121,13 @@ List.findFirst [ 1; -33; 3; -2; 12 ] (fun x -> (x < 0 && x % 2 == 0)) = PACKAGE.
   -2
 
 // CLEANUP once DList contains typeRefs, this test may be uncommented and the error message updated:
-// List.flatten_v0 [1;2;3] =
+// PACKAGE.Darklang.Stdlib.List.flatten_v0 [1;2;3] =
 //   Test.runtimeError "In List.flatten's 1st argument (`list`), the value should be a List<List<'a>>. However, a List<Int> ([1; 2; 3]) was passed instead.\n\nExpected: List<List<'a>>\nActual: List<Int>: [1; 2; 3]"
-List.flatten_v0 [ [ 1 ]; [ 2 ]; [ 3 ] ] = [ 1; 2; 3 ]
-List.flatten_v0 [ [ 1 ]; [ [ 2; 3 ] ] ] = [ 1; [ 2; 3 ] ]
-List.flatten_v0 [ [ [] ] ] = [ [] ]
-List.flatten_v0 [ [] ] = []
-List.flatten_v0 [] = []
+PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1 ]; [ 2 ]; [ 3 ] ] = [ 1; 2; 3 ]
+PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1 ]; [ [ 2; 3 ] ] ] = [ 1; [ 2; 3 ] ]
+PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ [] ] ] = [ [] ]
+PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [] ] = []
+PACKAGE.Darklang.Stdlib.List.flatten_v0 [] = []
 
 List.fold_v0 [ "a"; "b"; "c"; "d" ] "x" (fun accum curr -> accum ++ curr) = "xabcd"
 
@@ -393,9 +394,10 @@ List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Int.mod_v0 x 2) = [ (1,
                                                                        (0, [ 2; 4 ]) ]
 
 List.groupByWithKey_v0 [ "apple"; "banana"; "avocado"; "grape"; "apricot" ] (fun s ->
-  String.first_v0 s 1) = [ ("a", [ "apple"; "avocado"; "apricot" ])
-                           ("b", [ "banana" ])
-                           ("g", [ "grape" ]) ]
+  PACKAGE.Darklang.Stdlib.String.first_v0 s 1) = [ ("a",
+                                                    [ "apple"; "avocado"; "apricot" ])
+                                                   ("b", [ "banana" ])
+                                                   ("g", [ "grape" ]) ]
 
 List.groupByWithKey_v0 [ 'a'; 'b'; 'c'; 'a'; 'b' ] (fun c -> c) = [ ('a',
                                                                      [ 'a'; 'a' ])

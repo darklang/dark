@@ -1,0 +1,140 @@
+module Darklang =
+  module Stdlib =
+    module String =
+
+      /// Returns a string containing a single '\n'
+      let newline = "\n"
+
+      /// Truncates the string <param s> to the specified <param length> and appends an ellipsis ("...")
+      /// to it if the original string exceeds the given length. Otherwise, returns the original string.
+      let ellipsis (s: String) (length: Int) : String =
+        if String.length s > length then
+          (String.slice_v0 s 0 length) ++ "..."
+        else
+          s
+
+      /// Returns {{true}} if <param s> is the empty string {{\"\"}
+      let isEmpty (s: String) : Bool = s == ""
+
+      /// Concatenates the two strings by prepending <param s2> to <param s1> and
+      /// returns the joined string
+      let prepend (s1: String) (s2: String) : String = s2 ++ s1
+
+
+      /// Returns the list of characters as a string
+      let fromList (lst: List<Character>) : String =
+        (List.map lst (fun c -> Char.toString c)) |> String.join ""
+
+
+      /// Converts a <type Char> to a <type String>
+      let fromChar (c: Char) : String = Char.toString c
+
+
+      /// Returns the first <param characterCount> characters of <param string>, as a String.
+      /// If <param characterCount> is longer than <param string>, returns <param string>.
+      /// If <param characterCount> is negative, returns the empty string."
+
+      let first (string: String) (characterCount: Int) : String =
+        if characterCount < 0 then ""
+        else if characterCount > String.length string then string
+        else String.slice_v0 string 0 characterCount
+
+
+      /// Returns the last <param characterCount> characters of <param string>, as a String.
+      /// If <param characterCount> is longer than <param string>, returns <param string>.
+      /// If <param characterCount> is negative, returns the empty string.
+      let last (string: String) (characterCount: Int) : String =
+        if characterCount < 0 then
+          ""
+        else if characterCount > String.length string then
+          string
+        else
+          String.slice_v0
+            string
+            (String.length string - characterCount)
+            (String.length string)
+
+      /// Returns all but the last <param characterCount> characters of <param string>, as a String.
+      /// If <param characterCount> is longer than <param string>, returns the empty string.
+      /// If <param characterCount> is negative, returns <param string>.
+      let dropLast (string: String) (characterCount: Int) : String =
+        if characterCount < 0 then
+          string
+        else if characterCount > String.length string then
+          ""
+        else
+          String.slice_v0 string 0 (String.length string - characterCount)
+
+
+      /// Returns all but the first <param characterCount> characters of <param string>, as a <type String>.
+      /// If <param characterCount> is longer than <param string>, returns the empty string.
+      /// If <param characterCount> is negative, returns <param string>.
+      let dropFirst (string: String) (characterCount: Int) : String =
+        if characterCount < 0 then
+          string
+        else if characterCount > String.length string then
+          ""
+        else
+          String.slice_v0 string characterCount (String.length string)
+
+
+      let repeat (string: String) (count: Int) : String =
+        if count <= 0 then
+          ""
+        else
+          string ++ PACKAGE.Darklang.Stdlib.String.repeat string (count - 1)
+
+
+      /// If <param string> is shorter than <param goalLength> characters, returns a
+      /// copy of <param string> starting with enough copies of <param padWith> for the
+      /// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
+      /// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>
+
+      let padStart
+        (string: String)
+        (padWith: String)
+        (goalLength: Int)
+        : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
+        if String.length padWith != 1 then
+          PACKAGE.Darklang.Stdlib.Result.Result.Error
+            $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
+        else if String.length string >= goalLength then
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok string
+        else
+          let padCount = goalLength - String.length string
+          let pad = PACKAGE.Darklang.Stdlib.String.repeat padWith padCount
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(pad ++ string)
+
+
+      /// If <param string> is shorter than <param goalLength> characters, returns a
+      /// copy of <param string> ending with enough copies of <param padWith> for the
+      /// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
+      /// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>.
+      let padEnd
+        (string: String)
+        (padWith: String)
+        (goalLength: Int)
+        : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
+        if String.length padWith != 1 then
+          PACKAGE.Darklang.Stdlib.Result.Result.Error
+            $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
+        else if String.length string >= goalLength then
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok string
+        else
+          let padCount = goalLength - String.length string
+          let pad = PACKAGE.Darklang.Stdlib.String.repeat padWith padCount
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(string ++ pad)
+
+
+      /// Checks if <param subject> starts with <param prefix>
+      let startsWith (subject: String) (prefix: String) : Bool =
+        String.slice_v0 subject 0 (String.length prefix) == prefix
+
+
+      /// Checks if <param subject> ends with <param suffix>
+      let endsWith (subject: String) (suffix: String) : Bool =
+        String.slice_v0
+          subject
+          (String.length subject - String.length suffix)
+          (String.length subject)
+        == suffix

@@ -25,7 +25,9 @@ module OpenAI =
         model: String
         choices: List<PACKAGE.OpenAI.Completion.ResponseChoice> }
 
-    let completion (prompt: String) : Result<String, String> =
+    let completion
+      (prompt: String)
+      : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
 
       let openAIRequest =
         PACKAGE.OpenAI.Completion.Request
@@ -117,7 +119,7 @@ module OpenAI =
       (prompt: String)
       (options:
         PACKAGE.Darklang.Stdlib.Option.Option<PACKAGE.OpenAI.ChatCompletion.CompletionOptions>)
-      : Result<String, String> =
+      : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
 
       let options =
         match options with
@@ -175,7 +177,9 @@ module OpenAI =
 
 
 
-    let completion (prompt: String) : Result<String, String> =
+    let completion
+      (prompt: String)
+      : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
 
       let openAIRequest =
         PACKAGE.OpenAI.ChatCompletion.Request
@@ -205,7 +209,7 @@ module OpenAI =
             )
           with
           | Ok r ->
-            match List.head r.choices with
+            match PACKAGE.Darklang.Stdlib.List.head r.choices with
             | Some c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.message.content
 
             | None ->
@@ -233,7 +237,9 @@ module OpenAI =
       { data: List<PACKAGE.OpenAI.ImageGeneration.ResponseData> }
 
     // This returns a url to the image, should it return the image itself?
-    let imageGeneration (prompt: String) : Result<String, String> =
+    let imageGeneration
+      (prompt: String)
+      : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
 
       let openAIRequest =
         PACKAGE.OpenAI.ImageGeneration.Request { prompt = prompt; size = "256x256" }
@@ -283,7 +289,9 @@ module OpenAI =
         created: Int
         model: String }
 
-    let retrieveModel (model: String) : Result<String, String> =
+    let retrieveModel
+      (model: String)
+      : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
 
       let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
@@ -302,7 +310,9 @@ module OpenAI =
           "OpenAI API request failed\n" ++ e
         )
 
-    let getListOfModels () : Result<List<String>, String> =
+    let getListOfModels
+      ()
+      : PACKAGE.Darklang.Stdlib.Result.Result<List<String>, String> =
 
       let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
