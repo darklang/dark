@@ -4,7 +4,7 @@ module Darklang =
       | RunScript of String * List<String>
       | Help
       | Show of String
-      | Infer of String
+      | Infer of String * String
       | Invalid of List<String>
       | RunFunction of fnName: String * args: List<String>
 
@@ -164,7 +164,6 @@ module Darklang =
 
         result
 
-
     let showModule (name: String) : Int =
       let modules =
         CLI.HttpClient.request
@@ -236,6 +235,7 @@ module Darklang =
 
       parsedPackages
 
+
     let runFunction (fnName: String) (args: List<String>) : Int =
       match Cli.executeFunction fnName args with
       | Ok result ->
@@ -246,11 +246,55 @@ module Darklang =
         1
 
 
+    let generateCode (prompt: String) (scriptPath: String) : Int =
+
+      let prompt =
+        match File.read "canvases/dark-editor/system-prompt-cli.txt" with
+        | Ok darkPrompt -> prompt ++ "\n" ++ (darkPrompt |> String.fromBytes)
+        | Error e ->
+          print e
+          prompt
+
+      print prompt
+
+      let request =
+        CLI.HttpClient.request
+          "GET"
+          ("http://dark-packages.dlio.localhost:11003/openai-chat/" ++ prompt)
+          []
+          Bytes.empty
+
+      let statusCode =
+        request
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
+        |> unwrap
+
+      let response =
+        request
+        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+        |> unwrap
+        |> String.fromBytes
+
+
+      if statusCode == 200 then
+        print response
+        File.write (String.toBytes response) scriptPath
+        print $"Generated code saved to {scriptPath}"
+        0
+
+      else
+        print
+          $"Error generating code.\nStatus code: {statusCode} \nResponse: {response}"
+
+        1
+
+
     let parseArguments (args: List<String>) : PACKAGE.Darklang.Cli.Command =
       match args with
       | [ "-h" ] -> PACKAGE.Darklang.Cli.Command.Help
       | [ "--help" ] -> PACKAGE.Darklang.Cli.Command.Help
-      | [ "--prompt"; prompt ] -> PACKAGE.Darklang.Cli.Command.Infer prompt
+      | [ "--prompt"; prompt; "--script"; scriptPath ] ->
+        PACKAGE.Darklang.Cli.Command.Infer(prompt, scriptPath)
       | [ "show"; fnName ] ->
         if PACKAGE.Darklang.Stdlib.String.startsWith fnName "@" then
           PACKAGE.Darklang.Cli.Command.Show fnName
@@ -258,7 +302,7 @@ module Darklang =
           PACKAGE.Darklang.Cli.Command.Invalid [ "Invalid package name" ]
 
       | opt :: args ->
-        if String.startsWith opt "@" then
+        if PACKAGE.Darklang.Stdlib.String.startsWith opt "@" then
           let name = opt |> String.dropFirst_v0 1
           PACKAGE.Darklang.Cli.Command.RunFunction name args
         else
@@ -360,7 +404,7 @@ Options:
         // Call OpenAI API with the prompt and script to generate a new script
         // let generatedScript = callOpenAI(prompt, script)
         // Execute the generated script here
-        1
+        PACKAGE.Darklang.Cli.generateCode prompt scriptPath
 
       | Invalid args ->
         let args = args |> String.join " "
