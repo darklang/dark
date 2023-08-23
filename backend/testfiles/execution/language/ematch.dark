@@ -45,21 +45,21 @@
 
 // Errors
 (match "nothing matches" with
- | "not this" -> "fail") = Test.runtimeError "No match"
+ | "not this" -> "fail") = Test.derrorMessage "No match"
 
 (match Test.runtimeError "cond is error" with
  | 5 -> "fail"
  | 6 -> "pass"
- | var -> "fail") = Test.runtimeError "cond is error"
+ | var -> "fail") = Test.derrorMessage "cond is error"
 
 (match Test.runtimeError "cond is error, wildcard" with
  | 5 -> 5
- | _ -> 6) = Test.runtimeError "cond is error, wildcard"
+ | _ -> 6) = Test.derrorMessage "cond is error, wildcard"
 
 (match 1 with
  | 1 -> Test.runtimeError "a"
  | 6 -> "pass"
- | var -> "fail") = Test.runtimeError "a"
+ | var -> "fail") = Test.derrorMessage "a"
 
 (match 1 with
  | 2 -> Test.runtimeError "a"
@@ -74,7 +74,7 @@
 (match 1 with
  | 2 -> "pass"
  | 1 -> Test.runtimeError "a"
- | var -> "fail") = Test.runtimeError "a"
+ | var -> "fail") = Test.derrorMessage "a"
 
 (match 3 with
  | 2 -> "pass"
@@ -282,7 +282,7 @@
  | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
  | [ i ] -> "list:" ++ i
  | (1, 2) -> "1 and 2"
- | None -> "constructor nothing") = Test.runtimeError "No match"
+ | None -> "constructor nothing") = Test.derrorMessage "No match"
 
 module ListCons =
   (match [ 1; 2; 3 ] with

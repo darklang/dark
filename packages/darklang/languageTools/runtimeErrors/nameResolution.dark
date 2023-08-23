@@ -72,10 +72,21 @@ module Darklang =
                 actual = []
                 expected = [] }
 
+          | ExpectedRecordButNot ->
+            let summary =
+              [ ErrorSegment.ErrorSegment.String "Expected a record but "
+                ErrorSegment.ErrorSegment.InlineVarName(String.join e.names ".")
+                ErrorSegment.ErrorSegment.String " is an enum" ]
+
+            ErrorOutput
+              { summary = summary
+                extraExplanation = []
+                actual = []
+                expected = [] }
+
           | _ ->
             // RTETODO:
             // | ExpectedEnumButNot
-            // | ExpectedRecordButNot
             ErrorOutput
               { summary =
                   [ ErrorSegment.ErrorSegment.String

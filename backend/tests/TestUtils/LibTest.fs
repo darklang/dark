@@ -103,6 +103,26 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+    { name = fn "derrorSqlMessage" 0
+      typeParams = []
+      parameters = [ Param.make "errorString" TString "" ]
+      returnType =
+        TCustomType(Ok(RuntimeError.name [ "Error" ] "ErrorMessage" 0), [])
+      description = "Return a value that matches errors thrown by the SqlCompiler"
+      fn =
+        (function
+        | _, _, [ DString errorString ] ->
+          let msg = LibCloud.SqlCompiler.errorTemplate + errorString
+          Dval.enum
+            (RuntimeError.name [ "Error" ] "ErrorMessage" 0)
+            "ErrorString"
+            [ DString msg ]
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
     { name = fn "toChar" 0
       typeParams = []
       parameters = [ Param.make "c" TString "" ]

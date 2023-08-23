@@ -606,6 +606,10 @@ module TypeReference =
     )
 
 module RuntimeError =
+  let toDT (RuntimeError e : RuntimeError) : Dval = e
+
+  let fromDT (dv : Dval) : RuntimeError = RuntimeError dv
+
   let name (modules : List<string>) (typeName : string) (version : int) =
     TypeName.fqPackage
       "Darklang"
@@ -619,9 +623,12 @@ module RuntimeError =
 
   let cliError field = case "CliError" [ field ]
 
-  let nameResolutionError field = case "CliError" [ field ]
+  let nameResolutionError field = case "NameResolutionError" [ field ]
 
   let typeCheckerError field = case "TypeCheckerError" [ field ]
+
+  let sqlCompilerRuntimeError (internalError : RuntimeError) =
+    case "SqlCompilerRuntimeError" [ toDT internalError ]
 
   // let exceptionThrown (ex : System.Exception) : RuntimeError =
   //   case
@@ -639,8 +646,7 @@ module RuntimeError =
   let oldError (msg : string) : RuntimeError =
     case "OldStringErrorTODO" [ DString msg ]
 
-  let toDT (RuntimeError e : RuntimeError) : Dval = e
-  let fromDT (dv : Dval) : RuntimeError = RuntimeError dv
+
 
 
 

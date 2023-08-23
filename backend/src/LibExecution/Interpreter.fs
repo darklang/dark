@@ -205,11 +205,9 @@ let rec eval'
 
           return
             Error(
-              RuntimeError.case
-                "NameResolution"
-                [ Dval.record
-                    (RuntimeError.name [ "NameResolution" ] "Error" 0)
-                    fields ]
+              RuntimeError.nameResolutionError (
+                Dval.record (RuntimeError.name [ "NameResolution" ] "Error" 0) fields
+              )
             )
       }
     inner typeName

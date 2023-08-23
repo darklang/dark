@@ -1,4 +1,3 @@
-/// Fns used to compile Exprs into SQL queries
 module LibCloud.SqlCompiler
 
 open System.Threading.Tasks
@@ -24,7 +23,7 @@ let errorTemplate =
   "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
 
 exception SqlCompilerException of string
-exception SqlCompilerRuntimeError of RuntimeError
+exception SqlCompilerRuntimeError of internalError : RuntimeError
 
 let error (str : string) : 'a = raise (SqlCompilerException(errorTemplate + str))
 
@@ -924,6 +923,10 @@ let compileLambda
 
       return Ok { sql = compiled.sql; vars = compiled.vars }
 
-    with SqlCompilerRuntimeError err ->
+    with
+    | SqlCompilerRuntimeError internalError ->
+      let err = RuntimeError.sqlCompilerRuntimeError internalError
       return Error err
+
+    | SqlCompilerException errStr -> return Error(RuntimeError.oldError errStr)
   }

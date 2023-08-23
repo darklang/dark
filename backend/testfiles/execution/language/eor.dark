@@ -4,10 +4,10 @@
 (false || false) = false
 (true || Test.runtimeError "msg") = true
 (true || 5) = true
-(false || Test.runtimeError "msg") = Test.runtimeError "msg"
-(false || 5) = Test.runtimeError "|| only supports Booleans"
-(Test.runtimeError "msg1" || Test.runtimeError "msg2") = Test.runtimeError "msg1"
-(5 || true) = Test.runtimeError "|| only supports Booleans"
+(false || Test.runtimeError "msg") = Test.derrorMessage "msg"
+(false || 5) = Test.derrorMessage "|| only supports Booleans"
+(Test.runtimeError "msg1" || Test.runtimeError "msg2") = Test.derrorMessage "msg1"
+(5 || true) = Test.derrorMessage "|| only supports Booleans"
 (true |> (||) true) = true
 (true |> (||) false) = true
 (false |> (||) true) = true

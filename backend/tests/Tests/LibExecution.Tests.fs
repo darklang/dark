@@ -150,19 +150,71 @@ let t
           match actual with
           | RT.DError(_, actual) ->
             let actual = RT.RuntimeError.toDT actual
-            let! actualErrorMessage =
-              LibExecution.Interpreter.callFn
-                state
-                Map.empty
-                0UL
-                (RT.FnName.fqPackage
-                  "Darklang"
-                  [ "LanguageTools"; "RuntimeErrors"; "Error" ]
-                  "toErrorMessage"
-                  0)
-                []
-                (NEList.ofList actual [])
-            return actualErrorMessage
+            let! typeChecked =
+              let expected =
+                RT.TCustomType(
+                  Ok(
+                    RT.TypeName.fqPackage
+                      "Darklang"
+                      [ "LanguageTools"; "RuntimeErrors" ]
+                      "Error"
+                      0
+                  ),
+                  []
+                )
+              let context =
+                LibExecution.TypeChecker.Context.FunctionCallParameter(
+                  (RT.FnName.fqPackage
+                    "Darklang"
+                    [ "LanguageTools"; "RuntimeErrors"; "Error" ]
+                    "toErrorMessage"
+                    0),
+                  { name = ""; typ = expected },
+                  0,
+                  None
+                )
+              let types = RT.ExecutionState.availableTypes state
+              let typeArgSymbolTable = Map.empty
+              LibExecution.TypeChecker.unify
+                context
+                types
+                typeArgSymbolTable
+                expected
+                actual
+
+            let errorMessageFn =
+              (RT.FnName.fqPackage
+                "Darklang"
+                [ "LanguageTools"; "RuntimeErrors"; "Error" ]
+                "toErrorMessage"
+                0)
+
+            match typeChecked with
+            | Ok _ ->
+              let! actualErrorMessage =
+                LibExecution.Interpreter.callFn
+                  state
+                  Map.empty
+                  0UL
+                  errorMessageFn
+                  []
+                  (NEList.ofList actual [])
+              return actualErrorMessage
+
+            | Error e ->
+              let! actualErrorMessage =
+                LibExecution.Interpreter.callFn
+                  state
+                  Map.empty
+                  0UL
+                  errorMessageFn
+                  []
+                  (NEList.ofList (RT.RuntimeError.toDT e) [])
+
+              debuG "Not able to stringfy runtime error -- wrong type given" ()
+
+              return actualErrorMessage
+
           | _ -> return actual
         }
 

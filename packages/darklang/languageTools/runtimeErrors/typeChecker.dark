@@ -118,29 +118,39 @@ module Darklang =
                 ErrorSegment.ErrorSegment.ParamName parameter.name
                 ErrorSegment.ErrorSegment.String ")" ]
 
-            // | FunctionCallResult(fnName, returnType, _) ->
-            //   [ FunctionName fnName; String "'s return value" ]
+            | FunctionCallResult(fnName, returnType, _) ->
+              [ ErrorSegment.ErrorSegment.FunctionName fnName
+                ErrorSegment.ErrorSegment.String "'s return value" ]
 
-            // | RecordField(recordType, fieldName, _, _) ->
-            //   [ TypeName recordType; String "'s "; FieldName fieldName; String " field" ]
+
+
+            | RecordField(recordType, fieldName, _, _) ->
+              [ ErrorSegment.ErrorSegment.TypeName recordType
+                ErrorSegment.ErrorSegment.String "'s "
+                ErrorSegment.ErrorSegment.FieldName fieldName
+                ErrorSegment.ErrorSegment.String " field" ]
 
             // | DictKey(key, _, _) ->
             //   let typeName =
             //     FQName.BuiltIn { name = TypeName.TypeName "Dict"; modules = []; version = 0 }
             //   [ TypeName typeName; String "'s "; FieldName key; String " value" ]
 
-            // | EnumField(enumType, caseName, fieldIndex, _, _, _) ->
-            //   [ TypeName enumType
-            //     String "."
-            //     InlineFieldName caseName
-            //     String "'s "
-            //     Ordinal(fieldIndex + 1)
-            //     String " argument" ]
+            | EnumField(enumType, caseName, fieldIndex, _, _, _) ->
+              [ ErrorSegment.ErrorSegment.TypeName enumType
+                ErrorSegment.ErrorSegment.String "."
+                ErrorSegment.ErrorSegment.InlineFieldName caseName
+                ErrorSegment.ErrorSegment.String "'s "
+                ErrorSegment.ErrorSegment.Ordinal(fieldIndex + 1)
+                ErrorSegment.ErrorSegment.String " argument" ]
 
-            // | DBSchemaType(dbName, expectedType, _) ->
-            //   [ String "DB "; DBName dbName; String "'s value" ]
+            | DBSchemaType(dbName, expectedType, _) ->
+              [ ErrorSegment.ErrorSegment.String "DB "
+                ErrorSegment.ErrorSegment.DBName dbName
+                ErrorSegment.ErrorSegment.String "'s value" ]
 
-            // | DBQueryVariable(varName, _, _) -> [ String "Variable "; VarName varName ]
+            | DBQueryVariable(varName, _, _) ->
+              [ ErrorSegment.ErrorSegment.String "Variable "
+                ErrorSegment.ErrorSegment.VarName varName ]
 
             // | TupleIndex(index, typ, parent) ->
             //   let rootContext = rootContext parent
@@ -153,6 +163,7 @@ module Darklang =
             //   [ String "In " ]
             //   @ contextSummary rootContext
             //   @ [ String ", the nested value "; VarName(valuePath context) ]
+
             | context ->
               [ ErrorSegment.ErrorSegment.String
                   $"(RTETODO: contextSummary {(Json.serialize<Context> context) |> unwrap})" ]
@@ -194,22 +205,34 @@ module Darklang =
               (defaultActual, segments)
 
 
-            // | TCK.FunctionCallResult(fnName, returnType, _) ->
-            //   // format:
-            //   // Option<String>
-            //   defaultActual, [ TypeReference returnType ]
+            | FunctionCallResult(fnName, returnType, _) ->
+              //   // format:
+              //   // Option<String>
+              let segment = [ ErrorSegment.ErrorSegment.TypeReference returnType ]
+              (defaultActual, segment)
 
+            | RecordField(recordType, fieldName, fieldType, _) ->
+              //   // format:
+              //   // TODO: fetch the type and lookup the field definition as a comment
+              let comment = []
+              //   // ({ name : string; ... }) // some description
+              // let comment =
+              //   if fieldDef.description = "" then
+              //     []
+              //   else
+              //     [ String " // "; Description fieldDef.description ]
 
-            // | TCK.RecordField(recordType, fieldName, fieldType, _) ->
-            //   // format:
-            //   // TODO: fetch the type and lookup the field definition as a comment
-            //   let comment = []
-            //   // ({ name : string; ... }) // some description
-            //   // let comment =
-            //   //   if fieldDef.description = "" then
-            //   //     []
-            //   //   else
-            //   //     [ String " // "; Description fieldDef.description ]
+              let segment =
+                List.append
+                  [ ErrorSegment.ErrorSegment.String "({ "
+                    ErrorSegment.ErrorSegment.InlineFieldName fieldName
+                    ErrorSegment.ErrorSegment.String ": "
+                    ErrorSegment.ErrorSegment.TypeReference fieldType
+                    ErrorSegment.ErrorSegment.String "; ... })" ]
+                  comment
+
+              (defaultActual, segment)
+
 
             //   defaultActual,
             //   ([ String "({ "
@@ -221,8 +244,8 @@ module Darklang =
 
 
             // | TCK.DictKey(key, typ, _) ->
-            //   // format:
-            //   // ({ "name" : String; ... })
+            // format:
+            // ({ "name" : String; ... })
             //   defaultActual,
             //   ([ String "({ "
             //     InlineFieldName key
@@ -231,42 +254,79 @@ module Darklang =
             //     String "; ... })" ])
 
 
-            // | TCK.EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType, _) ->
-            //   // format:
-            //   //   Ok (..., string, ...) // some description
-            //   // RTETODO: extract description from the type definition later
-            //   let prefix = if fieldIndex = 0 then [] else [ String "..., " ]
-            //   let suffix = if fieldIndex = fieldCount - 1 then [] else [ String ", ..." ]
-            //   let openParen = if fieldCount > 0 then [ String "(" ] else []
-            //   let closeParen = if fieldCount > 0 then [ String ")" ] else []
-            //   let display typ =
-            //     [ ShortTypeName enumType; String "."; InlineFieldName caseName; String " " ]
-            //     @ openParen
-            //     @ prefix
-            //     @ typ
-            //     @ suffix
-            //     @ closeParen
+            | EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType, _) ->
+              //   // format:
+              //   //   Ok (..., string, ...) // some description
+              //   // RTETODO: extract description from the type definition later
+
+              let prefix =
+                if fieldIndex == 0 then
+                  []
+                else
+                  [ ErrorSegment.ErrorSegment.String "..., " ]
+
+              let suffix =
+                if fieldIndex == fieldCount - 1 then
+                  []
+                else
+                  [ ErrorSegment.ErrorSegment.String ", ..." ]
+
+              let openParen =
+                if fieldCount > 0 then
+                  [ ErrorSegment.ErrorSegment.String "(" ]
+                else
+                  []
+
+              let closeParen =
+                if fieldCount > 0 then
+                  [ ErrorSegment.ErrorSegment.String ")" ]
+                else
+                  []
+
+              //CLEANUP
+              let fieldTypeSegment =
+                (List.append
+                  [ ErrorSegment.ErrorSegment.ShortTypeName enumType
+                    ErrorSegment.ErrorSegment.String "."
+                    ErrorSegment.ErrorSegment.InlineFieldName caseName
+                    ErrorSegment.ErrorSegment.String " " ]
+                  openParen)
+                |> List.append prefix
+                |> List.append [ ErrorSegment.ErrorSegment.TypeReference fieldType ]
+                |> List.append suffix
+                |> List.append closeParen
+
+              let argumentSegment =
+                (List.append
+                  [ ErrorSegment.ErrorSegment.ShortTypeName enumType
+                    ErrorSegment.ErrorSegment.String "."
+                    ErrorSegment.ErrorSegment.InlineFieldName caseName
+                    ErrorSegment.ErrorSegment.String " " ]
+                  openParen)
+                |> List.append prefix
+                |> List.append [ ErrorSegment.ErrorSegment.TypeOfValue argument ]
+                |> List.append suffix
+                |> List.append closeParen
+
+              (argumentSegment, fieldTypeSegment)
 
 
-            //   (display [ TypeOfValue argument ]), (display [ TypeReference fieldType ])
+            | DBSchemaType(dbName, expectedType, _) ->
+              //   // format:
+              //   // String
+              let segment = [ ErrorSegment.ErrorSegment.TypeReference expectedType ]
+              (defaultActual, segment)
 
 
-            // | TCK.DBSchemaType(dbName, expectedType, _) ->
-            //   // format:
-            //   // String
-            //   defaultActual, [ TypeReference expectedType ]
+            | DBQueryVariable(varName, expected, _) ->
+              let segment =
+                [ ErrorSegment.ErrorSegment.String "("
+                  ErrorSegment.ErrorSegment.InlineVarName varName
+                  ErrorSegment.ErrorSegment.String ": "
+                  ErrorSegment.ErrorSegment.TypeReference expected
+                  ErrorSegment.ErrorSegment.String ")" ]
 
-
-            // | TCK.DBQueryVariable(varName, expected, _) ->
-            //   // format:
-            //   // (varName : string) // some description
-            //   defaultActual,
-            //   ([ String "("
-            //     InlineVarName varName
-
-            //     String ": "
-            //     TypeReference expected
-            //     String ")" ])
+              (defaultActual, segment)
 
             // | TCK.ListIndex(index, typ, parent) -> defaultActual, [ TypeReference typ ]
 

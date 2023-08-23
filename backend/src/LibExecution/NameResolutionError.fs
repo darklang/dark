@@ -87,7 +87,9 @@ module RTE =
       | _ -> Exception.raiseInternal "Expected DRecord" []
 
   let toRuntimeError (e : Error) : RT.RuntimeError =
-    Error.toDT e |> RT.RuntimeError.fromDT
+    Error.toDT e |> RT.RuntimeError.nameResolutionError
 
   let fromRuntimeError (re : RT.RuntimeError) : Error =
+    // TODO: this probably doesn't unwrap the type
+    // see above function
     RT.RuntimeError.toDT re |> Error.fromDT

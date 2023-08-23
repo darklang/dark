@@ -29,10 +29,15 @@ module Darklang =
           : String =
           // TODO: include modules
 
+          let modulesPart =
+            match u.modules with
+            | [] -> ""
+            | modules -> modules |> String.join "." |> (fun parts -> $"{parts}.")
+
           let versionPart =
             if u.version == 0 then "" else $"_v{Int.toString u.version}"
 
-          $"{namePart}{versionPart}"
+          $"{modulesPart}{namePart}{versionPart}"
 
 
         let package
@@ -247,18 +252,21 @@ module Darklang =
           //   |> String.concat ", "
           //   |> fun s -> $"({s})"
           // | DBytes _ -> "Bytes"
-          // | DRecord(typeName, _, _) -> TypeName.toString typeName
+          | DRecord(typeName, _, _) -> PrettyPrinter.RuntimeTypes.typeName typeName
           // | DEnum(typeName, _, _, _) -> TypeName.toString typeName
           | _ -> "TODO dvalTypeName"
+
+        let makeSpaces (len: Int) : String =
+          (List.repeat len " ") |> unwrap |> String.join ""
 
         let withIndent
           (indent: Int)
           (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval)
           : String =
-          // let makeSpaces len = "".PadRight(len, ' ')
-          let nl = "\n" ++ "  " // todo: respect indent
-          let inl = "\n" ++ "    " // TODO: respect indent
+          let nl = "\n" ++ (makeSpaces indent)
+          let inl = "\n" ++ (makeSpaces (indent + 2))
           let indent = indent + 2
+
           // let typename = dvalTypeName dv
           // let wrap str = $"<{typename}: {str}>"
           // let justType = $"<{typename}>"

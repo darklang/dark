@@ -56,8 +56,10 @@ let fns : List<BuiltInFn> =
         | state, _, [ value; DString key; DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
-            let! _id = UserDB.set state true db key value
-            return value
+            let! id = UserDB.set state true db key value
+            match id with
+            | Ok id -> return value
+            | Error err -> return DError(SourceNone, err)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
