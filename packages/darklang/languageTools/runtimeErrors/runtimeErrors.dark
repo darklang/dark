@@ -51,7 +51,7 @@ module Darklang =
                 match segment with
                 | String s -> s
                 | Int i -> Int.toString i
-                // | Ordinal i -> String.toOrdinal i
+                | Ordinal i -> Stdlib.String.toOrdinal i
 
                 | IndefiniteArticle ->
                   match Stdlib.List.head prevSegments with
@@ -76,18 +76,19 @@ module Darklang =
                   // |> PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference t
 
                   // for now, just want to get something out...
-                  $"(RTETODO: type of.. {(Json.serialize<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval> dv) |> unwrap})"
+                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.Dval.dvalTypeName dv
                 | FieldName f -> $"`{f}`"
                 | InlineFieldName f -> f
                 | DBName db -> db
                 | VarName v -> $"`{v}`"
                 | InlineVarName v -> v
-                // | InlineValue dv ->
-                //   (DvalReprDeveloper.toRepr dv)
-                //   |> String.truncateWithElipsis 10
-                //   |> String.splitOnNewline
-                //   |> String.join ""
-                // | FullValue dv -> DvalReprDeveloper.toRepr dv
+                | InlineValue dv ->
+                  (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv)
+                  |> Stdlib.String.ellipsis 10
+                  |> Stdlib.String.splitOnNewline
+                  |> String.join ""
+                | FullValue dv ->
+                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv
                 | segment ->
                   $"(RTETODO {(Json.serialize<ErrorSegment> segment) |> unwrap})"
 

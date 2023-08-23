@@ -1004,32 +1004,6 @@ module String =
   let replace (old : string) (newStr : string) (s : string) : string =
     s.Replace(old, newStr)
 
-  /// Adds 'a' or 'an' (the indefinite article) in front of a string, based on
-  /// whether it begins with a vowel
-  let rec articleFor (nextWord : string) : string =
-    let vowels = Set [ 'A'; 'E'; 'I'; 'O'; 'U'; 'a'; 'e'; 'i'; 'o'; 'u' ]
-    if nextWord = "" then
-      ""
-    else if not (System.Char.IsLetter nextWord[0]) then
-      articleFor (nextWord.Substring(1))
-    else if Set.contains nextWord[0] vowels then
-      "an"
-    else
-      "a"
-
-  let toOrdinal (n : int) : string =
-    let suffix =
-      match n % 10 with
-      | 1 -> "st"
-      | 2 -> "nd"
-      | 3 -> "rd"
-      | _ -> "th"
-
-    string n + suffix
-
-  let truncateWithElipsis (maxLen : int) (s : string) : string =
-    if s.Length <= maxLen then s else s.Substring(0, maxLen - 3) + "..."
-
   let isCapitalized (s : string) : bool = s.Length > 0 && System.Char.IsUpper(s.[0])
 
 

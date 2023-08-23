@@ -172,21 +172,26 @@ module Darklang =
                 ErrorSegment.ErrorSegment.FullValue argument ]
 
             match context with
-            // | TCK.FunctionCallParameter(fnName, parameter, paramIndex, _) ->
-            //   // format:
-            //   // (json : string) // some description
-            //   let comment =
-            //     if "" (* RTETODO parameter.comment*) = "" then
-            //       []
-            //     else
-            //       [ String " // "; Description "" (*parameter.comment*) ]
-            //   (defaultActual,
-            //   [ String "("
-            //     InlineParamName parameter.name
-            //     String ": "
-            //     TypeReference parameter.typ
-            //     String ")" ]
-            //   @ comment)
+            | FunctionCallParameter(fnName, parameter, paramIndex, _) ->
+              // format:
+              // (json : string) // some description
+              let description =
+                if parameter.description == "" then
+                  []
+                else
+                  [ ErrorSegment.ErrorSegment.String " // "
+                    ErrorSegment.ErrorSegment.Description parameter.description ]
+
+              let segments =
+                List.append
+                  [ ErrorSegment.ErrorSegment.String "("
+                    ErrorSegment.ErrorSegment.InlineParamName parameter.name
+                    ErrorSegment.ErrorSegment.String ": "
+                    ErrorSegment.ErrorSegment.TypeReference parameter.typ
+                    ErrorSegment.ErrorSegment.String ")" ]
+                  description
+
+              (defaultActual, segments)
 
 
             // | TCK.FunctionCallResult(fnName, returnType, _) ->
@@ -268,7 +273,8 @@ module Darklang =
             // | TCK.TupleIndex(index, typ, parent) -> defaultActual, [ TypeReference typ ]
             | _ ->
               defaultActual,
-              [ ErrorSegment.ErrorSegment.String "RTETODO: contextAsActualExpected" ]
+              [ ErrorSegment.ErrorSegment.String
+                  $"(RTETODO: contextAsActualExpected {(Json.serialize<Context> context) |> unwrap})" ]
 
           let contextVerb (context: Context) : String =
             match context with

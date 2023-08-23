@@ -215,3 +215,166 @@ module Darklang =
             |> fun parts -> "(" ++ parts ++ ")"
 
           $"{argPart} -> {typeReference ret}"
+
+
+      module Dval =
+        // RTETODO remove this - someone should instead
+        // dv |> Dval.ToValueType |> PrettyPrinter.valueType
+        let dvalTypeName
+          (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval)
+          : String =
+          match dv with
+          | DIncomplete _ -> "Incomplete"
+          | DError _ -> "Error"
+          | DInt _ -> "Int"
+          | DFloat _ -> "Float"
+          | DBool _ -> "Bool"
+          | DUnit -> "Unit"
+          | DChar _ -> "Char"
+          | DString _ -> "String"
+          | DList [] -> "List<'a>"
+          | DList(v :: _) -> "List<" + dvalTypeName v + ">"
+          | DDict _ -> "Dict"
+          // | DFnVal(Lambda _) -> "Lambda"
+          // | DFnVal(NamedFn n) -> FnName.toString n
+          // | DDB _ -> "Datastore"
+          // | DDateTime _ -> "DateTime"
+          // | DPassword _ -> "Password"
+          // | DUuid _ -> "Uuid"
+          // | DTuple(t1, t2, trest) ->
+          //   t1 :: t2 :: trest
+          //   |> List.map dvalTypeName
+          //   |> String.concat ", "
+          //   |> fun s -> $"({s})"
+          // | DBytes _ -> "Bytes"
+          // | DRecord(typeName, _, _) -> TypeName.toString typeName
+          // | DEnum(typeName, _, _, _) -> TypeName.toString typeName
+          | _ -> "TODO dvalTypeName"
+
+        let withIndent
+          (indent: Int)
+          (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval)
+          : String =
+          // let makeSpaces len = "".PadRight(len, ' ')
+          let nl = "\n" ++ "  " // todo: respect indent
+          let inl = "\n" ++ "    " // TODO: respect indent
+          let indent = indent + 2
+          // let typename = dvalTypeName dv
+          // let wrap str = $"<{typename}: {str}>"
+          // let justType = $"<{typename}>"
+
+          match dv with
+          | DUnit -> "unit"
+
+          | DBool true -> "true"
+          | DBool false -> "false"
+
+          | DChar c -> $"'{c}'"
+          | DString s -> $"\"{s}\""
+
+          | DInt i -> Int.toString i
+
+          // | DFloat f ->
+          //   if System.Double.IsPositiveInfinity f then
+          //     "Infinity"
+          //   else if System.Double.IsNegativeInfinity f then
+          //     "-Infinity"
+          //   else if System.Double.IsNaN f then
+          //     "NaN"
+          //   else
+          //     let result = sprintf "%.12g" f
+          //     if result.Contains "." then result else $"{result}.0"
+
+          // | DDateTime d -> wrap (DarkDateTime.toIsoString d)
+
+          // | DBytes bytes -> Base64.defaultEncodeToString bytes
+
+          // | DUuid uuid -> wrap (string uuid)
+
+          // | DPassword _ -> "<password>"
+
+
+          // | DList l ->
+          //   if List.isEmpty l then
+          //     "[]"
+          //   else
+          //     let elems = String.concat ", " (List.map (toRepr_ indent) l)
+          //     $"[{inl}{elems}{nl}]"
+
+          // | DTuple(first, second, theRest) ->
+          //   let l = [ first; second ] @ theRest
+          //   let short = String.concat ", " (List.map (toRepr_ indent) l)
+
+          //   if String.length short <= 80 then
+          //     $"({short})"
+          //   else
+          //     let long = String.concat $"{inl}, " (List.map (toRepr_ indent) l)
+          //     $"({inl}{long}{nl})"
+
+          | DRecord(_, typeName, o) ->
+            let strs =
+              o
+              |> Dict.toList
+              |> List.map (fun pair ->
+                let (key, value) = pair
+                $"{key}: {withIndent indent value}")
+
+            let elems = String.join strs $",{inl}"
+            let typeStr = typeName typeName
+            typeStr ++ " {" ++ inl ++ elems ++ nl ++ "}"
+
+          // | DDict o ->
+          //   if Map.isEmpty o then
+          //     "{}"
+          //   else
+          //     let strs =
+          //       o
+          //       |> Map.toList
+          //       |> List.map (fun (key, value) -> ($"{key}: {toRepr_ indent value}"))
+
+          //     let elems = String.concat $",{inl}" strs
+          //     "{" + $"{inl}{elems}{nl}" + "}"
+
+          // | DEnum(_, typeName, caseName, fields) ->
+          //   let short =
+          //     let fieldStr =
+          //       fields
+          //       |> List.map (fun value -> toRepr_ indent value)
+          //       |> String.concat ", "
+
+          //     let fieldStr = if fieldStr = "" then "" else $"({fieldStr})"
+
+          //     let typeStr = TypeName.toString typeName
+          //     $"{typeStr}.{caseName}{fieldStr}"
+
+          //   if String.length short <= 80 then
+          //     short
+          //   else
+          //     let fieldStr =
+          //       fields
+          //       |> List.map (fun value -> toRepr_ indent value)
+          //       |> String.concat $",{inl}"
+
+          //     let fieldStr = if fieldStr = "" then "" else $"({inl}{fieldStr}{nl})"
+
+          //     let typeStr = TypeName.toString typeName
+          //     $"{typeStr}.{caseName}{fieldStr}"
+
+
+          // | DDB name -> wrap name
+
+          // | DFnVal _ ->
+          //   // TODO: we should print this, as this use case is safe
+          //   // See docs/dblock-serialization.md
+          //   justType
+
+          // | DIncomplete _ -> justType
+
+          // | DError(_, msg) -> $"<error: {msg}>"
+
+          | _ ->
+            $"(PP.RT.Dval TODO {(Json.serialize<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval> dv) |> unwrap})"
+
+
+      let dval (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval) : String =
+        Dval.withIndent 0 dv

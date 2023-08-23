@@ -248,6 +248,14 @@ let rec serialize
         [ "value", dv; "type", DString(LibExecution.DvalReprDeveloper.typeName typ) ]
   }
 
+
+type JsonPathPart =
+  | Root
+  | Index of int
+  | Field of string
+
+type JsonPath = List<JsonPathPart>
+
 /// Let's imagine we have these types:
 ///
 ///   ```fsharp
@@ -280,19 +288,12 @@ let rec serialize
 ///
 /// TODO: eventually, expose this in the JSON module?
 module JsonParseError =
-  type ErrorPath =
-    | Root
-    | Index of int
-    | Field of string
-
   type T =
     | NotJson
     | TypeUnsupported of TypeReference
     | TypeNotYetSupported of TypeReference
-    | CantMatchWithType of
-      typ : TypeReference *
-      json : string *
-      errorPath : List<ErrorPath>
+    | TypeNotFound of TypeReference
+    | CantMatchWithType of typ : TypeReference * json : string * path : JsonPath
     | Uncaught of System.Exception
 
   exception JsonParseException of T
@@ -301,18 +302,20 @@ module JsonParseError =
     match err with
     | Uncaught ex -> "Uncaught error: " + ex.Message
     | NotJson -> "Not JSON"
+    | TypeNotFound typ -> $"Type not found: {typ}"
     | TypeUnsupported typ -> $"Type not supported (intentionally): {typ}"
     | TypeNotYetSupported typ -> $"Type not yet supported: {typ}"
     | CantMatchWithType(typ, json, errorPath) ->
       let errorPath =
         errorPath
+        |> List.rev
         |> List.map (function
           | Root -> "root"
           | Index i -> $"[{i}]"
           | Field f -> $".{f}")
         |> String.concat ""
 
-      $"Can't match JSON with type {typ} at {errorPath}: {json}"
+      $"Can't parse JSON `{json}` as type `{LibExecution.DvalReprDeveloper.typeName typ}` at path: `{errorPath}`"
 
 let parse
   (types : Types)
@@ -320,7 +323,11 @@ let parse
   (str : string)
   : Ply<Result<Dval, string>> =
 
-  let rec convert (typ : TypeReference) (j : JsonElement) : Ply<Dval> =
+  let rec convert
+    (typ : TypeReference)
+    (pathSoFar : JsonPath)
+    (j : JsonElement)
+    : Ply<Dval> =
     match typ, j.ValueKind with
     // basic types
     | TUnit, JsonValueKind.Null -> DUnit |> Ply
@@ -362,7 +369,7 @@ let parse
 
     | TList nested, JsonValueKind.Array ->
       j.EnumerateArray()
-      |> Seq.map (convert nested)
+      |> Seq.mapi (fun i v -> convert nested (Index i :: pathSoFar) v)
       |> Seq.toList
       |> Ply.List.flatten
       |> Ply.map DList
@@ -372,7 +379,7 @@ let parse
       let types = t1 :: t2 :: rest
 
       List.zip types values
-      |> List.map (fun (t, v) -> convert t v)
+      |> List.mapi (fun i (t, v) -> convert t (Index i :: pathSoFar) v)
       |> Ply.List.flatten
       |> Ply.map (fun mapped ->
         match mapped with
@@ -386,7 +393,7 @@ let parse
       j.EnumerateObject()
       |> Seq.map (fun jp ->
         uply {
-          let! converted = convert tDict jp.Value
+          let! converted = convert tDict (Field jp.Name :: pathSoFar) jp.Value
           return (jp.Name, converted)
         })
       |> Seq.toList
@@ -394,23 +401,25 @@ let parse
       |> Ply.map (fun fields -> Map fields |> DDict)
 
     | TCustomType(Ok typeName, typeArgs), jsonValueKind ->
-
       uply {
         match! Types.find typeName types with
         | None ->
           return
-            Exception.raiseInternal "TODO - type not found" [ "typeName", typeName ]
+            JsonParseError.TypeNotFound typ
+            |> JsonParseError.JsonParseException
+            |> raise
+
         | Some decl ->
           match decl.definition with
           | TypeDeclaration.Alias alias ->
             let aliasType = Types.substitute decl.typeParams typeArgs alias
-            return! convert aliasType j
+            return! convert aliasType pathSoFar j
 
           | TypeDeclaration.Enum cases ->
             if jsonValueKind <> JsonValueKind.Object then
-              Exception.raiseInternal
-                "Expected an object for an enum"
-                [ "type", typeName; "value", j ]
+              JsonParseError.CantMatchWithType(typ, j.GetRawText(), pathSoFar)
+              |> JsonParseError.JsonParseException
+              |> raise
 
             let enumerated =
               j.EnumerateObject()
@@ -437,7 +446,7 @@ let parse
                 List.zip matchingCase.fields j
                 |> List.map (fun (typ, j) ->
                   let typ = Types.substitute decl.typeParams typeArgs typ
-                  convert typ j)
+                  convert typ pathSoFar j) // TODO revisit if we need to do anything with path
                 |> Ply.List.flatten
 
               // TYPESCLEANUP: we should have the original type here as well as the alias-resolved type
@@ -472,7 +481,8 @@ let parse
                     | _ -> Exception.raiseInternal "Too many matching fields" []
 
                   let typ = Types.substitute decl.typeParams typeArgs def.typ
-                  let! converted = convert typ correspondingValue
+                  let! converted =
+                    convert typ (Field def.name :: pathSoFar) correspondingValue
                   return (def.name, converted)
                 })
               |> Ply.List.flatten
@@ -483,13 +493,11 @@ let parse
 
 
     // Explicitly not supported
-    | TVariable _, _ ->
-      // this should disappear when we use a TypeReference here rather than a TypeReference
+    | TVariable _, _
+    | TFn _, _ ->
       JsonParseError.TypeUnsupported typ
       |> JsonParseError.JsonParseException
       |> raise
-
-    | TFn _, _ -> Exception.raiseInternal "Cannot parse functions" []
 
     | TDB _, _ -> Exception.raiseInternal "Cannot serialize DB references" []
 
@@ -508,9 +516,9 @@ let parse
     | TTuple _, _
     | TCustomType _, _
     | TDict _, _ ->
-      Exception.raiseInternal
-        "Can't currently parse this type/value combination"
-        [ "type", typ; "value", j ]
+      JsonParseError.CantMatchWithType(typ, j.GetRawText(), pathSoFar)
+      |> JsonParseError.JsonParseException
+      |> raise
 
   let parsed =
     try
@@ -523,7 +531,7 @@ let parse
   | Ok parsed ->
     uply {
       try
-        let! converted = parsed |> convert typ
+        let! converted = convert typ [ Root ] parsed
         return Ok converted
       with JsonParseError.JsonParseException ex ->
         // CLEANUP expose .NET error (converting to some Dark error type)
@@ -563,6 +571,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+
     { name = fn "parse" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "json" TString "" ]
@@ -582,5 +591,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]
+
 
 let contents = (fns, types, constants)

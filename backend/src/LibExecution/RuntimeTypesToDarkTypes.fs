@@ -352,7 +352,10 @@ module Param =
   let toDT (p : Param) : Dval =
     Dval.record
       (rtTyp [] "BuiltInParam" 0)
-      [ ("name", DString p.name); ("typ", TypeReference.toDT p.typ) ]
+      [ ("name", DString p.name)
+        ("typ", TypeReference.toDT p.typ)
+        // RTETODO
+        ("description", DString "") ]
 
 
 module LetPattern =

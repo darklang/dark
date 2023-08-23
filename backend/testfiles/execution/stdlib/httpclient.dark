@@ -22,7 +22,7 @@ module NoInternal =
                                                 "basic dXNlcm5hbWU6cGFzc3dvcmQ=")
 
   HttpClient.basicAuth "" "" = ("authorization", "basic Og==")
-  HttpClient.basicAuth "-" "" = Test.runtimeError "Username cannot contain a hyphen"
+  HttpClient.basicAuth "-" "" = Test.derrorMessage "Username cannot contain a hyphen"
   HttpClient.basicAuth "" "-" = ("authorization", "basic Oi0=")
   HttpClient.basicAuth ":" "" = ("authorization", "basic Ojo=")
   HttpClient.basicAuth "" ":" = ("authorization", "basic Ojo=")

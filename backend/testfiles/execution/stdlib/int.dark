@@ -76,8 +76,8 @@ Int.mod_v0 0 15 = 0
 Int.mod_v0 (-1) 2 = 1
 Int.mod_v0 (-754) 53 = 41
 Int.mod_v0 9999999999998L 3 = 2
-Int.mod_v0 5 0 = Test.runtimeError "Expected `b` to be positive, but it was `0`"
-Int.mod_v0 5 (-5) = Test.runtimeError "Expected `b` to be positive, but it was `-5`"
+Int.mod_v0 5 0 = Test.derrorMessage "Expected `b` to be positive, but it was `0`"
+Int.mod_v0 5 (-5) = Test.derrorMessage "Expected `b` to be positive, but it was `-5`"
 
 List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 (-5) 5) (fun v -> Int.mod_v0 v 4) = [ 3
                                                                                          0
@@ -92,8 +92,8 @@ List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 (-5) 5) (fun v -> Int.mod_v0 
                                                                                          1 ]
 
 15 % 5 = 0
-5 % 0 = Test.runtimeError "Expected `b` to be positive, but it was `0`"
-5 % (-5) = Test.runtimeError "Expected `b` to be positive, but it was `-5`"
+5 % 0 = Test.derrorMessage "Expected `b` to be positive, but it was `0`"
+5 % (-5) = Test.derrorMessage "Expected `b` to be positive, but it was `-5`"
 
 List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5) (fun v -> v % 4) = [ 3
                                                                               0
@@ -206,8 +206,11 @@ Int.subtract_v0 -55 -55 = 0
 Int.multiply_v0 8 8 = 64
 Int.multiply_v0 5145 5145 = 26471025
 
-1 * 1.0 = Test.runtimeError
-  "Int.multiply's 2nd argument (`b`) should be an Int. However, a Float (1.0) was passed instead.\n\nExpected: (b: Int)\nActual: a Float: 1.0"
+1 * 1.0 = Test.derrorMessage
+  "Int.multiply's 2nd argument (`b`) should be an Int. However, an (RTETODO: type of.. {\"DFloat\":[1.0]}) ((PP.RT.Dval TODO {\"DFloat\":[1.0]})) was passed instead.
+
+Expected: (b: Int)
+Actual: an (RTETODO: type of.. {\"DFloat\":[1.0]}): (PP.RT.Dval TODO {\"DFloat\":[1.0]})"
 
 8 * 8 = 64
 
@@ -215,7 +218,7 @@ Int.divide_v0 10 5 = 2
 Int.divide_v0 17 3 = 5
 Int.divide_v0 -8 5 = -1
 Int.divide_v0 0 1 = 0
-Int.divide_v0 1 0 = Test.runtimeError "Division by zero"
+Int.divide_v0 1 0 = Test.derrorMessage "Division by zero"
 
 (PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
 |> List.map_v0 (fun x -> Int.random 1 2)

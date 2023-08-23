@@ -138,3 +138,21 @@ module Darklang =
           (String.length subject - String.length suffix)
           (String.length subject)
         == suffix
+
+
+      let toOrdinal (n: Int) : String =
+        let suffix =
+          match n % 10 with
+          | 1 -> "st"
+          | 2 -> "nd"
+          | 3 -> "rd"
+          | _ -> "th"
+
+        (Int.toString n) ++ suffix
+
+
+      let splitOnNewline (str: String) : List<String> =
+        if str == "" then [] else String.split str "\n"
+
+// let truncateWithElipsis (maxLen : int) (s : string) : string =
+//   if s.Length <= maxLen then s else s.Substring(0, maxLen - 3) + "..."
