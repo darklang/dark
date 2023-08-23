@@ -568,7 +568,7 @@ module Expect =
       eq ("then" :: path) thn thn'
       match els, els' with
       | Some el, Some el' -> eq ("else" :: path) el el'
-      | None, None -> eq ("else" :: path) (EUnit id) (EUnit id)
+      | None, None -> ()
       | _ ->
         errorFn ("else" :: path) (string actual) (string expected)
         ()
