@@ -44,7 +44,7 @@ List.fold_v0 [ "a"; "b" ] "x" (fun accum curr -> accum ++ curr) = "xab"
 (let triplets = [ (1, "one", true); (2, "two", false) ] in
 
  let transformer =
-   fun num str flag ->
+   fun (num, str, flag) ->
      if flag then
        $"{Int.toString num}:{str}:TRUE"
      else
