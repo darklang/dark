@@ -7,13 +7,13 @@ Json.parse<Unit> "null" = PACKAGE.Darklang.Stdlib.Result.Result.Ok()
 Json.parse<Int> "()" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 
 Json.parse<Unit> "0" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `0` as type `TUnit` at path: `root`"
+  "Can't parse JSON `0` as type `Unit` at path: `root`"
 
 Json.parse<Unit> "\"\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `` as type `TUnit` at path: `root`"
+  "Can't parse JSON `\"\"` as type `Unit` at path: `root`"
 
 Json.parse<Unit> "\"null\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `\"null\"` as type `TUnit` at path: `root`"
+  "Can't parse JSON `\"null\"` as type `Unit` at path: `root`"
 
 
 // Bools
@@ -30,18 +30,18 @@ Json.parse<List<Bool>> "[true, true, false, true  ] " = PACKAGE.Darklang.Stdlib.
 Json.parse<Bool> "tru" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 
 Json.parse<Bool> "null" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `null` as type `TBool` at path: `root`"
+  "Can't parse JSON `null` as type `Bool` at path: `root`"
 
 Json.parse<Bool> "" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 
 Json.parse<Bool> "\"true\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `\"true\"` as type `TBool` at path: `root`"
+  "Can't parse JSON `\"true\"` as type `Bool` at path: `root`"
 
 Json.parse<Bool> "0" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `0` as type `TBool` at path: `root`"
+  "Can't parse JSON `0` as type `Bool` at path: `root`"
 
 Json.parse<Bool> "1" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `1` as type `TBool` at path: `root`"
+  "Can't parse JSON `1` as type `Bool` at path: `root`"
 
 Json.parse<Bool> "False" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 Json.parse<Bool> "tRUE" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
@@ -83,22 +83,22 @@ Json.parse<Int> "4a" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 Json.parse<Int> "- 42" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 
 Json.parse<Int> "null" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `null` as type `TInt` at path: `root`"
+  "Can't parse JSON `null` as type `Int` at path: `root`"
 
 Json.parse<Int> "true" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `true` as type `TInt` at path: `root`"
+  "Can't parse JSON `true` as type `Int` at path: `root`"
 
 Json.parse<Int> "false" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `false` as type `TInt` at path: `root`"
+  "Can't parse JSON `false` as type `Int` at path: `root`"
 
 Json.parse<Int> "\"42\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `\"42\"` as type `TInt` at path: `root`"
+  "Can't parse JSON `\"42\"` as type `Int` at path: `root`"
 
 Json.parse<Int> "[42]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `[42]` as type `TInt` at path: `root`"
+  "Can't parse JSON `[42]` as type `Int` at path: `root`"
 
 Json.parse<Int> "{ \"key\": 42 }" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `{ \"key\": 42 }` as type `TInt` at path: `root`"
+  "Can't parse JSON `{ \"key\": 42 }` as type `Int` at path: `root`"
 //Json.parse<Int> "42.5" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
 //Json.parse<Int> "1e3" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
 //Json.parse<Int> "-1e3" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
@@ -148,19 +148,19 @@ Json.parse<Float> "4a" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 Json.parse<Float> "- 42.0" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 
 Json.parse<Float> "null" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `null` as type `TFloat` at path: `root`"
+  "Can't parse JSON `null` as type `Float` at path: `root`"
 
 Json.parse<Float> "true" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `true` as type `TFloat` at path: `root`"
+  "Can't parse JSON `true` as type `Float` at path: `root`"
 
 Json.parse<Float> "false" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `false` as type `TFloat` at path: `root`"
+  "Can't parse JSON `false` as type `Float` at path: `root`"
 //Json.parse<Float> "\"42\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
 Json.parse<Float> "[42]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `[42]` as type `TFloat` at path: `root`"
+  "Can't parse JSON `[42]` as type `Float` at path: `root`"
 
 Json.parse<Float> "{ \"key\": 42 }" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `true` as type `TInt` at path: `root`"
+  "Can't parse JSON `{ \"key\": 42 }` as type `Float` at path: `root`"
 
 Json.parse<Float> "\"42\n\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 //Json.parse<Float> "4\u0032" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
@@ -248,13 +248,13 @@ Json.parse<DateTime> "\"3023-07-28T22:42:36Z\"" = PACKAGE
 
 // not dates (either malformatted, or missing stuff, or totally not dates)
 Json.parse<DateTime> "\"3023-07-28T22:42:36\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "String '3023-07-28T22:42:36' was not recognized as a valid DateTime."
+  "Can't parse JSON `\"3023-07-28T22:42:36\"` as type `DateTime` at path: `root`"
 
 Json.parse<DateTime> "\"2023-07-28\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "String '2023-07-28' was not recognized as a valid DateTime."
+  "Can't parse JSON `\"2023-07-28\"` as type `DateTime` at path: `root`"
 
 Json.parse<DateTime> "1" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `1` as type `TDateTime` at path: `root`"
+  "Can't parse JSON `1` as type `DateTime` at path: `root`"
 
 
 // UUIDs
@@ -293,8 +293,9 @@ Json.parse<Uuid> ("\"11111111-2222-3333-4444-555555555555\"") = PACKAGE
   .Ok(uuid "11111111-2222-3333-4444-555555555555")
 
 // not UUIDs
+// needs one more 0 at the end
 Json.parse<Uuid> "\"00000000-0000-0000-0000-00000000000\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Guid should contain 32 digits with 4 dashes (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)." // has a missing digit at the end
+  "Can't parse JSON `\"00000000-0000-0000-0000-00000000000\"` as type `Uuid` at path: `root`"
 
 
 // Bytes
@@ -356,10 +357,10 @@ Json.parse<List<Dict<MyString>>>
 
 // not proper lists
 Json.serialize<List<Int>> [ 1, 2, "three" ] = Test.derrorMessage
-  "Json.serialize's 1st argument (`arg`) should be a List<Int>. However, an (Int, Int, String) ((1, 2, ...) was passed instead.\n\nExpected: (arg: 'a)\nActual: an (Int, Int, String): (1, 2, \"three\")"
+  "Json.serialize's 1st argument (`arg`) should be an List<Int>. However, an (Int, Int, String) ((1, 2, \"th...) was passed instead.\n\nExpected: (arg: 'a)\nActual: an (Int, Int, String): (1, 2, \"three\")"
 
 Json.parse<List<Int>> "[1, 2, \"three\"]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `\"three\"` as type `TInt` at path: `root[2]`"
+  "Can't parse JSON `\"three\"` as type `Int` at path: `root[2]`"
 
 Json.parse<List<Int>> "[1, 2, ]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "not JSON"
@@ -367,7 +368,7 @@ Json.parse<List<Int>> "[1, 2, ]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
 //Json.parse<List<List<List<Int>>>> "[[[1,2,3],[4,5.5,6]],[[7,8],[9,0]]]" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
 Json.parse<List<Dict<Int>>>
   """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `\"alice\"` as type `TInt` at path: `root[0].name`"
+  "Can't parse JSON `\"Alice\"` as type `Int` at path: `root[0].name`"
 
 
 // Tuples
@@ -385,7 +386,7 @@ Json.parse<Tuple<Int, String, Int>> "[1,\"two\",3]" = PACKAGE
 
 // not proper tuples
 Json.parse<Tuple<String, String, Int>> """[1, "two", 3]""" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `1` as type `TString` at path: `root[0]`"
+  "Can't parse JSON `1` as type `String` at path: `root[0]`"
 // TODO: more...
 // TODO: issues at a few levels deep
 
@@ -411,10 +412,10 @@ Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<Int>> "{\"Some\":[1]}" = PACKAG
 
 // TODO: these might make good candidates for more ergonmic parsing
 Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<Int>> "null" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `null` as type `PACKAGE.Darklang.Stdlib.Option.Option<TInt>` at path: `root`"
+  "Can't parse JSON `null` as type `PACKAGE.Darklang.Stdlib.Option.Option<Int>` at path: `root`"
 
 Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<Int>> "1" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Can't parse JSON `1` as type `PACKAGE.Darklang.Stdlib.Option.Option<TInt>` at path: `root`"
+  "Can't parse JSON `1` as type `PACKAGE.Darklang.Stdlib.Option.Option<Int>` at path: `root`"
 // TODO: more...
 
 
@@ -665,10 +666,10 @@ type Person1 = { Name: String; Age: Int }
 type Person2 = { Name: String; Age: Int }
 
 Json.serialize<Person2> (Person1 { Name = "Bob"; Age = 42 }) = Test.derrorMessage
-  "Json.serialize's 1st argument (`arg`) should be an Person2. However, a Person1 (Person1...) was passed instead.
+  "Json.serialize's 1st argument (`arg`) should be an Person2. However, an Person1 (Person1 {...) was passed instead.
 
 Expected: (arg: 'a)
-Actual: a Person1: Person1 {\n  Age: 42,\n  Name: \"Bob\"\n}"
+Actual: an Person1: Person1 {\n  Age: 42,\n  Name: \"Bob\"\n}"
 
 // type StringResult<’a> = PACKAGE.Darklang.Stdlib.Result.Result<’a, String>
 // Json.serialize<StringResult<Int>> (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"PACKAGE.Darklang.Stdlib.Result.Result.Ok\":1}"

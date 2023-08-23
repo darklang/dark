@@ -13,6 +13,7 @@ module Darklang =
         else
           s
 
+
       /// Returns {{true}} if <param s> is the empty string {{\"\"}
       let isEmpty (s: String) : Bool = s == ""
 
@@ -153,6 +154,3 @@ module Darklang =
 
       let splitOnNewline (str: String) : List<String> =
         if str == "" then [] else String.split str "\n"
-
-// let truncateWithElipsis (maxLen : int) (s : string) : string =
-//   if s.Length <= maxLen then s else s.Substring(0, maxLen - 3) + "..."

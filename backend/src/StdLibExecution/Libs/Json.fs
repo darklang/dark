@@ -249,12 +249,22 @@ let rec serialize
   }
 
 
-type JsonPathPart =
-  | Root
-  | Index of int
-  | Field of string
+module JsonPath =
+  type JsonPathPart =
+    | Root
+    | Index of int
+    | Field of string
 
-type JsonPath = List<JsonPathPart>
+  type JsonPath = List<JsonPathPart>
+
+  let toString (path : JsonPath) : string =
+    path
+    |> List.rev
+    |> List.map (function
+      | Root -> "root"
+      | Index i -> $"[{i}]"
+      | Field f -> $".{f}")
+    |> String.concat ""
 
 /// Let's imagine we have these types:
 ///
@@ -293,7 +303,10 @@ module JsonParseError =
     | TypeUnsupported of TypeReference
     | TypeNotYetSupported of TypeReference
     | TypeNotFound of TypeReference
-    | CantMatchWithType of typ : TypeReference * json : string * path : JsonPath
+    | CantMatchWithType of
+      typ : TypeReference *
+      json : string *
+      path : JsonPath.JsonPath
     | Uncaught of System.Exception
 
   exception JsonParseException of T
@@ -306,16 +319,9 @@ module JsonParseError =
     | TypeUnsupported typ -> $"Type not supported (intentionally): {typ}"
     | TypeNotYetSupported typ -> $"Type not yet supported: {typ}"
     | CantMatchWithType(typ, json, errorPath) ->
-      let errorPath =
-        errorPath
-        |> List.rev
-        |> List.map (function
-          | Root -> "root"
-          | Index i -> $"[{i}]"
-          | Field f -> $".{f}")
-        |> String.concat ""
+      $"Can't parse JSON `{json}` as type `{LibExecution.DvalReprDeveloper.typeName typ}` at path: `{JsonPath.toString errorPath}`"
 
-      $"Can't parse JSON `{json}` as type `{LibExecution.DvalReprDeveloper.typeName typ}` at path: `{errorPath}`"
+
 
 let parse
   (types : Types)
@@ -325,7 +331,7 @@ let parse
 
   let rec convert
     (typ : TypeReference)
-    (pathSoFar : JsonPath)
+    (pathSoFar : JsonPath.JsonPath)
     (j : JsonElement)
     : Ply<Dval> =
     match typ, j.ValueKind with
@@ -352,14 +358,25 @@ let parse
     | TBytes, JsonValueKind.String ->
       j.GetString() |> Base64.decodeFromString |> DBytes |> Ply
 
-    | TUuid, JsonValueKind.String -> DUuid(System.Guid(j.GetString())) |> Ply
+    | TUuid, JsonValueKind.String ->
+      try
+        DUuid(System.Guid(j.GetString())) |> Ply
+      with _ ->
+        JsonParseError.CantMatchWithType(TUuid, j.GetRawText(), pathSoFar)
+        |> JsonParseError.JsonParseException
+        |> raise
 
     | TDateTime, JsonValueKind.String ->
-      j.GetString()
-      |> NodaTime.Instant.ofIsoString
-      |> DarkDateTime.fromInstant
-      |> DDateTime
-      |> Ply
+      try
+        j.GetString()
+        |> NodaTime.Instant.ofIsoString
+        |> DarkDateTime.fromInstant
+        |> DDateTime
+        |> Ply
+      with _ ->
+        JsonParseError.CantMatchWithType(TDateTime, j.GetRawText(), pathSoFar)
+        |> JsonParseError.JsonParseException
+        |> raise
 
     | TPassword, JsonValueKind.String ->
       j.GetString() |> Base64.decodeFromString |> Password |> DPassword |> Ply
@@ -369,7 +386,7 @@ let parse
 
     | TList nested, JsonValueKind.Array ->
       j.EnumerateArray()
-      |> Seq.mapi (fun i v -> convert nested (Index i :: pathSoFar) v)
+      |> Seq.mapi (fun i v -> convert nested (JsonPath.Index i :: pathSoFar) v)
       |> Seq.toList
       |> Ply.List.flatten
       |> Ply.map DList
@@ -379,7 +396,7 @@ let parse
       let types = t1 :: t2 :: rest
 
       List.zip types values
-      |> List.mapi (fun i (t, v) -> convert t (Index i :: pathSoFar) v)
+      |> List.mapi (fun i (t, v) -> convert t (JsonPath.Index i :: pathSoFar) v)
       |> Ply.List.flatten
       |> Ply.map (fun mapped ->
         match mapped with
@@ -393,7 +410,8 @@ let parse
       j.EnumerateObject()
       |> Seq.map (fun jp ->
         uply {
-          let! converted = convert tDict (Field jp.Name :: pathSoFar) jp.Value
+          let! converted =
+            convert tDict (JsonPath.Field jp.Name :: pathSoFar) jp.Value
           return (jp.Name, converted)
         })
       |> Seq.toList
@@ -482,7 +500,10 @@ let parse
 
                   let typ = Types.substitute decl.typeParams typeArgs def.typ
                   let! converted =
-                    convert typ (Field def.name :: pathSoFar) correspondingValue
+                    convert
+                      typ
+                      (JsonPath.Field def.name :: pathSoFar)
+                      correspondingValue
                   return (def.name, converted)
                 })
               |> Ply.List.flatten
@@ -531,7 +552,7 @@ let parse
   | Ok parsed ->
     uply {
       try
-        let! converted = convert typ [ Root ] parsed
+        let! converted = convert typ [ JsonPath.Root ] parsed
         return Ok converted
       with JsonParseError.JsonParseException ex ->
         // CLEANUP expose .NET error (converting to some Dark error type)

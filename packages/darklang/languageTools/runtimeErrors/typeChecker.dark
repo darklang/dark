@@ -283,26 +283,24 @@ module Darklang =
                 else
                   []
 
-              //CLEANUP
+              //CLEANUP de-duplicate these 2 segments a bit
               let fieldTypeSegment =
-                (List.append
-                  [ ErrorSegment.ErrorSegment.ShortTypeName enumType
-                    ErrorSegment.ErrorSegment.String "."
-                    ErrorSegment.ErrorSegment.InlineFieldName caseName
-                    ErrorSegment.ErrorSegment.String " " ]
-                  openParen)
+                [ ErrorSegment.ErrorSegment.ShortTypeName enumType
+                  ErrorSegment.ErrorSegment.String "."
+                  ErrorSegment.ErrorSegment.InlineFieldName caseName
+                  ErrorSegment.ErrorSegment.String " " ]
+                |> List.append openParen
                 |> List.append prefix
                 |> List.append [ ErrorSegment.ErrorSegment.TypeReference fieldType ]
                 |> List.append suffix
                 |> List.append closeParen
 
               let argumentSegment =
-                (List.append
-                  [ ErrorSegment.ErrorSegment.ShortTypeName enumType
-                    ErrorSegment.ErrorSegment.String "."
-                    ErrorSegment.ErrorSegment.InlineFieldName caseName
-                    ErrorSegment.ErrorSegment.String " " ]
-                  openParen)
+                [ ErrorSegment.ErrorSegment.ShortTypeName enumType
+                  ErrorSegment.ErrorSegment.String "."
+                  ErrorSegment.ErrorSegment.InlineFieldName caseName
+                  ErrorSegment.ErrorSegment.String " " ]
+                |> List.append openParen
                 |> List.append prefix
                 |> List.append [ ErrorSegment.ErrorSegment.TypeOfValue argument ]
                 |> List.append suffix

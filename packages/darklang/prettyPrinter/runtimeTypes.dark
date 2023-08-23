@@ -229,31 +229,36 @@ module Darklang =
           (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval)
           : String =
           match dv with
-          | DIncomplete _ -> "Incomplete"
-          | DError _ -> "Error"
+          | DUnit -> "Unit"
           | DInt _ -> "Int"
           | DFloat _ -> "Float"
           | DBool _ -> "Bool"
-          | DUnit -> "Unit"
           | DChar _ -> "Char"
           | DString _ -> "String"
+          | DBytes _ -> "Bytes"
+          | DUuid _ -> "Uuid"
+          | DDateTime _ -> "DateTime"
+
           | DList [] -> "List<'a>"
-          | DList(v :: _) -> "List<" + dvalTypeName v + ">"
+          | DList(v :: _) -> "List<" ++ (dvalTypeName v) ++ ">"
           | DDict _ -> "Dict"
-          // | DFnVal(Lambda _) -> "Lambda"
-          // | DFnVal(NamedFn n) -> FnName.toString n
-          // | DDB _ -> "Datastore"
-          // | DDateTime _ -> "DateTime"
-          // | DPassword _ -> "Password"
-          // | DUuid _ -> "Uuid"
-          // | DTuple(t1, t2, trest) ->
-          //   t1 :: t2 :: trest
-          //   |> List.map dvalTypeName
-          //   |> String.concat ", "
-          //   |> fun s -> $"({s})"
-          // | DBytes _ -> "Bytes"
+          | DTuple(t1, t2, trest) ->
+            (List.append [ t1; t2 ] trest)
+            |> List.map (fun dv -> dvalTypeName dv)
+            |> String.join ", "
+            |> fun s -> $"({s})"
+
           | DRecord(typeName, _, _) -> PrettyPrinter.RuntimeTypes.typeName typeName
           // | DEnum(typeName, _, _, _) -> TypeName.toString typeName
+
+          // | DFnVal(Lambda _) -> "Lambda"
+          // | DFnVal(NamedFn n) -> FnName.toString n
+          | DDB _ -> "Datastore"
+          | DPassword _ -> "Password"
+
+          | DIncomplete _ -> "Incomplete"
+          | DError _ -> "Error"
+
           | _ -> "TODO dvalTypeName"
 
         let makeSpaces (len: Int) : String =
@@ -306,18 +311,22 @@ module Darklang =
           //   if List.isEmpty l then
           //     "[]"
           //   else
-          //     let elems = String.concat ", " (List.map (toRepr_ indent) l)
+          //     let elems = String.concat ", " (List.map (withIndent indent) l)
           //     $"[{inl}{elems}{nl}]"
 
-          // | DTuple(first, second, theRest) ->
-          //   let l = [ first; second ] @ theRest
-          //   let short = String.concat ", " (List.map (toRepr_ indent) l)
+          | DTuple(first, second, theRest) ->
+            let l = List.append [ first; second ] theRest
 
-          //   if String.length short <= 80 then
-          //     $"({short})"
-          //   else
-          //     let long = String.concat $"{inl}, " (List.map (toRepr_ indent) l)
-          //     $"({inl}{long}{nl})"
+            let parts = List.map l (fun item -> withIndent indent item)
+
+            let short = String.join parts ", "
+
+            if String.length short <= 80 then
+              $"({short})"
+            else
+              let long = String.join parts $"{inl}, "
+
+              $"({inl}{long}{nl})"
 
           | DRecord(_, typeName, o) ->
             let strs =
@@ -338,7 +347,7 @@ module Darklang =
           //     let strs =
           //       o
           //       |> Map.toList
-          //       |> List.map (fun (key, value) -> ($"{key}: {toRepr_ indent value}"))
+          //       |> List.map (fun (key, value) -> ($"{key}: {withIndent indent value}"))
 
           //     let elems = String.concat $",{inl}" strs
           //     "{" + $"{inl}{elems}{nl}" + "}"
@@ -347,7 +356,7 @@ module Darklang =
           //   let short =
           //     let fieldStr =
           //       fields
-          //       |> List.map (fun value -> toRepr_ indent value)
+          //       |> List.map (fun value -> withIndent indent value)
           //       |> String.concat ", "
 
           //     let fieldStr = if fieldStr = "" then "" else $"({fieldStr})"
@@ -360,7 +369,7 @@ module Darklang =
           //   else
           //     let fieldStr =
           //       fields
-          //       |> List.map (fun value -> toRepr_ indent value)
+          //       |> List.map (fun value -> withIndent indent value)
           //       |> String.concat $",{inl}"
 
           //     let fieldStr = if fieldStr = "" then "" else $"({inl}{fieldStr}{nl})"
