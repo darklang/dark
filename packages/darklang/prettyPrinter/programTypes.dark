@@ -765,7 +765,7 @@ module Darklang =
               PACKAGE.Darklang.PrettyPrinter.ProgramTypes.pipeExpr pipeExpr)
             |> String.join " \n|> "
 
-          $"{exprPart} \n|> {pipesPart}"
+          $"{exprPart} \n|> {pipeParts}"
 
 
 
