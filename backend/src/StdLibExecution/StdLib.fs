@@ -23,13 +23,13 @@ let contents : StdLib.Contents =
       Libs.DateTime.contents
       Libs.Dict.contents
       Libs.Float.contents
+      Libs.HttpClient.contents
       Libs.HttpClientAuth.contents
       Libs.Json.contents
       Libs.Math.contents
       Libs.Uuid.contents
       Libs.Int.contents
       Libs.List.contents
-      // Libs.Middleware.contents
       Libs.NoModule.contents
       Libs.Option.contents
       Libs.Result.contents

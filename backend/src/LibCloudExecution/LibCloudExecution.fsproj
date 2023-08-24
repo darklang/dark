@@ -19,6 +19,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="HttpClient.fs" />
     <Compile Include="CloudExecution.fs" />
     <Compile Include="Init.fs" />
   </ItemGroup>
