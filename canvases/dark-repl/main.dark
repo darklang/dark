@@ -6,7 +6,7 @@ let _handler _req =
 let _handler _req =
   let body =
     (Experiments.readFromCanvases ("dark-repl/assets/" ++ path))
-    |> PACKAGE.Stdlib.PACKAGE.Darklang.Stdlib.Result.withDefault Bytes.empty
+    |> PACKAGE.Darklang.Stdlib.Result.withDefault Bytes.empty
 
   let contentType =
     match
@@ -67,6 +67,9 @@ let _handler _req =
     let fns =
       PACKAGE.Darklang.Stdlib.Option.withDefault (Dict.get program "fns") "[]"
 
+    let constants =
+      PACKAGE.Darklang.Stdlib.Option.withDefault (Dict.get program "constants") "[]"
+
     let exprs =
       PACKAGE.Darklang.Stdlib.Option.withDefault (Dict.get program "exprs") "[]"
 
@@ -75,6 +78,8 @@ let _handler _req =
       ++ types
       ++ ", \"fns\": "
       ++ fns
+      ++ ", \"constants\": "
+      ++ constants
       ++ ", \"exprs\": "
       ++ exprs
       ++ "}"
