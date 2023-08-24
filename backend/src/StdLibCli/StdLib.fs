@@ -22,7 +22,6 @@ let contents =
       Libs.Environment.contents
       Libs.File.contents
       Libs.Process.contents
-      Libs.Output.contents
-      Libs.HttpClient.contents ]
+      Libs.Output.contents ]
     fnRenames
     typeRenames
