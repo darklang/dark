@@ -11,7 +11,7 @@ module Darklang =
 
     let showFn (name: String) (owner: String) (modules: List<String>) : Int =
       let fns =
-        HttpClient.request
+        CLI.HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/functions/")
           []
@@ -60,7 +60,7 @@ module Darklang =
 
     let showType (name: String) (owner: String) (modules: List<String>) : Int =
       let types =
-        HttpClient.request
+        CLI.HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/types/")
           []
@@ -111,7 +111,7 @@ module Darklang =
 
     let showConstant (name: String) (owner: String) (modules: List<String>) : Int =
       let constants =
-        HttpClient.request
+        CLI.HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/constants/")
           []
@@ -166,7 +166,7 @@ module Darklang =
 
     let showModule (name: String) : Int =
       let modules =
-        HttpClient.request
+        CLI.HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/modules/" ++ name)
           []
@@ -209,7 +209,7 @@ module Darklang =
 
     let showPackage (owner: String) : Int =
       let packages =
-        HttpClient.request
+        CLI.HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/owner/" ++ owner)
           []
@@ -313,9 +313,9 @@ module Darklang =
         let helpText =
           """Usage: darklang [options] [SCRIPT]
 Options:
-  -h, --help          Show this help message and exit
-  --show              Show a package, function, type, constant, or module
-  --prompt PROMPT     Infer a script from the given prompt using OpenAI"""
+  -h, --help                          Show this help message and exit
+  --show                              Show a package, function, type, constant, or module
+  --prompt PROMPT  --script SCRIPT    Infer a script from the given prompt using OpenAI"""
 
         print helpText
         0
@@ -342,7 +342,7 @@ Options:
           |> unwrap
 
         let categoryRequest =
-          HttpClient.request
+          CLI.HttpClient.request
             "GET"
             ("http://dark-packages.dlio.localhost:11003/category/" ++ fullName)
             []

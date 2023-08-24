@@ -194,8 +194,9 @@ module OpenAI =
       | Ok reqBody ->
         let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
+        //CLEANUP: Use HttpClient.request instead of CLI.HttpClient.request once we have the httpclient sorted out
         let openAIResponse =
-          HttpClient.request
+          CLI.HttpClient.request
             "POST"
             "https://api.openai.com/v1/chat/completions"
             headers
