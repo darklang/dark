@@ -402,6 +402,7 @@ module Expect =
 
     match actual, expected with
     | LPVariable(_, name), LPVariable(_, name') -> check path name name'
+    | LPUnit(_), LPUnit(_) -> ()
     | LPTuple(_, first, second, theRest), LPTuple(_, first', second', theRest') ->
       let all = first :: second :: theRest
       let all' = first' :: second' :: theRest'
@@ -413,6 +414,7 @@ module Expect =
 
     // exhaustive match
     | LPVariable _, _
+    | LPUnit _, _
     | LPTuple _, _ -> errorFn path (string actual) (string expected)
 
 

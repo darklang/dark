@@ -155,14 +155,10 @@ module LetPattern =
     | SynPat.Paren(subPat, _) -> mapPat subPat
     | SynPat.Wild(_) -> WT.LPVariable(gid (), "_")
     | SynPat.Named(SynIdent(name, _), _, _, _) -> WT.LPVariable(gid (), name.idText)
+    | SynPat.Const(SynConst.Unit, _) -> WT.LPUnit(gid ())
 
     | SynPat.Tuple(_, (first :: second :: theRest), _) ->
-      WT.LetPattern.LPTuple(
-        gid (),
-        mapPat first,
-        mapPat second,
-        List.map mapPat theRest
-      )
+      WT.LPTuple(gid (), mapPat first, mapPat second, List.map mapPat theRest)
 
     | _ ->
       Exception.raiseInternal "Unsupported let or use expr pat type" [ "pat", pat ]

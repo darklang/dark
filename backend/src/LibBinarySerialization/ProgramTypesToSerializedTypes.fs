@@ -317,12 +317,14 @@ module LetPattern =
   let rec toST (p : PT.LetPattern) : ST.LetPattern =
     match p with
     | PT.LPVariable(id, str) -> ST.LPVariable(id, str)
+    | PT.LPUnit id -> ST.LPUnit id
     | PT.LPTuple(id, first, second, theRest) ->
       ST.LPTuple(id, toST first, toST second, List.map toST theRest)
 
   let rec toPT (p : ST.LetPattern) : PT.LetPattern =
     match p with
     | ST.LPVariable(id, str) -> PT.LPVariable(id, str)
+    | ST.LPUnit id -> PT.LPUnit id
     | ST.LPTuple(id, first, second, theRest) ->
       PT.LPTuple(id, toPT first, toPT second, List.map toPT theRest)
 

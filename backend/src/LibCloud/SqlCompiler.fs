@@ -206,6 +206,7 @@ let rec inline'
         : Map<string, Expr> =
         match letPattern with
         | LPVariable(_id, name) -> Map.add name currentExpr symtable
+        | LPUnit _ -> symtable
         | LPTuple(_id, first, second, theRest) ->
           match currentExpr with
           | ETuple(_, firstExpr, secondExpr, restExpr) ->

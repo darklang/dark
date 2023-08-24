@@ -433,6 +433,7 @@ type Expr =
 
 and LetPattern =
   | LPVariable of id * name : string
+  | LPUnit of id
   | LPTuple of
     id *
     first : LetPattern *
@@ -655,6 +656,7 @@ module LetPattern =
   let toID (pat : LetPattern) : id =
     match pat with
     | LPVariable(id, _) -> id
+    | LPUnit id -> id
     | LPTuple(id, _, _, _) -> id
 
 // Functions for working with Dark match patterns

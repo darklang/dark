@@ -430,6 +430,7 @@ module LetPattern =
     let name, fields =
       match p with
       | PT.LPVariable(id, name) -> "LPVariable", [ DInt(int64 id); DString name ]
+      | PT.LPUnit id -> "LPUnit", [ DInt(int64 id) ]
       | PT.LPTuple(id, first, second, theRest) ->
         "LPTuple",
         [ DInt(int64 id); toDT first; toDT second; DList(List.map toDT theRest) ]
@@ -441,6 +442,7 @@ module LetPattern =
     match d with
     | DEnum(_, _, "LPVariable", [ DInt id; DString name ]) ->
       PT.LPVariable(uint64 id, name)
+    | DEnum(_, _, "LPUnit", [ DInt id ]) -> PT.LPUnit(uint64 id)
     | DEnum(_, _, "LPTuple", [ DInt id; first; second; DList theRest ]) ->
       PT.LPTuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
     | _ -> Exception.raiseInternal "Invalid LetPattern" []
