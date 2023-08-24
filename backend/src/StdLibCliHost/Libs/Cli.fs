@@ -16,11 +16,13 @@ module Exe = LibExecution.Execution
 module Json = StdLibExecution.Libs.Json
 
 
+let libExecutionContents =
+  StdLibExecution.StdLib.contents StdLibExecution.Libs.HttpClient.unconstrainedConfig
 
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) =
     LibExecution.StdLib.combine
-      [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents ]
+      [ libExecutionContents; StdLibCli.StdLib.contents ]
       []
       []
   { types = types |> Tablecloth.Map.fromListBy (fun typ -> typ.name)

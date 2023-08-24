@@ -24,7 +24,9 @@ type EditorSource =
 
 let stdLib =
   LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents; Wasm.StdLib.contents ]
+    [ StdLibExecution.StdLib.contents
+        StdLibExecution.Libs.HttpClient.unconstrainedConfig
+      Wasm.StdLib.contents ]
     []
     []
 

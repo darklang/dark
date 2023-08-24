@@ -84,84 +84,19 @@ module LocalAccess =
       || (eq k "X-Google-Metadata-Request" && eq v "True"))
     |> Option.isSome
 
-  let connectionFilter
-    (context : SocketsHttpConnectionContext)
-    (cancellationToken : System.Threading.CancellationToken)
-    : ValueTask<Stream> =
-    vtask {
-      try
-        // While this DNS call is expensive, it should be cached
-        let ips = System.Net.Dns.GetHostAddresses context.DnsEndPoint.Host
-        ips
-        |> Array.iter (fun ip ->
-          if bannedIp ip then Exception.raiseInternal "Could not connect" [])
+let initializeTelemetry (f : unit -> Task<'a>) : Task<'a> =
+  task {
+    use _ = LibService.Telemetry.child "HttpClient.call" []
+    return! f ()
+  }
 
-        let socket =
-          new System.Net.Sockets.Socket(
-            System.Net.Sockets.SocketType.Stream,
-            System.Net.Sockets.ProtocolType.Tcp
-          )
-        socket.NoDelay <- true
-
-        do! socket.ConnectAsync(context.DnsEndPoint, cancellationToken)
-        return new System.Net.Sockets.NetworkStream(socket, true)
-      with :? System.ArgumentException ->
-        // Use this to hide more specific errors when looking at loopback
-        return Exception.raiseInternal "Could not connect" []
-    }
-
-
-  // There has been quite a history of .NET's HttpClient having problems,
-  // including socket exhaustion and DNS results not expiring.
-  // The history is outlined well here:
-  // https://www.stevejgordon.co.uk/httpclient-connection-pooling-in-dotnet-core
-  //
-  // As of .NET 6 it seems we no longer need to worry about either socket
-  // exhaustion or DNS issues. It appears that we can use either multiple HTTP
-  // clients or just one, we use just one for efficiency.
-  // See https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-7.0#alternatives-to-ihttpclientfactory
-  //
-  // Note that the number of sockets was verified manually, with:
-  // `sudo netstat -apn | grep _WAIT`
-  let socketHandler (allowLocalConnections : bool) : HttpMessageHandler =
-    let handler =
-      new SocketsHttpHandler(
-        // Avoid DNS problems
-        PooledConnectionIdleTimeout = System.TimeSpan.FromMinutes 5.0,
-        PooledConnectionLifetime = System.TimeSpan.FromMinutes 10.0,
-        ConnectTimeout = System.TimeSpan.FromSeconds 10.0,
-
-        // HttpClientTODO avail functions to compress/decompress with common
-        // compression algorithms (gzip, brottli, deflate)
-        //
-        // HttpClientTODO consider: is there any reason to think that ASP.NET
-        // does something fancy such that automatic .net httpclient -level
-        // decompression would be notably more efficient than doing so 'manually'
-        // via some function? There will certainly be more bytes passed around -
-        // probably not a big deal?
-        AutomaticDecompression = System.Net.DecompressionMethods.None,
-
-        // HttpClientTODO avail function that handles redirect behaviour
-        AllowAutoRedirect = false,
-
-        // Don't add a RequestId header for opentelemetry
-        ActivityHeadersPropagator = null,
-
-        // Users share the HttpClient, don't let them share cookies!
-        UseCookies = false
-      )
-    if not allowLocalConnections then
-      handler.ConnectCallback <- LocalAccess.connectionFilter
-    handler
-
-
-  let private makeHttpClient (allowLocalConnections : bool) : HttpClient =
-    new HttpClient(
-      socketHandler allowLocalConnections,
-      disposeHandler = false,
-      Timeout = System.TimeSpan.FromSeconds 30.0,
-      MaxResponseContentBufferSize = 1024L * 1024L * 100L // 100MB
-    )
-
-  let private localAllowedHttpClient = makeHttpClient true
-  let private localDisallowedHttpClient = makeHttpClient false
+let configuration : StdLibExecution.Libs.HttpClient.Configuration =
+  { timeoutInMs = 10000
+    allowedIP = (fun ip -> not <| LocalAccess.bannedIp ip)
+    allowedHost = (fun host -> not <| LocalAccess.bannedHost host)
+    allowedScheme = (fun scheme -> scheme = "https" || scheme = "http")
+    allowedHeaders =
+      (fun headers -> not <| LocalAccess.hasInstanceMetadataHeader headers)
+    telemetryInitialize = initializeTelemetry
+    telemetryAddTag = LibService.Telemetry.addTag
+    telemetryAddException = LibService.Telemetry.addException }

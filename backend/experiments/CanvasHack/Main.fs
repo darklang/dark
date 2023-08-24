@@ -54,6 +54,7 @@ let seedCanvas (canvasName : string) =
       let builtIns =
         LibExecution.StdLib.combine
           [ StdLibExecution.StdLib.contents
+              StdLibExecution.Libs.HttpClient.unconstrainedConfig
             StdLibCloudExecution.StdLib.contents
             StdLibDarkInternal.StdLib.contents ]
           []

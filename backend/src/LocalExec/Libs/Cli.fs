@@ -17,6 +17,7 @@ let builtIns : RT.BuiltIns =
   let (fns, types, constants) =
     LibExecution.StdLib.combine
       [ StdLibExecution.StdLib.contents
+          StdLibExecution.Libs.HttpClient.unconstrainedConfig
         StdLibCli.StdLib.contents
         StdLibDarkInternal.StdLib.contents
         StdLibCliHost.StdLib.contents ]

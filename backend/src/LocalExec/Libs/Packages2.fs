@@ -20,6 +20,7 @@ let resolver =
     LibExecution.StdLib.combine
       // We are missing the builtins that contain this function (and all associated ones)
       [ StdLibExecution.StdLib.contents
+          StdLibExecution.Libs.HttpClient.unconstrainedConfig
         StdLibCli.StdLib.contents
         Packages.contents
         Cli.contents
