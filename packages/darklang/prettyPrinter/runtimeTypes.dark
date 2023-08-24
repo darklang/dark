@@ -27,8 +27,6 @@ module Darklang =
           (namePart: String)
           (u: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.UserProgram)
           : String =
-          // TODO: include modules
-
           let modulesPart =
             match u.modules with
             | [] -> ""
@@ -98,7 +96,6 @@ module Darklang =
       //         (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name c.name)
       //         c
 
-
       //   module UserProgram =
 
       //     let fullForReference
@@ -109,7 +106,6 @@ module Darklang =
       //         u
 
       //   module Package =
-
       //     let fullForReference
       //       (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Package)
       //       : String =
@@ -117,19 +113,19 @@ module Darklang =
       //         (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name p.name)
       //         p
 
-      //   let fullForReference
-      //     (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.ConstantName)
-      //     : String =
-      //     match t with
-      //     | BuiltIn b ->
-      //       PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.BuiltIn.fullForReference
-      //         b
-      //     | UserProgram u ->
-      //       PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.UserProgram.fullForReference
-      //         u
-      //     | Package p ->
-      //       PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.Package.fullForReference
-      //         p
+      // let constantName
+      //   (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.ConstantName)
+      //   : String =
+      //   match t with
+      //   | BuiltIn b ->
+      //     PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.BuiltIn.fullForReference
+      //       b
+      //   | UserProgram u ->
+      //     PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.UserProgram.fullForReference
+      //       u
+      //   | Package p ->
+      //     PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.Package.fullForReference
+      //       p
 
 
       module FnName =
@@ -162,9 +158,6 @@ module Darklang =
         | UserProgram u -> FnName.userProgram u
         | Package p -> FnName.package p
 
-
-
-
       let typeReference
         (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference)
         : String =
@@ -179,7 +172,6 @@ module Darklang =
         | TBytes -> "Bytes"
         | TDateTime -> "DateTime"
         | TPassword -> "Password"
-
 
         | TList inner -> $"List<{typeReference inner}>"
         | TTuple(first, second, theRest) ->

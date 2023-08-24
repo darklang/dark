@@ -2,7 +2,6 @@ module Darklang =
   module LanguageTools =
     module RuntimeErrors =
       // <aliases>
-      // note - I first tried names like RT_Dval but got errors on the _
       type Option = PACKAGE.Darklang.Stdlib.Option.Option
       type ID = PACKAGE.Darklang.LanguageTools.ID
       type TLID = PACKAGE.Darklang.LanguageTools.TLID

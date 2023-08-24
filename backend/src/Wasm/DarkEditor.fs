@@ -30,8 +30,9 @@ let stdLib =
 
 let ensureNonFakeDval (dv : Dval) : Result<Dval, string> =
   match dv with
-  | DError(_source, err) ->
-    Error $"Error calling handleEvent with provided args: {err}"
+  | DError(_source, rte) ->
+    // CLEANUP we should stringify this better, or raise the RTE rather than hide it here
+    Error $"Error calling handleEvent with provided args: {rte}"
 
   | DIncomplete(_) -> Error $"handleError returned Incomplete"
 

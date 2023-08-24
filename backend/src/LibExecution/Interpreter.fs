@@ -43,7 +43,7 @@ let rec eval'
   let sourceID id = SourceID(state.tlid, id)
   let incomplete id = DIncomplete(SourceID(state.tlid, id))
   let errStr id msg = Dval.errSStr (sourceID id) msg
-  let err id e = DError(sourceID id, e)
+  let err id rte = DError(sourceID id, rte)
 
   /// This function ensures any value not on the execution path is evaluated.
   let preview (tat : TypeArgTable) (st : Symtable) (expr : Expr) : Ply<unit> =
@@ -228,7 +228,7 @@ let rec eval'
                 match result with
                 | DString s -> return Ok(str + s)
                 | DIncomplete _
-                | DError _ -> return Error(result)
+                | DError _ -> return Error(result) // TODO we should not have an RTE inside of an Error differently
                 | dv ->
                   let msg = "Expected string, got " + DvalReprDeveloper.toRepr dv
                   return Error(errStr id msg)
@@ -440,7 +440,7 @@ let rec eval'
                       TypeChecker.unify context types Map.empty fieldType v
                     with
                     | Ok() -> return DRecord(typeName, original, Map.add k v m)
-                    | Error e -> return DError(SourceID(state.tlid, id), e)
+                    | Error rte -> return DError(SourceID(state.tlid, id), rte)
                   | _ ->
                     return
                       errStr id "Expected a record but {typeStr} is something else"
@@ -818,17 +818,17 @@ let rec eval'
                                 List.append existing [ v ]
                               )
                           | _ -> return errStr id "Expected an enum"
-                        | Error e -> return DError(SourceID(state.tlid, id), e)
+                        | Error rte -> return DError(SourceID(state.tlid, id), rte)
                   })
                 (DEnum(aliasTypeName, typeName, caseName, []))
                 fields
-    | EError(id, msg, exprs) ->
+    | EError(id, rte, exprs) ->
       let! args = Ply.List.mapSequentially (eval state tat st) exprs
 
       return
         args
         |> List.tryFind Dval.isFake
-        |> Option.defaultValue (DError(sourceID id, msg))
+        |> Option.defaultValue (DError(sourceID id, rte))
   }
 
 /// Interprets an expression and reduces to a Dark value
@@ -1010,7 +1010,7 @@ and execFn
       let typeArgTable = Map.mergeFavoringRight tat typeArgsResolvedInFn
 
       match! TypeChecker.checkFunctionCall types typeArgTable fn args with
-      | Error err -> return DError(sourceID, err)
+      | Error rte -> return DError(sourceID, rte)
       | Ok() ->
 
         let! result =
@@ -1033,7 +1033,7 @@ and execFn
                           "typeArgs", typeArgs
                           "id", id ]
                       match e with
-                      | UncaughtRuntimeError err -> return DError(sourceID, err)
+                      | UncaughtRuntimeError rte -> return DError(sourceID, rte)
                       | Errors.IncorrectArgs ->
                         return Errors.incorrectArgsToDError sourceID fn args
                       | Errors.FakeDvalFound dv -> return dv
@@ -1049,9 +1049,6 @@ and execFn
                         // like to show it to the user, we should catch it and give
                         // them a known safe error.
 
-                        // // TODO is this OK? or should we scrub the exception?
-                        // Edit: probably not OK - see above
-                        // return DError(sourceID, RuntimeError.exceptionThrown e)
                         return Dval.errSStr sourceID Exception.unknownErrorMessage
                   }
 
@@ -1079,6 +1076,6 @@ and execFn
           match!
             TypeChecker.checkFunctionReturnType types typeArgTable fn result
           with
-          | Error err -> return DError(sourceID, err)
+          | Error rte -> return DError(sourceID, rte)
           | Ok() -> return result
   }

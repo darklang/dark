@@ -805,6 +805,7 @@ module Dval =
     // Dont match these fakevals, functions do not have these types
     | DError _, _
     | DIncomplete _, _ -> false
+
     // exhaustiveness checking
     | DInt _, _
     | DFloat _, _

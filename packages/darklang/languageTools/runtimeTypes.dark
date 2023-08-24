@@ -29,35 +29,6 @@ module Darklang =
           | UserProgram of UserProgram<'name>
           | Package of Package<'name>
 
-        type NameValidator<'name> = 'name -> Unit
-        type NamePrinter<'name> = 'name -> String
-
-
-      // let builtinToString (s: BuiltIn<'name>) (f: NamePrinter<'name>) : String =
-      //   let name = (List.append s.modules [ (f s.name) ]) |> String.join "."
-      //   if s.version = 0 then name else $"{name}_v{s.version}"
-
-      // let userProgramToString
-      //   (s: UserProgram<'name>)
-      //   (f: NamePrinter<'name>)
-      //   : String =
-      //   let name = (List.append s.modules [ (f s.name) ]) |> String.join "."
-      //   if s.version = 0 then name else $"{name}_v{s.version}"
-
-      // let packageToString (s: Package<'name>) (f: NamePrinter<'name>) : String =
-      //   let name =
-      //     (List.flatten [ "PACKAGE"; s.owner ] s.modules [ f s.name ])
-      //     |> String.join "."
-
-      //   if s.version = 0 then name else $"{name}_v{s.version}"
-
-      // let toString (name: FQName<'name>) (f: NamePrinter<'name>) : String =
-      //   match name with
-      //   | BuiltIn b -> builtinToString b f
-      //   | UserProgram user -> userProgramToString user f
-      //   | Package pkg -> packageToString pkg f
-
-
 
       module TypeName =
         type Name = TypeName of String
@@ -65,32 +36,6 @@ module Darklang =
         type BuiltIn = FQName.BuiltIn<Name>
         type UserProgram = FQName.UserProgram<Name>
         type Package = FQName.Package<Name>
-
-      // let builtinToString (s: BuiltIn) : String =
-      //   FQName.builtinToString s (fun (TypeName name) -> name)
-
-      // let userProgramToString (s: UserProgram) : String =
-      //   FQName.userProgramToString s (fun (TypeName name) -> name)
-
-      // let packageToString (s: Package) : String =
-      //   FQName.packageToString s (fun (TypeName name) -> name)
-
-      // let toString (name: T) : String =
-      //   FQName.toString name (fun (TypeName name) -> name)
-
-      // let toShortName (name: T) : String =
-      //   match name with
-      //   | FQName.BuiltIn { name = TypeName name
-      //                      version = version } ->
-      //     if version = 0 then name else $"{name}_v{version}"
-
-      //   | FQName.UserProgram { name = TypeName name
-      //                          version = version } ->
-      //     if version = 0 then name else $"{name}_v{version}"
-
-      //   | FQName.Package { name = TypeName name
-      //                      version = version } ->
-      //     if version = 0 then name else $"{name}_v{version}"
 
 
       module FnName =
@@ -100,19 +45,6 @@ module Darklang =
         type UserProgram = FQName.UserProgram<Name>
         type Package = FQName.Package<Name>
 
-      //   let builtinToString (s : BuiltIn) : String =
-      //     FQName.builtinToString s (fun (FnName name) -> name)
-
-      //   let userProgramToString (s : UserProgram) : String =
-      //     FQName.userProgramToString s (fun (FnName name) -> name)
-
-      //   let packageToString (s : Package) : String =
-      //     FQName.packageToString s (fun (FnName name) -> name)
-
-      //   let toString (name : T) : String = FQName.toString name (fun (FnName name) -> name)
-
-      //   let isInternalFn (fnName : BuiltIn) : Bool =
-      //     List.tryHead fnName.modules = Some "DarkInternal"
 
       /// A Fully-Qualified Constant Name
       /// Includes package, module, and version information where relevant.
@@ -125,12 +57,10 @@ module Darklang =
         type UserProgram = FQName.UserProgram<Name>
         type Package = FQName.Package<Name>
 
-      //   let toString (name : T) : String =
-      //     FQName.toString name (fun (ConstantName name) -> name)
-
 
       type NameResolution<'a> =
         PACKAGE.Darklang.Stdlib.Result.Result<'a, RuntimeError>
+
 
       type TypeReference =
         | TUnit
@@ -272,303 +202,10 @@ module Darklang =
         // Caused by an expression of `id` within the given `tlid`
         | SourceID of TLID * ID
 
-      and BuiltInParam =
+      type BuiltInParam =
         { name: String
           typ: TypeReference
           blockArgs: List<String>
           description: String }
 
-      // and Param = { name : String; typ : TypeReference }
-
-
-      // module RuntimeError =
-      //   let toDT (RuntimeError e : RuntimeError) : Dval = e
-      //   let fromDT (dv : Dval) : RuntimeError = RuntimeError dv
-
-
-      // type Deprecation<'name> =
-      //   | NotDeprecated
-      //   | RenamedTo of 'name
-      //   | ReplacedBy of 'name
-      //   | DeprecatedBecause of String
-
-
-      // module TypeDeclaration =
-      //   type RecordField = { name : String; typ : TypeReference }
-      //   type EnumCase = { name : String; fields : List<TypeReference> }
-
-      //   type Definition =
-      //     | Alias of TypeReference
-      //     | Record of NEList<RecordField>
-      //     | Enum of NEList<EnumCase>
-
-      //   type T = { typeParams : List<String>; definition : Definition }
-
-      // module Handler =
-      //   type CronInterval =
-      //     | EveryDay
-      //     | EveryWeek
-      //     | EveryFortnight
-      //     | EveryHour
-      //     | Every12Hours
-      //     | EveryMinute
-
-      //   type Spec =
-      //     | HTTP of path: String * method: String
-      //     | Worker of name: String
-      //     | Cron of name: String * interval: CronInterval
-      //     | REPL of name: String
-
-      //   type Handler = { tlid: tlid; ast: Expr; spec: Spec }
-
-      // module DB =
-      //   type T = { tlid : tlid; name : String; typ : TypeReference; version : int }
-
-      // module UserType =
-      //   type T =
-      //     { tlid : tlid; name : TypeName.UserProgram; declaration : TypeDeclaration.TypeDeclaration }
-
-      // module UserConstant =
-      //   type T = { tlid : tlid; name : ConstantName.UserProgram; body : Dval }
-
-      // module UserFunction =
-      //   type Parameter = { name : String; typ : TypeReference }
-
-      //   type T =
-      //     { tlid : tlid
-      //       name : FnName.UserProgram
-      //       typeParams : List<String>
-      //       parameters : List<Parameter>
-      //       returnType : TypeReference
-      //       body : Expr }
-
-      // module Toplevel =
-      //   type T =
-      //     | TLHandler of Handler.Handler
-      //     | TLDB of DB
-      //     | TLFunction of UserFunction.UserFunction
-      //     | TLType of UserType
-      //     | TLConstant of UserConstant.T
-
-      //   let toTLID (tl : T) : tlid =
-      //     match tl with
-      //     | TLHandler h -> h.tlid
-      //     | TLDB db -> db.tlid
-      //     | TLFunction f -> f.tlid
-      //     | TLType t -> t.tlid
-      //     | TLConstant c -> c.tlid
-
-      // module Secret =
-      //   type T = { name : String; value : String; version : int }
-
-
-      // // ------------
-      // // Functions
-      // // ------------
-
-      // module PackageFn =
-      //   type Parameter = { name : String; typ : TypeReference }
-
-      //   type T =
-      //     { name : FnName.Package
-      //       tlid : tlid
-      //       typeParams : List<String>
-      //       parameters : List<Parameter>
-      //       returnType : TypeReference
-      //       body : Expr }
-
-      // module PackageType =
-      //   type T = { name : TypeName.Package; declaration : TypeDeclaration.TypeDeclaration }
-
-      // module PackageConstant =
-      //   type T = { name : ConstantName.Package; body : Dval }
-
-      // type Previewable =
-      //   // The same inputs will always yield the same outputs,
-      //   // so we don't need to save results. e.g. `DateTime.addSeconds`
-      //   | Pure
-
-      //   // Output may vary with the same inputs, though we can safely preview.
-      //   // e.g. `DateTime.now`. We should save the results.
-      //   | ImpurePreviewable
-
-      //   // Can only be run on the server. e.g. `DB.update`
-      //   // We should save the results.
-      //   | Impure
-
-      // type SqlSpec =
-      //   | NotYetImplemented
-      //   | NotQueryable
-      //   | QueryFunction
-      //   | SqlUnaryOp of String
-      //   | SqlBinOp of String
-      //   | SqlFunction of String
-      //   | SqlFunctionWithPrefixArgs of String * List<String>
-      //   | SqlFunctionWithSuffixArgs of String * List<String>
-      //   | SqlCallback2 of (String -> String -> String)
-
-      // // A built-in standard library type
-      // type BuiltInType =
-      //   { name : TypeName.BuiltIn
-      //     declaration : TypeDeclaration.TypeDeclaration
-      //     // description and deprecated are here because they're not needed in
-      //     // TypeDeclaration for Package and UserProgram types, where we have them in
-      //     // ProgramTypes and don't propagate them to RuntimeTypes
-      //     description : String
-      //     deprecated : Deprecation<TypeName.TypeName> }
-
-      // type BuiltInConstant =
-      //   { name : ConstantName.BuiltIn
-      //     typ : TypeReference
-      //     description : String
-      //     deprecated : Deprecation<ConstantName.ConstantName>
-      //     body : Dval }
-
-      // // A built-in standard library function
-      // type BuiltInFn =
-      //   { name : FnName.BuiltIn
-      //     typeParams : List<String>
-      //     parameters : List<BuiltInParam>
-      //     returnType : TypeReference
-      //     description : String
-      //     previewable : Previewable
-      //     deprecated : Deprecation<FnName.FnName>
-      //     sqlSpec : SqlSpec
-      //     fn : BuiltInFnSig }
-
-      // and Fn =
-      //   { name : FnName.FnName
-      //     typeParams : List<String>
-      //     parameters : List<Param>
-      //     returnType : TypeReference
-      //     previewable : Previewable
-      //     sqlSpec : SqlSpec
-      //     fn : FnImpl }
-
-      // and BuiltInFnSig =
-      //   (ExecutionState *
-
-      //   // type args
-      //   List<TypeReference> *
-
-      //   // fn args
-      //   List<Dval>)
-      //     -> DvalTask
-
-      // and FnImpl =
-      //   | BuiltInFunction of BuiltInFnSig
-      //   | UserProgramFunction of tlid * Expr
-      //   | PackageFunction of tlid * Expr
-
-
-      // and RealOrPreview =
-      //   | Real
-      //   | Preview
-
-      // and FunctionRecord = tlid * FnName.FnName * id
-
-      // and TraceDval = Bool -> id -> Dval -> unit
-
-      // and TraceTLID = tlid -> unit
-
-      // and LoadFnResult = FunctionRecord -> List<Dval> -> Option<Dval * NodaTime.Instant>
-
-      // and StoreFnResult = FunctionRecord -> Dval list -> Dval -> unit
-
-      // /// Per-runtime configuration allowing different settings for eg cloud, test, CLI
-      // and Config = { allowLocalHttpAccess : Bool; httpclientTimeoutInMs : int }
-
-      // /// Every part of a user's program
-      // and Program =
-      //   { canvasID : CanvasID
-      //     internalFnsAllowed : Bool // whether this canvas is allowed call internal functions
-      //     dbs : Map<String, DB>
-      //     fns : Map<FnName.UserProgram, UserFunction.UserFunction>
-      //     types : Map<TypeName.UserProgram, UserType>
-      //     constants : Map<ConstantName.UserProgram, UserConstant.T>
-      //     secrets : List<Secret.T> }
-
-      // /// Set of callbacks used to trace the interpreter, and other context needed to run code
-      // and Tracing =
-      //   { traceDval : TraceDval
-      //     traceTLID : TraceTLID
-      //     loadFnResult : LoadFnResult
-      //     storeFnResult : StoreFnResult
-      //     realOrPreview : RealOrPreview }
-
-      // // Used for testing
-      // and TestContext =
-      //   { mutable sideEffectCount : int
-
-      //     mutable exceptionReports : List<String * String * Metadata>
-      //     mutable expectedExceptionCount : int
-      //     postTestExecutionHook : TestContext -> Dval -> unit }
-
-      // // Functionally written in F# and shipped with the executable
-      // and BuiltIns =
-      //   { types : Map<TypeName.BuiltIn, BuiltInType>
-      //     constants : Map<ConstantName.BuiltIn, BuiltInConstant>
-      //     fns : Map<FnName.BuiltIn, BuiltInFn> }
-
-      // // Functionality written in Dark stored and managed outside of user space
-      // and PackageManager =
-      //   { getType : TypeName.Package -> Ply<Option<PackageType>>
-      //     getFn : FnName.Package -> Ply<Option<PackageFn.PackageFn>>
-      //     getConstant : ConstantName.Package -> Ply<Option<PackageConstant>>
-      //     init : Ply<unit> }
-
-      //   static member Empty =
-      //     { getType = (fun _ -> Ply None)
-      //       getFn = (fun _ -> Ply None)
-      //       getConstant = (fun _ -> Ply None)
-      //       init = uply { return () } }
-
-      // and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
-
-      // and Notifier = ExecutionState -> String -> Metadata -> unit
-
-      // // All state used while running a program
-      // and ExecutionState =
-      //   { builtIns : BuiltIns
-      //     packageManager : PackageManager
-      //     tracing : Tracing
-      //     program : Program
-      //     config : Config
-      //     test : TestContext
-
-      //     // Called to report exceptions
-      //     reportException : ExceptionReporter
-
-      //     // Called to notify that something of interest (that isn't an exception)
-      //     // has happened.
-      //     //
-      //     // Useful for tracking behaviour we want to deprecate, understanding what
-      //     // users are doing, etc.
-      //     notify : Notifier
-
-      //     // TLID of the currently executing handler/fn
-      //     tlid : tlid
-
-      //     executingFnName : Option<FnName.FnName>
-
-      //     // <summary>
-      //     // Callstack of functions that have been called as part of execution
-      //     // </summary>
-      //     //
-      //     // <remarks>
-      //     // Used for recursion detection in the editor.
-      //     // In the editor, we call all paths to show live values,
-      //     // but with recursion that causes infinite recursion.
-      //     // </remarks>
-      //     callstack : Set<FnName.FnName>
-
-      //     // Whether the currently executing code is really being executed
-      //     // (as opposed to being previewed for traces)
-      //     onExecutionPath : Bool }
-
-      // and Types =
-      //   { builtIn : Map<TypeName.BuiltIn, BuiltInType>
-      //     package : TypeName.Package -> Ply<Option<PackageType>>
-      //     userProgram : Map<TypeName.UserProgram, UserType> }
-
-      let x = 1
+// and Param = { name : String; typ : TypeReference }

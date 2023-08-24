@@ -72,7 +72,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    // TODO rename to oldError
+    // CLEANUP consider renaming to `oldError` or something more clear
     // TODO remove this in favor of derror
     { name = fn "runtimeError" 0
       typeParams = []
@@ -83,21 +83,6 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString errorString ] ->
           Ply(DError(SourceNone, RuntimeError.oldError errorString))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-    { name = fn "sqlError" 0
-      typeParams = []
-      parameters = [ Param.make "errorString" TString "" ]
-      returnType = TInt
-      description = "Return a value that matches errors thrown by the SqlCompiler"
-      fn =
-        (function
-        | _, _, [ DString errorString ] ->
-          let msg = LibCloud.SqlCompiler.errorTemplate + errorString
-          Ply(DError(SourceNone, RuntimeError.oldError msg))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

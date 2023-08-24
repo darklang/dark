@@ -284,9 +284,9 @@ module Roundtrip =
     // invalid type comparisons errors
     // these work, but the DError has a random string in it that we can't match
     // fetch (fun p -> 5 == "str") =
-    //   Test.sqlError "Incorrect type in variable, expected Bool, but got a Error"
+    //   Test.derrorSqlMessage "Incorrect type in variable, expected Bool, but got a Error"
     // fetch (fun p -> 5 != "str") =
-    //   Test.sqlError "Incorrect type in variable, expected Bool, but got a Error"
+    //   Test.derrorSqlMessage "Incorrect type in variable, expected Bool, but got a Error"
 
     fetch (fun p -> p.int == "str") = Test.derrorSqlMessage
       "Incorrect type in b, expected Int, but got a String"

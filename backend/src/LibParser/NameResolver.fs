@@ -26,6 +26,7 @@ type NameResolver =
 
     packageManager : Option<RT.PackageManager> }
 
+
 let empty : NameResolver =
   { builtinTypes = Set.empty
     builtinFns = Set.empty
@@ -63,7 +64,6 @@ let create
     packageManager = packageManager }
 
 
-
 let merge
   (a : NameResolver)
   (b : NameResolver)
@@ -80,6 +80,7 @@ let merge
     allowError = a.allowError && b.allowError
 
     packageManager = packageManager }
+
 
 let fromBuiltins
   ((fns, types, constants) : LibExecution.StdLib.Contents)

@@ -131,8 +131,7 @@ module Exception =
       System.Console.WriteLine e.StackTrace
 
 
-  // TODO: delete this.
-  // most of the errors caught by this can now be raiseInternals,
+  // CLEANUP remove this -- most of the errors caught by this can now be raiseInternals,
   // as the type-checker should have prevented them
   let raiseCode (msg : string) =
     let e = CodeException(msg)

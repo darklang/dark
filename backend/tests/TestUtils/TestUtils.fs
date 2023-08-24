@@ -318,9 +318,9 @@ let testListUsingPropertyAsync
 
 
 // Remove random things like IDs to make the tests stable
-let rec normalizeDvalResult (dv : RT.Dval) : RT.Dval =
+let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
-  | RT.DError(_, err) -> RT.DError(RT.SourceNone, err)
+  | RT.DError(_, rte) -> RT.DError(RT.SourceNone, rte)
   | RT.DIncomplete _ -> RT.DIncomplete(RT.SourceNone)
   | dv -> dv
 

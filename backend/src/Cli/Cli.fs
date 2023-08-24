@@ -140,11 +140,13 @@ let main (args : string[]) =
     NonBlockingConsole.wait ()
 
     match result with
-    | RT.DError(RT.SourceNone, msg) ->
-      System.Console.WriteLine $"Error: {msg}"
+    | RT.DError(RT.SourceNone, rte) ->
+      // TODO: toString the RTE
+      System.Console.WriteLine $"Error: {rte}"
       1
-    | RT.DError(RT.SourceID(tlid, id), msg) ->
-      System.Console.WriteLine $"Error ({tlid}, {id}): {msg}"
+    | RT.DError(RT.SourceID(tlid, id), rte) ->
+      // TODO: toString the RTE
+      System.Console.WriteLine $"Error ({tlid}, {id}): {rte}"
       1
     | RT.DInt i -> (int i)
     | dval ->

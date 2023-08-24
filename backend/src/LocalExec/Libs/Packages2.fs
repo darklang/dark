@@ -12,8 +12,6 @@ open LibExecution.StdLib.Shortcuts
 
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
-// the package manager here needs to not cache,
-// as the named things may have _just_ been inserted
 let packageManager = LibCloud.PackageManager.packageManager
 
 let resolver : LibParser.NameResolver.NameResolver =

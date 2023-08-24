@@ -197,11 +197,11 @@ module FormatV0 =
         List.map toRT fields
       )
 
-    | DError(RuntimeError(SourceID(tlid, id), err)) ->
-      RT.DError(RT.SourceID(tlid, id), RT.RuntimeError.fromDT (toRT err))
+    | DError(RuntimeError(SourceID(tlid, id), rte)) ->
+      RT.DError(RT.SourceID(tlid, id), RT.RuntimeError.fromDT (toRT rte))
 
-    | DError(RuntimeError(SourceNone, err)) ->
-      RT.DError(RT.SourceNone, RT.RuntimeError.fromDT (toRT err))
+    | DError(RuntimeError(SourceNone, rte)) ->
+      RT.DError(RT.SourceNone, RT.RuntimeError.fromDT (toRT rte))
 
 
 
@@ -236,11 +236,11 @@ module FormatV0 =
     | RT.DIncomplete RT.SourceNone -> DIncomplete SourceNone
     | RT.DIncomplete(RT.SourceID(tlid, id)) -> DIncomplete(SourceID(tlid, id))
 
-    | RT.DError(RT.SourceID(tlid, id), err) ->
-      DError(RuntimeError(SourceID(tlid, id), err |> RT.RuntimeError.toDT |> fromRT))
+    | RT.DError(RT.SourceID(tlid, id), rte) ->
+      DError(RuntimeError(SourceID(tlid, id), rte |> RT.RuntimeError.toDT |> fromRT))
 
-    | RT.DError(RT.SourceNone, err) ->
-      DError(RuntimeError(SourceNone, err |> RT.RuntimeError.toDT |> fromRT))
+    | RT.DError(RT.SourceNone, rte) ->
+      DError(RuntimeError(SourceNone, rte |> RT.RuntimeError.toDT |> fromRT))
 
 
 let toJsonV0 (dv : RT.Dval) : string =

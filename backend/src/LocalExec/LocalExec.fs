@@ -281,15 +281,15 @@ let runLocalExecScript (args : string[]) : Ply<int> =
     NonBlockingConsole.wait ()
 
     match result.Result with
-    | RT.DError(RT.SourceID(tlid, id), msg) ->
+    | RT.DError(RT.SourceID(tlid, id), rte) ->
       // TODO: execute the Package LocalExec.Errors.toSegments
-      System.Console.WriteLine $"Error: {msg}"
+      System.Console.WriteLine $"Error: {rte}"
       System.Console.WriteLine $"Failure at: {sourceOf mainFile tlid id modul}"
       // System.Console.WriteLine $"module is: {modul}"
       // System.Console.WriteLine $"(source {tlid}, {id})"
       return 1
-    | RT.DError(RT.SourceNone, msg) ->
-      System.Console.WriteLine $"Error: {msg}"
+    | RT.DError(RT.SourceNone, rte) ->
+      System.Console.WriteLine $"Error: {rte}"
       System.Console.WriteLine $"(source unknown)"
       return 1
     | RT.DInt i -> return (int i)

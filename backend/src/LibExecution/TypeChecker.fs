@@ -150,8 +150,6 @@ module Error =
       Dval.enum nameTypeName caseName fields
 
 
-
-
   let toRuntimeError (e : Error) : RuntimeError =
     match e with
     | ValueNotExpectedType(actualValue, expectedType, context) ->
@@ -179,13 +177,6 @@ module Error =
 
 
 
-
-
-
-
-
-
-
 let rec unify
   (context : Context)
   (types : Types)
@@ -197,7 +188,7 @@ let rec unify
     let! resolvedType = getTypeReferenceFromAlias types expected
 
     match resolvedType with
-    | Error err -> return Error err
+    | Error rte -> return Error rte
     | Ok resolvedType ->
       match (resolvedType, value) with
       // Any should be removed, but we currently allow it as a param type
@@ -256,11 +247,9 @@ let rec unify
         let vs = v1 :: v2 :: vRest
         if List.length ts <> List.length vs then
           return
-            Error(
-              Error.toRuntimeError (
-                Error.ValueNotExpectedType(value, resolvedType, context)
-              )
-            )
+            ValueNotExpectedType(value, resolvedType, context)
+            |> Error.toRuntimeError
+            |> Error
         else
           // let! results =
           //   List.zip ts vs
@@ -278,7 +267,7 @@ let rec unify
       | TCustomType(typeName, _typeArgs), value ->
 
         match typeName with
-        | Error err -> return Error err
+        | Error rte -> return Error rte
         | Ok typeName ->
           match! Types.find typeName types with
           | None ->
@@ -294,7 +283,7 @@ let rec unify
               let! resolvedAliasType = getTypeReferenceFromAlias types aliasType
 
               match resolvedAliasType with
-              | Error err -> return Error err
+              | Error rte -> return Error rte
               | Ok resolvedAliasType ->
                 return!
                   unify context types typeArgSymbolTable resolvedAliasType value
@@ -304,7 +293,7 @@ let rec unify
               let! aliasedType =
                 getTypeReferenceFromAlias types (TCustomType(Ok tn, []))
               match aliasedType with
-              | Ok(TCustomType(Error err, _)) -> return Error err
+              | Ok(TCustomType(Error rte, _)) -> return Error rte
               | Ok(TCustomType(Ok concreteTn, typeArgs)) ->
                 if concreteTn <> typeName then
                   return
@@ -379,7 +368,7 @@ let rec unify
       | TDB _, _
       | TBytes, _ ->
         return
-          Error.ValueNotExpectedType(value, resolvedType, context)
+          ValueNotExpectedType(value, resolvedType, context)
           |> Error.toRuntimeError
           |> Error
   }

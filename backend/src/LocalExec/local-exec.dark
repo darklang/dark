@@ -47,8 +47,6 @@ let saveItemToCanvas
 
 
 
-// TODO: this should return a Result<Unit, String>
-// and the consumer should handle the error appropriately
 let loadPackageFileIntoDarkCanvas
   (filename: String)
   : PACKAGE.Darklang.Stdlib.Result.Result<Unit, String> =
@@ -84,10 +82,8 @@ let loadPackageFileIntoDarkCanvas
       |> unwrap
       |> saveItemToCanvas "constant")
 
-  // todo: flatten results, return first error if any are errors
+  // TODO: flatten results, return first error if any are errors
   PACKAGE.Darklang.Stdlib.Result.Result.Ok()
-//   (PACKAGE.Darklang.Stdlib.List.flatten_v0 fnResults typeResults constantResults)
-// |>
 
 
 let printPackageFunction (p: LocalExec.Packages.Function) : Unit =

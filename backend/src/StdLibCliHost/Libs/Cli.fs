@@ -155,7 +155,6 @@ let fns : List<BuiltInFn> =
                 Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
               CliRuntimeError.UncaughtException(msg, metadata)
               |> CliRuntimeError.RTE.toRuntimeError
-            //err msg metadata
 
             let nameResolver = LibParser.NameResolver.fromExecutionState state
 

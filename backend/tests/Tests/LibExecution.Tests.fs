@@ -214,8 +214,6 @@ let t
                   []
                   (NEList.ofList (RT.RuntimeError.toDT e) [])
 
-              debuG "Not able to stringfy runtime error -- wrong type given" ()
-
               return actualErrorMessage
 
           | _ -> return actual
