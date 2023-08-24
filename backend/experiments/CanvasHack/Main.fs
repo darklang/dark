@@ -56,6 +56,7 @@ let seedCanvas (canvasName : string) =
           [ StdLibExecution.StdLib.contents
               StdLibExecution.Libs.HttpClient.unconstrainedConfig
             StdLibCloudExecution.StdLib.contents
+            BwdDangerServer.StdLib.contents
             StdLibDarkInternal.StdLib.contents ]
           []
           []
