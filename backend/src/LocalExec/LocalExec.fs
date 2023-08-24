@@ -44,7 +44,6 @@ let execute
         fns =
           mod'.fns
           |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
-          |> debugList "fns"
           |> Map.fromListBy (fun fn -> fn.name)
         types =
           mod'.types
@@ -86,8 +85,7 @@ let execute
         program
         config
 
-    return!
-      Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0] |> debug "expr")
+    return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
   }
 
 let sourceOf
