@@ -275,7 +275,7 @@ let sqlOpForPackageFunction (fnName : FnName.Package) : SqlSpec =
 let rec lambdaToSql
   (fns : Functions)
   (types : Types)
-  (constants : Map<ConstantName.BuiltIn, BuiltInConstant>)
+  (constants : Constants)
   (tat : TypeArgTable)
   (symtable : DvalMap)
   (paramName : string)
@@ -299,218 +299,224 @@ let rec lambdaToSql
     let! (sql, vars, actualType) =
       uply {
         match expr with
-        | EConstant(_, (FQName.BuiltIn name as fqName)) ->
-          let nameStr = ConstantName.toString fqName
-          match Map.get name constants with
-          | Some c ->
-            typecheck nameStr c.typ expectedType
-            let random = randomString 8
-            let newname = $"{nameStr}_{random}"
-            let (sqlValue, actualType) = dvalToSql expectedType c.body
-            return ($"(@{newname})", [ newname, sqlValue ], actualType)
-          | None ->
-            return
-              error
-                $"Only builtin constants can be used in queries right now; {nameStr} is not a builtin constant"
+        | EConstant(_, (constantName)) ->
+          let nameStr = ConstantName.toString constantName
+
+          match constantName with
+          | FQName.BuiltIn b ->
+            match Map.get b constants.builtIn with
+            | Some c ->
+              typecheck nameStr c.typ expectedType
+              let random = randomString 8
+              let newname = $"{nameStr}_{random}"
+              let (sqlValue, actualType) = dvalToSql expectedType c.body
+              return ($"(@{newname})", [ newname, sqlValue ], actualType)
+            | None -> return error $"No built-in constant {nameStr} found"
+
+          | FQName.Package p ->
+            let! constants = constants.package p
+            match constants with
+            | Some c ->
+              let random = randomString 8
+              let newname = $"{nameStr}_{random}"
+              let (sqlValue, actualType) = dvalToSql expectedType c.body
+              debuG "sqlValue" sqlValue
+              debuG "actualType" actualType
+              return ($"(@{newname})", [ newname, sqlValue ], actualType)
+            | None -> return error $"No package constant {nameStr} found"
+
+          | FQName.UserProgram _ ->
+            return error $"User constants are not yet supported"
+
+          | FQName.Unknown u -> return error $"Unknown constant {u}"
 
         | EApply(_, EFnName(_, (fnName)), [], args) ->
           let nameStr = FnName.toString fnName
 
-          match! Function.find fnName fns with
-          | Some fn ->
-            match fn with
-            | FQName.BuiltIn b ->
-              match Map.get b fns.builtIn with
-              | Some fn ->
-                typecheck nameStr fn.returnType expectedType
+          match fnName with
+          | FQName.BuiltIn b ->
+            match Map.get b fns.builtIn with
+            | Some fn ->
+              typecheck nameStr fn.returnType expectedType
 
-                let! (actualTypes, argSqls, sqlVars) =
-                  uply {
-                    let paramCount = List.length fn.parameters
-                    let argCount = NEList.length args
+              let! (actualTypes, argSqls, sqlVars) =
+                uply {
+                  let paramCount = List.length fn.parameters
+                  let argCount = NEList.length args
 
-                    if argCount = paramCount then
-                      // While checking the arguments, record the actual types for any abstract
-                      // types so that we can compare them and give a good error message as well
-                      // as have the types for the correct Npgsql wrapper for lists and other
-                      // polymorphic values
+                  if argCount = paramCount then
+                    // While checking the arguments, record the actual types for any abstract
+                    // types so that we can compare them and give a good error message as well
+                    // as have the types for the correct Npgsql wrapper for lists and other
+                    // polymorphic values
 
-                      let zipped =
-                        // Tablecloth's List.zip reverses the order..
-                        List.zip (NEList.toList args) fn.parameters |> List.rev
+                    let zipped =
+                      // Tablecloth's List.zip reverses the order..
+                      List.zip (NEList.toList args) fn.parameters |> List.rev
 
-                      return!
-                        Ply.List.foldSequentially
-                          (fun
-                               (actualTypes, prevSqls, prevVars)
-                               (argExpr, (param : BuiltInParam)) ->
-                            uply {
-                              let! compiled = lts param.typ argExpr
-                              let newActuals =
-                                match param.typ with
-                                | TVariable name ->
-                                  match Map.get name actualTypes with
-                                  // We've seen this type before, check it matches
-                                  | Some expected ->
-                                    typecheck
-                                      param.name
-                                      compiled.actualType
-                                      expected
-                                    actualTypes
-                                  | None ->
-                                    Map.add name compiled.actualType actualTypes
-                                | _ -> actualTypes
+                    return!
+                      Ply.List.foldSequentially
+                        (fun
+                             (actualTypes, prevSqls, prevVars)
+                             (argExpr, (param : BuiltInParam)) ->
+                          uply {
+                            let! compiled = lts param.typ argExpr
+                            let newActuals =
+                              match param.typ with
+                              | TVariable name ->
+                                match Map.get name actualTypes with
+                                // We've seen this type before, check it matches
+                                | Some expected ->
+                                  typecheck param.name compiled.actualType expected
+                                  actualTypes
+                                | None ->
+                                  Map.add name compiled.actualType actualTypes
+                              | _ -> actualTypes
 
-                              return
-                                newActuals,
-                                prevSqls @ [ compiled.sql ],
-                                prevVars @ compiled.vars
-                            })
-                          (Map.empty, [], [])
-                          (zipped)
+                            return
+                              newActuals,
+                              prevSqls @ [ compiled.sql ],
+                              prevVars @ compiled.vars
+                          })
+                        (Map.empty, [], [])
+                        (zipped)
 
-                    else
-                      return
-                        error
-                          $"{nameStr} has {paramCount} functions but we have {argCount} arguments"
-                  }
+                  else
+                    return
+                      error
+                        $"{nameStr} has {paramCount} functions but we have {argCount} arguments"
+                }
 
-                // Check the unified return type (basic on the actual arguments) against the
-                // expected type
-                let returnType =
-                  match fn.returnType with
-                  | TVariable name ->
-                    match Map.get name actualTypes with
-                    | Some typ -> typ
-                    | None -> error "Could not find return type"
-                  | TList(TVariable name) ->
-                    match Map.get name actualTypes with
-                    | Some typ -> TList typ
-                    | None -> error "Could not find return type"
-                  | typ -> typ
+              // Check the unified return type (basic on the actual arguments) against the
+              // expected type
+              let returnType =
+                match fn.returnType with
+                | TVariable name ->
+                  match Map.get name actualTypes with
+                  | Some typ -> typ
+                  | None -> error "Could not find return type"
+                | TList(TVariable name) ->
+                  match Map.get name actualTypes with
+                  | Some typ -> TList typ
+                  | None -> error "Could not find return type"
+                | typ -> typ
 
-                typecheck nameStr returnType expectedType
+              typecheck nameStr returnType expectedType
 
-                return
-                  match fn, argSqls with
-                  | { sqlSpec = SqlBinOp op }, [ argL; argR ] ->
-                    $"({argL} {op} {argR})", sqlVars, returnType
-                  | { sqlSpec = SqlUnaryOp op }, [ argSql ] ->
-                    $"({op} {argSql})", sqlVars, returnType
-                  | { sqlSpec = SqlFunction fnname }, _ ->
-                    let argSql = String.concat ", " argSqls
-                    $"({fnname}({argSql}))", sqlVars, returnType
-                  | { sqlSpec = SqlFunctionWithPrefixArgs(fnName, fnArgs) }, _ ->
-                    let argSql = fnArgs @ argSqls |> String.concat ", "
-                    $"({fnName} ({argSql}))", sqlVars, returnType
-                  | { sqlSpec = SqlFunctionWithSuffixArgs(fnName, fnArgs) }, _ ->
-                    let argSql = argSqls @ fnArgs |> String.concat ", "
-                    $"({fnName} ({argSql}))", sqlVars, returnType
-                  | { sqlSpec = SqlCallback2 fn }, [ arg1; arg2 ] ->
-                    $"({fn arg1 arg2})", sqlVars, returnType
-                  | _, _ -> error $"This function ({nameStr}) is not yet implemented"
+              return
+                match fn, argSqls with
+                | { sqlSpec = SqlBinOp op }, [ argL; argR ] ->
+                  $"({argL} {op} {argR})", sqlVars, returnType
+                | { sqlSpec = SqlUnaryOp op }, [ argSql ] ->
+                  $"({op} {argSql})", sqlVars, returnType
+                | { sqlSpec = SqlFunction fnname }, _ ->
+                  let argSql = String.concat ", " argSqls
+                  $"({fnname}({argSql}))", sqlVars, returnType
+                | { sqlSpec = SqlFunctionWithPrefixArgs(fnName, fnArgs) }, _ ->
+                  let argSql = fnArgs @ argSqls |> String.concat ", "
+                  $"({fnName} ({argSql}))", sqlVars, returnType
+                | { sqlSpec = SqlFunctionWithSuffixArgs(fnName, fnArgs) }, _ ->
+                  let argSql = argSqls @ fnArgs |> String.concat ", "
+                  $"({fnName} ({argSql}))", sqlVars, returnType
+                | { sqlSpec = SqlCallback2 fn }, [ arg1; arg2 ] ->
+                  $"({fn arg1 arg2})", sqlVars, returnType
+                | _, _ -> error $"This function ({nameStr}) is not yet implemented"
 
-              | None -> return error $"Builtin functions {nameStr} not found"
+            | None -> return error $"Builtin functions {nameStr} not found"
 
 
-            | FQName.Package p ->
-              let! fns = fns.package p
-              match fns with
-              | Some fn ->
-                typecheck nameStr fn.returnType expectedType
+          | FQName.Package p ->
+            let! fns = fns.package p
+            match fns with
+            | Some fn ->
+              typecheck nameStr fn.returnType expectedType
 
-                let! (actualTypes, argSqls, sqlVars) =
-                  uply {
-                    let paramCount = NEList.length fn.parameters
-                    let argCount = NEList.length args
+              let! (actualTypes, argSqls, sqlVars) =
+                uply {
+                  let paramCount = NEList.length fn.parameters
+                  let argCount = NEList.length args
 
-                    if argCount = paramCount then
-                      // While checking the arguments, record the actual types for any abstract
-                      // types so that we can compare them and give a good error message as well
-                      // as have the types for the correct Npgsql wrapper for lists and other
-                      // polymorphic values
+                  if argCount = paramCount then
+                    // While checking the arguments, record the actual types for any abstract
+                    // types so that we can compare them and give a good error message as well
+                    // as have the types for the correct Npgsql wrapper for lists and other
+                    // polymorphic values
 
-                      let zipped =
-                        // Tablecloth's List.zip reverses the order..
-                        List.zip (NEList.toList args) (NEList.toList fn.parameters)
-                        |> List.rev
+                    let zipped =
+                      // Tablecloth's List.zip reverses the order..
+                      List.zip (NEList.toList args) (NEList.toList fn.parameters)
+                      |> List.rev
 
-                      return!
-                        Ply.List.foldSequentially
-                          (fun
-                               (actualTypes, prevSqls, prevVars)
-                               (argExpr, (param : PackageFn.Parameter)) ->
-                            uply {
-                              let! compiled = lts param.typ argExpr
-                              let newActuals =
-                                match param.typ with
-                                | TVariable name ->
-                                  match Map.get name actualTypes with
-                                  // We've seen this type before, check it matches
-                                  | Some expected ->
-                                    typecheck
-                                      param.name
-                                      compiled.actualType
-                                      expected
-                                    actualTypes
-                                  | None ->
-                                    Map.add name compiled.actualType actualTypes
-                                | _ -> actualTypes
+                    return!
+                      Ply.List.foldSequentially
+                        (fun
+                             (actualTypes, prevSqls, prevVars)
+                             (argExpr, (param : PackageFn.Parameter)) ->
+                          uply {
+                            let! compiled = lts param.typ argExpr
+                            let newActuals =
+                              match param.typ with
+                              | TVariable name ->
+                                match Map.get name actualTypes with
+                                // We've seen this type before, check it matches
+                                | Some expected ->
+                                  typecheck param.name compiled.actualType expected
+                                  actualTypes
+                                | None ->
+                                  Map.add name compiled.actualType actualTypes
+                              | _ -> actualTypes
 
-                              return
-                                newActuals,
-                                prevSqls @ [ compiled.sql ],
-                                prevVars @ compiled.vars
-                            })
-                          (Map.empty, [], [])
-                          (zipped)
+                            return
+                              newActuals,
+                              prevSqls @ [ compiled.sql ],
+                              prevVars @ compiled.vars
+                          })
+                        (Map.empty, [], [])
+                        (zipped)
 
-                    else
-                      return
-                        error
-                          $"{nameStr} has {paramCount} functions but we have {argCount} arguments"
-                  }
+                  else
+                    return
+                      error
+                        $"{nameStr} has {paramCount} functions but we have {argCount} arguments"
+                }
 
-                let returnType =
-                  match fn.returnType with
-                  | TVariable name ->
-                    match Map.get name actualTypes with
-                    | Some typ -> typ
-                    | None -> error "Could not find return type"
-                  | TList(TVariable name) ->
-                    match Map.get name actualTypes with
-                    | Some typ -> TList typ
-                    | None -> error "Could not find return type"
-                  | typ -> typ
+              let returnType =
+                match fn.returnType with
+                | TVariable name ->
+                  match Map.get name actualTypes with
+                  | Some typ -> typ
+                  | None -> error "Could not find return type"
+                | TList(TVariable name) ->
+                  match Map.get name actualTypes with
+                  | Some typ -> TList typ
+                  | None -> error "Could not find return type"
+                | typ -> typ
 
-                typecheck nameStr fn.returnType expectedType
+              typecheck nameStr fn.returnType expectedType
 
-                return
-                  match sqlOpForPackageFunction fn.name, argSqls with
-                  | SqlBinOp op, [ argL; argR ] ->
-                    $"({argL} {op} {argR})", sqlVars, returnType
-                  | SqlUnaryOp op, [ argSql ] ->
-                    $"({op} {argSql})", sqlVars, returnType
-                  | SqlFunction fnname, _ ->
-                    let argSql = String.concat ", " argSqls
-                    $"({fnname}({argSql}))", sqlVars, returnType
-                  | SqlFunctionWithPrefixArgs(fnName, fnArgs), _ ->
-                    let argSql = fnArgs @ argSqls |> String.concat ", "
-                    $"({fnName} ({argSql}))", sqlVars, returnType
-                  | SqlFunctionWithSuffixArgs(fnName, fnArgs), _ ->
-                    let argSql = argSqls @ fnArgs |> String.concat ", "
-                    $"({fnName} ({argSql}))", sqlVars, returnType
-                  | SqlCallback2 fn, [ arg1; arg2 ] ->
-                    $"({fn arg1 arg2})", sqlVars, returnType
-                  | _, _ -> error $"This function ({nameStr}) is not yet implemented"
+              return
+                match sqlOpForPackageFunction fn.name, argSqls with
+                | SqlBinOp op, [ argL; argR ] ->
+                  $"({argL} {op} {argR})", sqlVars, returnType
+                | SqlUnaryOp op, [ argSql ] ->
+                  $"({op} {argSql})", sqlVars, returnType
+                | SqlFunction fnname, _ ->
+                  let argSql = String.concat ", " argSqls
+                  $"({fnname}({argSql}))", sqlVars, returnType
+                | SqlFunctionWithPrefixArgs(fnName, fnArgs), _ ->
+                  let argSql = fnArgs @ argSqls |> String.concat ", "
+                  $"({fnName} ({argSql}))", sqlVars, returnType
+                | SqlFunctionWithSuffixArgs(fnName, fnArgs), _ ->
+                  let argSql = argSqls @ fnArgs |> String.concat ", "
+                  $"({fnName} ({argSql}))", sqlVars, returnType
+                | SqlCallback2 fn, [ arg1; arg2 ] ->
+                  $"({fn arg1 arg2})", sqlVars, returnType
+                | _, _ -> error $"This function ({nameStr}) is not yet implemented"
 
-              | None -> return error $"Package functions {nameStr} not found"
+            | None -> return error $"Package functions {nameStr} not found"
 
-            | FQName.UserProgram u -> return error $"Todo: user program {u}"
-            | FQName.Unknown u -> return error $"{u} is not a known function"
-
-
-          | None -> return error $"Function {nameStr} not found."
+          | FQName.UserProgram u -> return error $"Todo: user program {u}"
+          | FQName.Unknown u -> return error $"{u} is not a known function"
 
         | EAnd(_, left, right) ->
           let! left = lts TBool left
@@ -1025,18 +1031,10 @@ let compileLambda
 
     let types = ExecutionState.availableTypes state
     let fns = ExecutionState.availableFunctions state
+    let constants = ExecutionState.availableConstants state
 
     let! compiled =
-      lambdaToSql
-        fns
-        types
-        state.builtIns.constants
-        tat
-        symtable
-        paramName
-        dbType
-        TBool
-        body
+      lambdaToSql fns types constants tat symtable paramName dbType TBool body
 
     return (compiled.sql, compiled.vars)
   }

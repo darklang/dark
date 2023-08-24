@@ -1212,6 +1212,11 @@ and Functions =
     package : FnName.Package -> Ply<Option<PackageFn.T>>
     userProgram : Map<FnName.UserProgram, UserFunction.T> }
 
+and Constants =
+  { builtIn : Map<ConstantName.BuiltIn, BuiltInConstant>
+    package : ConstantName.Package -> Ply<Option<PackageConstant.T>>
+    userProgram : Map<ConstantName.UserProgram, UserConstant.T> }
+
 and Types =
   { builtIn : Map<TypeName.BuiltIn, BuiltInType>
     package : TypeName.Package -> Ply<Option<PackageType.T>>
@@ -1229,24 +1234,10 @@ module ExecutionState =
       package = state.packageManager.getFn
       userProgram = state.program.fns }
 
-module Function =
-  let empty =
-    { builtIn = Map.empty; package = (fun _ -> Ply None); userProgram = Map.empty }
-
-  let find (name : FnName.T) (functions : Functions) : Ply<Option<FnName.T>> =
-    match name with
-    | FQName.BuiltIn b ->
-      Map.tryFind b functions.builtIn
-      |> Option.map (fun f -> f.name |> FQName.BuiltIn)
-      |> Ply
-    | FQName.UserProgram user ->
-      Map.tryFind user functions.userProgram
-      |> Option.map (fun f -> f.name |> FQName.UserProgram)
-      |> Ply
-    | FQName.Package pkg ->
-      functions.package pkg
-      |> Ply.map (Option.map (fun f -> f.name |> FQName.Package))
-    | FQName.Unknown _ -> Ply None
+  let availableConstants (state : ExecutionState) : Constants =
+    { builtIn = state.builtIns.constants
+      package = state.packageManager.getConstant
+      userProgram = state.program.constants }
 
 
 module Types =

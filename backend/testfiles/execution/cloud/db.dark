@@ -778,6 +778,14 @@ module CompiledFunctions =
   (friends (fun p -> DateTime.second p.dob == 42)) = [ " Chandler " ]
   (friends (fun p -> DateTime.year_v0 p.dob == 1969)) = [ " Chandler "; "Rachel" ]
 
+  // Test package constants
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.Bool.and_v0
+      p.human
+      PACKAGE.Darklang.Test.Constants.boolConst)) = [ " Chandler "
+                                                      "Rachel"
+                                                      "Ross" ]
+
 module PartialEvaluation =
   type A = { a: Int }
   type Z = { z: A }
