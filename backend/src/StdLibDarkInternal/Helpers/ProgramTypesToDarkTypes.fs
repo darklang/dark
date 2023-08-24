@@ -716,8 +716,8 @@ module Expr =
 
       // control flow
       | PT.EIf(id, cond, thenExpr, elseExpr) ->
-        let elseExpr =  elseExpr |> Option.map toDT |> Dval.option
-        "EIf", [ DInt(int64 id); toDT cond; toDT thenExpr; elseExpr]
+        let elseExpr = elseExpr |> Option.map toDT |> Dval.option
+        "EIf", [ DInt(int64 id); toDT cond; toDT thenExpr; elseExpr ]
 
       | PT.EMatch(id, arg, cases) ->
         let cases =
