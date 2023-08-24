@@ -351,8 +351,8 @@ module FromList =
   //Test.runtimeError "In String.fromList's 1st argument (`l`), the value should be a List<Char>. However, a List<String> ([\"a\"]) was passed instead.\n\nExpected: List<Char>\nActual: a List<String>: [\"a\"]"
   // Note: the below error comes from the implementation itself, not normal typechecking,
   //   otherwise we could expect the message to include `[\"a\"] instead of `\"a\"`.
-  PACKAGE.Darklang.Stdlib.String.fromList [ "a" ] = Test.runtimeError
-    "Char.toString's 1st argument (`c`) should be a Char. However, a String (\"a\") was passed instead.\n\nExpected: (c: Char)\nActual: a String: \"a\""
+  PACKAGE.Darklang.Stdlib.String.fromList [ "a" ] = Test.derrorMessage
+    "Char.toString's 1st argument (`c`) should be an Character. However, an String (\"a\") was passed instead.\n\nExpected: (c: Character)\nActual: an String: \"a\""
 
 
 module ToList =

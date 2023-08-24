@@ -18,6 +18,7 @@ exception IncorrectArgs
 /// computation immediately, and the caller can return the dval. This is useful
 /// for jumping out of folds and other complicated constructs.
 exception FakeDvalFound of Dval
+// CLEANUP add word 'exception' to exception names
 
 
 // ------------------

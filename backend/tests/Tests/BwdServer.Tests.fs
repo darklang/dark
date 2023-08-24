@@ -186,8 +186,7 @@ module ParseTest =
 let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> =
   task {
     let! (canvasID, domain) = initializeTestCanvas' $"bwdserver-{testName}"
-    let resolver =
-      LibParser.NameResolver.fromBuiltins LibCloudExecution.CloudExecution.builtins
+    let resolver = resolverWithBuiltinsAndPackageManager
 
     // Handlers
     let! oplists =
@@ -434,7 +433,7 @@ let tests =
         withoutPrefix |> String.dropRight (".test".Length)
 
       // set up a test canvas
-      let! (canvasID, domain) = setupTestCanvas testName test
+      let! (_canvasID, domain) = setupTestCanvas testName test
 
       // execute the test
       if shouldSkip then

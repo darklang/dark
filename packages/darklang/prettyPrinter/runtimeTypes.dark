@@ -287,16 +287,9 @@ module Darklang =
 
           | DInt i -> Int.toString i
 
-          // | DFloat f ->
-          //   if System.Double.IsPositiveInfinity f then
-          //     "Infinity"
-          //   else if System.Double.IsNegativeInfinity f then
-          //     "-Infinity"
-          //   else if System.Double.IsNaN f then
-          //     "NaN"
-          //   else
-          //     let result = sprintf "%.12g" f
-          //     if result.Contains "." then result else $"{result}.0"
+          // CLEANUP: deal with Infinity, NegativeInfinity, and NaN
+          | DFloat f -> Float.toString f
+
 
           // | DDateTime d -> wrap (DarkDateTime.toIsoString d)
 

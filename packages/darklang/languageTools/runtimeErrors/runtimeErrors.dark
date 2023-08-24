@@ -134,6 +134,10 @@ module Darklang =
           actual: List<ErrorSegment.ErrorSegment>
           expected: List<ErrorSegment.ErrorSegment> }
 
+      // TODO: update SqlCompilerRuntimeError to refer to
+      // SqlCompiler.RuntimeErrors.Error, with other Error types here
+      // maybe as cases of that (e.g. TypeCheckerError, NameResolutionError)
+
       type Error =
         | CliError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Cli.Error
         | TypeCheckerError of

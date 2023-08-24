@@ -145,6 +145,9 @@ let t
         debugDval actual |> debuG "not canonicalized"
         Expect.isTrue canonical "expected is canonicalized"
 
+      // CLEANUP consider not doing the toErrorMessage call
+      // just test the actual RuntimeError Dval,
+      // and have separate tests around pretty-printing the error
       let! actual =
         task {
           match actual with

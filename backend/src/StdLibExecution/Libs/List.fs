@@ -8,6 +8,10 @@ module Errors = LibExecution.Errors
 module Interpreter = LibExecution.Interpreter
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
+
+// CLEANUP something like type ComparatorResult = Higher | Lower | Same
+// rather than 0/1/-2
+
 module DvalComparator =
   let rec compareDval (dv1 : Dval) (dv2 : Dval) : int =
     match dv1, dv2 with
@@ -566,9 +570,11 @@ let fns : List<BuiltInFn> =
 
               match result with
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
+              | dv when Dval.isFake dv -> return Errors.foundFakeDval dv
               | _ ->
                 return
                   Exception.raiseCode (
+                    // CLEANUP this yields pretty confusing error messages
                     Errors.expectedLambdaValue "fn" "-1, 0, 1" result
                   )
             }
@@ -579,8 +585,9 @@ let fns : List<BuiltInFn> =
               do! Sort.sort fn array
               // CLEANUP: check fakevals
               return array |> Array.toList |> DList |> Dval.resultOk
-            with e ->
-              return Dval.resultError (DString e.Message)
+            with
+            | Errors.FakeDvalFound dv -> return dv
+            | e -> return Dval.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
