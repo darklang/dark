@@ -320,8 +320,6 @@ let rec lambdaToSql
               let random = randomString 8
               let newname = $"{nameStr}_{random}"
               let (sqlValue, actualType) = dvalToSql expectedType c.body
-              debuG "sqlValue" sqlValue
-              debuG "actualType" actualType
               return ($"(@{newname})", [ newname, sqlValue ], actualType)
             | None -> return error $"No package constant {nameStr} found"
 
