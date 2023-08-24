@@ -48,6 +48,7 @@ A request has a `request` variable available:
 The expression should return a response with this type:
 `{ statusCode: int; headers: List<String*String>; body: byte[] }`
 
+
 ## Standard library
 
 type HttpResponse = {
@@ -57,7 +58,6 @@ body: Bytes
 }
 
 Here are some functions available in Dark:
-
 - DB.set (dbName: String) (item: 'a) : Uuid
 - DB.get (dbName: String) (key: String) : 'a
 - HttpClient.request (method: String) (url: String) (headers: List<String\*String>) (body: Bytes) : HttpResponse
@@ -67,7 +67,6 @@ Here are some functions available in Dark:
 - Json.parse<'a> (j: String) : 'a
 
 These are the available standard library modules:
-
 - Int
 - Character
 - String
@@ -79,6 +78,7 @@ These are the available standard library modules:
 - DB
 - HttpClient
 - Json
+
 
 ## Json
 
@@ -147,5 +147,3 @@ prompt: write a function that adds two integers
 
 Response:
 let add (x: Int) (y: Int) : Int = x + y
-
-Remember, do not add comments only return executable code.

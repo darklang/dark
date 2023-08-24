@@ -248,45 +248,23 @@ module Darklang =
 
     let generateCode (prompt: String) (scriptPath: String) : Int =
 
-      let prompt =
-        match File.read "canvases/dark-editor/system-prompt-cli.txt" with
-        | Ok darkPrompt -> prompt ++ "\n" ++ (darkPrompt |> String.fromBytes)
-        | Error e ->
-          print e
-          prompt
-
-      print prompt
-
-      let request =
-        HttpClient.request
-          "GET"
-          ("http://dark-packages.dlio.localhost:11003/openai-chat/" ++ prompt)
-          []
-          Bytes.empty
-
-      let statusCode =
-        request
-        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
-        |> unwrap
-
-      let response =
-        request
-        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+      let systemPrompt =
+        (File.read "canvases/dark-editor/system-prompt-cli.txt")
         |> unwrap
         |> String.fromBytes
 
+      let prompt = prompt ++ "\n" ++ systemPrompt
 
-      if statusCode == 200 then
-        print response
+      let response = (PACKAGE.OpenAI.ChatCompletion.completion prompt)
+
+      match response with
+      | Error e ->
+        print e
+        1
+      | Ok response ->
         File.write (String.toBytes response) scriptPath
         print $"Generated code saved to {scriptPath}"
         0
-
-      else
-        print
-          $"Error generating code.\nStatus code: {statusCode} \nResponse: {response}"
-
-        1
 
 
     let parseArguments (args: List<String>) : PACKAGE.Darklang.Cli.Command =
