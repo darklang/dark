@@ -15,6 +15,7 @@
     <Compile Include="Libs/File.fs" />
     <Compile Include="Libs/Output.fs" />
     <Compile Include="Libs/Process.fs" />
+    <Compile Include="Libs/Time.fs" />
     <Compile Include="StdLib.fs" />
   </ItemGroup>
   <ItemGroup>
