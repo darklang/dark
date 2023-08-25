@@ -22,10 +22,17 @@ type EditorSource =
     constants : List<UserConstant.T> }
 
 
+
+let httpConfig : StdLibExecution.Libs.HttpClient.Configuration =
+  { StdLibExecution.Libs.HttpClient.defaultConfig with
+      telemetryAddException =
+        (fun metadata e ->
+          WasmHelpers.callJSFunction "console.warn" [ string metadata; string e ]) }
+
+
 let stdLib =
   LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents StdLibExecution.Libs.HttpClient.defaultConfig
-      Wasm.StdLib.contents ]
+    [ StdLibExecution.StdLib.contents httpConfig; StdLib.contents ]
     []
     []
 
