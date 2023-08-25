@@ -89,7 +89,7 @@ module BaseClient =
             // While this DNS call is expensive, it should be cached
             let ips = System.Net.Dns.GetHostAddresses context.DnsEndPoint.Host
 
-            if (Array.forall config.allowedIP ips) then
+            if not (Array.forall config.allowedIP ips) then
               // Use this to hide more specific errors when looking at loopback
               Exception.raiseInternal "Could not connect" []
 
