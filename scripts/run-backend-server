@@ -95,18 +95,37 @@ do
 done
 echo "Done waiting for compiled servers"
 
-echo "Running migrations"
-"${PRODEXEC_EXE}" migrations run > "$LOGS/migrations.log" 2>&1
-./scripts/build/reload-packages $PUBLISHED_FLAG $PUBLISHED_FLAG
-echo "Running bwdserver"
-"${BWDSERVER_EXE}" > "$LOGS/bwdserver.log" 2>&1 &
-echo "Running cronchecker"
-"${CRONCHECKER_EXE}" > "$LOGS/cronchecker.log" 2>&1 &
-echo "Running queueworker"
-"${QUEUEWORKER_EXE}" > "$LOGS/queueworker.log" 2>&1 &
+grey="\033[1;30m"
+reset="\033[0m"
 
-echo "Running bwddangerserver"
-"${BWDDANGERSERVER_EXE}" > "$LOGS/bwddangerserver.log" 2>&1 &
+function announce() {
+  msg="$1"
+  filename="$2"
+  filename=$(realpath "$filename" --relative-to .)
+  echo -e "$msg ($grey$filename$reset)"
+}
+
+MIGRATIONS_LOG="$LOGS/migrations.log"
+announce "Running migrations" "${MIGRATIONS_LOG}"
+"${PRODEXEC_EXE}" migrations run > "${MIGRATIONS_LOG}" 2>&1
+
+./scripts/build/reload-packages $PUBLISHED_FLAG $PUBLISHED_FLAG
+
+BWDSERVER_LOG="$LOGS/bwdserver.log"
+announce "Running bwdserver" "${BWDSERVER_LOG}"
+"${BWDSERVER_EXE}" > "${BWDSERVER_LOG}" 2>&1 &
+
+CRONCHECKER_LOG="$LOGS/cronchecker.log"
+announce "Running cronchecker" "${CRONCHECKER_LOG}"
+"${CRONCHECKER_EXE}" > "${CRONCHECKER_LOG}" 2>&1 &
+
+QUEUEWORKER_LOG="$LOGS/queueworker.log"
+announce "Running queueworker" "${QUEUEWORKER_LOG}"
+"${QUEUEWORKER_EXE}" > "${QUEUEWORKER_LOG}" 2>&1 &
+
+BWDDANGERSERVER_LOG="$LOGS/bwddangerserver.log"
+announce "Running bwddangerserver" "${BWDDANGERSERVER_LOG}"
+"${BWDDANGERSERVER_EXE}" > "${BWDDANGERSERVER_LOG}" 2>&1 &
 
 echo "Loading packages into dark canvas"
 ./scripts/build/load-packages-into-dark-canvas $PUBLISHED_FLAG $PUBLISHED_FLAG
