@@ -17,7 +17,7 @@ module Json = StdLibExecution.Libs.Json
 
 
 let libExecutionContents =
-  StdLibExecution.StdLib.contents StdLibExecution.Libs.HttpClient.unconstrainedConfig
+  StdLibExecution.StdLib.contents StdLibExecution.Libs.HttpClient.defaultConfig
 
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) =

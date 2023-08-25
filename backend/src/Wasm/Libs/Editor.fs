@@ -138,7 +138,7 @@ let fns : List<BuiltInFn> =
             let stdLib =
               LibExecution.StdLib.combine
                 [ StdLibExecution.StdLib.contents
-                    StdLibExecution.Libs.HttpClient.unconstrainedConfig
+                    StdLibExecution.Libs.HttpClient.defaultConfig
                   Wasm.Libs.HttpClient.contents ]
                 []
                 []
