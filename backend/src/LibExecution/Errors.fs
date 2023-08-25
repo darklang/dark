@@ -63,16 +63,6 @@ let resultWasntType (expected : TypeReference) (dv : Dval) : string =
   let expected = DvalReprDeveloper.typeName expected
   $"Expected result to be a `{expected}`, but it was `{actual}`"
 
-let typeErrorMsg
-  (colName : string)
-  (expected : TypeReference)
-  (actual : Dval)
-  : string =
-  let expected = DvalReprDeveloper.typeName expected
-  let actualType = DvalReprDeveloper.dvalTypeName actual
-
-  $"Expected a value of type {expected} but got a {actualType} (`{actual}`)"
-  + $" in column {colName}"
 
 // ------------------
 // Extremely common exceptions
@@ -129,11 +119,6 @@ let incorrectArgsToDError (source : DvalSource) (fn : Fn) (argList : NEList<Dval
       let msg = incorrectArgsMsg fn.name p actual
       Dval.errSStr source msg
 
-
-/// When a function has been removed (rarely happens but does happen occasionally)
-let removedFunction (state : ExecutionState) (fnName : string) : DvalTask =
-  state.notify state "function removed" [ "fnName", fnName ]
-  Ply(DError(SourceNone, RuntimeError.oldError $"{fnName} was removed from Dark"))
 
 /// When you have a fakeval, you typically just want to return it.
 let foundFakeDval (dv : Dval) : 'a = raise (FakeDvalFound dv)

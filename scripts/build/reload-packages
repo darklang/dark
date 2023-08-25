@@ -41,13 +41,13 @@ echo -e "Loading packages into DB ${grey}($LOG_DB)${reset}"
 
 
 # todo: wait until the backend servers are running (ports is ready)
-for name in "${@}"; do
-  echo "Waiting for $name"
-  until curl "localhost:${DARK_CONFIG_BWDSERVER_DANGER_KUBERNETES_PORT}" ; do
-    printf '.'
-    sleep 1
-  done
-done
+# for name in "${@}"; do
+#   echo "Waiting for $name"
+#   until curl "localhost:${DARK_CONFIG_BWDSERVER_DANGER_KUBERNETES_PORT}" ; do
+#     printf '.'
+#     sleep 1
+#   done
+# done
 
 
 if [[ "$TEST" != "true" ]]; then

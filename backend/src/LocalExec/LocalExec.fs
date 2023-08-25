@@ -166,12 +166,9 @@ module PackageBootstrapping =
 
   let clearLocalPackageDb () : Ply<unit> =
     uply {
-      debuG "clearing package stuff from DB" ()
       do! Sql.query "DELETE FROM package_types_v0" |> Sql.executeStatementAsync
       do! Sql.query "DELETE FROM package_functions_v0" |> Sql.executeStatementAsync
       do! Sql.query "DELETE FROM package_constants_v0" |> Sql.executeStatementAsync
-
-      return ()
     }
 
   let savePackagesToLocalDb (packages : LibParser.Parser.Packages) : Ply<unit> =
@@ -181,8 +178,6 @@ module PackageBootstrapping =
       do! LibCloud.PackageManager.savePackageFunctions fns
       do! LibCloud.PackageManager.savePackageTypes types
       do! LibCloud.PackageManager.savePackageConstants constants
-
-      return ()
     }
 
 
@@ -311,7 +306,7 @@ let main (args : string[]) : int =
       name
       LibService.Telemetry.DontTraceDBQueries
 
-    (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result
+    (LibCloud.Init.waitForDB ()).Result
 
     match args with
     | [| "load-packages" |] ->

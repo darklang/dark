@@ -144,7 +144,6 @@ module Darklang =
           PACKAGE.Darklang.LanguageTools.RuntimeErrors.TypeChecker.Error
         | NameResolutionError of
           PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error
-        // TODO: sqlcompiler runtime error
         | SqlCompilerRuntimeError of Error
         | OldStringErrorTODO of String
       //| ExceptionThrown of ExceptionThrown.ExceptionThrown

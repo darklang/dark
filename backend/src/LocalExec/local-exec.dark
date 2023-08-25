@@ -41,7 +41,8 @@ let saveItemToCanvas
       print $"Body: {response.body |> String.fromBytes}"
       print errMsg
       PACKAGE.Darklang.Stdlib.Result.Result.Error errMsg
-  | Error _err ->
+  | Error err ->
+    print err
     print errMsg
     PACKAGE.Darklang.Stdlib.Result.Result.Error errMsg
 

@@ -333,17 +333,17 @@ module Darklang =
               [ ErrorSegment.ErrorSegment.String
                   $"(RTETODO: contextAsActualExpected {(Json.serialize<Context> context) |> unwrap})" ]
 
-          let contextVerb (context: Context) : String =
-            match context with
-            | FunctionCallParameter _ -> "passed"
-            | FunctionCallResult _ -> "returned"
-            | RecordField _ -> "passed"
-            | DictKey _ -> "passed"
-            | EnumField _ -> "passed"
-            | DBSchemaType _ -> "passed"
-            | DBQueryVariable _ -> "passed"
-            | ListIndex _ -> "passed"
-            | TupleIndex _ -> "passed"
+          // let contextVerb (context: Context) : String =
+          //   match context with
+          //   | FunctionCallParameter _ -> "passed"
+          //   | FunctionCallResult _ -> "returned"
+          //   | RecordField _ -> "passed"
+          //   | DictKey _ -> "passed"
+          //   | EnumField _ -> "passed"
+          //   | DBSchemaType _ -> "passed"
+          //   | DBQueryVariable _ -> "passed"
+          //   | ListIndex _ -> "passed"
+          //   | TupleIndex _ -> "passed"
 
           let toSegments (e: Error) : REErrorOutput =
             match e with
@@ -397,7 +397,9 @@ module Darklang =
             //     expected = [] }
             | _ ->
               ErrorOutput
-                { summary = [ String "RTETODO typeChecker.toSegments" ]
+                { summary =
+                    [ ErrorSegment.ErrorSegment.String
+                        "RTETODO typeChecker.toSegments" ]
                   extraExplanation = []
                   actual = []
                   expected = [] }
