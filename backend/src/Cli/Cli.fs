@@ -60,9 +60,6 @@ let packageManager = LibCliExecution.PackageManager.packageManager
 let execute (symtable : Map<string, RT.Dval>) (args : PT.Expr) : Task<RT.Dval> =
 
   task {
-    let config : RT.Config =
-      { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
-
     let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
@@ -91,7 +88,6 @@ let execute (symtable : Map<string, RT.Dval>) (args : PT.Expr) : Task<RT.Dval> =
         notify
         7UL
         program
-        config
 
     let callFn =
       PT.EApply(

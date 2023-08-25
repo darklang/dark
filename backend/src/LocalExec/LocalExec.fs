@@ -35,9 +35,6 @@ let execute
   (symtable : Map<string, RT.Dval>)
   : Task<RT.Dval> =
   task {
-    let config : RT.Config =
-      { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
-
     let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
@@ -83,7 +80,6 @@ let execute
         notify
         defaultTLID
         program
-        config
 
     return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
   }

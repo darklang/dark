@@ -1120,9 +1120,6 @@ and LoadFnResult = FunctionRecord -> NEList<Dval> -> Option<Dval * NodaTime.Inst
 
 and StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
 
-/// Per-runtime configuration allowing different settings for eg cloud, test, CLI
-and Config = { allowLocalHttpAccess : bool; httpclientTimeoutInMs : int }
-
 /// Every part of a user's program
 and Program =
   { canvasID : CanvasID
@@ -1178,7 +1175,6 @@ and ExecutionState =
     packageManager : PackageManager
     tracing : Tracing
     program : Program
-    config : Config
     test : TestContext
 
     // Called to report exceptions

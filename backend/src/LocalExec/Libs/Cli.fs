@@ -16,8 +16,7 @@ module Exe = LibExecution.Execution
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) =
     LibExecution.StdLib.combine
-      [ StdLibExecution.StdLib.contents
-          StdLibExecution.Libs.HttpClient.defaultConfig
+      [ StdLibExecution.StdLib.contents StdLibExecution.Libs.HttpClient.defaultConfig
         StdLibCli.StdLib.contents
         StdLibDarkInternal.StdLib.contents
         StdLibCliHost.StdLib.contents ]
@@ -37,8 +36,6 @@ let execute
   : Task<RT.Dval> =
 
   task {
-    let config : Config =
-      { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
     let program : Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = true
@@ -70,7 +67,6 @@ let execute
         notify
         7UL
         program
-        config
 
     if mod'.exprs.Length = 1 then
       return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
