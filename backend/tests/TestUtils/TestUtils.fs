@@ -120,10 +120,14 @@ let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
   { tlid = gid (); name = name; typ = typ; version = 0 }
 
 let builtIns : RT.BuiltIns =
+  let httpConfig =
+    { StdLibExecution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
   let (fns, types, constants) =
     LibExecution.StdLib.combine
       [ LibTest.contents
-        LibCloudExecution.CloudExecution.builtins
+        StdLibExecution.StdLib.contents httpConfig
+        StdLibCloudExecution.StdLib.contents
+        StdLibDarkInternal.StdLib.contents
         StdLibCli.StdLib.contents ]
       []
       []
