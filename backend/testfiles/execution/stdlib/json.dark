@@ -886,15 +886,107 @@ Actual: a Person1: Person1 {\n  Age: 42,\n  Name: \"Bob\"\n}"
 
 // ### Package
 
-// #### Records
-// TODO
+Json.serialize<PACKAGE.Darklang.Stdlib.Option.Option<Int>>
+  PACKAGE.Darklang.Stdlib.Option.Option.None = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "{\"None\":[]}"
 
-// #### Enums
-// TODO
+Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<Int>> "{\"None\":[]}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.Option.Option.None
+
+Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> (
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Ok\":[1]}"
+
+Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> (
+  PACKAGE.Darklang.Stdlib.Result.Result.Error "err message"
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Error\":[\"err message\"]}"
+
+Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> "{\"Ok\":[1]}" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
+
+Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>>
+  "{\"Error\":[\"err message\"]}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  PACKAGE.Darklang.Stdlib.Result.Result.Error "err message"
+)
 
 
+Json.serialize<PACKAGE.Darklang.LanguageTools.ID> 42 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "42"
+
+Json.parse<PACKAGE.Darklang.LanguageTools.ID> "42" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  42
+
+Json.serialize<PACKAGE.Darklang.LanguageTools.Sign>
+  PACKAGE.Darklang.LanguageTools.Sign.Positive = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "{\"Positive\":[]}"
+
+Json.parse<PACKAGE.Darklang.LanguageTools.Sign> "{\"Positive\":[]}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.LanguageTools.Sign.Positive
 
 
+Json.serialize<PACKAGE.OpenAI.Completion.ResponseChoice> (
+  PACKAGE.OpenAI.Completion.ResponseChoice { text = "hello" }
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"text\":\"hello\"}"
+
+Json.parse<PACKAGE.OpenAI.Completion.ResponseChoice> "{\"text\":\"hello\"}" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(PACKAGE.OpenAI.Completion.ResponseChoice { text = "hello" })
+
+Json.serialize<PACKAGE.OpenAI.Completion.Request> (
+  PACKAGE.OpenAI.Completion.Request
+    { model = "davinci"
+      prompt = "test"
+      max_tokens = 5
+      temperature = 0.7 }
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "{\"max_tokens\":5,\"model\":\"davinci\",\"prompt\":\"test\",\"temperature\":0.7}"
+
+Json.parse<PACKAGE.OpenAI.Completion.Request>
+  "{\"max_tokens\":5,\"model\":\"davinci\",\"prompt\":\"test\",\"temperature\":0.7}" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(
+    PACKAGE.OpenAI.Completion.Request
+      { model = "davinci"
+        prompt = "test"
+        max_tokens = 5
+        temperature = 0.7 }
+  )
+
+Json.serialize<PACKAGE.Darklang.LanguageTools.Errors.NameResolution.ErrorType>
+  PACKAGE.Darklang.LanguageTools.Errors.NameResolution.ErrorType.NotFound = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "{\"NotFound\":[]}"
+
+Json.parse<PACKAGE.Darklang.LanguageTools.Errors.NameResolution.ErrorType>
+  "{\"NotFound\":[]}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.LanguageTools.Errors.NameResolution.ErrorType.NotFound
+
+Json.serialize<List<PACKAGE.Darklang.LanguageTools.Errors.NameResolution.ErrorType>>
+  [ PACKAGE.Darklang.LanguageTools.Errors.NameResolution.ErrorType.InvalidPackageName
+    PACKAGE.Darklang.LanguageTools.Errors.NameResolution.ErrorType.MissingModuleName
+    PACKAGE.Darklang.LanguageTools.Errors.NameResolution.ErrorType.NotFound ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "[{\"InvalidPackageName\":[]},{\"MissingModuleName\":[]},{\"NotFound\":[]}]"
+
+Json.parse<List<PACKAGE.Darklang.LanguageTools.Errors.NameResolution.ErrorType>>
+  "[{\"InvalidPackageName\":[]},{\"MissingModuleName\":[]},{\"NotFound\":[]}]" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(
+    [ PACKAGE.Darklang.LanguageTools.Errors.NameResolution.ErrorType.InvalidPackageName
+      PACKAGE.Darklang.LanguageTools.Errors.NameResolution.ErrorType.MissingModuleName
+      PACKAGE.Darklang.LanguageTools.Errors.NameResolution.ErrorType.NotFound ]
+  )
 
 
 // from old tests - worth reviewing to see if we have missing cases
