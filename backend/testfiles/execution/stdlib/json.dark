@@ -136,8 +136,79 @@ Json.parse<Float> "1e3" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 1000.0 // PAC
 Json.parse<Float> "-1e3" = PACKAGE.Darklang.Stdlib.Result.Result.Ok -1000.0 // PACKAGE.Darklang.Stdlib.Result.Result.Ok?
 
 // TODO: test the upper/lower bounds
+Json.serialize<Float> 3.40282347e+38 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "3.40282347e+38"
+
+Json.parse<Float> "3.40282347e+38" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  3.40282347e+38
+
+Json.serialize<Float> 1.17549435e-38 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "1.17549435e-38"
+
+Json.parse<Float> "1.17549435e-38" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  1.17549435e-38
+
+// actual 1.79769313486e+308
+// Json.serialize<Float> 1.7976931348623157e+308 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+//   "1.7976931348623157e+308"
+
+Json.parse<Float> "1.7976931348623157e+308" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  1.7976931348623157e+308
+
 // TODO: test highly-precise numbers
+// actual 3.14159265359
+// Json.serialize<Float> 3.14159265358979323846 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+//   "3.141592653589793"
+
+// actual 1.61803398875
+// Json.serialize<Float> 1.618033988749895 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+//   "1.618033988749895"
+
+
 // TODO: review Float.tests for more values to test against
+
+Json.parse<Float> "1.0000001" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 1.0000001
+
+Json.parse<Float> "-1.00000001" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -1.00000001
+
+Json.parse<Float> "-2147483647.8" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -2147483647.8
+
+
+Json.parse<Float> "17.55042081" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  17.55042081
+
+Json.parse<Float> "2147483647.000009" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  2147483647.000009
+
+Json.parse<Float> "-2367.9267" = PACKAGE.Darklang.Stdlib.Result.Result.Ok -2367.9267
+
+Json.parse<Float> "0.6999999999999999555910790149937383830547332763671875" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  0.6999999999999999555910790149937383830547332763671875
+
+Json.parse<Float> "0.7999999999" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  0.7999999999
+
+Json.parse<Float> "-5.55555555556e+28" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -5.55555555556e+28
+
+Json.serialize<Float> Test.negativeInfinity_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "\"-Infinity\""
+
+Json.parse<Float> "\"-Infinity\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  Test.negativeInfinity_v0
+
+Json.serialize<Float> Test.infinity_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "\"Infinity\""
+
+Json.parse<Float> "\"Infinity\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  Test.infinity_v0
+
+Json.serialize<Float> Test.nan_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "\"NaN\""
+
+Json.parse<Float> "\"NaN\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok Test.nan_v0
 
 // not floats
 Json.parse<Float> " -42 . 0 " = PACKAGE.Darklang.Stdlib.Result.Result.Error
@@ -146,6 +217,8 @@ Json.parse<Float> " -42 . 0 " = PACKAGE.Darklang.Stdlib.Result.Result.Error
 Json.parse<Float> " " = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 Json.parse<Float> "4a" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 Json.parse<Float> "- 42.0" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+
+Json.parse<Float> "-141s" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 
 Json.parse<Float> "null" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Can't parse JSON `null` as type `Float` at path: `root`"
@@ -163,6 +236,19 @@ Json.parse<Float> "{ \"key\": 42 }" = PACKAGE.Darklang.Stdlib.Result.Result.Erro
   "Can't parse JSON `{ \"key\": 42 }` as type `Float` at path: `root`"
 
 Json.parse<Float> "\"42\n\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+
+// are these exoected to be not JSON?
+Json.parse<Float> "000000.9" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+
+Json.parse<Float> "-000000.9" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "not JSON"
+
+Json.parse<Float> "-00000000.000" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "not JSON"
+
+Json.parse<Float> "00000000.000" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "not JSON"
+
 //Json.parse<Float> "4\u0032" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 
 
@@ -176,8 +262,8 @@ Json.parse<Char> "\"a\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 'a'
 //Json.parse<Char> "\"😂\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok '😂'
 //Json.serialize<Char> '👩‍👩‍👧‍👦' = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"👩‍👩‍👧‍👦\""
 //Json.parse<Char> "\"👩‍👩‍👧‍👦\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok '👩‍👩‍👧‍👦'
-//Json.serialize<Char> 'Ł' = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"Ł\""
-//Json.parse<Char> "\"Ł\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 'Ł'
+Json.serialize<Char> 'Ł' = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"Ł\""
+Json.parse<Char> "\"Ł\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 'Ł'
 
 // not chars
 //Json.serialize<Char> "test" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
@@ -197,6 +283,25 @@ Json.parse<String> "\"👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳�
 //Json.serialize<String> "👩‍👩‍👧‍👦" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"👩‍👩‍👧‍👦\""
 //Json.parse<String> "\"👩‍👩‍👧‍👦\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "👩‍👩‍👧‍👦"
 // TODO: long strings
+Json.serialize<String>
+  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor." = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor.\""
+
+Json.parse<String>
+  "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor.\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor."
+
+
+Json.serialize<String> (PACKAGE.Darklang.Stdlib.String.repeat_v0 "a" 100) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
+
+Json.parse<String>
+  "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(PACKAGE.Darklang.Stdlib.String.repeat_v0 "a" 100)
 
 
 // Datetimes
@@ -299,8 +404,8 @@ Json.parse<Uuid> "\"00000000-0000-0000-0000-00000000000\"" = PACKAGE.Darklang.St
 
 
 // Bytes
-//Json.serialize<bytes> Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"\""
-//Json.parse<bytes> "\"\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok Bytes.empty
+Json.serialize<Bytes> Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"\""
+Json.parse<Bytes> "\"\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok Bytes.empty
 
 // Passwords - TODO
 
