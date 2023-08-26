@@ -2,10 +2,10 @@ module OpenAI =
 
   module Config =
 
-    let apiKey () : String = "openai-api-key"
+    let apiKey = "openai-api-key"
 
     let getHeaders () : List<(String * String)> =
-      [ ("authorization", "Bearer " ++ PACKAGE.OpenAI.Config.apiKey ())
+      [ ("authorization", "Bearer " ++ PACKAGE.OpenAI.Config.apiKey)
         ("content-type", "application/json") ]
 
 
