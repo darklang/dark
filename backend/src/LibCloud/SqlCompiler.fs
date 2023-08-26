@@ -302,31 +302,29 @@ let rec lambdaToSql
         | EConstant(_, (constantName)) ->
           let nameStr = ConstantName.toString constantName
 
-          match constantName with
-          | FQName.BuiltIn b ->
-            match Map.get b constants.builtIn with
-            | Some c ->
-              typecheck nameStr c.typ expectedType
-              let random = randomString 8
-              let newname = $"{nameStr}_{random}"
-              let (sqlValue, actualType) = dvalToSql expectedType c.body
-              return ($"(@{newname})", [ newname, sqlValue ], actualType)
-            | None -> return error $"No built-in constant {nameStr} found"
-
-          | FQName.Package p ->
-            let! constants = constants.package p
-            match constants with
-            | Some c ->
-              let random = randomString 8
-              let newname = $"{nameStr}_{random}"
-              let (sqlValue, actualType) = dvalToSql expectedType c.body
-              return ($"(@{newname})", [ newname, sqlValue ], actualType)
-            | None -> return error $"No package constant {nameStr} found"
-
-          | FQName.UserProgram _ ->
-            return error $"User constants are not yet supported"
-
-          | FQName.Unknown u -> return error $"Unknown constant {u}"
+          let! constant =
+            uply {
+              match constantName with
+              | FQName.BuiltIn b ->
+                match Map.get b constants.builtIn with
+                | None -> return! error $"No built-in constant {nameStr} found"
+                | Some c ->
+                  typecheck nameStr c.typ expectedType
+                  return c.body
+              | FQName.Package p ->
+                match! constants.package p with
+                | None -> return error $"No package constant {nameStr} found"
+                | Some c ->
+                  do! typecheckDval nameStr types c.body expectedType
+                  return c.body
+              | FQName.UserProgram _ ->
+                return error $"User constants are not yet supported"
+              | FQName.Unknown u -> return error $"Unknown constant {u}"
+            }
+          let random = randomString 8
+          let newname = $"{nameStr}_{random}"
+          let (sqlValue, actualType) = dvalToSql expectedType constant
+          return ($"(@{newname})", [ newname, sqlValue ], actualType)
 
         | EApply(_, EFnName(_, (fnName)), [], args) ->
           let nameStr = FnName.toString fnName
