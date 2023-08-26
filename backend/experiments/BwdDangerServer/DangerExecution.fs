@@ -21,7 +21,7 @@ open LibCloud
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) =
     LibExecution.StdLib.combine
-      [ StdLibExecution.StdLib.contents
+      [ StdLibExecution.StdLib.contents StdLibExecution.Libs.HttpClient.defaultConfig
         StdLibCloudExecution.StdLib.contents
         BwdDangerServer.StdLib.contents
         StdLibDarkInternal.StdLib.contents ]
@@ -37,7 +37,6 @@ let createState
   (traceID : AT.TraceID.T)
   (tlid : tlid)
   (program : RT.Program)
-  (config : RT.Config)
   (tracing : RT.Tracing)
   : Task<RT.ExecutionState> =
   task {
@@ -65,7 +64,6 @@ let createState
         notify
         tlid
         program
-        config
   }
 
 type ExecutionReason =
@@ -83,7 +81,6 @@ let executeHandler
   (pusherSerializer : Pusher.PusherEventSerializer)
   (h : RT.Handler.T)
   (program : RT.Program)
-  (config : RT.Config)
   (traceID : AT.TraceID.T)
   (inputVars : Map<string, RT.Dval>)
   (reason : ExecutionReason)
@@ -96,7 +93,7 @@ let executeHandler
       tracing.storeTraceInput desc varname inputVar
     | ReExecution -> ()
 
-    let! state = createState traceID h.tlid program config tracing.executionTracing
+    let! state = createState traceID h.tlid program tracing.executionTracing
     HashSet.add h.tlid tracing.results.tlids
     let! result = Exe.executeExpr state inputVars h.ast
     tracing.storeTraceResults ()
@@ -118,7 +115,6 @@ let executeHandler
 /// We call this reexecuteFunction because it always runs in an existing trace.
 let reexecuteFunction
   (program : RT.Program)
-  (config : RT.Config)
   (callerTLID : tlid)
   (callerID : id)
   (traceID : AT.TraceID.T)
@@ -131,8 +127,7 @@ let reexecuteFunction
     // FIX - the TLID here is the tlid of the toplevel in which the call exists, not
     // the rootTLID of the trace.
     let tracing = Tracing.create program.canvasID rootTLID traceID
-    let! state =
-      createState traceID callerTLID program config tracing.executionTracing
+    let! state = createState traceID callerTLID program tracing.executionTracing
     let! result = Exe.executeFunction state callerID name typeArgs args
     tracing.storeTraceResults ()
     return result, tracing.results

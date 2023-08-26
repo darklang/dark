@@ -50,7 +50,7 @@ type TestCase =
 let testCases : ConcurrentDictionary<string, TestCase> = ConcurrentDictionary()
 
 
-let host = $"test.builtwithdark.localhost:{TestConfig.httpClientPort}"
+let host = $"test.dlio.localhost:{TestConfig.httpClientPort}"
 
 let normalizeHeaders
   (body : byte array)

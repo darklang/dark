@@ -1,65 +1,74 @@
 (let x = Test.runtimeError "a" in 5) = Test.runtimeError "a"
 (let x = Test.runtimeError "a" in Test.runtimeError "b") = Test.runtimeError "a"
-(let x = 5 in x) = 5
 
-(let x = 5 in
- let x = 6 in
- x) = 6
+module Variables =
+  (let x = 5 in x) = 5
 
-(let (a, b) = (1, 2) in 2) = 2
-(let (a, b) = (1, 2) in b) = 2
-(let (a, b) = (1, 2) in (b, a)) = (2, 1)
-(let (d, d) = (2, 1) in d) = 1
-(let (_, _) = (1, 2) in 2) = 2
-
-(let (a, b, c) = (1, 2, 3) in b) = 2
-(let (a, b, c) = (1, 2, 3) in (b, a)) = (2, 1)
-(let (d, d, d) = (2, 1, 3) in d) = 3
-(let (_, _, _) = (1, 2, 3) in 2) = 2
-
-(let (_, _, _) = (1, 2, Test.runtimeError "test") in 2) = Test.runtimeError "test"
-
-(let (_, _, _) = (Test.runtimeError "test1", 2, Test.runtimeError "test2") in 2) = Test.runtimeError
-  "test1"
-
-// With multiple levels of nested destructuring
-(let ((a, ((b, (c, d)), e)), f) = ((1, ((2, (3, 4)), 5)), 6) in c) = 3
-(let ((a, ((b, cd), e)), f) = ((1, ((2, (3, 4)), 5)), 6) in cd) = (3, 4)
-
-// ---------------------------
-// Shadowing
-// ---------------------------
-module Shadowing =
   (let x = 5 in
    let x = 6 in
    x) = 6
 
-  (let x = 35 in
+module Unit =
+  (let () = Tuple2.first ((), 5) in 5) = 5
 
-   (match 6 with
-    | x -> x)) = 6
+module Tuples =
+  (let (a, b) = (1, 2) in 2) = 2
+  (let (a, b) = (1, 2) in b) = 2
+  (let (a, b) = (1, 2) in (b, a)) = (2, 1)
+  (let (d, d) = (2, 1) in d) = 1
+  (let (_, _) = (1, 2) in 2) = 2
 
-  (let x = 35 in
+  (let (a, b, c) = (1, 2, 3) in b) = 2
+  (let (a, b, c) = (1, 2, 3) in (b, a)) = (2, 1)
+  (let (d, d, d) = (2, 1, 3) in d) = 3
+  (let (_, _, _) = (1, 2, 3) in 2) = 2
 
-   (match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with
-    | Ok x -> x)) = 6
+  (let (_, _, _) = (1, 2, Test.runtimeError "test") in 2) = Test.runtimeError "test"
+
+  (let (_, _, _) = (Test.runtimeError "test1", 2, Test.runtimeError "test2") in 2) = Test.runtimeError
+    "test1"
+
+  // With multiple levels of nested destructuring
+  (let ((a, ((b, (c, d)), e)), f) = ((1, ((2, (3, 4)), 5)), 6) in c) = 3
+  (let ((a, ((b, cd), e)), f) = ((1, ((2, (3, 4)), 5)), 6) in cd) = (3, 4)
+
+module Shadowing =
+  (let x = 5
+   let x = 6
+   x) = 6
+
+
+  (let x = 35
+
+   match 6 with
+   | x -> x) = 6
+
+
+  (let x = 35
+
+   match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with
+   | Ok x -> x) = 6
+
 
   (let x = 35 in List.map_v0 [ 1; 2; 3; 4 ] (fun x -> x + 2)) = [ 3; 4; 5; 6 ]
 
-  (let x = 35 in
 
-   (match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with
-    | Ok x -> (List.map_v0 [ 1; 2; 3; 4 ] (fun x -> x + 2)))) = [ 3; 4; 5; 6 ]
+  (let x = 35
+
+   match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with
+   | Ok x -> (List.map_v0 [ 1; 2; 3; 4 ] (fun x -> x + 2))) = [ 3; 4; 5; 6 ]
+
 
   (List.map_v0 [ 1; 2; 3; 4 ] (fun x ->
     (let x = 35 in
 
-     (match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with
-      | Ok x -> x + 2)))) = [ 8; 8; 8; 8 ]
+     match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with
+     | Ok x -> x + 2))) = [ 8; 8; 8; 8 ]
+
 
   (List.map_v0 [ 1; 2; 3; 4 ] (fun x ->
-    (match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with
-     | Ok x -> let x = 9 in x + 2))) = [ 11; 11; 11; 11 ]
+    match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with
+    | Ok x -> let x = 9 in x + 2)) = [ 11; 11; 11; 11 ]
 
   (List.map_v0 [ 1; 2; 3; 4 ] (fun x ->
     (match

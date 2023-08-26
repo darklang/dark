@@ -1,5 +1,5 @@
 /// StdLib functions in the HttpClient module
-module StdLibCloudExecution.Libs.HttpClient
+module StdLibExecution.Libs.HttpClient
 
 open System.IO
 open System.Net.Http
@@ -11,154 +11,111 @@ open Prelude
 open LibExecution
 open LibExecution.RuntimeTypes
 
-open LibCloud
 open VendoredTablecloth
 
-module Telemetry = LibService.Telemetry
 
-// For security, we want to prevent access to internal IP address ranges or
-// Instance Metadata service or localhost
-// 1. via hostname
-// 2. via IP address in the connectionCallback
-// 3. via IP tables on the container (see TODO)
-// 4. via header for Instance Metadata service
-// 5. By removing all access for the cloud run service account (see iam.tf)
-module LocalAccess =
-  let bannedIPv4Strings (ipStr : string) : bool =
-    // This from ChatGPT so verify this before using
-    // let bytes = ipAddress.GetAddressBytes() |> Array.rev
-    // let ipAsInt = System.BitConverter.ToUInt32(bytes, 0)
-    // // Check the following private IP ranges:
-    // 10.0.0.0 - 10.255.255.255 (10.0.0.0/8)
-    // 172.16.0.0 - 172.31.255.255 (172.16.0.0/12)
-    // 192.168.0.0 - 192.168.255.255 (192.168.0.0/16)
-    // 169.254.0.0 - 169.254.255.255 (169.254.0.0/16, link-local addresses)
-    // todo 127.0.0.1
-    // todo 0.0.0.0
-    // (ipAsInt >= 0x0A000000u && ipAsInt <= 0x0AFFFFFFu) ||
-    // (ipAsInt >= 0xAC100000u && ipAsInt <= 0xAC1FFFFFu) ||
-    // (ipAsInt >= 0xC0A80000u && ipAsInt <= 0xC0A8FFFFu) ||
-    // (ipAsInt >= 0xA9FE0000u && ipAsInt <= 0xA9FEFFFFu)
+type Method = HttpMethod
 
-    // Slower version
-    ipStr.StartsWith("10.0.0.")
-    || ipStr.StartsWith("172.16.")
-    || ipStr.StartsWith("192.168.")
-    || ipStr.StartsWith("169.254.") // covers Instance Metadata service
-    || ipStr.StartsWith("127.")
-    || ipStr = "0.0.0.0"
-    || ipStr = "0"
+module Headers =
+  type Header = string * string
+  type T = List<Header>
 
-  let bannedHost (host : string) =
-    let host = host.Trim().ToLower()
-    // Internal network addresses
-    // Localhost
-    host = "localhost"
-    || host = "metadata"
-    || host = "metadata.google.internal"
-    || bannedIPv4Strings host
+type Body = byte array
 
+type Request = { url : string; method : Method; headers : Headers.T; body : Body }
 
-  let bannedIp (ip : System.Net.IPAddress) : bool =
-    let bannedIPv4 (ip : System.Net.IPAddress) : bool =
-      System.Net.IPAddress.IsLoopback ip // 127.*
-      || bannedIPv4Strings (string ip)
+type Response = { statusCode : int; headers : Headers.T; body : Body }
 
-    if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetworkV6 then
-      if ip.IsIPv4MappedToIPv6 then
-        bannedIPv4 (ip.MapToIPv4())
-      else
-        ip.IsIPv6LinkLocal // ipv6 equivalent of 169.254.*
-        || ip.IsIPv6SiteLocal // ipv6 equivalent of 10.*.*.*, 172.16.*.* and 192.168.*.*
-        || System.Net.IPAddress.IsLoopback ip // 127.*
-    else if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetwork then
-      bannedIPv4 ip
-    else
-      true // not ipv4 or ipv6, so banned
+// forked from Elm's HttpError type
+// https://package.elm-lang.org/packages/elm/http/latest/Http#Error
+type RequestError =
+  | BadUrl of details : string
+  | Timeout
+  | NetworkError
+  | Other of details : string
 
+type RequestResult = Result<Response, RequestError>
 
-  // Disallow headers that access the Instance Metadata service
-  let hasInstanceMetadataHeader (headers : List<string * string>) =
-    let eq = String.equalsCaseInsensitive
-    headers
-    |> List.tryFind (fun (k, v) ->
-      let (k, v) = (String.trim k, String.trim v)
-      (eq k "Metadata-Flavor" && eq v "Google")
-      // Old but allowed https://cloud.google.com/compute/docs/metadata/overview#querying
-      || (eq k "X-Google-Metadata-Request" && eq v "True"))
-    |> Option.isSome
+type Configuration =
+  { timeoutInMs : int
+    allowedIP : System.Net.IPAddress -> bool
+    allowedHost : string -> bool
+    allowedScheme : string -> bool
+    allowedHeaders : Headers.T -> bool
+    // telemetryInitialize allows us wrap the code with a span
+    telemetryInitialize : (unit -> Task<RequestResult>) -> Task<RequestResult>
+    telemetryAddTag : string -> obj -> unit
+    telemetryAddException : Metadata -> System.Exception -> unit }
 
-  let connectionFilter
-    (context : SocketsHttpConnectionContext)
-    (cancellationToken : System.Threading.CancellationToken)
-    : ValueTask<Stream> =
-    vtask {
-      try
-        // While this DNS call is expensive, it should be cached
-        let ips = System.Net.Dns.GetHostAddresses context.DnsEndPoint.Host
-        ips
-        |> Array.iter (fun ip ->
-          if bannedIp ip then Exception.raiseInternal "Could not connect" [])
-
-        let socket =
-          new System.Net.Sockets.Socket(
-            System.Net.Sockets.SocketType.Stream,
-            System.Net.Sockets.ProtocolType.Tcp
-          )
-        socket.NoDelay <- true
-
-        do! socket.ConnectAsync(context.DnsEndPoint, cancellationToken)
-        return new System.Net.Sockets.NetworkStream(socket, true)
-      with :? System.ArgumentException ->
-        // Use this to hide more specific errors when looking at loopback
-        return Exception.raiseInternal "Could not connect" []
-    }
-
-
-module HttpClient =
-  type Method = HttpMethod
-
-  module Headers =
-    type Header = string * string
-    type T = List<Header>
-
-  type Body = byte array
-
-  type HttpRequest =
-    { url : string; method : Method; headers : Headers.T; body : Body }
-
-  type HttpResult = { statusCode : int; headers : Headers.T; body : Body }
-
-  // forked from Elm's HttpError type
-  // https://package.elm-lang.org/packages/elm/http/latest/Http#Error
-  type HttpRequestError =
-    | BadUrl of details : string
-    | Timeout
-    | NetworkError
-    | Other of details : string
-
-  type HttpRequestResult = Result<HttpResult, HttpRequestError>
-
-
-  // There has been quite a history of .NET's HttpClient having problems,
-  // including socket exhaustion and DNS results not expiring.
-  // The history is outlined well here:
-  // https://www.stevejgordon.co.uk/httpclient-connection-pooling-in-dotnet-core
+module BaseClient =
+  // There are a number of different configuration options we want to enable:
+  // WASM:
+  //   when using Blazor/WASM, dotnet doesn't allow using a SocketsHttpHandler
+  //   (errors at runtime). So we need to use a HttpClientHandler instead.
+  // Cloud:
+  //   when in the cloud, we want to include telemetry, as well as security measures
+  //   to prevent access to local infrastructure (this is defense-in-depth: obvi we
+  //   also use a firewall)
+  // Local:
+  //   when running locally, we want to use SocketsHttpHandler and no cloud
+  //   features/restrictions.
   //
-  // As of .NET 6 it seems we no longer need to worry about either socket
-  // exhaustion or DNS issues. It appears that we can use either multiple HTTP
-  // clients or just one, we use just one for efficiency.
-  // See https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-7.0#alternatives-to-ihttpclientfactory
-  //
-  // Note that the number of sockets was verified manually, with:
-  // `sudo netstat -apn | grep _WAIT`
-  let socketHandler (allowLocalConnections : bool) : HttpMessageHandler =
-    let handler =
+  // We enable these in two ways:
+  // - if SocketsHttpHandler is avaiable (cloud and local), we use that
+  // - we provide a Configuration record when initializing, that allows
+  //   telemetry/etc. (emptyConfig can be used for no telemetry/etc)
+
+
+  module SocketBasedHandler =
+    // There has been quite a history of .NET's HttpClient having problems,
+    // including socket exhaustion and DNS results not expiring.
+    // The history is outlined well here:
+    // https://www.stevejgordon.co.uk/httpclient-connection-pooling-in-dotnet-core
+    //
+    // As of .NET 6 it seems we no longer need to worry about either socket
+    // exhaustion or DNS issues. It appears that we can use either multiple HTTP
+    // clients or just one, we use just one for efficiency.
+    // See https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-7.0#alternatives-to-ihttpclientfactory
+    //
+    // Note that the number of sockets was verified manually, with:
+    // `sudo netstat -apn | grep _WAIT`
+    let handler (config : Configuration) : HttpMessageHandler =
+      let connectionFilter
+        (context : SocketsHttpConnectionContext)
+        (cancellationToken : System.Threading.CancellationToken)
+        : ValueTask<Stream> =
+        vtask {
+          try
+            // While this DNS call is expensive, it should be cached
+            let ips = System.Net.Dns.GetHostAddresses context.DnsEndPoint.Host
+
+            if not (Array.forall config.allowedIP ips) then
+              // Use this to hide more specific errors when looking at loopback
+              Exception.raiseInternal "Could not connect" []
+
+            let socket =
+              new System.Net.Sockets.Socket(
+                System.Net.Sockets.SocketType.Stream,
+                System.Net.Sockets.ProtocolType.Tcp
+              )
+            socket.NoDelay <- true
+
+            do! socket.ConnectAsync(context.DnsEndPoint, cancellationToken)
+            return new System.Net.Sockets.NetworkStream(socket, true)
+          with :? System.ArgumentException ->
+            return Exception.raiseInternal "Could not connect" []
+        }
       new SocketsHttpHandler(
         // Avoid DNS problems
         PooledConnectionIdleTimeout = System.TimeSpan.FromMinutes 5.0,
         PooledConnectionLifetime = System.TimeSpan.FromMinutes 10.0,
         ConnectTimeout = System.TimeSpan.FromSeconds 10.0,
+
+        // HttpClientTODO avail function that handles redirect behaviour
+        AllowAutoRedirect = false,
+
+        // Users share the HttpClient, don't let them share cookies!
+        UseCookies = false,
 
         // HttpClientTODO avail functions to compress/decompress with common
         // compression algorithms (gzip, brottli, deflate)
@@ -170,56 +127,71 @@ module HttpClient =
         // probably not a big deal?
         AutomaticDecompression = System.Net.DecompressionMethods.None,
 
-        // HttpClientTODO avail function that handles redirect behaviour
-        AllowAutoRedirect = false,
-
         // Don't add a RequestId header for opentelemetry
         ActivityHeadersPropagator = null,
 
-        // Users share the HttpClient, don't let them share cookies!
-        UseCookies = false
+        // Don't allow access to local stuff
+        ConnectCallback = connectionFilter
       )
-    if not allowLocalConnections then
-      handler.ConnectCallback <- LocalAccess.connectionFilter
-    handler
 
+  module WasmHandler =
+    let handler (_config : Configuration) : HttpMessageHandler =
+      new HttpClientHandler(
+        // These settings are also enabled in SocketBasedHandler - see comments above for discussion
+        AllowAutoRedirect = false
+      // These can't be set in WASM, even though they exist (PlatformNotSupportedException)
+      // UseCookies = false,
+      // AutomaticDecompression = System.Net.DecompressionMethods.None
+      )
 
-  let private makeHttpClient (allowLocalConnections : bool) : HttpClient =
+  let create (config : Configuration) : HttpClient =
+    let handler =
+      if SocketsHttpHandler.IsSupported then
+        SocketBasedHandler.handler config
+      else
+        // For Blazor
+        WasmHandler.handler config
+
     new HttpClient(
-      socketHandler allowLocalConnections,
+      handler,
       disposeHandler = false,
       Timeout = System.TimeSpan.FromSeconds 30.0,
       MaxResponseContentBufferSize = 1024L * 1024L * 100L // 100MB
     )
 
-  let private localAllowedHttpClient = makeHttpClient true
-  let private localDisallowedHttpClient = makeHttpClient false
 
-  let request
-    (localAccessAllowed : bool)
-    (timeoutInMs : int)
-    (httpRequest : HttpRequest)
-    : Task<HttpRequestResult> =
+/// This configuration has no limits, and so is only suitable for trusted
+/// environments (the command line), and is not suitable for untrusted environments
+/// (eg the cloud)
+let defaultConfig =
+  { timeoutInMs = 30000
+    allowedIP = fun _ -> true
+    allowedHost = fun _ -> true
+    allowedScheme = fun _ -> true
+    allowedHeaders = fun _ -> true
+    telemetryInitialize = fun f -> f ()
+    telemetryAddTag = fun _ _ -> ()
+    telemetryAddException = fun _ _ -> () }
+
+let makeRequest
+  (config : Configuration)
+  (httpClient : HttpClient)
+  (httpRequest : Request)
+  : Task<RequestResult> =
+  config.telemetryInitialize (fun () ->
     task {
-      use _ =
-        Telemetry.child
-          "HttpClient.call"
-          [ "request.url", httpRequest.url; "request.method", httpRequest.method ]
+      config.telemetryAddTag "request.url" httpRequest.url
+      config.telemetryAddTag "request.method" httpRequest.method
+      config.telemetryAddTag "request.method" httpRequest.method
       try
         let uri = System.Uri(httpRequest.url, System.UriKind.Absolute)
 
-
         let host = uri.Host.Trim().ToLower()
-        if not localAccessAllowed && LocalAccess.bannedHost host then
+        if not (config.allowedHost host) then
           return Error(BadUrl "Invalid host")
-        else if
-          not localAccessAllowed
-          && LocalAccess.hasInstanceMetadataHeader httpRequest.headers
-        then
+        else if not (config.allowedHeaders httpRequest.headers) then
           return Error(BadUrl "Invalid request")
-
-        // currently we only support http(s) requests
-        else if uri.Scheme <> "https" && uri.Scheme <> "http" then
+        else if not (config.allowedScheme uri.Scheme) then
           return Error(BadUrl "Unsupported Protocol")
         else
           let reqUri =
@@ -242,7 +214,8 @@ module HttpClient =
               // https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpversionpolicy?view=net-7.0
               // TODO: test this (against requestbin or something that allows us to control the HTTP protocol version)
               Version = System.Net.HttpVersion.Version30,
-              VersionPolicy = System.Net.Http.HttpVersionPolicy.RequestVersionOrLower
+              VersionPolicy =
+                System.Net.Http.HttpVersionPolicy.RequestVersionOrLower
             )
 
           // headers
@@ -264,22 +237,22 @@ module HttpClient =
               if not added then req.Content.Headers.Add(k, v))
 
           // send request
-          Telemetry.addTag "request.content_type" req.Content.Headers.ContentType
-          Telemetry.addTag "request.content_length" req.Content.Headers.ContentLength
+          config.telemetryAddTag
+            "request.content_type"
+            req.Content.Headers.ContentType
+          config.telemetryAddTag
+            "request.content_length"
+            req.Content.Headers.ContentLength
 
           // Allow timeout
-          let cancellationToken =
-            (new System.Threading.CancellationTokenSource(timeoutInMs)).Token
+          let source =
+            new System.Threading.CancellationTokenSource(config.timeoutInMs)
+          let cancellationToken = source.Token
 
-          use! response =
-            if localAccessAllowed then
-              localAllowedHttpClient.SendAsync(req, cancellationToken)
-            else
-              localDisallowedHttpClient.SendAsync(req, cancellationToken)
+          use! response = httpClient.SendAsync(req, cancellationToken)
 
-          Telemetry.addTags
-            [ "response.status_code", response.StatusCode
-              "response.version", response.Version ]
+          config.telemetryAddTag "response.status_code" response.StatusCode
+          config.telemetryAddTag "response.version" response.Version
           use! responseStream = response.Content.ReadAsStreamAsync()
           use memoryStream = new MemoryStream()
           do! responseStream.CopyToAsync(memoryStream)
@@ -298,7 +271,8 @@ module HttpClient =
 
       with
       | :? TaskCanceledException ->
-        Telemetry.addTags [ "error", true; "error.msg", "Timeout" ]
+        config.telemetryAddTag "error" true
+        config.telemetryAddTag "error.msg" "Timeout"
         return Error Timeout
 
       | :? System.ArgumentException as e ->
@@ -310,14 +284,17 @@ module HttpClient =
         if
           e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')"
         then
-          Telemetry.addTags [ "error", true; "error.msg", "Unsupported Protocol" ]
+          config.telemetryAddTag "error" true
+          config.telemetryAddTag "error.msg" "Unsupported Protocol"
           return Error(BadUrl "Unsupported Protocol")
         else
-          Telemetry.addTags [ "error", true; "error.msg", e.Message ]
+          config.telemetryAddTag "error" true
+          config.telemetryAddTag "error.msg" e.Message
           return Error(Other e.Message)
 
       | :? System.UriFormatException ->
-        Telemetry.addTags [ "error", true; "error.msg", "Invalid URI" ]
+        config.telemetryAddTag "error" true
+        config.telemetryAddTag "error.msg" "Invalid URI"
         return Error(BadUrl "Invalid URI")
 
       | :? IOException as e -> return Error(Other e.Message)
@@ -330,10 +307,10 @@ module HttpClient =
         // case of `| ErrorHandlingResponse of statusCode: int` but that feels wrong.
         let statusCode = if e.StatusCode.HasValue then int e.StatusCode.Value else 0
 
-        Telemetry.addException [ "error.status_code", statusCode ] e
+        config.telemetryAddException [ "error.status_code", statusCode ] e
 
         return Error(Other(Exception.getMessages e |> String.concat " "))
-    }
+    })
 
 
 let headersType = TList(TTuple(TString, TString, []))
@@ -359,7 +336,8 @@ let types : List<BuiltInType> =
       deprecated = NotDeprecated } ]
 
 
-let fns : List<BuiltInFn> =
+let fns (config : Configuration) : List<BuiltInFn> =
+  let httpClient = BaseClient.create config
   [ { name = fn [ "HttpClient" ] "request" 0
       typeParams = []
       parameters =
@@ -406,14 +384,10 @@ let fns : List<BuiltInFn> =
           match reqHeaders, method with
           | Ok reqHeaders, Some method ->
             uply {
-              let request : HttpClient.HttpRequest =
+              let request =
                 { url = uri; method = method; headers = reqHeaders; body = reqBody }
 
-              let! (response : HttpClient.HttpRequestResult) =
-                HttpClient.request
-                  state.config.allowLocalHttpAccess
-                  state.config.httpclientTimeoutInMs
-                  request
+              let! response = makeRequest config httpClient request
 
               match response with
               | Ok response ->
@@ -437,18 +411,17 @@ let fns : List<BuiltInFn> =
                   |> Dval.record typ
                   |> Dval.resultOk
 
-              | Error(HttpClient.BadUrl details) ->
+              | Error(BadUrl details) ->
                 // TODO: include a DvalSource rather than SourceNone
                 return Dval.resultError (DString $"Bad URL: {details}")
 
-              | Error(HttpClient.Timeout) ->
+              | Error(Timeout) ->
                 return Dval.resultError (DString $"Request timed out")
 
-              | Error(HttpClient.NetworkError) ->
+              | Error(NetworkError) ->
                 return Dval.resultError (DString $"Network error")
 
-              | Error(HttpClient.Other details) ->
-                return Dval.resultError (DString details)
+              | Error(Other details) -> return Dval.resultError (DString details)
             }
 
           | Error reqHeadersErr, _ ->
@@ -469,4 +442,4 @@ let fns : List<BuiltInFn> =
 
 let constants : List<BuiltInConstant> = []
 
-let contents = (fns, types, constants)
+let contents config = (fns config, types, constants)

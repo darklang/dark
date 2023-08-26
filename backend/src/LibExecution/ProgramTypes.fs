@@ -304,6 +304,7 @@ type NameResolution<'a> = Result<'a, Errors.NameResolution.Error>
 
 type LetPattern =
   | LPVariable of id * name : string
+  | LPUnit of id
   | LPTuple of
     id *
     first : LetPattern *
@@ -437,7 +438,7 @@ type Expr =
   | ERecord of
     id *
     NameResolution<TypeName.T> *
-    // User is allowed type `Name {}` even if that's an error
+    // User is allowed type `Name {}` even if that's a error
     List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
 

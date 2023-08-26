@@ -36,13 +36,11 @@ let createState
   (notify : RT.Notifier)
   (tlid : tlid)
   (program : RT.Program)
-  (config : RT.Config)
   : RT.ExecutionState =
   { builtIns = builtIns
     packageManager = packageManager
     tracing = tracing
     program = program
-    config = config
     test = noTestContext
     reportException = reportException
     notify = notify

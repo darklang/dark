@@ -214,6 +214,8 @@ let rec eval'
         | LPVariable(id, varName) ->
           not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
 
+        | LPUnit id -> dv = DUnit, [], [ (id, DUnit) ]
+
         | LPTuple(id, firstPat, secondPat, theRestPat) ->
           let allPatterns = firstPat :: secondPat :: theRestPat
 

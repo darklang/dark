@@ -17,7 +17,7 @@ module StdLibCli = StdLibCli.StdLib
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) =
     LibExecution.StdLib.combine
-      [ StdLibExecution.StdLib.contents
+      [ StdLibExecution.StdLib.contents StdLibExecution.Libs.HttpClient.defaultConfig
         StdLibCli.StdLib.contents
         StdLib.contents
         StdLibCloudExecution.StdLib.contents ]
@@ -35,16 +35,12 @@ let execute
   (symtable : Map<string, RT.Dval>)
   : Task<RT.Dval> =
   task {
-    let config : RT.Config =
-      { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
-
     let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
         fns =
           mod'.fns
           |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
-          |> debugList "fns"
           |> Map.fromListBy (fun fn -> fn.name)
         types =
           mod'.types
@@ -84,10 +80,8 @@ let execute
         notify
         defaultTLID
         program
-        config
 
-    return!
-      Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0] |> debug "expr")
+    return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
   }
 
 let sourceOf

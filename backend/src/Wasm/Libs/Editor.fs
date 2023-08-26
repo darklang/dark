@@ -135,9 +135,17 @@ let fns : List<BuiltInFn> =
           uply {
             let source = Json.Vanilla.deserialize<UserProgramSource> sourceJson
 
+            let httpConfig : StdLibExecution.Libs.HttpClient.Configuration =
+              { StdLibExecution.Libs.HttpClient.defaultConfig with
+                  telemetryAddException =
+                    (fun metadata e ->
+                      Wasm.WasmHelpers.callJSFunction
+                        "console.warn"
+                        [ string metadata; string e ]) }
+
             let stdLib =
               LibExecution.StdLib.combine
-                [ StdLibExecution.StdLib.contents; Wasm.Libs.HttpClient.contents ]
+                [ StdLibExecution.StdLib.contents httpConfig ]
                 []
                 []
 

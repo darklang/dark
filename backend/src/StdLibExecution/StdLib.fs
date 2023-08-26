@@ -15,7 +15,7 @@ let typeRenames =
   // eg: typ "Http" "Response" 0, typ "Http" "Response" 1
   []
 
-let contents : StdLib.Contents =
+let contents (httpConfig : Libs.HttpClient.Configuration) : StdLib.Contents =
   StdLib.combine
     [ Libs.Bool.contents
       Libs.Bytes.contents
@@ -23,13 +23,13 @@ let contents : StdLib.Contents =
       Libs.DateTime.contents
       Libs.Dict.contents
       Libs.Float.contents
+      Libs.HttpClient.contents httpConfig
       Libs.HttpClientAuth.contents
       Libs.Json.contents
       Libs.Math.contents
       Libs.Uuid.contents
       Libs.Int.contents
       Libs.List.contents
-      // Libs.Middleware.contents
       Libs.NoModule.contents
       Libs.Option.contents
       Libs.Result.contents

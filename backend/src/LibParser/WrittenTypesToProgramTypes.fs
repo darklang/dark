@@ -74,6 +74,7 @@ module LetPattern =
     | WT.LPVariable(id, str) -> PT.LPVariable(id, str)
     | WT.LPTuple(id, first, second, theRest) ->
       PT.LPTuple(id, toPT first, toPT second, List.map toPT theRest)
+    | WT.LPUnit id -> PT.LPUnit id
 
 module MatchPattern =
   let rec toPT (p : WT.MatchPattern) : PT.MatchPattern =
