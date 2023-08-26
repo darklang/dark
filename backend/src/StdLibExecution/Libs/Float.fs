@@ -431,6 +431,20 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+    { name = fn "isNan" 0
+      typeParams = []
+      parameters = [ Param.make "f" TFloat "" ]
+      returnType = TBool
+      description = "Returns true if <param f> is NaN"
+      fn =
+        (function
+        | _, _, [ DFloat f ] -> Ply(DBool(System.Double.IsNaN f))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
 
     ]
 
