@@ -11,7 +11,7 @@ module Darklang =
 
     let showFn (name: String) (owner: String) (modules: List<String>) : Int =
       let fns =
-        CLI.HttpClient.request
+        HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/functions/")
           []
@@ -60,7 +60,7 @@ module Darklang =
 
     let showType (name: String) (owner: String) (modules: List<String>) : Int =
       let types =
-        CLI.HttpClient.request
+        HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/types/")
           []
@@ -111,7 +111,7 @@ module Darklang =
 
     let showConstant (name: String) (owner: String) (modules: List<String>) : Int =
       let constants =
-        CLI.HttpClient.request
+        HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/constants/")
           []
@@ -166,7 +166,7 @@ module Darklang =
 
     let showModule (name: String) : Int =
       let modules =
-        CLI.HttpClient.request
+        HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/modules/" ++ name)
           []
@@ -209,7 +209,7 @@ module Darklang =
 
     let showPackage (owner: String) : Int =
       let packages =
-        CLI.HttpClient.request
+        HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/owner/" ++ owner)
           []
@@ -342,7 +342,7 @@ Options:
           |> unwrap
 
         let categoryRequest =
-          CLI.HttpClient.request
+          HttpClient.request
             "GET"
             ("http://dark-packages.dlio.localhost:11003/category/" ++ fullName)
             []
