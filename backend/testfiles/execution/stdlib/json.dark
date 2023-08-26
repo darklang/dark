@@ -375,21 +375,118 @@ Json.parse<List<Dict<Int>>>
 Json.serialize<Tuple<Int, String, Int>> (1, "two", 3) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   "[1,\"two\",3]"
 
+Json.serialize<Tuple<List<Int>, List<Person>>> (
+  [ 1; 2; 3 ],
+  [ Person { Name = "Alice"; Age = 42 } ]
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]"
+
+Json.serialize<Tuple<Tuple<Int, String>, Tuple<Person, Dict<String>>>> (
+  (1, "two"),
+  (Person { Name = "Alice"; Age = 42 }, Dict.singleton "a" "b")
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
+
+Json.serialize<Tuple<Tuple<List<Tuple<Int, String>>, Bytes>, Tuple<Person, Dict<String>>>> (
+  ([ (1, "two"); (3, "four") ], Bytes.empty),
+  (Person { Name = "Alice"; Age = 42 }, Dict.singleton "a" "b")
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "[[[[1,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
+
+Json.serialize<Tuple<Person, PACKAGE.Darklang.Stdlib.Option.Option<Int>>> (
+  Person { Name = "Alice"; Age = 42 },
+  PACKAGE.Darklang.Stdlib.Option.Option.Some 1
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[1]}]"
+
+Json.serialize<Tuple<PACKAGE.Darklang.Stdlib.Option.Option<Int>, PACKAGE.Darklang.Stdlib.Result.Result<Int, String>>> (
+  PACKAGE.Darklang.Stdlib.Option.Option.Some 1,
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok 2
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "[{\"Some\":[1]},{\"Ok\":[2]}]"
+
+Json.serialize<Tuple<Char, Bool>> ('a', true) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "[\"a\",true]"
+
+Json.serialize<Tuple<DateTime, Uuid>> (
+  d "2023-07-28T22:42:36Z",
+  uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "[\"2023-07-28T22:42:36Z\",\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"]"
+
+
 Json.parse<Tuple<Int, String, Int>> "[1,\"two\",3]" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
   .Ok((1, "two", 3))
-// TODO: more...
-// TODO: more nesting...
+
+Json.parse<Tuple<List<Int>, List<Person>>>
+  "[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(([ 1; 2; 3 ], [ Person { Name = "Alice"; Age = 42 } ]))
+
+Json.parse<Tuple<Tuple<Int, String>, Tuple<Person, Dict<String>>>>
+  "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(((1, "two"), (Person { Name = "Alice"; Age = 42 }, Dict.singleton "a" "b")))
+
+Json.parse<Tuple<Tuple<List<Tuple<Int, String>>, Bytes>, Tuple<Person, Dict<String>>>>
+  "[[[[1,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(
+    (([ (1, "two"); (3, "four") ], Bytes.empty),
+     (Person { Name = "Alice"; Age = 42 }, Dict.singleton "a" "b"))
+  )
+
+Json.parse<Tuple<Person, PACKAGE.Darklang.Stdlib.Option.Option<Int>>>
+  "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[1]}]" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(
+    (Person { Name = "Alice"; Age = 42 },
+     PACKAGE.Darklang.Stdlib.Option.Option.Some 1)
+  )
+
+Json.parse<Tuple<PACKAGE.Darklang.Stdlib.Option.Option<Int>, PACKAGE.Darklang.Stdlib.Result.Result<Int, String>>>
+  "[{\"Some\":[1]},{\"Ok\":[2]}]" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  (PACKAGE.Darklang.Stdlib.Option.Option.Some 1,
+   PACKAGE.Darklang.Stdlib.Result.Result.Ok 2)
+)
+
+Json.parse<Tuple<Char, Bool>> "[\"a\",true]" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(('a', true))
+
+Json.parse<Tuple<DateTime, Uuid>>
+  "[\"2023-07-28T22:42:36Z\",\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"]" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok((d "2023-07-28T22:42:36Z", uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"))
+
+
 
 // not proper tuples
 Json.parse<Tuple<String, String, Int>> """[1, "two", 3]""" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Can't parse JSON `1` as type `String` at path: `root[0]`"
 // TODO: more...
 // TODO: issues at a few levels deep
-
 
 // Options
 Json.serialize<PACKAGE.Darklang.Stdlib.Option.Option<Int>>
@@ -508,6 +605,8 @@ Json.parse<PrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = PACKAGE
   .Ok(PrettyLikely.Enh("printer broke", 7))
 // TODO: more
 // TODO: more nesting...
+
+
 
 
 // #### Records
