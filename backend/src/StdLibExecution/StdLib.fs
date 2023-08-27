@@ -17,8 +17,7 @@ let typeRenames =
 
 let contents (httpConfig : Libs.HttpClient.Configuration) : StdLib.Contents =
   StdLib.combine
-    [ Libs.Bool.contents
-      Libs.Bytes.contents
+    [ Libs.Bytes.contents
       Libs.Char.contents
       Libs.DateTime.contents
       Libs.Dict.contents

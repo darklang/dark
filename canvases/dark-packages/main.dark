@@ -236,11 +236,3 @@ let _handler _req =
     | None -> "not found"
 
   PACKAGE.Darklang.Stdlib.Http.response (respBody |> String.toBytes) 200
-
-
-
-[<HttpHandler("GET", "/openai-chat/:prompt")>]
-let _handler _req =
-  let result = (PACKAGE.OpenAI.ChatCompletion.completion prompt) |> unwrap
-
-  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes result) 200

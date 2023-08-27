@@ -729,15 +729,15 @@ module CompiledFunctions =
   (friends (fun p -> String.trim_v0 p.name == "Chandler")) = [ " Chandler " ]
   (friends (fun p -> String.trimStart_v0 p.name == "Chandler ")) = [ " Chandler " ]
   (friends (fun p -> String.trimEnd_v0 p.name == " Chandler")) = [ " Chandler " ]
-  (friends (fun p -> Bool.not_v0 p.human)) = [ "GrumpyCat" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Bool.not_v0 p.human)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> Bool.and_v0 p.human p.human)) = [ " Chandler "
-                                                       "Rachel"
-                                                       "Ross" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Bool.and_v0 p.human p.human)) = [ " Chandler "
+                                                                               "Rachel"
+                                                                               "Ross" ]
 
-  (friends (fun p -> Bool.or_v0 p.human p.human)) = [ " Chandler "
-                                                      "Rachel"
-                                                      "Ross" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Bool.or_v0 p.human p.human)) = [ " Chandler "
+                                                                              "Rachel"
+                                                                              "Ross" ]
 
   (friends (fun p -> DateTime.lessThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [ " Chandler "
                                                                                        "Rachel"
@@ -777,6 +777,14 @@ module CompiledFunctions =
   (friends (fun p -> DateTime.month_v0 p.dob == 8)) = [ " Chandler " ]
   (friends (fun p -> DateTime.second p.dob == 42)) = [ " Chandler " ]
   (friends (fun p -> DateTime.year_v0 p.dob == 1969)) = [ " Chandler "; "Rachel" ]
+
+  // Test package constants
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.Bool.and_v0
+      p.human
+      PACKAGE.Darklang.Test.Constants.boolConst)) = [ " Chandler "
+                                                      "Rachel"
+                                                      "Ross" ]
 
 module PartialEvaluation =
   type A = { a: Int }
