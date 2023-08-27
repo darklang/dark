@@ -194,9 +194,9 @@ List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 1 5) (fun x -> x + 1) = [ 2
                                                                              6 ]
 
 List.map_v0 [ 1; 2; 3 ] (fun x ->
-  Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 0) (Int.lessThanOrEqualTo_v0 x 4)) = [ true
-                                                                                    true
-                                                                                    true ]
+  PACKAGE.Darklang.Stdlib.Bool.and_v0
+    (Int.greaterThanOrEqualTo_v0 x 0)
+    (Int.lessThanOrEqualTo_v0 x 4)) = [ true; true; true ]
 
 List.map_v0 [ 1; 2 ] (fun x -> x + 1) = [ 2; 3 ]
 List.map_v0 [] (fun x -> x + 1) = []

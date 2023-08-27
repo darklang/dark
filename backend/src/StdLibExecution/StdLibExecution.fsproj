@@ -10,7 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="Libs/Bool.fs" />
     <Compile Include="Libs/Bytes.fs" />
     <Compile Include="Libs/Char.fs" />
     <Compile Include="Libs/Crypto.fs" />

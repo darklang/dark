@@ -1207,16 +1207,38 @@ and ExecutionState =
     // (as opposed to being previewed for traces)
     onExecutionPath : bool }
 
+and Functions =
+  { builtIn : Map<FnName.BuiltIn, BuiltInFn>
+    package : FnName.Package -> Ply<Option<PackageFn.T>>
+    userProgram : Map<FnName.UserProgram, UserFunction.T> }
+
+and Constants =
+  { builtIn : Map<ConstantName.BuiltIn, BuiltInConstant>
+    package : ConstantName.Package -> Ply<Option<PackageConstant.T>>
+    userProgram : Map<ConstantName.UserProgram, UserConstant.T> }
+
 and Types =
   { builtIn : Map<TypeName.BuiltIn, BuiltInType>
     package : TypeName.Package -> Ply<Option<PackageType.T>>
     userProgram : Map<TypeName.UserProgram, UserType.T> }
+
 
 module ExecutionState =
   let availableTypes (state : ExecutionState) : Types =
     { builtIn = state.builtIns.types
       package = state.packageManager.getType
       userProgram = state.program.types }
+
+  let availableFunctions (state : ExecutionState) : Functions =
+    { builtIn = state.builtIns.fns
+      package = state.packageManager.getFn
+      userProgram = state.program.fns }
+
+  let availableConstants (state : ExecutionState) : Constants =
+    { builtIn = state.builtIns.constants
+      package = state.packageManager.getConstant
+      userProgram = state.program.constants }
+
 
 module Types =
   let empty =
@@ -1226,10 +1248,12 @@ module Types =
     match name with
     | FQName.BuiltIn b ->
       Map.tryFind b types.builtIn |> Option.map (fun t -> t.declaration) |> Ply
+
     | FQName.UserProgram user ->
       Map.tryFind user types.userProgram
       |> Option.map (fun t -> t.declaration)
       |> Ply
+
     | FQName.Package pkg ->
       types.package pkg |> Ply.map (Option.map (fun t -> t.declaration))
     | FQName.Unknown _ -> Ply None
