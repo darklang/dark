@@ -28,8 +28,10 @@ module Darklang =
           else
             "a"
 
+
       /// Returns {{true}} if <param s> is the empty string {{\"\"}
       let isEmpty (s: String) : Bool = s == ""
+
 
       /// Concatenates the two strings by prepending <param s2> to <param s1> and
       /// returns the joined string
@@ -48,7 +50,6 @@ module Darklang =
       /// Returns the first <param characterCount> characters of <param string>, as a String.
       /// If <param characterCount> is longer than <param string>, returns <param string>.
       /// If <param characterCount> is negative, returns the empty string."
-
       let first (string: String) (characterCount: Int) : String =
         if characterCount < 0 then ""
         else if characterCount > String.length string then string
@@ -68,6 +69,7 @@ module Darklang =
             string
             (String.length string - characterCount)
             (String.length string)
+
 
       /// Returns all but the last <param characterCount> characters of <param string>, as a String.
       /// If <param characterCount> is longer than <param string>, returns the empty string.
@@ -168,3 +170,144 @@ module Darklang =
 
       let splitOnNewline (str: String) : List<String> =
         if str == "" then [] else String.split str "\n"
+      /// Iterate over each Character (EGC, not byte) in the string, performing the
+      /// operation in <param fn> on each one.
+      let map (s: String) (fn: Char -> Char) : String =
+        s |> String.toList |> List.map fn |> PACKAGE.Darklang.Stdlib.String.fromList
+
+
+      /// Replace all instances on <param searchFor> in <param s> with <param replaceWith>
+      /// Replaces all instances of <param searchFor> in <param s> with <param replaceWith>.
+      let replaceAll (s: String) (searchFor: String) (replaceWith: String) : String =
+        match s, searchFor with
+        | "", "" -> replaceWith
+        | "", _ -> s
+        | _, "" ->
+          s
+          |> String.toList
+          |> List.map (fun c ->
+            PACKAGE.Darklang.Stdlib.Char.toString c ++ replaceWith)
+          |> String.join ""
+          |> PACKAGE.Darklang.Stdlib.String.prepend replaceWith
+        | _ -> s |> String.split searchFor |> String.join replaceWith
+
+
+      /// Returns the length of the string
+      let length (s: String) : Int =
+        s |> String.toList |> PACKAGE.Darklang.Stdlib.List.length
+
+
+      // is it bad to do it this way?
+      /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.
+      let append (s1: String) (s2: String) : String = $"{s1}{s2}"
+
+
+      /// Reverses <param string>
+      let reverse (string: String) : String =
+        string
+        |> String.toList
+        |> PACKAGE.Darklang.Stdlib.List.reverse
+        |> PACKAGE.Darklang.Stdlib.String.fromList
+
+
+      /// Combines a list of strings with the provided separator
+      let join (l: List<String>) (separator: String) : String =
+        (List.map l (fun s -> s ++ separator)) |> String.join ""
+
+
+      /// Escape an untrusted string in order to include it safely in HTML output
+      let htmlEscape (html: String) : String =
+        html
+        |> String.toList
+        |> List.map (fun c ->
+          match c with
+          | '<' -> "&lt;"
+          | '>' -> "&gt;"
+          | '&' -> "&amp;"
+          // include these for html-attribute-escaping
+          // even though they're not strictly necessary
+          // for html-escaping proper.
+          | '"' -> "&quot;"
+          // &apos; doesn't work in IE....
+          | ''' -> "&#x27;"
+          | _ -> PACKAGE.Darklang.Stdlib.Char.toString c)
+        |> PACKAGE.Darklang.Stdlib.String.join ""
+
+
+      // this is a helper function for slice
+      let normalize (i: Int) (len: Int) : Int =
+        (if i < 0 then len + i else i)
+        |> PACKAGE.Darklang.Stdlib.Int.min len
+        |> PACKAGE.Darklang.Stdlib.Int.max 0
+
+
+      /// Returns the substring of <param string> between the <param from> and <param to> indices.
+      /// Negative indices start counting from the end of <param string>.
+      let slice (s: String) (f: Int) (l: Int) : String =
+        let len = PACKAGE.Darklang.Stdlib.String.length s
+        let f = f |> PACKAGE.Darklang.Stdlib.String.normalize len
+        let l = l |> PACKAGE.Darklang.Stdlib.String.normalize len
+        let l = if f > l then f else l
+
+        s
+        |> String.toList
+        |> PACKAGE.Darklang.Stdlib.List.drop f
+        |> PACKAGE.Darklang.Stdlib.List.take (l - f)
+        |> PACKAGE.Darklang.Stdlib.String.fromList
+
+
+      /// Returns a copy of <param str> with all leading whitespace removed. 'whitespace'
+      /// here means all Unicode characters with the {{White_Space}} property, which
+      /// includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}
+      let trimStart (str: String) : String =
+        str
+        |> String.toList
+        |> List.dropWhile (fun c ->
+          c == ' ' || c == '\t' || c == '\n' || c == '\u2003')
+        |> PACKAGE.Darklang.Stdlib.String.fromList
+
+
+      /// Returns a copy of the string <param str> with all trailing whitespace removed.
+      /// 'whitespace' here means all Unicode characters with the {{White_Space}}
+      /// property, which includes {{\" \"}}, {{\"\\t\"}}, and {{\"\\n\"}}.
+      let trimEnd (str: String) : String =
+        str
+        |> String.toList
+        |> PACKAGE.Darklang.Stdlib.List.reverse
+        |> List.dropWhile (fun c ->
+          c == ' ' || c == '\t' || c == '\n' || c == '\u2003')
+        |> PACKAGE.Darklang.Stdlib.List.reverse
+        |> PACKAGE.Darklang.Stdlib.String.fromList
+
+
+      /// Returns a copy of <param str> with all leading and trailing whitespace
+      /// removed. 'whitespace' here means all Unicode characters with the
+      /// {{White_Space}} property, which includes {{\" \"}}, {{\"\\t\"}} and
+      /// {{\"\\n\"}}
+      let trim (str: String) : String =
+        str
+        |> PACKAGE.Darklang.Stdlib.String.trimStart
+        |> PACKAGE.Darklang.Stdlib.String.trimEnd
+
+
+      /// Checks if <param lookingIn> contains <param searchingFor>
+      let contains (lookingIn: String) (searchingFor: String) : Bool =
+        match String.indexOf lookingIn searchingFor with
+        | Some _ -> true
+        | None -> false
+
+
+      /// Returns the string, uppercased
+      let toUppercase (s: String) : String =
+        s
+        |> String.toList
+        |> List.map (fun c -> Char.toUppercase c)
+        |> PACKAGE.Darklang.Stdlib.String.fromList
+
+
+      /// Returns the string, lowercased
+      let toLowercase (s: String) : String =
+        s
+        |> String.toList
+        |> List.map (fun c -> Char.toLowercase c)
+        |> PACKAGE.Darklang.Stdlib.String.fromList
