@@ -12,7 +12,8 @@ module RT = LibExecution.RuntimeTypes
 module NRE = LibExecution.NameResolutionError
 
 type NameResolver =
-  { builtinTypes : Set<PT.TypeName.BuiltIn>
+  {
+    builtinTypes : Set<PT.TypeName.BuiltIn>
     builtinFns : Set<PT.FnName.BuiltIn>
     builtinConstants : Set<PT.ConstantName.BuiltIn>
 
@@ -32,7 +33,8 @@ type NameResolver =
     ///   parsing it as a variable as a fallback if nothing is found under that name
     allowError : bool
 
-    packageManager : Option<RT.PackageManager> }
+    packageManager : Option<RT.PackageManager>
+  }
 
 
 let empty : NameResolver =
