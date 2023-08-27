@@ -256,10 +256,7 @@ let fileTests () : Test =
             $"{dir}/{filename}"
             |> LibParser.TestModule.parseTestFile
               resolverWithBuiltinsAndPackageManager
-            |> Ply.toTask
-            // CLEANUP TODO BAD: I got stuck in Async hell and abandoned here
-            |> Async.AwaitTask
-            |> Async.RunSynchronously
+            |> fun ply -> ply.Result
 
           // Within a module, tests have access to
           let fns = modules |> List.map (fun m -> m.fns) |> List.concat

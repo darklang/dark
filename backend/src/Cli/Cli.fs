@@ -121,8 +121,7 @@ let main (args : string[]) =
   try
     initSerializers ()
 
-    // CLEANUP
-    packageManager.init |> Ply.toTask |> Async.AwaitTask |> Async.RunSynchronously
+    packageManager.init.Result
 
     let args =
       args

@@ -307,18 +307,10 @@ let main (args : string[]) : int =
     match args with
     | [| "load-packages" |] ->
       System.Console.WriteLine "Loading packages to DB"
-      let exitCode =
-        PackageBootstrapping.loadPackagesFromDb ()
-        |> Ply.toTask
-        |> Async.AwaitTask
-        |> Async.RunSynchronously
+      let exitCode = (PackageBootstrapping.loadPackagesFromDb ()).Result
       System.Console.WriteLine "Finished loading packages to DB"
       exitCode
-    | _ ->
-      runLocalExecScript args
-      |> Ply.toTask
-      |> Async.AwaitTask
-      |> Async.RunSynchronously
+    | _ -> (runLocalExecScript args).Result
   with e ->
     // Don't reraise or report as LocalExec is only run interactively
     printException "Exception" [] e
