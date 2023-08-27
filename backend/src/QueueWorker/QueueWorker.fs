@@ -201,16 +201,12 @@ let processNotification
 
                   // CLEANUP Set a time limit of 3m
                   try
-                    let config : RT.Config =
-                      { allowLocalHttpAccess = false
-                        httpclientTimeoutInMs = LibCloud.Config.httpclientTimeoutInMs }
                     let program = Canvas.toProgram c
                     let! (result, traceResults) =
                       CloudExecution.executeHandler
                         LibClientTypesToCloudTypes.Pusher.eventSerializer
                         (PT2RT.Handler.toRT h)
                         program
-                        config
                         traceID
                         (Map [ "event", event.value ])
                         (CloudExecution.InitialExecution(

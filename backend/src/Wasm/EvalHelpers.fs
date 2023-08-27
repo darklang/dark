@@ -22,8 +22,6 @@ let getStateForEval
   // TODO
   let packageManager : PackageManager = PackageManager.Empty
 
-  let config : Config = { allowLocalHttpAccess = true; httpclientTimeoutInMs = 5000 }
-
   let program : Program =
     { canvasID = CanvasID.Empty
       internalFnsAllowed = true
@@ -37,7 +35,6 @@ let getStateForEval
     packageManager = packageManager
     tracing = LibExecution.Execution.noTracing Real
     program = program
-    config = config
     test = LibExecution.Execution.noTestContext
     reportException = consoleReporter
     notify = consoleNotifier

@@ -120,11 +120,15 @@ let testUserRecordType
 let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
   { tlid = gid (); name = name; typ = typ; version = 0 }
 
-let builtIns : RT.BuiltIns =
+let builtIns
+  (httpConfig : StdLibExecution.Libs.HttpClient.Configuration)
+  : RT.BuiltIns =
   let (fns, types, constants) =
     LibExecution.StdLib.combine
       [ LibTest.contents
-        LibCloudExecution.CloudExecution.builtins
+        StdLibExecution.StdLib.contents httpConfig
+        StdLibCloudExecution.StdLib.contents
+        StdLibDarkInternal.StdLib.contents
         StdLibCli.StdLib.contents ]
       []
       []
@@ -132,13 +136,23 @@ let builtIns : RT.BuiltIns =
     fns = fns |> Map.fromListBy (fun fn -> fn.name)
     constants = constants |> Map.fromListBy (fun c -> c.name) }
 
+let cloudBuiltIns =
+  let httpConfig =
+    { LibCloudExecution.HttpClient.configuration with timeoutInMs = 5000 }
+  builtIns httpConfig
+
+let localBuiltIns =
+  let httpConfig =
+    { StdLibExecution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
+  builtIns httpConfig
+
 // A resolver that only knows about builtins. If you need user code in the parser,
 // you need to add in the names of the fns/types/etc
 let builtinResolver =
   LibParser.NameResolver.fromBuiltins (
-    Map.values builtIns.fns,
-    Map.values builtIns.types,
-    Map.values builtIns.constants
+    Map.values localBuiltIns.fns,
+    Map.values localBuiltIns.types,
+    Map.values localBuiltIns.constants
   )
 
 let packageManager = LibCloud.PackageManager.packageManager
@@ -157,9 +171,6 @@ let executionStateFor
   : Task<RT.ExecutionState> =
   task {
     let! domains = Canvas.domainsForCanvasID canvasID
-    let config : RT.Config =
-      // Short timeout so that tests using the timeout complete quickly
-      { allowLocalHttpAccess = allowLocalHttpAccess; httpclientTimeoutInMs = 5000 }
 
     let program : RT.Program =
       { canvasID = canvasID
@@ -213,6 +224,8 @@ let executionStateFor
     // things that notify, while Exceptions have historically been unexpected errors
     // in the tests and so are worth watching out for.
     let notifier : RT.Notifier = fun _state _msg _tags -> ()
+
+    let builtIns = if allowLocalHttpAccess then localBuiltIns else cloudBuiltIns
     let state =
       Exe.createState
         builtIns
@@ -222,7 +235,6 @@ let executionStateFor
         notifier
         (id 7)
         program
-        config
     let state = { state with test = testContext }
     return state
   }
@@ -410,6 +422,7 @@ module Expect =
 
     match actual, expected with
     | LPVariable(_, name), LPVariable(_, name') -> check path name name'
+    | LPUnit(_), LPUnit(_) -> ()
     | LPTuple(_, first, second, theRest), LPTuple(_, first', second', theRest') ->
       let all = first :: second :: theRest
       let all' = first' :: second' :: theRest'
@@ -421,6 +434,7 @@ module Expect =
 
     // exhaustive match
     | LPVariable _, _
+    | LPUnit _, _
     | LPTuple _, _ -> errorFn path (string actual) (string expected)
 
 

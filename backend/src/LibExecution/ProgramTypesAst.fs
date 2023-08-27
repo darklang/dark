@@ -76,7 +76,8 @@ let rec preTraversal
   let rec preTraversalLetPattern (pat : LetPattern) : LetPattern =
     let f = preTraversalLetPattern
     match letPatternFn pat with
-    | LPVariable _ -> letPatternFn pat
+    | LPVariable _
+    | LPUnit _ -> letPatternFn pat
     | LPTuple(id, p1, p2, pats) -> LPTuple(id, f p1, f p2, List.map f pats)
 
   let rec preTraverseMatchPattern (pat : MatchPattern) : MatchPattern =

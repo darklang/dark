@@ -417,6 +417,7 @@ and Expr =
 
 and LetPattern =
   | LPVariable of id * name : string
+  | LPUnit of id
   | LPTuple of
     id *
     first : LetPattern *
@@ -710,6 +711,7 @@ module LetPattern =
   let toID (pat : LetPattern) : id =
     match pat with
     | LPVariable(id, _) -> id
+    | LPUnit id -> id
     | LPTuple(id, _, _, _) -> id
 
 // Functions for working with Dark match patterns
@@ -1199,9 +1201,6 @@ and LoadFnResult = FunctionRecord -> NEList<Dval> -> Option<Dval * NodaTime.Inst
 
 and StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
 
-/// Per-runtime configuration allowing different settings for eg cloud, test, CLI
-and Config = { allowLocalHttpAccess : bool; httpclientTimeoutInMs : int }
-
 /// Every part of a user's program
 and Program =
   { canvasID : CanvasID
@@ -1259,7 +1258,6 @@ and ExecutionState =
     packageManager : PackageManager
     tracing : Tracing
     program : Program
-    config : Config
     test : TestContext
 
     // Called to report exceptions

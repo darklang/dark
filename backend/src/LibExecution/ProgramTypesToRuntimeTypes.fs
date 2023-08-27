@@ -204,6 +204,7 @@ module LetPattern =
   let rec toRT (p : PT.LetPattern) : RT.LetPattern =
     match p with
     | PT.LPVariable(id, str) -> RT.LPVariable(id, str)
+    | PT.LPUnit id -> RT.LPUnit id
     | PT.LPTuple(id, first, second, theRest) ->
       RT.LPTuple(id, toRT first, toRT second, List.map toRT theRest)
 

@@ -263,10 +263,6 @@ exception NotFoundException of msg : string with
   override this.Message = this.msg
 
 
-let config : RT.Config =
-  { allowLocalHttpAccess = true; httpclientTimeoutInMs = 10000 }
-
-
 /// ---------------
 /// Handle builtwithdark request
 /// ---------------
@@ -328,7 +324,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               LibClientTypesToCloudTypes.Pusher.eventSerializer
               (PT2RT.Handler.toRT handler)
               (Canvas.toProgram canvas)
-              config
               traceID
               inputVars
               (RealExe.InitialExecution(desc, "request", request))

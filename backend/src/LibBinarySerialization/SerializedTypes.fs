@@ -242,6 +242,7 @@ type InfixFnName =
 [<MessagePack.MessagePackObject>]
 type LetPattern =
   | LPVariable of id * name : string
+  | LPUnit of id
   | LPTuple of
     id *
     first : LetPattern *

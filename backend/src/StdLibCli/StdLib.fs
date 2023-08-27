@@ -23,6 +23,6 @@ let contents =
       Libs.File.contents
       Libs.Process.contents
       Libs.Output.contents
-      Libs.HttpClient.contents ]
+      Libs.Time.contents ]
     fnRenames
     typeRenames

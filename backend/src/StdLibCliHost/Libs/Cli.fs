@@ -59,11 +59,13 @@ module CliRuntimeError =
     let toRuntimeError (e : Error) : RT.RuntimeError =
       Error.toDT e |> RT.RuntimeError.fromDT
 
+let libExecutionContents =
+  StdLibExecution.StdLib.contents StdLibExecution.Libs.HttpClient.defaultConfig
 
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) =
     LibExecution.StdLib.combine
-      [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents ]
+      [ libExecutionContents; StdLibCli.StdLib.contents ]
       []
       []
   { types = types |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
@@ -79,8 +81,6 @@ let execute
   : Task<RT.Dval> =
 
   task {
-    let config : Config =
-      { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
     let program : Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
@@ -111,7 +111,6 @@ let execute
         notify
         7UL
         program
-        config
 
     if mod'.exprs.Length = 1 then
       return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])

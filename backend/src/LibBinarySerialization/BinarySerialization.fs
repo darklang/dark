@@ -121,4 +121,8 @@ module Test =
   let serializeToplevelsToJson (tls : List<PT.Toplevel.T>) : string =
     wrapSerializationException "test" (fun () ->
       let v = List.map PT2ST.Toplevel.toST tls
-      MessagePack.MessagePackSerializer.SerializeToJson(v, optionsWithZip))
+      let jsonString =
+        MessagePack.MessagePackSerializer.SerializeToJson(v, optionsWithZip)
+      let jsonDocument = System.Text.Json.JsonDocument.Parse(jsonString)
+      let options = System.Text.Json.JsonSerializerOptions(WriteIndented = true)
+      System.Text.Json.JsonSerializer.Serialize(jsonDocument, options))
