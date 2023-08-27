@@ -831,8 +831,10 @@ module Expr =
     | DEnum(_, _, "EIf", [ DInt id; cond; thenExpr; elseExpr ]) ->
       let elseExpr =
         match elseExpr with
-        | DUnit _ -> None
-        | dval -> Some(fromDT dval)
+        | DEnum(_, _, "Some", [ dv ]) -> Some(fromDT dv)
+        | DEnum(_, _, "None", []) -> None
+        | _ ->
+          Exception.raiseInternal "Invalid else expression" [ "elseExpr", elseExpr ]
       PT.EIf(uint64 id, fromDT cond, fromDT thenExpr, elseExpr)
 
     | DEnum(_, _, "EMatch", [ DInt id; arg; DList cases ]) ->
