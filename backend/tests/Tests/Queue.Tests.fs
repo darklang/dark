@@ -83,7 +83,7 @@ let rec waitForSuccess
           // finished yet
           return! TCS.getTraceData canvasID tlid traceID
         with
-        | (:? InternalException) as e -> return e.Reraise()
+        | (:? Exception.InternalException) as e -> return Exception.reraise e
         | _ ->
           do! Task.Delay 500
           return! getTrace traceID (remainingAttempts - 1)

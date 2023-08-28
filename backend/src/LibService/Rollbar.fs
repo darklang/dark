@@ -179,7 +179,7 @@ let exceptionWhileProcessingException
     // Now let's send a pageable exception, as our exception processing being down is
     // a pageable situation
     let e =
-      PageableException(
+      Exception.PageableException(
         "Exception when processing exception",
         [],
         processingException
@@ -252,7 +252,7 @@ let rec sendException (person : Person) (metadata : Metadata) (e : exn) : unit =
 let lastDitchBlockAndPage (msg : string) (e : exn) : int =
   try
     printException msg [] e
-    let e = PageableException(msg, [], e)
+    let e = Exception.PageableException(msg, [], e)
     Telemetry.addException [] e
     let metadata = Exception.nestedMetadata e
     let custom = createCustom metadata
@@ -321,7 +321,7 @@ module AspNet =
             // No telemetry call here as it should happen automatically
             with processingException ->
               exceptionWhileProcessingException e processingException
-          e.Reraise()
+          Exception.reraise e
       }
 
 
@@ -430,7 +430,7 @@ let init (serviceName : string) : unit =
   //   )
   // |> ignore<obj>
 
-  Prelude.sendRollbarError <- fun msg metadata -> sendError msg metadata
+  Exception.sendRollbarError <- fun msg metadata -> sendError msg metadata
 
   print " Configured rollbar"
   ()

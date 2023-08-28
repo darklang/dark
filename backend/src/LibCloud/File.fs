@@ -94,7 +94,7 @@ let rec writefileBytes (root : Config.Root) (f : string) (contents : byte[]) : u
       success <- true
     with e ->
       count <- count + 1
-      if count > 10 then e.Reraise() else ()
+      if count > 10 then Exception.reraise e else ()
       ()
 
 let rec writefile (root : Config.Root) (f : string) (contents : string) : unit =

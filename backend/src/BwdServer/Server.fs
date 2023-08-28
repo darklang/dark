@@ -404,7 +404,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       | e ->
         // respond and then reraise to get it to the rollbar middleware
         let! (_ : HttpContext) = internalErrorResponse ctx e
-        return e.Reraise()
+        return Exception.reraise e
     })
 
   let rollbarCtxToMetadata (ctx : HttpContext) : Rollbar.Person * Metadata =

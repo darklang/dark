@@ -41,7 +41,7 @@ let wrapSerializationException (id : string) (f : unit -> 'a) : 'a =
   with e ->
     Exception.callExceptionCallback e
     raise (
-      InternalException(
+      Exception.InternalException(
         "error deserializing toplevel",
         [ "id", id
           "suggestion", "maybe annotation are missing in SerializationTypes" ],

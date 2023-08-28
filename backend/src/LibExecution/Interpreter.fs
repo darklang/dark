@@ -1001,7 +1001,7 @@ and execFn
                       | Errors.IncorrectArgs ->
                         return Errors.incorrectArgsToDError sourceID fn args
                       | Errors.FakeDvalFound dv -> return dv
-                      | (:? CodeException) as e ->
+                      | (:? Exception.CodeException) as e ->
                         // There errors are created by us, within the libraries, so they are
                         // safe to show to users (but not grandusers)
                         return Dval.errSStr sourceID e.Message

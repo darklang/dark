@@ -229,7 +229,7 @@ let init (serviceName : string) : unit =
   System.Diagnostics.ActivitySource.AddActivityListener(activityListener)
 
   // Allow exceptions to be associated with the right span (the one in which they're created)
-  Prelude.exceptionCallback <-
+  Exception.exceptionCallback <-
     (fun (e : exn) ->
       // These won't have stacktraces. We could add them but they're expensive, and
       // if they make it to the top they'll get a stacktrace. So let's not do

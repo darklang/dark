@@ -14,7 +14,7 @@ open System.Text.RegularExpressions
 [<RequiresExplicitTypeArgumentsAttribute>]
 let ignore<'a> (a : 'a) : unit = ignore<'a> a
 
-[<CompilerMessageAttribute("failwith is banned, use Prelude.Exception.raise* instead",
+[<CompilerMessageAttribute("failwith is banned, use Exception.raise* instead",
                            0,
                            IsError = true,
                            IsHidden = true)>]
@@ -39,329 +39,14 @@ let printfn = printfn
 // https://stackoverflow.com/a/11696947/104021
 let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 
-// ----------------------
-// Exceptions
-// We don't use the F# exception syntax as we want to allow wrapping inner exceptions
-// ----------------------
-
-type Metadata = List<string * obj>
-
-/// An error within Dark itself - we need to rollbar this and address it.
-///
-/// Do not show to anyone, unless within an Analysis request.
-type InternalException(message : string, metadata : Metadata, inner : exn) =
-  inherit System.Exception(message, inner)
-  member _.metadata = metadata
-  new(msg : string) = InternalException(msg, [], null)
-  new(msg : string, metadata : Metadata) = InternalException(msg, metadata, null)
-  new(msg : string, inner : exn) = InternalException(msg, [], inner)
-
-
-/// An error during code execution, which is the responsibility of the
-/// User/Developer. The message can be shown to the developer. You can alternatively
-/// use GrandUser exception in code which is used in both Libraries and in the
-/// HttpFramework.
-type CodeException(message : string, inner : exn) =
-  inherit System.Exception(message, inner)
-  new(msg : string) = CodeException(msg, null)
-
-/// An editor exception is one which is caused by an invalid action on the part of
-/// the Dark editor, such as an Redo or rename that isn't allowed.  We are
-/// interested in these, as the editor should have caught this on the client and not
-/// made the request. The message may be shown to the logged-in user, and should be
-/// suitable for this.
-type EditorException(message : string, inner : exn) =
-  inherit System.Exception(message, inner)
-  new(msg : string) = EditorException(msg, null)
-
-// A pageable exception will cause the pager to go off! This is something that should
-// never happen and is an indicator that the service is broken in some way.  The
-// pager goes off because a pageable exception sets the `{ is_pageable: true }`
-// metadata, which causes a honeycomb trigger that sets off PagerDuty.
-type PageableException(message : string, metadata : Metadata, inner : exn) =
-  inherit System.Exception(message, inner)
-  member _.metadata = metadata
-
-
-// This is for tracing
-let mutable exceptionCallback = (fun (_e : exn) -> ())
-
-let mutable sendRollbarError = (fun (_message : string) (_metadata : Metadata) -> ())
-
-module Exception =
-
-  /// Returns a list of exceptions of this exception, and all nested inner
-  /// exceptions.
-  let rec getMessages (e : exn) : List<string> =
-    if isNull e.InnerException then
-      [ e.Message ]
-    else
-      e.Message :: getMessages e.InnerException
-
-  let toMetadata (e : exn) : Metadata =
-    let thisMetadata =
-      match e with
-      | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
-      | :? InternalException as e -> e.metadata
-      | :? EditorException
-      | :? CodeException
-      | _ -> []
-    thisMetadata
-
-  let rec nestedMetadata (e : exn) : Metadata =
-    let innerMetadata =
-      if not (isNull e.InnerException) then nestedMetadata e.InnerException else []
-    let thisMetadata =
-      match e with
-      | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
-      | :? InternalException as e -> e.metadata
-      | :? EditorException
-      | :? CodeException
-      | _ -> []
-    thisMetadata @ innerMetadata
-
-
-  let callExceptionCallback (e : exn) =
-    try
-      exceptionCallback e
-    with e ->
-      // We're completely screwed at this point
-      System.Console.WriteLine "Exception calling callExceptionCallback"
-      System.Console.WriteLine(e.Message)
-      System.Console.WriteLine e.StackTrace
-
-
-  // CLEANUP remove this -- most of the errors caught by this can now be raiseInternals,
-  // as the type-checker should have prevented them
-  let raiseCode (msg : string) =
-    let e = CodeException(msg)
-    callExceptionCallback e
-    raise e
-
-  let unwrapOptionCode (msg : string) (o : Option<'a>) : 'a =
-    match o with
-    | Some v -> v
-    | None -> raiseCode msg
-
-  let unwrapResultCode (r : Result<'a, string>) : 'a =
-    match r with
-    | Ok v -> v
-    | Error msg -> raiseCode msg
-
-  let raiseInternal (msg : string) (tags : Metadata) =
-    let e = InternalException(msg, tags)
-    callExceptionCallback e
-    raise e
-
-
-
-  let unwrapOptionInternal (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
-    match o with
-    | Some v -> v
-    | None -> raiseInternal msg tags
-
-  let unwrapResultInternal (tags : Metadata) (r : Result<'a, 'msg>) : 'a =
-    match r with
-    | Ok v -> v
-    | Error msg -> raiseInternal (string msg) tags
-
-  let reraiseAsPageable (msg : string) (tags : Metadata) (e : exn) =
-    let e = PageableException(msg, tags, e)
-    callExceptionCallback e
-    raise e
-
-  let unknownErrorMessage = "Unknown error"
-
-  let taskCatch (f : unit -> Task<'r>) : Task<Option<'r>> =
-    task {
-      try
-        let! result = f ()
-        return Some result
-      with _ ->
-        return None
-    }
-
-  let catch (f : unit -> 'r) : Option<'r> =
-    try
-      Some(f ())
-    with _ ->
-      None
-
-  let catchError (f : unit -> 'r) : Result<'r, string> =
-    try
-      Ok(f ())
-    with e ->
-      Error e.Message
-
-type System.Exception with
-
-  /// <summary>
-  /// This hack adds a `Reraise` method to exceptions, since
-  /// it's not normally possible to reraise exceptions within F# CEs.
-  /// </summary>
-  ///
-  /// <remarks>
-  /// Sources:
-  /// - https://github.com/fsharp/fslang-suggestions/issues/660#issuecomment-382070639
-  /// - https://stackoverflow.com/questions/57383
-  /// </remarks>
-  member this.Reraise() =
-    (System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture this).Throw()
-    Unchecked.defaultof<_>
-
 
 // ----------------------
 // Non-empty list
 // ----------------------
 
 /// Non-empty list
-type NEList<'a> = { head : 'a; tail : List<'a> }
-
-/// Non-empty list
-module NEList =
-  let length (l : NEList<'a>) : int = 1 + List.length l.tail
-  let toList (l : NEList<'a>) : List<'a> = l.head :: l.tail
-
-  let iter (f : 'a -> unit) (l : NEList<'a>) : unit =
-    f l.head
-    List.iter f l.tail
-
-  let iter2 (f : 'a -> 'b -> unit) (l1 : NEList<'a>) (l2 : NEList<'b>) : unit =
-    f l1.head l2.head
-    List.iter2 f l1.tail l2.tail
-
-  let iteri2
-    (f : int -> 'a -> 'b -> unit)
-    (l1 : NEList<'a>)
-    (l2 : NEList<'b>)
-    : unit =
-    let rec loop (i : int) (l1 : List<'a>) (l2 : List<'b>) : unit =
-      match l1, l2 with
-      | [], [] -> ()
-      | [], _
-      | _, [] ->
-        Exception.raiseInternal "NEList.iteri2: lists have different lengths" []
-      | x1 :: xs1, x2 :: xs2 ->
-        f i x1 x2
-        loop (i + 1) xs1 xs2
-    f 0 l1.head l2.head
-    loop 1 l1.tail l2.tail
-
-  let map (f : 'a -> 'b) (l : NEList<'a>) : NEList<'b> =
-    { head = f l.head; tail = List.map f l.tail }
-
-  let mapWithIndex (f : int -> 'a -> 'b) (l : NEList<'a>) : NEList<'b> =
-    let rec loop (i : int) (l : List<'a>) : List<'b> =
-      match l with
-      | [] -> []
-      | x :: xs -> f i x :: loop (i + 1) xs
-    { head = f 0 l.head; tail = loop 1 l.tail }
-
-  let map2 (f : 'a -> 'b -> 'c) (l1 : NEList<'a>) (l2 : NEList<'b>) : NEList<'c> =
-    let rec loop (l1 : List<'a>) (l2 : List<'b>) : List<'c> =
-      match l1, l2 with
-      | [], [] -> []
-      | [], _
-      | _, [] ->
-        Exception.raiseInternal "NEList.map2: lists have different lengths" []
-      | x1 :: xs1, x2 :: xs2 -> f x1 x2 :: loop xs1 xs2
-    { head = f l1.head l2.head; tail = loop l1.tail l2.tail }
-
-  let map2WithIndex
-    (f : int -> 'a -> 'b -> 'c)
-    (l1 : NEList<'a>)
-    (l2 : NEList<'b>)
-    : NEList<'c> =
-    let rec loop (i : int) (l1 : List<'a>) (l2 : List<'b>) : List<'c> =
-      match l1, l2 with
-      | [], [] -> []
-      | [], _
-      | _, [] ->
-        Exception.raiseInternal
-          "NEList.map2WithIndex: lists have different lengths"
-          []
-      | x1 :: xs1, x2 :: xs2 -> f i x1 x2 :: loop (i + 1) xs1 xs2
-    { head = f 0 l1.head l2.head; tail = loop 1 l1.tail l2.tail }
-
-  let ofList (head : 'a) (tail : List<'a>) : NEList<'a> =
-    { head = head; tail = tail }
-
-  let ofListUnsafe (msg : string) (metadata : Metadata) (l : List<'a>) : NEList<'a> =
-    match l with
-    | [] -> Exception.raiseInternal msg metadata
-    | head :: tail -> { head = head; tail = tail }
-
-  let ofSeq (head : 'a) (seq : seq<'a>) : NEList<'a> =
-    { head = head; tail = List.ofSeq seq }
-
-  let singleton (head : 'a) : NEList<'a> = { head = head; tail = [] }
-
-  let doubleton (head : 'a) (tail : 'a) : NEList<'a> =
-    { head = head; tail = [ tail ] }
-
-  let push (head : 'a) (l : NEList<'a>) : NEList<'a> =
-    { head = head; tail = l.head :: l.tail }
-
-  let pushBack (tail : 'a) (l : NEList<'a>) : NEList<'a> =
-    { head = l.head; tail = l.tail @ [ tail ] }
-
-  let prependList (list : List<'a>) (l : NEList<'a>) : NEList<'a> =
-    match list with
-    | [] -> l
-    | head :: tail -> { head = head; tail = tail @ toList l }
-
-  let reverse (l : NEList<'a>) : NEList<'a> =
-    match l |> toList |> List.rev with
-    | [] -> Exception.raiseInternal "Unexpected empty NEList" []
-    | head :: tail -> { head = head; tail = tail }
-
-  let find (f : 'a -> bool) (l : NEList<'a>) : Option<'a> =
-    if f l.head then Some l.head else List.tryFind f l.tail
-
-  let forall (f : 'a -> bool) (l : NEList<'a>) : bool =
-    f l.head && List.forall f l.tail
-
-  let forall2 (f : 'a -> 'b -> bool) (l1 : NEList<'a>) (l2 : NEList<'b>) : bool =
-    f l1.head l2.head && List.forall2 f l1.tail l2.tail
-
-
-  let filter (f : 'a -> bool) (l : NEList<'a>) : List<'a> =
-    if f l.head then l.head :: List.filter f l.tail else List.filter f l.tail
-
-  let filterMap (f : 'a -> Option<'b>) (l : NEList<'a>) : List<'b> =
-    match f l.head with
-    | Some v -> v :: List.choose f l.tail
-    | None -> List.choose f l.tail
-
-  let last (l : NEList<'a>) : 'a =
-    match l.tail with
-    | [] -> l.head
-    | _ -> List.last l.tail
-
-  let initial (l : NEList<'a>) : List<'a> =
-    let rec listInitial (l : List<'a>) : List<'a> =
-      match l with
-      | [] -> []
-      | [ _ ] -> [] // drop the last one
-      | head :: head2 :: tail -> head :: listInitial (head2 :: tail)
-    match l.tail with
-    | [] -> [] // drop head
-    | _ -> l.head :: (listInitial l.tail)
-
-  let fold
-    (f : 'state -> 'a -> 'state)
-    (initial : 'state)
-    (l : NEList<'a>)
-    : 'state =
-    let state = f initial l.head
-    List.fold f state l.tail
-
-  let splitLast (l : NEList<'a>) : (List<'a> * 'a) = initial l, last l
-
-  let zip (l1 : NEList<'a>) (l2 : NEList<'b>) : NEList<'a * 'b> =
-    { head = (l1.head, l2.head); tail = List.zip l1.tail l2.tail }
-
-
+type NEList<'a> = NEList.NEList<'a>
+type Metadata = Exception.Metadata
 
 // ----------------------
 // Regex patterns
@@ -553,7 +238,7 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
     return a
   }
 
-let printMetadata (prefix : string) (metadata : Metadata) =
+let printMetadata (prefix : string) (metadata : Exception.Metadata) =
   try
     List.iter (fun (k, v) -> print (sprintf "%s:  %s: %A" prefix k v)) metadata
   with _ ->
@@ -562,7 +247,7 @@ let printMetadata (prefix : string) (metadata : Metadata) =
 let rec printException'
   (prefix : string)
   (count : int)
-  (metadata : Metadata)
+  (metadata : Exception.Metadata)
   (e : exn)
   : unit =
   print $"{prefix}: error: {e.Message}"
@@ -573,7 +258,7 @@ let rec printException'
   if not (isNull e.InnerException) then
     printException' $"prefex.inner[{count}]" (count + 1) [] e.InnerException
 
-let printException (prefix : string) (metadata : Metadata) (e : exn) : unit =
+let printException (prefix : string) (metadata : Exception.Metadata) (e : exn) : unit =
   printException' prefix 0 metadata e
 
 
@@ -583,7 +268,7 @@ let printException (prefix : string) (metadata : Metadata) (e : exn) : unit =
 // Asserts are problematic because they don't run in prod, and if they did they
 // wouldn't be caught by the webserver
 
-let assert_ (msg : string) (metadata : Metadata) (cond : bool) : unit =
+let assert_ (msg : string) (metadata : Exception.Metadata) (cond : bool) : unit =
   if cond then
     ()
   else
@@ -1355,7 +1040,7 @@ module Json =
 
     let assertSerializable (t : System.Type) : unit =
       if not (isSerializable t) then
-        sendRollbarError
+        Exception.sendRollbarError
           "Invalid serialization call to type not allowed: add `Json.Vanilla.allow<type>()` to allow it to be serialized"
           [ "type", string t ]
 
@@ -1394,7 +1079,7 @@ module Tablecloth =
       | Ok v -> v
       | Error v -> f v
 
-    [<CompilerMessageAttribute("Result.unwrapUnsafe is banned, use Prelude.Exception.unwrapResult* instead",
+    [<CompilerMessageAttribute("Result.unwrapUnsafe is banned, use Exception.unwrapResult* instead",
                                0,
                                IsError = true,
                                IsHidden = true)>]
@@ -1410,13 +1095,13 @@ module Tablecloth =
 
   module Option =
 
-    [<CompilerMessageAttribute("Option.unwrapUnsafe is banned, use Prelude.Exception.unwrapOption* instead",
+    [<CompilerMessageAttribute("Option.unwrapUnsafe is banned, use Exception.unwrapOption* instead",
                                0,
                                IsError = true,
                                IsHidden = true)>]
     let unwrapUnsafe = Tablecloth.Option.unwrapUnsafe
 
-    [<CompilerMessageAttribute("Option.get is banned, use Prelude.Exception.unwrapOption* instead",
+    [<CompilerMessageAttribute("Option.get is banned, use Exception.unwrapOption* instead",
                                0,
                                IsError = true,
                                IsHidden = true)>]
