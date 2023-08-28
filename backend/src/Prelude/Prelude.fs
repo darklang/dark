@@ -418,15 +418,6 @@ let randomString (length : int) : string =
 
 
 // ----------------------
-// Lazy utilities
-// ----------------------
-module Lazy =
-  let inline force (l : Lazy<_>) = l.Force()
-  let map f l = lazy ((f << force) l)
-  let bind f l = lazy ((force << f << force) l)
-
-
-// ----------------------
 // Json auto-serialization
 // ----------------------
 module Json =

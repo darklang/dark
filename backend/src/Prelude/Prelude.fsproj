@@ -18,6 +18,7 @@
     <Compile Include="Tuple2.fs" />
     <Compile Include="Base64.fs" />
     <Compile Include="UTF8.fs" />
+    <Compile Include="Lazy.fs" />
     <Compile Include="String.fs" />
     <Compile Include="Map.fs" />
     <Compile Include="HashSet.fs" />
