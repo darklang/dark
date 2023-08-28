@@ -151,14 +151,18 @@ let allConstants : Ply<List<PT.PackageConstant.T>> =
 
 open System
 
-let cachedPly (expiration : TimeSpan) (f : Ply<'a>) : unit -> Ply<'a> =
+let cachedPly
+  (ignoreCacheIfThis : 'a)
+  (expiration : TimeSpan)
+  (f : Ply<'a>)
+  : unit -> Ply<'a> =
   let mutable value = None
   let mutable lastUpdate = DateTime.MinValue
 
   fun () ->
     uply {
       match value, DateTime.Now - lastUpdate > expiration with
-      | Some value, false -> return value
+      | Some value, false when value <> ignoreCacheIfThis -> return value
       | _ ->
         let! newValue = f
         value <- Some newValue
@@ -167,10 +171,10 @@ let cachedPly (expiration : TimeSpan) (f : Ply<'a>) : unit -> Ply<'a> =
     }
 
 let packageManager : RT.PackageManager =
-  let cacheDuration = (System.TimeSpan.FromMinutes 1.)
-  let allTypes = cachedPly cacheDuration allTypes
-  let allFunctions = cachedPly cacheDuration allFunctions
-  let allConstants = cachedPly cacheDuration allConstants
+  let cacheDuration = System.TimeSpan.FromMinutes 1.
+  let allTypes = cachedPly [] cacheDuration allTypes
+  let allFunctions = cachedPly [] cacheDuration allFunctions
+  let allConstants = cachedPly [] cacheDuration allConstants
 
   { getType =
       fun typ ->

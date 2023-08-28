@@ -203,9 +203,6 @@ let rec serialize
               "Incorrect record type"
               [ "actual", actualTypeName; "expected", typeName ]
           | _ ->
-            debuG
-              "This seems to be breaking local-exec load-packages-dark"
-              (dval, typ, LibExecution.DvalReprDeveloper.dvalTypeName dval)
             Exception.raiseInternal
               "Expected a DRecord but got something else"
               [ "type", LibExecution.DvalReprDeveloper.dvalTypeName dval ]

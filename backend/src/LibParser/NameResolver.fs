@@ -46,7 +46,7 @@ let empty : NameResolver =
     userFns = Set.empty
     userConstants = Set.empty
 
-    allowError = true
+    allowError = false
 
     packageManager = None }
 
@@ -151,7 +151,7 @@ let fromExecutionState (state : RT.ExecutionState) : NameResolver =
 
     allowError = true
 
-    packageManager = None }
+    packageManager = Some state.packageManager }
 
 
 // TODO: there's a lot going on here to resolve the outer portion of the name and to
