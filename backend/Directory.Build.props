@@ -14,5 +14,7 @@
     <BaseIntermediateOutputPath>$(DarkBuildDir)/obj/$(MSBuildProjectName)</BaseIntermediateOutputPath>
     <GenerateDocumentation>false</GenerateDocumentation>
     <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
+    <!-- Run some parts of compilation in parallel: https://blog.nojaf.com/2023/08/22/unleashing-parallel-processing-in-your-fsharp-compiler/ -->
+    <OtherFlags>$(OtherFlags) --test:GraphBasedChecking --test:ParallelOptimization --test:ParallelIlxGen</OtherFlags>
   </PropertyGroup>
 </Project>

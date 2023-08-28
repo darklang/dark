@@ -4,9 +4,59 @@
     [
       "request",
       {
-        "DIncomplete": [
+        "DError": [
           {
-            "SourceNone": []
+            "RuntimeError": [
+              {
+                "SourceNone": []
+              },
+              {
+                "DEnum": [
+                  {
+                    "Package": [
+                      {
+                        "owner": "Darklang",
+                        "modules": [
+                          "LanguageTools",
+                          "RuntimeErrors"
+                        ],
+                        "name": {
+                          "TypeName": [
+                            "Error"
+                          ]
+                        },
+                        "version": 0
+                      }
+                    ]
+                  },
+                  {
+                    "Package": [
+                      {
+                        "owner": "Darklang",
+                        "modules": [
+                          "LanguageTools",
+                          "RuntimeErrors"
+                        ],
+                        "name": {
+                          "TypeName": [
+                            "Error"
+                          ]
+                        },
+                        "version": 0
+                      }
+                    ]
+                  },
+                  "OldStringErrorTODO",
+                  [
+                    {
+                      "DString": [
+                        "some error string"
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
           }
         ]
       }
@@ -18,11 +68,61 @@
       7,
       "testFn",
       2,
-      "F7sGV2UPRMM",
+      "IbAwLOP5b0E",
       {
-        "DIncomplete": [
+        "DError": [
           {
-            "SourceNone": []
+            "RuntimeError": [
+              {
+                "SourceNone": []
+              },
+              {
+                "DEnum": [
+                  {
+                    "Package": [
+                      {
+                        "owner": "Darklang",
+                        "modules": [
+                          "LanguageTools",
+                          "RuntimeErrors"
+                        ],
+                        "name": {
+                          "TypeName": [
+                            "Error"
+                          ]
+                        },
+                        "version": 0
+                      }
+                    ]
+                  },
+                  {
+                    "Package": [
+                      {
+                        "owner": "Darklang",
+                        "modules": [
+                          "LanguageTools",
+                          "RuntimeErrors"
+                        ],
+                        "name": {
+                          "TypeName": [
+                            "Error"
+                          ]
+                        },
+                        "version": 0
+                      }
+                    ]
+                  },
+                  "OldStringErrorTODO",
+                  [
+                    {
+                      "DString": [
+                        "some error string"
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
           }
         ]
       }

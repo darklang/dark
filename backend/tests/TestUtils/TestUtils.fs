@@ -12,6 +12,7 @@ open LibCloud.Db
 open Prelude
 open Tablecloth
 
+module DarkDateTime = LibExecution.DarkDateTime
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
@@ -119,11 +120,15 @@ let testUserRecordType
 let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
   { tlid = gid (); name = name; typ = typ; version = 0 }
 
-let builtIns : RT.BuiltIns =
+let builtIns
+  (httpConfig : StdLibExecution.Libs.HttpClient.Configuration)
+  : RT.BuiltIns =
   let (fns, types, constants) =
     LibExecution.StdLib.combine
       [ LibTest.contents
-        LibCloudExecution.CloudExecution.builtins
+        StdLibExecution.StdLib.contents httpConfig
+        StdLibCloudExecution.StdLib.contents
+        StdLibDarkInternal.StdLib.contents
         StdLibCli.StdLib.contents ]
       []
       []
@@ -131,14 +136,29 @@ let builtIns : RT.BuiltIns =
     fns = fns |> Map.fromListBy (fun fn -> fn.name)
     constants = constants |> Map.fromListBy (fun c -> c.name) }
 
+let cloudBuiltIns =
+  let httpConfig =
+    { LibCloudExecution.HttpClient.configuration with timeoutInMs = 5000 }
+  builtIns httpConfig
+
+let localBuiltIns =
+  let httpConfig =
+    { StdLibExecution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
+  builtIns httpConfig
+
 // A resolver that only knows about builtins. If you need user code in the parser,
 // you need to add in the names of the fns/types/etc
 let builtinResolver =
   LibParser.NameResolver.fromBuiltins (
-    Map.values builtIns.fns,
-    Map.values builtIns.types,
-    Map.values builtIns.constants
+    Map.values localBuiltIns.fns,
+    Map.values localBuiltIns.types,
+    Map.values localBuiltIns.constants
   )
+
+let packageManager = LibCloud.PackageManager.packageManager
+
+let resolverWithBuiltinsAndPackageManager =
+  { builtinResolver with packageManager = Some packageManager }
 
 let executionStateFor
   (canvasID : CanvasID)
@@ -151,9 +171,6 @@ let executionStateFor
   : Task<RT.ExecutionState> =
   task {
     let! domains = Canvas.domainsForCanvasID canvasID
-    let config : RT.Config =
-      // Short timeout so that tests using the timeout complete quickly
-      { allowLocalHttpAccess = allowLocalHttpAccess; httpclientTimeoutInMs = 5000 }
 
     let program : RT.Program =
       { canvasID = canvasID
@@ -207,16 +224,17 @@ let executionStateFor
     // things that notify, while Exceptions have historically been unexpected errors
     // in the tests and so are worth watching out for.
     let notifier : RT.Notifier = fun _state _msg _tags -> ()
+
+    let builtIns = if allowLocalHttpAccess then localBuiltIns else cloudBuiltIns
     let state =
       Exe.createState
         builtIns
-        LibCloud.PackageManager.packageManager
+        packageManager
         (Exe.noTracing RT.Real)
         exceptionReporter
         notifier
         (id 7)
         program
-        config
     let state = { state with test = testContext }
     return state
   }
@@ -309,11 +327,12 @@ let testListUsingPropertyAsync
         })
       list)
 
+
+
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
-  | RT.DError(_, str) -> RT.DError(RT.SourceNone, str)
-  | RT.DIncomplete _ -> RT.DIncomplete(RT.SourceNone)
+  | RT.DError(_, rte) -> RT.DError(RT.SourceNone, rte)
   | dv -> dv
 
 open LibExecution.RuntimeTypes
@@ -358,7 +377,6 @@ module Expect =
 
     match dv with
     | DDateTime _
-    | DIncomplete _
     | DInt _
     | DDateTime _
     | DBool _
@@ -402,6 +420,7 @@ module Expect =
 
     match actual, expected with
     | LPVariable(_, name), LPVariable(_, name') -> check path name name'
+    | LPUnit(_), LPUnit(_) -> ()
     | LPTuple(_, first, second, theRest), LPTuple(_, first', second', theRest') ->
       let all = first :: second :: theRest
       let all' = first' :: second' :: theRest'
@@ -413,13 +432,14 @@ module Expect =
 
     // exhaustive match
     | LPVariable _, _
+    | LPUnit _, _
     | LPTuple _, _ -> errorFn path (string actual) (string expected)
 
 
   let rec userTypeNameEqualityBaseFn
     (path : Path)
-    (actual : TypeName.T)
-    (expected : TypeName.T)
+    (actual : TypeName.TypeName)
+    (expected : TypeName.TypeName)
     (errorFn : Path -> string -> string -> unit)
     : unit =
     let err () = errorFn path (string actual) (string expected)
@@ -434,8 +454,6 @@ module Expect =
       if a.modules <> e.modules then err ()
       if a.name <> e.name then err ()
       if a.version <> e.version then err ()
-    | FQName.Unknown a, FQName.Unknown e -> if a <> e then err ()
-    | FQName.Unknown _, _
     | FQName.BuiltIn _, _
     | FQName.UserProgram _, _
     | FQName.Package _, _ -> err ()
@@ -770,9 +788,8 @@ module Expect =
       List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) fields fields'
       ()
 
-    | DIncomplete _, DIncomplete _ -> ()
-    | DError(_, msg1), DError(_, msg2) ->
-      check path (msg1.Replace("_v0", "")) (msg2.Replace("_v0", ""))
+    | DError(_, err1), DError(_, err2) ->
+      check path (RuntimeError.toDT err1) (RuntimeError.toDT err2)
     | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
       let vals l = NEList.map Tuple2.second l
       check ("lambdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
@@ -794,7 +811,6 @@ module Expect =
     | DChar _, _
     | DPassword _, _
     | DFnVal _, _
-    | DIncomplete _, _
     | DError _, _
     | DDB _, _
     | DUuid _, _
@@ -866,7 +882,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DChar _
     | DPassword _
     | DFnVal _
-    | DIncomplete _
     | DError _
     | DDB _
     | DUuid _
@@ -982,7 +997,10 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6", TString)
     ("list", DList [ Dval.int 4 ], TList TInt)
     ("list with derror",
-     DList [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ],
+     DList
+       [ Dval.int 3
+         DError(SourceNone, RuntimeError.oldError "some error string")
+         Dval.int 4 ],
      TList TInt)
     ("record",
      DRecord(
@@ -990,21 +1008,21 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        S.fqUserTypeName [ "Two"; "Modules" ] "FooAlias" 0,
        Map.ofList [ "foo", Dval.int 5 ]
      ),
-     TCustomType(S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0, []))
+     TCustomType(Ok(S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0), []))
     ("record2",
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "FooAlias" 0,
        Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
      ),
-     TCustomType(S.fqUserTypeName [] "Foo" 0, []))
+     TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
     ("record3",
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
-     TCustomType(S.fqUserTypeName [] "Foo" 0, []))
+     TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
     // More Json.NET tests
     ("record4",
      DRecord(
@@ -1012,21 +1030,22 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        S.fqUserTypeName [] "Foo" 0,
        Map.ofList [ "foo\\\\bar", Dval.int 5 ]
      ),
-     TCustomType(S.fqUserTypeName [] "Foo" 0, []))
+     TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
     ("record5",
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
        Map.ofList [ "$type", Dval.int 5 ]
      ),
-     TCustomType(S.fqUserTypeName [] "Foo" 0, []))
+     TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
     ("record with error",
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       Map.ofList [ "v", DError(SourceNone, "some error string") ]
+       Map.ofList
+         [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ]
      ),
-     TCustomType(S.fqUserTypeName [] "Foo" 0, []))
+     TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
     ("dict", DDict(Map.ofList [ "foo", Dval.int 5 ]), TDict TInt)
     ("dict3",
      DDict(Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]),
@@ -1035,11 +1054,12 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("dict4", DDict(Map.ofList [ "foo\\\\bar", Dval.int 5 ]), TDict TInt)
     ("dict5", DDict(Map.ofList [ "$type", Dval.int 5 ]), TDict TInt)
     ("dict with error",
-     DDict(Map.ofList [ "v", DError(SourceNone, "some error string") ]),
+     DDict(
+       Map.ofList
+         [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ]
+     ),
      TDict TInt)
-    ("incomplete", DIncomplete SourceNone, TInt)
-    ("incomplete2", DIncomplete(SourceID(14219007199254740993UL, 8UL)), TBool)
-    ("error", DError(SourceNone, "some error string"), TString)
+    ("error", DError(SourceNone, RuntimeError.oldError "some error string"), TString)
     ("lambda",
      DFnVal(
        Lambda

@@ -36,13 +36,11 @@ let createState
   (notify : RT.Notifier)
   (tlid : tlid)
   (program : RT.Program)
-  (config : RT.Config)
   : RT.ExecutionState =
   { builtIns = builtIns
     packageManager = packageManager
     tracing = tracing
     program = program
-    config = config
     test = noTestContext
     reportException = reportException
     notify = notify
@@ -69,7 +67,7 @@ let executeExpr
 let executeFunction
   (state : RT.ExecutionState)
   (callerID : id)
-  (name : RT.FnName.T)
+  (name : RT.FnName.FnName)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
   : Task<RT.Dval> =
@@ -81,6 +79,20 @@ let executeFunction
     return result
   }
 
+let runtimeErrorToString
+  (state : RT.ExecutionState)
+  (rte : RT.RuntimeError)
+  : Task<RT.Dval> =
+  task {
+    let fnName =
+      RT.FnName.fqPackage
+        "Darklang"
+        [ "LanguageTools"; "RuntimeErrors"; "Error" ]
+        "toString"
+        0
+    let args = NEList.singleton (RT.RuntimeError.toDT rte)
+    return! executeFunction state 8UL fnName [] args
+  }
 
 /// Return a function to trace TLIDs (add it to state via
 /// state.tracing.traceTLID), and a mutable set which updates when the

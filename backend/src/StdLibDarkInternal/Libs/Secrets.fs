@@ -34,7 +34,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "getAll" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TList(TCustomType(FQName.BuiltIn(typ "Secret" 0), []))
+      returnType = TList(TCustomType(Ok(FQName.BuiltIn(typ "Secret" 0)), []))
       description = "Get all secrets in the canvas"
       fn =
         (function

@@ -66,9 +66,9 @@ let rec preTraversal
   (exprFn : Expr -> Expr)
   (exprPipeFn : PipeExpr -> PipeExpr)
   (typeRefFn : TypeReference -> TypeReference)
-  (fqtnFn : TypeName.T -> TypeName.T)
-  (fqfnFn : FnName.T -> FnName.T)
-  (fqctFn : ConstantName.T -> ConstantName.T)
+  (fqtnFn : TypeName.TypeName -> TypeName.TypeName)
+  (fqfnFn : FnName.FnName -> FnName.FnName)
+  (fqctFn : ConstantName.ConstantName -> ConstantName.ConstantName)
   (letPatternFn : LetPattern -> LetPattern)
   (matchPatternFn : MatchPattern -> MatchPattern)
   (expr : Expr)
@@ -77,7 +77,8 @@ let rec preTraversal
   let rec preTraversalLetPattern (pat : LetPattern) : LetPattern =
     let f = preTraversalLetPattern
     match letPatternFn pat with
-    | LPVariable _ -> letPatternFn pat
+    | LPVariable _
+    | LPUnit _ -> letPatternFn pat
     | LPTuple(id, p1, p2, pats) -> LPTuple(id, f p1, f p2, List.map f pats)
 
   let rec preTraverseMatchPattern (pat : MatchPattern) : MatchPattern =

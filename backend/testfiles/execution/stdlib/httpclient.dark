@@ -22,7 +22,7 @@ module NoInternal =
                                                 "basic dXNlcm5hbWU6cGFzc3dvcmQ=")
 
   HttpClient.basicAuth "" "" = ("authorization", "basic Og==")
-  HttpClient.basicAuth "-" "" = Test.runtimeError "Username cannot contain a hyphen"
+  HttpClient.basicAuth "-" "" = Test.derrorMessage "Username cannot contain a hyphen"
   HttpClient.basicAuth "" "-" = ("authorization", "basic Oi0=")
   HttpClient.basicAuth ":" "" = ("authorization", "basic Ojo=")
   HttpClient.basicAuth "" ":" = ("authorization", "basic Ojo=")
@@ -41,8 +41,8 @@ module NoInternal =
 
 // type errors for bad `headers` are OK
 // CLEANUP this would be better once DList includes typeRefs:
-//Test.runtimeError "In HttpClient.request's 3rd argument (`headers`), the value should be a List<String * String>. However, a List<Int> ([1]) was passed instead.\n\nExpected: List<String * String>\nActual: an List<Int>: [1]"
-HttpClient.request "get" "https://darklang.com" [ 1 ] Bytes.empty = Test.runtimeError
+//Test.runtimeError "In HttpClient.request's 3rd argument (`headers`), the value should be a List<String * String>. However, a List<Int> ([1]) was passed instead.\n\nExpected: List<String * String>\nActual: a List<Int>: [1]"
+HttpClient.request "get" "https://darklang.com" [ 1 ] Bytes.empty = Test.derrorMessage
   "Expected request headers to be a `List<String*String>`, but got: 1"
 
 HttpClient.request "get" "https://darklang.com" [ ("", "") ] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error

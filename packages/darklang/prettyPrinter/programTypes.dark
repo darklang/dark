@@ -9,7 +9,7 @@ module Darklang =
     module ProgramTypes =
 
       let nameResolutionError
-        (nr: PACKAGE.Darklang.LanguageTools.Errors.NameResolution.Error)
+        (nr: PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error)
         : String =
         String.join nr.names "."
 
@@ -48,10 +48,15 @@ module Darklang =
             (namePart: String)
             (u: PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.UserProgram)
             : String =
+            let modulesPart =
+              match u.modules with
+              | [] -> ""
+              | modules -> modules |> String.join "." |> (fun parts -> $"{parts}.")
+
             let versionPart =
               if u.version == 0 then "" else $"_v{Int.toString u.version}"
 
-            $"{namePart}{versionPart}"
+            $"{modulesPart}{namePart}{versionPart}"
 
 
         module Package =
@@ -123,12 +128,11 @@ module Darklang =
               p
 
         let atDefinition
-          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T)
+          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName)
           : String =
           match t with
           | BuiltIn b ->
-            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.BuiltIn.atDefinition
-              b
+            "(unexpected attempt to print a stdlib type name _definition_)"
           | UserProgram u ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.UserProgram.atDefinition
               u
@@ -137,7 +141,7 @@ module Darklang =
               p
 
         let fullForReference
-          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T)
+          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName)
           : String =
           match t with
           | BuiltIn b ->
@@ -197,7 +201,7 @@ module Darklang =
               p
 
         let atDefinition
-          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.T)
+          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.ConstantName)
           : String =
           match t with
           | BuiltIn b ->
@@ -211,7 +215,7 @@ module Darklang =
               p
 
         let fullForReference
-          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.T)
+          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.ConstantName)
           : String =
           match t with
           | BuiltIn b ->
@@ -271,7 +275,7 @@ module Darklang =
               p
 
         let atDefinition
-          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T)
+          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.FnName)
           : String =
           match t with
           | BuiltIn _b ->
@@ -283,7 +287,7 @@ module Darklang =
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.Package.atDefinition p
 
         let fullForReference
-          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T)
+          (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.FnName)
           : String =
           match t with
           | BuiltIn b ->
@@ -569,7 +573,7 @@ module Darklang =
           $"{fnNamePart}{typeArgsPart} {argsPart}"
 
         // PACKAGE.Darklang.LanguageTools.ID *
-        // typeName: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T *
+        // typeName: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName *
         // caseName: String *
         // fields: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
         | EPipeEnum(_id, typeName, caseName, fields) ->
@@ -765,7 +769,7 @@ module Darklang =
               PACKAGE.Darklang.PrettyPrinter.ProgramTypes.pipeExpr pipeExpr)
             |> String.join " \n|> "
 
-          $"{exprPart} \n|> {pipesPart}"
+          $"{exprPart} \n|> {pipeParts}"
 
 
 
@@ -849,15 +853,18 @@ module Darklang =
 
           $"{s}"
 
-      let deprecation<'name>
-        (m: 'name -> String)
-        (d: PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation)
-        : String =
-        match d with
-        | NotDeprecated -> "NotDeprecated"
-        | RenamedTo name -> $"RenamedTo {m name}"
-        | ReplacedBy name -> $"ReplacedBy {m name}"
-        | DeprecatedBecause reason -> $"DeprecatedBecause {reason}"
+      // CLEANUP this isn't currently used
+      // if/when we uncomment this, take note that the `m` argument is a function
+      // that we may not fully yet support (esp in name-resolution)
+      // let deprecation<'name>
+      //   (m: 'name -> String)
+      //   (d: PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation)
+      //   : String =
+      //   match d with
+      //   | NotDeprecated -> "NotDeprecated"
+      //   | RenamedTo name -> $"RenamedTo {m name}"
+      //   | ReplacedBy name -> $"ReplacedBy {m name}"
+      //   | DeprecatedBecause reason -> $"DeprecatedBecause {reason}"
 
       module TypeDeclaration =
         let recordField
@@ -891,7 +898,8 @@ module Darklang =
 
 
       let customType
-        (d: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeDeclaration.T)
+        (d:
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
         : String =
         match d.definition with
         | Alias typeRef ->
@@ -938,7 +946,7 @@ module Darklang =
           | REPL name -> $"[<REPL({name})>]"
 
       let handler
-        (h: PACKAGE.Darklang.LanguageTools.ProgramTypes.Handler.T)
+        (h: PACKAGE.Darklang.LanguageTools.ProgramTypes.Handler.Handler)
         : String =
         let specPart =
           PACKAGE.Darklang.PrettyPrinter.ProgramTypes.Handler.spec h.spec
@@ -946,7 +954,7 @@ module Darklang =
         $"{specPart}\nlet _handler _ignored =\n  {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr h.ast}"
 
 
-      let db (db: PACKAGE.Darklang.LanguageTools.ProgramTypes.DB.T) : String =
+      let db (db: PACKAGE.Darklang.LanguageTools.ProgramTypes.DB) : String =
         let versionPart =
           if db.version == 0 then
             ""
@@ -992,7 +1000,7 @@ module Darklang =
           $"({p.name}: {typPart})"
 
       let userFunction
-        (u: PACKAGE.Darklang.LanguageTools.ProgramTypes.UserFunction.T)
+        (u: PACKAGE.Darklang.LanguageTools.ProgramTypes.UserFunction.UserFunction)
         : String =
         // TODO: do something with description and deprecated
         // TODO: shouldn't there be modules here somewhere?
@@ -1016,9 +1024,9 @@ module Darklang =
 
       // module Toplevel =
       //   type T =
-      //     | TLHandler of Handler.T
-      //     | TLDB of DB.T
-      //     | TLFunction of UserFunction.T
+      //     | TLHandler of Handler.Handler
+      //     | TLDB of DB
+      //     | TLFunction of UserFunction.UserFunction
       //     | TLType of UserType.T
 
 
@@ -1036,7 +1044,7 @@ module Darklang =
           $"({p.name}: {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference p.typ})"
 
       let packageFn
-        (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T)
+        (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn)
         : String =
         // TODO: handle `deprecated`, `description`
         let namePart =
@@ -1067,7 +1075,7 @@ module Darklang =
 
 
       let packageType
-        (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T)
+        (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType)
         : String =
         // TODO: take care of deprecated and description
         let namePart =
@@ -1091,7 +1099,7 @@ module Darklang =
 
 
       let packageConstant
-        (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T)
+        (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant)
         : String =
         let namePart =
           PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.Package.atDefinition

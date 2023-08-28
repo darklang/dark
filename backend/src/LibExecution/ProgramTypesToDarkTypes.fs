@@ -1,29 +1,33 @@
-module StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
+module LibExecution.ProgramTypesToDarkTypes
 
 open Prelude
 open Tablecloth
 
-open LibExecution.RuntimeTypes
-module PT = LibExecution.ProgramTypes
-open LibExecution.StdLib.Shortcuts
+open RuntimeTypes
+module PT = ProgramTypes
+module NRE = LibExecution.NameResolutionError
+module D = LibExecution.DvalDecoder
 
 let languageToolsTyp
   (submodules : List<string>)
   (name : string)
   (version : int)
-  : TypeName.T =
+  : TypeName.TypeName =
   TypeName.fqPackage "Darklang" ("LanguageTools" :: submodules) name version
 
 
-
-let ptTyp (submodules : List<string>) (name : string) (version : int) : TypeName.T =
+let ptTyp
+  (submodules : List<string>)
+  (name : string)
+  (version : int)
+  : TypeName.TypeName =
   languageToolsTyp ("ProgramTypes" :: submodules) name version
 
 let errorsTyp
   (submodules : List<string>)
   (name : string)
   (version : int)
-  : TypeName.T =
+  : TypeName.TypeName =
   languageToolsTyp ("Errors" :: submodules) name version
 
 
@@ -42,65 +46,14 @@ module Sign =
     | DEnum(_, _, "Negative", []) -> Negative
     | _ -> Exception.raiseInternal "Invalid sign" []
 
-module Decode =
-  let unwrap = Exception.unwrapOptionInternal
-
-  let field (name : string) (m : DvalMap) : Dval =
-    m |> Map.get name |> unwrap $"Expected {name}' field" []
-
-  let string (name : string) (m : DvalMap) : string =
-    m
-    |> field name
-    |> Dval.asString
-    |> unwrap $"Expected '{name}' field to be a string" []
-
-  let list (name : string) (m : DvalMap) : List<Dval> =
-    m
-    |> field name
-    |> Dval.asList
-    |> unwrap $"Expected '{name}' field to be a list" []
-
-  let stringList (name : string) (m : DvalMap) : List<string> =
-    m
-    |> list name
-    |> List.map (fun s ->
-      s |> Dval.asString |> unwrap $"Expected string values in '{name}' list" [])
-
-  let int64 (name : string) (m : DvalMap) : int64 =
-    m
-    |> field name
-    |> Dval.asInt
-    |> unwrap $"Expected '{name}' field to be an int" []
-
-  let uint64 (name : string) (m : DvalMap) : uint64 =
-    m
-    |> field name
-    |> Dval.asInt
-    |> unwrap $"Expected '{name}' field to be an int" []
-    |> uint64
-
-  let int (name : string) (m : DvalMap) : int = m |> int64 name |> int
-
-  let uuid (name : string) (m : DvalMap) : System.Guid =
-    m
-    |> field name
-    |> Dval.asUuid
-    |> unwrap $"Expected '{name}' field to be a uuid" []
-
-
-
-module D = Decode
 
 
 module FQName =
-
-
-  let ownerField = D.string "owner"
-  let modulesField = D.stringList "modules"
+  let ownerField = D.stringField "owner"
+  let modulesField = D.stringListField "modules"
 
   let nameField = D.field "name"
-  let versionField = D.int "version"
-
+  let versionField = D.intField "version"
 
   module BuiltIn =
     let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.BuiltIn<'name>) : Dval =
@@ -167,16 +120,16 @@ module FQName =
       | _ -> Exception.raiseInternal "Unexpected value" []
 
 
-  let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.T<'name>) : Dval =
+  let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.FQName<'name>) : Dval =
     let caseName, fields =
       match u with
       | PT.FQName.UserProgram u -> "UserProgram", [ UserProgram.toDT nameMapper u ]
       | PT.FQName.Package u -> "Package", [ Package.toDT nameMapper u ]
       | PT.FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameMapper u ]
 
-    Dval.enum (ptTyp [ "FQName" ] "T" 0) caseName fields
+    Dval.enum (ptTyp [ "FQName" ] "FQName" 0) caseName fields
 
-  let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.T<'name> =
+  let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.FQName<'name> =
     match d with
     | DEnum(_, _, "UserProgram", [ u ]) ->
       PT.FQName.UserProgram(UserProgram.fromDT nameMapper u)
@@ -214,8 +167,8 @@ module TypeName =
     let toDT (u : PT.TypeName.Package) : Dval = FQName.Package.toDT Name.toDT u
     let fromDT (d : Dval) : PT.TypeName.Package = FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : PT.TypeName.T) : Dval = FQName.toDT Name.toDT u
-  let fromDT (d : Dval) : PT.TypeName.T = FQName.fromDT Name.fromDT d
+  let toDT (u : PT.TypeName.TypeName) : Dval = FQName.toDT Name.toDT u
+  let fromDT (d : Dval) : PT.TypeName.TypeName = FQName.fromDT Name.fromDT d
 
 
 module FnName =
@@ -245,8 +198,8 @@ module FnName =
     let toDT (u : PT.FnName.Package) : Dval = FQName.Package.toDT Name.toDT u
     let fromDT (d : Dval) : PT.FnName.Package = FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : PT.FnName.T) : Dval = FQName.toDT Name.toDT u
-  let fromDT (d : Dval) : PT.FnName.T = FQName.fromDT Name.fromDT d
+  let toDT (u : PT.FnName.FnName) : Dval = FQName.toDT Name.toDT u
+  let fromDT (d : Dval) : PT.FnName.FnName = FQName.fromDT Name.fromDT d
 
 module ConstantName =
   module Name =
@@ -280,81 +233,25 @@ module ConstantName =
     let fromDT (d : Dval) : PT.ConstantName.Package =
       FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : PT.ConstantName.T) : Dval = FQName.toDT Name.toDT u
-  let fromDT (d : Dval) : PT.ConstantName.T = FQName.fromDT Name.fromDT d
-
-
+  let toDT (u : PT.ConstantName.ConstantName) : Dval = FQName.toDT Name.toDT u
+  let fromDT (d : Dval) : PT.ConstantName.ConstantName = FQName.fromDT Name.fromDT d
 
 module NameResolution =
-  module ErrorType =
-
-    let toDT (err : LibExecution.Errors.NameResolution.ErrorType) : Dval =
-      let caseName, fields =
-        match err with
-        | LibExecution.Errors.NameResolution.NotFound -> "NotFound", []
-        | LibExecution.Errors.NameResolution.MissingModuleName ->
-          "MissingModuleName", []
-        | LibExecution.Errors.NameResolution.InvalidPackageName ->
-          "InvalidPackageName", []
-
-      Dval.enum (errorsTyp [ "NameResolution" ] "ErrorType" 0) caseName fields
-
-    let fromDT (d : Dval) : LibExecution.Errors.NameResolution.ErrorType =
-      match d with
-      | DEnum(_, _, "NotFound", []) -> LibExecution.Errors.NameResolution.NotFound
-      | DEnum(_, _, "MissingModuleName", []) ->
-        LibExecution.Errors.NameResolution.MissingModuleName
-      | DEnum(_, _, "InvalidPackageName", []) ->
-        LibExecution.Errors.NameResolution.InvalidPackageName
-      | _ -> Exception.raiseInternal "Invalid NameResolutionErrorType" []
-
-  module NameType =
-    let toDT (err : LibExecution.Errors.NameResolution.NameType) : Dval =
-      let caseName, fields =
-        match err with
-        | LibExecution.Errors.NameResolution.Function -> "Function", []
-        | LibExecution.Errors.NameResolution.Type -> "Type", []
-        | LibExecution.Errors.NameResolution.Constant -> "Constant", []
-
-      Dval.enum (errorsTyp [ "NameResolution" ] "NameType" 0) caseName fields
-
-    let fromDT (d : Dval) : LibExecution.Errors.NameResolution.NameType =
-      match d with
-      | DEnum(_, _, "Function", []) -> LibExecution.Errors.NameResolution.Function
-      | DEnum(_, _, "Type", []) -> LibExecution.Errors.NameResolution.Type
-      | DEnum(_, _, "Constant", []) -> LibExecution.Errors.NameResolution.Constant
-      | _ -> Exception.raiseInternal "Invalid NameResolutionNameType" []
-
-
-  module Error =
-    let toDT (err : LibExecution.Errors.NameResolution.Error) : Dval =
-      Dval.record
-        (errorsTyp [ "NameResolution" ] "Error" 0)
-        [ "errorType", ErrorType.toDT err.errorType
-          "nameType", NameType.toDT err.nameType
-          "names", DList(List.map DString err.names) ]
-
-    let fromDT (d : Dval) : LibExecution.Errors.NameResolution.Error =
-      match d with
-      | DRecord(_, _, fields) ->
-        let errorType = fields |> D.field "errorType" |> ErrorType.fromDT
-        let nameType = fields |> D.field "nameType" |> NameType.fromDT
-        let names = fields |> D.stringList "names"
-
-        { errorType = errorType; names = names; nameType = nameType }
-
-      | _ -> Exception.raiseInternal "Invalid NameResolutionError" []
-
   let toDT (f : 'p -> Dval) (result : PT.NameResolution<'p>) : Dval =
     match result with
     | Ok name -> Dval.resultOk (f name)
-    | Error err -> Dval.resultError (Error.toDT err)
-
+    | Error err ->
+      Dval.resultError (
+        err |> NRE.RTE.toRuntimeError |> RuntimeTypes.RuntimeError.toDT
+      )
 
   let fromDT (f : Dval -> 'a) (d : Dval) : PT.NameResolution<'a> =
     match d with
     | DEnum(tn, _, "Ok", [ v ]) when tn = Dval.resultType -> Ok(f v)
-    | DEnum(tn, _, "Error", [ v ]) when tn = Dval.resultType -> Error(Error.fromDT v)
+
+    | DEnum(tn, _, "Error", [ v ]) when tn = Dval.resultType ->
+      Error(NRE.RTE.fromRuntimeError (RuntimeError.fromDT v))
+
     | _ -> Exception.raiseInternal "Invalid NameResolution" []
 
 module TypeReference =
@@ -430,6 +327,7 @@ module LetPattern =
     let name, fields =
       match p with
       | PT.LPVariable(id, name) -> "LPVariable", [ DInt(int64 id); DString name ]
+      | PT.LPUnit id -> "LPUnit", [ DInt(int64 id) ]
       | PT.LPTuple(id, first, second, theRest) ->
         "LPTuple",
         [ DInt(int64 id); toDT first; toDT second; DList(List.map toDT theRest) ]
@@ -441,6 +339,7 @@ module LetPattern =
     match d with
     | DEnum(_, _, "LPVariable", [ DInt id; DString name ]) ->
       PT.LPVariable(uint64 id, name)
+    | DEnum(_, _, "LPUnit", [ DInt id ]) -> PT.LPUnit(uint64 id)
     | DEnum(_, _, "LPTuple", [ DInt id; first; second; DList theRest ]) ->
       PT.LPTuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
     | _ -> Exception.raiseInternal "Invalid LetPattern" []
@@ -963,9 +862,9 @@ module TypeDeclaration =
     let fromDT (d : Dval) : PT.TypeDeclaration.RecordField =
       match d with
       | DRecord(_, _, fields) ->
-        let name = fields |> D.string "name"
+        let name = fields |> D.stringField "name"
         let typ = fields |> D.field "typ" |> TypeReference.fromDT
-        let description = D.string "description" fields
+        let description = D.stringField "description" fields
 
         { name = name; typ = typ; description = description }
 
@@ -991,7 +890,7 @@ module TypeDeclaration =
           | _ ->
             Exception.raiseInternal "Expected label to be an option of string" []
 
-        let description = fields |> D.string "description"
+        let description = fields |> D.stringField "description"
 
         { typ = typ; label = label; description = description }
 
@@ -1009,9 +908,9 @@ module TypeDeclaration =
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumCase =
       match d with
       | DRecord(_, _, attributes) ->
-        let name = D.string "name" attributes
-        let fields = attributes |> D.list "fields" |> List.map EnumField.fromDT
-        let description = attributes |> D.string "description"
+        let name = D.stringField "name" attributes
+        let fields = attributes |> D.listField "fields" |> List.map EnumField.fromDT
+        let description = attributes |> D.stringField "description"
 
         { name = name; fields = fields; description = description }
 
@@ -1050,14 +949,14 @@ module TypeDeclaration =
 
   let toDT (td : PT.TypeDeclaration.T) : Dval =
     Dval.record
-      (ptTyp [ "TypeDeclaration" ] "T" 0)
+      (ptTyp [ "TypeDeclaration" ] "TypeDeclaration" 0)
       [ "typeParams", DList(List.map DString td.typeParams)
         "definition", Definition.toDT td.definition ]
 
   let fromDT (d : Dval) : PT.TypeDeclaration.T =
     match d with
     | DRecord(_, _, fields) ->
-      let typeParams = D.stringList "typeParams" fields
+      let typeParams = D.stringListField "typeParams" fields
       let definition = fields |> D.field "definition" |> Definition.fromDT
 
       { typeParams = typeParams; definition = definition }
@@ -1115,7 +1014,7 @@ module Handler =
 
   let toDT (h : PT.Handler.T) : Dval =
     Dval.record
-      (ptTyp [ "Handler" ] "T" 0)
+      (ptTyp [ "Handler" ] "Handler" 0)
       [ "tlid", DInt(int64 h.tlid)
         "ast", Expr.toDT h.ast
         "spec", Spec.toDT h.spec ]
@@ -1123,7 +1022,7 @@ module Handler =
   let fromDT (d : Dval) : PT.Handler.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
+      let tlid = fields |> D.uint64Field "tlid"
       let ast = fields |> D.field "ast" |> Expr.fromDT
       let spec = fields |> D.field "spec" |> Spec.fromDT
 
@@ -1135,7 +1034,7 @@ module Handler =
 module DB =
   let toDT (db : PT.DB.T) : Dval =
     Dval.record
-      (ptTyp [ "DB" ] "T" 0)
+      (ptTyp [] "DB" 0)
       [ "tlid", DInt(int64 db.tlid)
         "name", DString db.name
         "version", DInt db.version
@@ -1144,9 +1043,9 @@ module DB =
   let fromDT (d : Dval) : PT.DB.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
-      let name = fields |> D.string "name"
-      let version = fields |> D.int "version"
+      let tlid = fields |> D.uint64Field "tlid"
+      let name = fields |> D.stringField "name"
+      let version = fields |> D.intField "version"
       let typ = fields |> D.field "typ" |> TypeReference.fromDT
       { tlid = tlid; name = name; version = version; typ = typ }
 
@@ -1156,7 +1055,7 @@ module DB =
 module UserType =
   let toDT (userType : PT.UserType.T) : Dval =
     Dval.record
-      (ptTyp [ "UserType" ] "T" 0)
+      (ptTyp [] "UserType" 0)
       [ "tlid", DInt(int64 userType.tlid)
         "name", TypeName.UserProgram.toDT userType.name
         "description", DString userType.description
@@ -1166,10 +1065,10 @@ module UserType =
   let fromDT (d : Dval) : PT.UserType.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
+      let tlid = fields |> D.uint64Field "tlid"
       let name = fields |> D.field "name" |> TypeName.UserProgram.fromDT
       let declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
-      let description = fields |> D.string "description"
+      let description = fields |> D.stringField "description"
       let deprecated =
         fields |> D.field "deprecated" |> Deprecation.fromDT TypeName.fromDT
 
@@ -1194,9 +1093,9 @@ module UserFunction =
     let fromDT (d : Dval) : PT.UserFunction.Parameter =
       match d with
       | DRecord(_, _, fields) ->
-        let name = fields |> D.string "name"
+        let name = fields |> D.stringField "name"
         let typ = fields |> D.field "typ" |> TypeReference.fromDT
-        let description = fields |> D.string "description"
+        let description = fields |> D.stringField "description"
 
         { name = name; typ = typ; description = description }
 
@@ -1205,7 +1104,7 @@ module UserFunction =
 
   let toDT (userFn : PT.UserFunction.T) : Dval =
     Dval.record
-      (ptTyp [ "UserFunction" ] "T" 0)
+      (ptTyp [ "UserFunction" ] "UserFunction" 0)
       [ "tlid", DInt(int64 userFn.tlid)
         "name", FnName.UserProgram.toDT userFn.name
         "typeParams", DList(List.map DString userFn.typeParams)
@@ -1219,16 +1118,16 @@ module UserFunction =
   let fromDT (d : Dval) : PT.UserFunction.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
+      let tlid = fields |> D.uint64Field "tlid"
       let name = fields |> D.field "name" |> FnName.UserProgram.fromDT
-      let typeParams = fields |> D.stringList "typeParams"
+      let typeParams = fields |> D.stringListField "typeParams"
       let parameters =
         fields
-        |> D.list "parameters"
+        |> D.listField "parameters"
         |> List.map Parameter.fromDT
         |> NEList.ofListUnsafe "userFunction needs more than one parameter" []
       let returnType = fields |> D.field "returnType" |> TypeReference.fromDT
-      let description = fields |> D.string "description"
+      let description = fields |> D.stringField "description"
       let deprecated =
         fields |> D.field "deprecated" |> Deprecation.fromDT FnName.fromDT
       let body = fields |> D.field "body" |> Expr.fromDT
@@ -1247,7 +1146,7 @@ module UserFunction =
 module UserConstant =
   let toDT (userConstant : PT.UserConstant.T) : Dval =
     Dval.record
-      (ptTyp [ "UserConstant" ] "T" 0)
+      (ptTyp [] "UserConstant" 0)
       [ "tlid", DInt(int64 userConstant.tlid)
         "name", ConstantName.UserProgram.toDT userConstant.name
         "body", Const.toDT userConstant.body
@@ -1257,11 +1156,11 @@ module UserConstant =
   let fromDT (d : Dval) : PT.UserConstant.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
+      let tlid = fields |> D.uint64Field "tlid"
 
       let name = fields |> D.field "name" |> ConstantName.UserProgram.fromDT
       let body = fields |> D.field "body" |> Const.fromDT
-      let description = fields |> D.string "description"
+      let description = fields |> D.stringField "description"
       let deprecated =
         fields |> D.field "deprecated" |> Deprecation.fromDT ConstantName.fromDT
 
@@ -1276,15 +1175,15 @@ module UserConstant =
 module Secret =
   let toDT (s : PT.Secret.T) : Dval =
     Dval.record
-      (ptTyp [ "Secret" ] "T" 0)
+      (ptTyp [] "Secret" 0)
       [ "name", DString s.name; "value", DString s.value; "version", DInt s.version ]
 
   let fromDT (d : Dval) : PT.Secret.T =
     match d with
     | DRecord(_, _, fields) ->
-      let name = fields |> D.string "name"
-      let value = fields |> D.string "value"
-      let version = fields |> D.int "version"
+      let name = fields |> D.stringField "name"
+      let value = fields |> D.stringField "value"
+      let version = fields |> D.intField "version"
 
       { name = name; value = value; version = version }
 
@@ -1294,7 +1193,7 @@ module Secret =
 module PackageType =
   let toDT (p : PT.PackageType.T) : Dval =
     Dval.record
-      (ptTyp [ "PackageType" ] "T" 0)
+      (ptTyp [] "PackageType" 0)
       [ "tlid", DInt(int64 p.tlid)
         "id", DUuid p.id
         "name", TypeName.Package.toDT p.name
@@ -1305,11 +1204,11 @@ module PackageType =
   let fromDT (d : Dval) : PT.PackageType.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
-      let id = fields |> D.uuid "id"
+      let tlid = fields |> D.uint64Field "tlid"
+      let id = fields |> D.uuidField "id"
       let name = fields |> D.field "name" |> TypeName.Package.fromDT
       let declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
-      let description = fields |> D.string "description"
+      let description = fields |> D.stringField "description"
       let deprecated =
         fields |> D.field "deprecated" |> Deprecation.fromDT TypeName.fromDT
 
@@ -1335,9 +1234,9 @@ module PackageFn =
     let fromDT (d : Dval) : PT.PackageFn.Parameter =
       match d with
       | DRecord(_, _, fields) ->
-        let name = fields |> D.string "name"
+        let name = fields |> D.stringField "name"
         let typ = fields |> D.field "typ" |> TypeReference.fromDT
-        let description = fields |> D.string "description"
+        let description = fields |> D.stringField "description"
 
         { name = name; typ = typ; description = description }
 
@@ -1345,7 +1244,7 @@ module PackageFn =
 
   let toDT (p : PT.PackageFn.T) : Dval =
     Dval.record
-      (ptTyp [ "PackageFn" ] "T" 0)
+      (ptTyp [ "PackageFn" ] "PackageFn" 0)
       [ "tlid", DInt(int64 p.tlid)
         "id", DUuid p.id
         "name", FnName.Package.toDT p.name
@@ -1359,19 +1258,19 @@ module PackageFn =
   let fromDT (d : Dval) : PT.PackageFn.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
-      let id = fields |> D.uuid "id"
+      let tlid = fields |> D.uint64Field "tlid"
+      let id = fields |> D.uuidField "id"
       let name = fields |> D.field "name" |> FnName.Package.fromDT
       let body = fields |> D.field "body" |> Expr.fromDT
-      let typeParams = fields |> D.stringList "typeParams"
+      let typeParams = fields |> D.stringListField "typeParams"
 
       let parameters =
         fields
-        |> D.list "parameters"
+        |> D.listField "parameters"
         |> List.map Parameter.fromDT
         |> NEList.ofListUnsafe "PackageFn.fromDT" []
       let returnType = fields |> D.field "returnType" |> TypeReference.fromDT
-      let description = fields |> D.string "description"
+      let description = fields |> D.stringField "description"
       let deprecated =
         fields |> D.field "deprecated" |> Deprecation.fromDT FnName.fromDT
 
@@ -1390,7 +1289,7 @@ module PackageFn =
 module PackageConstant =
   let toDT (p : PT.PackageConstant.T) : Dval =
     Dval.record
-      (ptTyp [ "PackageConstant" ] "T" 0)
+      (ptTyp [] "PackageConstant" 0)
       [ "tlid", DInt(int64 p.tlid)
         "id", DUuid p.id
         "name", ConstantName.Package.toDT p.name
@@ -1401,11 +1300,11 @@ module PackageConstant =
   let fromDT (d : Dval) : PT.PackageConstant.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
-      let id = fields |> D.uuid "id"
+      let tlid = fields |> D.uint64Field "tlid"
+      let id = fields |> D.uuidField "id"
       let name = fields |> D.field "name" |> ConstantName.Package.fromDT
       let body = fields |> D.field "body" |> Const.fromDT
-      let description = fields |> D.string "description"
+      let description = fields |> D.stringField "description"
       let deprecated =
         fields |> D.field "deprecated" |> Deprecation.fromDT ConstantName.fromDT
 

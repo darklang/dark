@@ -30,7 +30,7 @@ let openAIcompletion
   let apiKey =
     let url = "http://dark-editor.dlio.localhost:11003/openai-apikey-yikes"
 
-    match WASM.HttpClient.request "get" url [] Bytes.empty with
+    match HttpClient.request "get" url [] Bytes.empty with
     | Ok response -> response.body |> String.fromBytes
 
   let openAIRequest =
@@ -48,7 +48,7 @@ let openAIcompletion
         ("content-type", "application/json") ]
 
     let openAIResponse =
-      WASM.HttpClient.request
+      HttpClient.request
         "POST"
         "https://api.openai.com/v1/chat/completions"
         headers
@@ -71,7 +71,7 @@ let parseAndSerializeProgram
   (userProgram: String)
   : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
   let response =
-    WASM.HttpClient.request
+    HttpClient.request
       "POST"
       "http://dark-editor.dlio.localhost:11003/get-program-json"
       []
@@ -156,7 +156,7 @@ let update (model: Model) (msg: Msg) : Model =
   match msg with
   | LoadSystemPrompt ->
     let systemPrompt =
-      WASM.HttpClient.request
+      HttpClient.request
         "get"
         "http://dark-editor.dlio.localhost:11003/system-prompt"
         []
@@ -181,7 +181,7 @@ let update (model: Model) (msg: Msg) : Model =
     updateStateInJS newModel
 
     let getTasksPrompt =
-      (WASM.HttpClient.request
+      (HttpClient.request
         "get"
         "http://dark-editor.dlio.localhost:11003/task-creation-prompt"
         []
@@ -404,7 +404,7 @@ let init () : Model =
 
     let getFnList =
       let response =
-        WASM.HttpClient.request
+        HttpClient.request
           "GET"
           "http://dark-editor.dlio.localhost:11003/all-canvas-functions"
           []
@@ -420,7 +420,7 @@ let init () : Model =
 
     let getTypeList =
       let response =
-        WASM.HttpClient.request
+        HttpClient.request
           "GET"
           "http://dark-editor.dlio.localhost:11003/all-canvas-types"
           []

@@ -17,7 +17,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:c05f3e0
+      - image: darklang/dark-base:575cb1d
 
 commands:
   show-large-files-and-directories:
@@ -126,7 +126,7 @@ commands:
   ##########################
   prep-container-creation:
     steps:
-      - setup_remote_docker: { docker_layer_caching: true, version: 20.10.18 }
+      - setup_remote_docker: { docker_layer_caching: true, version: 20.10.24 }
 
       # Save the docker env: type .docker-env when sshing in, then you can
       # use ./scripts/run-in-docker

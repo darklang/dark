@@ -31,7 +31,7 @@ module UserDefined =
   let enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
   enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
   UserDefined.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
-  Ok 5 = Test.runtimeError "Missing module name" // check this is allowed in the parser
+  Ok 5 = Test.derrorMessage "Missing module name" // check this is allowed in the parser
 
 
 module Package =

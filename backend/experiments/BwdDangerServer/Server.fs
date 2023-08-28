@@ -49,6 +49,8 @@ module CTPusher = LibClientTypes.Pusher
 // Read from HttpContext
 // ---------------
 
+exception GrandUserException of string
+
 let getHeader (hs : IHeaderDictionary) (name : string) : string option =
   match hs.TryGetValue name with
   | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
@@ -89,7 +91,7 @@ let getBody (ctx : HttpContext) : Task<byte array> =
           tooSlowlyMessage
         else
           e.Message
-      return Exception.raiseGrandUser $"Invalid request body: {message}"
+      return raise (GrandUserException $"Invalid request body: {message}")
   }
 
 
@@ -261,10 +263,6 @@ exception NotFoundException of msg : string with
   override this.Message = this.msg
 
 
-let config : RT.Config =
-  { allowLocalHttpAccess = true; httpclientTimeoutInMs = 10000 }
-
-
 /// ---------------
 /// Handle builtwithdark request
 /// ---------------
@@ -326,7 +324,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               LibClientTypesToCloudTypes.Pusher.eventSerializer
               (PT2RT.Handler.toRT handler)
               (Canvas.toProgram canvas)
-              config
               traceID
               inputVars
               (RealExe.InitialExecution(desc, "request", request))

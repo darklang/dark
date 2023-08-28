@@ -7,7 +7,7 @@ let userFn () : Int = 6
 ([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Int.add_v0 1 (Int.add_v0 1 3))) = [ 5 ]
 ([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Int.add_v0 1 ((+) 1 3))) = [ 5 ]
 
-([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Test.runtimeError "err")) = Test.runtimeError
+([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Test.runtimeError "err")) = Test.derrorMessage
   "err"
 
 // general
@@ -23,11 +23,11 @@ let userFn () : Int = 6
 // lambda in variable
 (let x = fun a -> a + 1 in (5 |> x |> x |> (+) 3)) = 10
 
-(let x = fun a b -> a + 1 in (7 |> x)) = Test.runtimeError
+(let x = fun a b -> a + 1 in (7 |> x)) = Test.derrorMessage
   "Expected 2 arguments, got 1"
 
 // only lambda might be placed into the variable used in the middle of the pipe
-(let x = 1 in (5 |> x |> x |> (+) 3)) = Test.runtimeError
+(let x = 1 in (5 |> x |> x |> (+) 3)) = Test.derrorMessage
   "Expected a function value, got something else: 1"
 
 // dict

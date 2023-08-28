@@ -56,14 +56,6 @@ type InternalException(message : string, metadata : Metadata, inner : exn) =
   new(msg : string, metadata : Metadata) = InternalException(msg, metadata, null)
   new(msg : string, inner : exn) = InternalException(msg, [], inner)
 
-// A grand user exception was caused by the incorrect actions of a grand user. The
-// msg is suitable to show to the grand user. We don't care about grandUser
-// exceptions, they're normal. When a message can be safely propagated to show to the
-// grand user, it's safe to use this exception, even if it's more properly defined by
-// another exception type.
-type GrandUserException(message : string, inner : exn) =
-  inherit System.Exception(message, inner)
-  new(msg : string) = GrandUserException(msg, null)
 
 /// An error during code execution, which is the responsibility of the
 /// User/Developer. The message can be shown to the developer. You can alternatively
@@ -113,7 +105,6 @@ module Exception =
       | :? InternalException as e -> e.metadata
       | :? EditorException
       | :? CodeException
-      | :? GrandUserException
       | _ -> []
     thisMetadata
 
@@ -126,7 +117,6 @@ module Exception =
       | :? InternalException as e -> e.metadata
       | :? EditorException
       | :? CodeException
-      | :? GrandUserException
       | _ -> []
     thisMetadata @ innerMetadata
 
@@ -141,11 +131,8 @@ module Exception =
       System.Console.WriteLine e.StackTrace
 
 
-  let raiseGrandUser (msg : string) =
-    let e = GrandUserException(msg)
-    callExceptionCallback e
-    raise e
-
+  // CLEANUP remove this -- most of the errors caught by this can now be raiseInternals,
+  // as the type-checker should have prevented them
   let raiseCode (msg : string) =
     let e = CodeException(msg)
     callExceptionCallback e
@@ -161,15 +148,12 @@ module Exception =
     | Ok v -> v
     | Error msg -> raiseCode msg
 
-  let raiseEditor (msg : string) =
-    let e = EditorException(msg)
-    callExceptionCallback e
-    raise e
-
   let raiseInternal (msg : string) (tags : Metadata) =
     let e = InternalException(msg, tags)
     callExceptionCallback e
     raise e
+
+
 
   let unwrapOptionInternal (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
     match o with
@@ -187,11 +171,6 @@ module Exception =
     raise e
 
   let unknownErrorMessage = "Unknown error"
-
-  let toGrandUserMessage (e : exn) : string =
-    match e with
-    | :? GrandUserException as e -> e.Message
-    | _ -> unknownErrorMessage
 
   let taskCatch (f : unit -> Task<'r>) : Task<Option<'r>> =
     task {
@@ -509,11 +488,11 @@ let debugList (msg : string) (list : List<'a>) : List<'a> =
 
 let debuGSet (msg : string) (set : Set<'a>) : unit =
   if set = Set.empty then
-    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, {{}})"
   else
-    [ $"DEBUG: {msg} (len {Set.count set}, [" ]
+    [ $"DEBUG: {msg} (len {Set.count set}, {{" ]
     @ (set |> Set.toList |> List.map (fun item -> $"  {item}"))
-    @ [ $"])" ]
+    @ [ $"}})" ]
     |> String.concat "\n"
     |> NonBlockingConsole.WriteLine
 
@@ -1024,32 +1003,6 @@ module String =
   let replace (old : string) (newStr : string) (s : string) : string =
     s.Replace(old, newStr)
 
-  /// Adds 'a' or 'an' (the indefinite article) in front of a string, based on
-  /// whether it begins with a vowel
-  let rec articleFor (nextWord : string) : string =
-    let vowels = Set [ 'A'; 'E'; 'I'; 'O'; 'U'; 'a'; 'e'; 'i'; 'o'; 'u' ]
-    if nextWord = "" then
-      ""
-    else if not (System.Char.IsLetter nextWord[0]) then
-      articleFor (nextWord.Substring(1))
-    else if Set.contains nextWord[0] vowels then
-      "an"
-    else
-      "a"
-
-  let toOrdinal (n : int) : string =
-    let suffix =
-      match n % 10 with
-      | 1 -> "st"
-      | 2 -> "nd"
-      | 3 -> "rd"
-      | _ -> "th"
-
-    string n + suffix
-
-  let truncateWithElipsis (maxLen : int) (s : string) : string =
-    if s.Length <= maxLen then s else s.Substring(0, maxLen - 3) + "..."
-
   let isCapitalized (s : string) : bool = s.Length > 0 && System.Char.IsUpper(s.[0])
 
 
@@ -1479,6 +1432,11 @@ module Tablecloth =
       else
         str
 
+  module List =
+    let splitLast (l : List<'a>) : Option<List<'a> * 'a> =
+      match List.rev l with
+      | [] -> None
+      | head :: tail -> Some(List.rev tail, head)
 
   module Map =
     let fromListBy (f : 'v -> 'k) (l : List<'v>) : Map<'k, 'v> =
@@ -1553,7 +1511,6 @@ module Ply =
         (Ply((0, initial)))
         list
       |> map Tablecloth.Tuple2.second
-
 
 
     let mapSequentially (f : 'a -> Ply<'b>) (list : List<'a>) : Ply<List<'b>> =

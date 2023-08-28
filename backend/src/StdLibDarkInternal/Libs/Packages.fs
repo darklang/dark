@@ -10,14 +10,14 @@ open LibExecution.StdLib.Shortcuts
 module PT = LibExecution.ProgramTypes
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
-module PT2DT = StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 
 let stdlibPackageTyp
   (submodules : List<string>)
   (name : string)
   (version : int)
-  : TypeName.T =
+  : TypeName.TypeName =
   TypeName.fqPackage "Darklang" ("Stdlib" :: submodules) name version
 
 let modules = [ "DarkInternal"; "Packages" ]
@@ -30,7 +30,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "all" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TCustomType(stdlibPackageTyp [] "Packages" 0, [])
+      returnType = TCustomType(Ok(stdlibPackageTyp [] "Packages" 0), [])
       description = "List all package types and functions"
       fn =
         function
@@ -49,8 +49,6 @@ let fns : List<BuiltInFn> =
               Dval.record
                 (stdlibPackageTyp [] "Packages" 0)
                 [ "types", DList types
-
-
                   "fns", DList fns
                   "constants", DList constants ]
           }

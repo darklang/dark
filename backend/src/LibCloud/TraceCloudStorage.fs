@@ -97,7 +97,7 @@ let dvalToRoundtrippable (dval : RT.Dval) : RoundTrippableDval =
 
 let currentStorageVersion = 0
 
-type FunctionResultKey = tlid * RT.FnName.T * id * string
+type FunctionResultKey = tlid * RT.FnName.FnName * id * string
 type FunctionResultValue = RT.Dval * NodaTime.Instant
 
 

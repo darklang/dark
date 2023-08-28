@@ -56,6 +56,8 @@ module CTPusher = LibClientTypes.Pusher
 // Read from HttpContext
 // ---------------
 
+exception GrandUserException of string
+
 let getHeader (hs : IHeaderDictionary) (name : string) : string option =
   match hs.TryGetValue name with
   | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
@@ -96,7 +98,7 @@ let getBody (ctx : HttpContext) : Task<byte array> =
           tooSlowlyMessage
         else
           e.Message
-      return Exception.raiseGrandUser $"Invalid request body: {message}"
+      return raise (GrandUserException $"Invalid request body: {message}")
   }
 
 
@@ -267,10 +269,6 @@ let canonicalizeURL (toHttps : bool) (url : string) =
 exception NotFoundException of msg : string with
   override this.Message = this.msg
 
-let config : RT.Config =
-  { allowLocalHttpAccess = false
-    httpclientTimeoutInMs = LibCloud.Config.httpclientTimeoutInMs }
-
 /// ---------------
 /// Handle builtwithdark request
 /// ---------------
@@ -332,7 +330,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               LibClientTypesToCloudTypes.Pusher.eventSerializer
               (PT2RT.Handler.toRT handler)
               (Canvas.toProgram canvas)
-              config
               traceID
               inputVars
               (RealExe.InitialExecution(desc, "request", request))
@@ -401,9 +398,9 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       // GrandUsers any info not intended for them. We want the rest to be caught by
       // the 500 handler, be reported, and then have a small error message printed
       | NotFoundException msg -> return! errorResponse ctx msg 404
-      | :? GrandUserException as e ->
+      | GrandUserException msg ->
         // Messages caused by user input should be displayed to the user
-        return! errorResponse ctx e.Message 400
+        return! errorResponse ctx msg 400
       | e ->
         // respond and then reraise to get it to the rollbar middleware
         let! (_ : HttpContext) = internalErrorResponse ctx e

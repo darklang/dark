@@ -33,6 +33,8 @@ let parseYamlExn<'a> (filename : string) : 'a =
   | Some(Legivel.Serialization.Success s) -> s.Data
   | ex -> Exception.raiseCode $"couldn't parse {filename}" [ "error", ex ]
 
+let packageManager = LibCloud.PackageManager.packageManager
+
 let seedCanvas (canvasName : string) =
   task {
     let canvasDir = $"{baseDir}/{canvasName}"
@@ -54,28 +56,34 @@ let seedCanvas (canvasName : string) =
       let builtIns =
         LibExecution.StdLib.combine
           [ StdLibExecution.StdLib.contents
+              StdLibExecution.Libs.HttpClient.defaultConfig
             StdLibCloudExecution.StdLib.contents
+            BwdDangerServer.StdLib.contents
             StdLibDarkInternal.StdLib.contents ]
           []
           []
       LibParser.NameResolver.fromBuiltins builtIns
+      |> fun nr -> { nr with packageManager = Some packageManager }
 
-    let tls =
-      let modul =
-        LibParser.Canvas.parseFromFile resolver $"{canvasDir}/{config.Main}.dark"
+    let! tls =
+      uply {
+        let! modul =
+          LibParser.Canvas.parseFromFile resolver $"{canvasDir}/{config.Main}.dark"
 
-      let types = modul.types |> List.map PT.Toplevel.TLType
-      let fns = modul.fns |> List.map PT.Toplevel.TLFunction
+        let types = modul.types |> List.map PT.Toplevel.TLType
+        let fns = modul.fns |> List.map PT.Toplevel.TLFunction
 
-      let handlers =
-        modul.handlers
-        |> List.map (fun (spec, ast) ->
-          PT.Toplevel.TLHandler { tlid = gid (); ast = ast; spec = spec })
+        let handlers =
+          modul.handlers
+          |> List.map (fun (spec, ast) ->
+            PT.Toplevel.TLHandler { tlid = gid (); ast = ast; spec = spec })
 
-      let dbs = modul.dbs |> List.map PT.Toplevel.TLDB
+        let dbs = modul.dbs |> List.map PT.Toplevel.TLDB
 
-      (types @ dbs @ fns @ handlers)
-      |> List.map (fun tl -> tl, LibCloud.Serialize.NotDeleted)
+        return
+          (types @ dbs @ fns @ handlers)
+          |> List.map (fun tl -> tl, LibCloud.Serialize.NotDeleted)
+      }
 
     do! C.saveTLIDs canvasID tls
 

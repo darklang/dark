@@ -131,18 +131,91 @@ let t
         else
           state
 
-      // Run the actual program
+      // Run the actual program (left-hand-side of the =)
       let! actual = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT actualExpr)
 
       if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
         debuGList "results" (Dictionary.toList results |> List.sortBy fst)
 
       let actual = normalizeDvalResult actual
+      let expected = normalizeDvalResult expected
 
       let canonical = Expect.isCanonical actual
       if not canonical then
         debugDval actual |> debuG "not canonicalized"
         Expect.isTrue canonical "expected is canonicalized"
+
+      // CLEANUP consider not doing the toErrorMessage call
+      // just test the actual RuntimeError Dval,
+      // and have separate tests around pretty-printing the error
+      let! actual =
+        task {
+          match actual with
+          | RT.DError(_, actual) ->
+            let actual = RT.RuntimeError.toDT actual
+            let! typeChecked =
+              let expected =
+                RT.TCustomType(
+                  Ok(
+                    RT.TypeName.fqPackage
+                      "Darklang"
+                      [ "LanguageTools"; "RuntimeErrors" ]
+                      "Error"
+                      0
+                  ),
+                  []
+                )
+              let context =
+                LibExecution.TypeChecker.Context.FunctionCallParameter(
+                  (RT.FnName.fqPackage
+                    "Darklang"
+                    [ "LanguageTools"; "RuntimeErrors"; "Error" ]
+                    "toErrorMessage"
+                    0),
+                  { name = ""; typ = expected },
+                  0,
+                  None
+                )
+              let types = RT.ExecutionState.availableTypes state
+              let typeArgSymbolTable = Map.empty
+              LibExecution.TypeChecker.unify
+                context
+                types
+                typeArgSymbolTable
+                expected
+                actual
+
+            let errorMessageFn =
+              (RT.FnName.fqPackage
+                "Darklang"
+                [ "LanguageTools"; "RuntimeErrors"; "Error" ]
+                "toErrorMessage"
+                0)
+
+            match typeChecked with
+            | Ok _ ->
+              return!
+                LibExecution.Interpreter.callFn
+                  state
+                  Map.empty
+                  0UL
+                  errorMessageFn
+                  []
+                  (NEList.ofList actual [])
+
+            | Error e ->
+              return!
+                LibExecution.Interpreter.callFn
+                  state
+                  Map.empty
+                  0UL
+                  errorMessageFn
+                  []
+                  (NEList.ofList (RT.RuntimeError.toDT e) [])
+
+          | _ -> return actual
+        }
+
       return Expect.equalDval actual expected msg
     with
     | :? Expecto.AssertException as e -> e.Reraise() // let this through
@@ -158,13 +231,15 @@ let t
 
 let baseDir = "testfiles/execution/"
 
+
+
 // Read all test files. The test file format is described in README.md
 let fileTests () : Test =
   System.IO.Directory.GetDirectories(baseDir, "*")
   |> Array.map (fun dir ->
     System.IO.Directory.GetFiles(dir, "*.dark")
-    |> Array.map (fun file ->
-
+    |> Array.toList
+    |> List.map (fun file ->
       let filename = System.IO.Path.GetFileName file
       let testName = System.IO.Path.GetFileNameWithoutExtension file
       let initializeCanvas = testName = "internal"
@@ -176,7 +251,9 @@ let fileTests () : Test =
         try
           let modules =
             $"{dir}/{filename}"
-            |> LibParser.TestModule.parseTestFile builtinResolver
+            |> LibParser.TestModule.parseTestFile
+              resolverWithBuiltinsAndPackageManager
+            |> fun ply -> ply.Result
 
           // Within a module, tests have access to
           let fns = modules |> List.map (fun m -> m.fns) |> List.concat
@@ -206,7 +283,6 @@ let fileTests () : Test =
         with e ->
           print $"Exception in {file}: {e.Message}"
           reraise ())
-    |> Array.toList
     |> testList dir)
   |> Array.toList
   |> testList "All"

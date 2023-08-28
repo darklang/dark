@@ -144,7 +144,9 @@ let testRecursionInEditor : Test =
     Expect.equal
       (Dictionary.get skippedCallerID results)
       (Some(
-        AT.NonExecutedResult(DIncomplete(SourceID(recurse.tlid, skippedCallerID)))
+        AT.NonExecutedResult(
+          DError(SourceID(recurse.tlid, skippedCallerID), RuntimeError.incomplete)
+        )
       ))
       "result is incomplete for other path"
   }
@@ -196,12 +198,17 @@ let testIfPreview : Test =
         AT.NonExecutedResult(DString "then"),
         AT.ExecutedResult(DString "else")))
       (eUnit (),
-       (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
+       (AT.ExecutedResult(
+         DError(
+           SourceID(7UL, ifID),
+           RuntimeError.oldError "If only supports Booleans"
+         )
+        ),
         AT.NonExecutedResult(DString "then"),
         AT.NonExecutedResult(DString "else")))
       // fakevals
       (eFn [ "Test" ] "runtimeError" 0 [] [ eStr "test" ],
-       (AT.ExecutedResult(DError(SourceNone, "test")),
+       (AT.ExecutedResult(DError(SourceNone, RuntimeError.oldError "test")),
         AT.NonExecutedResult(DString "then"),
         AT.NonExecutedResult(DString "else")))
       // others are true
@@ -210,11 +217,21 @@ let testIfPreview : Test =
         AT.ExecutedResult(DString "then"),
         AT.NonExecutedResult(DString "else")))
       (eInt 5,
-       (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
+       (AT.ExecutedResult(
+         DError(
+           SourceID(7UL, ifID),
+           RuntimeError.oldError "If only supports Booleans"
+         )
+        ),
         AT.NonExecutedResult(DString "then"),
         AT.NonExecutedResult(DString "else")))
       (eStr "test",
-       (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
+       (AT.ExecutedResult(
+         DError(
+           SourceID(7UL, ifID),
+           RuntimeError.oldError "If only supports Booleans"
+         )
+        ),
         AT.NonExecutedResult(DString "then"),
         AT.NonExecutedResult(DString "else"))) ]
 
@@ -258,7 +275,12 @@ let testOrPreview : Test =
       ((eBool false, eStr "test"),
        (AT.ExecutedResult(DBool false),
         AT.ExecutedResult(DString "test"),
-        AT.ExecutedResult(DError(SourceID(7UL, orID), "|| only supports Booleans"))))
+        AT.ExecutedResult(
+          DError(
+            SourceID(7UL, orID),
+            RuntimeError.oldError "|| only supports Booleans"
+          )
+        )))
       ((eBool true, eStr "test"),
        (AT.ExecutedResult(DBool true),
         AT.NonExecutedResult(DString "test"),
@@ -266,11 +288,21 @@ let testOrPreview : Test =
       ((EString(999UL, [ StringText "test" ]), eBool false),
        (AT.ExecutedResult(DString "test"),
         AT.NonExecutedResult(DBool false),
-        AT.ExecutedResult(DError(SourceID(7UL, orID), "|| only supports Booleans"))))
+        AT.ExecutedResult(
+          DError(
+            SourceID(7UL, orID),
+            RuntimeError.oldError "|| only supports Booleans"
+          )
+        )))
       ((EString(999UL, [ StringText "test" ]), eBool true),
        (AT.ExecutedResult(DString "test"),
         AT.NonExecutedResult(DBool true),
-        AT.ExecutedResult(DError(SourceID(7UL, orID), "|| only supports Booleans")))) ]
+        AT.ExecutedResult(
+          DError(
+            SourceID(7UL, orID),
+            RuntimeError.oldError "|| only supports Booleans"
+          )
+        ))) ]
 
 let testAndPreview : Test =
   let andID = gid ()
@@ -316,15 +348,30 @@ let testAndPreview : Test =
       ((eBool true, eStr "test"),
        (AT.ExecutedResult(DBool true),
         AT.ExecutedResult(DString "test"),
-        AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans"))))
+        AT.ExecutedResult(
+          DError(
+            SourceID(7UL, andID),
+            RuntimeError.oldError "&& only supports Booleans"
+          )
+        )))
       ((EString(999UL, [ StringText "test" ]), eBool false),
        (AT.ExecutedResult(DString "test"),
         AT.NonExecutedResult(DBool false),
-        AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans"))))
+        AT.ExecutedResult(
+          DError(
+            SourceID(7UL, andID),
+            RuntimeError.oldError "&& only supports Booleans"
+          )
+        )))
       ((EString(999UL, [ StringText "test" ]), eBool true),
        (AT.ExecutedResult(DString "test"),
         AT.NonExecutedResult(DBool true),
-        AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans")))) ]
+        AT.ExecutedResult(
+          DError(
+            SourceID(7UL, andID),
+            RuntimeError.oldError "&& only supports Booleans"
+          )
+        ))) ]
 
 
 let testLambdaPreview : Test =
@@ -352,7 +399,8 @@ let testLambdaPreview : Test =
                )
              )
            ))
-          (p1ID, AT.NonExecutedResult(DIncomplete(SourceID(7UL, p1ID))))
+          (p1ID,
+           AT.NonExecutedResult(DError(SourceID(7UL, p1ID), RuntimeError.incomplete)))
           (65UL, AT.NonExecutedResult(DString "body")) ]) ]
 
 
@@ -469,6 +517,7 @@ let testMatchPreview : Test =
       identity
       identity
       identity
+      identity
       (fun lp ->
         argIDs <- (LetPattern.toID lp, string lp) :: argIDs
         lp)
@@ -552,7 +601,7 @@ let testMatchPreview : Test =
   // helpers
   let er x = AT.ExecutedResult x
   let ner x = AT.NonExecutedResult x
-  let inc iid = DIncomplete(SourceID(id 7, iid))
+  let inc iid = DError(SourceID(id 7, iid), RuntimeError.incomplete)
 
   testList
     "test match evaluation"
@@ -756,12 +805,20 @@ let testLetPreview : Test =
 
         Expect.equal
           (Map.get (Expr.toID assignExpr) result)
-          (Some(AT.ExecutedResult(DError(SourceNone, "Division by zero"))))
+          (Some(
+            AT.ExecutedResult(
+              DError(SourceNone, RuntimeError.oldError "Division by zero")
+            )
+          ))
           "the whole tuple is a type error due to division by zero in y"
 
         Expect.equal
           (Map.get lpID result)
-          (Some(AT.NonExecutedResult(DIncomplete(SourceID(7UL, lpID)))))
+          (Some(
+            AT.NonExecutedResult(
+              DError(SourceID(7UL, lpID), RuntimeError.incomplete)
+            )
+          ))
           "let pattern is incomplete due to error in RHS"
       }
 

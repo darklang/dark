@@ -43,20 +43,24 @@ module TypeName =
         name = PT.TypeName.TypeName name
         version = p.version }
 
-  let toRT (fqtn : PT.TypeName.T) : RT.TypeName.T =
+  let toRT (fqtn : PT.TypeName.TypeName) : RT.TypeName.TypeName =
     match fqtn with
     | PT.FQName.BuiltIn s -> RT.FQName.BuiltIn(BuiltIn.toRT s)
     | PT.FQName.UserProgram u -> RT.FQName.UserProgram(UserProgram.toRT u)
     | PT.FQName.Package p -> RT.FQName.Package(Package.toRT p)
 
-  let fromRT (fqtn : RT.TypeName.T) : Option<PT.TypeName.T> =
+  let fromRT (fqtn : RT.TypeName.TypeName) : Option<PT.TypeName.TypeName> =
     match fqtn with
     | RT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.fromRT s) |> Some
     | RT.FQName.UserProgram u -> PT.FQName.UserProgram(UserProgram.fromRT u) |> Some
     | RT.FQName.Package p -> PT.FQName.Package(Package.fromRT p) |> Some
-    | RT.FQName.Unknown _ -> None
 
 
+module NameResolution =
+  let toRT (f : 'a -> 'b) (nr : PT.NameResolution<'a>) : RT.NameResolution<'b> =
+    match nr with
+    | Ok x -> Ok(f x)
+    | Error e -> Error(NameResolutionError.RTE.toRuntimeError e)
 
 module TypeReference =
   let rec toRT (t : PT.TypeReference) : RT.TypeReference =
@@ -75,10 +79,11 @@ module TypeReference =
     | PT.TChar -> RT.TChar
     | PT.TPassword -> RT.TPassword
     | PT.TUuid -> RT.TUuid
-    | PT.TCustomType(Ok typeName, typArgs) ->
-      RT.TCustomType(TypeName.toRT typeName, List.map toRT typArgs)
-    | PT.TCustomType(Error e, typArgs) ->
-      RT.TCustomType(RT.FQName.Unknown e.names, List.map toRT typArgs)
+    | PT.TCustomType(typeName, typeArgs) ->
+      RT.TCustomType(
+        NameResolution.toRT TypeName.toRT typeName,
+        List.map toRT typeArgs
+      )
     | PT.TBytes -> RT.TBytes
     | PT.TVariable(name) -> RT.TVariable(name)
     | PT.TFn(paramTypes, returnType) ->
@@ -118,7 +123,7 @@ module FnName =
         name = PT.FnName.FnName name
         version = p.version }
 
-  let toRT (fqfn : PT.FnName.T) : RT.FnName.T =
+  let toRT (fqfn : PT.FnName.FnName) : RT.FnName.FnName =
     match fqfn with
     | PT.FQName.BuiltIn s -> RT.FQName.BuiltIn(BuiltIn.toRT s)
     | PT.FQName.UserProgram u -> RT.FQName.UserProgram(UserProgram.toRT u)
@@ -168,7 +173,9 @@ module ConstantName =
         name = PT.ConstantName.ConstantName name
         version = c.version }
 
-  let toRT (fqConstant : PT.ConstantName.T) : RT.ConstantName.T =
+  let toRT
+    (fqConstant : PT.ConstantName.ConstantName)
+    : RT.ConstantName.ConstantName =
     match fqConstant with
     | PT.FQName.BuiltIn s -> RT.FQName.BuiltIn(BuiltIn.toRT s)
     | PT.FQName.UserProgram u -> RT.FQName.UserProgram(UserProgram.toRT u)
@@ -197,6 +204,7 @@ module LetPattern =
   let rec toRT (p : PT.LetPattern) : RT.LetPattern =
     match p with
     | PT.LPVariable(id, str) -> RT.LPVariable(id, str)
+    | PT.LPUnit id -> RT.LPUnit id
     | PT.LPTuple(id, first, second, theRest) ->
       RT.LPTuple(id, toRT first, toRT second, List.map toRT theRest)
 
@@ -232,8 +240,8 @@ module Expr =
     | PT.EBool(id, b) -> RT.EBool(id, b)
     | PT.EUnit id -> RT.EUnit id
     | PT.EConstant(id, Ok name) -> RT.EConstant(id, ConstantName.toRT name)
-    | PT.EConstant(id, Error name) ->
-      RT.EError(id, $"Invalid constantr name {name}", [])
+    | PT.EConstant(id, Error err) ->
+      RT.EError(id, NameResolutionError.RTE.toRuntimeError err, [])
     | PT.EVariable(id, var) -> RT.EVariable(id, var)
     | PT.EFieldAccess(id, obj, fieldname) -> RT.EFieldAccess(id, toRT obj, fieldname)
     | PT.EApply(id, fnName, typeArgs, args) ->
@@ -244,8 +252,8 @@ module Expr =
         NEList.map toRT args
       )
     | PT.EFnName(id, Ok name) -> RT.EFnName(id, FnName.toRT name)
-    | PT.EFnName(id, Error name) ->
-      RT.EError(id, Errors.toString (Errors.NameResolutionError name), [])
+    | PT.EFnName(id, Error err) ->
+      RT.EError(id, NameResolutionError.RTE.toRuntimeError err, [])
     | PT.EInfix(id, PT.InfixFnCall fnName, arg1, arg2) ->
       let (modules, fn, version) = InfixFnName.toFnName fnName
       let name =
@@ -265,7 +273,12 @@ module Expr =
     | PT.ELambda(id, vars, body) ->
       let vars = vars |> NEList.filter (fun (name, v) -> v <> "")
       match vars with
-      | [] -> RT.EError(id, "Lambda must have at least one argument", [])
+      | [] ->
+        RT.EError(
+          id,
+          RT.RuntimeError.oldError "Lambda must have at least one argument",
+          []
+        )
       | head :: tail -> RT.ELambda(id, NEList.ofList head tail, toRT body)
     | PT.ELet(id, pattern, rhs, body) ->
       RT.ELet(id, LetPattern.toRT pattern, toRT rhs, toRT body)
@@ -279,7 +292,7 @@ module Expr =
       | [] ->
         RT.EError(
           id,
-          "Record must have at least one field",
+          RT.RuntimeError.oldError "Record must have at least one field",
           fields |> List.map Tuple2.second |> List.map toRT
         )
       | head :: tail ->
@@ -288,10 +301,10 @@ module Expr =
           TypeName.toRT typeName,
           NEList.ofList head tail |> NEList.map (Tuple2.mapSecond toRT)
         )
-    | PT.ERecord(id, Error typeName, fields) ->
+    | PT.ERecord(id, Error err, fields) ->
       RT.EError(
         id,
-        Errors.toString (Errors.NameResolutionError typeName),
+        NameResolutionError.RTE.toRuntimeError err,
         fields |> List.map Tuple2.second |> List.map toRT
       )
 
@@ -307,10 +320,10 @@ module Expr =
           RT.EApply(pipeID, expr, typeArgs, NEList.singleton prev)
 
         match next with
-        | PT.EPipeFnCall(id, Error fnName, typeArgs, exprs) ->
+        | PT.EPipeFnCall(id, Error err, _typeArgs, exprs) ->
           RT.EError(
             id,
-            Errors.toString (Errors.NameResolutionError fnName),
+            NameResolutionError.RTE.toRuntimeError err,
             prev :: List.map toRT exprs
           )
         | PT.EPipeFnCall(id, Ok fnName, typeArgs, exprs) ->
@@ -341,10 +354,10 @@ module Expr =
         | PT.EPipeEnum(id, Ok typeName, caseName, fields) ->
           let fields' = prev :: List.map toRT fields
           RT.EEnum(id, TypeName.toRT typeName, caseName, fields')
-        | PT.EPipeEnum(id, Error typeName, _, fields) ->
+        | PT.EPipeEnum(id, Error err, _caseName, fields) ->
           RT.EError(
             id,
-            Errors.toString (Errors.NameResolutionError typeName),
+            NameResolutionError.RTE.toRuntimeError err,
             prev :: List.map toRT fields
           )
         | PT.EPipeVariable(id, name) -> RT.EVariable(id, name) |> applyFn
@@ -356,7 +369,12 @@ module Expr =
 
     | PT.EMatch(id, mexpr, pairs) ->
       match pairs with
-      | [] -> RT.EError(id, "Match must have at least one case", [ toRT mexpr ])
+      | [] ->
+        RT.EError(
+          id,
+          RT.RuntimeError.oldError "Match must have at least one case",
+          [ toRT mexpr ]
+        )
       | head :: tail ->
         RT.EMatch(
           id,
@@ -366,12 +384,8 @@ module Expr =
         )
     | PT.EEnum(id, Ok typeName, caseName, fields) ->
       RT.EEnum(id, TypeName.toRT typeName, caseName, List.map toRT fields)
-    | PT.EEnum(id, Error typeName, caseName, fields) ->
-      RT.EError(
-        id,
-        Errors.toString (Errors.NameResolutionError typeName),
-        List.map toRT fields
-      )
+    | PT.EEnum(id, Error err, _caseName, fields) ->
+      RT.EError(id, NameResolutionError.RTE.toRuntimeError err, List.map toRT fields)
     | PT.EDict(id, fields) -> RT.EDict(id, List.map (Tuple2.mapSecond toRT) fields)
 
 
@@ -401,7 +415,7 @@ module Const =
         List.map toRT fields
       )
     | PT.Const.CEnum(Error msg, caseName, fields) ->
-      RT.DError(RT.SourceNone, $"Invalid const name: {msg}")
+      RT.DError(RT.SourceNone, RT.RuntimeError.oldError "Invalid const name: {msg}")
 
 module TypeDeclaration =
   module RecordField =
@@ -495,7 +509,8 @@ module Toplevel =
     | PT.Toplevel.TLConstant c -> RT.Toplevel.TLConstant(UserConstant.toRT c)
 
 module Secret =
-  let toRT (s : PT.Secret.T) : RT.Secret.T = { name = s.name; value = s.value }
+  let toRT (s : PT.Secret.T) : RT.Secret.T =
+    { name = s.name; value = s.value; version = s.version }
 
 module PackageFn =
   module Parameter =
@@ -517,6 +532,4 @@ module PackageType =
 
 module PackageConstant =
   let toRT (c : PT.PackageConstant.T) : RT.PackageConstant.T =
-    { tlid = c.tlid
-      name = ConstantName.Package.toRT c.name
-      body = Const.toRT c.body }
+    { name = ConstantName.Package.toRT c.name; body = Const.toRT c.body }

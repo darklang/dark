@@ -29,6 +29,7 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
+
     { name = fn [] "debug" 0
       typeParams = []
       parameters =

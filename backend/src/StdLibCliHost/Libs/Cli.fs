@@ -12,15 +12,58 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module WT = LibParser.WrittenTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module Exe = LibExecution.Execution
 module Json = StdLibExecution.Libs.Json
 
 
+module CliRuntimeError =
+  open Prelude
+
+  type Error =
+    | NoExpressionsToExecute
+    | UncaughtException of string * metadata : List<string * string>
+    | MultipleExpressionsToExecute of List<string>
+    | NonIntReturned of actuallyReturned : Dval
+
+  /// to RuntimeError
+  module RTE =
+    module Error =
+      let toDT (et : Error) : RT.Dval =
+        let nameTypeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
+        let caseName, fields =
+          match et with
+          | NoExpressionsToExecute -> "NoExpressionsToExecute", []
+
+          | UncaughtException(msg, metadata) ->
+            "UncaughtException",
+            [ "msg", DString msg
+              "metadata",
+              DList(
+                metadata |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
+              ) ]
+
+          | MultipleExpressionsToExecute exprs ->
+            "MultipleExpressionsToExecute",
+            [ "exprs", DList(exprs |> List.map DString) ]
+
+          | NonIntReturned actuallyReturned ->
+            "NonIntReturned",
+            [ "actuallyReturned", RT2DT.Dval.toDT actuallyReturned ]
+
+        RT.Dval.enum nameTypeName caseName []
+
+
+    let toRuntimeError (e : Error) : RT.RuntimeError =
+      Error.toDT e |> RT.RuntimeError.fromDT
+
+let libExecutionContents =
+  StdLibExecution.StdLib.contents StdLibExecution.Libs.HttpClient.defaultConfig
 
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) =
     LibExecution.StdLib.combine
-      [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents ]
+      [ libExecutionContents; StdLibCli.StdLib.contents ]
       []
       []
   { types = types |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
@@ -36,8 +79,6 @@ let execute
   : Task<RT.Dval> =
 
   task {
-    let config : Config =
-      { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
     let program : Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
@@ -68,29 +109,26 @@ let execute
         notify
         7UL
         program
-        config
 
     if mod'.exprs.Length = 1 then
       return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
     else if mod'.exprs.Length = 0 then
-      return DError(SourceNone, "No expressions to execute")
+      return
+        DError(
+          SourceNone,
+          CliRuntimeError.NoExpressionsToExecute
+          |> CliRuntimeError.RTE.toRuntimeError
+        )
     else // mod'.exprs.Length > 1
-      return DError(SourceNone, "Multiple expressions to execute")
+      return
+        DError(
+          SourceNone,
+          CliRuntimeError.MultipleExpressionsToExecute(mod'.exprs |> List.map string)
+          |> CliRuntimeError.RTE.toRuntimeError
+        )
   }
 
-let types : List<BuiltInType> =
-  [ { name = typ [ "Cli" ] "ExecutionError" 0
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Definition.Record(
-              NEList.ofList
-                { name = "msg"; typ = TString }
-                [ { name = "metadata"; typ = TDict TString } ]
-            ) }
-      description = "Result of Execution"
-      deprecated = NotDeprecated } ]
-
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn [ "Cli" ] "parseAndExecuteScript" 0
@@ -102,45 +140,45 @@ let fns : List<BuiltInFn> =
       returnType =
         TypeReference.result
           TInt
-          (TCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), []))
+          (TCustomType(Ok(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)), []))
       description = "Parses and executes arbitrary Dark code"
       fn =
         function
         | state, [], [ DString filename; DString code; DDict symtable ] ->
           uply {
-            let err (msg : string) (metadata : List<string * string>) =
-              let metadata = metadata |> List.map (fun (k, v) -> k, DString v) |> Map
-              Dval.resultError (
-                Dval.record
-                  (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
-                  [ "msg", DString msg; "metadata", DDict metadata ]
-              )
-
-            let exnError (e : exn) : Dval =
+            let exnError (e : exn) : RuntimeError =
               let msg = Exception.getMessages e |> String.concat "\n"
               let metadata =
                 Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
-              err msg metadata
+              CliRuntimeError.UncaughtException(msg, metadata)
+              |> CliRuntimeError.RTE.toRuntimeError
 
-            let parsedScript =
-              try
-                let resolver = LibParser.NameResolver.fromExecutionState state
-                LibParser.Canvas.parse resolver filename code |> Ok
-              with e ->
-                Error(exnError e)
+            let nameResolver = LibParser.NameResolver.fromExecutionState state
+
+            let! parsedScript =
+              uply {
+                try
+                  return!
+                    LibParser.Canvas.parse nameResolver filename code |> Ply.map Ok
+                with e ->
+                  return Error(exnError e)
+              }
 
             try
               match parsedScript with
               | Ok mod' ->
                 match! execute state mod' symtable with
                 | DInt i -> return Dval.resultOk (DInt i)
-                | DError(_, e) -> return err e []
+                | DError(_, e) -> return e |> RuntimeError.toDT |> Dval.resultError
                 | result ->
-                  let asString = LibExecution.DvalReprDeveloper.toRepr result
-                  return err $"Expected an integer" [ "actualValue", asString ]
-              | Error e -> return e
+                  return
+                    CliRuntimeError.NonIntReturned result
+                    |> CliRuntimeError.RTE.toRuntimeError
+                    |> RuntimeError.toDT
+                    |> Dval.resultError
+              | Error e -> return e |> RuntimeError.toDT |> Dval.resultError
             with e ->
-              return exnError e
+              return exnError e |> RuntimeError.toDT |> Dval.resultError
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -156,7 +194,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TypeReference.result
           TString
-          (TCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), []))
+          (TCustomType(Ok(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)), []))
       description = "Executes an arbitrary Dark function"
       fn =
         function
@@ -180,7 +218,7 @@ let fns : List<BuiltInFn> =
               let parts = functionName.Split('.') |> List.ofArray
               let name = NEList.ofList "PACKAGE" parts
               let resolver = LibParser.NameResolver.fromExecutionState state
-              let fnName =
+              let! fnName =
                 LibParser.NameResolver.FnName.resolve
                   resolver
                   []
@@ -247,8 +285,17 @@ let fns : List<BuiltInFn> =
                         (f.name)
                         []
                         (NEList.ofList args.Head args.Tail)
+
                     match result with
-                    | DError(_, e) -> return Dval.resultError (DString e)
+                    | DError(_, e) ->
+                      // TODO we should probably return the error here as-is, and handle by calling the
+                      // toSegments on the error within the CLI
+                      return
+                        e
+                        |> RuntimeError.toDT
+                        |> LibExecution.DvalReprDeveloper.toRepr
+                        |> DString
+                        |> Dval.resultError
                     | value ->
                       let asString = LibExecution.DvalReprDeveloper.toRepr value
                       return Dval.resultOk (DString asString)

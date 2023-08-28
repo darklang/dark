@@ -8,6 +8,10 @@ module Errors = LibExecution.Errors
 module Interpreter = LibExecution.Interpreter
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
+
+// CLEANUP something like type ComparatorResult = Higher | Lower | Same
+// rather than 0/1/-2
+
 module DvalComparator =
   let rec compareDval (dv1 : Dval) (dv2 : Dval) : int =
     match dv1, dv2 with
@@ -30,8 +34,10 @@ module DvalComparator =
           c
       else
         c
-    | DError(_, str1), DError(_, str2) -> compare str1 str2
-    | DIncomplete _, DIncomplete _ -> 0
+
+    | DError _, DError _ ->
+      Exception.raiseInternal "We should not be trying to compare DErrors" []
+
     | DDB name1, DDB name2 -> compare name1 name2
     | DDateTime dt1, DDateTime dt2 -> compare dt1 dt2
     | DPassword _, DPassword _ -> 0 // CLEANUP - how do we handle this?
@@ -59,7 +65,6 @@ module DvalComparator =
     | DTuple _, _
     | DFnVal _, _
     | DError _, _
-    | DIncomplete _, _
     | DDB _, _
     | DDateTime _, _
     | DPassword _, _
@@ -414,8 +419,8 @@ let fns : List<BuiltInFn> =
               // Ideally we'd catch the exception thrown during comparison but the sort
               // catches it so we lose the error message
               return
-                "List.uniqueBy: Unable to sort list, perhaps the list elements are different types"
-                |> Dval.errStr
+                Dval.errStr
+                  "List.uniqueBy: Unable to sort list, perhaps the list elements are different types"
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -444,8 +449,8 @@ let fns : List<BuiltInFn> =
             // TODO: we should prevent this as soon as the different types are added
             // Ideally we'd catch the exception thrown during comparison but the sort
             // catches it so we lose the error message
-            "List.unique: Unable to sort list, perhaps the list elements are different types"
-            |> Dval.errStr
+            Dval.errStr
+              "List.unique: Unable to sort list, perhaps the list elements are different types"
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -473,8 +478,8 @@ let fns : List<BuiltInFn> =
             // TODO: we should prevent this as soon as the different types are added
             // Ideally we'd catch the exception thrown during comparison but the sort
             // catches it so we lose the error message
-            "List.sort: Unable to sort list, perhaps the list elements are different types"
-            |> Dval.errStr
+            Dval.errStr
+              "List.sort: Unable to sort list, perhaps the list elements are different types"
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -524,8 +529,8 @@ let fns : List<BuiltInFn> =
               // Ideally we'd catch the exception thrown during comparison but the sort
               // catches it so we lose the error message
               return
-                "List.sortBy: Unable to sort list, perhaps the list elements are different types"
-                |> Dval.errStr
+                Dval.errStr
+                  "List.sortBy: Unable to sort list, perhaps the list elements are different types"
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -563,9 +568,11 @@ let fns : List<BuiltInFn> =
 
               match result with
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
+              | dv when Dval.isFake dv -> return Errors.foundFakeDval dv
               | _ ->
                 return
                   Exception.raiseCode (
+                    // CLEANUP this yields pretty confusing error messages
                     Errors.expectedLambdaValue "fn" "-1, 0, 1" result
                   )
             }
@@ -576,8 +583,9 @@ let fns : List<BuiltInFn> =
               do! Sort.sort fn array
               // CLEANUP: check fakevals
               return array |> Array.toList |> DList |> Dval.resultOk
-            with e ->
-              return Dval.resultError (DString e.Message)
+            with
+            | Errors.FakeDvalFound dv -> return dv
+            | e -> return Dval.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -618,8 +626,6 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DList l; DFnVal b ] ->
           uply {
-            let mutable incomplete = false
-
             let f (dv : Dval) : Ply<bool> =
               uply {
                 let args = NEList.singleton dv
@@ -627,19 +633,13 @@ let fns : List<BuiltInFn> =
 
                 match r with
                 | DBool b -> return b
-                | DIncomplete _ ->
-                  incomplete <- true
-                  return false
+                | DError _ -> return Errors.foundFakeDval r
                 | _ ->
                   Exception.raiseCode (Errors.expectedLambdaType "fn" TBool dv)
                   return false
               }
-
-            if incomplete then
-              return DIncomplete SourceNone
-            else
-              let! result = Ply.List.filterSequentially f l
-              return DBool(result.Length = l.Length)
+            let! result = Ply.List.filterSequentially f l
+            return DBool(result.Length = l.Length)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -675,7 +675,7 @@ let fns : List<BuiltInFn> =
 
                   match result with
                   | DBool b -> return b
-                  | (DIncomplete _ | DError _) as dv ->
+                  | (DError _) as dv ->
                     abortReason.Value <- Some dv
                     return false
                   | v ->
@@ -747,7 +747,7 @@ let fns : List<BuiltInFn> =
                           _,
                           "None",
                           []) -> return None
-                  | (DIncomplete _ | DError _) as dv ->
+                  | (DError _) as dv ->
                     abortReason.Value <- Some dv
                     return None
                   | v ->
@@ -799,7 +799,7 @@ let fns : List<BuiltInFn> =
                     match result with
                     | DBool true -> return! f dvs
                     | DBool false -> return dv :: dvs
-                    | (DIncomplete _ | DError _) as dv ->
+                    | (DError _) as dv ->
                       abortReason <- Some dv
                       return []
                     | v ->
@@ -851,7 +851,7 @@ let fns : List<BuiltInFn> =
                       let! tail = f dvs
                       return dv :: tail
                     | DBool false -> return []
-                    | (DIncomplete _ | DError _) as dv ->
+                    | (DError _) as dv ->
                       abortReason <- Some dv
                       return []
                     | v ->
@@ -1124,7 +1124,7 @@ let fns : List<BuiltInFn> =
           let f (acc1, acc2) i =
             match i with
             | DTuple(a, b, []) -> (a :: acc1, b :: acc2)
-            | (DIncomplete _ | DError _) as dv -> Errors.foundFakeDval dv
+            | (DError _) as dv -> Errors.foundFakeDval dv
             | v ->
               let errDetails =
                 match v with
@@ -1257,7 +1257,7 @@ let fns : List<BuiltInFn> =
                     | DBool true -> return! loop (item :: a, b) tail
                     | DBool false -> return! loop (a, item :: b) tail
 
-                    | (DIncomplete _ | DError _) as dv ->
+                    | (DError _) as dv ->
                       // fake dvals
                       return Error dv
 

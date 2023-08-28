@@ -47,13 +47,13 @@ module TypeName =
         name = PT.TypeName.TypeName p.name
         version = p.version }
 
-  let toST (fqtn : PT.TypeName.T) : ST.TypeName.T =
+  let toST (fqtn : PT.TypeName.TypeName) : ST.TypeName.TypeName =
     match fqtn with
     | PT.FQName.BuiltIn s -> ST.TypeName.BuiltIn(BuiltIn.toST s)
     | PT.FQName.UserProgram u -> ST.TypeName.UserProgram(UserProgram.toST u)
     | PT.FQName.Package p -> ST.TypeName.Package(Package.toST p)
 
-  let toPT (fqfn : ST.TypeName.T) : PT.TypeName.T =
+  let toPT (fqfn : ST.TypeName.TypeName) : PT.TypeName.TypeName =
     match fqfn with
     | ST.TypeName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
     | ST.TypeName.UserProgram u -> PT.FQName.UserProgram(UserProgram.toPT u)
@@ -90,84 +90,96 @@ module FnName =
         name = PT.FnName.FnName p.name
         version = p.version }
 
-  let toST (fqfn : PT.FnName.T) : ST.FnName.T =
+  let toST (fqfn : PT.FnName.FnName) : ST.FnName.FnName =
     match fqfn with
     | PT.FQName.BuiltIn s -> ST.FnName.BuiltIn(BuiltIn.toST s)
     | PT.FQName.UserProgram u -> ST.FnName.UserProgram(UserProgram.toST u)
     | PT.FQName.Package p -> ST.FnName.Package(Package.toST p)
 
-  let toPT (fqfn : ST.FnName.T) : PT.FnName.T =
+  let toPT (fqfn : ST.FnName.FnName) : PT.FnName.FnName =
     match fqfn with
     | ST.FnName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
     | ST.FnName.UserProgram u -> PT.FQName.UserProgram(UserProgram.toPT u)
     | ST.FnName.Package p -> PT.FQName.Package(Package.toPT p)
 
-module NameResolution =
+
+module NameResolutionError =
 
   module NameType =
     let toST
-      (nameType : LibExecution.Errors.NameResolution.NameType)
-      : ST.NameResolution.NameType =
+      (nameType : LibExecution.NameResolutionError.NameType)
+      : ST.NameResolutionError.NameType =
       match nameType with
-      | LibExecution.Errors.NameResolution.Type -> ST.NameResolution.Type
-      | LibExecution.Errors.NameResolution.Function -> ST.NameResolution.Function
-      | LibExecution.Errors.NameResolution.Constant -> ST.NameResolution.Constant
+      | LibExecution.NameResolutionError.Type -> ST.NameResolutionError.Type
+      | LibExecution.NameResolutionError.Function -> ST.NameResolutionError.Function
+      | LibExecution.NameResolutionError.Constant -> ST.NameResolutionError.Constant
 
     let toPT
-      (nameType : ST.NameResolution.NameType)
-      : LibExecution.Errors.NameResolution.NameType =
+      (nameType : ST.NameResolutionError.NameType)
+      : LibExecution.NameResolutionError.NameType =
       match nameType with
-      | ST.NameResolution.Type -> LibExecution.Errors.NameResolution.Type
-      | ST.NameResolution.Function -> LibExecution.Errors.NameResolution.Function
-      | ST.NameResolution.Constant -> LibExecution.Errors.NameResolution.Constant
+      | ST.NameResolutionError.Type -> LibExecution.NameResolutionError.Type
+      | ST.NameResolutionError.Function -> LibExecution.NameResolutionError.Function
+      | ST.NameResolutionError.Constant -> LibExecution.NameResolutionError.Constant
+
 
   module ErrorType =
     let toST
-      (err : LibExecution.Errors.NameResolution.ErrorType)
-      : ST.NameResolution.ErrorType =
+      (err : LibExecution.NameResolutionError.ErrorType)
+      : ST.NameResolutionError.ErrorType =
       match err with
-      | LibExecution.Errors.NameResolution.NotFound -> ST.NameResolution.NotFound
-      | LibExecution.Errors.NameResolution.MissingModuleName ->
-        ST.NameResolution.MissingModuleName
-      | LibExecution.Errors.NameResolution.InvalidPackageName ->
-        ST.NameResolution.InvalidPackageName
+      | LibExecution.NameResolutionError.NotFound -> ST.NameResolutionError.NotFound
+      | LibExecution.NameResolutionError.MissingModuleName ->
+        ST.NameResolutionError.MissingModuleName
+      | LibExecution.NameResolutionError.InvalidPackageName ->
+        ST.NameResolutionError.InvalidPackageName
+      | LibExecution.NameResolutionError.ExpectedEnumButNot ->
+        ST.NameResolutionError.ExpectedEnumButNot
+      | LibExecution.NameResolutionError.ExpectedRecordButNot ->
+        ST.NameResolutionError.ExpectedRecordButNot
+
 
     let toPT
-      (err : ST.NameResolution.ErrorType)
-      : LibExecution.Errors.NameResolution.ErrorType =
+      (err : ST.NameResolutionError.ErrorType)
+      : LibExecution.NameResolutionError.ErrorType =
       match err with
-      | ST.NameResolution.ErrorType.NotFound ->
-        LibExecution.Errors.NameResolution.NotFound
-      | ST.NameResolution.MissingModuleName ->
-        LibExecution.Errors.NameResolution.MissingModuleName
-      | ST.NameResolution.InvalidPackageName ->
-        LibExecution.Errors.NameResolution.InvalidPackageName
+      | ST.NameResolutionError.ErrorType.NotFound ->
+        LibExecution.NameResolutionError.NotFound
+      | ST.NameResolutionError.MissingModuleName ->
+        LibExecution.NameResolutionError.MissingModuleName
+      | ST.NameResolutionError.InvalidPackageName ->
+        LibExecution.NameResolutionError.InvalidPackageName
+      | ST.NameResolutionError.ExpectedEnumButNot ->
+        LibExecution.NameResolutionError.ExpectedEnumButNot
+      | ST.NameResolutionError.ExpectedRecordButNot ->
+        LibExecution.NameResolutionError.ExpectedRecordButNot
 
   module Error =
     let toST
-      (err : LibExecution.Errors.NameResolution.Error)
-      : ST.NameResolution.Error =
+      (err : LibExecution.NameResolutionError.Error)
+      : ST.NameResolutionError.Error =
       { nameType = NameType.toST err.nameType
         errorType = ErrorType.toST err.errorType
         names = err.names }
 
     let toPT
-      (err : ST.NameResolution.Error)
-      : LibExecution.Errors.NameResolution.Error =
+      (err : ST.NameResolutionError.Error)
+      : LibExecution.NameResolutionError.Error =
       { errorType = ErrorType.toPT err.errorType
         nameType = NameType.toPT err.nameType
         names = err.names }
 
-  // type NameResolution = Result<x, NameResolution.Error>
+
+module NameResolution =
   let toST (f : 'p -> 's) (result : PT.NameResolution<'p>) : ST.NameResolution<'s> =
     match result with
     | Ok name -> Ok(f name)
-    | Error err -> Error(Error.toST err)
+    | Error err -> Error(NameResolutionError.Error.toST err)
 
   let toPT (f : 's -> 'p) (result : ST.NameResolution<'s>) : PT.NameResolution<'p> =
     match result with
     | Ok name -> Ok(f name)
-    | Error err -> Error(Error.toPT err)
+    | Error err -> Error(NameResolutionError.Error.toPT err)
 
 
 
@@ -203,13 +215,17 @@ module ConstantName =
         name = PT.ConstantName.ConstantName p.name
         version = p.version }
 
-  let toST (fqConstant : PT.ConstantName.T) : ST.ConstantName.T =
+  let toST
+    (fqConstant : PT.ConstantName.ConstantName)
+    : ST.ConstantName.ConstantName =
     match fqConstant with
     | PT.FQName.BuiltIn s -> ST.ConstantName.BuiltIn(BuiltIn.toST s) // ConstantName.BuiltIn(BuiltIn.toST s)
     | PT.FQName.UserProgram u -> ST.ConstantName.UserProgram(UserProgram.toST u)
     | PT.FQName.Package p -> ST.ConstantName.Package(Package.toST p)
 
-  let toPT (fqConstant : ST.ConstantName.T) : PT.ConstantName.T =
+  let toPT
+    (fqConstant : ST.ConstantName.ConstantName)
+    : PT.ConstantName.ConstantName =
     match fqConstant with
     | ST.ConstantName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
     | ST.ConstantName.UserProgram u -> PT.FQName.UserProgram(UserProgram.toPT u)
@@ -317,12 +333,14 @@ module LetPattern =
   let rec toST (p : PT.LetPattern) : ST.LetPattern =
     match p with
     | PT.LPVariable(id, str) -> ST.LPVariable(id, str)
+    | PT.LPUnit id -> ST.LPUnit id
     | PT.LPTuple(id, first, second, theRest) ->
       ST.LPTuple(id, toST first, toST second, List.map toST theRest)
 
   let rec toPT (p : ST.LetPattern) : PT.LetPattern =
     match p with
     | ST.LPVariable(id, str) -> PT.LPVariable(id, str)
+    | ST.LPUnit id -> PT.LPUnit id
     | ST.LPTuple(id, first, second, theRest) ->
       PT.LPTuple(id, toPT first, toPT second, List.map toPT theRest)
 

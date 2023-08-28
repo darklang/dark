@@ -67,8 +67,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DBytes _, _
   | DDB _, _
   | DEnum _, _
-  | DError _, _
-  | DIncomplete _, _ -> Exception.raiseCode "Both values must be the same type"
+  | DError _, _ -> Exception.raiseCode "Both values must be the same type"
 
 and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
   NEList.length impl1.parameters = NEList.length impl2.parameters
@@ -200,14 +199,16 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
 and equalsLetPattern (pattern1 : LetPattern) (pattern2 : LetPattern) : bool =
   match pattern1, pattern2 with
   | LPVariable(_, name1), LPVariable(_, name2) -> name1 = name2
+  | LPUnit _, LPUnit _ -> true
 
   | LPTuple(_, first, second, theRest), LPTuple(_, first', second', theRest') ->
     let all = first :: second :: theRest
     let all' = first' :: second' :: theRest'
     all.Length = all'.Length && List.forall2 equalsLetPattern all all'
 
-  | LPTuple _, LPVariable _
-  | LPVariable _, LPTuple _ -> false
+  | LPTuple _, _
+  | LPUnit _, _
+  | LPVariable _, _ -> false
 
 and equalsStringSegments
   (segments1 : List<StringSegment>)
@@ -320,8 +321,12 @@ let fns : List<BuiltInFn> =
             match caseName with
             | "Some" -> return value
             | "None" ->
-              return DError(SourceNone, LibExecution.DvalReprDeveloper.toRepr value)
-            | _ -> return (DError(SourceNone, "Invalid Result"))
+              return
+                DError(
+                  SourceNone,
+                  RuntimeError.oldError (DvalReprDeveloper.toRepr value)
+                )
+            | _ -> return DError(SourceNone, RuntimeError.oldError "Invalid Result")
           }
         | _,
           _,
@@ -336,8 +341,13 @@ let fns : List<BuiltInFn> =
             match caseName with
             | "Ok" -> return value
             | "Error" ->
-              return DError(SourceNone, LibExecution.DvalReprDeveloper.toRepr value)
-            | _ -> return (DError(SourceNone, "Invalid Result"))
+              // CLEANUP should we raiseRTE here instead?
+              return
+                DError(
+                  SourceNone,
+                  RuntimeError.oldError (DvalReprDeveloper.toRepr value)
+                )
+            | _ -> return DError(SourceNone, RuntimeError.oldError "Invalid Result")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

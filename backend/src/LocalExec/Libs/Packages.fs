@@ -13,7 +13,7 @@ open LibExecution.RuntimeTypes
 
 open LibExecution.StdLib.Shortcuts
 
-module PT2DT = StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 let types : List<BuiltInType> =
   [ { name = typ [ "LocalExec"; "Packages" ] "Function" 0
@@ -45,6 +45,7 @@ let types : List<BuiltInType> =
             ) }
       deprecated = NotDeprecated }
 
+
     { name = typ [ "LocalExec"; "Packages" ] "Constant" 0
       description = "The name of a package constant"
       declaration =
@@ -57,41 +58,73 @@ let types : List<BuiltInType> =
                   { name = "name"; typ = TString }
                   { name = "version"; typ = TInt } ]
             ) }
+      deprecated = NotDeprecated }
+
+
+    { name = typ [ "LocalExec"; "Packages" ] "Package" 0
+      description = "A package, with types, constants, and functions"
+      declaration =
+        { typeParams = []
+          definition =
+            TypeDeclaration.Record(
+              NEList.ofList
+                { name = "types"
+                  typ =
+                    TList(
+                      TCustomType(
+                        Ok(
+                          TypeName.fqPackage
+                            "Darklang"
+                            [ "LanguageTools"; "Stdlib"; "ProgramTypes" ]
+                            "PackageType"
+                            0
+                        ),
+                        []
+                      )
+                    ) }
+                [ { name = "constants"
+                    typ =
+                      TList(
+                        TCustomType(
+                          Ok(
+                            TypeName.fqPackage
+                              "Darklang"
+                              [ "LanguageTools"; "Stdlib"; "ProgramTypes" ]
+                              "PackageConstant"
+                              0
+                          ),
+                          []
+                        )
+                      ) }
+                  { name = "fns"
+                    typ =
+                      TList(
+                        TCustomType(
+                          Ok(
+                            TypeName.fqPackage
+                              "Darklang"
+                              [ "LanguageTools"
+                                "Stdlib"
+                                "ProgramTypes"
+                                "PackageFn" ]
+                              "PackageFn"
+                              0
+                          ),
+                          []
+                        )
+                      ) } ]
+            ) }
       deprecated = NotDeprecated } ]
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "LocalExec"; "Packages" ] "clear" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TUnit
-      description = "Delete all packages"
-      fn =
-        function
-        | _, _, [ DUnit ] ->
-          uply {
-            do!
-              Sql.query "DELETE FROM package_functions_v0"
-              |> Sql.executeStatementAsync
-            do! Sql.query "DELETE FROM package_types_v0" |> Sql.executeStatementAsync
-            do!
-              Sql.query "DELETE FROM package_constants_v0"
-              |> Sql.executeStatementAsync
-            return DUnit
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn [ "LocalExec"; "Packages" ] "listFunctions" 0
+  [ { name = fn [ "LocalExec"; "Packages" ] "listFunctions" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
         TList(
           TCustomType(
-            FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0),
+            Ok(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0)),
             []
           )
         )
@@ -132,7 +165,10 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
         TList(
-          TCustomType(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0), [])
+          TCustomType(
+            Ok(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0)),
+            []
+          )
         )
       description = "List all package types"
       fn =
@@ -172,7 +208,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TList(
           TCustomType(
-            FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0),
+            Ok(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0)),
             []
           )
         )

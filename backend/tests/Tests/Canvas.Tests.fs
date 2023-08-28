@@ -19,8 +19,8 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module Account = LibCloud.Account
 
-let parse (code : string) : PT.Expr =
-  LibParser.Parser.parseSimple "tests.canvas.fs" code
+let parse (code : string) : Task<PT.Expr> =
+  LibParser.Parser.parseSimple "tests.canvas.fs" code |> Ply.toTask
 
 let testDBOplistRoundtrip : Test =
   testTask "db oplist roundtrip" {
@@ -118,8 +118,12 @@ let testHttpLoadIgnoresDeletedFns =
 
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
     let ps = (NEList.singleton "param")
-    let f = testUserFn "testfn" [] ps (PT.TVariable "a") (parse "5 + 3")
-    let fNew = testUserFn "testfnNew" [] ps (PT.TVariable "a") (parse "6 + 4")
+
+    let! fivePlusThreeParsed = parse "5 + 3"
+    let f = testUserFn "testfn" [] ps (PT.TVariable "a") fivePlusThreeParsed
+
+    let! sixPlusFourParsed = parse "6 + 4"
+    let fNew = testUserFn "testfnNew" [] ps (PT.TVariable "a") sixPlusFourParsed
 
     do!
       Canvas.saveTLIDs
@@ -147,8 +151,8 @@ let testHttpLoadIgnoresDeletedFns =
 let testSetHandlerAfterDelete =
   testTask "handler set after delete" {
     let! canvasID = initializeTestCanvas "set-handlder-after-delete"
-    let e1 = (parse "5 + 3")
-    let e2 = (parse "5 + 2")
+    let! e1 = parse "5 + 3"
+    let! e2 = parse "5 + 2"
     let h1 = testHttpRouteHandler "/path" "GET" e1
     let h2 = testHttpRouteHandler "/path" "GET" e2
 
@@ -178,8 +182,10 @@ let testSetFunctionAfterDelete =
   testTask "function set after delete" {
     let! canvasID = initializeTestCanvas "db-set-function-after-delete"
     let ps = NEList.singleton "param"
-    let f1 = testUserFn "testfn" [] ps (PT.TVariable "a") (parse "5 + 3")
-    let f2 = testUserFn "testfn" [] ps (PT.TVariable "a") (parse "6 + 4")
+    let! e1 = parse "5 + 3"
+    let! e2 = parse "6 + 4"
+    let f1 = testUserFn "testfn" [] ps (PT.TVariable "a") e1
+    let f2 = testUserFn "testfn" [] ps (PT.TVariable "a") e2
 
     // Just the deleted handler
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLFunction f1, Serialize.Deleted) ]

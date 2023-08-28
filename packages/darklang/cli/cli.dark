@@ -11,7 +11,7 @@ module Darklang =
 
     let showFn (name: String) (owner: String) (modules: List<String>) : Int =
       let fns =
-        CLI.HttpClient.request
+        HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/functions/")
           []
@@ -28,7 +28,7 @@ module Darklang =
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> unwrap
           |> String.fromBytes
-          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>>
+          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>>
           |> unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
         else
@@ -60,7 +60,7 @@ module Darklang =
 
     let showType (name: String) (owner: String) (modules: List<String>) : Int =
       let types =
-        CLI.HttpClient.request
+        HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/types/")
           []
@@ -77,7 +77,7 @@ module Darklang =
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> unwrap
           |> String.fromBytes
-          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>>
+          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>>
           |> unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
         else
@@ -111,7 +111,7 @@ module Darklang =
 
     let showConstant (name: String) (owner: String) (modules: List<String>) : Int =
       let constants =
-        CLI.HttpClient.request
+        HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/constants/")
           []
@@ -128,7 +128,7 @@ module Darklang =
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> unwrap
           |> String.fromBytes
-          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T>>
+          |> Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>>
           |> unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
         else
@@ -166,7 +166,7 @@ module Darklang =
 
     let showModule (name: String) : Int =
       let modules =
-        CLI.HttpClient.request
+        HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/modules/" ++ name)
           []
@@ -209,7 +209,7 @@ module Darklang =
 
     let showPackage (owner: String) : Int =
       let packages =
-        CLI.HttpClient.request
+        HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/owner/" ++ owner)
           []
@@ -248,45 +248,23 @@ module Darklang =
 
     let generateCode (prompt: String) (scriptPath: String) : Int =
 
-      let prompt =
-        match File.read "canvases/dark-editor/system-prompt-cli.txt" with
-        | Ok darkPrompt -> prompt ++ "\n" ++ (darkPrompt |> String.fromBytes)
-        | Error e ->
-          print e
-          prompt
-
-      print prompt
-
-      let request =
-        CLI.HttpClient.request
-          "GET"
-          ("http://dark-packages.dlio.localhost:11003/openai-chat/" ++ prompt)
-          []
-          Bytes.empty
-
-      let statusCode =
-        request
-        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
-        |> unwrap
-
-      let response =
-        request
-        |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
+      let systemPrompt =
+        (File.read "canvases/dark-editor/system-prompt-cli.txt")
         |> unwrap
         |> String.fromBytes
 
+      let prompt = prompt ++ "\n" ++ systemPrompt
 
-      if statusCode == 200 then
-        print response
+      let response = (PACKAGE.OpenAI.ChatCompletion.completion prompt)
+
+      match response with
+      | Error e ->
+        print e
+        1
+      | Ok response ->
         File.write (String.toBytes response) scriptPath
         print $"Generated code saved to {scriptPath}"
         0
-
-      else
-        print
-          $"Error generating code.\nStatus code: {statusCode} \nResponse: {response}"
-
-        1
 
 
     let parseArguments (args: List<String>) : PACKAGE.Darklang.Cli.Command =
@@ -303,7 +281,7 @@ module Darklang =
 
       | opt :: args ->
         if PACKAGE.Darklang.Stdlib.String.startsWith opt "@" then
-          let name = opt |> String.dropFirst_v0 1
+          let name = opt |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1
           PACKAGE.Darklang.Cli.Command.RunFunction name args
         else
           PACKAGE.Darklang.Cli.Command.RunScript(opt, args)
@@ -335,9 +313,9 @@ module Darklang =
         let helpText =
           """Usage: darklang [options] [SCRIPT]
 Options:
-  -h, --help          Show this help message and exit
-  --show              Show a package, function, type, constant, or module
-  --prompt PROMPT     Infer a script from the given prompt using OpenAI"""
+  -h, --help                          Show this help message and exit
+  show                                Show a package, function, type, constant, or module
+  --prompt PROMPT  --script SCRIPT    Infer a script from the given prompt using OpenAI"""
 
         print helpText
         0
@@ -364,7 +342,7 @@ Options:
           |> unwrap
 
         let categoryRequest =
-          CLI.HttpClient.request
+          HttpClient.request
             "GET"
             ("http://dark-packages.dlio.localhost:11003/category/" ++ fullName)
             []

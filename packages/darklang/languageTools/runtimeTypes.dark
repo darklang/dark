@@ -1,0 +1,210 @@
+module Darklang =
+  module LanguageTools =
+    module RuntimeTypes =
+      // <aliases>
+      type Option = PACKAGE.Darklang.Stdlib.Option.Option
+      // </aliases>
+
+      module FQName =
+        /// A name that is built into the runtime
+        type BuiltIn<'name> =
+          { modules: List<String>
+            name: 'name
+            version: Int }
+
+        /// Part of the user's program (e.g. canvas or CLI)
+        type UserProgram<'name> =
+          { modules: List<String>
+            name: 'name
+            version: Int }
+
+        type Package<'name> =
+          { owner: String
+            modules: List<String>
+            name: 'name
+            version: Int }
+
+        type FQName<'name> =
+          | BuiltIn of BuiltIn<'name>
+          | UserProgram of UserProgram<'name>
+          | Package of Package<'name>
+
+
+      module TypeName =
+        type Name = TypeName of String
+        type TypeName = FQName.FQName<Name>
+        type BuiltIn = FQName.BuiltIn<Name>
+        type UserProgram = FQName.UserProgram<Name>
+        type Package = FQName.Package<Name>
+
+
+      module FnName =
+        type Name = FnName of String
+        type FnName = FQName.FQName<Name>
+        type BuiltIn = FQName.BuiltIn<Name>
+        type UserProgram = FQName.UserProgram<Name>
+        type Package = FQName.Package<Name>
+
+
+      /// A Fully-Qualified Constant Name
+      /// Includes package, module, and version information where relevant.
+      module ConstantName =
+        type Name = ConstantName of String
+
+        type ConstantName = FQName.FQName<Name>
+
+        type BuiltIn = FQName.BuiltIn<Name>
+        type UserProgram = FQName.UserProgram<Name>
+        type Package = FQName.Package<Name>
+
+
+      type NameResolution<'a> =
+        PACKAGE.Darklang.Stdlib.Result.Result<'a, RuntimeError>
+
+
+      type TypeReference =
+        | TUnit
+        | TBool
+        | TInt
+        | TFloat
+        | TChar
+        | TString
+        | TUuid
+        | TBytes
+        | TDateTime
+        | TPassword
+        | TList of TypeReference
+        | TTuple of TypeReference * TypeReference * List<TypeReference>
+        | TFn of List<TypeReference> * TypeReference
+        | TDB of TypeReference
+        | TVariable of String
+        | TCustomType of
+          NameResolution<TypeName.TypeName> *
+          typeArgs: List<TypeReference>
+        | TDict of TypeReference
+
+      type Expr =
+        | EInt of ID * Int
+        | EBool of ID * Bool
+        | EString of ID * List<StringSegment>
+        | EChar of ID * String
+        | EFloat of ID * Float
+        | EUnit of ID
+        | EConstant of ID * ConstantName.ConstantName
+        | ELet of ID * LetPattern * Expr * Expr
+        | EIf of ID * Expr * Expr * Expr
+        | ELambda of ID * List<ID * String> * Expr
+        | EFieldAccess of ID * Expr * String
+        | EVariable of ID * String
+        | EApply of ID * Expr * typeArgs: List<TypeReference> * args: List<Expr>
+        | EFnName of ID * FnName.FnName
+        | EList of ID * List<Expr>
+        | ETuple of ID * Expr * Expr * List<Expr>
+        | ERecord of ID * TypeName.TypeName * List<String * Expr>
+        | ERecordUpdate of ID * record: Expr * updates: List<String * Expr>
+        | EDict of ID * List<String * Expr>
+        | EEnum of ID * TypeName.TypeName * caseName: String * fields: List<Expr>
+        | EMatch of ID * Expr * List<MatchPattern * Expr>
+        | EAnd of ID * Expr * Expr
+        | EOr of ID * Expr * Expr
+        | EError of ID * RuntimeError * List<Expr>
+
+      type LetPattern =
+        | LPVariable of ID * name: String
+        | LPTuple of
+          ID *
+          first: LetPattern *
+          second: LetPattern *
+          theRest: List<LetPattern>
+
+      type StringSegment =
+        | StringText of String
+        | StringInterpolation of Expr
+
+      type MatchPattern =
+        | MPVariable of ID * String
+        | MPEnum of ID * caseName: String * fieldPatterns: List<MatchPattern>
+        | MPInt of ID * Int
+        | MPBool of ID * Bool
+        | MPChar of ID * String
+        | MPString of ID * String
+        | MPFloat of ID * Float
+        | MPUnit of ID
+        | MPTuple of ID * MatchPattern * MatchPattern * List<MatchPattern>
+        | MPList of ID * List<MatchPattern>
+        | MPListCons of ID * head: MatchPattern * tail: MatchPattern
+
+      type DvalMap = Dict<Dval>
+
+      type LambdaImpl =
+        { typeArgTable: TypeArgTable
+          symtable: Symtable
+          parameters: List<ID * String>
+          body: Expr }
+
+      type FnValImpl =
+        | Lambda of LambdaImpl
+        | NamedFn of FnName.FnName
+
+      type RuntimeError = RuntimeError of Dval
+
+      type Dval =
+        | DUnit
+        | DBool of Bool
+        | DInt of Int
+        | DFloat of Float
+        | DChar of String
+        | DString of String
+        | DDateTime of DateTime
+        | DBytes of Bytes
+        | DUuid of Uuid
+
+        | DList of List<Dval>
+        | DDict of DvalMap
+        | DTuple of Dval * Dval * List<Dval>
+
+        | DFnVal of FnValImpl
+
+        | DDB of String
+        | DPassword of Password
+
+        | DRecord of
+          runtimeTypeName: TypeName.TypeName *
+          sourceTypeName: TypeName.TypeName *
+          DvalMap
+        | DEnum of
+          runtimeTypeName: TypeName.TypeName *
+          sourceTypeName: TypeName.TypeName *
+          caseName: String *
+          List<Dval>
+
+        | DError of DvalSource * RuntimeError
+
+      /// our record of any variable bindings in scope
+      ///
+      /// i.e. within the execution of `x+y` in
+      ///  `let x = 1; let y = 2; x + y`
+      /// , we would have a Symtable of
+      ///   `{ "x" => DInt 1; "y" => DInt 2 }`
+      type Symtable = Dict<Dval>
+
+      type TypeArgTable = Dict<TypeReference>
+
+
+      // Record the source of an incomplete or error. Would be useful to add more
+      // information later, such as the iteration count that led to this, or
+      // something like a stack trace
+      type DvalSource =
+        // We do not have context to supply an identifier
+        | SourceNone
+
+        // Caused by an expression of `id` within the given `tlid`
+        | SourceID of TLID * ID
+
+      type BuiltInParam =
+        { name: String
+          typ: TypeReference
+          blockArgs: List<String>
+          description: String }
+
+// and Param = { name : String; typ : TypeReference }
