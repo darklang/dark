@@ -93,7 +93,7 @@ module TracingConfig =
 
 module TraceResults =
   type T =
-    { tlids : HashSet.T<tlid>
+    { tlids : HashSet.HashSet<tlid>
       functionResults :
         Dictionary.T<TraceCloudStorage.FunctionResultKey, TraceCloudStorage.FunctionResultValue> }
 

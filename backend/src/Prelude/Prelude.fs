@@ -37,9 +37,21 @@ let printfn = printfn
 // https://stackoverflow.com/a/11696947/104021
 let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 
+// ----------------------
+// Important types
+// ----------------------
+type tlid = uint64
+
+type id = uint64
+
+// This is important to prevent auto-serialization accidentally leaking this,
+// though it never should anyway
+type Password = Password of byte array
 
 type NEList<'a> = NEList.NEList<'a>
 type Metadata = Exception.Metadata
+
+type HashSet<'a> = HashSet.HashSet<'a>
 
 // ----------------------
 // Debugging
@@ -403,121 +415,6 @@ let randomString (length : int) : string =
   assertEq "randomString length is correct" result.Length length
   result
 
-// ----------------------
-// TODO move elsewhere
-// ----------------------
-module String =
-  // Returns a seq of EGC (extended grapheme cluster - essentially a visible
-  // screen character)
-  // https://stackoverflow.com/a/4556612/104021
-  let toEgcSeq (s : string) : seq<string> =
-    seq {
-      let tee = System.Globalization.StringInfo.GetTextElementEnumerator(s)
-
-      while tee.MoveNext() do
-        yield tee.GetTextElement()
-    }
-
-  let splitOnNewline (str : string) : List<string> =
-    if str = "" then
-      []
-    else
-      str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
-
-
-  let lengthInEgcs (s : string) : int =
-    System.Globalization.StringInfo(s).LengthInTextElements
-
-  let normalize (s : string) : string = s.Normalize()
-
-  let equalsCaseInsensitive (s1 : string) (s2 : string) : bool =
-    System.String.Equals(s1, s2, System.StringComparison.InvariantCultureIgnoreCase)
-
-  let replace (old : string) (newStr : string) (s : string) : string =
-    s.Replace(old, newStr)
-
-  let isCapitalized (s : string) : bool = s.Length > 0 && System.Char.IsUpper(s.[0])
-
-
-module Map =
-  let mergeFavoringRight (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
-    FSharpPlus.Map.union m2 m1
-
-  let mergeFavoringLeft (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
-    FSharpPlus.Map.union m1 m2
-
-  let ofNEList (l : NEList<'k * 'v>) : Map<'k, 'v> =
-    NEList.fold (fun m (k, v) -> Map.add k v m) Map.empty l
-
-
-module HashSet =
-  type T<'v> = System.Collections.Generic.HashSet<'v>
-
-  let add (v : 'v) (s : T<'v>) : unit =
-    let (_ : bool) = s.Add v
-    ()
-
-  let empty () : T<'v> = System.Collections.Generic.HashSet<'v>()
-
-  let toList (d : T<'v>) : List<'v> =
-    seq {
-      let mutable e = d.GetEnumerator()
-
-      while e.MoveNext() do
-        yield e.Current
-    }
-    |> Seq.toList
-
-
-
-module Dictionary =
-  type T<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
-
-  let get (k : 'k) (t : T<'k, 'v>) : Option<'v> =
-    FSharpPlus.Dictionary.tryGetValue k t
-
-  let containsKey (k : 'k) (t : T<'k, 'v>) : bool = t.ContainsKey k
-
-  let add (k : 'k) (v : 'v) (d : T<'k, 'v>) : unit =
-    d[k] <- v
-    ()
-
-  let empty () : T<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>()
-
-  let keys = FSharpPlus.Dictionary.keys
-  let values = FSharpPlus.Dictionary.values
-
-  let toList (d : T<'k, 'v>) : List<'k * 'v> =
-    seq {
-      let mutable e = d.GetEnumerator()
-
-      while e.MoveNext() do
-        yield (e.Current.Key, e.Current.Value)
-    }
-    |> Seq.toList
-
-  let fromList (l : List<'k * 'v>) : T<'k, 'v> =
-    let result = empty ()
-    List.iter (fun (k, v) -> result[k] <- v) l
-    result
-
-  let toMap (d : T<'k, 'v>) : Map<'k, 'v> = d |> toList |> Map.ofList
-
-module ResizeArray =
-  type T<'v> = ResizeArray<'v>
-  let empty () = T()
-
-  let iter (f : 'v -> unit) (l : T<'v>) : unit =
-    FSharpx.Collections.ResizeArray.iter f l
-
-  let map (f : 'v -> 'v2) (l : T<'v>) : T<'v2> =
-    FSharpx.Collections.ResizeArray.map f l
-
-  let append (v : 'v) (list : T<'v>) : unit = list.Add(v)
-
-  let toList (l : T<'v>) : List<'v> = FSharpx.Collections.ResizeArray.toList l
-
-  let toSeq (l : T<'v>) : seq<'v> = FSharpx.Collections.ResizeArray.toSeq l
 
 
 // ----------------------
@@ -528,18 +425,6 @@ module Lazy =
   let map f l = lazy ((f << force) l)
   let bind f l = lazy ((force << f << force) l)
 
-
-// ----------------------
-// Important types
-// ----------------------
-type tlid = uint64
-
-type id = uint64
-
-
-// This is important to prevent auto-serialization accidentally leaking this,
-// though it never should anyway
-type Password = Password of byte array
 
 // ----------------------
 // Json auto-serialization
@@ -1103,163 +988,6 @@ module Ply =
           })
         Map.empty
         dict
-
-
-// ----------------------
-// Task utility functions
-// ----------------------
-module Task =
-
-  let map (f : 'a -> 'b) (v : Task<'a>) : Task<'b> =
-    task {
-      let! v = v
-      return f v
-    }
-
-  let bind (f : 'a -> Task<'b>) (v : Task<'a>) : Task<'b> =
-    task {
-      let! v = v
-      return! f v
-    }
-
-
-
-  let flatten (list : List<Task<'a>>) : Task<List<'a>> =
-    Task.WhenAll list |> map Array.toList
-
-  let foldSequentially
-    (f : 'state -> 'a -> Task<'state>)
-    (initial : 'state)
-    (list : List<'a>)
-    : Task<'state> =
-    List.fold
-      (fun (accum : Task<'state>) (arg : 'a) ->
-        task {
-          let! accum = accum
-          return! f accum arg
-        })
-      (Task.FromResult initial)
-      list
-
-  let mapSequentially (f : 'a -> Task<'b>) (list : List<'a>) : Task<List<'b>> =
-
-    list
-    |> foldSequentially
-      (fun (accum : List<'b>) (arg : 'a) ->
-        task {
-          let! result = f arg
-          return result :: accum
-        })
-      []
-    |> map List.rev
-
-  let mapInParallel (f : 'a -> Task<'b>) (list : List<'a>) : Task<List<'b>> =
-    List.map f list |> flatten
-
-  /// Call [f v], after claiming the passed semaphore. Releases the semaphore when done
-  let execWithSemaphore
-    (semaphore : System.Threading.SemaphoreSlim)
-    (f : 'a -> Task<'b>)
-    (v : 'a)
-    : Task<'b> =
-    task {
-      try
-        do! semaphore.WaitAsync()
-        return! f v
-      finally
-        semaphore.Release() |> ignore<int>
-    }
-
-  let mapWithConcurrency
-    (concurrencyCount : int)
-    (f : 'a -> Task<'b>)
-    (list : List<'a>)
-    : Task<List<'b>> =
-    let semaphore = new System.Threading.SemaphoreSlim(concurrencyCount)
-    let f = execWithSemaphore semaphore f
-    List.map f list |> flatten
-
-  let iterInParallel (f : 'a -> Task<unit>) (list : List<'a>) : Task<unit> =
-    task {
-      let! (_completedTasks : unit[]) = List.map f list |> Task.WhenAll
-      return ()
-    }
-
-  let iterWithConcurrency
-    (concurrencyCount : int)
-    (f : 'a -> Task<unit>)
-    (list : List<'a>)
-    : Task<unit> =
-    let semaphore = new System.Threading.SemaphoreSlim(concurrencyCount)
-    let f = execWithSemaphore semaphore f
-    task {
-      let! (_completedTasks : unit[]) = List.map f list |> Task.WhenAll
-      return ()
-    }
-
-  let filterSequentially (f : 'a -> Task<bool>) (list : List<'a>) : Task<List<'a>> =
-    task {
-      let! filtered =
-        List.fold
-          (fun (accum : Task<List<'a>>) (arg : 'a) ->
-            task {
-              let! (accum : List<'a>) = accum
-              let! keep = f arg
-              return (if keep then (arg :: accum) else accum)
-            })
-          (Task.FromResult [])
-          list
-
-      return List.rev filtered
-    }
-
-  let iterSequentially (f : 'a -> Task<unit>) (list : List<'a>) : Task<unit> =
-    List.fold
-      (fun (accum : Task<unit>) (arg : 'a) ->
-        task {
-          do! accum // resolve the previous task before doing this one
-          return! f arg
-        })
-      (Task.FromResult())
-      list
-
-  let findSequentially (f : 'a -> Task<bool>) (list : List<'a>) : Task<Option<'a>> =
-    List.fold
-      (fun (accum : Task<Option<'a>>) (arg : 'a) ->
-        task {
-          match! accum with
-          | Some v -> return Some v
-          | None ->
-            let! result = f arg
-            return (if result then Some arg else None)
-        })
-      (Task.FromResult None)
-      list
-
-  let filterMapSequentially
-    (f : 'a -> Task<Option<'b>>)
-    (list : List<'a>)
-    : Task<List<'b>> =
-    task {
-      let! filtered =
-        List.fold
-          (fun (accum : Task<List<'b>>) (arg : 'a) ->
-            task {
-              let! (accum : List<'b>) = accum
-              let! keep = f arg
-
-              let result =
-                match keep with
-                | Some v -> v :: accum
-                | None -> accum
-
-              return result
-            })
-          (Task.FromResult [])
-          list
-
-      return List.rev filtered
-    }
 
 
 

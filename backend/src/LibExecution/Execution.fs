@@ -97,7 +97,7 @@ let runtimeErrorToString
 /// Return a function to trace TLIDs (add it to state via
 /// state.tracing.traceTLID), and a mutable set which updates when the
 /// traceFn is used
-let traceTLIDs () : HashSet.T<tlid> * RT.TraceTLID =
+let traceTLIDs () : HashSet.HashSet<tlid> * RT.TraceTLID =
   let touchedTLIDs = HashSet.empty ()
   let traceTLID tlid : unit = HashSet.add tlid touchedTLIDs
   (touchedTLIDs, traceTLID)

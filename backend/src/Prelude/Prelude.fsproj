@@ -18,6 +18,12 @@
     <Compile Include="Tuple2.fs" />
     <Compile Include="Base64.fs" />
     <Compile Include="UTF8.fs" />
+    <Compile Include="String.fs" />
+    <Compile Include="Map.fs" />
+    <Compile Include="HashSet.fs" />
+    <Compile Include="Dictionary.fs" />
+    <Compile Include="ResizeArray.fs" />
+    <Compile Include="Task.fs" />
     <Compile Include="NonBlockingConsole.fs" />
     <Compile Include="Prelude.fs" />
   </ItemGroup>
