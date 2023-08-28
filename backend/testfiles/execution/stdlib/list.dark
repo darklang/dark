@@ -10,6 +10,9 @@ List.all_v0 [ 1; 2 ] (fun item -> item < 3) = true
 List.all_v0 [ 4 ] (fun item -> item < 3) = false
 List.all_v0 [ 1; 4 ] (fun item -> item < 3) = false
 
+// I don't this is a good error message?
+List.all_v0 [ 1; 2; 3 ] (fun item -> "a") = Test.runtimeError
+  "Expected `fn` to return a Bool, but it returned `1`"
 
 List.append_v0 [ 1; 2; 3 ] [ 4; 5; 6 ] = [ 1; 2; 3; 4; 5; 6 ]
 List.append_v0 [ 3; 4 ] [ 5; 6 ] = [ 3; 4; 5; 6 ]
@@ -35,13 +38,21 @@ PACKAGE.Darklang.Stdlib.List.drop_v0 [ 5; 4; 3; 2; 1 ] 5 = []
 PACKAGE.Darklang.Stdlib.List.drop_v0 [ 5 ] 4 = []
 PACKAGE.Darklang.Stdlib.List.drop_v0 [] 4 = []
 
-List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Test.derrorMessage
-  "Expected `fn` to return a Bool, but it returned `-1`"
 
-List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item < 3) = [ 3; 4 ]
-List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item >= 1) = []
-List.dropWhile_v0 [ 1; 5; 2; 2 ] (fun item -> item < 3) = [ 5; 2; 2 ]
-List.dropWhile_v0 [] (fun item -> item < 3) = []
+//TODO: uncomment this test to use the new error message (need to rebase)
+// PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Test.runtimeError
+//   "Expected `fn` to return a Bool, but it returned `-1`"
+
+PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item < 3) = [ 3
+                                                                                    4 ]
+
+PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item >= 1) = []
+
+PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1; 5; 2; 2 ] (fun item -> item < 3) = [ 5
+                                                                                    2
+                                                                                    2 ]
+
+PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [] (fun item -> item < 3) = []
 
 List.empty_v0 = []
 
@@ -72,26 +83,28 @@ List.empty_v0 = []
  Test.sideEffectCount ()) = 1
 
 
+//TODO : uncomment this test to use the new error message (need to rebase)
+// PACKAGE.Darklang.Stdlib.List.filter [ 1; 2; 3 ] (fun item ->
+//   match item with
+//   | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None
+//   | 2 -> false
+//   | 3 -> true) = Test.runtimeError
+//   "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.None`"
 
-List.filter [ 1; 2; 3 ] (fun item ->
-  match item with
-  | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None
-  | 2 -> false
-  | 3 -> true) = Test.derrorMessage
-  "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.None`"
 
-List.filter [ true; false; true ] (fun item -> "a") = Test.derrorMessage
-  "Expected `fn` to return a Bool, but it returned `\"a\"`"
+// TODO: uncomment this test to use the new error message (need to rebase)
+// PACKAGE.Darklang.Stdlib.List.filter [ true; false; true ] (fun item -> "a") = Test.runtimeError
+//   "Expected `fn` to return a Bool, but it returned `\"a\"`"
 
-List.filter [ 1; 2; 3 ] (fun item ->
+PACKAGE.Darklang.Stdlib.List.filter [ 1; 2; 3 ] (fun item ->
   match item with
   | 1 -> true
   | 2 -> false
   | 3 -> true) = [ 1; 3 ]
 
-List.filter [] (fun item -> true) = []
-List.filter [ -20; 5; 9 ] (fun x -> x > 20) = []
-List.filter [] (fun item -> "a") = []
+PACKAGE.Darklang.Stdlib.List.filter [] (fun item -> true) = []
+PACKAGE.Darklang.Stdlib.List.filter [ -20; 5; 9 ] (fun x -> x > 20) = []
+PACKAGE.Darklang.Stdlib.List.filter [] (fun item -> "a") = []
 
 List.filterMap_v0 [ 1; 2; 3 ] (fun item ->
   if item == 2 then
@@ -108,17 +121,17 @@ List.filterMap_v0 [ 1; 2; 3 ] (fun item ->
 
 List.filterMap_v0 [] (fun item -> 0) = []
 
-List.findFirst [ 1; 2; 3 ] (fun x -> x > 5) = PACKAGE.Darklang.Stdlib.Option.Option.None
-List.findFirst [] (fun x -> x) = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.findFirst [ 1; 2; 3 ] (fun x -> x > 5) = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.findFirst [] (fun x -> x) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-List.findFirst [ 1; 2; 3; 1; 4 ] (fun x -> x > 1) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+PACKAGE.Darklang.Stdlib.List.findFirst [ 1; 2; 3; 1; 4 ] (fun x -> x > 1) = PACKAGE.Darklang.Stdlib.Option.Option.Some
   2
 
-List.findFirst [ 0; 5; -6; -10 ] (fun x -> x < 0) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+PACKAGE.Darklang.Stdlib.List.findFirst [ 0; 5; -6; -10 ] (fun x -> x < 0) = PACKAGE.Darklang.Stdlib.Option.Option.Some
   -6
 
-List.findFirst [ 1; -33; 3; -2; 12 ] (fun x -> (x < 0 && x % 2 == 0)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  -2
+PACKAGE.Darklang.Stdlib.List.findFirst [ 1; -33; 3; -2; 12 ] (fun x ->
+  (x < 0 && x % 2 == 0)) = PACKAGE.Darklang.Stdlib.Option.Option.Some -2
 
 // CLEANUP once DList contains typeRefs, this test may be uncommented and the error message updated:
 // PACKAGE.Darklang.Stdlib.List.flatten_v0 [1;2;3] =
@@ -160,18 +173,39 @@ List.indexedMap_v0 [ 3; 2; 1 ] (fun i v -> v - i) = [ 3; 1; -1 ]
 List.indexedMap_v0 [] (fun i v -> v - i) = []
 List.indexedMap_v0 [ 3; 2; 1 ] (fun i v -> i) = [ 0; 1; 2 ]
 
-List.interleave_v0 [ 1; 2; 3 ] [ 4; 5; 6 ] = [ 1; 4; 2; 5; 3; 6 ]
-List.interleave_v0 [ 1; 2; 3 ] [ 4 ] = [ 1; 4; 2; 3 ]
-List.interleave_v0 [ 1; 2; 3 ] [] = [ 1; 2; 3 ]
-List.interleave_v0 [ 1 ] [ 4; 5; 6 ] = [ 1; 4; 5; 6 ]
-List.interleave_v0 [] [ 4; 5; 6 ] = [ 4; 5; 6 ]
-List.interleave_v0 [] [] = []
-List.interleave_v0 [ "a"; "b"; "c" ] [ 0 ] = [ "a"; 0; "b"; "c" ]
+PACKAGE.Darklang.Stdlib.List.interleave_v0 [ 1; 2; 3 ] [ 4; 5; 6 ] = [ 1
+                                                                       4
+                                                                       2
+                                                                       5
+                                                                       3
+                                                                       6 ]
 
-List.interpose_v0 [ 1; 2; 3 ] 5 = [ 1; 5; 2; 5; 3 ]
-List.interpose_v0 [ 1 ] 5 = [ 1 ]
-List.interpose_v0 [] 5 = []
-List.interpose_v0 [ "a"; "b"; "c" ] 0 = [ "a"; 0; "b"; 0; "c" ]
+PACKAGE.Darklang.Stdlib.List.interleave_v0 [ 1; 2; 3 ] [ 4 ] = [ 1; 4; 2; 3 ]
+PACKAGE.Darklang.Stdlib.List.interleave_v0 [ 1; 2; 3 ] [] = [ 1; 2; 3 ]
+PACKAGE.Darklang.Stdlib.List.interleave_v0 [ 1 ] [ 4; 5; 6 ] = [ 1; 4; 5; 6 ]
+PACKAGE.Darklang.Stdlib.List.interleave_v0 [] [ 4; 5; 6 ] = [ 4; 5; 6 ]
+PACKAGE.Darklang.Stdlib.List.interleave_v0 [] [] = []
+
+PACKAGE.Darklang.Stdlib.List.interleave_v0 [ "a"; "b"; "c" ] [ 0 ] = [ "a"
+                                                                       0
+                                                                       "b"
+                                                                       "c" ]
+
+PACKAGE.Darklang.Stdlib.List.interpose_v0 [ 1; 2; 3 ] 5 = [ 1; 5; 2; 5; 3 ]
+PACKAGE.Darklang.Stdlib.List.interpose_v0 [ 1 ] 5 = [ 1 ]
+PACKAGE.Darklang.Stdlib.List.interpose_v0 [] 5 = []
+
+PACKAGE.Darklang.Stdlib.List.interpose_v0 [ "a"; "b"; "c" ] 0 = [ "a"
+                                                                  0
+                                                                  "b"
+                                                                  0
+                                                                  "c" ]
+
+PACKAGE.Darklang.Stdlib.List.interpose_v0 [ "a"; "b"; "c" ] [ 0; 1 ] = [ "a"
+                                                                         [ 0; 1 ]
+                                                                         "b"
+                                                                         [ 0; 1 ]
+                                                                         "c" ]
 
 PACKAGE.Darklang.Stdlib.List.isEmpty_v0 [ 1 ] = false
 PACKAGE.Darklang.Stdlib.List.isEmpty_v0 [] = true
@@ -187,19 +221,17 @@ PACKAGE.Darklang.Stdlib.List.last [] = PACKAGE.Darklang.Stdlib.Option.Option.Non
 PACKAGE.Darklang.Stdlib.List.length_v0 [ 1; 2; 3 ] = 3
 PACKAGE.Darklang.Stdlib.List.length_v0 [] = 0
 
-List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 1 5) (fun x -> x + 1) = [ 2
-                                                                             3
-                                                                             4
-                                                                             5
-                                                                             6 ]
+PACKAGE.Darklang.Stdlib.List.map_v0
+  (PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+  (fun x -> x + 1) = [ 2; 3; 4; 5; 6 ]
 
-List.map_v0 [ 1; 2; 3 ] (fun x ->
+PACKAGE.Darklang.Stdlib.List.map_v0 [ 1; 2; 3 ] (fun x ->
   PACKAGE.Darklang.Stdlib.Bool.and_v0
     (Int.greaterThanOrEqualTo_v0 x 0)
     (Int.lessThanOrEqualTo_v0 x 4)) = [ true; true; true ]
 
-List.map_v0 [ 1; 2 ] (fun x -> x + 1) = [ 2; 3 ]
-List.map_v0 [] (fun x -> x + 1) = []
+PACKAGE.Darklang.Stdlib.List.map_v0 [ 1; 2 ] (fun x -> x + 1) = [ 2; 3 ]
+PACKAGE.Darklang.Stdlib.List.map_v0 [] (fun x -> x + 1) = []
 
 List.map2_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Some
   [ 9; 18; 27 ]
@@ -216,26 +248,31 @@ PACKAGE.Darklang.Stdlib.List.member_v0 [ 1; 2; 3 ] 2 = true
 PACKAGE.Darklang.Stdlib.List.member_v0 [ 1; 2; 3 ] 4 = false
 PACKAGE.Darklang.Stdlib.List.member_v0 [] 1 = false
 
-List.partition_v0 [ -20; 5; 9 ] (fun x -> x > 0) = ([ 5; 9 ], [ -20 ])
-List.partition_v0 [] (fun item -> true) = ([], [])
-List.partition_v0 [] (fun item -> "a") = ([], [])
+PACKAGE.Darklang.Stdlib.List.partition_v0 [ -20; 5; 9 ] (fun x -> x > 0) = ([ 5; 9 ],
+                                                                            [ -20 ])
 
-List.partition_v0 [ 1; 2; 3 ] (fun item ->
+PACKAGE.Darklang.Stdlib.List.partition_v0 [] (fun item -> true) = ([], [])
+PACKAGE.Darklang.Stdlib.List.partition_v0 [] (fun item -> "a") = ([], [])
+
+PACKAGE.Darklang.Stdlib.List.partition_v0 [ 1; 2; 3 ] (fun item ->
   match item with
   | 1 -> true
   | 2 -> false
   | 3 -> true) = ([ 1; 3 ], [ 2 ])
 
-List.partition_v0 [ true; false; true ] (fun item -> "a") = Test.derrorMessage
-  "Expected `fn` to return a Bool, but it returned `\"a\"`"
 
+//TODO: uncomment this test to use the new error message (need to rebase)
+// PACKAGE.Darklang.Stdlib.List.partition_v0 [ true; false; true ] (fun item -> "a") = (Test.runtimeError
+//                                                                "Expected `fn` to return a Bool, but it returned `\"a\"`",
+//                                                              [])
 
-List.partition_v0 [ 1; 2; 3 ] (fun item ->
-  match item with
-  | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None
-  | 2 -> false
-  | 3 -> true) = Test.derrorMessage
-  "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.None`"
+// PACKAGE.Darklang.Stdlib.List.partition_v0 [ 1; 2; 3 ] (fun item ->
+//   match item with
+//   | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None
+//   | 2 -> false
+//   | 3 -> true) = (Test.runtimeError
+//                     "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.None`",
+//                   [])
 
 PACKAGE.Darklang.Stdlib.List.pushBack_v0 [ 2; 3 ] 1 = [ 2; 3; 1 ]
 PACKAGE.Darklang.Stdlib.List.pushBack_v0 [] 1 = [ 1 ]
@@ -251,21 +288,32 @@ PACKAGE.Darklang.Stdlib.List.range_v0 -1 0 = [ -1; 0 ]
 PACKAGE.Darklang.Stdlib.List.range_v0 -5 5 = [ -5; -4; -3; -2; -1; 0; 1; 2; 3; 4; 5 ]
 PACKAGE.Darklang.Stdlib.List.range_v0 5 0 = []
 
-List.repeat_v0 0 1 = PACKAGE.Darklang.Stdlib.Result.Result.Ok []
-List.repeat_v0 1 "a" = PACKAGE.Darklang.Stdlib.Result.Result.Ok [ "a" ]
-List.repeat_v0 1 1 = PACKAGE.Darklang.Stdlib.Result.Result.Ok [ 1 ]
+PACKAGE.Darklang.Stdlib.List.repeat_v0 0 1 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  []
 
-List.repeat_v0 11844674407356L 1 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+PACKAGE.Darklang.Stdlib.List.repeat_v0 1 "a" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ "a" ]
+
+PACKAGE.Darklang.Stdlib.List.repeat_v0 1 1 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ 1 ]
+
+PACKAGE.Darklang.Stdlib.List.repeat_v0 11844674407356L 1 = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Expected `times` to be less than 2147483647, but it was `11844674407356`"
 
-List.repeat_v0 3 1 = PACKAGE.Darklang.Stdlib.Result.Result.Ok [ 1; 1; 1 ]
-List.repeat_v0 3 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok [ 3; 3; 3 ]
+PACKAGE.Darklang.Stdlib.List.repeat_v0 3 1 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ 1; 1; 1 ]
 
-List.repeat_v0 5 "a" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+PACKAGE.Darklang.Stdlib.List.repeat_v0 3 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ 3; 3; 3 ]
+
+PACKAGE.Darklang.Stdlib.List.repeat_v0 5 "a" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   [ "a"; "a"; "a"; "a"; "a" ]
 
-List.repeat_v0 -4 "a" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+PACKAGE.Darklang.Stdlib.List.repeat_v0 -4 "a" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Expected `times` to be positive, but it was `-4`"
+
+PACKAGE.Darklang.Stdlib.List.repeat_v0 2 [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ [ 1; 2; 3 ]; [ 1; 2; 3 ] ]
 
 PACKAGE.Darklang.Stdlib.List.reverse_v0 [ "a"; "b"; "c"; "d" ] = [ "d"
                                                                    "c"
@@ -279,6 +327,8 @@ List.singleton_v0 1 = [ 1 ]
 
 List.sortBy_v0 [ 6; 2; 8; 3 ] (fun x -> 0 - x) = [ 8; 6; 3; 2 ]
 List.sortBy_v0 [] (fun x -> 0 - x) = []
+List.sortBy_v0 [ 6 ] (fun x -> 0 - x) = [ 6 ]
+// TODO: test sortBy with other types
 
 List.sortBy_v0 [ 6; 2.0 ] (fun x -> x) = Test.derrorMessage
   "List.sortBy: Unable to sort list, perhaps the list elements are different types"
@@ -337,56 +387,96 @@ PACKAGE.Darklang.Stdlib.List.take_v0 [ 5; 4; 3; 2; 1 ] 5 = [ 5; 4; 3; 2; 1 ]
 PACKAGE.Darklang.Stdlib.List.take_v0 [ 5 ] 4 = [ 5 ]
 PACKAGE.Darklang.Stdlib.List.take_v0 [] 4 = []
 
-List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Test.derrorMessage
-  "Expected `fn` to return a Bool, but it returned `-1`"
 
-List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item < 1) = []
-List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item < 3) = [ 1; 2 ]
-List.takeWhile_v0 [ 1; 5; 2; 2 ] (fun item -> item < 3) = [ 1 ]
-List.takeWhile_v0 [] (fun item -> item < 3) = []
+//TODO: uncomment this test to use the new error message (need to rebase)
+// PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Test.runtimeError
+//   "Expected `fn` to return a Bool, but it returned `-1`"
+
+PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item < 1) = []
+
+PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item < 3) = [ 1
+                                                                                    2 ]
+
+PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [ 1; 5; 2; 2 ] (fun item -> item < 3) = [ 1 ]
+PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [] (fun item -> item < 3) = []
 
 // it isn't specified which is the right value to keep when there are duplicates
-List.uniqueBy_v0 [ 1; 2; 3; 4 ] (fun x -> Int.divide_v0 x 2) = [ 1; 2; 4 ]
-List.uniqueBy_v0 [ 1; 2; 3; 4 ] (fun x -> x) = [ 1; 2; 3; 4 ]
-List.uniqueBy_v0 [ 1; 1; 1; 1 ] (fun x -> x) = [ 1 ]
-List.uniqueBy_v0 [ 7; 42; 7; 2; 10 ] (fun x -> x) = [ 2; 7; 10; 42 ]
-List.uniqueBy_v0 [] (fun x -> x) = []
+PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 1; 2; 3; 4 ] (fun x -> Int.divide_v0 x 2) = [ 1
+                                                                                         3
+                                                                                         4 ]
 
-List.uniqueBy_v0 [ 6; 2.0 ] (fun x -> x) = Test.derrorMessage
-  "List.uniqueBy: Unable to sort list, perhaps the list elements are different types"
+PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 1; 2; 3; 4 ] (fun x -> x) = [ 1; 2; 3; 4 ]
+PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 1; 1; 1; 1 ] (fun x -> x) = [ 1 ]
 
-List.unique_v0 [ 1; 2; 3; 4 ] = [ 1; 2; 3; 4 ]
-List.unique_v0 [ 1; 1; 1; 1 ] = [ 1 ]
-List.unique_v0 [ 7; 42; 7; 2; 10 ] = [ 2; 7; 10; 42 ]
-List.unique_v0 [] = []
+PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 7; 42; 7; 2; 10 ] (fun x -> x) = [ 42
+                                                                              7
+                                                                              2
+                                                                              10 ]
 
-List.unique_v0 [ 6; 2.0 ] = Test.derrorMessage
-  "List.unique: Unable to sort list, perhaps the list elements are different types"
+
+PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [] (fun x -> x) = []
+
+//TODO: uncomment this test to use the new error message (need to rebase)
+// PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 6; 2.0 ] (fun x -> x) = Test.runtimeError
+//   "List.uniqueBy: Unable to sort list, perhaps the list elements are different types"
+
+PACKAGE.Darklang.Stdlib.List.unique_v0 [ 1; 2; 3; 4 ] = [ 1; 2; 3; 4 ]
+PACKAGE.Darklang.Stdlib.List.unique_v0 [ 1; 1; 1; 1 ] = [ 1 ]
+PACKAGE.Darklang.Stdlib.List.unique_v0 [ 7; 42; 7; 2; 10 ] = [ 42; 7; 2; 10 ]
+PACKAGE.Darklang.Stdlib.List.unique_v0 [] = []
+
+// TODO: uncomment this test to use the new error message (need to rebase)
+// PACKAGE.Darklang.Stdlib.List.unique_v0 [ 6; 2.0 ] = Test.runtimeError
+//   "List.unique: Unable to sort list, perhaps the list elements are different types"
 // TODO: more tests, with values of more complex types
 
-List.unzip_v0 [ (1, 10); (2, 20); (3, 30) ] = ([ 1; 2; 3 ], [ 10; 20; 30 ])
-List.unzip_v0 [ (10, 6) ] = ([ 10 ], [ 6 ])
+PACKAGE.Darklang.Stdlib.List.unzip_v0 [ (1, 10); (2, 20); (3, 30) ] = ([ 1; 2; 3 ],
+                                                                       [ 10; 20; 30 ])
 
-List.zipShortest_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] = [ (10, 1); (20, 2); (30, 3) ]
+PACKAGE.Darklang.Stdlib.List.unzip_v0 [ (10, 6) ] = ([ 10 ], [ 6 ])
 
-List.zipShortest_v0 [ 10; 20; 30 ] [ "a"; "bc"; "d" ] = [ (10, "a")
-                                                          (20, "bc")
-                                                          (30, "d") ]
+PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] = [ (10, 1)
+                                                                           (20, 2)
+                                                                           (30, 3) ]
 
-List.zipShortest_v0 [ 10; 20 ] [ 1; 2; 3 ] = [ (10, 1); (20, 2) ]
-List.zipShortest_v0 [ 1; 2; 3 ] [ 10; 20 ] = [ (1, 10); (2, 20) ]
-List.zipShortest_v0 [ 10; 20 ] [ "a"; "bc"; "d" ] = [ (10, "a"); (20, "bc") ]
-List.zipShortest_v0 [ "a"; "bc"; "d" ] [ 10; 20 ] = [ ("a", 10); ("bc", 20) ]
-List.zipShortest_v0 [ "b"; "v"; "z" ] [] = []
-List.zipShortest_v0 [] [ "b"; "v"; "z" ] = []
+PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ 10; 20; 30 ] [ "a"; "bc"; "d" ] = [ (10,
+                                                                                   "a")
+                                                                                  (20,
+                                                                                   "bc")
+                                                                                  (30,
+                                                                                   "d") ]
+
+PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ 10; 20 ] [ 1; 2; 3 ] = [ (10, 1)
+                                                                       (20, 2) ]
+
+PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ 1; 2; 3 ] [ 10; 20 ] = [ (1, 10)
+                                                                       (2, 20) ]
+
+PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ 10; 20 ] [ "a"; "bc"; "d" ] = [ (10,
+                                                                               "a")
+                                                                              (20,
+                                                                               "bc") ]
+
+PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ "a"; "bc"; "d" ] [ 10; 20 ] = [ ("a",
+                                                                               10)
+                                                                              ("bc",
+                                                                               20) ]
+
+PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ "b"; "v"; "z" ] [] = []
+PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [] [ "b"; "v"; "z" ] = []
 
 
-List.zip_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
+PACKAGE.Darklang.Stdlib.List.zip_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
   [ (10, 1); (20, 2); (30, 3) ]
 
-List.zip_v0 [ 10; 20 ] [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.None
-List.zip_v0 [] [] = PACKAGE.Darklang.Stdlib.Option.Option.Some []
-List.zip_v0 [ Test.runtimeError "msg" ] [ Some "" ] = Test.derrorMessage "msg"
+
+PACKAGE.Darklang.Stdlib.List.zip_v0 [ 10; 20 ] [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.List.zip_v0 [] [] = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  []
+
+PACKAGE.Darklang.Stdlib.List.zip_v0 [ Test.runtimeError "msg" ] [ Some "" ] = Test.runtimeError
+  "msg"
 
 
 List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Int.mod_v0 x 2) = [ (1,
