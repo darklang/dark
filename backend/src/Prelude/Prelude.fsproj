@@ -13,6 +13,8 @@
     <None Include="paket.references" />
     <Compile Include="Exception.fs" />
     <Compile Include="NEList.fs" />
+    <Compile Include="Regex.fs" />
+    <Compile Include="NonBlockingConsole.fs" />
     <Compile Include="Prelude.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

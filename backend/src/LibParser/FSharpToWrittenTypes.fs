@@ -222,22 +222,22 @@ module Expr =
 
   let parseFn (fnName : string) : Result<string * int, string> =
     match fnName with
-    | Regex "^([a-z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
+    | Regex.Regex "^([a-z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
       Ok(name, (int version))
-    | Regex "^([a-z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
+    | Regex.Regex "^([a-z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
     | _ -> Error "Bad format in fn name"
 
   let parseEnum (enumName : string) : Option<string> =
     // No version on the Enum case, that's on the type
     match enumName with
-    | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> Some name
+    | Regex.Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> Some name
     | _ -> None
 
   let parseTypeName (typeName : string) : Result<string * int, string> =
     match typeName with
-    | Regex "^([A-Z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
+    | Regex.Regex "^([A-Z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
       Ok(name, (int version))
-    | Regex "^([A-Z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
+    | Regex.Regex "^([A-Z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
     | _ -> Error "Bad format in type name"
 
 

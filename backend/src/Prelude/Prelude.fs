@@ -4,8 +4,6 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharp.Control.Tasks.Affine.Unsafe
 
-open System.Text.RegularExpressions
-
 // ----------------------
 // Fix a few functions everywhere
 // ----------------------
@@ -40,102 +38,16 @@ let printfn = printfn
 let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 
 
-// ----------------------
-// Non-empty list
-// ----------------------
-
-/// Non-empty list
 type NEList<'a> = NEList.NEList<'a>
 type Metadata = Exception.Metadata
-
-// ----------------------
-// Regex patterns
-// ----------------------
-
-// Active pattern for regexes
-let (|Regex|_|) (pattern : string) (input : string) =
-  let m = Regex.Match(input, pattern)
-  if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ]) else None
-
-let (|RegexAny|_|) (pattern : string) (input : string) =
-  let options = RegexOptions.Singleline
-  let m = Regex.Match(input, pattern, options)
-  if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ]) else None
-
-
-
-let matches (pattern : string) (input : string) : bool =
-  let m = Regex.Match(input, pattern)
-  m.Success
-
-// ----------------------
-// Runtime info
-// ----------------------
-/// LIGHTTODO
-let isWasm = System.OperatingSystem.IsBrowser()
 
 // ----------------------
 // Debugging
 // ----------------------
 
-type BlockingCollection = System.Collections.Concurrent.BlockingCollection<string>
-
-type NonBlockingConsole() =
-
-  // It seems like printing on the Console can cause a deadlock. I observed that all
-  // the tasks in the threadpool were blocking on Console.WriteLine, and that the
-  // logging thread in the background was blocked on one of those threads. This is
-  // like a known issue with a known solution:
-  // https://stackoverflow.com/a/3670628/104021.
-
-  // Note that there are sometimes other loggers, such as in IHosts, which may also
-  // need to move off the console logger.
-
-  // This adds a collection which receives all output from WriteLine. Then, a
-  // background thread writes the output to Console.
-
-  static let mQueue : BlockingCollection = new BlockingCollection()
-
-  // Use a lock so that wait() doesn't return until the thread has actually printed
-  // (it would finish once it was removed from the queue)
-  static let mLock : obj = obj ()
-
-  static do
-    let f () =
-      while true do
-        lock mLock (fun () ->
-          try
-            let mutable v = null
-            // Don't block (eg with `Take`) while holding the lock
-            if mQueue.TryTake(&v) then
-              System.Console.WriteLine(v)
-            else
-              System.Threading.Thread.Sleep 1 // 1ms
-          with e ->
-            System.Console.WriteLine(
-              $"Exception in blocking queue thread: {e.Message}"
-            ))
-
-
-    // Background threads aren't supported in Blazor
-    if not isWasm then
-      let thread = System.Threading.Thread(f)
-      thread.IsBackground <- true
-      thread.Name <- "Prelude.NonBlockingConsole printer"
-      thread.Start()
-
-  static member wait() : unit =
-    let mutable shouldWait = true
-    while shouldWait do
-      lock mLock (fun () -> shouldWait <- mQueue.Count > 0)
-
-  static member WriteLine(value : string) : unit =
-    if isWasm then System.Console.WriteLine value else mQueue.Add(value)
-
-
 let debuG (msg : string) (a : 'a) : unit =
   // Don't deadlock when debugging
-  NonBlockingConsole.WriteLine $"DEBUG: {msg} ({a})"
+  NonBlockingConsole.writeLine $"DEBUG: {msg} ({a})"
 
 let debug (msg : string) (a : 'a) : 'a =
   debuG msg a
@@ -144,12 +56,12 @@ let debug (msg : string) (a : 'a) : 'a =
 // Print the value of s, alongside with length and the bytes in the string
 let debugString (msg : string) (s : string) : string =
   let bytes = s |> System.Text.Encoding.UTF8.GetBytes |> System.BitConverter.ToString
-  NonBlockingConsole.WriteLine $"DEBUG: {msg} ('{s}': (len {s.Length}, {bytes})"
+  NonBlockingConsole.writeLine $"DEBUG: {msg} ('{s}': (len {s.Length}, {bytes})"
   s
 
 let debuGByteArray (msg : string) (a : byte array) : unit =
   let bytes = a |> System.BitConverter.ToString
-  NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {a.Length}, {bytes}"
+  NonBlockingConsole.writeLine $"DEBUG: {msg} (len {a.Length}, {bytes}"
 
 
 let debugByteArray (msg : string) (a : byte array) : byte array =
@@ -158,14 +70,14 @@ let debugByteArray (msg : string) (a : byte array) : byte array =
 
 let debuGList (msg : string) (list : List<'a>) : unit =
   if list = [] then
-    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
+    NonBlockingConsole.writeLine $"DEBUG: {msg} (len 0, [])"
   else
 
     [ $"DEBUG: {msg} (len {List.length list}, [" ]
     @ List.map (fun item -> $"  {item}") list
     @ [ $"])" ]
     |> String.concat "\n"
-    |> NonBlockingConsole.WriteLine
+    |> NonBlockingConsole.writeLine
 
 let debugList (msg : string) (list : List<'a>) : List<'a> =
   debuGList msg list
@@ -173,13 +85,13 @@ let debugList (msg : string) (list : List<'a>) : List<'a> =
 
 let debuGSet (msg : string) (set : Set<'a>) : unit =
   if set = Set.empty then
-    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, {{}})"
+    NonBlockingConsole.writeLine $"DEBUG: {msg} (len 0, {{}})"
   else
     [ $"DEBUG: {msg} (len {Set.count set}, {{" ]
     @ (set |> Set.toList |> List.map (fun item -> $"  {item}"))
     @ [ $"}})" ]
     |> String.concat "\n"
-    |> NonBlockingConsole.WriteLine
+    |> NonBlockingConsole.writeLine
 
 let debugSet (msg : string) (set : Set<'a>) : Set<'a> =
   debuGSet msg set
@@ -187,13 +99,13 @@ let debugSet (msg : string) (set : Set<'a>) : Set<'a> =
 
 let debuGArray (msg : string) (array : 'a[]) : unit =
   if array.Length = 0 then
-    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
+    NonBlockingConsole.writeLine $"DEBUG: {msg} (len 0, [])"
   else
     [ $"DEBUG: {msg} (len {array.Length}, [" ]
     @ (array |> Array.toList |> List.map (fun item -> $"  {item}"))
     @ [ $"])" ]
     |> String.concat "\n"
-    |> NonBlockingConsole.WriteLine
+    |> NonBlockingConsole.writeLine
 
 let debugArray (msg : string) (array : 'a[]) : 'a[] =
   debuGArray msg array
@@ -201,13 +113,13 @@ let debugArray (msg : string) (array : 'a[]) : 'a[] =
 
 let debuGMap (msg : string) (map : Map<'k, 'v>) : unit =
   if map = Map.empty then
-    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
+    NonBlockingConsole.writeLine $"DEBUG: {msg} (len 0, [])"
   else
     [ $"DEBUG: {msg} (len {Map.count map}, [" ]
     @ (Map.toList map |> List.map (fun (k, v) -> $"  ({k}, {v})"))
     @ [ $"])" ]
     |> String.concat "\n"
-    |> NonBlockingConsole.WriteLine
+    |> NonBlockingConsole.writeLine
 
 let debugMap (msg : string) (map : Map<'k, 'v>) : Map<'k, 'v> =
   debuGMap msg map
@@ -215,10 +127,10 @@ let debugMap (msg : string) (map : Map<'k, 'v>) : Map<'k, 'v> =
 
 
 let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
-  NonBlockingConsole.WriteLine $"DEBUG: {msg} {f v}"
+  NonBlockingConsole.writeLine $"DEBUG: {msg} {f v}"
   v
 
-let print (string : string) : unit = NonBlockingConsole.WriteLine string
+let print (string : string) : unit = NonBlockingConsole.writeLine string
 
 
 // Print the value of `a`. Note that since this is wrapped in a task, it must
@@ -227,14 +139,14 @@ let print (string : string) : unit = NonBlockingConsole.WriteLine string
 let debugPly (msg : string) (a : Ply.Ply<'a>) : Ply.Ply<'a> =
   uply {
     let! a = a
-    NonBlockingConsole.WriteLine $"DEBUG: {msg} ({a})"
+    NonBlockingConsole.writeLine $"DEBUG: {msg} ({a})"
     return a
   }
 
 let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
   task {
     let! a = a
-    NonBlockingConsole.WriteLine $"DEBUG: {msg} ({a})"
+    NonBlockingConsole.writeLine $"DEBUG: {msg} ({a})"
     return a
   }
 
@@ -258,7 +170,11 @@ let rec printException'
   if not (isNull e.InnerException) then
     printException' $"prefex.inner[{count}]" (count + 1) [] e.InnerException
 
-let printException (prefix : string) (metadata : Exception.Metadata) (e : exn) : unit =
+let printException
+  (prefix : string)
+  (metadata : Exception.Metadata)
+  (e : exn)
+  : unit =
   printException' prefix 0 metadata e
 
 
@@ -311,7 +227,7 @@ let assertFn3
 
 
 let assertRe (msg : string) (pattern : string) (input : string) : unit =
-  let m = Regex.Match(input, pattern)
+  let m = System.Text.RegularExpressions.Regex.Match(input, pattern)
   if m.Success then
     ()
   else

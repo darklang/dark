@@ -91,7 +91,7 @@ module ParseTest =
       (fun (state : TestParsingState, result : Test) (line : List<byte>) ->
         let asString : string = line |> Array.ofList |> UTF8.ofBytesWithReplacement
         match asString with
-        | Regex "\[secrets (\S+)]" [ secrets ] ->
+        | Regex.Regex "\[secrets (\S+)]" [ secrets ] ->
           let secrets =
             secrets
             |> String.split ","
@@ -104,19 +104,19 @@ module ParseTest =
                   [ "secret", secret ])
 
           (Limbo, { result with secrets = secrets @ result.secrets })
-        | Regex "\[domain (\S+)]" [ domain ] ->
+        | Regex.Regex "\[domain (\S+)]" [ domain ] ->
           (Limbo, { result with domain = Some domain })
         | "[request]" -> (InRequest, result)
         | "[response]" -> (InResponse, result)
 
-        | Regex "\[http-handler (\S+) (\S+)\]" [ method; route ] ->
+        | Regex.Regex "\[http-handler (\S+) (\S+)\]" [ method; route ] ->
           (InHttpHandler,
            { result with
                handlers =
                  { version = Http; route = route; method = method; code = "" }
                  :: result.handlers })
 
-        | Regex "\<IMPORT_DATA_FROM_FILE=(\S+)\>" [ dataFileToInject ] ->
+        | Regex.Regex "\<IMPORT_DATA_FROM_FILE=(\S+)\>" [ dataFileToInject ] ->
           // TODO do this as part of run-time, not during parse-time
           let injectedBytes =
             System.IO.File.ReadAllBytes $"{dataBasePath}/{dataFileToInject}"
