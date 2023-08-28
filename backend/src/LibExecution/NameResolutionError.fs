@@ -80,7 +80,7 @@ module RTE =
       | RT.DRecord(_, _, m) ->
         let errorType = m |> D.field "errorType" |> ErrorType.fromDT
         let nameType = m |> D.field "nameType" |> NameType.fromDT
-        let names = m |> D.stringList "names"
+        let names = m |> D.stringListField "names"
 
         { errorType = errorType; nameType = nameType; names = names }
 

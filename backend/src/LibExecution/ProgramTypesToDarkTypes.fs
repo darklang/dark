@@ -49,11 +49,11 @@ module Sign =
 
 
 module FQName =
-  let ownerField = D.string "owner"
-  let modulesField = D.stringList "modules"
+  let ownerField = D.stringField "owner"
+  let modulesField = D.stringListField "modules"
 
   let nameField = D.field "name"
-  let versionField = D.int "version"
+  let versionField = D.intField "version"
 
   module BuiltIn =
     let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.BuiltIn<'name>) : Dval =
@@ -855,9 +855,9 @@ module TypeDeclaration =
     let fromDT (d : Dval) : PT.TypeDeclaration.RecordField =
       match d with
       | DRecord(_, _, fields) ->
-        let name = fields |> D.string "name"
+        let name = fields |> D.stringField "name"
         let typ = fields |> D.field "typ" |> TypeReference.fromDT
-        let description = D.string "description" fields
+        let description = D.stringField "description" fields
 
         { name = name; typ = typ; description = description }
 
@@ -883,7 +883,7 @@ module TypeDeclaration =
           | _ ->
             Exception.raiseInternal "Expected label to be an option of string" []
 
-        let description = fields |> D.string "description"
+        let description = fields |> D.stringField "description"
 
         { typ = typ; label = label; description = description }
 
@@ -901,9 +901,9 @@ module TypeDeclaration =
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumCase =
       match d with
       | DRecord(_, _, attributes) ->
-        let name = D.string "name" attributes
-        let fields = attributes |> D.list "fields" |> List.map EnumField.fromDT
-        let description = attributes |> D.string "description"
+        let name = D.stringField "name" attributes
+        let fields = attributes |> D.listField "fields" |> List.map EnumField.fromDT
+        let description = attributes |> D.stringField "description"
 
         { name = name; fields = fields; description = description }
 
@@ -949,7 +949,7 @@ module TypeDeclaration =
   let fromDT (d : Dval) : PT.TypeDeclaration.T =
     match d with
     | DRecord(_, _, fields) ->
-      let typeParams = D.stringList "typeParams" fields
+      let typeParams = D.stringListField "typeParams" fields
       let definition = fields |> D.field "definition" |> Definition.fromDT
 
       { typeParams = typeParams; definition = definition }
@@ -1015,7 +1015,7 @@ module Handler =
   let fromDT (d : Dval) : PT.Handler.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
+      let tlid = fields |> D.uint64Field "tlid"
       let ast = fields |> D.field "ast" |> Expr.fromDT
       let spec = fields |> D.field "spec" |> Spec.fromDT
 
@@ -1036,9 +1036,9 @@ module DB =
   let fromDT (d : Dval) : PT.DB.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
-      let name = fields |> D.string "name"
-      let version = fields |> D.int "version"
+      let tlid = fields |> D.uint64Field "tlid"
+      let name = fields |> D.stringField "name"
+      let version = fields |> D.intField "version"
       let typ = fields |> D.field "typ" |> TypeReference.fromDT
       { tlid = tlid; name = name; version = version; typ = typ }
 
@@ -1058,10 +1058,10 @@ module UserType =
   let fromDT (d : Dval) : PT.UserType.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
+      let tlid = fields |> D.uint64Field "tlid"
       let name = fields |> D.field "name" |> TypeName.UserProgram.fromDT
       let declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
-      let description = fields |> D.string "description"
+      let description = fields |> D.stringField "description"
       let deprecated =
         fields |> D.field "deprecated" |> Deprecation.fromDT TypeName.fromDT
 
@@ -1086,9 +1086,9 @@ module UserFunction =
     let fromDT (d : Dval) : PT.UserFunction.Parameter =
       match d with
       | DRecord(_, _, fields) ->
-        let name = fields |> D.string "name"
+        let name = fields |> D.stringField "name"
         let typ = fields |> D.field "typ" |> TypeReference.fromDT
-        let description = fields |> D.string "description"
+        let description = fields |> D.stringField "description"
 
         { name = name; typ = typ; description = description }
 
@@ -1111,16 +1111,16 @@ module UserFunction =
   let fromDT (d : Dval) : PT.UserFunction.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
+      let tlid = fields |> D.uint64Field "tlid"
       let name = fields |> D.field "name" |> FnName.UserProgram.fromDT
-      let typeParams = fields |> D.stringList "typeParams"
+      let typeParams = fields |> D.stringListField "typeParams"
       let parameters =
         fields
-        |> D.list "parameters"
+        |> D.listField "parameters"
         |> List.map Parameter.fromDT
         |> NEList.ofListUnsafe "userFunction needs more than one parameter" []
       let returnType = fields |> D.field "returnType" |> TypeReference.fromDT
-      let description = fields |> D.string "description"
+      let description = fields |> D.stringField "description"
       let deprecated =
         fields |> D.field "deprecated" |> Deprecation.fromDT FnName.fromDT
       let body = fields |> D.field "body" |> Expr.fromDT
@@ -1149,11 +1149,11 @@ module UserConstant =
   let fromDT (d : Dval) : PT.UserConstant.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
+      let tlid = fields |> D.uint64Field "tlid"
 
       let name = fields |> D.field "name" |> ConstantName.UserProgram.fromDT
       let body = fields |> D.field "body" |> Const.fromDT
-      let description = fields |> D.string "description"
+      let description = fields |> D.stringField "description"
       let deprecated =
         fields |> D.field "deprecated" |> Deprecation.fromDT ConstantName.fromDT
 
@@ -1174,9 +1174,9 @@ module Secret =
   let fromDT (d : Dval) : PT.Secret.T =
     match d with
     | DRecord(_, _, fields) ->
-      let name = fields |> D.string "name"
-      let value = fields |> D.string "value"
-      let version = fields |> D.int "version"
+      let name = fields |> D.stringField "name"
+      let value = fields |> D.stringField "value"
+      let version = fields |> D.intField "version"
 
       { name = name; value = value; version = version }
 
@@ -1197,11 +1197,11 @@ module PackageType =
   let fromDT (d : Dval) : PT.PackageType.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
-      let id = fields |> D.uuid "id"
+      let tlid = fields |> D.uint64Field "tlid"
+      let id = fields |> D.uuidField "id"
       let name = fields |> D.field "name" |> TypeName.Package.fromDT
       let declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
-      let description = fields |> D.string "description"
+      let description = fields |> D.stringField "description"
       let deprecated =
         fields |> D.field "deprecated" |> Deprecation.fromDT TypeName.fromDT
 
@@ -1227,9 +1227,9 @@ module PackageFn =
     let fromDT (d : Dval) : PT.PackageFn.Parameter =
       match d with
       | DRecord(_, _, fields) ->
-        let name = fields |> D.string "name"
+        let name = fields |> D.stringField "name"
         let typ = fields |> D.field "typ" |> TypeReference.fromDT
-        let description = fields |> D.string "description"
+        let description = fields |> D.stringField "description"
 
         { name = name; typ = typ; description = description }
 
@@ -1251,19 +1251,19 @@ module PackageFn =
   let fromDT (d : Dval) : PT.PackageFn.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
-      let id = fields |> D.uuid "id"
+      let tlid = fields |> D.uint64Field "tlid"
+      let id = fields |> D.uuidField "id"
       let name = fields |> D.field "name" |> FnName.Package.fromDT
       let body = fields |> D.field "body" |> Expr.fromDT
-      let typeParams = fields |> D.stringList "typeParams"
+      let typeParams = fields |> D.stringListField "typeParams"
 
       let parameters =
         fields
-        |> D.list "parameters"
+        |> D.listField "parameters"
         |> List.map Parameter.fromDT
         |> NEList.ofListUnsafe "PackageFn.fromDT" []
       let returnType = fields |> D.field "returnType" |> TypeReference.fromDT
-      let description = fields |> D.string "description"
+      let description = fields |> D.stringField "description"
       let deprecated =
         fields |> D.field "deprecated" |> Deprecation.fromDT FnName.fromDT
 
@@ -1293,11 +1293,11 @@ module PackageConstant =
   let fromDT (d : Dval) : PT.PackageConstant.T =
     match d with
     | DRecord(_, _, fields) ->
-      let tlid = fields |> D.uint64 "tlid"
-      let id = fields |> D.uuid "id"
+      let tlid = fields |> D.uint64Field "tlid"
+      let id = fields |> D.uuidField "id"
       let name = fields |> D.field "name" |> ConstantName.Package.fromDT
       let body = fields |> D.field "body" |> Const.fromDT
-      let description = fields |> D.string "description"
+      let description = fields |> D.stringField "description"
       let deprecated =
         fields |> D.field "deprecated" |> Deprecation.fromDT ConstantName.fromDT
 

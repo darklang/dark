@@ -20,8 +20,6 @@ module Json = StdLibExecution.Libs.Json
 module CliRuntimeError =
   open Prelude
 
-  module D = LibExecution.DvalDecoder
-
   type Error =
     | NoExpressionsToExecute
     | UncaughtException of string * metadata : List<string * string>

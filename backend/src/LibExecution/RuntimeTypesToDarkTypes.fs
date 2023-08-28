@@ -5,7 +5,7 @@ open Tablecloth
 
 open RuntimeTypes
 
-module D = Decode
+module D = DvalDecoder
 
 let languageToolsTyp
   (submodules : List<string>)
@@ -31,57 +31,15 @@ let errorsTyp
   languageToolsTyp ("Errors" :: submodules) name version
 
 
-// CLEANUP: consolidate with the RT2DT equivalent
-module Decode =
-  let unwrap = Exception.unwrapOptionInternal
-
-  let string (dv : Dval) : string =
-    dv |> Dval.asString |> unwrap $"Expected a string" []
-
-  let list (dv : Dval) : List<Dval> =
-    dv |> Dval.asList |> unwrap $"Expected a list" []
-
-  let int64 (dv : Dval) : int64 =
-    dv |> Dval.asInt |> unwrap $"Expected an int" [] |> FSharp.Core.Operators.int64
-
-  let int (dv : Dval) : int =
-    dv |> Dval.asInt |> unwrap $"Expected an int" [] |> FSharp.Core.Operators.int
-
-  let float (dv : Dval) : float = dv |> Dval.asFloat |> unwrap $"Expected a float" []
-
-  let uint64 (dv : Dval) : uint64 =
-    dv |> Dval.asInt |> unwrap $"Expected an int" [] |> FSharp.Core.Operators.uint64
-
-  let id (dv : Dval) : id = uint64 dv
-  let tlid (dv : Dval) : tlid = uint64 dv
-
-  let uuid (dv : Dval) : System.Guid =
-    dv |> Dval.asUuid |> unwrap $"Expected a uuid" []
-
-  let bool (dv : Dval) : bool = dv |> Dval.asBool |> unwrap $"Expected a bool" []
-
-  let stringList (dv : Dval) : List<string> = dv |> list |> List.map string
-
-  let dict (dv : Dval) : DvalMap = dv |> Dval.asDict |> unwrap $"Expected a dict" []
-
-  let tuple2 (dv : Dval) : Dval * Dval =
-    dv |> Dval.asTuple2 |> unwrap $"Expected a tuple2" []
-
-  let tuple3 (dv : Dval) : Dval * Dval * Dval =
-    dv |> Dval.asTuple3 |> unwrap $"Expected a tuple3" []
-
-  let field (name : string) (m : DvalMap) : Dval =
-    m |> Map.get name |> unwrap $"Expected {name}' field" []
-
 
 
 
 module FQName =
-  let ownerField m = m |> D.field "owner" |> D.string
-  let modulesField m = m |> D.field "modules" |> D.stringList
+  let ownerField m = m |> D.stringField "owner"
+  let modulesField m = m |> D.stringListField "modules"
 
   let nameField m = m |> D.field "name"
-  let versionField m = m |> D.field "version" |> D.int
+  let versionField m = m |> D.intField "version"
 
   module BuiltIn =
     let toDT (nameMapper : 'name -> Dval) (u : FQName.BuiltIn<'name>) : Dval =
