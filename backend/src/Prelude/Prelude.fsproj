@@ -25,6 +25,7 @@
     <Compile Include="Dictionary.fs" />
     <Compile Include="ResizeArray.fs" />
     <Compile Include="Task.fs" />
+    <Compile Include="Ply.fs" />
     <Compile Include="NonBlockingConsole.fs" />
     <Compile Include="Prelude.fs" />
     <Compile Include="Json.fs" />
