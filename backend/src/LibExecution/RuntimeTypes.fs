@@ -705,15 +705,13 @@ module Dval =
   // Dval. This is sort of like an Exception. Anytime we see a FakeDval we return
   // it instead of operating on it, including when they're put in a list, in a
   // value, in a record, as a parameter to a function, etc.
+  // There used to be multiple types of FakeVal but now there's only DError - which
+  // will be removed as well soon.
   let isFake (dv : Dval) : bool =
     match dv with
     | DError _ -> true
     | _ -> false
 
-  let isDError (dv : Dval) : bool =
-    match dv with
-    | DError _ -> true
-    | _ -> false
 
   let toPairs (dv : Dval) : Result<List<string * Dval>, string> =
     match dv with
