@@ -638,6 +638,26 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      deprecated = NotDeprecated }
+
+    { name = fn "head" 0
+      typeParams = []
+      parameters = [ Param.make "str" TString "" ]
+      returnType = TypeReference.option TChar
+      description =
+        "Returns {{Some char}} of the first character of <param str>, or returns {{None}} if <param str> is empty."
+      fn =
+        (function
+        | _, _, [ DString str ] ->
+          if str = "" then
+            Ply(Dval.optionNone)
+          else
+            let head = String.toEgcSeq str |> Seq.head
+            Ply(Dval.optionSome (DChar head))
+        | _ -> incorrectArgs ())
+
+      sqlSpec = NotYetImplemented
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 let contents = (fns, types, constants)
