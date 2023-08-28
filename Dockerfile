@@ -89,7 +89,6 @@ RUN echo "deb https://apt.releases.hashicorp.com $(lsb_release -cs) main" > /etc
 # Deps:
 # - apt-transport-https for npm
 # - net-tools for netstat
-# - libgbm1 for playwright/chrome
 RUN DEBIAN_FRONTEND=noninteractive \
     apt update --allow-releaseinfo-change && \
     DEBIAN_FRONTEND=noninteractive \
@@ -170,7 +169,7 @@ ENV LC_ALL en_US.UTF-8
 ############################
 # Frontend
 ############################
-RUN sudo npm install -g prettier@2.8.8
+RUN sudo npm install -g prettier@3.0.2
 
 ############################
 # Postgres
@@ -330,7 +329,7 @@ RUN /home/dark/install-targz-file \
 ############################
 # Pip packages
 ############################
-RUN sudo pip3 install --no-cache-dir yq yamllint watchfiles yapf==0.33.0
+RUN sudo pip3 install --no-cache-dir yq yamllint watchfiles yapf==0.40.1
 ENV PATH "$PATH:/home/dark/.local/bin"
 
 ####################################
@@ -377,7 +376,7 @@ RUN /home/dark/install-exe-file \
 # (runtime-deps, runtime, and sdk), see
 # https://github.com/dotnet/dotnet-docker/blob/master/src
 
-ENV DOTNET_SDK_VERSION=7.0.302 \
+ENV DOTNET_SDK_VERSION=7.0.400 \
     # Skip extraction of XML docs - generally not useful within an
     # image/container - helps performance
     NUGET_XMLDOC_MODE=skip \
@@ -395,11 +394,11 @@ set -e
 case ${TARGETARCH} in
   arm64)
     ARCH=arm64
-    CHECKSUM=7f6372faa348c84560e3f1139605dc08d888b14b98c400724f628b52156fe31c20a50dc2a2f8673e29239d04ef06744e16c6f8bd8eb1756f99274c73eda74621
+    CHECKSUM=474879abcf40d4a06d54e02997a3fb93dd10c8d5f0dfd5acbf7e1a6f493a6d3421e426431d512b482c62cda92d7cda4eddd8bab80f923d0d2da583edaa8905e8
     ;;
   amd64)
     ARCH=x64
-    CHECKSUM=9387bd804ed980ba1bc33093598ddbafa3a761e07d28916c94442cc329533d78a03bfc59d3066a1a861244302414e7e658b4e721b5bc825f623f8f908e748b7e
+    CHECKSUM=4cfeedb8e99ffd423da7a99159ee3f31535fd142711941b8206542acb6be26638fbd9a184a5d904084ffdbd8362c83b6b2acf9d193b2cd38bf7f061443439e3c
     ;;
   *) exit 1;;
 esac
@@ -414,7 +413,7 @@ dotnet --help
 EOF
 
 # formatting
-RUN dotnet tool install fantomas --version 6.1.2 -g
+RUN dotnet tool install fantomas --version 6.1.3 -g
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
 #############
