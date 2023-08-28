@@ -46,7 +46,8 @@ let empty : NameResolver =
     userFns = Set.empty
     userConstants = Set.empty
 
-    allowError = false
+    // CLEANUP this should probably default to `false`
+    allowError = true
 
     packageManager = None }
 
