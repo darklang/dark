@@ -411,5 +411,4 @@ module Test =
     // Maybe never support
     | DFnVal _
     | DError _
-    | DDB _
-    | DIncomplete _ -> false
+    | DDB _ -> false

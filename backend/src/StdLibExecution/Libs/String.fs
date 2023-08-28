@@ -51,7 +51,7 @@ let fns : List<BuiltInFn> =
              (uply {
                let! (dvals : List<Dval>) = dvals
 
-               match List.tryFind (fun dv -> Dval.isIncomplete dv) dvals with
+               match List.tryFind (fun dv -> Dval.isFake dv) dvals with
                | Some i -> return i
                | None ->
                  let chars =

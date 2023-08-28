@@ -248,7 +248,6 @@ module Darklang =
           | DDB _ -> "Datastore"
           | DPassword _ -> "Password"
 
-          | DIncomplete _ -> "Incomplete"
           | DError _ -> "Error"
 
           | _ -> "TODO dvalTypeName"

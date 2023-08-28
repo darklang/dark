@@ -28,13 +28,7 @@ let fn = fn modules
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> =
-  [ { name = constant "incomplete" 0
-      typ = TVariable "a"
-      description = "Return a DIncomplet"
-      body = DIncomplete(SourceNone)
-      deprecated = NotDeprecated }
-
-    { name = constant "nan" 0
+  [ { name = constant "nan" 0
       typ = TFloat
       description = "Return a NaN"
       body = DFloat(System.Double.NaN)

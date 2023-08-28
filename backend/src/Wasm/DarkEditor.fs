@@ -42,8 +42,6 @@ let ensureNonFakeDval (dv : Dval) : Result<Dval, string> =
     // CLEANUP we should stringify this better, or raise the RTE rather than hide it here
     Error $"Error calling handleEvent with provided args: {rte}"
 
-  | DIncomplete(_) -> Error $"handleError returned Incomplete"
-
   | DFnVal(_) -> Error $"handleError returned DFnVal"
 
   | result -> Ok dv

@@ -333,7 +333,6 @@ let testListUsingPropertyAsync
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
   | RT.DError(_, rte) -> RT.DError(RT.SourceNone, rte)
-  | RT.DIncomplete _ -> RT.DIncomplete(RT.SourceNone)
   | dv -> dv
 
 open LibExecution.RuntimeTypes
@@ -378,7 +377,6 @@ module Expect =
 
     match dv with
     | DDateTime _
-    | DIncomplete _
     | DInt _
     | DDateTime _
     | DBool _
@@ -784,7 +782,6 @@ module Expect =
       List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) fields fields'
       ()
 
-    | DIncomplete _, DIncomplete _ -> ()
     | DError(_, err1), DError(_, err2) ->
       check path (RuntimeError.toDT err1) (RuntimeError.toDT err2)
     | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
@@ -808,7 +805,6 @@ module Expect =
     | DChar _, _
     | DPassword _, _
     | DFnVal _, _
-    | DIncomplete _, _
     | DError _, _
     | DDB _, _
     | DUuid _, _
@@ -880,7 +876,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DChar _
     | DPassword _
     | DFnVal _
-    | DIncomplete _
     | DError _
     | DDB _
     | DUuid _
@@ -1058,8 +1053,6 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
          [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ]
      ),
      TDict TInt)
-    ("incomplete", DIncomplete SourceNone, TInt)
-    ("incomplete2", DIncomplete(SourceID(14219007199254740993UL, 8UL)), TBool)
     ("error", DError(SourceNone, RuntimeError.oldError "some error string"), TString)
     ("lambda",
      DFnVal(

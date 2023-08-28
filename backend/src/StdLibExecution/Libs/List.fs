@@ -38,7 +38,6 @@ module DvalComparator =
     | DError _, DError _ ->
       Exception.raiseInternal "We should not be trying to compare DErrors" []
 
-    | DIncomplete _, DIncomplete _ -> 0
     | DDB name1, DDB name2 -> compare name1 name2
     | DDateTime dt1, DDateTime dt2 -> compare dt1 dt2
     | DPassword _, DPassword _ -> 0 // CLEANUP - how do we handle this?
@@ -66,7 +65,6 @@ module DvalComparator =
     | DTuple _, _
     | DFnVal _, _
     | DError _, _
-    | DIncomplete _, _
     | DDB _, _
     | DDateTime _, _
     | DPassword _, _
@@ -628,8 +626,6 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DList l; DFnVal b ] ->
           uply {
-            let mutable incomplete = false
-
             let f (dv : Dval) : Ply<bool> =
               uply {
                 let args = NEList.singleton dv
@@ -637,19 +633,13 @@ let fns : List<BuiltInFn> =
 
                 match r with
                 | DBool b -> return b
-                | DIncomplete _ ->
-                  incomplete <- true
-                  return false
+                | DError _ -> return Errors.foundFakeDval r
                 | _ ->
                   Exception.raiseCode (Errors.expectedLambdaType "fn" TBool dv)
                   return false
               }
-
-            if incomplete then
-              return DIncomplete SourceNone
-            else
-              let! result = Ply.List.filterSequentially f l
-              return DBool(result.Length = l.Length)
+            let! result = Ply.List.filterSequentially f l
+            return DBool(result.Length = l.Length)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -685,7 +675,7 @@ let fns : List<BuiltInFn> =
 
                   match result with
                   | DBool b -> return b
-                  | (DIncomplete _ | DError _) as dv ->
+                  | (DError _) as dv ->
                     abortReason.Value <- Some dv
                     return false
                   | v ->
@@ -757,7 +747,7 @@ let fns : List<BuiltInFn> =
                           _,
                           "None",
                           []) -> return None
-                  | (DIncomplete _ | DError _) as dv ->
+                  | (DError _) as dv ->
                     abortReason.Value <- Some dv
                     return None
                   | v ->
@@ -809,7 +799,7 @@ let fns : List<BuiltInFn> =
                     match result with
                     | DBool true -> return! f dvs
                     | DBool false -> return dv :: dvs
-                    | (DIncomplete _ | DError _) as dv ->
+                    | (DError _) as dv ->
                       abortReason <- Some dv
                       return []
                     | v ->
@@ -861,7 +851,7 @@ let fns : List<BuiltInFn> =
                       let! tail = f dvs
                       return dv :: tail
                     | DBool false -> return []
-                    | (DIncomplete _ | DError _) as dv ->
+                    | (DError _) as dv ->
                       abortReason <- Some dv
                       return []
                     | v ->
@@ -1134,7 +1124,7 @@ let fns : List<BuiltInFn> =
           let f (acc1, acc2) i =
             match i with
             | DTuple(a, b, []) -> (a :: acc1, b :: acc2)
-            | (DIncomplete _ | DError _) as dv -> Errors.foundFakeDval dv
+            | (DError _) as dv -> Errors.foundFakeDval dv
             | v ->
               let errDetails =
                 match v with
@@ -1267,7 +1257,7 @@ let fns : List<BuiltInFn> =
                     | DBool true -> return! loop (item :: a, b) tail
                     | DBool false -> return! loop (a, item :: b) tail
 
-                    | (DIncomplete _ | DError _) as dv ->
+                    | (DError _) as dv ->
                       // fake dvals
                       return Error dv
 
