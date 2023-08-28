@@ -97,7 +97,7 @@ Result.map2_v0
 Result.map2_v0
   (Test.okWithTypeError "err")
   (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
-  (fun (a, b) -> a - b) = Test.runtimeError "err"
+  (fun (a, b) -> a - b) = Test.derrorMessage "err"
 
 
 

@@ -150,7 +150,7 @@ type DType =
   /// A type defined by a standard library module, a canvas/user, or a package
   /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
   /// `typeArgs` is the list of type arguments, if any
-  | TCustomType of TypeName.T * typeArgs : List<DType>
+  | TCustomType of TypeName.TypeName * typeArgs : List<DType>
 
   // Records
   | TDict of DType
@@ -220,10 +220,10 @@ and [<NoComparison>] Dval =
   | DUuid of System.Guid
   | DBytes of byte array
 
-  | DRecord (* TypeName.T * *)  of DvalMap
+  | DRecord (* TypeName.TypeName * *)  of DvalMap
   | DDict of DvalMap
   | DEnum of
-    typeName : TypeName.T *
+    typeName : TypeName.TypeName *
     caseName : string *
     fields : List<Dval>
 ```

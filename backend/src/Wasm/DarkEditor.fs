@@ -38,8 +38,9 @@ let stdLib =
 
 let ensureNonFakeDval (dv : Dval) : Result<Dval, string> =
   match dv with
-  | DError(_source, err) ->
-    Error $"Error calling handleEvent with provided args: {err}"
+  | DError(_source, rte) ->
+    // CLEANUP we should stringify this better, or raise the RTE rather than hide it here
+    Error $"Error calling handleEvent with provided args: {rte}"
 
   | DIncomplete(_) -> Error $"handleError returned Incomplete"
 
@@ -61,15 +62,14 @@ let LoadClient (canvasName : string) : Task<string> =
     let! clientSource =
       task {
         // text of client.dark
-        let! response = httpClient.GetAsync sourceURL |> Async.AwaitTask
-        let! responseBody = response.Content.ReadAsStringAsync() |> Async.AwaitTask
+        let! response = httpClient.GetAsync sourceURL
+        let! responseBody = response.Content.ReadAsStringAsync()
 
         // parse client.dark with another endpoint,
         // which then serializes as JSON so we can deserialize below
         let! response =
           httpClient.PostAsync(parseURL, new StringContent(responseBody))
-          |> Async.AwaitTask
-        let! responseBody = response.Content.ReadAsStringAsync() |> Async.AwaitTask
+        let! responseBody = response.Content.ReadAsStringAsync()
 
         return Json.Vanilla.deserialize<EditorSource> responseBody
       }

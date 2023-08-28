@@ -1,7 +1,7 @@
 // CLEANUP the following tests should fail on having mixed types
-//[1; 2.3] = Test.runtimeError "Cannot form a list of mixed types - the 2nd element does not match the type of previous elements"
-//[(1,10);10;(3,30)] = Test.runtimeError "Cannot form a list of mixed types ..."
-//[(1,10);(2,20);(3,30,40)] = Test.runtimeError "Cannot form a list of mixed types"
+//[1; 2.3] = Test.derrorMessage "Cannot form a list of mixed types - the 2nd element does not match the type of previous elements"
+//[(1,10);10;(3,30)] = Test.derrorMessage "Cannot form a list of mixed types ..."
+//[(1,10);(2,20);(3,30,40)] = Test.derrorMessage "Cannot form a list of mixed types"
 
 
 List.all_v0 [] (fun item -> item < 3) = true
@@ -35,7 +35,7 @@ PACKAGE.Darklang.Stdlib.List.drop_v0 [ 5; 4; 3; 2; 1 ] 5 = []
 PACKAGE.Darklang.Stdlib.List.drop_v0 [ 5 ] 4 = []
 PACKAGE.Darklang.Stdlib.List.drop_v0 [] 4 = []
 
-List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Test.runtimeError
+List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Test.derrorMessage
   "Expected `fn` to return a Bool, but it returned `-1`"
 
 List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item < 3) = [ 3; 4 ]
@@ -77,10 +77,10 @@ List.filter [ 1; 2; 3 ] (fun item ->
   match item with
   | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None
   | 2 -> false
-  | 3 -> true) = Test.runtimeError
+  | 3 -> true) = Test.derrorMessage
   "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.None`"
 
-List.filter [ true; false; true ] (fun item -> "a") = Test.runtimeError
+List.filter [ true; false; true ] (fun item -> "a") = Test.derrorMessage
   "Expected `fn` to return a Bool, but it returned `\"a\"`"
 
 List.filter [ 1; 2; 3 ] (fun item ->
@@ -103,7 +103,7 @@ List.filterMap_v0 [ 1; 2; 3 ] (fun item ->
   if item == 2 then
     false
   else
-    (PACKAGE.Darklang.Stdlib.Option.Option.Some(item * 2))) = Test.runtimeError
+    (PACKAGE.Darklang.Stdlib.Option.Option.Some(item * 2))) = Test.derrorMessage
   "Expected `fn` to return a PACKAGE.Darklang.Stdlib.Option.Option<'b>, but it returned `false`"
 
 List.filterMap_v0 [] (fun item -> 0) = []
@@ -151,7 +151,7 @@ PACKAGE.Darklang.Stdlib.List.getAt [ 3; 3; 3 ] 2147483648I = PACKAGE.Darklang.St
 PACKAGE.Darklang.Stdlib.List.head [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
   1
 
-PACKAGE.Darklang.Stdlib.List.head [ Test.runtimeError "test" ] = Test.runtimeError
+PACKAGE.Darklang.Stdlib.List.head [ Test.runtimeError "test" ] = Test.derrorMessage
   "test"
 
 PACKAGE.Darklang.Stdlib.List.head [] = PACKAGE.Darklang.Stdlib.Option.Option.None
@@ -179,7 +179,7 @@ PACKAGE.Darklang.Stdlib.List.isEmpty_v0 [] = true
 PACKAGE.Darklang.Stdlib.List.last [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
   3
 
-PACKAGE.Darklang.Stdlib.List.last [ Test.runtimeError "test" ] = Test.runtimeError
+PACKAGE.Darklang.Stdlib.List.last [ Test.runtimeError "test" ] = Test.derrorMessage
   "test"
 
 PACKAGE.Darklang.Stdlib.List.last [] = PACKAGE.Darklang.Stdlib.Option.Option.None
@@ -226,17 +226,16 @@ List.partition_v0 [ 1; 2; 3 ] (fun item ->
   | 2 -> false
   | 3 -> true) = ([ 1; 3 ], [ 2 ])
 
-List.partition_v0 [ true; false; true ] (fun item -> "a") = (Test.runtimeError
-                                                               "Expected `fn` to return a Bool, but it returned `\"a\"`",
-                                                             [])
+List.partition_v0 [ true; false; true ] (fun item -> "a") = Test.derrorMessage
+  "Expected `fn` to return a Bool, but it returned `\"a\"`"
+
 
 List.partition_v0 [ 1; 2; 3 ] (fun item ->
   match item with
   | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None
   | 2 -> false
-  | 3 -> true) = (Test.runtimeError
-                    "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.None`",
-                  [])
+  | 3 -> true) = Test.derrorMessage
+  "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.None`"
 
 PACKAGE.Darklang.Stdlib.List.pushBack_v0 [ 2; 3 ] 1 = [ 2; 3; 1 ]
 PACKAGE.Darklang.Stdlib.List.pushBack_v0 [] 1 = [ 1 ]
@@ -245,7 +244,7 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [ 2; 3 ] 1 = [ 1; 2; 3 ]
 PACKAGE.Darklang.Stdlib.List.push_v0 [] 1 = [ 1 ]
 
 List.randomElement_v0 [ 1 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some 1
-List.randomElement_v0 [ Test.runtimeError "test" ] = Test.runtimeError "test"
+List.randomElement_v0 [ Test.runtimeError "test" ] = Test.derrorMessage "test"
 List.randomElement_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 PACKAGE.Darklang.Stdlib.List.range_v0 -1 0 = [ -1; 0 ]
@@ -281,14 +280,14 @@ List.singleton_v0 1 = [ 1 ]
 List.sortBy_v0 [ 6; 2; 8; 3 ] (fun x -> 0 - x) = [ 8; 6; 3; 2 ]
 List.sortBy_v0 [] (fun x -> 0 - x) = []
 
-List.sortBy_v0 [ 6; 2.0 ] (fun x -> x) = Test.runtimeError
+List.sortBy_v0 [ 6; 2.0 ] (fun x -> x) = Test.derrorMessage
   "List.sortBy: Unable to sort list, perhaps the list elements are different types"
 
 List.sort_v0 [ "6"; "2"; "8"; "3" ] = [ "2"; "3"; "6"; "8" ]
 List.sort_v0 [ 6; 2; 8; 3 ] = [ 2; 3; 6; 8 ]
 List.sort_v0 [] = []
 
-List.sort_v0 [ 6; 2.0 ] = Test.runtimeError
+List.sort_v0 [ 6; 2.0 ] = Test.derrorMessage
   "List.sort: Unable to sort list, perhaps the list elements are different types"
 
 List.sortByComparator_v0 [ 3; 1; 2 ] (fun a b -> 0.1) = PACKAGE.Darklang.Stdlib.Result.Result.Error
@@ -312,8 +311,13 @@ List.sortByComparator_v0
   (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   [ -1; -1; -1; -1; 1; 2; 2; 2; 3; 3; 3; 3; 5; 5; 5; 6; 6; 63; 67 ]
 
-List.sortByComparator_v0 [ 6; 2.0 ] (fun x -> x) = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Expected `fn` to return -1, 0, 1, but it returned `<error: Expected 1 arguments, got 2>`"
+// CLEANUP this error message is not ideal in 2 ways:
+// - The error does not provide context that the issue is with the fn specifically
+// - it seems to be from the perspective of the lambda
+//   (I'm a lambda and I'm expecting 2 arguments, but I got 1!!)
+//   rather than from the perspective of the function it's being used in
+List.sortByComparator_v0 [ 6; 2.0 ] (fun x -> x) = Test.derrorMessage
+  "Expected 1 arguments, got 2"
 
 PACKAGE.Darklang.Stdlib.List.tail_v0 [ 10; 20; 30; 40 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
   [ 20; 30; 40 ]
@@ -333,7 +337,7 @@ PACKAGE.Darklang.Stdlib.List.take_v0 [ 5; 4; 3; 2; 1 ] 5 = [ 5; 4; 3; 2; 1 ]
 PACKAGE.Darklang.Stdlib.List.take_v0 [ 5 ] 4 = [ 5 ]
 PACKAGE.Darklang.Stdlib.List.take_v0 [] 4 = []
 
-List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Test.runtimeError
+List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Test.derrorMessage
   "Expected `fn` to return a Bool, but it returned `-1`"
 
 List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item < 1) = []
@@ -348,7 +352,7 @@ List.uniqueBy_v0 [ 1; 1; 1; 1 ] (fun x -> x) = [ 1 ]
 List.uniqueBy_v0 [ 7; 42; 7; 2; 10 ] (fun x -> x) = [ 2; 7; 10; 42 ]
 List.uniqueBy_v0 [] (fun x -> x) = []
 
-List.uniqueBy_v0 [ 6; 2.0 ] (fun x -> x) = Test.runtimeError
+List.uniqueBy_v0 [ 6; 2.0 ] (fun x -> x) = Test.derrorMessage
   "List.uniqueBy: Unable to sort list, perhaps the list elements are different types"
 
 List.unique_v0 [ 1; 2; 3; 4 ] = [ 1; 2; 3; 4 ]
@@ -356,7 +360,7 @@ List.unique_v0 [ 1; 1; 1; 1 ] = [ 1 ]
 List.unique_v0 [ 7; 42; 7; 2; 10 ] = [ 2; 7; 10; 42 ]
 List.unique_v0 [] = []
 
-List.unique_v0 [ 6; 2.0 ] = Test.runtimeError
+List.unique_v0 [ 6; 2.0 ] = Test.derrorMessage
   "List.unique: Unable to sort list, perhaps the list elements are different types"
 // TODO: more tests, with values of more complex types
 
@@ -382,7 +386,7 @@ List.zip_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.S
 
 List.zip_v0 [ 10; 20 ] [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.None
 List.zip_v0 [] [] = PACKAGE.Darklang.Stdlib.Option.Option.Some []
-List.zip_v0 [ Test.runtimeError "msg" ] [ Some "" ] = Test.runtimeError "msg"
+List.zip_v0 [ Test.runtimeError "msg" ] [ Some "" ] = Test.derrorMessage "msg"
 
 
 List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Int.mod_v0 x 2) = [ (1,

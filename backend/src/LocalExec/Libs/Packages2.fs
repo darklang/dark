@@ -10,9 +10,11 @@ open LibExecution.RuntimeTypes
 
 open LibExecution.StdLib.Shortcuts
 
-module PT2DT = StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
-let resolver =
+let packageManager = LibCloud.PackageManager.packageManager
+
+let resolver : LibParser.NameResolver.NameResolver =
   let stdlibResolver =
     // CLEANUP we need a better way to determine what builtins should be
     // available to the name resolver, as this currently assumes builtins
@@ -28,7 +30,6 @@ let resolver =
         StdLibCliHost.StdLib.contents ]
       []
       []
-    // TODO: this may need more builtins, and packages
     |> LibParser.NameResolver.fromBuiltins
 
   let thisResolver =
@@ -44,7 +45,7 @@ let resolver =
                 "parse"
                 0 ] }
 
-  LibParser.NameResolver.merge stdlibResolver thisResolver
+  LibParser.NameResolver.merge stdlibResolver thisResolver (Some packageManager)
 
 
 
@@ -57,7 +58,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TypeReference.result
           (TCustomType(
-            FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0),
+            Ok(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0)),
             []
           ))
           TString
@@ -66,17 +67,14 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DString contents; DString path ] ->
           uply {
-            let (fns, types, constants) =
-              LibParser.Parser.parsePackage resolver path contents
+            let resolver = { resolver with allowError = false }
+
+            let! (fns, types, constants) =
+              LibParser.Parser.parsePackageFile resolver path contents
 
             let packagesFns = fns |> List.map (fun fn -> PT2DT.PackageFn.toDT fn)
-
-            let packagesTypes =
-              types |> List.map (fun typ -> PT2DT.PackageType.toDT typ)
-
-            let packagesConstants =
-              constants
-              |> List.map (fun constant -> PT2DT.PackageConstant.toDT constant)
+            let packagesTypes = types |> List.map PT2DT.PackageType.toDT
+            let packagesConstants = constants |> List.map PT2DT.PackageConstant.toDT
 
             return
               Dval.resultOk (
@@ -86,30 +84,6 @@ let fns : List<BuiltInFn> =
                     ("types", DList packagesTypes)
                     ("constants", DList packagesConstants) ]
               )
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-    { name = fn [ "LocalExec"; "Packages" ] "parseAndSave" 0
-      typeParams = []
-      parameters =
-        [ Param.make "package source" TString "The source code of the package"
-          Param.make "filename" TString "Used for error message" ]
-      returnType = TUnit
-      description = "Parse a package and save it to the database"
-      fn =
-        function
-        | _, _, [ DString contents; DString path ] ->
-          uply {
-            let (fns, types, constants) =
-              LibParser.Parser.parsePackage resolver path contents
-            do! LibCloud.PackageManager.savePackageFunctions fns
-            do! LibCloud.PackageManager.savePackageTypes types
-            do! LibCloud.PackageManager.savePackageConstants constants
-
-            return DUnit
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

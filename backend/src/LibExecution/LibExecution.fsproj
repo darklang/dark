@@ -13,23 +13,27 @@
     <None Include="paket.references" />
     <!-- actual execution -->
     <Compile Include="VendoredTablecloth.fs" />
+    <Compile Include="DarkDateTime.fs" />
     <Compile Include="RuntimeTypes.fs" />
+    <Compile Include="DvalDecoder.fs" />
+    <Compile Include="NameResolutionError.fs" />
     <Compile Include="RuntimeTypesAst.fs" />
     <Compile Include="DvalReprInternalQueryable.fs" />
     <Compile Include="DvalReprInternalRoundtrippable.fs" />
     <Compile Include="DvalReprInternalHash.fs" />
     <Compile Include="DvalReprDeveloper.fs" />
+    <Compile Include="RuntimeTypesToDarkTypes.fs" />
     <Compile Include="TypeChecker.fs" />
     <Compile Include="Errors.fs" />
     <Compile Include="Interpreter.fs" />
     <Compile Include="AnalysisTypes.fs" />
     <Compile Include="Execution.fs" />
     <Compile Include="StdLib.fs" />
-    <!-- getting types in and out -->
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="ProgramTypesParser.fs" />
     <Compile Include="ProgramTypesAst.fs" />
     <Compile Include="ProgramTypesToRuntimeTypes.fs" />
+    <Compile Include="ProgramTypesToDarkTypes.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />

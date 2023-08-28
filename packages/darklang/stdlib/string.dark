@@ -13,6 +13,21 @@ module Darklang =
         else
           s
 
+      /// Returns 'a' or 'an' (the indefinite article) for a string, based on
+      /// whether it begins with a vowel
+      let articleFor (nextWord: String) : String =
+        let vowels = [ 'A'; 'E'; 'I'; 'O'; 'U'; 'a'; 'e'; 'i'; 'o'; 'u' ]
+
+        match String.head nextWord with
+        | None -> ""
+        | Some c ->
+          if String.length nextWord > 1 && Bool.not (Char.isASCIILetter c) then
+            articleFor (String.dropFirst nextWord 1)
+          else if List.``member`` vowels c then
+            "an"
+          else
+            "a"
+
       /// Returns {{true}} if <param s> is the empty string {{\"\"}
       let isEmpty (s: String) : Bool = s == ""
 
@@ -22,7 +37,7 @@ module Darklang =
 
 
       /// Returns the list of characters as a string
-      let fromList (lst: List<Character>) : String =
+      let fromList (lst: List<Char>) : String =
         (List.map lst (fun c -> Char.toString c)) |> String.join ""
 
 
@@ -138,3 +153,18 @@ module Darklang =
           (String.length subject - String.length suffix)
           (String.length subject)
         == suffix
+
+
+      let toOrdinal (n: Int) : String =
+        let suffix =
+          match n % 10 with
+          | 1 -> "st"
+          | 2 -> "nd"
+          | 3 -> "rd"
+          | _ -> "th"
+
+        (Int.toString n) ++ suffix
+
+
+      let splitOnNewline (str: String) : List<String> =
+        if str == "" then [] else String.split str "\n"

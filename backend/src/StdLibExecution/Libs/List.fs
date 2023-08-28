@@ -8,6 +8,10 @@ module Errors = LibExecution.Errors
 module Interpreter = LibExecution.Interpreter
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
+
+// CLEANUP something like type ComparatorResult = Higher | Lower | Same
+// rather than 0/1/-2
+
 module DvalComparator =
   let rec compareDval (dv1 : Dval) (dv2 : Dval) : int =
     match dv1, dv2 with
@@ -30,7 +34,10 @@ module DvalComparator =
           c
       else
         c
-    | DError(_, str1), DError(_, str2) -> compare str1 str2
+
+    | DError _, DError _ ->
+      Exception.raiseInternal "We should not be trying to compare DErrors" []
+
     | DIncomplete _, DIncomplete _ -> 0
     | DDB name1, DDB name2 -> compare name1 name2
     | DDateTime dt1, DDateTime dt2 -> compare dt1 dt2
@@ -414,8 +421,8 @@ let fns : List<BuiltInFn> =
               // Ideally we'd catch the exception thrown during comparison but the sort
               // catches it so we lose the error message
               return
-                "List.uniqueBy: Unable to sort list, perhaps the list elements are different types"
-                |> Dval.errStr
+                Dval.errStr
+                  "List.uniqueBy: Unable to sort list, perhaps the list elements are different types"
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -444,8 +451,8 @@ let fns : List<BuiltInFn> =
             // TODO: we should prevent this as soon as the different types are added
             // Ideally we'd catch the exception thrown during comparison but the sort
             // catches it so we lose the error message
-            "List.unique: Unable to sort list, perhaps the list elements are different types"
-            |> Dval.errStr
+            Dval.errStr
+              "List.unique: Unable to sort list, perhaps the list elements are different types"
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -473,8 +480,8 @@ let fns : List<BuiltInFn> =
             // TODO: we should prevent this as soon as the different types are added
             // Ideally we'd catch the exception thrown during comparison but the sort
             // catches it so we lose the error message
-            "List.sort: Unable to sort list, perhaps the list elements are different types"
-            |> Dval.errStr
+            Dval.errStr
+              "List.sort: Unable to sort list, perhaps the list elements are different types"
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -524,8 +531,8 @@ let fns : List<BuiltInFn> =
               // Ideally we'd catch the exception thrown during comparison but the sort
               // catches it so we lose the error message
               return
-                "List.sortBy: Unable to sort list, perhaps the list elements are different types"
-                |> Dval.errStr
+                Dval.errStr
+                  "List.sortBy: Unable to sort list, perhaps the list elements are different types"
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -563,9 +570,11 @@ let fns : List<BuiltInFn> =
 
               match result with
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
+              | dv when Dval.isFake dv -> return Errors.foundFakeDval dv
               | _ ->
                 return
                   Exception.raiseCode (
+                    // CLEANUP this yields pretty confusing error messages
                     Errors.expectedLambdaValue "fn" "-1, 0, 1" result
                   )
             }
@@ -576,8 +585,9 @@ let fns : List<BuiltInFn> =
               do! Sort.sort fn array
               // CLEANUP: check fakevals
               return array |> Array.toList |> DList |> Dval.resultOk
-            with e ->
-              return Dval.resultError (DString e.Message)
+            with
+            | Errors.FakeDvalFound dv -> return dv
+            | e -> return Dval.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

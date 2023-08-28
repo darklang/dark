@@ -9,6 +9,7 @@ open Npgsql
 open Prelude
 open Tablecloth
 open Db
+open Ply
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PT = LibExecution.ProgramTypes
@@ -110,8 +111,8 @@ let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
 // Fetching
 // ------------------
 
-let allFunctions : Task<List<PT.PackageFn.T>> =
-  task {
+let allFunctions : Ply<List<PT.PackageFn.T>> =
+  uply {
     let! fns =
       Sql.query "SELECT id, definition FROM package_functions_v0"
       |> Sql.parameters []
@@ -122,8 +123,8 @@ let allFunctions : Task<List<PT.PackageFn.T>> =
       |> List.map (fun (id, def) -> BinarySerialization.deserializePackageFn id def)
   }
 
-let allTypes : Task<List<PT.PackageType.T>> =
-  task {
+let allTypes : Ply<List<PT.PackageType.T>> =
+  uply {
     let! types =
       Sql.query "SELECT id, definition FROM package_types_v0"
       |> Sql.parameters []
@@ -135,8 +136,8 @@ let allTypes : Task<List<PT.PackageType.T>> =
         BinarySerialization.deserializePackageType id def)
   }
 
-let allConstants : Task<List<PT.PackageConstant.T>> =
-  task {
+let allConstants : Ply<List<PT.PackageConstant.T>> =
+  uply {
     let! constants =
       Sql.query "SELECT id, definition FROM package_constants_v0"
       |> Sql.parameters []
@@ -150,29 +151,35 @@ let allConstants : Task<List<PT.PackageConstant.T>> =
 
 open System
 
-let cachedTask (expiration : TimeSpan) (f : Task<'a>) : Task<'a> =
+let cachedPly
+  (ignoreCacheIfThis : 'a)
+  (expiration : TimeSpan)
+  (f : Ply<'a>)
+  : unit -> Ply<'a> =
   let mutable value = None
   let mutable lastUpdate = DateTime.MinValue
 
-  task {
-    match value, DateTime.Now - lastUpdate > expiration with
-    | Some value, false -> return value
-    | _ ->
-      let! newValue = f
-      value <- Some newValue
-      lastUpdate <- DateTime.Now
-      return newValue
-  }
+  fun () ->
+    uply {
+      match value, DateTime.Now - lastUpdate > expiration with
+      | Some value, false when value <> ignoreCacheIfThis -> return value
+      | _ ->
+        let! newValue = f
+        value <- Some newValue
+        lastUpdate <- DateTime.Now
+        return newValue
+    }
 
 let packageManager : RT.PackageManager =
-  let allTypes = cachedTask (TimeSpan.FromMinutes 1.) allTypes
-  let allFunctions = cachedTask (TimeSpan.FromMinutes 1.) allFunctions
-  let allConstants = cachedTask (TimeSpan.FromMinutes 1.) allConstants
+  let cacheDuration = System.TimeSpan.FromMinutes 1.
+  let allTypes = cachedPly [] cacheDuration allTypes
+  let allFunctions = cachedPly [] cacheDuration allFunctions
+  let allConstants = cachedPly [] cacheDuration allConstants
 
   { getType =
       fun typ ->
         uply {
-          let! types = allTypes
+          let! types = allTypes ()
 
           let types =
             types
@@ -186,7 +193,7 @@ let packageManager : RT.PackageManager =
     getFn =
       fun fn ->
         uply {
-          let! fns = allFunctions
+          let! fns = allFunctions ()
 
           let fns =
             fns
@@ -200,7 +207,7 @@ let packageManager : RT.PackageManager =
     getConstant =
       fun c ->
         uply {
-          let! constants = allConstants
+          let! constants = allConstants ()
 
           let constants =
             constants

@@ -316,8 +316,12 @@ let fns : List<BuiltInFn> =
             match caseName with
             | "Some" -> return value
             | "None" ->
-              return DError(SourceNone, LibExecution.DvalReprDeveloper.toRepr value)
-            | _ -> return (DError(SourceNone, "Invalid Result"))
+              return
+                DError(
+                  SourceNone,
+                  RuntimeError.oldError (DvalReprDeveloper.toRepr value)
+                )
+            | _ -> return DError(SourceNone, RuntimeError.oldError "Invalid Result")
           }
         | _,
           _,
@@ -332,8 +336,13 @@ let fns : List<BuiltInFn> =
             match caseName with
             | "Ok" -> return value
             | "Error" ->
-              return DError(SourceNone, LibExecution.DvalReprDeveloper.toRepr value)
-            | _ -> return (DError(SourceNone, "Invalid Result"))
+              // CLEANUP should we raiseRTE here instead?
+              return
+                DError(
+                  SourceNone,
+                  RuntimeError.oldError (DvalReprDeveloper.toRepr value)
+                )
+            | _ -> return DError(SourceNone, RuntimeError.oldError "Invalid Result")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

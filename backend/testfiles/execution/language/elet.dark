@@ -1,9 +1,10 @@
-(let x = Test.runtimeError "a" in 5) = Test.runtimeError "a"
-(let x = Test.runtimeError "a" in Test.runtimeError "b") = Test.runtimeError "a"
+(let x = Test.runtimeError "a" in 5) = Test.derrorMessage "a"
+(let x = Test.runtimeError "a" in Test.runtimeError "b") = Test.derrorMessage "a"
 
 module Variables =
   (let x = 5 in x) = 5
 
+module Shadowing =
   (let x = 5 in
    let x = 6 in
    x) = 6
@@ -23,9 +24,9 @@ module Tuples =
   (let (d, d, d) = (2, 1, 3) in d) = 3
   (let (_, _, _) = (1, 2, 3) in 2) = 2
 
-  (let (_, _, _) = (1, 2, Test.runtimeError "test") in 2) = Test.runtimeError "test"
+  (let (_, _, _) = (1, 2, Test.runtimeError "test") in 2) = Test.derrorMessage "test"
 
-  (let (_, _, _) = (Test.runtimeError "test1", 2, Test.runtimeError "test2") in 2) = Test.runtimeError
+  (let (_, _, _) = (Test.runtimeError "test1", 2, Test.runtimeError "test2") in 2) = Test.derrorMessage
     "test1"
 
   // With multiple levels of nested destructuring

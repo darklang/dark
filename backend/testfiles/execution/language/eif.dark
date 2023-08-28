@@ -1,9 +1,9 @@
 (if true then "correct" else 0) = "correct"
-(if true then Test.runtimeError "a" else 0) = Test.runtimeError "a"
-(if false then 0 else Test.runtimeError "a") = Test.runtimeError "a"
+(if true then Test.runtimeError "a" else 0) = Test.derrorMessage "a"
+(if false then 0 else Test.runtimeError "a") = Test.derrorMessage "a"
 (if false then Test.runtimeError "a" else 0) = 0
 (if true then 0 else Test.runtimeError "a") = 0
 (if false then "" else "correct") = "correct"
-(if () then "" else "") = Test.runtimeError "If only supports Booleans"
-(if Test.runtimeError "msg" then "" else "") = Test.runtimeError "msg"
-(if 5 then "" else "") = Test.runtimeError "If only supports Booleans"
+(if () then "" else "") = Test.derrorMessage "If only supports Booleans"
+(if Test.runtimeError "msg" then "" else "") = Test.derrorMessage "msg"
+(if 5 then "" else "") = Test.derrorMessage "If only supports Booleans"

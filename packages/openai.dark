@@ -8,7 +8,6 @@ module OpenAI =
       [ ("authorization", "Bearer " ++ PACKAGE.OpenAI.Config.apiKey)
         ("content-type", "application/json") ]
 
-
   module Completion =
     type Request =
       { model: String

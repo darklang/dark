@@ -149,7 +149,7 @@ let makeTest versionName filename =
         executionStateFor canvasID false true Map.empty Map.empty Map.empty Map.empty
 
       // Parse the Dark code
-      let test =
+      let! (test : LibParser.TestModule.RTTest) =
         darkCode
         |> String.replace "URL" $"{host}/{versionName}/{testName}"
         // CLEANUP: this doesn't use the correct length, as it might be latin1 or
@@ -158,6 +158,7 @@ let makeTest versionName filename =
         |> LibParser.TestModule.parseSingleTestFromFile
           builtinResolver
           "httpclient.tests.fs"
+        |> Ply.toTask
 
       // Run the handler (call the HTTP client)
       // Note: this will update the corresponding value in `testCases` with the

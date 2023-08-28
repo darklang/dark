@@ -108,19 +108,19 @@ module Equals =
   (MyDB == MyDB) = true
 
   module TypeErrors =
-    (5.7 != 6) = Test.runtimeError "Both values must be the same type"
-    (5.7 != 5) = Test.runtimeError "Both values must be the same type"
+    (5.7 != 6) = Test.derrorMessage "Both values must be the same type"
+    (5.7 != 5) = Test.derrorMessage "Both values must be the same type"
 
-    (Test.runtimeError "test" != Test.runtimeError "different msg") = Test.runtimeError
+    (Test.runtimeError "test" != Test.runtimeError "different msg") = Test.derrorMessage
       "test"
 
-    (() != PACKAGE.Darklang.Stdlib.Option.Option.None) = Test.runtimeError
+    (() != PACKAGE.Darklang.Stdlib.Option.Option.None) = Test.derrorMessage
       "Both values must be the same type"
 
-    (() != false) = Test.runtimeError "Both values must be the same type"
-    (() != 0) = Test.runtimeError "Both values must be the same type"
-    (() != 0.0) = Test.runtimeError "Both values must be the same type"
-    (MyDB != 5) = Test.runtimeError "Both values must be the same type"
+    (() != false) = Test.derrorMessage "Both values must be the same type"
+    (() != 0) = Test.derrorMessage "Both values must be the same type"
+    (() != 0.0) = Test.derrorMessage "Both values must be the same type"
+    (MyDB != 5) = Test.derrorMessage "Both values must be the same type"
 
   // Other ways to call it
   equals_v0 1 1 = true

@@ -14,7 +14,7 @@ open Microsoft.Extensions.Diagnostics.HealthChecks
 module Telemetry = LibService.Telemetry
 
 
-let _waitForDB () : Task<unit> =
+let waitForDB () : Task<unit> =
   task {
     use (_span : Telemetry.Span.T) = Telemetry.createRoot "wait for db"
     let mutable success = false
@@ -51,7 +51,7 @@ let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
     print $"Initing LibCloud in {serviceName}"
 
     match shouldWaitForDB with
-    | WaitForDB -> do! _waitForDB ()
+    | WaitForDB -> do! waitForDB ()
     | DontWaitForDB -> ()
 
     do! Queue.init ()

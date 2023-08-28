@@ -243,6 +243,21 @@ def backend_full_build():
   return result
 
 
+def run_migrations():
+  start = time.time()
+
+  if optimize:
+    configuration = " --published"
+  else:
+    configuration = ""
+  return run_backend(start, f"scripts/run-prod-exec {configuration} migrations run")
+
+
+def clear_local_db():
+  start = time.time()
+  return run_backend(start, "scripts/build/clear-db")
+
+
 def reload_backend_server():
   start = time.time()
   if optimize:
@@ -253,23 +268,13 @@ def reload_backend_server():
   return run_backend(start, runserver)
 
 
-def reload_packages():
+def reload_all_packages():
   start = time.time()
   if optimize:
     configuration = " --published"
   else:
     configuration = ""
   return run_backend(start, f"scripts/build/reload-packages {configuration}")
-
-
-def load_packages_into_dark_canvas():
-  start = time.time()
-  if optimize:
-    configuration = " --published"
-  else:
-    configuration = ""
-  return run_backend(
-      start, f"scripts/build/load-packages-into-dark-canvas {configuration}")
 
 
 class Should:
@@ -282,10 +287,11 @@ class Should:
     self.backend_quick_build = False
     self.backend_full_build = False
     self.backend_test = False
-    self.reload_packages = False
-    self.load_packages_into_dark_canvas = False
+    self.reload_all_packages = False
     self.npm_install = False
     self.circleci_validate = False
+    self.clear_local_db = False
+    self.run_migrations = False
     self.reload_backend_server = False
     self.shellcheck = []
     self.yamllint = []
@@ -313,7 +319,9 @@ def execute(should):
     if not backend_full_build(): success = False
     should.copy_dark_wasm |= success
     should.backend_test |= success
+    should.clear_local_db |= success
     should.reload_backend_server |= success
+    should.reload_all_packages |= success
 
   if should.circleci_validate:
     if not circleci_validate(): success = False
@@ -324,14 +332,19 @@ def execute(should):
     should.backend_test |= success
     should.reload_backend_server |= success
 
-  if should.reload_packages:
-    if not reload_packages(): success = False
-
-  if should.load_packages_into_dark_canvas:
-    if not load_packages_into_dark_canvas(): success = False
+  if should.reload_all_packages:
+    if not reload_all_packages(): success = False
 
   if should.copy_dark_wasm:
     if not copy_dark_wasm(): success = False
+
+  if should.clear_local_db:
+    if not clear_local_db(): success = False
+    should.run_migrations |= success
+    should.reload_all_packages |= success
+
+  if should.run_migrations:
+    if not run_migrations(): success = False
 
   if should.reload_backend_server:
     if not reload_backend_server(): success = False
@@ -381,11 +394,13 @@ def mark(should, f):
     should.backend_test = True
 
   elif ("/packages/" in f) and (f.endswith(".dark")):
-    should.reload_packages = True
-    should.load_packages_into_dark_canvas = True
+    should.reload_all_packages = True
 
-  elif ("/LocalExec/" in f) and (f.endswith(".dark")):
-    should.reload_packages = True
+  # elif ("/LocalExec/" in f) and (f.endswith(".dark")):
+  #   should.reload_all_packages = True
+
+  elif ("/migrations/" in f):
+    should.clear_local_db = True
 
   elif "/scripts/run-backend-server" in f:
     should.shellcheck += [f]

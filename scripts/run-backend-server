@@ -4,7 +4,6 @@
 set -euo pipefail
 
 PUBLISHED=false
-PUBLISHED_FLAG=
 RESTART=true
 
 for i in "$@"
@@ -12,7 +11,6 @@ do
   case "${i}" in
     --published)
     PUBLISHED=true
-    PUBLISHED_FLAG=$i
     shift
     ;;
   esac
@@ -109,8 +107,6 @@ MIGRATIONS_LOG="$LOGS/migrations.log"
 announce "Running migrations" "${MIGRATIONS_LOG}"
 "${PRODEXEC_EXE}" migrations run > "${MIGRATIONS_LOG}" 2>&1
 
-./scripts/build/reload-packages $PUBLISHED_FLAG $PUBLISHED_FLAG
-
 BWDSERVER_LOG="$LOGS/bwdserver.log"
 announce "Running bwdserver" "${BWDSERVER_LOG}"
 "${BWDSERVER_EXE}" > "${BWDSERVER_LOG}" 2>&1 &
@@ -126,8 +122,5 @@ announce "Running queueworker" "${QUEUEWORKER_LOG}"
 BWDDANGERSERVER_LOG="$LOGS/bwddangerserver.log"
 announce "Running bwddangerserver" "${BWDDANGERSERVER_LOG}"
 "${BWDDANGERSERVER_EXE}" > "${BWDDANGERSERVER_LOG}" 2>&1 &
-
-echo "Loading packages into dark canvas"
-./scripts/build/load-packages-into-dark-canvas $PUBLISHED_FLAG $PUBLISHED_FLAG
 
 echo "Finished loading server"

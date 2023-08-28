@@ -163,7 +163,7 @@ module AddToTestEnumDBs =
                                              MyEnum2.E
                                              MyEnum2.F MyEnum.A ]
 
-  (let test1 = DB.set MyEnum.D "test1" TestEnumDB2 in (DB.getAll TestEnumDB2)) = Test.runtimeError
+  (let test1 = DB.set MyEnum.D "test1" TestEnumDB2 in (DB.getAll TestEnumDB2)) = Test.derrorMessage
     "There is no case named `D` in MyEnum"
 
   (let testQuery =
@@ -284,20 +284,20 @@ module Roundtrip =
     // invalid type comparisons errors
     // these work, but the DError has a random string in it that we can't match
     // fetch (fun p -> 5 == "str") =
-    //   Test.sqlError "Incorrect type in variable, expected Bool, but got a Error"
+    //   Test.derrorSqlMessage "Incorrect type in variable, expected Bool, but got a Error"
     // fetch (fun p -> 5 != "str") =
-    //   Test.sqlError "Incorrect type in variable, expected Bool, but got a Error"
+    //   Test.derrorSqlMessage "Incorrect type in variable, expected Bool, but got a Error"
 
-    fetch (fun p -> p.int == "str") = Test.sqlError
+    fetch (fun p -> p.int == "str") = Test.derrorSqlMessage
       "Incorrect type in b, expected Int, but got a String"
 
-    fetch (fun p -> p.int != "str") = Test.sqlError
+    fetch (fun p -> p.int != "str") = Test.derrorSqlMessage
       "Incorrect type in b, expected Int, but got a String"
 
-    fetch (fun p -> "str" == p.int) = Test.sqlError
+    fetch (fun p -> "str" == p.int) = Test.derrorSqlMessage
       "Incorrect type in b, expected String, but got a Int"
 
-    fetch (fun p -> "str" == p.int) = Test.sqlError
+    fetch (fun p -> "str" == p.int) = Test.derrorSqlMessage
       "Incorrect type in b, expected String, but got a Int"
 
     fetch (fun p -> p.iNsEnSiTiVe == "iNsEnSiTiVe") = [ sample () ]
@@ -399,8 +399,8 @@ module Roundtrip =
 module ValueMissingColumnGivesGoodError =
   // TYPESCLEANUP: can we test a missing column against the DB anymore?
   // (DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Test.runtimeError "Found but did not expect: [y]"
-  (DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Test.runtimeError
-    "DB XDB's value should be a X. However, a XY (XY {  ...) was passed instead.\n\nExpected: X\nActual: a XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
+  (DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Test.derrorMessage
+    "DB XDB's value should be a X. However, a XY (XY {  x: ...) was passed instead.\n\nExpected: X\nActual: a XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
 
 
 module SetDoesUpsert =
@@ -674,15 +674,15 @@ module FindAll =
                                                                                       "Ross" ]
 
   (let x = "not int"
-   friends (fun p -> p.height > x)) = Test.sqlError
+   friends (fun p -> p.height > x)) = Test.derrorSqlMessage
     "Variable `x` should be an Int. However, a String (\"not int\") was passed instead.\n\nExpected: (x: Int)\nActual: a String: \"not int\""
 
   // lambda doesnt return a bool
-  friendsError (fun p -> "x") = Test.sqlError
+  friendsError (fun p -> "x") = Test.derrorSqlMessage
     "Incorrect type in String \"x\", expected Bool, but got a String"
 
   // bad variable name
-  friendsError (fun p -> let x = 32 in true && p.height > y) = Test.sqlError
+  friendsError (fun p -> let x = 32 in true && p.height > y) = Test.derrorSqlMessage
     "This variable is not defined: y"
 
   // sql injection

@@ -59,7 +59,9 @@ let fns : List<BuiltInFn> =
                      (function
                      | DChar c -> c
                      | dv ->
-                       Exception.raiseCode (Errors.expectedLambdaType "fn" TChar dv))
+                       Exception.raiseInternal
+                         (Errors.expectedLambdaType "fn" TChar dv)
+                         [])
                      dvals
 
                  let str = String.concat "" chars
@@ -291,9 +293,9 @@ let fns : List<BuiltInFn> =
                 match s with
                 | DString st -> st
                 | dv ->
-                  Exception.raiseCode (
-                    Errors.argumentWasntType (TList TString) "l" dv
-                  ))
+                  Exception.raiseInternal
+                    (Errors.argumentWasntType (TList TString) "l" dv)
+                    [])
               l
 
           Ply(DString((String.concat sep strs).Normalize()))
@@ -634,6 +636,26 @@ let fns : List<BuiltInFn> =
           else
             Ply(Dval.optionSome (DInt index))
         | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    { name = fn "head" 0
+      typeParams = []
+      parameters = [ Param.make "str" TString "" ]
+      returnType = TypeReference.option TChar
+      description =
+        "Returns {{Some char}} of the first character of <param str>, or returns {{None}} if <param str> is empty."
+      fn =
+        (function
+        | _, _, [ DString str ] ->
+          if str = "" then
+            Ply(Dval.optionNone)
+          else
+            let head = String.toEgcSeq str |> Seq.head
+            Ply(Dval.optionSome (DChar head))
+        | _ -> incorrectArgs ())
+
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]

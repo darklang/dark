@@ -22,7 +22,7 @@ let tlid : tlid = 7UL
 let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
 module RuntimeTypes =
-  let fqFnNames : List<RT.FnName.T> =
+  let fqFnNames : List<RT.FnName.FnName> =
     [ RT.FQName.UserProgram
         { modules = [ "X" ]; name = RT.FnName.FnName "userfn"; version = 0 }
       RT.FQName.BuiltIn
@@ -44,21 +44,27 @@ module RuntimeTypes =
       RT.TDict RT.TBool
       RT.TDB RT.TBool
       RT.TCustomType(
-        RT.FQName.UserProgram
-          { modules = []; name = RT.TypeName.TypeName "User"; version = 0 },
+        Ok(
+          RT.FQName.UserProgram
+            { modules = []; name = RT.TypeName.TypeName "User"; version = 0 }
+        ),
         [ RT.TBool ]
       )
       RT.TCustomType(
-        RT.FQName.BuiltIn
-          { modules = [ "Mod" ]; name = RT.TypeName.TypeName "User"; version = 0 },
+        Ok(
+          RT.FQName.BuiltIn
+            { modules = [ "Mod" ]; name = RT.TypeName.TypeName "User"; version = 0 }
+        ),
         [ RT.TBool ]
       )
       RT.TCustomType(
-        RT.FQName.Package
-          { owner = "dark"
-            modules = [ "Mod1"; "Mod2" ]
-            name = RT.TypeName.TypeName "Pack"
-            version = 0 },
+        Ok(
+          RT.FQName.Package
+            { owner = "dark"
+              modules = [ "Mod1"; "Mod2" ]
+              name = RT.TypeName.TypeName "Pack"
+              version = 0 }
+        ),
         [ RT.TBool ]
       )
       RT.TBytes
@@ -199,7 +205,7 @@ module ProgramTypes =
 
   let signs = [ Sign.Positive; Sign.Negative ]
 
-  let fqFnNames : List<PT.FnName.T> =
+  let fqFnNames : List<PT.FnName.FnName> =
     [ PT.FQName.UserProgram
         { modules = []; name = PT.FnName.FnName "fn"; version = 0 }
       PT.FQName.BuiltIn
@@ -781,7 +787,7 @@ module ProgramTypes =
     { name =
         { owner = "darklang"
           modules = [ "stdlib"; "Int"; "Int64" ]
-          name = PT.TypeName.TypeName "T"
+          name = PT.TypeName.TypeName "Int64"
           version = 0 }
       declaration =
         { typeParams = [ "a" ]

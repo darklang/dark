@@ -11,7 +11,6 @@ module RT = RuntimeTypes
 
 
 module FormatV0 =
-
   // In the past, we used bespoke serialization formats, that were terrifying to
   // change. Going forward, if we want to use a format that we want to save and
   // reload, but don't need to search for, let's just use the simplest possible
@@ -29,18 +28,17 @@ module FormatV0 =
     type Package<'name> =
       { owner : string; modules : List<string>; name : 'name; version : int }
 
-    type T<'name> =
+    type FQName<'name> =
       | BuiltIn of BuiltIn<'name>
       | UserProgram of UserProgram<'name>
       | Package of Package<'name>
-      | Unknown of List<string>
 
 
   module TypeName =
     type Name = TypeName of string
-    type T = FQName.T<Name>
+    type TypeName = FQName.FQName<Name>
 
-    let toRT (t : T) : RT.TypeName.T =
+    let toRT (t : TypeName) : RT.TypeName.TypeName =
       match t with
       | FQName.BuiltIn { modules = modules; name = TypeName name; version = version } ->
         RT.FQName.BuiltIn
@@ -59,9 +57,8 @@ module FormatV0 =
             modules = modules
             name = RT.TypeName.TypeName name
             version = version }
-      | FQName.Unknown names -> RT.FQName.Unknown names
 
-    let fromRT (t : RT.TypeName.T) : T =
+    let fromRT (t : RT.TypeName.TypeName) : TypeName =
       match t with
       | RT.FQName.BuiltIn { modules = modules
                             name = RT.TypeName.TypeName name
@@ -81,13 +78,12 @@ module FormatV0 =
             modules = modules
             name = TypeName name
             version = version }
-      | RT.FQName.Unknown names -> FQName.Unknown names
 
   module FnName =
     type Name = FnName of string
-    type T = FQName.T<Name>
+    type FnName = FQName.FQName<Name>
 
-    let toRT (t : T) : RT.FnName.T =
+    let toRT (t : FnName) : RT.FnName.FnName =
       match t with
       | FQName.BuiltIn { modules = modules; name = FnName name; version = version } ->
         RT.FQName.BuiltIn
@@ -106,9 +102,8 @@ module FormatV0 =
             modules = modules
             name = RT.FnName.FnName name
             version = version }
-      | FQName.Unknown names -> RT.FQName.Unknown names
 
-    let fromRT (t : RT.FnName.T) : T =
+    let fromRT (t : RT.FnName.FnName) : FnName =
       match t with
       | RT.FQName.BuiltIn { modules = modules
                             name = RT.FnName.FnName name
@@ -125,7 +120,6 @@ module FormatV0 =
                             version = version } ->
         FQName.Package
           { owner = owner; modules = modules; name = FnName name; version = version }
-      | RT.FQName.Unknown names -> FQName.Unknown names
 
 
 
@@ -134,6 +128,8 @@ module FormatV0 =
   and DvalSource =
     | SourceNone
     | SourceID of tlid * id
+
+  and RuntimeError = RuntimeError of DvalSource * Dval
 
   and Dval =
     | DInt of int64
@@ -146,19 +142,23 @@ module FormatV0 =
     | DTuple of Dval * Dval * List<Dval>
     | DLambda // See docs/dblock-serialization.md
     | DDict of DvalMap
-    | DError of DvalSource * string
-    | DIncomplete of DvalSource
     | DDB of string
     | DDateTime of NodaTime.LocalDateTime
     | DPassword of byte array // We are allowed serialize this here, so don't use the Password type which doesn't deserialize
     | DUuid of System.Guid
     | DBytes of byte array
-    | DRecord of runtimeTypeName : TypeName.T * sourceTypeName : TypeName.T * DvalMap
+    | DRecord of
+      runtimeTypeName : TypeName.TypeName *
+      sourceTypeName : TypeName.TypeName *
+      DvalMap
     | DEnum of
-      runtimeTypeName : TypeName.T *
-      sourceTypeName : TypeName.T *
+      runtimeTypeName : TypeName.TypeName *
+      sourceTypeName : TypeName.TypeName *
       caseName : string *
       List<Dval>
+
+    | DIncomplete of DvalSource // CLEANUP remove
+    | DError of RuntimeError // CLEANUP remove
 
   let rec toRT (dv : Dval) : RT.Dval =
     match dv with
@@ -178,8 +178,6 @@ module FormatV0 =
       )
     | DIncomplete SourceNone -> RT.DIncomplete RT.SourceNone
     | DIncomplete(SourceID(tlid, id)) -> RT.DIncomplete(RT.SourceID(tlid, id))
-    | DError(SourceNone, msg) -> RT.DError(RT.SourceNone, msg)
-    | DError(SourceID(tlid, id), msg) -> RT.DError(RT.SourceID(tlid, id), msg)
     | DDateTime d -> RT.DDateTime d
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
@@ -199,6 +197,13 @@ module FormatV0 =
         List.map toRT fields
       )
 
+    | DError(RuntimeError(SourceID(tlid, id), rte)) ->
+      RT.DError(RT.SourceID(tlid, id), RT.RuntimeError.fromDT (toRT rte))
+
+    | DError(RuntimeError(SourceNone, rte)) ->
+      RT.DError(RT.SourceNone, RT.RuntimeError.fromDT (toRT rte))
+
+
 
   let rec fromRT (dv : RT.Dval) : Dval =
     match dv with
@@ -209,10 +214,6 @@ module FormatV0 =
     | RT.DFloat f -> DFloat f
     | RT.DUnit -> DUnit
     | RT.DFnVal _ -> DLambda
-    | RT.DIncomplete RT.SourceNone -> DIncomplete SourceNone
-    | RT.DIncomplete(RT.SourceID(tlid, id)) -> DIncomplete(SourceID(tlid, id))
-    | RT.DError(RT.SourceNone, msg) -> DError(SourceNone, msg)
-    | RT.DError(RT.SourceID(tlid, id), msg) -> DError(SourceID(tlid, id), msg)
     | RT.DDateTime d -> DDateTime d
     | RT.DDB name -> DDB name
     | RT.DUuid uuid -> DUuid uuid
@@ -231,6 +232,15 @@ module FormatV0 =
         caseName,
         List.map fromRT fields
       )
+
+    | RT.DIncomplete RT.SourceNone -> DIncomplete SourceNone
+    | RT.DIncomplete(RT.SourceID(tlid, id)) -> DIncomplete(SourceID(tlid, id))
+
+    | RT.DError(RT.SourceID(tlid, id), rte) ->
+      DError(RuntimeError(SourceID(tlid, id), rte |> RT.RuntimeError.toDT |> fromRT))
+
+    | RT.DError(RT.SourceNone, rte) ->
+      DError(RuntimeError(SourceNone, rte |> RT.RuntimeError.toDT |> fromRT))
 
 
 let toJsonV0 (dv : RT.Dval) : string =

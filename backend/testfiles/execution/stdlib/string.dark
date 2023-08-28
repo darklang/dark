@@ -351,8 +351,8 @@ module FromList =
   //Test.runtimeError "In String.fromList's 1st argument (`l`), the value should be a List<Char>. However, a List<String> ([\"a\"]) was passed instead.\n\nExpected: List<Char>\nActual: a List<String>: [\"a\"]"
   // Note: the below error comes from the implementation itself, not normal typechecking,
   //   otherwise we could expect the message to include `[\"a\"] instead of `\"a\"`.
-  PACKAGE.Darklang.Stdlib.String.fromList [ "a" ] = Test.runtimeError
-    "Char.toString's 1st argument (`c`) should be a Char. However, a String (\"a\") was passed instead.\n\nExpected: (c: Char)\nActual: a String: \"a\""
+  PACKAGE.Darklang.Stdlib.String.fromList [ "a" ] = Test.derrorMessage
+    "Char.toString's 1st argument (`c`) should be a Character. However, a String (\"a\") was passed instead.\n\nExpected: (c: Character)\nActual: a String: \"a\""
 
 
 module ToList =
@@ -862,3 +862,18 @@ module Ellipsis =
   PACKAGE.Darklang.Stdlib.String.ellipsis_v0
     "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷✋✋🏻✋🏿"
     4 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷..."
+
+module Head =
+  String.head "hello world" = PACKAGE.Darklang.Stdlib.Option.Option.Some 'h'
+  String.head "" = PACKAGE.Darklang.Stdlib.Option.Option.None
+// Commented out as Fantomas doesn't like unicode "characters"
+// String.head "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = PACKAGE.Darklang.Stdlib.Option.Option.Some '👱'
+// String.head "🧟‍♀️🧟‍♂️" = PACKAGE.Darklang.Stdlib.Option.Option.Some '🧟'
+// String.head "👨‍❤️‍💋‍👨" = PACKAGE.Darklang.Stdlib.Option.Option.Some '👨‍❤️‍💋‍👨'
+
+module ArticleFor =
+  PACKAGE.Darklang.Stdlib.String.articleFor "apple" = "an"
+  PACKAGE.Darklang.Stdlib.String.articleFor "banana" = "a"
+  PACKAGE.Darklang.Stdlib.String.articleFor "🍍" = "a"
+  PACKAGE.Darklang.Stdlib.String.articleFor "🍊" = "a"
+  PACKAGE.Darklang.Stdlib.String.articleFor "" = ""

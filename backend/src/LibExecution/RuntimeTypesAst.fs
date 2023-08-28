@@ -11,8 +11,9 @@ open RuntimeTypes
 let rec preTraversal
   (exprFn : Expr -> Expr)
   (typeRefFn : TypeReference -> TypeReference)
-  (fqtnFn : TypeName.T -> TypeName.T)
-  (fqfnFn : FnName.T -> FnName.T)
+  (fqtnFn : TypeName.TypeName -> TypeName.TypeName)
+  (fqfnFn : FnName.FnName -> FnName.FnName)
+  (fqcnFn : ConstantName.ConstantName -> ConstantName.ConstantName)
   (letPatternFn : LetPattern -> LetPattern)
   (matchPatternFn : MatchPattern -> MatchPattern)
   (expr : Expr)
@@ -57,11 +58,12 @@ let rec preTraversal
     | TList tr -> TList(f tr)
     | TTuple(tr1, tr2, trs) -> TTuple(f tr1, f tr2, List.map f trs)
     | TDB tr -> TDB(f tr)
-    | TCustomType(name, trs) -> TCustomType(fqtnFn name, List.map f trs)
+    | TCustomType(name, trs) -> TCustomType(Result.map fqtnFn name, List.map f trs)
     | TDict(tr) -> TDict(f tr)
     | TFn(trs, tr) -> TFn(NEList.map f trs, f tr)
 
-  let f = preTraversal exprFn typeRefFn fqtnFn fqfnFn letPatternFn matchPatternFn
+  let f =
+    preTraversal exprFn typeRefFn fqtnFn fqfnFn fqcnFn letPatternFn matchPatternFn
 
   match exprFn expr with
   | EInt _
@@ -69,7 +71,6 @@ let rec preTraversal
   | EChar _
   | EUnit _
   | EVariable _
-  | EConstant _
   | EFloat _ -> expr
   | EString(id, strs) ->
     EString(
@@ -80,6 +81,7 @@ let rec preTraversal
         | StringText t -> StringText t
         | StringInterpolation e -> StringInterpolation(f e))
     )
+  | EConstant(id, name) -> EConstant(id, fqcnFn name)
   | ELet(id, pat, rhs, next) -> ELet(id, preTraversalLetPattern pat, f rhs, f next)
   | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
   | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
@@ -120,8 +122,9 @@ let rec preTraversal
 let rec postTraversal
   (exprFn : Expr -> Expr)
   (typeRefFn : TypeReference -> TypeReference)
-  (fqtnFn : TypeName.T -> TypeName.T)
-  (fqfnFn : FnName.T -> FnName.T)
+  (fqtnFn : TypeName.TypeName -> TypeName.TypeName)
+  (fqfnFn : FnName.FnName -> FnName.FnName)
+  (fqcnFn : ConstantName.ConstantName -> ConstantName.ConstantName)
   (letPatternFn : LetPattern -> LetPattern)
   (matchPatternFn : MatchPattern -> MatchPattern)
   (expr : Expr)
@@ -166,18 +169,18 @@ let rec postTraversal
     | TList tr -> TList(f tr)
     | TTuple(tr1, tr2, trs) -> TTuple(f tr1, f tr2, List.map f trs)
     | TDB tr -> TDB(f tr)
-    | TCustomType(name, trs) -> TCustomType(fqtnFn name, List.map f trs)
+    | TCustomType(name, trs) -> TCustomType(Result.map fqtnFn name, List.map f trs)
     | TDict(tr) -> TDict(f tr)
     | TFn(trs, tr) -> TFn(NEList.map f trs, f tr)
 
-  let f = postTraversal exprFn typeRefFn fqtnFn fqfnFn letPatternFn matchPatternFn
+  let f =
+    postTraversal exprFn typeRefFn fqtnFn fqfnFn fqcnFn letPatternFn matchPatternFn
   (match expr with
    | EInt _
    | EBool _
    | EChar _
    | EUnit _
    | EVariable _
-   | EConstant _
    | EFloat _ -> expr
    | EString(id, strs) ->
      EString(
@@ -188,6 +191,7 @@ let rec postTraversal
          | StringText t -> StringText t
          | StringInterpolation e -> StringInterpolation(f e))
      )
+   | EConstant(id, name) -> EConstant(id, fqcnFn name)
    | ELet(id, pat, rhs, next) -> ELet(id, postTraversalLetPattern pat, f rhs, f next)
    | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
    | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
