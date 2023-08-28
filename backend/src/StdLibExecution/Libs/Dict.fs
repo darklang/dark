@@ -135,7 +135,7 @@ let fns : List<BuiltInFn> =
             | DTuple(DString k, value, []) -> Map.add k value acc
             | DTuple(k, _, []) ->
               Exception.raiseCode (Errors.argumentWasntType TString "key" k)
-            | (DIncomplete _ | DError _) as dv -> Errors.foundFakeDval dv
+            | (DError _) as dv -> Errors.foundFakeDval dv
             | _ -> Exception.raiseCode "All list items must be `(key, value)`"
 
           let result = List.fold Map.empty f l
@@ -166,7 +166,7 @@ let fns : List<BuiltInFn> =
             match acc, e with
             | Some acc, DTuple(DString k, _, _) when Map.containsKey k acc -> None
             | Some acc, DTuple(DString k, value, []) -> Some(Map.add k value acc)
-            | _, ((DIncomplete _ | DError _) as dv) -> Errors.foundFakeDval dv
+            | _, (DError _ as dv) -> Errors.foundFakeDval dv
             | Some _, DTuple(k, _, []) ->
               Exception.raiseCode (Errors.argumentWasntType TString "key" k)
             | Some _, _ ->
@@ -329,7 +329,6 @@ let fns : List<BuiltInFn> =
                   match result with
                   | DBool true -> return Ok(Map.add key data m)
                   | DBool false -> return Ok m
-                  | (DIncomplete _ as e)
                   | (DError _ as e) -> return Error e
                   | other ->
                     return
@@ -395,7 +394,7 @@ let fns : List<BuiltInFn> =
                           _,
                           "None",
                           []) -> return None
-                  | (DIncomplete _ | DError _) as dv ->
+                  | (DError _) as dv ->
                     abortReason.Value <- Some dv
                     return None
                   | v ->

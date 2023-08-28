@@ -143,6 +143,7 @@ module Darklang =
         | NameResolutionError of
           PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error
         | SqlCompilerRuntimeError of Error
+        | Incomplete
         | OldStringErrorTODO of String
       //| ExceptionThrown of ExceptionThrown.ExceptionThrown
 

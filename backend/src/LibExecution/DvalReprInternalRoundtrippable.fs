@@ -157,7 +157,6 @@ module FormatV0 =
       caseName : string *
       List<Dval>
 
-    | DIncomplete of DvalSource // CLEANUP remove
     | DError of RuntimeError // CLEANUP remove
 
   let rec toRT (dv : Dval) : RT.Dval =
@@ -176,8 +175,6 @@ module FormatV0 =
             parameters = NEList.singleton (gid (), "var")
             body = RT.Expr.EUnit 0UL }
       )
-    | DIncomplete SourceNone -> RT.DIncomplete RT.SourceNone
-    | DIncomplete(SourceID(tlid, id)) -> RT.DIncomplete(RT.SourceID(tlid, id))
     | DDateTime d -> RT.DDateTime d
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
@@ -233,9 +230,6 @@ module FormatV0 =
         List.map fromRT fields
       )
 
-    | RT.DIncomplete RT.SourceNone -> DIncomplete SourceNone
-    | RT.DIncomplete(RT.SourceID(tlid, id)) -> DIncomplete(SourceID(tlid, id))
-
     | RT.DError(RT.SourceID(tlid, id), rte) ->
       DError(RuntimeError(SourceID(tlid, id), rte |> RT.RuntimeError.toDT |> fromRT))
 
@@ -281,6 +275,4 @@ module Test =
     | RT.DUuid _ -> true
     | RT.DTuple(v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
     | RT.DDB _
-    | RT.DError _
-
-    | RT.DIncomplete _ -> true
+    | RT.DError _ -> true

@@ -142,7 +142,9 @@ let testRecursionInEditor : Test =
     Expect.equal
       (Dictionary.get skippedCallerID results)
       (Some(
-        AT.NonExecutedResult(DIncomplete(SourceID(recurse.tlid, skippedCallerID)))
+        AT.NonExecutedResult(
+          DError(SourceID(recurse.tlid, skippedCallerID), RuntimeError.incomplete)
+        )
       ))
       "result is incomplete for other path"
   }
@@ -395,7 +397,8 @@ let testLambdaPreview : Test =
                )
              )
            ))
-          (p1ID, AT.NonExecutedResult(DIncomplete(SourceID(7UL, p1ID))))
+          (p1ID,
+           AT.NonExecutedResult(DError(SourceID(7UL, p1ID), RuntimeError.incomplete)))
           (65UL, AT.NonExecutedResult(DString "body")) ]) ]
 
 
@@ -596,7 +599,7 @@ let testMatchPreview : Test =
   // helpers
   let er x = AT.ExecutedResult x
   let ner x = AT.NonExecutedResult x
-  let inc iid = DIncomplete(SourceID(id 7, iid))
+  let inc iid = DError(SourceID(id 7, iid), RuntimeError.incomplete)
 
   testList
     "test match evaluation"
@@ -809,7 +812,11 @@ let testLetPreview : Test =
 
         Expect.equal
           (Map.get lpID result)
-          (Some(AT.NonExecutedResult(DIncomplete(SourceID(7UL, lpID)))))
+          (Some(
+            AT.NonExecutedResult(
+              DError(SourceID(7UL, lpID), RuntimeError.incomplete)
+            )
+          ))
           "let pattern is incomplete due to error in RHS"
       }
 

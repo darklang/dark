@@ -179,7 +179,6 @@ module Darklang =
           List<Dval>
 
         | DError of DvalSource * RuntimeError
-        | DIncomplete of DvalSource
 
       /// our record of any variable bindings in scope
       ///

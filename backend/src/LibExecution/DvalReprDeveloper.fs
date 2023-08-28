@@ -41,7 +41,6 @@ let rec typeName (t : TypeReference) : string =
 
 let rec dvalTypeName (dv : Dval) : string =
   match dv with
-  | DIncomplete _ -> "Incomplete"
   | DError _ -> "Error"
   | DInt _ -> "Int"
   | DFloat _ -> "Float"
@@ -107,7 +106,6 @@ let toRepr (dv : Dval) : string =
       // TODO: we should print this, as this use case is safe
       // See docs/dblock-serialization.md
       justType
-    | DIncomplete _ -> justType
     | DError(_, msg) -> $"<error: {msg}>"
     | DDateTime d -> wrap (DarkDateTime.toIsoString d)
     | DDB name -> wrap name

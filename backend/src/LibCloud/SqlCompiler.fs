@@ -45,8 +45,7 @@ let rec dvalToSql
   (dval : Dval)
   : (SqlValue * TypeReference) =
   match expectedType, dval with
-  | _, DError _
-  | _, DIncomplete _ -> Errors.foundFakeDval dval
+  | _, DError _ -> Errors.foundFakeDval dval
   | _, DFnVal _
   | _, DDB _
   | _, DDict _ // CLEANUP allow

@@ -478,39 +478,6 @@ and [<NoComparison>] Dval =
   /// to represent a runtime error using this.
   | DError of DvalSource * RuntimeError
 
-  /// <summary>
-  /// A DIncomplete represents incomplete computation, whose source is
-  /// always a Blank. When the code runs into a blank, it must return
-  /// incomplete because the code is not finished. An incomplete value
-  /// results in a 500 because it is a developer error.
-  /// </summary>
-  ///
-  /// <remarks>
-  /// Propagating DIncompletes is straightforward: any computation
-  /// relying on an incomplete must itself be incomplete.
-  ///
-  /// Some examples:
-  /// - calling a function with an incomplete as a parameter is an
-  ///   incomplete function call.
-  /// - an if statement with an incomplete in the cond must be incomplete.
-  ///
-  /// But computation that doesn't rely on the incomplete value can
-  /// ignore it:
-  ///
-  /// - an if statement which with a blank in the ifbody and a
-  ///   complete expression in the elsebody will execute just fine if
-  ///   cond is false. It has not hit any part of the program that is
-  ///   being worked on.
-  ///
-  /// - a list with blanks in it can just ignore the blanks.
-  /// - an incomplete in a list should be filtered out, because the
-  ///   program has not been completed, and so that list entry just
-  ///   doesn't "exist" yet.
-  /// - incompletes in keys or values of objects cause the entire row
-  ///   to be ignored.
-  /// </remarks>
-  | DIncomplete of DvalSource
-
   | DDB of string
   | DDateTime of DarkDateTime.T
   | DPassword of Password
@@ -631,6 +598,8 @@ module RuntimeError =
   let sqlCompilerRuntimeError (internalError : RuntimeError) =
     case "SqlCompilerRuntimeError" [ toDT internalError ]
 
+  let incomplete = case "Incomplete" []
+
   // let exceptionThrown (ex : System.Exception) : RuntimeError =
   //   case
   //     "ExceptionThrown"
@@ -739,12 +708,6 @@ module Dval =
   let isFake (dv : Dval) : bool =
     match dv with
     | DError _ -> true
-    | DIncomplete _ -> true
-    | _ -> false
-
-  let isIncomplete (dv : Dval) : bool =
-    match dv with
-    | DIncomplete _ -> true
     | _ -> false
 
   let isDError (dv : Dval) : bool =
@@ -805,8 +768,7 @@ module Dval =
       typeName = typeName'
 
     // Dont match these fakevals, functions do not have these types
-    | DError _, _
-    | DIncomplete _, _ -> false
+    | DError _, _ -> false
 
     // exhaustiveness checking
     | DInt _, _

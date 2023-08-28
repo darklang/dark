@@ -720,8 +720,6 @@ module Dval =
       | DError(source, err) ->
         "DError", [ DvalSource.toDT source; RuntimeError.toDT err ]
 
-      | DIncomplete source -> "DIncomplete", [ DvalSource.toDT source ]
-
       | DDB name -> "DDB", [ DString name ]
 
       | DDateTime d -> "DDateTime", [ DDateTime d ]

@@ -67,8 +67,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DBytes _, _
   | DDB _, _
   | DEnum _, _
-  | DError _, _
-  | DIncomplete _, _ -> Exception.raiseCode "Both values must be the same type"
+  | DError _, _ -> Exception.raiseCode "Both values must be the same type"
 
 and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
   NEList.length impl1.parameters = NEList.length impl2.parameters
