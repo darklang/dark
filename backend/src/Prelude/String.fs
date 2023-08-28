@@ -30,3 +30,11 @@ let replace (old : string) (newStr : string) (s : string) : string =
   s.Replace(old, newStr)
 
 let isCapitalized (s : string) : bool = s.Length > 0 && System.Char.IsUpper(s.[0])
+let take (count : int) (str : string) : string =
+  if count >= str.Length then str else str.Substring(0, count)
+
+let removeSuffix (suffix : string) (str : string) : string =
+  if str.EndsWith(suffix) then
+    str.Substring(0, str.Length - suffix.Length)
+  else
+    str

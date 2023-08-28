@@ -292,7 +292,8 @@ let run () : Task<unit> =
       with e ->
         // No matter where else we catch it, this is essential or else the loop won't
         // continue
-        let e = (Exception.PageableException("Unhandled exception bubbled to run", [], e))
+        let e =
+          (Exception.PageableException("Unhandled exception bubbled to run", [], e))
         Rollbar.sendException None [] e
   }
 

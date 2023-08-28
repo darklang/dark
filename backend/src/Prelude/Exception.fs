@@ -170,5 +170,5 @@ let catchError (f : unit -> 'r) : Result<'r, string> =
 /// - https://stackoverflow.com/questions/57383
 /// </remarks>
 let reraise (e : System.Exception) : 'a =
-    (System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture e).Throw()
-    Unchecked.defaultof<_>
+  (System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture e).Throw()
+  Unchecked.defaultof<_>

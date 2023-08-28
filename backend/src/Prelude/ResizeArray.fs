@@ -14,4 +14,3 @@ let append (v : 'v) (list : T<'v>) : unit = list.Add(v)
 let toList (l : T<'v>) : List<'v> = FSharpx.Collections.ResizeArray.toList l
 
 let toSeq (l : T<'v>) : seq<'v> = FSharpx.Collections.ResizeArray.toSeq l
-

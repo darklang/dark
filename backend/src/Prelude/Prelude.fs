@@ -731,25 +731,12 @@ module Tablecloth =
                                IsHidden = true)>]
     let get = Option.get
 
-  module String =
-    let take (count : int) (str : string) : string =
-      if count >= str.Length then str else str.Substring(0, count)
-
-    let removeSuffix (suffix : string) (str : string) : string =
-      if str.EndsWith(suffix) then
-        str.Substring(0, str.Length - suffix.Length)
-      else
-        str
-
   module List =
     let splitLast (l : List<'a>) : Option<List<'a> * 'a> =
       match List.rev l with
       | [] -> None
       | head :: tail -> Some(List.rev tail, head)
 
-  module Map =
-    let fromListBy (f : 'v -> 'k) (l : List<'v>) : Map<'k, 'v> =
-      List.fold (fun (m : Map<'k, 'v>) v -> m.Add(f v, v)) Map.empty l
 
 type Ply<'a> = Ply.Ply<'a>
 let uply = FSharp.Control.Tasks.Affine.Unsafe.uply

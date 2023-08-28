@@ -14,11 +14,7 @@ let iter2 (f : 'a -> 'b -> unit) (l1 : NEList<'a>) (l2 : NEList<'b>) : unit =
   f l1.head l2.head
   List.iter2 f l1.tail l2.tail
 
-let iteri2
-  (f : int -> 'a -> 'b -> unit)
-  (l1 : NEList<'a>)
-  (l2 : NEList<'b>)
-  : unit =
+let iteri2 (f : int -> 'a -> 'b -> unit) (l1 : NEList<'a>) (l2 : NEList<'b>) : unit =
   let rec loop (i : int) (l1 : List<'a>) (l2 : List<'b>) : unit =
     match l1, l2 with
     | [], [] -> ()
@@ -46,8 +42,7 @@ let map2 (f : 'a -> 'b -> 'c) (l1 : NEList<'a>) (l2 : NEList<'b>) : NEList<'c> =
     match l1, l2 with
     | [], [] -> []
     | [], _
-    | _, [] ->
-      Exception.raiseInternal "NEList.map2: lists have different lengths" []
+    | _, [] -> Exception.raiseInternal "NEList.map2: lists have different lengths" []
     | x1 :: xs1, x2 :: xs2 -> f x1 x2 :: loop xs1 xs2
   { head = f l1.head l2.head; tail = loop l1.tail l2.tail }
 
@@ -61,16 +56,17 @@ let map2WithIndex
     | [], [] -> []
     | [], _
     | _, [] ->
-      Exception.raiseInternal
-        "NEList.map2WithIndex: lists have different lengths"
-        []
+      Exception.raiseInternal "NEList.map2WithIndex: lists have different lengths" []
     | x1 :: xs1, x2 :: xs2 -> f i x1 x2 :: loop (i + 1) xs1 xs2
   { head = f 0 l1.head l2.head; tail = loop 1 l1.tail l2.tail }
 
-let ofList (head : 'a) (tail : List<'a>) : NEList<'a> =
-  { head = head; tail = tail }
+let ofList (head : 'a) (tail : List<'a>) : NEList<'a> = { head = head; tail = tail }
 
-let ofListUnsafe (msg : string) (metadata : Exception.Metadata) (l : List<'a>) : NEList<'a> =
+let ofListUnsafe
+  (msg : string)
+  (metadata : Exception.Metadata)
+  (l : List<'a>)
+  : NEList<'a> =
   match l with
   | [] -> Exception.raiseInternal msg metadata
   | head :: tail -> { head = head; tail = tail }
@@ -80,8 +76,7 @@ let ofSeq (head : 'a) (seq : seq<'a>) : NEList<'a> =
 
 let singleton (head : 'a) : NEList<'a> = { head = head; tail = [] }
 
-let doubleton (head : 'a) (tail : 'a) : NEList<'a> =
-  { head = head; tail = [ tail ] }
+let doubleton (head : 'a) (tail : 'a) : NEList<'a> = { head = head; tail = [ tail ] }
 
 let push (head : 'a) (l : NEList<'a>) : NEList<'a> =
   { head = head; tail = l.head :: l.tail }
@@ -132,11 +127,7 @@ let initial (l : NEList<'a>) : List<'a> =
   | [] -> [] // drop head
   | _ -> l.head :: (listInitial l.tail)
 
-let fold
-  (f : 'state -> 'a -> 'state)
-  (initial : 'state)
-  (l : NEList<'a>)
-  : 'state =
+let fold (f : 'state -> 'a -> 'state) (initial : 'state) (l : NEList<'a>) : 'state =
   let state = f initial l.head
   List.fold f state l.tail
 
@@ -144,6 +135,3 @@ let splitLast (l : NEList<'a>) : (List<'a> * 'a) = initial l, last l
 
 let zip (l1 : NEList<'a>) (l2 : NEList<'b>) : NEList<'a * 'b> =
   { head = (l1.head, l2.head); tail = List.zip l1.tail l2.tail }
-
-
-
