@@ -258,9 +258,23 @@ let makeRequest
           do! responseStream.CopyToAsync(memoryStream)
           let respBody = memoryStream.ToArray()
 
+          let headersForAspNetResponse
+            (response : HttpResponseMessage)
+            : List<string * string> =
+            let fromAspNetHeaders
+              (headers : Headers.HttpHeaders)
+              : List<string * string> =
+              headers
+              |> Seq.map Tuple2.fromKeyValuePair
+              |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
+              |> Seq.toList
+            fromAspNetHeaders response.Headers
+            @ fromAspNetHeaders response.Content.Headers
+
+
           let headers =
             response
-            |> HttpHeaders.headersForAspNetResponse
+            |> headersForAspNetResponse
             |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
 
           return

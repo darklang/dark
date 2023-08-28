@@ -999,9 +999,6 @@ module Ply =
 // DO NOT define any serialization on these types. If you want to serialize
 // them, you should move these to the files with specific formats and serialize
 // them there.
-
-
-
 type CanvasID = System.Guid
 type UserID = System.Guid
 
@@ -1014,32 +1011,6 @@ type UserID = System.Guid
 /// Handlers which don't have modifiers (e.g. repl, worker) nearly
 /// always (but not actually always) have `_` as their modifier.
 type HandlerDesc = (string * string * string)
-
-module HttpHeaders =
-  type AspHeaders = System.Net.Http.Headers.HttpHeaders
-  type HttpResponseMessage = System.Net.Http.HttpResponseMessage
-
-  // We include these here as the _most_ basic http header types and functionality.
-  // Anything even remotely more complicated should be put next to where it's used,
-  // as historically we've gotten a lot wrong here and needed to make changes that we
-  // couldn't make if the functionality was here.
-  type Header = string * string
-  type T = List<Header>
-
-  let get (headerName) (headers : T) : string option =
-    headers
-    |> List.tryFind (fun ((k : string), (_ : string)) ->
-      String.equalsCaseInsensitive headerName k)
-    |> Option.map (fun (_k, v) -> v)
-
-  /// Get Dark-style headers from an Asp.Net HttpResponseMessage
-  let headersForAspNetResponse (response : HttpResponseMessage) : T =
-    let fromAspNetHeaders (headers : AspHeaders) : T =
-      headers
-      |> Seq.map Tuple2.fromKeyValuePair
-      |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
-      |> Seq.toList
-    fromAspNetHeaders response.Headers @ fromAspNetHeaders response.Content.Headers
 
 let id (x : int) : id = uint64 x
 

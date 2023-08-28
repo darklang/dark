@@ -11,7 +11,7 @@ open LibExecution.StdLib.Shortcuts
 module RT = LibExecution.RuntimeTypes
 module Telemetry = LibService.Telemetry
 
-let lowercaseHeaderKeys (headers : HttpHeaders.T) =
+let lowercaseHeaderKeys (headers : List<string*string>) : List<string*string> =
   headers |> List.map (fun (k, v) -> (String.toLowercase k, v))
 
 module Request =
@@ -20,7 +20,7 @@ module Request =
 
   let fromRequest
     (uri : string)
-    (headers : HttpHeaders.T)
+    (headers : List<string*string>)
     (body : byte array)
     : RT.Dval =
     let headers =
@@ -35,7 +35,7 @@ module Request =
 
 module Response =
   type HttpResponse =
-    { statusCode : int; body : byte array; headers : HttpHeaders.T }
+    { statusCode : int; body : byte array; headers : List<string*string> }
 
   let toHttpResponse (result : RT.Dval) : HttpResponse =
     match result with
