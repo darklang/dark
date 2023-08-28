@@ -194,7 +194,7 @@ let t
 
             match typeChecked with
             | Ok _ ->
-              let! actualErrorMessage =
+              return!
                 LibExecution.Interpreter.callFn
                   state
                   Map.empty
@@ -202,10 +202,9 @@ let t
                   errorMessageFn
                   []
                   (NEList.ofList actual [])
-              return actualErrorMessage
 
             | Error e ->
-              let! actualErrorMessage =
+              return!
                 LibExecution.Interpreter.callFn
                   state
                   Map.empty
@@ -213,8 +212,6 @@ let t
                   errorMessageFn
                   []
                   (NEList.ofList (RT.RuntimeError.toDT e) [])
-
-              return actualErrorMessage
 
           | _ -> return actual
         }
