@@ -228,7 +228,7 @@ let rec eval'
                 match result with
                 | DString s -> return Ok(str + s)
                 | DIncomplete _
-                | DError _ -> return Error(result) // TODO we should not have an RTE inside of an Error differently
+                | DError _ -> return Error(result)
                 | dv ->
                   let msg = "Expected string, got " + DvalReprDeveloper.toRepr dv
                   return Error(errStr id msg)
