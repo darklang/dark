@@ -41,7 +41,7 @@ module NoInternal =
 
 // type errors for bad `headers` are OK
 // CLEANUP this would be better once DList includes typeRefs:
-//Test.runtimeError "In HttpClient.request's 3rd argument (`headers`), the value should be a List<String * String>. However, a List<Int> ([1]) was passed instead.\n\nExpected: List<String * String>\nActual: an List<Int>: [1]"
+//Test.runtimeError "In HttpClient.request's 3rd argument (`headers`), the value should be a List<String * String>. However, a List<Int> ([1]) was passed instead.\n\nExpected: List<String * String>\nActual: a List<Int>: [1]"
 HttpClient.request "get" "https://darklang.com" [ 1 ] Bytes.empty = Test.derrorMessage
   "Expected request headers to be a `List<String*String>`, but got: 1"
 

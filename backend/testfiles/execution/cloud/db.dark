@@ -400,7 +400,7 @@ module ValueMissingColumnGivesGoodError =
   // TYPESCLEANUP: can we test a missing column against the DB anymore?
   // (DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Test.runtimeError "Found but did not expect: [y]"
   (DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Test.derrorMessage
-    "DB XDB's value should be an X. However, an XY (XY {  x: ...) was passed instead.\n\nExpected: X\nActual: an XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
+    "DB XDB's value should be a X. However, a XY (XY {  x: ...) was passed instead.\n\nExpected: X\nActual: a XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
 
 
 module SetDoesUpsert =
@@ -675,7 +675,7 @@ module FindAll =
 
   (let x = "not int"
    friends (fun p -> p.height > x)) = Test.derrorSqlMessage
-    "Variable `x` should be an Int. However, an String (\"not int\") was passed instead.\n\nExpected: (x: Int)\nActual: an String: \"not int\""
+    "Variable `x` should be an Int. However, a String (\"not int\") was passed instead.\n\nExpected: (x: Int)\nActual: a String: \"not int\""
 
   // lambda doesnt return a bool
   friendsError (fun p -> "x") = Test.derrorSqlMessage

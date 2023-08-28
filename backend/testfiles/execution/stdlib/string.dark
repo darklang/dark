@@ -352,7 +352,7 @@ module FromList =
   // Note: the below error comes from the implementation itself, not normal typechecking,
   //   otherwise we could expect the message to include `[\"a\"] instead of `\"a\"`.
   PACKAGE.Darklang.Stdlib.String.fromList [ "a" ] = Test.derrorMessage
-    "Char.toString's 1st argument (`c`) should be an Character. However, an String (\"a\") was passed instead.\n\nExpected: (c: Character)\nActual: an String: \"a\""
+    "Char.toString's 1st argument (`c`) should be a Character. However, a String (\"a\") was passed instead.\n\nExpected: (c: Character)\nActual: a String: \"a\""
 
 
 module ToList =

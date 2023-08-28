@@ -91,7 +91,7 @@ module UserDefined =
       "There is no function named functionWhichDoesntExist"
 
     stringFn 5 = Test.derrorMessage
-      "UserDefined.stringFn's 1st argument (`key`) should be an String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
+      "UserDefined.stringFn's 1st argument (`key`) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
 
     stringFn "str1" "str2" = Test.derrorMessage
       "UserDefined.stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
@@ -109,10 +109,10 @@ module UserDefined =
       "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
 
     fnWithTypeArgAndOneParam<Int> "str2" = Test.derrorMessage
-      "UserDefined.fnWithTypeArgAndOneParam's 1st argument (`arg`) should be an Int. However, an String (\"str2\") was passed instead.\n\nExpected: (arg: 'a)\nActual: an String: \"str2\""
+      "UserDefined.fnWithTypeArgAndOneParam's 1st argument (`arg`) should be an Int. However, a String (\"str2\") was passed instead.\n\nExpected: (arg: 'a)\nActual: a String: \"str2\""
 
     fnWithTypedReturn<String> () = Test.derrorMessage
-      "UserDefined.fnWithTypedReturn's return value should be an String. However, an Int (5) was passed instead.\n\nExpected: 'a\nActual: an Int: 5"
+      "UserDefined.fnWithTypedReturn's return value should be a String. However, an Int (5) was passed instead.\n\nExpected: 'a\nActual: an Int: 5"
 
     (let _ = Test.setExpectedExceptionCount 1 in throwsException ()) = Test.derrorMessage
       "Unknown error"
@@ -166,7 +166,7 @@ module Packages =
 
   module Invalid =
     PACKAGE.Darklang.Test.stringFn 5 = Test.derrorMessage
-      "PACKAGE.Darklang.Test.stringFn's 1st argument (`key`) should be an String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
+      "PACKAGE.Darklang.Test.stringFn's 1st argument (`key`) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
 
     PACKAGE.Darklang.Test.stringFn "str1" "str2" = Test.derrorMessage
       "PACKAGE.Darklang.Test.stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."

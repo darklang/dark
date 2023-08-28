@@ -6,10 +6,10 @@ module Error =
     (PACKAGE.Darklang.Stdlib.Option.Option.Some 10)
     "not an option"
     (fun (a, b) -> "1") = (Test.derrorMessage
-    "Option.map2's 2nd argument (`option2`) should be an PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, an String (\"not an op...) was passed instead.
+    "Option.map2's 2nd argument (`option2`) should be a PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, a String (\"not an op...) was passed instead.
 
 Expected: (option2: PACKAGE.Darklang.Stdlib.Option.Option<'b>)
-Actual: an String: \"not an option\"")
+Actual: a String: \"not an option\"")
 
 
 // Check we get previous errors before later ones

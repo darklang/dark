@@ -207,10 +207,10 @@ Int.multiply_v0 8 8 = 64
 Int.multiply_v0 5145 5145 = 26471025
 
 1 * 1.0 = Test.derrorMessage
-  "Int.multiply's 2nd argument (`b`) should be an Int. However, an Float (1.0) was passed instead.
+  "Int.multiply's 2nd argument (`b`) should be an Int. However, a Float (1.0) was passed instead.
 
 Expected: (b: Int)
-Actual: an Float: 1.0"
+Actual: a Float: 1.0"
 
 8 * 8 = 64
 

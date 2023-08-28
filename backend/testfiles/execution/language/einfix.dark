@@ -4,7 +4,7 @@
 Int.add_v0 5 3 = 8
 
 5 + true = Test.derrorMessage
-  "Int.add's 2nd argument (`b`) should be an Int. However, an Bool (true) was passed instead.\n\nExpected: (b: Int)\nActual: an Bool: true"
+  "Int.add's 2nd argument (`b`) should be an Int. However, a Bool (true) was passed instead.\n\nExpected: (b: Int)\nActual: a Bool: true"
 
 5 + (Test.runtimeError "error") = Test.derrorMessage "error"
 (Test.runtimeError "error") + 5 = Test.derrorMessage "error"

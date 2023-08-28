@@ -357,7 +357,7 @@ Json.parse<List<Dict<MyString>>>
 
 // not proper lists
 Json.serialize<List<Int>> [ 1, 2, "three" ] = Test.derrorMessage
-  "Json.serialize's 1st argument (`arg`) should be an List<Int>. However, an (Int, Int, String) ((1, 2, \"th...) was passed instead.\n\nExpected: (arg: 'a)\nActual: an (Int, Int, String): (1, 2, \"three\")"
+  "Json.serialize's 1st argument (`arg`) should be a List<Int>. However, an (Int, Int, String) ((1, 2, \"th...) was passed instead.\n\nExpected: (arg: 'a)\nActual: an (Int, Int, String): (1, 2, \"three\")"
 
 Json.parse<List<Int>> "[1, 2, \"three\"]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Can't parse JSON `\"three\"` as type `Int` at path: `root[2]`"
@@ -666,10 +666,10 @@ type Person1 = { Name: String; Age: Int }
 type Person2 = { Name: String; Age: Int }
 
 Json.serialize<Person2> (Person1 { Name = "Bob"; Age = 42 }) = Test.derrorMessage
-  "Json.serialize's 1st argument (`arg`) should be an Person2. However, an Person1 (Person1 {...) was passed instead.
+  "Json.serialize's 1st argument (`arg`) should be a Person2. However, a Person1 (Person1 {...) was passed instead.
 
 Expected: (arg: 'a)
-Actual: an Person1: Person1 {\n  Age: 42,\n  Name: \"Bob\"\n}"
+Actual: a Person1: Person1 {\n  Age: 42,\n  Name: \"Bob\"\n}"
 
 // type StringResult<’a> = PACKAGE.Darklang.Stdlib.Result.Result<’a, String>
 // Json.serialize<StringResult<Int>> (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"PACKAGE.Darklang.Stdlib.Result.Result.Ok\":1}"
