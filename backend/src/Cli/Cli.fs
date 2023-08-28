@@ -55,57 +55,37 @@ let builtIns : RT.BuiltIns =
 
 let packageManager = LibCliExecution.PackageManager.packageManager
 
+let state () =
+  let program : RT.Program =
+    { canvasID = System.Guid.NewGuid()
+      internalFnsAllowed = false
+      fns = Map.empty
+      types = Map.empty
+      constants = Map.empty
+      dbs = Map.empty
+      secrets = [] }
 
-let execute (symtable : Map<string, RT.Dval>) (args : PT.Expr) : Task<RT.Dval> =
+  let tracing = Exe.noTracing RT.Real
 
+  let notify (_state : RT.ExecutionState) (_msg : string) (_metadata : Metadata) =
+    // let metadata = extraMetadata state @ metadata
+    // LibService.Rollbar.notify msg metadata
+    ()
+
+  let sendException (_ : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
+    printException "Internal error" metadata exn
+
+  Exe.createState builtIns packageManager tracing sendException notify 7UL program
+
+
+
+
+let execute (args : List<string>) : Task<RT.Dval> =
   task {
-    let program : RT.Program =
-      { canvasID = System.Guid.NewGuid()
-        internalFnsAllowed = false
-        fns = Map.empty
-        types = Map.empty
-        constants = Map.empty
-        dbs = Map.empty
-        secrets = [] }
-
-    let tracing = Exe.noTracing RT.Real
-
-    let notify (_state : RT.ExecutionState) (_msg : string) (_metadata : Metadata) =
-      // let metadata = extraMetadata state @ metadata
-      // LibService.Rollbar.notify msg metadata
-      ()
-
-    let sendException (_ : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
-      printException "Internal error" metadata exn
-
-    let state =
-      Exe.createState
-        builtIns
-        packageManager
-        tracing
-        sendException
-        notify
-        7UL
-        program
-
-    let callFn =
-      PT.EApply(
-        gid (),
-        PT.EFnName(
-          gid (),
-          Ok(
-            PT.FQName.Package(
-              { owner = "Darklang"
-                modules = [ "Cli" ]
-                name = PT.FnName.FnName "executeCliCommand"
-                version = 0 }
-            )
-          )
-        ),
-        [],
-        NEList.singleton args
-      )
-    return! Exe.executeExpr state symtable (PT2RT.Expr.toRT callFn)
+    let state = state ()
+    let fnName = RT.FnName.fqPackage "Darklang" [ "Cli" ] "executeCliCommand" 0
+    let args = args |> List.map RT.DString |> RT.DList |> NEList.singleton
+    return! Exe.executeFunction state 7UL fnName [] args
   }
 
 let initSerializers () =
@@ -123,25 +103,24 @@ let main (args : string[]) =
 
     packageManager.init.Result
 
-    let args =
-      args
-      |> Array.toList
-      |> List.map (fun arg -> PT.EString(gid (), [ PT.StringText arg ]))
-    let args = PT.EList(gid (), args)
-
-    let result = execute (Map.empty) args
+    let result = execute (Array.toList args)
     let result = result.Result
 
     NonBlockingConsole.wait ()
 
     match result with
-    | RT.DError(RT.SourceNone, rte) ->
-      // TODO: toString the RTE
-      System.Console.WriteLine $"Error: {rte}"
-      1
-    | RT.DError(RT.SourceID(tlid, id), rte) ->
-      // TODO: toString the RTE
-      System.Console.WriteLine $"Error ({tlid}, {id}): {rte}"
+    | RT.DError(source, rte) ->
+      let state = state ()
+      let source =
+        match source with
+        | RT.SourceID(tlid, id) -> $"(source: {tlid}, {id})"
+        | RT.SourceNone -> "(source unknown)"
+      match (LibExecution.Execution.runtimeErrorToString state rte).Result with
+      | RT.DString s -> System.Console.WriteLine $"Error {source}:\n  {s}"
+      | newErr ->
+        System.Console.WriteLine $"Error while stringifying error {source}\n"
+        System.Console.WriteLine $"Original Error: {rte}"
+        System.Console.WriteLine $"New Error is:\n{newErr}"
       1
     | RT.DInt i -> (int i)
     | dval ->

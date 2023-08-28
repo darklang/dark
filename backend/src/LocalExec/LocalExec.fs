@@ -32,6 +32,45 @@ let builtIns : RT.BuiltIns =
 
 let defaultTLID = 7UL
 
+let state () =
+  let tracing = Exe.noTracing RT.Real
+
+  let program : RT.Program =
+    { canvasID = System.Guid.NewGuid()
+      internalFnsAllowed = false
+      fns = Map.empty
+      types = Map.empty
+      constants = Map.empty
+      dbs = Map.empty
+      secrets = [] }
+
+  let extraMetadata (state : RT.ExecutionState) : Metadata =
+    [ "executing_fn_name", state.executingFnName; "callstack", state.callstack ]
+
+  let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
+    let metadata = extraMetadata state @ metadata
+    let metadata =
+      metadata |> List.map (fun (k, v) -> $"  {k}: {v}") |> String.concat ", "
+    print $"Notification: {msg}, {metadata}"
+
+  let reportException (state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
+    let metadata = extraMetadata state @ metadata @ Exception.toMetadata exn
+    let metadata =
+      metadata |> List.map (fun (k, v) -> $"  {k}: {v}") |> String.concat "\n"
+    print
+      $"Exception: {exn.Message}\nMetadata:\n{metadata}\nStacktrace:\n{exn.StackTrace}"
+
+  Exe.createState
+    builtIns
+    LibCloud.PackageManager.packageManager
+    tracing
+    reportException
+    notify
+    defaultTLID
+    program
+
+
+
 let execute
   (mod' : LibParser.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
@@ -55,40 +94,11 @@ let execute
         dbs = Map.empty
         secrets = [] }
 
-    let tracing = Exe.noTracing RT.Real
-
-    let extraMetadata (state : RT.ExecutionState) : Metadata =
-      [ "executing_fn_name", state.executingFnName; "callstack", state.callstack ]
-
-    let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
-      let metadata = extraMetadata state @ metadata
-      let metadata =
-        metadata |> List.map (fun (k, v) -> $"  {k}: {v}") |> String.concat ", "
-      print $"Notification: {msg}, {metadata}"
-
-    let reportException
-      (state : RT.ExecutionState)
-      (metadata : Metadata)
-      (exn : exn)
-      =
-      let metadata = extraMetadata state @ metadata @ Exception.toMetadata exn
-      let metadata =
-        metadata |> List.map (fun (k, v) -> $"  {k}: {v}") |> String.concat "\n"
-      print
-        $"Exception: {exn.Message}\nMetadata:\n{metadata}\nStacktrace:\n{exn.StackTrace}"
-
-    let state =
-      Exe.createState
-        builtIns
-        LibCloud.PackageManager.packageManager
-        tracing
-        reportException
-        notify
-        defaultTLID
-        program
-
+    let state = { state () with program = program }
     return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
   }
+
+
 
 let sourceOf
   (filename : string)
@@ -272,16 +282,22 @@ let runLocalExecScript (args : string[]) : Ply<int> =
     NonBlockingConsole.wait ()
 
     match result.Result with
-    | RT.DError(RT.SourceID(tlid, id), rte) ->
-      // TODO: execute the Package LocalExec.Errors.toSegments
-      System.Console.WriteLine $"Error: {rte}"
-      System.Console.WriteLine $"Failure at: {sourceOf mainFile tlid id modul}"
+    | RT.DError(source, rte) ->
+      let state = state ()
+      let source =
+        match source with
+        | RT.SourceID(tlid, id) -> sourceOf mainFile tlid id modul
+        | RT.SourceNone -> "unknown"
+      match! LibExecution.Execution.runtimeErrorToString state rte with
+      | RT.DString s ->
+        System.Console.WriteLine $"Error: {s}"
+        System.Console.WriteLine source
+      | newErr ->
+        System.Console.WriteLine $"Error while stringifying error\n"
+        System.Console.WriteLine $"Original Error: {rte}"
+        System.Console.WriteLine $"New Error is:\n{newErr}"
+      System.Console.WriteLine source
       // System.Console.WriteLine $"module is: {modul}"
-      // System.Console.WriteLine $"(source {tlid}, {id})"
-      return 1
-    | RT.DError(RT.SourceNone, rte) ->
-      System.Console.WriteLine $"Error: {rte}"
-      System.Console.WriteLine $"(source unknown)"
       return 1
     | RT.DInt i -> return (int i)
     | dval ->
@@ -306,11 +322,15 @@ let main (args : string[]) : int =
 
     match args with
     | [| "load-packages" |] ->
-      System.Console.WriteLine "Loading packages to DB"
+      print "Loading packages to DB"
       let exitCode = (PackageBootstrapping.loadPackagesFromDb ()).Result
-      System.Console.WriteLine "Finished loading packages to DB"
+      print "Finished loading packages to DB"
+      NonBlockingConsole.wait ()
       exitCode
-    | _ -> (runLocalExecScript args).Result
+    | _ ->
+      let result = (runLocalExecScript args).Result
+      NonBlockingConsole.wait ()
+      result
   with e ->
     // Don't reraise or report as LocalExec is only run interactively
     printException "Exception" [] e

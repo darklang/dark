@@ -79,6 +79,20 @@ let executeFunction
     return result
   }
 
+let runtimeErrorToString
+  (state : RT.ExecutionState)
+  (rte : RT.RuntimeError)
+  : Task<RT.Dval> =
+  task {
+    let fnName =
+      RT.FnName.fqPackage
+        "Darklang"
+        [ "LanguageTools"; "RuntimeErrors"; "Error" ]
+        "toString"
+        0
+    let args = NEList.singleton (RT.RuntimeError.toDT rte)
+    return! executeFunction state 8UL fnName [] args
+  }
 
 /// Return a function to trace TLIDs (add it to state via
 /// state.tracing.traceTLID), and a mutable set which updates when the
