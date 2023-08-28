@@ -186,7 +186,6 @@ module MatchPattern =
     | SynPat.Const(SynConst.Int32 n, _) -> WT.MPInt(id, n)
     | SynPat.Const(SynConst.Int64 n, _) -> WT.MPInt(id, int64 n)
     | SynPat.Const(SynConst.UInt64 n, _) -> WT.MPInt(id, int64 n)
-    | SynPat.Const(SynConst.UserNum(n, "I"), _) -> WT.MPInt(id, parseInt64 n)
     | SynPat.Const(SynConst.Char c, _) -> WT.MPChar(id, string c)
     | SynPat.Const(SynConst.Bool b, _) -> WT.MPBool(id, b)
     | SynPat.Const(SynConst.Unit, _) -> WT.MPUnit(id)
@@ -314,7 +313,6 @@ module Expr =
     | SynExpr.Const(SynConst.Int32 n, _) -> WT.EInt(id, n)
     | SynExpr.Const(SynConst.Int64 n, _) -> WT.EInt(id, int64 n)
     | SynExpr.Const(SynConst.UInt64 n, _) -> WT.EInt(id, int64 n)
-    | SynExpr.Const(SynConst.UserNum(n, "I"), _) -> WT.EInt(id, parseInt64 n)
     | SynExpr.Const(SynConst.Char c, _) -> WT.EChar(id, string c)
     | SynExpr.Const(SynConst.Bool b, _) -> WT.EBool(id, b)
     | SynExpr.Const(SynConst.Double d, _) ->

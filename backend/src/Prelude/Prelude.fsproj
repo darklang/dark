@@ -27,6 +27,7 @@
     <Compile Include="Task.fs" />
     <Compile Include="NonBlockingConsole.fs" />
     <Compile Include="Prelude.fs" />
+    <Compile Include="Json.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
