@@ -24,13 +24,13 @@ type NameResolver =
     /// If a name is not found, should we raise an exception?
     ///
     /// - when the local package DB is fully empty, and we're filling it in for the
-    ///   first time, we want to allow all names to be not found -- other package
+    ///   first time, we want to allow all names to be NotFound -- other package
     ///   items won't be there yet
     /// - sometimes when parsing, we're not sure whether something is:
     ///   - a variable
     ///   - or something else, like a constant or fn.
-    ///   during these times, we want to allow errors as well, so we can
-    ///   parsing it as a variable as a fallback if nothing is found under that name
+    ///   During these times, we want to allow errors as well, so we can
+    ///   parse it as a variable as a fallback if nothing is found under that name.
     allowError : bool
 
     packageManager : Option<RT.PackageManager>
