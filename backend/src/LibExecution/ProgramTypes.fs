@@ -580,6 +580,7 @@ type Deprecation<'name> =
 
 
 module Handler =
+
   type CronInterval =
     | EveryDay
     | EveryWeek
@@ -587,6 +588,16 @@ module Handler =
     | EveryHour
     | Every12Hours
     | EveryMinute
+
+  /// User to represent handlers in their lowest-level form: a triple of space * name * modifier
+  /// "Space" is "HTTP", "WORKER", "REPL", etc.
+  ///
+  /// "Modifier" options differ based on space.
+  /// e.g. HTTP handler may have "GET" modifier.
+  ///
+  /// Handlers which don't have modifiers (e.g. repl, worker) nearly
+  /// always (but not actually always) have `_` as their modifier.
+  type HandlerDesc = (string * string * string)
 
   type Spec =
     | HTTP of route : string * method : string

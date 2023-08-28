@@ -69,7 +69,7 @@ let createState
 type ExecutionReason =
   /// The first time a trace is executed. This means more data should be stored and
   /// more users notified.
-  | InitialExecution of HandlerDesc * varname : string * RT.Dval
+  | InitialExecution of PT.Handler.HandlerDesc * varname : string * RT.Dval
 
   /// A reexecution is a trace that already exists, being amended with new values
   | ReExecution

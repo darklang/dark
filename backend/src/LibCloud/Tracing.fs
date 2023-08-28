@@ -106,7 +106,7 @@ module TraceResults =
 type T =
   {
     /// Store the tracing input, if enabled
-    storeTraceInput : HandlerDesc -> string -> RT.Dval -> unit
+    storeTraceInput : PT.Handler.HandlerDesc -> string -> RT.Dval -> unit
 
     /// Store the trace results calculated over the execution, if enabled
     storeTraceResults : unit -> unit

@@ -126,7 +126,7 @@ let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
 
 let loadEventIDs
   (canvasID : CanvasID)
-  ((module', name, modifier) : HandlerDesc)
+  ((module', name, modifier) : PT.Handler.HandlerDesc)
   : Task<List<EventID>> =
   Sql.query
     "SELECT id
@@ -146,7 +146,7 @@ let loadEventIDs
 module Test =
   let loadEvents
     (canvasID : CanvasID)
-    ((module', name, modifier) : HandlerDesc)
+    ((module', name, modifier) : PT.Handler.HandlerDesc)
     : Task<List<RT.Dval>> =
     Sql.query
       "SELECT value
