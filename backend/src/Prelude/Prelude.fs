@@ -37,12 +37,14 @@ let printfn = printfn
 let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 
 // ----------------------
-// Important types
+// Shared Types
 // ----------------------
-type tlid = uint64
+// Some fundamental types that we want to use everywhere.
 
-type id = uint64
-
+// DO NOT define any serialization on these types. If you want to serialize
+// them, you should move these to the files with specific formats and serialize
+// them there.
+// ----------------------
 // This is important to prevent auto-serialization accidentally leaking this,
 // though it never should anyway
 type Password = Password of byte array
@@ -54,6 +56,17 @@ type HashSet<'a> = HashSet.HashSet<'a>
 
 type Ply<'a> = Ply.Ply<'a>
 let uply = Ply.uply
+
+type CanvasID = System.Guid
+type UserID = System.Guid
+type tlid = uint64
+type id = uint64
+
+let id (x : int) : id = uint64 x
+
+// since we hide F#'s default 'id' fn just above
+let identity a = a
+
 
 // ----------------------
 // Debugging
@@ -435,20 +448,3 @@ module Tablecloth =
       match List.rev l with
       | [] -> None
       | head :: tail -> Some(List.rev tail, head)
-
-
-// ----------------------
-// Shared Types
-// ----------------------
-// Some fundamental types that we want to use everywhere.
-
-// DO NOT define any serialization on these types. If you want to serialize
-// them, you should move these to the files with specific formats and serialize
-// them there.
-type CanvasID = System.Guid
-type UserID = System.Guid
-
-let id (x : int) : id = uint64 x
-
-// since we hide F#'s default 'id' fn just above
-let identity a = a
