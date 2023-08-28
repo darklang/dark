@@ -54,6 +54,16 @@ let rec eval'
         return ()
     }
 
+  let typeResolutionError
+    (errorType : NameResolutionError.ErrorType)
+    (typeName : TypeName.TypeName)
+    : Result<'a, RuntimeError> =
+    let error : NameResolutionError.Error =
+      { errorType = errorType
+        nameType = NameResolutionError.Type
+        names = [ TypeName.toString typeName ] }
+    Error(NameResolutionError.RTE.toRuntimeError error)
+
   let recordMaybe
     (types : Types)
     (typeName : TypeName.TypeName)
@@ -114,36 +124,10 @@ let rec eval'
 
         | Some({ definition = TypeDeclaration.Alias(_) })
         | Some({ definition = TypeDeclaration.Enum _ }) ->
-          let errorTypeName = RuntimeError.name [ "NameResolution" ] "ErrorType" 0
-          let nameTypeName = RuntimeError.name [ "NameResolution" ] "NameType" 0
-          let fields =
-            [ "errorType", Dval.enum errorTypeName "ExpectedRecordButNot" []
-              "nameType", Dval.enum nameTypeName "Type" []
-              "names",
-              [ TypeName.toString typeName ] |> List.map DString |> Dval.list ]
           return
-            Error(
-              RuntimeError.nameResolutionError (
-                Dval.record (RuntimeError.name [ "NameResolution" ] "Error" 0) fields
-              )
-            )
+            typeResolutionError NameResolutionError.ExpectedRecordButNot typeName
 
-        | None ->
-          let errorTypeName = RuntimeError.name [ "NameResolution" ] "ErrorType" 0
-          let nameTypeName = RuntimeError.name [ "NameResolution" ] "NameType" 0
-
-          let fields =
-            [ "errorType", Dval.enum errorTypeName "NotFound" []
-              "nameType", Dval.enum nameTypeName "Type" []
-              "names",
-              [ TypeName.toString typeName ] |> List.map DString |> Dval.list ]
-
-          return
-            Error(
-              RuntimeError.nameResolutionError (
-                Dval.record (RuntimeError.name [ "NameResolution" ] "Error" 0) fields
-              )
-            )
+        | None -> return typeResolutionError NameResolutionError.NotFound typeName
       }
     inner typeName
 
@@ -179,36 +163,8 @@ let rec eval'
 
         | Some({ definition = TypeDeclaration.Alias _ })
         | Some({ definition = TypeDeclaration.Record _ }) ->
-          let errorTypeName = RuntimeError.name [ "NameResolution" ] "ErrorType" 0
-          let nameTypeName = RuntimeError.name [ "NameResolution" ] "NameType" 0
-          let fields =
-            [ "errorType", Dval.enum errorTypeName "ExpectedEnumButNot" []
-              "nameType", Dval.enum nameTypeName "Type" []
-              "names",
-              [ TypeName.toString typeName ] |> List.map DString |> Dval.list ]
-
-          return
-            Error(
-              RuntimeError.nameResolutionError (
-                Dval.record (RuntimeError.name [ "NameResolution" ] "Error" 0) fields
-              )
-            )
-
-        | None ->
-          let errorTypeName = RuntimeError.name [ "NameResolution" ] "ErrorType" 0
-          let nameTypeName = RuntimeError.name [ "NameResolution" ] "NameType" 0
-          let fields =
-            [ "errorType", Dval.enum errorTypeName "NotFound" []
-              "nameType", Dval.enum nameTypeName "Type" []
-              "names",
-              [ TypeName.toString typeName ] |> List.map DString |> Dval.list ]
-
-          return
-            Error(
-              RuntimeError.nameResolutionError (
-                Dval.record (RuntimeError.name [ "NameResolution" ] "Error" 0) fields
-              )
-            )
+          return typeResolutionError NameResolutionError.ExpectedEnumButNot typeName
+        | None -> return typeResolutionError NameResolutionError.NotFound typeName
       }
     inner typeName
 
