@@ -14,6 +14,10 @@
     <Compile Include="Exception.fs" />
     <Compile Include="NEList.fs" />
     <Compile Include="Regex.fs" />
+    <Compile Include="Uuid.fs" />
+    <Compile Include="Tuple2.fs" />
+    <Compile Include="Base64.fs" />
+    <Compile Include="UTF8.fs" />
     <Compile Include="NonBlockingConsole.fs" />
     <Compile Include="Prelude.fs" />
   </ItemGroup>
