@@ -6,9 +6,6 @@ open FSharp.Control.Tasks
 open Expecto
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
-open LibCloud.Db
 
 open TestUtils.TestUtils
 

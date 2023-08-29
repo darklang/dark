@@ -48,3 +48,12 @@ let head (l : List<'a>) : Option<'a> = List.tryHead l
 let reverse (l : List<'a>) : List<'a> = List.rev l
 
 let last (l : List<'a>) : Option<'a> = List.tryLast l
+
+let join (sep : string) (l : List<string>) : string = String.concat sep l
+
+let rec range from to' = if from >= to' then [] else from :: range (from + 1) to'
+
+let fromArray (arr : array<'a>) : List<'a> = List.ofArray arr
+
+let getAt (index : int) (l : List<'a>) : Option<'a> =
+  if index < 0 then None else List.tryItem index l

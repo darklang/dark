@@ -30,8 +30,6 @@ module LibService.Telemetry
 // The type of the value is `obj`, so anything is allowed.
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 
 open OpenTelemetry
 open OpenTelemetry.Trace
@@ -359,11 +357,11 @@ let addTelemetry
   |> fun b -> b.SetSampler(Sampler(serviceName))
   |> fun b ->
       List.fold
-        b
-        (fun b exporter ->
+        (fun (b : TracerProviderBuilder) exporter ->
           match exporter with
           | Config.Honeycomb -> b.AddHoneycomb(honeycombOptions serviceName)
           | Config.Console -> b.AddConsoleExporter())
+        b
         Config.telemetryExporters
   |> fun b ->
       b.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName))

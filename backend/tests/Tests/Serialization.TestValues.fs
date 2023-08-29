@@ -6,7 +6,6 @@
 module Tests.SerializationTestValues
 
 open Prelude
-open Tablecloth
 open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes

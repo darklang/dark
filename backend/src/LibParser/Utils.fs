@@ -5,7 +5,6 @@ open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Syntax
 
 open Prelude
-open Tablecloth
 
 /// Takes a long identifier and returns a list of its components, stringified
 ///
