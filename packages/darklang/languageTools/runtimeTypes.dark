@@ -207,4 +207,4 @@ module Darklang =
           blockArgs: List<String>
           description: String }
 
-// and Param = { name : String; typ : TypeReference }
+      type Param = { name: String; typ: TypeReference }

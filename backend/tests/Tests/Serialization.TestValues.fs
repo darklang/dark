@@ -22,6 +22,17 @@ let tlid : tlid = 7UL
 let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
 module RuntimeTypes =
+  let fqTypeNames : List<RT.TypeName.TypeName> =
+    [ RT.FQName.UserProgram
+        { modules = [ "X" ]; name = RT.TypeName.TypeName "userfn"; version = 0 }
+      RT.FQName.BuiltIn
+        { modules = [ "A" ]; name = RT.TypeName.TypeName "b"; version = 1 }
+      RT.FQName.Package
+        { owner = "a"
+          modules = [ "b"; "C" ]
+          name = RT.TypeName.TypeName "d"
+          version = 2 } ]
+
   let fqFnNames : List<RT.FnName.FnName> =
     [ RT.FQName.UserProgram
         { modules = [ "X" ]; name = RT.FnName.FnName "userfn"; version = 0 }
@@ -31,6 +42,19 @@ module RuntimeTypes =
         { owner = "a"
           modules = [ "b"; "C" ]
           name = RT.FnName.FnName "d"
+          version = 2 } ]
+
+  let fqConstantNames : List<RT.ConstantName.ConstantName> =
+    [ RT.FQName.UserProgram
+        { modules = [ "X" ]
+          name = RT.ConstantName.ConstantName "userfn"
+          version = 0 }
+      RT.FQName.BuiltIn
+        { modules = [ "A" ]; name = RT.ConstantName.ConstantName "b"; version = 1 }
+      RT.FQName.Package
+        { owner = "a"
+          modules = [ "b"; "C" ]
+          name = RT.ConstantName.ConstantName "d"
           version = 2 } ]
 
   let typeReferences : List<RT.TypeReference> =
@@ -200,6 +224,7 @@ module RuntimeTypes =
     |> List.filter (fun (name, _dv) -> name <> "password")
     |> List.map (fun (name, (dv, t)) -> name, dv)
     |> RT.Dval.record typeName
+
 
 module ProgramTypes =
 

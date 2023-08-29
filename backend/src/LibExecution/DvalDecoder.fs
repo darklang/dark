@@ -51,3 +51,9 @@ let uuidField (name : string) (m : DvalMap) : System.Guid =
   |> field name
   |> Dval.asUuid
   |> unwrap $"Expected '{name}' field to be a uuid" []
+
+let mapField (name : string) (m : DvalMap) : Map<string, Dval> =
+  m
+  |> field name
+  |> Dval.asDict
+  |> unwrap $"Expected '{name}' field to be a dict" []

@@ -15,7 +15,7 @@ module Darklang =
       type RTTypeName = PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName
 
       type RTFnName = PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.FnName
-      type RTBuiltInParam = PACKAGE.Darklang.LanguageTools.RuntimeTypes.BuiltInParam
+      type RTParam = PACKAGE.Darklang.LanguageTools.RuntimeTypes.Param
 
       // RuntimeErrors
       type REErrorOutput = PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorOutput
@@ -28,7 +28,7 @@ module Darklang =
         type Context =
           | FunctionCallParameter of
             fnName: RTFnName *
-            parameter: RTBuiltInParam *  // RTETODO should probbaly just be Param?
+            parameter: RTParam *
             paramIndex: Int *
             location: Location
 
@@ -183,23 +183,12 @@ module Darklang =
 
             match context with
             | FunctionCallParameter(fnName, parameter, paramIndex, _) ->
-              // format:
-              // (json : string) // some description
-              let description =
-                if parameter.description == "" then
-                  []
-                else
-                  [ ErrorSegment.ErrorSegment.String " // "
-                    ErrorSegment.ErrorSegment.Description parameter.description ]
-
               let segments =
-                List.append
-                  [ ErrorSegment.ErrorSegment.String "("
-                    ErrorSegment.ErrorSegment.InlineParamName parameter.name
-                    ErrorSegment.ErrorSegment.String ": "
-                    ErrorSegment.ErrorSegment.TypeReference parameter.typ
-                    ErrorSegment.ErrorSegment.String ")" ]
-                  description
+                [ ErrorSegment.ErrorSegment.String "("
+                  ErrorSegment.ErrorSegment.InlineParamName parameter.name
+                  ErrorSegment.ErrorSegment.String ": "
+                  ErrorSegment.ErrorSegment.TypeReference parameter.typ
+                  ErrorSegment.ErrorSegment.String ")" ]
 
               (defaultActual, segments)
 

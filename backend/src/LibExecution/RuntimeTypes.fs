@@ -527,8 +527,6 @@ and DvalSource =
   // Caused by an expression of `id` within the given `tlid`
   | SourceID of tlid * id
 
-// TODO should use rename this to just Param?
-// it feels a bit odd that Stdlib.Param is just an abbrev of this
 and BuiltInParam =
   { name : string
     typ : TypeReference
