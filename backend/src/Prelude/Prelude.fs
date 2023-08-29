@@ -224,7 +224,7 @@ let assertEq (msg : string) (expected : 'a) (actual : 'a) : unit =
       [ "expected", expected :> obj; "actual", actual :> obj ]
 
 let assertIn (msg : string) (expected : List<'a>) (actual : 'a) : unit =
-  if not (Tablecloth.List.includes actual expected) then
+  if not (List.contains actual expected) then
     Exception.raiseInternal
       $"Assertion equality failure: {msg}"
       [ "expected", expected :> obj; "actual", actual :> obj ]
@@ -283,7 +283,7 @@ let readFloat (f : float) : (Sign * string * string) =
   let asStr = f.ToString("G53").Split "."
   let whole =
     match sign with
-    | Negative -> Tablecloth.String.dropLeft 1 asStr[0]
+    | Negative -> String.dropLeft 1 asStr[0]
     | Positive -> asStr[0]
   let fraction = if asStr.Length = 1 then "0" else asStr[1]
   sign, whole, fraction

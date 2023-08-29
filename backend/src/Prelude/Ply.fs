@@ -70,7 +70,7 @@ module List =
         })
       (Ply((0, initial)))
       list
-    |> map Tablecloth.Tuple2.second
+    |> map Tuple2.second
 
 
   let mapSequentially (f : 'a -> Ply<'b>) (list : List<'a>) : Ply<List<'b>> =
@@ -82,7 +82,7 @@ module List =
           return result :: accum
         })
       []
-    |> map List.rev
+    |> map List.reverse
 
   let mapSequentiallyWithIndex
     (f : int -> 'a -> Ply<'b>)
