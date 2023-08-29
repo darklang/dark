@@ -7,7 +7,7 @@ open Npgsql.FSharp
 open Npgsql
 
 open Prelude
-open Tablecloth
+
 open Db
 open Ply
 

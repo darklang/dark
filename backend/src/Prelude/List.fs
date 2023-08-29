@@ -7,8 +7,7 @@ let splitLast (l : List<'a>) : Option<List<'a> * 'a> =
 
 let filterMap (f : 'a -> Option<'b>) (xs : List<'a>) : List<'b> = List.choose f xs
 
-let mapWithIndex (f : int -> 'a -> 'b) (l : List<'a>) : List<'b> =
-  List.mapi f l
+let mapWithIndex (f : int -> 'a -> 'b) (l : List<'a>) : List<'b> = List.mapi f l
 
 let any (f : 'a -> bool) (l : List<'a>) : bool = List.exists f l
 
@@ -33,3 +32,8 @@ let initial (l : List<'a>) : List<'a> =
   match List.rev l with
   | [] -> []
   | _ :: tail -> List.rev tail
+
+let groupBy (f : 'a -> 'b) (l : List<'a>) : Map<'b, List<'a>> =
+  List.groupBy f l |> Map
+
+let head (l : List<'a>) : Option<'a> = List.tryHead l

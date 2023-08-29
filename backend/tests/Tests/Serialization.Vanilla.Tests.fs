@@ -184,6 +184,7 @@ module PersistedSerializations =
       let duplicates =
         data.Force()
         |> List.groupBy (fun z -> z.FileName)
+        |> Map.toList
         |> List.filterMap (fun (fileName, records) ->
           if List.length records > 1 then
             Some(fileName, records |> List.map (fun r -> r.SerializedData))

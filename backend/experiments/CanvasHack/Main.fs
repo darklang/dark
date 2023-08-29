@@ -5,7 +5,6 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module C = LibCloud.Canvas

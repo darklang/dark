@@ -9,7 +9,6 @@ open Npgsql
 open LibCloud.Db
 
 open Prelude
-open Tablecloth
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PT = LibExecution.ProgramTypes
@@ -129,7 +128,7 @@ let addToplevel (deleted : Serialize.Deleted) (tl : PT.Toplevel.T) (c : T) : T =
 
 
 let addToplevels (tls : List<Serialize.Deleted * PT.Toplevel.T>) (canvas : T) : T =
-  List.fold canvas (fun c (deleted, tl) -> addToplevel deleted tl c) tls
+  List.fold (fun c (deleted, tl) -> addToplevel deleted tl c) canvas tls
 
 let toplevels (c : T) : Map<tlid, PT.Toplevel.T> =
   let map f l = Map.map f l |> Map.toSeq
@@ -516,8 +515,10 @@ let loadDomainsHealthCheck
           })
       return
         results
-        |> List.fold healthy (fun prev current ->
-          if prev = healthy && current = healthy then healthy else current)
+        |> List.fold
+          (fun prev current ->
+            if prev = healthy && current = healthy then healthy else current)
+          healthy
 
     with _ ->
       return

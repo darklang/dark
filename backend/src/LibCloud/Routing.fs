@@ -3,10 +3,6 @@ module LibCloud.Routing
 open FSharp.Control.Tasks
 open System.Threading.Tasks
 
-open Npgsql.FSharp
-open Npgsql
-open LibCloud.Db
-
 open FSharpx
 open Prelude
 open Tablecloth

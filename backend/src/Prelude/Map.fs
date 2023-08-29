@@ -17,6 +17,9 @@ let fromList (l : List<'k * 'v>) : Map<'k, 'v> = Map.ofList l
 let filterWithIndex (f : 'a -> 'b -> bool) (m : Map<'a, 'b>) : Map<'a, 'b> =
   Map.filter f m
 
+let filter (f : 'v -> bool) (m : Map<'k, 'v>) : Map<'k, 'v> =
+  Map.filter (fun _ v -> f v) m
+
 let keys (map : Map<'k, 'v>) : List<'k> =
   seq {
     for KeyValue(key, _) in map do
@@ -37,3 +40,10 @@ let map (f : 'a -> 'b) (m : Map<'k, 'a>) : Map<'k, 'b> = Map.map (fun _ v -> f v
 let mapWithIndex (f : 'k -> 'a -> 'b) (m : Map<'k, 'a>) : Map<'k, 'b> = Map.map f m
 
 let get (k : 'k) (m : Map<'k, 'v>) : Option<'v> = Map.tryFind k m
+
+let update
+  (key : 'a)
+  (f : Option<'b> -> Option<'b>)
+  (m : Map<'a, 'b>)
+  : Map<'a, 'b> =
+  Map.change key f m

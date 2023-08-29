@@ -6,8 +6,6 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-open Tablecloth
-open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module ST = SerializedTypes

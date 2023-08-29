@@ -1211,9 +1211,10 @@ let fns : List<BuiltInFn> =
             | None ->
               let groups =
                 result
-                |> List.groupBy fst
+                |> Seq.groupBy fst
+                |> Seq.toList
                 |> List.map (fun (key, elementsWithKey) ->
-                  let elements = List.map snd elementsWithKey
+                  let elements = Seq.map snd elementsWithKey |> Seq.toList
                   DTuple(key, DList elements, []))
                 |> DList
 
