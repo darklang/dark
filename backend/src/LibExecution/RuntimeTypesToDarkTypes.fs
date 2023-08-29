@@ -15,7 +15,6 @@ let languageToolsTyp
   TypeName.fqPackage "Darklang" ("LanguageTools" :: submodules) name version
 
 
-// Note: doesn't actually exist at this point
 let rtTyp
   (submodules : List<string>)
   (name : string)
@@ -69,10 +68,8 @@ module FQName =
           "version", DInt u.version ]
 
     let fromDT (nameMapper : Dval -> 'name) (v : Dval) : FQName.UserProgram<'name> =
-      let unwrap = Exception.unwrapOptionInternal
       match v with
       | DRecord(_, _, m) ->
-
         let modules = modulesField m
         let name = nameField m |> nameMapper
         let version = versionField m
@@ -91,7 +88,6 @@ module FQName =
           "version", DInt u.version ]
 
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : FQName.Package<'name> =
-      let unwrap = Exception.unwrapOptionInternal
       match d with
       | DRecord(_, _, m) ->
         let owner = ownerField m
@@ -230,13 +226,13 @@ module NameResolution =
   let toDT (f : 'p -> Dval) (result : NameResolution<'p>) : Dval =
     match result with
     | Ok name -> Dval.resultOk (f name)
-    | Error err -> Dval.resultError (RuntimeTypes.RuntimeError.toDT err)
+    | Error err -> Dval.resultError (RuntimeError.toDT err)
 
   let fromDT (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
     match d with
     | DEnum(tn, _, "Ok", [ v ]) when tn = Dval.resultType -> Ok(f v)
     | DEnum(tn, _, "Error", [ v ]) when tn = Dval.resultType ->
-      Error(RuntimeTypes.RuntimeError.fromDT v)
+      Error(RuntimeError.fromDT v)
     | _ -> Exception.raiseInternal "Invalid NameResolution" []
 
 module TypeReference =
@@ -309,11 +305,8 @@ module TypeReference =
 module Param =
   let toDT (p : Param) : Dval =
     Dval.record
-      (rtTyp [] "BuiltInParam" 0)
-      [ ("name", DString p.name)
-        ("typ", TypeReference.toDT p.typ)
-        // RTETODO
-        ("description", DString "") ]
+      (rtTyp [] "Param" 0)
+      [ ("name", DString p.name); ("typ", TypeReference.toDT p.typ) ]
 
 
 module LetPattern =
@@ -655,8 +648,10 @@ module Expr =
 
 module RuntimeError =
   let toDT (e : RuntimeError) : Dval =
-    let asDval = RuntimeError.toDT e
-    Dval.toDT asDval
+    e |> RuntimeTypes.RuntimeError.toDT |> Dval.toDT
+
+  let fromDT (d : Dval) : RuntimeError =
+    d |> Dval.fromDT |> RuntimeTypes.RuntimeError.fromDT
 
 
 module Dval =
@@ -670,25 +665,58 @@ module Dval =
       let typeName = rtTyp [] "DvalSource" 0
       DEnum(typeName, typeName, name, fields)
 
+    let fromDT (d : Dval) : DvalSource =
+      match d with
+      | DEnum(_, _, "SourceNone", []) -> SourceNone
+      | DEnum(_, _, "SourceID", [ DInt tlid; DInt id ]) ->
+        SourceID(uint64 tlid, uint64 id)
+      | _ -> Exception.raiseInternal "Invalid DvalSource" []
+
+
   module LambdaImpl =
     let toDT (l : LambdaImpl) : Dval =
       let typeName = rtTyp [] "LambdaImpl" 0
 
-      DRecord(
-        typeName,
-        typeName,
-        Map.ofList
-          [ "typeArgTable", DDict(Map.map TypeReference.toDT l.typeArgTable)
-            "symtable", DDict(Map.map Dval.toDT l.symtable)
-            "parameters",
-            DList(
-              List.map
-                (fun (id, name) -> DTuple(DInt(int64 id), DString name, []))
-                (NEList.toList l.parameters)
-            )
-            "body", Expr.toDT l.body ]
-      )
+      let fields =
+        [ "typeArgTable", DDict(Map.map TypeReference.toDT l.typeArgTable)
+          "symtable", DDict(Map.map Dval.toDT l.symtable)
+          "parameters",
+          DList(
+            List.map
+              (fun (id, name) -> DTuple(DInt(int64 id), DString name, []))
+              (NEList.toList l.parameters)
+          )
+          "body", Expr.toDT l.body ]
+        |> Map.ofList
 
+      DRecord(typeName, typeName, fields)
+
+    let fromDT (d : Dval) : LambdaImpl =
+      match d with
+      | DRecord(_, _, fields) ->
+        let typeArgTable =
+          fields |> D.mapField "typeArgTable" |> Map.map TypeReference.fromDT
+
+        let symtable = fields |> D.mapField "symtable" |> Map.map Dval.fromDT
+
+        let parameters =
+          fields
+          |> D.listField "parameters"
+          |> List.map (fun d ->
+            match d with
+            | DTuple(DInt id, DString name, _) -> (uint64 id, name)
+            | _ -> Exception.raiseInternal "Invalid LambdaImpl" [])
+          |> NEList.ofListUnsafe
+            "RT2DT.Dval.fromDT expected at least one parameter in LambdaImpl"
+            []
+        let body = fields |> D.field "body" |> Expr.fromDT
+
+        { typeArgTable = typeArgTable
+          symtable = symtable
+          parameters = parameters
+          body = body }
+
+      | _ -> Exception.raiseInternal "Invalid LambdaImpl" []
 
   module FnValImpl =
     let toDT (fnValImpl : FnValImpl) : Dval =
@@ -701,15 +729,25 @@ module Dval =
 
       DEnum(typeName, typeName, name, fields)
 
+    let fromDT (d : Dval) : FnValImpl =
+      match d with
+      | DEnum(_, _, "Lambda", [ lambda ]) -> Lambda(LambdaImpl.fromDT lambda)
+      | DEnum(_, _, "NamedFn", [ fnName ]) -> NamedFn(FnName.fromDT fnName)
+      | _ -> Exception.raiseInternal "Invalid FnValImpl" []
+
   let rec toDT (dv : Dval) : Dval =
     let name, fields =
       match dv with
+      | DUnit -> "DUnit", []
+      | DBool b -> "DBool", [ DBool b ]
       | DInt i -> "DInt", [ DInt i ]
       | DFloat f -> "DFloat", [ DFloat f ]
-      | DBool b -> "DBool", [ DBool b ]
-      | DUnit -> "DUnit", []
-      | DString s -> "DString", [ DString s ]
       | DChar c -> "DChar", [ DChar c ]
+      | DString s -> "DString", [ DString s ]
+      | DUuid u -> "DUuid", [ DUuid u ]
+      | DDateTime d -> "DDateTime", [ DDateTime d ]
+      | DBytes b -> "DBytes", [ DBytes b ]
+
 
       | DList l -> "DList", [ DList(List.map toDT l) ]
       | DTuple(first, second, theRest) ->
@@ -722,17 +760,16 @@ module Dval =
 
       | DDB name -> "DDB", [ DString name ]
 
-      | DDateTime d -> "DDateTime", [ DDateTime d ]
       | DPassword p -> "DPassword", [ DPassword p ]
-      | DUuid u -> "DUuid", [ DUuid u ]
-      | DBytes b -> "DBytes", [ DBytes b ]
 
       | DDict map -> "DDict", [ DDict(Map.map toDT map) ]
+
       | DRecord(runtimeTypeName, sourceTypeName, map) ->
         "DRecord",
         [ TypeName.toDT runtimeTypeName
           TypeName.toDT sourceTypeName
           DDict(Map.map toDT map) ]
+
       | DEnum(runtimeTypeName, sourceTypeName, caseName, fields) ->
         "DEnum",
         [ TypeName.toDT runtimeTypeName
@@ -741,3 +778,48 @@ module Dval =
           DList(List.map toDT fields) ]
 
     Dval.enum (rtTyp [] "Dval" 0) name fields
+
+
+  let fromDT (d : Dval) : Dval =
+    match d with
+    | DEnum(_, _, "DInt", [ DInt i ]) -> DInt i
+    | DEnum(_, _, "DFloat", [ DFloat f ]) -> DFloat f
+    | DEnum(_, _, "DBool", [ DBool b ]) -> DBool b
+    | DEnum(_, _, "DUnit", []) -> DUnit
+    | DEnum(_, _, "DString", [ DString s ]) -> DString s
+    | DEnum(_, _, "DChar", [ DChar c ]) -> DChar c
+
+    | DEnum(_, _, "DList", [ DList l ]) -> DList(List.map fromDT l)
+    | DEnum(_, _, "DTuple", [ first; second; DList theRest ]) ->
+      DTuple(fromDT first, fromDT second, List.map fromDT theRest)
+
+    | DEnum(_, _, "DFnVal", [ fnImpl ]) -> DFnVal(FnValImpl.fromDT fnImpl)
+
+    | DEnum(_, _, "DError", [ source; err ]) ->
+      DError(DvalSource.fromDT source, RuntimeError.fromDT err)
+
+    | DEnum(_, _, "DDB", [ DString name ]) -> DDB name
+
+    | DEnum(_, _, "DDateTime", [ DDateTime d ]) -> DDateTime d
+    | DEnum(_, _, "DPassword", [ DPassword p ]) -> DPassword p
+    | DEnum(_, _, "DUuid", [ DUuid u ]) -> DUuid u
+    | DEnum(_, _, "DBytes", [ DBytes b ]) -> DBytes b
+
+    | DEnum(_, _, "DDict", [ DDict map ]) -> DDict(Map.map fromDT map)
+    | DEnum(_, _, "DRecord", [ runtimeTypeName; sourceTypeName; DDict map ]) ->
+      DRecord(
+        TypeName.fromDT runtimeTypeName,
+        TypeName.fromDT sourceTypeName,
+        Map.map fromDT map
+      )
+    | DEnum(_,
+            _,
+            "DEnum",
+            [ runtimeTypeName; sourceTypeName; DString caseName; DList fields ]) ->
+      DEnum(
+        TypeName.fromDT runtimeTypeName,
+        TypeName.fromDT sourceTypeName,
+        caseName,
+        List.map fromDT fields
+      )
+    | _ -> Exception.raiseInternal "Invalid Dval" []
