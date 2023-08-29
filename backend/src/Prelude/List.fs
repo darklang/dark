@@ -46,3 +46,5 @@ let groupBy (f : 'a -> 'b) (l : List<'a>) : Map<'b, List<'a>> =
 let head (l : List<'a>) : Option<'a> = List.tryHead l
 
 let reverse (l : List<'a>) : List<'a> = List.rev l
+
+let last (l : List<'a>) : Option<'a> = List.tryLast l

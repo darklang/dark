@@ -5,7 +5,6 @@ module LibService.Logging
 open Microsoft.Extensions.Logging
 
 open Prelude
-open Tablecloth
 
 let noLogger (builder : ILoggingBuilder) : unit =
   // We use telemetry instead

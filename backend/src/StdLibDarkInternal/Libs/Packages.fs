@@ -2,7 +2,6 @@
 module StdLibDarkInternal.Libs.Packages
 
 open Prelude
-open Tablecloth
 
 open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts

@@ -5,7 +5,6 @@ open FSharp.Control.Tasks
 
 open Expecto
 open Prelude
-open Tablecloth
 open TestUtils.TestUtils
 
 
@@ -97,7 +96,7 @@ let assertions =
   testList
     "Assertions"
     [ test "assertFn" { assertFn "msg" System.Double.IsFinite 6.0 }
-      test "assertFn2" { assertFn2 "msg" String.includes "x" "xxx" }
+      test "assertFn2" { assertFn2 "msg" String.contains "x" "xxx" }
       test "assertEq" { assertEq "msg" "x" "x" }
       test "assertIn" { assertIn "msg" [ "x" ] "x" }
       test "assert_" { assert_ "_" [] true } ]

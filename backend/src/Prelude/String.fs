@@ -31,6 +31,12 @@ let replace (old : string) (newStr : string) (s : string) : string =
 let take (count : int) (str : string) : string =
   if count >= str.Length then str else str.Substring(0, count)
 
+let isCapitalized (s : string) : bool =
+  if s.Length = 0 then
+    false
+  else
+    let firstChar = s.[0]
+    firstChar >= 'A' && firstChar <= 'Z'
 
 let toLowercase (s : string) : string = s.ToLower()
 
@@ -52,3 +58,8 @@ let trimLeft (s : string) : string = s.TrimStart()
 
 let dropLeft (count : int) (s : string) : string =
   if count >= s.Length then "" else s.Substring(count)
+
+let dropRight (count : int) (s : string) : string =
+  if count >= s.Length then "" else s.Substring(0, s.Length - count)
+
+let contains (substring : string) (s : string) : bool = s.Contains(substring)

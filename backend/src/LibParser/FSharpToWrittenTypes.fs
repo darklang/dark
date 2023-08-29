@@ -5,7 +5,6 @@ open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Syntax
 
 open Prelude
-open Tablecloth
 
 module WT = WrittenTypes
 module PT = LibExecution.ProgramTypes
@@ -199,8 +198,7 @@ module MatchPattern =
     | SynPat.LongIdent(SynLongIdent(names, _, _), _, _, SynArgPats.Pats args, _, _) ->
       let enumName =
         List.last names |> Exception.unwrapOptionInternal "missing enum name" []
-      let modules =
-        List.initial names |> Option.unwrap [] |> List.map (fun i -> i.idText)
+      let modules = List.initial names |> List.map (fun i -> i.idText)
       if modules <> [] then
         Exception.raiseInternal
           "Module in enum pattern casename. Only use the casename in Enum patterns"
@@ -390,10 +388,7 @@ module Expr =
 
     // Enum/FnCalls - e.g. `Result.Ok` or `Result.mapSecond`
     | IdentExprPat(head :: tail) when
-      (head :: tail
-       |> List.initial
-       |> Option.unwrap []
-       |> List.all String.isCapitalized)
+      (head :: tail |> List.initial |> List.all String.isCapitalized)
       ->
       let names = NEList.ofList head tail
       let (modules, name) = NEList.splitLast names
@@ -435,17 +430,17 @@ module Expr =
       | [] -> Exception.raiseInternal "empty list in LongIdent" []
       | var :: fields ->
         List.fold
-          (WT.EVariable(gid (), var.idText))
           (fun acc (field : Ident) ->
             WT.EFieldAccess(id, acc, nameOrBlank field.idText))
+          (WT.EVariable(gid (), var.idText))
           fields
 
     // (...).a.b
     | SynExpr.DotGet(expr, _, SynLongIdent(fields, _, _), _) ->
       List.fold
-        (c expr)
         (fun acc (field : Ident) ->
           WT.EFieldAccess(id, acc, nameOrBlank field.idText))
+        (c expr)
         fields
 
     // Lambdas
@@ -929,7 +924,7 @@ module UserType =
         [ "typeDef", typeDef ]
       |> Expr.parseTypeName
       |> Exception.unwrapResultInternal []
-    let modules = moduleName @ names |> List.initial |> Option.unwrap []
+    let modules = moduleName @ names |> List.initial
 
     { name = PT.TypeName.userProgram modules name version
       description = ""

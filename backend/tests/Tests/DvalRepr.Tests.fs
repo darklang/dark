@@ -5,8 +5,6 @@ open FSharp.Control.Tasks
 
 open Expecto
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
@@ -184,7 +182,7 @@ module Password =
 
         Expect.equal
           shouldRedact
-          (String.includes
+          (String.contains
             ("encryptedbytes" |> UTF8.toBytes |> Base64.urlEncodeToString)
             (f password)
            |> not)
