@@ -47,3 +47,5 @@ let update
   (m : Map<'a, 'b>)
   : Map<'a, 'b> =
   Map.change key f m
+
+let iterWithIndex (f : 'k -> 'v -> unit) (m : Map<'k, 'v>) : unit = Map.iter f m

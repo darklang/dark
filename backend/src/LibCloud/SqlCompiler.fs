@@ -9,7 +9,6 @@ open Npgsql
 open Db
 
 open Prelude
-open Tablecloth
 
 open LibExecution.RuntimeTypes
 
@@ -216,7 +215,7 @@ let rec inline'
 
             let zipped = List.zip exprList patternList
 
-            List.fold symtable mapLetPattern zipped
+            List.fold mapLetPattern symtable zipped
 
           | _ -> error "Expected a tuple"
 
@@ -362,9 +361,7 @@ let rec lambdaToSql
                 // as have the types for the correct Npgsql wrapper for lists and other
                 // polymorphic values
 
-                let zipped =
-                  // Tablecloth's List.zip reverses the order..
-                  List.zip (NEList.toList args) parameters |> List.rev
+                let zipped = List.zip (NEList.toList args) parameters
 
                 return!
                   Ply.List.foldSequentially

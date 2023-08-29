@@ -47,3 +47,5 @@ let isEmpty (s : string) : bool = s = ""
 let split (on : string) (s : string) : List<string> =
   // Splitting an empty string with `Split` produces `[""]`, which is unexpected
   if s = "" then [] else s.Split(on) |> List.ofArray
+
+let trimLeft (s : string) : string = s.TrimStart()

@@ -9,6 +9,13 @@ let filterMap (f : 'a -> Option<'b>) (xs : List<'a>) : List<'b> = List.choose f 
 
 let mapWithIndex (f : int -> 'a -> 'b) (l : List<'a>) : List<'b> = List.mapi f l
 
+let filterWithIndex (f : int -> 'a -> bool) (l : List<'a>) : List<'a> =
+  l
+  |> List.fold
+    (fun (i, acc) x -> if f i x then (i + 1, x :: acc) else (i + 1, acc))
+    (0, [])
+  |> snd
+
 let any (f : 'a -> bool) (l : List<'a>) : bool = List.exists f l
 
 let all (f : 'a -> bool) (l : List<'a>) : bool = List.forall f l
@@ -37,3 +44,5 @@ let groupBy (f : 'a -> 'b) (l : List<'a>) : Map<'b, List<'a>> =
   List.groupBy f l |> Map
 
 let head (l : List<'a>) : Option<'a> = List.tryHead l
+
+let reverse (l : List<'a>) : List<'a> = List.rev l
