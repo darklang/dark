@@ -11,7 +11,6 @@ open System.Text.RegularExpressions
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.VendoredTablecloth
 open LibExecution.StdLib.Shortcuts
 
 module Errors = LibExecution.Errors
@@ -541,7 +540,7 @@ let fns : List<BuiltInFn> =
          {{\"\\n\"}}"
       fn =
         (function
-        | _, _, [ DString toTrim ] -> toTrim |> String.trim |> DString |> Ply
+        | _, _, [ DString toTrim ] -> toTrim.Trim() |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "trim"
       previewable = Pure

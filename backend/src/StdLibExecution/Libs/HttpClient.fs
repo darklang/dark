@@ -372,21 +372,23 @@ let fns (config : Configuration) : List<BuiltInFn> =
         | state, _, [ DString method; DString uri; DList reqHeaders; DBytes reqBody ] ->
           let reqHeaders : Result<List<string * string>, HeaderError> =
             reqHeaders
-            |> List.fold (Ok []) (fun agg item ->
-              match agg, item with
-              | (Error err, _) -> Error err
-              | (Ok pairs, DTuple(DString k, DString v, [])) ->
-                // TODO: what about whitespace? What else can break?
-                if k = "" then
-                  BadInput "Empty request header key provided" |> Error
-                else
-                  Ok((k, v) :: pairs)
+            |> List.fold
+              (fun agg item ->
+                match agg, item with
+                | (Error err, _) -> Error err
+                | (Ok pairs, DTuple(DString k, DString v, [])) ->
+                  // TODO: what about whitespace? What else can break?
+                  if k = "" then
+                    BadInput "Empty request header key provided" |> Error
+                  else
+                    Ok((k, v) :: pairs)
 
-              | (_, notAPair) ->
-                // this should be a DError, not a "normal" error
-                TypeMismatch
-                  $"Expected request headers to be a `List<String*String>`, but got: {DvalReprDeveloper.toRepr notAPair}"
-                |> Error)
+                | (_, notAPair) ->
+                  // this should be a DError, not a "normal" error
+                  TypeMismatch
+                    $"Expected request headers to be a `List<String*String>`, but got: {DvalReprDeveloper.toRepr notAPair}"
+                  |> Error)
+              (Ok [])
             |> Result.map (fun pairs -> List.rev pairs)
 
           let method =

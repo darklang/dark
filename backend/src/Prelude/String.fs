@@ -17,7 +17,6 @@ let splitOnNewline (str : string) : List<string> =
   else
     str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
 
-
 let lengthInEgcs (s : string) : int =
   System.Globalization.StringInfo(s).LengthInTextElements
 
@@ -29,12 +28,12 @@ let equalsCaseInsensitive (s1 : string) (s2 : string) : bool =
 let replace (old : string) (newStr : string) (s : string) : string =
   s.Replace(old, newStr)
 
-let isCapitalized (s : string) : bool = s.Length > 0 && System.Char.IsUpper(s.[0])
 let take (count : int) (str : string) : string =
   if count >= str.Length then str else str.Substring(0, count)
 
-let removeSuffix (suffix : string) (str : string) : string =
-  if str.EndsWith(suffix) then
-    str.Substring(0, str.Length - suffix.Length)
-  else
-    str
+
+let toLowercase (s : string) : string = s.ToLower()
+
+let toUppercase (s : string) : string = s.ToUpper()
+
+let trim (s : string) : string = s.Trim()

@@ -846,7 +846,6 @@ module Dval =
   let record (typeName : TypeName.TypeName) (fields : List<string * Dval>) : Dval =
     // Give a warning for duplicate keys
     List.fold
-      (DRecord(typeName, typeName, Map.empty))
       (fun m (k, v) ->
         match m, k, v with
         // TYPESCLEANUP: remove hacks
@@ -863,6 +862,7 @@ module Dval =
         | DRecord(tn, o, m), k, v -> DRecord(tn, o, Map.add k v m)
         // If we haven't got a DDict we're propagating an error so let it go
         | m, _, _ -> m)
+      (DRecord(typeName, typeName, Map.empty))
       fields
 
   let enum

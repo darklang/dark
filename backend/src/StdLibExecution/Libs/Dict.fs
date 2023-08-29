@@ -5,7 +5,6 @@ open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.VendoredTablecloth
 open LibExecution.StdLib.Shortcuts
 
 module Errors = LibExecution.Errors
@@ -138,7 +137,7 @@ let fns : List<BuiltInFn> =
             | (DError _) as dv -> Errors.foundFakeDval dv
             | _ -> Exception.raiseCode "All list items must be `(key, value)`"
 
-          let result = List.fold Map.empty f l
+          let result = List.fold f Map.empty l
           Ply(DDict result)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -173,7 +172,7 @@ let fns : List<BuiltInFn> =
               Exception.raiseCode "All list items must be `(key, value)`"
             | None, _ -> None
 
-          let result = List.fold (Some Map.empty) f l
+          let result = List.fold f (Some Map.empty) l
 
           match result with
           | Some map -> Ply(Dval.optionSome (DDict(map)))

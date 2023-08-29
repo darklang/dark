@@ -5,7 +5,6 @@
 module LibHttpMiddleware.Http
 
 open Prelude
-open LibExecution.VendoredTablecloth
 open LibExecution.StdLib.Shortcuts
 
 module RT = LibExecution.RuntimeTypes
@@ -54,12 +53,15 @@ module Response =
       | Some(RT.DInt code), Some(RT.DList headers), Some(RT.DBytes body) ->
         let headers =
           headers
-          |> List.fold (Ok []) (fun acc v ->
-            match acc, v with
-            | Ok acc, RT.DTuple(RT.DString k, RT.DString v, []) -> Ok((k, v) :: acc)
-            // Deliberately don't include the header value in the error message as we show it to users
-            | Ok _, _ -> Error $"Header must be a string"
-            | Error _, _ -> acc)
+          |> List.fold
+            (fun acc v ->
+              match acc, v with
+              | Ok acc, RT.DTuple(RT.DString k, RT.DString v, []) ->
+                Ok((k, v) :: acc)
+              // Deliberately don't include the header value in the error message as we show it to users
+              | Ok _, _ -> Error $"Header must be a string"
+              | Error _, _ -> acc)
+            (Ok [])
         match headers with
         | Ok headers ->
           { statusCode = int code

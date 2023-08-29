@@ -26,18 +26,20 @@ let renameFunctions
   let existingMap = existing |> List.map (fun fn -> fn.name, fn) |> Map
   let newFns =
     renames
-    |> List.fold Map.empty (fun renamedFns (oldName, newName) ->
-      let newFn =
-        Map.tryFind newName (Map.mergeFavoringLeft renamedFns existingMap)
-        |> Exception.unwrapOptionInternal
-          $"all fns should exist {oldName} -> {newName}"
-          [ "oldName", oldName; "newName", newName ]
-      Map.add
-        oldName
-        { newFn with
-            name = oldName
-            deprecated = RenamedTo(FQName.BuiltIn newName) }
-        renamedFns)
+    |> List.fold
+      (fun renamedFns (oldName, newName) ->
+        let newFn =
+          Map.tryFind newName (Map.mergeFavoringLeft renamedFns existingMap)
+          |> Exception.unwrapOptionInternal
+            $"all fns should exist {oldName} -> {newName}"
+            [ "oldName", oldName; "newName", newName ]
+        Map.add
+          oldName
+          { newFn with
+              name = oldName
+              deprecated = RenamedTo(FQName.BuiltIn newName) }
+          renamedFns)
+      Map.empty
     |> Map.values
   existing @ newFns
 
@@ -48,18 +50,20 @@ let renameTypes
   let existingMap = existing |> List.map (fun typ -> typ.name, typ) |> Map
   let newTypes =
     renames
-    |> List.fold Map.empty (fun renamedTypes (oldName, newName) ->
-      let newType =
-        Map.tryFind newName (Map.mergeFavoringLeft renamedTypes existingMap)
-        |> Exception.unwrapOptionInternal
-          $"all types should exist {oldName} -> {newName}"
-          [ "oldName", oldName; "newName", newName ]
-      Map.add
-        oldName
-        { newType with
-            name = oldName
-            deprecated = RenamedTo(FQName.BuiltIn newName) }
-        renamedTypes)
+    |> List.fold
+      (fun renamedTypes (oldName, newName) ->
+        let newType =
+          Map.tryFind newName (Map.mergeFavoringLeft renamedTypes existingMap)
+          |> Exception.unwrapOptionInternal
+            $"all types should exist {oldName} -> {newName}"
+            [ "oldName", oldName; "newName", newName ]
+        Map.add
+          oldName
+          { newType with
+              name = oldName
+              deprecated = RenamedTo(FQName.BuiltIn newName) }
+          renamedTypes)
+      Map.empty
     |> Map.values
   existing @ newTypes
 

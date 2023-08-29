@@ -11,3 +11,24 @@ let ofNEList (l : NEList.NEList<'k * 'v>) : Map<'k, 'v> =
 
 let fromListBy (f : 'v -> 'k) (l : List<'v>) : Map<'k, 'v> =
   List.fold (fun (m : Map<'k, 'v>) v -> m.Add(f v, v)) Map.empty l
+
+let keys (map : Map<'k, 'v>) : List<'k> =
+  seq {
+    for KeyValue(key, _) in map do
+      yield key
+  }
+  |> List.ofSeq
+
+let values (map : Map<'k, 'v>) : List<'v> =
+  seq {
+    for KeyValue(_, value) in map do
+      yield value
+  }
+  |> List.ofSeq
+
+let all (f : 'v -> bool) (m : Map<'k, 'v>) : bool = Map.forall (fun _ v -> f v) m
+
+let map (f : 'a -> 'b) (m : Map<'k, 'a>) : Map<'k, 'b> = Map.map (fun _ v -> f v) m
+let mapWithIndex (f : 'k -> 'a -> 'b) (m : Map<'k, 'a>) : Map<'k, 'b> = Map.map f m
+
+let get (k : 'k) (m : Map<'k, 'v>) : Option<'v> = Map.tryFind k m

@@ -365,7 +365,7 @@ module Expr =
           RT.ELambda(id, vars, toRT body) |> applyFn
 
       let init = toRT expr1
-      List.fold init folder rest
+      List.fold folder init rest
 
     | PT.EMatch(id, mexpr, pairs) ->
       match pairs with

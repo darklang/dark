@@ -16,7 +16,7 @@ let globalsFor (state : ExecutionState) : Symtable =
     |> List.map (fun (s : Secret.T) -> (s.name, DString s.value))
     |> Map.ofList
 
-  let dbs = Map.map (fun _ (db : DB.T) -> DDB db.name) state.program.dbs
+  let dbs = Map.map (fun (db : DB.T) -> DDB db.name) state.program.dbs
 
   Map.mergeFavoringLeft secrets dbs
 
