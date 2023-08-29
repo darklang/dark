@@ -8,7 +8,6 @@ open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Http.Extensions
 
 open Prelude
-open Tablecloth
 
 /// Logs various Rollbar-related configuration options to Rollbar,
 /// at the debug level

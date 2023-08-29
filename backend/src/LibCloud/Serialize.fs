@@ -13,8 +13,6 @@ open Npgsql
 open LibCloud.Db
 
 open Prelude
-open Tablecloth
-open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module BinarySerialization = LibBinarySerialization.BinarySerialization

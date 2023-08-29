@@ -6,8 +6,7 @@ open FSharp.Control.Tasks
 type Instant = NodaTime.Instant
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
+
 open LibCloud.Db
 
 module PT = LibExecution.ProgramTypes

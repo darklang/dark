@@ -2,7 +2,6 @@
 module LibParser.Parser
 
 open Prelude
-open Tablecloth
 
 module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes

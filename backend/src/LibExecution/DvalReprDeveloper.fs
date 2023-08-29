@@ -2,7 +2,6 @@
 module LibExecution.DvalReprDeveloper
 
 open Prelude
-open Tablecloth
 
 open RuntimeTypes
 
