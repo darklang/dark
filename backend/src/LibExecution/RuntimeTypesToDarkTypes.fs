@@ -1,7 +1,6 @@
 module rec LibExecution.RuntimeTypesToDarkTypes
 
 open Prelude
-open Tablecloth
 
 open RuntimeTypes
 
