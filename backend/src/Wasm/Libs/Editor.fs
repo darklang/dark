@@ -4,7 +4,6 @@ module Wasm.Libs.Editor
 open System
 
 open Prelude
-open Tablecloth
 
 open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
@@ -95,14 +94,16 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString functionName; DList args ] ->
           let args =
             args
-            |> List.fold (Ok []) (fun agg item ->
-              match agg, item with
-              | (Error err, _) -> Error err
-              | (Ok l, DString arg) -> Ok(arg :: l)
-              | (_, notAString) ->
-                // CLEANUP this should be a DError, not a "normal" error
-                $"Expected args to be a `List<String>`, but got: {LibExecution.DvalReprDeveloper.toRepr notAString}"
-                |> Error)
+            |> List.fold
+              (fun agg item ->
+                match agg, item with
+                | (Error err, _) -> Error err
+                | (Ok l, DString arg) -> Ok(arg :: l)
+                | (_, notAString) ->
+                  // CLEANUP this should be a DError, not a "normal" error
+                  $"Expected args to be a `List<String>`, but got: {LibExecution.DvalReprDeveloper.toRepr notAString}"
+                  |> Error)
+              (Ok [])
             |> Result.map (fun pairs -> List.rev pairs)
 
           match args with

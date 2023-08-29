@@ -8,8 +8,6 @@ open NodaTime
 open Expecto
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 
 open Npgsql.FSharp
 open Npgsql

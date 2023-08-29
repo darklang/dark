@@ -10,8 +10,6 @@ open Npgsql
 open Db
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 
 module Telemetry = LibService.Telemetry
 
@@ -135,13 +133,14 @@ let getWorkerSchedules (canvasID : CanvasID) : Task<WorkerStates.T> =
     // any worker that has (in order) a pause or a block *)
     return
       pauses @ blocks
-      |> List.fold states (fun states r ->
-        let v =
-          match r.ruleType with
-          | SchedulingRule.RuleType.Block -> WorkerStates.Blocked
-          | SchedulingRule.RuleType.Pause -> WorkerStates.Paused
-
-        Map.add r.handlerName v states)
+      |> List.fold
+        (fun states r ->
+          let v =
+            match r.ruleType with
+            | SchedulingRule.RuleType.Block -> WorkerStates.Blocked
+            | SchedulingRule.RuleType.Pause -> WorkerStates.Paused
+          Map.add r.handlerName v states)
+        states
   }
 
 

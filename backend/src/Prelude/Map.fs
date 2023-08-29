@@ -12,6 +12,11 @@ let ofNEList (l : NEList.NEList<'k * 'v>) : Map<'k, 'v> =
 let fromListBy (f : 'v -> 'k) (l : List<'v>) : Map<'k, 'v> =
   List.fold (fun (m : Map<'k, 'v>) v -> m.Add(f v, v)) Map.empty l
 
+let fromList (l : List<'k * 'v>) : Map<'k, 'v> = Map.ofList l
+
+let filterWithIndex (f : 'a -> 'b -> bool) (m : Map<'a, 'b>) : Map<'a, 'b> =
+  Map.filter f m
+
 let keys (map : Map<'k, 'v>) : List<'k> =
   seq {
     for KeyValue(key, _) in map do

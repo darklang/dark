@@ -3,7 +3,6 @@ module LibParser.Canvas
 open FSharp.Compiler.Syntax
 
 open Prelude
-open Tablecloth
 
 module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
@@ -184,19 +183,19 @@ let parseTypeDefn (m : WTCanvasModule) (typeDefn : SynTypeDefn) : WTCanvasModule
 /// - anything else fails
 let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
   List.fold
-    emptyWTModule
     (fun m decl ->
       match decl with
       | SynModuleDecl.Let(_, bindings, _) ->
-        List.fold m (fun m b -> parseLetBinding m b) bindings
+        List.fold (fun m b -> parseLetBinding m b) m bindings
 
       | SynModuleDecl.Types(defns, _) ->
-        List.fold m (fun m d -> parseTypeDefn m d) defns
+        List.fold (fun m d -> parseTypeDefn m d) m defns
 
       | SynModuleDecl.Expr(expr, _) ->
         { m with exprs = m.exprs @ [ FS2WT.Expr.fromSynExpr expr ] }
 
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
+    emptyWTModule
     decls
 
 let toResolver (canvas : WTCanvasModule) : NameResolver.NameResolver =

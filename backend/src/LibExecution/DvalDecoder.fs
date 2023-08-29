@@ -4,7 +4,6 @@
 module LibExecution.DvalDecoder
 
 open Prelude
-open Tablecloth
 
 open RuntimeTypes
 

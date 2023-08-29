@@ -71,8 +71,6 @@ open Npgsql
 open Db
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes

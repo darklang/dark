@@ -6,7 +6,6 @@ open FSharp.Control.Tasks
 open Expecto
 
 open Prelude
-open Tablecloth
 
 open TestUtils.TestUtils
 open LibExecution.RuntimeTypes

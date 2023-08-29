@@ -37,3 +37,8 @@ let toLowercase (s : string) : string = s.ToLower()
 let toUppercase (s : string) : string = s.ToUpper()
 
 let trim (s : string) : string = s.Trim()
+
+let endsWith (suffix : string) (s : string) : bool = s.EndsWith(suffix)
+
+let startsWith (prefix : string) (s : string) : bool = s.StartsWith(prefix)
+

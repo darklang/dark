@@ -14,8 +14,6 @@ open Npgsql.FSharp
 open LibCloud.Db
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes

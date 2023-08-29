@@ -10,7 +10,6 @@ open Npgsql
 open LibCloud.Db
 
 open Prelude
-open Tablecloth
 open TestUtils.TestUtils
 
 module Canvas = LibCloud.Canvas
