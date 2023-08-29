@@ -117,8 +117,8 @@ Int.power_v0 200 20 = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Error raising to exponent"
 
 Int.power_v0 200 7 = PACKAGE.Darklang.Stdlib.Result.Result.Ok 12800000000000000L
-Int.power_v0 1 2147483649I = PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
-Int.power_v0 -1 2147483649I = PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
+Int.power_v0 1 2147483649L = PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+Int.power_v0 -1 2147483649L = PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
 
 Int.power_v0 2 -3 = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Expected `exponent` to be positive, but it was `-3`"

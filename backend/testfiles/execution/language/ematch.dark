@@ -24,9 +24,9 @@
  | () -> "pass"
  | var -> "fail") = "pass"
 
-(match 999999999999999I with
+(match 999999999999999L with
  | 0 -> "fail"
- | 999999999999999I -> "pass") = "pass"
+ | 999999999999999L -> "pass") = "pass"
 
 (match [] with
  | [ i ] -> "fail"

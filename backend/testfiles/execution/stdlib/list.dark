@@ -139,14 +139,13 @@ List.fold_v0 [] [] (fun accum curr -> 5) = []
 PACKAGE.Darklang.Stdlib.List.getAt [ "a"; "b"; "c"; "d" ] -1 = PACKAGE.Darklang.Stdlib.Option.Option.None
 PACKAGE.Darklang.Stdlib.List.getAt [ 0 ] 1 = PACKAGE.Darklang.Stdlib.Option.Option.None
 PACKAGE.Darklang.Stdlib.List.getAt [] 1 = PACKAGE.Darklang.Stdlib.Option.Option.None
-PACKAGE.Darklang.Stdlib.List.getAt [ 1; 2; 3; 4 ] 6018427387902I = PACKAGE.Darklang.Stdlib.Option.Option.None
-PACKAGE.Darklang.Stdlib.List.getAt [ 1; 2; 3; 4 ] 4611686018427387902I = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.getAt [ 1; 2; 3; 4 ] 6018427387902L = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 PACKAGE.Darklang.Stdlib.List.getAt [ 1; 2; 3; 4 ] 0 = PACKAGE.Darklang.Stdlib.Option.Option.Some
   1
 
 PACKAGE.Darklang.Stdlib.List.getAt [ 3; 3; 3 ] -5 = PACKAGE.Darklang.Stdlib.Option.Option.None
-PACKAGE.Darklang.Stdlib.List.getAt [ 3; 3; 3 ] 2147483648I = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.getAt [ 3; 3; 3 ] 2147483648L = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 PACKAGE.Darklang.Stdlib.List.head [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
   1
@@ -326,7 +325,7 @@ PACKAGE.Darklang.Stdlib.List.tail_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.
 
 PACKAGE.Darklang.Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] -1 = []
 
-PACKAGE.Darklang.Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] 2147483648I = [ "a"
+PACKAGE.Darklang.Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] 2147483648L = [ "a"
                                                                             "b"
                                                                             "c"
                                                                             "d" ]
