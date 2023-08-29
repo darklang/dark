@@ -95,6 +95,4 @@ let assertions =
 
 
 let tests =
-  testList
-    "prelude"
-    [ asyncTests; mapTests; floatTests; dateTests; assertions ]
+  testList "prelude" [ asyncTests; mapTests; floatTests; dateTests; assertions ]
