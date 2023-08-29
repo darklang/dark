@@ -7,7 +7,6 @@ module LibCloud.File
 // Note: none of these are async because System.IO is not async
 
 open Prelude
-open Tablecloth
 
 type Mode =
   | Check

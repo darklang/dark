@@ -14,8 +14,6 @@ open Grpc.Auth
 type Instant = NodaTime.Instant
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 
 module Telemetry = LibService.Telemetry
 

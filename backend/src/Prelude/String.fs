@@ -49,3 +49,6 @@ let split (on : string) (s : string) : List<string> =
   if s = "" then [] else s.Split(on) |> List.ofArray
 
 let trimLeft (s : string) : string = s.TrimStart()
+
+let dropLeft (count : int) (s : string) : string =
+  if count >= s.Length then "" else s.Substring(count)
