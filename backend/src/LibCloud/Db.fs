@@ -224,7 +224,7 @@ let tableStats () : Task<List<TableStatsRow>> =
      FROM with_total_row"
   |> Sql.executeAsync (fun read ->
     { relation = read.string "relation"
-      diskBytes = read.int64OrNone "disk" |> Tablecloth.Option.unwrap 0
-      rows = read.int64OrNone "rows" |> Tablecloth.Option.unwrap 0
+      diskBytes = read.int64OrNone "disk" |> Option.unwrap 0
+      rows = read.int64OrNone "rows" |> Option.unwrap 0
       diskHuman = read.string "disk_human"
       rowsHuman = read.string "rows_human" })

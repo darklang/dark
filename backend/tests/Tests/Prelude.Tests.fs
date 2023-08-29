@@ -59,14 +59,6 @@ let mapTests =
            Map.ofList [ (1, -1); (2, -2); (3, -3) ],
            Map.ofList [ (1, 1); (2, 2); (3, 3) ]) ] ]
 
-let listTests =
-  testList
-    "List"
-    [ testMany2
-        "List.chunksOf"
-        Tablecloth.List.chunksOf
-        [ (2, [ 1; 2; 3 ], [ [ 1; 2 ]; [ 3 ] ]) ] ]
-
 let floatTests =
   testList
     "Float"
@@ -105,4 +97,4 @@ let assertions =
 let tests =
   testList
     "prelude"
-    [ asyncTests; mapTests; listTests; floatTests; dateTests; assertions ]
+    [ asyncTests; mapTests; floatTests; dateTests; assertions ]
