@@ -21,6 +21,7 @@
     <Compile Include="Lazy.fs" />
     <Compile Include="String.fs" />
     <Compile Include="Map.fs" />
+    <Compile Include="List.fs" />
     <Compile Include="HashSet.fs" />
     <Compile Include="Dictionary.fs" />
     <Compile Include="ResizeArray.fs" />
