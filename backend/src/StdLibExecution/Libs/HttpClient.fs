@@ -11,8 +11,6 @@ open Prelude
 open LibExecution
 open LibExecution.RuntimeTypes
 
-open VendoredTablecloth
-
 
 type Method = HttpMethod
 

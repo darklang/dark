@@ -2,7 +2,6 @@
 module LibExecution.StdLib
 
 open Prelude
-open VendoredTablecloth
 open RuntimeTypes
 
 type TypeRenames = List<TypeName.BuiltIn * TypeName.BuiltIn>

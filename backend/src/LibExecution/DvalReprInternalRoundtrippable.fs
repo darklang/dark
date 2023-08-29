@@ -5,7 +5,6 @@
 module LibExecution.DvalReprInternalRoundtrippable
 
 open Prelude
-open VendoredTablecloth
 
 module RT = RuntimeTypes
 

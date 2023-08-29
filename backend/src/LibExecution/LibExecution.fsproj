@@ -12,7 +12,6 @@
   <ItemGroup>
     <None Include="paket.references" />
     <!-- actual execution -->
-    <Compile Include="VendoredTablecloth.fs" />
     <Compile Include="DarkDateTime.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="DvalDecoder.fs" />

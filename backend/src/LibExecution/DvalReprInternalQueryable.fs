@@ -9,7 +9,6 @@ module LibExecution.DvalReprInternalQueryable
 open System.Text.Json
 
 open Prelude
-open VendoredTablecloth
 
 open RuntimeTypes
 

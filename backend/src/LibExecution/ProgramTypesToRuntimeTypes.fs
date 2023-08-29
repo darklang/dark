@@ -2,7 +2,6 @@
 module LibExecution.ProgramTypesToRuntimeTypes
 
 open Prelude
-open VendoredTablecloth
 
 // Used for conversion functions
 module RT = RuntimeTypes

@@ -10,7 +10,6 @@ open Prelude
 open LibExecution
 open LibExecution.RuntimeTypes
 
-open VendoredTablecloth
 
 // For security, we want to prevent access to internal IP address ranges or
 // Instance Metadata service or localhost

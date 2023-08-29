@@ -4,7 +4,6 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-open VendoredTablecloth
 
 module RT = RuntimeTypes
 module AT = AnalysisTypes

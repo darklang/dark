@@ -2,7 +2,6 @@ module LibExecution.TypeChecker
 
 
 open Prelude
-open VendoredTablecloth
 open RuntimeTypes
 
 

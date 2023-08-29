@@ -13,7 +13,6 @@ module LibExecution.ProgramTypesParser
 // maintainance costs
 
 open Prelude
-open VendoredTablecloth
 
 module PT = ProgramTypes
 

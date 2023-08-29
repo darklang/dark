@@ -31,7 +31,6 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-open VendoredTablecloth
 
 
 /// Used to name where type/function/etc lives, eg a BuiltIn module, a User module,
