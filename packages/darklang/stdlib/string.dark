@@ -48,7 +48,6 @@ module Darklang =
       /// Returns the first <param characterCount> characters of <param string>, as a String.
       /// If <param characterCount> is longer than <param string>, returns <param string>.
       /// If <param characterCount> is negative, returns the empty string."
-
       let first (string: String) (characterCount: Int) : String =
         if characterCount < 0 then ""
         else if characterCount > String.length string then string
@@ -104,7 +103,6 @@ module Darklang =
       /// copy of <param string> starting with enough copies of <param padWith> for the
       /// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
       /// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>
-
       let padStart
         (string: String)
         (padWith: String)

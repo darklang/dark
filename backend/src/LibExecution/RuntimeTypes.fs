@@ -134,7 +134,8 @@ module FQName =
     if s.version = 0 then name else $"{name}_v{s.version}"
 
   let packageToString (s : Package<'name>) (f : NamePrinter<'name>) : string =
-    let name = [ "PACKAGE"; s.owner ] @ s.modules @ [ f s.name ] |> String.concat "."
+    let name =
+      ("PACKAGE" :: s.owner :: s.modules @ [ f s.name ]) |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
   let toString (name : FQName<'name>) (f : NamePrinter<'name>) : string =
@@ -323,6 +324,9 @@ module ConstantName =
     (version : int)
     : ConstantName =
     FQName.fqPackage assert' owner modules (ConstantName name) version
+
+  let packageToString (s : Package) : string =
+    FQName.packageToString s (fun (ConstantName name) -> name)
 
   let toString (name : ConstantName) : string =
     FQName.toString name (fun (ConstantName name) -> name)

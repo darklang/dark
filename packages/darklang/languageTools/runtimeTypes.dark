@@ -92,7 +92,11 @@ module Darklang =
         | EUnit of ID
         | EConstant of ID * ConstantName.ConstantName
         | ELet of ID * LetPattern * Expr * Expr
-        | EIf of ID * Expr * Expr * Expr
+        | EIf of
+          ID *
+          cond: Expr *
+          thenExpr: Expr *
+          elseExpr: Stdlib.Option.Option<Expr>
         | ELambda of ID * List<ID * String> * Expr
         | EFieldAccess of ID * Expr * String
         | EVariable of ID * String

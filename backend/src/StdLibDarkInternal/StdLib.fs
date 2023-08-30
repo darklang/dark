@@ -43,7 +43,6 @@ let contents =
       Libs.Domains.contents
       Libs.F404.contents
       Libs.Infra.contents
-      Libs.Packages.contents
       Libs.Secrets.contents
       Libs.Users.contents
       Libs.Workers.contents ]

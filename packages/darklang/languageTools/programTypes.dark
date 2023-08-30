@@ -255,7 +255,11 @@ module Darklang =
         | EConstant of ID * NameResolution<ConstantName.ConstantName>
 
         // control flow
-        | EIf of ID * Expr * Expr * Expr
+        | EIf of
+          ID *
+          cond: Expr *
+          thenExpr: Expr *
+          elseExpr: Stdlib.Option.Option<Expr>
 
         | EMatch of ID * arg: Expr * cases: List<MatchPattern * Expr>
 
