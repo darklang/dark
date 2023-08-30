@@ -1,5 +1,5 @@
 /// Standard libraries related to Time
-module StdLibCli.Libs.Time
+module BuiltinCli.Libs.Time
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

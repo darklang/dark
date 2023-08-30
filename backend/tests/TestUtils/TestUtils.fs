@@ -128,7 +128,7 @@ let builtIns
         BuiltinExecution.Builtin.contents httpConfig
         StdLibCloudExecution.StdLib.contents
         StdLibDarkInternal.StdLib.contents
-        StdLibCli.StdLib.contents ]
+        BuiltinCli.Builtin.contents ]
       []
       []
   { types = types |> Map.fromListBy (fun typ -> typ.name)

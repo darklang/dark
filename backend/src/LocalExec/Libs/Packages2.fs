@@ -22,7 +22,7 @@ let resolver : LibParser.NameResolver.NameResolver =
       // We are missing the builtins that contain this function (and all associated ones)
       [ BuiltinExecution.Builtin.contents
           BuiltinExecution.Libs.HttpClient.defaultConfig
-        StdLibCli.StdLib.contents
+        BuiltinCli.Builtin.contents
         Packages.contents
         Cli.contents
         TestUtils.LibTest.contents

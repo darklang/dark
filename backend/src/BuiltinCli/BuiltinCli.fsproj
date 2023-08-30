@@ -16,7 +16,7 @@
     <Compile Include="Libs/Output.fs" />
     <Compile Include="Libs/Process.fs" />
     <Compile Include="Libs/Time.fs" />
-    <Compile Include="StdLib.fs" />
+    <Compile Include="Builtin.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
