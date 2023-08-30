@@ -1,5 +1,5 @@
 /// StdLib functions for documentation
-module StdLibDarkInternal.Libs.Documentation
+module BuiltinDarkInternal.Libs.Documentation
 
 open System.Threading.Tasks
 

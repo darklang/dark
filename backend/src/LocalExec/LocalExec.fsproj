@@ -23,7 +23,7 @@
     <ProjectReference Include="../BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
     <ProjectReference Include="../BuiltinCli/BuiltinCli.fsproj" />
     <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
-    <ProjectReference Include="../StdLibDarkInternal/StdLibDarkInternal.fsproj" />
+    <ProjectReference Include="../BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
     <!-- only really needed for parsing -->
     <ProjectReference Include="../BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
     <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />

@@ -127,7 +127,7 @@ let builtIns
       [ LibTest.contents
         BuiltinExecution.Builtin.contents httpConfig
         BuiltinCloudExecution.Builtin.contents
-        StdLibDarkInternal.StdLib.contents
+        BuiltinDarkInternal.Builtin.contents
         BuiltinCli.Builtin.contents ]
       []
       []

@@ -26,7 +26,7 @@
     <ProjectReference Include="../../src/LibParser/LibParser.fsproj" />
     <ProjectReference Include="../../src/BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../../src/BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
-    <ProjectReference Include="../../src/StdLibDarkInternal/StdLibDarkInternal.fsproj" />
+    <ProjectReference Include="../../src/BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Libs/Experiments.fs" />

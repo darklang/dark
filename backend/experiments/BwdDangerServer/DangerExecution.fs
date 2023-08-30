@@ -24,7 +24,7 @@ let builtIns : RT.BuiltIns =
           BuiltinExecution.Libs.HttpClient.defaultConfig
         BuiltinCloudExecution.Builtin.contents
         BwdDangerServer.StdLib.contents
-        StdLibDarkInternal.StdLib.contents ]
+        BuiltinDarkInternal.Builtin.contents ]
       []
       []
   { types = types |> Map.fromListBy (fun typ -> typ.name)

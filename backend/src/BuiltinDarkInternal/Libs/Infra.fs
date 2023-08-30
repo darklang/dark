@@ -1,5 +1,5 @@
 /// StdLib functions for looking at Dark infra
-module StdLibDarkInternal.Libs.Infra
+module BuiltinDarkInternal.Libs.Infra
 
 open System.Threading.Tasks
 

@@ -17,7 +17,7 @@ printfn "Loading program; if something wrong run ./scripts/build/dotnet-regen-fs
 #r "TestUtils/Debug/net7.0/TestUtils.dll"
 #r "Tests/Debug/net7.0/linux-x64/Tests.dll"
 #r "BuiltinCloudExecution/Debug/net7.0/BuiltinCloudExecution.dll"
-#r "StdLibDarkInternal/Debug/net7.0/StdLibDarkInternal.dll"
+#r "BuiltinDarkInternal/Debug/net7.0/BuiltinDarkInternal.dll"
 // #r "ProdExec/Debug/net7.0/ProdExec.dll"
 #r "LibHttpMiddleware/Debug/net7.0/LibHttpMiddleware.dll"
 #r "LibBinarySerialization/Debug/net7.0/LibBinarySerialization.dll"

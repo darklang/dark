@@ -21,7 +21,7 @@ let builtins : LibExecution.Builtin.Contents =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.contents HttpClient.configuration
       BuiltinCloudExecution.Builtin.contents
-      StdLibDarkInternal.StdLib.contents ]
+      BuiltinDarkInternal.Builtin.contents ]
     []
     []
 let builtIns : RT.BuiltIns =

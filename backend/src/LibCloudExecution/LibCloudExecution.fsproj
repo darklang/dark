@@ -15,7 +15,7 @@
     <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
-    <ProjectReference Include="../StdLibDarkInternal/StdLibDarkInternal.fsproj" />
+    <ProjectReference Include="../BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />

@@ -58,7 +58,7 @@ let seedCanvas (canvasName : string) =
               BuiltinExecution.Libs.HttpClient.defaultConfig
             BuiltinCloudExecution.Builtin.contents
             BwdDangerServer.StdLib.contents
-            StdLibDarkInternal.StdLib.contents ]
+            BuiltinDarkInternal.Builtin.contents ]
           []
           []
       LibParser.NameResolver.fromBuiltins builtIns
