@@ -30,7 +30,3 @@ module Darklang =
         if value < min then min
         else if value > max then max
         else value
-
-
-      /// Returns the negation of <param a>, {{-a}}
-      let negate (a: Int) : Int = Int.multiply a -1

@@ -30,10 +30,10 @@ PACKAGE.Darklang.Stdlib.Int.clamp_v0 100 1 0 = 1
 PACKAGE.Darklang.Stdlib.Int.clamp_v0 -2147483647 250 -26 = -26
 PACKAGE.Darklang.Stdlib.Int.clamp_v0 2147483647 250 -26 = 250
 
-PACKAGE.Darklang.Stdlib.Int.negate_v0 -5 = 5
-PACKAGE.Darklang.Stdlib.Int.negate_v0 5 = -5
-PACKAGE.Darklang.Stdlib.Int.negate_v0 0 = 0
-PACKAGE.Darklang.Stdlib.Int.negate_v0 -0 = 0
+Int.negate_v0 -5 = 5
+Int.negate_v0 5 = -5
+Int.negate_v0 0 = 0
+Int.negate_v0 -0 = 0
 
 Int.remainder_v0 15 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok 3
 Int.remainder_v0 20 8 = PACKAGE.Darklang.Stdlib.Result.Result.Ok 4
