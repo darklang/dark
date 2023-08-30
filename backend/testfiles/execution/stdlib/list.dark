@@ -10,8 +10,8 @@ List.all_v0 [ 1; 2 ] (fun item -> item < 3) = true
 List.all_v0 [ 4 ] (fun item -> item < 3) = false
 List.all_v0 [ 1; 4 ] (fun item -> item < 3) = false
 
-// I don't this is a good error message?
-List.all_v0 [ 1; 2; 3 ] (fun item -> "a") = Test.runtimeError
+// I don't think this is a good error message?
+List.all_v0 [ 1; 2; 3 ] (fun item -> "a") = Test.derrorMessage
   "Expected `fn` to return a Bool, but it returned `1`"
 
 List.append_v0 [ 1; 2; 3 ] [ 4; 5; 6 ] = [ 1; 2; 3; 4; 5; 6 ]
@@ -38,10 +38,9 @@ PACKAGE.Darklang.Stdlib.List.drop_v0 [ 5; 4; 3; 2; 1 ] 5 = []
 PACKAGE.Darklang.Stdlib.List.drop_v0 [ 5 ] 4 = []
 PACKAGE.Darklang.Stdlib.List.drop_v0 [] 4 = []
 
-
-//TODO: uncomment this test to use the new error message (need to rebase)
-// PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Test.runtimeError
-//   "Expected `fn` to return a Bool, but it returned `-1`"
+// TODO: better error message
+PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Test.derrorMessage
+  "If only supports Booleans"
 
 PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item < 3) = [ 3
                                                                                     4 ]
@@ -83,18 +82,17 @@ List.empty_v0 = []
  Test.sideEffectCount ()) = 1
 
 
-//TODO : uncomment this test to use the new error message (need to rebase)
-// PACKAGE.Darklang.Stdlib.List.filter [ 1; 2; 3 ] (fun item ->
-//   match item with
-//   | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None
-//   | 2 -> false
-//   | 3 -> true) = Test.runtimeError
-//   "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.None`"
+//TODO : needs a better error message
+PACKAGE.Darklang.Stdlib.List.filter [ 1; 2; 3 ] (fun item ->
+  match item with
+  | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None
+  | 2 -> false
+  | 3 -> true) = Test.derrorMessage "If only supports Booleans"
 
 
-// TODO: uncomment this test to use the new error message (need to rebase)
-// PACKAGE.Darklang.Stdlib.List.filter [ true; false; true ] (fun item -> "a") = Test.runtimeError
-//   "Expected `fn` to return a Bool, but it returned `\"a\"`"
+// TODO: needs a better error message
+PACKAGE.Darklang.Stdlib.List.filter [ true; false; true ] (fun item -> "a") = Test.derrorMessage
+  "If only supports Booleans"
 
 PACKAGE.Darklang.Stdlib.List.filter [ 1; 2; 3 ] (fun item ->
   match item with
@@ -262,17 +260,14 @@ PACKAGE.Darklang.Stdlib.List.partition_v0 [ 1; 2; 3 ] (fun item ->
 
 
 //TODO: uncomment this test to use the new error message (need to rebase)
-// PACKAGE.Darklang.Stdlib.List.partition_v0 [ true; false; true ] (fun item -> "a") = (Test.runtimeError
-//                                                                "Expected `fn` to return a Bool, but it returned `\"a\"`",
-//                                                              [])
+PACKAGE.Darklang.Stdlib.List.partition_v0 [ true; false; true ] (fun item -> "a") = Test.derrorMessage
+  "If only supports Booleans"
 
-// PACKAGE.Darklang.Stdlib.List.partition_v0 [ 1; 2; 3 ] (fun item ->
-//   match item with
-//   | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None
-//   | 2 -> false
-//   | 3 -> true) = (Test.runtimeError
-//                     "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.None`",
-//                   [])
+PACKAGE.Darklang.Stdlib.List.partition_v0 [ 1; 2; 3 ] (fun item ->
+  match item with
+  | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None
+  | 2 -> false
+  | 3 -> true) = Test.derrorMessage "If only supports Booleans"
 
 PACKAGE.Darklang.Stdlib.List.pushBack_v0 [ 2; 3 ] 1 = [ 2; 3; 1 ]
 PACKAGE.Darklang.Stdlib.List.pushBack_v0 [] 1 = [ 1 ]
@@ -475,7 +470,7 @@ PACKAGE.Darklang.Stdlib.List.zip_v0 [ 10; 20 ] [ 1; 2; 3 ] = PACKAGE.Darklang.St
 PACKAGE.Darklang.Stdlib.List.zip_v0 [] [] = PACKAGE.Darklang.Stdlib.Option.Option.Some
   []
 
-PACKAGE.Darklang.Stdlib.List.zip_v0 [ Test.runtimeError "msg" ] [ Some "" ] = Test.runtimeError
+PACKAGE.Darklang.Stdlib.List.zip_v0 [ Test.runtimeError "msg" ] [ Some "" ] = Test.derrorMessage
   "msg"
 
 
