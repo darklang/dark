@@ -17,7 +17,7 @@ Hello back
 // This is to test whether the cookie ends up in entering the HttpClient "cookie
 // jar", as presumably all other tests will fail if it does.
 (let response = (HttpClient.request "get" "http://URL" [] Bytes.empty) |> unwrap
- let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
+ let respHeaders = response.headers |> List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    HttpClient.Response
     { statusCode = 200

@@ -28,8 +28,6 @@
     <Compile Include="Libs/Option.fs" />
     <Compile Include="Libs/Result.fs" />
     <Compile Include="Libs/String.fs" />
-    <Compile Include="Libs/Tuple2.fs" />
-    <Compile Include="Libs/Tuple3.fs" />
     <Compile Include="Libs/Uuid.fs" />
     <Compile Include="StdLib.fs" />
   </ItemGroup>

@@ -10,7 +10,7 @@ module Shadowing =
    x) = 6
 
 module Unit =
-  (let () = Tuple2.first ((), 5) in 5) = 5
+  (let () = PACKAGE.Darklang.Stdlib.Tuple2.first ((), 5) in 5) = 5
 
 module Tuples =
   (let (a, b) = (1, 2) in 2) = 2

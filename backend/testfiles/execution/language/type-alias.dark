@@ -35,7 +35,7 @@ module NestedAlias =
   type UserCredential = (String * Id)
   type EmployeeCredential = UserCredential
 
-  let getUserID (credential: UserCredential) : Id = credential |> Tuple2.second
+  let getUserID (credential: UserCredential) : Id = credential |> PACKAGE.Darklang.Stdlib.Tuple2.second
 
   getUserID (("Alice", "EMP123")) = "EMP123"
 

@@ -12,7 +12,7 @@ Content-Length: 568
 
 [test]
 (let response = (HttpClient.request "head" "http://URL" [] Bytes.empty) |> unwrap
- let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
+ let respHeaders = response.headers |> List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    HttpClient.Response
     { statusCode = 200

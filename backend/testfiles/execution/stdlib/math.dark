@@ -21,7 +21,7 @@ Math.cos_v0 PACKAGE.Darklang.Stdlib.Math.pi = -1.0
 Math.cosh_v0 0.0 = 1.0
 
 Math.degrees_v0 -180.0 = PACKAGE.Darklang.Stdlib.Float.negate_v0 PACKAGE.Darklang.Stdlib.Math.pi
-Math.degrees_v0 360.0 = PACKAGE.Darklang.Stdlib.Float.multiply_v0 2.0 PACKAGE.Darklang.Stdlib.Math.pi
+Math.degrees_v0 360.0 = Float.multiply_v0 2.0 PACKAGE.Darklang.Stdlib.Math.pi
 
 PACKAGE.Darklang.Stdlib.Math.pi = 3.14159265359
 
