@@ -10,7 +10,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
-module StdLibCli = StdLibCli.StdLib
+module BuiltinCli = BuiltinCli.Builtin
 
 
 let builtIns : RT.BuiltIns =
@@ -18,7 +18,7 @@ let builtIns : RT.BuiltIns =
     LibExecution.Builtin.combine
       [ BuiltinExecution.Builtin.contents
           BuiltinExecution.Libs.HttpClient.defaultConfig
-        StdLibCli.StdLib.contents
+        BuiltinCli.Builtin.contents
         StdLib.contents
         BuiltinCliHost.Builtin.contents
         StdLibCloudExecution.StdLib.contents

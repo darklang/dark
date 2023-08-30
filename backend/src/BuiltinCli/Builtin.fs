@@ -1,4 +1,4 @@
-module StdLibCli.StdLib
+module BuiltinCli.Builtin
 
 open Prelude
 open LibExecution.RuntimeTypes

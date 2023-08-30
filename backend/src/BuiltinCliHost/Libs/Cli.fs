@@ -63,7 +63,7 @@ let libExecutionContents =
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) =
     LibExecution.Builtin.combine
-      [ libExecutionContents; StdLibCli.StdLib.contents ]
+      [ libExecutionContents; BuiltinCli.Builtin.contents ]
       []
       []
   { types = types |> Map.fromListBy (fun typ -> typ.name)
