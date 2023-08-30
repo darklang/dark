@@ -20,7 +20,7 @@ open LibCloud
 let builtins : LibExecution.Builtin.Contents =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.contents HttpClient.configuration
-      StdLibCloudExecution.StdLib.contents
+      BuiltinCloudExecution.Builtin.contents
       StdLibDarkInternal.StdLib.contents ]
     []
     []

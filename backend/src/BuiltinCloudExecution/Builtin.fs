@@ -1,7 +1,7 @@
 /// StdLib functions that can only be run on the backend
 ///
 /// Aggregates functions in other modules
-module StdLibCloudExecution.StdLib
+module BuiltinCloudExecution.Builtin
 
 module Builtin = LibExecution.Builtin
 

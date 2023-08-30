@@ -1,7 +1,7 @@
 /// StdLib functions for emitting events
 ///
 /// Those events are handled by Workers
-module StdLibCloudExecution.Libs.Event
+module BuiltinCloudExecution.Libs.Event
 
 open Prelude
 open LibExecution.RuntimeTypes

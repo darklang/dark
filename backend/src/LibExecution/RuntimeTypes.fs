@@ -1120,7 +1120,7 @@ and Fn =
     sqlSpec : SqlSpec
 
     // Functions can be run in WASM if they have an implementation in LibExecution.
-    // Functions whose implementation is in StdLibCloudExecution can only be implemented on the server.
+    // Functions whose implementation is in BuiltinCloudExecution can only be implemented on the server.
 
     // <remarks>
     // May throw an exception, though we're trying to get them to never throw exceptions.

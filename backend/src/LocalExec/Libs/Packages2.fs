@@ -26,7 +26,7 @@ let resolver : LibParser.NameResolver.NameResolver =
         Packages.contents
         Cli.contents
         TestUtils.LibTest.contents
-        StdLibCloudExecution.StdLib.contents
+        BuiltinCloudExecution.Builtin.contents
         BuiltinCliHost.Builtin.contents ]
       []
       []

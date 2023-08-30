@@ -21,7 +21,7 @@ let builtIns : RT.BuiltIns =
         BuiltinCli.Builtin.contents
         StdLib.contents
         BuiltinCliHost.Builtin.contents
-        StdLibCloudExecution.StdLib.contents
+        BuiltinCloudExecution.Builtin.contents
         TestUtils.LibTest.contents ]
       []
       []
