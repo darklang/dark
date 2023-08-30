@@ -30,7 +30,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibService", "src\LibServic
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "TestUtils", "tests\TestUtils\TestUtils.fsproj", "{839A1EF7-18F5-491E-B40B-2BAA57378B40}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibExecution", "src\StdLibExecution\StdLibExecution.fsproj", "{BBFC824F-A0DE-4A28-B82F-49C04EBA7475}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinExecution", "src\BuiltinExecution\BuiltinExecution.fsproj", "{BBFC824F-A0DE-4A28-B82F-49C04EBA7475}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibCloudExecution", "src\LibCloudExecution\LibCloudExecution.fsproj", "{FA55A52D-B880-4931-A121-85C8DAD8DD28}"
 EndProject

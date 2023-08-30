@@ -1,4 +1,4 @@
-module StdLibExecution.Libs.Char
+module BuiltinExecution.Libs.Char
 
 open System.Threading.Tasks
 open System.Numerics

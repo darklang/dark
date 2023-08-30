@@ -20,7 +20,8 @@ open LibCloud
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) =
     LibExecution.StdLib.combine
-      [ StdLibExecution.StdLib.contents StdLibExecution.Libs.HttpClient.defaultConfig
+      [ BuiltinExecution.Builtin.contents
+          BuiltinExecution.Libs.HttpClient.defaultConfig
         StdLibCloudExecution.StdLib.contents
         BwdDangerServer.StdLib.contents
         StdLibDarkInternal.StdLib.contents ]

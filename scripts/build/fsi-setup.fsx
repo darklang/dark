@@ -21,7 +21,7 @@ printfn "Loading program; if something wrong run ./scripts/build/dotnet-regen-fs
 // #r "ProdExec/Debug/net7.0/ProdExec.dll"
 #r "LibHttpMiddleware/Debug/net7.0/LibHttpMiddleware.dll"
 #r "LibBinarySerialization/Debug/net7.0/LibBinarySerialization.dll"
-#r "StdLibExecution/Debug/net7.0/StdLibExecution.dll"
+#r "BuiltinExecution/Debug/net7.0/BuiltinExecution.dll"
 #r "LibCloudExecution/Debug/net7.0/LibCloudExecution.dll"
 // #r "QueueWorker/Debug/net7.0/QueueWorker.dll"
 

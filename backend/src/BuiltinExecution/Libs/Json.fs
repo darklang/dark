@@ -1,4 +1,4 @@
-module StdLibExecution.Libs.Json
+module BuiltinExecution.Libs.Json
 
 open System.Text.Json
 

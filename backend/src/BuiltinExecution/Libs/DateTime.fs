@@ -1,4 +1,4 @@
-module StdLibExecution.Libs.DateTime
+module BuiltinExecution.Libs.DateTime
 
 type Instant = NodaTime.Instant
 

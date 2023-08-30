@@ -14,7 +14,7 @@ module WT = LibParser.WrittenTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module Exe = LibExecution.Execution
-module Json = StdLibExecution.Libs.Json
+module Json = BuiltinExecution.Libs.Json
 
 
 module CliRuntimeError =
@@ -58,7 +58,7 @@ module CliRuntimeError =
       Error.toDT e |> RT.RuntimeError.fromDT
 
 let libExecutionContents =
-  StdLibExecution.StdLib.contents StdLibExecution.Libs.HttpClient.defaultConfig
+  BuiltinExecution.Builtin.contents BuiltinExecution.Libs.HttpClient.defaultConfig
 
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) =

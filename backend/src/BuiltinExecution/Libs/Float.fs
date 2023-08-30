@@ -1,4 +1,4 @@
-module StdLibExecution.Libs.Float
+module BuiltinExecution.Libs.Float
 
 open System
 

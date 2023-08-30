@@ -4,7 +4,7 @@
 /// Computes hashes such as sha256, md5, etc.
 /// </summary>
 
-module StdLibExecution.Libs.Crypto
+module BuiltinExecution.Libs.Crypto
 
 open System
 open System.Security.Cryptography

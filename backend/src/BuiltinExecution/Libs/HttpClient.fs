@@ -1,5 +1,5 @@
 /// StdLib functions in the HttpClient module
-module StdLibExecution.Libs.HttpClient
+module BuiltinExecution.Libs.HttpClient
 
 open System.IO
 open System.Net.Http

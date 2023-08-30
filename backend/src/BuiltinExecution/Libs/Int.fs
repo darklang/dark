@@ -1,4 +1,4 @@
-module StdLibExecution.Libs.Int
+module BuiltinExecution.Libs.Int
 
 open FSharp.Control.Tasks
 open System.Threading.Tasks

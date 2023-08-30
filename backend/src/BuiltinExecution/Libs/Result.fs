@@ -1,4 +1,4 @@
-module StdLibExecution.Libs.Result
+module BuiltinExecution.Libs.Result
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
