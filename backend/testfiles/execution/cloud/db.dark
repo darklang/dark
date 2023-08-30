@@ -840,7 +840,8 @@ module QueryOneWithKey =
    let test = "ache"
 
    (DB.queryOneWithKey PersonDB (fun p -> p.name == $"R{test}l"))
-   |> PACKAGE.Darklang.Stdlib.Option.map (fun v -> (PACKAGE.Darklang.Stdlib.Tuple2.second v).name)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+   |> PACKAGE.Darklang.Stdlib.Option.map (fun v ->
+     (PACKAGE.Darklang.Stdlib.Tuple2.second v).name)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
     "Rachel"
 
 

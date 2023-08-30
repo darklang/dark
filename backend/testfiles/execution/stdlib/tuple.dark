@@ -10,7 +10,9 @@ PACKAGE.Darklang.Stdlib.Tuple2.second (1, "two") = "two"
 PACKAGE.Darklang.Stdlib.Tuple2.swap ("one", 2) = (2, "one")
 PACKAGE.Darklang.Stdlib.Tuple2.swap (1, "two") = ("two", 1)
 
-PACKAGE.Darklang.Stdlib.Tuple2.swap (PACKAGE.Darklang.Stdlib.Tuple2.swap ("two swaps", "back to original")) = ("two swaps", "back to original")
+PACKAGE.Darklang.Stdlib.Tuple2.swap (
+  PACKAGE.Darklang.Stdlib.Tuple2.swap ("two swaps", "back to original")
+) = ("two swaps", "back to original")
 
 PACKAGE.Darklang.Stdlib.Tuple2.mapFirst (fun x -> String.toUppercase x) ("one", 2) = ("ONE",
                                                                                       2)
