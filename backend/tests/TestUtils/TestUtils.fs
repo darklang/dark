@@ -120,12 +120,12 @@ let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
   { tlid = gid (); name = name; typ = typ; version = 0 }
 
 let builtIns
-  (httpConfig : StdLibExecution.Libs.HttpClient.Configuration)
+  (httpConfig : BuiltinExecution.Libs.HttpClient.Configuration)
   : RT.BuiltIns =
   let (fns, types, constants) =
-    LibExecution.StdLib.combine
+    LibExecution.Builtin.combine
       [ LibTest.contents
-        StdLibExecution.StdLib.contents httpConfig
+        BuiltinExecution.Builtin.contents httpConfig
         StdLibCloudExecution.StdLib.contents
         StdLibDarkInternal.StdLib.contents
         StdLibCli.StdLib.contents ]
@@ -142,7 +142,7 @@ let cloudBuiltIns =
 
 let localBuiltIns =
   let httpConfig =
-    { StdLibExecution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
+    { BuiltinExecution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
   builtIns httpConfig
 
 // A resolver that only knows about builtins. If you need user code in the parser,

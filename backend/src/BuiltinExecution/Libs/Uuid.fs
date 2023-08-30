@@ -1,4 +1,4 @@
-module StdLibExecution.Libs.Uuid
+module BuiltinExecution.Libs.Uuid
 
 open System.Threading.Tasks
 open System.Numerics
@@ -6,7 +6,7 @@ open FSharp.Control.Tasks
 
 open LibExecution.RuntimeTypes
 open Prelude
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []

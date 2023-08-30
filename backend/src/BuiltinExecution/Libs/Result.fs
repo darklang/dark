@@ -1,4 +1,4 @@
-module StdLibExecution.Libs.Result
+module BuiltinExecution.Libs.Result
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -7,7 +7,7 @@ open System.Numerics
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors

@@ -1,4 +1,4 @@
-module StdLibExecution.Libs.Math
+module BuiltinExecution.Libs.Math
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -7,7 +7,7 @@ open System.Numerics
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 
 let varA = TVariable "a"

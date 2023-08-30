@@ -17,7 +17,7 @@
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibParser/LibParser.fsproj" />
-    <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
+    <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../StdLibCli/StdLibCli.fsproj" />
     <ProjectReference Include="../LibCliExecution/LibCliExecution.fsproj" />
 

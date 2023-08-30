@@ -1,12 +1,12 @@
 /// StdLib functions to work with X.509 public keys
-module StdLibExecution.Libs.X509
+module BuiltinExecution.Libs.X509
 
 open System.Security.Cryptography
 open System.Security.Cryptography.X509Certificates
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 let varA = TVariable "a"
 let varB = TVariable "b"

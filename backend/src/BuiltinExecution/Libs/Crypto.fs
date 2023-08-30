@@ -4,14 +4,14 @@
 /// Computes hashes such as sha256, md5, etc.
 /// </summary>
 
-module StdLibExecution.Libs.Crypto
+module BuiltinExecution.Libs.Crypto
 
 open System
 open System.Security.Cryptography
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []

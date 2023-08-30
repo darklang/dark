@@ -1,10 +1,10 @@
-module StdLibExecution.Libs.DateTime
+module BuiltinExecution.Libs.DateTime
 
 type Instant = NodaTime.Instant
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 module DarkDateTime = LibExecution.DarkDateTime
 
 let ISO8601Format = "yyyy-MM-ddTHH:mm:ssZ"

@@ -89,7 +89,7 @@ let initializeTelemetry (f : unit -> Task<'a>) : Task<'a> =
     return! f ()
   }
 
-let configuration : StdLibExecution.Libs.HttpClient.Configuration =
+let configuration : BuiltinExecution.Libs.HttpClient.Configuration =
   { timeoutInMs = LibCloud.Config.httpclientTimeoutInMs
     allowedIP = (fun ip -> not <| LocalAccess.bannedIp ip)
     allowedHost = (fun host -> not <| LocalAccess.bannedHost host)

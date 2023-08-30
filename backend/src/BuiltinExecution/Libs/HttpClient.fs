@@ -1,5 +1,5 @@
 /// StdLib functions in the HttpClient module
-module StdLibExecution.Libs.HttpClient
+module BuiltinExecution.Libs.HttpClient
 
 open System.IO
 open System.Net.Http
@@ -331,7 +331,7 @@ type HeaderError =
   | BadInput of string
   | TypeMismatch of string
 
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 let types : List<BuiltInType> =
   [ { name = typ [ "HttpClient" ] "Response" 0

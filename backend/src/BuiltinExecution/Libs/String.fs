@@ -1,4 +1,4 @@
-module StdLibExecution.Libs.String
+module BuiltinExecution.Libs.String
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -11,7 +11,7 @@ open System.Text.RegularExpressions
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 module Errors = LibExecution.Errors
 

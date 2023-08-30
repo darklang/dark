@@ -6,7 +6,7 @@ open System
 open Prelude
 
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 open Wasm.EvalHelpers
 
 
@@ -136,8 +136,8 @@ let fns : List<BuiltInFn> =
           uply {
             let source = Json.Vanilla.deserialize<UserProgramSource> sourceJson
 
-            let httpConfig : StdLibExecution.Libs.HttpClient.Configuration =
-              { StdLibExecution.Libs.HttpClient.defaultConfig with
+            let httpConfig : BuiltinExecution.Libs.HttpClient.Configuration =
+              { BuiltinExecution.Libs.HttpClient.defaultConfig with
                   telemetryAddException =
                     (fun metadata e ->
                       Wasm.WasmHelpers.callJSFunction
@@ -145,8 +145,8 @@ let fns : List<BuiltInFn> =
                         [ string metadata; string e ]) }
 
             let stdLib =
-              LibExecution.StdLib.combine
-                [ StdLibExecution.StdLib.contents httpConfig ]
+              LibExecution.Builtin.combine
+                [ BuiltinExecution.Builtin.contents httpConfig ]
                 []
                 []
 

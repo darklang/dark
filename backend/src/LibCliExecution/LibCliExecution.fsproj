@@ -15,7 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
+    <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="PackageManager.fs" />

@@ -10,7 +10,7 @@ open LibCloud.Db
 open Prelude
 open LibExecution.RuntimeTypes
 
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
@@ -243,4 +243,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 let constants : List<BuiltInConstant> = []
-let contents : LibExecution.StdLib.Contents = (fns, types, constants)
+let contents : LibExecution.Builtin.Contents = (fns, types, constants)

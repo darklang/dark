@@ -19,7 +19,7 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../LibParser/LibParser.fsproj" />
-    <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
+    <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../StdLibCloudExecution/StdLibCloudExecution.fsproj" />
     <ProjectReference Include="../StdLibCli/StdLibCli.fsproj" />
     <ProjectReference Include="../StdLibCliHost/StdLibCliHost.fsproj" />
