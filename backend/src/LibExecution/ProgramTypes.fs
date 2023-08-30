@@ -488,7 +488,7 @@ and StringSegment =
   | StringInterpolation of Expr
 
 and PipeExpr =
-  | EPipeVariable of id * string
+  | EPipeVariable of id * string * List<Expr> // value is an fn taking one or more arguments
   | EPipeLambda of id * NEList<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of
@@ -532,7 +532,7 @@ module Expr =
 module PipeExpr =
   let toID (expr : PipeExpr) : id =
     match expr with
-    | EPipeVariable(id, _)
+    | EPipeVariable(id, _, _)
     | EPipeLambda(id, _, _)
     | EPipeInfix(id, _, _)
     | EPipeFnCall(id, _, _, _)

@@ -94,7 +94,10 @@ module RuntimeTypes =
       RT.TVariable "test"
       RT.TFn(NEList.singleton RT.TBool, RT.TBool) ]
 
-  let letPatterns : List<RT.LetPattern> = [ RT.LPVariable(123UL, "test") ]
+  let letPatterns : List<RT.LetPattern> =
+    [ RT.LPVariable(123UL, "test")
+      RT.LPUnit(12345UL)
+      RT.LPTuple(948UL, RT.LPUnit 234UL, RT.LPUnit 8473UL, []) ]
 
   let matchPatterns : List<RT.MatchPattern> =
     [ RT.MPVariable(123UL, "test")
@@ -490,10 +493,49 @@ module ProgramTypes =
                              PT.EPipe(
                                786862131UL,
                                PT.EInt(555880460UL, 5L),
-                               [ PT.EPipeInfix(
+                               [ PT.EPipeVariable(
+                                   1021880969UL,
+                                   "fn",
+                                   [ PT.EVariable(962393769UL, "x") ]
+                                 )
+                                 PT.EPipeLambda(
+                                   1021880969UL,
+                                   NEList.singleton (180359194UL, "y"),
+                                   PT.EInfix(
+                                     140609068UL,
+                                     PT.InfixFnCall(PT.ArithmeticPlus),
+                                     PT.EInt(450951790UL, 2L),
+                                     PT.EVariable(402203255UL, "y")
+                                   )
+                                 )
+                                 PT.EPipeInfix(
                                    1021880969UL,
                                    PT.InfixFnCall(PT.ArithmeticPlus),
                                    PT.EInt(962393769UL, 2L)
+                                 )
+                                 PT.EPipeFnCall(
+                                   1021880969UL,
+                                   Ok(
+                                     PT.FQName.BuiltIn
+                                       { modules = [ "Int" ]
+                                         name = PT.FnName.FnName "add"
+                                         version = 0 }
+                                   ),
+                                   [],
+                                   [ (PT.EInt(250221144UL, 6L))
+                                     (PT.EInt(298149318UL, 2L)) ]
+                                 )
+                                 PT.EPipeEnum(
+                                   1021880969UL,
+                                   Ok(
+                                     PT.FQName.BuiltIn
+                                       { modules = [ "Int" ]
+                                         name = PT.TypeName.TypeName "Result"
+                                         version = 0 }
+                                   ),
+                                   "add",
+                                   [ (PT.EInt(250221144UL, 6L))
+                                     (PT.EInt(298149318UL, 2L)) ]
                                  ) ]
                              ))
                             ("enum",

@@ -134,7 +134,7 @@ module ProgramTypes =
     | StringInterpolation of Expr
 
   and PipeExpr =
-    | EPipeVariable of ID * string
+    | EPipeVariable of ID * string * List<Expr>
     | EPipeLambda of ID * NEList<ID * string> * Expr
     | EPipeInfix of ID * Infix * Expr
     | EPipeFnCall of
@@ -524,7 +524,8 @@ module ExternalTypesToProgramTypes =
 
     and pipeExprToPT (pipeExpr : EPT.PipeExpr) : PT.PipeExpr =
       match pipeExpr with
-      | EPT.EPipeVariable(id, name) -> PT.EPipeVariable(id, name)
+      | EPT.EPipeVariable(id, name, exprs) ->
+        PT.EPipeVariable(id, name, List.map toPT exprs)
       | EPT.EPipeLambda(id, args, body) -> PT.EPipeLambda(id, args, toPT body)
       | EPT.EPipeInfix(id, infix, first) ->
         PT.EPipeInfix(id, Infix.toPT infix, toPT first)

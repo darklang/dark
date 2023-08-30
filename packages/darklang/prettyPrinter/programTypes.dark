@@ -530,7 +530,13 @@ module Darklang =
         (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PipeExpr)
         : String =
         match p with
-        | EPipeVariable(_id, varName) -> varName
+        | EPipeVariable(_id, varName, exprs) ->
+          let exprs =
+            exprs
+            |> List.map PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr
+            |> String.join " "
+
+          $"({varName} {exprs})"
 
         | EPipeLambda(_id, args, body) ->
           let argsPart =

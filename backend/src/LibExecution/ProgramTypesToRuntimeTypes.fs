@@ -314,9 +314,9 @@ module Expr =
       // into fn3 (fn2 (fn1 v a)) b c
       let folder (prev : RT.Expr) (next : PT.PipeExpr) : RT.Expr =
 
-        let applyFn (expr : RT.Expr) =
+        let applyFn (expr : RT.Expr) (args : List<RT.Expr>) =
           let typeArgs = []
-          RT.EApply(pipeID, expr, typeArgs, NEList.singleton prev)
+          RT.EApply(pipeID, expr, typeArgs, NEList.ofList prev args)
 
         match next with
         | PT.EPipeFnCall(id, Error err, _typeArgs, exprs) ->
@@ -359,9 +359,11 @@ module Expr =
             NameResolutionError.RTE.toRuntimeError err,
             prev :: List.map toRT fields
           )
-        | PT.EPipeVariable(id, name) -> RT.EVariable(id, name) |> applyFn
+        | PT.EPipeVariable(id, name, exprs) ->
+          let exprs = List.map toRT exprs
+          applyFn (RT.EVariable(id, name)) exprs
         | PT.EPipeLambda(id, vars, body) ->
-          RT.ELambda(id, vars, toRT body) |> applyFn
+          applyFn (RT.ELambda(id, vars, toRT body)) []
 
       let init = toRT expr1
       List.fold folder init rest

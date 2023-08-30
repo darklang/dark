@@ -311,7 +311,7 @@ and StringSegment =
   | StringInterpolation of Expr
 
 and [<MessagePack.MessagePackObject>] PipeExpr =
-  | EPipeVariable of id * string
+  | EPipeVariable of id * string * List<Expr>
   | EPipeLambda of id * NEList<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of
