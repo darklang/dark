@@ -66,7 +66,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibDarkInternal", "src\S
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibCliExecution", "src\LibCliExecution\LibCliExecution.fsproj", "{A74049E0-AD31-407B-9918-6A6A76C945C9}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibCliHost", "src\StdLibCliHost\StdLibCliHost.fsproj", "{B199C1DE-48A2-47B4-9672-BCCB7E4F8C78}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinCliHost", "src\BuiltinCliHost\BuiltinCliHost.fsproj", "{B199C1DE-48A2-47B4-9672-BCCB7E4F8C78}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
