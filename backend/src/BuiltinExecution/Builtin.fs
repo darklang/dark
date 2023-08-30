@@ -30,7 +30,6 @@ let contents (httpConfig : Libs.HttpClient.Configuration) : Builtin.Contents =
       Libs.Int.contents
       Libs.List.contents
       Libs.NoModule.contents
-      Libs.Result.contents
       Libs.Crypto.contents
       Libs.String.contents
       Libs.X509.contents

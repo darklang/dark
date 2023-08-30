@@ -74,27 +74,27 @@ PACKAGE.Darklang.Stdlib.Result.fromOption
 
 
 
-Result.map2_v0
+PACKAGE.Darklang.Stdlib.Result.map2_v0
   (PACKAGE.Darklang.Stdlib.Result.Result.Error "error1")
   (PACKAGE.Darklang.Stdlib.Result.Result.Error "error2")
   (fun (a, b) -> a - b) = PACKAGE.Darklang.Stdlib.Result.Result.Error "error1"
 
-Result.map2_v0
+PACKAGE.Darklang.Stdlib.Result.map2_v0
   (PACKAGE.Darklang.Stdlib.Result.Result.Error "error1")
   (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
   (fun (a, b) -> a - b) = PACKAGE.Darklang.Stdlib.Result.Result.Error "error1"
 
-Result.map2_v0
+PACKAGE.Darklang.Stdlib.Result.map2_v0
   (PACKAGE.Darklang.Stdlib.Result.Result.Ok 10)
   (PACKAGE.Darklang.Stdlib.Result.Result.Error "error2")
   (fun (a, b) -> a - b) = PACKAGE.Darklang.Stdlib.Result.Result.Error "error2"
 
-Result.map2_v0
+PACKAGE.Darklang.Stdlib.Result.map2_v0
   (PACKAGE.Darklang.Stdlib.Result.Result.Ok 10)
   (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
   (fun (a, b) -> a - b) = PACKAGE.Darklang.Stdlib.Result.Result.Ok 9
 
-Result.map2_v0
+PACKAGE.Darklang.Stdlib.Result.map2_v0
   (Test.okWithTypeError "err")
   (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
   (fun (a, b) -> a - b) = Test.derrorMessage "err"
