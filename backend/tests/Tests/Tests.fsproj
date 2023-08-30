@@ -19,7 +19,7 @@
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
     <ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" />
     <ProjectReference Include="../../src/BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
-    <ProjectReference Include="../../src/StdLibDarkInternal/StdLibDarkInternal.fsproj" />
+    <ProjectReference Include="../../src/BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
     <ProjectReference Include="../../src/QueueWorker/QueueWorker.fsproj" />
     <ProjectReference Include="../TestUtils/TestUtils.fsproj" />
   </ItemGroup>

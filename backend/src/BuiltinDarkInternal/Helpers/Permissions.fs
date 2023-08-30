@@ -1,5 +1,5 @@
 /// Helpers for permissions in Dark canvases
-module StdLibDarkInternal.Helpers.Permissions
+module BuiltinDarkInternal.Helpers.Permissions
 
 open System.Threading.Tasks
 

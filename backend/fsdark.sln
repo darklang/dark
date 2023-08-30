@@ -62,7 +62,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LocalExec", "src\LocalExec\
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinCli", "src\BuiltinCli\BuiltinCli.fsproj", "{A44BDF6D-0D93-4AA4-9DFA-F48365A31B26}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibDarkInternal", "src\StdLibDarkInternal\StdLibDarkInternal.fsproj", "{B6933551-A7A3-4A85-BEF4-43214ABB04DF}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinDarkInternal", "src\BuiltinDarkInternal\BuiltinDarkInternal.fsproj", "{B6933551-A7A3-4A85-BEF4-43214ABB04DF}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibCliExecution", "src\LibCliExecution\LibCliExecution.fsproj", "{A74049E0-AD31-407B-9918-6A6A76C945C9}"
 EndProject

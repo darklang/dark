@@ -28,7 +28,7 @@
     <Compile Include="Libs/Secrets.fs" />
     <Compile Include="Libs/Users.fs" />
     <Compile Include="Libs/Workers.fs" />
-    <Compile Include="StdLib.fs" />
+    <Compile Include="Builtin.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

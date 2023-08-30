@@ -19,7 +19,7 @@ let builtIns : RT.BuiltIns =
       [ BuiltinExecution.Builtin.contents
           BuiltinExecution.Libs.HttpClient.defaultConfig
         BuiltinCli.Builtin.contents
-        StdLibDarkInternal.StdLib.contents
+        BuiltinDarkInternal.Builtin.contents
         BuiltinCliHost.Builtin.contents ]
       []
       []

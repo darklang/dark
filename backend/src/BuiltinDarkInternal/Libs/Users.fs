@@ -1,6 +1,6 @@
 /// StdLib functions for user management. Note that user management is intended to be
 /// built in Darklang itself, so this functionality is deliberately sparse.
-module StdLibDarkInternal.Libs.Users
+module BuiltinDarkInternal.Libs.Users
 
 open System.Threading.Tasks
 

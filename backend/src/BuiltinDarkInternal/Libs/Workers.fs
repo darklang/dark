@@ -1,6 +1,6 @@
 /// StdLib functions for building Dark functionality for Workers
 /// Also has infra functions for managing workers - TODO: separate these
-module StdLibDarkInternal.Libs.Workers
+module BuiltinDarkInternal.Libs.Workers
 
 open System.Threading.Tasks
 

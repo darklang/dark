@@ -1,5 +1,5 @@
 /// StdLib functions for building Dark functionality via Dark canvases
-module StdLibDarkInternal.Libs.Domains
+module BuiltinDarkInternal.Libs.DBs
 
 open System.Threading.Tasks
 
@@ -7,9 +7,9 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module Canvas = LibCloud.Canvas
+module UserDB = LibCloud.UserDB
 
-let modules = [ "DarkInternal"; "Canvas"; "Domain" ]
+let modules = [ "DarkInternal"; "Canvas"; "DB" ]
 
 let typ = typ modules
 let fn = fn modules
@@ -19,17 +19,17 @@ let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "get" 0
+  [ { name = fn "list" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TList TString
-      description = "Returns the domain for a canvas if it exists"
+      returnType = TList TInt
+      description = "Returns a list of toplevel ids of dbs in <param canvasName>"
       fn =
         (function
         | _, _, [ DUuid canvasID ] ->
           uply {
-            let! name = Canvas.domainsForCanvasID canvasID
-            return name |> List.map DString |> DList
+            let! tlids = UserDB.all canvasID
+            return tlids |> List.map int64 |> List.map DInt |> DList
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -37,19 +37,17 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toCanvasID" 0
+    { name = fn "unlocked" 0
       typeParams = []
-      parameters = [ Param.make "domain" TString "" ]
-      returnType = TypeReference.result TUuid TString
-      description = "Returns the canvasID for a domain if it exists"
+      parameters = [ Param.make "canvasID" TUuid "" ]
+      returnType = TList TInt
+      description = "Get a list of unlocked DBs"
       fn =
         (function
-        | _, _, [ DString domain ] ->
+        | _, _, [ DUuid canvasID ] ->
           uply {
-            let! name = Canvas.canvasIDForDomain domain
-            match name with
-            | Some name -> return Dval.resultOk (DUuid name)
-            | None -> return Dval.resultError (DString "Canvas not found")
+            let! unlocked = UserDB.unlocked canvasID
+            return unlocked |> List.map int64 |> List.map DInt |> DList
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
