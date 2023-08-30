@@ -206,20 +206,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "negate" 0
-      typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
-      returnType = TInt
-      description = "Returns the negation of <param a>, {{-a}}"
-      fn =
-        (function
-        | _, _, [ DInt a ] -> Ply(DInt(-a))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "greaterThan" 0
       typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
