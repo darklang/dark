@@ -25,7 +25,6 @@
     <Compile Include="Libs/List.fs" />
     <Compile Include="Libs/Math.fs" />
     <Compile Include="Libs/NoModule.fs" />
-    <Compile Include="Libs/Option.fs" />
     <Compile Include="Libs/Result.fs" />
     <Compile Include="Libs/String.fs" />
     <Compile Include="Libs/Uuid.fs" />
