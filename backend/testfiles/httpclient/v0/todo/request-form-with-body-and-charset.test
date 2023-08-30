@@ -20,7 +20,7 @@ Content-Length: LENGTH
 (let reqHeaders = {"Content-Type" = "application/x-www-form-urlencoded; charset=utf-8" }
  let reqBody = { var1 = 2; var2 = [] }
  let response = (HttpClient.request "post" "http://URL" reqBody {} reqHeaders) |> unwrap
- let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
+ let respHeaders = response.headers |> List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
 {response with headers = respHeaders}) =
    HttpClient.Response
     { body = ""

@@ -20,12 +20,14 @@ Math.cos_v0 PACKAGE.Darklang.Stdlib.Math.pi = -1.0
 
 Math.cosh_v0 0.0 = 1.0
 
-Math.degrees_v0 -180.0 = Float.negate_v0 PACKAGE.Darklang.Stdlib.Math.pi
+Math.degrees_v0 -180.0 = PACKAGE.Darklang.Stdlib.Float.negate_v0
+  PACKAGE.Darklang.Stdlib.Math.pi
+
 Math.degrees_v0 360.0 = Float.multiply_v0 2.0 PACKAGE.Darklang.Stdlib.Math.pi
 
 PACKAGE.Darklang.Stdlib.Math.pi = 3.14159265359
 
-Math.radians_v0 (Float.negate_v0 3.141592653589793) = Float.negate_v0
+Math.radians_v0 (PACKAGE.Darklang.Stdlib.Float.negate_v0 3.141592653589793) = PACKAGE.Darklang.Stdlib.Float.negate_v0
   PACKAGE.Darklang.Stdlib.Math.pi
 
 Math.radians_v0 6.283185307179586 = Float.multiply_v0
@@ -46,5 +48,7 @@ PACKAGE.Darklang.Stdlib.Math.tau = Float.multiply_v0
   2.0
   PACKAGE.Darklang.Stdlib.Math.pi
 
-Math.turns_v0 (Float.negate_v0 0.5) = Float.negate_v0 PACKAGE.Darklang.Stdlib.Math.pi
+Math.turns_v0 (PACKAGE.Darklang.Stdlib.Float.negate_v0 0.5) = PACKAGE.Darklang.Stdlib.Float.negate_v0
+  PACKAGE.Darklang.Stdlib.Math.pi
+
 Math.turns_v0 1.0 = Float.multiply_v0 2.0 PACKAGE.Darklang.Stdlib.Math.pi

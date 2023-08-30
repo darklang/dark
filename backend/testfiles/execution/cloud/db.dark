@@ -833,14 +833,15 @@ module QueryOneWithKey =
 
    (DB.queryOneWithKey PersonDB (fun p -> p.name == "Rachel"))
    |> unwrap
-   |> (fun v -> (Tuple2.second v).name)) = "Rachel"
+   |> (fun v -> (PACKAGE.Darklang.Stdlib.Tuple2.second v).name)) = "Rachel"
 
   // interpolated
   (let _ = prepFriends ()
    let test = "ache"
 
    (DB.queryOneWithKey PersonDB (fun p -> p.name == $"R{test}l"))
-   |> PACKAGE.Darklang.Stdlib.Option.map (fun v -> (Tuple2.second v).name)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+   |> PACKAGE.Darklang.Stdlib.Option.map (fun v ->
+     (PACKAGE.Darklang.Stdlib.Tuple2.second v).name)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
     "Rachel"
 
 
@@ -853,7 +854,7 @@ module QueryWithKey =
 
    (DB.queryWithKey PersonDB (fun p -> p.name == "Rachel"))
    |> Dict.toList_v0
-   |> List.map (fun v -> (Tuple2.second v).name)) = [ "Rachel" ]
+   |> List.map (fun v -> (PACKAGE.Darklang.Stdlib.Tuple2.second v).name)) = [ "Rachel" ]
 
 module QueryCount =
   // none

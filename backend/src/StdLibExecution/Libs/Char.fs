@@ -45,40 +45,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "isLowercase" 0
-      typeParams = []
-      parameters = [ Param.make "c" TChar "" ]
-      returnType = TBool
-      description = "Return whether <param c> is a lowercase character."
-      fn =
-        function
-        | _, _, [ DChar c ] ->
-          // If we just check that the uppercase value of the char is the same, then
-          // chars that are not letters would be incorrectly reported as uppercase
-          Ply(DBool(c.ToLower() = c && c.ToUpper() <> c))
-        | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "isUppercase" 0
-      typeParams = []
-      parameters = [ Param.make "c" TChar "" ]
-      returnType = TBool
-      description = "Return whether <param c> is an uppercase character."
-      fn =
-        function
-        | _, _, [ DChar c ] ->
-          // If we just check that the uppercase value of the char is the same, then
-          // chars that are not letters would be incorrectly reported as uppercase
-          Ply(DBool(c.ToUpper() = c && c.ToLower() <> c))
-        | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "isDigit" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]

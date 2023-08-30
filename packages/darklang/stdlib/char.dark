@@ -1,0 +1,11 @@
+module Darklang =
+  module Stdlib =
+    module Char =
+      /// Return whether <param c> is a lowercase character.
+      let isLowercase (c: Char) : Bool =
+        Char.toLowercase c == c && Char.toUppercase c != c
+
+
+      /// Return whether <param c> is an uppercase character.
+      let isUppercase (c: Char) : Bool =
+        Char.toLowercase c != c && Char.toUppercase c == c

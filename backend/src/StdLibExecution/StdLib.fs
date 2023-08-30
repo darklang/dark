@@ -34,8 +34,6 @@ let contents (httpConfig : Libs.HttpClient.Configuration) : StdLib.Contents =
       Libs.Result.contents
       Libs.Crypto.contents
       Libs.String.contents
-      Libs.Tuple2.contents
-      Libs.Tuple3.contents
       Libs.X509.contents
       Libs.Password.contents ]
     fnRenames

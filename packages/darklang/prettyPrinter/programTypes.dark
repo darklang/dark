@@ -534,7 +534,9 @@ module Darklang =
 
         | EPipeLambda(_id, args, body) ->
           let argsPart =
-            args |> List.map (fun pair -> Tuple2.second pair) |> String.join " "
+            args
+            |> List.map (fun pair -> PACKAGE.Darklang.Stdlib.Tuple2.second pair)
+            |> String.join " "
 
           let bodyPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr body
           $"fun {argsPart} -> {bodyPart}"
@@ -790,7 +792,9 @@ module Darklang =
 
         | ELambda(_id, args, body) ->
           let argsPart =
-            args |> List.map (fun pair -> Tuple2.second pair) |> String.join " "
+            args
+            |> List.map (fun pair -> PACKAGE.Darklang.Stdlib.Tuple2.second pair)
+            |> String.join " "
 
           let bodyPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr body
 

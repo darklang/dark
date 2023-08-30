@@ -18,7 +18,7 @@ Content-Length: LENGTH
 // CLEANUP this matches what OCAML did, unclear this is the right thing to do
 (let query = { emoji = "😭👨‍👩‍👧‍👦" }
  let response = (HttpClient.request "get" "http://URL" query {}) |> unwrap
- let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
+ let respHeaders = response.headers |> List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    HttpClient.Response
     { body = "\"Hello back\""

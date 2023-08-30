@@ -18,7 +18,7 @@ Redirect destination reached
 [test]
 // This is here to be a destination for valid redirect tests
 (let response = (HttpClient.request "post" "http://URL" "" [] Bytes.empty) |> unwrap
- let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
+ let respHeaders = response.headers |> List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    HttpClient.Response
     { body = "Redirect destination reached"

@@ -18,7 +18,7 @@ var1=2&var2=[]
 // The response here was supposed to be parsed, but it didn't work, so just the
 // string comes out.
 (let response = (HttpClient.request "get" "http://URL" [] Bytes.empty) |> unwrap
- let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
+ let respHeaders = response.headers |> List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    HttpClient.Response
     { body = "var1=2&var2=[]"

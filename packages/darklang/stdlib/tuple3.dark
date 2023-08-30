@@ -1,0 +1,53 @@
+module Darklang =
+  module Stdlib =
+    module Tuple3 =
+      /// Returns a triple with the given values
+      let create (first: 'a) (second: 'b) (third: 'c) : Tuple<'a, 'b, 'c> =
+        (first, second, third)
+
+
+      /// Returns the first value of a triple
+      let first (tuple: Tuple<'a, 'b, 'c>) : 'a =
+        let (first, _, _) = tuple
+        first
+
+
+      /// Returns the second value of a triple
+      let second (tuple: Tuple<'a, 'b, 'c>) : 'b =
+        let (_, second, _) = tuple
+        second
+
+
+      /// Returns the third value of a triple
+      let third (tuple: Tuple<'a, 'b, 'c>) : 'c =
+        let (_, _, third) = tuple
+        third
+
+
+      /// Transform the first value in a triple
+      let mapFirst (fn: 'a -> 'd) (tuple: Tuple<'a, 'b, 'c>) : Tuple<'d, 'b, 'c> =
+        let (first, second, third) = tuple
+        ((first |> fn), second, third)
+
+
+      /// Transform the second value in a triple
+      let mapSecond (fn: 'b -> 'd) (tuple: Tuple<'a, 'b, 'c>) : Tuple<'a, 'd, 'c> =
+        let (first, second, third) = tuple
+        (first, (second |> fn), third)
+
+
+      /// Transform the third value in a triple
+      let mapThird (fn: 'c -> 'd) (tuple: Tuple<'a, 'b, 'c>) : Tuple<'a, 'b, 'd> =
+        let (first, second, third) = tuple
+        (first, second, (third |> fn))
+
+
+      /// Transform all values in a triple
+      let mapAllThree
+        (fnFirst: 'a -> 'd)
+        (fnSecond: 'b -> 'e)
+        (fnThird: 'c -> 'f)
+        (tuple: Tuple<'a, 'b, 'c>)
+        : Tuple<'d, 'e, 'f> =
+        let (first, second, third) = tuple
+        ((first |> fnFirst), (second |> fnSecond), (third |> fnThird))
