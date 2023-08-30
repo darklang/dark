@@ -169,7 +169,14 @@ module Expr =
         return PT.EApply(id, name, typeArgs, args)
       | WT.EFnName(id, name) ->
         let! fnName = NameResolver.FnName.resolve resolver currentModule name
-        return PT.EFnName(id, fnName)
+        match fnName, name with
+        | Error _, WT.Unresolved { head = varName; tail = [] } when
+          not (String.isCapitalized varName)
+          ->
+          // If it's a single name, and it's not resolved, treat it as a variable. If
+          // it's not a variable, the "missing-varname" error will still be appropriate.
+          return PT.EVariable(id, varName)
+        | _, _ -> return PT.EFnName(id, fnName)
       | WT.ELambda(id, vars, body) ->
         let! body = toPT body
         return PT.ELambda(id, vars, body)
