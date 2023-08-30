@@ -1,6 +1,6 @@
 /// StdLib functions for building the CLI
 /// (as opposed to functions needed by CLI programs, which are in StdLibCli)
-module StdLibCliHost.Libs.Cli
+module BuiltinCliHost.Libs.Cli
 
 open System.Threading.Tasks
 

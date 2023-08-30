@@ -11,7 +11,7 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="Libs/Cli.fs" />
-    <Compile Include="StdLib.fs" />
+    <Compile Include="Builtin.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />

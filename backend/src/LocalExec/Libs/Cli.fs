@@ -20,7 +20,7 @@ let builtIns : RT.BuiltIns =
           BuiltinExecution.Libs.HttpClient.defaultConfig
         StdLibCli.StdLib.contents
         StdLibDarkInternal.StdLib.contents
-        StdLibCliHost.StdLib.contents ]
+        BuiltinCliHost.Builtin.contents ]
       []
       []
   { types = types |> Map.fromListBy (fun typ -> typ.name)
