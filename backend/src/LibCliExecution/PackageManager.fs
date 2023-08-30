@@ -648,94 +648,79 @@ module ExternalTypesToProgramTypes =
 module ET2PT = ExternalTypesToProgramTypes
 
 
-let cachedPly (expiration : TimeSpan) (f : Ply<'a>) : Ply<'a> =
-  let mutable value = None
-  let mutable lastUpdate = DateTime.MinValue
-
-  uply {
-    match value, DateTime.Now - lastUpdate > expiration with
-    | Some value, false -> return value
-    | _ ->
-      let! newValue = f
-      value <- Some newValue
-      lastUpdate <- DateTime.Now
-      return newValue
-  }
-
-// TODO: fetch one by one
 // TODO: copy back to LibCloud/LibCloudExecution, or relocate somewhere central
 // TODO: what should we do when the shape of types at the corresponding endpoints change?
 let packageManager : RT.PackageManager =
-  let httpClient = new System.Net.Http.HttpClient()
-  let cacheDuration = TimeSpan.FromMinutes 1.
+  let httpClient = new System.Net.Http.HttpClient() // CLEANUP pass this in as param? or mutate it externally?
 
-  let allTypes =
-    uply {
-      let! response =
-        httpClient.GetAsync "http://dark-packages.dlio.localhost:11003/types"
-      let! allTypesStr = response.Content.ReadAsStringAsync()
-
-      return
-        Json.Vanilla.deserialize<List<ProgramTypes.PackageType>> allTypesStr
-        |> List.map (ET2PT.PackageType.toPT >> PT2RT.PackageType.toRT)
-    }
-    |> cachedPly cacheDuration
-
-  let allFns =
-    uply {
-      let! response =
-        httpClient.GetAsync "http://dark-packages.dlio.localhost:11003/functions"
-      let! allTypesStr = response.Content.ReadAsStringAsync()
-
-      return
-        Json.Vanilla.deserialize<List<ProgramTypes.PackageFn.PackageFn>> allTypesStr
-        |> List.map (ET2PT.PackageFn.toPT >> PT2RT.PackageFn.toRT)
-    }
-    |> cachedPly cacheDuration
-
-  let allConstants =
-    uply {
-      let! response =
-        httpClient.GetAsync "http://dark-packages.dlio.localhost:11003/constants"
-      let! allConstantsStr = response.Content.ReadAsStringAsync()
-
-      let parsedConstants =
-        Json.Vanilla.deserialize<List<ProgramTypes.PackageConstant>> allConstantsStr
-
-      return
-        parsedConstants
-        |> List.map (ET2PT.PackageConstant.toPT >> PT2RT.PackageConstant.toRT)
-    }
-    |> cachedPly cacheDuration
-
+  // TODO: bring back caching of some sort
 
   { getType =
-      fun typeName ->
+      fun name ->
         uply {
-          let! allTypes = allTypes
-          let found =
-            List.find (fun (typ : RT.PackageType.T) -> typ.name = typeName) allTypes
-          return found
+          let name =
+            let modulesPart = String.concat "." name.modules
+            let namePart =
+              match name.name with
+              | RT.TypeName.TypeName name -> name
+            $"{name.owner}.{modulesPart}.{namePart}"
+          let! response =
+            $"http://dark-packages.dlio.localhost:11003/type/by-name/{name}"
+            |> httpClient.GetAsync
+
+          let! responseStr = response.Content.ReadAsStringAsync()
+
+          return
+            responseStr
+            |> Json.Vanilla.deserialize<Option<ProgramTypes.PackageType>>
+            |> Option.map (fun parsed ->
+              parsed |> ET2PT.PackageType.toPT |> PT2RT.PackageType.toRT)
         }
 
     getFn =
-      fun fnName ->
+      fun name ->
         uply {
-          let! allFns = allFns
-          let found =
-            List.find (fun (typ : RT.PackageFn.T) -> typ.name = fnName) allFns
-          return found
+          let name =
+            let modulesPart = String.concat "." name.modules
+            let namePart =
+              match name.name with
+              | RT.FnName.FnName name -> name
+            $"{name.owner}.{modulesPart}.{namePart}"
+
+          let! response =
+            $"http://dark-packages.dlio.localhost:11003/function/by-name/{name}"
+            |> httpClient.GetAsync
+
+          let! responseStr = response.Content.ReadAsStringAsync()
+
+          return
+            responseStr
+            |> Json.Vanilla.deserialize<Option<ProgramTypes.PackageFn.PackageFn>>
+            |> Option.map (fun parsed ->
+              parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT)
         }
 
     getConstant =
-      fun constantName ->
+      fun name ->
         uply {
-          let! allConstants = allConstants
-          let found =
-            List.find
-              (fun (typ : RT.PackageConstant.T) -> typ.name = constantName)
-              allConstants
-          return found
+          let name =
+            let modulesPart = String.concat "." name.modules
+            let namePart =
+              match name.name with
+              | RT.ConstantName.ConstantName name -> name
+            $"{name.owner}.{modulesPart}.{namePart}"
+
+          let! response =
+            $"http://dark-packages.dlio.localhost:11003/constant/by-name/{name}"
+            |> httpClient.GetAsync
+
+          let! responseStr = response.Content.ReadAsStringAsync()
+
+          return
+            responseStr
+            |> Json.Vanilla.deserialize<Option<ProgramTypes.PackageConstant>>
+            |> Option.map (fun parsed ->
+              parsed |> ET2PT.PackageConstant.toPT |> PT2RT.PackageConstant.toRT)
         }
 
     init = uply { return () } }

@@ -44,7 +44,7 @@ let _handler _req =
         modules = typeToSave.name.modules
         category = PackageItem.Type }
 
-  let key = DB.generateKey_v0 () // TODO: use id instead
+  let key = DB.generateKey_v0 () // TODO: use `id` instead
   DB.set typeToSave key PackageTypeDB
   DB.set item key NamesDB
 
@@ -67,7 +67,7 @@ let _handler _req =
         modules = fnToSave.name.modules
         category = PackageItem.Fn }
 
-  let key = DB.generateKey_v0 () // TODO: use id instead
+  let key = DB.generateKey_v0 () // TODO: use `id` instead
   DB.set fnToSave key PackageFnDB
   DB.set item key NamesDB
 
@@ -92,7 +92,7 @@ let _handler _req =
         modules = constantToSave.name.modules
         category = PackageItem.Constant }
 
-  let key = DB.generateKey_v0 () // TODO: use id instead
+  let key = DB.generateKey_v0 () // TODO: use `id` instead
   DB.set constantToSave key PackageConstantDB
   DB.set item key NamesDB
 
@@ -123,6 +123,7 @@ let _handler _req =
   PACKAGE.Darklang.Stdlib.Http.response body 200
 
 
+// fetch all at once
 [<HttpHandler("GET", "/types")>]
 let _handler _req =
   let respBody =
@@ -154,6 +155,100 @@ let _handler _req =
     |> String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
+
+
+// (WIP) fetch item by name
+type PackageNameParts =
+  { owner: String
+    modules: List<String>
+    name: String
+    version: Int }
+
+let nameToParts (name: String) : PackageNameParts =
+  match String.split name "." with
+  | owner :: rest ->
+    match PACKAGE.Darklang.Stdlib.List.reverse rest with
+    | name :: modulesInReverse ->
+
+      PackageNameParts
+        { owner = owner
+          modules = PACKAGE.Darklang.Stdlib.List.reverse modulesInReverse
+          name = name
+          version = 0 }
+
+
+[<HttpHandler("GET", "/type/by-name/:name")>]
+let _handler _req =
+  let nameParts = nameToParts name
+
+  let found =
+    (DB.getAll PackageTypeDB)
+    // CLEANUP this should be in a DB.query, but:
+    // - SqlCompiler isn't great with generics yet
+    //   (See `PT.FnName.Package` definition for reference)
+    // - DB.query is generally _super slow_ as of time of writing
+    |> List.filter (fun typ ->
+      typ.name.owner == nameParts.owner
+      && typ.name.modules == nameParts.modules
+      && typ.name.version == nameParts.version
+      && (match typ.name.name with
+          | TypeName name -> name == nameParts.name))
+    |> PACKAGE.Darklang.Stdlib.List.head
+
+  let respBody =
+    found
+    |> Json.serialize<PACKAGE.Darklang.Stdlib.Option.Option<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>>
+    |> unwrap
+    |> String.toBytes
+
+  PACKAGE.Darklang.Stdlib.Http.response respBody 200
+
+
+[<HttpHandler("GET", "/constant/by-name/:name")>]
+let _handler _req =
+  let nameParts = nameToParts name
+
+  let found =
+    (DB.getAll PackageConstantDB)
+    |> List.filter (fun c ->
+      c.name.owner == nameParts.owner
+      && c.name.modules == nameParts.modules
+      && c.name.version == nameParts.version
+      && (match c.name.name with
+          | ConstantName name -> name == nameParts.name))
+    |> PACKAGE.Darklang.Stdlib.List.head
+
+  let respBody =
+    found
+    |> Json.serialize<PACKAGE.Darklang.Stdlib.Option.Option<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>>
+    |> unwrap
+    |> String.toBytes
+
+  PACKAGE.Darklang.Stdlib.Http.response respBody 200
+
+
+[<HttpHandler("GET", "/function/by-name/:name")>]
+let _handler _req =
+  let nameParts = nameToParts name
+
+  let found =
+    (DB.getAll PackageFnDB)
+    |> List.filter (fun fn ->
+      fn.name.owner == nameParts.owner
+      && fn.name.modules == nameParts.modules
+      && fn.name.version == nameParts.version
+      && (match fn.name.name with
+          | FnName name -> name == nameParts.name))
+    |> PACKAGE.Darklang.Stdlib.List.head
+
+  let respBody =
+    found
+    |> Json.serialize<PACKAGE.Darklang.Stdlib.Option.Option<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>>
+    |> unwrap
+    |> String.toBytes
+
+  PACKAGE.Darklang.Stdlib.Http.response respBody 200
+
 
 
 [<HttpHandler("GET", "/owner/:owner")>]
