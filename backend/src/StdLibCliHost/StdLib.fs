@@ -3,7 +3,7 @@ module StdLibCliHost.StdLib
 open Prelude
 open LibExecution.RuntimeTypes
 
-module Builtin= LibExecution.Builtin
+module Builtin = LibExecution.Builtin
 
 
 let fnRenames : Builtin.FnRenames =
