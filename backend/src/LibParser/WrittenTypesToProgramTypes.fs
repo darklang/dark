@@ -155,9 +155,13 @@ module Expr =
         let! obj = toPT obj
         return PT.EFieldAccess(id, obj, fieldname)
       | WT.EApply(id, (WT.EFnName(_, name)), [], { head = WT.EPlaceHolder }) ->
-        // This must be a constant, as there are no arguments?
-        let! name = NameResolver.ConstantName.resolve resolver currentModule name
-        return PT.EConstant(id, name)
+        // There are no arguments, so this could be a function name or a constant
+        let! fnName = NameResolver.FnName.maybeResolve resolver currentModule name
+        match fnName with
+        | Ok _ as name -> return PT.EFnName(id, name)
+        | Error _ ->
+          let! name = NameResolver.ConstantName.resolve resolver currentModule name
+          return PT.EConstant(id, name)
       | WT.EApply(id, name, typeArgs, args) ->
         let! name = toPT name
         let! typeArgs =
