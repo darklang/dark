@@ -1,5 +1,5 @@
 /// StdLib functions for accessing and manipulating user datastores
-module StdLibCloudExecution.Libs.DB
+module BuiltinCloudExecution.Libs.DB
 
 open Prelude
 open LibExecution.RuntimeTypes

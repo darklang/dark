@@ -25,7 +25,7 @@
     <ProjectReference Include="../../src/LibClientTypesToCloudTypes/LibClientTypesToCloudTypes.fsproj" />
     <ProjectReference Include="../../src/LibParser/LibParser.fsproj" />
     <ProjectReference Include="../../src/BuiltinExecution/BuiltinExecution.fsproj" />
-    <ProjectReference Include="../../src/StdLibCloudExecution/StdLibCloudExecution.fsproj" />
+    <ProjectReference Include="../../src/BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
     <ProjectReference Include="../../src/StdLibDarkInternal/StdLibDarkInternal.fsproj" />
   </ItemGroup>
   <ItemGroup>
