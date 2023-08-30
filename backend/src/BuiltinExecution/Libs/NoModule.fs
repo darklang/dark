@@ -6,7 +6,7 @@ open System
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 
 let rec equals (a : Dval) (b : Dval) : bool =

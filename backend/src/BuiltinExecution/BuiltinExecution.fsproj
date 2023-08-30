@@ -29,7 +29,7 @@
     <Compile Include="Libs/Result.fs" />
     <Compile Include="Libs/String.fs" />
     <Compile Include="Libs/Uuid.fs" />
-    <Compile Include="StdLib.fs" />
+    <Compile Include="Builtin.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />

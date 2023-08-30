@@ -7,7 +7,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
@@ -18,7 +18,7 @@ let resolver : LibParser.NameResolver.NameResolver =
     // CLEANUP we need a better way to determine what builtins should be
     // available to the name resolver, as this currently assumes builtins
     // from _all_ environments are available
-    LibExecution.StdLib.combine
+    LibExecution.Builtin.combine
       // We are missing the builtins that contain this function (and all associated ones)
       [ BuiltinExecution.Builtin.contents
           BuiltinExecution.Libs.HttpClient.defaultConfig
@@ -91,4 +91,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let contents : LibExecution.StdLib.Contents = (fns, [], [])
+let contents : LibExecution.Builtin.Contents = (fns, [], [])

@@ -6,7 +6,7 @@ open System.Threading.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -62,7 +62,7 @@ let libExecutionContents =
 
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) =
-    LibExecution.StdLib.combine
+    LibExecution.Builtin.combine
       [ libExecutionContents; StdLibCli.StdLib.contents ]
       []
       []

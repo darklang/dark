@@ -8,7 +8,7 @@ open LibExecution.RuntimeTypes
 
 module Queue = LibCloud.Queue
 
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 let varA = TVariable "a"
 

@@ -4,7 +4,7 @@ open LibExecution.RuntimeTypes
 open Prelude
 open System
 open System.Text
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 open System.Text.RegularExpressions
 

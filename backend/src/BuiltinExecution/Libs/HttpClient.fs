@@ -331,7 +331,7 @@ type HeaderError =
   | BadInput of string
   | TypeMismatch of string
 
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 let types : List<BuiltInType> =
   [ { name = typ [ "HttpClient" ] "Response" 0

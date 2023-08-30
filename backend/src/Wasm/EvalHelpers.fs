@@ -5,7 +5,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 
 let getStateForEval
-  (stdlib : LibExecution.StdLib.Contents)
+  (stdlib : LibExecution.Builtin.Contents)
   (types : List<UserType.T>)
   (fns : List<UserFunction.T>)
   (constants : List<UserConstant.T>)

@@ -6,7 +6,7 @@ open System.Threading.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 let modules = [ "DarkInternal"; "User" ]
 let typ = typ modules

@@ -27,7 +27,7 @@
     <Compile Include="Interpreter.fs" />
     <Compile Include="AnalysisTypes.fs" />
     <Compile Include="Execution.fs" />
-    <Compile Include="StdLib.fs" />
+    <Compile Include="Builtin.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="ProgramTypesParser.fs" />
     <Compile Include="ProgramTypesAst.fs" />

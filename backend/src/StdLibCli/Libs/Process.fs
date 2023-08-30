@@ -7,8 +7,8 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 
-module StdLib = LibExecution.StdLib
-open StdLib.Shortcuts
+module Builtin = LibExecution.Builtin
+open Builtin.Shortcuts
 
 let types : List<BuiltInType> =
   [ { name = typ [ "Process" ] "Result" 0
@@ -63,4 +63,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 let constants : List<BuiltInConstant> = []
-let contents : StdLib.Contents = (fns, types, constants)
+let contents : Builtin.Contents = (fns, types, constants)

@@ -3,7 +3,7 @@ module BuiltinExecution.Builtin
 open Prelude
 open LibExecution.RuntimeTypes
 
-module StdLib = LibExecution.StdLib
+module Builtin = LibExecution.Builtin
 
 let fnRenames =
   // old names, new names
@@ -15,8 +15,8 @@ let typeRenames =
   // eg: typ "Http" "Response" 0, typ "Http" "Response" 1
   []
 
-let contents (httpConfig : Libs.HttpClient.Configuration) : StdLib.Contents =
-  StdLib.combine
+let contents (httpConfig : Libs.HttpClient.Configuration) : Builtin.Contents =
+  Builtin.combine
     [ Libs.Bytes.contents
       Libs.Char.contents
       Libs.DateTime.contents

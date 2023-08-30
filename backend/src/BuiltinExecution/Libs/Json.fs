@@ -4,7 +4,7 @@ open System.Text.Json
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 module DarkDateTime = LibExecution.DarkDateTime
 

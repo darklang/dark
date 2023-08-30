@@ -5,7 +5,7 @@ open System.Threading.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Telemetry = LibService.Telemetry

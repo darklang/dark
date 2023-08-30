@@ -6,7 +6,7 @@ open System
 open Prelude
 
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 open Wasm.EvalHelpers
 
 
@@ -145,7 +145,7 @@ let fns : List<BuiltInFn> =
                         [ string metadata; string e ]) }
 
             let stdLib =
-              LibExecution.StdLib.combine
+              LibExecution.Builtin.combine
                 [ BuiltinExecution.Builtin.contents httpConfig ]
                 []
                 []

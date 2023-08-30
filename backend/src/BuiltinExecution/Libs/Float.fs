@@ -4,7 +4,7 @@ open System
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 module Errors = LibExecution.Errors
 

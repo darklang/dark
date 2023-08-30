@@ -17,8 +17,8 @@ module Interpreter = LibExecution.Interpreter
 
 open LibCloud
 
-let builtins : LibExecution.StdLib.Contents =
-  LibExecution.StdLib.combine
+let builtins : LibExecution.Builtin.Contents =
+  LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.contents HttpClient.configuration
       StdLibCloudExecution.StdLib.contents
       StdLibDarkInternal.StdLib.contents ]

@@ -2,7 +2,7 @@ module BuiltinExecution.Libs.List
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 module Errors = LibExecution.Errors
 module Interpreter = LibExecution.Interpreter

@@ -42,7 +42,7 @@ let info () =
 
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) =
-    LibExecution.StdLib.combine
+    LibExecution.Builtin.combine
       [ BuiltinExecution.Builtin.contents
           BuiltinExecution.Libs.HttpClient.defaultConfig
         StdLibCli.StdLib.contents

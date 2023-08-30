@@ -8,7 +8,7 @@ open LibExecution.RuntimeTypes
 
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 // This makes extra careful that we're only accessing files where we expect to
 /// find files, and that we're not checking outside these directories
@@ -169,4 +169,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents : LibExecution.StdLib.Contents = (fns, types, constants)
+let contents : LibExecution.Builtin.Contents = (fns, types, constants)

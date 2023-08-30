@@ -123,7 +123,7 @@ let builtIns
   (httpConfig : BuiltinExecution.Libs.HttpClient.Configuration)
   : RT.BuiltIns =
   let (fns, types, constants) =
-    LibExecution.StdLib.combine
+    LibExecution.Builtin.combine
       [ LibTest.contents
         BuiltinExecution.Builtin.contents httpConfig
         StdLibCloudExecution.StdLib.contents

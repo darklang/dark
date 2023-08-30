@@ -1,5 +1,5 @@
 /// Helper functions for stdlibs
-module LibExecution.StdLib
+module LibExecution.Builtin
 
 open Prelude
 open RuntimeTypes

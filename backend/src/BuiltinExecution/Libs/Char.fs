@@ -6,7 +6,7 @@ open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 
 let types : List<BuiltInType> = []

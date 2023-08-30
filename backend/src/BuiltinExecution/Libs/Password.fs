@@ -3,7 +3,7 @@ module BuiltinExecution.Libs.Password
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []

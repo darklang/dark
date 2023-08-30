@@ -93,7 +93,7 @@ let merge
 
 
 let fromBuiltins
-  ((fns, types, constants) : LibExecution.StdLib.Contents)
+  ((fns, types, constants) : LibExecution.Builtin.Contents)
   : NameResolver =
   { builtinTypes =
       types

@@ -5,7 +5,7 @@
 module LibHttpMiddleware.Http
 
 open Prelude
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 module RT = LibExecution.RuntimeTypes
 module Telemetry = LibService.Telemetry
