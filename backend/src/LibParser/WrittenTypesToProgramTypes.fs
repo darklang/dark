@@ -172,7 +172,7 @@ module Expr =
 
         return PT.EApply(id, name, typeArgs, args)
       | WT.EFnName(id, name) ->
-        let! fnName = NameResolver.FnName.resolve resolver currentModule name
+        let! fnName = NameResolver.FnName.maybeResolve resolver currentModule name
         match fnName, name with
         | Error _, WT.Unresolved { head = varName; tail = [] } when
           not (String.isCapitalized varName)
