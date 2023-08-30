@@ -2,7 +2,6 @@
 module LibParser.WrittenTypesToProgramTypes
 
 open Prelude
-open Tablecloth
 
 module WT = WrittenTypes
 module PT = LibExecution.ProgramTypes

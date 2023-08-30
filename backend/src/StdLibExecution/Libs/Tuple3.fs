@@ -3,7 +3,6 @@ module StdLibExecution.Libs.Tuple3
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.VendoredTablecloth
 open LibExecution.StdLib.Shortcuts
 
 module Interpreter = LibExecution.Interpreter

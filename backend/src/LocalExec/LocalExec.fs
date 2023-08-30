@@ -5,7 +5,6 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -114,8 +113,9 @@ let sourceOf
       |> List.find (fun fn -> fn.tlid = tlid)
       |> Option.map (fun fn -> string fn.name, fn.body)
   let mutable result = "unknown caller", "unknown body", "unknown expr"
-  data
-  |> Option.tap (fun (fnName, e) ->
+  match data with
+  | None -> ()
+  | Some(fnName, e) ->
     LibExecution.ProgramTypesAst.preTraversal
       (fun expr ->
         if PT.Expr.toID expr = id then result <- fnName, string e, string expr
@@ -131,10 +131,9 @@ let sourceOf
       identity
       identity
       e
-    |> ignore<PT.Expr>)
+    |> ignore<PT.Expr>
   let (fnName, body, expr) = result
   $"fn {fnName}\nexpr:\n{expr}\n, body:\n{body}"
-
 
 
 

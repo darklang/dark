@@ -10,7 +10,6 @@ open Npgsql
 open LibCloud.Db
 
 open Prelude
-open Tablecloth
 
 module DarkDateTime = LibExecution.DarkDateTime
 module RT = LibExecution.RuntimeTypes
@@ -746,14 +745,14 @@ module Expect =
 
     | DDict ls, DDict rs ->
       // check keys from ls are in both, check matching values
-      Map.forEachWithIndex
+      Map.iterWithIndex
         (fun key v1 ->
           match Map.tryFind key rs with
           | Some v2 -> de (key :: path) v1 v2
           | None -> check (key :: path) ls rs)
         ls
       // check keys from rs are in both
-      Map.forEachWithIndex
+      Map.iterWithIndex
         (fun key _ ->
           match Map.tryFind key rs with
           | Some _ -> () // already checked
@@ -764,14 +763,14 @@ module Expect =
     | DRecord(ltn, _, ls), DRecord(rtn, _, rs) ->
       userTypeNameEqualityBaseFn path ltn rtn errorFn
       // check keys from ls are in both, check matching values
-      Map.forEachWithIndex
+      Map.iterWithIndex
         (fun key v1 ->
           match Map.tryFind key rs with
           | Some v2 -> de (key :: path) v1 v2
           | None -> check (key :: path) ls rs)
         ls
       // check keys from rs are in both
-      Map.forEachWithIndex
+      Map.iterWithIndex
         (fun key _ ->
           match Map.tryFind key rs with
           | Some _ -> () // already checked
@@ -896,10 +895,10 @@ let containsPassword (dv : Dval) : bool =
     match dval with
     | RT.DPassword _ -> true
     | _ -> false
-  dv |> visitDval isPassword |> List.any Fun.identity
+  dv |> visitDval isPassword |> List.any identity
 
 let containsFakeDval (dv : Dval) : bool =
-  dv |> visitDval RT.Dval.isFake |> List.any Fun.identity
+  dv |> visitDval RT.Dval.isFake |> List.any identity
 
 
 let interestingStrings : List<string * string> =
@@ -947,8 +946,9 @@ let interestingFloats : List<string * float> =
       "tau", System.Math.Tau ]
 
   initial
-  |> List.flatMap (fun (doc, v) ->
+  |> List.map (fun (doc, v) ->
     [ ($"float {doc} - 1", v - 1.0); ($"{doc} + 0", v); ($"{doc} + 1", v + 1.0) ])
+  |> List.flatten
 
 let interestingInts : List<string * int64> =
   [ ("int0", 0L)
@@ -964,8 +964,9 @@ let interestingInts : List<string * int64> =
     ("int_min_64_bits", -9223372036854775808L) // -2^63
     ("int_max_double", 9007199254740992L) // 2^53
     ("int_min_double", -9007199254740992L) ] // -2^53
-  |> List.flatMap (fun (doc, v) ->
+  |> List.map (fun (doc, v) ->
     [ ($"int {doc} - 1", v - 1L); ($"{doc} + 0", v); ($"{doc} + 1", v + 1L) ])
+  |> List.flatten
 
 
 // https://github.com/minimaxir/big-list-of-naughty-strings

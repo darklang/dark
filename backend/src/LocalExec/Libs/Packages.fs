@@ -8,7 +8,6 @@ open Npgsql
 open LibCloud.Db
 
 open Prelude
-open Tablecloth
 open LibExecution.RuntimeTypes
 
 open LibExecution.StdLib.Shortcuts

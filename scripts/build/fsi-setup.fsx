@@ -9,7 +9,6 @@ printfn "Loading program; if something wrong run ./scripts/build/dotnet-regen-fs
 #I "../../backend/Build/out"
 
 #load ".paket/load/net7.0/main.group.fsx"
-#r "Tablecloth/Debug/net7.0/Tablecloth.dll"
 #r "Prelude/Debug/net7.0/Prelude.dll"
 #r "LibService/Debug/net7.0/LibService.dll"
 #r "LibExecution/Debug/net7.0/linux-x64/LibExecution.dll"

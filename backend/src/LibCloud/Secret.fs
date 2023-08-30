@@ -11,8 +11,6 @@ open Npgsql
 open Db
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 

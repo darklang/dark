@@ -18,7 +18,6 @@ open Microsoft.Extensions.DependencyInjection
 type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 open Prelude
-open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -397,7 +396,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       | e ->
         // respond and then reraise to get it to the rollbar middleware
         let! (_ : HttpContext) = internalErrorResponse ctx e
-        return e.Reraise()
+        return Exception.reraise e
     })
 
   let rollbarCtxToMetadata (ctx : HttpContext) : Rollbar.Person * Metadata =

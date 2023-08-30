@@ -4,8 +4,6 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar

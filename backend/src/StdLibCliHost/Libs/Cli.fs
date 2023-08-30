@@ -66,9 +66,9 @@ let builtIns : RT.BuiltIns =
       [ libExecutionContents; StdLibCli.StdLib.contents ]
       []
       []
-  { types = types |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
-    fns = fns |> Tablecloth.Map.fromListBy (fun fn -> fn.name)
-    constants = constants |> Tablecloth.Map.fromListBy (fun c -> c.name) }
+  { types = types |> Map.fromListBy (fun typ -> typ.name)
+    fns = fns |> Map.fromListBy (fun fn -> fn.name)
+    constants = constants |> Map.fromListBy (fun c -> c.name) }
 
 let packageManager = LibCliExecution.PackageManager.packageManager
 
@@ -85,15 +85,15 @@ let execute
         fns =
           mod'.fns
           |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
-          |> Tablecloth.Map.fromListBy (fun fn -> fn.name)
+          |> Map.fromListBy (fun fn -> fn.name)
         types =
           mod'.types
           |> List.map (fun typ -> PT2RT.UserType.toRT typ)
-          |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
+          |> Map.fromListBy (fun typ -> typ.name)
         constants =
           mod'.constants
           |> List.map (fun c -> PT2RT.UserConstant.toRT c)
-          |> Tablecloth.Map.fromListBy (fun c -> c.name)
+          |> Map.fromListBy (fun c -> c.name)
         dbs = Map.empty
         secrets = [] }
 

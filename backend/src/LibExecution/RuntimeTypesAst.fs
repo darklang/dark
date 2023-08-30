@@ -5,7 +5,6 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-open VendoredTablecloth
 open RuntimeTypes
 
 let rec preTraversal

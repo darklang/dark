@@ -16,7 +16,7 @@ let globalsFor (state : ExecutionState) : Symtable =
     |> List.map (fun (s : Secret.T) -> (s.name, DString s.value))
     |> Map.ofList
 
-  let dbs = Map.map (fun _ (db : DB.T) -> DDB db.name) state.program.dbs
+  let dbs = Map.map (fun (db : DB.T) -> DDB db.name) state.program.dbs
 
   Map.mergeFavoringLeft secrets dbs
 
@@ -1001,7 +1001,7 @@ and execFn
                       | Errors.IncorrectArgs ->
                         return Errors.incorrectArgsToDError sourceID fn args
                       | Errors.FakeDvalFound dv -> return dv
-                      | (:? CodeException) as e ->
+                      | (:? Exception.CodeException) as e ->
                         // There errors are created by us, within the libraries, so they are
                         // safe to show to users (but not grandusers)
                         return Dval.errSStr sourceID e.Message

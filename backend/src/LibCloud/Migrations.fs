@@ -14,7 +14,6 @@ open Db
 module Telemetry = LibService.Telemetry
 
 open Prelude
-open Tablecloth
 
 let isInitialized () : bool =
   Sql.query

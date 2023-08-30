@@ -7,7 +7,6 @@ module LibCloud.File
 // Note: none of these are async because System.IO is not async
 
 open Prelude
-open Tablecloth
 
 type Mode =
   | Check
@@ -94,7 +93,7 @@ let rec writefileBytes (root : Config.Root) (f : string) (contents : byte[]) : u
       success <- true
     with e ->
       count <- count + 1
-      if count > 10 then e.Reraise() else ()
+      if count > 10 then Exception.reraise e else ()
       ()
 
 let rec writefile (root : Config.Root) (f : string) (contents : string) : unit =

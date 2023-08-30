@@ -5,7 +5,6 @@ open FSharp.Control.Tasks
 open System.Threading.Tasks
 
 open Prelude
-open Tablecloth
 
 open LaunchDarkly.Sdk
 open LaunchDarkly.Sdk.Server

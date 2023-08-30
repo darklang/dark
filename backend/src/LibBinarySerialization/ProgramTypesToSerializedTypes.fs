@@ -2,7 +2,6 @@
 module LibBinarySerialization.ProgramTypesToSerializedTypes
 
 open Prelude
-open Tablecloth
 
 // Used for conversion functions
 module ST = SerializedTypes

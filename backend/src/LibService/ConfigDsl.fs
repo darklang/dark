@@ -1,8 +1,6 @@
 /// Parsers for environment variables
 module LibService.ConfigDsl
 
-open Tablecloth
-
 let getEnv (name : string) : string option =
   let var = System.Environment.GetEnvironmentVariable name
   if var = null then None else Some var

@@ -6,8 +6,6 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-open Tablecloth
-open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module ST = SerializedTypes
@@ -41,7 +39,7 @@ let wrapSerializationException (id : string) (f : unit -> 'a) : 'a =
   with e ->
     Exception.callExceptionCallback e
     raise (
-      InternalException(
+      Exception.InternalException(
         "error deserializing toplevel",
         [ "id", id
           "suggestion", "maybe annotation are missing in SerializationTypes" ],

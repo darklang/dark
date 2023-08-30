@@ -55,8 +55,8 @@ type TelemetryExporter =
 let telemetryExporters : List<TelemetryExporter> =
   "DARK_CONFIG_TELEMETRY_EXPORTER"
   |> string
-  |> Tablecloth.String.split ","
-  |> Tablecloth.List.filterMap (fun telemExporter ->
+  |> String.split ","
+  |> List.filterMap (fun telemExporter ->
     match telemExporter with
     | "honeycomb" -> Some Honeycomb
     | "console" -> Some Console

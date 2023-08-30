@@ -3,7 +3,6 @@ module internal LibParser.Package
 open FSharp.Compiler.Syntax
 
 open Prelude
-open Tablecloth
 
 module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
@@ -58,9 +57,7 @@ let rec parseDecls
   (decls : List<SynModuleDecl>)
   : WTPackageModule =
   List.fold
-    emptyWTModule
     (fun m decl ->
-      // debuG "decl" decl
       match decl with
       | SynModuleDecl.Let(_, bindings, _) ->
         let (fns, constants) =
@@ -97,6 +94,7 @@ let rec parseDecls
 
 
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
+    emptyWTModule
     decls
 
 let parse

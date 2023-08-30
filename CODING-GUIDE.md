@@ -8,8 +8,8 @@
   `./scripts/formatting/format format` to format otherwise. Unformatted files fail in CI.
 
 - imports should be ordered:
-  - First stdlib and language builtins
-  - Then the `Prelude` library and `tablecloth`
+  - First dotnet and F# builtins
+  - Then the `Prelude` library
   - then other Dark modules
 
 ## Names

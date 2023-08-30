@@ -14,8 +14,6 @@ open Npgsql.FSharp
 open LibCloud.Db
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
@@ -218,7 +216,7 @@ let t
 
       return Expect.equalDval actual expected msg
     with
-    | :? Expecto.AssertException as e -> e.Reraise() // let this through
+    | :? Expecto.AssertException as e -> Exception.reraise e
     | e ->
       let metadata = Exception.toMetadata e
       printMetadata "" metadata

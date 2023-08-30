@@ -9,8 +9,6 @@ open Npgsql
 open Db
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 
 module Telemetry = LibService.Telemetry
 module PT = LibExecution.ProgramTypes
@@ -21,7 +19,7 @@ module RT = LibExecution.RuntimeTypes
 /// folds over the list [l] with function [f], summing the
 /// values of the returned (int * int) tuple from each call
 let sumPairs (l : (int * int) list) : int * int =
-  List.fold (0, 0) (fun (a', b') (a, b) -> (a + a', b + b')) l
+  List.fold (fun (a', b') (a, b) -> (a + a', b + b')) (0, 0) l
 
 
 type CronScheduleData = Serialize.CronScheduleData
@@ -165,7 +163,7 @@ let checkAndScheduleWorkForAllCrons () : Task<unit> =
     let concurrencyCount = LibService.Config.pgPoolSize
     let! enqueuedCrons =
       Task.mapWithConcurrency concurrencyCount checkAndScheduleWorkForCron crons
-    let enqueuedCronCount = List.count Fun.identity enqueuedCrons
+    let enqueuedCronCount = List.count identity enqueuedCrons
     Telemetry.addTags
       [ ("crons.checked", List.length crons)
         ("crons.scheduled", enqueuedCronCount) ]

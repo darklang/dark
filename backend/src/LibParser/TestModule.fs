@@ -3,7 +3,6 @@ module LibParser.TestModule
 open FSharp.Compiler.Syntax
 
 open Prelude
-open Tablecloth
 
 module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
@@ -131,8 +130,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
     : List<WTModule> =
     let (m, nested) =
       List.fold
-        ({ emptyWTModule with name = moduleName; dbs = parentDBs }, [])
-        (fun (m, nested) decl ->
+        (fun ((m : WTModule), nested) decl ->
           match decl with
           | SynModuleDecl.Let(_, bindings, _) ->
             let (newUserFns, newUserConstants) =
@@ -168,6 +166,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
                                        _) ->
             (m, parseModule (moduleName @ [ modName.idText ]) m.dbs decls @ nested)
           | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
+        ({ emptyWTModule with name = moduleName; dbs = parentDBs }, [])
         decls
     m :: nested
 

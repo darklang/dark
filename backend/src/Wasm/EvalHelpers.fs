@@ -1,7 +1,6 @@
 module Wasm.EvalHelpers
 
 open Prelude
-open Tablecloth
 
 open LibExecution.RuntimeTypes
 
@@ -65,10 +64,12 @@ let getStateForEval
 let exprsCollapsedIntoOne (exprs : List<Expr>) : Expr =
   exprs
   |> List.rev
-  |> List.fold (EUnit(gid ())) (fun agg expr ->
-    match agg with
-    | EUnit(_) -> expr
-    | _ ->
-      match expr with
-      | ELet(id, lp, expr, _) -> ELet(id, lp, expr, agg)
-      | other -> ELet(gid (), LPVariable(gid (), "_"), other, agg))
+  |> List.fold
+    (fun agg expr ->
+      match agg with
+      | EUnit(_) -> expr
+      | _ ->
+        match expr with
+        | ELet(id, lp, expr, _) -> ELet(id, lp, expr, agg)
+        | other -> ELet(gid (), LPVariable(gid (), "_"), other, agg))
+    (EUnit(gid ()))

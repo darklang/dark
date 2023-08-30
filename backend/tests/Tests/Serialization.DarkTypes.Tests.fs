@@ -4,9 +4,8 @@ open Expecto
 open System.Text.RegularExpressions
 
 open Prelude
-open Tablecloth
-open TestUtils.TestUtils
 
+open TestUtils.TestUtils
 
 module File = LibCloud.File
 module Config = LibCloud.Config

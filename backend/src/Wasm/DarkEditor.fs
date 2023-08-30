@@ -7,7 +7,6 @@ open System.Threading.Tasks
 open Microsoft.JSInterop
 
 open Prelude
-open Tablecloth
 
 open LibExecution.RuntimeTypes
 open EvalHelpers

@@ -2,7 +2,6 @@
 module LibParser.NameResolver
 
 open Prelude
-open Tablecloth
 
 module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
@@ -268,7 +267,7 @@ let resolve
           match modules with
           | [] -> [ given ]
           | _ ->
-            let rest = List.initial modules |> Option.unwrap []
+            let rest = List.initial modules
             (NEList.prependList modules given) :: loop rest
         loop currentModule
 

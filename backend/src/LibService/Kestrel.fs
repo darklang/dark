@@ -1,7 +1,6 @@
 module LibService.Kestrel
 
 open Prelude
-open Tablecloth
 
 type KestrelServerOptions =
   Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerOptions

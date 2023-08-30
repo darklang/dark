@@ -1,7 +1,6 @@
 module LibExecution.ProgramTypesToDarkTypes
 
 open Prelude
-open Tablecloth
 
 open RuntimeTypes
 module PT = ProgramTypes

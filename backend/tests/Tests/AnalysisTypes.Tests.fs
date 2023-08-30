@@ -5,8 +5,6 @@ open FSharp.Control.Tasks
 
 open Expecto
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes

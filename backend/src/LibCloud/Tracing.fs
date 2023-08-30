@@ -5,7 +5,6 @@ open FSharp.Control.Tasks
 open System.Threading.Tasks
 
 open Prelude
-open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -93,7 +92,7 @@ module TracingConfig =
 
 module TraceResults =
   type T =
-    { tlids : HashSet.T<tlid>
+    { tlids : HashSet.HashSet<tlid>
       functionResults :
         Dictionary.T<TraceCloudStorage.FunctionResultKey, TraceCloudStorage.FunctionResultValue> }
 
@@ -106,7 +105,7 @@ module TraceResults =
 type T =
   {
     /// Store the tracing input, if enabled
-    storeTraceInput : HandlerDesc -> string -> RT.Dval -> unit
+    storeTraceInput : PT.Handler.HandlerDesc -> string -> RT.Dval -> unit
 
     /// Store the trace results calculated over the execution, if enabled
     storeTraceResults : unit -> unit

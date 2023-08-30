@@ -11,7 +11,6 @@ open FSharp.Control.Tasks
 open System.Threading.Tasks
 
 open Prelude
-open Tablecloth
 
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar

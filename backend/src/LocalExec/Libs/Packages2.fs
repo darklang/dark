@@ -5,7 +5,6 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-open Tablecloth
 open LibExecution.RuntimeTypes
 
 open LibExecution.StdLib.Shortcuts

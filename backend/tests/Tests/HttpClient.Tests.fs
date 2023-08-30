@@ -25,7 +25,6 @@ type ConcurrentDictionary<'a, 'b> =
   System.Collections.Concurrent.ConcurrentDictionary<'a, 'b>
 
 open Prelude
-open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
