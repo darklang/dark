@@ -1,9 +1,14 @@
 Int.add_v0 5 = Test.derrorMessage
   "Int.add has 0 type parameters and 2 parameters, but here was called with 0 type arguments and 1 arguments."
 
-// TODO - not yet suppported
-// (let fn = (fun x -> x + 1)
-//  fn 6) = 7
+(let fn = (fun x -> x + 1)
+ fn 6) = 7
+
+(let fn = Int.add
+ fn 3 4) = 7
+
+(let fn = PACKAGE.Darklang.Stdlib.Int.max
+ fn 3 7) = 7
 
 // ---------------------------
 // DarkInternal tests are internal
@@ -88,7 +93,7 @@ module UserDefined =
 
   module InvalidFnCalls =
     functionWhichDoesntExist 6 = Test.derrorMessage
-      "There is no function named functionWhichDoesntExist"
+      "There is no variable named: functionWhichDoesntExist"
 
     stringFn 5 = Test.derrorMessage
       "UserDefined.stringFn's 1st argument (`key`) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
