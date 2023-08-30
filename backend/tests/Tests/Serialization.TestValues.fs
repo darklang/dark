@@ -143,6 +143,7 @@ module RuntimeTypes =
         RT.EUnit(747123UL),
         Some(RT.EUnit(747123UL))
       )
+      RT.EIf(747843UL, RT.EUnit(749549UL), RT.EUnit(6739745UL), None)
       RT.ELambda(7587123UL, NEList.singleton (758123UL, "var3"), RT.EUnit(17384UL))
       RT.EFieldAccess(74875UL, RT.EUnit(737463UL), "field")
       RT.EVariable(8737583UL, "var4")
