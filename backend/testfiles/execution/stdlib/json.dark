@@ -61,6 +61,8 @@ Json.serialize<Int> 2147483647 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   "2147483647"
 
 Json.parse<Int> "-2147483648" = PACKAGE.Darklang.Stdlib.Result.Result.Ok -2147483648
+//TODO: this should fail but doesn't
+// Json.parse<Int> "-2147483648" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 2147483648
 Json.parse<Int> "2147483647" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 2147483647
 //Json.serialize<Int> -2147483649 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"-2147483649\""
 //Json.serialize<Int> 2147483648 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"2147483648\""
@@ -136,8 +138,77 @@ Json.parse<Float> "1e3" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 1000.0 // PAC
 Json.parse<Float> "-1e3" = PACKAGE.Darklang.Stdlib.Result.Result.Ok -1000.0 // PACKAGE.Darklang.Stdlib.Result.Result.Ok?
 
 // TODO: test the upper/lower bounds
+//This works but, we haven't implemented the support for numbers in the [number]e+[pow] format. we're just benefiting from .NET's support for it
+// Json.serialize<Float> 3.40282347e+38 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+//   "3.40282347e+38"
+
+// Json.parse<Float> "3.40282347e+38" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+//   3.40282347e+38
+
+// Json.serialize<Float> 1.17549435e-38 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+//   "1.17549435e-38"
+
+// Json.parse<Float> "1.17549435e-38" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+//   1.17549435e-38
+
+
+Json.parse<Float> "1.7976931348623157e+308" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  1.7976931348623157e+308
+
 // TODO: test highly-precise numbers
+// actual 3.14159265359
+// Json.serialize<Float> 3.14159265358979323846 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+//   "3.141592653589793"
+
+// actual 1.61803398875
+// Json.serialize<Float> 1.618033988749895 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+//   "1.618033988749895"
+
+
 // TODO: review Float.tests for more values to test against
+
+Json.parse<Float> "1.0000001" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 1.0000001
+
+Json.parse<Float> "-1.00000001" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -1.00000001
+
+Json.parse<Float> "-2147483647.8" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -2147483647.8
+
+
+Json.parse<Float> "17.55042081" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  17.55042081
+
+Json.parse<Float> "2147483647.000009" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  2147483647.000009
+
+Json.parse<Float> "-2367.9267" = PACKAGE.Darklang.Stdlib.Result.Result.Ok -2367.9267
+
+Json.parse<Float> "0.6999999999999999555910790149937383830547332763671875" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  0.6999999999999999555910790149937383830547332763671875
+
+Json.parse<Float> "0.7999999999" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  0.7999999999
+
+Json.parse<Float> "-5.55555555556e+28" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -5.55555555556e+28
+
+Json.serialize<Float> Test.negativeInfinity_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "\"-Infinity\""
+
+Json.parse<Float> "\"-Infinity\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  Test.negativeInfinity_v0
+
+Json.serialize<Float> Test.infinity_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "\"Infinity\""
+
+Json.parse<Float> "\"Infinity\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  Test.infinity_v0
+
+Json.serialize<Float> Test.nan_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "\"NaN\""
+
+Json.parse<Float> "\"NaN\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok Test.nan_v0
 
 // not floats
 Json.parse<Float> " -42 . 0 " = PACKAGE.Darklang.Stdlib.Result.Result.Error
@@ -147,6 +218,8 @@ Json.parse<Float> " " = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 Json.parse<Float> "4a" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 Json.parse<Float> "- 42.0" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 
+Json.parse<Float> "-141s" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+
 Json.parse<Float> "null" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Can't parse JSON `null` as type `Float` at path: `root`"
 
@@ -155,7 +228,7 @@ Json.parse<Float> "true" = PACKAGE.Darklang.Stdlib.Result.Result.Error
 
 Json.parse<Float> "false" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Can't parse JSON `false` as type `Float` at path: `root`"
-//Json.parse<Float> "\"42\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+// Json.parse<Float> "\"42\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
 Json.parse<Float> "[42]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Can't parse JSON `[42]` as type `Float` at path: `root`"
 
@@ -163,6 +236,18 @@ Json.parse<Float> "{ \"key\": 42 }" = PACKAGE.Darklang.Stdlib.Result.Result.Erro
   "Can't parse JSON `{ \"key\": 42 }` as type `Float` at path: `root`"
 
 Json.parse<Float> "\"42\n\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+
+Json.parse<Float> "000000.9" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+
+Json.parse<Float> "-000000.9" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "not JSON"
+
+Json.parse<Float> "-00000000.000" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "not JSON"
+
+Json.parse<Float> "00000000.000" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "not JSON"
+
 //Json.parse<Float> "4\u0032" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 
 
@@ -176,8 +261,8 @@ Json.parse<Char> "\"a\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 'a'
 //Json.parse<Char> "\"😂\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok '😂'
 //Json.serialize<Char> '👩‍👩‍👧‍👦' = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"👩‍👩‍👧‍👦\""
 //Json.parse<Char> "\"👩‍👩‍👧‍👦\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok '👩‍👩‍👧‍👦'
-//Json.serialize<Char> 'Ł' = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"Ł\""
-//Json.parse<Char> "\"Ł\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 'Ł'
+Json.serialize<Char> 'Ł' = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"Ł\""
+Json.parse<Char> "\"Ł\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 'Ł'
 
 // not chars
 //Json.serialize<Char> "test" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
@@ -197,6 +282,25 @@ Json.parse<String> "\"👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳�
 //Json.serialize<String> "👩‍👩‍👧‍👦" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"👩‍👩‍👧‍👦\""
 //Json.parse<String> "\"👩‍👩‍👧‍👦\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "👩‍👩‍👧‍👦"
 // TODO: long strings
+Json.serialize<String>
+  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor." = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor.\""
+
+Json.parse<String>
+  "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor.\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor."
+
+
+Json.serialize<String> (PACKAGE.Darklang.Stdlib.String.repeat_v0 "a" 100) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
+
+Json.parse<String>
+  "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(PACKAGE.Darklang.Stdlib.String.repeat_v0 "a" 100)
 
 
 // Datetimes
@@ -299,8 +403,8 @@ Json.parse<Uuid> "\"00000000-0000-0000-0000-00000000000\"" = PACKAGE.Darklang.St
 
 
 // Bytes
-//Json.serialize<bytes> Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"\""
-//Json.parse<bytes> "\"\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok Bytes.empty
+Json.serialize<Bytes> Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"\""
+Json.parse<Bytes> "\"\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok Bytes.empty
 
 // Passwords - TODO
 
@@ -317,6 +421,9 @@ Json.serialize<List<Int>> [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
 
 Json.parse<List<Int>> "[1,2,3]" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   [ 1; 2; 3 ]
+
+Json.parse<List<Int>> "[1,2,3,]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "not JSON"
 
 Json.serialize<List<List<List<Int>>>>
   [ [ [ 1; 2; 3 ]; [ 4; 5; 6 ] ]; [ [ 7; 8 ]; [ 9; 0 ] ] ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
@@ -375,20 +482,127 @@ Json.parse<List<Dict<Int>>>
 Json.serialize<Tuple<Int, String, Int>> (1, "two", 3) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   "[1,\"two\",3]"
 
+Json.serialize<Tuple<List<Int>, List<Person>>> (
+  [ 1; 2; 3 ],
+  [ Person { Name = "Alice"; Age = 42 } ]
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]"
+
+Json.serialize<Tuple<Tuple<Int, String>, Tuple<Person, Dict<String>>>> (
+  (1, "two"),
+  (Person { Name = "Alice"; Age = 42 }, Dict.singleton "a" "b")
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
+
+Json.serialize<Tuple<Tuple<List<Tuple<Int, String>>, Bytes>, Tuple<Person, Dict<String>>>> (
+  ([ (1, "two"); (3, "four") ], Bytes.empty),
+  (Person { Name = "Alice"; Age = 42 }, Dict.singleton "a" "b")
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "[[[[1,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
+
+Json.serialize<Tuple<Person, PACKAGE.Darklang.Stdlib.Option.Option<Int>>> (
+  Person { Name = "Alice"; Age = 42 },
+  PACKAGE.Darklang.Stdlib.Option.Option.Some 1
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[1]}]"
+
+Json.serialize<Tuple<PACKAGE.Darklang.Stdlib.Option.Option<Int>, PACKAGE.Darklang.Stdlib.Result.Result<Int, String>>> (
+  PACKAGE.Darklang.Stdlib.Option.Option.Some 1,
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok 2
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "[{\"Some\":[1]},{\"Ok\":[2]}]"
+
+Json.serialize<Tuple<Char, Bool>> ('a', true) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "[\"a\",true]"
+
+Json.serialize<Tuple<DateTime, Uuid>> (
+  d "2023-07-28T22:42:36Z",
+  uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "[\"2023-07-28T22:42:36Z\",\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"]"
+
+
 Json.parse<Tuple<Int, String, Int>> "[1,\"two\",3]" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
   .Ok((1, "two", 3))
-// TODO: more...
-// TODO: more nesting...
+
+Json.parse<Tuple<List<Int>, List<Person>>>
+  "[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(([ 1; 2; 3 ], [ Person { Name = "Alice"; Age = 42 } ]))
+
+Json.parse<Tuple<Tuple<Int, String>, Tuple<Person, Dict<String>>>>
+  "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(((1, "two"), (Person { Name = "Alice"; Age = 42 }, Dict.singleton "a" "b")))
+
+Json.parse<Tuple<Tuple<List<Tuple<Int, String>>, Bytes>, Tuple<Person, Dict<String>>>>
+  "[[[[1,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(
+    (([ (1, "two"); (3, "four") ], Bytes.empty),
+     (Person { Name = "Alice"; Age = 42 }, Dict.singleton "a" "b"))
+  )
+
+Json.parse<Tuple<Person, PACKAGE.Darklang.Stdlib.Option.Option<Int>>>
+  "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[1]}]" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(
+    (Person { Name = "Alice"; Age = 42 },
+     PACKAGE.Darklang.Stdlib.Option.Option.Some 1)
+  )
+
+Json.parse<Tuple<PACKAGE.Darklang.Stdlib.Option.Option<Int>, PACKAGE.Darklang.Stdlib.Result.Result<Int, String>>>
+  "[{\"Some\":[1]},{\"Ok\":[2]}]" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  (PACKAGE.Darklang.Stdlib.Option.Option.Some 1,
+   PACKAGE.Darklang.Stdlib.Result.Result.Ok 2)
+)
+
+Json.parse<Tuple<Char, Bool>> "[\"a\",true]" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(('a', true))
+
+Json.parse<Tuple<DateTime, Uuid>>
+  "[\"2023-07-28T22:42:36Z\",\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"]" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok((d "2023-07-28T22:42:36Z", uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"))
+
 
 // not proper tuples
 Json.parse<Tuple<String, String, Int>> """[1, "two", 3]""" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Can't parse JSON `1` as type `String` at path: `root[0]`"
-// TODO: more...
-// TODO: issues at a few levels deep
+
+Json.parse<Tuple<Tuple<List<Tuple<String, String>>, Bytes>, Tuple<Person, Dict<String>>>>
+  "[[[[2,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":1}]]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Can't parse JSON `2` as type `String` at path: `root[0][0][0][0]`"
+
+Json.parse<Tuple<List<Tuple<Int, List<String>>>, String>>
+  "[[[1,\"two\"],[3,\"four\"]],\"\"]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Can't parse JSON `\"two\"` as type `List<String>` at path: `root[0][0][1]`"
+
+Json.parse<Tuple<Person, PACKAGE.Darklang.Stdlib.Option.Option<Int>>>
+  "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[\"one\"]}]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Can't parse JSON `\"one\"` as type `Int` at path: `root[1]`"
 
 
 // Options
@@ -416,6 +630,10 @@ Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<Int>> "null" = PACKAGE.Darklang
 
 Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<Int>> "1" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Can't parse JSON `1` as type `PACKAGE.Darklang.Stdlib.Option.Option<Int>` at path: `root`"
+
+Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<List<String>>> "[1,2,3]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Can't parse JSON `[1,2,3]` as type `PACKAGE.Darklang.Stdlib.Option.Option<List<String>>` at path: `root`"
+
 // TODO: more...
 
 
@@ -440,12 +658,84 @@ Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>>
   PACKAGE.Darklang.Stdlib.Result.Result.Error "err message"
 )
 
-// TODO: more...
-// TODO: more nesting...
+Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<List<Tuple<Dict<String>, PACKAGE.Darklang.Stdlib.Option.Option<Int>>>, String>> (
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    [ (Dict.singleton "a" "b", PACKAGE.Darklang.Stdlib.Option.Option.Some 1)
+      (Dict.singleton "c" "d", PACKAGE.Darklang.Stdlib.Option.Option.None) ]
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}"
 
-// WTF is happening here
-//Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> =
-//  PACKAGE.Darklang.Stdlib.Result.Result.Ok (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
+Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<List<Tuple<Dict<String>, PACKAGE.Darklang.Stdlib.Option.Option<Int>>>, String>>
+  "{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok
+      [ (Dict.singleton "a" "b", PACKAGE.Darklang.Stdlib.Option.Option.Some 1)
+        (Dict.singleton "c" "d", PACKAGE.Darklang.Stdlib.Option.Option.None) ]
+  )
+
+Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>, String>> (
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+  )
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Ok\":[{\"Ok\":[1]}]}"
+
+Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>, String>> (
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+    PACKAGE.Darklang.Stdlib.Result.Result.Error "err message"
+  )
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "{\"Ok\":[{\"Error\":[\"err message\"]}]}"
+
+Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>, String>>
+  "{\"Ok\":[{\"Ok\":[1]}]}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+  )
+)
+
+Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>, String>>
+  "{\"Ok\":[{\"Error\":[\"err message\"]}]}" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+      PACKAGE.Darklang.Stdlib.Result.Result.Error "err message"
+    )
+  )
+
+Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.Option.Option<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>>, String>, String>> (
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+      PACKAGE.Darklang.Stdlib.Option.Option.Some(
+        PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+      )
+    )
+  )
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "{\"Ok\":[{\"Ok\":[{\"Some\":[{\"Ok\":[1]}]}]}]}"
+
+Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.Option.Option<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>>, String>, String>>
+  "{\"Ok\":[{\"Ok\":[{\"Some\":[{\"Ok\":[1]}]}]}]}" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+      PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+        PACKAGE.Darklang.Stdlib.Option.Option.Some(
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+        )
+      )
+    )
+  )
+
 
 // re: Dicts
 // we don't really have a reasonable way to fill in the <> here:
@@ -491,6 +781,11 @@ type PrettyLikely =
   | Yeah
   | Enh of reason: String * Int
 
+type PrettyLikely2 =
+  | PrettyLikely of PrettyLikely
+  | Yes
+  | No
+
 Json.serialize<PrettyLikely> PrettyLikely.Yeah = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   "{\"Yeah\":[]}"
 
@@ -506,9 +801,30 @@ Json.parse<PrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = PACKAGE
   .Result
   .Result
   .Ok(PrettyLikely.Enh("printer broke", 7))
-// TODO: more
-// TODO: more nesting...
 
+Json.serialize<PrettyLikely2> (PrettyLikely2.PrettyLikely PrettyLikely.Yeah) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "{\"PrettyLikely\":[{\"Yeah\":[]}]}"
+
+Json.parse<PrettyLikely2> "{\"PrettyLikely\":[{\"Yeah\":[]}]}" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(PrettyLikely2.PrettyLikely PrettyLikely.Yeah)
+
+Json.serialize<PrettyLikely2> (
+  PrettyLikely2.PrettyLikely(PrettyLikely.Enh("printer broke", 7))
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "{\"PrettyLikely\":[{\"Enh\":[\"printer broke\",7]}]}"
+
+Json.parse<PrettyLikely2> "{\"PrettyLikely\":[{\"Enh\":[\"printer broke\",7]}]}" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(PrettyLikely2.PrettyLikely(PrettyLikely.Enh("printer broke", 7)))
+
+// TODO: more nesting...
 
 // #### Records
 type Person = { Name: String; Age: Int }
@@ -671,10 +987,14 @@ Json.serialize<Person2> (Person1 { Name = "Bob"; Age = 42 }) = Test.derrorMessag
 Expected: (arg: 'a)
 Actual: a Person1: Person1 {\n  Age: 42,\n  Name: \"Bob\"\n}"
 
-// type StringResult<’a> = PACKAGE.Darklang.Stdlib.Result.Result<’a, String>
-// Json.serialize<StringResult<Int>> (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"PACKAGE.Darklang.Stdlib.Result.Result.Ok\":1}"
-// Json.serialize<StringResult<Int>> (PACKAGE.Darklang.Stdlib.Result.Result.Error “err”) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Error\":\"err\"}"
-// Json.serialize<StringResult<Int>> (PACKAGE.Darklang.Stdlib.Result.Result.Error 1) = PACKAGE.Darklang.Stdlib.Result.Result.Error "Incorrect type for Error value"
+type StringResult<'a> = PACKAGE.Darklang.Stdlib.Result.Result<'a, String>
+
+Json.serialize<StringResult<Int>> (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "{\"Ok\":[1]}"
+
+Json.serialize<StringResult<Int>> (PACKAGE.Darklang.Stdlib.Result.Result.Error "err") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "{\"Error\":[\"err\"]}"
+// Json.serialize<StringResult<Int>> (PACKAGE.Darklang.Stdlib.Result.Result.Error 1) = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
 
 // TODO: This test should fail but doesn't
 // Json.serialize<StringResult<Int>> (PACKAGE.Darklang.Stdlib.Result.Result.Error 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Error\":1}"
@@ -682,21 +1002,115 @@ Actual: a Person1: Person1 {\n  Age: 42,\n  Name: \"Bob\"\n}"
 
 // ### Package
 
-// #### Records
-// TODO
+Json.serialize<PACKAGE.Darklang.Stdlib.Option.Option<Int>>
+  PACKAGE.Darklang.Stdlib.Option.Option.None = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "{\"None\":[]}"
 
-// #### Enums
-// TODO
+Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<Int>> "{\"None\":[]}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.Option.Option.None
+
+Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> (
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Ok\":[1]}"
+
+Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> (
+  PACKAGE.Darklang.Stdlib.Result.Result.Error "err message"
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Error\":[\"err message\"]}"
+
+Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> "{\"Ok\":[1]}" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
+
+Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>>
+  "{\"Error\":[\"err message\"]}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  PACKAGE.Darklang.Stdlib.Result.Result.Error "err message"
+)
 
 
+Json.serialize<PACKAGE.Darklang.LanguageTools.ID> 42 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "42"
+
+Json.parse<PACKAGE.Darklang.LanguageTools.ID> "42" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  42
+
+Json.serialize<PACKAGE.Darklang.LanguageTools.Sign>
+  PACKAGE.Darklang.LanguageTools.Sign.Positive = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "{\"Positive\":[]}"
+
+Json.parse<PACKAGE.Darklang.LanguageTools.Sign> "{\"Positive\":[]}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.LanguageTools.Sign.Positive
 
 
+Json.serialize<PACKAGE.OpenAI.Completion.ResponseChoice> (
+  PACKAGE.OpenAI.Completion.ResponseChoice { text = "hello" }
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"text\":\"hello\"}"
+
+Json.parse<PACKAGE.OpenAI.Completion.ResponseChoice> "{\"text\":\"hello\"}" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(PACKAGE.OpenAI.Completion.ResponseChoice { text = "hello" })
+
+Json.serialize<PACKAGE.OpenAI.Completion.Request> (
+  PACKAGE.OpenAI.Completion.Request
+    { model = "davinci"
+      prompt = "test"
+      max_tokens = 5
+      temperature = 0.7 }
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "{\"max_tokens\":5,\"model\":\"davinci\",\"prompt\":\"test\",\"temperature\":0.7}"
+
+Json.parse<PACKAGE.OpenAI.Completion.Request>
+  "{\"max_tokens\":5,\"model\":\"davinci\",\"prompt\":\"test\",\"temperature\":0.7}" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(
+    PACKAGE.OpenAI.Completion.Request
+      { model = "davinci"
+        prompt = "test"
+        max_tokens = 5
+        temperature = 0.7 }
+  )
+
+Json.serialize<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>
+  PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok("{\"InvalidPackageName\":[]}")
+
+Json.parse<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>
+  "{\"NotFound\":[]}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
+
+Json.serialize<List<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>>
+  [ PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
+    PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.MissingModuleName
+    PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "[{\"InvalidPackageName\":[]},{\"MissingModuleName\":[]},{\"NotFound\":[]}]"
+
+Json.parse<List<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>>
+  "[{\"InvalidPackageName\":[]},{\"MissingModuleName\":[]},{\"NotFound\":[]}]" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(
+    [ PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
+      PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.MissingModuleName
+      PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound ]
+  )
 
 
 // from old tests - worth reviewing to see if we have missing cases
 
-//Json.parse<List<Int>> "[97, 2, 30, 4]" = PACKAGE.Darklang.Stdlib.Result.Result.Ok [97, 2, 30, 4]
-//Json.parse<List<Int>> "[97, 2, 30, 4,]" = null
 
 //Json.parse<TODO> "{Id : 1.0}" = null
 //Json.parse<TODO> "{Id : 1.}" = null
@@ -704,7 +1118,6 @@ Actual: a Person1: Person1 {\n  Age: 42,\n  Name: \"Bob\"\n}"
 //Json.parse<TODO> "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = null
 //Json.parse<TODO> "({id : 555, edition : \"First\", author : \"Dennis Ritchie\"})" = null
 //Json.parse<TODO> "" = null
-//Json.parse<TODO> "\"\"" = ""
 //Json.parse<TODO> "1,0/0,0" = null
 //Json.parse<TODO> "1" = 1
 
@@ -715,29 +1128,21 @@ Actual: a Person1: Person1 {\n  Age: 42,\n  Name: \"Bob\"\n}"
 
 //Json.parse<TODO> "" = Test.runtimeError "JSON string was empty"
 
-//Json.parse<TODO> "[97.8, -2, false, true, -0.0]" = [97.8, -2, false, true, -0.0]
 //Json.parse<TODO> "{ \"v\": 4611686018427387903 }" = { v = 4611686018427387903L }
 //Json.parse<TODO> "{ \"v\": 4611686018427387904 }" = { v = 4611686018427387904L }
 
-
-
 //Json.parse<TODO> "''" = Test.runtimeError "''' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 0."
 //Json.parse<TODO> "" = Test.runtimeError "JSON string was empty"
-//Json.parse<TODO> "[97, 2, 30, 4,]" = Test.runtimeError "The JSON array contains a trailing comma at the end, at on line 0, position 14"
 //Json.parse<TODO> "{Id : 1.0}" = Test.runtimeError "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
 //Json.parse<TODO> "{\"Id\" : 1.}" = Test.runtimeError "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10.")"
 //Json.parse<TODO> "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Test.runtimeError "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
 
-//Json.parse<TODO> "[97.8, -2, false, true, -0.0]" = PACKAGE.Darklang.Stdlib.Result.Result.Ok [97.8, -2, false, true, -0.0]
-
 //Json.parse<TODO> "{ \"v\": 4611686018427387903 }" = PACKAGE.Darklang.Stdlib.Result.Result.Ok { v = 4611686018427387903L }
 //Json.parse<TODO> "{ \"v\": 4611686018427387904 }" = PACKAGE.Darklang.Stdlib.Result.Result.Ok { v = 4611686018427387904L }
-//Json.parse<TODO> "\"\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
 
 //Json.parse<TODO> "" = PACKAGE.Darklang.Stdlib.Result.Result.Error "JSON string was empty"
 //Json.parse<TODO> "{3: false}" = PACKAGE.Darklang.Stdlib.Result.Result.Error "'3' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
 
-//Json.parse<TODO> "[97, 2, 30, 4,]" = PACKAGE.Darklang.Stdlib.Result.Result.Error "The JSON array contains a trailing comma at the end, at on line 0, position 14"
 //Json.parse<TODO> "{Id : 1.0}" = PACKAGE.Darklang.Stdlib.Result.Result.Error "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
 //Json.parse<TODO> "{\"Id\" : Infinity }" = PACKAGE.Darklang.Stdlib.Result.Result.Error "'I' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 8."
 //Json.parse<TODO> "{\"Id\" : -Infinity }" = PACKAGE.Darklang.Stdlib.Result.Result.Error "'I' is invalid within a number, immediately after a sign character ('+' or '-'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 9."
