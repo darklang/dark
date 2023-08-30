@@ -1,0 +1,56 @@
+module Darklang =
+  module Stdlib =
+    module Float =
+      /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
+      let absoluteValue (a: Float) : Float =
+        if (Float.lessThan a 0.0) then Float.multiply a -1.0 else a
+
+
+      /// Returns the negation of <param a>, {{-a}}
+      let negate (a: Float) : Float = Float.multiply a -1.0
+
+
+      /// Returns the sum of all the floats in the list
+      let sum (a: List<Float>) : Float =
+        List.fold a 0.0 (fun acc next -> Float.add acc next)
+
+
+      /// Returns the lesser of <type Float> <param a> and <type Float> <param b>
+      let min (a: Float) (b: Float) : Float = if (Float.lessThan a b) then a else b
+
+
+      /// Returns the greater of <type Float> <param a> and <type Float> <param b>
+      let max (a: Float) (b: Float) : Float =
+        if (Float.greaterThan a b) then a else b
+
+
+      /// If <param value> is within the range given by <param limitA> and <param
+      /// limitB>, returns <param value>.
+
+      /// If <param value> is outside the range, returns <param limitA> or <param
+      /// limitB>, whichever is closer to <param value>.
+
+      /// Returns <param value> wrapped in a {{Result}}.
+
+      /// <param limitA> and <param limitB> can be provided in any order.
+      let clamp
+        (value: Float)
+        (limitA: Float)
+        (limitB: Float)
+        : PACKAGE.Darklang.Stdlib.Result.Result<Float, String> =
+        if Float.isNan limitA || Float.isNan limitB then
+          PACKAGE.Darklang.Stdlib.Result.Result.Error
+            "clamp requires arguments to be valid numbers"
+        else
+          let (lower, upper) =
+            if Float.lessThan limitA limitB then
+              (limitA, limitB)
+            else
+              (limitB, limitA)
+
+          if Float.lessThan value lower then
+            PACKAGE.Darklang.Stdlib.Result.Result.Ok lower
+          else if Float.greaterThan value upper then
+            PACKAGE.Darklang.Stdlib.Result.Result.Ok upper
+          else
+            PACKAGE.Darklang.Stdlib.Result.Result.Ok value
