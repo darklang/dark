@@ -26,12 +26,9 @@ module Darklang =
 
       /// If <param value> is within the range given by <param limitA> and <param
       /// limitB>, returns <param value>.
-
       /// If <param value> is outside the range, returns <param limitA> or <param
       /// limitB>, whichever is closer to <param value>.
-
       /// Returns <param value> wrapped in a {{Result}}.
-
       /// <param limitA> and <param limitB> can be provided in any order.
       let clamp
         (value: Float)
