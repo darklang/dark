@@ -164,28 +164,94 @@ let getConstant
   }
 
 
+open System
+open System.Threading
+
+let cacheByNameSimple (fn : 'a -> Ply<'b>) : 'a -> Ply<'b> =
+  // TODO: consider another structure
+  let mutable cache : Map<'a, DateTime * 'b> = Map.empty
+
+  fun name ->
+    uply {
+      let now = DateTime.Now
+      match Map.tryFind name cache with
+      | Some(exp, v) when exp < now -> return v
+      | _ ->
+        let! v = fn name
+        let exp = now + TimeSpan.FromSeconds 30.
+        cache <- Map.add name (exp, v) cache
+        return v
+    }
+
+
+let cacheByNameWithSemaphore (fn : 'a -> Ply<Option<'b>>) : 'a -> Ply<Option<'b>> =
+  let cache =
+    Collections.Concurrent.ConcurrentDictionary<'a, DateTime * Option<'b>>()
+  let ongoingComputations =
+    Collections.Concurrent.ConcurrentDictionary<'a, SemaphoreSlim>()
+
+  let tryGetValue key =
+    match cache.TryGetValue(key) with
+    | (true, value) -> Some value
+    | (false, _) -> None
+
+  fun name ->
+    uply {
+      let now = System.DateTime.Now
+      match tryGetValue name with
+      | Some(exp, Some v) when exp > now -> return Some v
+      | _ ->
+        debuG "cache miss" name
+        let semaphore =
+          ongoingComputations.GetOrAdd(name, (fun _ -> new SemaphoreSlim 1))
+        try
+          // Wait for the semaphore before proceeding
+          do! semaphore.WaitAsync()
+
+          // Double-check the cache after acquiring the semaphore
+          match tryGetValue name with
+          | Some(exp, Some v) when exp > now -> return Some v
+          | _ ->
+            let! v = fn name
+            let exp = now + System.TimeSpan.FromSeconds 30.
+            cache.[name] <- (exp, v)
+            debuG "got" name
+            return v
+        finally
+          semaphore.Release() |> ignore<int>
+          if semaphore.CurrentCount = 1 then
+            // Remove semaphore from dictionary if no other tasks are waiting on it
+
+            let mutable removedSem = semaphore
+            ongoingComputations.TryRemove(name, &removedSem) |> ignore<bool>
+    }
+
+let noCache (fn : 'a -> Ply<'b>) : 'a -> Ply<'b> = fun name -> fn name
+
+let cacheByName = noCache
+
 // CLEANUP this package manager should be removed, and all usages replaced with the
 // one that fetches things from the `dark-packages` canvas' http endpoints
 let packageManager : RT.PackageManager =
   { getType =
-      fun name ->
+      cacheByName (fun name ->
         uply {
           let! typ = name |> PT2RT.TypeName.Package.fromRT |> getType
           return Option.map PT2RT.PackageType.toRT typ
-        }
+        })
 
     getFn =
-      fun name ->
+      cacheByName (fun name ->
         uply {
           let! typ = name |> PT2RT.FnName.Package.fromRT |> getFn
           return Option.map PT2RT.PackageFn.toRT typ
-        }
+        })
 
     getConstant =
-      fun name ->
+      cacheByName (fun name ->
         uply {
           let! typ = name |> PT2RT.ConstantName.Package.fromRT |> getConstant
           return Option.map PT2RT.PackageConstant.toRT typ
-        }
+        })
 
     init = uply { return () } }

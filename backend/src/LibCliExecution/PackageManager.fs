@@ -648,6 +648,72 @@ module ExternalTypesToProgramTypes =
 module ET2PT = ExternalTypesToProgramTypes
 
 
+open System
+open System.Threading
+
+let cacheByNameSimple (fn : 'a -> Ply<'b>) : 'a -> Ply<'b> =
+  // TODO: consider another structure
+  let mutable cache : Map<'a, DateTime * 'b> = Map.empty
+
+  fun name ->
+    uply {
+      let now = DateTime.Now
+      match Map.tryFind name cache with
+      | Some(exp, v) when exp < now -> return v
+      | _ ->
+        let! v = fn name
+        let exp = now + TimeSpan.FromSeconds 30.
+        cache <- Map.add name (exp, v) cache
+        return v
+    }
+
+
+let cacheByNameWithSemaphore (fn : 'a -> Ply<Option<'b>>) : 'a -> Ply<Option<'b>> =
+  let cache =
+    Collections.Concurrent.ConcurrentDictionary<'a, DateTime * Option<'b>>()
+  let ongoingComputations =
+    Collections.Concurrent.ConcurrentDictionary<'a, SemaphoreSlim>()
+
+  let tryGetValue key =
+    match cache.TryGetValue(key) with
+    | (true, value) -> Some value
+    | (false, _) -> None
+
+  fun name ->
+    uply {
+      let now = System.DateTime.Now
+      match tryGetValue name with
+      | Some(exp, Some v) when exp > now -> return Some v
+      | _ ->
+        debuG "cache miss" name
+        let semaphore =
+          ongoingComputations.GetOrAdd(name, (fun _ -> new SemaphoreSlim 1))
+        try
+          // Wait for the semaphore before proceeding
+          do! semaphore.WaitAsync()
+
+          // Double-check the cache after acquiring the semaphore
+          match tryGetValue name with
+          | Some(exp, Some v) when exp > now -> return Some v
+          | _ ->
+            let! v = fn name
+            let exp = now + System.TimeSpan.FromSeconds 30.
+            cache.[name] <- (exp, v)
+            debuG "got" name
+            return v
+        finally
+          semaphore.Release() |> ignore<int>
+          if semaphore.CurrentCount = 1 then
+            // Remove semaphore from dictionary if no other tasks are waiting on it
+
+            let mutable removedSem = semaphore
+            ongoingComputations.TryRemove(name, &removedSem) |> ignore<bool>
+    }
+
+let noCache (fn : 'a -> Ply<'b>) : 'a -> Ply<'b> = fun name -> fn name
+
+let cacheByName = cacheByNameWithSemaphore
+
 // TODO: copy back to LibCloud/LibCloudExecution, or relocate somewhere central
 // TODO: what should we do when the shape of types at the corresponding endpoints change?
 let packageManager : RT.PackageManager =
@@ -656,7 +722,7 @@ let packageManager : RT.PackageManager =
   // TODO: bring back caching of some sort
 
   { getType =
-      fun name ->
+      cacheByName (fun name ->
         uply {
           let name =
             let modulesPart = String.concat "." name.modules
@@ -675,10 +741,10 @@ let packageManager : RT.PackageManager =
             |> Json.Vanilla.deserialize<Option<ProgramTypes.PackageType>>
             |> Option.map (fun parsed ->
               parsed |> ET2PT.PackageType.toPT |> PT2RT.PackageType.toRT)
-        }
+        })
 
     getFn =
-      fun name ->
+      cacheByName (fun name ->
         uply {
           let name =
             let modulesPart = String.concat "." name.modules
@@ -698,10 +764,10 @@ let packageManager : RT.PackageManager =
             |> Json.Vanilla.deserialize<Option<ProgramTypes.PackageFn.PackageFn>>
             |> Option.map (fun parsed ->
               parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT)
-        }
+        })
 
     getConstant =
-      fun name ->
+      cacheByName (fun name ->
         uply {
           let name =
             let modulesPart = String.concat "." name.modules
@@ -721,6 +787,6 @@ let packageManager : RT.PackageManager =
             |> Json.Vanilla.deserialize<Option<ProgramTypes.PackageConstant>>
             |> Option.map (fun parsed ->
               parsed |> ET2PT.PackageConstant.toPT |> PT2RT.PackageConstant.toRT)
-        }
+        })
 
     init = uply { return () } }
