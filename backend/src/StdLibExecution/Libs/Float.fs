@@ -110,35 +110,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "absoluteValue" 0
-      typeParams = []
-      parameters = [ Param.make "a" TFloat "" ]
-      returnType = TFloat
-      description =
-        "Returns the absolute value of <param a> (turning negative inputs into positive outputs)"
-      fn =
-        (function
-        | _, _, [ DFloat a ] -> DFloat(Math.Abs a) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "negate" 0
-      typeParams = []
-      parameters = [ Param.make "a" TFloat "" ]
-      returnType = TFloat
-      description = "Returns the negation of <param a>, {{-a}}"
-      fn =
-        (function
-        | _, _, [ DFloat a ] -> DFloat(a * -1.0) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "sqrt" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
@@ -279,97 +250,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "sum" 0
-      typeParams = []
-      parameters = [ Param.make "a" (TList TFloat) "" ]
-      returnType = TFloat
-      description = "Returns the sum of all the floats in the list"
-      fn =
-        (function
-        | _, _, [ DList l as ldv ] ->
-          let floats =
-            List.map
-              (fun f ->
-                match f with
-                | DFloat ft -> ft
-                | _ ->
-                  Exception.raiseCode (
-                    Errors.argumentWasntType (TList TFloat) "a" ldv
-                  ))
-              l
-
-          let sum = List.fold (fun acc elem -> acc + elem) 0.0 floats
-          Ply(DFloat sum)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "min" 0
-      typeParams = []
-      parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
-      returnType = TFloat
-      description =
-        "Returns the lesser of <type Float> <param a> and <type Float> <param b>"
-      fn =
-        (function
-        | _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(Math.Min(a, b)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "max" 0
-      typeParams = []
-      parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
-      returnType = TFloat
-      description =
-        "Returns the greater of <type Float> <param a> and <type Float> <param b>"
-      fn =
-        (function
-        | _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(Math.Max(a, b)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "clamp" 0
-      typeParams = []
-      parameters =
-        [ Param.make "value" TFloat ""
-          Param.make "limitA" TFloat ""
-          Param.make "limitB" TFloat "" ]
-      returnType = TypeReference.result TFloat TString
-      description =
-        "If <param value> is within the range given by <param limitA> and <param
-         limitB>, returns <param value>.
-
-         If <param value> is outside the range, returns <param limitA> or <param
-         limitB>, whichever is closer to <param value>.
-
-         Returns <param value> wrapped in a {{Result}}.
-
-         <param limitA> and <param limitB> can be provided in any order."
-      fn =
-        (function
-        | _, _, [ DFloat v; DFloat a; DFloat b ] ->
-          if System.Double.IsNaN a || System.Double.IsNaN b then
-            "clamp requires arguments to be valid numbers"
-            |> DString
-            |> Dval.resultError
-            |> Ply
-          else
-            let min, max = if a < b then (a, b) else (b, a)
-            Math.Clamp(v, min, max) |> DFloat |> Dval.resultOk |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "roundTowardsZero" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
@@ -383,6 +263,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
+
 
     { name = fn "parse" 0
       typeParams = []
