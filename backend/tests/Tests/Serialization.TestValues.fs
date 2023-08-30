@@ -142,7 +142,7 @@ module RuntimeTypes =
         8975872314UL,
         RT.EUnit(747123UL),
         RT.EUnit(747123UL),
-        RT.EUnit(747123UL)
+        Some(RT.EUnit(747123UL))
       )
       RT.ELambda(7587123UL, NEList.singleton (758123UL, "var3"), RT.EUnit(17384UL))
       RT.EFieldAccess(74875UL, RT.EUnit(737463UL), "field")
@@ -423,50 +423,54 @@ module ProgramTypes =
                             PT.EInt(803876589UL, 5L),
                             PT.EInt(219131014UL, 2L)
                           ),
-                          PT.ELambda(
-                            947647446UL,
-                            NEList.singleton (180359194UL, "y"),
-                            PT.EInfix(
-                              140609068UL,
-                              PT.InfixFnCall(PT.ArithmeticPlus),
-                              PT.EInt(450951790UL, 2L),
-                              PT.EVariable(402203255UL, "y")
+                          Some(
+                            PT.ELambda(
+                              947647446UL,
+                              NEList.singleton (180359194UL, "y"),
+                              PT.EInfix(
+                                140609068UL,
+                                PT.InfixFnCall(PT.ArithmeticPlus),
+                                PT.EInt(450951790UL, 2L),
+                                PT.EVariable(402203255UL, "y")
+                              )
                             )
                           )
                         ),
-                        PT.EInfix(
-                          265463935UL,
-                          PT.InfixFnCall(PT.ArithmeticPlus),
+                        Some(
                           PT.EInfix(
-                            312092282UL,
+                            265463935UL,
                             PT.InfixFnCall(PT.ArithmeticPlus),
-                            PT.EFieldAccess(
-                              974664608UL,
-                              PT.EVariable(1002893266UL, "x"),
-                              "y"
-                            ),
-                            PT.EApply(
-                              173079901UL,
-                              PT.EFnName(
-                                638434UL,
-                                Ok(
-                                  PT.FQName.BuiltIn
-                                    { modules = [ "Int" ]
-                                      name = PT.FnName.FnName "add"
-                                      version = 0 }
-                                )
+                            PT.EInfix(
+                              312092282UL,
+                              PT.InfixFnCall(PT.ArithmeticPlus),
+                              PT.EFieldAccess(
+                                974664608UL,
+                                PT.EVariable(1002893266UL, "x"),
+                                "y"
                               ),
-                              [],
-                              NEList.doubleton
-                                (PT.EInt(250221144UL, 6L))
-                                (PT.EInt(298149318UL, 2L))
+                              PT.EApply(
+                                173079901UL,
+                                PT.EFnName(
+                                  638434UL,
+                                  Ok(
+                                    PT.FQName.BuiltIn
+                                      { modules = [ "Int" ]
+                                        name = PT.FnName.FnName "add"
+                                        version = 0 }
+                                  )
+                                ),
+                                [],
+                                NEList.doubleton
+                                  (PT.EInt(250221144UL, 6L))
+                                  (PT.EInt(298149318UL, 2L))
+                              )
+                            ),
+                            PT.EList(
+                              539797095UL,
+                              [ PT.EInt(267797631UL, 5L)
+                                PT.EInt(352138743UL, 6L)
+                                PT.EInt(430871955UL, 7L) ]
                             )
-                          ),
-                          PT.EList(
-                            539797095UL,
-                            [ PT.EInt(267797631UL, 5L)
-                              PT.EInt(352138743UL, 6L)
-                              PT.EInt(430871955UL, 7L) ]
                           )
                         )
                       ),
@@ -636,7 +640,7 @@ module ProgramTypes =
                                 882488977UL,
                                 PT.EBool(349352147UL, true),
                                 PT.EInt(578528886UL, 5L),
-                                PT.EInt(562930224UL, 6L)
+                                Some(PT.EInt(562930224UL, 6L))
                               ),
                               PT.ELet(
                                 6345345UL,

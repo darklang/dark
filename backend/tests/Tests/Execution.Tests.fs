@@ -120,12 +120,14 @@ let testRecursionInEditor : Test =
 
         // 'else' expression
         // calls self ("recurse") resulting in recursion
-        PT.EApply(
-          skippedCallerID,
-          PT.EFnName(9375UL, Ok(PT.FnName.fqUserProgram [] "recurse" 0)),
-          [],
-          (NEList.singleton (PT.EInt(gid (), 2)))
-        )
+        (Some(
+          PT.EApply(
+            skippedCallerID,
+            PT.EFnName(9375UL, Ok(PT.FnName.fqUserProgram [] "recurse" 0)),
+            [],
+            (NEList.singleton (PT.EInt(gid (), 2)))
+          )
+        ))
       )
 
     let ps = NEList.singleton "i"
@@ -160,7 +162,7 @@ let testIfPreview : Test =
           ifID,
           cond,
           EString(thenID, [ StringText "then" ]),
-          EString(elseID, [ StringText "else" ])
+          Some(EString(elseID, [ StringText "else" ]))
         )
       let! results = execSaveDvals "if-preview" [] [] [] [] ast
 

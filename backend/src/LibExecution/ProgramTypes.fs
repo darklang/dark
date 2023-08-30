@@ -424,7 +424,7 @@ type Expr =
   | ELet of id * LetPattern * Expr * Expr
 
   // Composed of condition, expr if true, and expr if false
-  | EIf of id * Expr * Expr * Expr
+  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : option<Expr>
 
   // Composed of a parameters * the expression itself
   // The id in the varname list is the analysis id, used to get a livevalue

@@ -7,3 +7,24 @@
 (if () then "" else "") = Test.derrorMessage "If only supports Booleans"
 (if Test.runtimeError "msg" then "" else "") = Test.derrorMessage "msg"
 (if 5 then "" else "") = Test.derrorMessage "If only supports Booleans"
+
+(if true then
+   ()) = ()
+
+(if 1 > 3 then
+   4) = ()
+
+(if 1 < 3 then
+   4) = 4
+
+(if 1 < 3 then
+   "msg") = "msg"
+
+(if () then
+   "msg") = Test.derrorMessage "If only supports Booleans"
+
+(if true then
+   Test.runtimeError "a") = Test.derrorMessage "a"
+
+(if Test.runtimeError "msg" then
+   "") = Test.derrorMessage "msg"

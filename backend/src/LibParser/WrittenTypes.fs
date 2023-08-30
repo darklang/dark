@@ -131,7 +131,7 @@ type Expr =
   | EFloat of id * Sign * string * string
   | EUnit of id
   | ELet of id * LetPattern * Expr * Expr
-  | EIf of id * Expr * Expr * Expr
+  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : option<Expr>
   | EInfix of id * Infix * Expr * Expr
   | ELambda of id * NEList<id * string> * Expr
   | EFieldAccess of id * Expr * string

@@ -813,7 +813,6 @@ let partiallyEvaluate
     // This is a copy of Ast.postTraversal, made to  work with uplys
     let rec postTraversal (expr : Expr) : Ply.Ply<Expr> =
       let r = postTraversal
-
       uply {
         let! result =
           uply {
@@ -835,11 +834,18 @@ let partiallyEvaluate
               let! exprs = exprs |> Ply.NEList.mapSequentially r
               return EApply(id, fn, typeArgs, exprs)
             | EFnName _ -> return expr
-            | EIf(id, cond, ifexpr, elseexpr) ->
+            | EIf(id, cond, ifExpr, elseExpr) ->
               let! cond = r cond
-              let! ifexpr = r ifexpr
-              let! elseexpr = r elseexpr
-              return EIf(id, cond, ifexpr, elseexpr)
+              let! ifExpr = r ifExpr
+              let! elseExpr =
+                uply {
+                  match elseExpr with
+                  | Some value ->
+                    let! newValue = r value
+                    return Some newValue
+                  | None -> return None
+                }
+              return EIf(id, cond, ifExpr, elseExpr)
             | EFieldAccess(id, expr, fieldname) ->
               let! expr = r expr
               return EFieldAccess(id, expr, fieldname)

@@ -283,7 +283,7 @@ type Expr =
   | EUnit of id
   | EConstant of id * NameResolution<ConstantName.ConstantName>
   | ELet of id * LetPattern * Expr * Expr
-  | EIf of id * Expr * Expr * Expr
+  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : option<Expr>
   | ELambda of id * NEList<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string

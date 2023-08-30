@@ -181,7 +181,14 @@ module Expr =
       | WT.EIf(id, cond, thenExpr, elseExpr) ->
         let! cond = toPT cond
         let! thenExpr = toPT thenExpr
-        let! elseExpr = toPT elseExpr
+        let! elseExpr =
+          uply {
+            match elseExpr with
+            | Some value ->
+              let! newValue = toPT value
+              return Some newValue
+            | None -> return None
+          }
         return PT.EIf(id, cond, thenExpr, elseExpr)
       | WT.EList(id, exprs) ->
         let! exprs = Ply.List.mapSequentially toPT exprs

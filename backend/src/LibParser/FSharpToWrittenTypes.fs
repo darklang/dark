@@ -475,12 +475,8 @@ module Expr =
 
 
     // if/else expressions
-    | SynExpr.IfThenElse(cond, thenExpr, Some elseExpr, _, _, _, _) ->
-      WT.EIf(id, c cond, c thenExpr, c elseExpr)
-
-    // if (no else) expression
-    | SynExpr.IfThenElse(cond, thenExpr, None, _, _, _, _) ->
-      WT.EIf(id, c cond, c thenExpr, WT.EUnit(gid ()))
+    | SynExpr.IfThenElse(cond, thenExpr, elseExpr, _, _, _, _) ->
+      WT.EIf(id, c cond, c thenExpr, Option.map c elseExpr)
 
 
     // `let` bindings

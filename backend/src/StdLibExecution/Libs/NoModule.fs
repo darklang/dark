@@ -100,7 +100,13 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     && equalsExpr expr1 expr2
     && equalsExpr body1 body2
   | EIf(_, cond1, then1, else1), EIf(_, cond2, then2, else2) ->
-    equalsExpr cond1 cond2 && equalsExpr then1 then2 && equalsExpr else1 else2
+    equalsExpr cond1 cond2
+    && equalsExpr then1 then2
+    && match else1, else2 with
+       | Some el1, Some el2 -> equalsExpr el1 el2
+       | None, None -> true
+       | _, _ -> false
+
   | ELambda(_, parameters1, body1), ELambda(_, parameters2, body2) ->
     NEList.length parameters1 = NEList.length parameters2
     && NEList.forall2
