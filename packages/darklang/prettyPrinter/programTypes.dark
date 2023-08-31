@@ -550,8 +550,8 @@ module Darklang =
         | EPipeVariable(_id, varName, exprs) ->
           let exprs =
             exprs
-            |> List.map PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr
-            |> String.join " "
+            |> Builtin.List.map PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr
+            |> Builtin.String.join " "
 
           $"({varName} {exprs})"
 
