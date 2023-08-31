@@ -36,6 +36,7 @@ module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
 module Rollbar = LibService.Rollbar
 module Telemetry = LibService.Telemetry
+module Logging = LibService.Logging
 
 module CTPusher = LibClientTypes.Pusher
 
@@ -421,6 +422,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> Kubernetes.configureApp healthCheckPort
+  |> Logging.addHttpLogging
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
@@ -434,7 +436,7 @@ let configureServices (services : IServiceCollection) : unit =
 
 
 let webserver
-  (loggerSetup : ILoggingBuilder -> unit)
+  (providedLogger : Option<ILoggingBuilder -> unit>)
   (httpPort : int)
   (healthCheckPort : int)
   : WebApplication =
@@ -445,7 +447,7 @@ let webserver
   Kubernetes.registerServerTimeout builder.WebHost
 
   builder.WebHost
-  |> fun wh -> wh.ConfigureLogging(loggerSetup)
+  |> fun wh -> wh.ConfigureLogging(Logging.defaultLogger providedLogger)
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
   |> fun wh -> wh.UseUrls(hcUrl, $"http://*:{httpPort}")
   |> ignore<IWebHostBuilder>
@@ -457,7 +459,7 @@ let webserver
 let run () : unit =
   let port = LibService.Config.bwdDangerServerPort
   let k8sPort = LibService.Config.bwdDangerServerKubernetesPort
-  (webserver LibService.Logging.defaultLogger port k8sPort).Run()
+  (webserver None port k8sPort).Run()
 
 
 // Generally speaking, this should be the same list as QueueWorker's
