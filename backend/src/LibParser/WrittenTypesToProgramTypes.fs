@@ -298,7 +298,7 @@ module Expr =
         return
           match resolved with
           | Ok name -> PT.EPipeFnCall(id, Ok name, [], [])
-          | Error _ -> PT.EPipeVariable(id, name)
+          | Error _ -> PT.EPipeVariable(id, name, [])
 
       | WT.EPipeLambda(id, args, body) ->
         let! body = toPT body
@@ -308,6 +308,18 @@ module Expr =
         let! first = toPT first
         return PT.EPipeInfix(id, Infix.toPT infix, first)
 
+      | WT.EPipeFnCall(id,
+                       (WT.Unresolved { head = varName; tail = [] } as name),
+                       [],
+                       args) ->
+        // Special case for variables with arguments. Since it could be a userfn, we
+        // need to check that first. We do a similar thing converting EFnNames.
+        let! fnName = NameResolver.FnName.maybeResolve resolver currentModule name
+        let! args = Ply.List.mapSequentially toPT args
+        match fnName with
+        | Ok name -> return PT.EPipeFnCall(id, Ok name, [], args)
+        | Error _ -> return PT.EPipeVariable(id, varName, args)
+
       | WT.EPipeFnCall(id, name, typeArgs, args) ->
         let! fnName = NameResolver.FnName.resolve resolver currentModule name
         let! typeArgs =
@@ -316,6 +328,7 @@ module Expr =
             typeArgs
         let! args = Ply.List.mapSequentially toPT args
         return PT.EPipeFnCall(id, fnName, typeArgs, args)
+
       | WT.EPipeEnum(id, typeName, caseName, fields) ->
         let! typeName = resolveTypeName resolver currentModule typeName
         let! fields = Ply.List.mapSequentially toPT fields

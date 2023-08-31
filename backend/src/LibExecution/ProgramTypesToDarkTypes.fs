@@ -486,8 +486,9 @@ module PipeExpr =
   let toDT (exprToDT : PT.Expr -> Dval) (s : PT.PipeExpr) : Dval =
     let name, fields =
       match s with
-      | PT.EPipeVariable(id, varName) ->
-        "EPipeVariable", [ DInt(int64 id); DString varName ]
+      | PT.EPipeVariable(id, varName, exprs) ->
+        "EPipeVariable",
+        [ DInt(int64 id); DString varName; DList(List.map exprToDT exprs) ]
       | PT.EPipeLambda(id, args, body) ->
         let variables =
           args
@@ -520,8 +521,8 @@ module PipeExpr =
 
   let fromDT (exprFromDT : Dval -> PT.Expr) (d : Dval) : PT.PipeExpr =
     match d with
-    | DEnum(_, _, "EPipeVariable", [ DInt id; DString varName ]) ->
-      PT.EPipeVariable(uint64 id, varName)
+    | DEnum(_, _, "EPipeVariable", [ DInt id; DString varName; DList args ]) ->
+      PT.EPipeVariable(uint64 id, varName, args |> List.map exprFromDT)
 
     | DEnum(_, _, "EPipeLambda", [ DInt id; variables; body ]) ->
       let variables =

@@ -448,7 +448,8 @@ module Expr =
 
   and pipeExprToST (pipeExpr : PT.PipeExpr) : ST.PipeExpr =
     match pipeExpr with
-    | PT.EPipeVariable(id, name) -> ST.EPipeVariable(id, name)
+    | PT.EPipeVariable(id, name, exprs) ->
+      ST.EPipeVariable(id, name, List.map toST exprs)
     | PT.EPipeLambda(id, args, body) ->
       ST.EPipeLambda(id, NEList.toST args, toST body)
     | PT.EPipeInfix(id, PT.InfixFnCall name, first) ->
@@ -537,7 +538,8 @@ module Expr =
 
   and pipeExprToPT (pipeExpr : ST.PipeExpr) : PT.PipeExpr =
     match pipeExpr with
-    | ST.EPipeVariable(id, name) -> PT.EPipeVariable(id, name)
+    | ST.EPipeVariable(id, name, exprs) ->
+      PT.EPipeVariable(id, name, List.map toPT exprs)
     | ST.EPipeLambda(id, args, body) ->
       PT.EPipeLambda(id, NEList.toPT args, toPT body)
     | ST.EPipeInfix(id, infix, first) ->

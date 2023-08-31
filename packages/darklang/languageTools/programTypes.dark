@@ -180,7 +180,7 @@ module Darklang =
 
 
       type PipeExpr =
-        | EPipeVariable of PACKAGE.Darklang.LanguageTools.ID * String
+        | EPipeVariable of PACKAGE.Darklang.LanguageTools.ID * String * List<Expr>
 
         | EPipeLambda of
           PACKAGE.Darklang.LanguageTools.ID *

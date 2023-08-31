@@ -106,3 +106,17 @@ type MyEnum = A of Int * Int * Int
 (PACKAGE.Darklang.Stdlib.Option.Option.None
  |> PACKAGE.Darklang.Stdlib.Result.fromOption "test") = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "test"
+
+
+module FnName =
+  (let fn = (fun x -> x + 1)
+   6 |> fn) = 7
+
+  (let fn = Int.add
+   3 |> fn 4) = 7
+
+  (let fn = Int.subtract
+   11 |> fn 4) = 7
+
+  (let fn = PACKAGE.Darklang.Stdlib.Int.max
+   3 |> fn 7) = 7
