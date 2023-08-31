@@ -175,11 +175,11 @@ let t
                   None
                 )
               let types = RT.ExecutionState.availableTypes state
-              let typeArgSymbolTable = Map.empty
+              let typeSymbolTable = Map.empty
               LibExecution.TypeChecker.unify
                 context
                 types
-                typeArgSymbolTable
+                typeSymbolTable
                 expected
                 actual
 

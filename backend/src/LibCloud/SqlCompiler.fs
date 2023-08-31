@@ -274,7 +274,7 @@ let rec lambdaToSql
   (fns : Functions)
   (types : Types)
   (constants : Constants)
-  (tat : TypeArgTable)
+  (tst : TypeSymbolTable)
   (symtable : DvalMap)
   (paramName : string)
   (dbTypeRef : TypeReference)
@@ -287,7 +287,7 @@ let rec lambdaToSql
         fns
         types
         constants
-        tat
+        tst
         symtable
         paramName
         dbTypeRef
@@ -630,7 +630,7 @@ let rec lambdaToSql
             | TUuid -> "uuid"
             | TUnit -> "bigint" // CLEANUP why is this bigint?
             | TVariable varName ->
-              match Map.get varName tat with
+              match Map.get varName tst with
               | Some found -> primitiveFieldType found
               | None ->
                 error $"Could not resolve type variable in lambdaToSql: {varName}"
@@ -721,7 +721,7 @@ let rec lambdaToSql
 //  needs in the right place.
 let partiallyEvaluate
   (state : ExecutionState)
-  (tat : TypeArgTable)
+  (tst : TypeSymbolTable)
   (symtable : Symtable)
   (paramName : string)
   (body : Expr)
@@ -735,7 +735,7 @@ let partiallyEvaluate
     let exec (expr : Expr) : Ply.Ply<Expr> =
       uply {
         let newName = "dark_generated_" + randomString 8
-        let! value = LibExecution.Interpreter.eval state tat symtable.Value expr
+        let! value = LibExecution.Interpreter.eval state tst symtable.Value expr
         symtable.Value <- Map.add newName value symtable.Value
         return (EVariable(gid (), newName))
       }
@@ -929,7 +929,7 @@ type CompileLambdaResult = { sql : string; vars : List<string * SqlValue> }
 
 let compileLambda
   (state : ExecutionState)
-  (tat : TypeArgTable)
+  (tst : TypeSymbolTable)
   (symtable : DvalMap)
   (paramName : string)
   (dbType : TypeReference)
@@ -946,13 +946,13 @@ let compileLambda
         |> inline' paramName Map.empty
         // Replace expressions which can be calculated now with their result. See
         // comment for more details.
-        |> partiallyEvaluate state tat symtable paramName
+        |> partiallyEvaluate state tst symtable paramName
       let types = ExecutionState.availableTypes state
       let fns = ExecutionState.availableFunctions state
       let constants = ExecutionState.availableConstants state
 
       let! compiled =
-        lambdaToSql fns types constants tat symtable paramName dbType TBool body
+        lambdaToSql fns types constants tst symtable paramName dbType TBool body
 
       return Ok { sql = compiled.sql; vars = compiled.vars }
 

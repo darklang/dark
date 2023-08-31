@@ -141,7 +141,7 @@ module Darklang =
       type DvalMap = Dict<Dval>
 
       type LambdaImpl =
-        { typeArgTable: TypeArgTable
+        { typeSymbolTable: TypeSymbolTable
           symtable: Symtable
           parameters: List<ID * String>
           body: Expr }
@@ -192,7 +192,7 @@ module Darklang =
       ///   `{ "x" => DInt 1; "y" => DInt 2 }`
       type Symtable = Dict<Dval>
 
-      type TypeArgTable = Dict<TypeReference>
+      type TypeSymbolTable = Dict<TypeReference>
 
 
       // Record the source of an incomplete or error. Would be useful to add more

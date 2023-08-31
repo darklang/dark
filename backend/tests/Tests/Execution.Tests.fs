@@ -392,7 +392,7 @@ let testLambdaPreview : Test =
              DFnVal(
                Lambda(
                  { parameters = NEList.singleton (p1ID, "var")
-                   typeArgTable = Map.empty
+                   typeSymbolTable = Map.empty
                    symtable = Map.empty
                    body = EString(65UL, [ StringText "body" ]) }
                )

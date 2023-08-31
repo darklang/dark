@@ -447,7 +447,7 @@ and MatchPattern =
 and DvalMap = Map<string, Dval>
 
 and LambdaImpl =
-  { typeArgTable : TypeArgTable
+  { typeSymbolTable : TypeSymbolTable
     symtable : Symtable
     parameters : NEList<id * string>
     body : Expr }
@@ -515,9 +515,9 @@ and Symtable = Map<string, Dval>
 ///   `let serialize<'a> (x : 'a) : string = ...`,
 /// called with inputs
 ///   `serialize<int> 1`,
-/// we would have a TypeArgTable of
+/// we would have a TypeSymbolTable of
 ///  { "a" => TInt }
-and TypeArgTable = Map<string, TypeReference>
+and TypeSymbolTable = Map<string, TypeReference>
 
 
 // Record the source of an incomplete or error. Would be useful to add more

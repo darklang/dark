@@ -34,7 +34,7 @@ let incomplete (state : ExecutionState) (id : id) =
 /// (or task that should result in such)
 let rec eval'
   (state : ExecutionState)
-  (tat : TypeArgTable)
+  (tst : TypeSymbolTable)
   (st : Symtable)
   (e : Expr)
   : DvalTask =
@@ -46,11 +46,11 @@ let rec eval'
   let err id rte = DError(sourceID id, rte)
 
   /// This function ensures any value not on the execution path is evaluated.
-  let preview (tat : TypeArgTable) (st : Symtable) (expr : Expr) : Ply<unit> =
+  let preview (tst : TypeSymbolTable) (st : Symtable) (expr : Expr) : Ply<unit> =
     uply {
       if state.tracing.realOrPreview = Preview then
         let state = { state with onExecutionPath = false }
-        let! (_result : Dval) = eval state tat st expr
+        let! (_result : Dval) = eval state tst st expr
         return ()
     }
 
@@ -180,7 +180,7 @@ let rec eval'
               match builtUpString, seg with
               | Ok str, StringText(text) -> return Ok(str + text)
               | Ok str, StringInterpolation(expr) ->
-                let! result = eval state tat st expr
+                let! result = eval state tst st expr
                 match result with
                 | DString s -> return Ok(str + s)
                 | DError _ -> return Error(result)
@@ -265,7 +265,7 @@ let rec eval'
               false, [], traceIncompleteWithArgs id allPatterns
           | _ -> false, [], traceIncompleteWithArgs id allPatterns
 
-      let! rhs = eval state tat st rhs
+      let! rhs = eval state tst st rhs
       let passes, newDefs, traces = checkPattern rhs pattern
       let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
 
@@ -282,11 +282,11 @@ let rec eval'
         else
           List.iter (traceDval false) traces
 
-        let! r = eval state tat newSymtable body
+        let! r = eval state tst newSymtable body
         return r
 
     | EList(_id, exprs) ->
-      let! results = Ply.List.mapSequentially (eval state tat st) exprs
+      let! results = Ply.List.mapSequentially (eval state tst st) exprs
 
       match List.tryFind Dval.isFake results with
       | Some fakeDval -> return fakeDval
@@ -295,9 +295,9 @@ let rec eval'
 
     | ETuple(_id, first, second, theRest) ->
 
-      let! firstResult = eval state tat st first
-      let! secondResult = eval state tat st second
-      let! otherResults = Ply.List.mapSequentially (eval state tat st) theRest
+      let! firstResult = eval state tst st first
+      let! secondResult = eval state tst st second
+      let! otherResults = Ply.List.mapSequentially (eval state tst st) theRest
 
       let allResults = [ firstResult; secondResult ] @ otherResults
 
@@ -329,13 +329,13 @@ let rec eval'
             (fun r (k, expr) ->
               uply {
                 if Dval.isFake r then
-                  do! preview tat st expr
+                  do! preview tst st expr
                   return r
                 else if not (Map.containsKey k expectedFields) then
-                  do! preview tat st expr
+                  do! preview tst st expr
                   return errStr id $"Unexpected field `{k}` in {typeStr}"
                 else
-                  let! v = eval state tat st expr
+                  let! v = eval state tst st expr
                   if Dval.isFake v then
                     return v
                   else
@@ -366,7 +366,7 @@ let rec eval'
         | _ -> return result
 
     | ERecordUpdate(id, baseRecord, updates) ->
-      let! baseRecord = eval state tat st baseRecord
+      let! baseRecord = eval state tst st baseRecord
       match baseRecord with
       | DRecord(typeName, _, _) ->
         let typeStr = TypeName.toString typeName
@@ -381,7 +381,7 @@ let rec eval'
             |> Ply.List.foldSequentially
               (fun r (k, expr) ->
                 uply {
-                  let! v = eval state tat st expr
+                  let! v = eval state tst st expr
                   match r, k, v with
                   | r, _, _ when Dval.isFake r -> return r
                   | _, _, v when Dval.isFake v -> return v
@@ -409,7 +409,7 @@ let rec eval'
         Ply.List.foldSequentially
           (fun r (k, expr) ->
             uply {
-              let! v = eval state tat st expr
+              let! v = eval state tst st expr
               match (r, k, v) with
               | r, _, _ when Dval.isFake r -> return r
               | _, _, v when Dval.isFake v -> return v
@@ -424,9 +424,9 @@ let rec eval'
     | EFnName(_id, name) -> return DFnVal(NamedFn name)
 
     | EApply(id, fnTarget, typeArgs, exprs) ->
-      match! eval' state tat st fnTarget with
+      match! eval' state tst st fnTarget with
       | DFnVal fnVal ->
-        let! args = Ply.NEList.mapSequentially (eval state tat st) exprs
+        let! args = Ply.NEList.mapSequentially (eval state tst st) exprs
         return! applyFnVal state id fnVal typeArgs args
       | other when Dval.isFake other -> return other
       | other ->
@@ -437,7 +437,7 @@ let rec eval'
 
 
     | EFieldAccess(id, e, field) ->
-      let! obj = eval state tat st e
+      let! obj = eval state tst st e
 
       if field = "" then
         return errStr id "Field name is empty"
@@ -478,14 +478,14 @@ let rec eval'
           |> NEList.map (fun (id, name) -> (name, incomplete state id))
           |> NEList.toList
           |> Map.ofList
-        do! preview tat previewST body
+        do! preview tst previewST body
 
       // It is the responsibility of wherever executes the DBlock to pass in
       // args and execute the body.
       return
         DFnVal(
           Lambda
-            { typeArgTable = tat
+            { typeSymbolTable = tst
               symtable = st
               parameters = parameters
               body = body }
@@ -630,7 +630,7 @@ let rec eval'
         | Preview -> false
 
       // The value we're matching against
-      let! matchVal = eval state tat st matchExpr
+      let! matchVal = eval state tst st matchExpr
 
       let mutable hasMatched = false
       let mutable matchResult =
@@ -649,7 +649,7 @@ let rec eval'
             |> List.iter (fun (id, dv) ->
               state.tracing.traceDval state.onExecutionPath id dv)
 
-            let! r = eval state tat newSymtable rhsExpr
+            let! r = eval state tst newSymtable rhsExpr
             matchResult <- r
             hasMatched <- true
           else if isRealExecution then
@@ -658,73 +658,73 @@ let rec eval'
           else
             // If we're "previewing" (analysis), persist traces for all patterns
             traces |> List.iter (fun (id, dv) -> state.tracing.traceDval false id dv)
-            do! preview tat newSymtable rhsExpr
+            do! preview tst newSymtable rhsExpr
 
       return matchResult
 
 
     | EIf(id, cond, thenBody, elseBody) ->
-      match! eval state tat st cond with
+      match! eval state tst st cond with
       | DBool false ->
-        do! preview tat st thenBody
+        do! preview tst st thenBody
         match elseBody with
         | None -> return DUnit
-        | Some eb -> return! eval state tat st eb
+        | Some eb -> return! eval state tst st eb
       | DBool true ->
-        let! result = eval state tat st thenBody
+        let! result = eval state tst st thenBody
         match elseBody with
         | None -> ()
-        | Some eb -> do! preview tat st eb
+        | Some eb -> do! preview tst st eb
         return result
       | cond when Dval.isFake cond ->
-        do! preview tat st thenBody
+        do! preview tst st thenBody
         match elseBody with
         | None -> ()
-        | Some eb -> do! preview tat st eb
+        | Some eb -> do! preview tst st eb
         return cond
       | _ ->
-        do! preview tat st thenBody
+        do! preview tst st thenBody
         match elseBody with
         | None -> ()
-        | Some eb -> do! preview tat st eb
+        | Some eb -> do! preview tst st eb
         return errStr id "If only supports Booleans"
 
 
     | EOr(id, left, right) ->
-      match! eval state tat st left with
+      match! eval state tst st left with
       | DBool true ->
-        do! preview tat st right
+        do! preview tst st right
         return DBool true
       | DBool false ->
-        match! eval state tat st right with
+        match! eval state tst st right with
         | DBool true -> return DBool true
         | DBool false -> return DBool false
         | right when Dval.isFake right -> return right
         | _ -> return errStr id "|| only supports Booleans"
       | left when Dval.isFake left ->
-        do! preview tat st right
+        do! preview tst st right
         return left
       | _ ->
-        do! preview tat st right
+        do! preview tst st right
         return errStr id "|| only supports Booleans"
 
 
     | EAnd(id, left, right) ->
-      match! eval state tat st left with
+      match! eval state tst st left with
       | DBool false ->
-        do! preview tat st right
+        do! preview tst st right
         return DBool false
       | DBool true ->
-        match! eval state tat st right with
+        match! eval state tst st right with
         | DBool true -> return DBool true
         | DBool false -> return DBool false
         | right when Dval.isFake right -> return right
         | _ -> return errStr id "&& only supports Booleans"
       | left when Dval.isFake left ->
-        do! preview tat st right
+        do! preview tst st right
         return left
       | _ ->
-        do! preview tat st right
+        do! preview tst st right
         return errStr id "&& only supports Booleans"
 
 
@@ -751,10 +751,10 @@ let rec eval'
                 (fun i r ((enumFieldType : TypeReference), expr) ->
                   uply {
                     if Dval.isFake r then
-                      do! preview tat st expr
+                      do! preview tst st expr
                       return r
                     else
-                      let! v = eval state tat st expr
+                      let! v = eval state tst st expr
                       if Dval.isFake v then
                         return v
                       else
@@ -787,7 +787,7 @@ let rec eval'
                 (DEnum(aliasTypeName, typeName, caseName, []))
                 fields
     | EError(id, rte, exprs) ->
-      let! args = Ply.List.mapSequentially (eval state tat st) exprs
+      let! args = Ply.List.mapSequentially (eval state tst st) exprs
 
       return
         args
@@ -799,12 +799,12 @@ let rec eval'
 /// (or a task that results in a dval)
 and eval
   (state : ExecutionState)
-  (tat : TypeArgTable)
+  (tst : TypeSymbolTable)
   (st : Symtable)
   (e : Expr)
   : DvalTask =
   uply {
-    let! (result : Dval) = eval' state tat st e
+    let! (result : Dval) = eval' state tst st e
     state.tracing.traceDval state.onExecutionPath (Expr.toID e) result
     return result
   }
@@ -821,9 +821,9 @@ and applyFnVal
   | Lambda l -> executeLambda state l args
   | NamedFn fn ->
     // I think we'll end up having to pass the
-    // `tat` in scope here at some point?
-    let tat = Map.empty
-    callFn state tat id fn typeArgs args
+    // `tst` in scope here at some point?
+    let tst = Map.empty
+    callFn state tst id fn typeArgs args
 
 and executeLambda
   (state : ExecutionState)
@@ -863,11 +863,11 @@ and executeLambda
 
       let newSymtable = Map.mergeFavoringRight l.symtable paramSyms
 
-      eval state l.typeArgTable newSymtable l.body
+      eval state l.typeSymbolTable newSymtable l.body
 
 and callFn
   (state : ExecutionState)
-  (tat : TypeArgTable)
+  (tst : TypeSymbolTable)
   (callerID : id)
   (desc : FnName.FnName)
   (typeArgs : List<TypeReference>)
@@ -933,15 +933,15 @@ and callFn
         | Error errMsg -> return DError(sourceID, RuntimeError.oldError errMsg)
         | Ok() ->
           let newlyBoundTypeArgs = List.zip fn.typeParams typeArgs |> Map
-          let updatedTypeArgTable = Map.mergeFavoringRight tat newlyBoundTypeArgs
-          return! execFn state updatedTypeArgTable desc callerID fn typeArgs args
+          let updatedTypeSymbolTable = Map.mergeFavoringRight tst newlyBoundTypeArgs
+          return! execFn state updatedTypeSymbolTable desc callerID fn typeArgs args
   }
 
 
 
 and execFn
   (state : ExecutionState)
-  (tat : TypeArgTable)
+  (tst : TypeSymbolTable)
   (fnDesc : FnName.FnName)
   (id : id)
   (fn : Fn)
@@ -971,9 +971,9 @@ and execFn
       let types = ExecutionState.availableTypes state
 
       let typeArgsResolvedInFn = List.zip fn.typeParams typeArgs |> Map
-      let typeArgTable = Map.mergeFavoringRight tat typeArgsResolvedInFn
+      let typeSymbolTable = Map.mergeFavoringRight tst typeArgsResolvedInFn
 
-      match! TypeChecker.checkFunctionCall types typeArgTable fn args with
+      match! TypeChecker.checkFunctionCall types typeSymbolTable fn args with
       | Error rte -> return DError(sourceID, rte)
       | Ok() ->
 
@@ -1032,13 +1032,13 @@ and execFn
               |> NEList.map2 (fun dv p -> (p.name, dv)) args
               |> Map.ofNEList
               |> withGlobals state
-            eval state typeArgTable symTable body
+            eval state typeSymbolTable symTable body
 
         if Dval.isFake result then
           return result
         else
           match!
-            TypeChecker.checkFunctionReturnType types typeArgTable fn result
+            TypeChecker.checkFunctionReturnType types typeSymbolTable fn result
           with
           | Error rte -> return DError(sourceID, rte)
           | Ok() -> return result
