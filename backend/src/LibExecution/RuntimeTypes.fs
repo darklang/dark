@@ -332,6 +332,76 @@ module ConstantName =
     FQName.toString name (fun (ConstantName name) -> name)
 
 
+/// A KnownType represents the type of a dval.
+///
+/// Many KnownTypes (such as lists and records) have nested types. Often, these
+/// nested types are unknown (such as the contents of an empty list, or the
+/// `Result.Error` type for `Ok 5`). As such, KnownTypes always nest ValueTypes
+/// (an optional form of KnownType).
+type KnownType =
+  | KTUnit
+  | KTBool
+  | KTInt
+  | KTFloat
+  | KTChar
+  | KTString
+  | KTUuid
+  | KTBytes
+  | KTDateTime
+  | KTPassword
+
+  // let empty =    [] // KTList Unknown
+  // let intList = [1] // KTList (Known KTInt)
+  | KTList of ValueType
+
+  // Intuitively, since Dvals generate KnownTypes, you would think that we can
+  // use KnownTypes in a KTTuple.
+  //
+  // However, we sometimes construct a KTTuple to repesent the type of a Tuple
+  // which doesn't exist. For example, in `List.zip [] []`, we create the result
+  // from the types of the two lists, which themselves might be (and likely are)
+  // `Unknown`.
+  | KTTuple of ValueType * ValueType * List<ValueType>
+
+  // let f = (fun x -> x)        // KTFn([Unknown], Unknown)
+  // let intF = (fun (x: Int) -> x) // KTFn([Known KTInt], Unknown)
+  //
+  // Note that we could theoretically know some return types by analyzing the
+  // code or type signatures of functions. We don't do this yet as it's
+  // complicated. When we do decide to do this, some incorrect programs may stop
+  // functioning (see example). Our goal is for correctly typed functions to
+  // stay working so this might be ok.
+  //
+  // For example:
+  //   let z1 = (fun x -> 5)
+  //   let z2 = (fun x -> "str")
+  // `[z1, z2]` is allowed now but might not be allowed later
+  | KTFn of args : NEList<ValueType> * ret : ValueType
+
+  // At time of writing, all DBs are of a specific type, and DBs may only be
+  // referenced directly, but we expect to eventually allow references to DBs
+  // where the type may be unknown
+  // List.head ([]: List<DB<'a>>) // KTDB (Unknown)
+  | KTDB of ValueType
+
+  /// let n = None          // type args: [Unknown]
+  /// let s = Some(5)       // type args: [Known KTInt]
+  /// let o = Ok (5)        // type args: [Known KTInt, Unknown]
+  /// let e = Error ("str") // type args: [Unknown, Known KTString]
+  | KTCustomType of TypeName.TypeName * typeArgs : List<ValueType>
+
+  // let myDict = {} // KTDict Unknown
+  | KTDict of ValueType
+
+/// Represents the actual type of a Dval
+///
+/// "Unknown" represents the concept of "bottom" in
+///   type system / data flow analysis / lattices
+and ValueType =
+  | Unknown
+  | Known of KnownType
+
+
 type NameResolution<'a> = Result<'a, RuntimeError>
 
 // Dark runtime type

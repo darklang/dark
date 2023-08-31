@@ -149,6 +149,14 @@ module RoundtripTests =
           None
 
         testRoundtripList
+          "RT.ValueType"
+          (pkg [] "ValueType" 0)
+          V.RuntimeTypes.valueTypes
+          RT2DT.Dval.ValueType.toDT
+          RT2DT.Dval.ValueType.fromDT
+          None
+
+        testRoundtripList
           "RT.Dval"
           (pkg [] "Dval" 0)
           V.RuntimeTypes.dvals

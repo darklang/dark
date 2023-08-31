@@ -210,6 +210,14 @@ module RuntimeTypes =
         [ RT.EUnit(81264012UL) ]
       ) ]
 
+
+  // TODO: use in roundtripping tests
+  let valueTypes : List<RT.ValueType> =
+    [ RT.ValueType.Unknown
+      RT.ValueType.Known RT.KnownType.KTUnit
+      // TODO: continue...
+      ]
+
   let dvalSources : List<RT.DvalSource> =
     [ RT.SourceNone; RT.SourceID(123UL, 91293UL) ]
 

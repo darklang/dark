@@ -123,6 +123,106 @@ module FormatV0 =
 
 
 
+
+  module rec ValueType =
+    module KnownType =
+      type KnownType =
+        | KTUnit
+        | KTBool
+        | KTInt
+        | KTFloat
+        | KTChar
+        | KTString
+        | KTUuid
+        | KTBytes
+        | KTDateTime
+        | KTPassword
+
+        | KTList of ValueType
+        | KTTuple of ValueType * ValueType * List<ValueType>
+        | KTDict of ValueType
+
+        | KTFn of NEList<ValueType> * ValueType
+
+        | KTCustomType of TypeName.TypeName * typeArgs : List<ValueType>
+
+        | KTDB of ValueType
+
+      let rec toRT (kt : KnownType) : RT.KnownType =
+        match kt with
+        | KTUnit -> RT.KTUnit
+        | KTBool -> RT.KTBool
+        | KTInt -> RT.KTInt
+        | KTFloat -> RT.KTFloat
+        | KTChar -> RT.KTChar
+        | KTString -> RT.KTString
+        | KTUuid -> RT.KTUuid
+        | KTBytes -> RT.KTBytes
+        | KTDateTime -> RT.KTDateTime
+        | KTPassword -> RT.KTPassword
+
+        | KTList vt -> RT.KTList(ValueType.toRT vt)
+        | KTTuple(vt1, vt2, vts) ->
+          RT.KTTuple(
+            ValueType.toRT vt1,
+            ValueType.toRT vt2,
+            List.map ValueType.toRT vts
+          )
+        | KTDict vt -> RT.KTDict(ValueType.toRT vt)
+
+        | KTFn(argTypes, returnType) ->
+          RT.KTFn(NEList.map ValueType.toRT argTypes, ValueType.toRT returnType)
+
+        | KTCustomType(typeName, typeArgs) ->
+          RT.KTCustomType(TypeName.toRT typeName, List.map ValueType.toRT typeArgs)
+
+        | KTDB vt -> RT.KTDB(ValueType.toRT vt)
+
+      let rec fromRT (kt : RT.KnownType) : KnownType =
+        match kt with
+        | RT.KTUnit -> KTUnit
+        | RT.KTBool -> KTBool
+        | RT.KTInt -> KTInt
+        | RT.KTFloat -> KTFloat
+        | RT.KTChar -> KTChar
+        | RT.KTString -> KTString
+        | RT.KTUuid -> KTUuid
+        | RT.KTBytes -> KTBytes
+        | RT.KTDateTime -> KTDateTime
+        | RT.KTPassword -> KTPassword
+
+        | RT.KTList vt -> KTList(ValueType.fromRT vt)
+        | RT.KTTuple(vt1, vt2, vts) ->
+          KTTuple(
+            ValueType.fromRT vt1,
+            ValueType.fromRT vt2,
+            List.map ValueType.fromRT vts
+          )
+        | RT.KTDict vt -> KTDict(ValueType.fromRT vt)
+
+        | RT.KTFn(argTypes, returnType) ->
+          KTFn(NEList.map ValueType.fromRT argTypes, ValueType.fromRT returnType)
+
+        | RT.KTCustomType(typeName, typeArgs) ->
+          KTCustomType(TypeName.fromRT typeName, List.map ValueType.fromRT typeArgs)
+
+        | RT.KTDB vt -> KTDB(ValueType.fromRT vt)
+
+    type ValueType =
+      | Unknown
+      | Known of KnownType.KnownType
+
+    let toRT (vt : ValueType) : RT.ValueType =
+      match vt with
+      | Unknown -> RT.Unknown
+      | Known kt -> RT.Known(KnownType.toRT kt)
+
+    let fromRT (vt : RT.ValueType) : ValueType =
+      match vt with
+      | RT.Unknown -> Unknown
+      | RT.Known kt -> Known(KnownType.fromRT kt)
+
+
   type DvalMap = Map<string, Dval>
   and DvalSource =
     | SourceNone

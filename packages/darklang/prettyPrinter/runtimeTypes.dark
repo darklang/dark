@@ -185,17 +185,12 @@ module Darklang =
         | TPassword -> "Password"
 
         | TList inner -> $"List<{typeReference inner}>"
+        | TDict inner -> $"Dict<{typeReference inner}>"
         | TTuple(first, second, theRest) ->
           (Builtin.List.append [ first; second ] theRest)
           |> Builtin.List.map (fun item -> typeReference item)
           |> Builtin.String.join " * "
           |> fun parts -> "(" ++ parts ++ ")"
-
-        | TDict inner -> $"Dict<{typeReference inner}>"
-
-        | TDB inner -> $"DB<{typeReference inner}>"
-
-        | TVariable varName -> "'" ++ varName
 
         | TCustomType(typ, args) ->
           let argsPart =
@@ -214,7 +209,6 @@ module Darklang =
 
           $"{typeNamePart}{argsPart}"
 
-
         | TFn(args, ret) ->
           let argPart =
             args
@@ -223,6 +217,61 @@ module Darklang =
             |> fun parts -> "(" ++ parts ++ ")"
 
           $"{argPart} -> {typeReference ret}"
+
+        | TDB inner -> $"DB<{typeReference inner}>"
+
+        | TVariable varName -> "'" ++ varName
+
+
+      let knownType
+        (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.KnownType)
+        : String =
+        match t with
+        | KTUnit -> "Unit"
+        | KTBool -> "Bool"
+        | KTInt -> "Int"
+        | KTFloat -> "Float"
+        | KTChar -> "Char"
+        | KTString -> "String"
+        | KTDateTime -> "DateTime"
+        | KTUuid -> "Uuid"
+        | KTBytes -> "Bytes"
+
+        | KTList typ -> $"List<{valueTypeName typ}>"
+        | KTDict typ -> $"Dict<{valueTypeName typ}>"
+        | KTTuple(t1, t2, trest) ->
+          (List.append [ t1; t2 ] trest)
+          |> List.map valueTypeName
+          |> String.join ", "
+          |> fun s -> $"({s})"
+
+        | KTFn(argTypes, retType) ->
+          (Stdlib.List.push retType argTypes)
+          |> List.map (fun vt -> valueType vt)
+          |> String.join parts " -> "
+
+        | KTCustomType(name, typeArgs) ->
+          let typeArgsPortion =
+            match typeArgs with
+            | [] -> ""
+            | args ->
+              args
+              |> List.map (fun t -> valueTypeName t)
+              |> String.join ", "
+              |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+
+          (typeName name) ++ typeArgsPortion
+
+        | KTDB typ -> $"Datastore<{valueTypeName typ}>"
+        | KTPassword -> "Password"
+
+
+      let valueType
+        (vt: PACKAGE.Darklang.LanguageTools.RuntimeTypes.ValueType)
+        : String =
+        match vt with
+        | Known kt -> knownType kt
+        | Unknown -> "_"
 
 
       module Dval =

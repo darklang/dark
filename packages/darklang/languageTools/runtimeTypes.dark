@@ -152,6 +152,31 @@ module Darklang =
 
       type RuntimeError = RuntimeError of Dval
 
+      type KnownType =
+        | KTUnit
+        | KTBool
+        | KTInt
+        | KTFloat
+        | KTChar
+        | KTString
+        | KTUuid
+        | KTBytes
+        | KTDateTime
+        | KTPassword
+        | KTList of ValueType
+        | KTTuple of ValueType * ValueType * List<ValueType>
+        | KTFn of List<ValueType> * ValueType
+
+        | KTDB of ValueType
+        | KTCustomType of TypeName.TypeName * typeArgs: List<ValueType>
+
+        | KTDict of ValueType
+
+      type ValueType =
+        | Unknown
+        | Known of KnownType
+
+
       type Dval =
         | DUnit
         | DBool of Bool

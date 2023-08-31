@@ -661,6 +661,92 @@ module RuntimeError =
 
 
 module Dval =
+  module KnownType =
+    let toDT (kt : KnownType) : Dval =
+      let caseName, fields =
+        match kt with
+        | KTUnit -> "KTUnit", []
+        | KTBool -> "KTBool", []
+        | KTInt -> "KTInt", []
+        | KTFloat -> "KTFloat", []
+        | KTChar -> "KTChar", []
+        | KTString -> "KTString", []
+        | KTUuid -> "KTUuid", []
+        | KTDateTime -> "KTDateTime", []
+        | KTBytes -> "KTBytes", []
+
+        | KTList inner -> "KTList", [ ValueType.toDT inner ]
+        | KTTuple(first, second, theRest) ->
+          "KTTuple",
+          [ ValueType.toDT first
+            ValueType.toDT second
+            DList(List.map ValueType.toDT theRest) ]
+        | KTDict inner -> "KTDict", [ ValueType.toDT inner ]
+
+        | KTCustomType(typeName, typeArgs) ->
+          "KTCustomType",
+          [ TypeName.toDT typeName; DList(List.map ValueType.toDT typeArgs) ]
+
+        | KTFn(args, ret) ->
+          "KTFn",
+          [ DList(List.map ValueType.toDT (NEList.toList args)); ValueType.toDT ret ]
+
+        | KTDB d -> "KTDB", [ ValueType.toDT d ]
+        | KTPassword -> "KTPassword", []
+
+      let typeName = rtTyp [] "KnownType" 0
+      DEnum(typeName, typeName, caseName, fields)
+
+    let fromDT (d : Dval) : KnownType =
+      match d with
+      | DEnum(_, _, "KTUnit", []) -> KTUnit
+      | DEnum(_, _, "KTBool", []) -> KTBool
+      | DEnum(_, _, "KTInt", []) -> KTInt
+      | DEnum(_, _, "KTFloat", []) -> KTFloat
+      | DEnum(_, _, "KTChar", []) -> KTChar
+      | DEnum(_, _, "KTString", []) -> KTString
+      | DEnum(_, _, "KTUuid", []) -> KTUuid
+      | DEnum(_, _, "KTDateTime", []) -> KTDateTime
+      | DEnum(_, _, "KTBytes", []) -> KTBytes
+
+      | DEnum(_, _, "KTList", [ inner ]) -> KTList(ValueType.fromDT inner)
+      | DEnum(_, _, "KTTuple", [ first; second; DList theRest ]) ->
+        KTTuple(
+          ValueType.fromDT first,
+          ValueType.fromDT second,
+          List.map ValueType.fromDT theRest
+        )
+      | DEnum(_, _, "KTDict", [ inner ]) -> KTDict(ValueType.fromDT inner)
+
+      | DEnum(_, _, "KTCustomType", [ typeName; DList typeArgs ]) ->
+        KTCustomType(TypeName.fromDT typeName, List.map ValueType.fromDT typeArgs)
+
+      | DEnum(_, _, "KTFn", [ DList(firstArg :: otherArgs); ret ]) ->
+        KTFn(
+          NEList.ofList
+            (ValueType.fromDT firstArg)
+            (List.map ValueType.fromDT otherArgs),
+          ValueType.fromDT ret
+        )
+      | DEnum(_, _, "KTDB", [ inner ]) -> KTDB(ValueType.fromDT inner)
+      | DEnum(_, _, "KTPassword", []) -> KTPassword
+
+      | _ -> Exception.raiseInternal "Invalid KnownType" []
+
+  module ValueType =
+    let toDT (vt : ValueType) : Dval =
+      let typeName = rtTyp [] "ValueType" 0
+      match vt with
+      | Unknown -> DEnum(typeName, typeName, "Unknown", [])
+      | Known kt -> DEnum(typeName, typeName, "Known", [ KnownType.toDT kt ])
+
+    let fromDT (d : Dval) : ValueType =
+      match d with
+      | DEnum(_, _, "Unknown", []) -> Unknown
+      | DEnum(_, _, "Known", [ kt ]) -> Known(KnownType.fromDT kt)
+
+      | _ -> Exception.raiseInternal "Invalid ValueType" []
+
   module DvalSource =
     let toDT (s : DvalSource) : Dval =
       let name, fields =
