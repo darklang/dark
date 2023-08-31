@@ -196,7 +196,7 @@ let addServerTags (span : Span.T) : unit = Span.addTags serverTags span
 
 // Call, passing with serviceName for this service, such as "BwdServer"
 let init (serviceName : string) : unit =
-  print "Configuring Telemetry"
+  printTime "Configuring Telemetry"
   // Not enabled by default - https://jimmybogard.com/building-end-to-end-diagnostics-and-tracing-a-primer-trace-context/
   System.Diagnostics.Activity.DefaultIdFormat <-
     System.Diagnostics.ActivityIdFormat.W3C
@@ -237,7 +237,7 @@ let init (serviceName : string) : unit =
   // Ensure there is always a root span
   Span.root $"Starting {serviceName}" |> ignore<Span.T>
 
-  print " Configured Telemetry"
+  printTime " Configured Telemetry"
 
 
 let honeycombOptions (serviceName : string) : HoneycombOptions =

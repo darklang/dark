@@ -493,7 +493,7 @@ let initSerializers () =
 let main _ =
   try
     let name = "BwdServer"
-    print "Starting BwdServer"
+    printTime "Starting BwdServer"
     initSerializers ()
     LibService.Init.init name
     (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result

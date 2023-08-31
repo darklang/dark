@@ -322,7 +322,7 @@ let initSerializers () =
 let main _ : int =
   try
     let name = "QueueWorker"
-    print "Starting QueueWorker"
+    printTime "Starting QueueWorker"
     initSerializers ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries

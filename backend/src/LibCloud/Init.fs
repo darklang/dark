@@ -23,6 +23,7 @@ let waitForDB () : Task<unit> =
     while not success do
       use (_span : Telemetry.Span.T) = Telemetry.child "iteration" [ "count", count ]
       try
+        printTime "Trying to connect to DB"
         count <- count + 1
         do!
           Sql.query "select current_date"
@@ -31,7 +32,7 @@ let waitForDB () : Task<unit> =
         success <- true
       with e ->
         Telemetry.addException [] e
-        do! Task.Delay 1000
+        do! Task.Delay 10
     return ()
   }
 
@@ -48,14 +49,21 @@ type WaitForDB =
 /// call `waitForDB` if you need that.</remarks>
 let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
   task {
-    print $"Initing LibCloud in {serviceName}"
+    printTime $"Initing LibCloud in {serviceName}"
+    let dbTask =
+      match shouldWaitForDB with
+      | WaitForDB ->
+        task {
+          printTime "Initing DB connection"
+          let! result = waitForDB ()
+          printTime " Inited DB connection"
+          return result
+        }
+      | DontWaitForDB -> Task.FromResult()
 
-    match shouldWaitForDB with
-    | WaitForDB -> do! waitForDB ()
-    | DontWaitForDB -> ()
+    let queueTask = Queue.init ()
+    let traceStorageTask = TraceCloudStorage.init ()
+    let! (_ : List<unit>) = Task.flatten [ queueTask; traceStorageTask; dbTask ]
 
-    do! Queue.init ()
-    do! TraceCloudStorage.init ()
-
-    print $" Inited LibCloud in {serviceName}"
+    printTime $" Inited LibCloud in {serviceName}"
   }

@@ -445,7 +445,7 @@ let webserver
   Kubernetes.registerServerTimeout builder.WebHost
 
   builder.WebHost
-  |> fun wh -> wh.ConfigureLogging(loggerSetup)
+  // |> fun wh -> wh.ConfigureLogging(loggerSetup)
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
   |> fun wh -> wh.UseUrls(hcUrl, $"http://*:{httpPort}")
   |> ignore<IWebHostBuilder>
@@ -495,7 +495,7 @@ let initSerializers () =
 let main _ =
   try
     let name = "BwdDangerServer"
-    print "Starting BwdDangerServer"
+    printTime "Starting BwdDangerServer"
     initSerializers ()
     LibService.Init.init name
     (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result

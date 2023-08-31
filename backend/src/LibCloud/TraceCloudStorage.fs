@@ -299,6 +299,7 @@ type Bucket = Google.Apis.Storage.v1.Data.Bucket
 
 let init () : Task<unit> =
   task {
+    printTime "Initing TraceCloudStorage"
     let! client = client.Force()
     if Config.traceStorageCreateBucket then
       try
@@ -310,6 +311,7 @@ let init () : Task<unit> =
         let! (_ : Bucket) =
           client.CreateBucketAsync("some-project-id", bucketName, null)
         return ()
+    printTime " Inited TraceCloudStorage"
   }
 
 
