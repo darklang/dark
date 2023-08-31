@@ -1,10 +1,10 @@
 module BigTestCase =
   (let str = "a string to be used as the test case" in
-   let bytes = String.toBytes_v0 str in
-   let base64Encode = Bytes.base64Encode_v0 bytes in
-   let hexEncode = Bytes.hexEncode_v0 bytes in
-   let sl = String.length str in
-   let bl = Bytes.length bytes in
+   let bytes = Builtin.String.toBytes_v0 str in
+   let base64Encode = Builtin.Bytesbase64Encode_v0 bytes in
+   let hexEncode = Builtin.ByteshexEncode_v0 bytes in
+   let sl = Builtin.String.length str in
+   let bl = Builtin.Byteslength bytes in
    let t = true in
    let f = false in
 
@@ -12,10 +12,16 @@ module BigTestCase =
      (PACKAGE.Darklang.Stdlib.Bool.xor_v0 t f) |> PACKAGE.Darklang.Stdlib.Bool.not_v0 in
 
    let d0 = 1234567.987654 in
-   let d1 = d0 |> Float.power_v0 2.1 |> Float.add_v0 1.0 |> Float.sqrt_v0 in
-   let reverse = String.reverse_v0 str in
-   let contains = String.contains_v0 "a string" str in
-   let uuid = Uuid.parse_v0 "9c59ba07-1e20-4ce2-a2de-6a95391d67b2" in
+
+   let d1 =
+     d0
+     |> Builtin.Float.power_v0 2.1
+     |> Builtin.Float.add_v0 1.0
+     |> Builtin.Float.sqrt_v0 in
+
+   let reverse = Builtin.String.reverse_v0 str in
+   let contains = Builtin.String.contains_v0 "a string" str in
+   let uuid = Builtin.Uuid.parse_v0 "9c59ba07-1e20-4ce2-a2de-6a95391d67b2" in
 
    str
    |> (++) "\nbase64Encode: "
@@ -23,18 +29,18 @@ module BigTestCase =
    |> (++) "\nhex64Encode: "
    |> (++) hexEncode
    |> (++) "\nstring length: "
-   |> (++) (Int.toString_v0 sl)
+   |> (++) (Builtin.Int.toString_v0 sl)
    |> (++) "\nbytes length: "
-   |> (++) (Int.toString_v0 bl)
+   |> (++) (Builtin.Int.toString_v0 bl)
    |> (++) "\nbool: "
    |> (++) (PACKAGE.Darklang.Stdlib.Bool.toString_v0 r)
    |> (++) "\nfloat: "
-   |> (++) (Float.toString_v0 d0)
+   |> (++) (Builtin.Float.toString_v0 d0)
    |> (++) "\nanother double: "
-   |> (++) (Float.toString_v0 d1)
+   |> (++) (Builtin.Float.toString_v0 d1)
    |> (++) "\nstring reverse: "
    |> (++) reverse
    |> (++) "\nstring contains: "
    |> (++) (PACKAGE.Darklang.Stdlib.Bool.toString_v0 contains)
    |> (++) "\nuuid: "
-   |> (++) (Uuid.toString_v0 (unwrap uuid))) = "a string to be used as the test case\nbase64Encode: YSBzdHJpbmcgdG8gYmUgdXNlZCBhcyB0aGUgdGVzdCBjYXNl\nhex64Encode: 6120737472696E6720746F20626520757365642061732074686520746573742063617365\nstring length: 36\nbytes length: 36\nbool: false\nfloat: 1234567.98765\nanother double: 2489377.51259\nstring reverse: esac tset eht sa desu eb ot gnirts a\nstring contains: false\nuuid: 9c59ba07-1e20-4ce2-a2de-6a95391d67b2"
+   |> (++) (Builtin.Uuid.toString_v0 (Builtin.unwrap uuid))) = "a string to be used as the test case\nbase64Encode: YSBzdHJpbmcgdG8gYmUgdXNlZCBhcyB0aGUgdGVzdCBjYXNl\nhex64Encode: 6120737472696E6720746F20626520757365642061732074686520746573742063617365\nstring length: 36\nbytes length: 36\nbool: false\nfloat: 1234567.98765\nanother double: 2489377.51259\nstring reverse: esac tset eht sa desu eb ot gnirts a\nstring contains: false\nuuid: 9c59ba07-1e20-4ce2-a2de-6a95391d67b2"

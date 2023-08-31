@@ -51,27 +51,27 @@ module Shadowing =
    | Ok x -> x) = 6
 
 
-  (let x = 35 in List.map_v0 [ 1; 2; 3; 4 ] (fun x -> x + 2)) = [ 3; 4; 5; 6 ]
+  (let x = 35 in Builtin.List.map_v0 [ 1; 2; 3; 4 ] (fun x -> x + 2)) = [ 3; 4; 5; 6 ]
 
 
   (let x = 35
 
    match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with
-   | Ok x -> (List.map_v0 [ 1; 2; 3; 4 ] (fun x -> x + 2))) = [ 3; 4; 5; 6 ]
+   | Ok x -> (Builtin.List.map_v0 [ 1; 2; 3; 4 ] (fun x -> x + 2))) = [ 3; 4; 5; 6 ]
 
 
-  (List.map_v0 [ 1; 2; 3; 4 ] (fun x ->
+  (Builtin.List.map_v0 [ 1; 2; 3; 4 ] (fun x ->
     (let x = 35 in
 
      match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with
      | Ok x -> x + 2))) = [ 8; 8; 8; 8 ]
 
 
-  (List.map_v0 [ 1; 2; 3; 4 ] (fun x ->
+  (Builtin.List.map_v0 [ 1; 2; 3; 4 ] (fun x ->
     match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with
     | Ok x -> let x = 9 in x + 2)) = [ 11; 11; 11; 11 ]
 
-  (List.map_v0 [ 1; 2; 3; 4 ] (fun x ->
+  (Builtin.List.map_v0 [ 1; 2; 3; 4 ] (fun x ->
     (match
       PACKAGE.Darklang.Stdlib.Result.Result.Ok(
         PACKAGE.Darklang.Stdlib.Result.Result.Ok 6

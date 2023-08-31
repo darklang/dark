@@ -3,11 +3,11 @@ let _handler _req =
   let body =
 
     (Experiments.readFromStaticDir $"{path}")
-    |> PACKAGE.Darklang.Stdlib.Result.withDefault Bytes.empty
+    |> PACKAGE.Darklang.Stdlib.Result.withDefault Builtin.Bytes.empty
 
   let contentType =
     match
-      (String.split path ".")
+      (Builtin.String.split path ".")
       |> PACKAGE.Darklang.Stdlib.List.last
       |> PACKAGE.Darklang.Stdlib.Option.withDefault ""
     with
@@ -21,7 +21,7 @@ let _handler _req =
 
   let incomingHost =
     request.headers
-    |> List.findFirst (fun t -> PACKAGE.Darklang.Stdlib.Tuple2.first t == "origin")
+    |> Builtin.List.findFirst (fun t -> PACKAGE.Darklang.Stdlib.Tuple2.first t == "origin")
     |> PACKAGE.Darklang.Stdlib.Option.map (fun t ->
       PACKAGE.Darklang.Stdlib.Tuple2.second t)
     |> PACKAGE.Darklang.Stdlib.Option.withDefault

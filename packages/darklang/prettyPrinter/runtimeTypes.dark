@@ -4,7 +4,7 @@ module Darklang =
       let nameResolutionError
         (nr: PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error)
         : String =
-        String.join nr.names "."
+        Builtin.String.join nr.names "."
 
 
       module FQName =
@@ -15,10 +15,14 @@ module Darklang =
           let modulesPart =
             match t.modules with
             | [] -> ""
-            | modules -> modules |> String.join "." |> (fun parts -> $"{parts}.")
+            | modules ->
+              modules |> Builtin.String.join "." |> (fun parts -> $"{parts}.")
 
           let versionPart =
-            if t.version == 0 then "" else $"_v{Int.toString t.version}"
+            if t.version == 0 then
+              ""
+            else
+              $"_v{Builtin.Int.toString t.version}"
 
           $"{modulesPart}{namePart}{versionPart}"
 
@@ -30,10 +34,14 @@ module Darklang =
           let modulesPart =
             match u.modules with
             | [] -> ""
-            | modules -> modules |> String.join "." |> (fun parts -> $"{parts}.")
+            | modules ->
+              modules |> Builtin.String.join "." |> (fun parts -> $"{parts}.")
 
           let versionPart =
-            if u.version == 0 then "" else $"_v{Int.toString u.version}"
+            if u.version == 0 then
+              ""
+            else
+              $"_v{Builtin.Int.toString u.version}"
 
           $"{modulesPart}{namePart}{versionPart}"
 
@@ -42,10 +50,13 @@ module Darklang =
           (namePart: String)
           (p: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.Package)
           : String =
-          let modulesPart = String.join p.modules "."
+          let modulesPart = Builtin.String.join p.modules "."
 
           let versionPart =
-            if p.version == 0 then "" else $"_v{Int.toString p.version}"
+            if p.version == 0 then
+              ""
+            else
+              $"_v{Builtin.Int.toString p.version}"
 
           $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
 
@@ -175,9 +186,9 @@ module Darklang =
 
         | TList inner -> $"List<{typeReference inner}>"
         | TTuple(first, second, theRest) ->
-          (List.append [ first; second ] theRest)
-          |> List.map (fun item -> typeReference item)
-          |> String.join " * "
+          (Builtin.List.append [ first; second ] theRest)
+          |> Builtin.List.map (fun item -> typeReference item)
+          |> Builtin.String.join " * "
           |> fun parts -> "(" ++ parts ++ ")"
 
         | TDict inner -> $"Dict<{typeReference inner}>"
@@ -192,8 +203,8 @@ module Darklang =
             | [] -> ""
             | args ->
               args
-              |> List.map (fun arg -> typeReference arg)
-              |> String.join ", "
+              |> Builtin.List.map (fun arg -> typeReference arg)
+              |> Builtin.String.join ", "
               |> fun parts -> $"<{parts}>"
 
           let typeNamePart =
@@ -207,8 +218,8 @@ module Darklang =
         | TFn(args, ret) ->
           let argPart =
             args
-            |> List.map (fun arg -> typeReference arg)
-            |> String.join ", "
+            |> Builtin.List.map (fun arg -> typeReference arg)
+            |> Builtin.String.join ", "
             |> fun parts -> "(" ++ parts ++ ")"
 
           $"{argPart} -> {typeReference ret}"
@@ -235,9 +246,9 @@ module Darklang =
           | DList(v :: _) -> "List<" ++ (dvalTypeName v) ++ ">"
           | DDict _ -> "Dict"
           | DTuple(t1, t2, trest) ->
-            (List.append [ t1; t2 ] trest)
-            |> List.map (fun dv -> dvalTypeName dv)
-            |> String.join ", "
+            (Builtin.List.append [ t1; t2 ] trest)
+            |> Builtin.List.map (fun dv -> dvalTypeName dv)
+            |> Builtin.String.join ", "
             |> fun s -> $"({s})"
 
           | DRecord(typeName, _, _) -> PrettyPrinter.RuntimeTypes.typeName typeName
@@ -253,7 +264,7 @@ module Darklang =
           | _ -> "TODO dvalTypeName"
 
         let makeSpaces (len: Int) : String =
-          (List.repeat len " ") |> unwrap |> String.join ""
+          (Builtin.List.repeat len " ") |> Builtin.unwrap |> Builtin.String.join ""
 
         let withIndent
           (indent: Int)
@@ -276,10 +287,10 @@ module Darklang =
           | DChar c -> $"'{c}'"
           | DString s -> $"\"{s}\""
 
-          | DInt i -> Int.toString i
+          | DInt i -> Builtin.Int.toString i
 
           // CLEANUP: deal with Infinity, NegativeInfinity, and NaN
-          | DFloat f -> Float.toString f
+          | DFloat f -> Builtin.Float.toString f
 
 
           // | DDateTime d -> wrap (DarkDateTime.toIsoString d)
@@ -292,35 +303,35 @@ module Darklang =
 
 
           // | DList l ->
-          //   if List.isEmpty l then
+          //   if Builtin.List.isEmpty l then
           //     "[]"
           //   else
-          //     let elems = String.concat ", " (List.map (withIndent indent) l)
+          //     let elems = Builtin.String.concat ", " (Builtin.List.map (withIndent indent) l)
           //     $"[{inl}{elems}{nl}]"
 
           | DTuple(first, second, theRest) ->
-            let l = List.append [ first; second ] theRest
+            let l = Builtin.List.append [ first; second ] theRest
 
-            let parts = List.map l (fun item -> withIndent indent item)
+            let parts = Builtin.List.map l (fun item -> withIndent indent item)
 
-            let short = String.join parts ", "
+            let short = Builtin.String.join parts ", "
 
-            if String.length short <= 80 then
+            if Builtin.String.length short <= 80 then
               $"({short})"
             else
-              let long = String.join parts $"{inl}, "
+              let long = Builtin.String.join parts $"{inl}, "
 
               $"({inl}{long}{nl})"
 
           | DRecord(_, typeName, o) ->
             let strs =
               o
-              |> Dict.toList
-              |> List.map (fun pair ->
+              |> Builtin.Dict.toList
+              |> Builtin.List.map (fun pair ->
                 let (key, value) = pair
                 $"{key}: {withIndent indent value}")
 
-            let elems = String.join strs $",{inl}"
+            let elems = Builtin.String.join strs $",{inl}"
             let typeStr = typeName typeName
             typeStr ++ " {" ++ inl ++ elems ++ nl ++ "}"
 
@@ -331,30 +342,30 @@ module Darklang =
           //     let strs =
           //       o
           //       |> Map.toList
-          //       |> List.map (fun (key, value) -> ($"{key}: {withIndent indent value}"))
+          //       |> Builtin.List.map (fun (key, value) -> ($"{key}: {withIndent indent value}"))
 
-          //     let elems = String.concat $",{inl}" strs
+          //     let elems = Builtin.String.concat $",{inl}" strs
           //     "{" + $"{inl}{elems}{nl}" + "}"
 
           // | DEnum(_, typeName, caseName, fields) ->
           //   let short =
           //     let fieldStr =
           //       fields
-          //       |> List.map (fun value -> withIndent indent value)
-          //       |> String.concat ", "
+          //       |> Builtin.List.map (fun value -> withIndent indent value)
+          //       |> Builtin.String.concat ", "
 
           //     let fieldStr = if fieldStr = "" then "" else $"({fieldStr})"
 
           //     let typeStr = TypeName.toString typeName
           //     $"{typeStr}.{caseName}{fieldStr}"
 
-          //   if String.length short <= 80 then
+          //   if Builtin.String.length short <= 80 then
           //     short
           //   else
           //     let fieldStr =
           //       fields
-          //       |> List.map (fun value -> withIndent indent value)
-          //       |> String.concat $",{inl}"
+          //       |> Builtin.List.map (fun value -> withIndent indent value)
+          //       |> Builtin.String.concat $",{inl}"
 
           //     let fieldStr = if fieldStr = "" then "" else $"({inl}{fieldStr}{nl})"
 
@@ -365,7 +376,7 @@ module Darklang =
           // | DDB name -> wrap name
 
           // | DFnVal _ ->
-          //   // TODO: we should print this, as this use case is safe
+          //   // TODO: we should Builtin.print this, as this use case is safe
           //   // See docs/dblock-serialization.md
           //   justType
 
@@ -374,7 +385,8 @@ module Darklang =
           // | DError(_, msg) -> $"<error: {msg}>"
 
           | _ ->
-            $"(PP.RT.Dval TODO {(Json.serialize<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval> dv) |> unwrap})"
+            $"(PP.RT.Dval TODO {(Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval> dv)
+                                |> Builtin.unwrap})"
 
 
       let dval (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval) : String =

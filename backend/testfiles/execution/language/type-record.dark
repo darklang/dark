@@ -39,7 +39,7 @@ module InvalidCols =
     "Unexpected field `col3` in Cols2"
 
   Cols1 { col1 = "" } = Test.derrorMessage
-    "Cols1's `col1` field should be an Int. However, a String (\"\") was passed instead.\n\nExpected: ({ col1: Int; ... })\nActual: a String: \"\""
+    "Cols1's `col1` field should be an Builtin.Int However, a String (\"\") was passed instead.\n\nExpected: ({ col1: Int; ... })\nActual: a String: \"\""
 
 
 module InvalidType =
@@ -106,4 +106,4 @@ module Update =
       "Unexpected field `other` in Update.RecordForUpdate"
 
     (let myRec = RecordForUpdate { x = 4; y = 1 } in { myRec with y = "2" }) = Test.derrorMessage
-      "Update.RecordForUpdate's `y` field should be an Int. However, a String (\"2\") was passed instead.\n\nExpected: ({ y: Int; ... })\nActual: a String: \"2\""
+      "Update.RecordForUpdate's `y` field should be an Builtin.Int However, a String (\"2\") was passed instead.\n\nExpected: ({ y: Int; ... })\nActual: a String: \"2\""

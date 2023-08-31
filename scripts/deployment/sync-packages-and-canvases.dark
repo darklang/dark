@@ -36,7 +36,7 @@ let gatherDataToExport () : Result<DataExport, String> =
 
   let prettyCanvases =
     canvases
-    |> List.map (fun canvas ->
+    |> Builtin.Builtin.List.map (fun canvas ->
       CanvasExport
         { name = canvas.name
           content = PACKAGE.Darklang.PrettyPrinter.canvas canvas })
@@ -47,72 +47,72 @@ let gatherDataToExport () : Result<DataExport, String> =
   |> Ok
 
 let export (unit: Unit) : Result<Unit, String> =
-  print "gathering data to export"
-  let data = (gatherDataToExport ()) |> unwrap
+  Builtin.print "gathering data to export"
+  let data = (gatherDataToExport ()) |> Builtin.unwrap
 
-  print "serializing data to export"
-  let json = (Json.serialize<DataExport> data) |> unwrap
+  Builtin.print "serializing data to export"
+  let json = (Builtin.Json.serialize<DataExport> data) |> Builtin.unwrap
 
-  print "exporting data to `dark-ai-backup`"
+  Builtin.print "exporting data to `dark-ai-backup`"
 
   let response =
-    (HttpClient.request
+    (Builtin.HttpClient.request
       "POST"
       "http://dark-ai-backup.builtwithdark.com/save-export"
       [ ("Content-Type", "application/json") ]
-      (String.toBytes json))
-    |> unwrap
+      (Builtin.String.toBytes json))
+    |> Builtin.unwrap
 
   // TODO: ensure 200 OK
 
-  print "done export"
+  Builtin.print "done export"
 
   Ok()
 
 let import () : Result<ImportResults, String> =
-  print "fetching latest export from `dark-ai-backup`"
+  Builtin.print "fetching latest export from `dark-ai-backup`"
 
   let response =
-    (HttpClient.request
+    (Builtin.HttpClient.request
       "GET"
       "http://dark-ai-backup.builtwithdark.com/latest-export"
       [ ("Accept", "application/json") ]
-      Bytes.empty)
-    |> unwrap
+      Builtin.Bytes.empty)
+    |> Builtin.unwrap
 
-  print "deserializing response from `dark-ai-backup`"
-  let deserialized = (Json.parse<DataExport> response) |> unwrap
+  Builtin.print "deserializing response from `dark-ai-backup`"
+  let deserialized = (Builtin.Json.parse<DataExport> response) |> Builtin.unwrap
 
-  print "parsing and importing packages"
+  Builtin.print "parsing and importing packages"
 
   let packageImportResults =
     DarkInternal.Packages.parseAndImport deserialized.Packages
 
-    List.fold packageImportResults (Ok []) (fun acc result ->
+    Builtin.List.fold packageImportResults (Ok []) (fun acc result ->
       match acc with
       | Error error -> Error error
       | Ok acc ->
         let result = DarkInternal.Packages.parseAndImport package
 
         match result with
-        | Ok _ -> Ok(List.append acc [ package.name ])
+        | Ok _ -> Ok(Builtin.List.append acc [ package.name ])
         | Error error -> Error error)
 
 
-  print "parsing and importing canvases"
+  Builtin.print "parsing and importing canvases"
   // List of results -- hopefully List of OKs
   let canvasImportResults =
-    List.fold canvasImportResults (Ok []) (fun acc result ->
+    Builtin.List.fold canvasImportResults (Ok []) (fun acc result ->
       match acc with
       | Error error -> Error error
       | Ok acc ->
         let result = DarkInternal.Canvas.parseAndImport canvas
 
         match result with
-        | Ok _ -> Ok(List.append acc [ canvas.name ])
+        | Ok _ -> Ok(Builtin.List.append acc [ canvas.name ])
         | Error error -> Error error)
 
-  print "handling results"
+  Builtin.print "handling results"
 
   match (packageImportResults, canvasImportResults) with
   | (Ok packages, Ok canvases) ->
@@ -125,24 +125,24 @@ let import () : Result<ImportResults, String> =
 
 
 let main (args: List<String>) : Int =
-  print "running `sync-packages-and-canvases.dark`"
+  Builtin.print "running `sync-packages-and-canvases.dark`"
 
   match args with
   | [ "export" ] ->
     match export () with
     | Ok _ -> 0
     | Error error ->
-      print error
+      Builtin.print error
       1
 
   | [ "import" ] ->
     match import () with
     | Ok _ -> 0
     | Error error ->
-      print error
+      Builtin.print error
       1
   | _ ->
-    print
+    Builtin.print
       "Usage: ./scripts/run-cli-internal ./scripts/deployment/sync-packages-and-canvases.dark [export|import]"
 
     1

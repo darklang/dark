@@ -21,7 +21,7 @@ module Darklang =
             nameType: NameType
 
             /// The `.`-delimited name _parts_
-            /// e.g. `List.fakeFunction` is `["List"; "fakeFunction"]`
+            /// e.g. `Builtin.List.fakeFunction` is `["List"; "fakeFunction"]`
             names: List<String>
           }
 
@@ -37,7 +37,7 @@ module Darklang =
             ErrorOutput
               { summary =
                   [ ErrorSegment.ErrorSegment.String $"There is no {nameType} named "
-                    ErrorSegment.ErrorSegment.InlineVarName(String.join e.names ".") ]
+                    ErrorSegment.ErrorSegment.InlineVarName(Builtin.String.join e.names ".") ]
                 extraExplanation = []
                 actual = []
                 expected = [] }
@@ -48,10 +48,10 @@ module Darklang =
                 []
               else
                 [ ErrorSegment.ErrorSegment.String ": "
-                  ErrorSegment.ErrorSegment.VarName(String.join e.names ".") ]
+                  ErrorSegment.ErrorSegment.VarName(Builtin.String.join e.names ".") ]
 
             let summary =
-              List.append
+              Builtin.List.append
                 [ ErrorSegment.ErrorSegment.String "Missing module name" ]
                 suffix
 
@@ -64,7 +64,7 @@ module Darklang =
           | InvalidPackageName ->
             let summary =
               [ ErrorSegment.ErrorSegment.String "Invalid package name "
-                ErrorSegment.ErrorSegment.InlineVarName(String.join e.names ".") ]
+                ErrorSegment.ErrorSegment.InlineVarName(Builtin.String.join e.names ".") ]
 
             ErrorOutput
               { summary = summary
@@ -75,7 +75,7 @@ module Darklang =
           | ExpectedRecordButNot ->
             let summary =
               [ ErrorSegment.ErrorSegment.String "Expected a record but "
-                ErrorSegment.ErrorSegment.InlineVarName(String.join e.names ".")
+                ErrorSegment.ErrorSegment.InlineVarName(Builtin.String.join e.names ".")
                 ErrorSegment.ErrorSegment.String " is an enum" ]
 
             ErrorOutput

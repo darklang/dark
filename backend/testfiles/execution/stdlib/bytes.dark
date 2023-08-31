@@ -1,145 +1,145 @@
 // TODO: try decoding values with incorrect padding
 
-Bytes.length Bytes.empty_v0 = 0
-Bytes.empty_v0 = String.toBytes_v0 ""
+Builtin.Byteslength Builtin.Bytesempty_v0 = 0
+Builtin.Bytesempty_v0 = Builtin.String.toBytes_v0 ""
 
-Bytes.length (String.toBytes_v0 "abcdef") = 6
+Builtin.Byteslength (Builtin.String.toBytes_v0 "abcdef") = 6
 
-Bytes.base64Decode "white space" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+Builtin.Bytesbase64Decode "white space" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Not a valid base64 string"
 
-Bytes.base64Decode "Kw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "+"
+Builtin.Bytesbase64Decode "Kw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "+"
 )
 
-Bytes.base64Decode "yLo" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "Ⱥ"
+Builtin.Bytesbase64Decode "yLo" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "Ⱥ"
 )
 
-Bytes.base64Decode "xbzDs8WCdw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "żółw"
+Builtin.Bytesbase64Decode "xbzDs8WCdw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "żółw"
 )
 
-Bytes.base64Decode "LyotKygmQDk4NTIx" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "/*-+(&@98521"
+Builtin.Bytesbase64Decode "LyotKygmQDk4NTIx" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "/*-+(&@98521"
 )
 
-Bytes.base64Decode "illegal-chars&@:" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+Builtin.Bytesbase64Decode "illegal-chars&@:" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Not a valid base64 string"
 
-Bytes.base64Decode "x" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+Builtin.Bytesbase64Decode "x" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Not a valid base64 string"
 // empty case
-Bytes.base64Decode "" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 ""
+Builtin.Bytesbase64Decode "" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 ""
 )
 // Test cases from the spec with padding added
-Bytes.base64Decode "Zg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "f"
+Builtin.Bytesbase64Decode "Zg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "f"
 )
 
-Bytes.base64Decode "Zg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "f"
+Builtin.Bytesbase64Decode "Zg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "f"
 )
 
-Bytes.base64Decode "Zm8" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "fo"
+Builtin.Bytesbase64Decode "Zm8" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "fo"
 )
 
-Bytes.base64Decode "Zm8=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "fo"
+Builtin.Bytesbase64Decode "Zm8=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "fo"
 )
 
-Bytes.base64Decode "Zm9v" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "foo"
+Builtin.Bytesbase64Decode "Zm9v" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "foo"
 )
 
-Bytes.base64Decode "Zm9vYg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "foob"
+Builtin.Bytesbase64Decode "Zm9vYg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "foob"
 )
 
-Bytes.base64Decode "Zm9vYg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "foob"
+Builtin.Bytesbase64Decode "Zm9vYg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "foob"
 )
 
-Bytes.base64Decode "Zm9vYmE" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "fooba"
+Builtin.Bytesbase64Decode "Zm9vYmE" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "fooba"
 )
 
-Bytes.base64Decode "Zm9vYmE=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "fooba"
+Builtin.Bytesbase64Decode "Zm9vYmE=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "fooba"
 )
 
-Bytes.base64Decode "Zm9vYmFy" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "foobar"
+Builtin.Bytesbase64Decode "Zm9vYmFy" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "foobar"
 )
 // "Impossible cases" from apache
 // https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
-Bytes.base64Decode "ZE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "d"
+Builtin.Bytesbase64Decode "ZE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "d"
 )
 
-Bytes.base64Decode "ZmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "f`"
+Builtin.Bytesbase64Decode "ZmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "f`"
 )
 
-Bytes.base64Decode "Zm9vYE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "foo`"
+Builtin.Bytesbase64Decode "Zm9vYE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "foo`"
 )
 
-Bytes.base64Decode "Zm9vYmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  String.toBytes_v0 "foob`"
+Builtin.Bytesbase64Decode "Zm9vYmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.String.toBytes_v0 "foob`"
 )
 
-Bytes.base64Decode
+Builtin.Bytesbase64Decode
   "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(String.toBytes_v0 "from=06/07/2013 query=\"Καλώς ορίσατε\"")
+  .Ok(Builtin.String.toBytes_v0 "from=06/07/2013 query=\"Καλώς ορίσατε\"")
 
-Bytes.base64Decode "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = PACKAGE
+Builtin.Bytesbase64Decode "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+  .Ok(Builtin.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
 // These produce strings of bytes which are technically legal it seems
-Bytes.base64Decode "-p" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+Builtin.Bytesbase64Decode "-p" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
   Test.asBytes_v0 [ 250 ]
 )
 
-Bytes.base64Decode "lI" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+Builtin.Bytesbase64Decode "lI" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
   Test.asBytes_v0 [ 148 ]
 )
 
-Bytes.base64Decode "5Sk" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+Builtin.Bytesbase64Decode "5Sk" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
   Test.asBytes_v0 [ 229; 41 ]
 )
 
-Bytes.base64Decode "AA" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+Builtin.Bytesbase64Decode "AA" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
   Test.asBytes_v0 [ 0 ]
 )
 
-Bytes.base64Decode "_w" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+Builtin.Bytesbase64Decode "_w" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
   Test.asBytes_v0 [ 255 ]
 )
 
 
 
-Bytes.base64Encode_v0 (String.toBytes_v0 "abcdef") = "YWJjZGVm"
-Bytes.base64Encode_v0 (String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
-Bytes.base64Encode_v0 (String.toBytes_v0 "اختبار النص") = "2KfYrtiq2KjYp9ixINin2YTZhti1"
-Bytes.base64Encode_v0 (String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = "77e977e977e977e977e977e977e977e977e977e977e977e977e977e977e977e9"
-Bytes.base64Encode_v0 (String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78="
-Bytes.base64Encode_v0 (String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷") = "8J-RqOKAjeKdpO-4j-KAjfCfkovigI3wn5Go8J-RqeKAjfCfkanigI3wn5Gn4oCN8J-RpvCfj7PvuI_igI3imqfvuI_wn4e18J-Htw=="
+Builtin.Bytesbase64Encode_v0 (Builtin.String.toBytes_v0 "abcdef") = "YWJjZGVm"
+Builtin.Bytesbase64Encode_v0 (Builtin.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
+Builtin.Bytesbase64Encode_v0 (Builtin.String.toBytes_v0 "اختبار النص") = "2KfYrtiq2KjYp9ixINin2YTZhti1"
+Builtin.Bytesbase64Encode_v0 (Builtin.String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = "77e977e977e977e977e977e977e977e977e977e977e977e977e977e977e977e9"
+Builtin.Bytesbase64Encode_v0 (Builtin.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78="
+Builtin.Bytesbase64Encode_v0 (Builtin.String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷") = "8J-RqOKAjeKdpO-4j-KAjfCfkovigI3wn5Go8J-RqeKAjfCfkanigI3wn5Gn4oCN8J-RpvCfj7PvuI_igI3imqfvuI_wn4e18J-Htw=="
 
-Bytes.hexEncode_v0 (String.toBytes_v0 "123qwc") = "313233717763"
-Bytes.hexEncode_v0 (String.toBytes_v0 "اختبار النص") = "D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5"
-Bytes.hexEncode_v0 (String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "F09F91B1F09F91B1F09F8FBBF09F91B1F09F8FBCF09F91B1F09F8FBDF09F91B1F09F8FBEF09F91B1F09F8FBF"
+Builtin.ByteshexEncode_v0 (Builtin.String.toBytes_v0 "123qwc") = "313233717763"
+Builtin.ByteshexEncode_v0 (Builtin.String.toBytes_v0 "اختبار النص") = "D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5"
+Builtin.ByteshexEncode_v0 (Builtin.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "F09F91B1F09F91B1F09F8FBBF09F91B1F09F8FBCF09F91B1F09F8FBDF09F91B1F09F8FBEF09F91B1F09F8FBF"
 
-Bytes.hexEncode_v0 (
-  String.toBytes_v0
+Builtin.ByteshexEncode_v0 (
+  Builtin.String.toBytes_v0
     "dlkjkd329823333333333fjfidjsfudsdhs}{||!|!|!|!!$%^&^&﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
 ) = "646C6B6A6B64333239383233333333333333333333666A6669646A73667564736468737D7B7C7C217C217C217C212124255E265E26EFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BD"

@@ -8,8 +8,8 @@ module Darklang =
       /// Truncates the string <param s> to the specified <param length> and appends an ellipsis ("...")
       /// to it if the original string exceeds the given length. Otherwise, returns the original string.
       let ellipsis (s: String) (length: Int) : String =
-        if String.length s > length then
-          (String.slice_v0 s 0 length) ++ "..."
+        if Builtin.String.length s > length then
+          (Builtin.String.slice_v0 s 0 length) ++ "..."
         else
           s
 
@@ -18,12 +18,15 @@ module Darklang =
       let articleFor (nextWord: String) : String =
         let vowels = [ 'A'; 'E'; 'I'; 'O'; 'U'; 'a'; 'e'; 'i'; 'o'; 'u' ]
 
-        match String.head nextWord with
+        match Builtin.String.head nextWord with
         | None -> ""
         | Some c ->
-          if String.length nextWord > 1 && Bool.not (Char.isASCIILetter c) then
-            articleFor (String.dropFirst nextWord 1)
-          else if List.``member`` vowels c then
+          if
+            Builtin.String.length nextWord > 1
+            && (PACKAGE.Darklang.Stdlib.Bool.not (Builtin.Char.isASCIILetter c))
+          then
+            articleFor (PACKAGE.Darklang.Stdlib.String.dropFirst nextWord 1)
+          else if PACKAGE.Darklang.Stdlib.List.``member`` vowels c then
             "an"
           else
             "a"
@@ -38,46 +41,53 @@ module Darklang =
 
       /// Returns the list of characters as a string
       let fromList (lst: List<Char>) : String =
-        (List.map lst (fun c -> Char.toString c)) |> String.join ""
+        (Builtin.List.map lst (fun c -> Builtin.Char.toString c))
+        |> Builtin.String.join ""
 
 
       /// Converts a <type Char> to a <type String>
-      let fromChar (c: Char) : String = Char.toString c
+      let fromChar (c: Char) : String = Builtin.Char.toString c
 
 
-      /// Returns the first <param characterCount> characters of <param string>, as a String.
+      /// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
       /// If <param characterCount> is longer than <param string>, returns <param string>.
       /// If <param characterCount> is negative, returns the empty string."
       let first (string: String) (characterCount: Int) : String =
-        if characterCount < 0 then ""
-        else if characterCount > String.length string then string
-        else String.slice_v0 string 0 characterCount
+        if characterCount < 0 then
+          ""
+        else if characterCount > Builtin.String.length string then
+          string
+        else
+          Builtin.String.slice_v0 string 0 characterCount
 
 
-      /// Returns the last <param characterCount> characters of <param string>, as a String.
+      /// Returns the last <param characterCount> characters of <param string>, as a Builtin.String.
       /// If <param characterCount> is longer than <param string>, returns <param string>.
       /// If <param characterCount> is negative, returns the empty string.
       let last (string: String) (characterCount: Int) : String =
         if characterCount < 0 then
           ""
-        else if characterCount > String.length string then
+        else if characterCount > Builtin.String.length string then
           string
         else
-          String.slice_v0
+          Builtin.String.slice_v0
             string
-            (String.length string - characterCount)
-            (String.length string)
+            (Builtin.String.length string - characterCount)
+            (Builtin.String.length string)
 
-      /// Returns all but the last <param characterCount> characters of <param string>, as a String.
+      /// Returns all but the last <param characterCount> characters of <param string>, as a Builtin.String.
       /// If <param characterCount> is longer than <param string>, returns the empty string.
       /// If <param characterCount> is negative, returns <param string>.
       let dropLast (string: String) (characterCount: Int) : String =
         if characterCount < 0 then
           string
-        else if characterCount > String.length string then
+        else if characterCount > Builtin.String.length string then
           ""
         else
-          String.slice_v0 string 0 (String.length string - characterCount)
+          Builtin.String.slice_v0
+            string
+            0
+            (Builtin.String.length string - characterCount)
 
 
       /// Returns all but the first <param characterCount> characters of <param string>, as a <type String>.
@@ -86,10 +96,13 @@ module Darklang =
       let dropFirst (string: String) (characterCount: Int) : String =
         if characterCount < 0 then
           string
-        else if characterCount > String.length string then
+        else if characterCount > Builtin.String.length string then
           ""
         else
-          String.slice_v0 string characterCount (String.length string)
+          Builtin.String.slice_v0
+            string
+            characterCount
+            (Builtin.String.length string)
 
 
       let repeat (string: String) (count: Int) : String =
@@ -108,13 +121,13 @@ module Darklang =
         (padWith: String)
         (goalLength: Int)
         : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
-        if String.length padWith != 1 then
+        if Builtin.String.length padWith != 1 then
           PACKAGE.Darklang.Stdlib.Result.Result.Error
             $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
-        else if String.length string >= goalLength then
+        else if Builtin.String.length string >= goalLength then
           PACKAGE.Darklang.Stdlib.Result.Result.Ok string
         else
-          let padCount = goalLength - String.length string
+          let padCount = goalLength - Builtin.String.length string
           let pad = PACKAGE.Darklang.Stdlib.String.repeat padWith padCount
           PACKAGE.Darklang.Stdlib.Result.Result.Ok(pad ++ string)
 
@@ -128,28 +141,28 @@ module Darklang =
         (padWith: String)
         (goalLength: Int)
         : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
-        if String.length padWith != 1 then
+        if Builtin.String.length padWith != 1 then
           PACKAGE.Darklang.Stdlib.Result.Result.Error
             $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
-        else if String.length string >= goalLength then
+        else if Builtin.String.length string >= goalLength then
           PACKAGE.Darklang.Stdlib.Result.Result.Ok string
         else
-          let padCount = goalLength - String.length string
+          let padCount = goalLength - Builtin.String.length string
           let pad = PACKAGE.Darklang.Stdlib.String.repeat padWith padCount
           PACKAGE.Darklang.Stdlib.Result.Result.Ok(string ++ pad)
 
 
       /// Checks if <param subject> starts with <param prefix>
       let startsWith (subject: String) (prefix: String) : Bool =
-        String.slice_v0 subject 0 (String.length prefix) == prefix
+        Builtin.String.slice_v0 subject 0 (Builtin.String.length prefix) == prefix
 
 
       /// Checks if <param subject> ends with <param suffix>
       let endsWith (subject: String) (suffix: String) : Bool =
-        String.slice_v0
+        Builtin.String.slice_v0
           subject
-          (String.length subject - String.length suffix)
-          (String.length subject)
+          (Builtin.String.length subject - Builtin.String.length suffix)
+          (Builtin.String.length subject)
         == suffix
 
 
@@ -161,8 +174,8 @@ module Darklang =
           | 3 -> "rd"
           | _ -> "th"
 
-        (Int.toString n) ++ suffix
+        (Builtin.Int.toString n) ++ suffix
 
 
       let splitOnNewline (str: String) : List<String> =
-        if str == "" then [] else String.split str "\n"
+        if str == "" then [] else Builtin.String.split str "\n"

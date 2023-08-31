@@ -10,8 +10,8 @@ module Darklang =
           match tail with
           | [] -> []
           | _ ->
-            List.append_v0
-              (List.singleton_v0 head)
+            Builtin.List.append_v0
+              (Builtin.List.singleton_v0 head)
               (PACKAGE.Darklang.Stdlib.List.dropLast tail)
 
 
@@ -33,12 +33,12 @@ module Darklang =
 
       /// Add element <param val> to front of <type list> <param list>
       let push (list: List<'a>) (value: 'a) : List<'a> =
-        List.append_v0 (List.singleton_v0 value) list
+        Builtin.List.append_v0 (Builtin.List.singleton_v0 value) list
 
 
       /// Add element <param val> to back of <type list> <param list>
       let pushBack (list: List<'a>) (value: 'a) : List<'a> =
-        List.append_v0 list (List.singleton_v0 value)
+        Builtin.List.append_v0 list (Builtin.List.singleton_v0 value)
 
 
       /// Returns the last value in <param list>, wrapped in an option (<paramNone> if the list is empty)
@@ -56,9 +56,9 @@ module Darklang =
         match list with
         | [] -> []
         | head :: tail ->
-          List.append_v0
+          Builtin.List.append_v0
             (PACKAGE.Darklang.Stdlib.List.reverse tail)
-            (List.singleton_v0 head)
+            (Builtin.List.singleton_v0 head)
 
 
       /// Returns the number of values in <param list>
@@ -74,8 +74,8 @@ module Darklang =
         if lowest > highest then
           []
         else
-          List.append_v0
-            (List.singleton_v0 lowest)
+          Builtin.List.append_v0
+            (Builtin.List.singleton_v0 lowest)
             (PACKAGE.Darklang.Stdlib.List.range (lowest + 1) highest)
 
 
@@ -85,7 +85,7 @@ module Darklang =
         match list with
         | [] -> []
         | head :: tail ->
-          List.append_v0 head (PACKAGE.Darklang.Stdlib.List.flatten tail)
+          Builtin.List.append_v0 head (PACKAGE.Darklang.Stdlib.List.flatten tail)
 
 
       /// Returns true if <param list> has no values
@@ -151,6 +151,6 @@ module Darklang =
           match list with
           | [] -> []
           | head :: tail ->
-            List.append_v0
-              (List.singleton_v0 head)
+            Builtin.List.append_v0
+              (Builtin.List.singleton_v0 head)
               (PACKAGE.Darklang.Stdlib.List.take tail (count - 1))

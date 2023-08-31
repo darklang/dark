@@ -13,6 +13,6 @@ Test.getQueue_v0 "TestWorker" = []
  let _ = emit 1 "TestWorker"
  let _ = emit (FruitRecord { fruits = [ "apple"; "banana" ] }) "TestWorker"
  let queue = Test.getQueue_v0 "TestWorker"
- List.sort queue) = [ "\"value\""
+ Builtin.List.sort queue) = [ "\"value\""
                       "1"
                       "FruitRecord {\n  fruits: [\n    \"apple\", \"banana\"\n  ]\n}" ]

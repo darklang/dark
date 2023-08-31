@@ -2,37 +2,37 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
                                                                           -4.611686018e+18) ]
 
 // Test that empty parameters are removed
-(let y = (fun x ___ -> x + 1) in List.map_v0 [ 1; 2; 3; 4 ] y) = [ 2; 3; 4; 5 ]
-(let y = (fun x -> x + 1) in List.map_v0 [ 1; 2; 3; 4 ] y) = [ 2; 3; 4; 5 ]
+(let y = (fun x ___ -> x + 1) in Builtin.List.map_v0 [ 1; 2; 3; 4 ] y) = [ 2; 3; 4; 5 ]
+(let y = (fun x -> x + 1) in Builtin.List.map_v0 [ 1; 2; 3; 4 ] y) = [ 2; 3; 4; 5 ]
 
-(let y = (fun msg -> Test.runtimeError msg) in List.map_v0 [ "1"; "2"; "3"; "4" ] y) = Test.derrorMessage
+(let y = (fun msg -> Test.runtimeError msg) in Builtin.List.map_v0 [ "1"; "2"; "3"; "4" ] y) = Test.derrorMessage
   "1"
 
-(let y = (fun msg -> Test.runtimeError msg) in List.map_v0 [] y) = []
+(let y = (fun msg -> Test.runtimeError msg) in Builtin.List.map_v0 [] y) = []
 // (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
-(let y = (fun a b -> a * b) in List.fold_v0 [ 1; 2; 3; 4 ] 1 y) = 24
-(List.fold_v0 [ 4 ] 1 (Test.runtimeError "test")) = Test.derrorMessage "test"
+(let y = (fun a b -> a * b) in Builtin.List.fold_v0 [ 1; 2; 3; 4 ] 1 y) = 24
+(Builtin.List.fold_v0 [ 4 ] 1 (Test.runtimeError "test")) = Test.derrorMessage "test"
 
 (let x = 5 in
  let y = (fun c -> x + c) in
  let x = 6 in
- [ 1; 2; 3; 4 ] |> List.map_v0 y) = [ 6; 7; 8; 9 ]
+ [ 1; 2; 3; 4 ] |> Builtin.List.map_v0 y) = [ 6; 7; 8; 9 ]
 
-(String.join_v0
-  (List.map_v0 (String.toList "some string") (fun var ->
-    String.toUppercase (PACKAGE.Darklang.Stdlib.String.fromChar var)))
+(Builtin.String.join_v0
+  (Builtin.List.map_v0 (Builtin.String.toList "some string") (fun var ->
+    Builtin.String.toUppercase (PACKAGE.Darklang.Stdlib.String.fromChar var)))
   "") = "SOME STRING"
 
 (let y = (fun c -> if c > 2 then Test.runtimeError "err" else 18)
- [ 1; 2; 3; 4 ] |> List.map_v0 y) = Test.derrorMessage "err"
+ [ 1; 2; 3; 4 ] |> Builtin.List.map_v0 y) = Test.derrorMessage "err"
 
 (let y = (fun c -> if c > 2 then Test.runtimeError "err" else 18)
- [ 1; 2 ] |> List.map_v0 y) = [ 18; 18 ]
+ [ 1; 2 ] |> Builtin.List.map_v0 y) = [ 18; 18 ]
 
-(let t = true in List.all [ 1; 2 ] (fun _ -> t)) = true
-(let f = false in List.all [ 1; 2 ] (fun _ -> f)) = false
+(let t = true in Builtin.List.all [ 1; 2 ] (fun _ -> t)) = true
+(let f = false in Builtin.List.all [ 1; 2 ] (fun _ -> f)) = false
 
 (let x = 1
  let f = fun _ -> x
  let x = 2
- List.map [ 1; 2; 3 ] f) = [ 1; 1; 1 ]
+ Builtin.List.map [ 1; 2; 3 ] f) = [ 1; 1; 1 ]

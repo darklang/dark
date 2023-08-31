@@ -5,11 +5,11 @@ module Documentation =
   (PACKAGE.Darklang.Stdlib.List.length_v0 (DarkInternal.Documentation.list ()) > 100) = true
 
   ((DarkInternal.Documentation.list_v0 ())
-   |> List.map (fun f -> (f.name, f))
-   |> Dict.fromList_v0
-   |> unwrap
-   |> Dict.get "Int.add"
-   |> unwrap
+   |> Builtin.List.map (fun f -> (f.name, f))
+   |> Builtin.Dict.fromList_v0
+   |> Builtin.unwrap
+   |> Builtin.Dict.get "Builtin.Intadd"
+   |> Builtin.unwrap
    |> (fun f -> f.parameters)) = [ DarkInternal.Documentation.Parameter
                                      { name = "a"; ``type`` = "Int" }
                                    DarkInternal.Documentation.Parameter
@@ -19,7 +19,7 @@ module Documentation =
 module Infra =
 
   // correct number of tables
-  Dict.size_v0 (DarkInternal.Infra.getAndLogTableSizes_v0 ()) = 17
+  Builtin.Dict.size_v0 (DarkInternal.Infra.getAndLogTableSizes_v0 ()) = 17
 
   // server build hash
   (match DarkInternal.Infra.serverBuildHash_v0 () with
@@ -28,7 +28,7 @@ module Infra =
    // in ci, "circleci"
    | "circleci" -> true
    // otherwise it's the first 7 chars of the git hash
-   | hash -> (String.length hash) == 7) = true
+   | hash -> (Builtin.String.length hash) == 7) = true
 
 module Canvas =
   // Test creating a new canvas - just check it we can call `owner` on it
@@ -41,7 +41,7 @@ module Domains =
     ((Test.getCanvasID ())
      |> DarkInternal.Canvas.Domain.get
      |> PACKAGE.Darklang.Stdlib.List.head
-     |> unwrap
+     |> Builtin.unwrap
      |> DarkInternal.Canvas.Domain.toCanvasID) = PACKAGE
       .Darklang
       .Stdlib
@@ -51,7 +51,8 @@ module Domains =
 
   module Errors =
     DarkInternal.Canvas.Domain.get (
-      (Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> unwrap
+      (Builtin.Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
+      |> Builtin.unwrap
     ) = []
 
     DarkInternal.Canvas.Domain.toCanvasID "not-a-real-domain" = PACKAGE.Darklang.Stdlib.Result.Result.Error
@@ -104,18 +105,18 @@ module Toplevels =
     type TLXDB = X
 
     (Test.getCanvasID ())
-    |> DarkInternal.Canvas.DB.unlocked
+    |> DarkInternal.Canvas.Builtin.DB.unlocked
     |> PACKAGE.Darklang.Stdlib.List.length = 1
 
   module NoDB =
-    (Test.getCanvasID ()) |> DarkInternal.Canvas.DB.unlocked = []
+    (Test.getCanvasID ()) |> DarkInternal.Canvas.Builtin.DB.unlocked = []
 
     (Test.getCanvasID ()) |> DarkInternal.Canvas.deleteToplevelForever 1 = false
 
 
 module UnlockedDB =
   // none
-  (Test.getCanvasID ()) |> DarkInternal.Canvas.DB.unlocked = []
+  (Test.getCanvasID ()) |> DarkInternal.Canvas.Builtin.DB.unlocked = []
 
   module WithDB =
     type X = { x: String }
@@ -124,12 +125,12 @@ module UnlockedDB =
     type UXDB = X
     // one
     (Test.getCanvasID ())
-    |> DarkInternal.Canvas.DB.unlocked
+    |> DarkInternal.Canvas.Builtin.DB.unlocked
     |> PACKAGE.Darklang.Stdlib.List.length = 1
 
     // one but locked
-    (let _ = DB.set (X { x = "str" }) "test" UXDB in
-     (Test.getCanvasID ()) |> DarkInternal.Canvas.DB.unlocked) = []
+    (let _ = Builtin.DB.set (X { x = "str" }) "test" UXDB in
+     (Test.getCanvasID ()) |> DarkInternal.Canvas.Builtin.DB.unlocked) = []
 
 module Queue =
   // TODO: DarkInternal.Canvas.Queue.count

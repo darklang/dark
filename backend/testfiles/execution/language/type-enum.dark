@@ -40,7 +40,7 @@ module Errors =
     // (match MyEnum.C "test" with | D -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.runtimeError "TODO"
     // (match MyEnum.C "test" with | 5 -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.runtimeError "TODO"
     (MyEnum.C 5) = Test.derrorMessage
-      "Errors.User.MyEnum.C's 1st argument should be a String. However, an Int (5) was passed instead.
+      "Errors.User.MyEnum.C's 1st argument should be a Builtin.String. However, an Int (5) was passed instead.
 
 Expected: Errors.User.MyEnum.C (String)
 Actual: Errors.User.MyEnum.C (Int)"
@@ -61,7 +61,7 @@ module Simple =
 
   (AorB.A == AorB.A) = true
   (AorB.A == AorB.B) = false
-  List.unique_v0 [ AorB.A; AorB.B; AorB.A; AorB.A; AorB.B ] = [ AorB.A; AorB.B ]
+  Builtin.List.unique_v0 [ AorB.A; AorB.B; AorB.A; AorB.A; AorB.B ] = [ AorB.A; AorB.B ]
 
   module EnumReference =
     type CorD =
@@ -82,10 +82,10 @@ module MixedCases =
   (EnumOfMixedCases.Y 1 == EnumOfMixedCases.Y 1) = true
 
   EnumOfMixedCases.X 1 = Test.derrorMessage
-    "MixedCases.EnumOfMixedCases.X's 1st argument should be a String. However, an Int (1) was passed instead.\n\nExpected: MixedCases.EnumOfMixedCases.X (String)\nActual: MixedCases.EnumOfMixedCases.X (Int)"
+    "MixedCases.EnumOfMixedCases.X's 1st argument should be a Builtin.String. However, an Int (1) was passed instead.\n\nExpected: MixedCases.EnumOfMixedCases.X (String)\nActual: MixedCases.EnumOfMixedCases.X (Int)"
 
   EnumOfMixedCases.Y "test" = Test.derrorMessage
-    "MixedCases.EnumOfMixedCases.Y's 1st argument should be an Int. However, a String (\"test\") was passed instead.\n\nExpected: MixedCases.EnumOfMixedCases.Y (Int)\nActual: MixedCases.EnumOfMixedCases.Y (String)"
+    "MixedCases.EnumOfMixedCases.Y's 1st argument should be an Builtin.Int However, a String (\"test\") was passed instead.\n\nExpected: MixedCases.EnumOfMixedCases.Y (Int)\nActual: MixedCases.EnumOfMixedCases.Y (String)"
 
   EnumOfMixedCases.Z 1 = Test.derrorMessage "Case `Z` expected 2 fields but got 1"
   // Test ordering of evaluation
@@ -111,11 +111,11 @@ module MixedCases =
      EnumOfMixedCases.X "testX"
      EnumOfMixedCases.Y(5)
      EnumOfMixedCases.Z("testZ", 2) ]
-   |> List.map_v0 (fun v ->
+   |> Builtin.List.map_v0 (fun v ->
      match v with
      | X s -> "X " ++ s
      | Z(s, _i) -> "Z " ++ s
-     | Y y -> "Y " ++ (Int.toString_v0 y)
+     | Y y -> "Y " ++ (Builtin.Int.toString_v0 y)
      | W -> "a simple W")) = [ "a simple W"; "X testX"; "Y 5"; "Z testZ" ]
 
 module TuplesVsNonTuples =
@@ -178,7 +178,7 @@ module Polymorphism =
     insert' tree value cmp
 
   let ofList (values: List<'a>) (cmp: ('a * 'a) -> Int) : RBTree<'a> =
-    List.fold_v0 values RBTree.Empty (fun tree value -> insert tree value cmp)
+    Builtin.List.fold_v0 values RBTree.Empty (fun tree value -> insert tree value cmp)
 
   let toList' (tree: RBTree<'a>) (acc: List<'a>) : List<'a> =
     match tree with

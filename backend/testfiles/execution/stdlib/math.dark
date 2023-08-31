@@ -1,54 +1,58 @@
-Math.acos_v0 -1.0 = PACKAGE.Darklang.Stdlib.Option.Option.Some 3.14159265359
-Math.acos_v0 1.0 = PACKAGE.Darklang.Stdlib.Option.Option.Some 0.0
-Math.acos_v0 5.0 = PACKAGE.Darklang.Stdlib.Option.Option.None
+Builtin.Math.acos_v0 -1.0 = PACKAGE.Darklang.Stdlib.Option.Option.Some 3.14159265359
+Builtin.Math.acos_v0 1.0 = PACKAGE.Darklang.Stdlib.Option.Option.Some 0.0
+Builtin.Math.acos_v0 5.0 = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-Math.asin_v0 0.0 = PACKAGE.Darklang.Stdlib.Option.Option.Some 0.0
-Math.asin_v0 1.0 = PACKAGE.Darklang.Stdlib.Option.Option.Some 1.57079632679
-Math.asin_v0 5.0 = PACKAGE.Darklang.Stdlib.Option.Option.None
+Builtin.Math.asin_v0 0.0 = PACKAGE.Darklang.Stdlib.Option.Option.Some 0.0
+Builtin.Math.asin_v0 1.0 = PACKAGE.Darklang.Stdlib.Option.Option.Some 1.57079632679
+Builtin.Math.asin_v0 5.0 = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-Math.atan_v0 0.0 = 0.0
-Math.atan_v0 1.0 = 0.785398163397
+Builtin.Math.atan_v0 0.0 = 0.0
+Builtin.Math.atan_v0 1.0 = 0.785398163397
 
-Math.atan2_v0 -1.0 -1.0 = -2.35619449019
-Math.atan2_v0 -1.0 1.0 = -0.785398163397
-Math.atan2_v0 0.0 1.0 = 0.0
-Math.atan2_v0 1.0 -1.0 = 2.35619449019
-Math.atan2_v0 1.0 1.0 = 0.785398163397
+Builtin.Math.atan2_v0 -1.0 -1.0 = -2.35619449019
+Builtin.Math.atan2_v0 -1.0 1.0 = -0.785398163397
+Builtin.Math.atan2_v0 0.0 1.0 = 0.0
+Builtin.Math.atan2_v0 1.0 -1.0 = 2.35619449019
+Builtin.Math.atan2_v0 1.0 1.0 = 0.785398163397
 
-Math.cos_v0 0.0 = 1.0
-Math.cos_v0 PACKAGE.Darklang.Stdlib.Math.pi = -1.0
+Builtin.Math.cos_v0 0.0 = 1.0
+Builtin.Math.cos_v0 PACKAGE.Darklang.Stdlib.Math.pi = -1.0
 
-Math.cosh_v0 0.0 = 1.0
+Builtin.Math.cosh_v0 0.0 = 1.0
 
-Math.degrees_v0 -180.0 = PACKAGE.Darklang.Stdlib.Float.negate_v0
+Builtin.Math.degrees_v0 -180.0 = PACKAGE.Darklang.Stdlib.Float.negate_v0
   PACKAGE.Darklang.Stdlib.Math.pi
 
-Math.degrees_v0 360.0 = Float.multiply_v0 2.0 PACKAGE.Darklang.Stdlib.Math.pi
+Builtin.Math.degrees_v0 360.0 = Builtin.Float.multiply_v0
+  2.0
+  PACKAGE.Darklang.Stdlib.Math.pi
 
 PACKAGE.Darklang.Stdlib.Math.pi = 3.14159265359
 
-Math.radians_v0 (PACKAGE.Darklang.Stdlib.Float.negate_v0 3.141592653589793) = PACKAGE.Darklang.Stdlib.Float.negate_v0
+Builtin.Math.radians_v0 (PACKAGE.Darklang.Stdlib.Float.negate_v0 3.141592653589793) = PACKAGE.Darklang.Stdlib.Float.negate_v0
   PACKAGE.Darklang.Stdlib.Math.pi
 
-Math.radians_v0 6.283185307179586 = Float.multiply_v0
+Builtin.Math.radians_v0 6.283185307179586 = Builtin.Float.multiply_v0
   2.0
   PACKAGE.Darklang.Stdlib.Math.pi
 
-Math.sin_v0 (Float.divide_v0 PACKAGE.Darklang.Stdlib.Math.pi 2.0) = 1.0
-Math.sin_v0 0.0 = 0.0
+Builtin.Math.sin_v0 (Builtin.Float.divide_v0 PACKAGE.Darklang.Stdlib.Math.pi 2.0) = 1.0
+Builtin.Math.sin_v0 0.0 = 0.0
 
-Math.sinh_v0 0.0 = 0.0
-Math.sinh_v0 1.0 = 1.17520119364
+Builtin.Math.sinh_v0 0.0 = 0.0
+Builtin.Math.sinh_v0 1.0 = 1.17520119364
 
-Math.tan_v0 (Float.divide_v0 PACKAGE.Darklang.Stdlib.Math.pi 4.0) = 1.0
-Math.tan_v0 0.0 = 0.0
-Math.tanh_v0 0.0 = 0.0
+Builtin.Math.tan_v0 (Float.divide_v0 PACKAGE.Darklang.Stdlib.Math.pi 4.0) = 1.0
+Builtin.Math.tan_v0 0.0 = 0.0
+Builtin.Math.tanh_v0 0.0 = 0.0
 
-PACKAGE.Darklang.Stdlib.Math.tau = Float.multiply_v0
+PACKAGE.Darklang.Stdlib.Math.tau = Builtin.Float.multiply_v0
   2.0
   PACKAGE.Darklang.Stdlib.Math.pi
 
-Math.turns_v0 (PACKAGE.Darklang.Stdlib.Float.negate_v0 0.5) = PACKAGE.Darklang.Stdlib.Float.negate_v0
+Builtin.Math.turns_v0 (PACKAGE.Darklang.Stdlib.Float.negate_v0 0.5) = PACKAGE.Darklang.Stdlib.Float.negate_v0
   PACKAGE.Darklang.Stdlib.Math.pi
 
-Math.turns_v0 1.0 = Float.multiply_v0 2.0 PACKAGE.Darklang.Stdlib.Math.pi
+Builtin.Math.turns_v0 1.0 = Builtin.Float.multiply_v0
+  2.0
+  PACKAGE.Darklang.Stdlib.Math.pi

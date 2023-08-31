@@ -1,18 +1,18 @@
 module Empty =
-  Dict.empty_v0 = Dict { }
+  Builtin.Dict.empty_v0 = Dict { }
 
 
 module FilterMap =
-  Dict.filterMap_v0 (Dict { }) (fun (key, value) -> 0) = (Dict { })
+  Builtin.Dict.filterMap_v0 (Dict { }) (fun (key, value) -> 0) = (Dict { })
 
-  Dict.filterMap_v0 (Dict { a = "x"; b = "y"; c = "z" }) (fun (key, value) ->
+  Builtin.Dict.filterMap_v0 (Dict { a = "x"; b = "y"; c = "z" }) (fun (key, value) ->
     if value == "y" then
       PACKAGE.Darklang.Stdlib.Option.Option.None
     else
       (PACKAGE.Darklang.Stdlib.Option.Option.Some(key ++ value))) = (Dict
     { c = "cz"; a = "ax" })
 
-  (Dict.filterMap_v0 (Dict { a = "x"; b = "y"; c = "z" }) (fun (key, value) ->
+  (Builtin.Dict.filterMap_v0 (Dict { a = "x"; b = "y"; c = "z" }) (fun (key, value) ->
     if value == "y" then
       false
     else
@@ -25,52 +25,52 @@ module FilterMap =
 
 
 module Filter =
-  Dict.filter (Dict { key1 = "val1"; key2 = "val2" }) (fun (k, v) -> k == "key1") = (Dict
+  Builtin.Dict.filter (Dict { key1 = "val1"; key2 = "val2" }) (fun (k, v) -> k == "key1") = (Dict
     { key1 = "val1" })
 
-  Dict.filter (Dict { key1 = 1; key2 = 3 }) (fun (k, v) -> v < 2) = (Dict
+  Builtin.Dict.filter (Dict { key1 = 1; key2 = 3 }) (fun (k, v) -> v < 2) = (Dict
     { key1 = 1 })
 
-  Dict.filter (Dict { }) (fun (k, v) -> 0) = (Dict { })
+  Builtin.Dict.filter (Dict { }) (fun (k, v) -> 0) = (Dict { })
 
-  Dict.filter (Dict { a = 1; b = 2; c = 3 }) (fun (k, v) -> 2) = Test.derrorMessage
+  Builtin.Dict.filter (Dict { a = 1; b = 2; c = 3 }) (fun (k, v) -> 2) = Test.derrorMessage
     "Expected `fn` to return a Bool, but it returned `2`"
 
 
 module FromListOverwritingDuplicates =
-  Dict.fromListOverwritingDuplicates_v0
+  Builtin.Dict.fromListOverwritingDuplicates_v0
     [ ("duplicate_key", 1); ("b", 2); ("duplicate_key", 3) ] = (Dict
     { b = 2; duplicate_key = 3 })
 
-  Dict.fromListOverwritingDuplicates_v0 [ ("a", 1); ("b", 2); ("c", 3) ] = (Dict
+  Builtin.Dict.fromListOverwritingDuplicates_v0 [ ("a", 1); ("b", 2); ("c", 3) ] = (Dict
     { c = 3; b = 2; a = 1 })
 
-  Dict.fromListOverwritingDuplicates_v0 [] = (Dict { })
+  Builtin.Dict.fromListOverwritingDuplicates_v0 [] = (Dict { })
 
-  Dict.fromListOverwritingDuplicates_v0 [ Test.runtimeError "" ] = Test.derrorMessage
+  Builtin.Dict.fromListOverwritingDuplicates_v0 [ Test.runtimeError "" ] = Test.derrorMessage
     ""
 
   // CLEANUP this error message is the goal once Dvals include typeRefs:
-  // In Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int (2) was passed instead.\n\nExpected: (String, 'b)\nActual: an Int: 2
-  Dict.fromListOverwritingDuplicates_v0 [ (1, 2) ] = Test.derrorMessage
+  // In Builtin.Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int (2) was passed instead.\n\nExpected: (String, 'b)\nActual: an Int: 2
+  Builtin.Dict.fromListOverwritingDuplicates_v0 [ (1, 2) ] = Test.derrorMessage
     "Expected `key` to be a `String`, but it was `1`"
 
-  Dict.fromListOverwritingDuplicates_v0 [ 1 ] = Test.derrorMessage
+  Builtin.Dict.fromListOverwritingDuplicates_v0 [ 1 ] = Test.derrorMessage
     "All list items must be `(key, value)`"
 
 
 module FromList =
   // CLEANUP the first test here feels surprising - should it error or something?
-  Dict.fromList_v0 [ ("duplicate_key", 1); ("b", 2); ("duplicate_key", 3) ] = PACKAGE.Darklang.Stdlib.Option.Option.None
+  Builtin.Dict.fromList_v0 [ ("duplicate_key", 1); ("b", 2); ("duplicate_key", 3) ] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-  Dict.fromList_v0 [ ("a", 1); ("b", 2); ("c", 3) ] = PACKAGE
+  Builtin.Dict.fromList_v0 [ ("a", 1); ("b", 2); ("c", 3) ] = PACKAGE
     .Darklang
     .Stdlib
     .Option
     .Option
     .Some(Dict { c = 3; b = 2; a = 1 })
 
-  Dict.fromList_v0 [ ("Content-Length", 0); ("Server", "dark") ] = PACKAGE
+  Builtin.Dict.fromList_v0 [ ("Content-Length", 0); ("Server", "dark") ] = PACKAGE
     .Darklang
     .Stdlib
     .Option
@@ -81,100 +81,100 @@ module FromList =
           Server = "dark" }
     )
 
-  Dict.fromList_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.Some(Dict { })
-  Dict.fromList_v0 [ Test.runtimeError "" ] = Test.derrorMessage ""
+  Builtin.Dict.fromList_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.Some(Dict { })
+  Builtin.Dict.fromList_v0 [ Test.runtimeError "" ] = Test.derrorMessage ""
 
   // CLEANUP this error message is the goal once Dvals include typeRefs:
-  //Test.runtimeError "In Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int (1) was passed instead.\n\nExpected: String\nActual: an Int: 1"
-  Dict.fromList_v0 [ (1, 1) ] = Test.derrorMessage
+  //Test.runtimeError "In Builtin.Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a Builtin.String. However, an Int (1) was passed instead.\n\nExpected: String\nActual: an Int: 1"
+  Builtin.Dict.fromList_v0 [ (1, 1) ] = Test.derrorMessage
     "Expected `key` to be a `String`, but it was `1`"
 
 
 module Get =
-  Dict.get (Dict { key1 = "val1" }) "key1" = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  Builtin.Dict.get (Dict { key1 = "val1" }) "key1" = PACKAGE.Darklang.Stdlib.Option.Option.Some
     "val1"
 
-  Dict.get (Dict { key1 = "val1" }) "" = PACKAGE.Darklang.Stdlib.Option.Option.None
+  Builtin.Dict.get (Dict { key1 = "val1" }) "" = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 
 module IsEmpty =
-  Dict.isEmpty_v0 (Dict { a = 1 }) = false
-  Dict.isEmpty_v0 (Dict { }) = true
+  Builtin.Dict.isEmpty_v0 (Dict { a = 1 }) = false
+  Builtin.Dict.isEmpty_v0 (Dict { }) = true
 
 
 module Keys =
-  Dict.keys_v0 (Dict { key1 = "val1" }) = [ "key1" ]
+  Builtin.Dict.keys_v0 (Dict { key1 = "val1" }) = [ "key1" ]
 
 
 module Map =
-  Dict.map_v0 (Dict { key1 = "val1"; key2 = "val2" }) (fun (k, x) -> k ++ x) = (Dict
+  Builtin.Dict.map_v0 (Dict { key1 = "val1"; key2 = "val2" }) (fun (k, x) -> k ++ x) = (Dict
     { key2 = "key2val2"; key1 = "key1val1" })
 
-  Dict.map_v0 (Dict { key1 = 5; key2 = 3; key3 = 3 }) (fun (k, x) ->
+  Builtin.Dict.map_v0 (Dict { key1 = 5; key2 = 3; key3 = 3 }) (fun (k, x) ->
     PACKAGE.Darklang.Stdlib.Bool.and_v0
-      (Int.greaterThanOrEqualTo_v0 x 1)
-      (Int.lessThanOrEqualTo_v0 x 4)) = (Dict
+      (Builtin.IntgreaterThanOrEqualTo_v0 x 1)
+      (Builtin.IntlessThanOrEqualTo_v0 x 4)) = (Dict
     { key3 = true
       key2 = true
       key1 = false })
 
-  Dict.map_v0 (Dict { a = 1; b = 2 }) (fun (k, x) -> x + 1) = (Dict { b = 3; a = 2 })
-  Dict.map_v0 (Dict { }) (fun (key, value) -> 0) = (Dict { })
+  Builtin.Dict.map_v0 (Dict { a = 1; b = 2 }) (fun (k, x) -> x + 1) = (Dict { b = 3; a = 2 })
+  Builtin.Dict.map_v0 (Dict { }) (fun (key, value) -> 0) = (Dict { })
 
 
 module Member =
-  Dict.member_v0 (Dict { otherKey = 5; someKey = 5 }) "someKey" = true
-  Dict.member_v0 (Dict { otherKey = 5 }) "someKey" = false
+  Builtin.Dict.member_v0 (Dict { otherKey = 5; someKey = 5 }) "someKey" = true
+  Builtin.Dict.member_v0 (Dict { otherKey = 5 }) "someKey" = false
 
 
 module Merge =
-  Dict.merge_v0 (Dict { key1 = "val1" }) (Dict { key2 = "val2" }) = (Dict
+  Builtin.Dict.merge_v0 (Dict { key1 = "val1" }) (Dict { key2 = "val2" }) = (Dict
     { key2 = "val2"; key1 = "val1" })
 
-  Dict.merge_v0 (Dict { key1 = "val_l" }) (Dict { key1 = "val_r" }) = (Dict
+  Builtin.Dict.merge_v0 (Dict { key1 = "val_l" }) (Dict { key1 = "val_r" }) = (Dict
     { key1 = "val_r" })
 
-  Dict.merge_v0 (Dict { }) (Dict { }) = (Dict { })
+  Builtin.Dict.merge_v0 (Dict { }) (Dict { }) = (Dict { })
 
 
 module Set =
-  Dict.set_v0 (Dict { key1 = "val1before" }) "key1" "val1after" = (Dict
+  Builtin.Dict.set_v0 (Dict { key1 = "val1before" }) "key1" "val1after" = (Dict
     { key1 = "val1after" })
 
-  Dict.set_v0 (Dict { key1 = "val1" }) "key2" "val2" = (Dict
+  Builtin.Dict.set_v0 (Dict { key1 = "val1" }) "key2" "val2" = (Dict
     { key1 = "val1"; key2 = "val2" })
 
   // Dicts do not currently enforce value typing, therefore the following tests pass
   // VTTODO: this should fail
-  Dict.set_v0 (Dict { key1 = "val1" }) "key2" 2 = (Dict { key1 = "val1"; key2 = 2 })
+  Builtin.Dict.set_v0 (Dict { key1 = "val1" }) "key2" 2 = (Dict { key1 = "val1"; key2 = 2 })
 
-  Dict.set_v0 (Dict { key1 = 1 }) "key1" "changedTypeValue" = (Dict
+  Builtin.Dict.set_v0 (Dict { key1 = 1 }) "key1" "changedTypeValue" = (Dict
     { key1 = "changedTypeValue" })
 
 
 module Singleton =
-  Dict.singleton_v0 "one" 1 = (Dict { one = 1 })
-  Dict.singleton_v0 "Content-Length" 1 = (Dict { ``Content-Length`` = 1 })
+  Builtin.Dict.singleton_v0 "one" 1 = (Dict { one = 1 })
+  Builtin.Dict.singleton_v0 "Content-Length" 1 = (Dict { ``Content-Length`` = 1 })
 
 
 module Size =
-  Dict.size_v0 (Dict { a = 3; b = 1; c = 1 }) = 3
-  Dict.size_v0 (Dict { }) = 0
+  Builtin.Dict.size_v0 (Dict { a = 3; b = 1; c = 1 }) = 3
+  Builtin.Dict.size_v0 (Dict { }) = 0
 
 
 module ToList =
-  Dict.toList_v0 (Dict { a = 1; b = 2; c = 3 }) = [ ("a", 1); ("b", 2); ("c", 3) ]
-  Dict.toList_v0 (Dict { }) = []
+  Builtin.Dict.toList_v0 (Dict { a = 1; b = 2; c = 3 }) = [ ("a", 1); ("b", 2); ("c", 3) ]
+  Builtin.Dict.toList_v0 (Dict { }) = []
 
 
 module Values =
-  Dict.values_v0 (Dict { key1 = "val1" }) = [ "val1" ]
+  Builtin.Dict.values_v0 (Dict { key1 = "val1" }) = [ "val1" ]
 
 
 module Remove =
-  Dict.remove_v0 (Dict { key1 = "val1"; key2 = "val2" }) "key1" = (Dict
+  Builtin.Dict.remove_v0 (Dict { key1 = "val1"; key2 = "val2" }) "key1" = (Dict
     { key2 = "val2" })
 
-  Dict.remove_v0 (Dict { key1 = "val1" }) "key1" = (Dict { })
-  Dict.remove_v0 (Dict { key1 = "val1" }) "key2" = (Dict { key1 = "val1" })
-  Dict.remove_v0 (Dict { }) "key1" = (Dict { })
+  Builtin.Dict.remove_v0 (Dict { key1 = "val1" }) "key1" = (Dict { })
+  Builtin.Dict.remove_v0 (Dict { key1 = "val1" }) "key2" = (Dict { key1 = "val1" })
+  Builtin.Dict.remove_v0 (Dict { }) "key1" = (Dict { })

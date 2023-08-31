@@ -31,20 +31,20 @@ module Equals =
   ([ 1; 2; 3 ] == [ 1; 2; 3 ]) = true
   ([ 1; 2; 3 ] != [ 3; 2; 1 ]) = true
 
-  ((String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")
-   == (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
+  ((Builtin.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")
+   == (Builtin.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
 
-  ((DateTime.parse "2019-07-28T22:42:36Z")
-   == (DateTime.parse "2019-07-28T22:42:36Z")) = true
+  ((Builtin.DateTime.parse "2019-07-28T22:42:36Z")
+   == (Builtin.DateTime.parse "2019-07-28T22:42:36Z")) = true
 
-  ((DateTime.parse "2019-07-28T22:42:37Z")
-   != (DateTime.parse "2019-07-28T22:42:36Z")) = true
+  ((Builtin.DateTime.parse "2019-07-28T22:42:37Z")
+   != (Builtin.DateTime.parse "2019-07-28T22:42:36Z")) = true
 
-  (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
-   == Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+  (Builtin.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
+   == Builtin.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
 
-  (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e"
-   != Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+  (Builtin.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e"
+   != Builtin.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
 
   (fun x -> y) = (fun x -> y)
   ((fun x -> let y = 1 in y) == (fun x -> let y = 1 in y)) = true
@@ -134,23 +134,23 @@ module NotEquals =
   notEquals_v0 "abd" "abc" = true
 
   notEquals_v0
-    (DateTime.parse "2021-07-28T22:42:36Z")
-    (DateTime.parse "2019-07-28T22:42:36Z") = true
+    (Builtin.DateTime.parse "2021-07-28T22:42:36Z")
+    (Builtin.DateTime.parse "2019-07-28T22:42:36Z") = true
 
   (!=) 1 1 = false
   (!=) "abc" "abc" = false
   (!=) "abd" "abc" = true
 
   (!=)
-    (DateTime.parse "2021-07-28T22:42:36Z")
-    (DateTime.parse "2019-07-28T22:42:36Z") = true
+    (Builtin.DateTime.parse "2021-07-28T22:42:36Z")
+    (Builtin.DateTime.parse "2019-07-28T22:42:36Z") = true
 
   1 != 1 = false
   "abc" != "abc" = false
   "abd" != "abc" = true
 
-  (DateTime.parse "2021-07-28T22:42:36Z")
-  != (DateTime.parse "2019-07-28T22:42:36Z") = true
+  (Builtin.DateTime.parse "2021-07-28T22:42:36Z")
+  != (Builtin.DateTime.parse "2019-07-28T22:42:36Z") = true
 
 
 // Moving to packages

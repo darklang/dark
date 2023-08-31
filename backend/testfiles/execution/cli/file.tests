@@ -3,6 +3,6 @@ module Write =
 
   (let filename = (File.createTemp ()) |> unwrap
    do (testContents ()) |> String.toBytes |> (File.write filename)
-   File.read filename) = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+   Builtin.File.read filename) = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
     (testContents ()) |> String.toBytes
   )

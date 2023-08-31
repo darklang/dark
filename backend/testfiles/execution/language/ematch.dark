@@ -304,7 +304,8 @@ module ListCons =
    | [] -> 4) = 2
 
   (match [ 1; 2; 3 ] with
-   | head :: rest -> head + (rest |> PACKAGE.Darklang.Stdlib.List.head |> unwrap)) = 3
+   | head :: rest ->
+     head + (rest |> PACKAGE.Darklang.Stdlib.List.head |> Builtin.unwrap)) = 3
 
   // head tail
   let headTail (list: List<Int>) : (Int * List<Int>) =
