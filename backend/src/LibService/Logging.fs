@@ -7,5 +7,12 @@ open Microsoft.Extensions.Logging
 open Prelude
 
 let noLogger (builder : ILoggingBuilder) : unit =
-  // We use telemetry instead
   builder.ClearProviders() |> ignore<ILoggingBuilder>
+
+let consoleLogger (builder : ILoggingBuilder) : unit =
+  builder.AddConsole() |> ignore<ILoggingBuilder>
+
+let defaultLogger (builder : ILoggingBuilder) : unit =
+  match Config.defaultLogger with
+  | Config.NoLogger -> noLogger builder
+  | Config.ConsoleLogger -> consoleLogger builder

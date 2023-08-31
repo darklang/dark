@@ -43,6 +43,18 @@ let rollbarEnvironment = string "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
 // -------------------------
 let heapioId = string "DARK_CONFIG_HEAPIO_ID"
 
+// -------------------------
+// Logging
+// -------------------------
+type Logger =
+  | NoLogger
+  | ConsoleLogger
+
+let defaultLogger =
+  match string "DARK_CONFIG_DEFAULT_LOGGER" with
+  | "none" -> NoLogger
+  | "console" -> ConsoleLogger
+  | name -> failwith $"Unexpected default logger: {name}"
 
 // --------------------
 // honeycomb

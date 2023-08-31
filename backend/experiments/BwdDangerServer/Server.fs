@@ -445,7 +445,7 @@ let webserver
   Kubernetes.registerServerTimeout builder.WebHost
 
   builder.WebHost
-  // |> fun wh -> wh.ConfigureLogging(loggerSetup)
+  |> fun wh -> wh.ConfigureLogging(loggerSetup)
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
   |> fun wh -> wh.UseUrls(hcUrl, $"http://*:{httpPort}")
   |> ignore<IWebHostBuilder>
@@ -457,7 +457,7 @@ let webserver
 let run () : unit =
   let port = LibService.Config.bwdDangerServerPort
   let k8sPort = LibService.Config.bwdDangerServerKubernetesPort
-  (webserver LibService.Logging.noLogger port k8sPort).Run()
+  (webserver LibService.Logging.defaultLogger port k8sPort).Run()
 
 
 // Generally speaking, this should be the same list as QueueWorker's

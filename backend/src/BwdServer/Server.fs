@@ -462,7 +462,7 @@ let webserver
 let run () : unit =
   let port = LibService.Config.bwdServerPort
   let k8sPort = LibService.Config.bwdServerKubernetesPort
-  (webserver LibService.Logging.noLogger port k8sPort).Run()
+  (webserver LibService.Logging.defaultLogger port k8sPort).Run()
 
 
 // Generally speaking, this should be the same list as QueueWorker's
