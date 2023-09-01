@@ -80,7 +80,7 @@ module FromList =
     .Option
     .Some(
       Dict
-        { ``Content-Length`` = 0
+        { ``Content-Length`` = "0"
           Server = "dark" }
     )
 

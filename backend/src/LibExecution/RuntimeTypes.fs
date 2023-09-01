@@ -861,18 +861,201 @@ module Dval =
     | DEnum _, _ -> false
 
 
-  let int (i : int) = DInt(int64 i)
+
+  // VTTODO: this name is bad
+  // VTTODO: this should either be a TypeCheckerError in RTE, or another type of RTE
+  // VTTODO: as such, the toString-ing should be done in Dark, not here
+  module KnownTypeConflictError =
+    type KnownTypeConflictError =
+      | Conflict of left : KnownType * right : KnownType * msg : Option<string>
+
+    let toRTE (Conflict(left, right, msg) : KnownTypeConflictError) : RuntimeError =
+      let msgPart =
+        match msg with
+        | Some msg -> $": {msg}"
+        | None -> ""
+
+      RuntimeError.oldError ($"Could not merge types {left} and {right}{msgPart}")
+
+
+  let rec mergeKnownTypes
+    (left : KnownType)
+    (right : KnownType)
+    : Result<KnownType, KnownTypeConflictError.KnownTypeConflictError> =
+    match left, right with
+    | KTUnit, KTUnit -> KTUnit |> Ok
+    | KTBool, KTBool -> KTBool |> Ok
+    | KTInt, KTInt -> KTInt |> Ok
+    | KTFloat, KTFloat -> KTFloat |> Ok
+    | KTChar, KTChar -> KTChar |> Ok
+    | KTString, KTString -> KTString |> Ok
+    | KTUuid, KTUuid -> KTUuid |> Ok
+    | KTBytes, KTBytes -> KTBytes |> Ok
+    | KTDateTime, KTDateTime -> KTDateTime |> Ok
+
+    | KTList left, KTList right -> mergeValueTypes left right |> Result.map KTList
+    | KTDict left, KTDict right -> mergeValueTypes left right |> Result.map KTDict
+    | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
+      let firstMerged = mergeValueTypes l1 r1
+      let secondMerged = mergeValueTypes l2 r2
+      let restMerged =
+        List.map2 (fun l r -> mergeValueTypes l r) ls rs |> Result.collect
+
+      match firstMerged, secondMerged, restMerged with
+      | Ok first, Ok second, Ok rest -> Ok(KTTuple(first, second, rest))
+      | _ -> Error(KnownTypeConflictError.Conflict(left, right, None))
+
+    | KTCustomType(lName, lArgs), KTCustomType(rName, rArgs) ->
+      if lName <> rName then
+        Error(
+          KnownTypeConflictError.Conflict(
+            left,
+            right,
+            Some "type names did not match"
+          )
+        )
+      else if List.length lArgs <> List.length rArgs then
+        Error(
+          KnownTypeConflictError.Conflict(
+            left,
+            right,
+            Some "type args did not match"
+          )
+        )
+      else
+        List.map2 mergeValueTypes lArgs rArgs
+        |> Result.collect
+        |> Result.map (fun args -> KTCustomType(lName, args))
+
+    | KTFn(lArgs, lRet), KTFn(rArgs, rRet) ->
+      let argsMerged = NEList.map2 mergeValueTypes lArgs rArgs |> Result.collectNE
+      let retMerged = mergeValueTypes lRet rRet
+
+      match argsMerged, retMerged with
+      | Ok args, Ok ret -> Ok(KTFn(args, ret))
+      | _ -> Error(KnownTypeConflictError.Conflict(left, right, None))
+
+
+    | KTPassword, KTPassword -> KTPassword |> Ok
+
+    | _ -> Error(KnownTypeConflictError.Conflict(left, right, None))
+
+  and mergeValueTypes
+    (left : ValueType)
+    (right : ValueType)
+    : Result<ValueType, KnownTypeConflictError.KnownTypeConflictError> =
+    // if fails, we eventually want "can't put a string in an Int list"
+    match left, right with
+    | Unknown, v
+    | v, Unknown -> Ok v
+
+    | Known left, Known right -> mergeKnownTypes left right |> Result.map Known
+
+
+  let dvalValueTypeTODO () = Unknown
+
+  let rec toValueType (dv : Dval) : ValueType =
+    match dv with
+    | DUnit -> Known KTUnit
+    | DBool _ -> Known KTBool
+    | DInt _ -> Known KTInt
+    | DFloat _ -> Known KTFloat
+    | DChar _ -> Known KTChar
+    | DString _ -> Known KTString
+    | DUuid _ -> Known KTUuid
+    | DBytes _ -> Known KTBytes
+    | DDateTime _ -> Known KTDateTime
+    | DPassword _ -> Known KTPassword
+
+    | DList(t, _) -> Known(KTList t)
+    | DDict _t -> Known(KTDict Unknown) // VTTODO
+    | DTuple(first, second, theRest) ->
+      Known(
+        KTTuple(
+          toValueType first,
+          toValueType second,
+          theRest |> List.map toValueType
+        )
+      )
+
+    | DRecord(typeName, _, fields) ->
+      // KTCustomType(
+      //   typeName,
+      //   fields |> Map.toList |> List.map (fun (_, v) -> toValueType v) |> List.map Option.some
+      // )
+      // |> Known
+      dvalValueTypeTODO ()
+
+    | DEnum(typeName, _, caseName, fields) ->
+      // KTCustomType(
+      //   typeName,
+      //   fields |> List.map toValueType |> List.map Option.some
+      // )
+
+      dvalValueTypeTODO ()
+
+    | DFnVal fnImpl ->
+      match fnImpl with
+      | Lambda lambda ->
+        KTFn(NEList.map (fun _ -> Unknown) lambda.parameters, Unknown) |> Known
+
+      // VTTODO look up type, etc
+      | NamedFn _named -> dvalValueTypeTODO ()
+
+    // CLEANUP follow up when DDB has a typeReference
+    | DDB _ -> Unknown
+
+    | DError _ -> Exception.raiseInternal "DError is being moved out of Dval" []
+
 
 
   // Dvals should never be constructed that contain fakevals - the fakeval
   // should always propagate (though, there are specific cases in the
   // interpreter where they are discarded instead of propagated; still they are
   // never put into other dvals). These static members check before creating the values
+  let int (i : int) = DInt(int64 i)
 
+  let private listPush
+    (list : List<Dval>)
+    (listType : ValueType)
+    (dv : Dval)
+    : Result<ValueType * List<Dval>, KnownTypeConflictError.KnownTypeConflictError> =
+    // what happens if we insert 5 into a list of strings? we should return an Error!
 
-  let list (_initialType : ValueType) (list : List<Dval>) : Dval =
-    List.find (fun (dv : Dval) -> isFake dv) list
-    |> Option.defaultValue (DList(valueTypeTODO, list))
+    // if we try to insert an `Error` (with the _error_ type known)
+    // into a list of `Ok`s (with the _ok_ type known),
+    // then we merge those types (result: `TCustomType` with both `OK` and `Error` types)
+
+    // `KTCustomType("Result", [None, Some KTString])`
+    // and
+    // `KTCustomType("Result", [Some KTInt, None])`
+    // merges to be come
+    // `KTCustomType("Result", [Some KTInt, Some KTString])`
+
+    let dvalType = toValueType dv
+    let newType = mergeValueTypes listType dvalType
+
+    match newType with
+    | Ok newType -> Ok(newType, dv :: list)
+    | Error e -> Error e
+
+  let list (initialType : ValueType) (list : List<Dval>) : Dval =
+    match List.find isFake list with
+    | Some fake -> fake
+    | None ->
+      let result =
+        List.fold
+          (fun acc dv ->
+            match acc with
+            | Ok(typ, dvs) -> listPush dvs typ dv
+            | Error e -> Error e)
+          (Ok(initialType, []))
+          (List.rev list)
+
+      match result with
+      | Ok(typ, dvs) -> DList(typ, dvs)
+      | Error e -> DError(SourceNone, KnownTypeConflictError.toRTE e)
+
 
   let asList (dv : Dval) : Option<List<Dval>> =
     match dv with
