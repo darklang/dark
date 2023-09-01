@@ -2,7 +2,9 @@
 // Misc
 // ---------------
 module Documentation =
-  (PACKAGE.Darklang.Stdlib.List.length_v0 (Builtin.DarkInternal.Documentation.list ()) > 100) = true
+  (PACKAGE.Darklang.Stdlib.List.length_v0 (
+    Builtin.DarkInternal.Documentation.list ()
+  ) > 100) = true
 
   ((Builtin.DarkInternal.Documentation.list_v0 ())
    |> Builtin.List.map (fun f -> (f.name, f))
@@ -65,21 +67,27 @@ module Secrets =
 
   // insert
   (let _ =
-    (Builtin.Test.getCanvasID ()) |> Builtin.DarkInternal.Canvas.Secret.insert "SECRET" "VALUE" 0
+    (Builtin.Test.getCanvasID ())
+    |> Builtin.DarkInternal.Canvas.Secret.insert "SECRET" "VALUE" 0
 
    (Builtin.Test.getCanvasID ()) |> Builtin.DarkInternal.Canvas.Secret.getAll) = [ Builtin.DarkInternal.Canvas.Secret.Secret
-                                                                                    { name =
-                                                                                        "SECRET"
-                                                                                      value =
-                                                                                        "VALUE"
-                                                                                      version = 0 } ]
+                                                                                     { name =
+                                                                                         "SECRET"
+                                                                                       value =
+                                                                                         "VALUE"
+                                                                                       version =
+                                                                                         0 } ]
 
   // insert twice
   (let _ =
-    (Builtin.Test.getCanvasID ()) |> Builtin.DarkInternal.Canvas.Secret.insert "SECRET" "VALUE" 1
+    (Builtin.Test.getCanvasID ())
+    |> Builtin.DarkInternal.Canvas.Secret.insert "SECRET" "VALUE" 1
    // Does not work
-   Builtin.DarkInternal.Canvas.Secret.insert (Builtin.Test.getCanvasID ()) "SECRET" "OTHERVALUE" 1) = PACKAGE.Darklang.Stdlib.Result.Result.Error
-    "Error inserting secret"
+   Builtin.DarkInternal.Canvas.Secret.insert
+     (Builtin.Test.getCanvasID ())
+     "SECRET"
+     "OTHERVALUE"
+     1) = PACKAGE.Darklang.Stdlib.Result.Result.Error "Error inserting secret"
 
   // delete
   Builtin.DarkInternal.Canvas.Secret.delete (Builtin.Test.getCanvasID ()) "SECRET" 2 = ()
@@ -111,7 +119,8 @@ module Toplevels =
   module NoDB =
     (Builtin.Test.getCanvasID ()) |> Builtin.DarkInternal.Canvas.DB.unlocked = []
 
-    (Builtin.Test.getCanvasID ()) |> Builtin.DarkInternal.Canvas.deleteToplevelForever 1 = false
+    (Builtin.Test.getCanvasID ())
+    |> Builtin.DarkInternal.Canvas.deleteToplevelForever 1 = false
 
 
 module UnlockedDB =

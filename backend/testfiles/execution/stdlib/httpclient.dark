@@ -22,7 +22,10 @@ module NoInternal =
                                                         "basic dXNlcm5hbWU6cGFzc3dvcmQ=")
 
   Builtin.HttpClient.basicAuth "" "" = ("authorization", "basic Og==")
-  Builtin.HttpClient.basicAuth "-" "" = Builtin.Test.derrorMessage "Username cannot contain a hyphen"
+
+  Builtin.HttpClient.basicAuth "-" "" = Builtin.Test.derrorMessage
+    "Username cannot contain a hyphen"
+
   Builtin.HttpClient.basicAuth "" "-" = ("authorization", "basic Oi0=")
   Builtin.HttpClient.basicAuth ":" "" = ("authorization", "basic Ojo=")
   Builtin.HttpClient.basicAuth "" ":" = ("authorization", "basic Ojo=")

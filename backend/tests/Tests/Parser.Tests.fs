@@ -24,7 +24,7 @@ let parserTests =
     "Parser tests"
     [ t
         "pipe without expr"
-        "(let x = 5\nx |> List.map_v0 5)"
+        "(let x = 5\nx |> Builtin.List.map_v0 5)"
         (PT.ELet(
           id,
           PT.LPVariable(id, "x"),

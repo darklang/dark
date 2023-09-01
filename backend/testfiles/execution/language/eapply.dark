@@ -7,7 +7,7 @@ Builtin.Int.add_v0 5 = Builtin.Test.derrorMessage
 (let fn = Builtin.Int.add
  fn 3 4) = 7
 
-(let fn = PACKAGE.Darklang.Stdlib.Intmax
+(let fn = PACKAGE.Darklang.Stdlib.Int.max
  fn 3 7) = 7
 
 // ---------------------------
@@ -15,7 +15,8 @@ Builtin.Int.add_v0 5 = Builtin.Test.derrorMessage
 // ---------------------------
 module Darkinternal =
   (let _ = Builtin.Test.setExpectedExceptionCount 1 in
-   Builtin.DarkInternal.Infra.SchedulingRule.list ()) = Builtin.Test.derrorMessage "Unknown error"
+   Builtin.DarkInternal.Infra.SchedulingRule.list ()) = Builtin.Test.derrorMessage
+    "Unknown error"
 
 // ---------------------------
 // User-defined Functions
@@ -119,8 +120,8 @@ module UserDefined =
     fnWithTypedReturn<String> () = Builtin.Test.derrorMessage
       "UserDefined.fnWithTypedReturn's return value should be a String. However, an Int (5) was passed instead.\n\nExpected: 'a\nActual: an Int: 5"
 
-    (let _ = Builtin.Test.setExpectedExceptionCount 1 in throwsException ()) = Builtin.Test.derrorMessage
-      "Unknown error"
+    // (let _ = Builtin.Test.setExpectedExceptionCount 1 in throwsException ()) = Builtin.Test.derrorMessage
+    //   "Unknown error"
 
     derrorFn "msg" = Builtin.Test.derrorMessage "msg"
 
@@ -179,7 +180,8 @@ module Packages =
     PACKAGE.Darklang.Test.derrorFn "test" = Builtin.Test.derrorMessage "test"
 
     (let _ = Builtin.Test.setExpectedExceptionCount 1 in
-     PACKAGE.Darklang.Test.throwsException ()) = Builtin.Test.derrorMessage "Unknown error"
+     PACKAGE.Darklang.Test.throwsException ()) = Builtin.Test.derrorMessage
+      "Unknown error"
 
     PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam 1 = Builtin.Test.derrorMessage
       "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."

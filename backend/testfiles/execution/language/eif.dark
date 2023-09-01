@@ -5,7 +5,10 @@
 (if true then 0 else Builtin.Test.runtimeError "a") = 0
 (if false then "" else "correct") = "correct"
 (if () then "" else "") = Builtin.Test.derrorMessage "If only supports Booleans"
-(if Builtin.Test.runtimeError "msg" then "" else "") = Builtin.Test.derrorMessage "msg"
+
+(if Builtin.Test.runtimeError "msg" then "" else "") = Builtin.Test.derrorMessage
+  "msg"
+
 (if 5 then "" else "") = Builtin.Test.derrorMessage "If only supports Booleans"
 
 (if true then

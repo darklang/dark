@@ -15,7 +15,7 @@ Content-Length: LENGTH
 "Hello back"
 
 [test]
-(let response = (Builtin.HttpClient.request "get" "http://URL" { l = [1;2;"a string"; [6]] } HttpClient.jsonContentType_v0) |> unwrap
+(let response = (Builtin.HttpClient.request "get" "http://URL" { l = [1;2;"a string"; [6]] } HttpClient.jsonContentType_v0) |> Builtin.unwrap
  let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
   Builtin.HttpClient.Response

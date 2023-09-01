@@ -20,9 +20,12 @@ Builtin.Bytes.base64Decode "xbzDs8WCdw" = PACKAGE.Darklang.Stdlib.Result.Result.
   Builtin.String.toBytes_v0 "żółw"
 )
 
-Builtin.Bytes.base64Decode "LyotKygmQDk4NTIx" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  Builtin.String.toBytes_v0 "/*-+(&@98521"
-)
+Builtin.Bytes.base64Decode "LyotKygmQDk4NTIx" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(Builtin.String.toBytes_v0 "/*-+(&@98521")
 
 Builtin.Bytes.base64Decode "illegal-chars&@:" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Not a valid base64 string"
@@ -99,7 +102,8 @@ Builtin.Bytes.base64Decode
   .Result
   .Ok(Builtin.String.toBytes_v0 "from=06/07/2013 query=\"Καλώς ορίσατε\"")
 
-Builtin.Bytes.base64Decode "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = PACKAGE
+Builtin.Bytes.base64Decode
+  "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = PACKAGE
   .Darklang
   .Stdlib
   .Result
@@ -129,11 +133,18 @@ Builtin.Bytes.base64Decode "_w" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
 
 
 Builtin.Bytes.base64Encode_v0 (Builtin.String.toBytes_v0 "abcdef") = "YWJjZGVm"
-Builtin.Bytes.base64Encode_v0 (Builtin.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
+
+Builtin.Bytes.base64Encode_v0 (
+  Builtin.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+) = "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
+
 Builtin.Bytes.base64Encode_v0 (Builtin.String.toBytes_v0 "اختبار النص") = "2KfYrtiq2KjYp9ixINin2YTZhti1"
 Builtin.Bytes.base64Encode_v0 (Builtin.String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = "77e977e977e977e977e977e977e977e977e977e977e977e977e977e977e977e9"
 Builtin.Bytes.base64Encode_v0 (Builtin.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78="
-Builtin.Bytes.base64Encode_v0 (Builtin.String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷") = "8J-RqOKAjeKdpO-4j-KAjfCfkovigI3wn5Go8J-RqeKAjfCfkanigI3wn5Gn4oCN8J-RpvCfj7PvuI_igI3imqfvuI_wn4e18J-Htw=="
+
+Builtin.Bytes.base64Encode_v0 (
+  Builtin.String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"
+) = "8J-RqOKAjeKdpO-4j-KAjfCfkovigI3wn5Go8J-RqeKAjfCfkanigI3wn5Gn4oCN8J-RpvCfj7PvuI_igI3imqfvuI_wn4e18J-Htw=="
 
 Builtin.Bytes.hexEncode_v0 (Builtin.String.toBytes_v0 "123qwc") = "313233717763"
 Builtin.Bytes.hexEncode_v0 (Builtin.String.toBytes_v0 "اختبار النص") = "D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5"

@@ -13,7 +13,7 @@ Location: /v0/response-redirect-dest-post-with-form-urlencoded-content-type-no-b
 
 
 [test]
-(let response = (Builtin.HttpClient.request "post" "http://URL" "" {} {"Content-Type" = "application/x-www-form-urlencoded" }) |> unwrap
+(let response = (Builtin.HttpClient.request "post" "http://URL" "" {} {"Content-Type" = "application/x-www-form-urlencoded" }) |> Builtin.unwrap
  let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    Builtin.HttpClient.Response

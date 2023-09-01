@@ -4,7 +4,8 @@ type MyRecord = { col1: Int }
 
 module Errors =
 
-  (let x = MyRecord { col1 = 1 } in x.___) = Builtin.Test.derrorMessage "Field name is empty"
+  (let x = MyRecord { col1 = 1 } in x.___) = Builtin.Test.derrorMessage
+    "Field name is empty"
 
   (let x = MyRecord { col1 = 1 } in x.fieldName) = Builtin.Test.derrorMessage
     "No field named fieldName in MyRecord record"

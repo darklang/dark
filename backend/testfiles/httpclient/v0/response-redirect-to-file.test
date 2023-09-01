@@ -10,7 +10,7 @@ Location: file:////etc/passwd
 
 
 [test]
-(let response = (Builtin.HttpClient.request "get" "http://URL" [] Builtin.Bytes.empty) |> unwrap
+(let response = (Builtin.HttpClient.request "get" "http://URL" [] Builtin.Bytes.empty) |> Builtin.unwrap
  let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
   Builtin.HttpClient.Response

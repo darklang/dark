@@ -15,7 +15,7 @@ Hello back
 
 [test]
 (let reqHeaders = [("content-type", "application/json; charset=utf-8")]
- let response = (Builtin.HttpClient.request "put" "http://URL" reqHeaders ("string" |> Builtin.String.toBytes)) |> unwrap
+ let response = (Builtin.HttpClient.request "put" "http://URL" reqHeaders ("string" |> Builtin.String.toBytes)) |> Builtin.unwrap
  let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    Builtin.HttpClient.Response

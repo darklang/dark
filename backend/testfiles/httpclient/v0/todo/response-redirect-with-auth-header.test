@@ -15,7 +15,7 @@ Location: /v0/response-redirect-dest-with-auth-header
 
 [test]
 (let reqHeaders = { Authorization = "Basic: bWU6b3BlbnNlc2FtZQ==" }
- let response = (Builtin.HttpClient.request "get" "http://URL" {} reqHeaders) |> unwrap
+ let response = (Builtin.HttpClient.request "get" "http://URL" {} reqHeaders) |> Builtin.unwrap
  let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    Builtin.HttpClient.Response

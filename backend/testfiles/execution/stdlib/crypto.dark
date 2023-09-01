@@ -3,24 +3,34 @@ Builtin.Bytes.hexEncode_v0 (Builtin.Crypto.sha256_v0 (Builtin.String.toBytes_v0 
 Builtin.Bytes.hexEncode_v0 (Builtin.Crypto.sha384_v0 (Builtin.String.toBytes_v0 "")) = "38B060A751AC96384CD9327EB1B1E36A21FDB71114BE07434C0CC7BF63F6E1DA274EDEBFE76F65FBD51AD2F14898B95B"
 
 Builtin.Bytes.hexEncode_v0 (
-  Builtin.Crypto.md5_v0 (Builtin.String.toBytes_v0 "a longer string that's more interesting")
+  Builtin.Crypto.md5_v0 (
+    Builtin.String.toBytes_v0 "a longer string that's more interesting"
+  )
 ) = "D95E619F023B430CAAAEB6778A0B9BD1"
 
 Builtin.Bytes.hexEncode_v0 (
-  Builtin.Crypto.sha256_v0 (Builtin.String.toBytes_v0 "a longer string that's more interesting")
+  Builtin.Crypto.sha256_v0 (
+    Builtin.String.toBytes_v0 "a longer string that's more interesting"
+  )
 ) = "1316F78627BC453D44D27E3133902CF798859572E814EED4B5FB56BB1447F05F"
 
 Builtin.Bytes.hexEncode_v0 (
-  Builtin.Crypto.sha384_v0 (Builtin.String.toBytes_v0 "a longer string that's more interesting")
+  Builtin.Crypto.sha384_v0 (
+    Builtin.String.toBytes_v0 "a longer string that's more interesting"
+  )
 ) = "AD7273EF514770D80B516D067354CB300FE458C042CE084EC97125718678C3C21415FE224658839963F0B2D90137AA7B"
 
 // sha256hmac
-(let secretBytes = Builtin.String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY" in
+(let secretBytes =
+  Builtin.String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY" in
+
  let dataBytes = Builtin.String.toBytes_v0 "20150830" in
  Builtin.Bytes.hexEncode_v0 (Builtin.Crypto.sha256hmac_v0 secretBytes dataBytes)) = "0138C7A6CBD60AA727B2F653A522567439DFB9F3E72B21F9B25941A42F04A7CD"
 
 // sha1hmac
-(let secretBytes = Builtin.String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY" in
+(let secretBytes =
+  Builtin.String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY" in
+
  let dataBytes = Builtin.String.toBytes_v0 "20150830" in
  Builtin.Bytes.hexEncode_v0 (Builtin.Crypto.sha1hmac_v0 secretBytes dataBytes)) = "0932CB57FE685FEBC66657AA30C7568A4AB05CAF"
 
@@ -29,11 +39,22 @@ Builtin.Bytes.hexEncode_v0 (
  let content = "f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59" in
  let strs = [ "AWS4-HMAC-SHA256"; "20150830T123600Z"; scope; content ] in
  let strToSign = Builtin.String.join_v0 strs PACKAGE.Darklang.Stdlib.String.newline in
- let secret = Builtin.String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY" in
+
+ let secret =
+   Builtin.String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY" in
+
  let data = Builtin.String.toBytes_v0 "20150830" in
  let date = Builtin.Crypto.sha256hmac_v0 secret data in
- let region = Builtin.Crypto.sha256hmac_v0 date (Builtin.String.toBytes_v0 "us-east-1") in
+
+ let region =
+   Builtin.Crypto.sha256hmac_v0 date (Builtin.String.toBytes_v0 "us-east-1") in
+
  let service = Builtin.Crypto.sha256hmac_v0 region (Builtin.String.toBytes_v0 "iam") in
- let signing = Builtin.Crypto.sha256hmac_v0 service (Builtin.String.toBytes_v0 "aws4_request") in
- let signed = Builtin.Crypto.sha256hmac_v0 signing (Builtin.String.toBytes_v0 strToSign) in
+
+ let signing =
+   Builtin.Crypto.sha256hmac_v0 service (Builtin.String.toBytes_v0 "aws4_request") in
+
+ let signed =
+   Builtin.Crypto.sha256hmac_v0 signing (Builtin.String.toBytes_v0 strToSign) in
+
  Builtin.String.toLowercase (Builtin.Bytes.hexEncode_v0 signed)) = "5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"

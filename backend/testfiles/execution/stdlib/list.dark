@@ -56,7 +56,9 @@ Builtin.List.empty_v0 = []
 
  Builtin.Test.sideEffectCount ()) = 2
 
-(PACKAGE.Darklang.Stdlib.List.iter [] (fun x -> Builtin.Test.incrementSideEffectCounter ())
+(PACKAGE.Darklang.Stdlib.List.iter [] (fun x ->
+  Builtin.Test.incrementSideEffectCounter ())
+
  Builtin.Test.sideEffectCount ()) = 0
 
 (PACKAGE.Darklang.Stdlib.List.iter [ 10; 20; 30 ] (fun x ->

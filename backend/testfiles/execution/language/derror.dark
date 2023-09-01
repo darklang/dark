@@ -24,7 +24,8 @@ module ErrorPropagation =
   PACKAGE.Darklang.Stdlib.List.head (Builtin.Test.runtimeError "test") = Builtin.Test.derrorMessage
     "test"
 
-  (if Builtin.Test.runtimeError "test" then 5 else 6) = Builtin.Test.derrorMessage "test"
+  (if Builtin.Test.runtimeError "test" then 5 else 6) = Builtin.Test.derrorMessage
+    "test"
 
   (PACKAGE.Darklang.Stdlib.List.head (Builtin.Test.runtimeError "test")).field = Builtin.Test.derrorMessage
     "test"
@@ -40,7 +41,9 @@ module ErrorPropagation =
       j = PACKAGE.Darklang.Stdlib.List.head (Builtin.Test.runtimeError "2")
       n = 6 } = Builtin.Test.derrorMessage "1"
 
-  5 |> (+) (Builtin.Test.runtimeError "test") |> (+) 3564 = Builtin.Test.derrorMessage "test"
+  5 |> (+) (Builtin.Test.runtimeError "test") |> (+) 3564 = Builtin.Test.derrorMessage
+    "test"
+
   5 |> (+) (Builtin.Test.runtimeError "test") = Builtin.Test.derrorMessage "test"
   ("test" |> Builtin.Test.runtimeError) = Builtin.Test.derrorMessage "test"
 
@@ -55,4 +58,5 @@ module ErrorPropagation =
 
 
   // pipe into error
-  ("test" |> Builtin.Test.runtimeError |> (++) "3") = Builtin.Test.derrorMessage "test"
+  ("test" |> Builtin.Test.runtimeError |> (++) "3") = Builtin.Test.derrorMessage
+    "test"
