@@ -406,50 +406,46 @@ Builtin.List.zip_v0 [ Builtin.Test.runtimeError "msg" ] [ Some "" ] = Builtin.Te
   "msg"
 
 
-// Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Builtin.Int.mod_v0 x 2) = [ (1,
-//                                                                                         [ 1
-//                                                                                           3
-//                                                                                           5 ]) (
-//                                                                                          0,
-//                                                                                          [ 2
-//                                                                                            4 ]
-//                                                                                        ) ]
+Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Builtin.Int.mod_v0 x 2) = [ (1,
+                                                                                        [ 1
+                                                                                          3
+                                                                                          5 ])
+                                                                                       (0,
+                                                                                        [ 2
+                                                                                          4 ]) ]
 
-// Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Builtin.Int.mod_v0 x 2) = [ (1,
-//                                                                                         [ 1
-//                                                                                           3
-//                                                                                           5 ]) (
-//                                                                                          0,
-//                                                                                          [ 2
-//                                                                                            4 ]
-//                                                                                        ) ]
+Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Builtin.Int.mod_v0 x 2) = [ (1,
+                                                                                        [ 1
+                                                                                          3
+                                                                                          5 ])
+                                                                                       (0,
+                                                                                        [ 2
+                                                                                          4 ]) ]
 
-// Builtin.List.groupByWithKey_v0
-//   [ "apple"; "banana"; "avocado"; "grape"; "apricot" ]
-//   (fun s -> PACKAGE.Darklang.Stdlib.String.first_v0 s 1) = [ ("a",
-//                                                               [ "apple"
-//                                                                 "avocado"
-//                                                                 "apricot" ])
-//                                                                ("b", [ "banana" ])
-//                                                                ("g", [ "grape" ]) ]
+Builtin.List.groupByWithKey_v0
+  [ "apple"; "banana"; "avocado"; "grape"; "apricot" ]
+  (fun s -> PACKAGE.Darklang.Stdlib.String.first_v0 s 1) = [ ("a",
+                                                              [ "apple"
+                                                                "avocado"
+                                                                "apricot" ])
+                                                             ("b", [ "banana" ])
+                                                             ("g", [ "grape" ]) ]
 
-// Builtin.List.groupByWithKey_v0 [ 'a'; 'b'; 'c'; 'a'; 'b' ] (fun c -> c) = [ ('a',
-//                                                                              [ 'a'
-//                                                                                'a' ])
-//                                                                             ('b',
-//                                                                              [ 'b'
-//                                                                                'b' ])
-//                                                                             ('c',
-//                                                                              [ 'c' ]) ]
+Builtin.List.groupByWithKey_v0 [ 'a'; 'b'; 'c'; 'a'; 'b' ] (fun c -> c) = [ ('a',
+                                                                             [ 'a'
+                                                                               'a' ])
+                                                                            ('b',
+                                                                             [ 'b'
+                                                                               'b' ])
+                                                                            ('c',
+                                                                             [ 'c' ]) ]
 
-// Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x ->
-//   Builtin.Int.mod_v0 x 2 == 0) = [ (false, [ 1; 3; 5 ]) (true, [ 2; 4 ]) ]
+Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x ->
+  Builtin.Int.mod_v0 x 2 == 0) = [ (false, [ 1; 3; 5 ]); (true, [ 2; 4 ]) ]
 
-// Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x ->
-//   ((Builtin.Int.mod_v0 x 2), "test")) = [ ((1, "test"), [ 1; 3; 5 ]) (
-//                                             (0, "test"),
-//                                             [ 2; 4 ]
-//                                           ) ]
+Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x ->
+  ((Builtin.Int.mod_v0 x 2), "test")) = [ ((1, "test"), [ 1; 3; 5 ])
+                                          ((0, "test"), [ 2; 4 ]) ]
 
 Builtin.List.groupByWithKey_v0 [] (fun x -> x) = []
 
