@@ -9,7 +9,7 @@ let _handler _req =
     (PACKAGE.OpenAI.Completion.completion "create a function that adds two numbers")
     |> rUnwrap
 
-  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes result) 200
+  PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes result) 200
 
 
 [<HttpHandler("GET", "/openai-chat")>]
@@ -19,7 +19,7 @@ let _handler _req =
       "create a function that adds two numbers")
     |> rUnwrap
 
-  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes result) 200
+  PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes result) 200
 
 
 
@@ -28,21 +28,21 @@ let _handler _req =
   let result =
     (PACKAGE.OpenAI.ImageGeneration.imageGeneration "a cute cat") |> rUnwrap
 
-  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes result) 200
+  PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes result) 200
 
 
 [<HttpHandler("GET", "/openai-test-retrieve-model")>]
 let _handler _req =
   let result = (PACKAGE.OpenAI.Model.retrieveModel "davinci") |> rUnwrap
 
-  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes result) 200
+  PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes result) 200
 
 
 [<HttpHandler("GET", "/openai-test-get-models-list")>]
 let _handler _req =
   let result = (PACKAGE.OpenAI.Model.getListOfModels ()) |> rUnwrap
 
-  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes result) 200
+  PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes result) 200
 
 
 [<HttpHandler("GET", "/openai-test-completion-options")>]
@@ -65,7 +65,7 @@ let _handler _req =
       )))
     |> rUnwrap
 
-  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes result) 200
+  PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes result) 200
 
 [<HttpHandler("GET", "/openai-test-completion-options-nothing")>]
 let _handler _req =
@@ -75,7 +75,7 @@ let _handler _req =
       PACKAGE.Darklang.Stdlib.Option.Option.None)
     |> rUnwrap
 
-  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes result) 200
+  PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes result) 200
 
 
 [<HttpHandler("GET", "/openai-test-completion-options2")>]
@@ -91,4 +91,4 @@ let _handler _req =
       (Some options))
     |> rUnwrap
 
-  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes result) 200
+  PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes result) 200

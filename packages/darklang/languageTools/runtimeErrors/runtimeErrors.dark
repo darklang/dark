@@ -44,11 +44,11 @@ module Darklang =
           let reversed = PACKAGE.Darklang.Stdlib.List.reverse list
 
           let parts =
-            List.fold reversed [] (fun prevSegments segment ->
+            Builtin.List.fold reversed [] (fun prevSegments segment ->
               let newSegment =
                 match segment with
                 | String s -> s
-                | Int i -> Int.toString i
+                | Int i -> Builtin.Int.toString i
                 | Ordinal i -> Stdlib.String.toOrdinal i
 
                 | IndefiniteArticle ->
@@ -87,15 +87,15 @@ module Darklang =
                   (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv)
                   |> Stdlib.String.ellipsis 10
                   |> Stdlib.String.splitOnNewline
-                  |> String.join ""
+                  |> Builtin.String.join ""
                 | FullValue dv ->
                   PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv
                 | segment ->
-                  $"(RTETODO toString parts {(Json.serialize<ErrorSegment> segment) |> unwrap})"
+                  $"(RTETODO toString parts {(Builtin.Json.serialize<ErrorSegment> segment) |> Builtin.unwrap})"
 
               PACKAGE.Darklang.Stdlib.List.push prevSegments newSegment)
 
-          String.join parts ""
+          Builtin.String.join parts ""
 
 
 
@@ -174,7 +174,7 @@ module Darklang =
 
             { innerOutput with
                 summary =
-                  List.append
+                  Builtin.List.append
                     [ (ErrorSegment.ErrorSegment.String sqlErrorTemplate) ]
                     innerOutput.summary }
 
@@ -186,8 +186,8 @@ module Darklang =
                   [ ErrorSegment.ErrorSegment.String "RTETODO Error.toSegments" ]
                 extraExplanation =
                   [ e
-                    |> Json.serialize<Error>
-                    |> unwrap
+                    |> Builtin.Json.serialize<Error>
+                    |> Builtin.unwrap
                     |> ErrorSegment.ErrorSegment.String ]
                 actual = []
                 expected = [] }
@@ -196,7 +196,7 @@ module Darklang =
           let s = toSegments e
 
           let explanation =
-            ErrorSegment.toString (List.append s.summary s.extraExplanation)
+            ErrorSegment.toString (Builtin.List.append s.summary s.extraExplanation)
 
           let actual = ErrorSegment.toString s.actual
           let actual = if actual == "" then "" else $"\nActual: {actual}"

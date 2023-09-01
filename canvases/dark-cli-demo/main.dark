@@ -1,10 +1,13 @@
 [<HttpHandler("GET", "/")>]
 let _indexHandler _req =
-  let files = Directory.pwd |> Directory.ls |> Json.serialize<List<String>>
+  let files =
+    Builtin.Directory.pwd
+    |> Builtin.Directory.ls
+    |> Builtin.Json.serialize<List<String>>
 
   let respBody =
     match files with
-    | Ok files -> String.toBytes files
+    | Ok files -> Builtin.String.toBytes files
     | Error _ -> "failed :("
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200

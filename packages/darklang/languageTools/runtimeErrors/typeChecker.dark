@@ -165,7 +165,7 @@ module Darklang =
 
             | context ->
               [ ErrorSegment.ErrorSegment.String
-                  $"(RTETODO: contextSummary {(Json.serialize<Context> context) |> unwrap})" ]
+                  $"(RTETODO: contextSummary {(Builtin.Json.serialize<Context> context) |> Builtin.unwrap})" ]
 
           let rec contextAsActualExpected
             (argument: RuntimeTypes.Dval)
@@ -211,7 +211,7 @@ module Darklang =
               //     [ String " // "; Description fieldDef.description ]
 
               let segment =
-                List.append
+                Builtin.List.append
                   [ ErrorSegment.ErrorSegment.String "({ "
                     ErrorSegment.ErrorSegment.InlineFieldName fieldName
                     ErrorSegment.ErrorSegment.String ": "
@@ -277,22 +277,24 @@ module Darklang =
                   ErrorSegment.ErrorSegment.String "."
                   ErrorSegment.ErrorSegment.InlineFieldName caseName
                   ErrorSegment.ErrorSegment.String " " ]
-                |> List.append openParen
-                |> List.append prefix
-                |> List.append [ ErrorSegment.ErrorSegment.TypeReference fieldType ]
-                |> List.append suffix
-                |> List.append closeParen
+                |> Builtin.List.append openParen
+                |> Builtin.List.append prefix
+                |> Builtin.List.append
+                  [ ErrorSegment.ErrorSegment.TypeReference fieldType ]
+                |> Builtin.List.append suffix
+                |> Builtin.List.append closeParen
 
               let argumentSegment =
                 [ ErrorSegment.ErrorSegment.ShortTypeName enumType
                   ErrorSegment.ErrorSegment.String "."
                   ErrorSegment.ErrorSegment.InlineFieldName caseName
                   ErrorSegment.ErrorSegment.String " " ]
-                |> List.append openParen
-                |> List.append prefix
-                |> List.append [ ErrorSegment.ErrorSegment.TypeOfValue argument ]
-                |> List.append suffix
-                |> List.append closeParen
+                |> Builtin.List.append openParen
+                |> Builtin.List.append prefix
+                |> Builtin.List.append
+                  [ ErrorSegment.ErrorSegment.TypeOfValue argument ]
+                |> Builtin.List.append suffix
+                |> Builtin.List.append closeParen
 
               (argumentSegment, fieldTypeSegment)
 
@@ -320,7 +322,7 @@ module Darklang =
             | _ ->
               defaultActual,
               [ ErrorSegment.ErrorSegment.String
-                  $"(RTETODO: contextAsActualExpected {(Json.serialize<Context> context) |> unwrap})" ]
+                  $"(RTETODO: contextAsActualExpected {(Builtin.Json.serialize<Context> context) |> Builtin.unwrap})" ]
 
           // let contextVerb (context: Context) : String =
           //   match context with
@@ -338,7 +340,7 @@ module Darklang =
             match e with
             | ValueNotExpectedType(argument, expected, context) ->
               let summary =
-                List.append
+                Builtin.List.append
                   (contextSummary context)
                   [ ErrorSegment.ErrorSegment.String " should be "
                     ErrorSegment.ErrorSegment.IndefiniteArticle

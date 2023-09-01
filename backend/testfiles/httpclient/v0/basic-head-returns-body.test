@@ -15,14 +15,14 @@ Here's a body!
 [test]
 // HEAD requests aren't supposed to actually return a body. But it seems like the
 // clients successfully ignore it.
-(let response = (HttpClient.request "head" "http://URL" [] Bytes.empty) |> unwrap
- let respHeaders = response.headers |> List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
+(let response = (Builtin.HttpClient.request "head" "http://URL" [] Builtin.Bytes.empty) |> Builtin.unwrap
+ let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
-   HttpClient.Response
+   Builtin.HttpClient.Response
     { statusCode = 200
       headers = [
           ("server", "kestrel")
           ("content-length", "15")
           ("content-type", "text/plain; charset=utf-8")
       ]
-      body = Bytes.empty }
+      body = Builtin.Bytes.empty }

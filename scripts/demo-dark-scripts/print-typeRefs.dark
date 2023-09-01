@@ -57,9 +57,10 @@
 
  let prettyPrinted =
    typeReferences
-   |> List.map (fun t -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference t)
-   |> String.join "\n"
+   |> Builtin.List.map (fun t ->
+     PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference t)
+   |> Builtin.String.join "\n"
 
- print prettyPrinted
+ Builtin.print prettyPrinted
 
  0)

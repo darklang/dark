@@ -4,12 +4,13 @@ type MyRecord = { col1: Int }
 
 module Errors =
 
-  (let x = MyRecord { col1 = 1 } in x.___) = Test.derrorMessage "Field name is empty"
+  (let x = MyRecord { col1 = 1 } in x.___) = Builtin.Test.derrorMessage
+    "Field name is empty"
 
-  (let x = MyRecord { col1 = 1 } in x.fieldName) = Test.derrorMessage
+  (let x = MyRecord { col1 = 1 } in x.fieldName) = Builtin.Test.derrorMessage
     "No field named fieldName in MyRecord record"
 
-  (Test.runtimeError "error").fieldName = Test.derrorMessage "error"
+  (Builtin.Test.runtimeError "error").fieldName = Builtin.Test.derrorMessage "error"
 
-  (let x = 6 in x.fieldName) = Test.derrorMessage
+  (let x = 6 in x.fieldName) = Builtin.Test.derrorMessage
     "Attempting to access field 'fieldName' of a Int (field access only works with records)"

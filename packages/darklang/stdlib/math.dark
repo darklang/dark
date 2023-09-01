@@ -8,5 +8,5 @@ module Darklang =
 
 
       /// Returns an approximation for the mathematical constant {{τ}}, the number of
-      /// radians in one turn. Equivalent to {{Float.multiply Math.pi 2}}.
+      /// radians in one turn. Equivalent to {{Float.multiply Builtin.Math.pi 2}}.
       let tau = 6.283185307179586

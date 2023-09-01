@@ -1,5 +1,5 @@
 [http-handler POST /]
-request.body |> Bytes.length
+request.body |> Builtin.Bytes.length
 
 [request]
 POST / HTTP/1.1

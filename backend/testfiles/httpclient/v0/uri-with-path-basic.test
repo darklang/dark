@@ -13,14 +13,14 @@ Content-Length: LENGTH
 Hello back
 
 [test]
-(let response = (HttpClient.request "get" "http://URL/some/2path/hyphen-ated/under_scored" [] Bytes.empty) |> unwrap
- let respHeaders = response.headers |> List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
+(let response = (Builtin.HttpClient.request "get" "http://URL/some/2path/hyphen-ated/under_scored" [] Builtin.Bytes.empty) |> Builtin.unwrap
+ let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
-   HttpClient.Response
+   Builtin.HttpClient.Response
     { statusCode = 200
       headers = [
           ("server", "kestrel")
           ("content-length", "LENGTH")
           ("content-type", "text/plain; charset=utf-8")
         ]
-      body = "Hello back" |> String.toBytes_v0 }
+      body = "Hello back" |> Builtin.String.toBytes_v0 }

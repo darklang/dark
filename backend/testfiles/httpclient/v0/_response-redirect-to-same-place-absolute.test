@@ -10,10 +10,10 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Location: http://URL
 
 [test]
-(let response = (HttpClient.request "get" "http://URL" [] Bytes.empty) |> unwrap
- let respHeaders = response.headers |> List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
+(let response = (Builtin.HttpClient.request "get" "http://URL" [] Builtin.Bytes.empty) |> Builtin.unwrap
+ let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
-  HttpClient.Response
+  Builtin.HttpClient.Response
     { statusCode = 302
       headers =
         [
@@ -21,5 +21,5 @@ Location: http://URL
           ("transfer-encoding", "chunked")
           ("location", "not sure why we aren't getting this")
         ]
-      body = Bytes.empty }
+      body = Builtin.Bytes.empty }
 

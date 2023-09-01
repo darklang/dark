@@ -6,8 +6,8 @@ module Darklang =
       let runCommand
         (command: String)
         (input: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<String, Process.Result> =
-        let result = Process.run command input
+        : PACKAGE.Darklang.Stdlib.Result.Result<String, Builtin.Process.Result> =
+        let result = Builtin.Process.run command input
 
         if result.exitCode == 0 then
           PACKAGE.Darklang.Stdlib.Result.Result.Ok(stdout ++ stderr)

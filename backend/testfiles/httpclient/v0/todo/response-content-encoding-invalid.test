@@ -15,4 +15,4 @@ Content-Encoding: not-valid
 "Hello back"
 
 [test]
-HttpClient.request "get" "http://URL/" [] Bytes.empty = Error "Unrecognized or bad HTTP Content or Transfer-Encoding"
+Builtin.HttpClient.request "get" "http://URL/" [] Builtin.Bytes.empty = Error "Unrecognized or bad HTTP Content or Transfer-Encoding"

@@ -14,10 +14,10 @@ Redirect destination reached
 
 [test]
 // This is here to be a destination for valid redirect tests
-(let response = (HttpClient.request "get" "http://URL" [] Bytes.empty) |> unwrap
- let respHeaders = response.headers |> List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
+(let response = (Builtin.HttpClient.request "get" "http://URL" [] Builtin.Bytes.empty) |> Builtin.unwrap
+ let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
-   HttpClient.Response
+   Builtin.HttpClient.Response
     { statusCode = 200
       headers =
         [
@@ -26,4 +26,4 @@ Redirect destination reached
           ("content-length", "LENGTH")
           ("content-type", "text/plain; charset=utf-8")
         ]
-      body = "Redirect destination reached" |> String.toBytes_v0}
+      body = "Redirect destination reached" |> Builtin.String.toBytes_v0}

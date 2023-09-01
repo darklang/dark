@@ -224,6 +224,19 @@ let resolve
                       errorType = NRE.NotFound
                       names = NEList.toList names }
                   )
+            | "Builtin" :: modules ->
+              let (builtIn : PT.FQName.BuiltIn<'name>) =
+                { modules = modules; name = constructor name; version = version }
+
+              if Set.contains builtIn builtinThings then
+                return Ok(PT.FQName.BuiltIn builtIn)
+              else
+                return
+                  Error(
+                    { nameType = nameErrorType
+                      errorType = NRE.NotFound
+                      names = NEList.toList names }
+                  )
             | _ ->
               // 2. Name exactly matches something in the UserProgram space
               let (userProgram : PT.FQName.UserProgram<'name>) =
@@ -232,19 +245,12 @@ let resolve
               if Set.contains userProgram userThings then
                 return Ok(PT.FQName.UserProgram userProgram)
               else
-                // 3. Name exactly matches a BuiltIn thing
-                let (builtIn : PT.FQName.BuiltIn<'name>) =
-                  { modules = modules; name = constructor name; version = version }
-
-                if Set.contains builtIn builtinThings then
-                  return Ok(PT.FQName.BuiltIn builtIn)
-                else
-                  return
-                    Error(
-                      { nameType = nameErrorType
-                        errorType = NRE.NotFound
-                        names = NEList.toList names }
-                    )
+                return
+                  Error(
+                    { nameType = nameErrorType
+                      errorType = NRE.NotFound
+                      names = NEList.toList names }
+                  )
         }
 
       // 4. Check name in

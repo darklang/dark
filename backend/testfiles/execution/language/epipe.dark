@@ -4,10 +4,14 @@ let userFn () : Int = 6
 ([] |> PACKAGE.Darklang.Stdlib.List.push_v0 2) = [ 2 ]
 
 // nested function
-([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Int.add_v0 1 (Int.add_v0 1 3))) = [ 5 ]
-([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Int.add_v0 1 ((+) 1 3))) = [ 5 ]
+([]
+ |> PACKAGE.Darklang.Stdlib.List.push_v0 (
+   Builtin.Int.add_v0 1 (Builtin.Int.add_v0 1 3)
+ )) = [ 5 ]
 
-([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Test.runtimeError "err")) = Test.derrorMessage
+([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Builtin.Int.add_v0 1 ((+) 1 3))) = [ 5 ]
+
+([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Builtin.Test.runtimeError "err")) = Builtin.Test.derrorMessage
   "err"
 
 // general
@@ -15,19 +19,19 @@ let userFn () : Int = 6
 
 ([ 5 ]
  |> PACKAGE.Darklang.Stdlib.List.head
- |> unwrap
- |> Int.add_v0 1
+ |> Builtin.unwrap
+ |> Builtin.Int.add_v0 1
  |> (+) 3
  |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 9
 
 // lambda in variable
 (let x = fun a -> a + 1 in (5 |> x |> x |> (+) 3)) = 10
 
-(let x = fun a b -> a + 1 in (7 |> x)) = Test.derrorMessage
+(let x = fun a b -> a + 1 in (7 |> x)) = Builtin.Test.derrorMessage
   "Expected 2 arguments, got 1"
 
 // only lambda might be placed into the variable used in the middle of the pipe
-(let x = 1 in (5 |> x |> x |> (+) 3)) = Test.derrorMessage
+(let x = 1 in (5 |> x |> x |> (+) 3)) = Builtin.Test.derrorMessage
   "Expected a function value, got something else: 1"
 
 // dict
@@ -112,10 +116,10 @@ module FnName =
   (let fn = (fun x -> x + 1)
    6 |> fn) = 7
 
-  (let fn = Int.add
+  (let fn = Builtin.Int.add
    3 |> fn 4) = 7
 
-  (let fn = Int.subtract
+  (let fn = Builtin.Int.subtract
    11 |> fn 4) = 7
 
   (let fn = PACKAGE.Darklang.Stdlib.Int.max

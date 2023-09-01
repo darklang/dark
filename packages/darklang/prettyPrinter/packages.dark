@@ -33,7 +33,7 @@ module Darklang =
         | firstModuleNamePart :: submoduleNames ->
           // TODO: check if firstModuleNamePart is already in m
           let (foundModuleMaybe, otherModules) =
-            ms |> List.partition (fun m -> m.name == firstModuleNamePart)
+            ms |> Builtin.List.partition (fun m -> m.name == firstModuleNamePart)
 
           match (foundModuleMaybe, submoduleNames) with
           | [], [] ->
@@ -47,7 +47,7 @@ module Darklang =
                   constants = []
                   submodules = [] }
 
-            List.append otherModules [ newModule ]
+            Builtin.List.append otherModules [ newModule ]
 
           | [], submoduleNames ->
             let typeWithoutFirstModuleNamePartOfModule =
@@ -62,18 +62,18 @@ module Darklang =
                   constants = []
                   submodules = withType [] typeWithoutFirstModuleNamePartOfModule }
 
-            List.append otherModules [ newModuleWithSubmodule ]
+            Builtin.List.append otherModules [ newModuleWithSubmodule ]
 
           | [ foundModule ], [] ->
             let updatedModule =
               { foundModule with
                   types =
-                    List.append
+                    Builtin.List.append
                       foundModule.types
                       [ { t with
                             name = { t.name with modules = [] } } ] }
 
-            List.append otherModules [ updatedModule ]
+            Builtin.List.append otherModules [ updatedModule ]
 
           | [ foundModule ], submoduleNames ->
             let typeWithoutFirstModuleNamePartOfModule =
@@ -87,7 +87,7 @@ module Darklang =
                       foundModule.submodules
                       typeWithoutFirstModuleNamePartOfModule }
 
-            List.append otherModules [ updatedModule ]
+            Builtin.List.append otherModules [ updatedModule ]
 
 
       let withFn
@@ -108,7 +108,7 @@ module Darklang =
 
         | firstModuleNamePart :: submoduleNames ->
           let (foundModuleMaybe, otherModules) =
-            ms |> List.partition (fun m -> m.name == firstModuleNamePart)
+            ms |> Builtin.List.partition (fun m -> m.name == firstModuleNamePart)
 
           match (foundModuleMaybe, submoduleNames) with
           | [], [] ->
@@ -122,7 +122,7 @@ module Darklang =
                   constants = []
                   submodules = [] }
 
-            List.append otherModules [ newModule ]
+            Builtin.List.append otherModules [ newModule ]
 
           | [], submoduleNames ->
             let fnWithoutFirstModuleNamePartOfModule =
@@ -137,18 +137,18 @@ module Darklang =
                   constants = []
                   submodules = withFn [] fnWithoutFirstModuleNamePartOfModule }
 
-            List.append otherModules [ newModuleWithSubmodule ]
+            Builtin.List.append otherModules [ newModuleWithSubmodule ]
 
           | [ foundModule ], [] ->
             let updatedModule =
               { foundModule with
                   fns =
-                    List.append
+                    Builtin.List.append
                       foundModule.fns
                       [ { f with
                             name = { f.name with modules = [] } } ] }
 
-            List.append otherModules [ updatedModule ]
+            Builtin.List.append otherModules [ updatedModule ]
 
           | [ foundModule ], submoduleNames ->
             let fnWithoutFirstModuleNamePartOfModule =
@@ -162,7 +162,7 @@ module Darklang =
                       foundModule.submodules
                       fnWithoutFirstModuleNamePartOfModule }
 
-            List.append otherModules [ updatedModule ]
+            Builtin.List.append otherModules [ updatedModule ]
 
       let withConstant
         (ms: List<Module>)
@@ -182,7 +182,7 @@ module Darklang =
 
         | firstModuleNamePart :: submoduleNames ->
           let (foundModuleMaybe, otherModules) =
-            ms |> List.partition (fun m -> m.name == firstModuleNamePart)
+            ms |> Builtin.List.partition (fun m -> m.name == firstModuleNamePart)
 
           match (foundModuleMaybe, submoduleNames) with
           | [], [] ->
@@ -196,7 +196,7 @@ module Darklang =
                           name = { c.name with modules = [] } } ]
                   submodules = [] }
 
-            List.append otherModules [ newModule ]
+            Builtin.List.append otherModules [ newModule ]
 
           | [], submoduleNames ->
             let constantWithoutFirstModuleNamePartOfModule =
@@ -212,18 +212,18 @@ module Darklang =
                   submodules =
                     withConstant [] constantWithoutFirstModuleNamePartOfModule }
 
-            List.append otherModules [ newModuleWithSubmodule ]
+            Builtin.List.append otherModules [ newModuleWithSubmodule ]
 
           | [ foundModule ], [] ->
             let updatedModule =
               { foundModule with
                   constants =
-                    List.append
+                    Builtin.List.append
                       foundModule.constants
                       [ { c with
                             name = { c.name with modules = [] } } ] }
 
-            List.append otherModules [ updatedModule ]
+            Builtin.List.append otherModules [ updatedModule ]
 
           | [ foundModule ], submoduleNames ->
             let constantWithoutFirstModuleNamePartOfModule =
@@ -237,7 +237,7 @@ module Darklang =
                       foundModule.submodules
                       constantWithoutFirstModuleNamePartOfModule }
 
-            List.append otherModules [ updatedModule ]
+            Builtin.List.append otherModules [ updatedModule ]
 
 
 
@@ -245,13 +245,14 @@ module Darklang =
         let empty = []
 
         let modulesAfterTypes =
-          List.fold p.types empty (fun (modules, t) -> withType modules t)
+          Builtin.List.fold p.types empty (fun (modules, t) -> withType modules t)
 
         let modulesWithTypesAndFns =
-          List.fold p.fns modulesAfterTypes (fun (modules, f) -> withFn modules f)
+          Builtin.List.fold p.fns modulesAfterTypes (fun (modules, f) ->
+            withFn modules f)
 
         let modulesWithTypesAndFnsAndConstants =
-          List.fold p.constants modulesWithTypesAndFns (fun (modules, c) ->
+          Builtin.List.fold p.constants modulesWithTypesAndFns (fun (modules, c) ->
             withConstant modules c)
 
         modulesWithTypesAndFnsAndConstants
@@ -265,9 +266,9 @@ module Darklang =
         | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
         | types ->
           m.types
-          |> List.map (fun t ->
+          |> Builtin.List.map (fun t ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageType t)
-          |> String.join "\n\n"
+          |> Builtin.String.join "\n\n"
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
 
       let fnsPart =
@@ -275,9 +276,9 @@ module Darklang =
         | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
         | fns ->
           m.fns
-          |> List.map (fun f ->
+          |> Builtin.List.map (fun f ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn f)
-          |> String.join "\n\n"
+          |> Builtin.String.join "\n\n"
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
 
       let constantsPart =
@@ -285,9 +286,9 @@ module Darklang =
         | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
         | constants ->
           m.constants
-          |> List.map (fun c ->
+          |> Builtin.List.map (fun c ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageConstant c)
-          |> String.join "\n\n"
+          |> Builtin.String.join "\n\n"
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
 
       let submodulesPart =
@@ -295,13 +296,14 @@ module Darklang =
         | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
         | submodules ->
           submodules
-          |> List.map (fun m -> PACKAGE.Darklang.PrettyPrinter.packageModule m)
-          |> String.join "\n\n"
+          |> Builtin.List.map (fun m ->
+            PACKAGE.Darklang.PrettyPrinter.packageModule m)
+          |> Builtin.String.join "\n\n"
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
 
       let parts =
         [ typesPart; fnsPart; constantsPart; submodulesPart ]
-        |> List.filterMap (fun s -> s)
+        |> Builtin.List.filterMap (fun s -> s)
 
       match parts with
       | [] ->
@@ -309,7 +311,7 @@ module Darklang =
         "Error - module defined somehow without parts"
       | parts ->
         let bodyPart =
-          (String.join parts "\n\n") |> PACKAGE.Darklang.PrettyPrinter.indent
+          (Builtin.String.join parts "\n\n") |> PACKAGE.Darklang.PrettyPrinter.indent
 
         $"module {m.name} =\n{bodyPart}"
 
@@ -318,28 +320,31 @@ module Darklang =
         PACKAGE.Darklang.Stdlib.Packages
           { types =
               p.types
-              |> List.map (fun t ->
+              |> Builtin.List.map (fun t ->
                 { t with
                     name =
                       { t.name with
-                          modules = List.append [ t.name.owner ] t.name.modules
+                          modules =
+                            Builtin.List.append [ t.name.owner ] t.name.modules
                           owner = "(redacted)" } })
             fns =
               p.fns
-              |> List.map (fun f ->
+              |> Builtin.List.map (fun f ->
                 { f with
                     name =
                       { f.name with
-                          modules = List.append [ f.name.owner ] f.name.modules
+                          modules =
+                            Builtin.List.append [ f.name.owner ] f.name.modules
                           owner = "(redacted)" } })
 
             constants =
               p.constants
-              |> List.map (fun c ->
+              |> Builtin.List.map (fun c ->
                 { c with
                     name =
                       { c.name with
-                          modules = List.append [ c.name.owner ] c.name.modules
+                          modules =
+                            Builtin.List.append [ c.name.owner ] c.name.modules
                           owner = "(redacted)" } }) }
 
       let modules = Packages.toModules withOwnerStuffRepresentedAsRootLevelModule
@@ -347,5 +352,5 @@ module Darklang =
 
       // CLEANUP make ordering 'better' in some way
       modules
-      |> List.map (fun m -> PACKAGE.Darklang.PrettyPrinter.packageModule m)
-      |> String.join "\n\n"
+      |> Builtin.List.map (fun m -> PACKAGE.Darklang.PrettyPrinter.packageModule m)
+      |> Builtin.String.join "\n\n"
