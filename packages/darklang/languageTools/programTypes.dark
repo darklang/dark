@@ -32,11 +32,9 @@ module Darklang =
 
 
       module TypeName =
-        //PACKAGE.Darklang.LanguageTools.ProgramTypes.
         type Name = TypeName of String
 
-        type TypeName =
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.FQName<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name>
+        type TypeName = FQName.FQName<Name>
 
         type BuiltIn = FQName.BuiltIn<Name>
         type UserProgram = FQName.UserProgram<Name>
