@@ -103,7 +103,7 @@ let rec serialize
 
 
     // Nested types
-    | TList ltype, DList l ->
+    | TList ltype, DList(_vtTODO, l) ->
       do! w.writeArray (fun () -> Ply.List.iterSequentially (r ltype) l)
 
     | TDict objType, DDict fields ->
@@ -389,7 +389,7 @@ let parse
       |> Seq.mapi (fun i v -> convert nested (JsonPath.Index i :: pathSoFar) v)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map DList
+      |> Ply.map (Dval.list valueTypeTODO)
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let values = j.EnumerateArray() |> Seq.toList

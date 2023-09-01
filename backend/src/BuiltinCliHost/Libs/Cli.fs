@@ -39,13 +39,14 @@ module CliRuntimeError =
             "UncaughtException",
             [ "msg", DString msg
               "metadata",
-              DList(
-                metadata |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
-              ) ]
+              Dval.list
+                valueTypeTODO
+                (metadata
+                 |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))) ]
 
           | MultipleExpressionsToExecute exprs ->
             "MultipleExpressionsToExecute",
-            [ "exprs", DList(exprs |> List.map DString) ]
+            [ "exprs", Dval.list valueTypeTODO (List.map DString exprs) ]
 
           | NonIntReturned actuallyReturned ->
             "NonIntReturned",
@@ -198,7 +199,7 @@ let fns : List<BuiltInFn> =
       description = "Executes an arbitrary Dark function"
       fn =
         function
-        | state, [], [ DString functionName; DList args ] ->
+        | state, [], [ DString functionName; DList(_vtTODO, args) ] ->
           uply {
             let err (msg : string) (metadata : List<string * string>) =
               let metadata = metadata |> List.map (fun (k, v) -> k, DString v) |> Map

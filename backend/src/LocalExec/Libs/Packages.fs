@@ -141,17 +141,21 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
             return
-              (DList(
-                packages
-                |> List.map (fun (owner, fnname, modules, version) ->
-                  Dval.record
-                    (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0))
-                    [ ("owner", DString owner)
-                      ("modules",
-                       modules |> String.split "." |> List.map DString |> DList)
-                      ("name", DString fnname)
-                      ("version", DInt version) ])
-              ))
+              Dval.list
+                valueTypeTODO
+                (packages
+                 |> List.map (fun (owner, fnname, modules, version) ->
+                   Dval.record
+                     (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0))
+                     [ ("owner", DString owner)
+                       ("modules",
+                        modules
+                        |> String.split "."
+                        |> List.map DString
+                        |> Dval.list valueTypeTODO)
+                       ("name", DString fnname)
+                       ("version", DInt version) ]))
+
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -182,18 +186,23 @@ let fns : List<BuiltInFn> =
                  read.string "typename",
                  read.string "modules",
                  read.int "version"))
+
             return
-              (DList(
-                packages
-                |> List.map (fun (owner, typename, modules, version) ->
-                  Dval.record
-                    (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0))
-                    [ ("owner", DString owner)
-                      ("modules",
-                       modules |> String.split "." |> List.map DString |> DList)
-                      ("name", DString typename)
-                      ("version", DInt version) ])
-              ))
+              Dval.list
+                valueTypeTODO
+                (packages
+                 |> List.map (fun (owner, typename, modules, version) ->
+                   Dval.record
+                     (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0))
+                     [ ("owner", DString owner)
+                       ("modules",
+                        modules
+                        |> String.split "."
+                        |> List.map DString
+                        |> Dval.list valueTypeTODO)
+                       ("name", DString typename)
+                       ("version", DInt version) ]))
+
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -225,17 +234,20 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
             return
-              (DList(
-                packages
-                |> List.map (fun (owner, fnname, modules, version) ->
-                  Dval.record
-                    (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0))
-                    [ ("owner", DString owner)
-                      ("modules",
-                       modules |> String.split "." |> List.map DString |> DList)
-                      ("name", DString fnname)
-                      ("version", DInt version) ])
-              ))
+              (Dval.list
+                valueTypeTODO
+                (packages
+                 |> List.map (fun (owner, fnname, modules, version) ->
+                   Dval.record
+                     (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0))
+                     [ ("owner", DString owner)
+                       ("modules",
+                        modules
+                        |> String.split "."
+                        |> List.map DString
+                        |> Dval.list valueTypeTODO)
+                       ("name", DString fnname)
+                       ("version", DInt version) ])))
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

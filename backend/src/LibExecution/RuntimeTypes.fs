@@ -401,6 +401,8 @@ and ValueType =
   | Unknown
   | Known of KnownType
 
+let valueTypeTODO = ValueType.Unknown
+
 
 type NameResolution<'a> = Result<'a, RuntimeError>
 
@@ -540,7 +542,7 @@ and [<NoComparison>] Dval =
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
 
   // compound types
-  | DList of List<Dval>
+  | DList of ValueType * List<Dval>
   | DTuple of Dval * Dval * List<Dval>
 
   | DFnVal of FnValImpl
@@ -819,7 +821,7 @@ module Dval =
         [ (first, firstType); (second, secondType) ] @ List.zip theRest otherTypes
 
       pairs |> List.all (fun (v, subtype) -> typeMatches subtype v)
-    | DList l, TList t -> List.all (typeMatches t) l
+    | DList(_vtTODO, l), TList t -> List.all (typeMatches t) l
     | DDict m, TDict t -> Map.all (typeMatches t) m
     | DFnVal(Lambda l), TFn(parameters, _) ->
       NEList.length parameters = NEList.length l.parameters
@@ -867,13 +869,14 @@ module Dval =
   // interpreter where they are discarded instead of propagated; still they are
   // never put into other dvals). These static members check before creating the values
 
-  let list (list : List<Dval>) : Dval =
+
+  let list (_initialType : ValueType) (list : List<Dval>) : Dval =
     List.find (fun (dv : Dval) -> isFake dv) list
-    |> Option.defaultValue (DList list)
+    |> Option.defaultValue (DList(valueTypeTODO, list))
 
   let asList (dv : Dval) : Option<List<Dval>> =
     match dv with
-    | DList l -> Some l
+    | DList(_vtTODO, l) -> Some l
     | _ -> None
 
   let asDict (dv : Dval) : Option<Map<string, Dval>> =

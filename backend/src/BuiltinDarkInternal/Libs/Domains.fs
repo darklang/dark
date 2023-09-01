@@ -29,7 +29,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! name = Canvas.domainsForCanvasID canvasID
-            return name |> List.map DString |> DList
+            return name |> List.map DString |> Dval.list valueTypeTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

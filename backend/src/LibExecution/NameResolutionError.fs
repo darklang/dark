@@ -71,7 +71,7 @@ module RTE =
       let fields =
         [ "errorType", ErrorType.toDT e.errorType
           "nameType", NameType.toDT e.nameType
-          "names", (e.names |> List.map RT.DString |> RT.DList) ]
+          "names", (e.names |> List.map RT.DString |> RT.Dval.list RT.valueTypeTODO) ]
 
       RT.Dval.record errorTypeName fields
 

@@ -47,8 +47,8 @@ let rec dvalTypeName (dv : Dval) : string =
   | DUnit -> "Unit"
   | DChar _ -> "Char"
   | DString _ -> "String"
-  | DList [] -> "List<'a>"
-  | DList(v :: _) -> "List<" + dvalTypeName v + ">"
+  | DList(_vtTODO, []) -> "List<'a>"
+  | DList(_vtTODO, v :: _) -> "List<" + dvalTypeName v + ">"
   | DDict _ -> "Dict"
   | DFnVal(Lambda _) -> "Lambda"
   | DFnVal(NamedFn n) -> FnName.toString n
@@ -109,7 +109,7 @@ let toRepr (dv : Dval) : string =
     | DDateTime d -> wrap (DarkDateTime.toIsoString d)
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)
-    | DList l ->
+    | DList(_vtTODO, l) ->
       if List.isEmpty l then
         "[]"
       else

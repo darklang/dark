@@ -26,7 +26,7 @@ module Request =
       headers
       |> lowercaseHeaderKeys
       |> List.map (fun (k, v) -> RT.DTuple(RT.DString(k), RT.DString(v), []))
-      |> RT.DList
+      |> RT.Dval.list RT.valueTypeTODO
 
     [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]
     |> RT.Dval.record typ
@@ -50,7 +50,7 @@ module Response =
       let headers = Map.get "headers" fields
       let body = Map.get "body" fields
       match code, headers, body with
-      | Some(RT.DInt code), Some(RT.DList headers), Some(RT.DBytes body) ->
+      | Some(RT.DInt code), Some(RT.DList(_vtTODO, headers)), Some(RT.DBytes body) ->
         let headers =
           headers
           |> List.fold

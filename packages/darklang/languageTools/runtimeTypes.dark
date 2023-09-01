@@ -188,7 +188,7 @@ module Darklang =
         | DBytes of Bytes
         | DUuid of Uuid
 
-        | DList of List<Dval>
+        | DList of ValueType * List<Dval>
         | DDict of DvalMap
         | DTuple of Dval * Dval * List<Dval>
 

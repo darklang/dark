@@ -222,6 +222,8 @@ module FormatV0 =
       | RT.Unknown -> Unknown
       | RT.Known kt -> Known(KnownType.fromRT kt)
 
+  let valueTypeTODO = ValueType.ValueType.Unknown
+
 
   type DvalMap = Map<string, Dval>
   and DvalSource =
@@ -237,7 +239,7 @@ module FormatV0 =
     | DUnit
     | DString of string
     | DChar of string
-    | DList of List<Dval>
+    | DList of ValueType.ValueType * List<Dval>
     | DTuple of Dval * Dval * List<Dval>
     | DLambda // See docs/dblock-serialization.md
     | DDict of DvalMap
@@ -278,7 +280,7 @@ module FormatV0 =
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
     | DPassword pw -> RT.DPassword(Password pw)
-    | DList l -> RT.DList(List.map toRT l)
+    | DList(typ, l) -> RT.DList(ValueType.toRT typ, List.map toRT l)
     | DTuple(first, second, theRest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)
     | DDict o -> RT.DDict(Map.map toRT o)
@@ -314,7 +316,7 @@ module FormatV0 =
     | RT.DDB name -> DDB name
     | RT.DUuid uuid -> DUuid uuid
     | RT.DPassword(Password pw) -> DPassword pw
-    | RT.DList l -> DList(List.map fromRT l)
+    | RT.DList(typ, l) -> DList(ValueType.fromRT typ, List.map fromRT l)
     | RT.DTuple(first, second, theRest) ->
       DTuple(fromRT first, fromRT second, List.map fromRT theRest)
     | RT.DDict o -> DDict(Map.map fromRT o)
@@ -345,7 +347,7 @@ let parseJsonV0 (json : string) : RT.Dval =
 let toHashV2 (dvals : list<RT.Dval>) : string =
   dvals
   |> List.map FormatV0.fromRT
-  |> FormatV0.DList
+  |> fun items -> FormatV0.DList(FormatV0.valueTypeTODO, items)
   |> Json.Vanilla.serialize
   |> UTF8.toBytes
   |> System.IO.Hashing.XxHash64.Hash // fastest in .NET, does not need to be secure
@@ -368,7 +370,7 @@ module Test =
     | RT.DPassword _ -> true
     | RT.DEnum(_typeName, _, _caseName, fields) ->
       List.all isRoundtrippableDval fields
-    | RT.DList dvals -> List.all isRoundtrippableDval dvals
+    | RT.DList(_vtTODO, dvals) -> List.all isRoundtrippableDval dvals
     | RT.DDict map -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DRecord(_, _, map) -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DUuid _ -> true

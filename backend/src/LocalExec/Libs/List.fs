@@ -33,7 +33,7 @@ let fns : List<BuiltInFn> =
         "Applies the given function <param fn> to each element of the <param list>."
       fn =
         (function
-        | state, _, [ DList l; DFnVal b ] ->
+        | state, _, [ DList(_vtTODO, l); DFnVal b ] ->
           uply {
             do!
               l
@@ -63,13 +63,13 @@ let fns : List<BuiltInFn> =
          list> (does not recursively flatten nested lists)"
       fn =
         (function
-        | _, _, [ DList l ] ->
+        | _, _, [ DList(_vtTODO, l) ] ->
           let f acc i =
             match i with
-            | DList l -> List.append acc l
+            | DList(_vtTODO, l) -> List.append acc l
             | _ -> Exception.raiseCode "Flattening non-lists"
 
-          List.fold f [] l |> DList |> Ply
+          List.fold f [] l |> Dval.list valueTypeTODO |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

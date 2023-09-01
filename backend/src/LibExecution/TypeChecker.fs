@@ -213,7 +213,7 @@ let rec unify
       | TChar, DChar _ -> return Ok()
       | TBytes, DBytes _ -> return Ok()
       | TDB _, DDB _ -> return Ok() // TODO: check DB type
-      | TList nested, DList dvs ->
+      | TList nested, DList(_vtTODO, dvs) ->
         // let! results =
         //   dvs
         //   |> Ply.List.mapSequentiallyWithIndex (fun i v ->

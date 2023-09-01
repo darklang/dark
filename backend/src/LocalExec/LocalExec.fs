@@ -275,7 +275,8 @@ let runLocalExecScript (args : string[]) : Ply<int> =
           packageManager = Some LibCloud.PackageManager.packageManager }
     let! modul = LibParser.Canvas.parseFromFile nameResolver mainFile
 
-    let args = args |> Array.toList |> List.map RT.DString |> RT.DList
+    let args =
+      args |> Array.toList |> List.map RT.DString |> RT.Dval.list RT.valueTypeTODO
 
     let result = execute modul (Map [ "args", args ])
 

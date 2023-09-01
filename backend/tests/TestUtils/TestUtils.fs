@@ -388,7 +388,7 @@ module Expect =
     | DUuid _
     | DBytes _
     | DFloat _ -> true
-    | DList vs -> List.all check vs
+    | DList(_vtTODO, vs) -> List.all check vs
     | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
     | DDict vs -> vs |> Map.values |> List.all check
     | DRecord(_, _, vs) -> vs |> Map.values |> List.all check
@@ -731,7 +731,7 @@ module Expect =
       // have the same number of ticks. For testing, we shall consider them
       // equal if they print the same string.
       check path (string l) (string r)
-    | DList ls, DList rs ->
+    | DList(_vtTODO1, ls), DList(_vtTODO2, rs) ->
       check ("Length" :: path) (List.length ls) (List.length rs)
       List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) ls rs
 
@@ -869,7 +869,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DRecord(_, _, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
     | DEnum(_typeName, _, _caseName, fields) ->
       fields |> List.map visit |> ignore<List<unit>>
-    | DList dvs -> List.map visit dvs |> ignore<List<unit>>
+    | DList(_vtTODO, dvs) -> List.map visit dvs |> ignore<List<unit>>
     | DTuple(first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
     | DString _
@@ -996,12 +996,14 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("int string2", DString "-1039485", TString)
     ("int string3", DString "0", TString)
     ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6", TString)
-    ("list", DList [ Dval.int 4 ], TList TInt)
+    ("list", DList(Known KTInt, [ Dval.int 4 ]), TList TInt)
     ("list with derror",
-     DList
+     DList(
+       valueTypeTODO,
        [ Dval.int 3
          DError(SourceNone, RuntimeError.oldError "some error string")
-         Dval.int 4 ],
+         Dval.int 4 ]
+     ),
      TList TInt)
     ("record",
      DRecord(

@@ -367,7 +367,9 @@ let fns (config : Configuration) : List<BuiltInFn> =
         received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
         (function
-        | state, _, [ DString method; DString uri; DList reqHeaders; DBytes reqBody ] ->
+        | state,
+          _,
+          [ DString method; DString uri; DList(_vtTODO, reqHeaders); DBytes reqBody ] ->
           let reqHeaders : Result<List<string * string>, HeaderError> =
             reqHeaders
             |> List.fold
@@ -413,7 +415,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                       DString(String.toLowercase v),
                       []
                     ))
-                  |> DList
+                  |> Dval.list valueTypeTODO
 
                 let typ =
                   FQName.BuiltIn(TypeName.builtIn [ "HttpClient" ] "Response" 0)

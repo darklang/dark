@@ -50,7 +50,7 @@ let fns : List<BuiltInFn> =
                   [ "name", DString s.name
                     "value", DString s.value
                     "version", DInt s.version ])
-              |> DList
+              |> Dval.list valueTypeTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

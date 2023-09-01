@@ -290,7 +290,7 @@ let rec eval'
 
       match List.tryFind Dval.isFake results with
       | Some fakeDval -> return fakeDval
-      | None -> return DList results
+      | None -> return Dval.list valueTypeTODO results
 
 
     | ETuple(_id, first, second, theRest) ->
@@ -585,10 +585,10 @@ let rec eval'
 
         | MPListCons(id, headPat, tailPat) ->
           match dv with
-          | DList(headVal :: tailVals) ->
+          | DList(_vtTODO, headVal :: tailVals) ->
             let (headPass, headVars, headTraces) = checkPattern headVal headPat
             let (tailPass, tailVars, tailTraces) =
-              checkPattern (DList tailVals) tailPat
+              checkPattern (Dval.list valueTypeTODO tailVals) tailPat
 
             let allSubVars = headVars @ tailVars
             let allSubTraces = headTraces @ tailTraces
@@ -603,7 +603,7 @@ let rec eval'
 
         | MPList(id, pats) ->
           match dv with
-          | DList vals ->
+          | DList(_vtTODO, vals) ->
             if List.length vals = List.length pats then
               let (passResults, newVarResults, traceResults) =
                 List.zip vals pats

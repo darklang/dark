@@ -84,7 +84,11 @@ let execute (args : List<string>) : Task<RT.Dval> =
   task {
     let state = state ()
     let fnName = RT.FnName.fqPackage "Darklang" [ "Cli" ] "executeCliCommand" 0
-    let args = args |> List.map RT.DString |> RT.DList |> NEList.singleton
+    let args =
+      args
+      |> List.map RT.DString
+      |> RT.Dval.list RT.valueTypeTODO
+      |> NEList.singleton
     return! Exe.executeFunction state 7UL fnName [] args
   }
 
