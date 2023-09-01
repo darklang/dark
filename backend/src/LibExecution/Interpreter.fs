@@ -632,26 +632,25 @@ let rec eval'
       // The value we're matching against
       let! matchVal = eval state tst st matchExpr
 
-      let mutable hasMatched = false
       let mutable matchResult =
         // Even though we know it's fakeval, we still run through each pattern for analysis
-        if Dval.isFake matchVal then matchVal else errStr id "No match"
+        if Dval.isFake matchVal then Some matchVal else None
+
 
       for (pattern, rhsExpr) in NEList.toList cases do
-        if hasMatched && isRealExecution then
+        if Option.isSome matchResult && isRealExecution then
           ()
         else
           let passes, newDefs, traces = checkPattern matchVal pattern
           let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
 
-          if not hasMatched && passes then
+          if matchResult = None && passes then
             traces
             |> List.iter (fun (id, dv) ->
               state.tracing.traceDval state.onExecutionPath id dv)
 
             let! r = eval state tst newSymtable rhsExpr
-            matchResult <- r
-            hasMatched <- true
+            matchResult <- Some r
           else if isRealExecution then
             // "Real" evaluations don't need to persist non-matched traces
             ()
@@ -660,7 +659,9 @@ let rec eval'
             traces |> List.iter (fun (id, dv) -> state.tracing.traceDval false id dv)
             do! preview tst newSymtable rhsExpr
 
-      return matchResult
+      match matchResult with
+      | Some r -> return r
+      | None -> return errStr id "No match"
 
 
     | EIf(id, cond, thenBody, elseBody) ->
