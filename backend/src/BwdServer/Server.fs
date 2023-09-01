@@ -37,7 +37,7 @@ module Pusher = LibCloud.Pusher
 
 module LibHttpMiddleware = LibHttpMiddleware.Http
 
-module RealExe = LibCloudExecution.CloudExecution
+module CloudExe = LibCloudExecution.CloudExecution
 
 module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
@@ -326,13 +326,13 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
-            RealExe.executeHandler
+            CloudExe.executeHandler
               LibClientTypesToCloudTypes.Pusher.eventSerializer
               (PT2RT.Handler.toRT handler)
               (Canvas.toProgram canvas)
               traceID
               inputVars
-              (RealExe.InitialExecution(desc, "request", request))
+              (CloudExe.InitialExecution(desc, "request", request))
 
           let result = LibHttpMiddleware.Response.toHttpResponse result
 
