@@ -15,6 +15,6 @@ Content-Length: LENGTH
 
 [test]
 (let reqHeaders = [("Content-Type", "just an invalid string")]
- let response = HttpClient.request "get" "http://URL" reqHeaders Bytes.empty
+ let response = Builtin.HttpClient.request "get" "http://URL" reqHeaders Builtin.Bytes.empty
  response) =
-   Test.runtimeError "Invalid content-type header"
+   Builtin.Test.runtimeError "Invalid content-type header"

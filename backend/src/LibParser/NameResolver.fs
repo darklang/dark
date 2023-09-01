@@ -245,12 +245,12 @@ let resolve
               if Set.contains userProgram userThings then
                 return Ok(PT.FQName.UserProgram userProgram)
               else
-              return
-                Error(
-                  { nameType = nameErrorType
-                    errorType = NRE.NotFound
-                    names = NEList.toList names }
-                )
+                return
+                  Error(
+                    { nameType = nameErrorType
+                      errorType = NRE.NotFound
+                      names = NEList.toList names }
+                  )
         }
 
       // 4. Check name in

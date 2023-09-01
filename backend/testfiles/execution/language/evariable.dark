@@ -1,2 +1,2 @@
-myvar = Test.derrorMessage "There is no variable named: myvar"
+myvar = Builtin.Test.derrorMessage "There is no variable named: myvar"
 (let x = 5 in x) = 5

@@ -39,44 +39,44 @@ Builtin.Float.truncate_v0 -000000.9 = 0
 Builtin.Float.truncate_v0 0.0 = 0
 Builtin.Float.truncate_v0 2147483647.000009 = 2147483647
 
-PACKAGE.Darklang.Stdlib.Float.absoluteValue_v0 Test.negativeInfinity_v0 = Test.infinity_v0
-PACKAGE.Darklang.Stdlib.Float.absoluteValue_v0 Test.nan_v0 = Test.nan_v0
+PACKAGE.Darklang.Stdlib.Float.absoluteValue_v0 Builtin.Test.negativeInfinity_v0 = Builtin.Test.infinity_v0
+PACKAGE.Darklang.Stdlib.Float.absoluteValue_v0 Builtin.Test.nan_v0 = Builtin.Test.nan_v0
 PACKAGE.Darklang.Stdlib.Float.absoluteValue_v0 -5.6 = 5.6
 PACKAGE.Darklang.Stdlib.Float.absoluteValue_v0 -0.0 = 0.0
 PACKAGE.Darklang.Stdlib.Float.absoluteValue_v0 -0.0 = 0.0
 
-PACKAGE.Darklang.Stdlib.Float.negate_v0 Test.nan_v0 = Test.nan_v0
-PACKAGE.Darklang.Stdlib.Float.negate_v0 Test.infinity_v0 = Test.negativeInfinity_v0
+PACKAGE.Darklang.Stdlib.Float.negate_v0 Builtin.Test.nan_v0 = Builtin.Test.nan_v0
+PACKAGE.Darklang.Stdlib.Float.negate_v0 Builtin.Test.infinity_v0 = Builtin.Test.negativeInfinity_v0
 PACKAGE.Darklang.Stdlib.Float.negate_v0 -5.6 = 5.6
 PACKAGE.Darklang.Stdlib.Float.negate_v0 5.6 = -5.6
 PACKAGE.Darklang.Stdlib.Float.negate_v0 0.0 = -0.0
 PACKAGE.Darklang.Stdlib.Float.negate_v0 -0.0 = 0.0
 
-PACKAGE.Darklang.Stdlib.Float.clamp_v0 Test.infinity_v0 -1.0 0.5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+PACKAGE.Darklang.Stdlib.Float.clamp_v0 Builtin.Test.infinity_v0 -1.0 0.5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   0.5
 
-PACKAGE.Darklang.Stdlib.Float.clamp_v0 Test.negativeInfinity_v0 -1.0 0.5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+PACKAGE.Darklang.Stdlib.Float.clamp_v0 Builtin.Test.negativeInfinity_v0 -1.0 0.5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   -1.0
 
-PACKAGE.Darklang.Stdlib.Float.clamp_v0 Test.nan_v0 -1.0 1.0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  Test.nan_v0
+PACKAGE.Darklang.Stdlib.Float.clamp_v0 Builtin.Test.nan_v0 -1.0 1.0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  Builtin.Test.nan_v0
 
-PACKAGE.Darklang.Stdlib.Float.clamp_v0 0.5 Test.infinity_v0 1.0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+PACKAGE.Darklang.Stdlib.Float.clamp_v0 0.5 Builtin.Test.infinity_v0 1.0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   1.0
 
-PACKAGE.Darklang.Stdlib.Float.clamp_v0 0.5 Test.negativeInfinity_v0 1.0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+PACKAGE.Darklang.Stdlib.Float.clamp_v0 0.5 Builtin.Test.negativeInfinity_v0 1.0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   0.5
 
-PACKAGE.Darklang.Stdlib.Float.clamp_v0 0.5 Test.nan_v0 1.0 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+PACKAGE.Darklang.Stdlib.Float.clamp_v0 0.5 Builtin.Test.nan_v0 1.0 = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "clamp requires arguments to be valid numbers"
 
-PACKAGE.Darklang.Stdlib.Float.clamp_v0 -1.0 0.5 Test.infinity_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+PACKAGE.Darklang.Stdlib.Float.clamp_v0 -1.0 0.5 Builtin.Test.infinity_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   0.5
 
-PACKAGE.Darklang.Stdlib.Float.clamp_v0 -1.0 0.5 Test.negativeInfinity_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+PACKAGE.Darklang.Stdlib.Float.clamp_v0 -1.0 0.5 Builtin.Test.negativeInfinity_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   -1.0
 
-PACKAGE.Darklang.Stdlib.Float.clamp_v0 0.5 1.0 Test.nan_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+PACKAGE.Darklang.Stdlib.Float.clamp_v0 0.5 1.0 Builtin.Test.nan_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "clamp requires arguments to be valid numbers"
 
 PACKAGE.Darklang.Stdlib.Float.clamp_v0 -2.0 -5.0 5.0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
@@ -100,7 +100,7 @@ Builtin.Float.divide_v0 9.0 2.0 = 4.5
 17.0 / 3.3 = 5.151515152
 -8.74 / 5.351 = -1.633339563
 0.0 / 1.0 = 0.0
-1.0 / 0.0 = Test.infinity_v0
+1.0 / 0.0 = Builtin.Test.infinity_v0
 
 
 Builtin.Float.greaterThanOrEqualTo_v0 0.1 0.1 = true
@@ -111,19 +111,19 @@ Builtin.Float.lessThanOrEqualTo_v0 0.1 0.1 = true
 
 Builtin.Float.lessThan_v0 0.2 0.1 = false
 
-PACKAGE.Darklang.Stdlib.Float.max_v0 Test.infinity_v0 1.0 = Test.infinity_v0
-PACKAGE.Darklang.Stdlib.Float.max_v0 Test.negativeInfinity_v0 1.0 = 1.0
+PACKAGE.Darklang.Stdlib.Float.max_v0 Builtin.Test.infinity_v0 1.0 = Builtin.Test.infinity_v0
+PACKAGE.Darklang.Stdlib.Float.max_v0 Builtin.Test.negativeInfinity_v0 1.0 = 1.0
 PACKAGE.Darklang.Stdlib.Float.max_v0 -10.0 1.0 = 1.0
-PACKAGE.Darklang.Stdlib.Float.max_v0 10.0 Test.nan_v0 = Test.nan_v0
+PACKAGE.Darklang.Stdlib.Float.max_v0 10.0 Builtin.Test.nan_v0 = Builtin.Test.nan_v0
 PACKAGE.Darklang.Stdlib.Float.max_v0 10.0 1.0 = 10.0
 PACKAGE.Darklang.Stdlib.Float.max_v0 0.0 0.00 = 0.0
 PACKAGE.Darklang.Stdlib.Float.max_v0 -2147483647.8 -00000000.000 = 0.0
 PACKAGE.Darklang.Stdlib.Float.max_v0 2147483647.0 00000000.000 = 2147483647.0
 
-PACKAGE.Darklang.Stdlib.Float.min_v0 Test.infinity_v0 1.0 = 1.0
-PACKAGE.Darklang.Stdlib.Float.min_v0 Test.negativeInfinity_v0 1.0 = Test.negativeInfinity_v0
+PACKAGE.Darklang.Stdlib.Float.min_v0 Builtin.Test.infinity_v0 1.0 = 1.0
+PACKAGE.Darklang.Stdlib.Float.min_v0 Builtin.Test.negativeInfinity_v0 1.0 = Builtin.Test.negativeInfinity_v0
 PACKAGE.Darklang.Stdlib.Float.min_v0 -10.0 1.0 = -10.0
-PACKAGE.Darklang.Stdlib.Float.min_v0 10.0 Test.nan_v0 = Test.nan_v0
+PACKAGE.Darklang.Stdlib.Float.min_v0 10.0 Builtin.Test.nan_v0 = Builtin.Test.nan_v0
 PACKAGE.Darklang.Stdlib.Float.min_v0 10.0 1.0 = 1.0
 PACKAGE.Darklang.Stdlib.Float.min_v0 0.0 0.00 = 0.0
 PACKAGE.Darklang.Stdlib.Float.min_v0 -2147483647.8 -00000000.000 = -2147483647.8
@@ -175,7 +175,7 @@ Builtin.Float.subtract_v0 1.0 0.2 = 0.8
 
 PACKAGE.Darklang.Stdlib.Float.sum_v0 [ 1.0; 0.2 ] = 1.2
 
-Test.nan_v0 == Test.nan_v0 = false
+Builtin.Test.nan_v0 == Builtin.Test.nan_v0 = false
 
 Builtin.Float.toString 1.5 = "1.5"
 Builtin.Float.toString 0.0 = "0.0"

@@ -108,32 +108,32 @@ module Equals =
   (MyDB == MyDB) = true
 
   module TypeErrors =
-    (5.7 != 6) = Test.derrorMessage "Both values must be the same type"
-    (5.7 != 5) = Test.derrorMessage "Both values must be the same type"
+    (5.7 != 6) = Builtin.Test.derrorMessage "Both values must be the same type"
+    (5.7 != 5) = Builtin.Test.derrorMessage "Both values must be the same type"
 
-    (Test.runtimeError "test" != Test.runtimeError "different msg") = Test.derrorMessage
+    (Builtin.Test.runtimeError "test" != Builtin.Test.runtimeError "different msg") = Builtin.Test.derrorMessage
       "test"
 
-    (() != PACKAGE.Darklang.Stdlib.Option.Option.None) = Test.derrorMessage
+    (() != PACKAGE.Darklang.Stdlib.Option.Option.None) = Builtin.Test.derrorMessage
       "Both values must be the same type"
 
-    (() != false) = Test.derrorMessage "Both values must be the same type"
-    (() != 0) = Test.derrorMessage "Both values must be the same type"
-    (() != 0.0) = Test.derrorMessage "Both values must be the same type"
-    (MyDB != 5) = Test.derrorMessage "Both values must be the same type"
+    (() != false) = Builtin.Test.derrorMessage "Both values must be the same type"
+    (() != 0) = Builtin.Test.derrorMessage "Both values must be the same type"
+    (() != 0.0) = Builtin.Test.derrorMessage "Both values must be the same type"
+    (MyDB != 5) = Builtin.Test.derrorMessage "Both values must be the same type"
 
   // Other ways to call it
-  equals_v0 1 1 = true
+  Builtin.equals_v0 1 1 = true
   (==) 1 1 = true
   1 == 1 = true
 
 
 module NotEquals =
-  notEquals_v0 1 1 = false
-  notEquals_v0 "abc" "abc" = false
-  notEquals_v0 "abd" "abc" = true
+  Builtin.notEquals_v0 1 1 = false
+  Builtin.notEquals_v0 "abc" "abc" = false
+  Builtin.notEquals_v0 "abd" "abc" = true
 
-  notEquals_v0
+  Builtin.notEquals_v0
     (Builtin.DateTime.parse "2021-07-28T22:42:36Z")
     (Builtin.DateTime.parse "2019-07-28T22:42:36Z") = true
 

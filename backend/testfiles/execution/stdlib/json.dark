@@ -210,23 +210,23 @@ Builtin.Json.parse<Float> "0.7999999999" = PACKAGE.Darklang.Stdlib.Result.Result
 Builtin.Json.parse<Float> "-5.55555555556e+28" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   -5.55555555556e+28
 
-Builtin.Json.serialize<Float> Test.negativeInfinity_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+Builtin.Json.serialize<Float> Builtin.Test.negativeInfinity_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   "\"-Infinity\""
 
 Builtin.Json.parse<Float> "\"-Infinity\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  Test.negativeInfinity_v0
+  Builtin.Test.negativeInfinity_v0
 
-Builtin.Json.serialize<Float> Test.infinity_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+Builtin.Json.serialize<Float> Builtin.Test.infinity_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   "\"Infinity\""
 
 Builtin.Json.parse<Float> "\"Infinity\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  Test.infinity_v0
+  Builtin.Test.infinity_v0
 
-Builtin.Json.serialize<Float> Test.nan_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+Builtin.Json.serialize<Float> Builtin.Test.nan_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   "\"NaN\""
 
 Builtin.Json.parse<Float> "\"NaN\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  Test.nan_v0
+  Builtin.Test.nan_v0
 
 // not floats
 Builtin.Json.parse<Float> " -42 . 0 " = PACKAGE.Darklang.Stdlib.Result.Result.Error
@@ -500,8 +500,8 @@ Builtin.Json.parse<List<Dict<MyString>>>
     Dict { name = "Charlie"; role = "user" } ]
 
 // not proper lists
-Builtin.Json.serialize<List<Int>> [ 1, 2, "three" ] = Test.derrorMessage
-  "Builtin.Json.serialize's 1st argument (`arg`) should be a List<Int>. However, an (Int, Int, String) ((1, 2, \"th...) was passed instead.\n\nExpected: (arg: 'a)\nActual: an (Int, Int, String): (1, 2, \"three\")"
+Builtin.Json.serialize<List<Int>> [ 1, 2, "three" ] = Builtin.Test.derrorMessage
+  "Json.serialize's 1st argument (`arg`) should be a List<Int>. However, an (Int, Int, String) ((1, 2, \"th...) was passed instead.\n\nExpected: (arg: 'a)\nActual: an (Int, Int, String): (1, 2, \"three\")"
 
 Builtin.Json.parse<List<Int>> "[1, 2, \"three\"]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Can't parse JSON `\"three\"` as type `Int` at path: `root[2]`"
@@ -1025,8 +1025,8 @@ Builtin.Json.parse<MyPrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = PACKAGE
 type Person1 = { Name: String; Age: Int }
 type Person2 = { Name: String; Age: Int }
 
-Builtin.Json.serialize<Person2> (Person1 { Name = "Bob"; Age = 42 }) = Test.derrorMessage
-  "Builtin.Json.serialize's 1st argument (`arg`) should be a Person2. However, a Person1 (Person1 {...) was passed instead.
+Builtin.Json.serialize<Person2> (Person1 { Name = "Bob"; Age = 42 }) = Builtin.Test.derrorMessage
+  "Json.serialize's 1st argument (`arg`) should be a Person2. However, a Person1 (Person1 {...) was passed instead.
 
 Expected: (arg: 'a)
 Actual: a Person1: Person1 {\n  Age: 42,\n  Name: \"Bob\"\n}"
@@ -1167,21 +1167,21 @@ Builtin.Json.parse<List<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolut
 //Builtin.Json.parse<TODO> "1,0/0,0" = null
 //Builtin.Json.parse<TODO> "1" = 1
 
-//Builtin.Json.parse<TODO> "{Id : 1.0}" = Test.runtimeError "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
-//Builtin.Json.parse<TODO> "{\"Id\" : 1.}" = Test.runtimeError "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10."
-//Builtin.Json.parse<TODO> "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Test.runtimeError "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+//Builtin.Json.parse<TODO> "{Id : 1.0}" = Builtin.Test.runtimeError "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+//Builtin.Json.parse<TODO> "{\"Id\" : 1.}" = Builtin.Test.runtimeError "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10."
+//Builtin.Json.parse<TODO> "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Builtin.Test.runtimeError "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
 //Builtin.Json.parse<TODO> "\"\"" = ""
 
-//Builtin.Json.parse<TODO> "" = Test.runtimeError "JSON string was empty"
+//Builtin.Json.parse<TODO> "" = Builtin.Test.runtimeError "JSON string was empty"
 
 //Builtin.Json.parse<TODO> "{ \"v\": 4611686018427387903 }" = { v = 4611686018427387903L }
 //Builtin.Json.parse<TODO> "{ \"v\": 4611686018427387904 }" = { v = 4611686018427387904L }
 
-//Builtin.Json.parse<TODO> "''" = Test.runtimeError "''' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 0."
-//Builtin.Json.parse<TODO> "" = Test.runtimeError "JSON string was empty"
-//Builtin.Json.parse<TODO> "{Id : 1.0}" = Test.runtimeError "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
-//Builtin.Json.parse<TODO> "{\"Id\" : 1.}" = Test.runtimeError "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10.")"
-//Builtin.Json.parse<TODO> "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Test.runtimeError "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+//Builtin.Json.parse<TODO> "''" = Builtin.Test.runtimeError "''' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 0."
+//Builtin.Json.parse<TODO> "" = Builtin.Test.runtimeError "JSON string was empty"
+//Builtin.Json.parse<TODO> "{Id : 1.0}" = Builtin.Test.runtimeError "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+//Builtin.Json.parse<TODO> "{\"Id\" : 1.}" = Builtin.Test.runtimeError "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10.")"
+//Builtin.Json.parse<TODO> "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Builtin.Test.runtimeError "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
 
 //Builtin.Json.parse<TODO> "{ \"v\": 4611686018427387903 }" = PACKAGE.Darklang.Stdlib.Result.Result.Ok { v = 4611686018427387903L }
 //Builtin.Json.parse<TODO> "{ \"v\": 4611686018427387904 }" = PACKAGE.Darklang.Stdlib.Result.Result.Ok { v = 4611686018427387904L }

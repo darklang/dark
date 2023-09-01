@@ -7,7 +7,8 @@ module Darklang =
 
 
       /// Returns the sum of all the ints in the list
-      let sum (lst: List<Int>) : Int = Builtin.List.fold lst 0 (fun acc x -> acc + x)
+      let sum (lst: List<Int>) : Int =
+        Builtin.List.fold lst 0 (fun acc x -> acc + x)
 
 
       /// Returns the higher of <param a> and <param b>

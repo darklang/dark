@@ -1,18 +1,18 @@
 type FruitRecord = { fruits: List<String> }
 
 // getQueue works
-Test.getQueue_v0 "TestWorker" = []
+Builtin.Test.getQueue_v0 "TestWorker" = []
 
 // emit works
-(let _ = emit "value" "TestWorker"
- let queue = Test.getQueue_v0 "TestWorker"
+(let _ = Builtin.emit "value" "TestWorker"
+ let queue = Builtin.Test.getQueue_v0 "TestWorker"
  queue) = [ "\"value\"" ]
 
 // emit works with mixed values
-(let _ = emit "value" "TestWorker"
- let _ = emit 1 "TestWorker"
- let _ = emit (FruitRecord { fruits = [ "apple"; "banana" ] }) "TestWorker"
+(let _ = Builtin.emit "value" "TestWorker"
+ let _ = Builtin.emit 1 "TestWorker"
+ let _ = Builtin.emit (FruitRecord { fruits = [ "apple"; "banana" ] }) "TestWorker"
  let queue = Test.getQueue_v0 "TestWorker"
  Builtin.List.sort queue) = [ "\"value\""
-                      "1"
-                      "FruitRecord {\n  fruits: [\n    \"apple\", \"banana\"\n  ]\n}" ]
+                              "1"
+                              "FruitRecord {\n  fruits: [\n    \"apple\", \"banana\"\n  ]\n}" ]

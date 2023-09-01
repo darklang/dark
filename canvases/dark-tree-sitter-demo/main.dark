@@ -20,7 +20,8 @@ let _handler _req =
 
   let incomingHost =
     request.headers
-    |> Builtin.List.findFirst (fun t -> (PACKAGE.Darklang.Stdlib.Tuple2.first t) == "origin")
+    |> Builtin.List.findFirst (fun t ->
+      (PACKAGE.Darklang.Stdlib.Tuple2.first t) == "origin")
     |> PACKAGE.Darklang.Stdlib.Option.map (fun t ->
       PACKAGE.Darklang.Stdlib.Tuple2.second t)
     |> PACKAGE.Darklang.Stdlib.Option.withDefault
@@ -154,7 +155,8 @@ let _indexHandler _req =
     200
 
 
-let gid () : Int = Builtin.Intrandom 0 9223372036854775807I
+let gid () : Int =
+  Builtin.Int.random 0 9223372036854775807I
 
 
 let err (msg: String) : Unit =
@@ -227,7 +229,7 @@ let parseExprCase (node: SyntaxTreeNode) : PTExpr =
   | "identifier" -> PTExpr.EVariable(gid (), getText node)
 
   | "integer" ->
-    let i = Builtin.Intparse (getText node)
+    let i = Builtin.Int.parse (getText node)
     PTExpr.EInt(gid (), i)
 
   | "let_expression" ->
@@ -253,8 +255,8 @@ let parseExprCase (node: SyntaxTreeNode) : PTExpr =
     let right = parseExpr (getField node "right")
 
     match op with
-    | "+" -> PTExpr.EFnCall(id, "Builtin.Intadd", [ left; right ])
-    | "-" -> PTExpr.EFnCall(id, "Builtin.Intsubtract", [ left; right ])
+    | "+" -> PTExpr.EFnCall(id, "Builtin.Int.add", [ left; right ])
+    | "-" -> PTExpr.EFnCall(id, "Builtin.Int.subtract", [ left; right ])
 
 
 // TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTExpr, String>
@@ -345,6 +347,8 @@ let _handler _req =
         respHeaders
         200
 
-    | Error e -> PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes_v0 e) 500
+    | Error e ->
+      PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes_v0 e) 500
 
-  | Error e -> PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes_v0 e) 400
+  | Error e ->
+    PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes_v0 e) 400

@@ -137,7 +137,7 @@ module AddToTestEnumDBs =
    (Builtin.DB.getAll TestEnumDB) |> Builtin.List.sort) = [ EnumTestRecord
                                                               { x = "goodbye"
                                                                 y = MyEnum.B }
-                                                              EnumTestRecord
+                                                            EnumTestRecord
                                                               { x = "hello"
                                                                 y = MyEnum.A } ]
 
@@ -168,12 +168,12 @@ module AddToTestEnumDBs =
    let test2 = Builtin.DB.set MyEnum2.E "test2" TestEnumDB3 in
    let test3 = Builtin.DB.set (MyEnum2.F MyEnum.A) "test3" TestEnumDB3 in
    (Builtin.DB.getAll TestEnumDB3) |> Builtin.List.sort) = [ MyEnum2.D
-                                                               MyEnum2.E
-                                                               MyEnum2.F
-                                                               MyEnum.A ]
+                                                             MyEnum2.E
+                                                             MyEnum2.F
+                                                             MyEnum.A ]
 
   (let test1 = Builtin.DB.set MyEnum.D "test1" TestEnumDB2 in
-   (Builtin.DB.getAll TestEnumDB2)) = Test.derrorMessage
+   (Builtin.DB.getAll TestEnumDB2)) = Builtin.Test.derrorMessage
     "There is no case named `D` in MyEnum"
 
   (let testQuery =
@@ -226,16 +226,16 @@ module Roundtrip =
         int = 2
         float = 3.0
         negZero = -0.0
-        nan = Test.nan
-        infinity = Test.infinity
-        negInfinity = Test.negativeInfinity
+        nan = Builtin.Test.nan
+        infinity = Builtin.Test.infinity
+        negInfinity = Builtin.Test.negativeInfinity
         ``true`` = true
         ``false`` = false
         list = [ 1; 2; 3 ]
         char = 'c'
         resultOk = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
         resultError = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-        emojiChar = (Test.toChar "👍") |> Builtin.unwrap
+        emojiChar = (Builtin.Test.toChar "👍") |> Builtin.unwrap
         uuid =
           (Builtin.Uuid.parse "00000050-0000-0000-0000-000000000000")
           |> Builtin.unwrap
@@ -335,16 +335,16 @@ module Roundtrip =
     fetch (fun p -> p.negZero == 19000.0) = []
 
     // CLEANUP: nan shouldn't be equal
-    fetch (fun p -> p.nan == Test.nan) = [ sample () ]
-    fetch (fun p -> p.nan != Test.nan) = [ otherSample () ]
+    fetch (fun p -> p.nan == Builtin.Test.nan) = [ sample () ]
+    fetch (fun p -> p.nan != Builtin.Test.nan) = [ otherSample () ]
     fetch (fun p -> p.nan == 14.0) = []
 
-    fetch (fun p -> p.infinity == Test.infinity) = [ sample () ]
-    fetch (fun p -> p.infinity != Test.infinity) = [ otherSample () ]
+    fetch (fun p -> p.infinity == Builtin.Test.infinity) = [ sample () ]
+    fetch (fun p -> p.infinity != Builtin.Test.infinity) = [ otherSample () ]
     fetch (fun p -> p.infinity == 1.0) = []
 
-    fetch (fun p -> p.negInfinity == Test.negativeInfinity) = [ sample () ]
-    fetch (fun p -> p.negInfinity != Test.negativeInfinity) = [ otherSample () ]
+    fetch (fun p -> p.negInfinity == Builtin.Test.negativeInfinity) = [ sample () ]
+    fetch (fun p -> p.negInfinity != Builtin.Test.negativeInfinity) = [ otherSample () ]
     fetch (fun p -> p.negInfinity == 1.0) = []
 
     fetch (fun p -> p.``true`` == true) = [ sample () ]
@@ -362,11 +362,11 @@ module Roundtrip =
     fetch (fun p -> p.char != 'c') = [ otherSample () ]
     fetch (fun p -> p.char == 'x') = []
 
-    fetch (fun p -> p.emojiChar == ((Test.toChar "👍") |> Builtin.unwrap)) = [ sample
-                                                                                 () ]
+    fetch (fun p -> p.emojiChar == ((Builtin.Test.toChar "👍") |> Builtin.unwrap)) = [ sample
+                                                                               () ]
 
-    fetch (fun p -> p.emojiChar != ((Test.toChar "👍") |> Builtin.unwrap)) = [ otherSample
-                                                                                 () ]
+    fetch (fun p -> p.emojiChar != ((Builtin.Test.toChar "👍") |> Builtin.unwrap)) = [ otherSample
+                                                                               () ]
 
     fetch (fun p -> p.emojiChar == 'x') = []
 
@@ -388,21 +388,21 @@ module Roundtrip =
     fetch (fun p ->
       p.datetime
       == ((Builtin.DateTime.parse "2020-01-01T00:00:00Z") |> Builtin.unwrap)) = [ sample
-                                                                                    () ]
+                                                                                  () ]
 
     fetch (fun p ->
       p.datetime
       != ((Builtin.DateTime.parse "2020-01-01T00:00:00Z") |> Builtin.unwrap)) = [ otherSample
-                                                                                    () ]
+                                                                                  () ]
 
     fetch (fun p ->
       p.datetime
       == ((Builtin.DateTime.parse "2019-12-31T23:59:59Z") |> Builtin.unwrap)) = []
 
     (fetch (fun p -> p.unit == ())) |> Builtin.List.sortBy (fun v -> v.int) = [ sample
-                                                                                  ()
-                                                                                  otherSample
-                                                                                  () ]
+                                                                                ()
+                                                                                otherSample
+                                                                                () ]
 
     fetch (fun p -> p.unit != ()) = []
 
@@ -425,8 +425,8 @@ module Roundtrip =
 
 module ValueMissingColumnGivesGoodError =
   // TYPESCLEANUP: can we test a missing column against the DB anymore?
-  // (Builtin.DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Test.runtimeError "Found but did not expect: [y]"
-  (Builtin.DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Test.derrorMessage
+  // (Builtin.DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.Test.runtimeError "Found but did not expect: [y]"
+  (Builtin.DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.Test.derrorMessage
     "DB XDB's value should be a X. However, a XY (XY {  x: ...) was passed instead.\n\nExpected: X\nActual: a XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
 
 
@@ -495,16 +495,16 @@ module GetAll =
                                                                                           "hello"
                                                                                         sortBy =
                                                                                           0 })
-                                                                                      (SortedX
-                                                                                        { x =
-                                                                                            "goodbye"
-                                                                                          sortBy =
-                                                                                            1 })
-                                                                                      (SortedX
-                                                                                        { x =
-                                                                                            "howdy"
-                                                                                          sortBy =
-                                                                                            2 }) ]
+                                                                                    (SortedX
+                                                                                      { x =
+                                                                                          "goodbye"
+                                                                                        sortBy =
+                                                                                          1 })
+                                                                                    (SortedX
+                                                                                      { x =
+                                                                                          "howdy"
+                                                                                        sortBy =
+                                                                                          2 }) ]
 
 
 module GetAllKeys =
@@ -545,9 +545,8 @@ module GetMany =
 
    (Builtin.DB.getMany [ "one"; "two" ] XDB)
    |> Builtin.unwrap
-   |> Builtin.List.sortBy (fun v -> v.x)) = [ (X { x = "goodbye" }) (
-                                                X { x = "hello" }
-                                              ) ]
+   |> Builtin.List.sortBy (fun v -> v.x)) = [ (X { x = "goodbye" })
+                                              (X { x = "hello" }) ]
 
 
 module Delete =
@@ -712,7 +711,7 @@ module FindAll =
 
   (let x = "not int"
    friends (fun p -> p.height > x)) = Test.derrorSqlMessage
-    "Variable `x` should be an Builtin.Int However, a String (\"not int\") was passed instead.\n\nExpected: (x: Int)\nActual: a String: \"not int\""
+    "Variable `x` should be an Int. However, a String (\"not int\") was passed instead.\n\nExpected: (x: Int)\nActual: a String: \"not int\""
 
   // lambda doesnt return a bool
   friendsError (fun p -> "x") = Test.derrorSqlMessage
@@ -729,24 +728,24 @@ module CompiledFunctions =
   (friends (fun p -> Builtin.Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
 
   (friends (fun p -> Builtin.Float.lessThanOrEqualTo_v0 p.income 82.10)) = [ "GrumpyCat"
-                                                                               "Rachel" ]
+                                                                             "Rachel" ]
 
   (friends (fun p -> Builtin.Float.greaterThan_v0 p.income 90.0)) = [ "Ross" ]
 
   (friends (fun p -> Builtin.Float.greaterThanOrEqualTo_v0 82.10 p.income)) = [ "GrumpyCat"
-                                                                                  "Rachel" ]
+                                                                                "Rachel" ]
 
-  (friends (fun p -> Builtin.IntlessThanOrEqualTo_v0 p.height 65)) = [ "GrumpyCat"
-                                                                         "Rachel" ]
+  (friends (fun p -> Builtin.Int.lessThanOrEqualTo_v0 p.height 65)) = [ "GrumpyCat"
+                                                                        "Rachel" ]
 
-  (friends (fun p -> Builtin.IntlessThan_v0 p.height 65)) = [ "GrumpyCat" ]
+  (friends (fun p -> Builtin.Int.lessThan_v0 p.height 65)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> Builtin.IntgreaterThanOrEqualTo_v0 p.height 65)) = [ " Chandler "
-                                                                            "Rachel"
-                                                                            "Ross" ]
+  (friends (fun p -> Builtin.Int.greaterThanOrEqualTo_v0 p.height 65)) = [ " Chandler "
+                                                                           "Rachel"
+                                                                           "Ross" ]
 
-  (friends (fun p -> Builtin.IntgreaterThan_v0 p.height 65)) = [ " Chandler "
-                                                                 "Ross" ]
+  (friends (fun p -> Builtin.Int.greaterThan_v0 p.height 65)) = [ " Chandler "
+                                                                  "Ross" ]
 
   (friends (fun p -> Builtin.String.toLowercase p.name == "rachel")) = [ "Rachel" ]
   (friends (fun p -> Builtin.String.toUppercase p.name == "RACHEL")) = [ "Rachel" ]
@@ -758,9 +757,9 @@ module CompiledFunctions =
   (friends (fun p -> Builtin.String.contains_v0 p.name "ZZZ")) = []
 
   (friends (fun p -> Builtin.String.contains_v0 p.name "")) = [ " Chandler "
-                                                                  "GrumpyCat"
-                                                                  "Rachel"
-                                                                  "Ross" ]
+                                                                "GrumpyCat"
+                                                                "Rachel"
+                                                                "Ross" ]
 
   (friends (fun p -> Builtin.String.replaceAll_v0 p.name "handle" "he" == " Cher ")) = [ " Chandler " ]
   (friends (fun p -> Builtin.String.replaceAll_v0 p.name " " "Xx" == "XxChandlerXx")) = [ " Chandler " ]
@@ -783,8 +782,8 @@ module CompiledFunctions =
 
   (friends (fun p ->
     Builtin.DateTime.lessThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [ " Chandler "
-                                                                                "Rachel"
-                                                                                "Ross" ]
+                                                                              "Rachel"
+                                                                              "Ross" ]
 
   (friends (fun p -> Builtin.DateTime.lessThanOrEqualTo p.dob (rossDOB ()))) = [ "Ross" ]
   (friends (fun p -> Builtin.DateTime.lessThan p.dob (rossDOB ()))) = []
@@ -793,29 +792,29 @@ module CompiledFunctions =
     Builtin.DateTime.greaterThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [ "GrumpyCat" ]
 
   (friends (fun p -> Builtin.DateTime.greaterThanOrEqualTo p.dob (rossDOB ()))) = [ " Chandler "
-                                                                                      "GrumpyCat"
-                                                                                      "Rachel"
-                                                                                      "Ross" ]
+                                                                                    "GrumpyCat"
+                                                                                    "Rachel"
+                                                                                    "Ross" ]
 
   (friends (fun p -> Builtin.DateTime.greaterThan p.dob (rossDOB ()))) = [ " Chandler "
-                                                                             "GrumpyCat"
-                                                                             "Rachel" ]
+                                                                           "GrumpyCat"
+                                                                           "Rachel" ]
 
   (friends (fun p ->
     Builtin.DateTime.lessThanOrEqualTo
       p.dob
       (Builtin.DateTime.addSeconds_v0 (Builtin.DateTime.now_v0 ()) 1))) = [ " Chandler "
-                                                                              "GrumpyCat"
-                                                                              "Rachel"
-                                                                              "Ross" ]
+                                                                            "GrumpyCat"
+                                                                            "Rachel"
+                                                                            "Ross" ]
 
   (friends (fun p ->
     Builtin.DateTime.lessThanOrEqualTo
       p.dob
       (Builtin.DateTime.subtractSeconds_v0 (Builtin.DateTime.now_v0 ()) 1))) = [ " Chandler "
-                                                                                   "GrumpyCat"
-                                                                                   "Rachel"
-                                                                                   "Ross" ]
+                                                                                 "GrumpyCat"
+                                                                                 "Rachel"
+                                                                                 "Ross" ]
 
   (friends (fun p ->
     Builtin.DateTime.atStartOfDay_v0 p.dob == (d "1969-08-19T00:00:00Z"))) = [ " Chandler " ]

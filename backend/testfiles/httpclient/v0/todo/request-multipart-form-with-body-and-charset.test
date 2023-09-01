@@ -15,10 +15,10 @@ Content-Length: LENGTH
 
 [test]
 (let reqHeaders = { "Content-type" = "multipart/form-data" }
- let response = (HttpClient.request "post" "http://URL" [] {} reqHeaders) |> unwrap
- let respHeaders = response.headers |> List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
+ let response = (Builtin.HttpClient.request "post" "http://URL" [] {} reqHeaders) |> unwrap
+ let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
 {response with headers = respHeaders}) =
-  HttpClient.Response
+  Builtin.HttpClient.Response
     { body = ""
       statusCode = 200
       headers =

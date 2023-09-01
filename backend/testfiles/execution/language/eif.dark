@@ -1,12 +1,12 @@
 (if true then "correct" else 0) = "correct"
-(if true then Test.runtimeError "a" else 0) = Test.derrorMessage "a"
-(if false then 0 else Test.runtimeError "a") = Test.derrorMessage "a"
-(if false then Test.runtimeError "a" else 0) = 0
-(if true then 0 else Test.runtimeError "a") = 0
+(if true then Builtin.Test.runtimeError "a" else 0) = Builtin.Test.derrorMessage "a"
+(if false then 0 else Builtin.Test.runtimeError "a") = Builtin.Test.derrorMessage "a"
+(if false then Builtin.Test.runtimeError "a" else 0) = 0
+(if true then 0 else Builtin.Test.runtimeError "a") = 0
 (if false then "" else "correct") = "correct"
-(if () then "" else "") = Test.derrorMessage "If only supports Booleans"
-(if Test.runtimeError "msg" then "" else "") = Test.derrorMessage "msg"
-(if 5 then "" else "") = Test.derrorMessage "If only supports Booleans"
+(if () then "" else "") = Builtin.Test.derrorMessage "If only supports Booleans"
+(if Builtin.Test.runtimeError "msg" then "" else "") = Builtin.Test.derrorMessage "msg"
+(if 5 then "" else "") = Builtin.Test.derrorMessage "If only supports Booleans"
 
 (if true then
    ()) = ()
@@ -21,10 +21,10 @@
    "msg") = "msg"
 
 (if () then
-   "msg") = Test.derrorMessage "If only supports Booleans"
+   "msg") = Builtin.Test.derrorMessage "If only supports Booleans"
 
 (if true then
-   Test.runtimeError "a") = Test.derrorMessage "a"
+   Builtin.Test.runtimeError "a") = Builtin.Test.derrorMessage "a"
 
-(if Test.runtimeError "msg" then
-   "") = Test.derrorMessage "msg"
+(if Builtin.Test.runtimeError "msg" then
+   "") = Builtin.Test.derrorMessage "msg"

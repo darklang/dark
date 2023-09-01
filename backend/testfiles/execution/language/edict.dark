@@ -1,3 +1,7 @@
-((Dict { a = 5 }) |> Builtin.Dict.get "a") = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
-((Dict { ___ = 5 }) |> Builtin.Dict.get "") = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
+((Dict { a = 5 }) |> Builtin.Dict.get "a") = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  5
+
+((Dict { ___ = 5 }) |> Builtin.Dict.get "") = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  5
+
 ((Dict { a = 5 }) |> Builtin.Dict.get "b") = PACKAGE.Darklang.Stdlib.Option.Option.None

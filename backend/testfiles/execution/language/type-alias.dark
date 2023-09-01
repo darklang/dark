@@ -5,8 +5,8 @@ type Something = { ID: Id; Data: String }
 Something { ID = "2"; Data = "test" } = Something { ID = "2"; Data = "test" }
 
 // TODO: would be better if this indicated that it was an Id originally
-Something { ID = 2; Data = "test" } = Test.derrorMessage
-  "Something's `ID` field should be a Builtin.String. However, an Int (2) was passed instead.\n\nExpected: ({ ID: Id; ... })\nActual: an Int: 2"
+Something { ID = 2; Data = "test" } = Builtin.Test.derrorMessage
+  "Something's `ID` field should be a String. However, an Int (2) was passed instead.\n\nExpected: ({ ID: Id; ... })\nActual: an Int: 2"
 
 
 module SimpleRecordAlias =
@@ -40,8 +40,8 @@ module NestedAlias =
 
   getUserID (("Alice", "EMP123")) = "EMP123"
 
-  getUserID (("Alice", 123)) = Test.derrorMessage
-    "NestedAlias.getUserID's return value should be a Builtin.String. However, an Int (123) was passed instead.\n\nExpected: Id\nActual: an Int: 123"
+  getUserID (("Alice", 123)) = Builtin.Test.derrorMessage
+    "NestedAlias.getUserID's return value should be a String. However, an Int (123) was passed instead.\n\nExpected: Id\nActual: an Int: 123"
 
   type UserProfile =
     { credential: UserCredential
@@ -88,14 +88,14 @@ module RecordWithTypeArgs =
   Outer1 { a = "test"; b = 5 } = Inner { a = "test"; b = 5 }
   Outer1 { a = "test"; b = 5 } = Outer2 { a = "test"; b = 5 }
 
-  Outer2 { a = 5; b = 6 } = Test.derrorMessage
-    "RecordWithTypeArgs.Outer2's `a` field should be a Builtin.String. However, an Int (5) was passed instead.\n\nExpected: ({ a: String; ... })\nActual: an Int: 5"
+  Outer2 { a = 5; b = 6 } = Builtin.Test.derrorMessage
+    "RecordWithTypeArgs.Outer2's `a` field should be a String. However, an Int (5) was passed instead.\n\nExpected: ({ a: String; ... })\nActual: an Int: 5"
 
-  Outer1 { a = "a"; b = "b" } = Test.derrorMessage
-    "RecordWithTypeArgs.Outer1's `b` field should be an Builtin.Int However, a String (\"b\") was passed instead.\n\nExpected: ({ b: Int; ... })\nActual: a String: \"b\""
+  Outer1 { a = "a"; b = "b" } = Builtin.Test.derrorMessage
+    "RecordWithTypeArgs.Outer1's `b` field should be an Int. However, a String (\"b\") was passed instead.\n\nExpected: ({ b: Int; ... })\nActual: a String: \"b\""
 
-  Outer2 { a = 5; b = 6 } = Test.derrorMessage
-    "RecordWithTypeArgs.Outer2's `a` field should be a Builtin.String. However, an Int (5) was passed instead.\n\nExpected: ({ a: String; ... })\nActual: an Int: 5"
+  Outer2 { a = 5; b = 6 } = Builtin.Test.derrorMessage
+    "RecordWithTypeArgs.Outer2's `a` field should be a String. However, an Int (5) was passed instead.\n\nExpected: ({ a: String; ... })\nActual: an Int: 5"
 
 module RecordWithTypeArgsDifferentName =
   type Inner<'a, 'b> = { a: 'a; b: 'b }
@@ -106,11 +106,11 @@ module RecordWithTypeArgsDifferentName =
 
   MostOutest { a = 5; b = "string" } = Inner { a = 5; b = "string" }
 
-  MostOutest { a = "not allowed"; b = "string" } = Test.derrorMessage
-    "RecordWithTypeArgsDifferentName.MostOutest's `a` field should be an Builtin.Int However, a String (\"not allow...) was passed instead.\n\nExpected: ({ a: Int; ... })\nActual: a String: \"not allowed\""
+  MostOutest { a = "not allowed"; b = "string" } = Builtin.Test.derrorMessage
+    "RecordWithTypeArgsDifferentName.MostOutest's `a` field should be an Int. However, a String (\"not allow...) was passed instead.\n\nExpected: ({ a: Int; ... })\nActual: a String: \"not allowed\""
 
-  MostOutest { a = 5; b = 6 } = Test.derrorMessage
-    "RecordWithTypeArgsDifferentName.MostOutest's `b` field should be a Builtin.String. However, an Int (6) was passed instead.\n\nExpected: ({ b: String; ... })\nActual: an Int: 6"
+  MostOutest { a = 5; b = 6 } = Builtin.Test.derrorMessage
+    "RecordWithTypeArgsDifferentName.MostOutest's `b` field should be a String. However, an Int (6) was passed instead.\n\nExpected: ({ b: String; ... })\nActual: an Int: 6"
 
 
 module RecordWithRecursiveTypeArgs =
@@ -173,11 +173,11 @@ module EnumWithTypeArgs =
   Outer2.A "str" = Outer1.A "str"
   Outer2.B 5 = Outer1.B 5
 
-  Outer1.B "b" = Test.derrorMessage
-    "EnumWithTypeArgs.Outer1.B's 1st argument should be an Builtin.Int However, a String (\"b\") was passed instead.\n\nExpected: EnumWithTypeArgs.Outer1.B (Int)\nActual: EnumWithTypeArgs.Outer1.B (String)"
+  Outer1.B "b" = Builtin.Test.derrorMessage
+    "EnumWithTypeArgs.Outer1.B's 1st argument should be an Int. However, a String (\"b\") was passed instead.\n\nExpected: EnumWithTypeArgs.Outer1.B (Int)\nActual: EnumWithTypeArgs.Outer1.B (String)"
 
-  Outer2.A 5 = Test.derrorMessage
-    "EnumWithTypeArgs.Outer2.A's 1st argument should be a Builtin.String. However, an Int (5) was passed instead.\n\nExpected: EnumWithTypeArgs.Outer2.A (String)\nActual: EnumWithTypeArgs.Outer2.A (Int)"
+  Outer2.A 5 = Builtin.Test.derrorMessage
+    "EnumWithTypeArgs.Outer2.A's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: EnumWithTypeArgs.Outer2.A (String)\nActual: EnumWithTypeArgs.Outer2.A (Int)"
 
 module EnumWithTypeArgsDifferentName =
   type Inner<'a, 'b> =
@@ -192,11 +192,11 @@ module EnumWithTypeArgsDifferentName =
   MostOutest.A 5 = Inner.A 5
   MostOutest.B "test" = Inner.B "test"
 
-  MostOutest.A "not allowed" = Test.derrorMessage
-    "EnumWithTypeArgsDifferentName.MostOutest.A's 1st argument should be an Builtin.Int However, a String (\"not allow...) was passed instead.\n\nExpected: EnumWithTypeArgsDifferentName.MostOutest.A (Int)\nActual: EnumWithTypeArgsDifferentName.MostOutest.A (String)"
+  MostOutest.A "not allowed" = Builtin.Test.derrorMessage
+    "EnumWithTypeArgsDifferentName.MostOutest.A's 1st argument should be an Int. However, a String (\"not allow...) was passed instead.\n\nExpected: EnumWithTypeArgsDifferentName.MostOutest.A (Int)\nActual: EnumWithTypeArgsDifferentName.MostOutest.A (String)"
 
-  MostOutest.B 6 = Test.derrorMessage
-    "EnumWithTypeArgsDifferentName.MostOutest.B's 1st argument should be a Builtin.String. However, an Int (6) was passed instead.\n\nExpected: EnumWithTypeArgsDifferentName.MostOutest.B (String)\nActual: EnumWithTypeArgsDifferentName.MostOutest.B (Int)"
+  MostOutest.B 6 = Builtin.Test.derrorMessage
+    "EnumWithTypeArgsDifferentName.MostOutest.B's 1st argument should be a String. However, an Int (6) was passed instead.\n\nExpected: EnumWithTypeArgsDifferentName.MostOutest.B (String)\nActual: EnumWithTypeArgsDifferentName.MostOutest.B (Int)"
 
 
 module EnumWithRecursiveTypeArgs =

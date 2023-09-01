@@ -1,7 +1,7 @@
 // CLEANUP the following tests should fail on having mixed types
-//[1; 2.3] = Test.derrorMessage "Cannot form a list of mixed types - the 2nd element does not match the type of previous elements"
-//[(1,10);10;(3,30)] = Test.derrorMessage "Cannot form a list of mixed types ..."
-//[(1,10);(2,20);(3,30,40)] = Test.derrorMessage "Cannot form a list of mixed types"
+//[1; 2.3] = Builtin.Test.derrorMessage "Cannot form a list of mixed types - the 2nd element does not match the type of previous elements"
+//[(1,10);10;(3,30)] = Builtin.Test.derrorMessage "Cannot form a list of mixed types ..."
+//[(1,10);(2,20);(3,30,40)] = Builtin.Test.derrorMessage "Cannot form a list of mixed types"
 
 
 Builtin.List.all_v0 [] (fun item -> item < 3) = true
@@ -35,7 +35,7 @@ PACKAGE.Darklang.Stdlib.List.drop_v0 [ 5; 4; 3; 2; 1 ] 5 = []
 PACKAGE.Darklang.Stdlib.List.drop_v0 [ 5 ] 4 = []
 PACKAGE.Darklang.Stdlib.List.drop_v0 [] 4 = []
 
-Builtin.List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Test.derrorMessage
+Builtin.List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Builtin.Test.derrorMessage
   "Expected `fn` to return a Bool, but it returned `-1`"
 
 Builtin.List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item < 3) = [ 3; 4 ]
@@ -46,30 +46,30 @@ Builtin.List.dropWhile_v0 [] (fun item -> item < 3) = []
 Builtin.List.empty_v0 = []
 
 (PACKAGE.Darklang.Stdlib.List.iter [ 1; 2; 3 ] (fun x ->
-  Test.incrementSideEffectCounter ())
+  Builtin.Test.incrementSideEffectCounter ())
 
- Test.sideEffectCount ()) = 3
+ Builtin.Test.sideEffectCount ()) = 3
 
 (PACKAGE.Darklang.Stdlib.List.iter [ 1; 2; 3; 4; 5 ] (fun x ->
   if x % 2 == 0 then
-    Test.incrementSideEffectCounter ())
+    Builtin.Test.incrementSideEffectCounter ())
 
- Test.sideEffectCount ()) = 2
+ Builtin.Test.sideEffectCount ()) = 2
 
-(PACKAGE.Darklang.Stdlib.List.iter [] (fun x -> Test.incrementSideEffectCounter ())
- Test.sideEffectCount ()) = 0
+(PACKAGE.Darklang.Stdlib.List.iter [] (fun x -> Builtin.Test.incrementSideEffectCounter ())
+ Builtin.Test.sideEffectCount ()) = 0
 
 (PACKAGE.Darklang.Stdlib.List.iter [ 10; 20; 30 ] (fun x ->
-  Test.incrementSideEffectCounter ()
-  Test.incrementSideEffectCounter ())
+  Builtin.Test.incrementSideEffectCounter ()
+  Builtin.Test.incrementSideEffectCounter ())
 
- Test.sideEffectCount ()) = 6
+ Builtin.Test.sideEffectCount ()) = 6
 
 (PACKAGE.Darklang.Stdlib.List.iter [ 1; 2; 3 ] (fun x ->
   if x > 2 then
-    Test.incrementSideEffectCounter ())
+    Builtin.Test.incrementSideEffectCounter ())
 
- Test.sideEffectCount ()) = 1
+ Builtin.Test.sideEffectCount ()) = 1
 
 
 
@@ -77,10 +77,10 @@ Builtin.List.filter [ 1; 2; 3 ] (fun item ->
   match item with
   | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None
   | 2 -> false
-  | 3 -> true) = Test.derrorMessage
+  | 3 -> true) = Builtin.Test.derrorMessage
   "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.None`"
 
-Builtin.List.filter [ true; false; true ] (fun item -> "a") = Test.derrorMessage
+Builtin.List.filter [ true; false; true ] (fun item -> "a") = Builtin.Test.derrorMessage
   "Expected `fn` to return a Bool, but it returned `\"a\"`"
 
 Builtin.List.filter [ 1; 2; 3 ] (fun item ->
@@ -103,7 +103,7 @@ Builtin.List.filterMap_v0 [ 1; 2; 3 ] (fun item ->
   if item == 2 then
     false
   else
-    (PACKAGE.Darklang.Stdlib.Option.Option.Some(item * 2))) = Test.derrorMessage
+    (PACKAGE.Darklang.Stdlib.Option.Option.Some(item * 2))) = Builtin.Test.derrorMessage
   "Expected `fn` to return a PACKAGE.Darklang.Stdlib.Option.Option<'b>, but it returned `false`"
 
 Builtin.List.filterMap_v0 [] (fun item -> 0) = []
@@ -122,7 +122,7 @@ Builtin.List.findFirst [ 1; -33; 3; -2; 12 ] (fun x -> (x < 0 && x % 2 == 0)) = 
 
 // CLEANUP once DList contains typeRefs, this test may be uncommented and the error message updated:
 // PACKAGE.Darklang.Stdlib.List.flatten_v0 [1;2;3] =
-//   Test.runtimeError "In List.flatten's 1st argument (`list`), the value should be a List<List<'a>>. However, a List<Int> ([1; 2; 3]) was passed instead.\n\nExpected: List<List<'a>>\nActual: List<Int>: [1; 2; 3]"
+//   Builtin.Test.runtimeError "In List.flatten's 1st argument (`list`), the value should be a List<List<'a>>. However, a List<Int> ([1; 2; 3]) was passed instead.\n\nExpected: List<List<'a>>\nActual: List<Int>: [1; 2; 3]"
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1 ]; [ 2 ]; [ 3 ] ] = [ 1; 2; 3 ]
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1 ]; [ [ 2; 3 ] ] ] = [ 1; [ 2; 3 ] ]
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ [] ] ] = [ [] ]
@@ -150,7 +150,7 @@ PACKAGE.Darklang.Stdlib.List.getAt [ 3; 3; 3 ] 2147483648L = PACKAGE.Darklang.St
 PACKAGE.Darklang.Stdlib.List.head [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
   1
 
-PACKAGE.Darklang.Stdlib.List.head [ Test.runtimeError "test" ] = Test.derrorMessage
+PACKAGE.Darklang.Stdlib.List.head [ Builtin.Test.runtimeError "test" ] = Builtin.Test.derrorMessage
   "test"
 
 PACKAGE.Darklang.Stdlib.List.head [] = PACKAGE.Darklang.Stdlib.Option.Option.None
@@ -178,7 +178,7 @@ PACKAGE.Darklang.Stdlib.List.isEmpty_v0 [] = true
 PACKAGE.Darklang.Stdlib.List.last [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
   3
 
-PACKAGE.Darklang.Stdlib.List.last [ Test.runtimeError "test" ] = Test.derrorMessage
+PACKAGE.Darklang.Stdlib.List.last [ Builtin.Test.runtimeError "test" ] = Builtin.Test.derrorMessage
   "test"
 
 PACKAGE.Darklang.Stdlib.List.last [] = PACKAGE.Darklang.Stdlib.Option.Option.None
@@ -194,8 +194,8 @@ Builtin.List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 1 5) (fun x -> x + 1)
 
 Builtin.List.map_v0 [ 1; 2; 3 ] (fun x ->
   PACKAGE.Darklang.Stdlib.Bool.and_v0
-    (Builtin.IntgreaterThanOrEqualTo_v0 x 0)
-    (Builtin.IntlessThanOrEqualTo_v0 x 4)) = [ true; true; true ]
+    (Builtin.Int.greaterThanOrEqualTo_v0 x 0)
+    (Builtin.Int.lessThanOrEqualTo_v0 x 4)) = [ true; true; true ]
 
 Builtin.List.map_v0 [ 1; 2 ] (fun x -> x + 1) = [ 2; 3 ]
 Builtin.List.map_v0 [] (fun x -> x + 1) = []
@@ -204,9 +204,14 @@ Builtin.List.map2_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] (fun a b -> a - b) = PACKAGE.Dar
   [ 9; 18; 27 ]
 
 Builtin.List.map2_v0 [ 10; 20 ] [ 1; 2; 3 ] (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.None
-Builtin.List.map2_v0 [] [] (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Some []
 
-Builtin.List.map2shortest_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] (fun a b -> a - b) = [ 9; 18; 27 ]
+Builtin.List.map2_v0 [] [] (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  []
+
+Builtin.List.map2shortest_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] (fun a b -> a - b) = [ 9
+                                                                               18
+                                                                               27 ]
+
 Builtin.List.map2shortest_v0 [ 10; 20 ] [ 1; 2; 3 ] (fun a b -> a - b) = [ 9; 18 ]
 Builtin.List.map2shortest_v0 [] [ 1; 2; 3 ] (fun a b -> a - b) = []
 Builtin.List.map2shortest_v0 [ 1; 2; 3 ] [] (fun a b -> a - b) = []
@@ -225,7 +230,7 @@ Builtin.List.partition_v0 [ 1; 2; 3 ] (fun item ->
   | 2 -> false
   | 3 -> true) = ([ 1; 3 ], [ 2 ])
 
-Builtin.List.partition_v0 [ true; false; true ] (fun item -> "a") = Test.derrorMessage
+Builtin.List.partition_v0 [ true; false; true ] (fun item -> "a") = Builtin.Test.derrorMessage
   "Expected `fn` to return a Bool, but it returned `\"a\"`"
 
 
@@ -233,7 +238,7 @@ Builtin.List.partition_v0 [ 1; 2; 3 ] (fun item ->
   match item with
   | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None
   | 2 -> false
-  | 3 -> true) = Test.derrorMessage
+  | 3 -> true) = Builtin.Test.derrorMessage
   "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.None`"
 
 PACKAGE.Darklang.Stdlib.List.pushBack_v0 [ 2; 3 ] 1 = [ 2; 3; 1 ]
@@ -243,7 +248,10 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [ 2; 3 ] 1 = [ 1; 2; 3 ]
 PACKAGE.Darklang.Stdlib.List.push_v0 [] 1 = [ 1 ]
 
 Builtin.List.randomElement_v0 [ 1 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some 1
-Builtin.List.randomElement_v0 [ Test.runtimeError "test" ] = Test.derrorMessage "test"
+
+Builtin.List.randomElement_v0 [ Builtin.Test.runtimeError "test" ] = Builtin.Test.derrorMessage
+  "test"
+
 Builtin.List.randomElement_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 PACKAGE.Darklang.Stdlib.List.range_v0 -1 0 = [ -1; 0 ]
@@ -279,15 +287,15 @@ Builtin.List.singleton_v0 1 = [ 1 ]
 Builtin.List.sortBy_v0 [ 6; 2; 8; 3 ] (fun x -> 0 - x) = [ 8; 6; 3; 2 ]
 Builtin.List.sortBy_v0 [] (fun x -> 0 - x) = []
 
-Builtin.List.sortBy_v0 [ 6; 2.0 ] (fun x -> x) = Test.derrorMessage
-  "Builtin.List.sortBy: Unable to sort list, perhaps the list elements are different types"
+Builtin.List.sortBy_v0 [ 6; 2.0 ] (fun x -> x) = Builtin.Test.derrorMessage
+  "List.sortBy: Unable to sort list, perhaps the list elements are different types"
 
 Builtin.List.sort_v0 [ "6"; "2"; "8"; "3" ] = [ "2"; "3"; "6"; "8" ]
 Builtin.List.sort_v0 [ 6; 2; 8; 3 ] = [ 2; 3; 6; 8 ]
 Builtin.List.sort_v0 [] = []
 
-Builtin.List.sort_v0 [ 6; 2.0 ] = Test.derrorMessage
-  "Builtin.List.sort: Unable to sort list, perhaps the list elements are different types"
+Builtin.List.sort_v0 [ 6; 2.0 ] = Builtin.Test.derrorMessage
+  "List.sort: Unable to sort list, perhaps the list elements are different types"
 
 Builtin.List.sortByComparator_v0 [ 3; 1; 2 ] (fun a b -> 0.1) = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Expected `fn` to return -1, 0, 1, but it returned `0.1`"
@@ -299,15 +307,16 @@ Builtin.List.sortByComparator_v0 [ 1; 2; 3 ] (fun a b -> "㧑༷釺") = PACKAGE.
   "Expected `fn` to return -1, 0, 1, but it returned `\"㧑༷釺\"`"
 
 Builtin.List.sortByComparator_v0 [ 3; 1; 2 ] (fun a b ->
-  if Builtin.IntlessThan_v0 a b then -1 else 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  if Builtin.Int.lessThan_v0 a b then -1 else 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   [ 1; 2; 3 ]
 
-Builtin.List.sortByComparator_v0 [] (fun a b -> if Builtin.IntlessThan_v0 a b then -1 else 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+Builtin.List.sortByComparator_v0 [] (fun a b ->
+  if Builtin.Int.lessThan_v0 a b then -1 else 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   []
 
 Builtin.List.sortByComparator_v0
   [ 3; 1; 2; 67; 3; -1; 6; 3; 5; 6; 2; 5; 63; 2; 3; 5; -1; -1; -1 ]
-  (fun a b -> if Builtin.IntlessThan_v0 a b then -1 else 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  (fun a b -> if Builtin.Int.lessThan_v0 a b then -1 else 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   [ -1; -1; -1; -1; 1; 2; 2; 2; 3; 3; 3; 3; 5; 5; 5; 6; 6; 63; 67 ]
 
 // CLEANUP this error message is not ideal in 2 ways:
@@ -315,7 +324,7 @@ Builtin.List.sortByComparator_v0
 // - it seems to be from the perspective of the lambda
 //   (I'm a lambda and I'm expecting 2 arguments, but I got 1!!)
 //   rather than from the perspective of the function it's being used in
-Builtin.List.sortByComparator_v0 [ 6; 2.0 ] (fun x -> x) = Test.derrorMessage
+Builtin.List.sortByComparator_v0 [ 6; 2.0 ] (fun x -> x) = Builtin.Test.derrorMessage
   "Expected 1 arguments, got 2"
 
 PACKAGE.Darklang.Stdlib.List.tail_v0 [ 10; 20; 30; 40 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
@@ -336,7 +345,7 @@ PACKAGE.Darklang.Stdlib.List.take_v0 [ 5; 4; 3; 2; 1 ] 5 = [ 5; 4; 3; 2; 1 ]
 PACKAGE.Darklang.Stdlib.List.take_v0 [ 5 ] 4 = [ 5 ]
 PACKAGE.Darklang.Stdlib.List.take_v0 [] 4 = []
 
-Builtin.List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Test.derrorMessage
+Builtin.List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Builtin.Test.derrorMessage
   "Expected `fn` to return a Bool, but it returned `-1`"
 
 Builtin.List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item < 1) = []
@@ -345,32 +354,37 @@ Builtin.List.takeWhile_v0 [ 1; 5; 2; 2 ] (fun item -> item < 3) = [ 1 ]
 Builtin.List.takeWhile_v0 [] (fun item -> item < 3) = []
 
 // it isn't specified which is the right value to keep when there are duplicates
-Builtin.List.uniqueBy_v0 [ 1; 2; 3; 4 ] (fun x -> Builtin.Intdivide_v0 x 2) = [ 1; 2; 4 ]
+Builtin.List.uniqueBy_v0 [ 1; 2; 3; 4 ] (fun x -> Builtin.Int.divide_v0 x 2) = [ 1
+                                                                                 2
+                                                                                 4 ]
+
 Builtin.List.uniqueBy_v0 [ 1; 2; 3; 4 ] (fun x -> x) = [ 1; 2; 3; 4 ]
 Builtin.List.uniqueBy_v0 [ 1; 1; 1; 1 ] (fun x -> x) = [ 1 ]
 Builtin.List.uniqueBy_v0 [ 7; 42; 7; 2; 10 ] (fun x -> x) = [ 2; 7; 10; 42 ]
 Builtin.List.uniqueBy_v0 [] (fun x -> x) = []
 
-Builtin.List.uniqueBy_v0 [ 6; 2.0 ] (fun x -> x) = Test.derrorMessage
-  "Builtin.List.uniqueBy: Unable to sort list, perhaps the list elements are different types"
+Builtin.List.uniqueBy_v0 [ 6; 2.0 ] (fun x -> x) = Builtin.Test.derrorMessage
+  "List.uniqueBy: Unable to sort list, perhaps the list elements are different types"
 
 Builtin.List.unique_v0 [ 1; 2; 3; 4 ] = [ 1; 2; 3; 4 ]
 Builtin.List.unique_v0 [ 1; 1; 1; 1 ] = [ 1 ]
 Builtin.List.unique_v0 [ 7; 42; 7; 2; 10 ] = [ 2; 7; 10; 42 ]
 Builtin.List.unique_v0 [] = []
 
-Builtin.List.unique_v0 [ 6; 2.0 ] = Test.derrorMessage
-  "Builtin.List.unique: Unable to sort list, perhaps the list elements are different types"
+Builtin.List.unique_v0 [ 6; 2.0 ] = Builtin.Test.derrorMessage
+  "List.unique: Unable to sort list, perhaps the list elements are different types"
 // TODO: more tests, with values of more complex types
 
 Builtin.List.unzip_v0 [ (1, 10); (2, 20); (3, 30) ] = ([ 1; 2; 3 ], [ 10; 20; 30 ])
 Builtin.List.unzip_v0 [ (10, 6) ] = ([ 10 ], [ 6 ])
 
-Builtin.List.zipShortest_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] = [ (10, 1); (20, 2); (30, 3) ]
+Builtin.List.zipShortest_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] = [ (10, 1)
+                                                           (20, 2)
+                                                           (30, 3) ]
 
 Builtin.List.zipShortest_v0 [ 10; 20; 30 ] [ "a"; "bc"; "d" ] = [ (10, "a")
-                                                          (20, "bc")
-                                                          (30, "d") ]
+                                                                  (20, "bc")
+                                                                  (30, "d") ]
 
 Builtin.List.zipShortest_v0 [ 10; 20 ] [ 1; 2; 3 ] = [ (10, 1); (20, 2) ]
 Builtin.List.zipShortest_v0 [ 1; 2; 3 ] [ 10; 20 ] = [ (1, 10); (2, 20) ]
@@ -385,45 +399,55 @@ Builtin.List.zip_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.
 
 Builtin.List.zip_v0 [ 10; 20 ] [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.None
 Builtin.List.zip_v0 [] [] = PACKAGE.Darklang.Stdlib.Option.Option.Some []
-Builtin.List.zip_v0 [ Test.runtimeError "msg" ] [ Some "" ] = Test.derrorMessage "msg"
+
+Builtin.List.zip_v0 [ Builtin.Test.runtimeError "msg" ] [ Some "" ] = Builtin.Test.derrorMessage
+  "msg"
 
 
-Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Builtin.Intmod_v0 x 2) = [ (1,
-                                                                        [ 1; 3; 5 ])
-                                                                       (0, [ 2; 4 ]) ]
+// Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Builtin.Int.mod_v0 x 2) = [ (1,
+//                                                                                         [ 1
+//                                                                                           3
+//                                                                                           5 ]) (
+//                                                                                          0,
+//                                                                                          [ 2
+//                                                                                            4 ]
+//                                                                                        ) ]
 
-Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Builtin.Intmod_v0 x 2) = [ (1,
-                                                                        [ 1; 3; 5 ])
-                                                                       (0, [ 2; 4 ]) ]
+// Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Builtin.Int.mod_v0 x 2) = [ (1,
+//                                                                                         [ 1
+//                                                                                           3
+//                                                                                           5 ]) (
+//                                                                                          0,
+//                                                                                          [ 2
+//                                                                                            4 ]
+//                                                                                        ) ]
 
-Builtin.List.groupByWithKey_v0 [ "apple"; "banana"; "avocado"; "grape"; "apricot" ] (fun s ->
-  PACKAGE.Darklang.Stdlib.String.first_v0 s 1) = [ ("a",
-                                                    [ "apple"; "avocado"; "apricot" ])
-                                                   ("b", [ "banana" ])
-                                                   ("g", [ "grape" ]) ]
+// Builtin.List.groupByWithKey_v0
+//   [ "apple"; "banana"; "avocado"; "grape"; "apricot" ]
+//   (fun s -> PACKAGE.Darklang.Stdlib.String.first_v0 s 1) = [ ("a",
+//                                                               [ "apple"
+//                                                                 "avocado"
+//                                                                 "apricot" ])
+//                                                                ("b", [ "banana" ])
+//                                                                ("g", [ "grape" ]) ]
 
-Builtin.List.groupByWithKey_v0 [ 'a'; 'b'; 'c'; 'a'; 'b' ] (fun c -> c) = [ ('a',
-                                                                     [ 'a'; 'a' ])
-                                                                    ('b',
-                                                                     [ 'b'; 'b' ])
-                                                                    ('c', [ 'c' ]) ]
+// Builtin.List.groupByWithKey_v0 [ 'a'; 'b'; 'c'; 'a'; 'b' ] (fun c -> c) = [ ('a',
+//                                                                              [ 'a'
+//                                                                                'a' ])
+//                                                                               ('b',
+//                                                                                [ 'b'
+//                                                                                  'b' ])
+//                                                                               ('c',
+//                                                                                [ 'c' ]) ]
 
-Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Builtin.Intmod_v0 x 2 == 0) = [ (false,
-                                                                             [ 1
-                                                                               3
-                                                                               5 ])
-                                                                            (true,
-                                                                             [ 2; 4 ]) ]
+// Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x ->
+//   Builtin.Int.mod_v0 x 2 == 0) = [ (false, [ 1; 3; 5 ]) (true, [ 2; 4 ]) ]
 
-Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x -> ((Builtin.Intmod_v0 x 2), "test")) = [ ((1,
-                                                                                     "test"),
-                                                                                    [ 1
-                                                                                      3
-                                                                                      5 ])
-                                                                                   ((0,
-                                                                                     "test"),
-                                                                                    [ 2
-                                                                                      4 ]) ]
+// Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x ->
+//   ((Builtin.Int.mod_v0 x 2), "test")) = [ ((1, "test"), [ 1; 3; 5 ]) (
+//                                             (0, "test"),
+//                                             [ 2; 4 ]
+//                                           ) ]
 
 Builtin.List.groupByWithKey_v0 [] (fun x -> x) = []
 

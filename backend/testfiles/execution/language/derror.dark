@@ -1,58 +1,58 @@
 module Error =
-  Builtin.List.map_v0 [ 1; 2; 3; 4; 5 ] (fun x y -> x) = Test.derrorMessage
+  Builtin.List.map_v0 [ 1; 2; 3; 4; 5 ] (fun x y -> x) = Builtin.Test.derrorMessage
     "Expected 2 arguments, got 1"
 
   PACKAGE.Darklang.Stdlib.Option.map2_v0
     (PACKAGE.Darklang.Stdlib.Option.Option.Some 10)
     "not an option"
-    (fun (a, b) -> "1") = (Test.derrorMessage
-    "PACKAGE.Darklang.Stdlib.Builtin.Option.map2's 2nd argument (`option2`) should be a PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, a String (\"not an op...) was passed instead.
+    (fun (a, b) -> "1") = (Builtin.Test.derrorMessage
+    "PACKAGE.Darklang.Stdlib.Option.map2's 2nd argument (`option2`) should be a PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, a String (\"not an op...) was passed instead.
 
 Expected: (option2: PACKAGE.Darklang.Stdlib.Option.Option<'b>)
 Actual: a String: \"not an option\"")
 
 
 // Check we get previous errors before later ones
-(Builtin.List.map_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Test.runtimeError "X"))
-|> Builtin.List.fakeFunction = Test.derrorMessage "X"
+(Builtin.List.map_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Builtin.Test.runtimeError "X"))
+|> Builtin.List.fakeFunction = Builtin.Test.derrorMessage "X"
 
 
 
 module ErrorPropagation =
   type EPRec = { i: Int; m: Int; j: Int; n: Int }
 
-  PACKAGE.Darklang.Stdlib.List.head (Test.runtimeError "test") = Test.derrorMessage
+  PACKAGE.Darklang.Stdlib.List.head (Builtin.Test.runtimeError "test") = Builtin.Test.derrorMessage
     "test"
 
-  (if Test.runtimeError "test" then 5 else 6) = Test.derrorMessage "test"
+  (if Builtin.Test.runtimeError "test" then 5 else 6) = Builtin.Test.derrorMessage "test"
 
-  (PACKAGE.Darklang.Stdlib.List.head (Test.runtimeError "test")).field = Test.derrorMessage
+  (PACKAGE.Darklang.Stdlib.List.head (Builtin.Test.runtimeError "test")).field = Builtin.Test.derrorMessage
     "test"
 
-  [ 5; 6; PACKAGE.Darklang.Stdlib.List.head (Test.runtimeError "test") ] = Test.derrorMessage
+  [ 5; 6; PACKAGE.Darklang.Stdlib.List.head (Builtin.Test.runtimeError "test") ] = Builtin.Test.derrorMessage
     "test"
 
-  [ 5; 6; Test.runtimeError "test" ] = Test.derrorMessage "test"
+  [ 5; 6; Builtin.Test.runtimeError "test" ] = Builtin.Test.derrorMessage "test"
 
   EPRec
-    { i = Test.runtimeError "1"
+    { i = Builtin.Test.runtimeError "1"
       m = 5
-      j = PACKAGE.Darklang.Stdlib.List.head (Test.runtimeError "2")
-      n = 6 } = Test.derrorMessage "1"
+      j = PACKAGE.Darklang.Stdlib.List.head (Builtin.Test.runtimeError "2")
+      n = 6 } = Builtin.Test.derrorMessage "1"
 
-  5 |> (+) (Test.runtimeError "test") |> (+) 3564 = Test.derrorMessage "test"
-  5 |> (+) (Test.runtimeError "test") = Test.derrorMessage "test"
-  ("test" |> Test.runtimeError) = Test.derrorMessage "test"
+  5 |> (+) (Builtin.Test.runtimeError "test") |> (+) 3564 = Builtin.Test.derrorMessage "test"
+  5 |> (+) (Builtin.Test.runtimeError "test") = Builtin.Test.derrorMessage "test"
+  ("test" |> Builtin.Test.runtimeError) = Builtin.Test.derrorMessage "test"
 
-  PACKAGE.Darklang.Stdlib.Option.Option.Some(Test.runtimeError "test") = Test.derrorMessage
+  PACKAGE.Darklang.Stdlib.Option.Option.Some(Builtin.Test.runtimeError "test") = Builtin.Test.derrorMessage
     "test"
 
-  PACKAGE.Darklang.Stdlib.Result.Result.Error(Test.runtimeError "test") = Test.derrorMessage
+  PACKAGE.Darklang.Stdlib.Result.Result.Error(Builtin.Test.runtimeError "test") = Builtin.Test.derrorMessage
     "test"
 
-  PACKAGE.Darklang.Stdlib.Result.Result.Ok(Test.runtimeError "test") = Test.derrorMessage
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok(Builtin.Test.runtimeError "test") = Builtin.Test.derrorMessage
     "test"
 
 
   // pipe into error
-  ("test" |> Test.runtimeError |> (++) "3") = Test.derrorMessage "test"
+  ("test" |> Builtin.Test.runtimeError |> (++) "3") = Builtin.Test.derrorMessage "test"

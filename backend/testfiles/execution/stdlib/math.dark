@@ -42,7 +42,7 @@ Builtin.Math.sin_v0 0.0 = 0.0
 Builtin.Math.sinh_v0 0.0 = 0.0
 Builtin.Math.sinh_v0 1.0 = 1.17520119364
 
-Builtin.Math.tan_v0 (Float.divide_v0 PACKAGE.Darklang.Stdlib.Math.pi 4.0) = 1.0
+Builtin.Math.tan_v0 (Builtin.Float.divide_v0 PACKAGE.Darklang.Stdlib.Math.pi 4.0) = 1.0
 Builtin.Math.tan_v0 0.0 = 0.0
 Builtin.Math.tanh_v0 0.0 = 0.0
 

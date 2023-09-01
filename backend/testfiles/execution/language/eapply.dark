@@ -1,21 +1,21 @@
-Builtin.Intadd_v0 5 = Test.derrorMessage
-  "Builtin.Intadd has 0 type parameters and 2 parameters, but here was called with 0 type arguments and 1 arguments."
+Builtin.Int.add_v0 5 = Builtin.Test.derrorMessage
+  "Int.add has 0 type parameters and 2 parameters, but here was called with 0 type arguments and 1 arguments."
 
 (let fn = (fun x -> x + 1)
  fn 6) = 7
 
-(let fn = Builtin.Intadd
+(let fn = Builtin.Int.add
  fn 3 4) = 7
 
-(let fn = PACKAGE.Darklang.Stdlib.Builtin.Intmax
+(let fn = PACKAGE.Darklang.Stdlib.Intmax
  fn 3 7) = 7
 
 // ---------------------------
 // DarkInternal tests are internal
 // ---------------------------
 module Darkinternal =
-  (let _ = Test.setExpectedExceptionCount 1 in
-   DarkInternal.Infra.SchedulingRule.list ()) = Test.derrorMessage "Unknown error"
+  (let _ = Builtin.Test.setExpectedExceptionCount 1 in
+   Builtin.DarkInternal.Infra.SchedulingRule.list ()) = Builtin.Test.derrorMessage "Unknown error"
 
 // ---------------------------
 // User-defined Functions
@@ -50,7 +50,7 @@ module UserDefined =
   let throwsException () : 'a =
     Test.raiseException "throwsException message"
 
-  let derrorFn (msg: String) : String = msg ++ Test.runtimeError msg
+  let derrorFn (msg: String) : String = msg ++ Builtin.Test.runtimeError msg
 
   let fnWithTypeArgs<'a, 'b> (a: 'a) (b: 'b) : 'a = a
 
@@ -92,37 +92,37 @@ module UserDefined =
 
 
   module InvalidFnCalls =
-    functionWhichDoesntExist 6 = Test.derrorMessage
+    functionWhichDoesntExist 6 = Builtin.Test.derrorMessage
       "There is no variable named: functionWhichDoesntExist"
 
-    stringFn 5 = Test.derrorMessage
-      "UserDefined.stringFn's 1st argument (`key`) should be a Builtin.String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
+    stringFn 5 = Builtin.Test.derrorMessage
+      "UserDefined.stringFn's 1st argument (`key`) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
 
-    stringFn "str1" "str2" = Test.derrorMessage
+    stringFn "str1" "str2" = Builtin.Test.derrorMessage
       "UserDefined.stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
 
-    fnWithTypeArgAndOneParam 1 = Test.derrorMessage
+    fnWithTypeArgAndOneParam 1 = Builtin.Test.derrorMessage
       "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
 
-    fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.derrorMessage
+    fnWithTypeArgAndOneParam<Int> 1 "str2" = Builtin.Test.derrorMessage
       "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
 
-    fnWithTypeArgAndOneParam<Int, String> 1 = Test.derrorMessage
+    fnWithTypeArgAndOneParam<Int, String> 1 = Builtin.Test.derrorMessage
       "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
 
-    fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.derrorMessage
+    fnWithTypeArgAndOneParam<Int, String> 1 "str" = Builtin.Test.derrorMessage
       "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
 
-    fnWithTypeArgAndOneParam<Int> "str2" = Test.derrorMessage
-      "UserDefined.fnWithTypeArgAndOneParam's 1st argument (`arg`) should be an Builtin.Int However, a String (\"str2\") was passed instead.\n\nExpected: (arg: 'a)\nActual: a String: \"str2\""
+    fnWithTypeArgAndOneParam<Int> "str2" = Builtin.Test.derrorMessage
+      "UserDefined.fnWithTypeArgAndOneParam's 1st argument (`arg`) should be an Int. However, a String (\"str2\") was passed instead.\n\nExpected: (arg: 'a)\nActual: a String: \"str2\""
 
-    fnWithTypedReturn<String> () = Test.derrorMessage
-      "UserDefined.fnWithTypedReturn's return value should be a Builtin.String. However, an Int (5) was passed instead.\n\nExpected: 'a\nActual: an Int: 5"
+    fnWithTypedReturn<String> () = Builtin.Test.derrorMessage
+      "UserDefined.fnWithTypedReturn's return value should be a String. However, an Int (5) was passed instead.\n\nExpected: 'a\nActual: an Int: 5"
 
-    (let _ = Test.setExpectedExceptionCount 1 in throwsException ()) = Test.derrorMessage
+    (let _ = Builtin.Test.setExpectedExceptionCount 1 in throwsException ()) = Builtin.Test.derrorMessage
       "Unknown error"
 
-    derrorFn "msg" = Test.derrorMessage "msg"
+    derrorFn "msg" = Builtin.Test.derrorMessage "msg"
 
 
 // ---------------------------
@@ -170,25 +170,25 @@ module Packages =
 
 
   module Invalid =
-    PACKAGE.Darklang.Test.stringFn 5 = Test.derrorMessage
-      "PACKAGE.Darklang.Test.stringFn's 1st argument (`key`) should be a Builtin.String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
+    PACKAGE.Darklang.Test.stringFn 5 = Builtin.Test.derrorMessage
+      "PACKAGE.Darklang.Test.stringFn's 1st argument (`key`) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
 
-    PACKAGE.Darklang.Test.stringFn "str1" "str2" = Test.derrorMessage
+    PACKAGE.Darklang.Test.stringFn "str1" "str2" = Builtin.Test.derrorMessage
       "PACKAGE.Darklang.Test.stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
 
-    PACKAGE.Darklang.Test.derrorFn "test" = Test.derrorMessage "test"
+    PACKAGE.Darklang.Test.derrorFn "test" = Builtin.Test.derrorMessage "test"
 
-    (let _ = Test.setExpectedExceptionCount 1 in
-     PACKAGE.Darklang.Test.throwsException ()) = Test.derrorMessage "Unknown error"
+    (let _ = Builtin.Test.setExpectedExceptionCount 1 in
+     PACKAGE.Darklang.Test.throwsException ()) = Builtin.Test.derrorMessage "Unknown error"
 
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam 1 = Test.derrorMessage
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam 1 = Builtin.Test.derrorMessage
       "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
 
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.derrorMessage
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int> 1 "str2" = Builtin.Test.derrorMessage
       "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
 
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 = Test.derrorMessage
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 = Builtin.Test.derrorMessage
       "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
 
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.derrorMessage
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 "str" = Builtin.Test.derrorMessage
       "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."

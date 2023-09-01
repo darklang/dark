@@ -41,7 +41,9 @@ let _handler _req =
     PACKAGE.Darklang.Stdlib.Http.responseWithHeaders fileContents headers 200
 
   | Error _e ->
-    PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes "Couldn't load asset") 400
+    PACKAGE.Darklang.Stdlib.Http.response
+      (Builtin.String.toBytes "Couldn't load asset")
+      400
 
 // We're sharing the Worker script between this canvas and
 // dark-repl, and Worker scripts can't be loaded across
@@ -80,13 +82,19 @@ let _handler _req =
   match program with
   | Ok program ->
     let types =
-      PACKAGE.Darklang.Stdlib.Option.withDefault (Builtin.Dict.get program "types") "[]"
+      PACKAGE.Darklang.Stdlib.Option.withDefault
+        (Builtin.Dict.get program "types")
+        "[]"
 
     let fns =
-      PACKAGE.Darklang.Stdlib.Option.withDefault (Builtin.Dict.get program "fns") "[]"
+      PACKAGE.Darklang.Stdlib.Option.withDefault
+        (Builtin.Dict.get program "fns")
+        "[]"
 
     let exprs =
-      PACKAGE.Darklang.Stdlib.Option.withDefault (Builtin.Dict.get program "exprs") "[]"
+      PACKAGE.Darklang.Stdlib.Option.withDefault
+        (Builtin.Dict.get program "exprs")
+        "[]"
 
     let json =
       "{ \"types\": "
@@ -138,12 +146,12 @@ let _handler _req =
   let take =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
     | None -> 100
-    | Some take -> take |> Builtin.Intparse |> rUnwrap
+    | Some take -> take |> Builtin.Int.parse |> rUnwrap
 
   let drop =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
     | None -> 0
-    | Some drop -> drop |> Builtin.Intparse |> rUnwrap
+    | Some drop -> drop |> Builtin.Int.parse |> rUnwrap
 
   match DarkInternal.Canvas.fullProgram canvasId with
   | Ok program ->
@@ -151,7 +159,8 @@ let _handler _req =
       program.types
       |> PACKAGE.Darklang.Stdlib.List.drop drop
       |> PACKAGE.Darklang.Stdlib.List.take take
-      |> Builtin.List.map (fun t -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType t)
+      |> Builtin.List.map (fun t ->
+        PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType t)
       |> Builtin.String.join "\n\n"
 
     let prettyFns =
@@ -174,12 +183,12 @@ let _handler _req =
   let take =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
     | None -> 100
-    | Some take -> take |> Builtin.Intparse |> rUnwrap
+    | Some take -> take |> Builtin.Int.parse |> rUnwrap
 
   let drop =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
     | None -> 0
-    | Some drop -> drop |> Builtin.Intparse |> rUnwrap
+    | Some drop -> drop |> Builtin.Int.parse |> rUnwrap
 
   match DarkInternal.Canvas.fullProgram canvasId with
   | Ok program ->
@@ -205,12 +214,12 @@ let _handler _req =
   let take =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
     | None -> 100
-    | Some take -> take |> Builtin.Intparse |> rUnwrap
+    | Some take -> take |> Builtin.Int.parse |> rUnwrap
 
   let drop =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
     | None -> 0
-    | Some drop -> drop |> Builtin.Intparse |> rUnwrap
+    | Some drop -> drop |> Builtin.Int.parse |> rUnwrap
 
 
   match DarkInternal.Canvas.fullProgram canvasId with
@@ -219,7 +228,8 @@ let _handler _req =
       program.types
       |> PACKAGE.Darklang.Stdlib.List.drop drop
       |> PACKAGE.Darklang.Stdlib.List.take take
-      |> Builtin.List.map (fun t -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType t)
+      |> Builtin.List.map (fun t ->
+        PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType t)
       |> Builtin.String.join "\n\n"
 
     let response = prettyTypes
@@ -238,7 +248,8 @@ let _handler _req =
   | Ok program ->
     let prettyTypes =
       program.types
-      |> Builtin.List.map (fun t -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType t)
+      |> Builtin.List.map (fun t ->
+        PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType t)
 
     PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
       (prettyTypes |> Builtin.String.join "\n\n" |> Builtin.String.toBytes)

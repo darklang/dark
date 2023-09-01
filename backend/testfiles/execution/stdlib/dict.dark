@@ -12,11 +12,13 @@ module FilterMap =
       (PACKAGE.Darklang.Stdlib.Option.Option.Some(key ++ value))) = (Dict
     { c = "cz"; a = "ax" })
 
-  (Builtin.Dict.filterMap_v0 (Dict { a = "x"; b = "y"; c = "z" }) (fun (key, value) ->
-    if value == "y" then
-      false
-    else
-      (PACKAGE.Darklang.Stdlib.Option.Option.Some(key ++ value)))) = (Test
+  (Builtin.Dict.filterMap_v0
+    (Dict { a = "x"; b = "y"; c = "z" })
+    (fun (key, value) ->
+      if value == "y" then
+        false
+      else
+        (PACKAGE.Darklang.Stdlib.Option.Option.Some(key ++ value)))) = (Builtin.Test
     .derrorMessage (
       "Expected `fn` to return a "
       ++ "PACKAGE.Darklang.Stdlib.Option.Option<'b>,"
@@ -25,15 +27,15 @@ module FilterMap =
 
 
 module Filter =
-  Builtin.Dict.filter (Dict { key1 = "val1"; key2 = "val2" }) (fun (k, v) -> k == "key1") = (Dict
-    { key1 = "val1" })
+  Builtin.Dict.filter (Dict { key1 = "val1"; key2 = "val2" }) (fun (k, v) ->
+    k == "key1") = (Dict { key1 = "val1" })
 
   Builtin.Dict.filter (Dict { key1 = 1; key2 = 3 }) (fun (k, v) -> v < 2) = (Dict
     { key1 = 1 })
 
   Builtin.Dict.filter (Dict { }) (fun (k, v) -> 0) = (Dict { })
 
-  Builtin.Dict.filter (Dict { a = 1; b = 2; c = 3 }) (fun (k, v) -> 2) = Test.derrorMessage
+  Builtin.Dict.filter (Dict { a = 1; b = 2; c = 3 }) (fun (k, v) -> 2) = Builtin.Test.derrorMessage
     "Expected `fn` to return a Bool, but it returned `2`"
 
 
@@ -47,15 +49,15 @@ module FromListOverwritingDuplicates =
 
   Builtin.Dict.fromListOverwritingDuplicates_v0 [] = (Dict { })
 
-  Builtin.Dict.fromListOverwritingDuplicates_v0 [ Test.runtimeError "" ] = Test.derrorMessage
+  Builtin.Dict.fromListOverwritingDuplicates_v0 [ Builtin.Test.runtimeError "" ] = Builtin.Test.derrorMessage
     ""
 
   // CLEANUP this error message is the goal once Dvals include typeRefs:
   // In Builtin.Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int (2) was passed instead.\n\nExpected: (String, 'b)\nActual: an Int: 2
-  Builtin.Dict.fromListOverwritingDuplicates_v0 [ (1, 2) ] = Test.derrorMessage
+  Builtin.Dict.fromListOverwritingDuplicates_v0 [ (1, 2) ] = Builtin.Test.derrorMessage
     "Expected `key` to be a `String`, but it was `1`"
 
-  Builtin.Dict.fromListOverwritingDuplicates_v0 [ 1 ] = Test.derrorMessage
+  Builtin.Dict.fromListOverwritingDuplicates_v0 [ 1 ] = Builtin.Test.derrorMessage
     "All list items must be `(key, value)`"
 
 
@@ -82,11 +84,11 @@ module FromList =
     )
 
   Builtin.Dict.fromList_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.Some(Dict { })
-  Builtin.Dict.fromList_v0 [ Test.runtimeError "" ] = Test.derrorMessage ""
+  Builtin.Dict.fromList_v0 [ Builtin.Test.runtimeError "" ] = Builtin.Test.derrorMessage ""
 
   // CLEANUP this error message is the goal once Dvals include typeRefs:
-  //Test.runtimeError "In Builtin.Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a Builtin.String. However, an Int (1) was passed instead.\n\nExpected: String\nActual: an Int: 1"
-  Builtin.Dict.fromList_v0 [ (1, 1) ] = Test.derrorMessage
+  //Builtin.Test.runtimeError "In Builtin.Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int (1) was passed instead.\n\nExpected: String\nActual: an Int: 1"
+  Builtin.Dict.fromList_v0 [ (1, 1) ] = Builtin.Test.derrorMessage
     "Expected `key` to be a `String`, but it was `1`"
 
 
@@ -112,13 +114,15 @@ module Map =
 
   Builtin.Dict.map_v0 (Dict { key1 = 5; key2 = 3; key3 = 3 }) (fun (k, x) ->
     PACKAGE.Darklang.Stdlib.Bool.and_v0
-      (Builtin.IntgreaterThanOrEqualTo_v0 x 1)
-      (Builtin.IntlessThanOrEqualTo_v0 x 4)) = (Dict
+      (Builtin.Int.greaterThanOrEqualTo_v0 x 1)
+      (Builtin.Int.lessThanOrEqualTo_v0 x 4)) = (Dict
     { key3 = true
       key2 = true
       key1 = false })
 
-  Builtin.Dict.map_v0 (Dict { a = 1; b = 2 }) (fun (k, x) -> x + 1) = (Dict { b = 3; a = 2 })
+  Builtin.Dict.map_v0 (Dict { a = 1; b = 2 }) (fun (k, x) -> x + 1) = (Dict
+    { b = 3; a = 2 })
+
   Builtin.Dict.map_v0 (Dict { }) (fun (key, value) -> 0) = (Dict { })
 
 
@@ -146,7 +150,8 @@ module Set =
 
   // Dicts do not currently enforce value typing, therefore the following tests pass
   // VTTODO: this should fail
-  Builtin.Dict.set_v0 (Dict { key1 = "val1" }) "key2" 2 = (Dict { key1 = "val1"; key2 = 2 })
+  Builtin.Dict.set_v0 (Dict { key1 = "val1" }) "key2" 2 = (Dict
+    { key1 = "val1"; key2 = 2 })
 
   Builtin.Dict.set_v0 (Dict { key1 = 1 }) "key1" "changedTypeValue" = (Dict
     { key1 = "changedTypeValue" })
@@ -163,7 +168,10 @@ module Size =
 
 
 module ToList =
-  Builtin.Dict.toList_v0 (Dict { a = 1; b = 2; c = 3 }) = [ ("a", 1); ("b", 2); ("c", 3) ]
+  Builtin.Dict.toList_v0 (Dict { a = 1; b = 2; c = 3 }) = [ ("a", 1)
+                                                            ("b", 2)
+                                                            ("c", 3) ]
+
   Builtin.Dict.toList_v0 (Dict { }) = []
 
 

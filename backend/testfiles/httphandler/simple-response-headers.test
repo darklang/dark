@@ -1,5 +1,5 @@
 [http-handler GET /]
-(let body = String.toBytes_v0 "1"
+(let body = Builtin.String.toBytes_v0 "1"
  let headers = ["header1", "value1"; "Header2", "Value2"; "Header-3", "Value-3"]
  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders body headers 200)
 

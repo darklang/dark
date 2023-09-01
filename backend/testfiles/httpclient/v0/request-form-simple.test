@@ -13,10 +13,10 @@ Content-Length: 0
 
 [test]
 (let reqHeaders = [("Content-type", "application/x-www-form-urlencoded")]
- let response = (HttpClient.request "get" "http://URL" reqHeaders Bytes.empty) |> unwrap
- let respHeaders = response.headers |> List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
+ let response = (Builtin.HttpClient.request "get" "http://URL" reqHeaders Builtin.Bytes.empty) |> unwrap
+ let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
-   HttpClient.Response
+   Builtin.HttpClient.Response
     { statusCode = 200
       headers =
         [
@@ -24,4 +24,4 @@ Content-Length: 0
           ("transfer-encoding", "chunked")
           ("content-type", "application/x-www-form-urlencoded; charset=utf-8")
         ]
-      body = Bytes.empty }
+      body = Builtin.Bytes.empty }

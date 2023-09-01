@@ -10,10 +10,10 @@ Location: /v0/response-redirect-destination
 
 
 [test]
-(let response = (HttpClient.request "get" "http://URL" [] Bytes.empty) |> unwrap
- let respHeaders = response.headers |> List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
+(let response = (Builtin.HttpClient.request "get" "http://URL" [] Builtin.Bytes.empty) |> unwrap
+ let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
-   HttpClient.Response
+   Builtin.HttpClient.Response
     { statusCode = 302
       headers =
         [
@@ -21,5 +21,5 @@ Location: /v0/response-redirect-destination
           ("location", "/v0/response-redirect-destination")
           ("transfer-encoding", "chunked")
         ]
-      body = Bytes.empty }
+      body = Builtin.Bytes.empty }
 

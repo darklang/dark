@@ -37,7 +37,9 @@ module Darklang =
             ErrorOutput
               { summary =
                   [ ErrorSegment.ErrorSegment.String $"There is no {nameType} named "
-                    ErrorSegment.ErrorSegment.InlineVarName(Builtin.String.join e.names ".") ]
+                    ErrorSegment.ErrorSegment.InlineVarName(
+                      Builtin.String.join e.names "."
+                    ) ]
                 extraExplanation = []
                 actual = []
                 expected = [] }
@@ -64,7 +66,9 @@ module Darklang =
           | InvalidPackageName ->
             let summary =
               [ ErrorSegment.ErrorSegment.String "Invalid package name "
-                ErrorSegment.ErrorSegment.InlineVarName(Builtin.String.join e.names ".") ]
+                ErrorSegment.ErrorSegment.InlineVarName(
+                  Builtin.String.join e.names "."
+                ) ]
 
             ErrorOutput
               { summary = summary
@@ -75,7 +79,9 @@ module Darklang =
           | ExpectedRecordButNot ->
             let summary =
               [ ErrorSegment.ErrorSegment.String "Expected a record but "
-                ErrorSegment.ErrorSegment.InlineVarName(Builtin.String.join e.names ".")
+                ErrorSegment.ErrorSegment.InlineVarName(
+                  Builtin.String.join e.names "."
+                )
                 ErrorSegment.ErrorSegment.String " is an enum" ]
 
             ErrorOutput
