@@ -36,7 +36,7 @@ let gatherDataToExport () : Result<DataExport, String> =
 
   let prettyCanvases =
     canvases
-    |> Builtin.Builtin.List.map (fun canvas ->
+    |> Builtin.List.map (fun canvas ->
       CanvasExport
         { name = canvas.name
           content = PACKAGE.Darklang.PrettyPrinter.canvas canvas })

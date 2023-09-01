@@ -111,7 +111,10 @@ type RecordWithGenericThing = GenericThing<String>
 type TestRecordWithGenericThing = RecordWithGenericThing
 
 // module AccessDataInGenericField =
-//   (Builtin.DB.set (RecordWithGenericThing { name = "joe" }) "jjj" TestRecordWithGenericThing
+//   (Builtin.DB.set
+//     (RecordWithGenericThing { name = "joe" })
+//     "jjj"
+//     TestRecordWithGenericThing
 
 //    Builtin.DB.set
 //      (RecordWithGenericThing { name = "frank" })

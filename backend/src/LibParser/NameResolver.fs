@@ -237,7 +237,7 @@ let resolve
                       errorType = NRE.NotFound
                       names = NEList.toList names }
                   )
-            | e ->
+            | _ ->
               // 2. Name exactly matches something in the UserProgram space
               let (userProgram : PT.FQName.UserProgram<'name>) =
                 { modules = modules; name = constructor name; version = version }

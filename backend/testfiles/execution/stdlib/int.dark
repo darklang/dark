@@ -44,42 +44,31 @@ Builtin.Int.remainder_v0 -15 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok -3
 Builtin.Int.remainder_v0 5 0 = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "`divisor` must be non-zero"
 
-// Builtin.List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5) (fun v ->
-//   Builtin.Int.remainder_v0 v -4) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//                                       -1
-//                                       PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//                                       0
-//                                       PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//                                       -3
-//                                       PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//                                       -2
-//                                       PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//                                       -1
-//                                       PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//                                       0
-//                                       PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//                                       1
-//                                       PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//                                       2
-//                                       PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//                                       3
-//                                       PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//                                       0
-//                                       PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//                                       1 ]
+Builtin.List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5) (fun v ->
+  Builtin.Int.remainder_v0 v -4) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
+                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok -3
+                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok -2
+                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
+                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok 2
+                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok 3
+                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok 1 ]
 
-// Builtin.List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5) (fun v ->
-//   Builtin.Int.remainder_v0 v 4) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
-//                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
-//                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok -3
-//                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok -2
-//                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
-//                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
-//                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
-//                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok 2
-//                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok 3
-//                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
-//                                     PACKAGE.Darklang.Stdlib.Result.Result.Ok 1 ]
+Builtin.List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5) (fun v ->
+  Builtin.Int.remainder_v0 v 4) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
+                                    PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                                    PACKAGE.Darklang.Stdlib.Result.Result.Ok -3
+                                    PACKAGE.Darklang.Stdlib.Result.Result.Ok -2
+                                    PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
+                                    PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                                    PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+                                    PACKAGE.Darklang.Stdlib.Result.Result.Ok 2
+                                    PACKAGE.Darklang.Stdlib.Result.Result.Ok 3
+                                    PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
+                                    PACKAGE.Darklang.Stdlib.Result.Result.Ok 1 ]
 
 Builtin.Int.mod_v0 15 5 = 0
 Builtin.Int.mod_v0 15 6 = 3

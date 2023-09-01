@@ -436,11 +436,11 @@ Builtin.List.zip_v0 [ Builtin.Test.runtimeError "msg" ] [ Some "" ] = Builtin.Te
 // Builtin.List.groupByWithKey_v0 [ 'a'; 'b'; 'c'; 'a'; 'b' ] (fun c -> c) = [ ('a',
 //                                                                              [ 'a'
 //                                                                                'a' ])
-//                                                                               ('b',
-//                                                                                [ 'b'
-//                                                                                  'b' ])
-//                                                                               ('c',
-//                                                                                [ 'c' ]) ]
+//                                                                             ('b',
+//                                                                              [ 'b'
+//                                                                                'b' ])
+//                                                                             ('c',
+//                                                                              [ 'c' ]) ]
 
 // Builtin.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x ->
 //   Builtin.Int.mod_v0 x 2 == 0) = [ (false, [ 1; 3; 5 ]) (true, [ 2; 4 ]) ]
