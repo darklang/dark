@@ -49,7 +49,7 @@ module UserDefined =
     PACKAGE.Darklang.Stdlib.Result.Result.Error false
 
   let throwsException () : 'a =
-    Test.raiseException "throwsException message"
+    Builtin.Test.raiseException "throwsException message"
 
   let derrorFn (msg: String) : String = msg ++ Builtin.Test.runtimeError msg
 
