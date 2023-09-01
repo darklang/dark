@@ -16,8 +16,8 @@ let Builtin.unwrap
 let main () : Int =
 
   let dockerfiles =
-    (Directory.list "containers")
-    |> Builtin.List.map (fun directory -> Directory.list directory)
+    (Builtin.Directory.list "containers")
+    |> Builtin.List.map (fun directory -> Builtin.Directory.list directory)
     |> PACKAGE.Darklang.Stdlib.List.flatten
     |> Builtin.List.filter (fun filePath ->
       PACKAGE.Darklang.Stdlib.String.endsWith filePath "Dockerfile")
