@@ -34,7 +34,7 @@ let initializeCanvas (name : string) : Task<CanvasID * tlid> =
     // set up handler
     let! canvasID = initializeTestCanvas name
 
-    let! e = p "let data = DateTime.now_v0 () in 123"
+    let! e = p "let data = Builtin.DateTime.now_v0 () in 123"
     let h = testWorker "test" e
 
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]

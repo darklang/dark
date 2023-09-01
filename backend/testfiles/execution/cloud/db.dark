@@ -150,9 +150,9 @@ module AddToTestEnumDBs =
        "test2"
        TestEnumDB in
 
-      (Builtin.DB.get "test1" TestEnumDB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
-        EnumTestRecord { x = "hello"; y = MyEnum.A }
-      )
+   (Builtin.DB.get "test1" TestEnumDB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    EnumTestRecord { x = "hello"; y = MyEnum.A }
+  )
 
   (let test1 = Builtin.DB.set MyEnum.A "test1" TestEnumDB2 in
    let test2 = Builtin.DB.set MyEnum.B "test2" TestEnumDB2 in
@@ -161,7 +161,7 @@ module AddToTestEnumDBs =
   (let test1 = Builtin.DB.set MyEnum.C "test1" TestEnumDB2 in
    let test2 = Builtin.DB.set MyEnum.B "test2" TestEnumDB2 in
    (Builtin.DB.get "test1" TestEnumDB2)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
-      MyEnum.C
+    MyEnum.C
   )
 
   (let test1 = Builtin.DB.set MyEnum2.D "test1" TestEnumDB3 in
@@ -343,7 +343,10 @@ module Roundtrip =
     fetch (fun p -> p.infinity == 1.0) = []
 
     fetch (fun p -> p.negInfinity == Builtin.Test.negativeInfinity) = [ sample () ]
-    fetch (fun p -> p.negInfinity != Builtin.Test.negativeInfinity) = [ otherSample () ]
+
+    fetch (fun p -> p.negInfinity != Builtin.Test.negativeInfinity) = [ otherSample
+                                                                          () ]
+
     fetch (fun p -> p.negInfinity == 1.0) = []
 
     fetch (fun p -> p.``true`` == true) = [ sample () ]
@@ -362,10 +365,10 @@ module Roundtrip =
     fetch (fun p -> p.char == 'x') = []
 
     fetch (fun p -> p.emojiChar == ((Builtin.Test.toChar "👍") |> Builtin.unwrap)) = [ sample
-                                                                               () ]
+                                                                                         () ]
 
     fetch (fun p -> p.emojiChar != ((Builtin.Test.toChar "👍") |> Builtin.unwrap)) = [ otherSample
-                                                                               () ]
+                                                                                         () ]
 
     fetch (fun p -> p.emojiChar == 'x') = []
 
@@ -386,17 +389,22 @@ module Roundtrip =
 
     fetch (fun p ->
       p.datetime
-      == ((Builtin.DateTime.parse "2020-01-01T00:00:00Z") |> Builtin.unwrap)) = [ sample () ]
+      == ((Builtin.DateTime.parse "2020-01-01T00:00:00Z") |> Builtin.unwrap)) = [ sample
+                                                                                    () ]
 
     fetch (fun p ->
       p.datetime
-      != ((Builtin.DateTime.parse "2020-01-01T00:00:00Z") |> Builtin.unwrap)) = [ otherSample () ]
+      != ((Builtin.DateTime.parse "2020-01-01T00:00:00Z") |> Builtin.unwrap)) = [ otherSample
+                                                                                    () ]
 
     fetch (fun p ->
       p.datetime
       == ((Builtin.DateTime.parse "2019-12-31T23:59:59Z") |> Builtin.unwrap)) = []
 
-    (fetch (fun p -> p.unit == ())) |> Builtin.List.sortBy (fun v -> v.int) = [ sample(); otherSample () ]
+    (fetch (fun p -> p.unit == ())) |> Builtin.List.sortBy (fun v -> v.int) = [ sample
+                                                                                  ()
+                                                                                otherSample
+                                                                                  () ]
 
     fetch (fun p -> p.unit != ()) = []
 
