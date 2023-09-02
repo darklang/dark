@@ -201,6 +201,7 @@ let processNotification
                   // CLEANUP Set a time limit of 3m
                   try
                     let program = Canvas.toProgram c
+                    // CLEANUP check DError
                     let! (result, traceResults) =
                       CloudExecution.executeHandler
                         LibClientTypesToCloudTypes.Pusher.eventSerializer
