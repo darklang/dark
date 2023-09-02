@@ -96,6 +96,45 @@ let executeHandler
     let! state = createState traceID h.tlid program tracing.executionTracing
     HashSet.add h.tlid tracing.results.tlids
     let! result = Exe.executeExpr state inputVars h.ast
+
+    let error (msg : string) =
+      let typeName =
+        RT.FQName.Package
+          { owner = "Darklang"
+            modules = [ "Stdlib"; "Http" ]
+            name = RT.TypeName.TypeName "Response"
+            version = 0 }
+
+      RT.Dval.record
+        typeName
+        [ "statusCode", RT.DInt 500
+          "headers", RT.DList []
+          "body", RT.DBytes(msg |> UTF8.toBytes) ]
+
+    // CLEANUP This is a temporary hack to make it easier to work on local dev
+    // servers. We should restrict this to dev mode only
+    let! result =
+      task {
+        match result with
+        | RT.DError(_, originalRTE) ->
+          match! Exe.runtimeErrorToString state originalRTE with
+          | RT.DString msg -> return error msg
+          | RT.DError(_, firstErrorRTE) ->
+            match! Exe.runtimeErrorToString state firstErrorRTE with
+            | RT.DString msg ->
+              return
+                error (
+                  $"Error couldn't be formatted. This error was from the formatting function:\n{msg}\n\nThe original error is {originalRTE}"
+                )
+            | RT.DError(_, secondErrorRTE) ->
+              return
+                error
+                  $"Got a runtime error while formatting a runtime error, giving up\n\nFormatting Error when formatting first error message:\n{secondErrorRTE}\n\nFormat error when formatting original error:\n\nOriginal Error {originalRTE}"
+            | _ -> return result
+          | _ -> return result
+        | _ -> return result
+      }
+
     tracing.storeTraceResults ()
 
     match reason with
