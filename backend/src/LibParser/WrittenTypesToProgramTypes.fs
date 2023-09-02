@@ -109,7 +109,7 @@ module Expr =
     (resolver : NameResolver)
     (currentModule : List<string>)
     (names : List<string>)
-    (caseName : string)
+    (caseName : string) // used for errors
     : Ply<PT.NameResolution<PT.TypeName.TypeName>> =
     match names with
     | [] ->
