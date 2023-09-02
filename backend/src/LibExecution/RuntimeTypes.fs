@@ -703,7 +703,8 @@ module RuntimeError =
   let sqlCompilerRuntimeError (internalError : RuntimeError) =
     case "SqlCompilerRuntimeError" [ toDT internalError ]
 
-  let incomplete = case "Incomplete" []
+  let executionError field = case "ExecutionError" [ field ]
+
 
   // let exceptionThrown (ex : System.Exception) : RuntimeError =
   //   case

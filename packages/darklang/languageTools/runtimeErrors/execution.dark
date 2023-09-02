@@ -1,0 +1,30 @@
+module Darklang =
+  module LanguageTools =
+    module RuntimeErrors =
+      module Execution =
+        type Error =
+          | Incomplete
+          | MatchExprUnmatched of RuntimeTypes.Dval * List<RuntimeTypes.MatchPattern>
+
+        let toSegments (e: Error) : ErrorOutput =
+          match e with
+          | Incomplete ->
+            ErrorOutput
+              { summary = [ ErrorSegment.ErrorSegment.String "Incomplete" ]
+                extraExplanation = []
+                actual = []
+                expected = [] }
+
+          | MatchExprUnmatched(dv, patterns) ->
+            let summary =
+              [ ErrorSegment.ErrorSegment.String "No match for "
+                ErrorSegment.ErrorSegment.InlineDval(dv) ]
+
+            // TODO include patterns in error message
+            let extraExplanation = []
+
+            ErrorOutput
+              { summary = summary
+                extraExplanation = extraExplanation
+                actual = []
+                expected = [] }

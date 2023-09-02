@@ -140,7 +140,8 @@ module Darklang =
         | NameResolutionError of
           PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error
         | SqlCompilerRuntimeError of Error
-        | Incomplete
+        | ExecutionError of
+          PACKAGE.Darklang.LanguageTools.RuntimeErrors.Execution.Error
         | OldStringErrorTODO of String
       //| ExceptionThrown of ExceptionThrown.ExceptionThrown
 
@@ -165,6 +166,8 @@ module Darklang =
           | TypeCheckerError err -> TypeChecker.Error.toSegments err
 
           | NameResolutionError err -> NameResolution.toSegments err
+
+          | ExecutionError err -> Execution.Error.toSegments err
 
           | SqlCompilerRuntimeError err ->
             let innerOutput = toSegments err

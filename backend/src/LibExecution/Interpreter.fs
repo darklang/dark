@@ -25,8 +25,34 @@ let withGlobals (state : ExecutionState) (symtable : Symtable) : Symtable =
   let globals = globalsFor state
   Map.mergeFavoringRight globals symtable
 
-let incomplete (state : ExecutionState) (id : id) =
-  DError(SourceID(state.tlid, id), RuntimeError.incomplete)
+module Error =
+  module RT2DT = RuntimeTypesToDarkTypes
+
+  let typeName =
+    TypeName.fqPackage
+      "Darklang"
+      [ "LanguageTools"; "RuntimeErrors"; "Execution" ]
+      "Error"
+      0
+
+
+  let case (caseName : string) (fields : List<Dval>) : RuntimeError =
+    DEnum(typeName, typeName, caseName, fields) |> RuntimeError.executionError
+
+  let matchExprUnmatched
+    (matchVal : Dval)
+    (cases : List<MatchPattern>)
+    : RuntimeError =
+    case
+      "MatchExprUnmatched"
+      [ RT2DT.Dval.toDT matchVal; DList(List.map RT2DT.MatchPattern.toDT cases) ]
+
+  let incomplete = case "Incomplete" []
+
+
+
+let dincomplete (state : ExecutionState) (id : id) =
+  DError(SourceID(state.tlid, id), Error.incomplete)
 
 // fsharplint:disable FL0039
 
@@ -219,9 +245,9 @@ let rec eval'
         let argTraces =
           argPatterns
           |> List.map LetPattern.toID
-          |> List.map (fun pId -> (pId, incomplete state pId))
+          |> List.map (fun pId -> (pId, dincomplete state pId))
 
-        (id, incomplete state id) :: argTraces
+        (id, dincomplete state id) :: argTraces
 
       /// Does the dval 'match' the given pattern?
       ///
@@ -468,14 +494,14 @@ let rec eval'
         // In case this never gets executed, add default analysis results
         parameters
         |> NEList.iter (fun (id, _name) ->
-          state.tracing.traceDval false id (incomplete state id))
+          state.tracing.traceDval false id (dincomplete state id))
 
         // Since we return a DBlock, it's contents may never be
         // executed. So first we execute with no context to get some
         // live values.
         let previewST =
           parameters
-          |> NEList.map (fun (id, name) -> (name, incomplete state id))
+          |> NEList.map (fun (id, name) -> (name, dincomplete state id))
           |> NEList.toList
           |> Map.ofList
         do! preview tst previewST body
@@ -498,9 +524,9 @@ let rec eval'
         let argTraces =
           argPatterns
           |> List.map MatchPattern.toID
-          |> List.map (fun pId -> (pId, incomplete state pId))
+          |> List.map (fun pId -> (pId, dincomplete state pId))
 
-        (id, incomplete state id) :: argTraces
+        (id, dincomplete state id) :: argTraces
 
       /// Does the dval 'match' the given pattern?
       ///
@@ -541,7 +567,7 @@ let rec eval'
             if allPass then
               true, allVars, (id, dv) :: allSubTraces
             else
-              false, allVars, (id, incomplete state id) :: allSubTraces
+              false, allVars, (id, dincomplete state id) :: allSubTraces
 
           // Trace this with incompletes to avoid type errors
           | _dv ->
@@ -549,12 +575,12 @@ let rec eval'
               fieldPats
               |> List.map (fun fp ->
                 let pID = MatchPattern.toID fp
-                let (_, newVars, traces) = checkPattern (incomplete state pID) fp
-                newVars, (id, incomplete state id) :: traces)
+                let (_, newVars, traces) = checkPattern (dincomplete state pID) fp
+                newVars, (id, dincomplete state id) :: traces)
               |> List.unzip
             let allVars = newVarResults |> List.collect identity
             let allSubTraces = traceResults |> List.collect identity
-            (false, allVars, (id, incomplete state id) :: allSubTraces)
+            (false, allVars, (id, dincomplete state id) :: allSubTraces)
 
 
         | MPTuple(id, firstPat, secondPat, theRestPat) ->
@@ -661,7 +687,9 @@ let rec eval'
 
       match matchResult with
       | Some r -> return r
-      | None -> return errStr id "No match"
+      | None ->
+        let cases = cases |> NEList.toList |> List.map Tuple2.first
+        return DError(sourceID id, Error.matchExprUnmatched matchVal cases)
 
 
     | EIf(id, cond, thenBody, elseBody) ->
@@ -959,7 +987,7 @@ and execFn
     then
       // Don't recurse (including transitively!) when previewing unexecuted paths
       // in the editor. If we do, we'll recurse forever and blow the stack.
-      return incomplete state id
+      return dincomplete state id
     else
       // CLEANUP: optimization opportunity
       let state =
@@ -984,7 +1012,7 @@ and execFn
             if state.tracing.realOrPreview = Preview && fn.previewable <> Pure then
               match state.tracing.loadFnResult fnRecord args with
               | Some(result, _ts) -> Ply result
-              | None -> Ply(incomplete state id)
+              | None -> Ply(dincomplete state id)
             else
               uply {
                 let! result =
