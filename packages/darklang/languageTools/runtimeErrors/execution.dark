@@ -4,7 +4,7 @@ module Darklang =
       module Execution =
         type Error =
           | Incomplete
-          | MatchExprUnmatched of RuntimeTypes.Dval * List<RuntimeTypes.MatchPattern>
+          | MatchExprUnmatched of RuntimeTypes.Dval
 
         let toSegments (e: Error) : ErrorOutput =
           match e with
@@ -15,10 +15,10 @@ module Darklang =
                 actual = []
                 expected = [] }
 
-          | MatchExprUnmatched(dv, patterns) ->
+          | MatchExprUnmatched(dv) ->
             let summary =
               [ ErrorSegment.ErrorSegment.String "No match for "
-                ErrorSegment.ErrorSegment.InlineDval(dv) ]
+                ErrorSegment.ErrorSegment.InlineValue dv ]
 
             // TODO include patterns in error message
             let extraExplanation = []

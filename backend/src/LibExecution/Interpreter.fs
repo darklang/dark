@@ -39,13 +39,8 @@ module Error =
   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
     DEnum(typeName, typeName, caseName, fields) |> RuntimeError.executionError
 
-  let matchExprUnmatched
-    (matchVal : Dval)
-    (cases : List<MatchPattern>)
-    : RuntimeError =
-    case
-      "MatchExprUnmatched"
-      [ RT2DT.Dval.toDT matchVal; DList(List.map RT2DT.MatchPattern.toDT cases) ]
+  let matchExprUnmatched (matchVal : Dval) : RuntimeError =
+    case "MatchExprUnmatched" [ matchVal ]
 
   let incomplete = case "Incomplete" []
 
@@ -687,9 +682,7 @@ let rec eval'
 
       match matchResult with
       | Some r -> return r
-      | None ->
-        let cases = cases |> NEList.toList |> List.map Tuple2.first
-        return DError(sourceID id, Error.matchExprUnmatched matchVal cases)
+      | None -> return DError(sourceID id, Error.matchExprUnmatched matchVal)
 
 
     | EIf(id, cond, thenBody, elseBody) ->
