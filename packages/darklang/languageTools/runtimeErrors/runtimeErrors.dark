@@ -167,7 +167,7 @@ module Darklang =
 
           | NameResolutionError err -> NameResolution.toSegments err
 
-          | ExecutionError err -> Execution.Error.toSegments err
+          | ExecutionError err -> Execution.toSegments err
 
           | SqlCompilerRuntimeError err ->
             let innerOutput = toSegments err

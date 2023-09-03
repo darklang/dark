@@ -67,7 +67,7 @@ module Darklang =
                   if e.names == [] then
                     [ ErrorSegment.ErrorSegment.String "No Names" ]
                   else
-                    [ List.map e.names (fun name ->
+                    [ Builtin.List.map e.names (fun name ->
                         ErrorSegment.ErrorSegment.String name) ]
                 expected = [] }
 
