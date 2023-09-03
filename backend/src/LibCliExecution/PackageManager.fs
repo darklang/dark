@@ -715,6 +715,10 @@ let packageManager : RT.PackageManager =
           return! fetch "function" nameString conversionFn
         })
 
+    getFnByTLID =
+      withCache (fun tlid ->
+        uply { return Exception.raiseInternal "TODO getFnByTLID" [] })
+
     getConstant =
       withCache (fun name ->
         uply {

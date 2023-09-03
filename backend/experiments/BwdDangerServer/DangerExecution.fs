@@ -97,6 +97,53 @@ let executeHandler
     HashSet.add h.tlid tracing.results.tlids
     let! result = Exe.executeExpr state inputVars h.ast
 
+    let findUserBody (tlid : tlid) : Option<string * RT.Expr> =
+      program.fns
+      |> Map.values
+      |> List.find (fun (fn : RT.UserFunction.T) -> fn.tlid = tlid)
+      |> Option.map (fun (fn : RT.UserFunction.T) -> string fn.name, fn.body)
+
+    let findPackageBody (tlid : tlid) : Ply<Option<string * RT.Expr>> =
+      packageManager.getFnByTLID tlid
+      |> Ply.map (
+        Option.map (fun (pkg : RT.PackageFn.T) -> string pkg.name, pkg.body)
+      )
+
+    let findBody (tlid : tlid) : Ply<Option<string * RT.Expr>> =
+      uply {
+        match findUserBody tlid with
+        | Some(body) -> return Some body
+        | None -> return! findPackageBody tlid
+      }
+
+    let sourceOf (tlid : tlid) (id : id) : Ply<string> =
+      uply {
+        let! data = findBody tlid
+        let mutable result = "unknown caller", "unknown body", "unknown expr"
+        match data with
+        | None -> ()
+        | Some(fnName, e) ->
+          LibExecution.RuntimeTypesAst.preTraversal
+            (fun expr ->
+              if RT.Expr.toID expr = id then result <- fnName, string e, string expr
+              expr)
+            identity
+            identity
+            identity
+            identity
+            identity
+            identity
+            e
+          |> ignore<RT.Expr>
+        let (fnName, _body, expr) = result
+        return $"fn {fnName}\nexpr:\n{expr}\n"
+      }
+
+    let sourceString (source : RT.DvalSource) : Ply<string> =
+      match source with
+      | RT.SourceNone -> Ply "No source"
+      | RT.SourceID(tlid, id) -> sourceOf tlid id
+
     let error (msg : string) =
       let typeName =
         RT.FQName.Package
@@ -116,20 +163,32 @@ let executeHandler
     let! result =
       task {
         match result with
-        | RT.DError(_, originalRTE) ->
+        | RT.DError(originalSource, originalRTE) ->
+          let! originalSource = sourceString originalSource
           match! Exe.runtimeErrorToString state originalRTE with
-          | RT.DString msg -> return error msg
-          | RT.DError(_, firstErrorRTE) ->
+          | RT.DString msg ->
+            let msg = $"Error: {msg}\n\nSource: {originalSource}"
+            return error msg
+          | RT.DError(firstErrorSource, firstErrorRTE) ->
+            let! firstErrorSource = sourceString firstErrorSource
             match! Exe.runtimeErrorToString state firstErrorRTE with
             | RT.DString msg ->
               return
                 error (
-                  $"Error couldn't be formatted. This error was from the formatting function:\n{msg}\n\nThe original error is {originalRTE}"
+                  $"An error occured trying to print a runtime error."
+                  + $"\n\nThe formatting error occurred in {firstErrorSource}. The error was:\n{msg}"
+                  + $"\n\nThe original error is ({originalSource}) {originalRTE}"
                 )
-            | RT.DError(_, secondErrorRTE) ->
+
+            | RT.DError(secondErrorSource, secondErrorRTE) ->
+              let! secondErrorSource = sourceString secondErrorSource
               return
-                error
-                  $"Got a runtime error while formatting a runtime error, giving up\n\nFormatting Error when formatting first error message:\n{secondErrorRTE}\n\nFormat error when formatting original error:\n\nOriginal Error {originalRTE}"
+                error (
+                  $"Two errors occured trying to print a runtime error."
+                  + $"\n\nThe 2nd formatting error occurred in {secondErrorSource}. The error was:\n{secondErrorRTE}"
+                  + $"\n\nThe first formatting error occurred in {firstErrorSource}. The error was:\n{firstErrorRTE}"
+                  + $"\n\nThe original error is ({originalSource}) {originalRTE}"
+                )
             | _ -> return result
           | _ -> return result
         | _ -> return result

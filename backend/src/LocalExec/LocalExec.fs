@@ -235,6 +235,7 @@ module PackageBootstrapping =
 
         { getType = fun name -> types |> List.find (fun t -> t.name = name) |> Ply
           getFn = fun name -> fns |> List.find (fun f -> f.name = name) |> Ply
+          getFnByTLID = fun tlid -> fns |> List.find (fun f -> f.tlid = tlid) |> Ply
           getConstant =
             fun name -> consts |> List.find (fun c -> c.name = name) |> Ply
 

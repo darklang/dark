@@ -109,6 +109,23 @@ let getFn (name : PT.FnName.Package) : Ply<Option<PT.PackageFn.T>> =
         BinarySerialization.deserializePackageFn id def)
   }
 
+let getFnByTLID (tlid : tlid) : Ply<Option<PT.PackageFn.T>> =
+  uply {
+    let! fn =
+      "SELECT id, definition
+      FROM package_functions_v0
+      WHERE tlid = @tlid"
+      |> Sql.query
+      |> Sql.parameters [ "tlid", Sql.tlid tlid ]
+      |> Sql.executeRowOptionAsync (fun read ->
+        (read.uuid "id", read.bytea "definition"))
+
+    return
+      fn
+      |> Option.map (fun (id, def) ->
+        BinarySerialization.deserializePackageFn id def)
+  }
+
 let getType (name : PT.TypeName.Package) : Ply<Option<PT.PackageType.T>> =
   uply {
     let! fn =
@@ -178,6 +195,13 @@ let packageManager : RT.PackageManager =
       fun name ->
         uply {
           let! typ = name |> PT2RT.FnName.Package.fromRT |> getFn
+          return Option.map PT2RT.PackageFn.toRT typ
+        }
+
+    getFnByTLID =
+      fun tlid ->
+        uply {
+          let! typ = tlid |> getFnByTLID
           return Option.map PT2RT.PackageFn.toRT typ
         }
 
