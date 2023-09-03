@@ -190,9 +190,9 @@ let t
                 "toErrorMessage"
                 0)
 
-            match typeChecked with
-            | Ok _ ->
-              return!
+            let! result =
+              match typeChecked with
+              | Ok _ ->
                 LibExecution.Interpreter.callFn
                   state
                   Map.empty
@@ -200,9 +200,7 @@ let t
                   errorMessageFn
                   []
                   (NEList.ofList actual [])
-
-            | Error e ->
-              return!
+              | Error e ->
                 LibExecution.Interpreter.callFn
                   state
                   Map.empty
@@ -210,6 +208,7 @@ let t
                   errorMessageFn
                   []
                   (NEList.ofList (RT.RuntimeError.toDT e) [])
+            return normalizeDvalResult result
 
           | _ -> return actual
         }
