@@ -820,7 +820,7 @@ module Expect =
 
   let formatMsg (initialMsg : string) (path : Path) (actual : 'a) : string =
     let initial = if initialMsg = "" then "" else $"{initialMsg}\n\n"
-    $"{initial}Error was found in{pathToString path}:\n{actual})\n\n"
+    $"{initial}Error was found in{pathToString path}:\nError was:\n{actual})\n\n"
 
   let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
     dvalEqualityBaseFn [] actual expected (fun path a e ->
