@@ -459,7 +459,7 @@ let rec eval'
         | _ ->
           let msg =
             $"Attempting to access field '{field}' of a "
-            + $"{DvalReprDeveloper.dvalTypeName obj} (field access only works with records)"
+            + $"{DvalReprDeveloper.toTypeName obj} (field access only works with records)"
           return errStr id msg
 
 

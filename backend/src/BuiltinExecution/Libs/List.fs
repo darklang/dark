@@ -1135,7 +1135,7 @@ let fns : List<BuiltInFn> =
                 | DTuple(_, _, xs) ->
                   $". It has length {2 + List.length xs} but should have length 2"
                 | _ ->
-                  $". It is of type {DvalReprDeveloper.dvalTypeName v} instead of `Tuple`"
+                  $". It is of type {DvalReprDeveloper.toTypeName v} instead of `Tuple`"
 
               Exception.raiseCode (
                 Errors.argumentWasnt "a tuple with exactly two values" "pairs" v

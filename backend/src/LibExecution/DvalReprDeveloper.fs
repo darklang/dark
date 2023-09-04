@@ -38,32 +38,54 @@ let rec typeName (t : TypeReference) : string =
 
   | TBytes -> "Bytes"
 
-let rec dvalTypeName (dv : Dval) : string =
-  match dv with
-  | DError _ -> "Error"
-  | DInt _ -> "Int"
-  | DFloat _ -> "Float"
-  | DBool _ -> "Bool"
-  | DUnit -> "Unit"
-  | DChar _ -> "Char"
-  | DString _ -> "String"
-  | DList(_vtTODO, []) -> "List<'a>"
-  | DList(_vtTODO, v :: _) -> "List<" + dvalTypeName v + ">"
-  | DDict _ -> "Dict"
-  | DFnVal(Lambda _) -> "Lambda"
-  | DFnVal(NamedFn n) -> FnName.toString n
-  | DDB _ -> "Datastore"
-  | DDateTime _ -> "DateTime"
-  | DPassword _ -> "Password"
-  | DUuid _ -> "Uuid"
-  | DTuple(t1, t2, trest) ->
+let rec knownTypeName (vt : KnownType) : string =
+  match vt with
+  | KTInt -> "Int"
+  | KTFloat -> "Float"
+  | KTBool -> "Bool"
+  | KTUnit -> "Unit"
+  | KTChar -> "Char"
+  | KTString -> "String"
+  | KTDateTime -> "DateTime"
+  | KTPassword -> "Password"
+  | KTUuid -> "Uuid"
+  | KTBytes -> "Bytes"
+
+  | KTList typ -> $"List<{valueTypeName typ}>"
+  | KTDict typ -> $"Dict<{valueTypeName typ}>"
+  | KTDB typ -> $"Datastore<{valueTypeName typ}>"
+
+  | KTFn(argTypes, retType) ->
+    (NEList.toList argTypes) @ [ retType ]
+    |> List.map valueTypeName
+    |> String.concat " -> "
+    |> fun s -> "(" + s + ")" // VTTODO: maybe not include ()?
+
+  | KTTuple(t1, t2, trest) ->
     t1 :: t2 :: trest
-    |> List.map dvalTypeName
+    |> List.map valueTypeName
     |> String.concat ", "
     |> fun s -> $"({s})"
-  | DBytes _ -> "Bytes"
-  | DRecord(typeName, _, _) -> TypeName.toString typeName
-  | DEnum(typeName, _, _, _) -> TypeName.toString typeName
+
+  | KTCustomType(name, typeArgs) ->
+    let typeArgsPortion =
+      match typeArgs with
+      | [] -> ""
+      | args ->
+        args
+        |> List.map (fun t -> valueTypeName t)
+        |> String.concat ", "
+        |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+
+    TypeName.toString name + typeArgsPortion
+
+and valueTypeName (typ : ValueType) : string =
+  match typ with
+  | Known typ -> knownTypeName typ
+  | Unknown -> "_"
+
+
+let toTypeName (dv : Dval) : string = dv |> Dval.toValueType |> valueTypeName
 
 
 // SERIALIZER_DEF Custom DvalReprDeveloper.toRepr
@@ -79,7 +101,7 @@ let toRepr (dv : Dval) : string =
     let nl = "\n" + makeSpaces indent
     let inl = "\n" + makeSpaces (indent + 2)
     let indent = indent + 2
-    let typename = dvalTypeName dv
+    let typename = toTypeName dv
     let wrap str = $"<{typename}: {str}>"
     let justType = $"<{typename}>"
 
