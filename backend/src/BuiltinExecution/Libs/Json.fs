@@ -103,7 +103,7 @@ let rec serialize
 
 
     // Nested types
-    | TList ltype, DList(_vtTODO, l) ->
+    | TList ltype, DList(_, l) ->
       do! w.writeArray (fun () -> Ply.List.iterSequentially (r ltype) l)
 
     | TDict objType, DDict fields ->

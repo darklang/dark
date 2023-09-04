@@ -874,7 +874,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DRecord(_, _, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
     | DEnum(_typeName, _, _caseName, fields) ->
       fields |> List.map visit |> ignore<List<unit>>
-    | DList(_vtTODO, dvs) -> List.map visit dvs |> ignore<List<unit>>
+    | DList(_, dvs) -> List.map visit dvs |> ignore<List<unit>>
     | DTuple(first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
     | DString _

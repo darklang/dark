@@ -372,7 +372,7 @@ module Test =
     | RT.DPassword _ -> true
     | RT.DEnum(_typeName, _, _caseName, fields) ->
       List.all isRoundtrippableDval fields
-    | RT.DList(_vtTODO, dvals) -> List.all isRoundtrippableDval dvals
+    | RT.DList(_, dvals) -> List.all isRoundtrippableDval dvals
     | RT.DDict map -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DRecord(_, _, map) -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DUuid _ -> true

@@ -317,9 +317,9 @@ module Darklang =
 
 
 
-          | DList(_vtTODO, l) ->
+          | DList(vt, l) ->
             if PACKAGE.Darklang.Stdlib.List.isEmpty l then
-              "[]"
+              $"{valueTypeName} []"
             else
               let elems =
                 Builtin.String.join

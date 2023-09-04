@@ -130,9 +130,9 @@ let toRepr (dv : Dval) : string =
     | DDateTime d -> wrap (DarkDateTime.toIsoString d)
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)
-    | DList(_vtTODO, l) ->
+    | DList(_, l) ->
       if List.isEmpty l then
-        "[]"
+        wrap "[]"
       else
         let elems = String.concat ", " (List.map (toRepr_ indent) l)
         $"[{inl}{elems}{nl}]"

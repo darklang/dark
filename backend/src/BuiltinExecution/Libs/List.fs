@@ -21,7 +21,7 @@ module DvalComparator =
     | DUnit, DUnit -> 0
     | DString s1, DString s2 -> compare s1 s2
     | DChar c1, DChar c2 -> compare c1 c2
-    | DList(_vtTODO1, l1), DList(_vtTODO2, l2) -> compareLists l1 l2
+    | DList(_, l1), DList(_, l2) -> compareLists l1 l2
     | DTuple(a1, b1, l1), DTuple(a2, b2, l2) ->
       compareLists (a1 :: b1 :: l1) (a2 :: b2 :: l2)
     | DFnVal(Lambda l1), DFnVal(Lambda l2) ->

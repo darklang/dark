@@ -17,8 +17,10 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DUnit, DUnit -> true
   | DString a, DString b -> a = b
   | DChar a, DChar b -> a = b
-  | DList(_vtTODO1, a), DList(_vtTODO2, b) ->
-    a.Length = b.Length && List.forall2 equals a b
+  | DList(typA, a), DList(typB, b) ->
+    Result.isOk (Dval.mergeValueTypes typA typB)
+    && a.Length = b.Length
+    && List.forall2 equals a b
   | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->
     if a3.Length <> b3.Length then // special case - this is a type error
       Exception.raiseCode "tuples must be the same length"

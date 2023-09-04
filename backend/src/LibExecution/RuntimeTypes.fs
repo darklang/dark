@@ -1068,7 +1068,7 @@ module Dval =
 
   let asList (dv : Dval) : Option<List<Dval>> =
     match dv with
-    | DList(_vtTODO, l) -> Some l
+    | DList(_, l) -> Some l
     | _ -> None
 
   let asDict (dv : Dval) : Option<Map<string, Dval>> =
