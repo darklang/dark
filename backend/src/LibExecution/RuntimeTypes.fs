@@ -397,11 +397,17 @@ type KnownType =
 ///
 /// "Unknown" represents the concept of "bottom" in
 ///   type system / data flow analysis / lattices
+/// TODO add `[<RequireQualifiedAccess>]` to this type?
 and ValueType =
   | Unknown
   | Known of KnownType
 
+/// VTTODO if this is used somewhere, re-evaluate the usage - it feels there's something to be done...
+/// CLEANUP eventually remove this binding
 let valueTypeTODO = ValueType.Unknown
+
+/// VTTODO follow up here when DDB references include a type
+let valueTypeDbTODO = ValueType.Unknown
 
 
 type NameResolution<'a> = Result<'a, RuntimeError>
@@ -881,7 +887,7 @@ module Dval =
   let rec mergeKnownTypes
     (left : KnownType)
     (right : KnownType)
-    : Result<KnownType, KnownTypeConflictError.KnownTypeConflictError> =
+    : Result<KnownType, RuntimeError> =
     match left, right with
     | KTUnit, KTUnit -> KTUnit |> Ok
     | KTBool, KTBool -> KTBool |> Ok
@@ -903,25 +909,20 @@ module Dval =
 
       match firstMerged, secondMerged, restMerged with
       | Ok first, Ok second, Ok rest -> Ok(KTTuple(first, second, rest))
-      | _ -> Error(KnownTypeConflictError.Conflict(left, right, None))
+      | _ ->
+        KnownTypeConflictError.Conflict(left, right, None)
+        |> KnownTypeConflictError.toRTE
+        |> Error
 
     | KTCustomType(lName, lArgs), KTCustomType(rName, rArgs) ->
       if lName <> rName then
-        Error(
-          KnownTypeConflictError.Conflict(
-            left,
-            right,
-            Some "type names did not match"
-          )
-        )
+        KnownTypeConflictError.Conflict(left, right, Some "type names did not match")
+        |> KnownTypeConflictError.toRTE
+        |> Error
       else if List.length lArgs <> List.length rArgs then
-        Error(
-          KnownTypeConflictError.Conflict(
-            left,
-            right,
-            Some "type args did not match"
-          )
-        )
+        KnownTypeConflictError.Conflict(left, right, Some "type args did not match")
+        |> KnownTypeConflictError.toRTE
+        |> Error
       else
         List.map2 mergeValueTypes lArgs rArgs
         |> Result.collect
@@ -933,17 +934,23 @@ module Dval =
 
       match argsMerged, retMerged with
       | Ok args, Ok ret -> Ok(KTFn(args, ret))
-      | _ -> Error(KnownTypeConflictError.Conflict(left, right, None))
+      | _ ->
+        KnownTypeConflictError.Conflict(left, right, None)
+        |> KnownTypeConflictError.toRTE
+        |> Error
 
 
     | KTPassword, KTPassword -> KTPassword |> Ok
 
-    | _ -> Error(KnownTypeConflictError.Conflict(left, right, None))
+    | _ ->
+      KnownTypeConflictError.Conflict(left, right, None)
+      |> KnownTypeConflictError.toRTE
+      |> Error
 
   and mergeValueTypes
     (left : ValueType)
     (right : ValueType)
-    : Result<ValueType, KnownTypeConflictError.KnownTypeConflictError> =
+    : Result<ValueType, RuntimeError> =
     // if fails, we eventually want "can't put a string in an Int list"
     match left, right with
     | Unknown, v
@@ -1019,7 +1026,7 @@ module Dval =
     (list : List<Dval>)
     (listType : ValueType)
     (dv : Dval)
-    : Result<ValueType * List<Dval>, KnownTypeConflictError.KnownTypeConflictError> =
+    : Result<ValueType * List<Dval>, RuntimeError> =
     // what happens if we insert 5 into a list of strings? we should return an Error!
 
     // if we try to insert an `Error` (with the _error_ type known)
@@ -1054,7 +1061,7 @@ module Dval =
 
       match result with
       | Ok(typ, dvs) -> DList(typ, dvs)
-      | Error e -> DError(SourceNone, KnownTypeConflictError.toRTE e)
+      | Error e -> DError(SourceNone, e)
 
 
   let asList (dv : Dval) : Option<List<Dval>> =

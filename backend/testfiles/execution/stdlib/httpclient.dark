@@ -44,9 +44,13 @@ module NoInternal =
 
 // type errors for bad `headers` are OK
 // CLEANUP this would be better once DList includes typeRefs:
-//Builtin.Test.runtimeError "In Builtin.HttpClient.request's 3rd argument (`headers`), the value should be a List<String * String>. However, a List<Int> ([1]) was passed instead.\n\nExpected: List<String * String>\nActual: a List<Int>: [1]"
-Builtin.HttpClient.request "get" "https://darklang.com" [ 1 ] Builtin.Bytes.empty = Builtin.Test.derrorMessage
-  "Expected request headers to be a `List<String*String>`, but got: 1"
+//Test.runtimeError "In HttpClient.request's 3rd argument (`headers`), the value should be a List<String * String>. However, a List<Int> ([1]) was passed instead.\n\nExpected: List<String * String>\nActual: a List<Int>: [1]"
+Builtin.HttpClient.request "get" "https://darklang.com" [ 1 ] Bytes.empty = Builtin.Test.derrorMessage
+  //"Expected request headers to be a `List<String*String>`, but got: 1"
+  "HttpClient.request's 3rd argument (`headers`) should be a List<(String * String)>. However, a TODO dvalTypeName ((PP.RT.Dva...) was passed instead.
+
+Expected: (headers: List<(String * String)>)
+Actual: a TODO dvalTypeName: (PP.RT.Dval TODO {\"DList\":[{\"Known\":[{\"KTInt\":[]}]},[{\"DInt\":[1]}]]})"
 
 Builtin.HttpClient.request
   "get"

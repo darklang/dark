@@ -64,6 +64,7 @@ module Context =
 
 type Error =
   | ValueNotExpectedType of
+    // CLEANUP consider reordering fields to (context * expectedType * actualValue)
     actualValue : Dval *
     expectedType : TypeReference *
     Context
@@ -174,7 +175,74 @@ module Error =
           fields
       )
 
+let rec unifyValueType
+  (tst : TypeSymbolTable)
+  (expected : TypeReference)
+  (actual : ValueType)
+  : Ply<Result<unit, unit>> =
+  let r = unifyValueType tst
 
+  let rMult
+    (expected : List<TypeReference>)
+    (actual : List<ValueType>)
+    : Ply<Result<unit, unit>> =
+    // TODO assert same lengths
+    List.zip expected actual
+    |> Ply.List.foldSequentially
+      (fun acc (e, a) ->
+        match acc with
+        | Error _ -> Ply acc
+        | Ok() -> r e a)
+      (Ok())
+
+  uply {
+    match expected, actual with
+    | _, Unknown -> return Ok()
+
+    | TUnit, Known KTUnit -> return Ok()
+    | TBool, Known KTBool -> return Ok()
+    | TInt, Known KTInt -> return Ok()
+    | TFloat, Known KTFloat -> return Ok()
+    | TChar, Known KTChar -> return Ok()
+    | TString, Known KTString -> return Ok()
+    | TUuid, Known KTUuid -> return Ok()
+    | TDateTime, Known KTDateTime -> return Ok()
+    | TBytes, Known KTBytes -> return Ok()
+
+    | TList innerT, Known(KTList innerV) -> return! r innerT innerV
+
+    | TDict innerT, Known(KTDict innerV) -> return! r innerT innerV
+
+    | TTuple(tFirst, tSecond, tRest), Known(KTTuple(vFirst, vSecond, vRest)) ->
+      let expected = tFirst :: tSecond :: tRest
+      let actual = vFirst :: vSecond :: vRest
+      return! rMult expected actual
+
+    | TCustomType(Error _, _), _ ->
+      return
+        Exception.raiseInternal
+          $"Unexpected - Error typeName in TCustomType in unifyValueType"
+          []
+    | TCustomType(Ok typeNameT, typeArgsT), Known(KTCustomType(typeNameV, typeArgsV)) ->
+      // TODO: assert type names are the same,
+      // after we've handled all type aliases
+      return! rMult typeArgsT typeArgsV
+
+    | TFn(argTypes, returnType), Known(KTFn(vArgs, vRet)) ->
+      let expected = returnType :: (NEList.toList argTypes)
+      let actual = vRet :: (NEList.toList vArgs)
+      return! rMult expected actual
+
+    | TPassword, Known KTPassword -> return Ok()
+    | TDB innerT, Known(KTDB innerV) -> return! r innerT innerV
+
+    | TVariable name, _ ->
+      match Map.get name tst with
+      | None -> return Ok()
+      | Some t -> return! r t actual
+
+    | _, _ -> return Error()
+  }
 
 let rec unify
   (context : Context)
@@ -184,12 +252,10 @@ let rec unify
   (value : Dval)
   : Ply<Result<unit, RuntimeError>> =
   uply {
-    let! resolvedType = getTypeReferenceFromAlias types expected
-
-    match resolvedType with
+    match! getTypeReferenceFromAlias types expected with
     | Error rte -> return Error rte
-    | Ok resolvedType ->
-      match (resolvedType, value) with
+    | Ok expected ->
+      match (expected, value) with
       // Any should be removed, but we currently allow it as a param type
       // in user functions, so we should allow it here.
       //
@@ -213,18 +279,16 @@ let rec unify
       | TChar, DChar _ -> return Ok()
       | TBytes, DBytes _ -> return Ok()
       | TDB _, DDB _ -> return Ok() // TODO: check DB type
-      | TList nested, DList(_vtTODO, dvs) ->
-        // let! results =
-        //   dvs
-        //   |> Ply.List.mapSequentiallyWithIndex (fun i v ->
-        //     let context = ListIndex(i, nested, context)
-        //     unify context types tst nested v)
-        // return combineErrorsUnit results
-        // CLEANUP DList should include a TypeReference, in which case
-        // the type-checking here would just be a `tNested = dNested` check.
-        // (the construction of that DList should have already checked that the
-        // types match)
-        return Ok()
+      | TList nested, DList(vt, _dvs) ->
+        match! unifyValueType tst nested vt with
+        | Error() ->
+          return
+            ValueNotExpectedType(value, expected, context)
+            |> Error.toRuntimeError
+            |> Error
+
+        | Ok() -> return! Ply()
+
       | TDict valueType, DDict dmap ->
         // let! results =
         //   dmap
@@ -246,7 +310,7 @@ let rec unify
         let vs = v1 :: v2 :: vRest
         if List.length ts <> List.length vs then
           return
-            ValueNotExpectedType(value, resolvedType, context)
+            ValueNotExpectedType(value, expected, context)
             |> Error.toRuntimeError
             |> Error
         else
@@ -274,9 +338,10 @@ let rec unify
               TypeDoesntExist(typeName, context) |> Error.toRuntimeError |> Error
           | Some ut ->
             let err =
-              ValueNotExpectedType(value, resolvedType, context)
+              ValueNotExpectedType(value, expected, context)
               |> Error.toRuntimeError
               |> Error
+
             match ut, value with
             | { definition = TypeDeclaration.Alias aliasType }, _ ->
               let! resolvedAliasType = getTypeReferenceFromAlias types aliasType
@@ -295,7 +360,7 @@ let rec unify
               | Ok(TCustomType(Ok concreteTn, typeArgs)) ->
                 if concreteTn <> typeName then
                   return
-                    ValueNotExpectedType(value, resolvedType, context)
+                    ValueNotExpectedType(value, expected, context)
                     |> Error.toRuntimeError
                     |> Error
                 else
@@ -311,7 +376,7 @@ let rec unify
               // TODO: deal with aliased type?
               if tn <> typeName then
                 return
-                  ValueNotExpectedType(value, resolvedType, context)
+                  ValueNotExpectedType(value, expected, context)
                   |> Error.toRuntimeError
                   |> Error
               else
@@ -366,7 +431,7 @@ let rec unify
       | TDB _, _
       | TBytes, _ ->
         return
-          ValueNotExpectedType(value, resolvedType, context)
+          ValueNotExpectedType(value, expected, context)
           |> Error.toRuntimeError
           |> Error
   }

@@ -276,7 +276,10 @@ let runLocalExecScript (args : string[]) : Ply<int> =
     let! modul = LibParser.Canvas.parseFromFile nameResolver mainFile
 
     let args =
-      args |> Array.toList |> List.map RT.DString |> RT.Dval.list RT.valueTypeTODO
+      args
+      |> Array.toList
+      |> List.map RT.DString
+      |> RT.Dval.list (RT.Known RT.KTString)
 
     let result = execute modul (Map [ "args", args ])
 

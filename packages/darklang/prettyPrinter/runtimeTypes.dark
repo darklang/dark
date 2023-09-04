@@ -241,14 +241,14 @@ module Darklang =
         | KTDict typ -> $"Dict<{valueTypeName typ}>"
         | KTTuple(t1, t2, trest) ->
           (List.append [ t1; t2 ] trest)
-          |> List.map valueTypeName
-          |> String.join ", "
+          |> Builtin.List.map valueTypeName
+          |> Builtin.String.join ", "
           |> fun s -> $"({s})"
 
         | KTFn(argTypes, retType) ->
           (Stdlib.List.push retType argTypes)
-          |> List.map (fun vt -> valueType vt)
-          |> String.join parts " -> "
+          |> Builtin.List.map (fun vt -> valueType vt)
+          |> Builtin.String.join parts " -> "
 
         | KTCustomType(name, typeArgs) ->
           let typeArgsPortion =
@@ -256,8 +256,8 @@ module Darklang =
             | [] -> ""
             | args ->
               args
-              |> List.map (fun t -> valueTypeName t)
-              |> String.join ", "
+              |> Builtin.List.map (fun t -> valueTypeName t)
+              |> Builtin.String.join ", "
               |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
           (typeName name) ++ typeArgsPortion
@@ -291,8 +291,8 @@ module Darklang =
           | DUuid _ -> "Uuid"
           | DDateTime _ -> "DateTime"
 
-          | DList [] -> "List<'a>"
-          | DList(v :: _) -> "List<" ++ (dvalTypeName v) ++ ">"
+          | DList(_, []) -> "List<'a>"
+          | DList(_, v :: _) -> "List<" ++ (dvalTypeName v) ++ ">"
           | DDict _ -> "Dict"
           | DTuple(t1, t2, trest) ->
             (Builtin.List.append [ t1; t2 ] trest)
@@ -310,7 +310,9 @@ module Darklang =
 
           | DError _ -> "Error"
 
-          | _ -> "TODO dvalTypeName"
+          | otherDval ->
+            $"TODO dvalTypeName: {(Json.serialize<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval> otherDval)
+                                  |> unwrap}"
 
         let makeSpaces (len: Int) : String =
           (Builtin.List.repeat len " ") |> Builtin.unwrap |> Builtin.String.join ""
@@ -351,12 +353,12 @@ module Darklang =
           // | DPassword _ -> "<password>"
 
 
-          // | DList l ->
-          //   if Builtin.List.isEmpty l then
-          //     "[]"
-          //   else
-          //     let elems = Builtin.String.concat ", " (Builtin.List.map (withIndent indent) l)
-          //     $"[{inl}{elems}{nl}]"
+          | DList(_vtTODO, l) ->
+            if List.isEmpty l then
+              "[]"
+            else
+              let elems = String.concat ", " (Builtin.List.map (withIndent indent) l)
+              $"[{inl}{elems}{nl}]"
 
           | DTuple(first, second, theRest) ->
             let l = Builtin.List.append [ first; second ] theRest

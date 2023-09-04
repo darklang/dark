@@ -96,7 +96,7 @@ let fns : List<BuiltInFn> =
         "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Some a list of [values], otherwise returns None (to ignore missing keys, use DB.etExisting)"
       fn =
         (function
-        | state, _, [ DList(_vtTODO, keys); DDB dbname ] ->
+        | state, _, [ DList(_, keys); DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
 
@@ -110,7 +110,7 @@ let fns : List<BuiltInFn> =
             let! items = UserDB.getMany state db skeys
 
             if List.length items = List.length skeys then
-              return items |> Dval.list valueTypeTODO |> Dval.optionSome
+              return items |> Dval.list valueTypeDbTODO |> Dval.optionSome
             else
               return Dval.optionNone
           }
@@ -128,7 +128,7 @@ let fns : List<BuiltInFn> =
         "Finds many values in <param table> by <param keys> (ignoring any missing items), returning a {{ [value] }} list of values"
       fn =
         (function
-        | state, _, [ DList(_vtTODO, keys); DDB dbname ] ->
+        | state, _, [ DList(_, keys); DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
 
@@ -140,7 +140,7 @@ let fns : List<BuiltInFn> =
                 keys
 
             let! result = UserDB.getMany state db skeys
-            return result |> Dval.list valueTypeTODO
+            return result |> Dval.list valueTypeDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -156,7 +156,7 @@ let fns : List<BuiltInFn> =
         "Finds many values in <param table> by <param keys>, returning a {{ {key:{value}, key2: {value2} } }} object of keys and values"
       fn =
         (function
-        | state, _, [ DList(_vtTODO, keys); DDB dbname ] ->
+        | state, _, [ DList(_, keys); DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
 
@@ -225,7 +225,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAll state db
-            return results |> List.map snd |> Dval.list valueTypeTODO
+            return results |> List.map snd |> Dval.list valueTypeDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -298,8 +298,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAllKeys state db
-            return
-              results |> List.map (fun k -> DString k) |> Dval.list valueTypeTODO
+            return results |> List.map DString |> Dval.list (Known KTString)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -321,7 +320,7 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! results = UserDB.queryValues state db b
               match results with
-              | Ok results -> return results |> Dval.list valueTypeTODO
+              | Ok results -> return results |> Dval.list valueTypeDbTODO
               | Error rte -> return DError(SourceNone, rte)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e

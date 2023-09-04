@@ -999,9 +999,10 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("list", DList(Known KTInt, [ Dval.int 4 ]), TList TInt)
     ("list with derror",
      DList(
-       valueTypeTODO,
+       Unknown,
        [ Dval.int 3
          DError(SourceNone, RuntimeError.oldError "some error string")
+         DList(Known KTInt, [])
          Dval.int 4 ]
      ),
      TList TInt)

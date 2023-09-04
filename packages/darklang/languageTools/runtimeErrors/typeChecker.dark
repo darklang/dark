@@ -22,6 +22,7 @@ module Darklang =
       // </aliases>
 
 
+      // CLEANUP consider renaming this module to RuntimeTypeChecker
       module TypeChecker =
         type Location = Option<TLID * ID>
 

@@ -26,7 +26,9 @@ module Request =
       headers
       |> lowercaseHeaderKeys
       |> List.map (fun (k, v) -> RT.DTuple(RT.DString(k), RT.DString(v), []))
-      |> RT.Dval.list RT.valueTypeTODO
+      |> RT.Dval.list (
+        RT.Known(RT.KTTuple(RT.Known RT.KTString, RT.Known RT.KTString, []))
+      )
 
     [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]
     |> RT.Dval.record typ

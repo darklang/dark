@@ -84,7 +84,7 @@ let fns : List<BuiltInFn> =
            |> String.toEgcSeq
            |> Seq.map (fun c -> DChar c)
            |> Seq.toList
-           |> Dval.list valueTypeTODO
+           |> Dval.list (Known KTChar)
            |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -262,20 +262,15 @@ let fns : List<BuiltInFn> =
 
             result |> ResizeArray.toList
 
-          if sep = "" then
-            s
-            |> String.toEgcSeq
-            |> Seq.toList
-            |> List.map DString
-            |> Dval.list valueTypeTODO
-            |> Ply
-          else
-            ecgStringSplit
-              (s |> String.toEgcSeq |> Seq.toList)
-              (sep |> String.toEgcSeq |> Seq.toList)
-            |> List.map DString
-            |> Dval.list valueTypeTODO
-            |> Ply
+          let parts =
+            if sep = "" then
+              s |> String.toEgcSeq |> Seq.toList
+            else
+              ecgStringSplit
+                (s |> String.toEgcSeq |> Seq.toList)
+                (sep |> String.toEgcSeq |> Seq.toList)
+
+          parts |> List.map DString |> Dval.list (Known KTString) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

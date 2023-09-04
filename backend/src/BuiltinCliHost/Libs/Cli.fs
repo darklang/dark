@@ -36,13 +36,12 @@ module CliRuntimeError =
           | NoExpressionsToExecute -> "NoExpressionsToExecute", []
 
           | UncaughtException(msg, metadata) ->
-            "UncaughtException",
-            [ "msg", DString msg
-              "metadata",
-              Dval.list
-                valueTypeTODO
-                (metadata
-                 |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))) ]
+            let metadata =
+              metadata
+              |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
+              |> Dval.list (Known(KTTuple(Known KTString, Known KTString, [])))
+
+            "UncaughtException", [ "msg", DString msg; "metadata", metadata ]
 
           | MultipleExpressionsToExecute exprs ->
             "MultipleExpressionsToExecute",
