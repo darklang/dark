@@ -285,7 +285,7 @@ let fns : List<BuiltInFn> =
       description = "Combines a list of strings with the provided separator"
       fn =
         (function
-        | _, _, [ DList(_vtTODO, l); DString sep ] ->
+        | _, _, [ DList(_, l); DString sep ] ->
           let strs =
             List.map
               (fun s ->
@@ -638,6 +638,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
+
 
     { name = fn "head" 0
       typeParams = []

@@ -388,7 +388,7 @@ module Expect =
     | DUuid _
     | DBytes _
     | DFloat _ -> true
-    | DList(_vtTODO, vs) -> List.all check vs
+    | DList(_, vs) -> List.all check vs
     | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
     | DDict vs -> vs |> Map.values |> List.all check
     | DRecord(_, _, vs) -> vs |> Map.values |> List.all check
@@ -731,7 +731,11 @@ module Expect =
       // have the same number of ticks. For testing, we shall consider them
       // equal if they print the same string.
       check path (string l) (string r)
-    | DList(_vtTODO1, ls), DList(_vtTODO2, rs) ->
+    | DList(lType, ls), DList(rType, rs) ->
+      match lType, rType with
+      | Known lType, Known rType -> check ("Type" :: path) lType rType
+      | _ -> ()
+
       check ("Length" :: path) (List.length ls) (List.length rs)
       List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) ls rs
 

@@ -379,11 +379,10 @@ module FromList =
     [ c "👩‍👩‍👧‍👦"; c "🏳️‍⚧️‍️"; c "👱🏾"; c "Z̤͔ͧ̑̓" ] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
 
   PACKAGE.Darklang.Stdlib.String.fromList [ "a" ] = Builtin.Test.derrorMessage
-    //"Char.toString's 1st argument (`c`) should be a List<Character>. However, a List<String> (["a"; ...]) was passed instead.\n\nExpected: (c: List<Character>)\nActual: a List<String>: [\"a\"; ...]"
-    "PACKAGE.Darklang.Stdlib.String.fromList's 1st argument (`lst`) should be a List<Character>. However, a TODO dvalTypeName ((PP.RT.Dva...) was passed instead.
+    "PACKAGE.Darklang.Stdlib.String.fromList's 1st argument (`lst`) should be a List<Character>. However, a List<String> ([  \"a\"]) was passed instead.
 
 Expected: (lst: List<Character>)
-Actual: a TODO dvalTypeName: (PP.RT.Dval TODO {\"DList\":[{\"Known\":[{\"KTString\":[]}]},[{\"DString\":[\"a\"]}]]})"
+Actual: a List<String>: [\n  \"a\"\n]"
 
 
 module ToList =

@@ -117,8 +117,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "fromListOverwritingDuplicates" 0
       typeParams = []
-      parameters = [ Param.make "entries" (TList(TTuple(TString, varB, []))) "" ]
-      returnType = TDict varA
+      parameters = [ Param.make "entries" (TList(TTuple(TString, varA, []))) "" ]
+      returnType = TDict varB
       description =
         "Returns a <type dict> with <param entries>. Each value in <param entries>
          must be a {{(key, value)}} tuple, where <var key> is a <type String>.
@@ -130,8 +130,7 @@ let fns : List<BuiltInFn> =
          This function is the opposite of <fn Dict.toList>."
       fn =
         (function
-        | _, _, [ DList(_vtTODO, l) ] ->
-
+        | _, _, [ DList(_, l) ] ->
           let f acc e =
             match e with
             | DTuple(DString k, value, []) -> Map.add k value acc

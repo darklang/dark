@@ -52,7 +52,7 @@ module Response =
       let headers = Map.get "headers" fields
       let body = Map.get "body" fields
       match code, headers, body with
-      | Some(RT.DInt code), Some(RT.DList(_vtTODO, headers)), Some(RT.DBytes body) ->
+      | Some(RT.DInt code), Some(RT.DList(_, headers)), Some(RT.DBytes body) ->
         let headers =
           headers
           |> List.fold
@@ -67,7 +67,7 @@ module Response =
         match headers with
         | Ok headers ->
           { statusCode = int code
-            headers = headers |> lowercaseHeaderKeys
+            headers = lowercaseHeaderKeys headers
             body = body }
         | Error msg ->
           { statusCode = 500

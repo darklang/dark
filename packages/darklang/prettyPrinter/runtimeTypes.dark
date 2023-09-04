@@ -354,10 +354,14 @@ module Darklang =
 
 
           | DList(_vtTODO, l) ->
-            if List.isEmpty l then
+            if PACKAGE.Darklang.Stdlib.List.isEmpty l then
               "[]"
             else
-              let elems = String.concat ", " (Builtin.List.map (withIndent indent) l)
+              let elems =
+                Builtin.String.join
+                  (Builtin.List.map l (fun item -> withIndent indent item))
+                  ", "
+
               $"[{inl}{elems}{nl}]"
 
           | DTuple(first, second, theRest) ->

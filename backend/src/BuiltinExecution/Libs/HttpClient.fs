@@ -369,7 +369,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
         (function
         | state,
           _,
-          [ DString method; DString uri; DList(_vtTODO, reqHeaders); DBytes reqBody ] ->
+          [ DString method; DString uri; DList(_, reqHeaders); DBytes reqBody ] ->
           let reqHeaders : Result<List<string * string>, HeaderError> =
             reqHeaders
             |> List.fold

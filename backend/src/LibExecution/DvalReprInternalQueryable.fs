@@ -109,7 +109,7 @@ let rec private toJsonV0
       hashed |> Base64.defaultEncodeToString |> w.WriteStringValue
 
     // nested types
-    | TList ltype, DList(_vtTODO, l) ->
+    | TList ltype, DList(_, l) ->
       do! w.writeArray (fun () -> Ply.List.iterSequentially (writeDval ltype) l)
 
     | TTuple(t1, t2, trest), DTuple(d1, d2, rest) ->
@@ -398,7 +398,7 @@ module Test =
     | DChar _
     | DFloat _
     | DUuid _ -> true
-    | DList(_vtTODO, dvals) -> List.all isQueryableDval dvals
+    | DList(_, dvals) -> List.all isQueryableDval dvals
     | DDict map -> map |> Map.values |> List.all isQueryableDval
     | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all isQueryableDval
     | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
