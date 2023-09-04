@@ -250,7 +250,7 @@ let fileTests () : Test =
           let modules =
             $"{dir}/{filename}"
             |> LibParser.TestModule.parseTestFile
-              resolverWithBuiltinsAndPackageManager
+              nameResolver
             |> fun ply -> ply.Result
 
           // Within a module, tests have access to

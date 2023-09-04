@@ -189,7 +189,7 @@ module ParseTest =
 let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> =
   task {
     let! (canvasID, domain) = initializeTestCanvas' $"bwdserver-{testName}"
-    let resolver = resolverWithBuiltinsAndPackageManager
+    let resolver = nameResolver
 
     // Handlers
     let! oplists =

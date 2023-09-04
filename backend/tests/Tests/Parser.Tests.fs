@@ -15,7 +15,7 @@ let parserTests =
   let t name testStr expectedExpr =
     testTask name {
       let! actual =
-        LibParser.Parser.parseRTExpr resolverWithBuiltinsAndPackageManager "parser.tests.fs" testStr
+        LibParser.Parser.parseRTExpr nameResolver "parser.tests.fs" testStr
         |> Ply.toTask
       return Expect.equalExprIgnoringIDs actual (PT2RT.Expr.toRT expectedExpr)
     }

@@ -17,7 +17,7 @@ module Serialize = LibCloud.Serialize
 module SR = LibCloud.QueueSchedulingRules
 
 let p (code : string) : Task<PT.Expr> =
-  LibParser.Parser.parsePTExpr builtinResolver "queueschedulingrules.fs" code
+  LibParser.Parser.parsePTExpr nameResolver "queueschedulingrules.fs" code
   |> Ply.toTask
 
 
