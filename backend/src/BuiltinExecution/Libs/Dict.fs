@@ -69,7 +69,7 @@ let fns : List<BuiltInFn> =
           |> Map.keys
           |> Seq.map (fun k -> DString k)
           |> Seq.toList
-          |> fun l -> Dval.list (Known KTString) l
+          |> fun l -> Dval.list (ValueType.Known KTString) l
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -107,7 +107,9 @@ let fns : List<BuiltInFn> =
         | _, _, [ DDict o ] ->
           Map.toList o
           |> List.map (fun (k, v) -> DTuple(DString k, v, []))
-          |> Dval.list (Known(KTTuple(Known KTString, valueTypeTODO, [])))
+          |> Dval.list (
+            ValueType.Known(KTTuple(ValueType.Known KTString, valueTypeTODO, []))
+          )
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

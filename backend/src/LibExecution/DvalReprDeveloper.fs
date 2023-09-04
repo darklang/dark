@@ -80,8 +80,8 @@ let rec knownTypeName (vt : KnownType) : string =
 
 and valueTypeName (typ : ValueType) : string =
   match typ with
-  | Known typ -> knownTypeName typ
-  | Unknown -> "_"
+  | ValueType.Known typ -> knownTypeName typ
+  | ValueType.Unknown -> "_"
 
 
 let toTypeName (dv : Dval) : string = dv |> Dval.toValueType |> valueTypeName

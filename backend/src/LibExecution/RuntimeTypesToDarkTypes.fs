@@ -767,13 +767,14 @@ module Dval =
     let toDT (vt : ValueType) : Dval =
       let typeName = rtTyp [] "ValueType" 0
       match vt with
-      | Unknown -> DEnum(typeName, typeName, "Unknown", [])
-      | Known kt -> DEnum(typeName, typeName, "Known", [ KnownType.toDT kt ])
+      | ValueType.Unknown -> DEnum(typeName, typeName, "Unknown", [])
+      | ValueType.Known kt ->
+        DEnum(typeName, typeName, "Known", [ KnownType.toDT kt ])
 
     let fromDT (d : Dval) : ValueType =
       match d with
-      | DEnum(_, _, "Unknown", []) -> Unknown
-      | DEnum(_, _, "Known", [ kt ]) -> Known(KnownType.fromDT kt)
+      | DEnum(_, _, "Unknown", []) -> ValueType.Unknown
+      | DEnum(_, _, "Known", [ kt ]) -> ValueType.Known(KnownType.fromDT kt)
 
       | _ -> Exception.raiseInternal "Invalid ValueType" []
 

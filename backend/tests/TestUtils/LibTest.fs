@@ -253,7 +253,7 @@ let fns : List<BuiltInFn> =
             let results =
               results
               |> List.map (fun x -> DString(LibExecution.DvalReprDeveloper.toRepr x))
-            return Dval.list (Known KTString) results
+            return Dval.list (ValueType.Known KTString) results
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

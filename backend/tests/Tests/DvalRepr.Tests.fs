@@ -92,7 +92,7 @@ let testToDeveloperRepr =
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(1, 2, 3)"
           RT.DDict(Map.ofList [ "", RT.DUnit ]), "{\n  : unit\n}"
-          RT.DList(RT.Known RT.KTUnit, [ RT.DUnit ]), "[\n  unit\n]" ] ]
+          RT.DList(RT.ValueType.Known RT.KTUnit, [ RT.DUnit ]), "[\n  unit\n]" ] ]
 
 module ToHashableRepr =
   open LibExecution.RuntimeTypes

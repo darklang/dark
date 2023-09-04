@@ -224,7 +224,7 @@ let constants : List<BuiltInConstant> =
   [ { name = constant "empty" 0
       typ = TList varA
       description = "Returns an empty list"
-      body = Dval.list Unknown []
+      body = Dval.list ValueType.Unknown []
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
@@ -235,7 +235,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a one-element list containing the given <param val>"
       fn =
         (function
-        | _, _, [ v ] -> Ply(Dval.list Unknown [ v ])
+        | _, _, [ v ] -> Ply(Dval.list ValueType.Unknown [ v ])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -289,7 +289,10 @@ let fns : List<BuiltInFn> =
             Errors.argumentWasnt "less than 2147483647" "times" (DInt times)
             |> errPipe
           else
-            List.replicate (int times) v |> Dval.list Unknown |> Dval.resultOk |> Ply
+            List.replicate (int times) v
+            |> Dval.list ValueType.Unknown
+            |> Dval.resultOk
+            |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -1067,7 +1070,7 @@ let fns : List<BuiltInFn> =
 
           List.zip l1 l2
           |> List.map (fun (val1, val2) -> DTuple(val1, val2, []))
-          |> Dval.list (Known(KTTuple(vt1, vt2, [])))
+          |> Dval.list (ValueType.Known(KTTuple(vt1, vt2, [])))
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -1101,7 +1104,7 @@ let fns : List<BuiltInFn> =
           else
             List.zip l1 l2
             |> List.map (fun (val1, val2) -> DTuple(val1, val2, []))
-            |> Dval.list (Known(KTTuple(vt1, vt2, [])))
+            |> Dval.list (ValueType.Known(KTTuple(vt1, vt2, [])))
             |> Dval.optionSome
             |> Ply
         | _ -> incorrectArgs ())

@@ -74,7 +74,9 @@ module RTE =
         [ "errorType", ErrorType.toDT e.errorType
           "nameType", NameType.toDT e.nameType
           "names",
-          (e.names |> List.map RT.DString |> RT.Dval.list (RT.Known RT.KTString)) ]
+          (e.names
+           |> List.map RT.DString
+           |> RT.Dval.list (RT.ValueType.Known RT.KTString)) ]
 
       RT.Dval.record errorTypeName fields
 

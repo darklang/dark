@@ -279,7 +279,7 @@ let runLocalExecScript (args : string[]) : Ply<int> =
       args
       |> Array.toList
       |> List.map RT.DString
-      |> RT.Dval.list (RT.Known RT.KTString)
+      |> RT.Dval.list (RT.ValueType.Known RT.KTString)
 
     let result = execute modul (Map [ "args", args ])
 

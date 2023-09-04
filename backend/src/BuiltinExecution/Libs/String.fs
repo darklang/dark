@@ -84,7 +84,7 @@ let fns : List<BuiltInFn> =
            |> String.toEgcSeq
            |> Seq.map (fun c -> DChar c)
            |> Seq.toList
-           |> Dval.list (Known KTChar)
+           |> Dval.list (ValueType.Known KTChar)
            |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -270,7 +270,7 @@ let fns : List<BuiltInFn> =
                 (s |> String.toEgcSeq |> Seq.toList)
                 (sep |> String.toEgcSeq |> Seq.toList)
 
-          parts |> List.map DString |> Dval.list (Known KTString) |> Ply
+          parts |> List.map DString |> Dval.list (ValueType.Known KTString) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

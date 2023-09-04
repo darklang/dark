@@ -415,7 +415,11 @@ let fns (config : Configuration) : List<BuiltInFn> =
                       DString(String.toLowercase v),
                       []
                     ))
-                  |> Dval.list (Known(KTTuple(Known KTString, Known KTString, [])))
+                  |> Dval.list (
+                    ValueType.Known(
+                      KTTuple(ValueType.Known KTString, ValueType.Known KTString, [])
+                    )
+                  )
 
                 let typ =
                   FQName.BuiltIn(TypeName.builtIn [ "HttpClient" ] "Response" 0)

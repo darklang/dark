@@ -199,23 +199,24 @@ let rec unifyValueType
 
   uply {
     match expected, actual with
-    | _, Unknown -> return Ok()
+    | _, ValueType.Unknown -> return Ok()
 
-    | TUnit, Known KTUnit -> return Ok()
-    | TBool, Known KTBool -> return Ok()
-    | TInt, Known KTInt -> return Ok()
-    | TFloat, Known KTFloat -> return Ok()
-    | TChar, Known KTChar -> return Ok()
-    | TString, Known KTString -> return Ok()
-    | TUuid, Known KTUuid -> return Ok()
-    | TDateTime, Known KTDateTime -> return Ok()
-    | TBytes, Known KTBytes -> return Ok()
+    | TUnit, ValueType.Known KTUnit -> return Ok()
+    | TBool, ValueType.Known KTBool -> return Ok()
+    | TInt, ValueType.Known KTInt -> return Ok()
+    | TFloat, ValueType.Known KTFloat -> return Ok()
+    | TChar, ValueType.Known KTChar -> return Ok()
+    | TString, ValueType.Known KTString -> return Ok()
+    | TUuid, ValueType.Known KTUuid -> return Ok()
+    | TDateTime, ValueType.Known KTDateTime -> return Ok()
+    | TBytes, ValueType.Known KTBytes -> return Ok()
 
-    | TList innerT, Known(KTList innerV) -> return! r innerT innerV
+    | TList innerT, ValueType.Known(KTList innerV) -> return! r innerT innerV
 
-    | TDict innerT, Known(KTDict innerV) -> return! r innerT innerV
+    | TDict innerT, ValueType.Known(KTDict innerV) -> return! r innerT innerV
 
-    | TTuple(tFirst, tSecond, tRest), Known(KTTuple(vFirst, vSecond, vRest)) ->
+    | TTuple(tFirst, tSecond, tRest),
+      ValueType.Known(KTTuple(vFirst, vSecond, vRest)) ->
       let expected = tFirst :: tSecond :: tRest
       let actual = vFirst :: vSecond :: vRest
       return! rMult expected actual
@@ -225,7 +226,8 @@ let rec unifyValueType
         Exception.raiseInternal
           $"Unexpected - Error typeName in TCustomType in unifyValueType"
           []
-    | TCustomType(Ok typeNameT, typeArgsT), Known(KTCustomType(typeNameV, typeArgsV)) ->
+    | TCustomType(Ok typeNameT, typeArgsT),
+      ValueType.Known(KTCustomType(typeNameV, typeArgsV)) ->
       // TODO: follow up here when:
       // - type name aliases are and resolved
       // - type args are properly passed around and handled
@@ -235,7 +237,7 @@ let rec unifyValueType
       //return! rMult typeArgsT typeArgsV
       return Ok()
 
-    | TFn(argTypes, returnType), Known(KTFn(vArgs, vRet)) ->
+    | TFn(argTypes, returnType), ValueType.Known(KTFn(vArgs, vRet)) ->
       // TODO: follow up here when type args are properly passed around and handled
 
       // let expected = returnType :: (NEList.toList argTypes)
@@ -243,8 +245,8 @@ let rec unifyValueType
       // return! rMult expected actual
       return Ok()
 
-    | TPassword, Known KTPassword -> return Ok()
-    | TDB innerT, Known(KTDB innerV) -> return! r innerT innerV
+    | TPassword, ValueType.Known KTPassword -> return Ok()
+    | TDB innerT, ValueType.Known(KTDB innerV) -> return! r innerT innerV
 
     | TVariable name, _ ->
       match Map.get name tst with

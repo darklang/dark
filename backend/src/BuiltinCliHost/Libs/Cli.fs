@@ -39,7 +39,11 @@ module CliRuntimeError =
             let metadata =
               metadata
               |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
-              |> Dval.list (Known(KTTuple(Known KTString, Known KTString, [])))
+              |> Dval.list (
+                ValueType.Known(
+                  KTTuple(ValueType.Known KTString, ValueType.Known KTString, [])
+                )
+              )
 
             "UncaughtException", [ "msg", DString msg; "metadata", metadata ]
 

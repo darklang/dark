@@ -208,19 +208,21 @@ module FormatV0 =
 
         | RT.KTDB vt -> KTDB(ValueType.fromRT vt)
 
+    [<RequireQualifiedAccess>]
     type ValueType =
       | Unknown
       | Known of KnownType.KnownType
 
     let toRT (vt : ValueType) : RT.ValueType =
       match vt with
-      | Unknown -> RT.Unknown
-      | Known kt -> RT.Known(KnownType.toRT kt)
+      | ValueType.Unknown -> RT.ValueType.Unknown
+      | ValueType.Known kt -> RT.ValueType.Known(ValueType.KnownType.toRT kt)
 
     let fromRT (vt : RT.ValueType) : ValueType =
       match vt with
-      | RT.Unknown -> Unknown
-      | RT.Known kt -> Known(KnownType.fromRT kt)
+      | RT.ValueType.Unknown -> ValueType.ValueType.Unknown
+      | RT.ValueType.Known kt ->
+        ValueType.ValueType.Known(ValueType.KnownType.fromRT kt)
 
   let valueTypeTODO = ValueType.ValueType.Unknown
 

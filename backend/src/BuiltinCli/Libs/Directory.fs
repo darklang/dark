@@ -94,7 +94,7 @@ let fns : List<BuiltInFn> =
                 System.IO.Directory.EnumerateFileSystemEntries path |> Seq.toList
               with _ ->
                 []
-            return List.map DString contents |> Dval.list (Known KTString)
+            return List.map DString contents |> Dval.list (ValueType.Known KTString)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

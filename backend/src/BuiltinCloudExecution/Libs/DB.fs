@@ -298,7 +298,8 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAllKeys state db
-            return results |> List.map DString |> Dval.list (Known KTString)
+            return
+              results |> List.map DString |> Dval.list (ValueType.Known KTString)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

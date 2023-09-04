@@ -66,7 +66,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUnit ] ->
           uply {
             let! hosts = Canvas.allCanvasIDs ()
-            return hosts |> List.map DUuid |> Dval.list (Known KTUuid)
+            return hosts |> List.map DUuid |> Dval.list (ValueType.Known KTUuid)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

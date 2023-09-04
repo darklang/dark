@@ -733,7 +733,8 @@ module Expect =
       check path (string l) (string r)
     | DList(lType, ls), DList(rType, rs) ->
       match lType, rType with
-      | Known lType, Known rType -> check ("Type" :: path) lType rType
+      | ValueType.Known lType, ValueType.Known rType ->
+        check ("Type" :: path) lType rType
       | _ -> ()
 
       check ("Length" :: path) (List.length ls) (List.length rs)
@@ -1000,13 +1001,13 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("int string2", DString "-1039485", TString)
     ("int string3", DString "0", TString)
     ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6", TString)
-    ("list", DList(Known KTInt, [ Dval.int 4 ]), TList TInt)
+    ("list", DList(ValueType.Known KTInt, [ Dval.int 4 ]), TList TInt)
     ("list with derror",
      DList(
-       Unknown,
+       ValueType.Unknown,
        [ Dval.int 3
          DError(SourceNone, RuntimeError.oldError "some error string")
-         DList(Known KTInt, [])
+         DList(ValueType.Known KTInt, [])
          Dval.int 4 ]
      ),
      TList TInt)

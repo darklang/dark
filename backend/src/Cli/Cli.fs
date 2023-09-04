@@ -87,7 +87,7 @@ let execute (args : List<string>) : Task<RT.Dval> =
     let args =
       args
       |> List.map RT.DString
-      |> RT.Dval.list (RT.Known RT.KTString)
+      |> RT.Dval.list (RT.ValueType.Known RT.KTString)
       |> NEList.singleton
     return! Exe.executeFunction state 7UL fnName [] args
   }

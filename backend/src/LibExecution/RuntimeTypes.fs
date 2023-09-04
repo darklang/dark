@@ -351,7 +351,7 @@ type KnownType =
   | KTPassword
 
   // let empty =    [] // KTList Unknown
-  // let intList = [1] // KTList (Known KTInt)
+  // let intList = [1] // KTList (ValueType.Known KTInt)
   | KTList of ValueType
 
   // Intuitively, since Dvals generate KnownTypes, you would think that we can
@@ -397,8 +397,7 @@ type KnownType =
 ///
 /// "Unknown" represents the concept of "bottom" in
 ///   type system / data flow analysis / lattices
-/// TODO add `[<RequireQualifiedAccess>]` to this type?
-and ValueType =
+and [<RequireQualifiedAccess>] ValueType =
   | Unknown
   | Known of KnownType
 
@@ -952,30 +951,31 @@ module Dval =
     (right : ValueType)
     : Result<ValueType, RuntimeError> =
     match left, right with
-    | Unknown, v
-    | v, Unknown -> Ok v
+    | ValueType.Unknown, v
+    | v, ValueType.Unknown -> Ok v
 
-    | Known left, Known right -> mergeKnownTypes left right |> Result.map Known
+    | ValueType.Known left, ValueType.Known right ->
+      mergeKnownTypes left right |> Result.map ValueType.Known
 
 
 
   let rec toValueType (dv : Dval) : ValueType =
     match dv with
-    | DUnit -> Known KTUnit
-    | DBool _ -> Known KTBool
-    | DInt _ -> Known KTInt
-    | DFloat _ -> Known KTFloat
-    | DChar _ -> Known KTChar
-    | DString _ -> Known KTString
-    | DUuid _ -> Known KTUuid
-    | DBytes _ -> Known KTBytes
-    | DDateTime _ -> Known KTDateTime
-    | DPassword _ -> Known KTPassword
+    | DUnit -> ValueType.Known KTUnit
+    | DBool _ -> ValueType.Known KTBool
+    | DInt _ -> ValueType.Known KTInt
+    | DFloat _ -> ValueType.Known KTFloat
+    | DChar _ -> ValueType.Known KTChar
+    | DString _ -> ValueType.Known KTString
+    | DUuid _ -> ValueType.Known KTUuid
+    | DBytes _ -> ValueType.Known KTBytes
+    | DDateTime _ -> ValueType.Known KTDateTime
+    | DPassword _ -> ValueType.Known KTPassword
 
-    | DList(t, _) -> Known(KTList t)
-    | DDict _t -> Known(KTDict Unknown) // VTTODO
+    | DList(t, _) -> ValueType.Known(KTList t)
+    | DDict _t -> ValueType.Known(KTDict ValueType.Unknown) // VTTODO
     | DTuple(first, second, theRest) ->
-      Known(
+      ValueType.Known(
         KTTuple(
           toValueType first,
           toValueType second,
@@ -989,7 +989,7 @@ module Dval =
         // we might need to look up the type...
         //fields |> Map.toList |> List.map (fun (_, v) -> toValueType v)
         []
-      KTCustomType(typeName, typeArgs) |> Known
+      KTCustomType(typeName, typeArgs) |> ValueType.Known
 
     | DEnum(typeName, _, _caseName, _fields) ->
       let typeArgs =
@@ -997,18 +997,22 @@ module Dval =
         // we might need to look up the type...
         //fields |> List.map toValueType |> List.map Option.some
         []
-      KTCustomType(typeName, typeArgs) |> Known
+      KTCustomType(typeName, typeArgs) |> ValueType.Known
 
     | DFnVal fnImpl ->
       match fnImpl with
       | Lambda lambda ->
-        KTFn(NEList.map (fun _ -> Unknown) lambda.parameters, Unknown) |> Known
+        KTFn(
+          NEList.map (fun _ -> ValueType.Unknown) lambda.parameters,
+          ValueType.Unknown
+        )
+        |> ValueType.Known
 
       // VTTODO look up type, etc
-      | NamedFn _named -> Unknown
+      | NamedFn _named -> ValueType.Unknown
 
     // CLEANUP follow up when DDB has a typeReference
-    | DDB _ -> Unknown
+    | DDB _ -> ValueType.Unknown
 
     | DError _ -> Exception.raiseInternal "DError is being moved out of Dval" []
 

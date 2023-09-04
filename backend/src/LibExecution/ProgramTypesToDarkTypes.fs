@@ -77,7 +77,8 @@ module FQName =
     let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.UserProgram<'name>) : Dval =
       Dval.record
         (ptTyp [ "FQName" ] "UserProgram" 0)
-        [ "modules", Dval.list (Known KTString) (List.map DString u.modules)
+        [ "modules",
+          Dval.list (ValueType.Known KTString) (List.map DString u.modules)
           "name", nameMapper u.name
           "version", DInt u.version ]
 
@@ -102,7 +103,8 @@ module FQName =
       Dval.record
         (ptTyp [ "FQName" ] "Package" 0)
         [ "owner", DString u.owner
-          "modules", Dval.list (Known KTString) (List.map DString u.modules)
+          "modules",
+          Dval.list (ValueType.Known KTString) (List.map DString u.modules)
           "name", nameMapper u.name
           "version", DInt u.version ]
 
