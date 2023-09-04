@@ -59,7 +59,6 @@ let rec knownTypeName (vt : KnownType) : string =
     (NEList.toList argTypes) @ [ retType ]
     |> List.map valueTypeName
     |> String.concat " -> "
-    |> fun s -> "(" + s + ")" // VTTODO: maybe not include ()?
 
   | KTTuple(t1, t2, trest) ->
     t1 :: t2 :: trest

@@ -951,7 +951,6 @@ module Dval =
     (left : ValueType)
     (right : ValueType)
     : Result<ValueType, RuntimeError> =
-    // if fails, we eventually want "can't put a string in an Int list"
     match left, right with
     | Unknown, v
     | v, Unknown -> Ok v
@@ -959,7 +958,6 @@ module Dval =
     | Known left, Known right -> mergeKnownTypes left right |> Result.map Known
 
 
-  let dvalValueTypeTODO () = Unknown
 
   let rec toValueType (dv : Dval) : ValueType =
     match dv with
@@ -1007,7 +1005,7 @@ module Dval =
         KTFn(NEList.map (fun _ -> Unknown) lambda.parameters, Unknown) |> Known
 
       // VTTODO look up type, etc
-      | NamedFn _named -> dvalValueTypeTODO ()
+      | NamedFn _named -> Unknown
 
     // CLEANUP follow up when DDB has a typeReference
     | DDB _ -> Unknown
