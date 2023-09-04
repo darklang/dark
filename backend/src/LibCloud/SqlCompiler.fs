@@ -263,6 +263,10 @@ let sqlOpForPackageFunction (fnName : FnName.Package) : SqlSpec =
   | "Darklang", [ "Stdlib"; "Bool" ], FnName.FnName "and" -> SqlBinOp "AND"
   | "Darklang", [ "Stdlib"; "Bool" ], FnName.FnName "or" -> SqlBinOp "OR"
   | "Darklang", [ "Stdlib"; "Bool" ], FnName.FnName "not" -> SqlFunction "NOT"
+  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "contains" ->
+      SqlCallback2(fun lookingIn searchingFor ->
+        // strpos returns indexed from 1; 0 means missing
+        $"strpos({lookingIn}, {searchingFor}) > 0")
   | _ -> NotQueryable
 
 

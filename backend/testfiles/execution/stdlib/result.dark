@@ -103,7 +103,7 @@ PACKAGE.Darklang.Stdlib.Result.map2_v0
 
 PACKAGE.Darklang.Stdlib.Result.mapError
   (PACKAGE.Darklang.Stdlib.Result.Result.Error "test")
-  (fun x -> Builtin.String.append x "-appended") = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  (fun x -> PACKAGE.Darklang.Stdlib.String.append x "-appended") = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "test-appended"
 
 PACKAGE.Darklang.Stdlib.Result.mapError

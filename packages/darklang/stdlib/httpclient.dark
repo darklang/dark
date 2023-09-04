@@ -8,7 +8,7 @@ module Darklang =
         (username: String)
         (password: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<(String * String), String> =
-        if Builtin.String.contains "-" username then
+        if PACKAGE.Darklang.Stdlib.String.contains "-" username then
           PACKAGE.Darklang.Stdlib.Result.Result.Error
             "Username cannot contain a hyphen"
         else
