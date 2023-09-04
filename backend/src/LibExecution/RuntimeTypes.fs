@@ -985,21 +985,21 @@ module Dval =
         )
       )
 
-    | DRecord(typeName, _, fields) ->
-      // KTCustomType(
-      //   typeName,
-      //   fields |> Map.toList |> List.map (fun (_, v) -> toValueType v) |> List.map Option.some
-      // )
-      // |> Known
-      dvalValueTypeTODO ()
+    | DRecord(typeName, _, _fields) ->
+      let typeArgs =
+        // TODO: somehow need to derive `typeArgs` from the `fields`
+        // we might need to look up the type...
+        //fields |> Map.toList |> List.map (fun (_, v) -> toValueType v)
+        []
+      KTCustomType(typeName, typeArgs) |> Known
 
-    | DEnum(typeName, _, caseName, fields) ->
-      // KTCustomType(
-      //   typeName,
-      //   fields |> List.map toValueType |> List.map Option.some
-      // )
-
-      dvalValueTypeTODO ()
+    | DEnum(typeName, _, _caseName, _fields) ->
+      let typeArgs =
+        // TODO: somehow need to derive `typeArgs` from the `fields` (and `case`?)
+        // we might need to look up the type...
+        //fields |> List.map toValueType |> List.map Option.some
+        []
+      KTCustomType(typeName, typeArgs) |> Known
 
     | DFnVal fnImpl ->
       match fnImpl with

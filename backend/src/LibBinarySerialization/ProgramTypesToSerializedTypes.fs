@@ -128,8 +128,8 @@ module NameResolutionError =
       : ST.NameResolutionError.ErrorType =
       match err with
       | LibExecution.NameResolutionError.NotFound -> ST.NameResolutionError.NotFound
-      | LibExecution.NameResolutionError.MissingModuleName ->
-        ST.NameResolutionError.MissingModuleName
+      | LibExecution.NameResolutionError.MissingEnumModuleName caseName ->
+        ST.NameResolutionError.MissingEnumModuleName caseName
       | LibExecution.NameResolutionError.InvalidPackageName ->
         ST.NameResolutionError.InvalidPackageName
       | LibExecution.NameResolutionError.ExpectedEnumButNot ->
@@ -144,8 +144,8 @@ module NameResolutionError =
       match err with
       | ST.NameResolutionError.ErrorType.NotFound ->
         LibExecution.NameResolutionError.NotFound
-      | ST.NameResolutionError.MissingModuleName ->
-        LibExecution.NameResolutionError.MissingModuleName
+      | ST.NameResolutionError.MissingEnumModuleName caseName ->
+        LibExecution.NameResolutionError.MissingEnumModuleName caseName
       | ST.NameResolutionError.InvalidPackageName ->
         LibExecution.NameResolutionError.InvalidPackageName
       | ST.NameResolutionError.ExpectedEnumButNot ->

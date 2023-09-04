@@ -109,12 +109,15 @@ module Expr =
     (resolver : NameResolver)
     (currentModule : List<string>)
     (names : List<string>)
+    (caseName : string)
     : Ply<PT.NameResolution<PT.TypeName.TypeName>> =
     match names with
     | [] ->
       Ply(
         Error(
-          { nameType = NRE.Type; errorType = NRE.MissingModuleName; names = names }
+          { nameType = NRE.Type
+            errorType = NRE.MissingEnumModuleName caseName
+            names = names }
         )
       )
     | head :: tail ->
@@ -235,7 +238,7 @@ module Expr =
           Ply.List.mapSequentially (pipeExprToPT resolver currentModule) rest
         return PT.EPipe(pipeID, expr1, rest)
       | WT.EEnum(id, typeName, caseName, exprs) ->
-        let! typeName = resolveTypeName resolver currentModule typeName
+        let! typeName = resolveTypeName resolver currentModule typeName caseName
         let! exprs = Ply.List.mapSequentially toPT exprs
         return PT.EEnum(id, typeName, caseName, exprs)
       | WT.EMatch(id, mexpr, pairs) ->
@@ -330,7 +333,7 @@ module Expr =
         return PT.EPipeFnCall(id, fnName, typeArgs, args)
 
       | WT.EPipeEnum(id, typeName, caseName, fields) ->
-        let! typeName = resolveTypeName resolver currentModule typeName
+        let! typeName = resolveTypeName resolver currentModule typeName caseName
         let! fields = Ply.List.mapSequentially toPT fields
         return PT.EPipeEnum(id, typeName, caseName, fields)
     }
@@ -355,7 +358,7 @@ module Const =
         let! theRest = Ply.List.mapSequentially toPT theRest
         return PT.CTuple(first, second, theRest)
       | WT.CEnum(typeName, caseName, fields) ->
-        let! typeName = Expr.resolveTypeName resolver currentModule typeName
+        let! typeName = Expr.resolveTypeName resolver currentModule typeName caseName
         let! fields = Ply.List.mapSequentially toPT fields
         return PT.CEnum(typeName, caseName, fields)
       | WT.CUnit -> return PT.CUnit

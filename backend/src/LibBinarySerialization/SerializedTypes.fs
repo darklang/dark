@@ -135,7 +135,7 @@ module NameResolutionError =
   [<MessagePack.MessagePackObject>]
   type ErrorType =
     | NotFound
-    | MissingModuleName
+    | MissingEnumModuleName of caseName : string
     | InvalidPackageName
     | ExpectedEnumButNot
     | ExpectedRecordButNot

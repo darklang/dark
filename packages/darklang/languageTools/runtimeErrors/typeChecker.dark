@@ -10,7 +10,7 @@ module Darklang =
       type RTTypeReference =
         PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
 
-      type RTDval = PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval
+      type RTDval = PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
 
       type RTTypeName = PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName
 
@@ -70,9 +70,6 @@ module Darklang =
 
 
         type Error =
-          //| VTTODOMismatchedType of String
-          //| VTTODOMergedValueTypeWrapper of Darklang.LanguageTools.RuntimeTypes.Dval.SomeErrorType
-
           | ValueNotExpectedType of
             actualValue: RTDval *
             expectedType: RTTypeReference *
@@ -169,7 +166,7 @@ module Darklang =
                   $"(RTETODO: contextSummary {(Builtin.Json.serialize<Context> context) |> Builtin.unwrap})" ]
 
           let rec contextAsActualExpected
-            (argument: RuntimeTypes.Dval)
+            (argument: RuntimeTypes.Dval.Dval)
             (context: Context)
             : List<ErrorSegment.ErrorSegment> * List<ErrorSegment.ErrorSegment> =
 

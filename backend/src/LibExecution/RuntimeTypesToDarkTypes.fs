@@ -901,7 +901,7 @@ module Dval =
           DString caseName
           Dval.list valueTypeTODO (List.map toDT fields) ]
 
-    Dval.enum (rtTyp [] "Dval" 0) name fields
+    Dval.enum (rtTyp [ "Dval" ] "Dval" 0) name fields
 
 
   let fromDT (d : Dval) : Dval =

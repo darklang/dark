@@ -158,7 +158,7 @@ module RoundtripTests =
 
         testRoundtripList
           "RT.Dval"
-          (pkg [] "Dval" 0)
+          (pkg [ "Dval" ] "Dval" 0)
           V.RuntimeTypes.dvals
           RT2DT.Dval.toDT
           RT2DT.Dval.fromDT

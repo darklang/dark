@@ -186,14 +186,16 @@ let rec unifyValueType
     (expected : List<TypeReference>)
     (actual : List<ValueType>)
     : Ply<Result<unit, unit>> =
-    // TODO assert same lengths
-    List.zip expected actual
-    |> Ply.List.foldSequentially
-      (fun acc (e, a) ->
-        match acc with
-        | Error _ -> Ply acc
-        | Ok() -> r e a)
-      (Ok())
+    if List.length expected <> List.length actual then
+      Ply(Error())
+    else
+      List.zip expected actual
+      |> Ply.List.foldSequentially
+        (fun acc (e, a) ->
+          match acc with
+          | Error _ -> Ply acc
+          | Ok() -> r e a)
+        (Ok())
 
   uply {
     match expected, actual with
@@ -224,14 +226,22 @@ let rec unifyValueType
           $"Unexpected - Error typeName in TCustomType in unifyValueType"
           []
     | TCustomType(Ok typeNameT, typeArgsT), Known(KTCustomType(typeNameV, typeArgsV)) ->
+      // TODO: follow up here when:
+      // - type name aliases are and resolved
+      // - type args are properly passed around and handled
+
       // TODO: assert type names are the same,
       // after we've handled all type aliases
-      return! rMult typeArgsT typeArgsV
+      //return! rMult typeArgsT typeArgsV
+      return Ok()
 
     | TFn(argTypes, returnType), Known(KTFn(vArgs, vRet)) ->
-      let expected = returnType :: (NEList.toList argTypes)
-      let actual = vRet :: (NEList.toList vArgs)
-      return! rMult expected actual
+      // TODO: follow up here when type args are properly passed around and handled
+
+      // let expected = returnType :: (NEList.toList argTypes)
+      // let actual = vRet :: (NEList.toList vArgs)
+      // return! rMult expected actual
+      return Ok()
 
     | TPassword, Known KTPassword -> return Ok()
     | TDB innerT, Known(KTDB innerV) -> return! r innerT innerV

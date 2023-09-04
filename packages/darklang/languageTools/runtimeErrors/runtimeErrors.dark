@@ -27,7 +27,7 @@ module Darklang =
             PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName
           | TypeReference of
             PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
-          | TypeOfValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval
+          | TypeOfValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
           | FieldName of String // records and enums
           | InlineFieldName of String // records and enums
 
@@ -37,8 +37,8 @@ module Darklang =
           | InlineVarName of String
 
           // -- Dvals
-          | InlineValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval // possibly shortened to be shown inline
-          | FullValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval
+          | InlineValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval // possibly shortened to be shown inline
+          | FullValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
 
         let toString (list: List<ErrorSegment>) : String =
           let reversed = PACKAGE.Darklang.Stdlib.List.reverse list
@@ -70,14 +70,7 @@ module Darklang =
                 | TypeReference t ->
                   PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference t
                 | TypeOfValue dv ->
-                  // once we have "KnownTypes" implemented, we can follow up here
-                  // with something like below:
-                  // dv
-                  // |> PACKAGE.Darklang.LanguageTools.Dval.toTypeRef
-                  // |> PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference t
-
-                  // for now, just want to get something out...
-                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.Dval.dvalTypeName dv
+                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.Dval.valueTypeName dv
                 | FieldName f -> $"`{f}`"
                 | InlineFieldName f -> f
                 | DBName db -> db
