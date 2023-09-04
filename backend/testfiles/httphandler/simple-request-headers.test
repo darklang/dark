@@ -1,7 +1,7 @@
 [http-handler GET /]
 (let body =
    request.headers
-   |> Builtin.List.map (fun ((k,v)) -> "(\"" ++ k ++ "\", \"" ++ v ++ "\")")
+   |> PACKAGE.Darklang.Stdlib.List.map (fun ((k,v)) -> "(\"" ++ k ++ "\", \"" ++ v ++ "\")")
    |> Builtin.String.join ",\n"
    |> Builtin.String.toBytes
  PACKAGE.Darklang.Stdlib.Http.response body 200)

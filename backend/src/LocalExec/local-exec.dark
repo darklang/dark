@@ -2,11 +2,11 @@ let listDirectoryRecursive (dir: String) : List<String> =
   let contents = Builtin.Directory.list dir
 
   let (files, dirs) =
-    contents |> Builtin.List.partition (fun x -> Builtin.File.isNormal x)
+    contents |> PACKAGE.Darklang.Stdlib.List.partition (fun x -> Builtin.File.isNormal x)
 
   let nested =
     dirs
-    |> Builtin.List.map (fun d -> listDirectoryRecursive d)
+    |> PACKAGE.Darklang.Stdlib.List.map (fun d -> listDirectoryRecursive d)
     |> Builtin.LocalExec.BuiltIns.List.flatten
 
   dirs |> Builtin.List.append files |> Builtin.List.append nested
@@ -16,7 +16,7 @@ let listDirectoryRecursive (dir: String) : List<String> =
 let listPackageFilesOnDisk (dir: String) : List<String> =
   dir
   |> listDirectoryRecursive
-  |> Builtin.List.filter (fun x ->
+  |> PACKAGE.Darklang.Stdlib.List.filter (fun x ->
     x |> Builtin.LocalExec.BuiltIns.String.endsWith ".dark")
 
 
@@ -66,7 +66,7 @@ let loadPackageFileIntoDarkCanvas
 
   let fnResults =
     package.fns
-    |> Builtin.List.map (fun fn ->
+    |> PACKAGE.Darklang.Stdlib.List.map (fun fn ->
       fn
       |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
       |> Builtin.unwrap
@@ -74,7 +74,7 @@ let loadPackageFileIntoDarkCanvas
 
   let typeResults =
     package.types
-    |> Builtin.List.map (fun t ->
+    |> PACKAGE.Darklang.Stdlib.List.map (fun t ->
       t
       |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
       |> Builtin.unwrap
@@ -82,7 +82,7 @@ let loadPackageFileIntoDarkCanvas
 
   let constantResults =
     package.constants
-    |> Builtin.List.map (fun c ->
+    |> PACKAGE.Darklang.Stdlib.List.map (fun c ->
       c
       |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
       |> Builtin.unwrap
@@ -94,7 +94,7 @@ let loadPackageFileIntoDarkCanvas
     |> PACKAGE.Darklang.Stdlib.List.flatten
 
   let firstError =
-    Builtin.List.findFirst allResults (fun r ->
+    PACKAGE.Darklang.Stdlib.List.findFirst allResults (fun r ->
       match r with
       | Error _ -> true
       | Ok _ -> false)
@@ -188,7 +188,7 @@ let main (args: List<String>) : Int =
 
     // Wait for canvas to be ready
     let available =
-      Builtin.List.fold
+      PACKAGE.Darklang.Stdlib.List.fold
         (PACKAGE.Darklang.Stdlib.List.range 0 10)
         (PACKAGE.Darklang.Stdlib.Result.Result.Error "Not started")
         (fun found num ->
@@ -215,7 +215,7 @@ let main (args: List<String>) : Int =
       Builtin.print "Dark packages canvas is ready"
 
       let result =
-        Builtin.List.fold
+        PACKAGE.Darklang.Stdlib.List.fold
           files
           (PACKAGE.Darklang.Stdlib.Result.Result.Ok())
           (fun (acc, f) ->

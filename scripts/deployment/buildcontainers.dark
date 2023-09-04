@@ -17,14 +17,14 @@ let main () : Int =
 
   let dockerfiles =
     (Builtin.Directory.list "containers")
-    |> Builtin.List.map (fun directory -> Builtin.Directory.list directory)
+    |> PACKAGE.Darklang.Stdlib.List.map (fun directory -> Builtin.Directory.list directory)
     |> PACKAGE.Darklang.Stdlib.List.flatten
-    |> Builtin.List.filter (fun filePath ->
+    |> PACKAGE.Darklang.Stdlib.List.filter (fun filePath ->
       PACKAGE.Darklang.Stdlib.String.endsWith filePath "Dockerfile")
 
   let imageIds =
     dockerfiles
-    |> Builtin.List.map (fun dockerfile ->
+    |> PACKAGE.Darklang.Stdlib.List.map (fun dockerfile ->
       let buildCommand = $"docker build -q -f {dockerfile} ."
       let response = Posix.runCommandWithOutput buildCommand
       let parsedResponse = Builtin.Json.parse<DockerBuildResponse> (response)

@@ -115,7 +115,7 @@ module MixedCases =
      EnumOfMixedCases.X "testX"
      EnumOfMixedCases.Y(5)
      EnumOfMixedCases.Z("testZ", 2) ]
-   |> Builtin.List.map_v0 (fun v ->
+   |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun v ->
      match v with
      | X s -> "X " ++ s
      | Z(s, _i) -> "Z " ++ s
@@ -182,7 +182,7 @@ module Polymorphism =
     insert' tree value cmp
 
   let ofList (values: List<'a>) (cmp: ('a * 'a) -> Int) : RBTree<'a> =
-    Builtin.List.fold_v0 values RBTree.Empty (fun tree value ->
+    PACKAGE.Darklang.Stdlib.List.fold_v0 values RBTree.Empty (fun tree value ->
       insert tree value cmp)
 
   let toList' (tree: RBTree<'a>) (acc: List<'a>) : List<'a> =

@@ -652,7 +652,7 @@ let friends (lambda: ('a -> Bool)) : List<String> =
   let _ = prepFriends () in
 
   (Builtin.DB.query PersonDB lambda)
-  |> Builtin.List.map_v0 (fun p -> p.name)
+  |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun p -> p.name)
   |> Builtin.List.sort_v0
 
 
@@ -854,7 +854,7 @@ module PartialEvaluation =
    let x = Y { y = Z { z = A { a = 5 } } }
 
    ((Builtin.DB.query PersonDB (fun p -> x.y.z.a < p.height))
-    |> Builtin.List.map_v0 (fun p -> p.name)
+    |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun p -> p.name)
     |> Builtin.List.sort_v0)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // fieldAccesses inside query
@@ -912,7 +912,7 @@ module QueryWithKey =
 
    (Builtin.DB.queryWithKey PersonDB (fun p -> p.name == "Rachel"))
    |> Builtin.Dict.toList_v0
-   |> Builtin.List.map (fun v -> (PACKAGE.Darklang.Stdlib.Tuple2.second v).name)) = [ "Rachel" ]
+   |> PACKAGE.Darklang.Stdlib.List.map (fun v -> (PACKAGE.Darklang.Stdlib.Tuple2.second v).name)) = [ "Rachel" ]
 
 module QueryCount =
   // none

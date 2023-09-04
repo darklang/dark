@@ -44,7 +44,7 @@ module Darklang =
           let reversed = PACKAGE.Darklang.Stdlib.List.reverse list
 
           let parts =
-            Builtin.List.fold reversed [] (fun prevSegments segment ->
+            PACKAGE.Darklang.Stdlib.List.fold reversed [] (fun prevSegments segment ->
               let newSegment =
                 match segment with
                 | String s -> s

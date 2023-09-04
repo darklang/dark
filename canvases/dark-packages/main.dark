@@ -193,7 +193,7 @@ let _handler _req =
     // - SqlCompiler isn't great with generics yet
     //   (See `PT.FnName.Package` definition for reference)
     // - Builtin.DB.query is generally _super slow_ as of time of writing
-    |> Builtin.List.filter (fun typ ->
+    |> PACKAGE.Darklang.Stdlib.List.filter (fun typ ->
       typ.name.owner == nameParts.owner
       && typ.name.modules == nameParts.modules
       && typ.name.version == nameParts.version
@@ -216,7 +216,7 @@ let _handler _req =
 
   let found =
     (Builtin.DB.getAll PackageConstantDB)
-    |> Builtin.List.filter (fun c ->
+    |> PACKAGE.Darklang.Stdlib.List.filter (fun c ->
       c.name.owner == nameParts.owner
       && c.name.modules == nameParts.modules
       && c.name.version == nameParts.version
@@ -239,7 +239,7 @@ let _handler _req =
 
   let found =
     (Builtin.DB.getAll PackageFnDB)
-    |> Builtin.List.filter (fun fn ->
+    |> PACKAGE.Darklang.Stdlib.List.filter (fun fn ->
       fn.name.owner == nameParts.owner
       && fn.name.modules == nameParts.modules
       && fn.name.version == nameParts.version
@@ -261,10 +261,10 @@ let _handler _req =
 let _handler _req =
   let allItems =
     (Builtin.DB.getAll NamesDB)
-    |> Builtin.List.filter (fun item -> item.owner == owner)
-    |> Builtin.List.map (fun i ->
+    |> PACKAGE.Darklang.Stdlib.List.filter (fun item -> item.owner == owner)
+    |> PACKAGE.Darklang.Stdlib.List.map (fun i ->
       (i.owner, i.modules |> Builtin.String.join ".", i.name))
-    |> Builtin.List.map (fun m ->
+    |> PACKAGE.Darklang.Stdlib.List.map (fun m ->
       let (owner, modules, name) = m
       $"{owner}.{modules}.{name}")
     |> Builtin.List.sort
@@ -298,15 +298,15 @@ let _handler _req =
     (PACKAGE.Darklang.Stdlib.Packages
       { types =
           types
-          |> Builtin.List.filter (fun t ->
+          |> PACKAGE.Darklang.Stdlib.List.filter (fun t ->
             t.name.owner == owner && t.name.modules == modules)
         fns =
           fns
-          |> Builtin.List.filter (fun f ->
+          |> PACKAGE.Darklang.Stdlib.List.filter (fun f ->
             f.name.owner == owner && f.name.modules == modules)
         constants =
           constants
-          |> Builtin.List.filter (fun c ->
+          |> PACKAGE.Darklang.Stdlib.List.filter (fun c ->
             c.name.owner == owner && c.name.modules == modules) })
     |> Builtin.Json.serialize<PACKAGE.Darklang.Stdlib.Packages>
     |> Builtin.unwrap
@@ -330,9 +330,9 @@ let _handler _req =
   // CLEANUP: Use Builtin.DB.query instead - this is currently blocked by the unavailability of resolved typeArgs in lambdaToSql
   let allItems =
     (Builtin.DB.getAll NamesDB)
-    |> Builtin.List.filter (fun item ->
+    |> PACKAGE.Darklang.Stdlib.List.filter (fun item ->
       item.owner == owner && item.modules == modules && item.name == name)
-    |> Builtin.List.map (fun item -> item.category)
+    |> PACKAGE.Darklang.Stdlib.List.map (fun item -> item.category)
     |> PACKAGE.Darklang.Stdlib.List.head
 
   let respBody =

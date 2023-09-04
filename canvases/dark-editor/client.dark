@@ -199,7 +199,7 @@ let update (model: Model) (msg: Msg) : Model =
       |> Builtin.unwrap
       |> (fun r -> r.body)
       |> Builtin.String.fromBytes
-      |> Builtin.String.append $"\n\n {userPrompt}"
+      |> PACKAGE.Darklang.Stdlib.String.append $"\n\n {userPrompt}"
 
     // I guess, until we have cmds or something,
     // we have to deal with http calls and such in-line, like here
@@ -218,7 +218,7 @@ let update (model: Model) (msg: Msg) : Model =
             taskIndex
             (Builtin.String.length apiResponseTasks)
           |> Builtin.String.split "\n"
-          |> Builtin.List.map (fun line ->
+          |> PACKAGE.Darklang.Stdlib.List.map (fun line ->
             Task
               { id = (Builtin.String.random 5) |> Builtin.unwrap
                 description = line
@@ -227,7 +227,7 @@ let update (model: Model) (msg: Msg) : Model =
       let (newCodeSnippets, botResponseParts) =
         (Builtin.String.split (" " ++ apiResponse) "```")
         |> Builtin.List.indexedMap (fun i text -> (i, text))
-        |> Builtin.List.fold ([], []) (fun acc curr ->
+        |> PACKAGE.Darklang.Stdlib.List.fold ([], []) (fun acc curr ->
           let (codeSnippets, responseParts) = acc
           let (i, text) = curr
           let text = Builtin.String.trim text
@@ -282,7 +282,7 @@ let update (model: Model) (msg: Msg) : Model =
   | UserRequestedCodeEval id codeSnippet ->
     // split this into 2 groups - the one we're updating, and the rest
     let (snippetToUpdate, otherSnippets) =
-      model.codeSnippets |> Builtin.List.partition (fun cs -> cs.id == id)
+      model.codeSnippets |> PACKAGE.Darklang.Stdlib.List.partition (fun cs -> cs.id == id)
 
     match PACKAGE.Darklang.Stdlib.List.head snippetToUpdate with
     | None -> log "couldn't find snippet"
@@ -495,7 +495,7 @@ let init () : Model =
 //             | BotIsThinking -> "BotIsThinking"
 //     chatHistory =
 //       state.chatHistory
-//       |> Builtin.List.map (fun item ->
+//       |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
 //            { author = match item.author with User -> "User" | Bot -> "Bot"
 //              prompt = item.text }) }
 
@@ -509,7 +509,7 @@ let init () : Model =
 //       | "BotIsThinking" -> BotIsThinking
 //     ChatHistory =
 //       model.chatHistory
-//       |> Builtin.List.map (fun item ->
+//       |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
 //            { Author = match item.author with "User" -> User | "Bot" -> Bot
 //              Prompt = item.text }) }
 

@@ -7,7 +7,7 @@ module Darklang =
     let indent (s: String) : String =
       s
       |> Builtin.String.split "\n"
-      |> Builtin.List.map (fun line ->
+      |> PACKAGE.Darklang.Stdlib.List.map (fun line ->
         match line with
         | "" -> ""
         | line -> "  " ++ line)

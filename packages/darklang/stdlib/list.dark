@@ -216,14 +216,12 @@ module Darklang =
             PACKAGE.Darklang.Stdlib.List.filter tail f
 
 
-      // TODO : handle error case where fn doesn't return an option
       // Calls <param fn> on every <var val> in <param list>, returning a list that
       // drops some values (filter) and transforms others (map).
       // If {{fn val}} returns {{None}}, drops <var val> from the list.
       // If {{fn val}} returns {{Some newValue}}, replaces <var val> with <var newValue>.
       // Preserves the order of values that were not dropped.
       // This function combines <fn List.filter> and <fn List.map>.
-
       let filterMap
         (list: List<'a>)
         (fn: 'a -> PACKAGE.Darklang.Stdlib.Option.Option<'b>)

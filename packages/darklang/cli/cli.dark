@@ -40,7 +40,7 @@ module Darklang =
         1
       | Some fn ->
         let packageSpecificFunction =
-          (Builtin.List.filter fn (fun f ->
+          (PACKAGE.Darklang.Stdlib.List.filter fn (fun f ->
             f.name.name
             == PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name.FnName(name)
             && f.name.owner == owner
@@ -89,7 +89,7 @@ module Darklang =
         1
       | Some types ->
         let packageSpecificType =
-          (Builtin.List.filter types (fun t ->
+          (PACKAGE.Darklang.Stdlib.List.filter types (fun t ->
             t.name.name
             == PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name.TypeName(
               name
@@ -140,7 +140,7 @@ module Darklang =
         1
       | Some constants ->
         let packageSpecificConstant =
-          (Builtin.List.filter constants (fun c ->
+          (PACKAGE.Darklang.Stdlib.List.filter constants (fun c ->
             c.name.name
             == PACKAGE
               .Darklang

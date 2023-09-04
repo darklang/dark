@@ -188,7 +188,7 @@ module Darklang =
         | TDict inner -> $"Dict<{typeReference inner}>"
         | TTuple(first, second, theRest) ->
           (Builtin.List.append [ first; second ] theRest)
-          |> Builtin.List.map (fun item -> typeReference item)
+          |> PACKAGE.Darklang.Stdlib.List.map (fun item -> typeReference item)
           |> Builtin.String.join " * "
           |> fun parts -> "(" ++ parts ++ ")"
 
@@ -198,7 +198,7 @@ module Darklang =
             | [] -> ""
             | args ->
               args
-              |> Builtin.List.map (fun arg -> typeReference arg)
+              |> PACKAGE.Darklang.Stdlib.List.map (fun arg -> typeReference arg)
               |> Builtin.String.join ", "
               |> fun parts -> $"<{parts}>"
 
@@ -212,7 +212,7 @@ module Darklang =
         | TFn(args, ret) ->
           let argPart =
             args
-            |> Builtin.List.map (fun arg -> typeReference arg)
+            |> PACKAGE.Darklang.Stdlib.List.map (fun arg -> typeReference arg)
             |> Builtin.String.join ", "
             |> fun parts -> "(" ++ parts ++ ")"
 
@@ -281,7 +281,9 @@ module Darklang =
           dv |> LanguageTools.RuntimeTypes.Dval.toValueType |> valueType
 
         let makeSpaces (len: Int) : String =
-          (Builtin.List.repeat len " ") |> Builtin.unwrap |> Builtin.String.join ""
+          (PACKAGE.Darklang.Stdlib.List.repeat len " ")
+          |> Builtin.unwrap
+          |> Builtin.String.join ""
 
         let withIndent
           (indent: Int)
@@ -331,7 +333,8 @@ module Darklang =
           | DTuple(first, second, theRest) ->
             let l = Builtin.List.append [ first; second ] theRest
 
-            let parts = Builtin.List.map l (fun item -> withIndent indent item)
+            let parts =
+              PACKAGE.Darklang.Stdlib.List.map l (fun item -> withIndent indent item)
 
             let short = Builtin.String.join parts ", "
 
@@ -346,7 +349,7 @@ module Darklang =
             let strs =
               o
               |> Builtin.Dict.toList
-              |> Builtin.List.map (fun pair ->
+              |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
                 let (key, value) = pair
                 $"{key}: {withIndent indent value}")
 
@@ -361,7 +364,7 @@ module Darklang =
           //     let strs =
           //       o
           //       |> Map.toList
-          //       |> Builtin.List.map (fun (key, value) -> ($"{key}: {withIndent indent value}"))
+          //       |> PACKAGE.Darklang.Stdlib.List.map (fun (key, value) -> ($"{key}: {withIndent indent value}"))
 
           //     let elems = Builtin.String.concat $",{inl}" strs
           //     "{" + $"{inl}{elems}{nl}" + "}"
