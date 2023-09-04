@@ -2,7 +2,8 @@ let listDirectoryRecursive (dir: String) : List<String> =
   let contents = Builtin.Directory.list dir
 
   let (files, dirs) =
-    contents |> PACKAGE.Darklang.Stdlib.List.partition (fun x -> Builtin.File.isNormal x)
+    contents
+    |> PACKAGE.Darklang.Stdlib.List.partition (fun x -> Builtin.File.isNormal x)
 
   let nested =
     dirs

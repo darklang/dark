@@ -184,7 +184,8 @@ module Darklang =
           match PACKAGE.Darklang.Stdlib.List.repeat (times - 1) value with
           | Ok list ->
             PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-              PACKAGE.Darklang.Stdlib.List.push list value )
+              PACKAGE.Darklang.Stdlib.List.push list value
+            )
           | Error err -> PACKAGE.Darklang.Stdlib.Result.Result.Error err
 
 
@@ -291,7 +292,7 @@ module Darklang =
         match list with
         | [] -> init
         | head :: tail ->
-          let init =  fn init head
+          let init = fn init head
           PACKAGE.Darklang.Stdlib.List.fold tail init fn
 
 
@@ -360,7 +361,8 @@ module Darklang =
               match PACKAGE.Darklang.Stdlib.List.zip aTail bTail with
               | Some zipped ->
                 PACKAGE.Darklang.Stdlib.Option.Option.Some(
-                  PACKAGE.Darklang.Stdlib.List.push_v0 zipped (aHead, bHead) )
+                  PACKAGE.Darklang.Stdlib.List.push_v0 zipped (aHead, bHead)
+                )
               | None -> PACKAGE.Darklang.Stdlib.Option.Option.None
 
 

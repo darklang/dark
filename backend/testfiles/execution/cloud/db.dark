@@ -915,7 +915,8 @@ module QueryWithKey =
 
    (Builtin.DB.queryWithKey PersonDB (fun p -> p.name == "Rachel"))
    |> Builtin.Dict.toList_v0
-   |> PACKAGE.Darklang.Stdlib.List.map (fun v -> (PACKAGE.Darklang.Stdlib.Tuple2.second v).name)) = [ "Rachel" ]
+   |> PACKAGE.Darklang.Stdlib.List.map (fun v ->
+     (PACKAGE.Darklang.Stdlib.Tuple2.second v).name)) = [ "Rachel" ]
 
 module QueryCount =
   // none

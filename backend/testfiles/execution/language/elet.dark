@@ -65,7 +65,10 @@ module Shadowing =
   (let x = 35
 
    match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with
-   | Ok x -> (PACKAGE.Darklang.Stdlib.List.map_v0 [ 1; 2; 3; 4 ] (fun x -> x + 2))) = [ 3; 4; 5; 6 ]
+   | Ok x -> (PACKAGE.Darklang.Stdlib.List.map_v0 [ 1; 2; 3; 4 ] (fun x -> x + 2))) = [ 3
+                                                                                        4
+                                                                                        5
+                                                                                        6 ]
 
 
   (PACKAGE.Darklang.Stdlib.List.map_v0 [ 1; 2; 3; 4 ] (fun x ->

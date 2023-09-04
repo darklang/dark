@@ -282,7 +282,8 @@ let update (model: Model) (msg: Msg) : Model =
   | UserRequestedCodeEval id codeSnippet ->
     // split this into 2 groups - the one we're updating, and the rest
     let (snippetToUpdate, otherSnippets) =
-      model.codeSnippets |> PACKAGE.Darklang.Stdlib.List.partition (fun cs -> cs.id == id)
+      model.codeSnippets
+      |> PACKAGE.Darklang.Stdlib.List.partition (fun cs -> cs.id == id)
 
     match PACKAGE.Darklang.Stdlib.List.head snippetToUpdate with
     | None -> log "couldn't find snippet"

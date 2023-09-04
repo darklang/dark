@@ -242,7 +242,9 @@ let parseExprCase (node: SyntaxTreeNode) : PTExpr =
     let fnName = (getField node "fn") |> getText
 
     let args = getField node "args"
-    let args = args.children |> PACKAGE.Darklang.Stdlib.List.map (fun c -> parseExpr c)
+
+    let args =
+      args.children |> PACKAGE.Darklang.Stdlib.List.map (fun c -> parseExpr c)
 
     PTExpr.EFnCall(gid (), fnName, args)
 
@@ -298,7 +300,8 @@ let parseUserFunctionParams (node: SyntaxTreeNode) : List<PTUserFunctionParamete
   let first = getField node "first"
   let additional = getField node "additional"
 
-  [ first; additional ] |> PACKAGE.Darklang.Stdlib.List.map (fun p -> parseUserFunctionParam p)
+  [ first; additional ]
+  |> PACKAGE.Darklang.Stdlib.List.map (fun p -> parseUserFunctionParam p)
 
 
 // TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTUserFunction, String>

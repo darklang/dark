@@ -249,8 +249,7 @@ let fileTests () : Test =
         try
           let modules =
             $"{dir}/{filename}"
-            |> LibParser.TestModule.parseTestFile
-              nameResolver
+            |> LibParser.TestModule.parseTestFile nameResolver
             |> fun ply -> ply.Result
 
           // Within a module, tests have access to
