@@ -6,8 +6,7 @@ open FSharp.Control.Tasks
 type Instant = NodaTime.Instant
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
+
 open LibCloud.Db
 
 module PT = LibExecution.ProgramTypes
@@ -201,16 +200,12 @@ let processNotification
 
                   // CLEANUP Set a time limit of 3m
                   try
-                    let config : RT.Config =
-                      { allowLocalHttpAccess = false
-                        httpclientTimeoutInMs = LibCloud.Config.httpclientTimeoutInMs }
                     let program = Canvas.toProgram c
                     let! (result, traceResults) =
                       CloudExecution.executeHandler
                         LibClientTypesToCloudTypes.Pusher.eventSerializer
                         (PT2RT.Handler.toRT h)
                         program
-                        config
                         traceID
                         (Map [ "event", event.value ])
                         (CloudExecution.InitialExecution(
@@ -296,7 +291,8 @@ let run () : Task<unit> =
       with e ->
         // No matter where else we catch it, this is essential or else the loop won't
         // continue
-        let e = (PageableException("Unhandled exception bubbled to run", [], e))
+        let e =
+          (Exception.PageableException("Unhandled exception bubbled to run", [], e))
         Rollbar.sendException None [] e
   }
 

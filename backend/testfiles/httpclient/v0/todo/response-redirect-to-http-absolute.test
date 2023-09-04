@@ -13,10 +13,10 @@ Location: https://httpbin.org/status/200
 
 
 [test]
-(let response = (HttpClient.request "get" "http://URL" [] Bytes.empty) |> unwrap
+(let response = (Builtin.HttpClient.request "get" "http://URL" [] Builtin.Bytes.empty) |> Builtin.unwrap
  let respHeaders = response.headers |> Dict.remove_v0 "date"
  {response with headers = respHeaders}) =
-   HttpClient.Response
+   Builtin.HttpClient.Response
       { body = ""
         statusCode = 200
         error = ""

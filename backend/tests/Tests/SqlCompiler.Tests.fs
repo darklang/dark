@@ -14,8 +14,9 @@ module C = LibCloud.SqlCompiler
 module S = TestUtils.RTShortcuts
 module Errors = LibExecution.Errors
 
-let p (code : string) : Expr =
+let p (code : string) : Task<Expr> =
   LibParser.Parser.parseRTExpr builtinResolver "sqlcompiler.tests.fs" code
+  |> Ply.toTask
 
 let compile
   (symtable : DvalMap)
@@ -36,17 +37,23 @@ let compile
           { typeParams = []
             definition = TypeDeclaration.Record(NEList.singleton field) } }
     let userTypes = Map [ typeName, userType ]
-    let typeReference = TCustomType(FQName.UserProgram typeName, [])
+    let typeReference = TCustomType(Ok(FQName.UserProgram typeName), [])
 
     let! state =
       executionStateFor canvasID false false Map.empty userTypes Map.empty Map.empty
 
     try
-      let! sql, args =
+      let! compiled =
         C.compileLambda state Map.empty symtable paramName typeReference expr
 
-      let args = Map.ofList args
-      return sql, args
+      match compiled with
+      | Ok compiled ->
+        let vars = Map.ofList compiled.vars
+        return compiled.sql, vars
+      | Error err ->
+        return
+          Exception.raiseInternal "could not compile lambda to sql" [ "err", err ]
+
     with e ->
       return
         Exception.raiseInternal e.Message [ "paramName", paramName; "expr", expr ]
@@ -73,12 +80,13 @@ let compileTests =
   testList
     "compile tests"
     [ testTask "compile true" {
-        let! sql, args = compile Map.empty "value" ("myfield", TBool) (p "true")
+        let! e = p "true"
+        let! sql, args = compile Map.empty "value" ("myfield", TBool) e
         matchSql sql @"\(@([A-Z]+)\)" args [ Sql.bool true ]
       }
       testTask "compile field" {
-        let! sql, args =
-          compile Map.empty "value" ("myfield", TBool) (p "value.myfield")
+        let! e = p "value.myfield"
+        let! sql, args = compile Map.empty "value" ("myfield", TBool) e
 
         matchSql sql @"\(CAST\(data::jsonb->>'myfield' as bool\)\)" args []
       }
@@ -102,7 +110,7 @@ let compileTests =
           []
       }
       testTask "symtable values escaped" {
-        let expr = p "var == value.name"
+        let! expr = p "var == value.name"
         let symtable = Map.ofList [ "var", DString "';select * from user_data_v0;'" ]
 
         let! sql, args = compile symtable "value" ("name", TString) expr
@@ -114,7 +122,7 @@ let compileTests =
           []
       }
       testTask "pipes expand correctly into nested functions" {
-        let expr = p "value.age |> (-) 2 |> (+) value.age |> (<) 3"
+        let! expr = p "value.age |> (-) 2 |> (+) value.age |> (<) 3"
         let! sql, args = compile Map.empty "value" ("age", TInt) expr
 
         matchSql
@@ -126,25 +134,26 @@ let compileTests =
 
 
 let inlineWorksAtRoot =
-  test "inlineWorksAtRoot" {
-    let expr =
+  testTask "inlineWorksAtRoot" {
+    let! expr =
       LibParser.Parser.parseRTExpr
         builtinResolver
         "test.fs"
         "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
+      |> Ply.toTask
 
-    let expected = p "3 + 5"
+    let! expected = p "3 + 5"
     let result = C.inline' "value" Map.empty expr
-    Expect.equalExprIgnoringIDs result expected
+    return Expect.equalExprIgnoringIDs result expected
   }
 
 let inlineWorksWithNested =
-  test "inlineWorksWithNested" {
-    let expr = p "let x = 5 in (let x = 6 in (3 + (let x = 7 in x)))"
+  testTask "inlineWorksWithNested" {
+    let! expr = p "let x = 5 in (let x = 6 in (3 + (let x = 7 in x)))"
 
-    let expected = p "3 + 7"
+    let! expected = p "3 + 7"
     let result = C.inline' "value" Map.empty expr
-    Expect.equalExprIgnoringIDs result expected
+    return Expect.equalExprIgnoringIDs result expected
   }
 
 let partialEvaluation =
@@ -162,7 +171,7 @@ let partialEvaluation =
             Map.empty
             Map.empty
             Map.empty
-        let expr = p expr
+        let! expr = p expr
         let result = C.partiallyEvaluate state Map.empty (Map vars) "x" expr
         let! (dvals, result) = Ply.TplPrimitives.runPlyAsTask result
         match result with

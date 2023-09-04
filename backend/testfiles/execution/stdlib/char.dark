@@ -1,185 +1,191 @@
 let smiley () : Char =
-  (String.toList "😂") |> PACKAGE.Darklang.Stdlib.List.head |> unwrap
+  (Builtin.String.toList "😂")
+  |> PACKAGE.Darklang.Stdlib.List.head
+  |> Builtin.unwrap
 
 let hand () : Char =
-  (String.toList "✋🏿") |> PACKAGE.Darklang.Stdlib.List.head |> unwrap
+  (Builtin.String.toList "✋🏿")
+  |> PACKAGE.Darklang.Stdlib.List.head
+  |> Builtin.unwrap
 
 let family () : Char =
-  (String.toList "👩‍👩‍👧‍👦") |> PACKAGE.Darklang.Stdlib.List.head |> unwrap
+  (Builtin.String.toList "👩‍👩‍👧‍👦")
+  |> PACKAGE.Darklang.Stdlib.List.head
+  |> Builtin.unwrap
 
-Char.toLowercase 'A' = 'a'
-Char.toLowercase 'a' = 'a'
-Char.toLowercase 'Á' = 'á'
-Char.toLowercase '3' = '3'
-Char.toLowercase (smiley ()) = smiley ()
-Char.toLowercase 'Ż' = 'ż'
-Char.toLowercase 'Ó' = 'ó'
-Char.toLowercase 'Ł' = 'ł'
-Char.toLowercase (hand ()) = hand ()
-Char.toLowercase 'Ჾ' = 'ჾ'
-Char.toLowercase 'ჾ' = 'ჾ'
-
-
-Char.toUppercase 'a' = 'A'
-Char.toUppercase 'A' = 'A'
-Char.toUppercase 'á' = 'Á'
-Char.toUppercase '3' = '3'
-Char.toUppercase (smiley ()) = smiley ()
-Char.toUppercase 'ż' = 'Ż'
-Char.toUppercase 'ó' = 'Ó'
-Char.toUppercase 'ł' = 'Ł'
-Char.toUppercase (hand ()) = hand ()
-Char.toUppercase 'ჾ' = 'Ჾ'
-Char.toUppercase 'Ჾ' = 'Ჾ'
+Builtin.Char.toLowercase 'A' = 'a'
+Builtin.Char.toLowercase 'a' = 'a'
+Builtin.Char.toLowercase 'Á' = 'á'
+Builtin.Char.toLowercase '3' = '3'
+Builtin.Char.toLowercase (smiley ()) = smiley ()
+Builtin.Char.toLowercase 'Ż' = 'ż'
+Builtin.Char.toLowercase 'Ó' = 'ó'
+Builtin.Char.toLowercase 'Ł' = 'ł'
+Builtin.Char.toLowercase (hand ()) = hand ()
+Builtin.Char.toLowercase 'Ჾ' = 'ჾ'
+Builtin.Char.toLowercase 'ჾ' = 'ჾ'
 
 
-Char.isLowercase_v0 'a' = true
-Char.isLowercase_v0 'A' = false
-Char.isLowercase_v0 'á' = true
-Char.isLowercase_v0 'Á' = false
-Char.isLowercase_v0 '3' = false
-Char.isLowercase_v0 (smiley ()) = false
-Char.isLowercase_v0 'ż' = true
-Char.isLowercase_v0 'Ż' = false
-Char.isLowercase_v0 'ó' = true
-Char.isLowercase_v0 'Ó' = false
-Char.isLowercase_v0 'ł' = true
-Char.isLowercase_v0 'Ł' = false
-Char.isLowercase_v0 (hand ()) = false
-Char.isLowercase_v0 'ჾ' = true
-Char.isLowercase_v0 'Ჾ' = false
+Builtin.Char.toUppercase 'a' = 'A'
+Builtin.Char.toUppercase 'A' = 'A'
+Builtin.Char.toUppercase 'á' = 'Á'
+Builtin.Char.toUppercase '3' = '3'
+Builtin.Char.toUppercase (smiley ()) = smiley ()
+Builtin.Char.toUppercase 'ż' = 'Ż'
+Builtin.Char.toUppercase 'ó' = 'Ó'
+Builtin.Char.toUppercase 'ł' = 'Ł'
+Builtin.Char.toUppercase (hand ()) = hand ()
+Builtin.Char.toUppercase 'ჾ' = 'Ჾ'
+Builtin.Char.toUppercase 'Ჾ' = 'Ჾ'
 
 
-Char.isUppercase_v0 'a' = false
-Char.isUppercase_v0 'A' = true
-Char.isUppercase_v0 'á' = false
-Char.isUppercase_v0 'Á' = true
-Char.isUppercase_v0 '3' = false
-Char.isUppercase_v0 (smiley ()) = false
-Char.isUppercase_v0 'ż' = false
-Char.isUppercase_v0 'Ż' = true
-Char.isUppercase_v0 'ó' = false
-Char.isUppercase_v0 'Ó' = true
-Char.isUppercase_v0 'ł' = false
-Char.isUppercase_v0 'Ł' = true
-Char.isUppercase_v0 (hand ()) = false
-Char.isUppercase_v0 'ჾ' = false
-Char.isUppercase_v0 'Ჾ' = true
+PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'a' = true
+PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'A' = false
+PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'á' = true
+PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'Á' = false
+PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 '3' = false
+PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 (smiley ()) = false
+PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'ż' = true
+PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'Ż' = false
+PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'ó' = true
+PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'Ó' = false
+PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'ł' = true
+PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'Ł' = false
+PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 (hand ()) = false
+PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'ჾ' = true
+PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'Ჾ' = false
 
 
-Char.isDigit_v0 'a' = false
-Char.isDigit_v0 'A' = false
-Char.isDigit_v0 'á' = false
-Char.isDigit_v0 'Á' = false
-Char.isDigit_v0 '0' = true
-Char.isDigit_v0 '1' = true
-Char.isDigit_v0 '2' = true
-Char.isDigit_v0 '3' = true
-Char.isDigit_v0 '4' = true
-Char.isDigit_v0 '5' = true
-Char.isDigit_v0 '6' = true
-Char.isDigit_v0 '7' = true
-Char.isDigit_v0 '8' = true
-Char.isDigit_v0 '9' = true
-Char.isDigit_v0 (smiley ()) = false
-Char.isDigit_v0 'ż' = false
-Char.isDigit_v0 'Ż' = false
-Char.isDigit_v0 'ó' = false
-Char.isDigit_v0 'Ó' = false
-Char.isDigit_v0 'ł' = false
-Char.isDigit_v0 'Ł' = false
-Char.isDigit_v0 (hand ()) = false
-Char.isDigit_v0 'ჾ' = false
-Char.isDigit_v0 'Ჾ' = false
-Char.isDigit_v0 ' ' = false
-Char.isDigit_v0 '\t' = false
+PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'a' = false
+PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'A' = true
+PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'á' = false
+PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'Á' = true
+PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 '3' = false
+PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 (smiley ()) = false
+PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'ż' = false
+PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'Ż' = true
+PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'ó' = false
+PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'Ó' = true
+PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'ł' = false
+PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'Ł' = true
+PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 (hand ()) = false
+PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'ჾ' = false
+PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'Ჾ' = true
 
 
-Char.isASCIILetter_v0 'a' = true
-Char.isASCIILetter_v0 'A' = true
-Char.isASCIILetter_v0 'á' = false
-Char.isASCIILetter_v0 'Á' = false
-Char.isASCIILetter_v0 '3' = false
-Char.isASCIILetter_v0 ',' = false
-Char.isASCIILetter_v0 (smiley ()) = false
-Char.isASCIILetter_v0 'ż' = false
-Char.isASCIILetter_v0 'Ż' = false
-Char.isASCIILetter_v0 'ó' = false
-Char.isASCIILetter_v0 'Ó' = false
-Char.isASCIILetter_v0 'ł' = false
-Char.isASCIILetter_v0 'Ł' = false
-Char.isASCIILetter_v0 (hand ()) = false
-Char.isASCIILetter_v0 'ჾ' = false
-Char.isASCIILetter_v0 'Ჾ' = false
-Char.isASCIILetter_v0 ' ' = false
-Char.isASCIILetter_v0 '\t' = false
+Builtin.Char.isDigit_v0 'a' = false
+Builtin.Char.isDigit_v0 'A' = false
+Builtin.Char.isDigit_v0 'á' = false
+Builtin.Char.isDigit_v0 'Á' = false
+Builtin.Char.isDigit_v0 '0' = true
+Builtin.Char.isDigit_v0 '1' = true
+Builtin.Char.isDigit_v0 '2' = true
+Builtin.Char.isDigit_v0 '3' = true
+Builtin.Char.isDigit_v0 '4' = true
+Builtin.Char.isDigit_v0 '5' = true
+Builtin.Char.isDigit_v0 '6' = true
+Builtin.Char.isDigit_v0 '7' = true
+Builtin.Char.isDigit_v0 '8' = true
+Builtin.Char.isDigit_v0 '9' = true
+Builtin.Char.isDigit_v0 (smiley ()) = false
+Builtin.Char.isDigit_v0 'ż' = false
+Builtin.Char.isDigit_v0 'Ż' = false
+Builtin.Char.isDigit_v0 'ó' = false
+Builtin.Char.isDigit_v0 'Ó' = false
+Builtin.Char.isDigit_v0 'ł' = false
+Builtin.Char.isDigit_v0 'Ł' = false
+Builtin.Char.isDigit_v0 (hand ()) = false
+Builtin.Char.isDigit_v0 'ჾ' = false
+Builtin.Char.isDigit_v0 'Ჾ' = false
+Builtin.Char.isDigit_v0 ' ' = false
+Builtin.Char.isDigit_v0 '\t' = false
 
 
-Char.isASCII_v0 'a' = true
-Char.isASCII_v0 'A' = true
-Char.isASCII_v0 'á' = false
-Char.isASCII_v0 'Á' = false
-Char.isASCII_v0 '3' = true
-Char.isASCII_v0 (smiley ()) = false
-Char.isASCII_v0 'ż' = false
-Char.isASCII_v0 'Ż' = false
-Char.isASCII_v0 'ó' = false
-Char.isASCII_v0 'Ó' = false
-Char.isASCII_v0 'ł' = false
-Char.isASCII_v0 'Ł' = false
-Char.isASCII_v0 (hand ()) = false
-Char.isASCII_v0 'ჾ' = false
-Char.isASCII_v0 'Ჾ' = false
-Char.isASCII_v0 ' ' = true
-Char.isASCII_v0 '\t' = true
+Builtin.Char.isASCIILetter_v0 'a' = true
+Builtin.Char.isASCIILetter_v0 'A' = true
+Builtin.Char.isASCIILetter_v0 'á' = false
+Builtin.Char.isASCIILetter_v0 'Á' = false
+Builtin.Char.isASCIILetter_v0 '3' = false
+Builtin.Char.isASCIILetter_v0 ',' = false
+Builtin.Char.isASCIILetter_v0 (smiley ()) = false
+Builtin.Char.isASCIILetter_v0 'ż' = false
+Builtin.Char.isASCIILetter_v0 'Ż' = false
+Builtin.Char.isASCIILetter_v0 'ó' = false
+Builtin.Char.isASCIILetter_v0 'Ó' = false
+Builtin.Char.isASCIILetter_v0 'ł' = false
+Builtin.Char.isASCIILetter_v0 'Ł' = false
+Builtin.Char.isASCIILetter_v0 (hand ()) = false
+Builtin.Char.isASCIILetter_v0 'ჾ' = false
+Builtin.Char.isASCIILetter_v0 'Ჾ' = false
+Builtin.Char.isASCIILetter_v0 ' ' = false
+Builtin.Char.isASCIILetter_v0 '\t' = false
 
 
-Char.isLessThan_v0 'a' 'b' = true
-Char.isLessThan_v0 'a' 'A' = false
-Char.isLessThan_v0 'b' 'A' = false
-Char.isLessThan_v0 'a' 'á' = true
-Char.isLessThan_v0 'b' 'á' = true
-Char.isLessThan_v0 'a' 'ჾ' = true
-Char.isLessThan_v0 'a' 'Ჾ' = true
-Char.isLessThan_v0 'a' 'ł' = true
-Char.isLessThan_v0 'a' 'Ł' = true
-Char.isLessThan_v0 'a' ' ' = false
-Char.isLessThan_v0 'a' '\t' = false
-Char.isLessThan_v0 'a' '1' = false
-Char.isLessThan_v0 '2' '1' = false
-Char.isLessThan_v0 'a' (smiley ()) = true
-Char.isLessThan_v0 'a' (hand ()) = true
-Char.isLessThan_v0 'a' (family ()) = true
-Char.isLessThan_v0 (smiley ()) (hand ()) = false
+Builtin.Char.isASCII_v0 'a' = true
+Builtin.Char.isASCII_v0 'A' = true
+Builtin.Char.isASCII_v0 'á' = false
+Builtin.Char.isASCII_v0 'Á' = false
+Builtin.Char.isASCII_v0 '3' = true
+Builtin.Char.isASCII_v0 (smiley ()) = false
+Builtin.Char.isASCII_v0 'ż' = false
+Builtin.Char.isASCII_v0 'Ż' = false
+Builtin.Char.isASCII_v0 'ó' = false
+Builtin.Char.isASCII_v0 'Ó' = false
+Builtin.Char.isASCII_v0 'ł' = false
+Builtin.Char.isASCII_v0 'Ł' = false
+Builtin.Char.isASCII_v0 (hand ()) = false
+Builtin.Char.isASCII_v0 'ჾ' = false
+Builtin.Char.isASCII_v0 'Ჾ' = false
+Builtin.Char.isASCII_v0 ' ' = true
+Builtin.Char.isASCII_v0 '\t' = true
 
 
-Char.isGreaterThan_v0 'a' 'b' = false
-Char.isGreaterThan_v0 'a' 'A' = true
-Char.isGreaterThan_v0 'b' 'A' = true
-Char.isGreaterThan_v0 'a' 'á' = false
-Char.isGreaterThan_v0 'b' 'á' = false
-Char.isGreaterThan_v0 'a' 'ჾ' = false
-Char.isGreaterThan_v0 'a' 'Ჾ' = false
-Char.isGreaterThan_v0 'a' 'ł' = false
-Char.isGreaterThan_v0 'a' 'Ł' = false
-Char.isGreaterThan_v0 'a' ' ' = true
-Char.isGreaterThan_v0 'a' '\t' = true
-Char.isGreaterThan_v0 'a' '1' = true
-Char.isGreaterThan_v0 '2' '1' = true
-Char.isGreaterThan_v0 'a' (smiley ()) = false
-Char.isGreaterThan_v0 'a' (hand ()) = false
-Char.isGreaterThan_v0 'a' (family ()) = false
-Char.isGreaterThan_v0 (smiley ()) (hand ()) = true
+Builtin.Char.isLessThan_v0 'a' 'b' = true
+Builtin.Char.isLessThan_v0 'a' 'A' = false
+Builtin.Char.isLessThan_v0 'b' 'A' = false
+Builtin.Char.isLessThan_v0 'a' 'á' = true
+Builtin.Char.isLessThan_v0 'b' 'á' = true
+Builtin.Char.isLessThan_v0 'a' 'ჾ' = true
+Builtin.Char.isLessThan_v0 'a' 'Ჾ' = true
+Builtin.Char.isLessThan_v0 'a' 'ł' = true
+Builtin.Char.isLessThan_v0 'a' 'Ł' = true
+Builtin.Char.isLessThan_v0 'a' ' ' = false
+Builtin.Char.isLessThan_v0 'a' '\t' = false
+Builtin.Char.isLessThan_v0 'a' '1' = false
+Builtin.Char.isLessThan_v0 '2' '1' = false
+Builtin.Char.isLessThan_v0 'a' (smiley ()) = true
+Builtin.Char.isLessThan_v0 'a' (hand ()) = true
+Builtin.Char.isLessThan_v0 'a' (family ()) = true
+Builtin.Char.isLessThan_v0 (smiley ()) (hand ()) = false
 
 
-Char.toString 'A' = "A"
-Char.toString 'a' = "a"
-Char.toString 'Á' = "Á"
-Char.toString '3' = "3"
-Char.toString (smiley ()) = "😂"
-Char.toString 'Ż' = "Ż"
-Char.toString 'Ó' = "Ó"
-Char.toString 'Ł' = "Ł"
-Char.toString (hand ()) = "✋🏿"
-Char.toString 'Ჾ' = "Ჾ"
-Char.toString 'ჾ' = "ჾ"
+Builtin.Char.isGreaterThan_v0 'a' 'b' = false
+Builtin.Char.isGreaterThan_v0 'a' 'A' = true
+Builtin.Char.isGreaterThan_v0 'b' 'A' = true
+Builtin.Char.isGreaterThan_v0 'a' 'á' = false
+Builtin.Char.isGreaterThan_v0 'b' 'á' = false
+Builtin.Char.isGreaterThan_v0 'a' 'ჾ' = false
+Builtin.Char.isGreaterThan_v0 'a' 'Ჾ' = false
+Builtin.Char.isGreaterThan_v0 'a' 'ł' = false
+Builtin.Char.isGreaterThan_v0 'a' 'Ł' = false
+Builtin.Char.isGreaterThan_v0 'a' ' ' = true
+Builtin.Char.isGreaterThan_v0 'a' '\t' = true
+Builtin.Char.isGreaterThan_v0 'a' '1' = true
+Builtin.Char.isGreaterThan_v0 '2' '1' = true
+Builtin.Char.isGreaterThan_v0 'a' (smiley ()) = false
+Builtin.Char.isGreaterThan_v0 'a' (hand ()) = false
+Builtin.Char.isGreaterThan_v0 'a' (family ()) = false
+Builtin.Char.isGreaterThan_v0 (smiley ()) (hand ()) = true
+
+
+Builtin.Char.toString 'A' = "A"
+Builtin.Char.toString 'a' = "a"
+Builtin.Char.toString 'Á' = "Á"
+Builtin.Char.toString '3' = "3"
+Builtin.Char.toString (smiley ()) = "😂"
+Builtin.Char.toString 'Ż' = "Ż"
+Builtin.Char.toString 'Ó' = "Ó"
+Builtin.Char.toString 'Ł' = "Ł"
+Builtin.Char.toString (hand ()) = "✋🏿"
+Builtin.Char.toString 'Ჾ' = "Ჾ"
+Builtin.Char.toString 'ჾ' = "ჾ"

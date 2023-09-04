@@ -1,56 +1,84 @@
 // Tuple2
-Tuple2.create "one" 2 = ("one", 2)
-Tuple2.create 1 "two" = (1, "two")
+PACKAGE.Darklang.Stdlib.Tuple2.create "one" 2 = ("one", 2)
+PACKAGE.Darklang.Stdlib.Tuple2.create 1 "two" = (1, "two")
 
-Tuple2.first ("one", 2) = "one"
-Tuple2.first (1, "two") = 1
-Tuple2.second ("one", 2) = 2
-Tuple2.second (1, "two") = "two"
+PACKAGE.Darklang.Stdlib.Tuple2.first ("one", 2) = "one"
+PACKAGE.Darklang.Stdlib.Tuple2.first (1, "two") = 1
+PACKAGE.Darklang.Stdlib.Tuple2.second ("one", 2) = 2
+PACKAGE.Darklang.Stdlib.Tuple2.second (1, "two") = "two"
 
-Tuple2.swap ("one", 2) = (2, "one")
-Tuple2.swap (1, "two") = ("two", 1)
+PACKAGE.Darklang.Stdlib.Tuple2.swap ("one", 2) = (2, "one")
+PACKAGE.Darklang.Stdlib.Tuple2.swap (1, "two") = ("two", 1)
 
-Tuple2.swap (Tuple2.swap ("two swaps", "back to original")) = ("two swaps",
-                                                               "back to original")
+PACKAGE.Darklang.Stdlib.Tuple2.swap (
+  PACKAGE.Darklang.Stdlib.Tuple2.swap ("two swaps", "back to original")
+) = ("two swaps", "back to original")
 
-Tuple2.mapFirst (fun x -> String.toUppercase x) ("one", 2) = ("ONE", 2)
-Tuple2.mapFirst (fun x -> x - 2) (1, "two") = (-1, "two")
-Tuple2.mapSecond (fun x -> x - 2) ("one", 2) = ("one", 0)
-Tuple2.mapSecond (fun x -> String.toUppercase x) (1, "two") = (1, "TWO")
+PACKAGE.Darklang.Stdlib.Tuple2.mapFirst
+  (fun x -> Builtin.String.toUppercase x)
+  ("one", 2) = ("ONE", 2)
 
-Tuple2.mapBoth (fun x -> String.toUppercase x) (fun x -> x - 2) ("one", 2) = ("ONE",
-                                                                              0)
+PACKAGE.Darklang.Stdlib.Tuple2.mapFirst (fun x -> x - 2) (1, "two") = (-1, "two")
+PACKAGE.Darklang.Stdlib.Tuple2.mapSecond (fun x -> x - 2) ("one", 2) = ("one", 0)
 
-Tuple2.mapBoth (fun x -> x - 2) (fun x -> String.toUppercase x) (1, "two") = (-1,
-                                                                              "TWO")
+PACKAGE.Darklang.Stdlib.Tuple2.mapSecond
+  (fun x -> Builtin.String.toUppercase x)
+  (1, "two") = (1, "TWO")
+
+PACKAGE.Darklang.Stdlib.Tuple2.mapBoth
+  (fun x -> Builtin.String.toUppercase x)
+  (fun x -> x - 2)
+  ("one", 2) = ("ONE", 0)
+
+PACKAGE.Darklang.Stdlib.Tuple2.mapBoth
+  (fun x -> x - 2)
+  (fun x -> Builtin.String.toUppercase x)
+  (1, "two") = (-1, "TWO")
 
 
 // Tuple3
-Tuple3.create "one" 2 "pi" = ("one", 2, "pi")
-Tuple3.create 1 "two" 3.14 = (1, "two", 3.14)
+PACKAGE.Darklang.Stdlib.Tuple3.create "one" 2 "pi" = ("one", 2, "pi")
+PACKAGE.Darklang.Stdlib.Tuple3.create 1 "two" 3.14 = (1, "two", 3.14)
 
-Tuple3.first (1, "two", 3.14) = 1
-Tuple3.first ("one", 2, "pi") = "one"
-Tuple3.second (1, "two", 3.14) = "two"
-Tuple3.second ("one", 2, "pi") = 2
-Tuple3.third (1, "two", 3.14) = 3.14
-Tuple3.third ("one", 2, "pi") = "pi"
+PACKAGE.Darklang.Stdlib.Tuple3.first (1, "two", 3.14) = 1
+PACKAGE.Darklang.Stdlib.Tuple3.first ("one", 2, "pi") = "one"
+PACKAGE.Darklang.Stdlib.Tuple3.second (1, "two", 3.14) = "two"
+PACKAGE.Darklang.Stdlib.Tuple3.second ("one", 2, "pi") = 2
+PACKAGE.Darklang.Stdlib.Tuple3.third (1, "two", 3.14) = 3.14
+PACKAGE.Darklang.Stdlib.Tuple3.third ("one", 2, "pi") = "pi"
 
-Tuple3.mapFirst (fun x -> String.toUppercase x) ("one", 2, "pi") = ("ONE", 2, "pi")
-Tuple3.mapFirst (fun x -> x - 2) (1, "two", 3.14) = (-1, "two", 3.14)
-Tuple3.mapSecond (fun x -> x - 2) ("one", 2, "pi") = ("one", 0, "pi")
-Tuple3.mapSecond (fun x -> String.toUppercase x) (1, "two", 3.14) = (1, "TWO", 3.14)
-Tuple3.mapThird (fun x -> String.toUppercase x) ("one", 2, "pi") = ("one", 2, "PI")
-Tuple3.mapThird (fun x -> Float.roundDown_v0 x) (1, "two", 3.14) = (1, "two", 3)
+PACKAGE.Darklang.Stdlib.Tuple3.mapFirst
+  (fun x -> Builtin.String.toUppercase x)
+  ("one", 2, "pi") = ("ONE", 2, "pi")
 
-Tuple3.mapAllThree
-  (fun x -> String.toUppercase x)
+PACKAGE.Darklang.Stdlib.Tuple3.mapFirst (fun x -> x - 2) (1, "two", 3.14) = (-1,
+                                                                             "two",
+                                                                             3.14)
+
+PACKAGE.Darklang.Stdlib.Tuple3.mapSecond (fun x -> x - 2) ("one", 2, "pi") = ("one",
+                                                                              0,
+                                                                              "pi")
+
+PACKAGE.Darklang.Stdlib.Tuple3.mapSecond
+  (fun x -> Builtin.String.toUppercase x)
+  (1, "two", 3.14) = (1, "TWO", 3.14)
+
+PACKAGE.Darklang.Stdlib.Tuple3.mapThird
+  (fun x -> Builtin.String.toUppercase x)
+  ("one", 2, "pi") = ("one", 2, "PI")
+
+PACKAGE.Darklang.Stdlib.Tuple3.mapThird
+  (fun x -> Builtin.Float.roundDown_v0 x)
+  (1, "two", 3.14) = (1, "two", 3)
+
+PACKAGE.Darklang.Stdlib.Tuple3.mapAllThree
+  (fun x -> Builtin.String.toUppercase x)
   (fun x -> x - 2)
-  (fun x -> String.toUppercase x)
+  (fun x -> Builtin.String.toUppercase x)
   ("one", 2, "pi") = ("ONE", 0, "PI")
 
-Tuple3.mapAllThree
+PACKAGE.Darklang.Stdlib.Tuple3.mapAllThree
   (fun x -> x - 2)
-  (fun x -> String.toUppercase x)
-  (fun x -> Float.roundDown_v0 x)
+  (fun x -> Builtin.String.toUppercase x)
+  (fun x -> Builtin.Float.roundDown_v0 x)
   (1, "two", 3.14) = (-1, "TWO", 3)

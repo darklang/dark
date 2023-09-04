@@ -24,9 +24,9 @@
  | () -> "pass"
  | var -> "fail") = "pass"
 
-(match 999999999999999I with
+(match 999999999999999L with
  | 0 -> "fail"
- | 999999999999999I -> "pass") = "pass"
+ | 999999999999999L -> "pass") = "pass"
 
 (match [] with
  | [ i ] -> "fail"
@@ -45,40 +45,40 @@
 
 // Errors
 (match "nothing matches" with
- | "not this" -> "fail") = Test.runtimeError "No match"
+ | "not this" -> "fail") = Builtin.Test.derrorMessage "No match"
 
-(match Test.runtimeError "cond is error" with
+(match Builtin.Test.runtimeError "cond is error" with
  | 5 -> "fail"
  | 6 -> "pass"
- | var -> "fail") = Test.runtimeError "cond is error"
+ | var -> "fail") = Builtin.Test.derrorMessage "cond is error"
 
-(match Test.runtimeError "cond is error, wildcard" with
+(match Builtin.Test.runtimeError "cond is error, wildcard" with
  | 5 -> 5
- | _ -> 6) = Test.runtimeError "cond is error, wildcard"
+ | _ -> 6) = Builtin.Test.derrorMessage "cond is error, wildcard"
 
 (match 1 with
- | 1 -> Test.runtimeError "a"
+ | 1 -> Builtin.Test.runtimeError "a"
  | 6 -> "pass"
- | var -> "fail") = Test.runtimeError "a"
+ | var -> "fail") = Builtin.Test.derrorMessage "a"
 
 (match 1 with
- | 2 -> Test.runtimeError "a"
+ | 2 -> Builtin.Test.runtimeError "a"
  | 1 -> "pass"
  | var -> "fail") = "pass"
 
 (match 1 with
  | 1 -> "pass"
- | 6 -> Test.runtimeError "a"
+ | 6 -> Builtin.Test.runtimeError "a"
  | var -> "fail") = "pass"
 
 (match 1 with
  | 2 -> "pass"
- | 1 -> Test.runtimeError "a"
- | var -> "fail") = Test.runtimeError "a"
+ | 1 -> Builtin.Test.runtimeError "a"
+ | var -> "fail") = Builtin.Test.derrorMessage "a"
 
 (match 3 with
  | 2 -> "pass"
- | 1 -> Test.runtimeError "a"
+ | 1 -> Builtin.Test.runtimeError "a"
  | var -> "pass") = "pass"
 
 // int
@@ -282,7 +282,7 @@
  | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
  | [ i ] -> "list:" ++ i
  | (1, 2) -> "1 and 2"
- | None -> "constructor nothing") = Test.runtimeError "No match"
+ | None -> "constructor nothing") = Builtin.Test.derrorMessage "No match"
 
 module ListCons =
   (match [ 1; 2; 3 ] with
@@ -304,7 +304,8 @@ module ListCons =
    | [] -> 4) = 2
 
   (match [ 1; 2; 3 ] with
-   | head :: rest -> head + (rest |> PACKAGE.Darklang.Stdlib.List.head |> unwrap)) = 3
+   | head :: rest ->
+     head + (rest |> PACKAGE.Darklang.Stdlib.List.head |> Builtin.unwrap)) = 3
 
   // head tail
   let headTail (list: List<Int>) : (Int * List<Int>) =

@@ -1,12 +1,11 @@
 module Wasm.EvalHelpers
 
 open Prelude
-open Tablecloth
 
 open LibExecution.RuntimeTypes
 
 let getStateForEval
-  (stdlib : LibExecution.StdLib.Contents)
+  (stdlib : LibExecution.Builtin.Contents)
   (types : List<UserType.T>)
   (fns : List<UserFunction.T>)
   (constants : List<UserConstant.T>)
@@ -22,8 +21,6 @@ let getStateForEval
   // TODO
   let packageManager : PackageManager = PackageManager.Empty
 
-  let config : Config = { allowLocalHttpAccess = true; httpclientTimeoutInMs = 5000 }
-
   let program : Program =
     { canvasID = CanvasID.Empty
       internalFnsAllowed = true
@@ -37,7 +34,6 @@ let getStateForEval
     packageManager = packageManager
     tracing = LibExecution.Execution.noTracing Real
     program = program
-    config = config
     test = LibExecution.Execution.noTestContext
     reportException = consoleReporter
     notify = consoleNotifier
@@ -68,10 +64,12 @@ let getStateForEval
 let exprsCollapsedIntoOne (exprs : List<Expr>) : Expr =
   exprs
   |> List.rev
-  |> List.fold (EUnit(gid ())) (fun agg expr ->
-    match agg with
-    | EUnit(_) -> expr
-    | _ ->
-      match expr with
-      | ELet(id, lp, expr, _) -> ELet(id, lp, expr, agg)
-      | other -> ELet(gid (), LPVariable(gid (), "_"), other, agg))
+  |> List.fold
+    (fun agg expr ->
+      match agg with
+      | EUnit(_) -> expr
+      | _ ->
+        match expr with
+        | ELet(id, lp, expr, _) -> ELet(id, lp, expr, agg)
+        | other -> ELet(gid (), LPVariable(gid (), "_"), other, agg))
+    (EUnit(gid ()))

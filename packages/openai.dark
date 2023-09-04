@@ -2,12 +2,11 @@ module OpenAI =
 
   module Config =
 
-    let apiKey () : String = "openai-api-key"
+    let apiKey = "openai-api-key"
 
     let getHeaders () : List<(String * String)> =
-      [ ("authorization", "Bearer " ++ PACKAGE.OpenAI.Config.apiKey ())
+      [ ("authorization", "Bearer " ++ PACKAGE.OpenAI.Config.apiKey)
         ("content-type", "application/json") ]
-
 
   module Completion =
     type Request =
@@ -25,7 +24,9 @@ module OpenAI =
         model: String
         choices: List<PACKAGE.OpenAI.Completion.ResponseChoice> }
 
-    let completion (prompt: String) : Result<String, String> =
+    let completion
+      (prompt: String)
+      : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
 
       let openAIRequest =
         PACKAGE.OpenAI.Completion.Request
@@ -34,21 +35,25 @@ module OpenAI =
             max_tokens = 700
             temperature = 0.7 }
 
-      match Json.serialize<PACKAGE.OpenAI.Completion.Request> openAIRequest with
+      match
+        Builtin.Json.serialize<PACKAGE.OpenAI.Completion.Request> openAIRequest
+      with
       | Ok reqBody ->
         let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
         let openAIResponse =
-          HttpClient.request
+          Builtin.HttpClient.request
             "POST"
             "https://api.openai.com/v1/completions"
             headers
-            (String.toBytes reqBody)
+            (Builtin.String.toBytes reqBody)
 
         match openAIResponse with
         | Ok r ->
           match
-            Json.parse<PACKAGE.OpenAI.Completion.Response> (String.fromBytes r.body)
+            Builtin.Json.parse<PACKAGE.OpenAI.Completion.Response> (
+              Builtin.String.fromBytes r.body
+            )
           with
           | Ok r ->
             match PACKAGE.Darklang.Stdlib.List.head r.choices with
@@ -117,7 +122,7 @@ module OpenAI =
       (prompt: String)
       (options:
         PACKAGE.Darklang.Stdlib.Option.Option<PACKAGE.OpenAI.ChatCompletion.CompletionOptions>)
-      : Result<String, String> =
+      : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
 
       let options =
         match options with
@@ -135,23 +140,24 @@ module OpenAI =
       let openAIRequest = options
 
       match
-        Json.serialize<PACKAGE.OpenAI.ChatCompletion.CompletionOptions> openAIRequest
+        Builtin.Json.serialize<PACKAGE.OpenAI.ChatCompletion.CompletionOptions>
+          openAIRequest
       with
       | Ok reqBody ->
         let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
         let openAIResponse =
-          HttpClient.request
+          Builtin.HttpClient.request
             "POST"
             "https://api.openai.com/v1/chat/completions"
             headers
-            (String.toBytes reqBody)
+            (Builtin.String.toBytes reqBody)
 
         match openAIResponse with
         | Ok r ->
           match
-            Json.parse<PACKAGE.OpenAI.ChatCompletion.Response> (
-              String.fromBytes r.body
+            Builtin.Json.parse<PACKAGE.OpenAI.ChatCompletion.Response> (
+              Builtin.String.fromBytes r.body
             )
           with
           | Ok r ->
@@ -175,7 +181,9 @@ module OpenAI =
 
 
 
-    let completion (prompt: String) : Result<String, String> =
+    let completion
+      (prompt: String)
+      : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
 
       let openAIRequest =
         PACKAGE.OpenAI.ChatCompletion.Request
@@ -186,26 +194,28 @@ module OpenAI =
               [ PACKAGE.OpenAI.ChatCompletion.RequestMessage
                   { role = "user"; content = prompt } ] }
 
-      match Json.serialize<PACKAGE.OpenAI.ChatCompletion.Request> openAIRequest with
+      match
+        Builtin.Json.serialize<PACKAGE.OpenAI.ChatCompletion.Request> openAIRequest
+      with
       | Ok reqBody ->
         let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
         let openAIResponse =
-          HttpClient.request
+          Builtin.HttpClient.request
             "POST"
             "https://api.openai.com/v1/chat/completions"
             headers
-            (String.toBytes reqBody)
+            (Builtin.String.toBytes reqBody)
 
         match openAIResponse with
         | Ok r ->
           match
-            Json.parse<PACKAGE.OpenAI.ChatCompletion.Response> (
-              String.fromBytes r.body
+            Builtin.Json.parse<PACKAGE.OpenAI.ChatCompletion.Response> (
+              Builtin.String.fromBytes r.body
             )
           with
           | Ok r ->
-            match List.head r.choices with
+            match PACKAGE.Darklang.Stdlib.List.head r.choices with
             | Some c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.message.content
 
             | None ->
@@ -233,27 +243,31 @@ module OpenAI =
       { data: List<PACKAGE.OpenAI.ImageGeneration.ResponseData> }
 
     // This returns a url to the image, should it return the image itself?
-    let imageGeneration (prompt: String) : Result<String, String> =
+    let imageGeneration
+      (prompt: String)
+      : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
 
       let openAIRequest =
         PACKAGE.OpenAI.ImageGeneration.Request { prompt = prompt; size = "256x256" }
 
-      match Json.serialize<PACKAGE.OpenAI.ImageGeneration.Request> openAIRequest with
+      match
+        Builtin.Json.serialize<PACKAGE.OpenAI.ImageGeneration.Request> openAIRequest
+      with
       | Ok reqBody ->
         let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
         let openAIResponse =
-          HttpClient.request
+          Builtin.HttpClient.request
             "POST"
             "https://api.openai.com/v1/images/generations"
             headers
-            (String.toBytes reqBody)
+            (Builtin.String.toBytes reqBody)
 
         match openAIResponse with
         | Ok r ->
           match
-            Json.parse<PACKAGE.OpenAI.ImageGeneration.Response> (
-              String.fromBytes r.body
+            Builtin.Json.parse<PACKAGE.OpenAI.ImageGeneration.Response> (
+              Builtin.String.fromBytes r.body
             )
           with
           | Ok r ->
@@ -283,39 +297,47 @@ module OpenAI =
         created: Int
         model: String }
 
-    let retrieveModel (model: String) : Result<String, String> =
+    let retrieveModel
+      (model: String)
+      : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
 
       let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
       let modelResponse =
-        HttpClient.request
+        Builtin.HttpClient.request
           "GET"
           ("https://api.openai.com/v1/models/" ++ model)
           headers
-          Bytes.empty
+          Builtin.Bytes.empty
 
       match modelResponse with
       | Ok r ->
-        r.body |> String.fromBytes |> PACKAGE.Darklang.Stdlib.Result.Result.Ok
+        r.body
+        |> Builtin.String.fromBytes
+        |> PACKAGE.Darklang.Stdlib.Result.Result.Ok
       | Error e ->
         PACKAGE.Darklang.Stdlib.Result.Result.Error(
           "OpenAI API request failed\n" ++ e
         )
 
-    let getListOfModels () : Result<List<String>, String> =
+    let getListOfModels
+      ()
+      : PACKAGE.Darklang.Stdlib.Result.Result<List<String>, String> =
 
       let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
       let modelResponse =
-        HttpClient.request
+        Builtin.HttpClient.request
           "GET"
           "https://api.openai.com/v1/models"
           headers
-          Bytes.empty
+          Builtin.Bytes.empty
 
       match modelResponse with
       | Ok r ->
-        r.body |> String.fromBytes |> PACKAGE.Darklang.Stdlib.Result.Result.Ok
+        r.body
+        |> Builtin.String.fromBytes
+        |> PACKAGE.Darklang.Stdlib.Result.Result.Ok
       | Error e ->
         PACKAGE.Darklang.Stdlib.Result.Result.Error(
           "OpenAI API request failed\n" ++ e

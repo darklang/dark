@@ -10,7 +10,6 @@ open System.Net.Http.Json
 open System.Net.Http.Headers
 
 open Prelude
-open Tablecloth
 
 module FireAndForget = LibService.FireAndForget
 

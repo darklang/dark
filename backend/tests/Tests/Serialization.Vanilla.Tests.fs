@@ -5,7 +5,7 @@ open Expecto
 open System.Text.RegularExpressions
 
 open Prelude
-open Tablecloth
+
 open TestUtils.TestUtils
 
 module File = LibCloud.File
@@ -185,7 +185,7 @@ module PersistedSerializations =
         data.Force()
         |> List.groupBy (fun z -> z.FileName)
         |> Map.toList
-        |> List.choose (fun (fileName, records) ->
+        |> List.filterMap (fun (fileName, records) ->
           if List.length records > 1 then
             Some(fileName, records |> List.map (fun r -> r.SerializedData))
           else

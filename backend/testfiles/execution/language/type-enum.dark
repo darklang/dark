@@ -5,21 +5,21 @@ PACKAGE.Darklang.Stdlib.Option.Option.None = PACKAGE.Darklang.Stdlib.Option.Opti
 
 (PACKAGE.Darklang.Stdlib.List.head []) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Result.Result.Ok(Test.runtimeError "err") = Test.runtimeError
+PACKAGE.Darklang.Stdlib.Result.Result.Ok(Builtin.Test.runtimeError "err") = Builtin.Test.derrorMessage
   "err"
 
-PACKAGE.Darklang.Stdlib.Option.Option.Some(Test.runtimeError "err") = Test.runtimeError
+PACKAGE.Darklang.Stdlib.Option.Option.Some(Builtin.Test.runtimeError "err") = Builtin.Test.derrorMessage
   "err"
 
-PACKAGE.Darklang.Stdlib.Result.Result.Error(Test.runtimeError "err") = Test.runtimeError
+PACKAGE.Darklang.Stdlib.Result.Result.Error(Builtin.Test.runtimeError "err") = Builtin.Test.derrorMessage
   "err"
 
 module Errors =
   module Builtins =
-    PACKAGE.Darklang.Stdlib.Option.Option.None 5 = Test.runtimeError
+    PACKAGE.Darklang.Stdlib.Option.Option.None 5 = Builtin.Test.derrorMessage
       "Case `None` expected 0 fields but got 1"
 
-    PACKAGE.Darklang.Stdlib.Option.Option.Some(5, 6) = Test.runtimeError
+    PACKAGE.Darklang.Stdlib.Option.Option.Some(5, 6) = Builtin.Test.derrorMessage
       "Case `Some` expected 1 fields but got 2"
 
   module User =
@@ -28,19 +28,23 @@ module Errors =
       | B
       | C of String
 
-    MyEnum.D = Test.runtimeError "There is no case named `D` in Errors.User.MyEnum"
+    MyEnum.D = Builtin.Test.derrorMessage
+      "There is no case named `D` in Errors.User.MyEnum"
 
-    MyEnum.C = Test.runtimeError "Case `C` expected 1 fields but got 0"
-    MyEnum.B 5 = Test.runtimeError "Case `B` expected 0 fields but got 1"
+    MyEnum.C = Builtin.Test.derrorMessage "Case `C` expected 1 fields but got 0"
+    MyEnum.B 5 = Builtin.Test.derrorMessage "Case `B` expected 0 fields but got 1"
 
     (match MyEnum.C "test" with
      | C v -> v) = "test"
     // TYPESCLEANUP
-    // (match MyEnum.C "test" with | C -> v) = Test.runtimeError "TODO"
-    // (match MyEnum.C "test" with | D -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.runtimeError "TODO"
-    // (match MyEnum.C "test" with | 5 -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.runtimeError "TODO"
-    (MyEnum.C 5) = Test.runtimeError
-      "Errors.User.MyEnum.C's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: MyEnum.C (String)\nActual: MyEnum.C (Int)"
+    // (match MyEnum.C "test" with | C -> v) = Builtin.Test.runtimeError "TODO"
+    // (match MyEnum.C "test" with | D -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Builtin.Test.runtimeError "TODO"
+    // (match MyEnum.C "test" with | 5 -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Builtin.Test.runtimeError "TODO"
+    (MyEnum.C 5) = Builtin.Test.derrorMessage
+      "Errors.User.MyEnum.C's 1st argument should be a String. However, an Int (5) was passed instead.
+
+Expected: Errors.User.MyEnum.C (String)
+Actual: Errors.User.MyEnum.C (Int)"
 
 
 module Simple =
@@ -58,7 +62,9 @@ module Simple =
 
   (AorB.A == AorB.A) = true
   (AorB.A == AorB.B) = false
-  List.unique_v0 [ AorB.A; AorB.B; AorB.A; AorB.A; AorB.B ] = [ AorB.A; AorB.B ]
+
+  Builtin.List.unique_v0 [ AorB.A; AorB.B; AorB.A; AorB.A; AorB.B ] = [ AorB.A
+                                                                        AorB.B ]
 
   module EnumReference =
     type CorD =
@@ -78,15 +84,16 @@ module MixedCases =
   (EnumOfMixedCases.W == (EnumOfMixedCases.Y 1)) = false
   (EnumOfMixedCases.Y 1 == EnumOfMixedCases.Y 1) = true
 
-  EnumOfMixedCases.X 1 = Test.runtimeError
-    "MixedCases.EnumOfMixedCases.X's 1st argument should be a String. However, an Int (1) was passed instead.\n\nExpected: EnumOfMixedCases.X (String)\nActual: EnumOfMixedCases.X (Int)"
+  EnumOfMixedCases.X 1 = Builtin.Test.derrorMessage
+    "MixedCases.EnumOfMixedCases.X's 1st argument should be a String. However, an Int (1) was passed instead.\n\nExpected: MixedCases.EnumOfMixedCases.X (String)\nActual: MixedCases.EnumOfMixedCases.X (Int)"
 
-  EnumOfMixedCases.Y "test" = Test.runtimeError
-    "MixedCases.EnumOfMixedCases.Y's 1st argument should be an Int. However, a String (\"test\") was passed instead.\n\nExpected: EnumOfMixedCases.Y (Int)\nActual: EnumOfMixedCases.Y (String)"
+  EnumOfMixedCases.Y "test" = Builtin.Test.derrorMessage
+    "MixedCases.EnumOfMixedCases.Y's 1st argument should be an Int. However, a String (\"test\") was passed instead.\n\nExpected: MixedCases.EnumOfMixedCases.Y (Int)\nActual: MixedCases.EnumOfMixedCases.Y (String)"
 
-  EnumOfMixedCases.Z 1 = Test.runtimeError "Case `Z` expected 2 fields but got 1"
+  EnumOfMixedCases.Z 1 = Builtin.Test.derrorMessage
+    "Case `Z` expected 2 fields but got 1"
   // Test ordering of evaluation
-  EnumOfMixedCases.Z(Test.runtimeError "1", Test.runtimeError "2") = Test.runtimeError
+  EnumOfMixedCases.Z(Builtin.Test.runtimeError "1", Builtin.Test.runtimeError "2") = Builtin.Test.derrorMessage
     "1"
 
   (let values =
@@ -108,11 +115,11 @@ module MixedCases =
      EnumOfMixedCases.X "testX"
      EnumOfMixedCases.Y(5)
      EnumOfMixedCases.Z("testZ", 2) ]
-   |> List.map_v0 (fun v ->
+   |> Builtin.List.map_v0 (fun v ->
      match v with
      | X s -> "X " ++ s
      | Z(s, _i) -> "Z " ++ s
-     | Y y -> "Y " ++ (Int.toString_v0 y)
+     | Y y -> "Y " ++ (Builtin.Int.toString_v0 y)
      | W -> "a simple W")) = [ "a simple W"; "X testX"; "Y 5"; "Z testZ" ]
 
 module TuplesVsNonTuples =
@@ -123,13 +130,13 @@ module TuplesVsNonTuples =
   (match Tuples.NotTuple("printer broke", 7) with
    | NotTuple(reason, 7) -> reason) = "printer broke"
 
-  (Tuples.NotTuple(("printer broke", 7))) = Test.runtimeError
+  (Tuples.NotTuple(("printer broke", 7))) = Builtin.Test.derrorMessage
     "Case `NotTuple` expected 2 fields but got 1"
 
   (match Tuples.Tuple(("printer broke", 7)) with
    | Tuple((reason, 7)) -> reason) = "printer broke"
 
-  Tuples.Tuple("printer broke", 7) = Test.runtimeError
+  Tuples.Tuple("printer broke", 7) = Builtin.Test.derrorMessage
     "Case `Tuple` expected 1 fields but got 2"
 
 
@@ -175,7 +182,8 @@ module Polymorphism =
     insert' tree value cmp
 
   let ofList (values: List<'a>) (cmp: ('a * 'a) -> Int) : RBTree<'a> =
-    List.fold_v0 values RBTree.Empty (fun tree value -> insert tree value cmp)
+    Builtin.List.fold_v0 values RBTree.Empty (fun tree value ->
+      insert tree value cmp)
 
   let toList' (tree: RBTree<'a>) (acc: List<'a>) : List<'a> =
     match tree with

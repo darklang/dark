@@ -3,13 +3,8 @@ module LibCloud.Routing
 open FSharp.Control.Tasks
 open System.Threading.Tasks
 
-open Npgsql.FSharp
-open Npgsql
-open LibCloud.Db
-
 open FSharpx
 open Prelude
-open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
@@ -51,7 +46,7 @@ let routeVariable (routeSegment : string) : string option =
 ///
 /// e.g. from "/user/:userid/card/:cardid", it returns ["userid"; "cardid"]
 let routeVariables (route : string) : string list =
-  route |> splitUriPath |> Array.toList |> List.choose routeVariable
+  route |> splitUriPath |> Array.toList |> List.filterMap routeVariable
 
 
 let routeInputVars
@@ -61,17 +56,20 @@ let routeInputVars
   let doBinding routeParts pathParts =
     // We assume (handled elsewhere) that route length = requestPath length
     List.zip routeParts pathParts
-    |> List.fold (Some []) (fun acc (r, p) ->
-      Option.bind
-        (fun acc ->
-          match routeVariable r with
-          | Some rv -> Some((rv, RT.DString p) :: acc)
-          | None ->
-            // Concretized match, or we were passed a Postgres wildcard
-            // and should treat this as a match.
-            // Otherwise, this route/path do not match and should fail
-            if r = p || r = "%" then Some acc else None)
-        acc)
+    |> List.rev
+    |> List.fold
+      (fun acc (r, p) ->
+        Option.bind
+          (fun acc ->
+            match routeVariable r with
+            | Some rv -> Some((rv, RT.DString p) :: acc)
+            | None ->
+              // Concretized match, or we were passed a Postgres wildcard
+              // and should treat this as a match.
+              // Otherwise, this route/path do not match and should fail
+              if r = p || r = "%" then Some acc else None)
+          acc)
+      (Some [])
 
   let splitRoute = splitUriPath route |> Array.toList
   let splitRequestPath = splitUriPath requestPath |> Array.toList

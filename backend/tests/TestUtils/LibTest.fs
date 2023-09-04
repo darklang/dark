@@ -11,7 +11,7 @@ open Npgsql
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
@@ -28,13 +28,7 @@ let fn = fn modules
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> =
-  [ { name = constant "incomplete" 0
-      typ = TVariable "a"
-      description = "Return a DIncomplet"
-      body = DIncomplete(SourceNone)
-      deprecated = NotDeprecated }
-
-    { name = constant "nan" 0
+  [ { name = constant "nan" 0
       typ = TFloat
       description = "Return a NaN"
       body = DFloat(System.Double.NaN)
@@ -53,30 +47,56 @@ let constants : List<BuiltInConstant> =
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
+  [ { name = fn "derrorMessage" 0
+      typeParams = []
+      parameters = [ Param.make "errorMessage" TString "" ]
+      returnType =
+        TCustomType(Ok(RuntimeError.name [ "Error" ] "ErrorMessage" 0), [])
+      description = "Return a value representing a runtime type error"
+      fn =
+        (function
+        | _, _, [ DString error ] ->
+          Dval.enum
+            (RuntimeError.name [ "Error" ] "ErrorMessage" 0)
+            "ErrorString"
+            [ DString error ]
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
 
-  [ { name = fn "runtimeError" 0
+    // CLEANUP consider renaming to `oldError` or something more clear
+    // TODO remove this in favor of derror
+    { name = fn "runtimeError" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
       returnType = TInt
       description = "Return a value representing a type error"
       fn =
         (function
-        | _, _, [ DString errorString ] -> Ply(DError(SourceNone, errorString))
+        | _, _, [ DString errorString ] ->
+          Ply(DError(SourceNone, RuntimeError.oldError errorString))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "sqlError" 0
+    { name = fn "derrorSqlMessage" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
-      returnType = TInt
+      returnType =
+        TCustomType(Ok(RuntimeError.name [ "Error" ] "ErrorMessage" 0), [])
       description = "Return a value that matches errors thrown by the SqlCompiler"
       fn =
         (function
         | _, _, [ DString errorString ] ->
           let msg = LibCloud.SqlCompiler.errorTemplate + errorString
-          Ply(DError(SourceNone, msg))
+          Dval.enum
+            (RuntimeError.name [ "Error" ] "ErrorMessage" 0)
+            "ErrorString"
+            [ DString msg ]
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -157,7 +177,8 @@ let fns : List<BuiltInFn> =
       description = "Returns a DError in a Some"
       fn =
         (function
-        | _, _, [ DString msg ] -> Ply(Dval.optionSome (DError(SourceNone, msg)))
+        | _, _, [ DString msg ] ->
+          Ply(Dval.optionSome (DError(SourceNone, RuntimeError.oldError msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -171,7 +192,8 @@ let fns : List<BuiltInFn> =
       description = "Returns a DError in an OK"
       fn =
         (function
-        | _, _, [ DString msg ] -> Ply(Dval.resultOk (DError(SourceNone, msg)))
+        | _, _, [ DString msg ] ->
+          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -185,7 +207,8 @@ let fns : List<BuiltInFn> =
       description = "Returns a DError in a Result.Error"
       fn =
         (function
-        | _, _, [ DString msg ] -> Ply(Dval.resultOk (DError(SourceNone, msg)))
+        | _, _, [ DString msg ] ->
+          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

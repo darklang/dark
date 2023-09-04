@@ -14,8 +14,9 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 let parserTests =
   let t name testStr expectedExpr =
     testTask name {
-      let actual =
+      let! actual =
         LibParser.Parser.parseRTExpr builtinResolver "parser.tests.fs" testStr
+        |> Ply.toTask
       return Expect.equalExprIgnoringIDs actual (PT2RT.Expr.toRT expectedExpr)
     }
   let id = 0UL // since we're ignoring IDs, just use the same one everywhere
@@ -23,7 +24,7 @@ let parserTests =
     "Parser tests"
     [ t
         "pipe without expr"
-        "(let x = 5\nx |> List.map_v0 5)"
+        "(let x = 5\nx |> Builtin.List.map_v0 5)"
         (PT.ELet(
           id,
           PT.LPVariable(id, "x"),

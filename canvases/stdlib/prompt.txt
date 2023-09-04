@@ -150,7 +150,7 @@ type DType =
   /// A type defined by a standard library module, a canvas/user, or a package
   /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
   /// `typeArgs` is the list of type arguments, if any
-  | TCustomType of TypeName.T * typeArgs : List<DType>
+  | TCustomType of TypeName.TypeName * typeArgs : List<DType>
 
   // Records
   | TDict of DType
@@ -181,49 +181,16 @@ and [<NoComparison>] Dval =
   /// to represent a runtime error using this.
   | DError of DvalSource * string
 
-  /// <summary>
-  /// A DIncomplete represents incomplete computation, whose source is
-  /// always a Blank. When the code runs into a blank, it must return
-  /// incomplete because the code is not finished. An incomplete value
-  /// results in a 500 because it is a developer error.
-  /// </summary>
-  ///
-  /// <remarks>
-  /// Propagating DIncompletes is straightforward: any computation
-  /// relying on an incomplete must itself be incomplete.
-  ///
-  /// Some examples:
-  /// - calling a function with an incomplete as a parameter is an
-  ///   incomplete function call.
-  /// - an if statement with an incomplete in the cond must be incomplete.
-  ///
-  /// But computation that doesn't rely on the incomplete value can
-  /// ignore it:
-  ///
-  /// - an if statement which with a blank in the ifbody and a
-  ///   complete expression in the elsebody will execute just fine if
-  ///   cond is false. It has not hit any part of the program that is
-  ///   being worked on.
-  ///
-  /// - a list with blanks in it can just ignore the blanks.
-  /// - an incomplete in a list should be filtered out, because the
-  ///   program has not been completed, and so that list entry just
-  ///   doesn't "exist" yet.
-  /// - incompletes in keys or values of objects cause the entire row
-  ///   to be ignored.
-  /// </remarks>
-  | DIncomplete of DvalSource
-
   | DDB of string
   | DDateTime of DarkDateTime.T
   | DPassword of Password
   | DUuid of System.Guid
   | DBytes of byte array
 
-  | DRecord (* TypeName.T * *)  of DvalMap
+  | DRecord (* TypeName.TypeName * *)  of DvalMap
   | DDict of DvalMap
   | DEnum of
-    typeName : TypeName.T *
+    typeName : TypeName.TypeName *
     caseName : string *
     fields : List<Dval>
 ```

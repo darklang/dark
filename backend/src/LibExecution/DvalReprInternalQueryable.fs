@@ -9,7 +9,6 @@ module LibExecution.DvalReprInternalQueryable
 open System.Text.Json
 
 open Prelude
-open VendoredTablecloth
 
 open RuntimeTypes
 
@@ -130,7 +129,7 @@ let rec private toJsonV0
               })
             (Map.toList o))
 
-    | TCustomType(typeName, typeArgs), dv ->
+    | TCustomType(Ok typeName, typeArgs), dv ->
       match! Types.find typeName types with
       | None -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
       | Some decl ->
@@ -189,6 +188,8 @@ let rec private toJsonV0
           Exception.raiseInternal
             "Value to be stored does not match a declared type"
             [ "value", dv; "type", typ; "typeName", typeName ]
+
+    | TCustomType(Error err, _), _ -> raiseRTE err
 
     // Not supported
     | TVariable _, _
@@ -286,7 +287,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
       |> Ply.map (Map >> DDict)
 
 
-    | TCustomType(typeName, typeArgs), valueKind ->
+    | TCustomType(Ok typeName, typeArgs), valueKind ->
       uply {
         match! Types.find typeName types with
         | None ->
@@ -409,5 +410,4 @@ module Test =
     // Maybe never support
     | DFnVal _
     | DError _
-    | DDB _
-    | DIncomplete _ -> false
+    | DDB _ -> false

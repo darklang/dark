@@ -30,8 +30,6 @@ module LibService.Telemetry
 // The type of the value is `obj`, so anything is allowed.
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 
 open OpenTelemetry
 open OpenTelemetry.Trace
@@ -229,7 +227,7 @@ let init (serviceName : string) : unit =
   System.Diagnostics.ActivitySource.AddActivityListener(activityListener)
 
   // Allow exceptions to be associated with the right span (the one in which they're created)
-  Prelude.exceptionCallback <-
+  Exception.exceptionCallback <-
     (fun (e : exn) ->
       // These won't have stacktraces. We could add them but they're expensive, and
       // if they make it to the top they'll get a stacktrace. So let's not do
@@ -359,11 +357,11 @@ let addTelemetry
   |> fun b -> b.SetSampler(Sampler(serviceName))
   |> fun b ->
       List.fold
-        b
-        (fun b exporter ->
+        (fun (b : TracerProviderBuilder) exporter ->
           match exporter with
           | Config.Honeycomb -> b.AddHoneycomb(honeycombOptions serviceName)
           | Config.Console -> b.AddConsoleExporter())
+        b
         Config.telemetryExporters
   |> fun b ->
       b.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName))

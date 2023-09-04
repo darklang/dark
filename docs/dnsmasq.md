@@ -2,7 +2,7 @@
 
 Most domains within Dark work just fine. However, if you're working on
 BWDServer, you may want to set up DNS so that subdomains of
-builtwithdark.localhost work properly.
+dlio.localhost work properly.
 
 This is not needed for other development.
 
@@ -11,7 +11,7 @@ This is not needed for other development.
 If you have not set this up, you should see that it doesn't work
 
 ```
-dig testing.builtwithdark.localhost@127.0.0.1
+dig testing.dlio.localhost@127.0.0.1
 ```
 
 You can run this again after the installation steps below to check that it works. You might also check that you haven't broken your DNS:

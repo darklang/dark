@@ -17,7 +17,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     | EPipeLambda(id, vars, body) -> EPipeLambda(id, vars, f body)
     | EPipeEnum(id, typeName, caseName, fields) ->
       EPipeEnum(id, typeName, caseName, List.map f fields)
-    | EPipeVariable(id, name) -> EPipeVariable(id, name)
+    | EPipeVariable(id, name, exprs) -> EPipeVariable(id, name, List.map f exprs)
 
   match expr with
   | EInt _
@@ -37,7 +37,8 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
         | StringText t -> StringText t
         | StringInterpolation e -> StringInterpolation(f e))
     )
-  | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
+  | EIf(id, cond, ifexpr, elseexpr) ->
+    EIf(id, f cond, f ifexpr, Option.map f elseexpr)
   | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
   | EInfix(id, op, left, right) -> EInfix(id, op, f left, f right)
   | EPipe(id, expr1, exprs) -> EPipe(id, f expr1, List.map traversePipeExpr exprs)
@@ -65,9 +66,9 @@ let rec preTraversal
   (exprFn : Expr -> Expr)
   (exprPipeFn : PipeExpr -> PipeExpr)
   (typeRefFn : TypeReference -> TypeReference)
-  (fqtnFn : TypeName.T -> TypeName.T)
-  (fqfnFn : FnName.T -> FnName.T)
-  (fqctFn : ConstantName.T -> ConstantName.T)
+  (fqtnFn : TypeName.TypeName -> TypeName.TypeName)
+  (fqfnFn : FnName.FnName -> FnName.FnName)
+  (fqctFn : ConstantName.ConstantName -> ConstantName.ConstantName)
   (letPatternFn : LetPattern -> LetPattern)
   (matchPatternFn : MatchPattern -> MatchPattern)
   (expr : Expr)
@@ -76,7 +77,8 @@ let rec preTraversal
   let rec preTraversalLetPattern (pat : LetPattern) : LetPattern =
     let f = preTraversalLetPattern
     match letPatternFn pat with
-    | LPVariable _ -> letPatternFn pat
+    | LPVariable _
+    | LPUnit _ -> letPatternFn pat
     | LPTuple(id, p1, p2, pats) -> LPTuple(id, f p1, f p2, List.map f pats)
 
   let rec preTraverseMatchPattern (pat : MatchPattern) : MatchPattern =
@@ -139,7 +141,7 @@ let rec preTraversal
     | EPipeLambda(id, vars, body) -> EPipeLambda(id, vars, f body)
     | EPipeEnum(id, typeName, caseName, fields) ->
       EPipeEnum(id, typeName, caseName, List.map f fields)
-    | EPipeVariable(id, name) -> EPipeVariable(id, name)
+    | EPipeVariable(id, name, exprs) -> EPipeVariable(id, name, List.map f exprs)
 
   match exprFn expr with
   | EInt _
@@ -159,7 +161,8 @@ let rec preTraversal
         | StringInterpolation e -> StringInterpolation(f e))
     )
   | ELet(id, pat, rhs, next) -> ELet(id, preTraversalLetPattern pat, f rhs, f next)
-  | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
+  | EIf(id, cond, ifexpr, elseexpr) ->
+    EIf(id, f cond, f ifexpr, Option.map f elseexpr)
   | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
   | EInfix(id, op, left, right) -> EInfix(id, op, f left, f right)
   | EPipe(id, expr1, exprs) ->

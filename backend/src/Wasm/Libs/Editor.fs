@@ -4,10 +4,9 @@ module Wasm.Libs.Editor
 open System
 
 open Prelude
-open Tablecloth
 
 open LibExecution.RuntimeTypes
-open LibExecution.StdLib.Shortcuts
+open LibExecution.Builtin.Shortcuts
 open Wasm.EvalHelpers
 
 
@@ -95,14 +94,16 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString functionName; DList args ] ->
           let args =
             args
-            |> List.fold (Ok []) (fun agg item ->
-              match agg, item with
-              | (Error err, _) -> Error err
-              | (Ok l, DString arg) -> Ok(arg :: l)
-              | (_, notAString) ->
-                // this should be a DError, not a "normal" error
-                $"Expected args to be a `List<String>`, but got: {LibExecution.DvalReprDeveloper.toRepr notAString}"
-                |> Error)
+            |> List.fold
+              (fun agg item ->
+                match agg, item with
+                | (Error err, _) -> Error err
+                | (Ok l, DString arg) -> Ok(arg :: l)
+                | (_, notAString) ->
+                  // CLEANUP this should be a DError, not a "normal" error
+                  $"Expected args to be a `List<String>`, but got: {LibExecution.DvalReprDeveloper.toRepr notAString}"
+                  |> Error)
+              (Ok [])
             |> Result.map (fun pairs -> List.rev pairs)
 
           match args with
@@ -135,9 +136,17 @@ let fns : List<BuiltInFn> =
           uply {
             let source = Json.Vanilla.deserialize<UserProgramSource> sourceJson
 
+            let httpConfig : BuiltinExecution.Libs.HttpClient.Configuration =
+              { BuiltinExecution.Libs.HttpClient.defaultConfig with
+                  telemetryAddException =
+                    (fun metadata e ->
+                      Wasm.WasmHelpers.callJSFunction
+                        "console.warn"
+                        [ string metadata; string e ]) }
+
             let stdLib =
-              LibExecution.StdLib.combine
-                [ StdLibExecution.StdLib.contents; Wasm.Libs.HttpClient.contents ]
+              LibExecution.Builtin.combine
+                [ BuiltinExecution.Builtin.contents httpConfig ]
                 []
                 []
 
@@ -149,7 +158,9 @@ let fns : List<BuiltInFn> =
               LibExecution.Execution.executeExpr state inputVars expr
 
             match result with
-            | DError(_source, err) -> return Dval.resultError (DString err)
+            | DError(_source, rte) ->
+              // TODO probably need to call `toString` on the RTE, or raise it
+              return Dval.resultError (DString(string rte))
             | result ->
               return
                 LibExecution.DvalReprDeveloper.toRepr result

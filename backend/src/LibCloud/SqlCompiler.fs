@@ -1,4 +1,3 @@
-/// Fns used to compile Exprs into SQL queries
 module LibCloud.SqlCompiler
 
 open System.Threading.Tasks
@@ -10,7 +9,6 @@ open Npgsql
 open Db
 
 open Prelude
-open Tablecloth
 
 open LibExecution.RuntimeTypes
 
@@ -23,12 +21,12 @@ module Errors = LibExecution.Errors
 let errorTemplate =
   "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
 
-let error (str : string) : 'a = Exception.raiseCode (errorTemplate + str)
+exception SqlCompilerException of string
+exception SqlCompilerRuntimeError of internalError : RuntimeError
+
+let error (str : string) : 'a = raise (SqlCompilerException(errorTemplate + str))
 
 let error2 (msg : string) (v : string) : 'a = error $"{msg}: {v}"
-
-let error3 (msg : string) (v1 : string) (v2 : string) : 'a =
-  error $"{msg}: {v1}, {v2}"
 
 type position =
   | First
@@ -46,20 +44,19 @@ let rec dvalToSql
   (dval : Dval)
   : (SqlValue * TypeReference) =
   match expectedType, dval with
-  | _, DError _
-  | _, DIncomplete _ -> Errors.foundFakeDval dval
+  | _, DError _ -> Errors.foundFakeDval dval
   | _, DFnVal _
   | _, DDB _
   | _, DDict _ // CLEANUP allow
   | _, DPassword _ // CLEANUP allow
   | _, DBytes _ // CLEANUP allow
   | _, DEnum _ // TODO: revisit
-  | _, DRecord _
-  | _, DTuple _ ->
+  | _, DRecord _ // CLEANUP allow
+  | _, DTuple _ -> // CLEANUP allow
     error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
   | TVariable _, DDateTime date
   | TDateTime, DDateTime date ->
-    (date |> DarkDateTime.toDateTimeUtc |> Sql.timestamptz, TDateTime)
+    (date |> LibExecution.DarkDateTime.toDateTimeUtc |> Sql.timestamptz, TDateTime)
   | TVariable _, DInt i
   | TInt, DInt i -> Sql.int64 i, TInt
   | TVariable _, DFloat v
@@ -147,7 +144,7 @@ let typecheckDval
     let context = TypeChecker.DBQueryVariable(name, expectedType, None)
     match! TypeChecker.unify context types Map.empty expectedType dval with
     | Ok() -> return ()
-    | Error err -> return error (Errors.toString (Errors.TypeError err))
+    | Error err -> raise (SqlCompilerRuntimeError err)
   }
 
 let escapeFieldname (str : string) : string =
@@ -206,6 +203,7 @@ let rec inline'
         : Map<string, Expr> =
         match letPattern with
         | LPVariable(_id, name) -> Map.add name currentExpr symtable
+        | LPUnit _ -> symtable
         | LPTuple(_id, first, second, theRest) ->
           match currentExpr with
           | ETuple(_, firstExpr, secondExpr, restExpr) ->
@@ -217,7 +215,7 @@ let rec inline'
 
             let zipped = List.zip exprList patternList
 
-            List.fold symtable mapLetPattern zipped
+            List.fold mapLetPattern symtable zipped
 
           | _ -> error "Expected a tuple"
 
@@ -242,6 +240,7 @@ let rec inline'
     identity
     identity
     identity
+    identity
     expr
 
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
@@ -258,14 +257,23 @@ let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
 type CompiledSqlQuery =
   { sql : string; vars : List<string * SqlValue>; actualType : TypeReference }
 
+
+let sqlOpForPackageFunction (fnName : FnName.Package) : SqlSpec =
+  match fnName.owner, fnName.modules, fnName.name with
+  | "Darklang", [ "Stdlib"; "Bool" ], FnName.FnName "and" -> SqlBinOp "AND"
+  | "Darklang", [ "Stdlib"; "Bool" ], FnName.FnName "or" -> SqlBinOp "OR"
+  | "Darklang", [ "Stdlib"; "Bool" ], FnName.FnName "not" -> SqlFunction "NOT"
+  | _ -> NotQueryable
+
+
 /// Generate SQL from an Expr. This expects that all the hard stuff has been
 /// removed by previous passes, and should only be called as the final pass.
 /// Returns the sql snippet for this expression, the variables that need to be
 /// bound to it, and the actual type of the expression.
 let rec lambdaToSql
-  (fns : Map<FnName.BuiltIn, BuiltInFn>)
+  (fns : Functions)
   (types : Types)
-  (constants : Map<ConstantName.BuiltIn, BuiltInConstant>)
+  (constants : Constants)
   (tat : TypeArgTable)
   (symtable : DvalMap)
   (paramName : string)
@@ -289,111 +297,138 @@ let rec lambdaToSql
     let! (sql, vars, actualType) =
       uply {
         match expr with
-        | EConstant(_, (FQName.BuiltIn name as fqName)) ->
-          let nameStr = ConstantName.toString fqName
-          match Map.get name constants with
-          | Some c ->
-            typecheck nameStr c.typ expectedType
-            let random = randomString 8
-            let newname = $"{nameStr}_{random}"
-            let (sqlValue, actualType) = dvalToSql expectedType c.body
-            return ($"(@{newname})", [ newname, sqlValue ], actualType)
-          | None ->
-            return
-              error
-                $"Only builtin constants can be used in queries right now; {nameStr} is not a builtin constant"
+        | EConstant(_, (constantName)) ->
+          let nameStr = ConstantName.toString constantName
 
-        | EApply(_, EFnName(_, (FQName.BuiltIn name as fqName)), [], args) ->
-          let nameStr = FnName.toString fqName
-          match Map.get name fns with
-          | Some fn ->
-            // check the abstract type here. We will check the concrete type later
-            typecheck nameStr fn.returnType expectedType
+          let! constant =
+            uply {
+              match constantName with
+              | FQName.BuiltIn b ->
+                match Map.get b constants.builtIn with
+                | None -> return! error $"No built-in constant {nameStr} found"
+                | Some c ->
+                  typecheck nameStr c.typ expectedType
+                  return c.body
+              | FQName.Package p ->
+                match! constants.package p with
+                | None -> return error $"No package constant {nameStr} found"
+                | Some c ->
+                  do! typecheckDval nameStr types c.body expectedType
+                  return c.body
+              | FQName.UserProgram _ ->
+                return error $"User constants are not yet supported"
+            }
+          let random = randomString 8
+          let newname = $"{nameStr}_{random}"
+          let (sqlValue, actualType) = dvalToSql expectedType constant
+          return ($"(@{newname})", [ newname, sqlValue ], actualType)
 
-            let! (actualTypes, argSqls, sqlVars) =
-              uply {
-                let paramCount = List.length fn.parameters
-                let argCount = NEList.length args
+        | EApply(_, EFnName(_, (fnName)), [], args) ->
+          let nameStr = FnName.toString fnName
 
-                if argCount = paramCount then
-                  // While checking the arguments, record the actual types for any abstract
-                  // types so that we can compare them and give a good error message as well
-                  // as have the types for the correct Npgsql wrapper for lists and other
-                  // polymorphic values
+          let! (returnType, parameters, sqlSpec) =
+            uply {
+              match fnName with
+              | FQName.BuiltIn b ->
+                match Map.get b fns.builtIn with
+                | Some fn ->
+                  let parameters = fn.parameters |> List.map (fun p -> p.name, p.typ)
+                  return fn.returnType, parameters, fn.sqlSpec
+                | None -> return error $"Builtin functions {nameStr} not found"
+              | FQName.Package p ->
+                match! fns.package p with
+                | Some fn ->
+                  let parameters =
+                    fn.parameters
+                    |> NEList.toList
+                    |> List.map (fun p -> p.name, p.typ)
+                  let sqlSpec = sqlOpForPackageFunction fn.name
+                  return fn.returnType, parameters, sqlSpec
+                | None -> return error $"Package functions {nameStr} not found"
+              | FQName.UserProgram u -> return error $"Todo: user program {u}"
+            }
 
-                  let zipped =
-                    // Tablecloth's List.zip reverses the order..
-                    List.zip (NEList.toList args) fn.parameters |> List.rev
+          typecheck nameStr returnType expectedType
 
-                  return!
-                    Ply.List.foldSequentially
-                      (fun
-                           (actualTypes, prevSqls, prevVars)
-                           (argExpr, (param : BuiltInParam)) ->
-                        uply {
-                          let! compiled = lts param.typ argExpr
-                          let newActuals =
-                            match param.typ with
-                            | TVariable name ->
-                              match Map.get name actualTypes with
-                              // We've seen this type before, check it matches
-                              | Some expected ->
-                                typecheck param.name compiled.actualType expected
-                                actualTypes
-                              | None -> Map.add name compiled.actualType actualTypes
-                            | _ -> actualTypes
+          let! (actualTypes, argSqls, sqlVars) =
+            uply {
+              let paramCount = List.length parameters
+              let argCount = NEList.length args
 
-                          return
-                            newActuals,
-                            prevSqls @ [ compiled.sql ],
-                            prevVars @ compiled.vars
-                        })
-                      (Map.empty, [], [])
-                      (zipped)
-                else
-                  return
-                    error
-                      $"{nameStr} has {paramCount} functions but we have {argCount} arguments"
-              }
+              if argCount = paramCount then
+                // While checking the arguments, record the actual types for any abstract
+                // types so that we can compare them and give a good error message as well
+                // as have the types for the correct Npgsql wrapper for lists and other
+                // polymorphic values
 
-            // Check the unified return type (basic on the actual arguments) against the
-            // expected type
-            let returnType =
-              match fn.returnType with
-              | TVariable name ->
-                match Map.get name actualTypes with
-                | Some typ -> typ
-                | None -> error "Could not find return type"
-              | TList(TVariable name) ->
-                match Map.get name actualTypes with
-                | Some typ -> TList typ
-                | None -> error "Could not find return type"
-              | typ -> typ
+                let zipped = List.zip (NEList.toList args) parameters
 
-            typecheck nameStr returnType expectedType
+                return!
+                  Ply.List.foldSequentially
+                    (fun
+                         (actualTypes, prevSqls, prevVars)
+                         (argExpr, (paramName, paramType)) ->
+                      uply {
+                        let! compiled = lts paramType argExpr
+                        let newActuals =
+                          match paramType with
+                          | TVariable name ->
+                            match Map.get name actualTypes with
+                            // We've seen this type before, check it matches
+                            | Some expected ->
+                              typecheck paramName compiled.actualType expected
+                              actualTypes
+                            | None -> Map.add name compiled.actualType actualTypes
+                          | _ -> actualTypes
 
-            return
-              match fn, argSqls with
-              | { sqlSpec = SqlBinOp op }, [ argL; argR ] ->
-                $"({argL} {op} {argR})", sqlVars, returnType
-              | { sqlSpec = SqlUnaryOp op }, [ argSql ] ->
-                $"({op} {argSql})", sqlVars, returnType
-              | { sqlSpec = SqlFunction fnname }, _ ->
-                let argSql = String.concat ", " argSqls
-                $"({fnname}({argSql}))", sqlVars, returnType
-              | { sqlSpec = SqlFunctionWithPrefixArgs(fnName, fnArgs) }, _ ->
-                let argSql = fnArgs @ argSqls |> String.concat ", "
-                $"({fnName} ({argSql}))", sqlVars, returnType
-              | { sqlSpec = SqlFunctionWithSuffixArgs(fnName, fnArgs) }, _ ->
-                let argSql = argSqls @ fnArgs |> String.concat ", "
-                $"({fnName} ({argSql}))", sqlVars, returnType
-              | { sqlSpec = SqlCallback2 fn }, [ arg1; arg2 ] ->
-                $"({fn arg1 arg2})", sqlVars, returnType
-              | _, _ -> error $"This function ({nameStr}) is not yet implemented"
-          | None ->
-            return
-              error
-                $"Only builtin functions can be used in queries right now; {nameStr} is not a builtin function"
+                        return
+                          newActuals,
+                          prevSqls @ [ compiled.sql ],
+                          prevVars @ compiled.vars
+                      })
+                    (Map.empty, [], [])
+                    zipped
+
+              else
+                return
+                  error
+                    $"{nameStr} has {paramCount} functions but we have {argCount} arguments"
+            }
+
+          // Check the unified return type (basic on the actual arguments) against the
+          // expected type
+          let returnType =
+            match returnType with
+            | TVariable name ->
+              match Map.get name actualTypes with
+              | Some typ -> typ
+              | None -> error "Could not find return type"
+            | TList(TVariable name) ->
+              match Map.get name actualTypes with
+              | Some typ -> TList typ
+              | None -> error "Could not find return type"
+            | typ -> typ
+
+          typecheck nameStr returnType expectedType
+
+          return
+            match sqlSpec, argSqls with
+            | SqlBinOp op, [ argL; argR ] ->
+              $"({argL} {op} {argR})", sqlVars, returnType
+            | SqlUnaryOp op, [ argSql ] -> $"({op} {argSql})", sqlVars, returnType
+            | SqlFunction fnname, _ ->
+              let argSql = String.concat ", " argSqls
+              $"({fnname}({argSql}))", sqlVars, returnType
+            | SqlFunctionWithPrefixArgs(fnName, fnArgs), _ ->
+              let argSql = fnArgs @ argSqls |> String.concat ", "
+              $"({fnName} ({argSql}))", sqlVars, returnType
+            | SqlFunctionWithSuffixArgs(fnName, fnArgs), _ ->
+              let argSql = argSqls @ fnArgs |> String.concat ", "
+              $"({fnName} ({argSql}))", sqlVars, returnType
+            | SqlCallback2 fn, [ arg1; arg2 ] ->
+              $"({fn arg1 arg2})", sqlVars, returnType
+            | _, _ -> error $"This function ({nameStr}) is not yet implemented"
+
 
         | EAnd(_, left, right) ->
           let! left = lts TBool left
@@ -539,7 +574,7 @@ let rec lambdaToSql
             uply {
               match typeRef with
               // TYPESCLEANUP use typeArgs
-              | TCustomType(typeName, _typeArgs) ->
+              | TCustomType(Ok typeName, _typeArgs) ->
                 match! Types.find typeName types with
                 | Some({ definition = TypeDeclaration.Alias aliasedType }) ->
                   return! dbFieldType aliasedType fieldName
@@ -775,7 +810,6 @@ let partiallyEvaluate
     // This is a copy of Ast.postTraversal, made to  work with uplys
     let rec postTraversal (expr : Expr) : Ply.Ply<Expr> =
       let r = postTraversal
-
       uply {
         let! result =
           uply {
@@ -797,11 +831,18 @@ let partiallyEvaluate
               let! exprs = exprs |> Ply.NEList.mapSequentially r
               return EApply(id, fn, typeArgs, exprs)
             | EFnName _ -> return expr
-            | EIf(id, cond, ifexpr, elseexpr) ->
+            | EIf(id, cond, ifExpr, elseExpr) ->
               let! cond = r cond
-              let! ifexpr = r ifexpr
-              let! elseexpr = r elseexpr
-              return EIf(id, cond, ifexpr, elseexpr)
+              let! ifExpr = r ifExpr
+              let! elseExpr =
+                uply {
+                  match elseExpr with
+                  | Some value ->
+                    let! newValue = r value
+                    return Some newValue
+                  | None -> return None
+                }
+              return EIf(id, cond, ifExpr, elseExpr)
             | EFieldAccess(id, expr, fieldname) ->
               let! expr = r expr
               return EFieldAccess(id, expr, fieldname)
@@ -884,6 +925,7 @@ let partiallyEvaluate
   }
 
 
+type CompileLambdaResult = { sql : string; vars : List<string * SqlValue> }
 
 let compileLambda
   (state : ExecutionState)
@@ -892,33 +934,32 @@ let compileLambda
   (paramName : string)
   (dbType : TypeReference)
   (body : Expr)
-  : Ply<string * List<string * SqlValue>> =
+  : Ply<Result<CompileLambdaResult, RuntimeError>> =
   uply {
-    let! symtable, body =
-      body
-      // Replace threads with nested function calls - simplifies all later passes
-      |> canonicalize
-      // Inline the rhs of any let within the lambda body. See comment for more
-      // details.
-      |> inline' paramName Map.empty
-      // Replace expressions which can be calculated now with their result. See
-      // comment for more details.
-      |> partiallyEvaluate state tat symtable paramName
-      |> Ply.TplPrimitives.runPlyAsTask
-
-    let types = ExecutionState.availableTypes state
-
-    let! compiled =
-      lambdaToSql
-        state.builtIns.fns
-        types
-        state.builtIns.constants
-        tat
-        symtable
-        paramName
-        dbType
-        TBool
+    try
+      let! symtable, body =
         body
+        // Simplify for later passes
+        |> canonicalize
+        // Inline the RHS of any let within the lambda body. See comment for more
+        // details.
+        |> inline' paramName Map.empty
+        // Replace expressions which can be calculated now with their result. See
+        // comment for more details.
+        |> partiallyEvaluate state tat symtable paramName
+      let types = ExecutionState.availableTypes state
+      let fns = ExecutionState.availableFunctions state
+      let constants = ExecutionState.availableConstants state
 
-    return (compiled.sql, compiled.vars)
+      let! compiled =
+        lambdaToSql fns types constants tat symtable paramName dbType TBool body
+
+      return Ok { sql = compiled.sql; vars = compiled.vars }
+
+    with
+    | SqlCompilerRuntimeError internalError ->
+      let err = RuntimeError.sqlCompilerRuntimeError internalError
+      return Error err
+
+    | SqlCompilerException errStr -> return Error(RuntimeError.oldError errStr)
   }

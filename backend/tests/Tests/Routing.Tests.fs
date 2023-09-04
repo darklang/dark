@@ -3,8 +3,6 @@ module Tests.Routing
 open Expecto
 
 open Prelude
-open Tablecloth
-open Prelude.Tablecloth
 
 open TestUtils.TestUtils
 

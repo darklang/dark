@@ -30,8 +30,8 @@ let openAIcompletion
   let apiKey =
     let url = "http://dark-editor.dlio.localhost:11003/openai-apikey-yikes"
 
-    match WASM.HttpClient.request "get" url [] Bytes.empty with
-    | Ok response -> response.body |> String.fromBytes
+    match Builtin.HttpClient.request "get" url [] Builtin.Bytes.empty with
+    | Ok response -> response.body |> Builtin.String.fromBytes
 
   let openAIRequest =
     OpenAIChatCompletionRequest
@@ -41,22 +41,26 @@ let openAIcompletion
         messages =
           [ OpenAIChatCompletionRequestMessage { role = "user"; content = prompt } ] }
 
-  match Json.serialize<OpenAIChatCompletionRequest> openAIRequest with
+  match Builtin.Json.serialize<OpenAIChatCompletionRequest> openAIRequest with
   | Ok reqBody ->
     let headers =
       [ ("authorization", "Bearer " ++ apiKey)
         ("content-type", "application/json") ]
 
     let openAIResponse =
-      WASM.HttpClient.request
+      Builtin.HttpClient.request
         "POST"
         "https://api.openai.com/v1/chat/completions"
         headers
-        (String.toBytes reqBody)
+        (Builtin.String.toBytes reqBody)
 
     match openAIResponse with
     | Ok r ->
-      match Json.parse<OpenAIChatCompletionResponse> (String.fromBytes r.body) with
+      match
+        Builtin.Json.parse<OpenAIChatCompletionResponse> (
+          Builtin.String.fromBytes r.body
+        )
+      with
       | Ok r ->
         match PACKAGE.Darklang.Stdlib.List.head r.choices with
         | Some c -> Ok c.message.content
@@ -71,18 +75,22 @@ let parseAndSerializeProgram
   (userProgram: String)
   : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
   let response =
-    WASM.HttpClient.request
+    Builtin.HttpClient.request
       "POST"
       "http://dark-editor.dlio.localhost:11003/get-program-json"
       []
-      (String.toBytes userProgram)
+      (Builtin.String.toBytes userProgram)
 
-  let statusCode = response |> unwrap |> (fun r -> r.statusCode)
+  let statusCode = response |> Builtin.unwrap |> (fun r -> r.statusCode)
 
   match statusCode with
-  | 200 -> Ok(response |> unwrap |> (fun r -> r.body) |> String.fromBytes)
-  | 400 -> Error(response |> unwrap |> (fun r -> r.body) |> String.fromBytes)
-  | _ -> Error("Unexpected response code: " ++ Int.toString statusCode)
+  | 200 ->
+    Ok(response |> Builtin.unwrap |> (fun r -> r.body) |> Builtin.String.fromBytes)
+  | 400 ->
+    Error(
+      response |> Builtin.unwrap |> (fun r -> r.body) |> Builtin.String.fromBytes
+    )
+  | _ -> Error("Unexpected response code: " ++ Builtin.Int.toString statusCode)
 
 
 // TODO: in the prompt, include something like
@@ -156,16 +164,16 @@ let update (model: Model) (msg: Msg) : Model =
   match msg with
   | LoadSystemPrompt ->
     let systemPrompt =
-      WASM.HttpClient.request
+      Builtin.HttpClient.request
         "get"
         "http://dark-editor.dlio.localhost:11003/system-prompt"
         []
-        Bytes.empty
+        Builtin.Bytes.empty
 
     match systemPrompt with
     | Ok response ->
       { response with
-          systemPrompt = String.fromBytes response.body }
+          systemPrompt = Builtin.String.fromBytes response.body }
     | Error err -> logErr "Couldn't load system prompt"
 
 
@@ -174,22 +182,24 @@ let update (model: Model) (msg: Msg) : Model =
       { model with
           isLoading = true
           chatHistory =
-            List.append
+            Builtin.List.append
               model.chatHistory
-              [ ChatHistoryItem.UserPrompt (unwrap (String.random 5)) userPrompt ] }
+              [ ChatHistoryItem.UserPrompt
+                  (Builtin.unwrap (Builtin.String.random 5))
+                  userPrompt ] }
 
     updateStateInJS newModel
 
     let getTasksPrompt =
-      (WASM.HttpClient.request
+      (Builtin.HttpClient.request
         "get"
         "http://dark-editor.dlio.localhost:11003/task-creation-prompt"
         []
-        Bytes.empty)
-      |> unwrap
+        Builtin.Bytes.empty)
+      |> Builtin.unwrap
       |> (fun r -> r.body)
-      |> String.fromBytes
-      |> String.append $"\n\n {userPrompt}"
+      |> Builtin.String.fromBytes
+      |> Builtin.String.append $"\n\n {userPrompt}"
 
     // I guess, until we have cmds or something,
     // we have to deal with http calls and such in-line, like here
@@ -197,36 +207,38 @@ let update (model: Model) (msg: Msg) : Model =
 
     match openAIcompletion getTasksPrompt, openAIcompletion fullPrompt with
     | Ok apiResponseTasks, Ok apiResponse ->
-      let taskIndex = String.indexOf_v0 apiResponseTasks "Tasks:"
+      let taskIndex = Builtin.String.indexOf_v0 apiResponseTasks "Tasks:"
 
       let newtasks =
         match taskIndex with
         | None -> []
         | Some taskIndex ->
           apiResponseTasks
-          |> String.slice_v0 taskIndex (String.length apiResponseTasks)
-          |> String.split "\n"
-          |> List.map (fun line ->
+          |> Builtin.String.slice_v0
+            taskIndex
+            (Builtin.String.length apiResponseTasks)
+          |> Builtin.String.split "\n"
+          |> Builtin.List.map (fun line ->
             Task
-              { id = (String.random 5) |> unwrap
+              { id = (Builtin.String.random 5) |> Builtin.unwrap
                 description = line
                 status = Status.Todo })
 
       let (newCodeSnippets, botResponseParts) =
-        (String.split (" " ++ apiResponse) "```")
-        |> List.indexedMap (fun i text -> (i, text))
-        |> List.fold ([], []) (fun acc curr ->
+        (Builtin.String.split (" " ++ apiResponse) "```")
+        |> Builtin.List.indexedMap (fun i text -> (i, text))
+        |> Builtin.List.fold ([], []) (fun acc curr ->
           let (codeSnippets, responseParts) = acc
           let (i, text) = curr
-          let text = String.trim text
+          let text = Builtin.String.trim text
 
           if text == "" then
             acc
           else if i % 2 == 1 then
-            let snippetId = unwrap (String.random 5)
+            let snippetId = Builtin.unwrap (Builtin.String.random 5)
 
             let updatedCodeSnippets =
-              List.append
+              Builtin.List.append
                 codeSnippets
                 [ CodeSnippet
                     { id = snippetId
@@ -234,22 +246,29 @@ let update (model: Model) (msg: Msg) : Model =
                       eval = PACKAGE.Darklang.Stdlib.Option.Option.None } ]
 
             let updatedResponseParts =
-              List.append responseParts [ BotResponseItem.CodeSnippet snippetId ]
+              Builtin.List.append
+                responseParts
+                [ BotResponseItem.CodeSnippet snippetId ]
 
             (updatedCodeSnippets, updatedResponseParts)
           else
-            codeSnippets, (List.append responseParts [ BotResponseItem.Text text ]))
+            codeSnippets,
+            (Builtin.List.append responseParts [ BotResponseItem.Text text ]))
 
       let newChatItemsItems =
-        [ ChatHistoryItem.UserPrompt (unwrap (String.random 5)) userPrompt
-          ChatHistoryItem.BotResponse (unwrap (String.random 5)) botResponseParts ]
+        [ ChatHistoryItem.UserPrompt
+            (Builtin.unwrap (Builtin.String.random 5))
+            userPrompt
+          ChatHistoryItem.BotResponse
+            (Builtin.unwrap (Builtin.String.random 5))
+            botResponseParts ]
 
       Model
         { isLoading = false
           systemPrompt = model.systemPrompt
-          chatHistory = List.append model.chatHistory newChatItemsItems
-          codeSnippets = List.append model.codeSnippets newCodeSnippets
-          tasks = List.append model.tasks newtasks
+          chatHistory = Builtin.List.append model.chatHistory newChatItemsItems
+          codeSnippets = Builtin.List.append model.codeSnippets newCodeSnippets
+          tasks = Builtin.List.append model.tasks newtasks
           actions = model.actions
           functions = model.functions
           types = model.types }
@@ -263,7 +282,7 @@ let update (model: Model) (msg: Msg) : Model =
   | UserRequestedCodeEval id codeSnippet ->
     // split this into 2 groups - the one we're updating, and the rest
     let (snippetToUpdate, otherSnippets) =
-      model.codeSnippets |> List.partition (fun cs -> cs.id == id)
+      model.codeSnippets |> Builtin.List.partition (fun cs -> cs.id == id)
 
     match PACKAGE.Darklang.Stdlib.List.head snippetToUpdate with
     | None -> log "couldn't find snippet"
@@ -279,7 +298,7 @@ let update (model: Model) (msg: Msg) : Model =
           evalPgm
 
           let updatedCodeSnippets =
-            List.append
+            Builtin.List.append
               [ CodeSnippet
                   { id = snippetToUpdate.id
                     code = codeSnippet
@@ -339,7 +358,7 @@ let update (model: Model) (msg: Msg) : Model =
 let updateStateInJS
   (newState: Model)
   : PACKAGE.Darklang.Stdlib.Result.Result<Unit, String> =
-  match Json.serialize<Model> newState with
+  match Builtin.Json.serialize<Model> newState with
   | Ok serialized ->
     let _ = WASM.Editor.callJSFunction "self.receiveEvalResult" [ serialized ]
     Ok()
@@ -356,7 +375,7 @@ let updateStateInJS
 let handleEvent
   (evt: String)
   : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
-  match Json.parse<Msg> evt with
+  match Builtin.Json.parse<Msg> evt with
   | Ok msg ->
     match WASM.Editor.getState<Model> () with
     | Ok currentState ->
@@ -381,55 +400,55 @@ let init () : Model =
   let initState =
     let demoSnippet =
       CodeSnippet
-        { id = (String.random 5) |> unwrap
+        { id = (Builtin.String.random 5) |> Builtin.unwrap
           code = "let incr (i: Int): Int = i + 1\n\nincr 5"
           eval = PACKAGE.Darklang.Stdlib.Option.Option.None }
 
     let demoAction =
       [ Action
-          { id = (String.random 5) |> unwrap
+          { id = (Builtin.String.random 5) |> Builtin.unwrap
             description = "Demo action"
             status = Status.InProgress } ]
 
     let chatHistory =
       [ ChatHistoryItem.UserPrompt
-          (unwrap (String.random 5))
+          (Builtin.unwrap (Builtin.String.random 5))
           "Hello, I want a function that increments an integer!"
 
         ChatHistoryItem.BotResponse
-          (unwrap (String.random 5))
+          (Builtin.unwrap (Builtin.String.random 5))
           [ BotResponseItem.Text "OK - here's some code:"
             BotResponseItem.CodeSnippet demoSnippet.id
             BotResponseItem.Actions demoAction ] ]
 
     let getFnList =
       let response =
-        WASM.HttpClient.request
+        Builtin.HttpClient.request
           "GET"
           "http://dark-editor.dlio.localhost:11003/all-canvas-functions"
           []
-          Bytes.empty
+          Builtin.Bytes.empty
 
       match response with
       | Ok response ->
         log "got response"
-        response.body |> String.fromBytes |> String.split "\n\n"
+        response.body |> Builtin.String.fromBytes |> Builtin.String.split "\n\n"
 
       | Error err -> "Error getting response: " ++ err
 
 
     let getTypeList =
       let response =
-        WASM.HttpClient.request
+        Builtin.HttpClient.request
           "GET"
           "http://dark-editor.dlio.localhost:11003/all-canvas-types"
           []
-          Bytes.empty
+          Builtin.Bytes.empty
 
       match response with
       | Ok response ->
         log "got response"
-        response.body |> String.fromBytes |> String.split "\n\n"
+        response.body |> Builtin.String.fromBytes |> Builtin.String.split "\n\n"
 
       | Error err -> "Error getting response: " ++ err
 
@@ -476,7 +495,7 @@ let init () : Model =
 //             | BotIsThinking -> "BotIsThinking"
 //     chatHistory =
 //       state.chatHistory
-//       |> List.map (fun item ->
+//       |> Builtin.List.map (fun item ->
 //            { author = match item.author with User -> "User" | Bot -> "Bot"
 //              prompt = item.text }) }
 
@@ -490,7 +509,7 @@ let init () : Model =
 //       | "BotIsThinking" -> BotIsThinking
 //     ChatHistory =
 //       model.chatHistory
-//       |> List.map (fun item ->
+//       |> Builtin.List.map (fun item ->
 //            { Author = match item.author with "User" -> User | "Bot" -> Bot
 //              Prompt = item.text }) }
 

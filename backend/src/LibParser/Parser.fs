@@ -2,7 +2,6 @@
 module LibParser.Parser
 
 open Prelude
-open Tablecloth
 
 module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
@@ -21,10 +20,10 @@ let parsePTExpr
   (resolver : NameResolver.NameResolver)
   (filename : string)
   (code : string)
-  : PT.Expr =
+  : Ply<PT.Expr> =
   code |> initialParse filename |> WT2PT.Expr.toPT resolver []
 
-let parseSimple (filename : string) (code : string) : PT.Expr =
+let parseSimple (filename : string) (code : string) : Ply<PT.Expr> =
   parsePTExpr NameResolver.empty filename code
 
 
@@ -32,15 +31,20 @@ let parseRTExpr
   (resolver : NameResolver.NameResolver)
   (filename : string)
   (code : string)
-  : LibExecution.RuntimeTypes.Expr =
+  : Ply<LibExecution.RuntimeTypes.Expr> =
   code
   |> parsePTExpr resolver filename
-  |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
+  |> Ply.map LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
 
-let parsePackage
+type Packages =
+  List<PT.PackageFn.T> * List<PT.PackageType.T> * List<PT.PackageConstant.T>
+
+let parsePackageFile
   (resolver : NameResolver.NameResolver)
   (path : string)
   (contents : string)
-  : List<PT.PackageFn.T> * List<PT.PackageType.T> * List<PT.PackageConstant.T> =
-  let pModule = Package.parse resolver path contents
-  (pModule.fns, pModule.types, pModule.constants)
+  : Ply<Packages> =
+  uply {
+    let! pModule = Package.parse resolver path contents
+    return (pModule.fns, pModule.types, pModule.constants)
+  }

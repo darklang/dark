@@ -17,8 +17,6 @@ open System.Net.Sockets
 open System.Text.Json
 
 open Prelude
-open Tablecloth
-open Prelude.Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
@@ -53,16 +51,19 @@ let newline = byte '\n'
 /// arrays do NOT have the newlines in them.
 let splitAtNewlines (bytes : byte array) : byte list list =
   bytes
-  |> Array.fold [ [] ] (fun state b ->
-    if b = newline then
-      [] :: state
-    else
-      match state with
-      | [] -> Exception.raiseInternal "can't have no entries" []
-      | head :: rest -> (b :: head) :: rest)
+  |> Array.fold
+    (fun state b ->
+      if b = newline then
+        [] :: state
+      else
+        match state with
+        | [] -> Exception.raiseInternal "can't have no entries" []
+        | head :: rest -> (b :: head) :: rest)
+    [ [] ]
   |> List.map List.reverse
   |> List.reverse
 
+#nowarn "57" // Negative array index using ^idx
 
 /// Used to parse a .test file
 /// See details in httptestfiles/README.md
@@ -87,11 +88,10 @@ module ParseTest =
 
     lines
     |> List.fold
-      (Limbo, emptyTest)
       (fun (state : TestParsingState, result : Test) (line : List<byte>) ->
         let asString : string = line |> Array.ofList |> UTF8.ofBytesWithReplacement
         match asString with
-        | Regex "\[secrets (\S+)]" [ secrets ] ->
+        | Regex.Regex "\[secrets (\S+)]" [ secrets ] ->
           let secrets =
             secrets
             |> String.split ","
@@ -104,19 +104,19 @@ module ParseTest =
                   [ "secret", secret ])
 
           (Limbo, { result with secrets = secrets @ result.secrets })
-        | Regex "\[domain (\S+)]" [ domain ] ->
+        | Regex.Regex "\[domain (\S+)]" [ domain ] ->
           (Limbo, { result with domain = Some domain })
         | "[request]" -> (InRequest, result)
         | "[response]" -> (InResponse, result)
 
-        | Regex "\[http-handler (\S+) (\S+)\]" [ method; route ] ->
+        | Regex.Regex "\[http-handler (\S+) (\S+)\]" [ method; route ] ->
           (InHttpHandler,
            { result with
                handlers =
                  { version = Http; route = route; method = method; code = "" }
                  :: result.handlers })
 
-        | Regex "\<IMPORT_DATA_FROM_FILE=(\S+)\>" [ dataFileToInject ] ->
+        | Regex.Regex "\<IMPORT_DATA_FROM_FILE=(\S+)\>" [ dataFileToInject ] ->
           // TODO do this as part of run-time, not during parse-time
           let injectedBytes =
             System.IO.File.ReadAllBytes $"{dataBasePath}/{dataFileToInject}"
@@ -173,36 +173,41 @@ module ParseTest =
               Exception.raiseInternal
                 $"Line received while not in any state"
                 [ "line", line ])
+      (Limbo, emptyTest)
     |> Tuple2.second
     |> fun test ->
         { test with
             // Remove the superfluously added newline on response
-            expectedResponse = Array.slice 0 -1 test.expectedResponse
+            expectedResponse =
+              Array.take (test.expectedResponse.Length - 1) test.expectedResponse
             // Allow separation from the next section with a blank line
-            request = Array.slice 0 -2 test.request }
+            request = Array.take (test.request.Length - 2) test.request }
+
 
 
 /// Initializes and sets up a test canvas (handlers, secrets, etc.)
 let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> =
   task {
     let! (canvasID, domain) = initializeTestCanvas' $"bwdserver-{testName}"
-    let resolver =
-      LibParser.NameResolver.fromBuiltins LibCloudExecution.CloudExecution.builtins
+    let resolver = resolverWithBuiltinsAndPackageManager
 
     // Handlers
-    let oplists =
+    let! oplists =
       test.handlers
-      |> List.map (fun handler ->
-        let source =
-          LibParser.Parser.parsePTExpr resolver "BwdServer.Tests.fs" handler.code
+      |> Ply.List.mapSequentially (fun handler ->
+        uply {
+          let! source =
+            LibParser.Parser.parsePTExpr resolver "BwdServer.Tests.fs" handler.code
 
-        let spec =
-          match handler.version with
-          | Http -> PT.Handler.HTTP(route = handler.route, method = handler.method)
+          let spec =
+            match handler.version with
+            | Http ->
+              PT.Handler.HTTP(route = handler.route, method = handler.method)
 
-        let h : PT.Handler.T = { tlid = gid (); ast = source; spec = spec }
+          let h : PT.Handler.T = { tlid = gid (); ast = source; spec = spec }
 
-        (PT.Toplevel.TLHandler h, Serialize.NotDeleted))
+          return (PT.Toplevel.TLHandler h, Serialize.NotDeleted)
+        })
 
     do! Canvas.saveTLIDs canvasID oplists
 
@@ -342,7 +347,7 @@ module Execution =
       let incorrectContentTypeAllowed =
         testRequest
         |> UTF8.ofBytesWithReplacement
-        |> String.includes "ALLOW-INCORRECT-CONTENT-LENGTH"
+        |> String.contains "ALLOW-INCORRECT-CONTENT-LENGTH"
       if not incorrectContentTypeAllowed then
         let parsedTestRequest = Http.split request
         let contentLength =
@@ -351,14 +356,14 @@ module Execution =
         match contentLength with
         | None -> ()
         | Some(_, v) ->
-          if String.includes "ALLOW-INCORRECT-CONTENT-LENGTH" v then
+          if String.contains "ALLOW-INCORRECT-CONTENT-LENGTH" v then
             ()
           else
             Expect.equal parsedTestRequest.body.Length (int v) ""
 
       // Check input LENGTH not set
       if
-        testRequest |> UTF8.ofBytesWithReplacement |> String.includes "LENGTH"
+        testRequest |> UTF8.ofBytesWithReplacement |> String.contains "LENGTH"
         && not incorrectContentTypeAllowed
       then // false alarm as also have LENGTH in it
         Expect.isFalse true "LENGTH substitution not done on request"
@@ -386,7 +391,6 @@ module Execution =
         |> List.map (fun l -> List.append l [ newline ])
         |> List.flatten
         |> List.initial // remove final newline which we don't want
-        |> Exception.unwrapOptionInternal "cannot find newline" []
         |> List.toArray
         |> insertSpaces
         |> replaceByteStrings "HOST" host
@@ -431,7 +435,7 @@ let tests =
         withoutPrefix |> String.dropRight (".test".Length)
 
       // set up a test canvas
-      let! (canvasID, domain) = setupTestCanvas testName test
+      let! (_canvasID, domain) = setupTestCanvas testName test
 
       // execute the test
       if shouldSkip then

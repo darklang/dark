@@ -3,7 +3,6 @@ module LibParser.Canvas
 open FSharp.Compiler.Syntax
 
 open Prelude
-open Tablecloth
 
 module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
@@ -184,46 +183,65 @@ let parseTypeDefn (m : WTCanvasModule) (typeDefn : SynTypeDefn) : WTCanvasModule
 /// - anything else fails
 let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
   List.fold
-    emptyWTModule
     (fun m decl ->
       match decl with
       | SynModuleDecl.Let(_, bindings, _) ->
-        List.fold m (fun m b -> parseLetBinding m b) bindings
+        List.fold (fun m b -> parseLetBinding m b) m bindings
 
       | SynModuleDecl.Types(defns, _) ->
-        List.fold m (fun m d -> parseTypeDefn m d) defns
+        List.fold (fun m d -> parseTypeDefn m d) m defns
 
       | SynModuleDecl.Expr(expr, _) ->
         { m with exprs = m.exprs @ [ FS2WT.Expr.fromSynExpr expr ] }
 
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
+    emptyWTModule
     decls
 
 let toResolver (canvas : WTCanvasModule) : NameResolver.NameResolver =
   let fns = canvas.fns |> List.map (fun fn -> fn.name)
   let types = canvas.types |> List.map (fun typ -> typ.name)
   let constants = canvas.constants |> List.map (fun c -> c.name)
-  NameResolver.create [] [] [] types fns constants
+  NameResolver.create [] [] [] types fns constants true None
 
 let toPT
   (nameResolver : NameResolver.NameResolver)
   (m : WTCanvasModule)
-  : PTCanvasModule =
-  { types = m.types |> List.map (WT2PT.UserType.toPT nameResolver m.name)
-    fns = m.fns |> List.map (WT2PT.UserFunction.toPT nameResolver m.name)
-    constants = m.constants |> List.map (WT2PT.UserConstant.toPT nameResolver m.name)
-    dbs = m.dbs |> List.map (WT2PT.DB.toPT nameResolver m.name)
-    handlers =
+  : Ply<PTCanvasModule> =
+  uply {
+    let! types =
+      m.types |> Ply.List.mapSequentially (WT2PT.UserType.toPT nameResolver m.name)
+    let! fns =
+      m.fns |> Ply.List.mapSequentially (WT2PT.UserFunction.toPT nameResolver m.name)
+    let! constants =
+      m.constants
+      |> Ply.List.mapSequentially (WT2PT.UserConstant.toPT nameResolver m.name)
+    let! dbs = m.dbs |> Ply.List.mapSequentially (WT2PT.DB.toPT nameResolver m.name)
+    let! handlers =
       m.handlers
-      |> List.map (fun (spec, expr) ->
-        (WT2PT.Handler.Spec.toPT spec, WT2PT.Expr.toPT nameResolver m.name expr))
-    exprs = m.exprs |> List.map (WT2PT.Expr.toPT nameResolver m.name) }
+      |> Ply.List.mapSequentially (fun (spec, expr) ->
+        uply {
+          let spec = WT2PT.Handler.Spec.toPT spec
+          let! expr = WT2PT.Expr.toPT nameResolver m.name expr
+          return (spec, expr)
+        })
+    let! exprs =
+      m.exprs |> Ply.List.mapSequentially (WT2PT.Expr.toPT nameResolver m.name)
+
+    return
+      { types = types
+        fns = fns
+        constants = constants
+        dbs = dbs
+        handlers = handlers
+        exprs = exprs }
+  }
 
 let parse
   (resolver : NameResolver.NameResolver)
   (filename : string)
   (source : string)
-  : PTCanvasModule =
+  : Ply<PTCanvasModule> =
   let parsedAsFSharp = parseAsFSharpSourceFile filename source
 
   let decls =
@@ -242,12 +260,13 @@ let parse
         $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
         [ "parsedAsFsharp", parsedAsFSharp ]
   let module' = parseDecls decls
-  let resolver = toResolver module' |> NameResolver.merge resolver
+  let resolver =
+    NameResolver.merge resolver (toResolver module') resolver.packageManager
   toPT resolver module'
 
 
 let parseFromFile
   (resolver : NameResolver.NameResolver)
   (filename : string)
-  : PTCanvasModule =
+  : Ply<PTCanvasModule> =
   filename |> System.IO.File.ReadAllText |> parse resolver filename

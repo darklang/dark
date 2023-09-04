@@ -16,8 +16,23 @@ module Darklang =
         (fn: 't -> 'u)
         : PACKAGE.Darklang.Stdlib.Result.Result<'u, 'e> =
         match result with
-        | Ok value -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(value |> fn)
+        | Ok value -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn value)
         | Error msg -> PACKAGE.Darklang.Stdlib.Result.Result.Error msg
+
+      /// If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var
+      /// v2>}}, returns {{Ok (fn <var v1> <var v2>)}} -- the lambda <param fn> is
+      /// applied to <var v1> and <var v2>, and the result is wrapped in {{Ok}}.
+      /// Otherwise, returns the first of <param result1> and <param result2> that is
+      /// an error.
+      let map2
+        (result1: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'e>)
+        (result2: PACKAGE.Darklang.Stdlib.Result.Result<'b, 'e>)
+        (fn: 'a -> 'b -> 'c)
+        : PACKAGE.Darklang.Stdlib.Result.Result<'c, 'e> =
+        match (result1, result2) with
+        | (Ok v1, Ok v2) -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn v1 v2)
+        | (Error e1, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e1
+        | (_, Error e2) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e2
 
 
       /// If <param result> is {{Error <var msg>}}, returns {{Error (fn <var msg>)}}.
@@ -30,7 +45,7 @@ module Darklang =
         : PACKAGE.Darklang.Stdlib.Result.Result<'t, 'u> =
         match result with
         | Ok value -> PACKAGE.Darklang.Stdlib.Result.Result.Ok value
-        | Error value -> PACKAGE.Darklang.Stdlib.Result.Result.Error(value |> fn)
+        | Error value -> PACKAGE.Darklang.Stdlib.Result.Result.Error(fn value)
 
 
       /// If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var
@@ -59,7 +74,7 @@ module Darklang =
         (fn: 't -> PACKAGE.Darklang.Stdlib.Result.Result<'u, 'e>)
         : PACKAGE.Darklang.Stdlib.Result.Result<'u, 'e> =
         match result with
-        | Ok value -> value |> fn
+        | Ok value -> fn value
         | Error msg -> PACKAGE.Darklang.Stdlib.Result.Result.Error msg
 
 
@@ -99,11 +114,13 @@ module Darklang =
         (results: List<PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>>)
         : PACKAGE.Darklang.Stdlib.Result.Result<List<'t>, 'e> =
         results
-        |> List.fold (PACKAGE.Darklang.Stdlib.Result.Result.Ok []) (fun acc result ->
-          match (acc, result) with
-          | (Ok acc, Ok result) ->
-            PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-              PACKAGE.Darklang.Stdlib.List.pushBack acc result
-            )
-          | (Ok _, Error err) -> PACKAGE.Darklang.Stdlib.Result.Result.Error err
-          | (Error err, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error err)
+        |> Builtin.List.fold
+          (PACKAGE.Darklang.Stdlib.Result.Result.Ok [])
+          (fun acc result ->
+            match (acc, result) with
+            | (Ok acc, Ok result) ->
+              PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+                PACKAGE.Darklang.Stdlib.List.pushBack acc result
+              )
+            | (Ok _, Error err) -> PACKAGE.Darklang.Stdlib.Result.Result.Error err
+            | (Error err, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error err)

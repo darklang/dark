@@ -7,7 +7,6 @@ open System.Threading.Tasks
 open Microsoft.JSInterop
 
 open Prelude
-open Tablecloth
 
 open LibExecution.RuntimeTypes
 open EvalHelpers
@@ -22,18 +21,25 @@ type EditorSource =
     constants : List<UserConstant.T> }
 
 
+
+let httpConfig : BuiltinExecution.Libs.HttpClient.Configuration =
+  { BuiltinExecution.Libs.HttpClient.defaultConfig with
+      telemetryAddException =
+        (fun metadata e ->
+          WasmHelpers.callJSFunction "console.warn" [ string metadata; string e ]) }
+
+
 let stdLib =
-  LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents; Wasm.StdLib.contents ]
+  LibExecution.Builtin.combine
+    [ BuiltinExecution.Builtin.contents httpConfig; StdLib.contents ]
     []
     []
 
 let ensureNonFakeDval (dv : Dval) : Result<Dval, string> =
   match dv with
-  | DError(_source, err) ->
-    Error $"Error calling handleEvent with provided args: {err}"
-
-  | DIncomplete(_) -> Error $"handleError returned Incomplete"
+  | DError(_source, rte) ->
+    // CLEANUP we should stringify this better, or raise the RTE rather than hide it here
+    Error $"Error calling handleEvent with provided args: {rte}"
 
   | DFnVal(_) -> Error $"handleError returned DFnVal"
 
@@ -53,15 +59,14 @@ let LoadClient (canvasName : string) : Task<string> =
     let! clientSource =
       task {
         // text of client.dark
-        let! response = httpClient.GetAsync sourceURL |> Async.AwaitTask
-        let! responseBody = response.Content.ReadAsStringAsync() |> Async.AwaitTask
+        let! response = httpClient.GetAsync sourceURL
+        let! responseBody = response.Content.ReadAsStringAsync()
 
         // parse client.dark with another endpoint,
         // which then serializes as JSON so we can deserialize below
         let! response =
           httpClient.PostAsync(parseURL, new StringContent(responseBody))
-          |> Async.AwaitTask
-        let! responseBody = response.Content.ReadAsStringAsync() |> Async.AwaitTask
+        let! responseBody = response.Content.ReadAsStringAsync()
 
         return Json.Vanilla.deserialize<EditorSource> responseBody
       }

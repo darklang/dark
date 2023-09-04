@@ -18,7 +18,6 @@ open Microsoft.Extensions.DependencyInjection
 type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 open Prelude
-open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -48,6 +47,8 @@ module CTPusher = LibClientTypes.Pusher
 // ---------------
 // Read from HttpContext
 // ---------------
+
+exception GrandUserException of string
 
 let getHeader (hs : IHeaderDictionary) (name : string) : string option =
   match hs.TryGetValue name with
@@ -89,7 +90,7 @@ let getBody (ctx : HttpContext) : Task<byte array> =
           tooSlowlyMessage
         else
           e.Message
-      return Exception.raiseGrandUser $"Invalid request body: {message}"
+      return raise (GrandUserException $"Invalid request body: {message}")
   }
 
 
@@ -261,10 +262,6 @@ exception NotFoundException of msg : string with
   override this.Message = this.msg
 
 
-let config : RT.Config =
-  { allowLocalHttpAccess = true; httpclientTimeoutInMs = 10000 }
-
-
 /// ---------------
 /// Handle builtwithdark request
 /// ---------------
@@ -326,7 +323,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               LibClientTypesToCloudTypes.Pusher.eventSerializer
               (PT2RT.Handler.toRT handler)
               (Canvas.toProgram canvas)
-              config
               traceID
               inputVars
               (RealExe.InitialExecution(desc, "request", request))
@@ -400,7 +396,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       | e ->
         // respond and then reraise to get it to the rollbar middleware
         let! (_ : HttpContext) = internalErrorResponse ctx e
-        return e.Reraise()
+        return Exception.reraise e
     })
 
   let rollbarCtxToMetadata (ctx : HttpContext) : Rollbar.Person * Metadata =

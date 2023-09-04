@@ -6,8 +6,6 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-open Tablecloth
-open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module ST = SerializedTypes
@@ -41,7 +39,7 @@ let wrapSerializationException (id : string) (f : unit -> 'a) : 'a =
   with e ->
     Exception.callExceptionCallback e
     raise (
-      InternalException(
+      Exception.InternalException(
         "error deserializing toplevel",
         [ "id", id
           "suggestion", "maybe annotation are missing in SerializationTypes" ],
@@ -121,4 +119,8 @@ module Test =
   let serializeToplevelsToJson (tls : List<PT.Toplevel.T>) : string =
     wrapSerializationException "test" (fun () ->
       let v = List.map PT2ST.Toplevel.toST tls
-      MessagePack.MessagePackSerializer.SerializeToJson(v, optionsWithZip))
+      let jsonString =
+        MessagePack.MessagePackSerializer.SerializeToJson(v, optionsWithZip)
+      let jsonDocument = System.Text.Json.JsonDocument.Parse(jsonString)
+      let options = System.Text.Json.JsonSerializerOptions(WriteIndented = true)
+      System.Text.Json.JsonSerializer.Serialize(jsonDocument, options))

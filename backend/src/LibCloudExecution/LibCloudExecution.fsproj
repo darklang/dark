@@ -12,13 +12,14 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
+    <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
-    <ProjectReference Include="../StdLibCloudExecution/StdLibCloudExecution.fsproj" />
-    <ProjectReference Include="../StdLibDarkInternal/StdLibDarkInternal.fsproj" />
+    <ProjectReference Include="../BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
+    <ProjectReference Include="../BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="HttpClient.fs" />
     <Compile Include="CloudExecution.fs" />
     <Compile Include="Init.fs" />
   </ItemGroup>

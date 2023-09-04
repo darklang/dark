@@ -30,13 +30,13 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibService", "src\LibServic
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "TestUtils", "tests\TestUtils\TestUtils.fsproj", "{839A1EF7-18F5-491E-B40B-2BAA57378B40}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibExecution", "src\StdLibExecution\StdLibExecution.fsproj", "{BBFC824F-A0DE-4A28-B82F-49C04EBA7475}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinExecution", "src\BuiltinExecution\BuiltinExecution.fsproj", "{BBFC824F-A0DE-4A28-B82F-49C04EBA7475}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibCloudExecution", "src\LibCloudExecution\LibCloudExecution.fsproj", "{FA55A52D-B880-4931-A121-85C8DAD8DD28}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "QueueWorker", "src\QueueWorker\QueueWorker.fsproj", "{36E1611F-55E4-4DFE-BB04-913FEA9950ED}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibCloudExecution", "src\StdLibCloudExecution\StdLibCloudExecution.fsproj", "{82CA75E9-53BD-4324-B86B-44F280BAF331}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinCloudExecution", "src\BuiltinCloudExecution\BuiltinCloudExecution.fsproj", "{82CA75E9-53BD-4324-B86B-44F280BAF331}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibHttpMiddleware", "src\LibHttpMiddleware\LibHttpMiddleware.fsproj", "{DAE2B2E9-40AF-4D99-A5B0-79678F94BFDA}"
 EndProject
@@ -60,13 +60,13 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Wasm", "src\Wasm\Wasm.fspro
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LocalExec", "src\LocalExec\LocalExec.fsproj", "{FC9D3B85-2CD6-4A5C-B853-BCE770F76FC6}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibCli", "src\StdLibCli\StdLibCli.fsproj", "{A44BDF6D-0D93-4AA4-9DFA-F48365A31B26}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinCli", "src\BuiltinCli\BuiltinCli.fsproj", "{A44BDF6D-0D93-4AA4-9DFA-F48365A31B26}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibDarkInternal", "src\StdLibDarkInternal\StdLibDarkInternal.fsproj", "{B6933551-A7A3-4A85-BEF4-43214ABB04DF}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinDarkInternal", "src\BuiltinDarkInternal\BuiltinDarkInternal.fsproj", "{B6933551-A7A3-4A85-BEF4-43214ABB04DF}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibCliExecution", "src\LibCliExecution\LibCliExecution.fsproj", "{A74049E0-AD31-407B-9918-6A6A76C945C9}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibCliHost", "src\StdLibCliHost\StdLibCliHost.fsproj", "{B199C1DE-48A2-47B4-9672-BCCB7E4F8C78}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinCliHost", "src\BuiltinCliHost\BuiltinCliHost.fsproj", "{B199C1DE-48A2-47B4-9672-BCCB7E4F8C78}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

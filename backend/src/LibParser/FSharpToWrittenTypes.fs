@@ -5,7 +5,6 @@ open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Syntax
 
 open Prelude
-open Tablecloth
 
 module WT = WrittenTypes
 module PT = LibExecution.ProgramTypes
@@ -155,14 +154,10 @@ module LetPattern =
     | SynPat.Paren(subPat, _) -> mapPat subPat
     | SynPat.Wild(_) -> WT.LPVariable(gid (), "_")
     | SynPat.Named(SynIdent(name, _), _, _, _) -> WT.LPVariable(gid (), name.idText)
+    | SynPat.Const(SynConst.Unit, _) -> WT.LPUnit(gid ())
 
     | SynPat.Tuple(_, (first :: second :: theRest), _) ->
-      WT.LetPattern.LPTuple(
-        gid (),
-        mapPat first,
-        mapPat second,
-        List.map mapPat theRest
-      )
+      WT.LPTuple(gid (), mapPat first, mapPat second, List.map mapPat theRest)
 
     | _ ->
       Exception.raiseInternal "Unsupported let or use expr pat type" [ "pat", pat ]
@@ -190,7 +185,6 @@ module MatchPattern =
     | SynPat.Const(SynConst.Int32 n, _) -> WT.MPInt(id, n)
     | SynPat.Const(SynConst.Int64 n, _) -> WT.MPInt(id, int64 n)
     | SynPat.Const(SynConst.UInt64 n, _) -> WT.MPInt(id, int64 n)
-    | SynPat.Const(SynConst.UserNum(n, "I"), _) -> WT.MPInt(id, parseInt64 n)
     | SynPat.Const(SynConst.Char c, _) -> WT.MPChar(id, string c)
     | SynPat.Const(SynConst.Bool b, _) -> WT.MPBool(id, b)
     | SynPat.Const(SynConst.Unit, _) -> WT.MPUnit(id)
@@ -204,8 +198,7 @@ module MatchPattern =
     | SynPat.LongIdent(SynLongIdent(names, _, _), _, _, SynArgPats.Pats args, _, _) ->
       let enumName =
         List.last names |> Exception.unwrapOptionInternal "missing enum name" []
-      let modules =
-        List.initial names |> Option.unwrap [] |> List.map (fun i -> i.idText)
+      let modules = List.initial names |> List.map (fun i -> i.idText)
       if modules <> [] then
         Exception.raiseInternal
           "Module in enum pattern casename. Only use the casename in Enum patterns"
@@ -226,22 +219,22 @@ module Expr =
 
   let parseFn (fnName : string) : Result<string * int, string> =
     match fnName with
-    | Regex "^([a-z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
+    | Regex.Regex "^([a-z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
       Ok(name, (int version))
-    | Regex "^([a-z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
+    | Regex.Regex "^([a-z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
     | _ -> Error "Bad format in fn name"
 
   let parseEnum (enumName : string) : Option<string> =
     // No version on the Enum case, that's on the type
     match enumName with
-    | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> Some name
+    | Regex.Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> Some name
     | _ -> None
 
   let parseTypeName (typeName : string) : Result<string * int, string> =
     match typeName with
-    | Regex "^([A-Z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
+    | Regex.Regex "^([A-Z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
       Ok(name, (int version))
-    | Regex "^([A-Z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
+    | Regex.Regex "^([A-Z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
     | _ -> Error "Bad format in type name"
 
 
@@ -318,7 +311,6 @@ module Expr =
     | SynExpr.Const(SynConst.Int32 n, _) -> WT.EInt(id, n)
     | SynExpr.Const(SynConst.Int64 n, _) -> WT.EInt(id, int64 n)
     | SynExpr.Const(SynConst.UInt64 n, _) -> WT.EInt(id, int64 n)
-    | SynExpr.Const(SynConst.UserNum(n, "I"), _) -> WT.EInt(id, parseInt64 n)
     | SynExpr.Const(SynConst.Char c, _) -> WT.EChar(id, string c)
     | SynExpr.Const(SynConst.Bool b, _) -> WT.EBool(id, b)
     | SynExpr.Const(SynConst.Double d, _) ->
@@ -396,10 +388,7 @@ module Expr =
 
     // Enum/FnCalls - e.g. `Result.Ok` or `Result.mapSecond`
     | IdentExprPat(head :: tail) when
-      (head :: tail
-       |> List.initial
-       |> Option.unwrap []
-       |> List.all String.isCapitalized)
+      (head :: tail |> List.initial |> List.all String.isCapitalized)
       ->
       let names = NEList.ofList head tail
       let (modules, name) = NEList.splitLast names
@@ -441,17 +430,17 @@ module Expr =
       | [] -> Exception.raiseInternal "empty list in LongIdent" []
       | var :: fields ->
         List.fold
-          (WT.EVariable(gid (), var.idText))
           (fun acc (field : Ident) ->
             WT.EFieldAccess(id, acc, nameOrBlank field.idText))
+          (WT.EVariable(gid (), var.idText))
           fields
 
     // (...).a.b
     | SynExpr.DotGet(expr, _, SynLongIdent(fields, _, _), _) ->
       List.fold
-        (c expr)
         (fun acc (field : Ident) ->
           WT.EFieldAccess(id, acc, nameOrBlank field.idText))
+        (c expr)
         fields
 
     // Lambdas
@@ -479,12 +468,8 @@ module Expr =
 
 
     // if/else expressions
-    | SynExpr.IfThenElse(cond, thenExpr, Some elseExpr, _, _, _, _) ->
-      WT.EIf(id, c cond, c thenExpr, c elseExpr)
-
-    // if (no else) expression
-    | SynExpr.IfThenElse(cond, thenExpr, None, _, _, _, _) ->
-      WT.EIf(id, c cond, c thenExpr, WT.EUnit(gid ()))
+    | SynExpr.IfThenElse(cond, thenExpr, elseExpr, _, _, _, _) ->
+      WT.EIf(id, c cond, c thenExpr, Option.map c elseExpr)
 
 
     // `let` bindings
@@ -939,7 +924,7 @@ module UserType =
         [ "typeDef", typeDef ]
       |> Expr.parseTypeName
       |> Exception.unwrapResultInternal []
-    let modules = moduleName @ names |> List.initial |> Option.unwrap []
+    let modules = moduleName @ names |> List.initial
 
     { name = PT.TypeName.userProgram modules name version
       description = ""

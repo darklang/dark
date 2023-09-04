@@ -1,11 +1,13 @@
 5 + 3 = 8
 "xx" ++ "yy" = "xxyy"
 (5 + (3)) = 8
-Int.add_v0 5 3 = 8
+Builtin.Int.add_v0 5 3 = 8
 
-5 + true = Test.runtimeError
+5 + true = Builtin.Test.derrorMessage
   "Int.add's 2nd argument (`b`) should be an Int. However, a Bool (true) was passed instead.\n\nExpected: (b: Int)\nActual: a Bool: true"
 
-5 + (Test.runtimeError "error") = Test.runtimeError "error"
-(Test.runtimeError "error") + 5 = Test.runtimeError "error"
-(Test.runtimeError "one") + (Test.runtimeError "two") = Test.runtimeError "one" // CLEANUP
+5 + (Builtin.Test.runtimeError "error") = Builtin.Test.derrorMessage "error"
+(Builtin.Test.runtimeError "error") + 5 = Builtin.Test.derrorMessage "error"
+
+(Builtin.Test.runtimeError "one") + (Builtin.Test.runtimeError "two") = Builtin.Test.derrorMessage
+  "one" // CLEANUP

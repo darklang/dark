@@ -316,5 +316,3 @@ NUGET
     System.Text.Json (7.0.2)
       System.Text.Encodings.Web (>= 7.0)
     System.Threading.Tasks.Extensions (4.5.4)
-    Tablecloth.FSharp (0.0.8-alpha1)
-      FSharp.Core (>= 6.0.1)

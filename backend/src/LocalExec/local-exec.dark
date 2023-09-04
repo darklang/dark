@@ -1,144 +1,148 @@
 let listDirectoryRecursive (dir: String) : List<String> =
-  let contents = Directory.list dir
-  let (files, dirs) = contents |> List.partition (fun x -> File.isNormal x)
-  let nested = dirs |> List.map (fun d -> listDirectoryRecursive d) |> List.flatten
-  dirs |> List.append files |> List.append nested
+  let contents = Builtin.Directory.list dir
+
+  let (files, dirs) =
+    contents |> Builtin.List.partition (fun x -> Builtin.File.isNormal x)
+
+  let nested =
+    dirs
+    |> Builtin.List.map (fun d -> listDirectoryRecursive d)
+    |> Builtin.LocalExec.BuiltIns.List.flatten
+
+  dirs |> Builtin.List.append files |> Builtin.List.append nested
 
 
 // Packages
 let listPackageFilesOnDisk (dir: String) : List<String> =
   dir
   |> listDirectoryRecursive
-  |> List.filter (fun x -> x |> String.endsWith ".dark")
+  |> Builtin.List.filter (fun x ->
+    x |> Builtin.LocalExec.BuiltIns.String.endsWith ".dark")
 
 
-let saveFunctionToCanvas
-  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T)
-  : Unit =
-  let reqBody =
-    p
-    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>
-    |> unwrap
-    |> String.toBytes
 
+
+let saveItemToCanvas
+  (json: String)
+  (name: String)
+  : PACKAGE.Darklang.Stdlib.Result.Result<Unit, String> =
   let response =
-    HttpClient.request
+    Builtin.HttpClient.request
       "POST"
-      ("http://dark-packages.dlio.localhost:11003/functions")
+      $"http://dark-packages.dlio.localhost:11003/{name}s"
       []
-      reqBody
+      (Builtin.String.toBytes json)
 
-  let response = unwrap response
+  let errMsg = $"Error saving {name} to canvas"
 
-  // TODO: ensure 200 OK
-
-  ()
-
-let saveTypeToCanvas
-  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T)
-  : Unit =
-  let reqBody =
-    p
-    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>
-    |> unwrap
-    |> String.toBytes
-
-  let response =
-    HttpClient.request
-      "POST"
-      ("http://dark-packages.dlio.localhost:11003/types")
-      []
-      reqBody
-
-  let response = unwrap response
-
-  // TODO: ensure 200 OK
-
-  ()
-
-let saveConstantToCanvas
-  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T)
-  : Unit =
-  let reqBody =
-    p
-    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant.T>
-    |> unwrap
-    |> String.toBytes
-
-  let response =
-    HttpClient.request
-      "POST"
-      ("http://dark-packages.dlio.localhost:11003/constants")
-      []
-      reqBody
-
-  let response = unwrap response
-
-  // TODO: ensure 200 OK
-
-  ()
-
-let loadPackageFile (filename: String) : Unit =
-  filename
-  |> LocalExec.File.read
-  |> String.fromBytes
-  |> LocalExec.Packages.parseAndSave filename
+  match response with
+  | Ok response ->
+    match response.statusCode with
+    | 200 -> PACKAGE.Darklang.Stdlib.Result.Result.Ok()
+    | _ ->
+      Builtin.print $"Type: {name}; Json: {json}"
+      Builtin.print $"Status: {Builtin.Int.toString response.statusCode}"
+      Builtin.print $"Body: {response.body |> Builtin.String.fromBytes}"
+      Builtin.print errMsg
+      PACKAGE.Darklang.Stdlib.Result.Result.Error errMsg
+  | Error err ->
+    Builtin.print $"Type: {name}; Json: {json}"
+    Builtin.print err
+    Builtin.print errMsg
+    PACKAGE.Darklang.Stdlib.Result.Result.Error errMsg
 
 
-let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
+
+let loadPackageFileIntoDarkCanvas
+  (filename: String)
+  : PACKAGE.Darklang.Stdlib.Result.Result<Unit, String> =
   let package =
     filename
-    |> File.read
-    |> unwrap
-    |> String.fromBytes
-    |> LocalExec.Packages.parse filename
-    |> unwrap
+    |> Builtin.File.read
+    |> Builtin.unwrap
+    |> Builtin.String.fromBytes
+    |> Builtin.LocalExec.Packages.parse filename
+    |> Builtin.unwrap
 
-  package.fns |> List.iter (fun fn -> saveFunctionToCanvas fn)
+  let fnResults =
+    package.fns
+    |> Builtin.List.map (fun fn ->
+      fn
+      |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
+      |> Builtin.unwrap
+      |> saveItemToCanvas "function")
 
-  package.types |> List.iter (fun t -> saveTypeToCanvas t)
+  let typeResults =
+    package.types
+    |> Builtin.List.map (fun t ->
+      t
+      |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
+      |> Builtin.unwrap
+      |> saveItemToCanvas "type")
 
-  package.constants |> List.iter (fun t -> saveConstantToCanvas t)
+  let constantResults =
+    package.constants
+    |> Builtin.List.map (fun c ->
+      c
+      |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
+      |> Builtin.unwrap
+      |> saveItemToCanvas "constant")
+
+  // Flatten all the result lists into one list
+  let allResults =
+    [ fnResults; typeResults; constantResults ]
+    |> PACKAGE.Darklang.Stdlib.List.flatten
+
+  let firstError =
+    Builtin.List.findFirst allResults (fun r ->
+      match r with
+      | Error _ -> true
+      | Ok _ -> false)
+
+  // Find the first error in the flattened list
+  match firstError with
+  | Some(Error err) -> PACKAGE.Darklang.Stdlib.Result.Result.Error err
+  | _ -> PACKAGE.Darklang.Stdlib.Result.Result.Ok()
 
 
-let printPackageFunction (p: LocalExec.Packages.Function) : Unit =
-  let modules = p.modules |> String.join "."
+let printPackageFunction (p: Builtin.LocalExec.Packages.Function) : Unit =
+  let modules = p.modules |> Builtin.String.join "."
 
-  print $"Package Function {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
+  Builtin.print
+    $"Package Function {p.owner}.{modules}.{p.name}_v{Builtin.Int.toString_v0 p.version}"
 
-let printPackageType (p: LocalExec.Packages.Type) : Unit =
-  let modules = p.modules |> String.join "."
-  print $"Package Type {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
+let printPackageType (p: Builtin.LocalExec.Packages.Type) : Unit =
+  let modules = p.modules |> Builtin.String.join "."
 
-let printPackageConstant (p: LocalExec.Packages.Constant) : Unit =
-  let modules = p.modules |> String.join "."
-  print $"Package Constant {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
+  Builtin.print
+    $"Package Type {p.owner}.{modules}.{p.name}_v{Builtin.Int.toString_v0 p.version}"
 
-let printAllPackages () : Unit =
-  let functions = LocalExec.Packages.listFunctions ()
-  functions |> List.iter (fun p -> printPackageFunction p)
+let printPackageConstant (p: Builtin.LocalExec.Packages.Constant) : Unit =
+  let modules = p.modules |> Builtin.String.join "."
 
-  let types = LocalExec.Packages.listTypes ()
-  types |> List.iter (fun p -> printPackageType p)
+  Builtin.print
+    $"Package Constant {p.owner}.{modules}.{p.name}_v{Builtin.Int.toString_v0 p.version}"
 
-  let constants = LocalExec.Packages.listConstants ()
-  constants |> List.iter (fun p -> printPackageConstant p)
+let printAllPackagesInDb () : Unit =
+  let functions = Builtin.LocalExec.Packages.listFunctions ()
 
+  functions
+  |> Builtin.LocalExec.BuiltIns.List.iter (fun p -> printPackageFunction p)
 
-// Running scripts
-let runScript (path: String) (args: List<String>) : Int =
-  let script = (File.read path) |> unwrap |> String.fromBytes
-  let result = (LocalExec.parseAndExecuteScript path script args) |> unwrap
-  result
+  let types = Builtin.LocalExec.Packages.listTypes ()
+  types |> Builtin.LocalExec.BuiltIns.List.iter (fun p -> printPackageType p)
+
+  let constants = Builtin.LocalExec.Packages.listConstants ()
+
+  constants
+  |> Builtin.LocalExec.BuiltIns.List.iter (fun p -> printPackageConstant p)
 
 
 // parse args and execute
 type CliOptions =
   | Help
-  | LoadPackages
   | LoadPackagesIntoDarkCanvas
   | ListPackages
-  | RunScript of path: String * args: List<String>
   | BadOption of String
 
 let usage () : String =
@@ -146,10 +150,8 @@ let usage () : String =
 
     Options:
       -h, --help          Show this help message and exit
-      load-packages       Load packages from disk into internal DB
       load-packages-dark  Load packages from disk into dark packages canvas
       list-packages       List packages
-      run-script          Parse and run .dark script
   "
 
 
@@ -160,12 +162,11 @@ let parseArgs (args: List<String>) : CliOptions =
   | [ "--help" ] -> CliOptions.Help
 
   | [ "list-packages" ] -> CliOptions.ListPackages
-  | [ "load-packages" ] -> CliOptions.LoadPackages
+  | [ "load-packages" ] ->
+    CliOptions.BadOption
+      "`load-packages` now executes in F# (not sure how you got here)"
   | [ "load-packages-dark" ] -> CliOptions.LoadPackagesIntoDarkCanvas
 
-  | [ "run-script" ] ->
-    CliOptions.BadOption "Missing path to script after `run-script`"
-  | "run-script" :: path :: args -> CliOptions.RunScript(path, args)
   | _ -> CliOptions.BadOption "Invalid arguments"
 
 
@@ -173,43 +174,74 @@ let parseArgs (args: List<String>) : CliOptions =
 let main (args: List<String>) : Int =
   match parseArgs args with
   | Help ->
-    print (usage ())
+    Builtin.print (usage ())
     0
 
   | ListPackages ->
-    printAllPackages ()
+    printAllPackagesInDb ()
     0
-
-  | LoadPackages ->
-    LocalExec.Packages.clear ()
-    let files = listPackageFilesOnDisk "/home/dark/app/packages"
-
-    List.iter files (fun f ->
-      print $"Loading {f}"
-      loadPackageFile f)
-
-    print "Done loading packages"
-    0
-
-  | RunScript(path, args) ->
-    print $"Running script with LocalExec: {path}"
-    runScript path args
 
   | LoadPackagesIntoDarkCanvas ->
     let files = listPackageFilesOnDisk "/home/dark/app/packages"
 
     // TODO: clear packages from dark canvas first?
 
-    List.iter files (fun f ->
-      print $"Loading {f}"
-      loadPackageFileIntoDarkCanvas f)
+    // Wait for canvas to be ready
+    let available =
+      Builtin.List.fold
+        (PACKAGE.Darklang.Stdlib.List.range 0 10)
+        (PACKAGE.Darklang.Stdlib.Result.Result.Error "Not started")
+        (fun found num ->
+          match found with
+          | Ok() -> PACKAGE.Darklang.Stdlib.Result.Result.Ok()
+          | Error _ ->
+            (Builtin.HttpClient.request
+              "GET"
+              ("http://dark-packages.dlio.localhost:11003/health")
+              []
+              Builtin.Bytes.empty)
+            |> PACKAGE.Darklang.Stdlib.Result.map (fun _ -> ())
+            |> PACKAGE.Darklang.Stdlib.Result.mapError (fun err ->
+              Builtin.print $"Error: {err}"
+              Time.sleep 1000.0
+              err))
 
-    print "Done loading packages from dark packages canvas"
-    printAllPackages ()
-    0
+
+    match available with
+    | Error msg ->
+      Builtin.print $"Error waiting for dark packages canvas: {msg}"
+      1
+    | Ok() ->
+      Builtin.print "Dark packages canvas is ready"
+
+      let result =
+        Builtin.List.fold
+          files
+          (PACKAGE.Darklang.Stdlib.Result.Result.Ok())
+          (fun (acc, f) ->
+            Builtin.print $"Loading {f}"
+
+            match acc with
+            | Error _err -> acc
+            | Ok() ->
+              match loadPackageFileIntoDarkCanvas f with
+              | Error err ->
+                PACKAGE.Darklang.Stdlib.Result.Result.Error(
+                  $"Failed to load packages from {f}:\n" ++ err
+                )
+              | Ok() -> PACKAGE.Darklang.Stdlib.Result.Result.Ok())
+
+      match result with
+      | Error err ->
+        Builtin.print err
+        1
+      | Ok() ->
+        Builtin.print "Done loading packages from disk"
+        printAllPackagesInDb ()
+        0
 
   | BadOption msg ->
-    print ("Error: " ++ msg)
+    Builtin.print ("Error: " ++ msg)
     1
 
 main args

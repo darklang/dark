@@ -20,10 +20,11 @@ let ptFQFnName =
 
 
 let testPipesToRuntimeTypes =
-  test "pipes to runtime types" {
-    let actual =
+  testTask "pipes to runtime types" {
+    let! actual =
       "value.age |> (-) 2 |> (+) value.age |> (<) 3"
       |> LibParser.Parser.parseRTExpr builtinResolver "programTypes.tests.fs"
+      |> Ply.toTask
 
     let expected =
       S.eFn
@@ -44,7 +45,8 @@ let testPipesToRuntimeTypes =
                 [ S.eFieldAccess (S.eVar "value") "age"; S.eInt 2 ]
               S.eFieldAccess (S.eVar "value") "age" ]
           S.eInt 3 ]
-    Expect.equalExprIgnoringIDs actual expected
+
+    return Expect.equalExprIgnoringIDs actual expected
   }
 
 let testProgramTypesToRuntimeTypes =

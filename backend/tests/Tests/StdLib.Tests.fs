@@ -9,8 +9,6 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
@@ -24,7 +22,7 @@ let oldFunctionsAreDeprecated =
   testTask "old functions are deprecated" {
     let counts = ref Map.empty
 
-    let fns = builtIns.fns |> Map.values
+    let fns = localBuiltIns.fns |> Map.values
 
     fns
     |> List.iter (fun fn ->
@@ -49,7 +47,7 @@ let oldTypesAreDeprecated =
   testTask "old types are deprecated" {
     let counts = ref Map.empty
 
-    let types = builtIns.types |> Map.values
+    let types = localBuiltIns.types |> Map.values
 
     types
     |> List.iter (fun typ ->

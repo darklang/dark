@@ -12,12 +12,12 @@ Location: /v0/response-redirect-destination
 
 
 [test]
-(match HttpClient.request "delete" "http://URL" [] Bytes.empty with
+(match Builtin.HttpClient.request "delete" "http://URL" [] Builtin.Bytes.empty with
  | Ok _ -> "fail"
  | Error response ->
-    let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
+    let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
     {response with headers = respHeaders}) =
-  HttpClient.Response
+  Builtin.HttpClient.Response
     { body = ""
       statusCode = 302
       headers =

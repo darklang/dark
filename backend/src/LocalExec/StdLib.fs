@@ -2,23 +2,24 @@
 module LocalExec.StdLib
 
 open Prelude
-module StdLib = LibExecution.StdLib
+module Builtin = LibExecution.Builtin
 
-let fnRenames : StdLib.FnRenames =
+let fnRenames : Builtin.FnRenames =
   // old names, new names
   // eg: fn "Http" "respond" 0, fn "Http" "response" 0
   []
 
-let typeRenames : StdLib.TypeRenames =
+let typeRenames : Builtin.TypeRenames =
   // old names, new names
   // eg: typ "Http" "Response" 0, typ "Http" "Response" 1
   []
 
-let contents : StdLib.Contents =
-  StdLib.combine
+let contents : Builtin.Contents =
+  Builtin.combine
     [ Libs.Packages.contents
       Libs.Packages2.contents
       Libs.Cli.contents
-      StdLibCloudExecution.Libs.HttpClient.contents ]
+      Libs.List.contents
+      Libs.String.contents ]
     fnRenames
     typeRenames

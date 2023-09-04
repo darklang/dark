@@ -19,19 +19,21 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../LibParser/LibParser.fsproj" />
-    <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
-    <ProjectReference Include="../StdLibCloudExecution/StdLibCloudExecution.fsproj" />
-    <ProjectReference Include="../StdLibCli/StdLibCli.fsproj" />
-    <ProjectReference Include="../StdLibCliHost/StdLibCliHost.fsproj" />
-    <ProjectReference Include="../StdLibDarkInternal/StdLibDarkInternal.fsproj" />
+    <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
+    <ProjectReference Include="../BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
+    <ProjectReference Include="../BuiltinCli/BuiltinCli.fsproj" />
+    <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
+    <ProjectReference Include="../BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
     <!-- only really needed for parsing -->
-    <ProjectReference Include="../StdLibCloudExecution/StdLibCloudExecution.fsproj" />
+    <ProjectReference Include="../BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
     <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Libs/Cli.fs" />
     <Compile Include="Libs/Packages.fs" />
     <Compile Include="Libs/Packages2.fs" />
+    <Compile Include="Libs/List.fs" />
+    <Compile Include="Libs/String.fs" />
     <Compile Include="StdLib.fs" />
     <Compile Include="LocalExec.fs" />
   </ItemGroup>

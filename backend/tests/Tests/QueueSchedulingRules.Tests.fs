@@ -6,9 +6,6 @@ open FSharp.Control.Tasks
 open Expecto
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
-open LibCloud.Db
 
 open TestUtils.TestUtils
 
@@ -19,17 +16,21 @@ module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 module SR = LibCloud.QueueSchedulingRules
 
-let p (code : string) : PT.Expr =
+let p (code : string) : Task<PT.Expr> =
   LibParser.Parser.parsePTExpr builtinResolver "queueschedulingrules.fs" code
+  |> Ply.toTask
 
 
 let testGetWorkerSchedulesForCanvas =
   testTask "worker schedules for canvas" {
     let! canvasID = initializeTestCanvas "worker-schedules"
 
-    let apple = testWorker "apple" (p "1")
-    let banana = testWorker "banana" (p "1")
-    let cherry = testWorker "cherry" (p "1")
+    let! e1 = p "1"
+    let! e2 = p "1"
+    let! e3 = p "1"
+    let apple = testWorker "apple" e1
+    let banana = testWorker "banana" e2
+    let cherry = testWorker "cherry" e3
 
     do!
       ([ apple; banana; cherry ]

@@ -2,11 +2,11 @@
 let _handler _req =
   let body =
     (Experiments.readFromStaticDir path)
-    |> PACKAGE.Darklang.Stdlib.Result.withDefault Bytes.empty
+    |> PACKAGE.Darklang.Stdlib.Result.withDefault Builtin.Bytes.empty
 
   let contentType =
     match
-      (String.split path ".")
+      (Builtin.String.split path ".")
       |> PACKAGE.Darklang.Stdlib.List.last
       |> PACKAGE.Darklang.Stdlib.Option.withDefault ""
     with
@@ -20,8 +20,10 @@ let _handler _req =
 
   let incomingHost =
     request.headers
-    |> List.findFirst (fun t -> Tuple2.first t == "origin")
-    |> PACKAGE.Darklang.Stdlib.Option.map (fun t -> Tuple2.second t)
+    |> Builtin.List.findFirst (fun t ->
+      (PACKAGE.Darklang.Stdlib.Tuple2.first t) == "origin")
+    |> PACKAGE.Darklang.Stdlib.Option.map (fun t ->
+      PACKAGE.Darklang.Stdlib.Tuple2.second t)
     |> PACKAGE.Darklang.Stdlib.Option.withDefault
       "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
 
@@ -148,12 +150,13 @@ let _indexHandler _req =
   """
 
   PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-    (String.toBytes body)
+    (Builtin.String.toBytes body)
     [ ("Content-Type", "text/html") ]
     200
 
 
-let gid () : Int = Int.random 0 9223372036854775807I
+let gid () : Int =
+  Builtin.Int.random 0 9223372036854775807I
 
 
 let err (msg: String) : Unit =
@@ -209,7 +212,7 @@ let getField (node: SyntaxTreeNode) (fieldName: String) : SyntaxTreeNode =
   // (right now this won't error if 2 of the same fieldName exist)
   let found =
     children
-    |> List.findFirst (fun c ->
+    |> Builtin.List.findFirst (fun c ->
       match c.fieldName with
       | Some fName -> fName == fieldName
       | None -> false)
@@ -226,7 +229,7 @@ let parseExprCase (node: SyntaxTreeNode) : PTExpr =
   | "identifier" -> PTExpr.EVariable(gid (), getText node)
 
   | "integer" ->
-    let i = Int.parse (getText node)
+    let i = Builtin.Int.parse (getText node)
     PTExpr.EInt(gid (), i)
 
   | "let_expression" ->
@@ -239,7 +242,7 @@ let parseExprCase (node: SyntaxTreeNode) : PTExpr =
     let fnName = (getField node "fn") |> getText
 
     let args = getField node "args"
-    let args = args.children |> List.map (fun c -> parseExpr c)
+    let args = args.children |> Builtin.List.map (fun c -> parseExpr c)
 
     PTExpr.EFnCall(gid (), fnName, args)
 
@@ -252,8 +255,8 @@ let parseExprCase (node: SyntaxTreeNode) : PTExpr =
     let right = parseExpr (getField node "right")
 
     match op with
-    | "+" -> PTExpr.EFnCall(id, "Int.add", [ left; right ])
-    | "-" -> PTExpr.EFnCall(id, "Int.subtract", [ left; right ])
+    | "+" -> PTExpr.EFnCall(id, "Builtin.Int.add", [ left; right ])
+    | "-" -> PTExpr.EFnCall(id, "Builtin.Int.subtract", [ left; right ])
 
 
 // TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTExpr, String>
@@ -295,7 +298,7 @@ let parseUserFunctionParams (node: SyntaxTreeNode) : List<PTUserFunctionParamete
   let first = getField node "first"
   let additional = getField node "additional"
 
-  [ first; additional ] |> List.map (fun p -> parseUserFunctionParam p)
+  [ first; additional ] |> Builtin.List.map (fun p -> parseUserFunctionParam p)
 
 
 // TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTUserFunction, String>
@@ -317,14 +320,14 @@ let parseUserFunction (node: SyntaxTreeNode) : PTUserFunction =
 
 
 /// This returns a Json-serialized PT.UserFunction that should be
-/// able to be deserialized in WASM by Json.deserialize<PT.UserFunction>.
+/// able to be deserialized in WASM by Builtin.Json.deserialize<PT.UserFunction>.
 [<HttpHandler("POST", "/parse-user-function")>]
 let _handler _req =
   // TODO: theoretically, we could even pass in the source code
   // instead of the serialized syntax tree, and then parse it
   // somehow in Dark?
-  let reqBody = String.fromBytes_v0 request.body
-  let synTree = Json.parse<SyntaxTreeNode> reqBody
+  let reqBody = Builtin.String.fromBytes_v0 request.body
+  let synTree = Builtin.Json.parse<SyntaxTreeNode> reqBody
 
   match synTree with
   | Ok root ->
@@ -335,15 +338,17 @@ let _handler _req =
       match root.children with
       | [ userFunction ] -> parseUserFunction userFunction
 
-    match Json.serialize<PTUserFunction> userFn with
+    match Builtin.Json.serialize<PTUserFunction> userFn with
     | Ok serialized ->
       let respHeaders = [ ("content-type", "application/json") ]
 
       PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-        (String.toBytes serialized)
+        (Builtin.String.toBytes serialized)
         respHeaders
         200
 
-    | Error e -> PACKAGE.Darklang.Stdlib.Http.response (String.toBytes_v0 e) 500
+    | Error e ->
+      PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes_v0 e) 500
 
-  | Error e -> PACKAGE.Darklang.Stdlib.Http.response (String.toBytes_v0 e) 400
+  | Error e ->
+    PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes_v0 e) 400

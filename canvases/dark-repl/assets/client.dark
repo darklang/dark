@@ -9,13 +9,13 @@ let rUnwrap (result: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'b>) : 'a =
 
 let parseAndSerializeProgram (userProgram: String) : String =
   let response =
-    WASM.HttpClient.request
+    Builtin.HttpClient.request
       "POST"
       "http://dark-repl.dlio.localhost:11003/get-program-json"
       []
-      (String.toBytes userProgram)
+      (Builtin.String.toBytes userProgram)
 
-  response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes
+  response |> rUnwrap |> (fun r -> r.body) |> Builtin.String.fromBytes
 
 let handleEvent
   (userProgramSource: String)

@@ -50,7 +50,7 @@
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibCliExecution/LibCliExecution.fsproj" />
-    <ProjectReference Include="../StdLibCliHost/StdLibCliHost.fsproj" />
+    <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Cli.fs" />

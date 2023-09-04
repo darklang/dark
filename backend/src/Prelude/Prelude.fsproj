@@ -11,7 +11,26 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="Exception.fs" />
+    <Compile Include="NEList.fs" />
+    <Compile Include="Regex.fs" />
+    <Compile Include="Uuid.fs" />
+    <Compile Include="Tuple2.fs" />
+    <Compile Include="Base64.fs" />
+    <Compile Include="UTF8.fs" />
+    <Compile Include="Lazy.fs" />
+    <Compile Include="String.fs" />
+    <Compile Include="Map.fs" />
+    <Compile Include="List.fs" />
+    <Compile Include="Option.fs" />
+    <Compile Include="HashSet.fs" />
+    <Compile Include="Dictionary.fs" />
+    <Compile Include="ResizeArray.fs" />
+    <Compile Include="Task.fs" />
+    <Compile Include="Ply.fs" />
+    <Compile Include="NonBlockingConsole.fs" />
     <Compile Include="Prelude.fs" />
+    <Compile Include="Json.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

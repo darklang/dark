@@ -6,7 +6,6 @@
 module Tests.SerializationTestValues
 
 open Prelude
-open Tablecloth
 open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
@@ -22,7 +21,18 @@ let tlid : tlid = 7UL
 let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
 module RuntimeTypes =
-  let fqFnNames : List<RT.FnName.T> =
+  let fqTypeNames : List<RT.TypeName.TypeName> =
+    [ RT.FQName.UserProgram
+        { modules = [ "X" ]; name = RT.TypeName.TypeName "userfn"; version = 0 }
+      RT.FQName.BuiltIn
+        { modules = [ "A" ]; name = RT.TypeName.TypeName "b"; version = 1 }
+      RT.FQName.Package
+        { owner = "a"
+          modules = [ "b"; "C" ]
+          name = RT.TypeName.TypeName "d"
+          version = 2 } ]
+
+  let fqFnNames : List<RT.FnName.FnName> =
     [ RT.FQName.UserProgram
         { modules = [ "X" ]; name = RT.FnName.FnName "userfn"; version = 0 }
       RT.FQName.BuiltIn
@@ -31,6 +41,19 @@ module RuntimeTypes =
         { owner = "a"
           modules = [ "b"; "C" ]
           name = RT.FnName.FnName "d"
+          version = 2 } ]
+
+  let fqConstantNames : List<RT.ConstantName.ConstantName> =
+    [ RT.FQName.UserProgram
+        { modules = [ "X" ]
+          name = RT.ConstantName.ConstantName "userfn"
+          version = 0 }
+      RT.FQName.BuiltIn
+        { modules = [ "A" ]; name = RT.ConstantName.ConstantName "b"; version = 1 }
+      RT.FQName.Package
+        { owner = "a"
+          modules = [ "b"; "C" ]
+          name = RT.ConstantName.ConstantName "d"
           version = 2 } ]
 
   let typeReferences : List<RT.TypeReference> =
@@ -44,28 +67,37 @@ module RuntimeTypes =
       RT.TDict RT.TBool
       RT.TDB RT.TBool
       RT.TCustomType(
-        RT.FQName.UserProgram
-          { modules = []; name = RT.TypeName.TypeName "User"; version = 0 },
+        Ok(
+          RT.FQName.UserProgram
+            { modules = []; name = RT.TypeName.TypeName "User"; version = 0 }
+        ),
         [ RT.TBool ]
       )
       RT.TCustomType(
-        RT.FQName.BuiltIn
-          { modules = [ "Mod" ]; name = RT.TypeName.TypeName "User"; version = 0 },
+        Ok(
+          RT.FQName.BuiltIn
+            { modules = [ "Mod" ]; name = RT.TypeName.TypeName "User"; version = 0 }
+        ),
         [ RT.TBool ]
       )
       RT.TCustomType(
-        RT.FQName.Package
-          { owner = "dark"
-            modules = [ "Mod1"; "Mod2" ]
-            name = RT.TypeName.TypeName "Pack"
-            version = 0 },
+        Ok(
+          RT.FQName.Package
+            { owner = "dark"
+              modules = [ "Mod1"; "Mod2" ]
+              name = RT.TypeName.TypeName "Pack"
+              version = 0 }
+        ),
         [ RT.TBool ]
       )
       RT.TBytes
       RT.TVariable "test"
       RT.TFn(NEList.singleton RT.TBool, RT.TBool) ]
 
-  let letPatterns : List<RT.LetPattern> = [ RT.LPVariable(123UL, "test") ]
+  let letPatterns : List<RT.LetPattern> =
+    [ RT.LPVariable(123UL, "test")
+      RT.LPUnit(12345UL)
+      RT.LPTuple(948UL, RT.LPUnit 234UL, RT.LPUnit 8473UL, []) ]
 
   let matchPatterns : List<RT.MatchPattern> =
     [ RT.MPVariable(123UL, "test")
@@ -112,8 +144,9 @@ module RuntimeTypes =
         8975872314UL,
         RT.EUnit(747123UL),
         RT.EUnit(747123UL),
-        RT.EUnit(747123UL)
+        Some(RT.EUnit(747123UL))
       )
+      RT.EIf(747843UL, RT.EUnit(749549UL), RT.EUnit(6739745UL), None)
       RT.ELambda(7587123UL, NEList.singleton (758123UL, "var3"), RT.EUnit(17384UL))
       RT.EFieldAccess(74875UL, RT.EUnit(737463UL), "field")
       RT.EVariable(8737583UL, "var4")
@@ -195,11 +228,12 @@ module RuntimeTypes =
     |> List.map (fun (name, (dv, t)) -> name, dv)
     |> RT.Dval.record typeName
 
+
 module ProgramTypes =
 
   let signs = [ Sign.Positive; Sign.Negative ]
 
-  let fqFnNames : List<PT.FnName.T> =
+  let fqFnNames : List<PT.FnName.FnName> =
     [ PT.FQName.UserProgram
         { modules = []; name = PT.FnName.FnName "fn"; version = 0 }
       PT.FQName.BuiltIn
@@ -392,50 +426,54 @@ module ProgramTypes =
                             PT.EInt(803876589UL, 5L),
                             PT.EInt(219131014UL, 2L)
                           ),
-                          PT.ELambda(
-                            947647446UL,
-                            NEList.singleton (180359194UL, "y"),
-                            PT.EInfix(
-                              140609068UL,
-                              PT.InfixFnCall(PT.ArithmeticPlus),
-                              PT.EInt(450951790UL, 2L),
-                              PT.EVariable(402203255UL, "y")
+                          Some(
+                            PT.ELambda(
+                              947647446UL,
+                              NEList.singleton (180359194UL, "y"),
+                              PT.EInfix(
+                                140609068UL,
+                                PT.InfixFnCall(PT.ArithmeticPlus),
+                                PT.EInt(450951790UL, 2L),
+                                PT.EVariable(402203255UL, "y")
+                              )
                             )
                           )
                         ),
-                        PT.EInfix(
-                          265463935UL,
-                          PT.InfixFnCall(PT.ArithmeticPlus),
+                        Some(
                           PT.EInfix(
-                            312092282UL,
+                            265463935UL,
                             PT.InfixFnCall(PT.ArithmeticPlus),
-                            PT.EFieldAccess(
-                              974664608UL,
-                              PT.EVariable(1002893266UL, "x"),
-                              "y"
-                            ),
-                            PT.EApply(
-                              173079901UL,
-                              PT.EFnName(
-                                638434UL,
-                                Ok(
-                                  PT.FQName.BuiltIn
-                                    { modules = [ "Int" ]
-                                      name = PT.FnName.FnName "add"
-                                      version = 0 }
-                                )
+                            PT.EInfix(
+                              312092282UL,
+                              PT.InfixFnCall(PT.ArithmeticPlus),
+                              PT.EFieldAccess(
+                                974664608UL,
+                                PT.EVariable(1002893266UL, "x"),
+                                "y"
                               ),
-                              [],
-                              NEList.doubleton
-                                (PT.EInt(250221144UL, 6L))
-                                (PT.EInt(298149318UL, 2L))
+                              PT.EApply(
+                                173079901UL,
+                                PT.EFnName(
+                                  638434UL,
+                                  Ok(
+                                    PT.FQName.BuiltIn
+                                      { modules = [ "Int" ]
+                                        name = PT.FnName.FnName "add"
+                                        version = 0 }
+                                  )
+                                ),
+                                [],
+                                NEList.doubleton
+                                  (PT.EInt(250221144UL, 6L))
+                                  (PT.EInt(298149318UL, 2L))
+                              )
+                            ),
+                            PT.EList(
+                              539797095UL,
+                              [ PT.EInt(267797631UL, 5L)
+                                PT.EInt(352138743UL, 6L)
+                                PT.EInt(430871955UL, 7L) ]
                             )
-                          ),
-                          PT.EList(
-                            539797095UL,
-                            [ PT.EInt(267797631UL, 5L)
-                              PT.EInt(352138743UL, 6L)
-                              PT.EInt(430871955UL, 7L) ]
                           )
                         )
                       ),
@@ -455,10 +493,49 @@ module ProgramTypes =
                              PT.EPipe(
                                786862131UL,
                                PT.EInt(555880460UL, 5L),
-                               [ PT.EPipeInfix(
+                               [ PT.EPipeVariable(
+                                   1021880969UL,
+                                   "fn",
+                                   [ PT.EVariable(962393769UL, "x") ]
+                                 )
+                                 PT.EPipeLambda(
+                                   1021880969UL,
+                                   NEList.singleton (180359194UL, "y"),
+                                   PT.EInfix(
+                                     140609068UL,
+                                     PT.InfixFnCall(PT.ArithmeticPlus),
+                                     PT.EInt(450951790UL, 2L),
+                                     PT.EVariable(402203255UL, "y")
+                                   )
+                                 )
+                                 PT.EPipeInfix(
                                    1021880969UL,
                                    PT.InfixFnCall(PT.ArithmeticPlus),
                                    PT.EInt(962393769UL, 2L)
+                                 )
+                                 PT.EPipeFnCall(
+                                   1021880969UL,
+                                   Ok(
+                                     PT.FQName.BuiltIn
+                                       { modules = [ "Int" ]
+                                         name = PT.FnName.FnName "add"
+                                         version = 0 }
+                                   ),
+                                   [],
+                                   [ (PT.EInt(250221144UL, 6L))
+                                     (PT.EInt(298149318UL, 2L)) ]
+                                 )
+                                 PT.EPipeEnum(
+                                   1021880969UL,
+                                   Ok(
+                                     PT.FQName.BuiltIn
+                                       { modules = [ "Int" ]
+                                         name = PT.TypeName.TypeName "Result"
+                                         version = 0 }
+                                   ),
+                                   "add",
+                                   [ (PT.EInt(250221144UL, 6L))
+                                     (PT.EInt(298149318UL, 2L)) ]
                                  ) ]
                              ))
                             ("enum",
@@ -605,7 +682,7 @@ module ProgramTypes =
                                 882488977UL,
                                 PT.EBool(349352147UL, true),
                                 PT.EInt(578528886UL, 5L),
-                                PT.EInt(562930224UL, 6L)
+                                Some(PT.EInt(562930224UL, 6L))
                               ),
                               PT.ELet(
                                 6345345UL,
@@ -781,7 +858,7 @@ module ProgramTypes =
     { name =
         { owner = "darklang"
           modules = [ "stdlib"; "Int"; "Int64" ]
-          name = PT.TypeName.TypeName "T"
+          name = PT.TypeName.TypeName "Int64"
           version = 0 }
       declaration =
         { typeParams = [ "a" ]

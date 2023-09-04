@@ -55,8 +55,8 @@ type TelemetryExporter =
 let telemetryExporters : List<TelemetryExporter> =
   "DARK_CONFIG_TELEMETRY_EXPORTER"
   |> string
-  |> Tablecloth.String.split ","
-  |> Tablecloth.List.filterMap (fun telemExporter ->
+  |> String.split ","
+  |> List.filterMap (fun telemExporter ->
     match telemExporter with
     | "honeycomb" -> Some Honeycomb
     | "console" -> Some Console
@@ -108,6 +108,3 @@ let pgUser = string "DARK_CONFIG_DB_USER"
 let pgPassword = password "DARK_CONFIG_DB_PASSWORD"
 
 let pgPoolSize = int "DARK_CONFIG_DB_POOL_SIZE"
-
-// This is just until the base migration file stabalizes
-let clearDBOnStartup = bool "DARK_CONFIG_DB_CLEAR_ON_STARTUP"

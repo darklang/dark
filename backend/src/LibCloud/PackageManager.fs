@@ -7,42 +7,15 @@ open Npgsql.FSharp
 open Npgsql
 
 open Prelude
-open Tablecloth
+
 open Db
+open Ply
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT = LibExecution.RuntimeTypes
-
-// ------------------
-// Uploading
-// ------------------
-
-// let max_version
-//     (function_name : string)
-//     (username : string)
-//     (package : string)
-//     (module_ : string)
-//     (fnname : string) : int option =
-//   Db.run
-//     ~name:"add_package_management_function abort txn if exn"
-//     "ABORT"
-//     ~params:[] ;
-//   Db.fetch_one
-//     ~name:"add_package_management_function get_latest_version_for_error"
-//     "SELECT MAX(version) FROM packages_v0 JOIN accounts ON user_id = accounts.id
-//                   WHERE username = $1 AND package = $2 AND module = $3 AND fnname = $4"
-//     ~subject:function_name
-//     ~params:
-//       [ Db.String username
-//       ; Db.String package
-//       ; Db.String module_
-//       ; Db.String fnname ]
-//     ~result:TextResult
-//   |> List.hd
-//   |> Option.bind ~f:(fun v -> if v = "" then None else Some (int_of_string v))
 
 let writeBody (tlid : tlid) (expr : PT.Expr) : Task<unit> =
   task {
@@ -110,106 +83,109 @@ let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
 // Fetching
 // ------------------
 
-let allFunctions : Task<List<PT.PackageFn.T>> =
-  task {
-    let! fns =
-      Sql.query "SELECT id, definition FROM package_functions_v0"
-      |> Sql.parameters []
-      |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytea "definition"))
+let getFn (name : PT.FnName.Package) : Ply<Option<PT.PackageFn.T>> =
+  uply {
+    let! fn =
+      "SELECT id, definition
+      FROM package_functions_v0
+      WHERE owner = @owner
+        AND modules = @modules
+        AND fnname = @name
+        AND version = @version"
+      |> Sql.query
+      |> Sql.parameters
+        [ "owner", Sql.string name.owner
+          "modules", Sql.string (name.modules |> String.concat ".")
+          "name",
+          (match name.name with
+           | PT.FnName.FnName n -> Sql.string n)
+          "version", Sql.int name.version ]
+      |> Sql.executeRowOptionAsync (fun read ->
+        (read.uuid "id", read.bytea "definition"))
 
     return
-      fns
-      |> List.map (fun (id, def) -> BinarySerialization.deserializePackageFn id def)
+      fn
+      |> Option.map (fun (id, def) ->
+        BinarySerialization.deserializePackageFn id def)
   }
 
-let allTypes : Task<List<PT.PackageType.T>> =
-  task {
-    let! types =
-      Sql.query "SELECT id, definition FROM package_types_v0"
-      |> Sql.parameters []
-      |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytea "definition"))
+let getType (name : PT.TypeName.Package) : Ply<Option<PT.PackageType.T>> =
+  uply {
+    let! fn =
+      "SELECT id, definition
+      FROM package_types_v0
+      WHERE owner = @owner
+        AND modules = @modules
+        AND typename = @name
+        AND version = @version"
+      |> Sql.query
+      |> Sql.parameters
+        [ "owner", Sql.string name.owner
+          "modules", Sql.string (name.modules |> String.concat ".")
+          "name",
+          (match name.name with
+           | PT.TypeName.TypeName n -> Sql.string n)
+          "version", Sql.int name.version ]
+      |> Sql.executeRowOptionAsync (fun read ->
+        (read.uuid "id", read.bytea "definition"))
 
     return
-      types
-      |> List.map (fun (id, def) ->
+      fn
+      |> Option.map (fun (id, def) ->
         BinarySerialization.deserializePackageType id def)
   }
 
-let allConstants : Task<List<PT.PackageConstant.T>> =
-  task {
-    let! constants =
-      Sql.query "SELECT id, definition FROM package_constants_v0"
-      |> Sql.parameters []
-      |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytea "definition"))
+let getConstant
+  (name : PT.ConstantName.Package)
+  : Ply<Option<PT.PackageConstant.T>> =
+  uply {
+    let! fn =
+      "SELECT id, definition
+      FROM package_constants_v0
+      WHERE owner = @owner
+        AND modules = @modules
+        AND name = @name
+        AND version = @version"
+      |> Sql.query
+      |> Sql.parameters
+        [ "owner", Sql.string name.owner
+          "modules", Sql.string (name.modules |> String.concat ".")
+          "name",
+          (match name.name with
+           | PT.ConstantName.ConstantName n -> Sql.string n)
+          "version", Sql.int name.version ]
+      |> Sql.executeRowOptionAsync (fun read ->
+        (read.uuid "id", read.bytea "definition"))
 
     return
-      constants
-      |> List.map (fun (id, def) ->
+      fn
+      |> Option.map (fun (id, def) ->
         BinarySerialization.deserializePackageConstant id def)
   }
 
-open System
 
-let cachedTask (expiration : TimeSpan) (f : Task<'a>) : Task<'a> =
-  let mutable value = None
-  let mutable lastUpdate = DateTime.MinValue
-
-  task {
-    match value, DateTime.Now - lastUpdate > expiration with
-    | Some value, false -> return value
-    | _ ->
-      let! newValue = f
-      value <- Some newValue
-      lastUpdate <- DateTime.Now
-      return newValue
-  }
-
+// CLEANUP this package manager should be removed, and all usages replaced with the
+// one that fetches things from the `dark-packages` canvas' http endpoints
 let packageManager : RT.PackageManager =
-  let allTypes = cachedTask (TimeSpan.FromMinutes 1.) allTypes
-  let allFunctions = cachedTask (TimeSpan.FromMinutes 1.) allFunctions
-  let allConstants = cachedTask (TimeSpan.FromMinutes 1.) allConstants
-
   { getType =
-      fun typ ->
+      fun name ->
         uply {
-          let! types = allTypes
-
-          let types =
-            types
-            |> List.map (fun (t : PT.PackageType.T) ->
-              (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
-            |> Map.ofList
-
-          return types.TryFind typ
+          let! typ = name |> PT2RT.TypeName.Package.fromRT |> getType
+          return Option.map PT2RT.PackageType.toRT typ
         }
 
     getFn =
-      fun fn ->
+      fun name ->
         uply {
-          let! fns = allFunctions
-
-          let fns =
-            fns
-            |> List.map (fun (f : PT.PackageFn.T) ->
-              (f.name |> PT2RT.FnName.Package.toRT, PT2RT.PackageFn.toRT f))
-            |> Map.ofList
-
-          return fns.TryFind fn
+          let! typ = name |> PT2RT.FnName.Package.fromRT |> getFn
+          return Option.map PT2RT.PackageFn.toRT typ
         }
 
     getConstant =
-      fun c ->
+      fun name ->
         uply {
-          let! constants = allConstants
-
-          let constants =
-            constants
-            |> List.map (fun (c : PT.PackageConstant.T) ->
-              (c.name |> PT2RT.ConstantName.Package.toRT,
-               PT2RT.PackageConstant.toRT c))
-            |> Map.ofList
-
-          return constants.TryFind c
+          let! typ = name |> PT2RT.ConstantName.Package.fromRT |> getConstant
+          return Option.map PT2RT.PackageConstant.toRT typ
         }
 
     init = uply { return () } }

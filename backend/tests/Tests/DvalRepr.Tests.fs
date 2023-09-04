@@ -5,8 +5,6 @@ open FSharp.Control.Tasks
 
 open Expecto
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
@@ -20,8 +18,7 @@ module Errors = LibExecution.Errors
 module S = TestUtils.RTShortcuts
 
 
-let defaultTypes () =
-  { RT.Types.empty with package = LibCloud.PackageManager.packageManager.getType }
+let defaultTypes () = { RT.Types.empty with package = packageManager.getType }
 
 let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
   dv
@@ -185,7 +182,7 @@ module Password =
 
         Expect.equal
           shouldRedact
-          (String.includes
+          (String.contains
             ("encryptedbytes" |> UTF8.toBytes |> Base64.urlEncodeToString)
             (f password)
            |> not)

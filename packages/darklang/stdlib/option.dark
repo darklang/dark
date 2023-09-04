@@ -14,8 +14,23 @@ module Darklang =
         (fn: 'a -> 'b)
         : PACKAGE.Darklang.Stdlib.Option.Option<'b> =
         match option with
-        | Some v -> PACKAGE.Darklang.Stdlib.Option.Option.Some(v |> fn)
+        | Some v -> PACKAGE.Darklang.Stdlib.Option.Option.Some(fn v)
         | None -> PACKAGE.Darklang.Stdlib.Option.Option.None
+
+      ///  If both arguments are {{Some}} (<param option1> is {{Some <var v1>}} and
+      ///  <param option2> is {{Some <var v2>}}), then return {{Some (fn <var v1>
+      ///  <var v2>)}}. The lambda <param fn> should have two parameters,
+      ///  representing <var v1> and <var v2>. But if either <param option1> or
+      ///  <param option2> are {{None}}, returns {{None}} without applying <param
+      ///  fn>.
+      let map2
+        (option1: PACKAGE.Darklang.Stdlib.Option.Option<'a>)
+        (option2: PACKAGE.Darklang.Stdlib.Option.Option<'b>)
+        (fn: 'a -> 'b -> 'c)
+        : PACKAGE.Darklang.Stdlib.Option.Option<'c> =
+        match (option1, option2) with
+        | Some v1, Some v2 -> PACKAGE.Darklang.Stdlib.Option.Option.Some(fn v1 v2)
+        | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None
 
 
       /// If <param option> is {{Some <var value>}}, returns {{fn <var value>}}. The
@@ -26,7 +41,7 @@ module Darklang =
         (fn: 'a -> PACKAGE.Darklang.Stdlib.Option.Option<'b>)
         : PACKAGE.Darklang.Stdlib.Option.Option<'b> =
         match option with
-        | Some v -> v |> fn
+        | Some v -> fn v
         | None -> PACKAGE.Darklang.Stdlib.Option.Option.None
 
       /// If <param option> is {{Some <var value>}}, returns <var value>. Otherwise,

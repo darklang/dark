@@ -3,9 +3,59 @@
     [
       "var",
       {
-        "DIncomplete": [
+        "DError": [
           {
             "SourceNone": []
+          },
+          {
+            "RuntimeError": [
+              {
+                "DEnum": [
+                  {
+                    "Package": [
+                      {
+                        "owner": "Darklang",
+                        "modules": [
+                          "LanguageTools",
+                          "RuntimeErrors"
+                        ],
+                        "name": {
+                          "TypeName": [
+                            "Error"
+                          ]
+                        },
+                        "version": 0
+                      }
+                    ]
+                  },
+                  {
+                    "Package": [
+                      {
+                        "owner": "Darklang",
+                        "modules": [
+                          "LanguageTools",
+                          "RuntimeErrors"
+                        ],
+                        "name": {
+                          "TypeName": [
+                            "Error"
+                          ]
+                        },
+                        "version": 0
+                      }
+                    ]
+                  },
+                  "OldStringErrorTODO",
+                  [
+                    {
+                      "DString": [
+                        "some error string"
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
           }
         ]
       }
@@ -18,9 +68,59 @@
       "hash",
       0,
       {
-        "DIncomplete": [
+        "DError": [
           {
             "SourceNone": []
+          },
+          {
+            "RuntimeError": [
+              {
+                "DEnum": [
+                  {
+                    "Package": [
+                      {
+                        "owner": "Darklang",
+                        "modules": [
+                          "LanguageTools",
+                          "RuntimeErrors"
+                        ],
+                        "name": {
+                          "TypeName": [
+                            "Error"
+                          ]
+                        },
+                        "version": 0
+                      }
+                    ]
+                  },
+                  {
+                    "Package": [
+                      {
+                        "owner": "Darklang",
+                        "modules": [
+                          "LanguageTools",
+                          "RuntimeErrors"
+                        ],
+                        "name": {
+                          "TypeName": [
+                            "Error"
+                          ]
+                        },
+                        "version": 0
+                      }
+                    ]
+                  },
+                  "OldStringErrorTODO",
+                  [
+                    {
+                      "DString": [
+                        "some error string"
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
           }
         ]
       }

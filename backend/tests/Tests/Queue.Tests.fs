@@ -8,8 +8,6 @@ open NodaTime
 open Expecto
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 
 open Npgsql.FSharp
 open Npgsql
@@ -26,8 +24,8 @@ module SR = LibCloud.QueueSchedulingRules
 
 module TCS = LibCloud.TraceCloudStorage
 
-let p (code : string) : PT.Expr =
-  LibParser.Parser.parsePTExpr builtinResolver "Queue.Tests.fs" code
+let p (code : string) : Task<PT.Expr> =
+  LibParser.Parser.parsePTExpr builtinResolver "Queue.Tests.fs" code |> Ply.toTask
 
 // This doesn't actually test input, since it's a cron handler and not an actual event handler
 
@@ -36,7 +34,8 @@ let initializeCanvas (name : string) : Task<CanvasID * tlid> =
     // set up handler
     let! canvasID = initializeTestCanvas name
 
-    let h = testWorker "test" (p "let data = DateTime.now_v0 () in 123")
+    let! e = p "let data = Builtin.DateTime.now_v0 () in 123"
+    let h = testWorker "test" e
 
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]
 
@@ -82,7 +81,7 @@ let rec waitForSuccess
           // finished yet
           return! TCS.getTraceData canvasID tlid traceID
         with
-        | (:? InternalException) as e -> return e.Reraise()
+        | (:? Exception.InternalException) as e -> return Exception.reraise e
         | _ ->
           do! Task.Delay 500
           return! getTrace traceID (remainingAttempts - 1)

@@ -8,7 +8,6 @@ open System.Reflection
 open Microsoft.JSInterop
 
 open Prelude
-open Tablecloth
 
 // this gets us ahold of `this`/`self`
 let getJsRuntimeThis () : IJSInProcessRuntime =

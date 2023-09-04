@@ -5,8 +5,6 @@ open System.Threading
 open FSharp.Control.Tasks
 
 open Prelude
-open Prelude.Tablecloth
-open Tablecloth
 
 /// Execute a function in the backgorund,
 /// ignoring any results and forwarding exceptions to Rollbar

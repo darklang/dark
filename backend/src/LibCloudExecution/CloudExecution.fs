@@ -7,7 +7,6 @@ open FSharp.Control.Tasks
 open System.Threading.Tasks
 
 open Prelude
-open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -18,11 +17,11 @@ module Interpreter = LibExecution.Interpreter
 
 open LibCloud
 
-let builtins : LibExecution.StdLib.Contents =
-  LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents
-      StdLibCloudExecution.StdLib.contents
-      StdLibDarkInternal.StdLib.contents ]
+let builtins : LibExecution.Builtin.Contents =
+  LibExecution.Builtin.combine
+    [ BuiltinExecution.Builtin.contents HttpClient.configuration
+      BuiltinCloudExecution.Builtin.contents
+      BuiltinDarkInternal.Builtin.contents ]
     []
     []
 let builtIns : RT.BuiltIns =
@@ -37,7 +36,6 @@ let createState
   (traceID : AT.TraceID.T)
   (tlid : tlid)
   (program : RT.Program)
-  (config : RT.Config)
   (tracing : RT.Tracing)
   : Task<RT.ExecutionState> =
   task {
@@ -65,13 +63,12 @@ let createState
         notify
         tlid
         program
-        config
   }
 
 type ExecutionReason =
   /// The first time a trace is executed. This means more data should be stored and
   /// more users notified.
-  | InitialExecution of HandlerDesc * varname : string * RT.Dval
+  | InitialExecution of PT.Handler.HandlerDesc * varname : string * RT.Dval
 
   /// A reexecution is a trace that already exists, being amended with new values
   | ReExecution
@@ -83,7 +80,6 @@ let executeHandler
   (pusherSerializer : Pusher.PusherEventSerializer)
   (h : RT.Handler.T)
   (program : RT.Program)
-  (config : RT.Config)
   (traceID : AT.TraceID.T)
   (inputVars : Map<string, RT.Dval>)
   (reason : ExecutionReason)
@@ -96,7 +92,7 @@ let executeHandler
       tracing.storeTraceInput desc varname inputVar
     | ReExecution -> ()
 
-    let! state = createState traceID h.tlid program config tracing.executionTracing
+    let! state = createState traceID h.tlid program tracing.executionTracing
     HashSet.add h.tlid tracing.results.tlids
     let! result = Exe.executeExpr state inputVars h.ast
     tracing.storeTraceResults ()
@@ -119,12 +115,11 @@ let executeHandler
 let reexecuteFunction
   (canvasID : CanvasID)
   (program : RT.Program)
-  (config : RT.Config)
   (callerTLID : tlid)
   (callerID : id)
   (traceID : AT.TraceID.T)
   (rootTLID : tlid)
-  (name : RT.FnName.T)
+  (name : RT.FnName.FnName)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
   : Task<RT.Dval * Tracing.TraceResults.T> =
@@ -132,8 +127,7 @@ let reexecuteFunction
     // FIX - the TLID here is the tlid of the toplevel in which the call exists, not
     // the rootTLID of the trace.
     let tracing = Tracing.create canvasID rootTLID traceID
-    let! state =
-      createState traceID callerTLID program config tracing.executionTracing
+    let! state = createState traceID callerTLID program tracing.executionTracing
     let! result = Exe.executeFunction state callerID name typeArgs args
     tracing.storeTraceResults ()
     return result, tracing.results

@@ -1,0 +1,215 @@
+module Darklang =
+  module LanguageTools =
+    module RuntimeErrors =
+      module ErrorSegment =
+        /// Error pretty printing
+        /// ---------------
+        /// Segments allow us to build error messages where the UI and CLI can both
+        /// decorate/link to the sources in a native way
+        type ErrorSegment =
+          // -- Basic types
+          | String of String
+          | Int of Int
+          | Ordinal of Int // 1st, 2nd, etc
+          | IndefiniteArticle // "a" or "an" (chosen based on the next segment)
+
+          // -- Functions
+          | FunctionName of PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.FnName
+          /// Description from StdLib description fields.
+          /// Has markers like <param name>, that should be parsed and displayed (TODO: why parse?)
+          | Description of String
+          | ParamName of String
+          | InlineParamName of String
+
+          // -- Types
+          | TypeName of PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName
+          | ShortTypeName of
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName
+          | TypeReference of
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
+          | TypeOfValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval
+          | FieldName of String // records and enums
+          | InlineFieldName of String // records and enums
+
+          // -- Variables
+          | DBName of String
+          | VarName of String
+          | InlineVarName of String
+
+          // -- Dvals
+          | InlineValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval // possibly shortened to be shown inline
+          | FullValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval
+
+        let toString (list: List<ErrorSegment>) : String =
+          let reversed = PACKAGE.Darklang.Stdlib.List.reverse list
+
+          let parts =
+            Builtin.List.fold reversed [] (fun prevSegments segment ->
+              let newSegment =
+                match segment with
+                | String s -> s
+                | Int i -> Builtin.Int.toString i
+                | Ordinal i -> Stdlib.String.toOrdinal i
+
+                | IndefiniteArticle ->
+                  match Stdlib.List.head prevSegments with
+                  | None -> ""
+                  | Some prev -> Stdlib.String.articleFor prev ++ " "
+
+                | FunctionName fn ->
+                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.fnName fn
+
+                | Description d -> d
+                | ParamName p -> $"`{p}`"
+                | InlineParamName p -> p // Inline versions don't have quotes
+                | TypeName t ->
+                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeName t
+                | ShortTypeName t ->
+                  // TODO: make it short
+                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeName t
+                | TypeReference t ->
+                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference t
+                | TypeOfValue dv ->
+                  // once we have "KnownTypes" implemented, we can follow up here
+                  // with something like below:
+                  // dv
+                  // |> PACKAGE.Darklang.LanguageTools.Dval.toTypeRef
+                  // |> PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference t
+
+                  // for now, just want to get something out...
+                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.Dval.dvalTypeName dv
+                | FieldName f -> $"`{f}`"
+                | InlineFieldName f -> f
+                | DBName db -> db
+                | VarName v -> $"`{v}`"
+                | InlineVarName v -> v
+                | InlineValue dv ->
+                  (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv)
+                  |> Stdlib.String.ellipsis 10
+                  |> Stdlib.String.splitOnNewline
+                  |> Builtin.String.join ""
+                | FullValue dv ->
+                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv
+                | segment ->
+                  $"(RTETODO toString parts {(Builtin.Json.serialize<ErrorSegment> segment) |> Builtin.unwrap})"
+
+              PACKAGE.Darklang.Stdlib.List.push prevSegments newSegment)
+
+          Builtin.String.join parts ""
+
+
+
+      // /// The result of Exception.raiseInternal
+      // module ExceptionThrown =
+      //   type ExceptionThrown =
+      //     { message: String
+      //       stackTrace: String
+      //       metadata: List<String * String> }
+
+      //   let toSegments (e: ExceptionThrown) : ErrorOutput =
+      //     let summary =
+      //       [ ErrorSegment.ErrorSegment.String "An internal error occurred" ]
+
+      //     let extraExplanation =
+      //       [ ErrorSegment.ErrorSegment.String "The error was: "
+      //         ErrorSegment.ErrorSegment.String e.message
+
+      //         ErrorSegment.ErrorSegment.String "\n"
+      //         ErrorSegment.ErrorSegment.String "The stack trace was: "
+      //         ErrorSegment.ErrorSegment.String e.stackTrace ]
+
+      //     ErrorOutput
+      //       { summary = summary
+      //         extraExplanation = extraExplanation
+      //         actual = []
+      //         expected = [] }
+
+
+      type ErrorOutput =
+        { summary: List<ErrorSegment.ErrorSegment>
+          // Summary can be used on its own or concatenated with extraExplanation
+          extraExplanation: List<ErrorSegment.ErrorSegment>
+          actual: List<ErrorSegment.ErrorSegment>
+          expected: List<ErrorSegment.ErrorSegment> }
+
+      // TODO: update SqlCompilerRuntimeError to refer to
+      // SqlCompiler.RuntimeErrors.Error, with other Error types here
+      // maybe as cases of that (e.g. TypeCheckerError, NameResolutionError)
+
+      type Error =
+        | CliError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Cli.Error
+        | TypeCheckerError of
+          PACKAGE.Darklang.LanguageTools.RuntimeErrors.TypeChecker.Error
+        | NameResolutionError of
+          PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error
+        | SqlCompilerRuntimeError of Error
+        | Incomplete
+        | OldStringErrorTODO of String
+      //| ExceptionThrown of ExceptionThrown.ExceptionThrown
+
+      let sqlErrorTemplate =
+        "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
+
+      module Error =
+        // RTETODO: move most of the logic here to the individual modules,
+        // and then follow up here
+        //
+        let toSegments (e: Error) : ErrorOutput =
+          match e with
+          | OldStringErrorTODO s ->
+            ErrorOutput
+              { summary = [ ErrorSegment.ErrorSegment.String s ]
+                extraExplanation = []
+                actual = []
+                expected = [] }
+
+          // | CliError err -> Cli.Error.toSegments err
+
+          | TypeCheckerError err -> TypeChecker.Error.toSegments err
+
+          | NameResolutionError err -> NameResolution.toSegments err
+
+          | SqlCompilerRuntimeError err ->
+            let innerOutput = toSegments err
+
+            { innerOutput with
+                summary =
+                  Builtin.List.append
+                    [ (ErrorSegment.ErrorSegment.String sqlErrorTemplate) ]
+                    innerOutput.summary }
+
+          //| ExceptionThrown err -> ExceptionThrown.toSegments err
+
+          | _ ->
+            ErrorOutput
+              { summary =
+                  [ ErrorSegment.ErrorSegment.String "RTETODO Error.toSegments" ]
+                extraExplanation =
+                  [ e
+                    |> Builtin.Json.serialize<Error>
+                    |> Builtin.unwrap
+                    |> ErrorSegment.ErrorSegment.String ]
+                actual = []
+                expected = [] }
+
+        let toString (e: Error) : String =
+          let s = toSegments e
+
+          let explanation =
+            ErrorSegment.toString (Builtin.List.append s.summary s.extraExplanation)
+
+          let actual = ErrorSegment.toString s.actual
+          let actual = if actual == "" then "" else $"\nActual: {actual}"
+          let expected = ErrorSegment.toString s.expected
+          let expected = if expected == "" then "" else $"\nExpected: {expected}"
+
+          if actual == "" && expected == "" then
+            explanation
+          else
+            $"{explanation}\n{expected}{actual}"
+
+
+        type ErrorMessage = ErrorString of String
+
+        let toErrorMessage (e: Error) : ErrorMessage =
+          ErrorMessage.ErrorString(toString e)

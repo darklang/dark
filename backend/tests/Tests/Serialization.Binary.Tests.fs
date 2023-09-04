@@ -4,7 +4,6 @@ open Expecto
 open System.Text.RegularExpressions
 
 open Prelude
-open Tablecloth
 open TestUtils.TestUtils
 
 module File = LibCloud.File
@@ -69,22 +68,24 @@ module ConsistentSerializationTests =
       File.writefileBytes Config.Serialization (nameFor f false sha1) output
       File.writefileBytes Config.Serialization (nameFor f false "latest") output
 
-      f.prettyPrinter
-      |> Option.tap (fun s ->
-        let jsonData = s Values.ProgramTypes.toplevels
+      match f.prettyPrinter with
+      | None -> ()
+      | Some prettyPrinter ->
+        let jsonData = prettyPrinter Values.ProgramTypes.toplevels
         File.writefile Config.Serialization (nameFor f true sha1) jsonData
-        File.writefile Config.Serialization (nameFor f true "latest") jsonData))
+        File.writefile Config.Serialization (nameFor f true "latest") jsonData)
 
   let testTestFiles =
     formats
     |> List.map (fun f ->
       test "check test files are correct" {
-        f.prettyPrinter
-        |> Option.tap (fun s ->
+        match f.prettyPrinter with
+        | None -> ()
+        | Some prettyPrinter ->
           let expected =
             File.readfile Config.Serialization (nameFor f true "latest")
-          let actual = s Values.ProgramTypes.toplevels
-          Expect.equal actual expected "check generates the same json")
+          let actual = prettyPrinter Values.ProgramTypes.toplevels
+          Expect.equal actual expected "check generates the same json"
 
         // Check that the generated binary data matches what we have saved. This ensures
         // the format has not changed.

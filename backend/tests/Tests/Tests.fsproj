@@ -14,12 +14,12 @@
     <ProjectReference Include="../../src/Prelude/Prelude.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/LibClientTypes/LibClientTypes.fsproj" />
-    <ProjectReference Include="../../src/StdLibExecution/StdLibExecution.fsproj" />
+    <ProjectReference Include="../../src/BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../../src/LibBinarySerialization/LibBinarySerialization.fsproj" />
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
     <ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" />
-    <ProjectReference Include="../../src/StdLibCloudExecution/StdLibCloudExecution.fsproj" />
-    <ProjectReference Include="../../src/StdLibDarkInternal/StdLibDarkInternal.fsproj" />
+    <ProjectReference Include="../../src/BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
+    <ProjectReference Include="../../src/BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
     <ProjectReference Include="../../src/QueueWorker/QueueWorker.fsproj" />
     <ProjectReference Include="../TestUtils/TestUtils.fsproj" />
   </ItemGroup>

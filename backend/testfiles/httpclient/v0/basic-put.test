@@ -15,14 +15,14 @@ Hello back
 
 [test]
 (let reqHeaders = [("content-type", "application/json; charset=utf-8")]
- let response = (HttpClient.request "put" "http://URL" reqHeaders ("string" |> String.toBytes)) |> unwrap
- let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
+ let response = (Builtin.HttpClient.request "put" "http://URL" reqHeaders ("string" |> Builtin.String.toBytes)) |> Builtin.unwrap
+ let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
-   HttpClient.Response
+   Builtin.HttpClient.Response
     { statusCode = 200
       headers = [
           ("server", "kestrel")
           ("content-length", "LENGTH")
           ("content-type", "text/plain; charset=utf-8")
       ]
-      body = "Hello back" |> String.toBytes_v0 }
+      body = "Hello back" |> Builtin.String.toBytes_v0 }

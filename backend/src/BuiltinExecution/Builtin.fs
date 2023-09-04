@@ -1,0 +1,38 @@
+module BuiltinExecution.Builtin
+
+open Prelude
+open LibExecution.RuntimeTypes
+
+module Builtin = LibExecution.Builtin
+
+let fnRenames =
+  // old names, new names
+  // eg: fn "Http" "respond" 0, fn "Http" "response" 0
+  []
+
+let typeRenames =
+  // old names, new names
+  // eg: typ "Http" "Response" 0, typ "Http" "Response" 1
+  []
+
+let contents (httpConfig : Libs.HttpClient.Configuration) : Builtin.Contents =
+  Builtin.combine
+    [ Libs.Bytes.contents
+      Libs.Char.contents
+      Libs.DateTime.contents
+      Libs.Dict.contents
+      Libs.Float.contents
+      Libs.HttpClient.contents httpConfig
+      Libs.HttpClientAuth.contents
+      Libs.Json.contents
+      Libs.Math.contents
+      Libs.Uuid.contents
+      Libs.Int.contents
+      Libs.List.contents
+      Libs.NoModule.contents
+      Libs.Crypto.contents
+      Libs.String.contents
+      Libs.X509.contents
+      Libs.Password.contents ]
+    fnRenames
+    typeRenames

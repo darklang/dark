@@ -19,10 +19,10 @@ Content-Length: LENGTH
 // CLEANUP: clearly it should actually use form encoding here, right?
 (let reqHeaders = {"Content-Type" = "application/x-www-form-urlencoded; charset=utf-8" }
  let reqBody = { var1 = 2; var2 = [] }
- let response = (HttpClient.request "post" "http://URL" reqBody {} reqHeaders) |> unwrap
- let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
+ let response = (Builtin.HttpClient.request "post" "http://URL" reqBody {} reqHeaders) |> Builtin.unwrap
+ let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
 {response with headers = respHeaders}) =
-   HttpClient.Response
+   Builtin.HttpClient.Response
     { body = ""
       statusCode = 200
       headers =

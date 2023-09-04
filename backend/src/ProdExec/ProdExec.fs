@@ -11,31 +11,14 @@ open FSharp.Control.Tasks
 open System.Threading.Tasks
 
 open Prelude
-open Tablecloth
-
-open Npgsql.FSharp
-open LibCloud.Db
 
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 module CTPusher = LibClientTypes.Pusher
 
-let maybeClearDB () : unit =
-  // Be super careful
-  if System.Environment.GetEnvironmentVariable("IN_DEV_CONTAINER") <> "true" then
-    Exception.raiseInternal "Trying the clear the DB outside of the devcontainer" []
-  if LibService.Config.clearDBOnStartup then
-    print "Clearing DB"
-    "DROP SCHEMA IF EXISTS public CASCADE;
-     CREATE SCHEMA public"
-    |> Sql.query
-    |> Sql.executeStatementSync
-  else
-    print "Not clearing DB"
 
 let runMigrations () : unit =
   print $"Running migrations"
-  maybeClearDB ()
   LibCloud.Migrations.run ()
 
 let listMigrations () : unit =
