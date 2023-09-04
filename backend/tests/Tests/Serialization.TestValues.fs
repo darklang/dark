@@ -211,12 +211,33 @@ module RuntimeTypes =
       ) ]
 
 
-  // TODO: use in roundtripping tests
   let valueTypes : List<RT.ValueType> =
+    let known kt = RT.ValueType.Known kt
+    let ktUnit = known RT.KnownType.KTUnit
+
     [ RT.ValueType.Unknown
-      RT.ValueType.Known RT.KnownType.KTUnit
-      // TODO: continue...
-      ]
+      ktUnit
+      known RT.KnownType.KTBool
+      known RT.KnownType.KTInt
+      known RT.KnownType.KTFloat
+      known RT.KnownType.KTChar
+      known RT.KnownType.KTString
+      known RT.KnownType.KTUuid
+      known RT.KnownType.KTBytes
+      known RT.KnownType.KTDateTime
+      known RT.KnownType.KTPassword
+      known (RT.KnownType.KTList ktUnit)
+      known (RT.KnownType.KTTuple(ktUnit, ktUnit, []))
+      known (RT.KnownType.KTFn(NEList.singleton ktUnit, ktUnit))
+      known (RT.KnownType.KTDB ktUnit)
+      known (
+        RT.KnownType.KTCustomType(
+          RT.FQName.BuiltIn
+            { modules = [ "A" ]; name = RT.TypeName.TypeName "b"; version = 1 },
+          []
+        )
+      )
+      known (RT.KnownType.KTDict ktUnit) ]
 
   let dvalSources : List<RT.DvalSource> =
     [ RT.SourceNone; RT.SourceID(123UL, 91293UL) ]
