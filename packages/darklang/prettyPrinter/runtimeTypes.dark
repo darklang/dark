@@ -325,7 +325,8 @@ module Darklang =
             else
               let elems =
                 Builtin.String.join
-                  (PACKAGE.Darklang.Stdlib.List.map l (fun item -> withIndent indent item))
+                  (PACKAGE.Darklang.Stdlib.List.map l (fun item ->
+                    withIndent indent item))
                   ", "
 
               $"[{inl}{elems}{nl}]"
@@ -373,7 +374,8 @@ module Darklang =
             let short =
               let fieldStr =
                 fields
-                |> PACKAGE.Darklang.Stdlib.List.map (fun value -> withIndent indent value)
+                |> PACKAGE.Darklang.Stdlib.List.map (fun value ->
+                  withIndent indent value)
                 |> Builtin.String.join ", "
 
               let fieldStr = if fieldStr == "" then "" else $"({fieldStr})"
@@ -386,7 +388,8 @@ module Darklang =
             else
               let fieldStr =
                 fields
-                |> PACKAGE.Darklang.Stdlib.List.map (fun value -> withIndent indent value)
+                |> PACKAGE.Darklang.Stdlib.List.map (fun value ->
+                  withIndent indent value)
                 |> Builtin.String.join $",{inl}"
 
               let fieldStr = if fieldStr == "" then "" else $"({inl}{fieldStr}{nl})"
