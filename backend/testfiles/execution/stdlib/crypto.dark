@@ -1,6 +1,14 @@
-PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (Builtin.Crypto.md5_v0 (Builtin.String.toBytes_v0 "")) = "D41D8CD98F00B204E9800998ECF8427E"
-PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (Builtin.Crypto.sha256_v0 (Builtin.String.toBytes_v0 "")) = "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
-PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (Builtin.Crypto.sha384_v0 (Builtin.String.toBytes_v0 "")) = "38B060A751AC96384CD9327EB1B1E36A21FDB71114BE07434C0CC7BF63F6E1DA274EDEBFE76F65FBD51AD2F14898B95B"
+PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
+  Builtin.Crypto.md5_v0 (Builtin.String.toBytes_v0 "")
+) = "D41D8CD98F00B204E9800998ECF8427E"
+
+PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
+  Builtin.Crypto.sha256_v0 (Builtin.String.toBytes_v0 "")
+) = "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+
+PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
+  Builtin.Crypto.sha384_v0 (Builtin.String.toBytes_v0 "")
+) = "38B060A751AC96384CD9327EB1B1E36A21FDB71114BE07434C0CC7BF63F6E1DA274EDEBFE76F65FBD51AD2F14898B95B"
 
 PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
   Builtin.Crypto.md5_v0 (
@@ -25,14 +33,20 @@ PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
   Builtin.String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY" in
 
  let dataBytes = Builtin.String.toBytes_v0 "20150830" in
- PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (Builtin.Crypto.sha256hmac_v0 secretBytes dataBytes)) = "0138C7A6CBD60AA727B2F653A522567439DFB9F3E72B21F9B25941A42F04A7CD"
+
+ PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
+   Builtin.Crypto.sha256hmac_v0 secretBytes dataBytes
+ )) = "0138C7A6CBD60AA727B2F653A522567439DFB9F3E72B21F9B25941A42F04A7CD"
 
 // sha1hmac
 (let secretBytes =
   Builtin.String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY" in
 
  let dataBytes = Builtin.String.toBytes_v0 "20150830" in
- PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (Builtin.Crypto.sha1hmac_v0 secretBytes dataBytes)) = "0932CB57FE685FEBC66657AA30C7568A4AB05CAF"
+
+ PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
+   Builtin.Crypto.sha1hmac_v0 secretBytes dataBytes
+ )) = "0932CB57FE685FEBC66657AA30C7568A4AB05CAF"
 
 // aws
 (let scope = "20150830/us-east-1/iam/aws4_request" in
