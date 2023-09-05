@@ -175,41 +175,38 @@ module Error =
           fields
       )
 
-let rec unifyValueType
+let rec valueTypeUnifies
   (tst : TypeSymbolTable)
   (expected : TypeReference)
   (actual : ValueType)
-  : Ply<Result<unit, unit>> =
-  let r = unifyValueType tst
+  : Ply<bool> =
+  let r = valueTypeUnifies tst
 
-  let rMult
-    (expected : List<TypeReference>)
-    (actual : List<ValueType>)
-    : Ply<Result<unit, unit>> =
+  let rMult (expected : List<TypeReference>) (actual : List<ValueType>) : Ply<bool> =
     if List.length expected <> List.length actual then
-      Ply(Error())
+      Ply false
     else
       List.zip expected actual
       |> Ply.List.foldSequentially
         (fun acc (e, a) ->
           match acc with
-          | Error _ -> Ply acc
-          | Ok() -> r e a)
-        (Ok())
+          | false -> Ply acc
+          | true -> r e a)
+        true
 
   uply {
     match expected, actual with
-    | _, ValueType.Unknown -> return Ok()
+    | _, ValueType.Unknown -> return true
 
-    | TUnit, ValueType.Known KTUnit -> return Ok()
-    | TBool, ValueType.Known KTBool -> return Ok()
-    | TInt, ValueType.Known KTInt -> return Ok()
-    | TFloat, ValueType.Known KTFloat -> return Ok()
-    | TChar, ValueType.Known KTChar -> return Ok()
-    | TString, ValueType.Known KTString -> return Ok()
-    | TUuid, ValueType.Known KTUuid -> return Ok()
-    | TDateTime, ValueType.Known KTDateTime -> return Ok()
-    | TBytes, ValueType.Known KTBytes -> return Ok()
+    | TUnit, ValueType.Known KTUnit -> return true
+    | TBool, ValueType.Known KTBool -> return true
+    | TInt, ValueType.Known KTInt -> return true
+    | TFloat, ValueType.Known KTFloat -> return true
+    | TChar, ValueType.Known KTChar -> return true
+    | TString, ValueType.Known KTString -> return true
+    | TUuid, ValueType.Known KTUuid -> return true
+    | TDateTime, ValueType.Known KTDateTime -> return true
+    | TBytes, ValueType.Known KTBytes -> return true
 
     | TList innerT, ValueType.Known(KTList innerV) -> return! r innerT innerV
 
@@ -226,8 +223,8 @@ let rec unifyValueType
         Exception.raiseInternal
           $"Unexpected - Error typeName in TCustomType in unifyValueType"
           []
-    | TCustomType(Ok typeNameT, typeArgsT),
-      ValueType.Known(KTCustomType(typeNameV, typeArgsV)) ->
+    | TCustomType(Ok _typeNameT, _typeArgsT),
+      ValueType.Known(KTCustomType(_typeNameV, _typeArgsV)) ->
       // TODO: follow up here when:
       // - type name aliases are and resolved
       // - type args are properly passed around and handled
@@ -235,7 +232,7 @@ let rec unifyValueType
       // TODO: assert type names are the same,
       // after we've handled all type aliases
       //return! rMult typeArgsT typeArgsV
-      return Ok()
+      return true
 
     | TFn(argTypes, returnType), ValueType.Known(KTFn(vArgs, vRet)) ->
       // TODO: follow up here when type args are properly passed around and handled
@@ -243,17 +240,17 @@ let rec unifyValueType
       // let expected = returnType :: (NEList.toList argTypes)
       // let actual = vRet :: (NEList.toList vArgs)
       // return! rMult expected actual
-      return Ok()
+      return true
 
-    | TPassword, ValueType.Known KTPassword -> return Ok()
+    | TPassword, ValueType.Known KTPassword -> return true
     | TDB innerT, ValueType.Known(KTDB innerV) -> return! r innerT innerV
 
     | TVariable name, _ ->
       match Map.get name tst with
-      | None -> return Ok()
+      | None -> return true
       | Some t -> return! r t actual
 
-    | _, _ -> return Error()
+    | _, _ -> return false
   }
 
 let rec unify
@@ -292,14 +289,14 @@ let rec unify
       | TBytes, DBytes _ -> return Ok()
       | TDB _, DDB _ -> return Ok() // TODO: check DB type
       | TList nested, DList(vt, _dvs) ->
-        match! unifyValueType tst nested vt with
-        | Error() ->
+        match! valueTypeUnifies tst nested vt with
+        | false ->
           return
             ValueNotExpectedType(value, expected, context)
             |> Error.toRuntimeError
             |> Error
 
-        | Ok() -> return! Ply()
+        | true -> return! Ply()
 
       | TDict valueType, DDict dmap ->
         // let! results =

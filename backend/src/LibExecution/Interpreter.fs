@@ -585,10 +585,10 @@ let rec eval'
 
         | MPListCons(id, headPat, tailPat) ->
           match dv with
-          | DList(_vtTODO, headVal :: tailVals) ->
+          | DList(vt, headVal :: tailVals) ->
             let (headPass, headVars, headTraces) = checkPattern headVal headPat
             let (tailPass, tailVars, tailTraces) =
-              checkPattern (Dval.list valueTypeTODO tailVals) tailPat
+              checkPattern (Dval.list vt tailVals) tailPat
 
             let allSubVars = headVars @ tailVars
             let allSubTraces = headTraces @ tailTraces
@@ -603,7 +603,7 @@ let rec eval'
 
         | MPList(id, pats) ->
           match dv with
-          | DList(_vtTODO, vals) ->
+          | DList(_, vals) ->
             if List.length vals = List.length pats then
               let (passResults, newVarResults, traceResults) =
                 List.zip vals pats
