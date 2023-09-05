@@ -1,5 +1,5 @@
 [http-handler POST /]
-(let body = request.body |> Builtin.Bytes.length |> Builtin.Int.toString |> Builtin.String.toBytes_v0 in
+(let body = request.body |> Builtin.Bytes.length |> PACKAGE.Darklang.Stdlib.Int.toString |> Builtin.String.toBytes_v0 in
 PACKAGE.Darklang.Stdlib.Http.response body 200)
 
 [request]

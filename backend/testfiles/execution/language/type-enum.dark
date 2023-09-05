@@ -119,7 +119,7 @@ module MixedCases =
      match v with
      | X s -> "X " ++ s
      | Z(s, _i) -> "Z " ++ s
-     | Y y -> "Y " ++ (Builtin.Int.toString_v0 y)
+     | Y y -> "Y " ++ (PACKAGE.Darklang.Stdlib.Int.toString_v0 y)
      | W -> "a simple W")) = [ "a simple W"; "X testX"; "Y 5"; "Z testZ" ]
 
 module TuplesVsNonTuples =

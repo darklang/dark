@@ -741,17 +741,17 @@ module CompiledFunctions =
   (friends (fun p -> Builtin.Float.greaterThanOrEqualTo_v0 82.10 p.income)) = [ "GrumpyCat"
                                                                                 "Rachel" ]
 
-  (friends (fun p -> Builtin.Int.lessThanOrEqualTo_v0 p.height 65)) = [ "GrumpyCat"
-                                                                        "Rachel" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 p.height 65)) = [ "GrumpyCat"
+                                                                                        "Rachel" ]
 
-  (friends (fun p -> Builtin.Int.lessThan_v0 p.height 65)) = [ "GrumpyCat" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.lessThan_v0 p.height 65)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> Builtin.Int.greaterThanOrEqualTo_v0 p.height 65)) = [ " Chandler "
-                                                                           "Rachel"
-                                                                           "Ross" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 p.height 65)) = [ " Chandler "
+                                                                                           "Rachel"
+                                                                                           "Ross" ]
 
-  (friends (fun p -> Builtin.Int.greaterThan_v0 p.height 65)) = [ " Chandler "
-                                                                  "Ross" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.greaterThan_v0 p.height 65)) = [ " Chandler "
+                                                                                  "Ross" ]
 
   (friends (fun p -> Builtin.String.toLowercase p.name == "rachel")) = [ "Rachel" ]
   (friends (fun p -> Builtin.String.toUppercase p.name == "RACHEL")) = [ "Rachel" ]

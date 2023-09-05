@@ -90,7 +90,10 @@ let parseAndSerializeProgram
     Error(
       response |> Builtin.unwrap |> (fun r -> r.body) |> Builtin.String.fromBytes
     )
-  | _ -> Error("Unexpected response code: " ++ Builtin.Int.toString statusCode)
+  | _ ->
+    Error(
+      "Unexpected response code: " ++ PACKAGE.Darklang.Stdlib.Int.toString statusCode
+    )
 
 
 // TODO: in the prompt, include something like

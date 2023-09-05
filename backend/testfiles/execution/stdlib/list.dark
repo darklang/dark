@@ -216,8 +216,8 @@ PACKAGE.Darklang.Stdlib.List.map_v0
 
 PACKAGE.Darklang.Stdlib.List.map_v0 [ 1; 2; 3 ] (fun x ->
   PACKAGE.Darklang.Stdlib.Bool.and_v0
-    (Builtin.Int.greaterThanOrEqualTo_v0 x 0)
-    (Builtin.Int.lessThanOrEqualTo_v0 x 4)) = [ true; true; true ]
+    (PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 x 0)
+    (PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 x 4)) = [ true; true; true ]
 
 PACKAGE.Darklang.Stdlib.List.map_v0 [ 1; 2 ] (fun x -> x + 1) = [ 2; 3 ]
 PACKAGE.Darklang.Stdlib.List.map_v0 [] (fun x -> x + 1) = []
@@ -333,16 +333,24 @@ Builtin.List.sortByComparator_v0 [ 1; 2; 3 ] (fun a b -> "㧑༷釺") = PACKAGE.
   "Expected `fn` to return -1, 0, 1, but it returned `\"㧑༷釺\"`"
 
 Builtin.List.sortByComparator_v0 [ 3; 1; 2 ] (fun a b ->
-  if Builtin.Int.lessThan_v0 a b then -1 else 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  [ 1; 2; 3 ]
+  if PACKAGE.Darklang.Stdlib.Int.lessThan_v0 a b then
+    -1
+  else
+    1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok [ 1; 2; 3 ]
 
 Builtin.List.sortByComparator_v0 [] (fun a b ->
-  if Builtin.Int.lessThan_v0 a b then -1 else 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  []
+  if PACKAGE.Darklang.Stdlib.Int.lessThan_v0 a b then
+    -1
+  else
+    1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok []
 
 Builtin.List.sortByComparator_v0
   [ 3; 1; 2; 67; 3; -1; 6; 3; 5; 6; 2; 5; 63; 2; 3; 5; -1; -1; -1 ]
-  (fun a b -> if Builtin.Int.lessThan_v0 a b then -1 else 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  (fun a b ->
+    if PACKAGE.Darklang.Stdlib.Int.lessThan_v0 a b then
+      -1
+    else
+      1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   [ -1; -1; -1; -1; 1; 2; 2; 2; 3; 3; 3; 3; 5; 5; 5; 6; 6; 63; 67 ]
 
 // CLEANUP this error message is not ideal in 2 ways:
@@ -384,9 +392,8 @@ PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [ 1; 5; 2; 2 ] (fun item -> item < 3) 
 PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [] (fun item -> item < 3) = []
 
 // it isn't specified which is the right value to keep when there are duplicates
-Builtin.List.uniqueBy_v0 [ 1; 2; 3; 4 ] (fun x -> Builtin.Int.divide_v0 x 2) = [ 1
-                                                                                 2
-                                                                                 4 ]
+Builtin.List.uniqueBy_v0 [ 1; 2; 3; 4 ] (fun x ->
+  PACKAGE.Darklang.Stdlib.Int.divide_v0 x 2) = [ 1; 2; 4 ]
 
 Builtin.List.uniqueBy_v0 [ 1; 2; 3; 4 ] (fun x -> x) = [ 1; 2; 3; 4 ]
 Builtin.List.uniqueBy_v0 [ 1; 1; 1; 1 ] (fun x -> x) = [ 1 ]

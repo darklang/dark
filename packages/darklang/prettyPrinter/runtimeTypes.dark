@@ -22,7 +22,7 @@ module Darklang =
             if t.version == 0 then
               ""
             else
-              $"_v{Builtin.Int.toString t.version}"
+              $"_v{PACKAGE.Darklang.Stdlib.Int.toString t.version}"
 
           $"{modulesPart}{namePart}{versionPart}"
 
@@ -41,7 +41,7 @@ module Darklang =
             if u.version == 0 then
               ""
             else
-              $"_v{Builtin.Int.toString u.version}"
+              $"_v{PACKAGE.Darklang.Stdlib.Int.toString u.version}"
 
           $"{modulesPart}{namePart}{versionPart}"
 
@@ -56,7 +56,7 @@ module Darklang =
             if p.version == 0 then
               ""
             else
-              $"_v{Builtin.Int.toString p.version}"
+              $"_v{PACKAGE.Darklang.Stdlib.Int.toString p.version}"
 
           $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
 

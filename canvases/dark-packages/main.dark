@@ -105,22 +105,22 @@ let _handler _req =
   let types =
     (Builtin.DB.getAll PackageTypeDB)
     |> PACKAGE.Darklang.Stdlib.List.length
-    |> Builtin.Int.toString
+    |> PACKAGE.Darklang.Stdlib.Int.toString
 
   let fns =
     (Builtin.DB.getAll PackageFnDB)
     |> PACKAGE.Darklang.Stdlib.List.length
-    |> Builtin.Int.toString
+    |> PACKAGE.Darklang.Stdlib.Int.toString
 
   let constants =
     (Builtin.DB.getAll PackageConstantDB)
     |> PACKAGE.Darklang.Stdlib.List.length
-    |> Builtin.Int.toString
+    |> PACKAGE.Darklang.Stdlib.Int.toString
 
   let items =
     (Builtin.DB.getAll NamesDB)
     |> PACKAGE.Darklang.Stdlib.List.length
-    |> Builtin.Int.toString
+    |> PACKAGE.Darklang.Stdlib.Int.toString
 
   let body =
     $"Package stats:\ntypes: {types}, fns: {fns}, constants: {constants}\n\ntotal items in NamesDB: {items}"

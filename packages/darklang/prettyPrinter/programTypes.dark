@@ -29,7 +29,7 @@ module Darklang =
               if t.version == 0 then
                 ""
               else
-                $"_v{Builtin.Int.toString t.version}"
+                $"_v{PACKAGE.Darklang.Stdlib.Int.toString t.version}"
 
             $"{modulesPart}{namePart}{versionPart}"
 
@@ -46,7 +46,7 @@ module Darklang =
                 if u.version == 0 then
                   ""
                 else
-                  $"_v{Builtin.Int.toString u.version}"
+                  $"_v{PACKAGE.Darklang.Stdlib.Int.toString u.version}"
 
               $"{namePart}{versionPart}"
             | _ -> "(UserTypeName.atDefinition unexpected nonempty u.modules)"
@@ -65,7 +65,7 @@ module Darklang =
               if u.version == 0 then
                 ""
               else
-                $"_v{Builtin.Int.toString u.version}"
+                $"_v{PACKAGE.Darklang.Stdlib.Int.toString u.version}"
 
             $"{modulesPart}{namePart}{versionPart}"
 
@@ -80,7 +80,7 @@ module Darklang =
               if p.version == 0 then
                 ""
               else
-                $"_v{Builtin.Int.toString p.version}"
+                $"_v{PACKAGE.Darklang.Stdlib.Int.toString p.version}"
 
             $"{namePart}{versionPart}"
 
@@ -94,7 +94,7 @@ module Darklang =
               if p.version == 0 then
                 ""
               else
-                $"_v{Builtin.Int.toString p.version}"
+                $"_v{PACKAGE.Darklang.Stdlib.Int.toString p.version}"
 
             $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
 
@@ -394,7 +394,7 @@ module Darklang =
 
       let constant (c: PACKAGE.Darklang.LanguageTools.ProgramTypes.Const) : String =
         match c with
-        | CInt i -> Builtin.Int.toString i
+        | CInt i -> PACKAGE.Darklang.Stdlib.Int.toString i
         | CFloat(sign, whole, remainder) ->
           let signPart = PACKAGE.Darklang.PrettyPrinter.sign sign
 
@@ -455,7 +455,7 @@ module Darklang =
         | MPVariable(_id, name) -> name
         | MPUnit _id -> "()"
         | MPBool(_id, b) -> PACKAGE.Darklang.Stdlib.Bool.toString b
-        | MPInt(_id, i) -> Builtin.Int.toString i
+        | MPInt(_id, i) -> PACKAGE.Darklang.Stdlib.Int.toString i
         | MPFloat(_id, sign, whole, remainder) ->
           let remainderPart =
             PACKAGE.Darklang.PrettyPrinter.processRemainder remainder
@@ -630,7 +630,7 @@ module Darklang =
 
         // simple data
         | EBool(_id, b) -> PACKAGE.Darklang.Stdlib.Bool.toString b
-        | EInt(_id, i) -> Builtin.Int.toString i
+        | EInt(_id, i) -> PACKAGE.Darklang.Stdlib.Int.toString i
         | EFloat(_id, sign, whole, remainder) ->
           let signPart = PACKAGE.Darklang.PrettyPrinter.sign sign
 
@@ -993,7 +993,7 @@ module Darklang =
           if db.version == 0 then
             ""
           else
-            $"_v{Builtin.Int.toString db.version}"
+            $"_v{PACKAGE.Darklang.Stdlib.Int.toString db.version}"
 
         let typPart =
           PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference db.typ
@@ -1065,7 +1065,7 @@ module Darklang =
 
 
       // let secret (s: PACKAGE.Darklang.Stdlib.Secret.T) : String =
-      //   let versionPart = if s.version == 0 then "" else $"_v{Builtin.Int.toString s.version}"
+      //   let versionPart = if s.version == 0 then "" else $"_v{PACKAGE.Darklang.Stdlib.Int.toString s.version}"
 
       //   $"let {s.name}{versionPart} = \"*****\""
 

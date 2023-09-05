@@ -113,19 +113,19 @@ let printPackageFunction (p: Builtin.LocalExec.Packages.Function) : Unit =
   let modules = p.modules |> Builtin.String.join "."
 
   Builtin.print
-    $"Package Function {p.owner}.{modules}.{p.name}_v{Builtin.Int.toString_v0 p.version}"
+    $"Package Function {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
 
 let printPackageType (p: Builtin.LocalExec.Packages.Type) : Unit =
   let modules = p.modules |> Builtin.String.join "."
 
   Builtin.print
-    $"Package Type {p.owner}.{modules}.{p.name}_v{Builtin.Int.toString_v0 p.version}"
+    $"Package Type {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
 
 let printPackageConstant (p: Builtin.LocalExec.Packages.Constant) : Unit =
   let modules = p.modules |> Builtin.String.join "."
 
   Builtin.print
-    $"Package Constant {p.owner}.{modules}.{p.name}_v{Builtin.Int.toString_v0 p.version}"
+    $"Package Constant {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
 
 let printAllPackagesInDb () : Unit =
   let functions = Builtin.LocalExec.Packages.listFunctions ()
@@ -207,7 +207,7 @@ let main (args: List<String>) : Int =
             |> PACKAGE.Darklang.Stdlib.Result.map (fun _ -> ())
             |> PACKAGE.Darklang.Stdlib.Result.mapError (fun err ->
               Builtin.print $"Error: {err}"
-              Time.sleep 1000.0
+              Builtin.Time.sleep 1000.0
               err))
 
 

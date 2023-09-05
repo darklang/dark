@@ -125,8 +125,8 @@ module Map =
 
   Builtin.Dict.map_v0 (Dict { key1 = 5; key2 = 3; key3 = 3 }) (fun (k, x) ->
     PACKAGE.Darklang.Stdlib.Bool.and_v0
-      (Builtin.Int.greaterThanOrEqualTo_v0 x 1)
-      (Builtin.Int.lessThanOrEqualTo_v0 x 4)) = (Dict
+      (PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 x 1)
+      (PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 x 4)) = (Dict
     { key3 = true
       key2 = true
       key1 = false })

@@ -182,7 +182,7 @@ module Darklang =
           | 3 -> "rd"
           | _ -> "th"
 
-        (Builtin.Int.toString n) ++ suffix
+        (PACKAGE.Darklang.Stdlib.Int.toString n) ++ suffix
 
 
       /// Splits the given <param str> at each newline character and returns a list of substrings.
