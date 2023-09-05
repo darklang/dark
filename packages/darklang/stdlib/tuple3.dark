@@ -27,19 +27,19 @@ module Darklang =
       /// Transform the first value in a triple
       let mapFirst (fn: 'a -> 'd) (tuple: Tuple<'a, 'b, 'c>) : Tuple<'d, 'b, 'c> =
         let (first, second, third) = tuple
-        ((first |> fn), second, third)
+        (fn first, second, third)
 
 
       /// Transform the second value in a triple
       let mapSecond (fn: 'b -> 'd) (tuple: Tuple<'a, 'b, 'c>) : Tuple<'a, 'd, 'c> =
         let (first, second, third) = tuple
-        (first, (second |> fn), third)
+        (first, fn second, third)
 
 
       /// Transform the third value in a triple
       let mapThird (fn: 'c -> 'd) (tuple: Tuple<'a, 'b, 'c>) : Tuple<'a, 'b, 'd> =
         let (first, second, third) = tuple
-        (first, second, (third |> fn))
+        (first, second, fn third)
 
 
       /// Transform all values in a triple
@@ -50,4 +50,4 @@ module Darklang =
         (tuple: Tuple<'a, 'b, 'c>)
         : Tuple<'d, 'e, 'f> =
         let (first, second, third) = tuple
-        ((first |> fnFirst), (second |> fnSecond), (third |> fnThird))
+        (fnFirst first, fnSecond second, fnThird third)

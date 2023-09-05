@@ -6,6 +6,7 @@ module Darklang =
         | Some of 'v
         | None
 
+
       /// If <param option> is {{Some <var value>}}, returns {{fn <var value>}}. The
       /// lambda <fn fn> is applied to <var value> and the result is wrapped in
       /// {{Some}}. Otherwise, returns {{None}}
@@ -16,6 +17,7 @@ module Darklang =
         match option with
         | Some v -> PACKAGE.Darklang.Stdlib.Option.Option.Some(fn v)
         | None -> PACKAGE.Darklang.Stdlib.Option.Option.None
+
 
       ///  If both arguments are {{Some}} (<param option1> is {{Some <var v1>}} and
       ///  <param option2> is {{Some <var v2>}}), then return {{Some (fn <var v1>
@@ -43,6 +45,7 @@ module Darklang =
         match option with
         | Some v -> fn v
         | None -> PACKAGE.Darklang.Stdlib.Option.Option.None
+
 
       /// If <param option> is {{Some <var value>}}, returns <var value>. Otherwise,
       /// returns <param default>
