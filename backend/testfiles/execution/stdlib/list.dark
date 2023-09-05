@@ -128,7 +128,7 @@ Builtin.List.findFirst [ 1; -33; 3; -2; 12 ] (fun x -> (x < 0 && x % 2 == 0)) = 
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1 ]; [ 2 ]; [ 3 ] ] = [ 1; 2; 3 ]
 
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1 ]; [ [ 2; 3 ] ] ] = Builtin.Test.derrorMessage
-  "Could not merge types KTList (Known KTInt) and KTInt"
+  "Could not merge types List<Known (KTList (Known (KTList (Known KTInt))))> and List<Known (KTList (Known KTInt))>"
 
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ [] ] ] = [ [] ]
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [] ] = []
@@ -172,14 +172,14 @@ Builtin.List.interleave_v0 [] [ 4; 5; 6 ] = [ 4; 5; 6 ]
 Builtin.List.interleave_v0 [] [] = []
 
 Builtin.List.interleave_v0 [ "a"; "b"; "c" ] [ 0 ] = Builtin.Test.derrorMessage
-  "Could not merge types KTString and KTInt"
+  "Could not merge types List<Known KTString> and List<Known KTInt>"
 
 Builtin.List.interpose_v0 [ 1; 2; 3 ] 5 = [ 1; 5; 2; 5; 3 ]
 Builtin.List.interpose_v0 [ 1 ] 5 = [ 1 ]
 Builtin.List.interpose_v0 [] 5 = []
 
 Builtin.List.interpose_v0 [ "a"; "b"; "c" ] 0 = Builtin.Test.derrorMessage
-  "Could not merge types KTString and KTInt"
+  "Could not merge types List<Known KTString> and List<Known KTInt>"
 
 PACKAGE.Darklang.Stdlib.List.isEmpty_v0 [ 1 ] = false
 PACKAGE.Darklang.Stdlib.List.isEmpty_v0 [] = true
@@ -368,7 +368,7 @@ Builtin.List.uniqueBy_v0 [ 7; 42; 7; 2; 10 ] (fun x -> x) = [ 2; 7; 10; 42 ]
 Builtin.List.uniqueBy_v0 [] (fun x -> x) = []
 
 Builtin.List.uniqueBy_v0 [ 6; 2.0 ] (fun x -> x) = Builtin.Test.derrorMessage
-  "Could not merge types KTFloat and KTInt"
+  "Could not merge types List<Known KTFloat> and List<Known KTInt>"
 
 Builtin.List.unique_v0 [ 1; 2; 3; 4 ] = [ 1; 2; 3; 4 ]
 Builtin.List.unique_v0 [ 1; 1; 1; 1 ] = [ 1 ]
