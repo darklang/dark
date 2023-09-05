@@ -53,13 +53,18 @@ module FromListOverwritingDuplicates =
   Builtin.Dict.fromListOverwritingDuplicates_v0 [ Builtin.Test.runtimeError "" ] = Builtin.Test.derrorMessage
     ""
 
-  // CLEANUP this error message is the goal once Dvals include typeRefs:
-  // In Builtin.Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int (2) was passed instead.\n\nExpected: (String, 'b)\nActual: an Int: 2
+  // In Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int (2) was passed instead.\n\nExpected: (String, 'b)\nActual: an Int: 2
   Builtin.Dict.fromListOverwritingDuplicates_v0 [ (1, 2) ] = Builtin.Test.derrorMessage
-    "Expected `key` to be a `String`, but it was `1`"
+    "Dict.fromListOverwritingDuplicates's 1st argument (`entries`) should be a List<(String * 'a)>. However, a List<(Int, Int)> ([  (1, 2)...) was passed instead.
+
+Expected: (entries: List<(String * 'a)>)
+Actual: a List<(Int, Int)>: [\n  (1, 2)\n]"
 
   Builtin.Dict.fromListOverwritingDuplicates_v0 [ 1 ] = Builtin.Test.derrorMessage
-    "All list items must be `(key, value)`"
+    "Dict.fromListOverwritingDuplicates's 1st argument (`entries`) should be a List<(String * 'a)>. However, a List<Int> ([  1]) was passed instead.
+
+Expected: (entries: List<(String * 'a)>)
+Actual: a List<Int>: [\n  1\n]"
 
 
 module FromList =
@@ -73,14 +78,14 @@ module FromList =
     .Option
     .Some(Dict { c = 3; b = 2; a = 1 })
 
-  Builtin.Dict.fromList_v0 [ ("Content-Length", 0); ("Server", "dark") ] = PACKAGE
+  Builtin.Dict.fromList_v0 [ ("Content-Length", "0"); ("Server", "dark") ] = PACKAGE
     .Darklang
     .Stdlib
     .Option
     .Option
     .Some(
       Dict
-        { ``Content-Length`` = 0
+        { ``Content-Length`` = "0"
           Server = "dark" }
     )
 
@@ -90,9 +95,12 @@ module FromList =
     ""
 
   // CLEANUP this error message is the goal once Dvals include typeRefs:
-  //Builtin.Test.runtimeError "In Builtin.Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int (1) was passed instead.\n\nExpected: String\nActual: an Int: 1"
+  //Test.runtimeError "In Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int (1) was passed instead.\n\nExpected: String\nActual: an Int: 1"
   Builtin.Dict.fromList_v0 [ (1, 1) ] = Builtin.Test.derrorMessage
-    "Expected `key` to be a `String`, but it was `1`"
+    "Dict.fromList's 1st argument (`entries`) should be a List<(String * 'b)>. However, a List<(Int, Int)> ([  (1, 1)...) was passed instead.
+
+Expected: (entries: List<(String * 'b)>)
+Actual: a List<(Int, Int)>: [\n  (1, 1)\n]"
 
 
 module Get =

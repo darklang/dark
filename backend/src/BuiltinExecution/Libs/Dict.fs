@@ -69,7 +69,7 @@ let fns : List<BuiltInFn> =
           |> Map.keys
           |> Seq.map (fun k -> DString k)
           |> Seq.toList
-          |> fun l -> DList l
+          |> fun l -> Dval.list (ValueType.Known KTString) l
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -86,7 +86,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict o ] ->
-          o |> Map.values |> Seq.toList |> (fun l -> DList l |> Ply)
+          o
+          |> Map.values
+          |> Seq.toList
+          |> (fun l -> Dval.list valueTypeTODO l |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -104,7 +107,9 @@ let fns : List<BuiltInFn> =
         | _, _, [ DDict o ] ->
           Map.toList o
           |> List.map (fun (k, v) -> DTuple(DString k, v, []))
-          |> DList
+          |> Dval.list (
+            ValueType.Known(KTTuple(ValueType.Known KTString, valueTypeTODO, []))
+          )
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -114,8 +119,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "fromListOverwritingDuplicates" 0
       typeParams = []
-      parameters = [ Param.make "entries" (TList(TTuple(TString, varB, []))) "" ]
-      returnType = TDict varA
+      parameters = [ Param.make "entries" (TList(TTuple(TString, varA, []))) "" ]
+      returnType = TDict varB
       description =
         "Returns a <type dict> with <param entries>. Each value in <param entries>
          must be a {{(key, value)}} tuple, where <var key> is a <type String>.
@@ -127,8 +132,7 @@ let fns : List<BuiltInFn> =
          This function is the opposite of <fn Dict.toList>."
       fn =
         (function
-        | _, _, [ DList l ] ->
-
+        | _, _, [ DList(_, l) ] ->
           let f acc e =
             match e with
             | DTuple(DString k, value, []) -> Map.add k value acc
@@ -160,7 +164,7 @@ let fns : List<BuiltInFn> =
          if you want to overwrite duplicate keys)."
       fn =
         (function
-        | _, _, [ DList l ] ->
+        | _, _, [ DList(_vtTODO, l) ] ->
           let f acc e =
             match acc, e with
             | Some acc, DTuple(DString k, _, _) when Map.containsKey k acc -> None
@@ -175,7 +179,7 @@ let fns : List<BuiltInFn> =
           let result = List.fold f (Some Map.empty) l
 
           match result with
-          | Some map -> Ply(Dval.optionSome (DDict(map)))
+          | Some map -> Ply(Dval.optionSome (DDict map))
           | None -> Ply(Dval.optionNone)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

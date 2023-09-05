@@ -24,7 +24,7 @@ module NameResolutionError =
     | NotFound
     | ExpectedEnumButNot
     | ExpectedRecordButNot
-    | MissingModuleName
+    | MissingEnumModuleName of caseName : string
     | InvalidPackageName
 
   type NameType =
@@ -269,8 +269,8 @@ module ExternalTypesToProgramTypes =
         match err with
         | NameResolutionError.ErrorType.NotFound ->
           LibExecution.NameResolutionError.NotFound
-        | NameResolutionError.MissingModuleName ->
-          LibExecution.NameResolutionError.MissingModuleName
+        | NameResolutionError.MissingEnumModuleName caseName ->
+          LibExecution.NameResolutionError.MissingEnumModuleName caseName
         | NameResolutionError.InvalidPackageName ->
           LibExecution.NameResolutionError.InvalidPackageName
         | NameResolutionError.ExpectedEnumButNot ->

@@ -1138,19 +1138,21 @@ Builtin.Json.parse<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.E
 
 Builtin.Json.serialize<List<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>>
   [ PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
-    PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.MissingModuleName
+    (PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.MissingEnumModuleName
+      "Ok")
     PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  "[{\"InvalidPackageName\":[]},{\"MissingModuleName\":[]},{\"NotFound\":[]}]"
+  "[{\"InvalidPackageName\":[]},{\"MissingEnumModuleName\":[\"Ok\"]},{\"NotFound\":[]}]"
 
 Builtin.Json.parse<List<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>>
-  "[{\"InvalidPackageName\":[]},{\"MissingModuleName\":[]},{\"NotFound\":[]}]" = PACKAGE
+  "[{\"InvalidPackageName\":[]},{\"MissingEnumModuleName\":[\"Ok\"]},{\"NotFound\":[]}]" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
   .Ok(
     [ PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
-      PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.MissingModuleName
+      (PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.MissingEnumModuleName
+        "Ok")
       PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound ]
   )
 

@@ -55,8 +55,8 @@ let executeExpr
   : Task<RT.Dval> =
   task {
     let symtable = Interpreter.withGlobals state inputVars
-    let typeArgTable = Map.empty
-    let! result = Interpreter.eval state typeArgTable symtable expr
+    let typeSymbolTable = Map.empty
+    let! result = Interpreter.eval state typeSymbolTable symtable expr
     // Does nothing in non-tests
     state.test.postTestExecutionHook state.test result
     return result
@@ -71,8 +71,9 @@ let executeFunction
   (args : NEList<RT.Dval>)
   : Task<RT.Dval> =
   task {
-    let typeArgTable = Map.empty
-    let! result = Interpreter.callFn state typeArgTable callerID name typeArgs args
+    let typeSymbolTable = Map.empty
+    let! result =
+      Interpreter.callFn state typeSymbolTable callerID name typeArgs args
     // Does nothing in non-tests
     state.test.postTestExecutionHook state.test result
     return result

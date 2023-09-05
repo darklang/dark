@@ -91,7 +91,7 @@ let fns : List<BuiltInFn> =
         Note: this will throw an exception if the function doesn't exist in the webworker that hosts the Dark runtime"
       fn =
         (function
-        | _, _, [ DString functionName; DList args ] ->
+        | _, _, [ DString functionName; DList(_, args) ] ->
           let args =
             args
             |> List.fold

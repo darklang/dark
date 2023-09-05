@@ -170,7 +170,7 @@ and [<NoComparison>] Dval =
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
 
   // compound types
-  | DList of List<Dval>
+  | DList of ValueType * List<Dval>
   | DTuple of Dval * Dval * List<Dval>
 
   | DFnVal of FnValImpl

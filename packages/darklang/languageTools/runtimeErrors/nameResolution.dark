@@ -6,7 +6,7 @@ module Darklang =
           | NotFound
           | ExpectedEnumButNot
           | ExpectedRecordButNot
-          | MissingModuleName
+          | MissingEnumModuleName of caseName: String
           | InvalidPackageName
 
         type NameType =
@@ -44,17 +44,18 @@ module Darklang =
                 actual = []
                 expected = [] }
 
-          | MissingModuleName ->
+          | MissingEnumModuleName caseName ->
             let suffix =
               if e.names == [] then
-                []
+                [ ErrorSegment.ErrorSegment.String ": "
+                  ErrorSegment.ErrorSegment.VarName caseName ]
               else
                 [ ErrorSegment.ErrorSegment.String ": "
                   ErrorSegment.ErrorSegment.VarName(Builtin.String.join e.names ".") ]
 
             let summary =
               Builtin.List.append
-                [ ErrorSegment.ErrorSegment.String "Missing module name" ]
+                [ ErrorSegment.ErrorSegment.String "Missing type name for enum case" ]
                 suffix
 
             ErrorOutput

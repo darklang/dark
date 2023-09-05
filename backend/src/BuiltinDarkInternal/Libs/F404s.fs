@@ -76,7 +76,7 @@ let fns : List<BuiltInFn> = []
 //                 "traceID",
 //                 DUuid(LibExecution.AnalysisTypes.TraceID.toUUID traceID) ]
 //               |> Dval.record typeName)
-//             |> DList
+//             |> Dval.list valueTypeTODO
 //         }
 //       | _ -> incorrectArgs ())
 //     sqlSpec = NotQueryable

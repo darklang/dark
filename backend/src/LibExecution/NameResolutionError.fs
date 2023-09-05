@@ -10,7 +10,7 @@ type ErrorType =
   | NotFound
   | ExpectedEnumButNot
   | ExpectedRecordButNot
-  | MissingModuleName
+  | MissingEnumModuleName of caseName : string
   | InvalidPackageName
 
 type NameType =
@@ -30,21 +30,23 @@ module RTE =
   module ErrorType =
     let toDT (et : ErrorType) : RT.Dval =
       let nameTypeName = RT.RuntimeError.name [ "NameResolution" ] "ErrorType" 0
-      let caseName =
+      let caseName, fields =
         match et with
-        | NotFound -> "NotFound"
-        | ExpectedEnumButNot -> "ExpectedEnumButNot"
-        | ExpectedRecordButNot -> "ExpectedRecordButNot"
-        | MissingModuleName -> "MissingModuleName"
-        | InvalidPackageName -> "InvalidPackageName"
-      RT.Dval.enum nameTypeName caseName []
+        | NotFound -> "NotFound", []
+        | ExpectedEnumButNot -> "ExpectedEnumButNot", []
+        | ExpectedRecordButNot -> "ExpectedRecordButNot", []
+        | MissingEnumModuleName caseName ->
+          "MissingEnumModuleName", [ RT.DString caseName ]
+        | InvalidPackageName -> "InvalidPackageName", []
+      RT.Dval.enum nameTypeName caseName fields
 
     let fromDT (dv : RT.Dval) : ErrorType =
       match dv with
       | RT.DEnum(_, _, "NotFound", []) -> NotFound
       | RT.DEnum(_, _, "ExpectedEnumButNot", []) -> ExpectedEnumButNot
       | RT.DEnum(_, _, "ExpectedRecordButNot", []) -> ExpectedRecordButNot
-      | RT.DEnum(_, _, "MissingModuleName", []) -> MissingModuleName
+      | RT.DEnum(_, _, "MissingEnumModuleName", [ RT.DString caseName ]) ->
+        MissingEnumModuleName(caseName)
       | RT.DEnum(_, _, "InvalidPackageName", []) -> InvalidPackageName
       | _ -> Exception.raiseInternal "Invalid ErrorType" []
 
@@ -71,7 +73,10 @@ module RTE =
       let fields =
         [ "errorType", ErrorType.toDT e.errorType
           "nameType", NameType.toDT e.nameType
-          "names", (e.names |> List.map RT.DString |> RT.DList) ]
+          "names",
+          (e.names
+           |> List.map RT.DString
+           |> RT.Dval.list (RT.ValueType.Known RT.KTString)) ]
 
       RT.Dval.record errorTypeName fields
 

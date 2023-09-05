@@ -332,6 +332,110 @@ module ConstantName =
     FQName.toString name (fun (ConstantName name) -> name)
 
 
+/// A KnownType represents the type of a dval.
+///
+/// Many KnownTypes (such as lists and records) have nested types. Often, these
+/// nested types are unknown (such as the contents of an empty list, or the
+/// `Result.Error` type for `Ok 5`). As such, KnownTypes always nest ValueTypes
+/// (an optional form of KnownType).
+type KnownType =
+  | KTUnit
+  | KTBool
+  | KTInt
+  | KTFloat
+  | KTChar
+  | KTString
+  | KTUuid
+  | KTBytes
+  | KTDateTime
+  | KTPassword
+
+  // let empty =    [] // KTList Unknown
+  // let intList = [1] // KTList (ValueType.Known KTInt)
+  | KTList of ValueType
+
+  // Intuitively, since Dvals generate KnownTypes, you would think that we can
+  // use KnownTypes in a KTTuple.
+  //
+  // However, we sometimes construct a KTTuple to repesent the type of a Tuple
+  // which doesn't exist. For example, in `List.zip [] []`, we create the result
+  // from the types of the two lists, which themselves might be (and likely are)
+  // `Unknown`.
+  | KTTuple of ValueType * ValueType * List<ValueType>
+
+  // let f = (fun x -> x)        // KTFn([Unknown], Unknown)
+  // let intF = (fun (x: Int) -> x) // KTFn([Known KTInt], Unknown)
+  //
+  // Note that we could theoretically know some return types by analyzing the
+  // code or type signatures of functions. We don't do this yet as it's
+  // complicated. When we do decide to do this, some incorrect programs may stop
+  // functioning (see example). Our goal is for correctly typed functions to
+  // stay working so this might be ok.
+  //
+  // For example:
+  //   let z1 = (fun x -> 5)
+  //   let z2 = (fun x -> "str")
+  // `[z1, z2]` is allowed now but might not be allowed later
+  | KTFn of args : NEList<ValueType> * ret : ValueType
+
+  // At time of writing, all DBs are of a specific type, and DBs may only be
+  // referenced directly, but we expect to eventually allow references to DBs
+  // where the type may be unknown
+  // List.head ([]: List<DB<'a>>) // KTDB (Unknown)
+  | KTDB of ValueType
+
+  /// let n = None          // type args: [Unknown]
+  /// let s = Some(5)       // type args: [Known KTInt]
+  /// let o = Ok (5)        // type args: [Known KTInt, Unknown]
+  /// let e = Error ("str") // type args: [Unknown, Known KTString]
+  | KTCustomType of TypeName.TypeName * typeArgs : List<ValueType>
+
+  // let myDict = {} // KTDict Unknown
+  | KTDict of ValueType
+
+/// Represents the actual type of a Dval
+///
+/// "Unknown" represents the concept of "bottom" in
+///   type system / data flow analysis / lattices
+and [<RequireQualifiedAccess>] ValueType =
+  | Unknown
+  | Known of KnownType
+
+module private rec ValueType =
+  // _just_ enough to make some tests less ugly - this should all be in Dark code soon
+  // CLEANUP VTTODO ^
+  let private knownTypeToString (kt : KnownType) : string =
+    match kt with
+    | KTUnit -> "Unit"
+    | KTBool -> "Bool"
+    | KTInt -> "Int"
+    | KTFloat -> "Float"
+    | KTChar -> "Char"
+    | KTString -> "String"
+    | KTUuid -> "Uuid"
+    | KTBytes -> "Bytes"
+    | KTDateTime -> "DateTime"
+    | KTPassword -> "Password"
+    | KTList inner -> $"List<{toString inner}>"
+    | KTTuple _ -> "Tuple (TODO)"
+    | KTFn _ -> "Fn (TODO)"
+    | KTDB _ -> "DB (TODO)"
+    | KTCustomType _ -> "CustomType (TODO)"
+    | KTDict _ -> "Dict (TODO)"
+
+  let toString (vt : ValueType) : string =
+    match vt with
+    | ValueType.Unknown -> "_"
+    | ValueType.Known kt -> knownTypeToString kt
+
+/// VTTODO if this is used somewhere, re-evaluate the usage - it feels there's something to be done...
+/// CLEANUP eventually remove this binding
+let valueTypeTODO = ValueType.Unknown
+
+/// VTTODO follow up here when DDB references include a type
+let valueTypeDbTODO = ValueType.Unknown
+
+
 type NameResolution<'a> = Result<'a, RuntimeError>
 
 // Dark runtime type
@@ -447,7 +551,7 @@ and MatchPattern =
 and DvalMap = Map<string, Dval>
 
 and LambdaImpl =
-  { typeArgTable : TypeArgTable
+  { typeSymbolTable : TypeSymbolTable
     symtable : Symtable
     parameters : NEList<id * string>
     body : Expr }
@@ -470,7 +574,7 @@ and [<NoComparison>] Dval =
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
 
   // compound types
-  | DList of List<Dval>
+  | DList of ValueType * List<Dval>
   | DTuple of Dval * Dval * List<Dval>
 
   | DFnVal of FnValImpl
@@ -515,9 +619,9 @@ and Symtable = Map<string, Dval>
 ///   `let serialize<'a> (x : 'a) : string = ...`,
 /// called with inputs
 ///   `serialize<int> 1`,
-/// we would have a TypeArgTable of
+/// we would have a TypeSymbolTable of
 ///  { "a" => TInt }
-and TypeArgTable = Map<string, TypeReference>
+and TypeSymbolTable = Map<string, TypeReference>
 
 
 // Record the source of an incomplete or error. Would be useful to add more
@@ -714,11 +818,6 @@ module Dval =
     | _ -> false
 
 
-  let toPairs (dv : Dval) : Result<List<string * Dval>, string> =
-    match dv with
-    | DDict obj -> Ok(Map.toList obj)
-    | _ -> Error "expecting str"
-
 
   // <summary>
   // Checks if a runtime's value matches a given type
@@ -731,6 +830,8 @@ module Dval =
   // accuracy is better, as the runtime is perfectly accurate.
   // </summary>
   let rec typeMatches (typ : TypeReference) (dv : Dval) : bool =
+    let r = typeMatches
+
     match (dv, typ) with
     | _, TVariable _ -> true
     | DInt _, TInt
@@ -748,9 +849,9 @@ module Dval =
       let pairs =
         [ (first, firstType); (second, secondType) ] @ List.zip theRest otherTypes
 
-      pairs |> List.all (fun (v, subtype) -> typeMatches subtype v)
-    | DList l, TList t -> List.all (typeMatches t) l
-    | DDict m, TDict t -> Map.all (typeMatches t) m
+      pairs |> List.all (fun (v, subtype) -> r subtype v)
+    | DList(_vtTODO, l), TList t -> List.all (r t) l
+    | DDict m, TDict t -> Map.all (r t) m
     | DFnVal(Lambda l), TFn(parameters, _) ->
       NEList.length parameters = NEList.length l.parameters
 
@@ -789,21 +890,182 @@ module Dval =
     | DEnum _, _ -> false
 
 
-  let int (i : int) = DInt(int64 i)
+  let rec mergeKnownTypes
+    (left : KnownType)
+    (right : KnownType)
+    : Result<KnownType, unit> =
+    match left, right with
+    | KTUnit, KTUnit -> KTUnit |> Ok
+    | KTBool, KTBool -> KTBool |> Ok
+    | KTInt, KTInt -> KTInt |> Ok
+    | KTFloat, KTFloat -> KTFloat |> Ok
+    | KTChar, KTChar -> KTChar |> Ok
+    | KTString, KTString -> KTString |> Ok
+    | KTUuid, KTUuid -> KTUuid |> Ok
+    | KTBytes, KTBytes -> KTBytes |> Ok
+    | KTDateTime, KTDateTime -> KTDateTime |> Ok
+
+    | KTList left, KTList right -> mergeValueTypes left right |> Result.map KTList
+    | KTDict left, KTDict right -> mergeValueTypes left right |> Result.map KTDict
+    | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
+      let firstMerged = mergeValueTypes l1 r1
+      let secondMerged = mergeValueTypes l2 r2
+      let restMerged =
+        List.map2 (fun l r -> mergeValueTypes l r) ls rs |> Result.collect
+
+      match firstMerged, secondMerged, restMerged with
+      | Ok first, Ok second, Ok rest -> Ok(KTTuple(first, second, rest))
+      | _ -> Error()
+
+    | KTCustomType(lName, lArgs), KTCustomType(rName, rArgs) ->
+      if lName <> rName then
+        Error()
+      else if List.length lArgs <> List.length rArgs then
+        Error()
+      else
+        List.map2 mergeValueTypes lArgs rArgs
+        |> Result.collect
+        |> Result.map (fun args -> KTCustomType(lName, args))
+
+    | KTFn(lArgs, lRet), KTFn(rArgs, rRet) ->
+      let argsMerged = NEList.map2 mergeValueTypes lArgs rArgs |> Result.collectNE
+      let retMerged = mergeValueTypes lRet rRet
+
+      match argsMerged, retMerged with
+      | Ok args, Ok ret -> Ok(KTFn(args, ret))
+      | _ -> Error()
+
+
+    | KTPassword, KTPassword -> KTPassword |> Ok
+
+    | _ -> Error()
+
+  and mergeValueTypes
+    (left : ValueType)
+    (right : ValueType)
+    : Result<ValueType, unit> =
+    match left, right with
+    | ValueType.Unknown, v
+    | v, ValueType.Unknown -> Ok v
+
+    | ValueType.Known left, ValueType.Known right ->
+      mergeKnownTypes left right |> Result.map ValueType.Known
+
+
+
+  let rec toValueType (dv : Dval) : ValueType =
+    match dv with
+    | DUnit -> ValueType.Known KTUnit
+    | DBool _ -> ValueType.Known KTBool
+    | DInt _ -> ValueType.Known KTInt
+    | DFloat _ -> ValueType.Known KTFloat
+    | DChar _ -> ValueType.Known KTChar
+    | DString _ -> ValueType.Known KTString
+    | DUuid _ -> ValueType.Known KTUuid
+    | DBytes _ -> ValueType.Known KTBytes
+    | DDateTime _ -> ValueType.Known KTDateTime
+    | DPassword _ -> ValueType.Known KTPassword
+
+    | DList(t, _) -> ValueType.Known(KTList t)
+    | DDict _t -> ValueType.Known(KTDict ValueType.Unknown) // VTTODO
+    | DTuple(first, second, theRest) ->
+      ValueType.Known(
+        KTTuple(
+          toValueType first,
+          toValueType second,
+          theRest |> List.map toValueType
+        )
+      )
+
+    | DRecord(typeName, _, _fields) ->
+      let typeArgs =
+        // TODO: somehow need to derive `typeArgs` from the `fields`
+        // we might need to look up the type...
+        //fields |> Map.toList |> List.map (fun (_, v) -> toValueType v)
+        []
+      KTCustomType(typeName, typeArgs) |> ValueType.Known
+
+    | DEnum(typeName, _, _caseName, _fields) ->
+      let typeArgs =
+        // TODO: somehow need to derive `typeArgs` from the `fields` (and `case`?)
+        // we might need to look up the type...
+        //fields |> List.map toValueType |> List.map Option.some
+        []
+      KTCustomType(typeName, typeArgs) |> ValueType.Known
+
+    | DFnVal fnImpl ->
+      match fnImpl with
+      | Lambda lambda ->
+        KTFn(
+          NEList.map (fun _ -> ValueType.Unknown) lambda.parameters,
+          ValueType.Unknown
+        )
+        |> ValueType.Known
+
+      // VTTODO look up type, etc
+      | NamedFn _named -> ValueType.Unknown
+
+    // CLEANUP follow up when DDB has a typeReference
+    | DDB _ -> ValueType.Unknown
+
+    | DError _ -> Exception.raiseInternal "DError is being moved out of Dval" []
+
 
 
   // Dvals should never be constructed that contain fakevals - the fakeval
   // should always propagate (though, there are specific cases in the
   // interpreter where they are discarded instead of propagated; still they are
   // never put into other dvals). These static members check before creating the values
+  let int (i : int) = DInt(int64 i)
 
-  let list (list : List<Dval>) : Dval =
-    List.find (fun (dv : Dval) -> isFake dv) list
-    |> Option.defaultValue (DList list)
+  let private listPush
+    (list : List<Dval>)
+    (listType : ValueType)
+    (dv : Dval)
+    : Result<ValueType * List<Dval>, RuntimeError> =
+    // what happens if we insert 5 into a list of strings? we should return an Error!
+
+    // if we try to insert an `Error` (with the _error_ type known)
+    // into a list of `Ok`s (with the _ok_ type known),
+    // then we merge those types (result: `TCustomType` with both `OK` and `Error` types)
+
+    // `KTCustomType("Result", [None, Some KTString])`
+    // and
+    // `KTCustomType("Result", [Some KTInt, None])`
+    // merges to be come
+    // `KTCustomType("Result", [Some KTInt, Some KTString])`
+
+    let dvalType = toValueType dv
+    let newType = mergeValueTypes listType dvalType
+
+    match newType with
+    | Ok newType -> Ok(newType, dv :: list)
+    | Error() ->
+      RuntimeError.oldError
+        $"Could not merge types List<{ValueType.toString listType}> and List<{ValueType.toString dvalType}>"
+      |> Error
+
+  let list (initialType : ValueType) (list : List<Dval>) : Dval =
+    match List.find isFake list with
+    | Some fake -> fake
+    | None ->
+      let result =
+        List.fold
+          (fun acc dv ->
+            match acc with
+            | Ok(typ, dvs) -> listPush dvs typ dv
+            | Error e -> Error e)
+          (Ok(initialType, []))
+          (List.rev list)
+
+      match result with
+      | Ok(typ, dvs) -> DList(typ, dvs)
+      | Error e -> DError(SourceNone, e)
+
 
   let asList (dv : Dval) : Option<List<Dval>> =
     match dv with
-    | DList l -> Some l
+    | DList(_, l) -> Some l
     | _ -> None
 
   let asDict (dv : Dval) : Option<Map<string, Dval>> =

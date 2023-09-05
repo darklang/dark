@@ -229,7 +229,7 @@ let doQuery
     let! compiled =
       SqlCompiler.compileLambda
         state
-        b.typeArgTable
+        b.typeSymbolTable
         b.symtable
         paramName
         db.typ

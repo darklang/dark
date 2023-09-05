@@ -123,6 +123,110 @@ module FormatV0 =
 
 
 
+
+  module rec ValueType =
+    module KnownType =
+      type KnownType =
+        | KTUnit
+        | KTBool
+        | KTInt
+        | KTFloat
+        | KTChar
+        | KTString
+        | KTUuid
+        | KTBytes
+        | KTDateTime
+        | KTPassword
+
+        | KTList of ValueType
+        | KTTuple of ValueType * ValueType * List<ValueType>
+        | KTDict of ValueType
+
+        | KTFn of NEList<ValueType> * ValueType
+
+        | KTCustomType of TypeName.TypeName * typeArgs : List<ValueType>
+
+        | KTDB of ValueType
+
+      let rec toRT (kt : KnownType) : RT.KnownType =
+        match kt with
+        | KTUnit -> RT.KTUnit
+        | KTBool -> RT.KTBool
+        | KTInt -> RT.KTInt
+        | KTFloat -> RT.KTFloat
+        | KTChar -> RT.KTChar
+        | KTString -> RT.KTString
+        | KTUuid -> RT.KTUuid
+        | KTBytes -> RT.KTBytes
+        | KTDateTime -> RT.KTDateTime
+        | KTPassword -> RT.KTPassword
+
+        | KTList vt -> RT.KTList(ValueType.toRT vt)
+        | KTTuple(vt1, vt2, vts) ->
+          RT.KTTuple(
+            ValueType.toRT vt1,
+            ValueType.toRT vt2,
+            List.map ValueType.toRT vts
+          )
+        | KTDict vt -> RT.KTDict(ValueType.toRT vt)
+
+        | KTFn(argTypes, returnType) ->
+          RT.KTFn(NEList.map ValueType.toRT argTypes, ValueType.toRT returnType)
+
+        | KTCustomType(typeName, typeArgs) ->
+          RT.KTCustomType(TypeName.toRT typeName, List.map ValueType.toRT typeArgs)
+
+        | KTDB vt -> RT.KTDB(ValueType.toRT vt)
+
+      let rec fromRT (kt : RT.KnownType) : KnownType =
+        match kt with
+        | RT.KTUnit -> KTUnit
+        | RT.KTBool -> KTBool
+        | RT.KTInt -> KTInt
+        | RT.KTFloat -> KTFloat
+        | RT.KTChar -> KTChar
+        | RT.KTString -> KTString
+        | RT.KTUuid -> KTUuid
+        | RT.KTBytes -> KTBytes
+        | RT.KTDateTime -> KTDateTime
+        | RT.KTPassword -> KTPassword
+
+        | RT.KTList vt -> KTList(ValueType.fromRT vt)
+        | RT.KTTuple(vt1, vt2, vts) ->
+          KTTuple(
+            ValueType.fromRT vt1,
+            ValueType.fromRT vt2,
+            List.map ValueType.fromRT vts
+          )
+        | RT.KTDict vt -> KTDict(ValueType.fromRT vt)
+
+        | RT.KTFn(argTypes, returnType) ->
+          KTFn(NEList.map ValueType.fromRT argTypes, ValueType.fromRT returnType)
+
+        | RT.KTCustomType(typeName, typeArgs) ->
+          KTCustomType(TypeName.fromRT typeName, List.map ValueType.fromRT typeArgs)
+
+        | RT.KTDB vt -> KTDB(ValueType.fromRT vt)
+
+    [<RequireQualifiedAccess>]
+    type ValueType =
+      | Unknown
+      | Known of KnownType.KnownType
+
+    let toRT (vt : ValueType) : RT.ValueType =
+      match vt with
+      | ValueType.Unknown -> RT.ValueType.Unknown
+      | ValueType.Known kt -> RT.ValueType.Known(ValueType.KnownType.toRT kt)
+
+    let fromRT (vt : RT.ValueType) : ValueType =
+      match vt with
+      | RT.ValueType.Unknown -> ValueType.ValueType.Unknown
+      | RT.ValueType.Known kt ->
+        ValueType.ValueType.Known(ValueType.KnownType.fromRT kt)
+
+  let valueTypeTODO = ValueType.ValueType.Unknown
+
+
   type DvalMap = Map<string, Dval>
   and DvalSource =
     | SourceNone
@@ -137,7 +241,7 @@ module FormatV0 =
     | DUnit
     | DString of string
     | DChar of string
-    | DList of List<Dval>
+    | DList of ValueType.ValueType * List<Dval>
     | DTuple of Dval * Dval * List<Dval>
     | DLambda // See docs/dblock-serialization.md
     | DDict of DvalMap
@@ -169,7 +273,7 @@ module FormatV0 =
     | DLambda ->
       RT.DFnVal(
         RT.Lambda
-          { typeArgTable = Map []
+          { typeSymbolTable = Map []
             symtable = Map []
             parameters = NEList.singleton (gid (), "var")
             body = RT.Expr.EUnit 0UL }
@@ -178,7 +282,7 @@ module FormatV0 =
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
     | DPassword pw -> RT.DPassword(Password pw)
-    | DList l -> RT.DList(List.map toRT l)
+    | DList(typ, l) -> RT.DList(ValueType.toRT typ, List.map toRT l)
     | DTuple(first, second, theRest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)
     | DDict o -> RT.DDict(Map.map toRT o)
@@ -214,7 +318,7 @@ module FormatV0 =
     | RT.DDB name -> DDB name
     | RT.DUuid uuid -> DUuid uuid
     | RT.DPassword(Password pw) -> DPassword pw
-    | RT.DList l -> DList(List.map fromRT l)
+    | RT.DList(typ, l) -> DList(ValueType.fromRT typ, List.map fromRT l)
     | RT.DTuple(first, second, theRest) ->
       DTuple(fromRT first, fromRT second, List.map fromRT theRest)
     | RT.DDict o -> DDict(Map.map fromRT o)
@@ -245,7 +349,7 @@ let parseJsonV0 (json : string) : RT.Dval =
 let toHashV2 (dvals : list<RT.Dval>) : string =
   dvals
   |> List.map FormatV0.fromRT
-  |> FormatV0.DList
+  |> fun items -> FormatV0.DList(FormatV0.valueTypeTODO, items)
   |> Json.Vanilla.serialize
   |> UTF8.toBytes
   |> System.IO.Hashing.XxHash64.Hash // fastest in .NET, does not need to be secure
@@ -268,7 +372,7 @@ module Test =
     | RT.DPassword _ -> true
     | RT.DEnum(_typeName, _, _caseName, fields) ->
       List.all isRoundtrippableDval fields
-    | RT.DList dvals -> List.all isRoundtrippableDval dvals
+    | RT.DList(_, dvals) -> List.all isRoundtrippableDval dvals
     | RT.DDict map -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DRecord(_, _, map) -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DUuid _ -> true
