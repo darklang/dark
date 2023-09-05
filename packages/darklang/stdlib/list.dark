@@ -100,7 +100,7 @@ module Darklang =
         match list with
         | [] -> ()
         | head :: tail ->
-          head |> f
+          f head
           PACKAGE.Darklang.Stdlib.List.iter tail f
 
 

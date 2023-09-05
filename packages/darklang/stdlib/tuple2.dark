@@ -26,13 +26,13 @@ module Darklang =
       /// Transform the first value in a pair
       let mapFirst (fn: 'a -> 'c) (tuple: Tuple<'a, 'b>) : Tuple<'c, 'b> =
         let (first, second) = tuple
-        ((first |> fn), second)
+        (fn head, second)
 
 
       /// Transform the second value in a pair
       let mapSecond (fn: 'b -> 'c) (tuple: Tuple<'a, 'b>) : Tuple<'a, 'c> =
         let (first, second) = tuple
-        (first, (second |> fn))
+        (first, fn second)
 
 
       /// Transform both values in a pair
@@ -42,4 +42,4 @@ module Darklang =
         (tuple: Tuple<'a, 'b>)
         : Tuple<'c, 'd> =
         let (first, second) = tuple
-        ((first |> fnFirst), (second |> fnSecond))
+        (fnFirst first, fnSecond second)

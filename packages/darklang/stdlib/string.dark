@@ -5,6 +5,7 @@ module Darklang =
       /// Returns a string containing a single '\n'
       let newline = "\n"
 
+
       /// Truncates the string <param s> to the specified <param length> and appends an ellipsis ("...")
       /// to it if the original string exceeds the given length. Otherwise, returns the original string.
       let ellipsis (s: String) (length: Int) : String =
@@ -13,11 +14,11 @@ module Darklang =
         else
           s
 
+
       /// Returns 'a' or 'an' (the indefinite article) for a string, based on
       /// whether it begins with a vowel
       let articleFor (nextWord: String) : String =
         let vowels = [ 'A'; 'E'; 'I'; 'O'; 'U'; 'a'; 'e'; 'i'; 'o'; 'u' ]
-
         match Builtin.String.head nextWord with
         | None -> ""
         | Some c ->
@@ -31,8 +32,10 @@ module Darklang =
           else
             "a"
 
+
       /// Returns {{true}} if <param s> is the empty string {{\"\"}
       let isEmpty (s: String) : Bool = s == ""
+
 
       /// Concatenates the two strings by prepending <param s2> to <param s1> and
       /// returns the joined string
@@ -75,6 +78,7 @@ module Darklang =
             (Builtin.String.length string - characterCount)
             (Builtin.String.length string)
 
+
       /// Returns all but the last <param characterCount> characters of <param string>, as a Builtin.String.
       /// If <param characterCount> is longer than <param string>, returns the empty string.
       /// If <param characterCount> is negative, returns <param string>.
@@ -105,6 +109,8 @@ module Darklang =
             (Builtin.String.length string)
 
 
+      /// Returns the <param string> repeated for a specified <param count> times.
+      /// If <param count> is less than or equal to 0, returns an empty string.
       let repeat (string: String) (count: Int) : String =
         if count <= 0 then
           ""
@@ -166,6 +172,7 @@ module Darklang =
         == suffix
 
 
+      /// Converts an integer <param n> to its ordinal representation as a string.
       let toOrdinal (n: Int) : String =
         let suffix =
           match n % 10 with
@@ -177,5 +184,7 @@ module Darklang =
         (Builtin.Int.toString n) ++ suffix
 
 
+      /// Splits the given <param str> at each newline character and returns a list of substrings.
+      /// If the <param str> is empty, it returns an empty list.
       let splitOnNewline (str: String) : List<String> =
         if str == "" then [] else Builtin.String.split str "\n"

@@ -19,6 +19,7 @@ module Darklang =
         | Ok value -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn value)
         | Error msg -> PACKAGE.Darklang.Stdlib.Result.Result.Error msg
 
+
       /// If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var
       /// v2>}}, returns {{Ok (fn <var v1> <var v2>)}} -- the lambda <param fn> is
       /// applied to <var v1> and <var v2>, and the result is wrapped in {{Ok}}.
@@ -97,6 +98,7 @@ module Darklang =
         match option with
         | Some value -> PACKAGE.Darklang.Stdlib.Result.Result.Ok value
         | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error error
+
 
       /// Turn a <type Result> into an <type Option>
       let toOption
