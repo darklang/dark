@@ -167,7 +167,7 @@ module Darklang =
               head
 
 
-      ///Returns a list containing <param val> repeated <param times> times
+      /// Returns a list containing <param val> repeated <param times> times
       let repeat
         (times: Int)
         (value: 'a)
