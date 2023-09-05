@@ -242,7 +242,7 @@ let _handler _req =
 
 [<HttpHandler("GET", "/export-canvas/:canvasId")>]
 let _handler _req =
-  let canvasId = canvasId |> Builtin.Uuid.parse |> rUnwrap
+  let canvasId = canvasId |> PACKAGE.Darklang.Stdlib.Uuid.parse |> rUnwrap
 
   match DarkInternal.Canvas.fullProgram canvasId with
   | Ok program ->

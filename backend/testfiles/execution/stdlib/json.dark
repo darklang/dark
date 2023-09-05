@@ -396,7 +396,7 @@ Builtin.Json.parse<DateTime> "1" = PACKAGE.Darklang.Stdlib.Result.Result.Error
 
 // UUIDs
 let uuid (s: String) : Uuid =
-  (Builtin.Uuid.parse_v0 s) |> Builtin.unwrap
+  (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 s) |> Builtin.unwrap
 
 // empty
 Builtin.Json.serialize<Uuid> (uuid "00000000-0000-0000-0000-000000000000") = PACKAGE.Darklang.Stdlib.Result.Result.Ok

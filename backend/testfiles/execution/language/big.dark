@@ -21,7 +21,7 @@ module BigTestCase =
 
    let reverse = Builtin.String.reverse_v0 str in
    let contains = PACKAGE.Darklang.Stdlib.String.contains_v0 "a string" str in
-   let uuid = Builtin.Uuid.parse_v0 "9c59ba07-1e20-4ce2-a2de-6a95391d67b2" in
+   let uuid = PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "9c59ba07-1e20-4ce2-a2de-6a95391d67b2" in
 
    str
    |> (++) "\nbase64Encode: "
@@ -43,4 +43,4 @@ module BigTestCase =
    |> (++) "\nstring contains: "
    |> (++) (PACKAGE.Darklang.Stdlib.Bool.toString_v0 contains)
    |> (++) "\nuuid: "
-   |> (++) (Builtin.Uuid.toString_v0 (Builtin.unwrap uuid))) = "a string to be used as the test case\nbase64Encode: YSBzdHJpbmcgdG8gYmUgdXNlZCBhcyB0aGUgdGVzdCBjYXNl\nhex64Encode: 6120737472696E6720746F20626520757365642061732074686520746573742063617365\nstring length: 36\nbytes length: 36\nbool: false\nfloat: 1234567.98765\nanother double: 2489377.51259\nstring reverse: esac tset eht sa desu eb ot gnirts a\nstring contains: false\nuuid: 9c59ba07-1e20-4ce2-a2de-6a95391d67b2"
+   |> (++) (PACKAGE.Darklang.Stdlib.Uuid.toString_v0 (Builtin.unwrap uuid))) = "a string to be used as the test case\nbase64Encode: YSBzdHJpbmcgdG8gYmUgdXNlZCBhcyB0aGUgdGVzdCBjYXNl\nhex64Encode: 6120737472696E6720746F20626520757365642061732074686520746573742063617365\nstring length: 36\nbytes length: 36\nbool: false\nfloat: 1234567.98765\nanother double: 2489377.51259\nstring reverse: esac tset eht sa desu eb ot gnirts a\nstring contains: false\nuuid: 9c59ba07-1e20-4ce2-a2de-6a95391d67b2"

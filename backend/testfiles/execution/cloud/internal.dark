@@ -53,7 +53,7 @@ module Domains =
 
   module Errors =
     Builtin.DarkInternal.Canvas.Domain.get (
-      (Builtin.Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
+      (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
       |> Builtin.unwrap
     ) = []
 
