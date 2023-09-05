@@ -368,8 +368,8 @@ PACKAGE.Darklang.Stdlib.Int.parse_v0 "0b0100" = PACKAGE.Darklang.Stdlib.Result.R
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "pi" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Expected to parse String with only numbers, instead got \"pi\""
 
-PACKAGE.Darklang.Stdlib.Int.parse_v0 "Builtin.Math.pi" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Expected to parse String with only numbers, instead got \"Builtin.Math.pi\""
+PACKAGE.Darklang.Stdlib.Int.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Expected to parse String with only numbers, instead got \"PACKAGE.Darklang.Stdlib.Math.pi\""
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "1.23E+04" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Expected to parse String with only numbers, instead got \"1.23E+04\""
