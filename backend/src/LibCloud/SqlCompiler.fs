@@ -268,9 +268,11 @@ let sqlOpForPackageFunction (fnName : FnName.Package) : SqlSpec =
       // strpos returns indexed from 1; 0 means missing
       $"strpos({lookingIn}, {searchingFor}) > 0")
   | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "lessThan" -> SqlBinOp "<"
-  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "lessThanOrEqualTo" -> SqlBinOp "<="
+  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "lessThanOrEqualTo" ->
+    SqlBinOp "<="
   | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "greaterThan" -> SqlBinOp ">"
-  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "greaterThanOrEqualTo" -> SqlBinOp ">="
+  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "greaterThanOrEqualTo" ->
+    SqlBinOp ">="
   | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "add" -> SqlBinOp "+"
   | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "subtract" -> SqlBinOp "-"
   | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "multiply" -> SqlBinOp "*"
