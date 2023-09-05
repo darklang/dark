@@ -42,7 +42,10 @@ let saveItemToCanvas
     | 200 -> PACKAGE.Darklang.Stdlib.Result.Result.Ok()
     | _ ->
       Builtin.print $"Type: {name}; Json: {json}"
-      Builtin.print $"Status: {Builtin.Int.toString response.statusCode}"
+
+      Builtin.print
+        $"Status: {PACKAGE.Darklang.Stdlib.Int.toString response.statusCode}"
+
       Builtin.print $"Body: {response.body |> Builtin.String.fromBytes}"
       Builtin.print errMsg
       PACKAGE.Darklang.Stdlib.Result.Result.Error errMsg

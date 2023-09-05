@@ -1,10 +1,10 @@
-Builtin.Int.add_v0 5 = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int.add_v0 5 = Builtin.Test.derrorMessage
   "Int.add has 0 type parameters and 2 parameters, but here was called with 0 type arguments and 1 arguments."
 
 (let fn = (fun x -> x + 1)
  fn 6) = 7
 
-(let fn = Builtin.Int.add
+(let fn = PACKAGE.Darklang.Stdlib.Int.add
  fn 3 4) = 7
 
 (let fn = PACKAGE.Darklang.Stdlib.Int.max

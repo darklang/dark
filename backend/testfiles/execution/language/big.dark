@@ -29,9 +29,9 @@ module BigTestCase =
    |> (++) "\nhex64Encode: "
    |> (++) hexEncode
    |> (++) "\nstring length: "
-   |> (++) (Builtin.Int.toString_v0 sl)
+   |> (++) (PACKAGE.Darklang.Stdlib.Int.toString_v0 sl)
    |> (++) "\nbytes length: "
-   |> (++) (Builtin.Int.toString_v0 bl)
+   |> (++) (PACKAGE.Darklang.Stdlib.Int.toString_v0 bl)
    |> (++) "\nbool: "
    |> (++) (PACKAGE.Darklang.Stdlib.Bool.toString_v0 r)
    |> (++) "\nfloat: "
