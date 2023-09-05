@@ -1,5 +1,5 @@
 [http-handler POST /]
-request.body |> Builtin.Bytes.length
+request.body |> PACKAGE.Darklang.Stdlib.Bytes.length
 
 [request]
 POST / HTTP/1.1

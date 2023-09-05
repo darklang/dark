@@ -44,21 +44,21 @@ module Join =
   Builtin.String.join_v0 [ "🧑🏽‍🦰‍"; "🧑🏼‍💻‍‍" ] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
 
 module ToBytes =
-  Builtin.Bytes.length (Builtin.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
-  Builtin.Bytes.length (Builtin.String.toBytes_v0 "😄APPLE🍏") = 13
-  Builtin.Bytes.length (Builtin.String.toBytes_v0 "Είναι προικισμένοι με λογική") = 53
-  Builtin.Bytes.length (Builtin.String.toBytes_v0 "") = 0
-  Builtin.Bytes.length (Builtin.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
-  Builtin.Bytes.length (Builtin.String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = 48
-  Builtin.Bytes.length (Builtin.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = 44
-  Builtin.Bytes.length (Builtin.String.toBytes_v0 "🧟‍♀️🧟‍♂️") = 26
+  PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
+  PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "😄APPLE🍏") = 13
+  PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "Είναι προικισμένοι με λογική") = 53
+  PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "") = 0
+  PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
+  PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = 48
+  PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = 44
+  PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "🧟‍♀️🧟‍♂️") = 26
 
-  Builtin.Bytes.length (
+  PACKAGE.Darklang.Stdlib.Bytes.length (
     Builtin.String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
   ) = 82
 
-  Builtin.Bytes.length (Builtin.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = 49
-  Builtin.Bytes.length (Builtin.String.toBytes_v0 "") = 0
+  PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = 49
+  PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "") = 0
 
 module StartsWith =
   PACKAGE.Darklang.Stdlib.String.startsWith_v0 "a string" "a s" = true

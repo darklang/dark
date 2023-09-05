@@ -1,10 +1,10 @@
 module BigTestCase =
   (let str = "a string to be used as the test case" in
    let bytes = Builtin.String.toBytes_v0 str in
-   let base64Encode = Builtin.Bytes.base64Encode_v0 bytes in
-   let hexEncode = Builtin.Bytes.hexEncode_v0 bytes in
+   let base64Encode = PACKAGE.Darklang.Stdlib.Bytes.base64Encode_v0 bytes in
+   let hexEncode = PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 bytes in
    let sl = Builtin.String.length str in
-   let bl = Builtin.Bytes.length bytes in
+   let bl = PACKAGE.Darklang.Stdlib.Bytes.length bytes in
    let t = true in
    let f = false in
 
