@@ -94,6 +94,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+
     { name = fn "isLessThan" 0
       typeParams = []
       parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
@@ -106,6 +107,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
+
 
     { name = fn "isGreaterThan" 0
       typeParams = []

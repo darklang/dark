@@ -51,7 +51,7 @@ module Darklang =
                 let newSegment =
                   match segment with
                   | String s -> s
-                  | Int i -> ACKAGE.Darklang.Stdlib.Int.toString i
+                  | Int i -> PACKAGE.Darklang.Stdlib.Int.toString i
                   | Ordinal i -> Stdlib.String.toOrdinal i
 
                   | IndefiniteArticle ->

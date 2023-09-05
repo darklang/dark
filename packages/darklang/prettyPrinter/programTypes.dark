@@ -403,7 +403,7 @@ module Darklang =
 
           $"{signPart}{whole}.{remainderPart}"
         | CBool b -> PACKAGE.Darklang.Stdlib.Bool.toString b
-        | CChar c -> $"'{Builtin.Char.toString c}'"
+        | CChar c -> $"'{PACKAGE.Darklang.Stdlib.Char.toString c}'"
         | CString s -> $"\"{s}\""
         | CUnit -> "()"
         | CTuple(first, second, theRest) ->
