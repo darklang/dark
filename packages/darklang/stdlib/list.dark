@@ -193,12 +193,10 @@ module Darklang =
       // results of those calls.
       // Consider <fn List.filterMap> if you also want to drop some of the values.
       let map (list: List<'a>) (fn: 'a -> 'b) : List<'b> =
-        match list with
-        | [] -> []
-        | head :: tail ->
-          PACKAGE.Darklang.Stdlib.List.push_v0
-            (PACKAGE.Darklang.Stdlib.List.map tail fn)
-            (fn head)
+        (PACKAGE.Darklang.Stdlib.List.fold list [] (fun acc elem ->
+          PACKAGE.Darklang.Stdlib.List.push_v0 acc (fn elem)
+        )) |> PACKAGE.Darklang.Stdlib.List.reverse
+
 
 
       // Calls <param f> on every <var val> in <param list>, returning a list of only
@@ -206,15 +204,11 @@ module Darklang =
       // Preserves the order of values that were not dropped. Consider <fn
       // List.filterMap> if you also want to transform the values.
       let filter (list: List<'a>) (f: 'a -> Bool) : List<'a> =
-        match list with
-        | [] -> []
-        | head :: tail ->
-          if (head |> f) then
-            PACKAGE.Darklang.Stdlib.List.push_v0
-              (PACKAGE.Darklang.Stdlib.List.filter tail f)
-              head
+        (PACKAGE.Darklang.Stdlib.List.fold list [] (fun acc elem ->
+          if (f elem) then
+            PACKAGE.Darklang.Stdlib.List.push_v0 acc elem
           else
-            PACKAGE.Darklang.Stdlib.List.filter tail f
+            acc)) |> PACKAGE.Darklang.Stdlib.List.reverse
 
 
       // Calls <param fn> on every <var val> in <param list>, returning a list that

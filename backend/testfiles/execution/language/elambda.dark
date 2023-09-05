@@ -14,7 +14,7 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
 
 (let y = (fun msg -> Builtin.Test.runtimeError msg) in
  PACKAGE.Darklang.Stdlib.List.map_v0 [ "1"; "2"; "3"; "4" ] y) = Builtin.Test.derrorMessage
-  "4"
+  "1"
 
 (let y = (fun msg -> Builtin.Test.runtimeError msg) in
  PACKAGE.Darklang.Stdlib.List.map_v0 [] y) = []
