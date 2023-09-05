@@ -6,7 +6,9 @@ module Darklang =
 
 
       /// Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}
-      let parse (uuid: String) : PACKAGE.Darklang.Stdlib.Result.Result<Uuid, String> =
+      let parse
+        (uuid: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<Uuid, String> =
         Builtin.Uuid.parse uuid
 
 

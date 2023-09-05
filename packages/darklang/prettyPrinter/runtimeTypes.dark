@@ -315,7 +315,8 @@ module Darklang =
             //Base64.defaultEncodeToString bytes
             "<Bytes>"
 
-          | DUuid uuid -> $"<{valueTypeName}: {PACKAGE.Darklang.Stdlib.Uuid.toString uuid}>"
+          | DUuid uuid ->
+            $"<{valueTypeName}: {PACKAGE.Darklang.Stdlib.Uuid.toString uuid}>"
 
 
 

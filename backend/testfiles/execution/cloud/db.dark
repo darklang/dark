@@ -413,11 +413,13 @@ module Roundtrip =
 
     // Test equality for two different function results - this tests TVariable types, esp checking that we keep track of them correctly
     fetch (fun p ->
-      ((PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000") |> Builtin.unwrap)
+      ((PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
+       |> Builtin.unwrap)
       == p.uuid) = [ sample () ]
 
     ((fetch (fun p ->
-      ((PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000") |> Builtin.unwrap)
+      ((PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
+       |> Builtin.unwrap)
       == ((PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
           |> Builtin.unwrap)))
      |> PACKAGE.Darklang.Stdlib.List.length) = 2
