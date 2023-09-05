@@ -25,9 +25,9 @@ module Darklang =
       |> Builtin.String.replaceAll "\r" "\\r"
 
     let processRemainder (remainder: String) : String =
-      let rem = $".{remainder}" |> Builtin.Float.parse
+      let rem = $".{remainder}" |> PACKAGE.Darklang.Stdlib.Float.parse
 
       rem
       |> Builtin.unwrap
-      |> Builtin.Float.toString
+      |> PACKAGE.Darklang.Stdlib.Float.toString
       |> PACKAGE.Darklang.Stdlib.String.dropFirst 2

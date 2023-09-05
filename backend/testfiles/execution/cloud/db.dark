@@ -731,15 +731,17 @@ module FindAll =
   friendsError (fun p -> "; select * from users;" == p.name) = []
 
 module CompiledFunctions =
-  (friends (fun p -> Builtin.Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
 
-  (friends (fun p -> Builtin.Float.lessThanOrEqualTo_v0 p.income 82.10)) = [ "GrumpyCat"
-                                                                             "Rachel" ]
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.Float.lessThanOrEqualTo_v0 p.income 82.10)) = [ "GrumpyCat"
+                                                                            "Rachel" ]
 
-  (friends (fun p -> Builtin.Float.greaterThan_v0 p.income 90.0)) = [ "Ross" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.greaterThan_v0 p.income 90.0)) = [ "Ross" ]
 
-  (friends (fun p -> Builtin.Float.greaterThanOrEqualTo_v0 82.10 p.income)) = [ "GrumpyCat"
-                                                                                "Rachel" ]
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.Float.greaterThanOrEqualTo_v0 82.10 p.income)) = [ "GrumpyCat"
+                                                                               "Rachel" ]
 
   (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 p.height 65)) = [ "GrumpyCat"
                                                                                         "Rachel" ]

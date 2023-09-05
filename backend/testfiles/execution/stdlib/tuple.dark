@@ -68,7 +68,7 @@ PACKAGE.Darklang.Stdlib.Tuple3.mapThird
   ("one", 2, "pi") = ("one", 2, "PI")
 
 PACKAGE.Darklang.Stdlib.Tuple3.mapThird
-  (fun x -> Builtin.Float.roundDown_v0 x)
+  (fun x -> PACKAGE.Darklang.Stdlib.Float.roundDown_v0 x)
   (1, "two", 3.14) = (1, "two", 3)
 
 PACKAGE.Darklang.Stdlib.Tuple3.mapAllThree
@@ -80,5 +80,5 @@ PACKAGE.Darklang.Stdlib.Tuple3.mapAllThree
 PACKAGE.Darklang.Stdlib.Tuple3.mapAllThree
   (fun x -> x - 2)
   (fun x -> Builtin.String.toUppercase x)
-  (fun x -> Builtin.Float.roundDown_v0 x)
+  (fun x -> PACKAGE.Darklang.Stdlib.Float.roundDown_v0 x)
   (1, "two", 3.14) = (-1, "TWO", 3)
