@@ -6,8 +6,7 @@ module Darklang =
       ///The modulus <param b> must be 0 or negative.
       /// Use <fn Int.remainder> if you want the remainder after division, which has
       /// a different behavior for negative numbers.
-      let mod (a: Int) (b: Int) : Int =
-        Builtin.Int.mod a b
+      let ``mod`` (a: Int) (b: Int) : Int = Builtin.Int.``mod`` a b
 
 
       /// Returns the integer remainder left over after dividing <param value> by

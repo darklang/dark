@@ -103,17 +103,17 @@ PACKAGE.Darklang.Stdlib.List.map_v0
                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
                                                                 1 ]
 
-Builtin.Int.mod_v0 15 5 = 0
-Builtin.Int.mod_v0 15 6 = 3
-Builtin.Int.mod_v0 0 15 = 0
-Builtin.Int.mod_v0 (-1) 2 = 1
-Builtin.Int.mod_v0 (-754) 53 = 41
-Builtin.Int.mod_v0 9999999999998L 3 = 2
+PACKAGE.Darklang.Stdlib.Int.mod_v0 15 5 = 0
+PACKAGE.Darklang.Stdlib.Int.mod_v0 15 6 = 3
+PACKAGE.Darklang.Stdlib.Int.mod_v0 0 15 = 0
+PACKAGE.Darklang.Stdlib.Int.mod_v0 (-1) 2 = 1
+PACKAGE.Darklang.Stdlib.Int.mod_v0 (-754) 53 = 41
+PACKAGE.Darklang.Stdlib.Int.mod_v0 9999999999998L 3 = 2
 
-Builtin.Int.mod_v0 5 0 = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int.mod_v0 5 0 = Builtin.Test.derrorMessage
   "Expected `b` to be positive, but it was `0`"
 
-Builtin.Int.mod_v0 5 (-5) = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int.mod_v0 5 (-5) = Builtin.Test.derrorMessage
   "Expected `b` to be positive, but it was `-5`"
 
 // PACKAGE.Darklang.Stdlib.List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 (-5) 5) (fun v ->
