@@ -19,6 +19,7 @@ module Darklang =
       /// whether it begins with a vowel
       let articleFor (nextWord: String) : String =
         let vowels = [ 'A'; 'E'; 'I'; 'O'; 'U'; 'a'; 'e'; 'i'; 'o'; 'u' ]
+
         match Builtin.String.head nextWord with
         | None -> ""
         | Some c ->
