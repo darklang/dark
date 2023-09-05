@@ -26,7 +26,7 @@ module Darklang =
       /// Transform the first value in a pair
       let mapFirst (fn: 'a -> 'c) (tuple: Tuple<'a, 'b>) : Tuple<'c, 'b> =
         let (first, second) = tuple
-        (fn head, second)
+        (fn first, second)
 
 
       /// Transform the second value in a pair
