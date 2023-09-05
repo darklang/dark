@@ -231,7 +231,7 @@ module Darklang =
             (KnownType.KTTuple(
               toValueType first,
               toValueType second,
-              theRest |> Builtin.List.map (fun item -> toValueType item)
+              theRest |> PACKAGE.Darklang.Stdlib.List.map (fun item -> toValueType item)
             ))
             |> ValueType.Known
 
@@ -257,7 +257,7 @@ module Darklang =
             match fnImpl with
             | Lambda lambda ->
               let params =
-                Builtin.List.map lambda.parameters (fun _ -> ValueType.Unknown)
+                PACKAGE.Darklang.Stdlib.List.map lambda.parameters (fun _ -> ValueType.Unknown)
 
               ValueType.Known(KnownType.KTFn(params, ValueType.Unknown))
 

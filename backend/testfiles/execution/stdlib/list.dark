@@ -186,14 +186,14 @@ PACKAGE.Darklang.Stdlib.List.interleave_v0 [] [ 4; 5; 6 ] = [ 4; 5; 6 ]
 PACKAGE.Darklang.Stdlib.List.interleave_v0 [] [] = []
 
 PACKAGE.Darklang.Stdlib.List.interleave_v0 [ "a"; "b"; "c" ] [ 0 ] = Builtin.Test.derrorMessage
-  "Could not merge types List<String> and List<Int>"
+  "Could not merge types List<Int> and List<String>"
 
 PACKAGE.Darklang.Stdlib.List.interpose_v0 [ 1; 2; 3 ] 5 = [ 1; 5; 2; 5; 3 ]
 PACKAGE.Darklang.Stdlib.List.interpose_v0 [ 1 ] 5 = [ 1 ]
 PACKAGE.Darklang.Stdlib.List.interpose_v0 [] 5 = []
 
-Builtin.List.interpose_v0 [ "a"; "b"; "c" ] 0 = Builtin.Test.derrorMessage
-  "Could not merge types List<String> and List<Int>"
+PACKAGE.Darklang.Stdlib.List.interpose_v0 [ "a"; "b"; "c" ] 0 = Builtin.Test.derrorMessage
+  "Could not merge types List<Int> and List<String>"
 
 
 PACKAGE.Darklang.Stdlib.List.isEmpty_v0 [ 1 ] = false

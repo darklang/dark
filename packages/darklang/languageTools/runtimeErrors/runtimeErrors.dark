@@ -44,23 +44,20 @@ module Darklang =
           let reversed = PACKAGE.Darklang.Stdlib.List.reverse list
 
           let parts =
-            PACKAGE.Darklang.Stdlib.List.fold
-              reversed
-              []
-              (fun prevSegments segment ->
-                let newSegment =
-                  match segment with
-                  | String s -> s
-                  | Int i -> Builtin.Int.toString i
-                  | Ordinal i -> Stdlib.String.toOrdinal i
+            PACKAGE.Darklang.Stdlib.List.fold reversed [] (fun prevSegments segment ->
+              let newSegment =
+                match segment with
+                | String s -> s
+                | Int i -> Builtin.Int.toString i
+                | Ordinal i -> Stdlib.String.toOrdinal i
 
-                  | IndefiniteArticle ->
-                    match Stdlib.List.head prevSegments with
-                    | None -> ""
-                    | Some prev -> Stdlib.String.articleFor prev ++ " "
+                | IndefiniteArticle ->
+                  match Stdlib.List.head prevSegments with
+                  | None -> ""
+                  | Some prev -> Stdlib.String.articleFor prev ++ " "
 
-                  | FunctionName fn ->
-                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.fnName fn
+                | FunctionName fn ->
+                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.fnName fn
 
                 | Description d -> d
                 | ParamName p -> $"`{p}`"
@@ -89,7 +86,7 @@ module Darklang =
                 | segment ->
                   $"(RTETODO toString parts {(Builtin.Json.serialize<ErrorSegment> segment) |> Builtin.unwrap})"
 
-                PACKAGE.Darklang.Stdlib.List.push prevSegments newSegment)
+              PACKAGE.Darklang.Stdlib.List.push prevSegments newSegment)
 
           Builtin.String.join parts ""
 
