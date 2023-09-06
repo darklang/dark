@@ -350,7 +350,7 @@ module Darklang =
           | DRecord(_, typeName, o) ->
             let strs =
               o
-              |> Builtin.Dict.toList
+              |> PACKAGE.Darklang.Stdlib.Dict.toList
               |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
                 let (key, value) = pair
                 $"{key}: {withIndent indent value}")

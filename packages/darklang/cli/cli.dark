@@ -313,7 +313,8 @@ module Darklang =
             Builtin.print e.msg
 
             e.metadata
-            |> Builtin.Dict.iter (fun (k, v) -> Builtin.print $"  {k}: {v}")
+            |> PACKAGE.Darklang.Stdlib.Dict.iter (fun (k, v) ->
+              Builtin.print $"  {k}: {v}")
 
             1
 
