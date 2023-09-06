@@ -187,7 +187,7 @@ module Darklang =
         | TList inner -> $"List<{typeReference inner}>"
         | TDict inner -> $"Dict<{typeReference inner}>"
         | TTuple(first, second, theRest) ->
-          (Builtin.List.append [ first; second ] theRest)
+          (PACKAGE.Darklang.Stdlib.List.append [ first; second ] theRest)
           |> PACKAGE.Darklang.Stdlib.List.map (fun item -> typeReference item)
           |> Builtin.String.join " * "
           |> fun parts -> "(" ++ parts ++ ")"
@@ -240,7 +240,7 @@ module Darklang =
         | KTList typ -> $"List<{valueType typ}>"
         | KTDict typ -> $"Dict<{valueType typ}>"
         | KTTuple(t1, t2, trest) ->
-          (Builtin.List.append [ t1; t2 ] trest)
+          (PACKAGE.Darklang.Stdlib.List.append [ t1; t2 ] trest)
           |> PACKAGE.Darklang.Stdlib.List.map (fun item -> valueType item)
           |> Builtin.String.join ", "
           |> fun s -> $"({s})"
@@ -333,7 +333,7 @@ module Darklang =
               $"[{inl}{elems}{nl}]"
 
           | DTuple(first, second, theRest) ->
-            let l = Builtin.List.append [ first; second ] theRest
+            let l = PACKAGE.Darklang.Stdlib.List.append [ first; second ] theRest
 
             let parts =
               PACKAGE.Darklang.Stdlib.List.map l (fun item -> withIndent indent item)

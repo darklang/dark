@@ -13,6 +13,6 @@ Builtin.Test.getQueue_v0 "TestWorker" = []
  let _ = Builtin.emit 1 "TestWorker"
  let _ = Builtin.emit (FruitRecord { fruits = [ "apple"; "banana" ] }) "TestWorker"
  let queue = Builtin.Test.getQueue_v0 "TestWorker"
- Builtin.List.sort queue) = [ "\"value\""
-                              "1"
-                              "FruitRecord {\n  fruits: [\n    \"apple\", \"banana\"\n  ]\n}" ]
+ PACKAGE.Darklang.Stdlib.List.sort queue) = [ "\"value\""
+                                              "1"
+                                              "FruitRecord {\n  fruits: [\n    \"apple\", \"banana\"\n  ]\n}" ]

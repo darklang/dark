@@ -267,7 +267,7 @@ let _handler _req =
     |> PACKAGE.Darklang.Stdlib.List.map (fun m ->
       let (owner, modules, name) = m
       $"{owner}.{modules}.{name}")
-    |> Builtin.List.sort
+    |> PACKAGE.Darklang.Stdlib.List.sort
     |> Builtin.String.join "\n"
 
   let respBody =

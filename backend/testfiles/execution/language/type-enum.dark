@@ -63,8 +63,8 @@ module Simple =
   (AorB.A == AorB.A) = true
   (AorB.A == AorB.B) = false
 
-  Builtin.List.unique_v0 [ AorB.A; AorB.B; AorB.A; AorB.A; AorB.B ] = [ AorB.A
-                                                                        AorB.B ]
+  PACKAGE.Darklang.Stdlib.List.unique_v0 [ AorB.A; AorB.B; AorB.A; AorB.A; AorB.B ] = [ AorB.A
+                                                                                        AorB.B ]
 
   module EnumReference =
     type CorD =

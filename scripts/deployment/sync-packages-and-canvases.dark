@@ -95,7 +95,7 @@ let import () : Result<ImportResults, String> =
         let result = DarkInternal.Packages.parseAndImport package
 
         match result with
-        | Ok _ -> Ok(Builtin.List.append acc [ package.name ])
+        | Ok _ -> Ok(PACKAGE.Darklang.Stdlib.List.append acc [ package.name ])
         | Error error -> Error error)
 
 
@@ -109,7 +109,7 @@ let import () : Result<ImportResults, String> =
         let result = DarkInternal.Canvas.parseAndImport canvas
 
         match result with
-        | Ok _ -> Ok(Builtin.List.append acc [ canvas.name ])
+        | Ok _ -> Ok(PACKAGE.Darklang.Stdlib.List.append acc [ canvas.name ])
         | Error error -> Error error)
 
   Builtin.print "handling results"

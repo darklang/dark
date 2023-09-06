@@ -339,7 +339,7 @@ module Darklang =
           $"List<{PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference inner}>"
 
         | TTuple(first, second, theRest) ->
-          (Builtin.List.append [ first; second ] theRest)
+          (PACKAGE.Darklang.Stdlib.List.append [ first; second ] theRest)
           |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference item)
           |> Builtin.String.join " * "
@@ -407,7 +407,7 @@ module Darklang =
         | CString s -> $"\"{s}\""
         | CUnit -> "()"
         | CTuple(first, second, theRest) ->
-          (Builtin.List.append [ first; second ] theRest)
+          (PACKAGE.Darklang.Stdlib.List.append [ first; second ] theRest)
           |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.constant item)
           |> Builtin.String.join ", "
@@ -442,7 +442,7 @@ module Darklang =
         match lp with
         | LPVariable(_id, name) -> name
         | LPTuple(_id, first, second, theRest) ->
-          (Builtin.List.append [ first; second ] theRest)
+          (PACKAGE.Darklang.Stdlib.List.append [ first; second ] theRest)
           |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.letPattern item)
           |> Builtin.String.join ", "
@@ -483,7 +483,7 @@ module Darklang =
           $"{headPart} :: {tailPart}"
 
         | MPTuple(_, first, second, theRest) ->
-          (Builtin.List.append [ first; second ] theRest)
+          (PACKAGE.Darklang.Stdlib.List.append [ first; second ] theRest)
           |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.matchPattern item)
           |> Builtin.String.join ", "
@@ -679,7 +679,7 @@ module Darklang =
 
 
         | ETuple(_id, first, second, theRest) ->
-          (Builtin.List.append [ first; second ] theRest)
+          (PACKAGE.Darklang.Stdlib.List.append [ first; second ] theRest)
           |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr item)
           |> Builtin.String.join ", "

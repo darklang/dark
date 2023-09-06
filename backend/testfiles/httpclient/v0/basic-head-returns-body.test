@@ -16,7 +16,7 @@ Here's a body!
 // HEAD requests aren't supposed to actually return a body. But it seems like the
 // clients successfully ignore it.
 (let response = (Builtin.HttpClient.request "head" "http://URL" [] Builtin.Bytes.empty) |> Builtin.unwrap
- let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
+ let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    Builtin.HttpClient.Response
     { statusCode = 200

@@ -10,7 +10,9 @@ let listDirectoryRecursive (dir: String) : List<String> =
     |> PACKAGE.Darklang.Stdlib.List.map (fun d -> listDirectoryRecursive d)
     |> Builtin.LocalExec.BuiltIns.List.flatten
 
-  dirs |> Builtin.List.append files |> Builtin.List.append nested
+  dirs
+  |> PACKAGE.Darklang.Stdlib.List.append files
+  |> PACKAGE.Darklang.Stdlib.List.append nested
 
 
 // Packages

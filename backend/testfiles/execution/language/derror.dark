@@ -15,7 +15,7 @@ Actual: a String: \"not an option\"")
 // Check we get previous errors before later ones
 (PACKAGE.Darklang.Stdlib.List.map_v0 [ 1; 2; 3; 4; 5 ] (fun x ->
   Builtin.Test.runtimeError "X"))
-|> Builtin.List.fakeFunction = Builtin.Test.derrorMessage "X"
+|> PACKAGE.Darklang.Stdlib.List.fakeFunction = Builtin.Test.derrorMessage "X"
 
 
 

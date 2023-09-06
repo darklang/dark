@@ -137,12 +137,16 @@ module AddToTestEnumDBs =
        "test2"
        TestEnumDB in
 
-   (Builtin.DB.getAll TestEnumDB) |> Builtin.List.sort) = [ EnumTestRecord
-                                                              { x = "goodbye"
-                                                                y = MyEnum.B }
-                                                            EnumTestRecord
-                                                              { x = "hello"
-                                                                y = MyEnum.A } ]
+   (Builtin.DB.getAll TestEnumDB) |> PACKAGE.Darklang.Stdlib.List.sort) = [ EnumTestRecord
+                                                                              { x =
+                                                                                  "goodbye"
+                                                                                y =
+                                                                                  MyEnum.B }
+                                                                            EnumTestRecord
+                                                                              { x =
+                                                                                  "hello"
+                                                                                y =
+                                                                                  MyEnum.A } ]
 
   (let test1 =
     Builtin.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
@@ -159,7 +163,8 @@ module AddToTestEnumDBs =
 
   (let test1 = Builtin.DB.set MyEnum.A "test1" TestEnumDB2 in
    let test2 = Builtin.DB.set MyEnum.B "test2" TestEnumDB2 in
-   (Builtin.DB.getAll TestEnumDB2) |> Builtin.List.sort) = [ MyEnum.A; MyEnum.B ]
+   (Builtin.DB.getAll TestEnumDB2) |> PACKAGE.Darklang.Stdlib.List.sort) = [ MyEnum.A
+                                                                             MyEnum.B ]
 
   (let test1 = Builtin.DB.set MyEnum.C "test1" TestEnumDB2 in
    let test2 = Builtin.DB.set MyEnum.B "test2" TestEnumDB2 in
@@ -170,9 +175,10 @@ module AddToTestEnumDBs =
   (let test1 = Builtin.DB.set MyEnum2.D "test1" TestEnumDB3 in
    let test2 = Builtin.DB.set MyEnum2.E "test2" TestEnumDB3 in
    let test3 = Builtin.DB.set (MyEnum2.F MyEnum.A) "test3" TestEnumDB3 in
-   (Builtin.DB.getAll TestEnumDB3) |> Builtin.List.sort) = [ MyEnum2.D
-                                                             MyEnum2.E
-                                                             MyEnum2.F MyEnum.A ]
+   (Builtin.DB.getAll TestEnumDB3) |> PACKAGE.Darklang.Stdlib.List.sort) = [ MyEnum2.D
+                                                                             MyEnum2.E
+                                                                             MyEnum2.F
+                                                                               MyEnum.A ]
 
   (let test1 = Builtin.DB.set MyEnum.D "test1" TestEnumDB2 in
    (Builtin.DB.getAll TestEnumDB2)) = Builtin.Test.derrorMessage
@@ -404,10 +410,9 @@ module Roundtrip =
       p.datetime
       == ((Builtin.DateTime.parse "2019-12-31T23:59:59Z") |> Builtin.unwrap)) = []
 
-    (fetch (fun p -> p.unit == ())) |> Builtin.List.sortBy (fun v -> v.int) = [ sample
-                                                                                  ()
-                                                                                otherSample
-                                                                                  () ]
+    (fetch (fun p -> p.unit == ()))
+    |> PACKAGE.Darklang.Stdlib.List.sortBy (fun v -> v.int) = [ sample ()
+                                                                otherSample () ]
 
     fetch (fun p -> p.unit != ()) = []
 
@@ -498,27 +503,24 @@ module GetAll =
   (let one = Builtin.DB.set (SortedX { x = "hello"; sortBy = 0 }) "one" SortedXDB in
    let two = Builtin.DB.set (SortedX { x = "goodbye"; sortBy = 1 }) "two" SortedXDB in
    let three = Builtin.DB.set (SortedX { x = "howdy"; sortBy = 2 }) "three" SortedXDB in
-   (Builtin.DB.getAll SortedXDB) |> Builtin.List.sortBy_v0 (fun x -> x.sortBy)) = [ (SortedX
-                                                                                      { x =
-                                                                                          "hello"
-                                                                                        sortBy =
-                                                                                          0 })
-                                                                                    (SortedX
-                                                                                      { x =
-                                                                                          "goodbye"
-                                                                                        sortBy =
-                                                                                          1 })
-                                                                                    (SortedX
-                                                                                      { x =
-                                                                                          "howdy"
-                                                                                        sortBy =
-                                                                                          2 }) ]
+
+   (Builtin.DB.getAll SortedXDB)
+   |> PACKAGE.Darklang.Stdlib.List.sortBy_v0 (fun x -> x.sortBy)) = [ (SortedX
+                                                                        { x = "hello"
+                                                                          sortBy = 0 })
+                                                                      (SortedX
+                                                                        { x =
+                                                                            "goodbye"
+                                                                          sortBy = 1 })
+                                                                      (SortedX
+                                                                        { x = "howdy"
+                                                                          sortBy = 2 }) ]
 
 
 module GetAllKeys =
   (let one = Builtin.DB.set (X { x = "hello" }) "one" XDB in
    let two = Builtin.DB.set (X { x = "goodbye" }) "two" XDB in
-   (Builtin.DB.keys XDB) |> Builtin.List.sort_v0) = [ "one"; "two" ]
+   (Builtin.DB.keys XDB) |> PACKAGE.Darklang.Stdlib.List.sort_v0) = [ "one"; "two" ]
 
 
 module GetAllWithKeys =
@@ -553,8 +555,8 @@ module GetMany =
 
    (Builtin.DB.getMany [ "one"; "two" ] XDB)
    |> Builtin.unwrap
-   |> Builtin.List.sortBy (fun v -> v.x)) = [ (X { x = "goodbye" })
-                                              (X { x = "hello" }) ]
+   |> PACKAGE.Darklang.Stdlib.List.sortBy (fun v -> v.x)) = [ (X { x = "goodbye" })
+                                                              (X { x = "hello" }) ]
 
 
 module Delete =
@@ -655,7 +657,7 @@ let friends (lambda: ('a -> Bool)) : List<String> =
 
   (Builtin.DB.query PersonDB lambda)
   |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun p -> p.name)
-  |> Builtin.List.sort_v0
+  |> PACKAGE.Darklang.Stdlib.List.sort_v0
 
 
 // Test standard language features
@@ -862,7 +864,10 @@ module PartialEvaluation =
 
    ((Builtin.DB.query PersonDB (fun p -> x.y.z.a < p.height))
     |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun p -> p.name)
-    |> Builtin.List.sort_v0)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+    |> PACKAGE.Darklang.Stdlib.List.sort_v0)) = [ " Chandler "
+                                                  "GrumpyCat"
+                                                  "Rachel"
+                                                  "Ross" ]
 
   // fieldAccesses inside query
   (friends (fun p -> let x = Y { y = Z { z = A { a = 5 } } } in x.y.z.a < p.height)) = [ " Chandler "

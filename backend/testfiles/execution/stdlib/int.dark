@@ -292,12 +292,12 @@ PACKAGE.Darklang.Stdlib.Int.divide_v0 1 0 = Builtin.Test.derrorMessage
 ((PACKAGE.Darklang.Stdlib.List.range_v0 1 100)
  |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
    PACKAGE.Darklang.Stdlib.Int.random 0 1)
- |> Builtin.List.unique_v0) = [ 0; 1 ]
+ |> PACKAGE.Darklang.Stdlib.List.unique_v0) = [ 0; 1 ]
 
 ((PACKAGE.Darklang.Stdlib.List.range_v0 1 100)
  |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
    PACKAGE.Darklang.Stdlib.Int.random 0 2)
- |> Builtin.List.unique_v0) = [ 0; 1; 2 ]
+ |> PACKAGE.Darklang.Stdlib.List.unique_v0) = [ 0; 1; 2 ]
 
 PACKAGE.Darklang.Stdlib.Int.sum_v0 [ 1; 2 ] = 3
 

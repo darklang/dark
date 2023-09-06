@@ -171,7 +171,7 @@ module Darklang =
 
             { innerOutput with
                 summary =
-                  Builtin.List.append
+                  PACKAGE.Darklang.Stdlib.List.append
                     [ (ErrorSegment.ErrorSegment.String sqlErrorTemplate) ]
                     innerOutput.summary }
 
@@ -193,7 +193,9 @@ module Darklang =
           let s = toSegments e
 
           let explanation =
-            ErrorSegment.toString (Builtin.List.append s.summary s.extraExplanation)
+            ErrorSegment.toString (
+              PACKAGE.Darklang.Stdlib.List.append s.summary s.extraExplanation
+            )
 
           let actual = ErrorSegment.toString s.actual
           let actual = if actual == "" then "" else $"\nActual: {actual}"
