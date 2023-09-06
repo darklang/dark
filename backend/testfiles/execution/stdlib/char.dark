@@ -178,16 +178,6 @@ PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'a' (family ()) = false
 PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 (smiley ()) (hand ()) = true
 
 
-PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 ' ' = true
-PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 '\n' = true
-PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 '\t' = true
-PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 '\r' = true
-PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 'a' = false
-PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 'A' = false
-PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 '1' = false
-PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 (smiley ()) = false
-
-
 PACKAGE.Darklang.Stdlib.Char.toString 'A' = "A"
 PACKAGE.Darklang.Stdlib.Char.toString 'a' = "a"
 PACKAGE.Darklang.Stdlib.Char.toString 'Á' = "Á"

@@ -56,27 +56,27 @@ PACKAGE.Darklang.Stdlib.Int.remainder_v0 5 0 = PACKAGE.Darklang.Stdlib.Result.Re
 PACKAGE.Darklang.Stdlib.List.map_v0
   (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5)
   (fun v -> PACKAGE.Darklang.Stdlib.Int.remainder_v0 v -4) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 -1
-                                                                 PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 0
-                                                                 PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 -3
-                                                                 PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 -2
-                                                                 PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 -1
-                                                                 PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 0
-                                                                 PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 1
-                                                                 PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 2
-                                                                 PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 3
-                                                                 PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 0
-                                                                 PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 1 ]
+                                                                -1
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                0
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                -3
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                -2
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                -1
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                0
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                1
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                2
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                3
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                0
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                1 ]
 
 PACKAGE.Darklang.Stdlib.List.map_v0
   (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5)
