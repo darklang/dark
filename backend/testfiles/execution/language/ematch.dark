@@ -43,43 +43,43 @@
  | [ i; j ] -> "pass"
  | [ i ] -> "fail") = "pass"
 
-// Errors
-(match "nothing matches" with
- | "not this" -> "fail") = Builtin.Test.derrorMessage "No match"
+module Errors =
+  (match "nothing matches" with
+   | "not this" -> "fail") = Builtin.Test.derrorMessage "No match"
 
-(match Builtin.Test.runtimeError "cond is error" with
- | 5 -> "fail"
- | 6 -> "pass"
- | var -> "fail") = Builtin.Test.derrorMessage "cond is error"
+  (match Builtin.Test.runtimeError "cond is error" with
+   | 5 -> "fail"
+   | 6 -> "pass"
+   | var -> "fail") = Builtin.Test.derrorMessage "cond is error"
 
-(match Builtin.Test.runtimeError "cond is error, wildcard" with
- | 5 -> 5
- | _ -> 6) = Builtin.Test.derrorMessage "cond is error, wildcard"
+  (match Builtin.Test.runtimeError "cond is error, wildcard" with
+   | 5 -> 5
+   | _ -> 6) = Builtin.Test.derrorMessage "cond is error, wildcard"
 
-(match 1 with
- | 1 -> Builtin.Test.runtimeError "a"
- | 6 -> "pass"
- | var -> "fail") = Builtin.Test.derrorMessage "a"
+  (match 1 with
+   | 1 -> Builtin.Test.runtimeError "a"
+   | 6 -> "pass"
+   | var -> "fail") = Builtin.Test.derrorMessage "a"
 
-(match 1 with
- | 2 -> Builtin.Test.runtimeError "a"
- | 1 -> "pass"
- | var -> "fail") = "pass"
+  (match 1 with
+   | 2 -> Builtin.Test.runtimeError "a"
+   | 1 -> "pass"
+   | var -> "fail") = "pass"
 
-(match 1 with
- | 1 -> "pass"
- | 6 -> Builtin.Test.runtimeError "a"
- | var -> "fail") = "pass"
+  (match 1 with
+   | 1 -> "pass"
+   | 6 -> Builtin.Test.runtimeError "a"
+   | var -> "fail") = "pass"
 
-(match 1 with
- | 2 -> "pass"
- | 1 -> Builtin.Test.runtimeError "a"
- | var -> "fail") = Builtin.Test.derrorMessage "a"
+  (match 1 with
+   | 2 -> "pass"
+   | 1 -> Builtin.Test.runtimeError "a"
+   | var -> "fail") = Builtin.Test.derrorMessage "a"
 
-(match 3 with
- | 2 -> "pass"
- | 1 -> Builtin.Test.runtimeError "a"
- | var -> "pass") = "pass"
+  (match 3 with
+   | 2 -> "pass"
+   | 1 -> Builtin.Test.runtimeError "a"
+   | var -> "pass") = "pass"
 
 // int
 (match 5 with
@@ -172,7 +172,7 @@
  | [ i ] -> "list:" ++ i
  | name -> name ++ "var") = "()"
 
-// constructor with arg
+// enum with arg
 (match PACKAGE.Darklang.Stdlib.Result.Result.Ok "x" with
  | 5 -> "int"
  | 5.6 -> "float"
@@ -184,6 +184,24 @@
  | (1, 2) -> "1 and 2"
  | [ i ] -> "list:" ++ i
  | name -> name ++ "var") = "PACKAGE.Darklang.Stdlib.Result.Result.Ok: x"
+
+type TestType =
+  | NoArgs
+  | OneArg of Int
+  | TwoArgs of Int * Int
+  | ThreeArgs of Int * Int * Int
+
+// enum with more pattern params than actual args
+(match TestType.NoArgs with
+ | NoArgs _ -> "wrong number") = Builtin.Test.runtimeError "x"
+
+// enum with fewer pattern params than actual args
+(match TestType.OneArg 1 with
+ | OneArg -> "wrong number") = Builtin.Test.derrorMessage "No match"
+
+// enum with single wildcard
+(match TestType.ThreeArgs(1, 2, 3) with
+ | ThreeArgs _ -> "correct number") = "correct number"
 
 // simple tuple
 (let tpl = (1, 2) in
