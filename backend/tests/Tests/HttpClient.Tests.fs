@@ -155,7 +155,7 @@ let makeTest versionName filename =
         // compressed
         |> String.replace "LENGTH" (string response.body.Length)
         |> LibParser.TestModule.parseSingleTestFromFile
-          resolverWithBuiltinsAndPackageManager
+          nameResolver
           "httpclient.tests.fs"
         |> Ply.toTask
 

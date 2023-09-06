@@ -434,58 +434,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "htmlEscape" 0
-      typeParams = []
-      parameters = [ Param.make "html" TString "" ]
-      returnType = TString
-      description =
-        "Escape an untrusted string in order to include it safely in HTML output"
-      fn =
-        (function
-        | _, _, [ DString s ] ->
-          let htmlEscape (html : string) : string =
-            List.map
-              (fun c ->
-                match c with
-                | '<' -> "&lt;"
-                | '>' -> "&gt;"
-                | '&' -> "&amp;"
-                // include these for html-attribute-escaping
-                // even though they're not strictly necessary
-                // for html-escaping proper.
-                | '"' -> "&quot;"
-                // &apos; doesn't work in IE....
-                | ''' -> "&#x27;"
-                | _ -> string c)
-              (Seq.toList html)
-            |> String.concat ""
-
-          Ply(DString(htmlEscape s))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "contains" 0
-      typeParams = []
-      parameters =
-        [ Param.make "lookingIn" TString ""; Param.make "searchingFor" TString "" ]
-      returnType = TBool
-      description = "Checks if <param lookingIn> contains <param searchingFor>"
-      fn =
-        (function
-        | _, _, [ DString haystack; DString needle ] ->
-          Ply(DBool(haystack.Contains needle))
-        | _ -> incorrectArgs ())
-      sqlSpec =
-        SqlCallback2(fun lookingIn searchingFor ->
-          // strpos returns indexed from 1; 0 means missing
-          $"strpos({lookingIn}, {searchingFor}) > 0")
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "slice" 0
       typeParams = []
       parameters =

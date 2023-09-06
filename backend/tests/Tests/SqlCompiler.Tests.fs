@@ -15,7 +15,7 @@ module S = TestUtils.RTShortcuts
 module Errors = LibExecution.Errors
 
 let p (code : string) : Task<Expr> =
-  LibParser.Parser.parseRTExpr builtinResolver "sqlcompiler.tests.fs" code
+  LibParser.Parser.parseRTExpr nameResolver "sqlcompiler.tests.fs" code
   |> Ply.toTask
 
 let compile
@@ -137,7 +137,7 @@ let inlineWorksAtRoot =
   testTask "inlineWorksAtRoot" {
     let! expr =
       LibParser.Parser.parseRTExpr
-        builtinResolver
+        nameResolver
         "test.fs"
         "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
       |> Ply.toTask

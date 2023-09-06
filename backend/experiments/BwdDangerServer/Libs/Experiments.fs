@@ -91,8 +91,8 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString code; DString filename ] ->
           uply {
             try
+              // TODO: this needs builtins and packages
               let! canvas =
-                // TODO: this needs builtins and packages
                 LibParser.Canvas.parse LibParser.NameResolver.empty filename code
 
               let types = List.map PT2RT.UserType.toRT canvas.types

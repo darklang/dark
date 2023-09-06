@@ -652,7 +652,7 @@ let friends (lambda: ('a -> Bool)) : List<String> =
   let _ = prepFriends () in
 
   (Builtin.DB.query PersonDB lambda)
-  |> Builtin.List.map_v0 (fun p -> p.name)
+  |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun p -> p.name)
   |> Builtin.List.sort_v0
 
 
@@ -758,14 +758,17 @@ module CompiledFunctions =
   (friends (fun p -> Builtin.String.reverse_v0 p.name == "lehcaR")) = [ "Rachel" ]
   // Not implemented yet
   // (friends (fun p -> Builtin.String.length p.name > 5)) = [" Chandler "; "GrumpyCat"; "Rachel" ]
-  (friends (fun p -> Builtin.String.contains_v0 p.name "ROSS")) = []
-  (friends (fun p -> Builtin.String.contains_v0 p.name "R")) = [ "Rachel"; "Ross" ]
-  (friends (fun p -> Builtin.String.contains_v0 p.name "ZZZ")) = []
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.String.contains_v0 p.name "ROSS")) = []
 
-  (friends (fun p -> Builtin.String.contains_v0 p.name "")) = [ " Chandler "
-                                                                "GrumpyCat"
-                                                                "Rachel"
-                                                                "Ross" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.String.contains_v0 p.name "R")) = [ "Rachel"
+                                                                                 "Ross" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.String.contains_v0 p.name "ZZZ")) = []
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.String.contains_v0 p.name "")) = [ " Chandler "
+                                                                                "GrumpyCat"
+                                                                                "Rachel"
+                                                                                "Ross" ]
 
   (friends (fun p -> Builtin.String.replaceAll_v0 p.name "handle" "he" == " Cher ")) = [ " Chandler " ]
   (friends (fun p -> Builtin.String.replaceAll_v0 p.name " " "Xx" == "XxChandlerXx")) = [ " Chandler " ]
@@ -854,7 +857,7 @@ module PartialEvaluation =
    let x = Y { y = Z { z = A { a = 5 } } }
 
    ((Builtin.DB.query PersonDB (fun p -> x.y.z.a < p.height))
-    |> Builtin.List.map_v0 (fun p -> p.name)
+    |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun p -> p.name)
     |> Builtin.List.sort_v0)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // fieldAccesses inside query
@@ -912,7 +915,8 @@ module QueryWithKey =
 
    (Builtin.DB.queryWithKey PersonDB (fun p -> p.name == "Rachel"))
    |> Builtin.Dict.toList_v0
-   |> Builtin.List.map (fun v -> (PACKAGE.Darklang.Stdlib.Tuple2.second v).name)) = [ "Rachel" ]
+   |> PACKAGE.Darklang.Stdlib.List.map (fun v ->
+     (PACKAGE.Darklang.Stdlib.Tuple2.second v).name)) = [ "Rachel" ]
 
 module QueryCount =
   // none

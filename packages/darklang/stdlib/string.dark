@@ -45,7 +45,7 @@ module Darklang =
 
       /// Returns the list of characters as a string
       let fromList (lst: List<Char>) : String =
-        (Builtin.List.map lst (fun c -> Builtin.Char.toString c))
+        (PACKAGE.Darklang.Stdlib.List.map lst (fun c -> Builtin.Char.toString c))
         |> Builtin.String.join ""
 
 
@@ -189,3 +189,33 @@ module Darklang =
       /// If the <param str> is empty, it returns an empty list.
       let splitOnNewline (str: String) : List<String> =
         if str == "" then [] else Builtin.String.split str "\n"
+
+
+      /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.
+      let append (s1: String) (s2: String) : String = $"{s1}{s2}"
+
+
+      /// Escape an untrusted string in order to include it safely in HTML output
+      let htmlEscape (html: String) : String =
+        html
+        |> Builtin.String.toList
+        |> PACKAGE.Darklang.Stdlib.List.map (fun c ->
+          match c with
+          | '<' -> "&lt;"
+          | '>' -> "&gt;"
+          | '&' -> "&amp;"
+          // include these for html-attribute-escaping
+          // even though they're not strictly necessary
+          // for html-escaping proper.
+          | '"' -> "&quot;"
+          // &apos; doesn't work in IE....
+          | ''' -> "&#x27;"
+          | _ -> PACKAGE.Darklang.Stdlib.String.fromChar c)
+        |> Builtin.String.join ""
+
+
+      /// Checks if <param lookingIn> contains <param searchingFor>
+      let contains (lookingIn: String) (searchingFor: String) : Bool =
+        match Builtin.String.indexOf lookingIn searchingFor with
+        | Some _ -> true
+        | None -> false

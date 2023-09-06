@@ -9,3 +9,8 @@ module Darklang =
       /// Return whether <param c> is an uppercase character.
       let isUppercase (c: Char) : Bool =
         Builtin.Char.toLowercase c != c && Builtin.Char.toUppercase c == c
+
+
+      /// Return whether <param c> is a whitespace character.
+      let isWhitespace (c: Char) : Bool =
+        c == ' ' || c == '\n' || c == '\t' || c == '\r'

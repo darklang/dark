@@ -23,7 +23,7 @@ let testPipesToRuntimeTypes =
   testTask "pipes to runtime types" {
     let! actual =
       "value.age |> (-) 2 |> (+) value.age |> (<) 3"
-      |> LibParser.Parser.parseRTExpr builtinResolver "programTypes.tests.fs"
+      |> LibParser.Parser.parseRTExpr nameResolver "programTypes.tests.fs"
       |> Ply.toTask
 
     let expected =

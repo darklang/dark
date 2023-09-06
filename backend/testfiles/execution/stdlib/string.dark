@@ -16,25 +16,30 @@ module Append =
   "a" ++ "" = "a"
   "a" ++ "̂" = "â"
 
-  Builtin.String.append "a" "̂" = "â"
-  Builtin.String.append "" "" = ""
-  Builtin.String.append "hello" " world" = "hello world"
-  Builtin.String.append "hello" "world" = "helloworld" // Builtin.String.append works for ASCII range
-  Builtin.String.append "ᄀ" "ᅡᆨ" = "각"
-  Builtin.String.append "żółw" "😄" = "żółw😄" // Builtin.String.append works on non-ascii strings
-  Builtin.String.append "🧑🏼‍💻" "🧑🏻‍🍼" = "🧑🏼‍💻🧑🏻‍🍼"
-  Builtin.String.append "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-  Builtin.String.append "🧟‍♂️🧟‍♀️" "🧟‍♂️" = "🧟‍♂️🧟‍♀️🧟‍♂️"
-  Builtin.String.append "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "👨‍❤️‍💋‍👨" = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇👨‍❤️‍💋‍👨"
+  PACKAGE.Darklang.Stdlib.String.append "a" "̂" = "â"
+  PACKAGE.Darklang.Stdlib.String.append "" "" = ""
+  PACKAGE.Darklang.Stdlib.String.append "hello" " world" = "hello world"
+  PACKAGE.Darklang.Stdlib.String.append "hello" "world" = "helloworld" // PACKAGE.Darklang.Stdlib.String.append works for ASCII range
+  PACKAGE.Darklang.Stdlib.String.append "ᄀ" "ᅡᆨ" = "각"
+  PACKAGE.Darklang.Stdlib.String.append "żółw" "😄" = "żółw😄" // PACKAGE.Darklang.Stdlib.String.append works on non-ascii strings
+  PACKAGE.Darklang.Stdlib.String.append "🧑🏼‍💻" "🧑🏻‍🍼" = "🧑🏼‍💻🧑🏻‍🍼"
+  PACKAGE.Darklang.Stdlib.String.append "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+  PACKAGE.Darklang.Stdlib.String.append "🧟‍♂️🧟‍♀️" "🧟‍♂️" = "🧟‍♂️🧟‍♀️🧟‍♂️"
+  PACKAGE.Darklang.Stdlib.String.append "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "👨‍❤️‍💋‍👨" = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇👨‍❤️‍💋‍👨"
 
 
 module Join =
   (Builtin.String.join_v0 [ "a"; "̂" ] "") |> Builtin.String.base64Encode_v0 = "w6I"
+
   Builtin.String.join_v0 [ "hello"; " world" ] "" = "hello world"
   Builtin.String.join_v0 [ "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"; "🧟‍♀️" ] "" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽🧟‍♀️"
+
   Builtin.String.join_v0 [ "👱👱🏻👱🏼👱🏽👱🏾👱🏿"; "👨‍❤️‍💋‍👨"; "﷽﷽﷽" ] "" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿👨‍❤️‍💋‍👨﷽﷽﷽"
+
   Builtin.String.join_v0 [ "🧟‍♀️🧟‍♂️"; "🧟‍♀️🧑🏽‍🦰" ] "" = "🧟‍♀️🧟‍♂️🧟‍♀️🧑🏽‍🦰"
+
   Builtin.String.join_v0 [ "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️"; "‍⚧️‍️🇵🇷" ] "" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+
   Builtin.String.join_v0 [ "🧟‍♀️🧟‍♂️‍"; "🧟‍♀️🧑🏽‍🦰‍‍" ] "" = "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
   Builtin.String.join_v0 [ "🧑🏽‍🦰‍"; "🧑🏼‍💻‍‍" ] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
 
@@ -257,23 +262,23 @@ module Random =
 
 
 module HtmlEscape =
-  Builtin.String.htmlEscape_v0 "test<>&\"" = "test&lt;&gt;&amp;&quot;" // HTML escaping works reasonably
+  PACKAGE.Darklang.Stdlib.String.htmlEscape_v0 "test<>&\"" = "test&lt;&gt;&amp;&quot;" // HTML escaping works reasonably
 
-  Builtin.String.htmlEscape_v0
+  PACKAGE.Darklang.Stdlib.String.htmlEscape_v0
     "<html><head></head><body><h1>This is f#</h1></body></html>" = "&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;This is f#&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;" // HTML escaping works reasonably
 
-  Builtin.String.htmlEscape_v0
+  PACKAGE.Darklang.Stdlib.String.htmlEscape_v0
     "<html><head><!-- head definitions go here --></head><body><!-- the content goes here --></body></html>" = "&lt;html&gt;&lt;head&gt;&lt;!-- head definitions go here --&gt;&lt;/head&gt;&lt;body&gt;&lt;!-- the content goes here --&gt;&lt;/body&gt;&lt;/html&gt;"
 
-  Builtin.String.htmlEscape_v0 "" = ""
-  Builtin.String.htmlEscape_v0 "😄" = "😄"
-  Builtin.String.htmlEscape_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  PACKAGE.Darklang.Stdlib.String.htmlEscape_v0 "" = ""
+  PACKAGE.Darklang.Stdlib.String.htmlEscape_v0 "😄" = "😄"
+  PACKAGE.Darklang.Stdlib.String.htmlEscape_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
 
-  Builtin.String.htmlEscape_v0
+  PACKAGE.Darklang.Stdlib.String.htmlEscape_v0
     "<html><head></head><body><h1>﷽﷽﷽﷽﷽</h1></body></html>" = "&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;﷽﷽﷽﷽﷽&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;"
 
-  Builtin.String.htmlEscape_v0 "<head>🧟‍♀️🧟‍♂️</head>" = "&lt;head&gt;🧟‍♀️🧟‍♂️&lt;/head&gt;"
-  Builtin.String.htmlEscape_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+  PACKAGE.Darklang.Stdlib.String.htmlEscape_v0 "<head>🧟‍♀️🧟‍♂️</head>" = "&lt;head&gt;🧟‍♀️🧟‍♂️&lt;/head&gt;"
+  PACKAGE.Darklang.Stdlib.String.htmlEscape_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 
 
 module IsEmpty =
@@ -716,19 +721,19 @@ module Last =
 
 
 module Contains =
-  Builtin.String.contains_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "2223" = false
-  Builtin.String.contains_v0 "👱👱🏻👱🏼👱🏽👱🏾" "👱🏿" = false
-  Builtin.String.contains_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = true
-  Builtin.String.contains_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️🧟‍♂️" = false
+  PACKAGE.Darklang.Stdlib.String.contains_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "2223" = false
+  PACKAGE.Darklang.Stdlib.String.contains_v0 "👱👱🏻👱🏼👱🏽👱🏾" "👱🏿" = false
+  PACKAGE.Darklang.Stdlib.String.contains_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = true
+  PACKAGE.Darklang.Stdlib.String.contains_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️🧟‍♂️" = false
 
-  Builtin.String.contains_v0
+  PACKAGE.Darklang.Stdlib.String.contains_v0
     "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"
     "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦" = true
 
-  Builtin.String.contains_v0 "اختبار" "اختبار" = true
-  Builtin.String.contains_v0 "" "" = true
-  Builtin.String.contains_v0 "a" "" = true
-  Builtin.String.contains_v0 "" "a" = false
+  PACKAGE.Darklang.Stdlib.String.contains_v0 "اختبار" "اختبار" = true
+  PACKAGE.Darklang.Stdlib.String.contains_v0 "" "" = true
+  PACKAGE.Darklang.Stdlib.String.contains_v0 "a" "" = true
+  PACKAGE.Darklang.Stdlib.String.contains_v0 "" "a" = false
 
 
 module Slice =

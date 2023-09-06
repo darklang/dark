@@ -44,49 +44,53 @@ module Darklang =
           let reversed = PACKAGE.Darklang.Stdlib.List.reverse list
 
           let parts =
-            Builtin.List.fold reversed [] (fun prevSegments segment ->
-              let newSegment =
-                match segment with
-                | String s -> s
-                | Int i -> Builtin.Int.toString i
-                | Ordinal i -> Stdlib.String.toOrdinal i
+            PACKAGE.Darklang.Stdlib.List.fold
+              reversed
+              []
+              (fun prevSegments segment ->
+                let newSegment =
+                  match segment with
+                  | String s -> s
+                  | Int i -> Builtin.Int.toString i
+                  | Ordinal i -> Stdlib.String.toOrdinal i
 
-                | IndefiniteArticle ->
-                  match Stdlib.List.head prevSegments with
-                  | None -> ""
-                  | Some prev -> Stdlib.String.articleFor prev ++ " "
+                  | IndefiniteArticle ->
+                    match Stdlib.List.head prevSegments with
+                    | None -> ""
+                    | Some prev -> Stdlib.String.articleFor prev ++ " "
 
-                | FunctionName fn ->
-                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.fnName fn
+                  | FunctionName fn ->
+                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.fnName fn
 
-                | Description d -> d
-                | ParamName p -> $"`{p}`"
-                | InlineParamName p -> p // Inline versions don't have quotes
-                | TypeName t ->
-                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeName t
-                | ShortTypeName t ->
-                  // TODO: make it short
-                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeName t
-                | TypeReference t ->
-                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference t
-                | TypeOfValue dv ->
-                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.Dval.valueTypeName dv
-                | FieldName f -> $"`{f}`"
-                | InlineFieldName f -> f
-                | DBName db -> db
-                | VarName v -> $"`{v}`"
-                | InlineVarName v -> v
-                | InlineValue dv ->
-                  (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv)
-                  |> Stdlib.String.ellipsis 10
-                  |> Stdlib.String.splitOnNewline
-                  |> Builtin.String.join ""
-                | FullValue dv ->
-                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv
-                | segment ->
-                  $"(RTETODO toString parts {(Builtin.Json.serialize<ErrorSegment> segment) |> Builtin.unwrap})"
+                  | Description d -> d
+                  | ParamName p -> $"`{p}`"
+                  | InlineParamName p -> p // Inline versions don't have quotes
+                  | TypeName t ->
+                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeName t
+                  | ShortTypeName t ->
+                    // TODO: make it short
+                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeName t
+                  | TypeReference t ->
+                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference t
+                  | TypeOfValue dv ->
+                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.Dval.valueTypeName
+                      dv
+                  | FieldName f -> $"`{f}`"
+                  | InlineFieldName f -> f
+                  | DBName db -> db
+                  | VarName v -> $"`{v}`"
+                  | InlineVarName v -> v
+                  | InlineValue dv ->
+                    (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv)
+                    |> Stdlib.String.ellipsis 10
+                    |> Stdlib.String.splitOnNewline
+                    |> Builtin.String.join ""
+                  | FullValue dv ->
+                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv
+                  | segment ->
+                    $"(RTETODO toString parts {(Builtin.Json.serialize<ErrorSegment> segment) |> Builtin.unwrap})"
 
-              PACKAGE.Darklang.Stdlib.List.push prevSegments newSegment)
+                PACKAGE.Darklang.Stdlib.List.push prevSegments newSegment)
 
           Builtin.String.join parts ""
 

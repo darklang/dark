@@ -33,7 +33,9 @@ module Darklang =
         | firstModuleNamePart :: submoduleNames ->
           // TODO: check if firstModuleNamePart is already in m
           let (foundModuleMaybe, otherModules) =
-            ms |> Builtin.List.partition (fun m -> m.name == firstModuleNamePart)
+            ms
+            |> PACKAGE.Darklang.Stdlib.List.partition (fun m ->
+              m.name == firstModuleNamePart)
 
           match (foundModuleMaybe, submoduleNames) with
           | [], [] ->
@@ -108,7 +110,9 @@ module Darklang =
 
         | firstModuleNamePart :: submoduleNames ->
           let (foundModuleMaybe, otherModules) =
-            ms |> Builtin.List.partition (fun m -> m.name == firstModuleNamePart)
+            ms
+            |> PACKAGE.Darklang.Stdlib.List.partition (fun m ->
+              m.name == firstModuleNamePart)
 
           match (foundModuleMaybe, submoduleNames) with
           | [], [] ->
@@ -182,7 +186,9 @@ module Darklang =
 
         | firstModuleNamePart :: submoduleNames ->
           let (foundModuleMaybe, otherModules) =
-            ms |> Builtin.List.partition (fun m -> m.name == firstModuleNamePart)
+            ms
+            |> PACKAGE.Darklang.Stdlib.List.partition (fun m ->
+              m.name == firstModuleNamePart)
 
           match (foundModuleMaybe, submoduleNames) with
           | [], [] ->
@@ -245,15 +251,20 @@ module Darklang =
         let empty = []
 
         let modulesAfterTypes =
-          Builtin.List.fold p.types empty (fun (modules, t) -> withType modules t)
+          PACKAGE.Darklang.Stdlib.List.fold p.types empty (fun (modules, t) ->
+            withType modules t)
 
         let modulesWithTypesAndFns =
-          Builtin.List.fold p.fns modulesAfterTypes (fun (modules, f) ->
-            withFn modules f)
+          PACKAGE.Darklang.Stdlib.List.fold
+            p.fns
+            modulesAfterTypes
+            (fun (modules, f) -> withFn modules f)
 
         let modulesWithTypesAndFnsAndConstants =
-          Builtin.List.fold p.constants modulesWithTypesAndFns (fun (modules, c) ->
-            withConstant modules c)
+          PACKAGE.Darklang.Stdlib.List.fold
+            p.constants
+            modulesWithTypesAndFns
+            (fun (modules, c) -> withConstant modules c)
 
         modulesWithTypesAndFnsAndConstants
 
@@ -266,7 +277,7 @@ module Darklang =
         | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
         | types ->
           m.types
-          |> Builtin.List.map (fun t ->
+          |> PACKAGE.Darklang.Stdlib.List.map (fun t ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageType t)
           |> Builtin.String.join "\n\n"
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
@@ -276,7 +287,7 @@ module Darklang =
         | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
         | fns ->
           m.fns
-          |> Builtin.List.map (fun f ->
+          |> PACKAGE.Darklang.Stdlib.List.map (fun f ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn f)
           |> Builtin.String.join "\n\n"
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
@@ -286,7 +297,7 @@ module Darklang =
         | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
         | constants ->
           m.constants
-          |> Builtin.List.map (fun c ->
+          |> PACKAGE.Darklang.Stdlib.List.map (fun c ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageConstant c)
           |> Builtin.String.join "\n\n"
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
@@ -296,14 +307,14 @@ module Darklang =
         | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
         | submodules ->
           submodules
-          |> Builtin.List.map (fun m ->
+          |> PACKAGE.Darklang.Stdlib.List.map (fun m ->
             PACKAGE.Darklang.PrettyPrinter.packageModule m)
           |> Builtin.String.join "\n\n"
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
 
       let parts =
         [ typesPart; fnsPart; constantsPart; submodulesPart ]
-        |> Builtin.List.filterMap (fun s -> s)
+        |> PACKAGE.Darklang.Stdlib.List.filterMap (fun s -> s)
 
       match parts with
       | [] ->
@@ -320,7 +331,7 @@ module Darklang =
         PACKAGE.Darklang.Stdlib.Packages
           { types =
               p.types
-              |> Builtin.List.map (fun t ->
+              |> PACKAGE.Darklang.Stdlib.List.map (fun t ->
                 { t with
                     name =
                       { t.name with
@@ -329,7 +340,7 @@ module Darklang =
                           owner = "(redacted)" } })
             fns =
               p.fns
-              |> Builtin.List.map (fun f ->
+              |> PACKAGE.Darklang.Stdlib.List.map (fun f ->
                 { f with
                     name =
                       { f.name with
@@ -339,7 +350,7 @@ module Darklang =
 
             constants =
               p.constants
-              |> Builtin.List.map (fun c ->
+              |> PACKAGE.Darklang.Stdlib.List.map (fun c ->
                 { c with
                     name =
                       { c.name with
@@ -352,5 +363,6 @@ module Darklang =
 
       // CLEANUP make ordering 'better' in some way
       modules
-      |> Builtin.List.map (fun m -> PACKAGE.Darklang.PrettyPrinter.packageModule m)
+      |> PACKAGE.Darklang.Stdlib.List.map (fun m ->
+        PACKAGE.Darklang.PrettyPrinter.packageModule m)
       |> Builtin.String.join "\n\n"

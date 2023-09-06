@@ -116,7 +116,7 @@ module Darklang =
         (results: List<PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>>)
         : PACKAGE.Darklang.Stdlib.Result.Result<List<'t>, 'e> =
         results
-        |> Builtin.List.fold
+        |> PACKAGE.Darklang.Stdlib.List.fold
           (PACKAGE.Darklang.Stdlib.Result.Result.Ok [])
           (fun acc result ->
             match (acc, result) with

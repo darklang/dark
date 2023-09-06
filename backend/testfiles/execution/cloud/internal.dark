@@ -7,7 +7,7 @@ module Documentation =
   ) > 100) = true
 
   ((Builtin.DarkInternal.Documentation.list_v0 ())
-   |> Builtin.List.map (fun f -> (f.name, f))
+   |> PACKAGE.Darklang.Stdlib.List.map (fun f -> (f.name, f))
    |> Builtin.Dict.fromList_v0
    |> Builtin.unwrap
    |> Builtin.Dict.get "Int.add"

@@ -15,7 +15,8 @@ module Darklang =
 
       /// Returns the sum of all the floats in the list
       let sum (a: List<Float>) : Float =
-        Builtin.List.fold a 0.0 (fun acc next -> Builtin.Float.add acc next)
+        PACKAGE.Darklang.Stdlib.List.fold a 0.0 (fun acc next ->
+          Builtin.Float.add acc next)
 
 
       /// Returns the lesser of <type Float> <param a> and <type Float> <param b>

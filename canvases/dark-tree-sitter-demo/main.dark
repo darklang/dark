@@ -20,7 +20,7 @@ let _handler _req =
 
   let incomingHost =
     request.headers
-    |> Builtin.List.findFirst (fun t ->
+    |> PACKAGE.Darklang.Stdlib.List.findFirst (fun t ->
       (PACKAGE.Darklang.Stdlib.Tuple2.first t) == "origin")
     |> PACKAGE.Darklang.Stdlib.Option.map (fun t ->
       PACKAGE.Darklang.Stdlib.Tuple2.second t)
@@ -212,7 +212,7 @@ let getField (node: SyntaxTreeNode) (fieldName: String) : SyntaxTreeNode =
   // (right now this won't error if 2 of the same fieldName exist)
   let found =
     children
-    |> Builtin.List.findFirst (fun c ->
+    |> PACKAGE.Darklang.Stdlib.List.findFirst (fun c ->
       match c.fieldName with
       | Some fName -> fName == fieldName
       | None -> false)
@@ -242,7 +242,9 @@ let parseExprCase (node: SyntaxTreeNode) : PTExpr =
     let fnName = (getField node "fn") |> getText
 
     let args = getField node "args"
-    let args = args.children |> Builtin.List.map (fun c -> parseExpr c)
+
+    let args =
+      args.children |> PACKAGE.Darklang.Stdlib.List.map (fun c -> parseExpr c)
 
     PTExpr.EFnCall(gid (), fnName, args)
 
@@ -298,7 +300,8 @@ let parseUserFunctionParams (node: SyntaxTreeNode) : List<PTUserFunctionParamete
   let first = getField node "first"
   let additional = getField node "additional"
 
-  [ first; additional ] |> Builtin.List.map (fun p -> parseUserFunctionParam p)
+  [ first; additional ]
+  |> PACKAGE.Darklang.Stdlib.List.map (fun p -> parseUserFunctionParam p)
 
 
 // TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTUserFunction, String>

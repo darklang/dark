@@ -36,7 +36,7 @@ let gatherDataToExport () : Result<DataExport, String> =
 
   let prettyCanvases =
     canvases
-    |> Builtin.List.map (fun canvas ->
+    |> PACKAGE.Darklang.Stdlib.List.map (fun canvas ->
       CanvasExport
         { name = canvas.name
           content = PACKAGE.Darklang.PrettyPrinter.canvas canvas })
@@ -88,7 +88,7 @@ let import () : Result<ImportResults, String> =
   let packageImportResults =
     DarkInternal.Packages.parseAndImport deserialized.Packages
 
-    Builtin.List.fold packageImportResults (Ok []) (fun acc result ->
+    PACKAGE.Darklang.Stdlib.List.fold packageImportResults (Ok []) (fun acc result ->
       match acc with
       | Error error -> Error error
       | Ok acc ->
@@ -102,7 +102,7 @@ let import () : Result<ImportResults, String> =
   Builtin.print "parsing and importing canvases"
   // List of results -- hopefully List of OKs
   let canvasImportResults =
-    Builtin.List.fold canvasImportResults (Ok []) (fun acc result ->
+    PACKAGE.Darklang.Stdlib.List.fold canvasImportResults (Ok []) (fun acc result ->
       match acc with
       | Error error -> Error error
       | Ok acc ->

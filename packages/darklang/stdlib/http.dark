@@ -15,7 +15,7 @@ module Darklang =
           | _ :: queryParts ->
             (Builtin.String.join queryParts "")
             |> Builtin.String.split "&"
-            |> Builtin.List.map (fun param ->
+            |> PACKAGE.Darklang.Stdlib.List.map (fun param ->
               match Builtin.String.split param "=" with
               | [ key; value ] -> (key, value)
               | _ -> (param, ""))
@@ -26,7 +26,7 @@ module Darklang =
           : PACKAGE.Darklang.Stdlib.Option.Option<String> =
           let found =
             (PACKAGE.Darklang.Stdlib.Http.Request.queryParams req)
-            |> Builtin.List.filterMap (fun pair ->
+            |> PACKAGE.Darklang.Stdlib.List.filterMap (fun pair ->
               match pair with
               | (k, v) ->
                 if k == key then
@@ -199,8 +199,8 @@ module Darklang =
 //         ("Secure", cookie.secure |> PACKAGE.Darklang.Stdlib.Bool.toString)
 //         ("HttpOnly", cookie.httpOnly |> PACKAGE.Darklang.Stdlib.Bool.toString)
 //         ("SameSite", cookie.sameSite) ]
-//       |> Builtin.List.filterMap (fun (k, v) -> if v == "" then PACKAGE.Darklang.Stdlib.Option.Option.None else PACKAGE.Darklang.Stdlib.Option.Option.Some(k, v))
-//       |> Builtin.List.map (fun (k, v) -> k ++ "=" ++ v)
+//       |> PACKAGE.Darklang.Stdlib.List.filterMap (fun (k, v) -> if v == "" then PACKAGE.Darklang.Stdlib.Option.Option.None else PACKAGE.Darklang.Stdlib.Option.Option.Some(k, v))
+//       |> PACKAGE.Darklang.Stdlib.List.map (fun (k, v) -> k ++ "=" ++ v)
 //       |> Builtin.String.join "; "
 
 //     if cookie == "" then

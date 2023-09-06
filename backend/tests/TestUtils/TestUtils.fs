@@ -145,19 +145,17 @@ let localBuiltIns =
     { BuiltinExecution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
   builtIns httpConfig
 
-// A resolver that only knows about builtins. If you need user code in the parser,
-// you need to add in the names of the fns/types/etc
-let builtinResolver =
-  LibParser.NameResolver.fromBuiltins (
-    Map.values localBuiltIns.fns,
-    Map.values localBuiltIns.types,
-    Map.values localBuiltIns.constants
-  )
-
 let packageManager = LibCloud.PackageManager.packageManager
 
-let resolverWithBuiltinsAndPackageManager =
-  { builtinResolver with packageManager = Some packageManager }
+// This resolves both builtins and package functions
+let nameResolver =
+  { LibParser.NameResolver.fromBuiltins (
+      Map.values localBuiltIns.fns,
+      Map.values localBuiltIns.types,
+      Map.values localBuiltIns.constants
+    ) with
+      packageManager = Some packageManager }
+
 
 let executionStateFor
   (canvasID : CanvasID)

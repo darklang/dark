@@ -20,7 +20,7 @@ module BigTestCase =
      |> Builtin.Float.sqrt_v0 in
 
    let reverse = Builtin.String.reverse_v0 str in
-   let contains = Builtin.String.contains_v0 "a string" str in
+   let contains = PACKAGE.Darklang.Stdlib.String.contains_v0 "a string" str in
    let uuid = Builtin.Uuid.parse_v0 "9c59ba07-1e20-4ce2-a2de-6a95391d67b2" in
 
    str

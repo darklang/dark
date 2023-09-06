@@ -340,7 +340,7 @@ module Darklang =
 
         | TTuple(first, second, theRest) ->
           (Builtin.List.append [ first; second ] theRest)
-          |> Builtin.List.map (fun item ->
+          |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference item)
           |> Builtin.String.join " * "
           |> fun parts -> "(" ++ parts ++ ")"
@@ -354,7 +354,7 @@ module Darklang =
             | [] -> ""
             | args ->
               args
-              |> Builtin.List.map (fun arg ->
+              |> PACKAGE.Darklang.Stdlib.List.map (fun arg ->
                 PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference arg)
               |> Builtin.String.join ", "
               |> fun parts -> $"<{parts}>"
@@ -375,7 +375,7 @@ module Darklang =
         | TFn(args, ret) ->
           let argPart =
             args
-            |> Builtin.List.map (fun arg ->
+            |> PACKAGE.Darklang.Stdlib.List.map (fun arg ->
               PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference arg)
             |> Builtin.String.join ", "
             |> fun parts -> "(" ++ parts ++ ")"
@@ -408,7 +408,7 @@ module Darklang =
         | CUnit -> "()"
         | CTuple(first, second, theRest) ->
           (Builtin.List.append [ first; second ] theRest)
-          |> Builtin.List.map (fun item ->
+          |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.constant item)
           |> Builtin.String.join ", "
           |> fun parts -> "(" ++ parts ++ ")"
@@ -427,7 +427,7 @@ module Darklang =
           | fields ->
             let fieldPart =
               fields
-              |> Builtin.List.map (fun field ->
+              |> PACKAGE.Darklang.Stdlib.List.map (fun field ->
                 PACKAGE.Darklang.PrettyPrinter.ProgramTypes.constant field)
               |> Builtin.String.join ", "
 
@@ -443,7 +443,7 @@ module Darklang =
         | LPVariable(_id, name) -> name
         | LPTuple(_id, first, second, theRest) ->
           (Builtin.List.append [ first; second ] theRest)
-          |> Builtin.List.map (fun item ->
+          |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.letPattern item)
           |> Builtin.String.join ", "
           |> fun parts -> "(" ++ parts ++ ")"
@@ -468,7 +468,7 @@ module Darklang =
 
         | MPList(_id, items) ->
           items
-          |> Builtin.List.map (fun item ->
+          |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.matchPattern item)
           |> Builtin.String.join ", "
           |> fun parts -> "[" ++ parts ++ "]"
@@ -484,7 +484,7 @@ module Darklang =
 
         | MPTuple(_, first, second, theRest) ->
           (Builtin.List.append [ first; second ] theRest)
-          |> Builtin.List.map (fun item ->
+          |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.matchPattern item)
           |> Builtin.String.join ", "
           |> fun parts -> "(" ++ parts ++ ")"
@@ -497,7 +497,7 @@ module Darklang =
           | fieldPats ->
             let fieldPart =
               fieldPats
-              |> Builtin.List.map (fun pat ->
+              |> PACKAGE.Darklang.Stdlib.List.map (fun pat ->
                 PACKAGE.Darklang.PrettyPrinter.ProgramTypes.matchPattern pat)
               |> Builtin.String.join ", "
 
@@ -550,7 +550,8 @@ module Darklang =
         | EPipeVariable(_id, varName, exprs) ->
           let exprs =
             exprs
-            |> Builtin.List.map PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr
+            |> PACKAGE.Darklang.Stdlib.List.map
+              PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr
             |> Builtin.String.join " "
 
           $"({varName} {exprs})"
@@ -558,7 +559,7 @@ module Darklang =
         | EPipeLambda(_id, args, body) ->
           let argsPart =
             args
-            |> Builtin.List.map (fun pair ->
+            |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
               PACKAGE.Darklang.Stdlib.Tuple2.second pair)
             |> Builtin.String.join " "
 
@@ -584,16 +585,16 @@ module Darklang =
             | [] -> ""
             | _ ->
               typeArgs
-              |> Builtin.List.map (fun typeArg ->
+              |> PACKAGE.Darklang.Stdlib.List.map (fun typeArg ->
                 PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference typeArg)
               |> Builtin.String.join ", "
               |> fun parts -> $"<{parts}>"
 
           let argsPart =
             args
-            |> Builtin.List.map (fun arg ->
+            |> PACKAGE.Darklang.Stdlib.List.map (fun arg ->
               PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr arg)
-            |> Builtin.List.map (fun arg -> $"({arg})")
+            |> PACKAGE.Darklang.Stdlib.List.map (fun arg -> $"({arg})")
             |> Builtin.String.join " "
 
           $"{fnNamePart}{typeArgsPart} {argsPart}"
@@ -616,9 +617,9 @@ module Darklang =
           | fields ->
             let fieldPart =
               fields
-              |> Builtin.List.map (fun field ->
+              |> PACKAGE.Darklang.Stdlib.List.map (fun field ->
                 PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr field)
-              |> Builtin.List.map (fun field -> $"({field})")
+              |> PACKAGE.Darklang.Stdlib.List.map (fun field -> $"({field})")
               |> Builtin.String.join " "
 
             $"{typeNamePart}.{caseName} {fieldPart}"
@@ -649,7 +650,7 @@ module Darklang =
           | segments ->
             let inner =
               segments
-              |> Builtin.List.map (fun segment ->
+              |> PACKAGE.Darklang.Stdlib.List.map (fun segment ->
                 PACKAGE.Darklang.PrettyPrinter.ProgramTypes.stringSegment segment)
               |> Builtin.String.join ""
 
@@ -660,7 +661,7 @@ module Darklang =
 
         | EList(_id, items) ->
           items
-          |> Builtin.List.map (fun item ->
+          |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr item)
           |> Builtin.String.join "; "
           |> fun parts -> "[" ++ parts ++ "]"
@@ -668,7 +669,7 @@ module Darklang =
         | EDict(_id, pairs) ->
           let pairPart =
             pairs
-            |> Builtin.List.map (fun pair ->
+            |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
               let (key, value) = pair
               $"{key} = {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr value}")
             |> Builtin.String.join "; "
@@ -679,7 +680,7 @@ module Darklang =
 
         | ETuple(_id, first, second, theRest) ->
           (Builtin.List.append [ first; second ] theRest)
-          |> Builtin.List.map (fun item ->
+          |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr item)
           |> Builtin.String.join ", "
           |> fun parts -> "(" ++ parts ++ ")"
@@ -695,7 +696,7 @@ module Darklang =
 
           let fieldPart =
             fields
-            |> Builtin.List.map (fun pair ->
+            |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
               let (name, expr) = pair
               $"{name} = {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr expr}")
             |> Builtin.String.join "; "
@@ -718,7 +719,7 @@ module Darklang =
           | fields ->
             let fieldPart =
               fields
-              |> Builtin.List.map (fun field ->
+              |> PACKAGE.Darklang.Stdlib.List.map (fun field ->
                 PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr field)
               |> Builtin.String.join ", "
 
@@ -767,7 +768,7 @@ module Darklang =
         | EMatch(_id, arg, cases) ->
           let cases =
             cases
-            |> Builtin.List.map (fun pair ->
+            |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
               let (pattern, body) = pair
 
               let patternPart =
@@ -794,7 +795,7 @@ module Darklang =
 
           let pipeParts =
             pipeExprs
-            |> Builtin.List.map (fun (pipeExpr) ->
+            |> PACKAGE.Darklang.Stdlib.List.map (fun (pipeExpr) ->
               PACKAGE.Darklang.PrettyPrinter.ProgramTypes.pipeExpr pipeExpr)
             |> Builtin.String.join " \n|> "
 
@@ -817,7 +818,7 @@ module Darklang =
         | ELambda(_id, args, body) ->
           let argsPart =
             args
-            |> Builtin.List.map (fun pair ->
+            |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
               PACKAGE.Darklang.Stdlib.Tuple2.second pair)
             |> Builtin.String.join " "
 
@@ -830,7 +831,7 @@ module Darklang =
 
           let argsPart =
             args
-            |> Builtin.List.map (fun arg ->
+            |> PACKAGE.Darklang.Stdlib.List.map (fun arg ->
               PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr arg)
             |> Builtin.String.join " "
 
@@ -839,7 +840,7 @@ module Darklang =
           | _ ->
             let typeArgsPart =
               typeArgs
-              |> Builtin.List.map (fun typeArg ->
+              |> PACKAGE.Darklang.Stdlib.List.map (fun typeArg ->
                 PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference typeArg)
               |> Builtin.String.join ", "
 
@@ -860,7 +861,7 @@ module Darklang =
 
           let updatePart =
             updates
-            |> Builtin.List.map (fun pair ->
+            |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
               let (fieldName, expr) = pair
               $"{fieldName} = {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr expr}")
             |> Builtin.String.join "; "
@@ -922,7 +923,7 @@ module Darklang =
           | fields ->
             let fieldPart =
               fields
-              |> Builtin.List.map (fun field ->
+              |> PACKAGE.Darklang.Stdlib.List.map (fun field ->
                 PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeDeclaration.enumField
                   field)
               |> Builtin.String.join " * "
@@ -941,7 +942,7 @@ module Darklang =
         | Record fields ->
           let fieldsPart =
             fields
-            |> Builtin.List.map (fun field ->
+            |> PACKAGE.Darklang.Stdlib.List.map (fun field ->
               PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeDeclaration.recordField
                 field)
             |> Builtin.String.join "\n"
@@ -950,7 +951,7 @@ module Darklang =
 
         | Enum cases ->
           cases
-          |> Builtin.List.map (fun case ->
+          |> PACKAGE.Darklang.Stdlib.List.map (fun case ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeDeclaration.enumCase
               case)
           |> Builtin.String.join "\n"
@@ -1012,7 +1013,7 @@ module Darklang =
           | [] -> ""
           | _ ->
             userType.declaration.typeParams
-            |> Builtin.List.map (fun typeParam -> $"'{typeParam}")
+            |> PACKAGE.Darklang.Stdlib.List.map (fun typeParam -> $"'{typeParam}")
             |> Builtin.String.join ", "
             |> fun parts -> $"<{parts}>"
 
@@ -1045,7 +1046,7 @@ module Darklang =
 
         let paramsPart =
           Builtin.String.join
-            (Builtin.List.map u.parameters (fun p ->
+            (PACKAGE.Darklang.Stdlib.List.map u.parameters (fun p ->
               PACKAGE.Darklang.PrettyPrinter.ProgramTypes.UserFunction.parameter p))
             " "
 
@@ -1089,13 +1090,13 @@ module Darklang =
           | [] -> ""
           | _ ->
             p.typeParams
-            |> Builtin.List.map (fun typeParam -> $"'{typeParam}")
+            |> PACKAGE.Darklang.Stdlib.List.map (fun typeParam -> $"'{typeParam}")
             |> Builtin.String.join ", "
             |> fun parts -> $"<{parts}>"
 
         let paramPart =
           p.parameters
-          |> Builtin.List.map (fun param ->
+          |> PACKAGE.Darklang.Stdlib.List.map (fun param ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.PackageFn.parameter param)
           |> Builtin.String.join " "
 
@@ -1120,7 +1121,7 @@ module Darklang =
           | [] -> ""
           | _ ->
             p.declaration.typeParams
-            |> Builtin.List.map (fun typeParam -> $"'{typeParam}")
+            |> PACKAGE.Darklang.Stdlib.List.map (fun typeParam -> $"'{typeParam}")
             |> Builtin.String.join ", "
             |> fun parts -> $"<{parts}>"
 

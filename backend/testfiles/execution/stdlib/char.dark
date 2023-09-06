@@ -189,3 +189,13 @@ Builtin.Char.toString 'Ł' = "Ł"
 Builtin.Char.toString (hand ()) = "✋🏿"
 Builtin.Char.toString 'Ჾ' = "Ჾ"
 Builtin.Char.toString 'ჾ' = "ჾ"
+
+
+PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 ' ' = true
+PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 '\n' = true
+PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 '\t' = true
+PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 '\r' = true
+PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 'a' = false
+PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 'A' = false
+PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 '1' = false
+PACKAGE.Darklang.Stdlib.Char.isWhitespace_v0 (smiley ()) = false
