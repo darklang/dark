@@ -47,7 +47,8 @@ module Darklang =
 
       /// Returns the list of characters as a string
       let fromList (lst: List<Char>) : String =
-        (PACKAGE.Darklang.Stdlib.List.map lst (fun c -> PACKAGE.Darklang.Stdlib.Char.toString c))
+        (PACKAGE.Darklang.Stdlib.List.map lst (fun c ->
+          PACKAGE.Darklang.Stdlib.Char.toString c))
         |> Builtin.String.join ""
 
 
