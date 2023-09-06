@@ -4,7 +4,7 @@ module Darklang =
       module Execution =
         type Error =
           | Incomplete
-          | MatchExprUnmatched of RuntimeTypes.Dval
+          | MatchExprUnmatched of RuntimeTypes.Dval.Dval
 
         let toSegments (e: Error) : ErrorOutput =
           match e with
