@@ -151,6 +151,7 @@ module Error =
 
 
   let toRuntimeError (e : Error) : RuntimeError =
+    let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
     match e with
     | ValueNotExpectedType(actualValue, expectedType, context) ->
       let fields =
@@ -159,21 +160,12 @@ module Error =
           Context.toDT context ]
 
       RuntimeError.typeCheckerError (
-        Dval.enum
-          (RuntimeError.name [ "TypeChecker" ] "Error" 0)
-          "ValueNotExpectedType"
-          fields
+        Dval.enum typeName "ValueNotExpectedType" fields
       )
 
     | TypeDoesntExist(typeName, context) ->
       let fields = [ RT2DT.TypeName.toDT typeName; Context.toDT context ]
-
-      RuntimeError.typeCheckerError (
-        Dval.enum
-          (RuntimeError.name [ "TypeChecker" ] "Error" 0)
-          "TypeDoesntExist"
-          fields
-      )
+      RuntimeError.typeCheckerError (Dval.enum typeName "TypeDoesntExist" fields)
 
 let rec valueTypeUnifies
   (tst : TypeSymbolTable)
