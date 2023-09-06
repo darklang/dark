@@ -154,7 +154,16 @@ let executeHandler
       RT.Dval.record
         typeName
         [ "statusCode", RT.DInt 500
-          "headers", RT.DList []
+          "headers",
+          RT.Dval.list
+            (RT.ValueType.Known(
+              RT.KTTuple(
+                RT.ValueType.Known RT.KTString,
+                RT.ValueType.Known RT.KTString,
+                []
+              )
+            ))
+            []
           "body", RT.DBytes(msg |> UTF8.toBytes) ]
 
     // CLEANUP This is a temporary hack to make it easier to work on local dev
