@@ -68,11 +68,9 @@ module Darklang =
 
       /// Returns {{true}} if <param value> is in the list
       let ``member`` (list: List<'a>) (value: 'a) : Bool =
-        match
-          (PACKAGE.Darklang.Stdlib.List.findFirst list (fun elem -> elem == value))
-        with
-        | Some _ -> true
-        | None -> false
+        PACKAGE.Darklang.Stdlib.Option.isSome (
+          PACKAGE.Darklang.Stdlib.List.findFirst list (fun elem -> elem == value)
+        )
 
 
       // TODO: remove this once we have a way to call lambdas recursively
