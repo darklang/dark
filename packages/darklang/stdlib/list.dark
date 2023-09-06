@@ -68,7 +68,6 @@ module Darklang =
             PACKAGE.Darklang.Stdlib.List.findFirst tail fn
 
 
-
       /// Returns {{true}} if <param value> is in the list
       let ``member`` (list: List<'a>) (value: 'a) : Bool =
         match list with
@@ -80,6 +79,7 @@ module Darklang =
             PACKAGE.Darklang.Stdlib.List.``member`` tail value
 
 
+      // TODO: remove this once we have a way to call lambdas recursively
       let repeatUnsafe (times: Int) (value: 'a) : List<'a> =
         if times <= 0 then
           []
