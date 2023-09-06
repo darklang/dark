@@ -3,7 +3,7 @@ module Darklang =
     module Dict =
       /// Returns a dictionary with a single entry {{<param key>: <param value>}}
       let singleton (key: String) (value: 'a) : Dict<'a> =
-        Builtin.Dict.singleton_v0 key value
+        Builtin.Dict.set (Dict { }) key value
 
 
       /// Returns the number of entries in <param dict>
