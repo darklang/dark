@@ -40,9 +40,59 @@ module Darklang =
       let isEmpty (s: String) : Bool = s == ""
 
 
+      /// Iterate over each Character (EGC, not byte) in the string, performing the
+      /// operation in <param fn> on each one.
+      let map (s: String) (fn: Char -> Char) : String = Builtin.String.map s fn
+
+
+      /// Returns the list of Characters (EGC, not byte) in the string
+      let toList (s: String) : List<Char> = Builtin.String.toList s
+
+
+      /// Replace all instances on <param searchFor> in <param s> with <param replaceWith>
+      let replaceAll (s: String) (searchFor: String) (replaceWith: String) : String =
+        Builtin.String.replaceAll s searchFor replaceWith
+
+
+      /// Returns the string, uppercased
+      let toUppercase (s: String) : String = Builtin.String.toUppercase s
+
+
+      /// Returns the string, lowercased
+      let toLowercase (s: String) : String = Builtin.String.toLowercase s
+
+
+      /// Returns the length of the string
+      let length (s: String) : Int = Builtin.String.length s
+
+
+      /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.
+      let append (s1: String) (s2: String) : String = $"{s1}{s2}"
+
+
       /// Concatenates the two strings by prepending <param s2> to <param s1> and
       /// returns the joined string
       let prepend (s1: String) (s2: String) : String = s2 ++ s1
+
+
+      /// Turns a string into a prettified slug, including only lowercased
+      /// alphanumeric characters, joined by hyphens
+      let slugify (s: String) : String = Builtin.String.slugify s
+
+
+      /// Reverses <param string>
+      let reverse (string: String) : String = Builtin.String.reverse string
+
+
+      /// Splits a string at the separator, returning a list of strings without the separator.
+      /// If the separator is not present, returns a list containing only the initial string.
+      let split (string: String) (separator: String) : List<String> =
+        Builtin.String.split string separator
+
+
+      /// Combines a list of strings with the provided separator
+      let join (l: List<String>) (separator: String) : String =
+        Builtin.String.join l separator
 
 
       /// Returns the list of characters as a string
@@ -54,6 +104,68 @@ module Darklang =
 
       /// Converts a <type Char> to a <type String>
       let fromChar (c: Char) : String = PACKAGE.Darklang.Stdlib.Char.toString c
+
+
+      /// URLBase64 encodes a string without padding. Uses URL-safe encoding with
+      /// {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
+      /// [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)
+      let base64Encode (s: String) : String = Builtin.String.base64Encode s
+
+
+      /// Base64 decodes a string. The returned value is wrapped in {{Result}}.
+      /// Works with both the URL-safe and standard Base64
+      /// alphabets defined in [RFC 4648
+      /// sections](https://www.rfc-editor.org/rfc/rfc4648.html)
+      /// [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
+      /// [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
+      let base64Decode
+        (s: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
+        Builtin.String.base64Decode s
+
+
+      /// Take a string and hash it to a cryptographically-secure digest.
+      /// Don't rely on either the size or the algorithm.
+      let digest (s: String) : String = Builtin.String.digest s
+
+
+      /// Generate a <type String> of length <param length> from random characters
+      let random
+        (length: Int)
+        : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
+        Builtin.String.random length
+
+
+      /// Escape an untrusted string in order to include it safely in HTML output
+      let htmlEscape (html: String) : String =
+        html
+        |> Builtin.String.toList
+        |> PACKAGE.Darklang.Stdlib.List.map (fun c ->
+          match c with
+          | '<' -> "&lt;"
+          | '>' -> "&gt;"
+          | '&' -> "&amp;"
+          // include these for html-attribute-escaping
+          // even though they're not strictly necessary
+          // for html-escaping proper.
+          | '"' -> "&quot;"
+          // &apos; doesn't work in IE....
+          | ''' -> "&#x27;"
+          | _ -> PACKAGE.Darklang.Stdlib.String.fromChar c)
+        |> Builtin.String.join ""
+
+
+      /// Checks if <param lookingIn> contains <param searchingFor>
+      let contains (lookingIn: String) (searchingFor: String) : Bool =
+        match Builtin.String.indexOf lookingIn searchingFor with
+        | Some _ -> true
+        | None -> false
+
+
+      /// Returns the substring of <param string> between the <param from> and <param to> indices.
+      /// Negative indices start counting from the end of <param string>.
+      let slice (string: String) (from: Int) (``to``: Int) : String =
+        Builtin.String.slice_v0 string from ``to``
 
 
       /// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
@@ -113,15 +225,6 @@ module Darklang =
             (Builtin.String.length string)
 
 
-      /// Returns the <param string> repeated for a specified <param count> times.
-      /// If <param count> is less than or equal to 0, returns an empty string.
-      let repeat (string: String) (count: Int) : String =
-        if count <= 0 then
-          ""
-        else
-          string ++ PACKAGE.Darklang.Stdlib.String.repeat string (count - 1)
-
-
       /// If <param string> is shorter than <param goalLength> characters, returns a
       /// copy of <param string> starting with enough copies of <param padWith> for the
       /// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
@@ -162,6 +265,36 @@ module Darklang =
           PACKAGE.Darklang.Stdlib.Result.Result.Ok(string ++ pad)
 
 
+      // TODO: re-write in dark
+      /// Returns a copy of <param str> with all leading and trailing whitespace
+      /// removed. 'whitespace' here means all Unicode characters with the
+      /// {{White_Space}} property, which includes {{\" \"}}, {{\"\\t\"}} and
+      /// {{\"\\n\"}}
+      let trim (str: String) : String = Builtin.String.trim str
+
+
+      // TODO: re-write in dark
+      /// Returns a copy of <param str> with all leading whitespace removed. 'whitespace'
+      /// here means all Unicode characters with the {{White_Space}} property, which
+      /// includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}
+      let trimStart (str: String) : String = Builtin.String.trimStart str
+
+
+      // TODO: re-write in dark
+      /// Returns a copy of <param str> with all trailing whitespace removed.
+      /// 'whitespace' here means all Unicode characters with the {{White_Space}}
+      /// property, which includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}.
+      let trimEnd (str: String) : String = Builtin.String.trimEnd str
+
+
+      /// Converts the given unicode string to a UTF8-encoded byte sequence.
+      let toBytes (str: String) : Bytes = Builtin.String.toBytes str
+
+
+      /// Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters
+      let fromBytes (bytes: Bytes) : String = Builtin.String.fromBytes bytes
+
+
       /// Checks if <param subject> starts with <param prefix>
       let startsWith (subject: String) (prefix: String) : Bool =
         Builtin.String.slice_v0 subject 0 (Builtin.String.length prefix) == prefix
@@ -174,6 +307,23 @@ module Darklang =
           (Builtin.String.length subject - Builtin.String.length suffix)
           (Builtin.String.length subject)
         == suffix
+
+
+      /// Returns {{Just index}} of the first occurrence of <param searchFor> in <param str>, or returns {{Nothing}} if <param searchFor> does not occur.
+      let indexOf
+        (str: String)
+        (searchFor: String)
+        : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
+        Builtin.String.indexOf str searchFor
+
+
+      /// Returns the <param string> repeated for a specified <param count> times.
+      /// If <param count> is less than or equal to 0, returns an empty string.
+      let repeat (string: String) (count: Int) : String =
+        if count <= 0 then
+          ""
+        else
+          string ++ PACKAGE.Darklang.Stdlib.String.repeat string (count - 1)
 
 
       /// Converts an integer <param n> to its ordinal representation as a string.
@@ -194,31 +344,6 @@ module Darklang =
         if str == "" then [] else Builtin.String.split str "\n"
 
 
-      /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.
-      let append (s1: String) (s2: String) : String = $"{s1}{s2}"
-
-
-      /// Escape an untrusted string in order to include it safely in HTML output
-      let htmlEscape (html: String) : String =
-        html
-        |> Builtin.String.toList
-        |> PACKAGE.Darklang.Stdlib.List.map (fun c ->
-          match c with
-          | '<' -> "&lt;"
-          | '>' -> "&gt;"
-          | '&' -> "&amp;"
-          // include these for html-attribute-escaping
-          // even though they're not strictly necessary
-          // for html-escaping proper.
-          | '"' -> "&quot;"
-          // &apos; doesn't work in IE....
-          | ''' -> "&#x27;"
-          | _ -> PACKAGE.Darklang.Stdlib.String.fromChar c)
-        |> Builtin.String.join ""
-
-
-      /// Checks if <param lookingIn> contains <param searchingFor>
-      let contains (lookingIn: String) (searchingFor: String) : Bool =
-        match Builtin.String.indexOf lookingIn searchingFor with
-        | Some _ -> true
-        | None -> false
+      /// Returns {{Some char}} of the first character of <param str>, or returns {{None}} if <param str> is empty.
+      let head (str: String) : PACKAGE.Darklang.Stdlib.Option.Option<Char> =
+        Builtin.String.head str

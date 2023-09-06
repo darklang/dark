@@ -84,7 +84,7 @@ module Darklang =
                     (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv)
                     |> Stdlib.String.ellipsis 10
                     |> Stdlib.String.splitOnNewline
-                    |> Builtin.String.join ""
+                    |> PACKAGE.Darklang.Stdlib.String.join ""
                   | FullValue dv ->
                     PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv
                   | segment ->
@@ -92,7 +92,7 @@ module Darklang =
 
                 PACKAGE.Darklang.Stdlib.List.push prevSegments newSegment)
 
-          Builtin.String.join parts ""
+          PACKAGE.Darklang.Stdlib.String.join parts ""
 
 
 

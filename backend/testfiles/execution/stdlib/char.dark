@@ -1,15 +1,15 @@
 let smiley () : Char =
-  (Builtin.String.toList "😂")
+  (PACKAGE.Darklang.Stdlib.String.toList "😂")
   |> PACKAGE.Darklang.Stdlib.List.head
   |> Builtin.unwrap
 
 let hand () : Char =
-  (Builtin.String.toList "✋🏿")
+  (PACKAGE.Darklang.Stdlib.String.toList "✋🏿")
   |> PACKAGE.Darklang.Stdlib.List.head
   |> Builtin.unwrap
 
 let family () : Char =
-  (Builtin.String.toList "👩‍👩‍👧‍👦")
+  (PACKAGE.Darklang.Stdlib.String.toList "👩‍👩‍👧‍👦")
   |> PACKAGE.Darklang.Stdlib.List.head
   |> Builtin.unwrap
 

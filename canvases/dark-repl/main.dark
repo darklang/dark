@@ -10,7 +10,7 @@ let _handler _req =
 
   let contentType =
     match
-      (Builtin.String.split path ".")
+      (PACKAGE.Darklang.Stdlib.String.split path ".")
       |> PACKAGE.Darklang.Stdlib.List.last
       |> PACKAGE.Darklang.Stdlib.Option.withDefault ""
     with
@@ -60,7 +60,7 @@ let _handler _req =
 
   let program =
     Experiments.parseAndSerializeProgram
-      (Builtin.String.fromBytes sourceInBytes)
+      (PACKAGE.Darklang.Stdlib.String.fromBytes sourceInBytes)
       "code.dark"
 
   match program with
@@ -97,11 +97,11 @@ let _handler _req =
       ++ "}"
 
     PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-      (Builtin.String.toBytes json)
+      (PACKAGE.Darklang.Stdlib.String.toBytes json)
       [ ("content-type", "application-json") ]
       200
 
   | Error _err ->
     PACKAGE.Darklang.Stdlib.Http.response
-      (Builtin.String.toBytes "Couldn't parse the program")
+      (PACKAGE.Darklang.Stdlib.String.toBytes "Couldn't parse the program")
       400

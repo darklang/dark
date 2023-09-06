@@ -279,7 +279,7 @@ Builtin.Json.parse<Float> "00000000.000" = PACKAGE.Darklang.Stdlib.Result.Result
 
 // Chars
 //let charFromString (s: String) =
-//  (Builtin.String.toList s) |> PACKAGE.Darklang.Stdlib.List.head |> Builtin.unwrap
+//  (PACKAGE.Darklang.Stdlib.String.toList s) |> PACKAGE.Darklang.Stdlib.List.head |> Builtin.unwrap
 
 Builtin.Json.serialize<Char> 'a' = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"a\""
 Builtin.Json.parse<Char> "\"a\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 'a'

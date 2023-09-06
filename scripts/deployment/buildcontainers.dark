@@ -34,7 +34,10 @@ let main () : Int =
   let jsonImageIds =
     (Builtin.Json.serialize<List<DockerImageId>> imageIds) |> Builtin.unwrap
 
-  let _ = Builtin.File.write (Builtin.String.toBytes jsonImageIds) "ids.json"
+  let _ =
+    Builtin.File.write
+      (PACKAGE.Darklang.Stdlib.String.toBytes jsonImageIds)
+      "ids.json"
 
   let _ = Builtin.print "done"
 

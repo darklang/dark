@@ -24,4 +24,4 @@ Hello back
           ("content-length", "LENGTH")
           ("content-type", "text/plain; charset=utf-8")
         ]
-      body = "Hello back" |> Builtin.String.toBytes_v0 }
+      body = "Hello back" |> PACKAGE.Darklang.Stdlib.String.toBytes_v0 }

@@ -46,13 +46,13 @@ module OpenAI =
             "POST"
             "https://api.openai.com/v1/completions"
             headers
-            (Builtin.String.toBytes reqBody)
+            (PACKAGE.Darklang.Stdlib.String.toBytes reqBody)
 
         match openAIResponse with
         | Ok r ->
           match
             Builtin.Json.parse<PACKAGE.OpenAI.Completion.Response> (
-              Builtin.String.fromBytes r.body
+              PACKAGE.Darklang.Stdlib.String.fromBytes r.body
             )
           with
           | Ok r ->
@@ -151,13 +151,13 @@ module OpenAI =
             "POST"
             "https://api.openai.com/v1/chat/completions"
             headers
-            (Builtin.String.toBytes reqBody)
+            (PACKAGE.Darklang.Stdlib.String.toBytes reqBody)
 
         match openAIResponse with
         | Ok r ->
           match
             Builtin.Json.parse<PACKAGE.OpenAI.ChatCompletion.Response> (
-              Builtin.String.fromBytes r.body
+              PACKAGE.Darklang.Stdlib.String.fromBytes r.body
             )
           with
           | Ok r ->
@@ -205,13 +205,13 @@ module OpenAI =
             "POST"
             "https://api.openai.com/v1/chat/completions"
             headers
-            (Builtin.String.toBytes reqBody)
+            (PACKAGE.Darklang.Stdlib.String.toBytes reqBody)
 
         match openAIResponse with
         | Ok r ->
           match
             Builtin.Json.parse<PACKAGE.OpenAI.ChatCompletion.Response> (
-              Builtin.String.fromBytes r.body
+              PACKAGE.Darklang.Stdlib.String.fromBytes r.body
             )
           with
           | Ok r ->
@@ -261,13 +261,13 @@ module OpenAI =
             "POST"
             "https://api.openai.com/v1/images/generations"
             headers
-            (Builtin.String.toBytes reqBody)
+            (PACKAGE.Darklang.Stdlib.String.toBytes reqBody)
 
         match openAIResponse with
         | Ok r ->
           match
             Builtin.Json.parse<PACKAGE.OpenAI.ImageGeneration.Response> (
-              Builtin.String.fromBytes r.body
+              PACKAGE.Darklang.Stdlib.String.fromBytes r.body
             )
           with
           | Ok r ->
@@ -313,7 +313,7 @@ module OpenAI =
       match modelResponse with
       | Ok r ->
         r.body
-        |> Builtin.String.fromBytes
+        |> PACKAGE.Darklang.Stdlib.String.fromBytes
         |> PACKAGE.Darklang.Stdlib.Result.Result.Ok
       | Error e ->
         PACKAGE.Darklang.Stdlib.Result.Result.Error(
@@ -336,7 +336,7 @@ module OpenAI =
       match modelResponse with
       | Ok r ->
         r.body
-        |> Builtin.String.fromBytes
+        |> PACKAGE.Darklang.Stdlib.String.fromBytes
         |> PACKAGE.Darklang.Stdlib.Result.Result.Ok
       | Error e ->
         PACKAGE.Darklang.Stdlib.Result.Result.Error(

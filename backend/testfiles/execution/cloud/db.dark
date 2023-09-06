@@ -759,11 +759,11 @@ module CompiledFunctions =
   (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.greaterThan_v0 p.height 65)) = [ " Chandler "
                                                                                   "Ross" ]
 
-  (friends (fun p -> Builtin.String.toLowercase p.name == "rachel")) = [ "Rachel" ]
-  (friends (fun p -> Builtin.String.toUppercase p.name == "RACHEL")) = [ "Rachel" ]
-  (friends (fun p -> Builtin.String.reverse_v0 p.name == "lehcaR")) = [ "Rachel" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.String.toLowercase p.name == "rachel")) = [ "Rachel" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.String.toUppercase p.name == "RACHEL")) = [ "Rachel" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.String.reverse_v0 p.name == "lehcaR")) = [ "Rachel" ]
   // Not implemented yet
-  // (friends (fun p -> Builtin.String.length p.name > 5)) = [" Chandler "; "GrumpyCat"; "Rachel" ]
+  // (friends (fun p -> PACKAGE.Darklang.Stdlib.String.length p.name > 5)) = [" Chandler "; "GrumpyCat"; "Rachel" ]
   (friends (fun p -> PACKAGE.Darklang.Stdlib.String.contains_v0 p.name "ROSS")) = []
 
   (friends (fun p -> PACKAGE.Darklang.Stdlib.String.contains_v0 p.name "R")) = [ "Rachel"
@@ -776,15 +776,22 @@ module CompiledFunctions =
                                                                                 "Rachel"
                                                                                 "Ross" ]
 
-  (friends (fun p -> Builtin.String.replaceAll_v0 p.name "handle" "he" == " Cher ")) = [ " Chandler " ]
-  (friends (fun p -> Builtin.String.replaceAll_v0 p.name " " "Xx" == "XxChandlerXx")) = [ " Chandler " ]
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.String.replaceAll_v0 p.name "handle" "he" == " Cher ")) = [ " Chandler " ]
 
   (friends (fun p ->
-    Builtin.String.replaceAll_v0 p.name "xxx" "notUsed" == " Chandler ")) = [ " Chandler " ]
+    PACKAGE.Darklang.Stdlib.String.replaceAll_v0 p.name " " "Xx" == "XxChandlerXx")) = [ " Chandler " ]
 
-  (friends (fun p -> Builtin.String.trim_v0 p.name == "Chandler")) = [ " Chandler " ]
-  (friends (fun p -> Builtin.String.trimStart_v0 p.name == "Chandler ")) = [ " Chandler " ]
-  (friends (fun p -> Builtin.String.trimEnd_v0 p.name == " Chandler")) = [ " Chandler " ]
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.String.replaceAll_v0 p.name "xxx" "notUsed"
+    == " Chandler ")) = [ " Chandler " ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.String.trim_v0 p.name == "Chandler")) = [ " Chandler " ]
+
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.String.trimStart_v0 p.name == "Chandler ")) = [ " Chandler " ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.String.trimEnd_v0 p.name == " Chandler")) = [ " Chandler " ]
   (friends (fun p -> PACKAGE.Darklang.Stdlib.Bool.not_v0 p.human)) = [ "GrumpyCat" ]
 
   (friends (fun p -> PACKAGE.Darklang.Stdlib.Bool.and_v0 p.human p.human)) = [ " Chandler "
@@ -937,4 +944,4 @@ module QueryCount =
    Builtin.DB.queryCount_v0 PersonDB (fun p -> p.height > 3)) = 4
 
 
-((Builtin.DB.generateKey_v0 ()) |> Builtin.String.length) = 36
+((Builtin.DB.generateKey_v0 ()) |> PACKAGE.Darklang.Stdlib.String.length) = 36

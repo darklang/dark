@@ -68,7 +68,6 @@ module Darklang =
             PACKAGE.Darklang.Stdlib.List.findFirst tail fn
 
 
-
       /// Returns {{true}} if <param value> is in the list
       let ``member`` (list: List<'a>) (value: 'a) : Bool =
         match list with
@@ -118,7 +117,6 @@ module Darklang =
           PACKAGE.Darklang.Stdlib.List.push_v0
             (PACKAGE.Darklang.Stdlib.List.range (lowest + 1) highest)
             lowest
-
 
 
       /// Folds <param list> into a single value, by repeatedly applying <param fn> to any two pairs.
@@ -235,7 +233,6 @@ module Darklang =
             PACKAGE.Darklang.Stdlib.List.all tail fn
           else
             false
-
 
 
       // Calls <param f> on every <var val> in <param list>, returning a list of only
@@ -498,7 +495,6 @@ module Darklang =
             (PACKAGE.Darklang.Stdlib.List.push_v0 trueList head, falseList)
           else
             (trueList, PACKAGE.Darklang.Stdlib.List.push_v0 falseList head)
-
 
 
       /// Applies the given function <param fn> to each element of the <param list>.

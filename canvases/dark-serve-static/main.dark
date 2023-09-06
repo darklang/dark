@@ -7,7 +7,7 @@ let _handler _req =
 
   let contentType =
     match
-      (Builtin.String.split path ".")
+      (PACKAGE.Darklang.Stdlib.String.split path ".")
       |> PACKAGE.Darklang.Stdlib.List.last
       |> PACKAGE.Darklang.Stdlib.Option.withDefault ""
     with

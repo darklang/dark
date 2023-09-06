@@ -31,8 +31,8 @@ module Equals =
   ([ 1; 2; 3 ] == [ 1; 2; 3 ]) = true
   ([ 1; 2; 3 ] != [ 3; 2; 1 ]) = true
 
-  ((Builtin.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")
-   == (Builtin.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
+  ((PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")
+   == (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
 
   ((Builtin.DateTime.parse "2019-07-28T22:42:36Z")
    == (Builtin.DateTime.parse "2019-07-28T22:42:36Z")) = true

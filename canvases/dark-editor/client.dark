@@ -31,7 +31,7 @@ let openAIcompletion
     let url = "http://dark-editor.dlio.localhost:11003/openai-apikey-yikes"
 
     match Builtin.HttpClient.request "get" url [] Builtin.Bytes.empty with
-    | Ok response -> response.body |> Builtin.String.fromBytes
+    | Ok response -> response.body |> PACKAGE.Darklang.Stdlib.String.fromBytes
 
   let openAIRequest =
     OpenAIChatCompletionRequest
@@ -52,13 +52,13 @@ let openAIcompletion
         "POST"
         "https://api.openai.com/v1/chat/completions"
         headers
-        (Builtin.String.toBytes reqBody)
+        (PACKAGE.Darklang.Stdlib.String.toBytes reqBody)
 
     match openAIResponse with
     | Ok r ->
       match
         Builtin.Json.parse<OpenAIChatCompletionResponse> (
-          Builtin.String.fromBytes r.body
+          PACKAGE.Darklang.Stdlib.String.fromBytes r.body
         )
       with
       | Ok r ->
@@ -79,16 +79,24 @@ let parseAndSerializeProgram
       "POST"
       "http://dark-editor.dlio.localhost:11003/get-program-json"
       []
-      (Builtin.String.toBytes userProgram)
+      (PACKAGE.Darklang.Stdlib.String.toBytes userProgram)
 
   let statusCode = response |> Builtin.unwrap |> (fun r -> r.statusCode)
 
   match statusCode with
   | 200 ->
-    Ok(response |> Builtin.unwrap |> (fun r -> r.body) |> Builtin.String.fromBytes)
+    Ok(
+      response
+      |> Builtin.unwrap
+      |> (fun r -> r.body)
+      |> PACKAGE.Darklang.Stdlib.String.fromBytes
+    )
   | 400 ->
     Error(
-      response |> Builtin.unwrap |> (fun r -> r.body) |> Builtin.String.fromBytes
+      response
+      |> Builtin.unwrap
+      |> (fun r -> r.body)
+      |> PACKAGE.Darklang.Stdlib.String.fromBytes
     )
   | _ ->
     Error(
@@ -176,7 +184,7 @@ let update (model: Model) (msg: Msg) : Model =
     match systemPrompt with
     | Ok response ->
       { response with
-          systemPrompt = Builtin.String.fromBytes response.body }
+          systemPrompt = PACKAGE.Darklang.Stdlib.String.fromBytes response.body }
     | Error err -> logErr "Couldn't load system prompt"
 
 
@@ -188,7 +196,7 @@ let update (model: Model) (msg: Msg) : Model =
             PACKAGE.Darklang.Stdlib.List.append
               model.chatHistory
               [ ChatHistoryItem.UserPrompt
-                  (Builtin.unwrap (Builtin.String.random 5))
+                  (Builtin.unwrap (PACKAGE.Darklang.Stdlib.String.random 5))
                   userPrompt ] }
 
     updateStateInJS newModel
@@ -201,7 +209,7 @@ let update (model: Model) (msg: Msg) : Model =
         Builtin.Bytes.empty)
       |> Builtin.unwrap
       |> (fun r -> r.body)
-      |> Builtin.String.fromBytes
+      |> PACKAGE.Darklang.Stdlib.String.fromBytes
       |> PACKAGE.Darklang.Stdlib.String.append $"\n\n {userPrompt}"
 
     // I guess, until we have cmds or something,
@@ -210,35 +218,36 @@ let update (model: Model) (msg: Msg) : Model =
 
     match openAIcompletion getTasksPrompt, openAIcompletion fullPrompt with
     | Ok apiResponseTasks, Ok apiResponse ->
-      let taskIndex = Builtin.String.indexOf_v0 apiResponseTasks "Tasks:"
+      let taskIndex =
+        PACKAGE.Darklang.Stdlib.String.indexOf_v0 apiResponseTasks "Tasks:"
 
       let newtasks =
         match taskIndex with
         | None -> []
         | Some taskIndex ->
           apiResponseTasks
-          |> Builtin.String.slice_v0
+          |> PACKAGE.Darklang.Stdlib.String.slice_v0
             taskIndex
-            (Builtin.String.length apiResponseTasks)
-          |> Builtin.String.split "\n"
+            (PACKAGE.Darklang.Stdlib.String.length apiResponseTasks)
+          |> PACKAGE.Darklang.Stdlib.String.split "\n"
           |> PACKAGE.Darklang.Stdlib.List.map (fun line ->
             Task
-              { id = (Builtin.String.random 5) |> Builtin.unwrap
+              { id = (PACKAGE.Darklang.Stdlib.String.random 5) |> Builtin.unwrap
                 description = line
                 status = Status.Todo })
 
       let (newCodeSnippets, botResponseParts) =
-        (Builtin.String.split (" " ++ apiResponse) "```")
+        (PACKAGE.Darklang.Stdlib.String.split (" " ++ apiResponse) "```")
         |> PACKAGE.Darklang.Stdlib.List.indexedMap (fun i text -> (i, text))
         |> PACKAGE.Darklang.Stdlib.List.fold ([], []) (fun acc curr ->
           let (codeSnippets, responseParts) = acc
           let (i, text) = curr
-          let text = Builtin.String.trim text
+          let text = PACKAGE.Darklang.Stdlib.String.trim text
 
           if text == "" then
             acc
           else if i % 2 == 1 then
-            let snippetId = Builtin.unwrap (Builtin.String.random 5)
+            let snippetId = Builtin.unwrap (PACKAGE.Darklang.Stdlib.String.random 5)
 
             let updatedCodeSnippets =
               PACKAGE.Darklang.Stdlib.List.append
@@ -262,10 +271,10 @@ let update (model: Model) (msg: Msg) : Model =
 
       let newChatItemsItems =
         [ ChatHistoryItem.UserPrompt
-            (Builtin.unwrap (Builtin.String.random 5))
+            (Builtin.unwrap (PACKAGE.Darklang.Stdlib.String.random 5))
             userPrompt
           ChatHistoryItem.BotResponse
-            (Builtin.unwrap (Builtin.String.random 5))
+            (Builtin.unwrap (PACKAGE.Darklang.Stdlib.String.random 5))
             botResponseParts ]
 
       Model
@@ -408,23 +417,23 @@ let init () : Model =
   let initState =
     let demoSnippet =
       CodeSnippet
-        { id = (Builtin.String.random 5) |> Builtin.unwrap
+        { id = (PACKAGE.Darklang.Stdlib.String.random 5) |> Builtin.unwrap
           code = "let incr (i: Int): Int = i + 1\n\nincr 5"
           eval = PACKAGE.Darklang.Stdlib.Option.Option.None }
 
     let demoAction =
       [ Action
-          { id = (Builtin.String.random 5) |> Builtin.unwrap
+          { id = (PACKAGE.Darklang.Stdlib.String.random 5) |> Builtin.unwrap
             description = "Demo action"
             status = Status.InProgress } ]
 
     let chatHistory =
       [ ChatHistoryItem.UserPrompt
-          (Builtin.unwrap (Builtin.String.random 5))
+          (Builtin.unwrap (PACKAGE.Darklang.Stdlib.String.random 5))
           "Hello, I want a function that increments an integer!"
 
         ChatHistoryItem.BotResponse
-          (Builtin.unwrap (Builtin.String.random 5))
+          (Builtin.unwrap (PACKAGE.Darklang.Stdlib.String.random 5))
           [ BotResponseItem.Text "OK - here's some code:"
             BotResponseItem.CodeSnippet demoSnippet.id
             BotResponseItem.Actions demoAction ] ]
@@ -440,7 +449,10 @@ let init () : Model =
       match response with
       | Ok response ->
         log "got response"
-        response.body |> Builtin.String.fromBytes |> Builtin.String.split "\n\n"
+
+        response.body
+        |> PACKAGE.Darklang.Stdlib.String.fromBytes
+        |> PACKAGE.Darklang.Stdlib.String.split "\n\n"
 
       | Error err -> "Error getting response: " ++ err
 
@@ -456,7 +468,10 @@ let init () : Model =
       match response with
       | Ok response ->
         log "got response"
-        response.body |> Builtin.String.fromBytes |> Builtin.String.split "\n\n"
+
+        response.body
+        |> PACKAGE.Darklang.Stdlib.String.fromBytes
+        |> PACKAGE.Darklang.Stdlib.String.split "\n\n"
 
       | Error err -> "Error getting response: " ++ err
 

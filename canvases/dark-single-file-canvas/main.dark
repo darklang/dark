@@ -19,7 +19,7 @@ let stringify (e: CustomEnum) : String =
 
 [<HttpHandler("GET", "/")>]
 let _indexHandler _req =
-  let respBody = Builtin.String.toBytes "testing 123"
+  let respBody = PACKAGE.Darklang.Stdlib.String.toBytes "testing 123"
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
 
@@ -27,11 +27,13 @@ let _indexHandler _req =
 let _stringifyEnumHandler (request) =
   // req body should be like { "A": [] }
   let reqBody =
-    request.body |> Builtin.String.fromBytes_v0 |> Builtin.Json.parse<CustomEnum>
+    request.body
+    |> PACKAGE.Darklang.Stdlib.String.fromBytes_v0
+    |> Builtin.Json.parse<CustomEnum>
 
   let reqBody = PACKAGE.Darklang.Stdlib.Result.withDefault_v0 reqBody B
 
-  let respBody = (stringify reqBody) |> Builtin.String.toBytes_v0
+  let respBody = (stringify reqBody) |> PACKAGE.Darklang.Stdlib.String.toBytes_v0
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
@@ -50,7 +52,7 @@ let _handler _req =
 
   let respBody =
     match respBody with
-    | Ok v -> v |> Builtin.String.toBytes
+    | Ok v -> v |> PACKAGE.Darklang.Stdlib.String.toBytes
     | Err e -> "fail"
 
 
