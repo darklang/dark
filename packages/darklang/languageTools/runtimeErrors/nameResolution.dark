@@ -21,7 +21,7 @@ module Darklang =
             nameType: NameType
 
             /// The `.`-delimited name _parts_
-            /// e.g. `PACKAGE.Darklang.Stdlib.List.fakeFunction` is `["List"; "fakeFunction"]`
+            /// e.g. `Builtin.List.fakeFunction` is `["Builtin"; "List"; "fakeFunction"]`
             names: List<String>
           }
 
