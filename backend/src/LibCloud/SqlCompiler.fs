@@ -267,6 +267,29 @@ let sqlOpForPackageFunction (fnName : FnName.Package) : SqlSpec =
     SqlCallback2(fun lookingIn searchingFor ->
       // strpos returns indexed from 1; 0 means missing
       $"strpos({lookingIn}, {searchingFor}) > 0")
+  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "lessThan" -> SqlBinOp "<"
+  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "lessThanOrEqualTo" ->
+    SqlBinOp "<="
+  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "greaterThan" -> SqlBinOp ">"
+  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "greaterThanOrEqualTo" ->
+    SqlBinOp ">="
+  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "add" -> SqlBinOp "+"
+  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "subtract" -> SqlBinOp "-"
+  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "multiply" -> SqlBinOp "*"
+  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "divide" -> SqlBinOp "/"
+  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "power" -> SqlBinOp "^"
+  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "mod" -> SqlBinOp "%"
+  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "lessThan" -> SqlBinOp "<"
+  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "lessThanOrEqualTo" ->
+    SqlBinOp "<="
+  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "greaterThan" -> SqlBinOp ">"
+  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "greaterThanOrEqualTo" ->
+    SqlBinOp ">="
+  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "add" -> SqlBinOp "+"
+  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "subtract" -> SqlBinOp "-"
+  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "multiply" -> SqlBinOp "*"
+  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "divide" -> SqlBinOp "/"
+  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "power" -> SqlBinOp "^"
   | _ -> NotQueryable
 
 

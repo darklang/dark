@@ -40,11 +40,11 @@ module Equals =
   ((Builtin.DateTime.parse "2019-07-28T22:42:37Z")
    != (Builtin.DateTime.parse "2019-07-28T22:42:36Z")) = true
 
-  (Builtin.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
-   == Builtin.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+  (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
+   == PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
 
-  (Builtin.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e"
-   != Builtin.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+  (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e"
+   != PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
 
   (fun x -> y) = (fun x -> y)
   ((fun x -> let y = 1 in y) == (fun x -> let y = 1 in y)) = true

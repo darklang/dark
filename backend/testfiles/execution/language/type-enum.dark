@@ -63,8 +63,8 @@ module Simple =
   (AorB.A == AorB.A) = true
   (AorB.A == AorB.B) = false
 
-  Builtin.List.unique_v0 [ AorB.A; AorB.B; AorB.A; AorB.A; AorB.B ] = [ AorB.A
-                                                                        AorB.B ]
+  PACKAGE.Darklang.Stdlib.List.unique_v0 [ AorB.A; AorB.B; AorB.A; AorB.A; AorB.B ] = [ AorB.A
+                                                                                        AorB.B ]
 
   module EnumReference =
     type CorD =
@@ -119,7 +119,7 @@ module MixedCases =
      match v with
      | X s -> "X " ++ s
      | Z(s, _i) -> "Z " ++ s
-     | Y y -> "Y " ++ (Builtin.Int.toString_v0 y)
+     | Y y -> "Y " ++ (PACKAGE.Darklang.Stdlib.Int.toString_v0 y)
      | W -> "a simple W")) = [ "a simple W"; "X testX"; "Y 5"; "Z testZ" ]
 
 module TuplesVsNonTuples =

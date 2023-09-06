@@ -19,7 +19,7 @@ Redirect destination reached with cookies
 // This is here to be a destination for valid redirect tests with cookies
 (let reqHeaders = { Cookie = "yummy_cookie=choco; tasty_cookie=strawberry" }
  let response = (Builtin.HttpClient.request "get" "http://URL" {} reqHeaders) |> Builtin.unwrap
- let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
+ let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    Builtin.HttpClient.Response
     { body = "Redirect destination reached with cookies"

@@ -396,7 +396,7 @@ Builtin.Json.parse<DateTime> "1" = PACKAGE.Darklang.Stdlib.Result.Result.Error
 
 // UUIDs
 let uuid (s: String) : Uuid =
-  (Builtin.Uuid.parse_v0 s) |> Builtin.unwrap
+  (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 s) |> Builtin.unwrap
 
 // empty
 Builtin.Json.serialize<Uuid> (uuid "00000000-0000-0000-0000-000000000000") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
@@ -527,13 +527,15 @@ Builtin.Json.serialize<Tuple<List<Int>, List<Person>>> (
 
 Builtin.Json.serialize<Tuple<Tuple<Int, String>, Tuple<Person, Dict<String>>>> (
   (1, "two"),
-  (Person { Name = "Alice"; Age = 42 }, Builtin.Dict.singleton "a" "b")
+  (Person { Name = "Alice"; Age = 42 },
+   PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b")
 ) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
 
 Builtin.Json.serialize<Tuple<Tuple<List<Tuple<Int, String>>, Bytes>, Tuple<Person, Dict<String>>>> (
   ([ (1, "two"); (3, "four") ], Builtin.Bytes.empty),
-  (Person { Name = "Alice"; Age = 42 }, Builtin.Dict.singleton "a" "b")
+  (Person { Name = "Alice"; Age = 42 },
+   PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b")
 ) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   "[[[[1,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
 
@@ -581,7 +583,8 @@ Builtin.Json.parse<Tuple<Tuple<Int, String>, Tuple<Person, Dict<String>>>>
   .Result
   .Ok(
     ((1, "two"),
-     (Person { Name = "Alice"; Age = 42 }, Builtin.Dict.singleton "a" "b"))
+     (Person { Name = "Alice"; Age = 42 },
+      PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b"))
   )
 
 Builtin.Json.parse<Tuple<Tuple<List<Tuple<Int, String>>, Bytes>, Tuple<Person, Dict<String>>>>
@@ -592,7 +595,8 @@ Builtin.Json.parse<Tuple<Tuple<List<Tuple<Int, String>>, Bytes>, Tuple<Person, D
   .Result
   .Ok(
     (([ (1, "two"); (3, "four") ], Builtin.Bytes.empty),
-     (Person { Name = "Alice"; Age = 42 }, Builtin.Dict.singleton "a" "b"))
+     (Person { Name = "Alice"; Age = 42 },
+      PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b"))
   )
 
 Builtin.Json.parse<Tuple<Person, PACKAGE.Darklang.Stdlib.Option.Option<Int>>>
@@ -700,8 +704,10 @@ Builtin.Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>>
 
 Builtin.Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<List<Tuple<Dict<String>, PACKAGE.Darklang.Stdlib.Option.Option<Int>>>, String>> (
   PACKAGE.Darklang.Stdlib.Result.Result.Ok
-    [ (Builtin.Dict.singleton "a" "b", PACKAGE.Darklang.Stdlib.Option.Option.Some 1)
-      (Builtin.Dict.singleton "c" "d", PACKAGE.Darklang.Stdlib.Option.Option.None) ]
+    [ (PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b",
+       PACKAGE.Darklang.Stdlib.Option.Option.Some 1)
+      (PACKAGE.Darklang.Stdlib.Dict.singleton "c" "d",
+       PACKAGE.Darklang.Stdlib.Option.Option.None) ]
 ) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   "{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}"
 
@@ -713,8 +719,10 @@ Builtin.Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<List<Tuple<Dict<String>
   .Result
   .Ok(
     PACKAGE.Darklang.Stdlib.Result.Result.Ok
-      [ (Builtin.Dict.singleton "a" "b", PACKAGE.Darklang.Stdlib.Option.Option.Some 1)
-        (Builtin.Dict.singleton "c" "d", PACKAGE.Darklang.Stdlib.Option.Option.None) ]
+      [ (PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b",
+         PACKAGE.Darklang.Stdlib.Option.Option.Some 1)
+        (PACKAGE.Darklang.Stdlib.Dict.singleton "c" "d",
+         PACKAGE.Darklang.Stdlib.Option.Option.None) ]
   )
 
 Builtin.Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>, String>> (
@@ -782,7 +790,7 @@ Builtin.Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib
 // Builtin.Json.parse<???>
 // so let's ignore them for now, and focus on Records defined as "Custom types"
 
-Builtin.Json.serialize<Dict<String>> (Builtin.Dict.singleton "a" "b") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+Builtin.Json.serialize<Dict<String>> (PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   """{"a":"b"}"""
 
 Builtin.Json.parse<Dict<String>> """{"a":"b"}""" = PACKAGE
@@ -790,7 +798,7 @@ Builtin.Json.parse<Dict<String>> """{"a":"b"}""" = PACKAGE
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.Dict.singleton "a" "b")
+  .Ok(PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b")
 
 Builtin.Json.serialize<Dict<String>> (Dict { a = "b"; c = "d" }) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   """{"a":"b","c":"d"}"""

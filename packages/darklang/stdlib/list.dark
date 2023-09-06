@@ -2,17 +2,8 @@ module Darklang =
   module Stdlib =
     module List =
 
-      /// Drops the last value from <param list>
-      let dropLast (list: List<'a>) : List<'a> =
-        match list with
-        | [] -> []
-        | head :: tail ->
-          match tail with
-          | [] -> []
-          | _ ->
-            PACKAGE.Darklang.Stdlib.List.push_v0
-              (PACKAGE.Darklang.Stdlib.List.dropLast tail)
-              head
+      /// Returns a one-element list containing the given <param val>
+      let singleton (value: 'a) : List<'a> = Builtin.List.singleton_v0 value
 
 
       /// Returns {{Some}} the head (first value) of a list.
@@ -61,65 +52,21 @@ module Darklang =
             (Builtin.List.singleton_v0 head)
 
 
-      /// Returns the number of values in <param list>
-      let ``length`` (list: List<'a>) : Int =
-        match list with
-        | [] -> 0
-        | _ :: tail -> 1 + (PACKAGE.Darklang.Stdlib.List.length tail)
-
-
-      /// Returns a list of numbers where each element is {{1}} larger than the
-      /// previous. You provide the <param lowest> and <param highest> numbers in the list.
-      let range (lowest: Int) (highest: Int) : List<Int> =
-        if lowest > highest then
-          []
-        else
-          PACKAGE.Darklang.Stdlib.List.push_v0
-            (PACKAGE.Darklang.Stdlib.List.range (lowest + 1) highest)
-            lowest
-
-
-      /// Returns a single list containing the values of every list directly in <paramlist>
-      /// (does not recursively flatten nested lists)
-      let flatten (list: List<List<'a>>) : List<'a> =
-        match list with
-        | [] -> []
-        | head :: tail ->
-          Builtin.List.append_v0 head (PACKAGE.Darklang.Stdlib.List.flatten tail)
-
-
-      /// Returns true if <param list> has no values
-      let isEmpty (list: List<'a>) : Bool =
-        match list with
-        | [] -> true
-        | _ -> false
-
-
-      /// Applies the given function <param fn> to each element of the <param list>.
-      let iter (list: List<'a>) (f: 'a -> Unit) : Unit =
-        match list with
-        | [] -> ()
-        | head :: tail ->
-          f head
-          PACKAGE.Darklang.Stdlib.List.iter tail f
-
-
-      /// Returns {{Some value}} at <param index> in <param list> if <param index> is
-      /// less than the length of the list otherwise returns {{None}}.
-      let getAt
+      /// Returns {{Some firstMatch}} where <var firstMatch> is the first value of the
+      /// list for which <param fn> returns {{true}}. Returns {{None}} if no such
+      /// value exists
+      let findFirst
         (list: List<'a>)
-        (index: Int)
+        (fn: 'a -> Bool)
         : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
-        if index < 0 then
-          PACKAGE.Darklang.Stdlib.Option.Option.None
-        else
-          match list with
-          | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
-          | head :: tail ->
-            if index == 0 then
-              PACKAGE.Darklang.Stdlib.Option.Option.Some head
-            else
-              PACKAGE.Darklang.Stdlib.List.getAt tail (index - 1)
+        match list with
+        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
+        | head :: tail ->
+          if (fn head) then
+            PACKAGE.Darklang.Stdlib.Option.Option.Some head
+          else
+            PACKAGE.Darklang.Stdlib.List.findFirst tail fn
+
 
 
       /// Returns {{true}} if <param value> is in the list
@@ -131,40 +78,6 @@ module Darklang =
             true
           else
             PACKAGE.Darklang.Stdlib.List.``member`` tail value
-
-
-      /// Drops the first <param count> values from <param list>
-      let drop (list: List<'a>) (count: Int) : List<'a> =
-        if count <= 0 then
-          list
-        else
-          match list with
-          | [] -> []
-          | _ :: tail -> PACKAGE.Darklang.Stdlib.List.drop tail (count - 1)
-
-
-      /// Drops the longest prefix of <param list> which satisfies the predicate <param val>
-      let dropWhile (list: List<'a>) (fn: 'a -> Bool) : List<'a> =
-        match list with
-        | [] -> []
-        | head :: tail ->
-          if (fn head) then
-            PACKAGE.Darklang.Stdlib.List.dropWhile tail fn
-          else
-            list
-
-
-      /// Drops all but the first <param count> values from <param list>
-      let take (list: List<'a>) (count: Int) : List<'a> =
-        if count <= 0 then
-          []
-        else
-          match list with
-          | [] -> []
-          | head :: tail ->
-            PACKAGE.Darklang.Stdlib.List.push_v0
-              (PACKAGE.Darklang.Stdlib.List.take tail (count - 1))
-              head
 
 
       /// Returns a list containing <param val> repeated <param times> times
@@ -189,13 +102,139 @@ module Darklang =
           | Error err -> PACKAGE.Darklang.Stdlib.Result.Result.Error err
 
 
-      // Calls <param fn> on every <var val> in <param list>, returning a list of the
-      // results of those calls.
-      // Consider <fn List.filterMap> if you also want to drop some of the values.
-      let map (list: List<'a>) (fn: 'a -> 'b) : List<'b> =
-        (PACKAGE.Darklang.Stdlib.List.fold list [] (fun acc elem ->
-          PACKAGE.Darklang.Stdlib.List.push_v0 acc (fn elem)))
-        |> PACKAGE.Darklang.Stdlib.List.reverse
+      /// Returns the number of values in <param list>
+      let ``length`` (list: List<'a>) : Int =
+        match list with
+        | [] -> 0
+        | _ :: tail -> 1 + (PACKAGE.Darklang.Stdlib.List.length tail)
+
+
+      /// Returns a list of numbers where each element is {{1}} larger than the
+      /// previous. You provide the <param lowest> and <param highest> numbers in the list.
+      let range (lowest: Int) (highest: Int) : List<Int> =
+        if lowest > highest then
+          []
+        else
+          PACKAGE.Darklang.Stdlib.List.push_v0
+            (PACKAGE.Darklang.Stdlib.List.range (lowest + 1) highest)
+            lowest
+
+
+
+      /// Folds <param list> into a single value, by repeatedly applying <param fn> to any two pairs.
+      let fold (list: List<'a>) (init: 'b) (fn: 'b -> 'a -> 'b) : 'b =
+        match list with
+        | [] -> init
+        | head :: tail ->
+          let init = fn init head
+          PACKAGE.Darklang.Stdlib.List.fold tail init fn
+
+
+      /// Returns a single list containing the values of every list directly in <paramlist>
+      /// (does not recursively flatten nested lists)
+      let flatten (list: List<List<'a>>) : List<'a> =
+        match list with
+        | [] -> []
+        | head :: tail ->
+          Builtin.List.append_v0 head (PACKAGE.Darklang.Stdlib.List.flatten tail)
+
+
+      /// Returns a single list containing the values of <param list> separated by <param sep>
+      let interpose (list: List<'a>) (sep: 'a) : List<'a> =
+        match list with
+        | [] -> []
+        | [ single ] -> [ single ]
+        | head :: tail ->
+          PACKAGE.Darklang.Stdlib.List.push_v0
+            (PACKAGE.Darklang.Stdlib.List.push_v0
+              (PACKAGE.Darklang.Stdlib.List.interpose tail sep)
+              sep)
+            head
+
+
+      /// Returns a list with the first value from <param l1> then the first value
+      /// from <param l2>, then the second value from <param l1> then the second value
+      /// other list.
+      let interleave (l1: List<'a>) (l2: List<'a>) : List<'a> =
+        match l1 with
+        | [] -> l2
+        | aHead :: aTail ->
+          match l2 with
+          | [] -> l1
+          | bHead :: bTail ->
+            PACKAGE.Darklang.Stdlib.List.push_v0
+              (PACKAGE.Darklang.Stdlib.List.push_v0
+                (PACKAGE.Darklang.Stdlib.List.interleave aTail bTail)
+                bHead)
+              aHead
+
+
+      /// Returns the passed list, with only unique values, where uniqueness is based
+      /// on the result of <param fn>. Only one of each value will be returned, but the
+      /// order will not be maintained.
+      let uniqueBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
+        Builtin.List.uniqueBy_v0 list fn
+
+
+      /// Returns the passed list, with only unique values.
+      /// Only one of each value will be returned, but the
+      /// order will not be maintained.
+      let unique (list: List<'a>) : List<'a> = Builtin.List.unique_v0 list
+
+
+      /// Returns true if <param list> has no values
+      let isEmpty (list: List<'a>) : Bool =
+        match list with
+        | [] -> true
+        | _ -> false
+
+
+      /// Returns a copy of <param list> with every value sorted in ascending order.
+      /// Use this if the values have types Dark knows how to sort.
+      /// Consider <fn List.sortBy> or <fn List.sortByComparator> if you need more
+      /// control over the sorting process.
+      let sort (list: List<'a>) : List<'a> = Builtin.List.sort_v0 list
+
+
+      /// Returns a copy of <param list>, sorted in ascending order, as if each value
+      /// evaluated to {{fn val}}.
+      /// For example, {{List.sortBy [\"x\",\"jkl\",\"ab\"] \\val -> String.length
+      /// val}} returns {{[ \"x\", \"ab\", \"jkl\" ]}}.
+      /// Consider <fn List.sort> if the list values can be directly compared, or <fn
+      /// List.sortByComparator> if you want more control over the sorting process.
+      let sortBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
+        Builtin.List.sortBy_v0 list fn
+
+
+      /// Returns a copy of <param list>, sorted using {{fn a b}} to compare values
+      /// <var a> and <var b>.
+      /// <param f> must return {{-1}} if <var a> should appear before <var b>, {{1}}
+      /// if <var a> should appear after <var b>, and {{0}} if the order of <var a>
+      /// and <var b> doesn't matter.
+      /// Consider <fn List.sort> or <fn List.sortBy> if you don't need this level
+      /// of control.
+      let sortByComparator
+        (list: List<'a>)
+        (fn: 'a -> 'a -> Int)
+        : PACKAGE.Darklang.Stdlib.Result.Result<List<'a>, String> =
+        Builtin.List.sortByComparator_v0 list fn
+
+
+      /// Returns a new list with all values in <param as> followed by all values in <param bs>,
+      /// preserving the order
+      let append (as_: List<'a>) (bs: List<'a>) : List<'a> =
+        Builtin.List.append_v0 as_ bs
+
+
+      /// Return {{true}} if all elements in the list meet the function's criteria, else {{false}}
+      let all (list: List<'a>) (fn: 'a -> Bool) : Bool =
+        match list with
+        | [] -> true
+        | head :: tail ->
+          if (fn head) then
+            PACKAGE.Darklang.Stdlib.List.all tail fn
+          else
+            false
 
 
 
@@ -233,62 +272,51 @@ module Darklang =
           | None -> PACKAGE.Darklang.Stdlib.List.filterMap tail fn
 
 
+      /// Drops the first <param count> values from <param list>
+      let drop (list: List<'a>) (count: Int) : List<'a> =
+        if count <= 0 then
+          list
+        else
+          match list with
+          | [] -> []
+          | _ :: tail -> PACKAGE.Darklang.Stdlib.List.drop tail (count - 1)
 
-      /// Returns a single list containing the values of <param list> separated by <param sep>
-      let interpose (list: List<'a>) (sep: 'a) : List<'a> =
+
+      /// Drops the longest prefix of <param list> which satisfies the predicate <param val>
+      let dropWhile (list: List<'a>) (fn: 'a -> Bool) : List<'a> =
         match list with
         | [] -> []
-        | [ single ] -> [ single ]
-        | head :: tail ->
-          PACKAGE.Darklang.Stdlib.List.push_v0
-            (PACKAGE.Darklang.Stdlib.List.push_v0
-              (PACKAGE.Darklang.Stdlib.List.interpose tail sep)
-              sep)
-            head
-
-
-      /// Returns a list with the first value from <param l1> then the first value
-      /// from <param l2>, then the second value from <param l1> then the second value
-      /// other list.
-      let interleave (l1: List<'a>) (l2: List<'a>) : List<'a> =
-        match l1 with
-        | [] -> l2
-        | aHead :: aTail ->
-          match l2 with
-          | [] -> l1
-          | bHead :: bTail ->
-            PACKAGE.Darklang.Stdlib.List.push_v0
-              (PACKAGE.Darklang.Stdlib.List.push_v0
-                (PACKAGE.Darklang.Stdlib.List.interleave aTail bTail)
-                bHead)
-              aHead
-
-
-
-      /// Returns {{Some firstMatch}} where <var firstMatch> is the first value of the
-      /// list for which <param fn> returns {{true}}. Returns {{None}} if no such
-      /// value exists
-      let findFirst
-        (list: List<'a>)
-        (fn: 'a -> Bool)
-        : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
-        match list with
-        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
         | head :: tail ->
           if (fn head) then
-            PACKAGE.Darklang.Stdlib.Option.Option.Some head
+            PACKAGE.Darklang.Stdlib.List.dropWhile tail fn
           else
-            PACKAGE.Darklang.Stdlib.List.findFirst tail fn
+            list
 
 
-
-      /// Folds <param list> into a single value, by repeatedly applying <param fn> to any two pairs.
-      let fold (list: List<'a>) (init: 'b) (fn: 'b -> 'a -> 'b) : 'b =
+      /// Drops the last value from <param list>
+      let dropLast (list: List<'a>) : List<'a> =
         match list with
-        | [] -> init
+        | [] -> []
         | head :: tail ->
-          let init = fn init head
-          PACKAGE.Darklang.Stdlib.List.fold tail init fn
+          match tail with
+          | [] -> []
+          | _ ->
+            PACKAGE.Darklang.Stdlib.List.push_v0
+              (PACKAGE.Darklang.Stdlib.List.dropLast tail)
+              head
+
+
+      /// Drops all but the first <param count> values from <param list>
+      let take (list: List<'a>) (count: Int) : List<'a> =
+        if count <= 0 then
+          []
+        else
+          match list with
+          | [] -> []
+          | head :: tail ->
+            PACKAGE.Darklang.Stdlib.List.push_v0
+              (PACKAGE.Darklang.Stdlib.List.take tail (count - 1))
+              head
 
 
       /// Return the longest prefix of <param list> which satisfies the predicate <param fn>
@@ -304,15 +332,62 @@ module Darklang =
             []
 
 
-      // Returns a list of parallel pairs from <param as> and <param bs>.
-      // If the lists differ in length, values from the longer list are dropped.
-      // For example, if <param as> is {{[1,2]}} and <param bs> is
-      // {{[\"x\",\"y\",\"z\"]}}, returns {{[(1,\"x\"), (2,\"y\")]}}.
-      // Use <fn List.zip> if you want to enforce equivalent lengths for <param as>
-      // and <param bs>.
-      // See <fn List.unzip> if you want to deconstruct the result into <param as>
-      // and <param bs> again.
+      // Calls <param fn> on every <var val> in <param list>, returning a list of the
+      // results of those calls.
+      // Consider <fn List.filterMap> if you also want to drop some of the values.
+      let map (list: List<'a>) (fn: 'a -> 'b) : List<'b> =
+        (PACKAGE.Darklang.Stdlib.List.fold list [] (fun acc elem ->
+          PACKAGE.Darklang.Stdlib.List.push_v0 acc (fn elem)))
+        |> PACKAGE.Darklang.Stdlib.List.reverse
 
+
+      /// Calls <fn fn> on every <var val> and its <var index> in <param list>,
+      /// returning a list of the results of those calls.
+      /// Consider <fn List.map> if you don't need the index.
+      let indexedMap (list: List<'a>) (fn: 'a -> Int -> 'b) : List<'b> =
+        Builtin.List.indexedMap_v0 list fn
+
+
+      /// Maps <param fn> over <param as> and <param bs> in parallel, calling {{fn a
+      /// b}} on every pair of values from <param as> and <param bs>.
+      /// If the lists differ in length, values from the longer list are dropped.
+      /// For example, if <param as> is {{[1,2]}} and <param bs> is
+      /// {{[\"x\",\"y\",\"z\"]}}, returns {{[(f 1 \"x\"), (f 2 \"y\")]}}
+      /// Use <fn List.map2> if you want to enforce equivalent lengths for <param as>
+      /// and <param bs>.
+      let map2shortest
+        (as_: List<'a>)
+        (bs: List<'b>)
+        (fn: 'a -> 'b -> 'c)
+        : List<'c> =
+        Builtin.List.map2shortest_v0 as_ bs fn
+
+
+      /// If the lists are the same length, returns {{Just list}} formed by mapping
+      /// <param fn> over <param as> and <param bs> in parallel, calling {{fn a b}} on
+      /// every pair of values from <param as> and <param bs>.
+      /// For example, if <param as> is {{[1,2,3]}} and <param bs> is
+      /// {{[\"x\",\"y\",\"z\"]}}, returns {{[(fn 1 \"x\"), (f 2 \"y\"), (f 3
+      /// \"z\")]}}.
+      /// If the lists differ in length, returns {{Nothing}} (consider <fn
+      /// List.map2shortest> if you want to drop values from the longer list
+      /// instead).
+      let map2
+        (as_: List<'a>)
+        (bs: List<'b>)
+        (fn: 'a -> 'b -> 'c)
+        : PACKAGE.Darklang.Stdlib.Option.Option<List<'c>> =
+        Builtin.List.map2_v0 as_ bs fn
+
+
+      /// Returns a list of parallel pairs from <param as> and <param bs>.
+      /// If the lists differ in length, values from the longer list are dropped.
+      /// For example, if <param as> is {{[1,2]}} and <param bs> is
+      /// {{[\"x\",\"y\",\"z\"]}}, returns {{[(1,\"x\"), (2,\"y\")]}}.
+      /// Use <fn List.zip> if you want to enforce equivalent lengths for <param as>
+      /// and <param bs>.
+      /// See <fn List.unzip> if you want to deconstruct the result into <param as>
+      /// and <param bs> again.
       let zipShortest (as_: List<'a>) (bs: List<'b>) : List<('a * 'b)> =
         match as_ with
         | [] -> []
@@ -325,18 +400,15 @@ module Darklang =
               (aHead, bHead)
 
 
-      // If the lists have the same length, returns {{Some list of tuples}} formed from
-      // parallel pairs in <param l1> and <param l2>.
-
-      // For example, if <param l1> is {{[1,2,3]}} and <param l2> is
-      // {{[\"x\",\"y\",\"z\"]}}, returns {{[(1,\"x\"), (2,\"y\"), (3,\"z\")]}}.
-
-      // See <fn List.unzip> if you want to deconstruct <var list> into <param l1>
-      // and <param l2> again.
-
-      // If the lists differ in length, returns {{None}} (consider
-      // <fn List.zipShortest> if you want to drop values from the longer list
-      // instead).
+      /// If the lists have the same length, returns {{Some list of tuples}} formed from
+      /// parallel pairs in <param l1> and <param l2>.
+      /// For example, if <param l1> is {{[1,2,3]}} and <param l2> is
+      /// {{[\"x\",\"y\",\"z\"]}}, returns {{[(1,\"x\"), (2,\"y\"), (3,\"z\")]}}.
+      /// See <fn List.unzip> if you want to deconstruct <var list> into <param l1>
+      /// and <param l2> again.
+      /// If the lists differ in length, returns {{None}} (consider
+      /// <fn List.zipShortest> if you want to drop values from the longer list
+      /// instead).
       let zip
         (l1: List<'a>)
         (l2: List<'b>)
@@ -377,6 +449,42 @@ module Darklang =
            PACKAGE.Darklang.Stdlib.List.push_v0 seconds b)
 
 
+      /// Returns {{Some value}} at <param index> in <param list> if <param index> is
+      /// less than the length of the list otherwise returns {{None}}.
+      let getAt
+        (list: List<'a>)
+        (index: Int)
+        : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+        if index < 0 then
+          PACKAGE.Darklang.Stdlib.Option.Option.None
+        else
+          match list with
+          | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
+          | head :: tail ->
+            if index == 0 then
+              PACKAGE.Darklang.Stdlib.Option.Option.Some head
+            else
+              PACKAGE.Darklang.Stdlib.List.getAt tail (index - 1)
+
+
+      /// Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly
+      /// selected value in <param list>. Returns {{Nothing}} if <param list> is
+      /// empty.
+      let randomElement
+        (list: List<'a>)
+        : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+        Builtin.List.randomElement_v0 list
+
+
+      /// Groups <param list> into tuples (key, elements), where the key is computed by applying
+      /// <param fn> to each element in the list.
+      /// For example, if <param list> is {{[1, 2, 3, 4, 5]}} and <param fn>
+      /// is {{fn item -> Int.mod_v0 item 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
+      /// Preserves the order of values and of the keys.
+      let groupByWithKey (list: List<'a>) (fn: 'a -> 'b) : List<('b * List<'a>)> =
+        Builtin.List.groupByWithKey_v0 list fn
+
+
       /// Calls <param f> on every <var val> in <param list>, splitting the list into
       /// two - those values for which {{fn val}} returns {{true}}, and those that
       /// return {{false}}
@@ -392,12 +500,11 @@ module Darklang =
             (trueList, PACKAGE.Darklang.Stdlib.List.push_v0 falseList head)
 
 
-      /// Return {{true}} if all elements in the list meet the function's criteria, else {{false}}
-      let all (list: List<'a>) (fn: 'a -> Bool) : Bool =
+
+      /// Applies the given function <param fn> to each element of the <param list>.
+      let iter (list: List<'a>) (f: 'a -> Unit) : Unit =
         match list with
-        | [] -> true
+        | [] -> ()
         | head :: tail ->
-          if (fn head) then
-            PACKAGE.Darklang.Stdlib.List.all tail fn
-          else
-            false
+          f head
+          PACKAGE.Darklang.Stdlib.List.iter tail f

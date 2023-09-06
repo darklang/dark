@@ -209,7 +209,7 @@ module Darklang =
               //     [ String " // "; Description fieldDef.description ]
 
               let segment =
-                Builtin.List.append
+                PACKAGE.Darklang.Stdlib.List.append
                   [ ErrorSegment.ErrorSegment.String "({ "
                     ErrorSegment.ErrorSegment.InlineFieldName fieldName
                     ErrorSegment.ErrorSegment.String ": "
@@ -275,24 +275,24 @@ module Darklang =
                   ErrorSegment.ErrorSegment.String "."
                   ErrorSegment.ErrorSegment.InlineFieldName caseName
                   ErrorSegment.ErrorSegment.String " " ]
-                |> Builtin.List.append openParen
-                |> Builtin.List.append prefix
-                |> Builtin.List.append
+                |> PACKAGE.Darklang.Stdlib.List.append openParen
+                |> PACKAGE.Darklang.Stdlib.List.append prefix
+                |> PACKAGE.Darklang.Stdlib.List.append
                   [ ErrorSegment.ErrorSegment.TypeReference fieldType ]
-                |> Builtin.List.append suffix
-                |> Builtin.List.append closeParen
+                |> PACKAGE.Darklang.Stdlib.List.append suffix
+                |> PACKAGE.Darklang.Stdlib.List.append closeParen
 
               let argumentSegment =
                 [ ErrorSegment.ErrorSegment.ShortTypeName enumType
                   ErrorSegment.ErrorSegment.String "."
                   ErrorSegment.ErrorSegment.InlineFieldName caseName
                   ErrorSegment.ErrorSegment.String " " ]
-                |> Builtin.List.append openParen
-                |> Builtin.List.append prefix
-                |> Builtin.List.append
+                |> PACKAGE.Darklang.Stdlib.List.append openParen
+                |> PACKAGE.Darklang.Stdlib.List.append prefix
+                |> PACKAGE.Darklang.Stdlib.List.append
                   [ ErrorSegment.ErrorSegment.TypeOfValue argument ]
-                |> Builtin.List.append suffix
-                |> Builtin.List.append closeParen
+                |> PACKAGE.Darklang.Stdlib.List.append suffix
+                |> PACKAGE.Darklang.Stdlib.List.append closeParen
 
               (argumentSegment, fieldTypeSegment)
 
@@ -338,7 +338,7 @@ module Darklang =
             match e with
             | ValueNotExpectedType(argument, expected, context) ->
               let summary =
-                Builtin.List.append
+                PACKAGE.Darklang.Stdlib.List.append
                   (contextSummary context)
                   [ ErrorSegment.ErrorSegment.String " should be "
                     ErrorSegment.ErrorSegment.IndefiniteArticle

@@ -49,7 +49,7 @@ module Darklang =
                   constants = []
                   submodules = [] }
 
-            Builtin.List.append otherModules [ newModule ]
+            PACKAGE.Darklang.Stdlib.List.append otherModules [ newModule ]
 
           | [], submoduleNames ->
             let typeWithoutFirstModuleNamePartOfModule =
@@ -64,18 +64,20 @@ module Darklang =
                   constants = []
                   submodules = withType [] typeWithoutFirstModuleNamePartOfModule }
 
-            Builtin.List.append otherModules [ newModuleWithSubmodule ]
+            PACKAGE.Darklang.Stdlib.List.append
+              otherModules
+              [ newModuleWithSubmodule ]
 
           | [ foundModule ], [] ->
             let updatedModule =
               { foundModule with
                   types =
-                    Builtin.List.append
+                    PACKAGE.Darklang.Stdlib.List.append
                       foundModule.types
                       [ { t with
                             name = { t.name with modules = [] } } ] }
 
-            Builtin.List.append otherModules [ updatedModule ]
+            PACKAGE.Darklang.Stdlib.List.append otherModules [ updatedModule ]
 
           | [ foundModule ], submoduleNames ->
             let typeWithoutFirstModuleNamePartOfModule =
@@ -89,7 +91,7 @@ module Darklang =
                       foundModule.submodules
                       typeWithoutFirstModuleNamePartOfModule }
 
-            Builtin.List.append otherModules [ updatedModule ]
+            PACKAGE.Darklang.Stdlib.List.append otherModules [ updatedModule ]
 
 
       let withFn
@@ -126,7 +128,7 @@ module Darklang =
                   constants = []
                   submodules = [] }
 
-            Builtin.List.append otherModules [ newModule ]
+            PACKAGE.Darklang.Stdlib.List.append otherModules [ newModule ]
 
           | [], submoduleNames ->
             let fnWithoutFirstModuleNamePartOfModule =
@@ -141,18 +143,20 @@ module Darklang =
                   constants = []
                   submodules = withFn [] fnWithoutFirstModuleNamePartOfModule }
 
-            Builtin.List.append otherModules [ newModuleWithSubmodule ]
+            PACKAGE.Darklang.Stdlib.List.append
+              otherModules
+              [ newModuleWithSubmodule ]
 
           | [ foundModule ], [] ->
             let updatedModule =
               { foundModule with
                   fns =
-                    Builtin.List.append
+                    PACKAGE.Darklang.Stdlib.List.append
                       foundModule.fns
                       [ { f with
                             name = { f.name with modules = [] } } ] }
 
-            Builtin.List.append otherModules [ updatedModule ]
+            PACKAGE.Darklang.Stdlib.List.append otherModules [ updatedModule ]
 
           | [ foundModule ], submoduleNames ->
             let fnWithoutFirstModuleNamePartOfModule =
@@ -166,7 +170,7 @@ module Darklang =
                       foundModule.submodules
                       fnWithoutFirstModuleNamePartOfModule }
 
-            Builtin.List.append otherModules [ updatedModule ]
+            PACKAGE.Darklang.Stdlib.List.append otherModules [ updatedModule ]
 
       let withConstant
         (ms: List<Module>)
@@ -202,7 +206,7 @@ module Darklang =
                           name = { c.name with modules = [] } } ]
                   submodules = [] }
 
-            Builtin.List.append otherModules [ newModule ]
+            PACKAGE.Darklang.Stdlib.List.append otherModules [ newModule ]
 
           | [], submoduleNames ->
             let constantWithoutFirstModuleNamePartOfModule =
@@ -218,18 +222,20 @@ module Darklang =
                   submodules =
                     withConstant [] constantWithoutFirstModuleNamePartOfModule }
 
-            Builtin.List.append otherModules [ newModuleWithSubmodule ]
+            PACKAGE.Darklang.Stdlib.List.append
+              otherModules
+              [ newModuleWithSubmodule ]
 
           | [ foundModule ], [] ->
             let updatedModule =
               { foundModule with
                   constants =
-                    Builtin.List.append
+                    PACKAGE.Darklang.Stdlib.List.append
                       foundModule.constants
                       [ { c with
                             name = { c.name with modules = [] } } ] }
 
-            Builtin.List.append otherModules [ updatedModule ]
+            PACKAGE.Darklang.Stdlib.List.append otherModules [ updatedModule ]
 
           | [ foundModule ], submoduleNames ->
             let constantWithoutFirstModuleNamePartOfModule =
@@ -243,7 +249,7 @@ module Darklang =
                       foundModule.submodules
                       constantWithoutFirstModuleNamePartOfModule }
 
-            Builtin.List.append otherModules [ updatedModule ]
+            PACKAGE.Darklang.Stdlib.List.append otherModules [ updatedModule ]
 
 
 
@@ -336,7 +342,9 @@ module Darklang =
                     name =
                       { t.name with
                           modules =
-                            Builtin.List.append [ t.name.owner ] t.name.modules
+                            PACKAGE.Darklang.Stdlib.List.append
+                              [ t.name.owner ]
+                              t.name.modules
                           owner = "(redacted)" } })
             fns =
               p.fns
@@ -345,7 +353,9 @@ module Darklang =
                     name =
                       { f.name with
                           modules =
-                            Builtin.List.append [ f.name.owner ] f.name.modules
+                            PACKAGE.Darklang.Stdlib.List.append
+                              [ f.name.owner ]
+                              f.name.modules
                           owner = "(redacted)" } })
 
             constants =
@@ -355,7 +365,9 @@ module Darklang =
                     name =
                       { c.name with
                           modules =
-                            Builtin.List.append [ c.name.owner ] c.name.modules
+                            PACKAGE.Darklang.Stdlib.List.append
+                              [ c.name.owner ]
+                              c.name.modules
                           owner = "(redacted)" } }) }
 
       let modules = Packages.toModules withOwnerStuffRepresentedAsRootLevelModule

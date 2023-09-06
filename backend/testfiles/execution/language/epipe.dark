@@ -6,10 +6,13 @@ let userFn () : Int = 6
 // nested function
 ([]
  |> PACKAGE.Darklang.Stdlib.List.push_v0 (
-   Builtin.Int.add_v0 1 (Builtin.Int.add_v0 1 3)
+   PACKAGE.Darklang.Stdlib.Int.add_v0 1 (PACKAGE.Darklang.Stdlib.Int.add_v0 1 3)
  )) = [ 5 ]
 
-([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Builtin.Int.add_v0 1 ((+) 1 3))) = [ 5 ]
+([]
+ |> PACKAGE.Darklang.Stdlib.List.push_v0 (
+   PACKAGE.Darklang.Stdlib.Int.add_v0 1 ((+) 1 3)
+ )) = [ 5 ]
 
 ([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Builtin.Test.runtimeError "err")) = Builtin.Test.derrorMessage
   "err"
@@ -20,7 +23,7 @@ let userFn () : Int = 6
 ([ 5 ]
  |> PACKAGE.Darklang.Stdlib.List.head
  |> Builtin.unwrap
- |> Builtin.Int.add_v0 1
+ |> PACKAGE.Darklang.Stdlib.Int.add_v0 1
  |> (+) 3
  |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 9
 
@@ -116,10 +119,10 @@ module FnName =
   (let fn = (fun x -> x + 1)
    6 |> fn) = 7
 
-  (let fn = Builtin.Int.add
+  (let fn = PACKAGE.Darklang.Stdlib.Int.add
    3 |> fn 4) = 7
 
-  (let fn = Builtin.Int.subtract
+  (let fn = PACKAGE.Darklang.Stdlib.Int.subtract
    11 |> fn 4) = 7
 
   (let fn = PACKAGE.Darklang.Stdlib.Int.max

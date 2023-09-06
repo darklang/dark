@@ -8,9 +8,9 @@ module Documentation =
 
   ((Builtin.DarkInternal.Documentation.list_v0 ())
    |> PACKAGE.Darklang.Stdlib.List.map (fun f -> (f.name, f))
-   |> Builtin.Dict.fromList_v0
+   |> PACKAGE.Darklang.Stdlib.Dict.fromList_v0
    |> Builtin.unwrap
-   |> Builtin.Dict.get "Int.add"
+   |> PACKAGE.Darklang.Stdlib.Dict.get "Int.add"
    |> Builtin.unwrap
    |> (fun f -> f.parameters)) = [ Builtin.DarkInternal.Documentation.Parameter
                                      { name = "a"; ``type`` = "Int" }
@@ -21,7 +21,9 @@ module Documentation =
 module Infra =
 
   // correct number of tables
-  Builtin.Dict.size_v0 (Builtin.DarkInternal.Infra.getAndLogTableSizes_v0 ()) = 17
+  PACKAGE.Darklang.Stdlib.Dict.size_v0 (
+    Builtin.DarkInternal.Infra.getAndLogTableSizes_v0 ()
+  ) = 17
 
   // server build hash
   (match Builtin.DarkInternal.Infra.serverBuildHash_v0 () with
@@ -53,7 +55,7 @@ module Domains =
 
   module Errors =
     Builtin.DarkInternal.Canvas.Domain.get (
-      (Builtin.Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
+      (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
       |> Builtin.unwrap
     ) = []
 

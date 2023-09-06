@@ -180,7 +180,7 @@ module Darklang =
 //   : PACKAGE.Darklang.Stdlib.Result.Result<(String * String), String> =
 //   if
 //     not (
-//       Builtin.List.contains
+//       PACKAGE.Darklang.Stdlib.List.contains
 //         [ "strict"; "lax"; "none" ]
 //         (Builtin.String.toLowercase cookie.sameSite)
 //     )
@@ -193,7 +193,7 @@ module Darklang =
 
 //     let cookie =
 //       [ ("Expires", expires)
-//         ("Max-Age", cookie.maxAge |> Builtin.Int.toString)
+//         ("Max-Age", cookie.maxAge |> PACKAGE.Darklang.Stdlib.Int.toString)
 //         ("Domain", cookie.domain)
 //         ("Path", cookie.path)
 //         ("Secure", cookie.secure |> PACKAGE.Darklang.Stdlib.Bool.toString)

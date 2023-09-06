@@ -22,64 +22,7 @@ let constants : List<BuiltInConstant> = []
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [
-
-    { name = fn "degrees" 0
-      typeParams = []
-      parameters = [ Param.make "angleInDegrees" TFloat "" ]
-      returnType = TFloat
-      description =
-        "Returns the equivalent of <param angleInDegrees> in radians, the unit used
-         by all of Dark's trigonometry functions.
-
-         There are 360 degrees in a circle."
-      fn =
-        (function
-        | _, _, [ DFloat degrees ] -> Ply(DFloat(degrees * System.Math.PI / 180.0))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "turns" 0
-      typeParams = []
-      parameters = [ Param.make "angleInTurns" TFloat "" ]
-      returnType = TFloat
-      description =
-        "Returns the equivalent of <param angleInTurns> in radians, the unit used by all of
-         Dark's trigonometry functions.
-
-         There is 1 turn in a circle."
-      fn =
-        (function
-        | _, _, [ DFloat turns ] -> Ply(DFloat(System.Math.Tau * turns))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "radians" 0
-      typeParams = []
-      parameters = [ Param.make "angleInRadians" TFloat "" ]
-      returnType = TFloat
-      description =
-        "Returns <param angleInRadians> in radians, the unit used by all of Dark's
-         trigonometry functions.
-
-         There are {{Float.multiply 2 Math.pi}} radians in a
-         circle."
-      fn =
-        (function
-        | _, _, [ DFloat rads ] -> Ply(DFloat rads)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "cos" 0
+  [ { name = fn "cos" 0
       typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat

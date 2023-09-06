@@ -21,7 +21,7 @@ module Darklang =
             nameType: NameType
 
             /// The `.`-delimited name _parts_
-            /// e.g. `Builtin.List.fakeFunction` is `["List"; "fakeFunction"]`
+            /// e.g. `PACKAGE.Darklang.Stdlib.List.fakeFunction` is `["List"; "fakeFunction"]`
             names: List<String>
           }
 
@@ -54,7 +54,7 @@ module Darklang =
                   ErrorSegment.ErrorSegment.VarName(Builtin.String.join e.names ".") ]
 
             let summary =
-              Builtin.List.append
+              PACKAGE.Darklang.Stdlib.List.append
                 [ ErrorSegment.ErrorSegment.String "Missing type name for enum case" ]
                 suffix
 

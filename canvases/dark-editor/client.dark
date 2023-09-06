@@ -90,7 +90,10 @@ let parseAndSerializeProgram
     Error(
       response |> Builtin.unwrap |> (fun r -> r.body) |> Builtin.String.fromBytes
     )
-  | _ -> Error("Unexpected response code: " ++ Builtin.Int.toString statusCode)
+  | _ ->
+    Error(
+      "Unexpected response code: " ++ PACKAGE.Darklang.Stdlib.Int.toString statusCode
+    )
 
 
 // TODO: in the prompt, include something like
@@ -182,7 +185,7 @@ let update (model: Model) (msg: Msg) : Model =
       { model with
           isLoading = true
           chatHistory =
-            Builtin.List.append
+            PACKAGE.Darklang.Stdlib.List.append
               model.chatHistory
               [ ChatHistoryItem.UserPrompt
                   (Builtin.unwrap (Builtin.String.random 5))
@@ -226,7 +229,7 @@ let update (model: Model) (msg: Msg) : Model =
 
       let (newCodeSnippets, botResponseParts) =
         (Builtin.String.split (" " ++ apiResponse) "```")
-        |> Builtin.List.indexedMap (fun i text -> (i, text))
+        |> PACKAGE.Darklang.Stdlib.List.indexedMap (fun i text -> (i, text))
         |> PACKAGE.Darklang.Stdlib.List.fold ([], []) (fun acc curr ->
           let (codeSnippets, responseParts) = acc
           let (i, text) = curr
@@ -238,7 +241,7 @@ let update (model: Model) (msg: Msg) : Model =
             let snippetId = Builtin.unwrap (Builtin.String.random 5)
 
             let updatedCodeSnippets =
-              Builtin.List.append
+              PACKAGE.Darklang.Stdlib.List.append
                 codeSnippets
                 [ CodeSnippet
                     { id = snippetId
@@ -246,14 +249,16 @@ let update (model: Model) (msg: Msg) : Model =
                       eval = PACKAGE.Darklang.Stdlib.Option.Option.None } ]
 
             let updatedResponseParts =
-              Builtin.List.append
+              PACKAGE.Darklang.Stdlib.List.append
                 responseParts
                 [ BotResponseItem.CodeSnippet snippetId ]
 
             (updatedCodeSnippets, updatedResponseParts)
           else
             codeSnippets,
-            (Builtin.List.append responseParts [ BotResponseItem.Text text ]))
+            (PACKAGE.Darklang.Stdlib.List.append
+              responseParts
+              [ BotResponseItem.Text text ]))
 
       let newChatItemsItems =
         [ ChatHistoryItem.UserPrompt
@@ -266,9 +271,11 @@ let update (model: Model) (msg: Msg) : Model =
       Model
         { isLoading = false
           systemPrompt = model.systemPrompt
-          chatHistory = Builtin.List.append model.chatHistory newChatItemsItems
-          codeSnippets = Builtin.List.append model.codeSnippets newCodeSnippets
-          tasks = Builtin.List.append model.tasks newtasks
+          chatHistory =
+            PACKAGE.Darklang.Stdlib.List.append model.chatHistory newChatItemsItems
+          codeSnippets =
+            PACKAGE.Darklang.Stdlib.List.append model.codeSnippets newCodeSnippets
+          tasks = PACKAGE.Darklang.Stdlib.List.append model.tasks newtasks
           actions = model.actions
           functions = model.functions
           types = model.types }
@@ -299,7 +306,7 @@ let update (model: Model) (msg: Msg) : Model =
           evalPgm
 
           let updatedCodeSnippets =
-            Builtin.List.append
+            PACKAGE.Darklang.Stdlib.List.append
               [ CodeSnippet
                   { id = snippetToUpdate.id
                     code = codeSnippet

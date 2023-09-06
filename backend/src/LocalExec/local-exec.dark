@@ -10,7 +10,9 @@ let listDirectoryRecursive (dir: String) : List<String> =
     |> PACKAGE.Darklang.Stdlib.List.map (fun d -> listDirectoryRecursive d)
     |> Builtin.LocalExec.BuiltIns.List.flatten
 
-  dirs |> Builtin.List.append files |> Builtin.List.append nested
+  dirs
+  |> PACKAGE.Darklang.Stdlib.List.append files
+  |> PACKAGE.Darklang.Stdlib.List.append nested
 
 
 // Packages
@@ -42,7 +44,10 @@ let saveItemToCanvas
     | 200 -> PACKAGE.Darklang.Stdlib.Result.Result.Ok()
     | _ ->
       Builtin.print $"Type: {name}; Json: {json}"
-      Builtin.print $"Status: {Builtin.Int.toString response.statusCode}"
+
+      Builtin.print
+        $"Status: {PACKAGE.Darklang.Stdlib.Int.toString response.statusCode}"
+
       Builtin.print $"Body: {response.body |> Builtin.String.fromBytes}"
       Builtin.print errMsg
       PACKAGE.Darklang.Stdlib.Result.Result.Error errMsg
@@ -110,19 +115,19 @@ let printPackageFunction (p: Builtin.LocalExec.Packages.Function) : Unit =
   let modules = p.modules |> Builtin.String.join "."
 
   Builtin.print
-    $"Package Function {p.owner}.{modules}.{p.name}_v{Builtin.Int.toString_v0 p.version}"
+    $"Package Function {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
 
 let printPackageType (p: Builtin.LocalExec.Packages.Type) : Unit =
   let modules = p.modules |> Builtin.String.join "."
 
   Builtin.print
-    $"Package Type {p.owner}.{modules}.{p.name}_v{Builtin.Int.toString_v0 p.version}"
+    $"Package Type {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
 
 let printPackageConstant (p: Builtin.LocalExec.Packages.Constant) : Unit =
   let modules = p.modules |> Builtin.String.join "."
 
   Builtin.print
-    $"Package Constant {p.owner}.{modules}.{p.name}_v{Builtin.Int.toString_v0 p.version}"
+    $"Package Constant {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
 
 let printAllPackagesInDb () : Unit =
   let functions = Builtin.LocalExec.Packages.listFunctions ()
@@ -204,7 +209,7 @@ let main (args: List<String>) : Int =
             |> PACKAGE.Darklang.Stdlib.Result.map (fun _ -> ())
             |> PACKAGE.Darklang.Stdlib.Result.mapError (fun err ->
               Builtin.print $"Error: {err}"
-              Time.sleep 1000.0
+              Builtin.Time.sleep 1000.0
               err))
 
 

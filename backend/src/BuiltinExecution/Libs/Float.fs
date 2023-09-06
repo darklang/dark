@@ -212,7 +212,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
-      description = "Returns true if a is greater than b"
+      description = "Returns true if a is greater than or equal to b"
       fn =
         (function
         | _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a >= b))
@@ -240,7 +240,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
-      description = "Returns true if a is less than b"
+      description = "Returns true if a is less than or equal to b"
       fn =
         (function
         | _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a <= b))
@@ -291,7 +291,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "f" TFloat "" ]
       returnType = TString
-      description = "Return {\"true\"} or {\"false\"}"
+      description = "Stringify <param float>"
       fn =
         (function
         | _, _, [ DFloat f ] ->
