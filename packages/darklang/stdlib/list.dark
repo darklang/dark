@@ -344,7 +344,6 @@ module Darklang =
       /// Calls <fn fn> on every <var val> and its <var index> in <param list>,
       /// returning a list of the results of those calls.
       /// Consider <fn List.map> if you don't need the index.
-      // TODO : indexedMap
       let indexedMap (list: List<'a>) (fn: 'a -> Int -> 'b) : List<'b> =
         Builtin.List.indexedMap_v0 list fn
 
@@ -356,7 +355,6 @@ module Darklang =
       /// {{[\"x\",\"y\",\"z\"]}}, returns {{[(f 1 \"x\"), (f 2 \"y\")]}}
       /// Use <fn List.map2> if you want to enforce equivalent lengths for <param as>
       /// and <param bs>.
-      // TODO : map2shortest
       let map2shortest
         (as_: List<'a>)
         (bs: List<'b>)
@@ -374,7 +372,6 @@ module Darklang =
       /// If the lists differ in length, returns {{Nothing}} (consider <fn
       /// List.map2shortest> if you want to drop values from the longer list
       /// instead).
-      // TODO : map2
       let map2
         (as_: List<'a>)
         (bs: List<'b>)
@@ -469,7 +466,7 @@ module Darklang =
             else
               PACKAGE.Darklang.Stdlib.List.getAt tail (index - 1)
 
-      /// Cleanup : I think this can be moved to dark
+
       /// Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly
       /// selected value in <param list>. Returns {{Nothing}} if <param list> is
       /// empty.
