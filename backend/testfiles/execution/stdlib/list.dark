@@ -307,9 +307,11 @@ PACKAGE.Darklang.Stdlib.List.repeat_v0 5 "a" = PACKAGE.Darklang.Stdlib.Result.Re
 PACKAGE.Darklang.Stdlib.List.repeat_v0 -4 "a" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Expected `times` to be positive, but it was `-4`"
 
-PACKAGE.Darklang.Stdlib.List.repeat_v0 3 [1;2;3] = PACKAGE.Darklang.Stdlib.Result.Result.Ok [ [1;2;3]; [1;2;3]; [1;2;3] ]
+PACKAGE.Darklang.Stdlib.List.repeat_v0 3 [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ [ 1; 2; 3 ]; [ 1; 2; 3 ]; [ 1; 2; 3 ] ]
 
-PACKAGE.Darklang.Stdlib.List.repeat_v0 3 [] = PACKAGE.Darklang.Stdlib.Result.Result.Ok [ []; []; [] ]
+PACKAGE.Darklang.Stdlib.List.repeat_v0 3 [] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ []; []; [] ]
 
 PACKAGE.Darklang.Stdlib.List.reverse_v0 [ "a"; "b"; "c"; "d" ] = [ "d"
                                                                    "c"

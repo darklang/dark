@@ -114,13 +114,11 @@ module Darklang =
               head
 
 
-      let repeatUnsafe (times: Int) (value : 'a) : List<'a> =
+      let repeatUnsafe (times: Int) (value: 'a) : List<'a> =
         if times <= 0 then
           []
         else
-          PACKAGE.Darklang.Stdlib.List.push_v0
-            (repeatUnsafe (times - 1) value)
-            value
+          PACKAGE.Darklang.Stdlib.List.push_v0 (repeatUnsafe (times - 1) value) value
 
 
       /// Returns a list containing <param val> repeated <param times> times
@@ -132,7 +130,9 @@ module Darklang =
           PACKAGE.Darklang.Stdlib.Result.Result.Error
             $"Expected `times` to be positive, but it was `{times |> Builtin.Int.toString}`"
         else
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok (PACKAGE.Darklang.Stdlib.List.repeatUnsafe times value)
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+            PACKAGE.Darklang.Stdlib.List.repeatUnsafe times value
+          )
 
 
       /// Returns the number of values in <param list>
