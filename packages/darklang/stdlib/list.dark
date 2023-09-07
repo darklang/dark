@@ -68,7 +68,6 @@ module Darklang =
             PACKAGE.Darklang.Stdlib.List.findFirst tail fn
 
 
-
       /// Returns {{true}} if <param value> is in the list
       let ``member`` (list: List<'a>) (value: 'a) : Bool =
         match list with
@@ -80,6 +79,14 @@ module Darklang =
             PACKAGE.Darklang.Stdlib.List.``member`` tail value
 
 
+      // TODO: remove this once we have a way to call lambdas recursively
+      let repeatUnsafe (times: Int) (value: 'a) : List<'a> =
+        if times <= 0 then
+          []
+        else
+          PACKAGE.Darklang.Stdlib.List.push_v0 (repeatUnsafe (times - 1) value) value
+
+
       /// Returns a list containing <param val> repeated <param times> times
       let repeat
         (times: Int)
@@ -88,18 +95,10 @@ module Darklang =
         if times < 0 then
           PACKAGE.Darklang.Stdlib.Result.Result.Error
             $"Expected `times` to be positive, but it was `{times |> Builtin.Int.toString}`"
-        else if times > 2147483647 then
-          PACKAGE.Darklang.Stdlib.Result.Result.Error
-            $"Expected `times` to be less than 2147483647, but it was `{times |> Builtin.Int.toString}`"
-        else if times == 0 then
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok []
         else
-          match PACKAGE.Darklang.Stdlib.List.repeat (times - 1) value with
-          | Ok list ->
-            PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-              PACKAGE.Darklang.Stdlib.List.push list value
-            )
-          | Error err -> PACKAGE.Darklang.Stdlib.Result.Result.Error err
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+            PACKAGE.Darklang.Stdlib.List.repeatUnsafe times value
+          )
 
 
       /// Returns the number of values in <param list>
