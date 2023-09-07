@@ -120,9 +120,13 @@ module Darklang =
       /// sections](https://www.rfc-editor.org/rfc/rfc4648.html)
       /// [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
       /// [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
-      let base64Decode (s: String) : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
+      let base64Decode
+        (s: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
         match (Builtin.Bytes.base64Decode s) with
-        | Ok bytes -> (Builtin.String.fromBytes bytes) |> PACKAGE.Darklang.Stdlib.Result.Result.Ok
+        | Ok bytes ->
+          (Builtin.String.fromBytes bytes)
+          |> PACKAGE.Darklang.Stdlib.Result.Result.Ok
         | Error err -> PACKAGE.Darklang.Stdlib.Result.Result.Error err
 
 
@@ -159,17 +163,21 @@ module Darklang =
 
       /// Checks if <param lookingIn> contains <param searchingFor>
       let contains (lookingIn: String) (searchingFor: String) : Bool =
-        PACKAGE.Darklang.Stdlib.Option.isSome (Builtin.String.indexOf lookingIn searchingFor)
+        PACKAGE.Darklang.Stdlib.Option.isSome (
+          Builtin.String.indexOf lookingIn searchingFor
+        )
 
 
       /// Returns the substring of <param string> between the <param from> and <param to> indices.
       /// Negative indices start counting from the end of <param string>.
       let slice (string: String) (from: Int) (``to``: Int) : String =
         let len = Builtin.String.length string
-        let normalize =  (fun i ->
-          (if i < 0 then len + i else i)
-          |> PACKAGE.Darklang.Stdlib.Int.min len
-          |> PACKAGE.Darklang.Stdlib.Int.max 0)
+
+        let normalize =
+          (fun i ->
+            (if i < 0 then len + i else i)
+            |> PACKAGE.Darklang.Stdlib.Int.min len
+            |> PACKAGE.Darklang.Stdlib.Int.max 0)
 
         let f = normalize from
         let l = normalize ``to``
@@ -334,7 +342,9 @@ module Darklang =
         if count <= 0 then
           ""
         else
-          Builtin.String.join ((PACKAGE.Darklang.Stdlib.List.repeat count string) |> Builtin.unwrap) ""
+          Builtin.String.join
+            ((PACKAGE.Darklang.Stdlib.List.repeat count string) |> Builtin.unwrap)
+            ""
 
 
       /// Converts an integer <param n> to its ordinal representation as a string.
