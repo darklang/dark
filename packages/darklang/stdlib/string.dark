@@ -109,7 +109,9 @@ module Darklang =
       /// URLBase64 encodes a string without padding. Uses URL-safe encoding with
       /// {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
       /// [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)
-      let base64Encode (s: String) : String = Builtin.String.base64Encode s
+      let base64Encode (s: String) : String =
+        let encoded = s |> Builtin.String.toBytes |> Builtin.Bytes.base64Encode
+        PACKAGE.Darklang.Stdlib.String.replaceAll encoded "=" ""
 
 
       /// Base64 decodes a string. The returned value is wrapped in {{Result}}.
@@ -118,10 +120,10 @@ module Darklang =
       /// sections](https://www.rfc-editor.org/rfc/rfc4648.html)
       /// [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
       /// [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
-      let base64Decode
-        (s: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
-        Builtin.String.base64Decode s
+      let base64Decode (s: String) : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
+        match (Builtin.Bytes.base64Decode s) with
+        | Ok bytes -> (Builtin.String.fromBytes bytes) |> PACKAGE.Darklang.Stdlib.Result.Result.Ok
+        | Error err -> PACKAGE.Darklang.Stdlib.Result.Result.Error err
 
 
       /// Take a string and hash it to a cryptographically-secure digest.
@@ -157,15 +159,24 @@ module Darklang =
 
       /// Checks if <param lookingIn> contains <param searchingFor>
       let contains (lookingIn: String) (searchingFor: String) : Bool =
-        match Builtin.String.indexOf lookingIn searchingFor with
-        | Some _ -> true
-        | None -> false
+        PACKAGE.Darklang.Stdlib.Option.isSome (Builtin.String.indexOf lookingIn searchingFor)
 
 
       /// Returns the substring of <param string> between the <param from> and <param to> indices.
       /// Negative indices start counting from the end of <param string>.
       let slice (string: String) (from: Int) (``to``: Int) : String =
-        Builtin.String.slice_v0 string from ``to``
+        let len = Builtin.String.length string
+        let normalize =  (fun i ->
+          (if i < 0 then len + i else i)
+          |> PACKAGE.Darklang.Stdlib.Int.min len
+          |> PACKAGE.Darklang.Stdlib.Int.max 0)
+
+        let f = normalize from
+        let l = normalize ``to``
+        let l = if f > l then f else l
+
+        (PACKAGE.Darklang.Stdlib.String.dropLast string (len - l))
+        |> PACKAGE.Darklang.Stdlib.String.dropFirst f
 
 
       /// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
@@ -323,7 +334,7 @@ module Darklang =
         if count <= 0 then
           ""
         else
-          string ++ PACKAGE.Darklang.Stdlib.String.repeat string (count - 1)
+          Builtin.String.join ((PACKAGE.Darklang.Stdlib.List.repeat count string) |> Builtin.unwrap) ""
 
 
       /// Converts an integer <param n> to its ordinal representation as a string.

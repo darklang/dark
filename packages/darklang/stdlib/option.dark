@@ -56,3 +56,10 @@ module Darklang =
         match option with
         | Some v -> v
         | None -> default_
+
+
+      /// Returns true if <param option> is {{Some _}} and false if it is {{None}}
+      let isSome (option: PACKAGE.Darklang.Stdlib.Option.Option<'a>) : Bool =
+        match option with
+        | Some _ -> true
+        | None -> false
