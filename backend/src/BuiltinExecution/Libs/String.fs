@@ -321,23 +321,11 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString s; DInt first; DInt last ] ->
 
           let chars = String.toEgcSeq s
-          let length = Seq.length chars |> int64
-
-          let normalize (i : int64) =
-            i
-            |> fun i -> if i < 0L then length + i else i // account for - values
-            |> min length
-            |> max 0L
-
-
-          let f = normalize first |> int
-          let l = normalize last |> int
-          let l = if f > l then f else l // return empty string when start is less than end
 
           chars
           |> Seq.toList
-          |> FSharpPlus.List.drop f
-          |> List.truncate (l - f)
+          |> FSharpPlus.List.drop (int first)
+          |> List.truncate (int (last - first))
           |> String.concat ""
           |> DString
           |> Ply

@@ -208,11 +208,7 @@ module Darklang =
         let l = normalize ``to``
         let l = if f > l then f else l
 
-        string
-        |> String.toList
-        |> PACKAGE.Darklang.Stdlib.List.drop f
-        |> PACKAGE.Darklang.Stdlib.List.take (l - f)
-        |> PACKAGE.Darklang.Stdlib.String.fromList
+        string |> Builtin.String.slice f l
 
 
       /// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
@@ -399,4 +395,9 @@ module Darklang =
 
       /// Returns {{Some char}} of the first character of <param str>, or returns {{None}} if <param str> is empty.
       let head (str: String) : PACKAGE.Darklang.Stdlib.Option.Option<Char> =
-        Builtin.String.head str
+        if str == "" then
+          PACKAGE.Darklang.Stdlib.Option.Option.None
+        else
+          str
+          |> PACKAGE.Darklang.Stdlib.String.toList
+          |> PACKAGE.Darklang.Stdlib.List.head
