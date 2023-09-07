@@ -304,31 +304,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "digest" 0
-      typeParams = []
-      parameters = [ Param.make "s" TString "" ]
-      returnType = TString
-      description =
-        "Take a string and hash it to a cryptographically-secure digest.
-         Don't rely on either the size or the algorithm."
-      fn =
-        (function
-        | _, _, [ DString s ] ->
-          let sha384Hash = SHA384.Create()
-          let data = System.Text.Encoding.UTF8.GetBytes(s)
-
-          let bytes = sha384Hash.ComputeHash(data)
-
-          // Deliberately keep padding
-          System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
-          |> DString
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "slice" 0
       typeParams = []
       parameters =

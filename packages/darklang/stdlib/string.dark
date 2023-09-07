@@ -132,7 +132,11 @@ module Darklang =
 
       /// Take a string and hash it to a cryptographically-secure digest.
       /// Don't rely on either the size or the algorithm.
-      let digest (s: String) : String = Builtin.String.digest s
+      let digest (s: String) : String =
+        let sha384Hash =
+          Builtin.Crypto.sha384_v0 (PACKAGE.Darklang.Stdlib.String.toBytes_v0 s)
+
+        sha384Hash |> PACKAGE.Darklang.Stdlib.Bytes.base64Encode
 
 
       /// Generate a <type String> of length <param length> from random characters
@@ -159,8 +163,6 @@ module Darklang =
             |> PACKAGE.Darklang.Stdlib.String.join ""
 
           PACKAGE.Darklang.Stdlib.Result.Result.Ok(result)
-
-
 
 
       /// Escape an untrusted string in order to include it safely in HTML output
