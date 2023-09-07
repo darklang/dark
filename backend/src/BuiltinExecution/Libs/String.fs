@@ -421,6 +421,26 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "fromBytesRecoverable" 0
+      typeParams = []
+      parameters = [ Param.make "bytes" TBytes "" ]
+      returnType = TypeReference.option TString
+      description =
+        "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"
+      fn =
+        (function
+        | _, _, [ DBytes bytes ] ->
+          try
+            let str = System.Text.UTF8Encoding(false, true).GetString bytes
+            Ply(Dval.optionSome (DString str))
+          with e ->
+            Ply(Dval.optionNone)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "indexOf" 0
       typeParams = []
       parameters =

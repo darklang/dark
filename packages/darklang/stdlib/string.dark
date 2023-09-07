@@ -127,8 +127,10 @@ module Darklang =
         : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
         match (Builtin.Bytes.base64Decode s) with
         | Ok bytes ->
-          (Builtin.String.fromBytes bytes)
-          |> PACKAGE.Darklang.Stdlib.Result.Result.Ok
+          match (Builtin.String.fromBytesRecoverable bytes) with
+          | Some str -> PACKAGE.Darklang.Stdlib.Result.Result.Ok str
+          | None ->
+            PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid UTF-8 string"
         | Error err -> PACKAGE.Darklang.Stdlib.Result.Result.Error err
 
 
