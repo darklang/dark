@@ -344,7 +344,11 @@ module Darklang =
 
       /// Checks if <param subject> starts with <param prefix>
       let startsWith (subject: String) (prefix: String) : Bool =
-        PACKAGE.Darklang.Stdlib.String.slice_v0 subject 0 (Builtin.String.length prefix) == prefix
+        PACKAGE.Darklang.Stdlib.String.slice_v0
+          subject
+          0
+          (Builtin.String.length prefix)
+        == prefix
 
 
       /// Checks if <param subject> ends with <param suffix>
