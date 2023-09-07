@@ -139,7 +139,28 @@ module Darklang =
       let random
         (length: Int)
         : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
-        Builtin.String.random length
+        if length < 0 then
+          PACKAGE.Darklang.Stdlib.Result.Result.Error
+            $"Expected `length` to be positive, but it was `{length |> PACKAGE.Darklang.Stdlib.Int.toString}`"
+        else
+          let characters =
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+          let randomChar =
+            fun _ ->
+              (let index =
+                Builtin.Int.random 0 ((Builtin.String.length characters) - 1)
+
+               Builtin.String.slice_v0 characters index (index + 1))
+
+          let result =
+            (PACKAGE.Darklang.Stdlib.List.range 0 (length - 1))
+            |> PACKAGE.Darklang.Stdlib.List.map (fun _ -> randomChar ())
+            |> PACKAGE.Darklang.Stdlib.String.join ""
+
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(result)
+
+
 
 
       /// Escape an untrusted string in order to include it safely in HTML output
