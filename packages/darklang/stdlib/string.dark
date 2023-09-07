@@ -10,7 +10,7 @@ module Darklang =
       /// to it if the original string exceeds the given length. Otherwise, returns the original string.
       let ellipsis (s: String) (length: Int) : String =
         if Builtin.String.length s > length then
-          (Builtin.String.slice_v0 s 0 length) ++ "..."
+          (PACKAGE.Darklang.Stdlib.String.slice_v0 s 0 length) ++ "..."
         else
           s
 
@@ -75,9 +75,11 @@ module Darklang =
       let prepend (s1: String) (s2: String) : String = s2 ++ s1
 
 
+      //TODO: write the dark version of this function once we have regex
       /// Turns a string into a prettified slug, including only lowercased
       /// alphanumeric characters, joined by hyphens
-      let slugify (s: String) : String = Builtin.String.slugify s
+      // let slugify (s: String) : String =
+      //   Builtin.String.slugify s
 
 
       /// Reverses <param string>
@@ -155,7 +157,7 @@ module Darklang =
               (let index =
                 Builtin.Int.random 0 ((Builtin.String.length characters) - 1)
 
-               Builtin.String.slice_v0 characters index (index + 1))
+               PACKAGE.Darklang.Stdlib.String.slice_v0 characters index (index + 1))
 
           let result =
             (PACKAGE.Darklang.Stdlib.List.range 0 (length - 1))
@@ -206,8 +208,11 @@ module Darklang =
         let l = normalize ``to``
         let l = if f > l then f else l
 
-        (PACKAGE.Darklang.Stdlib.String.dropLast string (len - l))
-        |> PACKAGE.Darklang.Stdlib.String.dropFirst f
+        string
+        |> String.toList
+        |> PACKAGE.Darklang.Stdlib.List.drop f
+        |> PACKAGE.Darklang.Stdlib.List.take (l - f)
+        |> PACKAGE.Darklang.Stdlib.String.fromList
 
 
       /// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
@@ -219,7 +224,7 @@ module Darklang =
         else if characterCount > Builtin.String.length string then
           string
         else
-          Builtin.String.slice_v0 string 0 characterCount
+          PACKAGE.Darklang.Stdlib.String.slice_v0 string 0 characterCount
 
 
       /// Returns the last <param characterCount> characters of <param string>, as a Builtin.String.
@@ -231,7 +236,7 @@ module Darklang =
         else if characterCount > Builtin.String.length string then
           string
         else
-          Builtin.String.slice_v0
+          PACKAGE.Darklang.Stdlib.String.slice_v0
             string
             (Builtin.String.length string - characterCount)
             (Builtin.String.length string)
@@ -246,7 +251,7 @@ module Darklang =
         else if characterCount > Builtin.String.length string then
           ""
         else
-          Builtin.String.slice_v0
+          PACKAGE.Darklang.Stdlib.String.slice_v0
             string
             0
             (Builtin.String.length string - characterCount)
@@ -261,7 +266,7 @@ module Darklang =
         else if characterCount > Builtin.String.length string then
           ""
         else
-          Builtin.String.slice_v0
+          PACKAGE.Darklang.Stdlib.String.slice_v0
             string
             characterCount
             (Builtin.String.length string)
@@ -339,12 +344,12 @@ module Darklang =
 
       /// Checks if <param subject> starts with <param prefix>
       let startsWith (subject: String) (prefix: String) : Bool =
-        Builtin.String.slice_v0 subject 0 (Builtin.String.length prefix) == prefix
+        PACKAGE.Darklang.Stdlib.String.slice_v0 subject 0 (Builtin.String.length prefix) == prefix
 
 
       /// Checks if <param subject> ends with <param suffix>
       let endsWith (subject: String) (suffix: String) : Bool =
-        Builtin.String.slice_v0
+        PACKAGE.Darklang.Stdlib.String.slice_v0
           subject
           (Builtin.String.length subject - Builtin.String.length suffix)
           (Builtin.String.length subject)

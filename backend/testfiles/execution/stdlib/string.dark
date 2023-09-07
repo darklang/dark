@@ -410,33 +410,33 @@ module ReplaceAll =
 
 
 module Slugify =
-  PACKAGE.Darklang.Stdlib.String.slugify
+  Builtin.String.slugify
     "  M@y  'super'  Really- exce+llent *Uber_ ama\"zing* ~very   5x5 ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-5x5-clever-thing-coffee"
 
-  PACKAGE.Darklang.Stdlib.String.slugify
+  Builtin.String.slugify
     "  m@y  'super'  really- excellent *uber_ amazing* ~very  ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-clever-thing-coffee"
 
-  PACKAGE.Darklang.Stdlib.String.slugify "" = ""
-  PACKAGE.Darklang.Stdlib.String.slugify "ABCD-45646sassa" = "abcd-45646sassa"
-  PACKAGE.Darklang.Stdlib.String.slugify "ddsd516ds125sd12sd12Ü" = "ddsd516ds125sd12sd12"
-  PACKAGE.Darklang.Stdlib.String.slugify "q=\u0002$\u001a<+MC" = "qmc"
-  PACKAGE.Darklang.Stdlib.String.slugify "🎁🎄Ǣʚ231" = "231"
-  PACKAGE.Darklang.Stdlib.String.slugify "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = ""
-  PACKAGE.Darklang.Stdlib.String.slugify "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "zlo"
-  PACKAGE.Darklang.Stdlib.String.slugify "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = ""
-  PACKAGE.Darklang.Stdlib.String.slugify "🧟‍♀️🧟‍♂️" = ""
-  PACKAGE.Darklang.Stdlib.String.slugify "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = ""
+  Builtin.String.slugify "" = ""
+  Builtin.String.slugify "ABCD-45646sassa" = "abcd-45646sassa"
+  Builtin.String.slugify "ddsd516ds125sd12sd12Ü" = "ddsd516ds125sd12sd12"
+  Builtin.String.slugify "q=\u0002$\u001a<+MC" = "qmc"
+  Builtin.String.slugify "🎁🎄Ǣʚ231" = "231"
+  Builtin.String.slugify "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = ""
+  Builtin.String.slugify "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "zlo"
+  Builtin.String.slugify "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = ""
+  Builtin.String.slugify "🧟‍♀️🧟‍♂️" = ""
+  Builtin.String.slugify "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = ""
 
-  PACKAGE.Darklang.Stdlib.String.slugify
+  Builtin.String.slugify
     "b\x01c\x02d\x03e\x04f\x05g\x06h\x07i\x08j\x09k\x0Al\x0Bm\x0Cn\x0Do\x0Ep\x0Fq" = "bcdefghij-k-lm-n-opq"
 
-  PACKAGE.Darklang.Stdlib.String.slugify
+  Builtin.String.slugify
     "a\x10b\x11c\x12d\x13e\x14f\x15g\x16h\x17i\x18j\x19k\x1Al\x1Bm\x1Cn\x1Do\x1Ep\x1Fq" = "abcdefghijklmnopq"
 
-  PACKAGE.Darklang.Stdlib.String.slugify "!\"#$%&'()*+,-./" = "-"
-  PACKAGE.Darklang.Stdlib.String.slugify ":;<=>?@" = ""
-  PACKAGE.Darklang.Stdlib.String.slugify "[\\]^_`" = "-"
-  PACKAGE.Darklang.Stdlib.String.slugify "{|}~\x7F" = ""
+  Builtin.String.slugify "!\"#$%&'()*+,-./" = "-"
+  Builtin.String.slugify ":;<=>?@" = ""
+  Builtin.String.slugify "[\\]^_`" = "-"
+  Builtin.String.slugify "{|}~\x7F" = ""
 
 
 module FromList =
