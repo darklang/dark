@@ -1,5 +1,5 @@
 [http-handler GET /]
-PACKAGE.Darklang.Stdlib.Http.response (request.url |> Builtin.String.toBytes_v0) 200
+PACKAGE.Darklang.Stdlib.Http.response (request.url |> PACKAGE.Darklang.Stdlib.String.toBytes_v0) 200
 
 [request]
 GET /?key=value HTTP/1.1

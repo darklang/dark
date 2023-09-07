@@ -285,7 +285,7 @@ module Darklang =
           m.types
           |> PACKAGE.Darklang.Stdlib.List.map (fun t ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageType t)
-          |> Builtin.String.join "\n\n"
+          |> PACKAGE.Darklang.Stdlib.String.join "\n\n"
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
 
       let fnsPart =
@@ -295,7 +295,7 @@ module Darklang =
           m.fns
           |> PACKAGE.Darklang.Stdlib.List.map (fun f ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn f)
-          |> Builtin.String.join "\n\n"
+          |> PACKAGE.Darklang.Stdlib.String.join "\n\n"
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
 
       let constantsPart =
@@ -305,7 +305,7 @@ module Darklang =
           m.constants
           |> PACKAGE.Darklang.Stdlib.List.map (fun c ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageConstant c)
-          |> Builtin.String.join "\n\n"
+          |> PACKAGE.Darklang.Stdlib.String.join "\n\n"
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
 
       let submodulesPart =
@@ -315,7 +315,7 @@ module Darklang =
           submodules
           |> PACKAGE.Darklang.Stdlib.List.map (fun m ->
             PACKAGE.Darklang.PrettyPrinter.packageModule m)
-          |> Builtin.String.join "\n\n"
+          |> PACKAGE.Darklang.Stdlib.String.join "\n\n"
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
 
       let parts =
@@ -328,7 +328,8 @@ module Darklang =
         "Error - module defined somehow without parts"
       | parts ->
         let bodyPart =
-          (Builtin.String.join parts "\n\n") |> PACKAGE.Darklang.PrettyPrinter.indent
+          (PACKAGE.Darklang.Stdlib.String.join parts "\n\n")
+          |> PACKAGE.Darklang.PrettyPrinter.indent
 
         $"module {m.name} =\n{bodyPart}"
 
@@ -377,4 +378,4 @@ module Darklang =
       modules
       |> PACKAGE.Darklang.Stdlib.List.map (fun m ->
         PACKAGE.Darklang.PrettyPrinter.packageModule m)
-      |> Builtin.String.join "\n\n"
+      |> PACKAGE.Darklang.Stdlib.String.join "\n\n"

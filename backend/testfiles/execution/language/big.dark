@@ -1,9 +1,9 @@
 module BigTestCase =
   (let str = "a string to be used as the test case" in
-   let bytes = Builtin.String.toBytes_v0 str in
+   let bytes = PACKAGE.Darklang.Stdlib.String.toBytes_v0 str in
    let base64Encode = PACKAGE.Darklang.Stdlib.Bytes.base64Encode_v0 bytes in
    let hexEncode = PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 bytes in
-   let sl = Builtin.String.length str in
+   let sl = PACKAGE.Darklang.Stdlib.String.length str in
    let bl = PACKAGE.Darklang.Stdlib.Bytes.length bytes in
    let t = true in
    let f = false in
@@ -19,7 +19,7 @@ module BigTestCase =
      |> PACKAGE.Darklang.Stdlib.Float.add_v0 1.0
      |> PACKAGE.Darklang.Stdlib.Float.sqrt_v0 in
 
-   let reverse = Builtin.String.reverse_v0 str in
+   let reverse = PACKAGE.Darklang.Stdlib.String.reverse_v0 str in
    let contains = PACKAGE.Darklang.Stdlib.String.contains_v0 "a string" str in
 
    let uuid =

@@ -304,136 +304,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "base64Encode" 0
-      typeParams = []
-      parameters = [ Param.make "s" TString "" ]
-      returnType = TString
-      description =
-        "URLBase64 encodes a string without padding. Uses URL-safe encoding with
-        {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
-        [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)"
-      fn =
-        (function
-        | _, _, [ DString s ] ->
-          let defaultEncoded = s |> UTF8.toBytes |> Convert.ToBase64String
-          // Inlined version of Base64.urlEncodeToString, except
-          defaultEncoded.Replace('+', '-').Replace('/', '_').Replace("=", "")
-          |> DString
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "base64Decode" 0
-      typeParams = []
-      parameters = [ Param.make "s" TString "" ]
-      returnType = TypeReference.result TString TString
-      description =
-        "Base64 decodes a string. The returned value is wrapped in {{Result}}.
-         Works with both the URL-safe and standard Base64
-         alphabets defined in [RFC 4648
-         sections](https://www.rfc-editor.org/rfc/rfc4648.html)
-         [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
-         [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
-      fn =
-        (function
-        | _, _, [ DString s ] ->
-          let errPipe e = e |> DString |> Dval.resultError |> Ply
-          let okPipe r = r |> DString |> Dval.resultOk |> Ply
-          let base64FromUrlEncoded (str : string) : string =
-            let initial = str.Replace('-', '+').Replace('_', '/')
-            let length = initial.Length
-
-            if length % 4 = 2 then $"{initial}=="
-            else if length % 4 = 3 then $"{initial}="
-            else initial
-
-          if s = "" then
-            // This seems like we should allow it
-            "" |> okPipe
-          elif Regex.IsMatch(s, @"\s") then
-            // dotnet ignores whitespace but we don't allow it
-            "Not a valid base64 string" |> errPipe
-          else
-            try
-              s
-              |> base64FromUrlEncoded
-              |> Convert.FromBase64String
-              |> System.Text.Encoding.UTF8.GetString
-              |> String.normalize
-              |> okPipe
-            with e ->
-              "Not a valid base64 string" |> errPipe
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      // CLEANUP: this shouldnt return a string and should be deprecated
-      deprecated = NotDeprecated }
-
-
-    { name = fn "digest" 0
-      typeParams = []
-      parameters = [ Param.make "s" TString "" ]
-      returnType = TString
-      description =
-        "Take a string and hash it to a cryptographically-secure digest.
-         Don't rely on either the size or the algorithm."
-      fn =
-        (function
-        | _, _, [ DString s ] ->
-          let sha384Hash = SHA384.Create()
-          let data = System.Text.Encoding.UTF8.GetBytes(s)
-
-          let bytes = sha384Hash.ComputeHash(data)
-
-          // Deliberately keep padding
-          System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
-          |> DString
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "random" 0
-      typeParams = []
-      parameters = [ Param.make "length" TInt "" ]
-      returnType = TypeReference.result TString TString
-      description =
-        "Generate a <type String> of length <param length> from random characters"
-      fn =
-        (function
-        | _, _, [ DInt l as dv ] ->
-          if l < 0L then
-            dv
-            |> Errors.argumentWasnt "positive" "length"
-            |> DString
-            |> Dval.resultError
-            |> Ply
-          else
-            let randomString length =
-              let gen () =
-                match RNG.GetInt32(26 + 26 + 10) with
-                | n when n < 26 -> ('a' |> int) + n
-                | n when n < 26 + 26 -> ('A' |> int) + n - 26
-                | n -> ('0' |> int) + n - 26 - 26
-
-              let gen _ = char (gen ()) in
-
-              (Array.toList (Array.init length gen))
-              |> List.map string
-              |> String.concat ""
-
-            randomString (int l) |> DString |> Dval.resultOk |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "slice" 0
       typeParams = []
       parameters =
@@ -451,23 +321,11 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString s; DInt first; DInt last ] ->
 
           let chars = String.toEgcSeq s
-          let length = Seq.length chars |> int64
-
-          let normalize (i : int64) =
-            i
-            |> fun i -> if i < 0L then length + i else i // account for - values
-            |> min length
-            |> max 0L
-
-
-          let f = normalize first |> int
-          let l = normalize last |> int
-          let l = if f > l then f else l // return empty string when start is less than end
 
           chars
           |> Seq.toList
-          |> FSharpPlus.List.drop f
-          |> List.truncate (l - f)
+          |> FSharpPlus.List.drop (int first)
+          |> List.truncate (int (last - first))
           |> String.concat ""
           |> DString
           |> Ply

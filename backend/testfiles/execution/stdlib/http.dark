@@ -21,20 +21,22 @@
 PACKAGE.Darklang.Stdlib.Http.badRequest_v0 "Your request resulted in an error" = PACKAGE.Darklang.Stdlib.Http.Response
   { statusCode = 400
     headers = []
-    body = Builtin.String.toBytes "Your request resulted in an error" }
+    body = PACKAGE.Darklang.Stdlib.String.toBytes "Your request resulted in an error" }
 
-PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes "test") 200 = PACKAGE.Darklang.Stdlib.Http.Response
+PACKAGE.Darklang.Stdlib.Http.response
+  (PACKAGE.Darklang.Stdlib.String.toBytes "test")
+  200 = PACKAGE.Darklang.Stdlib.Http.Response
   { statusCode = 200
     headers = []
-    body = Builtin.String.toBytes "test" }
+    body = PACKAGE.Darklang.Stdlib.String.toBytes "test" }
 
 PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-  (Builtin.String.toBytes "test")
+  (PACKAGE.Darklang.Stdlib.String.toBytes "test")
   [ ("Content-Type", "text/html; charset=utf-8") ]
   200 = PACKAGE.Darklang.Stdlib.Http.Response
   { statusCode = 200
     headers = [ ("Content-Type", "text/html; charset=utf-8") ]
-    body = Builtin.String.toBytes "test" }
+    body = PACKAGE.Darklang.Stdlib.String.toBytes "test" }
 
 PACKAGE.Darklang.Stdlib.Http.notFound () = PACKAGE.Darklang.Stdlib.Http.response
   Builtin.Bytes.empty
@@ -48,22 +50,22 @@ PACKAGE.Darklang.Stdlib.Http.forbidden () = PACKAGE.Darklang.Stdlib.Http.respons
   Builtin.Bytes.empty
   403
 
-PACKAGE.Darklang.Stdlib.Http.success (Builtin.String.toBytes "test") = PACKAGE.Darklang.Stdlib.Http.response
-  (Builtin.String.toBytes "test")
+PACKAGE.Darklang.Stdlib.Http.success (PACKAGE.Darklang.Stdlib.String.toBytes "test") = PACKAGE.Darklang.Stdlib.Http.response
+  (PACKAGE.Darklang.Stdlib.String.toBytes "test")
   200
 
 PACKAGE.Darklang.Stdlib.Http.responseWithHtml "test" 200 = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-  (Builtin.String.toBytes "test")
+  (PACKAGE.Darklang.Stdlib.String.toBytes "test")
   [ ("Content-Type", "text/html; charset=utf-8") ]
   200
 
 PACKAGE.Darklang.Stdlib.Http.responseWithText "test" 200 = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-  (Builtin.String.toBytes "test")
+  (PACKAGE.Darklang.Stdlib.String.toBytes "test")
   [ ("Content-Type", "text/plain; charset=utf-8") ]
   200
 
 PACKAGE.Darklang.Stdlib.Http.responseWithJson "test" 200 = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-  (Builtin.String.toBytes "test")
+  (PACKAGE.Darklang.Stdlib.String.toBytes "test")
   [ ("Content-Type", "application/json") ]
   200
 

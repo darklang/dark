@@ -12,7 +12,8 @@ module Darklang =
           PACKAGE.Darklang.Stdlib.Result.Result.Error
             "Username cannot contain a hyphen"
         else
-          let encoded = Builtin.String.base64Encode $"{username}:{password}"
+          let encoded =
+            PACKAGE.Darklang.Stdlib.String.base64Encode $"{username}:{password}"
 
           PACKAGE.Darklang.Stdlib.Result.Result.Ok(
             "authorization",

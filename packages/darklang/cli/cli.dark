@@ -27,7 +27,7 @@ module Darklang =
           fns
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
-          |> Builtin.String.fromBytes
+          |> PACKAGE.Darklang.Stdlib.String.fromBytes
           |> Builtin.Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>>
           |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
@@ -76,7 +76,7 @@ module Darklang =
           types
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
-          |> Builtin.String.fromBytes
+          |> PACKAGE.Darklang.Stdlib.String.fromBytes
           |> Builtin.Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>>
           |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
@@ -127,7 +127,7 @@ module Darklang =
           constants
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
-          |> Builtin.String.fromBytes
+          |> PACKAGE.Darklang.Stdlib.String.fromBytes
           |> Builtin.Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>>
           |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
@@ -185,7 +185,7 @@ module Darklang =
           modules
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
-          |> Builtin.String.fromBytes
+          |> PACKAGE.Darklang.Stdlib.String.fromBytes
           |> Builtin.Json.parse<PACKAGE.Darklang.Stdlib.Packages>
           |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
@@ -228,7 +228,7 @@ module Darklang =
           packages
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
-          |> Builtin.String.fromBytes
+          |> PACKAGE.Darklang.Stdlib.String.fromBytes
           |> Builtin.print
 
           0
@@ -254,7 +254,7 @@ module Darklang =
       let systemPrompt =
         (Builtin.File.read "canvases/dark-editor/system-prompt-cli.txt")
         |> Builtin.unwrap
-        |> Builtin.String.fromBytes
+        |> PACKAGE.Darklang.Stdlib.String.fromBytes
 
       let prompt = prompt ++ "\n" ++ systemPrompt
 
@@ -265,7 +265,10 @@ module Darklang =
         Builtin.print e
         1
       | Ok response ->
-        Builtin.File.write (Builtin.String.toBytes response) scriptPath
+        Builtin.File.write
+          (PACKAGE.Darklang.Stdlib.String.toBytes response)
+          scriptPath
+
         Builtin.print $"Generated code saved to {scriptPath}"
         0
 
@@ -299,7 +302,7 @@ module Darklang =
           Builtin.print e
           1
         | Ok script ->
-          let script = Builtin.String.fromBytes script
+          let script = PACKAGE.Darklang.Stdlib.String.fromBytes script
 
           match
             Builtin.Cli.parseAndExecuteScript
@@ -337,20 +340,20 @@ Options:
 
         let owner =
           fullName
-          |> Builtin.String.split "."
+          |> PACKAGE.Darklang.Stdlib.String.split "."
           |> PACKAGE.Darklang.Stdlib.List.head
           |> Builtin.unwrap
 
         let modules =
           fullName
-          |> Builtin.String.split "."
+          |> PACKAGE.Darklang.Stdlib.String.split "."
           |> (PACKAGE.Darklang.Stdlib.List.drop 1)
           |> PACKAGE.Darklang.Stdlib.List.dropLast
 
         let name =
           name
           |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1
-          |> Builtin.String.split "."
+          |> PACKAGE.Darklang.Stdlib.String.split "."
           |> PACKAGE.Darklang.Stdlib.List.last
           |> Builtin.unwrap
 
@@ -371,9 +374,9 @@ Options:
             categoryRequest
             |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
             |> Builtin.unwrap
-            |> Builtin.String.fromBytes
+            |> PACKAGE.Darklang.Stdlib.String.fromBytes
           else
-            "Error" |> Builtin.String.toBytes
+            "Error" |> PACKAGE.Darklang.Stdlib.String.toBytes
 
         match category with
         | "fn" -> PACKAGE.Darklang.Cli.showFn name owner modules
@@ -382,7 +385,7 @@ Options:
         | _ ->
           let modules =
             fullName
-            |> Builtin.String.split "."
+            |> PACKAGE.Darklang.Stdlib.String.split "."
             |> (PACKAGE.Darklang.Stdlib.List.drop 1)
 
           if PACKAGE.Darklang.Stdlib.List.length modules == 0 then
@@ -400,7 +403,7 @@ Options:
         PACKAGE.Darklang.Cli.generateCode prompt scriptPath
 
       | Invalid args ->
-        let args = args |> Builtin.String.join " "
+        let args = args |> PACKAGE.Darklang.Stdlib.String.join " "
         Builtin.print $"Invalid command {args}. Use --help for more information."
         1
 

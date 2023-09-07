@@ -32,7 +32,7 @@ module Infra =
    // in ci, "circleci"
    | "circleci" -> true
    // otherwise it's the first 7 chars of the git hash
-   | hash -> (Builtin.String.length hash) == 7) = true
+   | hash -> (PACKAGE.Darklang.Stdlib.String.length hash) == 7) = true
 
 module Canvas =
   // Test creating a new canvas - just check it we can call `owner` on it

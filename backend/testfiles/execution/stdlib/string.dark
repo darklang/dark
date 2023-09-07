@@ -29,54 +29,69 @@ module Append =
 
 
 module Join =
-  (Builtin.String.join_v0 [ "a"; "̂" ] "") |> Builtin.String.base64Encode_v0 = "w6I"
+  (PACKAGE.Darklang.Stdlib.String.join_v0 [ "a"; "̂" ] "")
+  |> PACKAGE.Darklang.Stdlib.String.base64Encode_v0 = "w6I"
 
-  Builtin.String.join_v0 [ "hello"; " world" ] "" = "hello world"
-  Builtin.String.join_v0 [ "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"; "🧟‍♀️" ] "" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽🧟‍♀️"
+  PACKAGE.Darklang.Stdlib.String.join_v0 [ "hello"; " world" ] "" = "hello world"
+  PACKAGE.Darklang.Stdlib.String.join_v0 [ "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"; "🧟‍♀️" ] "" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽🧟‍♀️"
 
-  Builtin.String.join_v0 [ "👱👱🏻👱🏼👱🏽👱🏾👱🏿"; "👨‍❤️‍💋‍👨"; "﷽﷽﷽" ] "" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿👨‍❤️‍💋‍👨﷽﷽﷽"
+  PACKAGE.Darklang.Stdlib.String.join_v0
+    [ "👱👱🏻👱🏼👱🏽👱🏾👱🏿"; "👨‍❤️‍💋‍👨"; "﷽﷽﷽" ]
+    "" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿👨‍❤️‍💋‍👨﷽﷽﷽"
 
-  Builtin.String.join_v0 [ "🧟‍♀️🧟‍♂️"; "🧟‍♀️🧑🏽‍🦰" ] "" = "🧟‍♀️🧟‍♂️🧟‍♀️🧑🏽‍🦰"
+  PACKAGE.Darklang.Stdlib.String.join_v0 [ "🧟‍♀️🧟‍♂️"; "🧟‍♀️🧑🏽‍🦰" ] "" = "🧟‍♀️🧟‍♂️🧟‍♀️🧑🏽‍🦰"
 
-  Builtin.String.join_v0 [ "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️"; "‍⚧️‍️🇵🇷" ] "" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+  PACKAGE.Darklang.Stdlib.String.join_v0
+    [ "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️"; "‍⚧️‍️🇵🇷" ]
+    "" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 
-  Builtin.String.join_v0 [ "🧟‍♀️🧟‍♂️‍"; "🧟‍♀️🧑🏽‍🦰‍‍" ] "" = "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
-  Builtin.String.join_v0 [ "🧑🏽‍🦰‍"; "🧑🏼‍💻‍‍" ] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
+  PACKAGE.Darklang.Stdlib.String.join_v0 [ "🧟‍♀️🧟‍♂️‍"; "🧟‍♀️🧑🏽‍🦰‍‍" ] "" = "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
+  PACKAGE.Darklang.Stdlib.String.join_v0 [ "🧑🏽‍🦰‍"; "🧑🏼‍💻‍‍" ] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
 
 module ToBytes =
   PACKAGE.Darklang.Stdlib.Bytes.length (
-    Builtin.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿"
+    PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿"
   ) = 62
 
-  PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "😄APPLE🍏") = 13
+  PACKAGE.Darklang.Stdlib.Bytes.length (
+    PACKAGE.Darklang.Stdlib.String.toBytes_v0 "😄APPLE🍏"
+  ) = 13
 
   PACKAGE.Darklang.Stdlib.Bytes.length (
-    Builtin.String.toBytes_v0 "Είναι προικισμένοι με λογική"
+    PACKAGE.Darklang.Stdlib.String.toBytes_v0 "Είναι προικισμένοι με λογική"
   ) = 53
 
-  PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "") = 0
+  PACKAGE.Darklang.Stdlib.Bytes.length (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "") = 0
 
   PACKAGE.Darklang.Stdlib.Bytes.length (
-    Builtin.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿"
+    PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿"
   ) = 62
 
-  PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = 48
+  PACKAGE.Darklang.Stdlib.Bytes.length (
+    PACKAGE.Darklang.Stdlib.String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+  ) = 48
 
   PACKAGE.Darklang.Stdlib.Bytes.length (
-    Builtin.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+    PACKAGE.Darklang.Stdlib.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
   ) = 44
 
-  PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "🧟‍♀️🧟‍♂️") = 26
+  PACKAGE.Darklang.Stdlib.Bytes.length (
+    PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧟‍♀️🧟‍♂️"
+  ) = 26
 
   PACKAGE.Darklang.Stdlib.Bytes.length (
-    Builtin.String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+    PACKAGE.Darklang.Stdlib.String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
   ) = 82
 
   PACKAGE.Darklang.Stdlib.Bytes.length (
-    Builtin.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+    PACKAGE.Darklang.Stdlib.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
   ) = 49
 
-  PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "") = 0
+  PACKAGE.Darklang.Stdlib.Bytes.length (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "") = 0
+
+
+// TODO: String.fromBytes tests missing?
+
 
 module StartsWith =
   PACKAGE.Darklang.Stdlib.String.startsWith_v0 "a string" "a s" = true
@@ -132,16 +147,18 @@ module EndsWith =
 
 
 module Map =
-  Builtin.String.map "a string" (fun x -> x) = "a string"
-  Builtin.String.map "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" (fun x -> x) = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-  Builtin.String.map "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" (fun x -> x) = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-  Builtin.String.map "👱👱🏻👱🏼👱🏽👱🏾👱🏿" (fun x -> x) = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-  Builtin.String.map "🧟‍♀️🧟‍♂️" (fun x -> x) = "🧟‍♀️🧟‍♂️"
-  Builtin.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> x) = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+  PACKAGE.Darklang.Stdlib.String.map "a string" (fun x -> x) = "a string"
+  PACKAGE.Darklang.Stdlib.String.map "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" (fun x -> x) = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  PACKAGE.Darklang.Stdlib.String.map "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" (fun x -> x) = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+  PACKAGE.Darklang.Stdlib.String.map "👱👱🏻👱🏼👱🏽👱🏾👱🏿" (fun x -> x) = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+  PACKAGE.Darklang.Stdlib.String.map "🧟‍♀️🧟‍♂️" (fun x -> x) = "🧟‍♀️🧟‍♂️"
+
+  PACKAGE.Darklang.Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x ->
+    x) = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 
   // Check that map executes the right number of times
   (let v =
-    Builtin.String.map "a string" (fun x ->
+    PACKAGE.Darklang.Stdlib.String.map "a string" (fun x ->
       let _ = Builtin.Test.incrementSideEffectCounter_v0 false in 'c') in
 
    (v, Builtin.Test.sideEffectCount_v0 ())) = ("cccccccc", 8)
@@ -158,125 +175,145 @@ module FromChar =
 
 
 module Base64Decode =
-  Builtin.String.base64Decode_v0 "random string" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "random string" = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Not a valid base64 string"
 
-  Builtin.String.base64Decode_v0 "illegal chars&@:" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "illegal chars&@:" = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Not a valid base64 string"
 
-  Builtin.String.base64Decode_v0 "Kw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "+"
-  Builtin.String.base64Decode_v0 "yLo" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "Ⱥ"
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "Kw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "+"
 
-  Builtin.String.base64Decode_v0 "xbzDs8WCdw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "yLo" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "Ⱥ"
+
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "xbzDs8WCdw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "żółw"
 
-  Builtin.String.base64Decode_v0 "LyotKygmQDk4NTIx" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "LyotKygmQDk4NTIx" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "/*-+(&@98521"
 
-  Builtin.String.base64Decode_v0 "" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "" // empty case
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "" // empty case
 
 
   // Test cases from the spec with padding added
-  Builtin.String.base64Decode_v0 "Zg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "f"
-
-  Builtin.String.base64Decode_v0 "Zg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "Zg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "f"
 
-  Builtin.String.base64Decode_v0 "Zm8" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "Zg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "f"
+
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "Zm8" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "fo"
 
-  Builtin.String.base64Decode_v0 "Zm8=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "Zm8=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "fo"
 
-  Builtin.String.base64Decode_v0 "Zm9v" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "Zm9v" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "foo"
 
-  Builtin.String.base64Decode_v0 "Zm9vYg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "Zm9vYg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "foob"
 
-  Builtin.String.base64Decode_v0 "Zm9vYg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "Zm9vYg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "foob"
 
-  Builtin.String.base64Decode_v0 "Zm9vYmE" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "Zm9vYmE" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "fooba"
 
-  Builtin.String.base64Decode_v0 "Zm9vYmE=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "Zm9vYmE=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "fooba"
 
-  Builtin.String.base64Decode_v0 "Zm9vYmFy" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "Zm9vYmFy" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "foobar"
 
 
   // "Impossible cases" from apache
   // https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
-  Builtin.String.base64Decode_v0 "ZE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "ZE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "d"
 
-  Builtin.String.base64Decode_v0 "ZmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "ZmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "f`"
 
-  Builtin.String.base64Decode_v0 "Zm9vYE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "Zm9vYE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "foo`"
 
-  Builtin.String.base64Decode_v0 "Zm9vYmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "Zm9vYmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "foob`"
 
-  Builtin.String.base64Decode_v0
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0
     "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "from=06/07/2013 query=\"Καλώς ορίσατε\""
 
-  Builtin.String.base64Decode_v0
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0
     "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
 
 
   // These produce strings of bytes which are technically legal it seems
-  Builtin.String.base64Decode_v0 "-p" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "�"
-  Builtin.String.base64Decode_v0 "lI" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "�"
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "-p" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "�"
 
-  Builtin.String.base64Decode_v0 "5Sk" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "lI" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    "�"
+
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "5Sk" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     "�)"
 
 
 module Base64Encode =
-  Builtin.String.base64Encode_v0 "+" = "Kw"
-  Builtin.String.base64Encode_v0 "Ⱥ" = "yLo"
-  Builtin.String.base64Encode_v0 "żółw" = "xbzDs8WCdw"
-  Builtin.String.base64Encode_v0 "/*-+(&@98521" = "LyotKygmQDk4NTIx"
-  Builtin.String.base64Encode_v0 "" = ""
-  Builtin.String.base64Encode_v0 "f" = "Zg"
-  Builtin.String.base64Encode_v0 "fo" = "Zm8"
-  Builtin.String.base64Encode_v0 "foo" = "Zm9v"
-  Builtin.String.base64Encode_v0 "foob" = "Zm9vYg"
-  Builtin.String.base64Encode_v0 "fooba" = "Zm9vYmE"
-  Builtin.String.base64Encode_v0 "foobar" = "Zm9vYmFy"
-  Builtin.String.base64Encode_v0 "Hello World" = "SGVsbG8gV29ybGQ"
-  Builtin.String.base64Encode_v0 "from=06/07/2013 query=\"Καλώς ορίσατε\"" = "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig"
-  Builtin.String.base64Encode_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78"
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "+" = "Kw"
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "Ⱥ" = "yLo"
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "żółw" = "xbzDs8WCdw"
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "/*-+(&@98521" = "LyotKygmQDk4NTIx"
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "" = ""
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "f" = "Zg"
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "fo" = "Zm8"
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "foo" = "Zm9v"
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "foob" = "Zm9vYg"
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "fooba" = "Zm9vYmE"
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "foobar" = "Zm9vYmFy"
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "Hello World" = "SGVsbG8gV29ybGQ"
+
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0
+    "from=06/07/2013 query=\"Καλώς ορίσατε\"" = "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig"
+
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78"
 
 
 module Digest =
-  Builtin.String.digest_v0 "" = "OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb"
-  Builtin.String.digest_v0 "😄" = "Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA"
-  Builtin.String.digest_v0 "ελπίδα" = "j4uJEeBe6g8QrzbuxoI2roUgapGQiExE8CWEQqZao61eZVN1iSZ8cV39IM1nGqsa"
-  Builtin.String.digest_v0 "/*-+(&@98521" = "wSGXFkLMpPufNoF2mUBAjT4YlUEb9cl0Iliy4qohwt1XFpg51PRJVTWndn5PewSr"
-  Builtin.String.digest_v0 "👩🏻‍🚀🍇" = "hVrNUSbFOfYXwZe6zQRUFFfGPe90qr-aROG2n-hMk8kAC-xodOyHOqecLWb9HIKJ"
-  Builtin.String.digest_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = "7Fo0ImavUzoUM_9kdjucgh6pYAHk5VovpTOUObvxacS31QoCTkcE4rpcQbJJpshE"
-  Builtin.String.digest_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "U2v72uGbUR_UIiD5qF6L21pKzYi4B6OB76HGtbpM0o-2_4YB3ytPjJ7w9png3L9k"
-  Builtin.String.digest_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "c1Wm67axXlBaejcJZxct80MvexdTtyyrTK9J9-_4RqgP1pf4Bk9SoMZpsnXpvLIx"
-  Builtin.String.digest_v0 "🧟‍♀️🧟‍♂️" = "FBnrDureCzgPeGP9qOuW1BIiF2Wz5WejO5XtJWa81qCxcD6cZ4A_WAB0ZJzhOErc"
-  Builtin.String.digest_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "3QFqrhTPpxeje6XUNObFt2eJZZ1t0pAcX42AFdFVv42hco0bTOopQK3py4KMBT0m"
+  PACKAGE.Darklang.Stdlib.String.digest_v0 "" = "OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb"
+  PACKAGE.Darklang.Stdlib.String.digest_v0 "😄" = "Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA"
+  PACKAGE.Darklang.Stdlib.String.digest_v0 "ελπίδα" = "j4uJEeBe6g8QrzbuxoI2roUgapGQiExE8CWEQqZao61eZVN1iSZ8cV39IM1nGqsa"
+  PACKAGE.Darklang.Stdlib.String.digest_v0 "/*-+(&@98521" = "wSGXFkLMpPufNoF2mUBAjT4YlUEb9cl0Iliy4qohwt1XFpg51PRJVTWndn5PewSr"
+  PACKAGE.Darklang.Stdlib.String.digest_v0 "👩🏻‍🚀🍇" = "hVrNUSbFOfYXwZe6zQRUFFfGPe90qr-aROG2n-hMk8kAC-xodOyHOqecLWb9HIKJ"
+  PACKAGE.Darklang.Stdlib.String.digest_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = "7Fo0ImavUzoUM_9kdjucgh6pYAHk5VovpTOUObvxacS31QoCTkcE4rpcQbJJpshE"
+  PACKAGE.Darklang.Stdlib.String.digest_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "U2v72uGbUR_UIiD5qF6L21pKzYi4B6OB76HGtbpM0o-2_4YB3ytPjJ7w9png3L9k"
+  PACKAGE.Darklang.Stdlib.String.digest_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "c1Wm67axXlBaejcJZxct80MvexdTtyyrTK9J9-_4RqgP1pf4Bk9SoMZpsnXpvLIx"
+  PACKAGE.Darklang.Stdlib.String.digest_v0 "🧟‍♀️🧟‍♂️" = "FBnrDureCzgPeGP9qOuW1BIiF2Wz5WejO5XtJWa81qCxcD6cZ4A_WAB0ZJzhOErc"
+  PACKAGE.Darklang.Stdlib.String.digest_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "3QFqrhTPpxeje6XUNObFt2eJZZ1t0pAcX42AFdFVv42hco0bTOopQK3py4KMBT0m"
 
 
 module Random =
-  (Builtin.String.random 5) == (Builtin.String.random 5) = false
+  (PACKAGE.Darklang.Stdlib.String.random 5)
+  == (PACKAGE.Darklang.Stdlib.String.random 5) = false
 
-  Builtin.String.random -1 = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.String.random -1 = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Expected `length` to be positive, but it was `-1`"
 
-  Builtin.String.length ((Builtin.String.random 10) |> Builtin.unwrap) = 10
-  Builtin.String.length ((Builtin.String.random 5) |> Builtin.unwrap) = 5
-  Builtin.String.length ((Builtin.String.random 0) |> Builtin.unwrap) = 0
+  PACKAGE.Darklang.Stdlib.String.length (
+    (PACKAGE.Darklang.Stdlib.String.random 10) |> Builtin.unwrap
+  ) = 10
+
+  PACKAGE.Darklang.Stdlib.String.length (
+    (PACKAGE.Darklang.Stdlib.String.random 5) |> Builtin.unwrap
+  ) = 5
+
+  PACKAGE.Darklang.Stdlib.String.length (
+    (PACKAGE.Darklang.Stdlib.String.random 0) |> Builtin.unwrap
+  ) = 0
 
 
 module HtmlEscape =
@@ -315,22 +352,22 @@ module NewLine =
 
 
 module Length =
-  Builtin.String.length "😄" = 1
-  Builtin.String.length "" = 0
-  Builtin.String.length "abcdef" = 6
-  Builtin.String.length "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = 6
-  Builtin.String.length "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = 5
-  Builtin.String.length "﷽﷽﷽﷽﷽" = 5
-  Builtin.String.length "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = 6
-  Builtin.String.length "🧟‍♀️🧟‍♂️" = 2
-  Builtin.String.length "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = 4
+  PACKAGE.Darklang.Stdlib.String.length "😄" = 1
+  PACKAGE.Darklang.Stdlib.String.length "" = 0
+  PACKAGE.Darklang.Stdlib.String.length "abcdef" = 6
+  PACKAGE.Darklang.Stdlib.String.length "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = 6
+  PACKAGE.Darklang.Stdlib.String.length "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = 5
+  PACKAGE.Darklang.Stdlib.String.length "﷽﷽﷽﷽﷽" = 5
+  PACKAGE.Darklang.Stdlib.String.length "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = 6
+  PACKAGE.Darklang.Stdlib.String.length "🧟‍♀️🧟‍♂️" = 2
+  PACKAGE.Darklang.Stdlib.String.length "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = 4
 
 
 module Prepend =
-  PACKAGE.Darklang.Stdlib.String.prepend_v0 "hello" "world" = "worldhello" // Builtin.String.prepend works for ASCII range
+  PACKAGE.Darklang.Stdlib.String.prepend_v0 "hello" "world" = "worldhello" // PACKAGE.Darklang.Stdlib.String.prepend works for ASCII range
   PACKAGE.Darklang.Stdlib.String.prepend_v0 "hello" "" = "hello"
   PACKAGE.Darklang.Stdlib.String.prepend_v0 "" "hello" = "hello"
-  PACKAGE.Darklang.Stdlib.String.prepend_v0 "żółw" "😄" = "😄żółw" // Builtin.String.prepend works on non-ascii strings
+  PACKAGE.Darklang.Stdlib.String.prepend_v0 "żółw" "😄" = "😄żółw" // PACKAGE.Darklang.Stdlib.String.prepend works on non-ascii strings
   PACKAGE.Darklang.Stdlib.String.prepend_v0 "123" "456" = "456123"
   PACKAGE.Darklang.Stdlib.String.prepend_v0 "óñÜá" "abc" = "abcóñÜá"
   PACKAGE.Darklang.Stdlib.String.prepend_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓" = "Z̤͔ͧ̑̓Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
@@ -347,21 +384,29 @@ module Prepend =
 
 
 module ReplaceAll =
-  Builtin.String.replaceAll_v0 "abcABCcbaCBA" "b" "x" = "axcABCcxaCBA"
-  Builtin.String.replaceAll_v0 "abcABCcbaCBA" "" "x" = "xaxbxcxAxBxCxcxbxaxCxBxAx"
-  Builtin.String.replaceAll_v0 "" "" "&" = "&"
-  Builtin.String.replaceAll_v0 "abcABCcbaCBA" "b" "" = "acABCcaCBA"
-  Builtin.String.replaceAll_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ä͖̭̈̇" "$" = "Z̤͔ͧ̑̓$lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-  Builtin.String.replaceAll_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽" "$" = "$$$$$$$$"
-  Builtin.String.replaceAll_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏽" "✋🏻" = "👱👱🏻👱🏼✋🏻👱🏾👱🏿"
-  Builtin.String.replaceAll_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" "🧑🏽‍🦰" = "🧟‍♀️🧑🏽‍🦰"
+  PACKAGE.Darklang.Stdlib.String.replaceAll_v0 "abcABCcbaCBA" "b" "x" = "axcABCcxaCBA"
+  PACKAGE.Darklang.Stdlib.String.replaceAll_v0 "abcABCcbaCBA" "" "x" = "xaxbxcxAxBxCxcxbxaxCxBxAx"
+  PACKAGE.Darklang.Stdlib.String.replaceAll_v0 "" "" "&" = "&"
+  PACKAGE.Darklang.Stdlib.String.replaceAll_v0 "abcABCcbaCBA" "b" "" = "acABCcaCBA"
 
-  Builtin.String.replaceAll_v0
+  PACKAGE.Darklang.Stdlib.String.replaceAll_v0
+    "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+    "ä͖̭̈̇"
+    "$" = "Z̤͔ͧ̑̓$lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+
+  PACKAGE.Darklang.Stdlib.String.replaceAll_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽" "$" = "$$$$$$$$"
+  PACKAGE.Darklang.Stdlib.String.replaceAll_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏽" "✋🏻" = "👱👱🏻👱🏼✋🏻👱🏾👱🏿"
+  PACKAGE.Darklang.Stdlib.String.replaceAll_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" "🧑🏽‍🦰" = "🧟‍♀️🧑🏽‍🦰"
+
+  PACKAGE.Darklang.Stdlib.String.replaceAll_v0
     "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
     "👨‍❤️‍💋‍👨"
     "👨‍❤️‍💋‍👨" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 
-  Builtin.String.replaceAll_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏻‍🍼" "🧟‍♂️" = "żółw🧑🏽‍🦰🧟‍♂️✋✋🏻✋🏿"
+  PACKAGE.Darklang.Stdlib.String.replaceAll_v0
+    "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+    "🧑🏻‍🍼"
+    "🧟‍♂️" = "żółw🧑🏽‍🦰🧟‍♂️✋✋🏻✋🏿"
 
 
 module Slugify =
@@ -409,177 +454,217 @@ Actual: a List<String>: [\n  \"a\"\n]"
 
 
 module ToList =
-  Builtin.String.toList "" = []
-  Builtin.String.toList "ab" = [ 'a'; 'b' ]
-  Builtin.String.toList "👨‍👩‍👧‍👦" = [ c "👨‍👩‍👧‍👦" ]
+  PACKAGE.Darklang.Stdlib.String.toList "" = []
+  PACKAGE.Darklang.Stdlib.String.toList "ab" = [ 'a'; 'b' ]
+  PACKAGE.Darklang.Stdlib.String.toList "👨‍👩‍👧‍👦" = [ c "👨‍👩‍👧‍👦" ]
 
-  Builtin.String.toList "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ (c "Z̤͔ͧ̑̓")
-                                                           (c "ä͖̭̈̇")
-                                                           (c "lͮ̒ͫ")
-                                                           (c "ǧ̗͚̚")
-                                                           (c "o̙̔ͮ̇͐̇") ]
+  PACKAGE.Darklang.Stdlib.String.toList "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ (c
+                                                                             "Z̤͔ͧ̑̓")
+                                                                           (c
+                                                                             "ä͖̭̈̇")
+                                                                           (c "lͮ̒ͫ")
+                                                                           (c "ǧ̗͚̚")
+                                                                           (c
+                                                                             "o̙̔ͮ̇͐̇") ]
 
 
-  Builtin.String.toList "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = [ (c "﷽")
-                                               (c "﷽")
-                                               (c "﷽")
-                                               (c "﷽")
-                                               (c "﷽")
-                                               (c "﷽")
-                                               (c "﷽")
-                                               (c "﷽")
-                                               (c "﷽")
-                                               (c "﷽")
-                                               (c "﷽")
-                                               (c "﷽")
-                                               (c "﷽")
-                                               (c "﷽")
-                                               (c "﷽")
-                                               (c "﷽") ]
+  PACKAGE.Darklang.Stdlib.String.toList "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = [ (c "﷽")
+                                                               (c "﷽")
+                                                               (c "﷽")
+                                                               (c "﷽")
+                                                               (c "﷽")
+                                                               (c "﷽")
+                                                               (c "﷽")
+                                                               (c "﷽")
+                                                               (c "﷽")
+                                                               (c "﷽")
+                                                               (c "﷽")
+                                                               (c "﷽")
+                                                               (c "﷽")
+                                                               (c "﷽")
+                                                               (c "﷽")
+                                                               (c "﷽") ]
 
-  Builtin.String.toList "🧟‍♀️🧟‍♂️" = [ c "🧟‍♀️"; c "🧟‍♂️" ]
+  PACKAGE.Darklang.Stdlib.String.toList "🧟‍♀️🧟‍♂️" = [ c "🧟‍♀️"; c "🧟‍♂️" ]
 
-  Builtin.String.toList "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = [ (c "👱")
-                                                     (c "👱🏻")
-                                                     (c "👱🏼")
-                                                     (c "👱🏽")
-                                                     (c "👱🏾")
-                                                     (c "👱🏿") ]
+  PACKAGE.Darklang.Stdlib.String.toList "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = [ (c "👱")
+                                                                     (c "👱🏻")
+                                                                     (c "👱🏼")
+                                                                     (c "👱🏽")
+                                                                     (c "👱🏾")
+                                                                     (c "👱🏿") ]
 
-  Builtin.String.toList "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = [ (c "ż")
-                                                        (c "ó")
-                                                        (c "ł")
-                                                        (c "w")
-                                                        (c "🧑🏽‍🦰")
-                                                        (c "🧑🏻‍🍼")
-                                                        (c "✋")
-                                                        (c "✋🏻")
-                                                        (c "✋🏿") ]
 
-  ("ab1" |> Builtin.String.toList |> PACKAGE.Darklang.Stdlib.String.fromList) = "ab1"
-  ("@Ǣá1" |> Builtin.String.toList |> PACKAGE.Darklang.Stdlib.String.fromList) = "@Ǣá1"
+  PACKAGE.Darklang.Stdlib.String.toList "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = [ (c "ż")
+                                                                        (c "ó")
+                                                                        (c "ł")
+                                                                        (c "w")
+                                                                        (c "🧑🏽‍🦰")
+                                                                        (c "🧑🏻‍🍼")
+                                                                        (c "✋")
+                                                                        (c "✋🏻")
+                                                                        (c "✋🏿") ]
+
+  ("ab1"
+   |> PACKAGE.Darklang.Stdlib.String.toList
+   |> PACKAGE.Darklang.Stdlib.String.fromList) = "ab1"
+
+  ("@Ǣá1"
+   |> PACKAGE.Darklang.Stdlib.String.toList
+   |> PACKAGE.Darklang.Stdlib.String.fromList) = "@Ǣá1"
 
   ("👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
-   |> Builtin.String.toList
+   |> PACKAGE.Darklang.Stdlib.String.toList
    |> PACKAGE.Darklang.Stdlib.String.fromList) = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
 
 
 module Split =
-  Builtin.String.split "hello😄world" "😄" = [ "hello"; "world" ]
-  Builtin.String.split "hello&&&&world" "&&&&" = [ "hello"; "world" ]
-  Builtin.String.split "hello34564world34564sun" "😄" = [ "hello34564world34564sun" ]
+  PACKAGE.Darklang.Stdlib.String.split "hello😄world" "😄" = [ "hello"; "world" ]
+  PACKAGE.Darklang.Stdlib.String.split "hello&&&&world" "&&&&" = [ "hello"; "world" ]
+  PACKAGE.Darklang.Stdlib.String.split "hello34564world34564sun" "😄" = [ "hello34564world34564sun" ]
 
-  Builtin.String.split "hello34564world34564sun" "34564" = [ "hello"
-                                                             "world"
-                                                             "sun" ]
+  PACKAGE.Darklang.Stdlib.String.split "hello34564world34564sun" "34564" = [ "hello"
+                                                                             "world"
+                                                                             "sun" ]
 
-  Builtin.String.split "" "34564" = [ "" ]
-  Builtin.String.split "34564" "" = [ "3"; "4"; "5"; "6"; "4" ]
+  PACKAGE.Darklang.Stdlib.String.split "" "34564" = [ "" ]
+  PACKAGE.Darklang.Stdlib.String.split "34564" "" = [ "3"; "4"; "5"; "6"; "4" ]
 
-  Builtin.String.split "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏻‍🍼" = [ "🧑🏽‍🦰🧑🏼‍💻"
-                                                                    "✋✋🏻✋🏿" ]
+  PACKAGE.Darklang.Stdlib.String.split "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏻‍🍼" = [ "🧑🏽‍🦰🧑🏼‍💻"
+                                                                                    "✋✋🏻✋🏿" ]
 
-  // Builtin.String.split "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ ""
+  // PACKAGE.Darklang.Stdlib.String.split "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ ""
   //                                                                                  "" ]
 
-  Builtin.String.split "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" = [ ""; ""; ""; ""; "" ]
-  Builtin.String.split "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽" = [ "👱👱🏻"; "👱🏾👱🏿" ]
-  Builtin.String.split "🧟‍♀️🧟‍♂️" "👱🏽" = [ "🧟‍♀️🧟‍♂️" ]
+  PACKAGE.Darklang.Stdlib.String.split "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" = [ ""
+                                                                     ""
+                                                                     ""
+                                                                     ""
+                                                                     "" ]
 
-  // Builtin.String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦" = [ "👨‍❤️‍💋‍👨"
+  PACKAGE.Darklang.Stdlib.String.split "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽" = [ "👱👱🏻"
+                                                                               "👱🏾👱🏿" ]
+
+  PACKAGE.Darklang.Stdlib.String.split "🧟‍♀️🧟‍♂️" "👱🏽" = [ "🧟‍♀️🧟‍♂️" ]
+
+  // PACKAGE.Darklang.Stdlib.String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦" = [ "👨‍❤️‍💋‍👨"
   //                                                                               "🏳️‍⚧️‍️🇵🇷" ]
 
-  // Builtin.String.split "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = [ "żółw"
+  // PACKAGE.Darklang.Stdlib.String.split "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = [ "żółw"
   //                                                                  "🧑🏻‍🍼✋✋🏻✋🏿" ]
 
-  // Builtin.String.split "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ" = [ ""
+  // PACKAGE.Darklang.Stdlib.String.split "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ" = [ ""
   //                                                                      "ǧ̗͚̚o̙̔ͮ̇͐̇" ]
 
-  Builtin.String.split "666666" "6" = [ ""; ""; ""; ""; ""; ""; "" ]
-  Builtin.String.split "55555" "5" = [ ""; ""; ""; ""; ""; "" ]
-  Builtin.String.split "4444" "4" = [ ""; ""; ""; ""; "" ]
-  Builtin.String.split "333" "3" = [ ""; ""; ""; "" ]
-  Builtin.String.split "22" "2" = [ ""; ""; "" ]
-  Builtin.String.split "1" "1" = [ ""; "" ]
-  Builtin.String.split "" "" = []
-  Builtin.String.split "666666x" "6" = [ ""; ""; ""; ""; ""; ""; "x" ]
-  Builtin.String.split "55555x" "5" = [ ""; ""; ""; ""; ""; "x" ]
-  Builtin.String.split "4444x" "4" = [ ""; ""; ""; ""; "x" ]
-  Builtin.String.split "333x" "3" = [ ""; ""; ""; "x" ]
-  Builtin.String.split "22x" "2" = [ ""; ""; "x" ]
-  Builtin.String.split "1x" "1" = [ ""; "x" ]
-  Builtin.String.split "x666666" "6" = [ "x"; ""; ""; ""; ""; ""; "" ]
-  Builtin.String.split "x55555" "5" = [ "x"; ""; ""; ""; ""; "" ]
-  Builtin.String.split "x4444" "4" = [ "x"; ""; ""; ""; "" ]
-  Builtin.String.split "x333" "3" = [ "x"; ""; ""; "" ]
-  Builtin.String.split "x22" "2" = [ "x"; ""; "" ]
-  Builtin.String.split "x1" "1" = [ "x"; "" ]
-  Builtin.String.split "x666666y" "6" = [ "x"; ""; ""; ""; ""; ""; "y" ]
-  Builtin.String.split "x55555y" "5" = [ "x"; ""; ""; ""; ""; "y" ]
-  Builtin.String.split "x4444y" "4" = [ "x"; ""; ""; ""; "y" ]
-  Builtin.String.split "x333y" "3" = [ "x"; ""; ""; "y" ]
-  Builtin.String.split "x22y" "2" = [ "x"; ""; "y" ]
-  Builtin.String.split "x1y" "1" = [ "x"; "y" ]
+  PACKAGE.Darklang.Stdlib.String.split "666666" "6" = [ ""; ""; ""; ""; ""; ""; "" ]
+  PACKAGE.Darklang.Stdlib.String.split "55555" "5" = [ ""; ""; ""; ""; ""; "" ]
+  PACKAGE.Darklang.Stdlib.String.split "4444" "4" = [ ""; ""; ""; ""; "" ]
+  PACKAGE.Darklang.Stdlib.String.split "333" "3" = [ ""; ""; ""; "" ]
+  PACKAGE.Darklang.Stdlib.String.split "22" "2" = [ ""; ""; "" ]
+  PACKAGE.Darklang.Stdlib.String.split "1" "1" = [ ""; "" ]
+  PACKAGE.Darklang.Stdlib.String.split "" "" = []
 
-  Builtin.String.split "6a6aa6aaa6aaaa" "a" = [ "6"
-                                                "6"
-                                                ""
-                                                "6"
-                                                ""
-                                                ""
-                                                "6"
-                                                ""
-                                                ""
-                                                ""
-                                                "" ]
+  PACKAGE.Darklang.Stdlib.String.split "666666x" "6" = [ ""
+                                                         ""
+                                                         ""
+                                                         ""
+                                                         ""
+                                                         ""
+                                                         "x" ]
 
-  // Builtin.String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = [ "👨‍❤️‍💋‍👨"
+  PACKAGE.Darklang.Stdlib.String.split "55555x" "5" = [ ""; ""; ""; ""; ""; "x" ]
+  PACKAGE.Darklang.Stdlib.String.split "4444x" "4" = [ ""; ""; ""; ""; "x" ]
+  PACKAGE.Darklang.Stdlib.String.split "333x" "3" = [ ""; ""; ""; "x" ]
+  PACKAGE.Darklang.Stdlib.String.split "22x" "2" = [ ""; ""; "x" ]
+  PACKAGE.Darklang.Stdlib.String.split "1x" "1" = [ ""; "x" ]
+
+  PACKAGE.Darklang.Stdlib.String.split "x666666" "6" = [ "x"
+                                                         ""
+                                                         ""
+                                                         ""
+                                                         ""
+                                                         ""
+                                                         "" ]
+
+  PACKAGE.Darklang.Stdlib.String.split "x55555" "5" = [ "x"; ""; ""; ""; ""; "" ]
+  PACKAGE.Darklang.Stdlib.String.split "x4444" "4" = [ "x"; ""; ""; ""; "" ]
+  PACKAGE.Darklang.Stdlib.String.split "x333" "3" = [ "x"; ""; ""; "" ]
+  PACKAGE.Darklang.Stdlib.String.split "x22" "2" = [ "x"; ""; "" ]
+  PACKAGE.Darklang.Stdlib.String.split "x1" "1" = [ "x"; "" ]
+
+  PACKAGE.Darklang.Stdlib.String.split "x666666y" "6" = [ "x"
+                                                          ""
+                                                          ""
+                                                          ""
+                                                          ""
+                                                          ""
+                                                          "y" ]
+
+  PACKAGE.Darklang.Stdlib.String.split "x55555y" "5" = [ "x"; ""; ""; ""; ""; "y" ]
+  PACKAGE.Darklang.Stdlib.String.split "x4444y" "4" = [ "x"; ""; ""; ""; "y" ]
+  PACKAGE.Darklang.Stdlib.String.split "x333y" "3" = [ "x"; ""; ""; "y" ]
+  PACKAGE.Darklang.Stdlib.String.split "x22y" "2" = [ "x"; ""; "y" ]
+  PACKAGE.Darklang.Stdlib.String.split "x1y" "1" = [ "x"; "y" ]
+
+  PACKAGE.Darklang.Stdlib.String.split "6a6aa6aaa6aaaa" "a" = [ "6"
+                                                                "6"
+                                                                ""
+                                                                "6"
+                                                                ""
+                                                                ""
+                                                                "6"
+                                                                ""
+                                                                ""
+                                                                ""
+                                                                "" ]
+
+  // PACKAGE.Darklang.Stdlib.String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = [ "👨‍❤️‍💋‍👨"
   //                                                            "👩‍👩‍👧‍👦"
   //                                                            "🏳️‍⚧️‍️"
   //                                                            "🇵🇷" ]
 
-  Builtin.String.split "👨‍👩‍👧‍👦" "👩" = [ "👨‍👩‍👧‍👦" ]
+  PACKAGE.Darklang.Stdlib.String.split "👨‍👩‍👧‍👦" "👩" = [ "👨‍👩‍👧‍👦" ]
 
 
 module ToLowercase =
-  Builtin.String.toLowercase "HELLO😄WORLD" = "hello😄world"
-  Builtin.String.toLowercase "" = ""
-  Builtin.String.toLowercase "ABCDEF" = "abcdef" // Builtin.String.toLowercase_v0 works for ASCII range
-  Builtin.String.toLowercase "AB323CDEF" = "ab323cdef"
-  Builtin.String.toLowercase "SÁNCHEZ" = "sánchez" // not lowercase a
-  Builtin.String.toLowercase "sánchez" = "sánchez"
-  Builtin.String.toLowercase "ŻÓŁW" = "żółw" // Builtin.String.toLowercase works on non-ascii strings
-  Builtin.String.toLowercase "😄ORANGE" = "😄orange"
-  Builtin.String.toLowercase "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-  Builtin.String.toLowercase "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-  Builtin.String.toLowercase "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-  Builtin.String.toLowercase "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️"
-  Builtin.String.toLowercase "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-  Builtin.String.toLowercase "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-  Builtin.String.toLowercase "Ჾ" = "ჾ"
-  Builtin.String.toLowercase "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇" = "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  PACKAGE.Darklang.Stdlib.String.toLowercase "HELLO😄WORLD" = "hello😄world"
+  PACKAGE.Darklang.Stdlib.String.toLowercase "" = ""
+  PACKAGE.Darklang.Stdlib.String.toLowercase "ABCDEF" = "abcdef" // PACKAGE.Darklang.Stdlib.String.toLowercase_v0 works for ASCII range
+  PACKAGE.Darklang.Stdlib.String.toLowercase "AB323CDEF" = "ab323cdef"
+  PACKAGE.Darklang.Stdlib.String.toLowercase "SÁNCHEZ" = "sánchez" // not lowercase a
+  PACKAGE.Darklang.Stdlib.String.toLowercase "sánchez" = "sánchez"
+  PACKAGE.Darklang.Stdlib.String.toLowercase "ŻÓŁW" = "żółw" // PACKAGE.Darklang.Stdlib.String.toLowercase works on non-ascii strings
+  PACKAGE.Darklang.Stdlib.String.toLowercase "😄ORANGE" = "😄orange"
+  PACKAGE.Darklang.Stdlib.String.toLowercase "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  PACKAGE.Darklang.Stdlib.String.toLowercase "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+  PACKAGE.Darklang.Stdlib.String.toLowercase "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+  PACKAGE.Darklang.Stdlib.String.toLowercase "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️"
+  PACKAGE.Darklang.Stdlib.String.toLowercase "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+  PACKAGE.Darklang.Stdlib.String.toLowercase "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  PACKAGE.Darklang.Stdlib.String.toLowercase "Ჾ" = "ჾ"
+  PACKAGE.Darklang.Stdlib.String.toLowercase "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇" = "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
 
-  Builtin.String.toLowercase
+  PACKAGE.Darklang.Stdlib.String.toLowercase
     "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕" = "h̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈w̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠b̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅt͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝w͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕"
 
 
 
 module ToUppercase =
-  Builtin.String.toUppercase "" = ""
-  Builtin.String.toUppercase "hello😄world" = "HELLO😄WORLD"
-  Builtin.String.toUppercase "abcdef" = "ABCDEF"
-  Builtin.String.toUppercase "ab323cdef" = "AB323CDEF"
-  Builtin.String.toUppercase "sánchez" = "SÁNCHEZ" // not lowercase a
-  Builtin.String.toUppercase "SÁNChEZ" = "SÁNCHEZ"
-  Builtin.String.toUppercase "żółw" = "ŻÓŁW"
-  Builtin.String.toUppercase "😄orange" = "😄ORANGE"
-  Builtin.String.toUppercase "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-  Builtin.String.toUppercase "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-  Builtin.String.toUppercase "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-  Builtin.String.toUppercase "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️"
-  Builtin.String.toUppercase "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-  Builtin.String.toUppercase "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-  Builtin.String.toUppercase "ჾ" = "Ჾ"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "" = ""
+  PACKAGE.Darklang.Stdlib.String.toUppercase "hello😄world" = "HELLO😄WORLD"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "abcdef" = "ABCDEF"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "ab323cdef" = "AB323CDEF"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "sánchez" = "SÁNCHEZ" // not lowercase a
+  PACKAGE.Darklang.Stdlib.String.toUppercase "SÁNChEZ" = "SÁNCHEZ"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "żółw" = "ŻÓŁW"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "😄orange" = "😄ORANGE"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "ჾ" = "Ჾ"
 
   // TODO: There are two types of unicode case "mapping" (conversion), "simple"
   // and "full". .NET supports simple mapping, which maps a single character to a
@@ -597,92 +682,110 @@ module ToUppercase =
   // (packaged at
   // https://dnceng.visualstudio.com/public/_packaging?_a=package&feed=dotnet-experimental&view=overview&package=System.Text.CaseFolding&version=0.1.2-alpha.21059.1&protocolType=NuGet)
 
-  Builtin.String.toUppercase "ﬁﬂ" = "ﬁﬂ" // should be "FIFL"
-  Builtin.String.toUppercase "և" = "և" // should be "ԵՒ"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "ﬁﬂ" = "ﬁﬂ" // should be "FIFL"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "և" = "և" // should be "ԵՒ"
 
-  Builtin.String.toUppercase "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇"
+  PACKAGE.Darklang.Stdlib.String.toUppercase "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇"
 
-  Builtin.String.toUppercase
+  PACKAGE.Darklang.Stdlib.String.toUppercase
     "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕" = "H̬̤̗̤͝E͜ ̜̥̝̻͍̟́W̕H̖̯͓O̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭A̺̪͍Į͈͕̭͙̯̜T̶̼̮S̘͙͖̕ ̠̫̠B̻͍͙͉̳ΙE̵H̵̬͇̫͙I̹͓̳̳̮͎̫̕N͟D̴̪̜̖ ̰͉̩͇͙̲͞ΙT͖̼͓̪͢H͏͓̮̻E̬̝̟Ι ̤̹̝W͙̞̝͔͇͝ΙA͏͓͔̹̼̣L̴͔̰̤̟͔Ḽ̫.͕"
 
 
 
 module TrimEnd =
-  Builtin.String.trimEnd_v0 "      " = ""
-  Builtin.String.trimEnd_v0 "" = ""
-  Builtin.String.trimEnd_v0 "  foo  " = "  foo"
-  Builtin.String.trimEnd_v0 "  foo bar  " = "  foo bar"
-  Builtin.String.trimEnd_v0 "  foo" = "  foo"
-  Builtin.String.trimEnd_v0 " 😄foobar😄 " = " 😄foobar😄"
-  Builtin.String.trimEnd_v0 "  foo bar  " = "  foo bar"
-  Builtin.String.trimEnd_v0 "foo  " = "foo"
-  Builtin.String.trimEnd_v0 "foo" = "foo"
-  Builtin.String.trimEnd_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83"
-  Builtin.String.trimEnd_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84"
-  Builtin.String.trimEnd_v0 "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   " = "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-  Builtin.String.trimEnd_v0 "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  " = "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-  Builtin.String.trimEnd_v0 "       ﷽﷽  " = "       ﷽﷽"
-  Builtin.String.trimEnd_v0 " 🧟‍♀️🧟‍♂️ " = " 🧟‍♀️🧟‍♂️"
-  Builtin.String.trimEnd_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-  Builtin.String.trimEnd_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " = "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-  Builtin.String.trimEnd_v0 "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸" = "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸"
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0 "      " = ""
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0 "" = ""
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0 "  foo  " = "  foo"
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0 "  foo bar  " = "  foo bar"
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0 "  foo" = "  foo"
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0 " 😄foobar😄 " = " 😄foobar😄"
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0 "  foo bar  " = "  foo bar"
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0 "foo  " = "foo"
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0 "foo" = "foo"
+
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0
+    " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83"
+
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0
+    " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84"
+
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0 "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   " = "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0 "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  " = "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0 "       ﷽﷽  " = "       ﷽﷽"
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0 " 🧟‍♀️🧟‍♂️ " = " 🧟‍♀️🧟‍♂️"
+
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0
+    " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " = "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  PACKAGE.Darklang.Stdlib.String.trimEnd_v0 "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸" = "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸"
 
 
 module TrimStart =
-  Builtin.String.trimStart_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "
-  Builtin.String.trimStart_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "
-  Builtin.String.trimStart_v0 "      " = ""
-  Builtin.String.trimStart_v0 "" = ""
-  Builtin.String.trimStart_v0 "  foo  " = "foo  "
-  Builtin.String.trimStart_v0 "  foo bar  " = "foo bar  "
-  Builtin.String.trimStart_v0 "  foo" = "foo"
-  Builtin.String.trimStart_v0 " 😄foobar😄 " = "😄foobar😄 "
-  Builtin.String.trimStart_v0 "  foo bar  " = "foo bar  "
-  Builtin.String.trimStart_v0 "foo  " = "foo  "
-  Builtin.String.trimStart_v0 "foo" = "foo"
-  Builtin.String.trimStart_v0 "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   " = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   "
-  Builtin.String.trimStart_v0 "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  " = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  "
-  Builtin.String.trimStart_v0 "       ﷽﷽  " = "﷽﷽  "
-  Builtin.String.trimStart_v0 " 🧟‍♀️🧟‍♂️ " = "🧟‍♀️🧟‍♂️ "
-  Builtin.String.trimStart_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     "
-  Builtin.String.trimStart_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  "
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0
+    " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "
+
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0
+    " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "
+
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0 "      " = ""
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0 "" = ""
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0 "  foo  " = "foo  "
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0 "  foo bar  " = "foo bar  "
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0 "  foo" = "foo"
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0 " 😄foobar😄 " = "😄foobar😄 "
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0 "  foo bar  " = "foo bar  "
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0 "foo  " = "foo  "
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0 "foo" = "foo"
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0 "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   " = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   "
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0 "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  " = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  "
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0 "       ﷽﷽  " = "﷽﷽  "
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0 " 🧟‍♀️🧟‍♂️ " = "🧟‍♀️🧟‍♂️ "
+
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0
+    " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     "
+
+  PACKAGE.Darklang.Stdlib.String.trimStart_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  "
 
 
 module Trim =
-  Builtin.String.trim_v0 "      " = ""
-  Builtin.String.trim_v0 "" = ""
-  Builtin.String.trim_v0 "  foo  " = "foo" // String trims both leading + trailing spaces
-  Builtin.String.trim_v0 "  foo bar  " = "foo bar" // String trims both leading + trailing spaces, leaving inner untouched
-  Builtin.String.trim_v0 "  foo" = "foo" // String trims leading spaces
-  Builtin.String.trim_v0 " 😄foobar😄 " = "😄foobar😄" // String trims both leading + trailing spaces, preserving emoji
-  Builtin.String.trim_v0 "  foo bar " = "foo bar" // String trims both leading + trailing spaces, leaving inner untouched w/ unicode spaces
-  Builtin.String.trim_v0 "foo  " = "foo" // String trims trailing spaces
-  Builtin.String.trim_v0 "foo" = "foo" // String trim noops
-  Builtin.String.trim_v0 "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   " = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-  Builtin.String.trim_v0 "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  " = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-  Builtin.String.trim_v0 "       ﷽﷽" = "﷽﷽"
-  Builtin.String.trim_v0 " 🧟‍♀️🧟‍♂️ " = "🧟‍♀️🧟‍♂️"
-  Builtin.String.trim_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-  Builtin.String.trim_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-  Builtin.String.trim_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83"
-  Builtin.String.trim_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84"
-  Builtin.String.trim_v0 "쉆ꥨ逴皪巌䖑ⱝዓ淋" = "쉆ꥨ逴皪巌䖑ⱝዓ淋"
+  PACKAGE.Darklang.Stdlib.String.trim_v0 "      " = ""
+  PACKAGE.Darklang.Stdlib.String.trim_v0 "" = ""
+  PACKAGE.Darklang.Stdlib.String.trim_v0 "  foo  " = "foo" // String trims both leading + trailing spaces
+  PACKAGE.Darklang.Stdlib.String.trim_v0 "  foo bar  " = "foo bar" // String trims both leading + trailing spaces, leaving inner untouched
+  PACKAGE.Darklang.Stdlib.String.trim_v0 "  foo" = "foo" // String trims leading spaces
+  PACKAGE.Darklang.Stdlib.String.trim_v0 " 😄foobar😄 " = "😄foobar😄" // String trims both leading + trailing spaces, preserving emoji
+  PACKAGE.Darklang.Stdlib.String.trim_v0 "  foo bar " = "foo bar" // String trims both leading + trailing spaces, leaving inner untouched w/ unicode spaces
+  PACKAGE.Darklang.Stdlib.String.trim_v0 "foo  " = "foo" // String trims trailing spaces
+  PACKAGE.Darklang.Stdlib.String.trim_v0 "foo" = "foo" // String trim noops
+  PACKAGE.Darklang.Stdlib.String.trim_v0 "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   " = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+  PACKAGE.Darklang.Stdlib.String.trim_v0 "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  " = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  PACKAGE.Darklang.Stdlib.String.trim_v0 "       ﷽﷽" = "﷽﷽"
+  PACKAGE.Darklang.Stdlib.String.trim_v0 " 🧟‍♀️🧟‍♂️ " = "🧟‍♀️🧟‍♂️"
+  PACKAGE.Darklang.Stdlib.String.trim_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+  PACKAGE.Darklang.Stdlib.String.trim_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+
+  PACKAGE.Darklang.Stdlib.String.trim_v0
+    " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83"
+
+  PACKAGE.Darklang.Stdlib.String.trim_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84"
+  PACKAGE.Darklang.Stdlib.String.trim_v0 "쉆ꥨ逴皪巌䖑ⱝዓ淋" = "쉆ꥨ逴皪巌䖑ⱝዓ淋"
 
 
 module Reverse =
-  Builtin.String.reverse_v0 "abcde" = "edcba"
-  Builtin.String.reverse_v0 "0abcde" = "edcba0"
-  Builtin.String.reverse_v0 "a" = "a"
-  Builtin.String.reverse_v0 "" = ""
-  Builtin.String.reverse_v0 "ábc" = "cbá"
-  Builtin.String.reverse_v0 "🎁🧸Ǆʠ123" = "321ʠǄ🧸🎁"
-  Builtin.String.reverse_v0 "😄foobar👽" = "👽raboof😄"
-  Builtin.String.reverse_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "✋🏿✋🏻✋🧑🏻‍🍼🧑🏽‍🦰włóż"
-  Builtin.String.reverse_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-  Builtin.String.reverse_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱🏿👱🏾👱🏽👱🏼👱🏻👱"
-  Builtin.String.reverse_v0 "🧟‍♀️🧟‍♂️" = "🧟‍♂️🧟‍♀️"
-  Builtin.String.reverse_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "🇵🇷🏳️‍⚧️‍️👩‍👩‍👧‍👦👨‍❤️‍💋‍👨"
-  Builtin.String.reverse_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "o̙̔ͮ̇͐̇ǧ̗͚̚lͮ̒ͫä͖̭̈̇Z̤͔ͧ̑̓"
+  PACKAGE.Darklang.Stdlib.String.reverse_v0 "abcde" = "edcba"
+  PACKAGE.Darklang.Stdlib.String.reverse_v0 "0abcde" = "edcba0"
+  PACKAGE.Darklang.Stdlib.String.reverse_v0 "a" = "a"
+  PACKAGE.Darklang.Stdlib.String.reverse_v0 "" = ""
+  PACKAGE.Darklang.Stdlib.String.reverse_v0 "ábc" = "cbá"
+  PACKAGE.Darklang.Stdlib.String.reverse_v0 "🎁🧸Ǆʠ123" = "321ʠǄ🧸🎁"
+  PACKAGE.Darklang.Stdlib.String.reverse_v0 "😄foobar👽" = "👽raboof😄"
+  PACKAGE.Darklang.Stdlib.String.reverse_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "✋🏿✋🏻✋🧑🏻‍🍼🧑🏽‍🦰włóż"
+  PACKAGE.Darklang.Stdlib.String.reverse_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+  PACKAGE.Darklang.Stdlib.String.reverse_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱🏿👱🏾👱🏽👱🏼👱🏻👱"
+  PACKAGE.Darklang.Stdlib.String.reverse_v0 "🧟‍♀️🧟‍♂️" = "🧟‍♂️🧟‍♀️"
+  PACKAGE.Darklang.Stdlib.String.reverse_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "🇵🇷🏳️‍⚧️‍️👩‍👩‍👧‍👦👨‍❤️‍💋‍👨"
+  PACKAGE.Darklang.Stdlib.String.reverse_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "o̙̔ͮ̇͐̇ǧ̗͚̚lͮ̒ͫä͖̭̈̇Z̤͔ͧ̑̓"
 
 
 module DropFirst =
@@ -755,21 +858,21 @@ module Contains =
 
 
 module Slice =
-  Builtin.String.slice_v0 "abcd" -2 4 = "cd"
-  Builtin.String.slice_v0 "abcd" -5 -6 = ""
-  Builtin.String.slice_v0 "abcd" -5 1 = "a"
-  Builtin.String.slice_v0 "abcd" 0 -1 = "abc"
-  Builtin.String.slice_v0 "abcd" 2 3 = "c"
-  Builtin.String.slice_v0 "abcd" 2 6 = "cd"
-  Builtin.String.slice_v0 "abcd" 3 2 = ""
-  Builtin.String.slice_v0 "abcd" 5 6 = ""
-  Builtin.String.slice_v0 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 2 10 = "✋✋🏻✋🏿"
-  Builtin.String.slice_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 1 3 = "ä͖̭̈̇lͮ̒ͫ"
-  Builtin.String.slice_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 2 6 = "﷽﷽﷽﷽"
-  Builtin.String.slice_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 2 6 = "👱🏼👱🏽👱🏾👱🏿"
-  Builtin.String.slice_v0 "🧟‍♀️🧟‍♂️" 2 4 = ""
-  Builtin.String.slice_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 2 10 = "🏳️‍⚧️‍️🇵🇷"
-  Builtin.String.slice_v0 "abc" 0 4503599627370498L = "abc"
+  PACKAGE.Darklang.Stdlib.String.slice_v0 "abcd" -2 4 = "cd"
+  PACKAGE.Darklang.Stdlib.String.slice_v0 "abcd" -5 -6 = ""
+  PACKAGE.Darklang.Stdlib.String.slice_v0 "abcd" -5 1 = "a"
+  PACKAGE.Darklang.Stdlib.String.slice_v0 "abcd" 0 -1 = "abc"
+  PACKAGE.Darklang.Stdlib.String.slice_v0 "abcd" 2 3 = "c"
+  PACKAGE.Darklang.Stdlib.String.slice_v0 "abcd" 2 6 = "cd"
+  PACKAGE.Darklang.Stdlib.String.slice_v0 "abcd" 3 2 = ""
+  PACKAGE.Darklang.Stdlib.String.slice_v0 "abcd" 5 6 = ""
+  PACKAGE.Darklang.Stdlib.String.slice_v0 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 2 10 = "✋✋🏻✋🏿"
+  PACKAGE.Darklang.Stdlib.String.slice_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 1 3 = "ä͖̭̈̇lͮ̒ͫ"
+  PACKAGE.Darklang.Stdlib.String.slice_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 2 6 = "﷽﷽﷽﷽"
+  PACKAGE.Darklang.Stdlib.String.slice_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 2 6 = "👱🏼👱🏽👱🏾👱🏿"
+  PACKAGE.Darklang.Stdlib.String.slice_v0 "🧟‍♀️🧟‍♂️" 2 4 = ""
+  PACKAGE.Darklang.Stdlib.String.slice_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 2 10 = "🏳️‍⚧️‍️🇵🇷"
+  PACKAGE.Darklang.Stdlib.String.slice_v0 "abc" 0 4503599627370498L = "abc"
 
 
 module First =
@@ -889,27 +992,36 @@ module PadEnd =
 
 
 module IndexOf =
-  Builtin.String.indexOf_v0 "hello world" "world" = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  PACKAGE.Darklang.Stdlib.String.indexOf_v0 "hello world" "world" = PACKAGE.Darklang.Stdlib.Option.Option.Some
     6
 
-  Builtin.String.indexOf_v0 "hello world" "earth" = PACKAGE.Darklang.Stdlib.Option.Option.None
-  Builtin.String.indexOf_v0 "" "" = PACKAGE.Darklang.Stdlib.Option.Option.Some 0
-  Builtin.String.indexOf_v0 "hello" "" = PACKAGE.Darklang.Stdlib.Option.Option.Some 0
-  Builtin.String.indexOf_v0 "" "hello" = PACKAGE.Darklang.Stdlib.Option.Option.None
+  PACKAGE.Darklang.Stdlib.String.indexOf_v0 "hello world" "earth" = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-  Builtin.String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽" = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  PACKAGE.Darklang.Stdlib.String.indexOf_v0 "" "" = PACKAGE.Darklang.Stdlib.Option.Option.Some
+    0
+
+  PACKAGE.Darklang.Stdlib.String.indexOf_v0 "hello" "" = PACKAGE.Darklang.Stdlib.Option.Option.Some
+    0
+
+  PACKAGE.Darklang.Stdlib.String.indexOf_v0 "" "hello" = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+  PACKAGE.Darklang.Stdlib.String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽" = PACKAGE.Darklang.Stdlib.Option.Option.Some
     6
 
-  Builtin.String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏿" = PACKAGE.Darklang.Stdlib.Option.Option.None
+  PACKAGE.Darklang.Stdlib.String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏿" = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-  Builtin.String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦" = PACKAGE.Darklang.Stdlib.Option.Option.Some
-    11
+  PACKAGE.Darklang.Stdlib.String.indexOf_v0
+    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+    "👩‍👩‍👧‍👦" = PACKAGE.Darklang.Stdlib.Option.Option.Some 11
 
-  Builtin.String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  PACKAGE.Darklang.Stdlib.String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = PACKAGE.Darklang.Stdlib.Option.Option.Some
     4
 
-  Builtin.String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "👱🏽" = PACKAGE.Darklang.Stdlib.Option.Option.None
-  Builtin.String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🧑🏻‍🍼" = PACKAGE.Darklang.Stdlib.Option.Option.None
+  PACKAGE.Darklang.Stdlib.String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "👱🏽" = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+  PACKAGE.Darklang.Stdlib.String.indexOf_v0
+    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+    "🧑🏻‍🍼" = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 
 module Ellipsis =
@@ -926,12 +1038,14 @@ module Ellipsis =
     4 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷..."
 
 module Head =
-  Builtin.String.head "hello world" = PACKAGE.Darklang.Stdlib.Option.Option.Some 'h'
-  Builtin.String.head "" = PACKAGE.Darklang.Stdlib.Option.Option.None
+  PACKAGE.Darklang.Stdlib.String.head "hello world" = PACKAGE.Darklang.Stdlib.Option.Option.Some
+    'h'
+
+  PACKAGE.Darklang.Stdlib.String.head "" = PACKAGE.Darklang.Stdlib.Option.Option.None
 // Commented out as Fantomas doesn't like unicode "characters"
-// Builtin.String.head "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = PACKAGE.Darklang.Stdlib.Option.Option.Some '👱'
-// Builtin.String.head "🧟‍♀️🧟‍♂️" = PACKAGE.Darklang.Stdlib.Option.Option.Some '🧟'
-// Builtin.String.head "👨‍❤️‍💋‍👨" = PACKAGE.Darklang.Stdlib.Option.Option.Some '👨‍❤️‍💋‍👨'
+// PACKAGE.Darklang.Stdlib.String.head "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = PACKAGE.Darklang.Stdlib.Option.Option.Some '👱'
+// PACKAGE.Darklang.Stdlib.String.head "🧟‍♀️🧟‍♂️" = PACKAGE.Darklang.Stdlib.Option.Option.Some '🧟'
+// PACKAGE.Darklang.Stdlib.String.head "👨‍❤️‍💋‍👨" = PACKAGE.Darklang.Stdlib.Option.Option.Some '👨‍❤️‍💋‍👨'
 
 module ArticleFor =
   PACKAGE.Darklang.Stdlib.String.articleFor "apple" = "an"

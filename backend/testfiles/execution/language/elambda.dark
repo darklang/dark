@@ -30,11 +30,13 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
  let x = 6 in
  [ 1; 2; 3; 4 ] |> PACKAGE.Darklang.Stdlib.List.map_v0 y) = [ 6; 7; 8; 9 ]
 
-(Builtin.String.join_v0
+(PACKAGE.Darklang.Stdlib.String.join_v0
   (PACKAGE.Darklang.Stdlib.List.map_v0
-    (Builtin.String.toList "some string")
+    (PACKAGE.Darklang.Stdlib.String.toList "some string")
     (fun var ->
-      Builtin.String.toUppercase (PACKAGE.Darklang.Stdlib.String.fromChar var)))
+      PACKAGE.Darklang.Stdlib.String.toUppercase (
+        PACKAGE.Darklang.Stdlib.String.fromChar var
+      )))
   "") = "SOME STRING"
 
 (let y = (fun c -> if c > 2 then Builtin.Test.runtimeError "err" else 18)

@@ -34,7 +34,7 @@ let saveItemToCanvas
       "POST"
       $"http://dark-packages.dlio.localhost:11003/{name}s"
       []
-      (Builtin.String.toBytes json)
+      (PACKAGE.Darklang.Stdlib.String.toBytes json)
 
   let errMsg = $"Error saving {name} to canvas"
 
@@ -48,7 +48,9 @@ let saveItemToCanvas
       Builtin.print
         $"Status: {PACKAGE.Darklang.Stdlib.Int.toString response.statusCode}"
 
-      Builtin.print $"Body: {response.body |> Builtin.String.fromBytes}"
+      Builtin.print
+        $"Body: {response.body |> PACKAGE.Darklang.Stdlib.String.fromBytes}"
+
       Builtin.print errMsg
       PACKAGE.Darklang.Stdlib.Result.Result.Error errMsg
   | Error err ->
@@ -66,7 +68,7 @@ let loadPackageFileIntoDarkCanvas
     filename
     |> Builtin.File.read
     |> Builtin.unwrap
-    |> Builtin.String.fromBytes
+    |> PACKAGE.Darklang.Stdlib.String.fromBytes
     |> Builtin.LocalExec.Packages.parse filename
     |> Builtin.unwrap
 
@@ -112,19 +114,19 @@ let loadPackageFileIntoDarkCanvas
 
 
 let printPackageFunction (p: Builtin.LocalExec.Packages.Function) : Unit =
-  let modules = p.modules |> Builtin.String.join "."
+  let modules = p.modules |> PACKAGE.Darklang.Stdlib.String.join "."
 
   Builtin.print
     $"Package Function {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
 
 let printPackageType (p: Builtin.LocalExec.Packages.Type) : Unit =
-  let modules = p.modules |> Builtin.String.join "."
+  let modules = p.modules |> PACKAGE.Darklang.Stdlib.String.join "."
 
   Builtin.print
     $"Package Type {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
 
 let printPackageConstant (p: Builtin.LocalExec.Packages.Constant) : Unit =
-  let modules = p.modules |> Builtin.String.join "."
+  let modules = p.modules |> PACKAGE.Darklang.Stdlib.String.join "."
 
   Builtin.print
     $"Package Constant {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"

@@ -4,7 +4,7 @@ module Darklang =
       let nameResolutionError
         (nr: PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error)
         : String =
-        Builtin.String.join nr.names "."
+        PACKAGE.Darklang.Stdlib.String.join nr.names "."
 
 
       module FQName =
@@ -16,7 +16,9 @@ module Darklang =
             match t.modules with
             | [] -> ""
             | modules ->
-              modules |> Builtin.String.join "." |> (fun parts -> $"{parts}.")
+              modules
+              |> PACKAGE.Darklang.Stdlib.String.join "."
+              |> (fun parts -> $"{parts}.")
 
           let versionPart =
             if t.version == 0 then
@@ -35,7 +37,9 @@ module Darklang =
             match u.modules with
             | [] -> ""
             | modules ->
-              modules |> Builtin.String.join "." |> (fun parts -> $"{parts}.")
+              modules
+              |> PACKAGE.Darklang.Stdlib.String.join "."
+              |> (fun parts -> $"{parts}.")
 
           let versionPart =
             if u.version == 0 then
@@ -50,7 +54,7 @@ module Darklang =
           (namePart: String)
           (p: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.Package)
           : String =
-          let modulesPart = Builtin.String.join p.modules "."
+          let modulesPart = PACKAGE.Darklang.Stdlib.String.join p.modules "."
 
           let versionPart =
             if p.version == 0 then
@@ -189,7 +193,7 @@ module Darklang =
         | TTuple(first, second, theRest) ->
           (PACKAGE.Darklang.Stdlib.List.append [ first; second ] theRest)
           |> PACKAGE.Darklang.Stdlib.List.map (fun item -> typeReference item)
-          |> Builtin.String.join " * "
+          |> PACKAGE.Darklang.Stdlib.String.join " * "
           |> fun parts -> "(" ++ parts ++ ")"
 
         | TCustomType(typ, args) ->
@@ -199,7 +203,7 @@ module Darklang =
             | args ->
               args
               |> PACKAGE.Darklang.Stdlib.List.map (fun arg -> typeReference arg)
-              |> Builtin.String.join ", "
+              |> PACKAGE.Darklang.Stdlib.String.join ", "
               |> fun parts -> $"<{parts}>"
 
           let typeNamePart =
@@ -213,7 +217,7 @@ module Darklang =
           let argPart =
             args
             |> PACKAGE.Darklang.Stdlib.List.map (fun arg -> typeReference arg)
-            |> Builtin.String.join ", "
+            |> PACKAGE.Darklang.Stdlib.String.join ", "
             |> fun parts -> "(" ++ parts ++ ")"
 
           $"{argPart} -> {typeReference ret}"
@@ -242,13 +246,13 @@ module Darklang =
         | KTTuple(t1, t2, trest) ->
           (PACKAGE.Darklang.Stdlib.List.append [ t1; t2 ] trest)
           |> PACKAGE.Darklang.Stdlib.List.map (fun item -> valueType item)
-          |> Builtin.String.join ", "
+          |> PACKAGE.Darklang.Stdlib.String.join ", "
           |> fun s -> $"({s})"
 
         | KTFn(argTypes, retType) ->
           (Stdlib.List.push retType argTypes)
           |> PACKAGE.Darklang.Stdlib.List.map (fun vt -> valueType vt)
-          |> Builtin.String.join parts " -> "
+          |> PACKAGE.Darklang.Stdlib.String.join parts " -> "
 
         | KTCustomType(name, typeArgs) ->
           let typeArgsPortion =
@@ -257,7 +261,7 @@ module Darklang =
             | args ->
               args
               |> PACKAGE.Darklang.Stdlib.List.map (fun t -> valueTypeName t)
-              |> Builtin.String.join ", "
+              |> PACKAGE.Darklang.Stdlib.String.join ", "
               |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
           (typeName name) ++ typeArgsPortion
@@ -283,7 +287,7 @@ module Darklang =
         let makeSpaces (len: Int) : String =
           (PACKAGE.Darklang.Stdlib.List.repeat len " ")
           |> Builtin.unwrap
-          |> Builtin.String.join ""
+          |> PACKAGE.Darklang.Stdlib.String.join ""
 
         let withIndent
           (indent: Int)
@@ -325,7 +329,7 @@ module Darklang =
               $"{valueTypeName} []"
             else
               let elems =
-                Builtin.String.join
+                PACKAGE.Darklang.Stdlib.String.join
                   (PACKAGE.Darklang.Stdlib.List.map l (fun item ->
                     withIndent indent item))
                   ", "
@@ -338,12 +342,12 @@ module Darklang =
             let parts =
               PACKAGE.Darklang.Stdlib.List.map l (fun item -> withIndent indent item)
 
-            let short = Builtin.String.join parts ", "
+            let short = PACKAGE.Darklang.Stdlib.String.join parts ", "
 
-            if Builtin.String.length short <= 80 then
+            if PACKAGE.Darklang.Stdlib.String.length short <= 80 then
               $"({short})"
             else
-              let long = Builtin.String.join parts $"{inl}, "
+              let long = PACKAGE.Darklang.Stdlib.String.join parts $"{inl}, "
 
               $"({inl}{long}{nl})"
 
@@ -355,7 +359,7 @@ module Darklang =
                 let (key, value) = pair
                 $"{key}: {withIndent indent value}")
 
-            let elems = Builtin.String.join strs $",{inl}"
+            let elems = PACKAGE.Darklang.Stdlib.String.join strs $",{inl}"
             let typeStr = typeName typeName
             typeStr ++ " {" ++ inl ++ elems ++ nl ++ "}"
 
@@ -368,7 +372,7 @@ module Darklang =
           //       |> Map.toList
           //       |> PACKAGE.Darklang.Stdlib.List.map (fun (key, value) -> ($"{key}: {withIndent indent value}"))
 
-          //     let elems = Builtin.String.concat $",{inl}" strs
+          //     let elems = PACKAGE.Darklang.Stdlib.String.concat $",{inl}" strs
           //     "{" + $"{inl}{elems}{nl}" + "}"
 
           | DEnum(_, typeName, caseName, fields) ->
@@ -377,21 +381,21 @@ module Darklang =
                 fields
                 |> PACKAGE.Darklang.Stdlib.List.map (fun value ->
                   withIndent indent value)
-                |> Builtin.String.join ", "
+                |> PACKAGE.Darklang.Stdlib.String.join ", "
 
               let fieldStr = if fieldStr == "" then "" else $"({fieldStr})"
 
               let typeStr = typeName typeName
               $"{typeStr}.{caseName}{fieldStr}"
 
-            if Builtin.String.length short <= 80 then
+            if PACKAGE.Darklang.Stdlib.String.length short <= 80 then
               short
             else
               let fieldStr =
                 fields
                 |> PACKAGE.Darklang.Stdlib.List.map (fun value ->
                   withIndent indent value)
-                |> Builtin.String.join $",{inl}"
+                |> PACKAGE.Darklang.Stdlib.String.join $",{inl}"
 
               let fieldStr = if fieldStr == "" then "" else $"({inl}{fieldStr}{nl})"
 

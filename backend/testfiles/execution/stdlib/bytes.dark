@@ -1,9 +1,11 @@
 // TODO: try decoding values with incorrect padding
 
 PACKAGE.Darklang.Stdlib.Bytes.length Builtin.Bytes.empty_v0 = 0
-Builtin.Bytes.empty_v0 = Builtin.String.toBytes_v0 ""
+Builtin.Bytes.empty_v0 = PACKAGE.Darklang.Stdlib.String.toBytes_v0 ""
 
-PACKAGE.Darklang.Stdlib.Bytes.length (Builtin.String.toBytes_v0 "abcdef") = 6
+PACKAGE.Darklang.Stdlib.Bytes.length (
+  PACKAGE.Darklang.Stdlib.String.toBytes_v0 "abcdef"
+) = 6
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "white space" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Not a valid base64 string"
@@ -13,28 +15,28 @@ PACKAGE.Darklang.Stdlib.Bytes.base64Decode "Kw" = PACKAGE
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "+")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "+")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "yLo" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "Ⱥ")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "Ⱥ")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "xbzDs8WCdw" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "żółw")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "żółw")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "LyotKygmQDk4NTIx" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "/*-+(&@98521")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "/*-+(&@98521")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "illegal-chars&@:" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Not a valid base64 string"
@@ -47,77 +49,77 @@ PACKAGE.Darklang.Stdlib.Bytes.base64Decode "" = PACKAGE
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "")
 // Test cases from the spec with padding added
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "Zg" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "f")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "f")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "Zg==" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "f")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "f")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "Zm8" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "fo")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "fo")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "Zm8=" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "fo")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "fo")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "Zm9v" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "foo")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "foo")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "Zm9vYg" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "foob")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "foob")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "Zm9vYg==" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "foob")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "foob")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "Zm9vYmE" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "fooba")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "fooba")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "Zm9vYmE=" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "fooba")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "fooba")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "Zm9vYmFy" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "foobar")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "foobar")
 // "Impossible cases" from apache
 // https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "ZE==" = PACKAGE
@@ -125,28 +127,28 @@ PACKAGE.Darklang.Stdlib.Bytes.base64Decode "ZE==" = PACKAGE
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "d")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "d")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "ZmC=" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "f`")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "f`")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "Zm9vYE==" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "foo`")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "foo`")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "Zm9vYmC=" = PACKAGE
   .Darklang
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "foob`")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "foob`")
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode
   "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = PACKAGE
@@ -154,7 +156,10 @@ PACKAGE.Darklang.Stdlib.Bytes.base64Decode
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "from=06/07/2013 query=\"Καλώς ορίσατε\"")
+  .Ok(
+    PACKAGE.Darklang.Stdlib.String.toBytes_v0
+      "from=06/07/2013 query=\"Καλώς ορίσατε\""
+  )
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode
   "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = PACKAGE
@@ -162,7 +167,7 @@ PACKAGE.Darklang.Stdlib.Bytes.base64Decode
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+  .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
 // These produce strings of bytes which are technically legal it seems
 PACKAGE.Darklang.Stdlib.Bytes.base64Decode "-p" = PACKAGE
   .Darklang
@@ -201,36 +206,43 @@ PACKAGE.Darklang.Stdlib.Bytes.base64Decode "_w" = PACKAGE
 
 
 
-PACKAGE.Darklang.Stdlib.Bytes.base64Encode_v0 (Builtin.String.toBytes_v0 "abcdef") = "YWJjZGVm"
+PACKAGE.Darklang.Stdlib.Bytes.base64Encode_v0 (
+  PACKAGE.Darklang.Stdlib.String.toBytes_v0 "abcdef"
+) = "YWJjZGVm"
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Encode_v0 (
-  Builtin.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+  PACKAGE.Darklang.Stdlib.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
 ) = "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Encode_v0 (
-  Builtin.String.toBytes_v0 "اختبار النص"
+  PACKAGE.Darklang.Stdlib.String.toBytes_v0 "اختبار النص"
 ) = "2KfYrtiq2KjYp9ixINin2YTZhti1"
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Encode_v0 (
-  Builtin.String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+  PACKAGE.Darklang.Stdlib.String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
 ) = "77e977e977e977e977e977e977e977e977e977e977e977e977e977e977e977e9"
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Encode_v0 (
-  Builtin.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+  PACKAGE.Darklang.Stdlib.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
 ) = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78="
 
 PACKAGE.Darklang.Stdlib.Bytes.base64Encode_v0 (
-  Builtin.String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"
+  PACKAGE.Darklang.Stdlib.String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"
 ) = "8J-RqOKAjeKdpO-4j-KAjfCfkovigI3wn5Go8J-RqeKAjfCfkanigI3wn5Gn4oCN8J-RpvCfj7PvuI_igI3imqfvuI_wn4e18J-Htw=="
 
-PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (Builtin.String.toBytes_v0 "123qwc") = "313233717763"
-PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (Builtin.String.toBytes_v0 "اختبار النص") = "D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5"
+PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
+  PACKAGE.Darklang.Stdlib.String.toBytes_v0 "123qwc"
+) = "313233717763"
 
 PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
-  Builtin.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+  PACKAGE.Darklang.Stdlib.String.toBytes_v0 "اختبار النص"
+) = "D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5"
+
+PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
+  PACKAGE.Darklang.Stdlib.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
 ) = "F09F91B1F09F91B1F09F8FBBF09F91B1F09F8FBCF09F91B1F09F8FBDF09F91B1F09F8FBEF09F91B1F09F8FBF"
 
 PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
-  Builtin.String.toBytes_v0
+  PACKAGE.Darklang.Stdlib.String.toBytes_v0
     "dlkjkd329823333333333fjfidjsfudsdhs}{||!|!|!|!!$%^&^&﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
 ) = "646C6B6A6B64333239383233333333333333333333666A6669646A73667564736468737D7B7C7C217C217C217C212124255E265E26EFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BD"

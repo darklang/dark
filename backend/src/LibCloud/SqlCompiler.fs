@@ -267,6 +267,19 @@ let sqlOpForPackageFunction (fnName : FnName.Package) : SqlSpec =
     SqlCallback2(fun lookingIn searchingFor ->
       // strpos returns indexed from 1; 0 means missing
       $"strpos({lookingIn}, {searchingFor}) > 0")
+  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "replaceAll" ->
+    SqlFunction "replace"
+  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "toUppercase" ->
+    SqlFunction "upper"
+  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "toLowercase" ->
+    SqlFunction "lower"
+  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "reverse" ->
+    SqlFunction "reverse"
+  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "trim" -> SqlFunction "trim"
+  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "trimStart" ->
+    SqlFunction "ltrim"
+  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "trimEnd" ->
+    SqlFunction "rtrim"
   | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "lessThan" -> SqlBinOp "<"
   | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "lessThanOrEqualTo" ->
     SqlBinOp "<="

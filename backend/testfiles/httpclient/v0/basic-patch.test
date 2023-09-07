@@ -14,7 +14,7 @@ Content-Length: LENGTH
 Hello back
 
 [test]
-(let response = (Builtin.HttpClient.request "patch" "http://URL" [("Content-Type", "application/json; charset=utf-8")] ("5" |> Builtin.String.toBytes)) |> Builtin.unwrap
+(let response = (Builtin.HttpClient.request "patch" "http://URL" [("Content-Type", "application/json; charset=utf-8")] ("5" |> PACKAGE.Darklang.Stdlib.String.toBytes)) |> Builtin.unwrap
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    Builtin.HttpClient.Response
@@ -24,4 +24,4 @@ Hello back
           ("content-length", "LENGTH")
           ("content-type", "text/plain; charset=utf-8")
       ]
-      body = "Hello back" |> Builtin.String.toBytes_v0 }
+      body = "Hello back" |> PACKAGE.Darklang.Stdlib.String.toBytes_v0 }

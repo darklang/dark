@@ -26,4 +26,4 @@ Redirect destination reached
           ("content-length", "LENGTH")
           ("content-type", "text/plain; charset=utf-8")
         ]
-      body = "Redirect destination reached" |> Builtin.String.toBytes_v0}
+      body = "Redirect destination reached" |> PACKAGE.Darklang.Stdlib.String.toBytes_v0}
