@@ -45,15 +45,19 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "isASCII" 0
+    { name = fn "toAsciiCode" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
-      returnType = TBool
-      description = "Return whether <param c> is a valid ASCII character"
+      returnType = TypeReference.option TInt
+      description =
+        "Return {{Some <var code>}} if <param c> is a valid ASCII character, otherwise {{None}}"
       fn =
         function
         | _, _, [ DChar c ] ->
-          (if c.Length = 1 then System.Char.IsAscii c[0] else false) |> DBool |> Ply
+          if c.Length = 1 then
+            Dval.optionSome (DInt(System.Char.ConvertToUtf32(c, 0))) |> Ply
+          else
+            Dval.optionNone |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure

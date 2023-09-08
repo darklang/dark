@@ -134,6 +134,25 @@ PACKAGE.Darklang.Stdlib.Char.isASCII_v0 ' ' = true
 PACKAGE.Darklang.Stdlib.Char.isASCII_v0 '\t' = true
 
 
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'a' = PACKAGE.Darklang.Stdlib.Option.Option.Some 97
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'A' = PACKAGE.Darklang.Stdlib.Option.Option.Some 65
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'á' = PACKAGE.Darklang.Stdlib.Option.Option.Some 225
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'Á' = PACKAGE.Darklang.Stdlib.Option.Option.Some 193
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode '3' = PACKAGE.Darklang.Stdlib.Option.Option.Some 51
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode (smiley ()) = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'ż' = PACKAGE.Darklang.Stdlib.Option.Option.Some 380
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'Ż' = PACKAGE.Darklang.Stdlib.Option.Option.Some 379
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'ó' = PACKAGE.Darklang.Stdlib.Option.Option.Some 243
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'Ó' = PACKAGE.Darklang.Stdlib.Option.Option.Some 211
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'ł' = PACKAGE.Darklang.Stdlib.Option.Option.Some 322
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'Ł' = PACKAGE.Darklang.Stdlib.Option.Option.Some 321
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode (hand ()) = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'ჾ' = PACKAGE.Darklang.Stdlib.Option.Option.Some 4350
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'Ჾ' = PACKAGE.Darklang.Stdlib.Option.Option.Some 7358
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode ' ' = PACKAGE.Darklang.Stdlib.Option.Option.Some 32
+PACKAGE.Darklang.Stdlib.Char.toAsciiCode '\t' = PACKAGE.Darklang.Stdlib.Option.Option.Some 9
+
+
 PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'a' 'b' = true
 PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'a' 'A' = false
 PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'b' 'A' = false

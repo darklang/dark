@@ -34,7 +34,17 @@ module Darklang =
 
 
       /// Return whether <param c> is a valid ASCII character
-      let isASCII (c: Char) : Bool = Builtin.Char.isASCII c
+      let isASCII (c: Char) : Bool =
+        let asciiCode = Builtin.Char.toAsciiCode c
+
+        match asciiCode with
+        | Some ascii -> (ascii >= 0) && (ascii <= 127)
+        | None -> false
+
+
+      /// Return {{Some <var code>}} if <param c> is a valid ASCII character, otherwise {{None}}"
+      let toAsciiCode (c: Char) : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
+        Builtin.Char.toAsciiCode c
 
 
       /// Return whether <param c1> is less than <param c2>
