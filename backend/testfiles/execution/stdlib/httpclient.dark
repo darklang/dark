@@ -34,19 +34,19 @@ module NoInternal =
 // Tests that try to make requests to the internet
 
 // basic requests work
-((PACKAGE.Darklang.Stdlib.HttpClient.request
-  "get"
-  "https://example.com"
-  []
-  Builtin.Bytes.empty)
+(((PACKAGE.Darklang.Stdlib.HttpClient.request
+    "get"
+    "https://example.com"
+    []
+    Builtin.Bytes.empty))
  |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   200
 
-((PACKAGE.Darklang.Stdlib.HttpClient.request
-  "get"
-  "http://example.com"
-  []
-  Builtin.Bytes.empty)
+(((PACKAGE.Darklang.Stdlib.HttpClient.request
+    "get"
+    "http://example.com"
+    []
+    Builtin.Bytes.empty))
  |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   200
 
