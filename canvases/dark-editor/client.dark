@@ -30,7 +30,7 @@ let openAIcompletion
   let apiKey =
     let url = "http://dark-editor.dlio.localhost:11003/openai-apikey-yikes"
 
-    match Builtin.HttpClient.request "get" url [] Builtin.Bytes.empty with
+    match PACKAGE.Darklang.Stdlib.HttpClient.request "get" url [] Builtin.Bytes.empty with
     | Ok response ->
       response.body |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
 
@@ -49,7 +49,7 @@ let openAIcompletion
         ("content-type", "application/json") ]
 
     let openAIResponse =
-      Builtin.HttpClient.request
+      PACKAGE.Darklang.Stdlib.HttpClient.request
         "POST"
         "https://api.openai.com/v1/chat/completions"
         headers
@@ -76,7 +76,7 @@ let parseAndSerializeProgram
   (userProgram: String)
   : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
   let response =
-    Builtin.HttpClient.request
+    PACKAGE.Darklang.Stdlib.HttpClient.request
       "POST"
       "http://dark-editor.dlio.localhost:11003/get-program-json"
       []
@@ -176,7 +176,7 @@ let update (model: Model) (msg: Msg) : Model =
   match msg with
   | LoadSystemPrompt ->
     let systemPrompt =
-      Builtin.HttpClient.request
+      PACKAGE.Darklang.Stdlib.HttpClient.request
         "get"
         "http://dark-editor.dlio.localhost:11003/system-prompt"
         []
@@ -204,7 +204,7 @@ let update (model: Model) (msg: Msg) : Model =
     updateStateInJS newModel
 
     let getTasksPrompt =
-      (Builtin.HttpClient.request
+      (PACKAGE.Darklang.Stdlib.HttpClient.request
         "get"
         "http://dark-editor.dlio.localhost:11003/task-creation-prompt"
         []
@@ -442,7 +442,7 @@ let init () : Model =
 
     let getFnList =
       let response =
-        Builtin.HttpClient.request
+        PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
           "http://dark-editor.dlio.localhost:11003/all-canvas-functions"
           []
@@ -461,7 +461,7 @@ let init () : Model =
 
     let getTypeList =
       let response =
-        Builtin.HttpClient.request
+        PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
           "http://dark-editor.dlio.localhost:11003/all-canvas-types"
           []

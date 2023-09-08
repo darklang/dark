@@ -12,7 +12,7 @@ Location: /v0/response-redirect-destination
 
 
 [test]
-(match Builtin.HttpClient.request "delete" "http://URL" [] Builtin.Bytes.empty with
+(match PACKAGE.Darklang.Stdlib.HttpClient.request "delete" "http://URL" [] Builtin.Bytes.empty with
  | Ok _ -> "fail"
  | Error response ->
     let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")

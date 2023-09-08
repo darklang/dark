@@ -42,7 +42,7 @@ module OpenAI =
         let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
         let openAIResponse =
-          Builtin.HttpClient.request
+          PACKAGE.Darklang.Stdlib.HttpClient.request
             "POST"
             "https://api.openai.com/v1/completions"
             headers
@@ -147,7 +147,7 @@ module OpenAI =
         let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
         let openAIResponse =
-          Builtin.HttpClient.request
+          PACKAGE.Darklang.Stdlib.HttpClient.request
             "POST"
             "https://api.openai.com/v1/chat/completions"
             headers
@@ -201,7 +201,7 @@ module OpenAI =
         let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
         let openAIResponse =
-          Builtin.HttpClient.request
+          PACKAGE.Darklang.Stdlib.HttpClient.request
             "POST"
             "https://api.openai.com/v1/chat/completions"
             headers
@@ -257,7 +257,7 @@ module OpenAI =
         let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
         let openAIResponse =
-          Builtin.HttpClient.request
+          PACKAGE.Darklang.Stdlib.HttpClient.request
             "POST"
             "https://api.openai.com/v1/images/generations"
             headers
@@ -304,7 +304,7 @@ module OpenAI =
       let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
       let modelResponse =
-        Builtin.HttpClient.request
+        PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
           ("https://api.openai.com/v1/models/" ++ model)
           headers
@@ -327,7 +327,7 @@ module OpenAI =
       let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
       let modelResponse =
-        Builtin.HttpClient.request
+        PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
           "https://api.openai.com/v1/models"
           headers

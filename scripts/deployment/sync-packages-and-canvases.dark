@@ -56,7 +56,7 @@ let export (unit: Unit) : Result<Unit, String> =
   Builtin.print "exporting data to `dark-ai-backup`"
 
   let response =
-    (Builtin.HttpClient.request
+    (PACKAGE.Darklang.Stdlib.HttpClient.request
       "POST"
       "http://dark-ai-backup.builtwithdark.com/save-export"
       [ ("Content-Type", "application/json") ]
@@ -73,7 +73,7 @@ let import () : Result<ImportResults, String> =
   Builtin.print "fetching latest export from `dark-ai-backup`"
 
   let response =
-    (Builtin.HttpClient.request
+    (PACKAGE.Darklang.Stdlib.HttpClient.request
       "GET"
       "http://dark-ai-backup.builtwithdark.com/latest-export"
       [ ("Accept", "application/json") ]

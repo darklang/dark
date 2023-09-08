@@ -13,7 +13,7 @@ Location: /v0/response-redirect-dest-post-with-weird-content-type-with-body
 
 
 [test]
-(let response = (Builtin.HttpClient.request "post" "http://URL" "body" {} {"Content-Type" = "text/askdjnkajsfunr" }) |> Builtin.unwrap
+(let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "post" "http://URL" "body" {} {"Content-Type" = "text/askdjnkajsfunr" }) |> Builtin.unwrap
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    Builtin.HttpClient.Response
