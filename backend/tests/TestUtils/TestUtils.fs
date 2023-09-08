@@ -342,7 +342,7 @@ let rec debugDval (v : Dval) : string =
     $"DString '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
   | DDateTime d ->
     $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
-  | DRecord(tn, _, o) ->
+  | DRecord(tn, _, _typeArgsTODO, o) ->
     let typeStr = TypeName.toString tn
     o
     |> Map.toList
@@ -391,7 +391,7 @@ module Expect =
     | DList(_, vs) -> List.all check vs
     | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
     | DDict vs -> vs |> Map.values |> List.all check
-    | DRecord(_, _, vs) -> vs |> Map.values |> List.all check
+    | DRecord(_, _, _typeArgsTODO, vs) -> vs |> Map.values |> List.all check
     | DString str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
     | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all check
@@ -765,7 +765,7 @@ module Expect =
         rs
       check ("Length" :: path) (Map.count ls) (Map.count rs)
 
-    | DRecord(ltn, _, ls), DRecord(rtn, _, rs) ->
+    | DRecord(ltn, _, _typeArgsTODO1, ls), DRecord(rtn, _, _typeArgsTODO2, rs) ->
       userTypeNameEqualityBaseFn path ltn rtn errorFn
       // check keys from ls are in both, check matching values
       Map.iterWithIndex
@@ -871,7 +871,8 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     match dv with
     // Keep for exhaustiveness checking
     | DDict map -> Map.values map |> List.map visit |> ignore<List<unit>>
-    | DRecord(_, _, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
+    | DRecord(_, _, _typeArgsTODO, map) ->
+      Map.values map |> List.map visit |> ignore<List<unit>>
     | DEnum(_typeName, _, _caseName, fields) ->
       fields |> List.map visit |> ignore<List<unit>>
     | DList(_, dvs) -> List.map visit dvs |> ignore<List<unit>>
@@ -1015,6 +1016,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0,
        S.fqUserTypeName [ "Two"; "Modules" ] "FooAlias" 0,
+       valueTypesTODO,
        Map.ofList [ "foo", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0), []))
@@ -1022,6 +1024,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "FooAlias" 0,
+       valueTypesTODO,
        Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1029,6 +1032,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
+       valueTypesTODO,
        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1037,6 +1041,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
+       valueTypesTODO,
        Map.ofList [ "foo\\\\bar", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1044,6 +1049,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
+       valueTypesTODO,
        Map.ofList [ "$type", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1051,6 +1057,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
+       valueTypesTODO,
        Map.ofList
          [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ]
      ),

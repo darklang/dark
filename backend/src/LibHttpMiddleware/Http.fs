@@ -52,6 +52,7 @@ module Response =
                                      name = RT.TypeName.TypeName "Response"
                                      version = 0 },
                  _,
+                 _typeArgsTODO,
                  fields) ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
       let code = Map.get "statusCode" fields

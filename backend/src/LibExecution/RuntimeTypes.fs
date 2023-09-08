@@ -431,6 +431,7 @@ module private rec ValueType =
 /// VTTODO if this is used somewhere, re-evaluate the usage - it feels there's something to be done...
 /// CLEANUP eventually remove this binding
 let valueTypeTODO = ValueType.Unknown
+let valueTypesTODO = []
 
 /// VTTODO follow up here when DDB references include a type
 let valueTypeDbTODO = ValueType.Unknown
@@ -591,11 +592,14 @@ and [<NoComparison>] Dval =
   | DUuid of System.Guid
   | DBytes of byte array
 
-  | DDict of DvalMap
+  | DDict of DvalMap // VTTODO add ValueType
+
   | DRecord of
     runtimeTypeName : TypeName.TypeName *
     sourceTypeName : TypeName.TypeName *
-    DvalMap
+    typeArgs : List<ValueType> *
+    fields : DvalMap
+
   | DEnum of
     runtimeTypeName : TypeName.TypeName *
     sourceTypeName : TypeName.TypeName *
@@ -855,7 +859,8 @@ module Dval =
     | DFnVal(Lambda l), TFn(parameters, _) ->
       NEList.length parameters = NEList.length l.parameters
 
-    | DRecord(typeName, _, fields), TCustomType(Ok typeName', typeArgs) ->
+    | DRecord(typeName, _, _typeArgsTODO, fields),
+      TCustomType(Ok typeName', _typeArgs) ->
       // TYPESCLEANUP: should load type by name
       // TYPESCLEANUP: are we handling type arguments here?
       // TYPESCLEANUP: do we need to check fields?
@@ -977,12 +982,7 @@ module Dval =
         )
       )
 
-    | DRecord(typeName, _, _fields) ->
-      let typeArgs =
-        // TODO: somehow need to derive `typeArgs` from the `fields`
-        // we might need to look up the type...
-        //fields |> Map.toList |> List.map (fun (_, v) -> toValueType v)
-        []
+    | DRecord(typeName, _, typeArgs, _fields) ->
       KTCustomType(typeName, typeArgs) |> ValueType.Known
 
     | DEnum(typeName, _, _caseName, _fields) ->
@@ -1108,7 +1108,11 @@ module Dval =
     | DUuid u -> Some u
     | _ -> None
 
-  let record (typeName : TypeName.TypeName) (fields : List<string * Dval>) : Dval =
+  let record
+    (typeName : TypeName.TypeName)
+    // TODO: (typeArgs: List<ValueType>)
+    (fields : List<string * Dval>)
+    : Dval =
     // Give a warning for duplicate keys
     List.fold
       (fun m (k, v) ->
@@ -1121,13 +1125,14 @@ module Dval =
         // Skip empty rows
         | _, "", _ -> DError(SourceNone, RuntimeError.oldError $"Empty key {k}")
         // Error if the key appears twice
-        | DRecord(_, _, m), k, _v when Map.containsKey k m ->
+        | DRecord(_, _, _typeArgsTODO, m), k, _v when Map.containsKey k m ->
           DError(SourceNone, RuntimeError.oldError $"Duplicate key: {k}")
         // Otherwise add it
-        | DRecord(tn, o, m), k, v -> DRecord(tn, o, Map.add k v m)
+        | DRecord(tn, o, _typeArgsTODO, m), k, v ->
+          DRecord(tn, o, valueTypesTODO, Map.add k v m)
         // If we haven't got a DDict we're propagating an error so let it go
         | m, _, _ -> m)
-      (DRecord(typeName, typeName, Map.empty))
+      (DRecord(typeName, typeName, valueTypesTODO, Map.empty))
       fields
 
   let enum

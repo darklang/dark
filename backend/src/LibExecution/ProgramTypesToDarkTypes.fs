@@ -64,7 +64,7 @@ module FQName =
 
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.BuiltIn<'name> =
       match d with
-      | DRecord(_, _, m) ->
+      | DRecord(_, _, _, m) ->
         let modules = modulesField m
         let name = nameField m |> nameMapper
         let version = versionField m
@@ -88,8 +88,7 @@ module FQName =
       : PT.FQName.UserProgram<'name> =
       let unwrap = Exception.unwrapOptionInternal
       match v with
-      | DRecord(_, _, m) ->
-
+      | DRecord(_, _, _, m) ->
         let modules = modulesField m
         let name = nameField m |> nameMapper
         let version = versionField m
@@ -110,7 +109,7 @@ module FQName =
 
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.Package<'name> =
       match d with
-      | DRecord(_, _, m) ->
+      | DRecord(_, _, _, m) ->
         let owner = ownerField m
         let modules = modulesField m
         let name = nameField m |> nameMapper
@@ -901,7 +900,7 @@ module TypeDeclaration =
 
     let fromDT (d : Dval) : PT.TypeDeclaration.RecordField =
       match d with
-      | DRecord(_, _, fields) ->
+      | DRecord(_, _, _, fields) ->
         let name = fields |> D.stringField "name"
         let typ = fields |> D.field "typ" |> TypeReference.fromDT
         let description = D.stringField "description" fields
@@ -920,7 +919,7 @@ module TypeDeclaration =
 
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumField =
       match d with
-      | DRecord(_, _, fields) ->
+      | DRecord(_, _, _, fields) ->
         let typ = fields |> D.field "typ" |> TypeReference.fromDT
 
         let label =
@@ -947,7 +946,7 @@ module TypeDeclaration =
 
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumCase =
       match d with
-      | DRecord(_, _, attributes) ->
+      | DRecord(_, _, _, attributes) ->
         let name = D.stringField "name" attributes
         let fields = attributes |> D.listField "fields" |> List.map EnumField.fromDT
         let description = attributes |> D.stringField "description"
@@ -1003,7 +1002,7 @@ module TypeDeclaration =
 
   let fromDT (d : Dval) : PT.TypeDeclaration.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let typeParams = D.stringListField "typeParams" fields
       let definition = fields |> D.field "definition" |> Definition.fromDT
 
@@ -1069,7 +1068,7 @@ module Handler =
 
   let fromDT (d : Dval) : PT.Handler.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
       let ast = fields |> D.field "ast" |> Expr.fromDT
       let spec = fields |> D.field "spec" |> Spec.fromDT
@@ -1090,7 +1089,7 @@ module DB =
 
   let fromDT (d : Dval) : PT.DB.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _typeArgsTODO, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
       let name = fields |> D.stringField "name"
       let version = fields |> D.intField "version"
@@ -1112,7 +1111,7 @@ module UserType =
 
   let fromDT (d : Dval) : PT.UserType.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
       let name = fields |> D.field "name" |> TypeName.UserProgram.fromDT
       let declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
@@ -1140,7 +1139,7 @@ module UserFunction =
 
     let fromDT (d : Dval) : PT.UserFunction.Parameter =
       match d with
-      | DRecord(_, _, fields) ->
+      | DRecord(_, _, _, fields) ->
         let name = fields |> D.stringField "name"
         let typ = fields |> D.field "typ" |> TypeReference.fromDT
         let description = fields |> D.stringField "description"
@@ -1167,7 +1166,7 @@ module UserFunction =
 
   let fromDT (d : Dval) : PT.UserFunction.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
       let name = fields |> D.field "name" |> FnName.UserProgram.fromDT
       let typeParams = fields |> D.stringListField "typeParams"
@@ -1205,7 +1204,7 @@ module UserConstant =
 
   let fromDT (d : Dval) : PT.UserConstant.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
 
       let name = fields |> D.field "name" |> ConstantName.UserProgram.fromDT
@@ -1230,7 +1229,7 @@ module Secret =
 
   let fromDT (d : Dval) : PT.Secret.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let name = fields |> D.stringField "name"
       let value = fields |> D.stringField "value"
       let version = fields |> D.intField "version"
@@ -1253,7 +1252,7 @@ module PackageType =
 
   let fromDT (d : Dval) : PT.PackageType.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
       let id = fields |> D.uuidField "id"
       let name = fields |> D.field "name" |> TypeName.Package.fromDT
@@ -1283,7 +1282,7 @@ module PackageFn =
 
     let fromDT (d : Dval) : PT.PackageFn.Parameter =
       match d with
-      | DRecord(_, _, fields) ->
+      | DRecord(_, _, _, fields) ->
         let name = fields |> D.stringField "name"
         let typ = fields |> D.field "typ" |> TypeReference.fromDT
         let description = fields |> D.stringField "description"
@@ -1310,7 +1309,7 @@ module PackageFn =
 
   let fromDT (d : Dval) : PT.PackageFn.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
       let id = fields |> D.uuidField "id"
       let name = fields |> D.field "name" |> FnName.Package.fromDT
@@ -1352,7 +1351,7 @@ module PackageConstant =
 
   let fromDT (d : Dval) : PT.PackageConstant.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
       let id = fields |> D.uuidField "id"
       let name = fields |> D.field "name" |> ConstantName.Package.fromDT
