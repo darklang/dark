@@ -147,10 +147,17 @@ let t
       // just test the actual RuntimeError Dval,
       // and have separate tests around pretty-printing the error
       let! actual =
-        task {
+        uply {
           match actual with
           | RT.DError(_, actual) ->
             let actual = RT.RuntimeError.toDT actual
+            let errorMessageFn =
+              RT.FnName.fqPackage
+                "Darklang"
+                [ "LanguageTools"; "RuntimeErrors"; "Error" ]
+                "toErrorMessage"
+                0
+
             let! typeChecked =
               let expected =
                 RT.TCustomType(
@@ -163,36 +170,21 @@ let t
                   ),
                   []
                 )
+
               let context =
                 LibExecution.TypeChecker.Context.FunctionCallParameter(
-                  (RT.FnName.fqPackage
-                    "Darklang"
-                    [ "LanguageTools"; "RuntimeErrors"; "Error" ]
-                    "toErrorMessage"
-                    0),
+                  errorMessageFn,
                   { name = ""; typ = expected },
                   0,
                   None
                 )
               let types = RT.ExecutionState.availableTypes state
-              let typeSymbolTable = Map.empty
-              LibExecution.TypeChecker.unify
-                context
-                types
-                typeSymbolTable
-                expected
-                actual
+              LibExecution.TypeChecker.unify context types Map.empty expected actual
 
-            let errorMessageFn =
-              (RT.FnName.fqPackage
-                "Darklang"
-                [ "LanguageTools"; "RuntimeErrors"; "Error" ]
-                "toErrorMessage"
-                0)
-
-            let! result =
-              match typeChecked with
-              | Ok _ ->
+            match typeChecked with
+            | Ok _ ->
+              // The result was correctly a RuntimeError, try to stringify it
+              let! result =
                 LibExecution.Interpreter.callFn
                   state
                   Map.empty
@@ -200,7 +192,22 @@ let t
                   errorMessageFn
                   []
                   (NEList.ofList actual [])
-              | Error e ->
+              match result with
+              | RT.DError _ ->
+                return
+                  Exception.raiseInternal
+                    ("We received a DError, and when trying to stringify it, there was an error. There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
+                    [ "originalError", actual; "stringifyError", result ]
+              | RT.DEnum(_, _, "ErrorString", [ RT.DString _ ]) -> return result
+              | _ ->
+                return
+                  Exception.raiseInternal
+                    "We received a DError, and when trying to stringify it, got neither a result or a DError. Instead we got"
+                    [ "result", result ]
+
+            | Error e ->
+              // The result was not a RuntimeError, try to stringify the typechecker error
+              return!
                 LibExecution.Interpreter.callFn
                   state
                   Map.empty
@@ -208,10 +215,10 @@ let t
                   errorMessageFn
                   []
                   (NEList.ofList (RT.RuntimeError.toDT e) [])
-            return normalizeDvalResult result
 
           | _ -> return actual
         }
+        |> Ply.toTask
 
       return Expect.equalDval actual expected msg
     with
