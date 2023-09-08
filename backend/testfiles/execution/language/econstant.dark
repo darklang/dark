@@ -31,7 +31,9 @@ module UserDefined =
   let enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
   enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
   UserDefined.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
-  Ok 5 = Builtin.Test.derrorMessage "Missing type name for enum case: `Ok`"
+
+  Ok 5 = Builtin.Test.derrorMessage
+    "Missing type name for enum case: Ok\n\nActual: `Ok`"
 
 
 module Package =
