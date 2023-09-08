@@ -34,11 +34,11 @@ module Equals =
   ((PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")
    == (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
 
-  ((Builtin.DateTime.parse "2019-07-28T22:42:36Z")
-   == (Builtin.DateTime.parse "2019-07-28T22:42:36Z")) = true
+  ((PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z")
+   == (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z")) = true
 
-  ((Builtin.DateTime.parse "2019-07-28T22:42:37Z")
-   != (Builtin.DateTime.parse "2019-07-28T22:42:36Z")) = true
+  ((PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:37Z")
+   != (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z")) = true
 
   (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
    == PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
@@ -134,23 +134,23 @@ module NotEquals =
   Builtin.notEquals_v0 "abd" "abc" = true
 
   Builtin.notEquals_v0
-    (Builtin.DateTime.parse "2021-07-28T22:42:36Z")
-    (Builtin.DateTime.parse "2019-07-28T22:42:36Z") = true
+    (PACKAGE.Darklang.Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
+    (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
 
   (!=) 1 1 = false
   (!=) "abc" "abc" = false
   (!=) "abd" "abc" = true
 
   (!=)
-    (Builtin.DateTime.parse "2021-07-28T22:42:36Z")
-    (Builtin.DateTime.parse "2019-07-28T22:42:36Z") = true
+    (PACKAGE.Darklang.Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
+    (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
 
   1 != 1 = false
   "abc" != "abc" = false
   "abd" != "abc" = true
 
-  (Builtin.DateTime.parse "2021-07-28T22:42:36Z")
-  != (Builtin.DateTime.parse "2019-07-28T22:42:36Z") = true
+  (PACKAGE.Darklang.Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
+  != (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
 
 
 // Moving to packages

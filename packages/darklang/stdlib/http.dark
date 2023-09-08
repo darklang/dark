@@ -169,7 +169,7 @@ module Darklang =
           sameSite: String }
 
 // TODO: this references several things that don't actually exist
-// (e.g. Builtin.DateTime.dayOfWeek)
+// (e.g. PACKAGE.Darklang.Stdlib.DateTime.dayOfWeek)
 // /// Returns an HTTP Set-Cookie header <type (String*String)> suitable for use with <fn
 // /// Http.responseWithHeaders>, given a cookie <param name>, a <type String>
 // /// <param value> for it, and a <type Dict> of Set-Cookie <param params>
@@ -191,7 +191,7 @@ module Darklang =
 //   else
 //     let expires =
 //       let e = cookie.expires
-//       $"{Builtin.DateTime.dayOfWeek e}, {Builtin.DateTime.day e} {Builtin.DateTime.month e} {Builtin.DateTime.year e} {Builtin.DateTime.hour e}:{Builtin.DateTime.minute e}:{Builtin.DateTime.second} GMT"
+//       $"{PACKAGE.Darklang.Stdlib.DateTime.dayOfWeek e}, {PACKAGE.Darklang.Stdlib.DateTime.day e} {PACKAGE.Darklang.Stdlib.DateTime.month e} {PACKAGE.Darklang.Stdlib.DateTime.year e} {PACKAGE.Darklang.Stdlib.DateTime.hour e}:{PACKAGE.Darklang.Stdlib.DateTime.minute e}:{PACKAGE.Darklang.Stdlib.DateTime.second} GMT"
 
 //     let cookie =
 //       [ ("Expires", expires)

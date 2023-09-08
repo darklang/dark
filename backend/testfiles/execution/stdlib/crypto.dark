@@ -1,18 +1,25 @@
 PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
-  PACKAGE.Darklang.Stdlib.Crypto.md5_v0 (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "")
+  PACKAGE.Darklang.Stdlib.Crypto.md5_v0 (
+    PACKAGE.Darklang.Stdlib.String.toBytes_v0 ""
+  )
 ) = "D41D8CD98F00B204E9800998ECF8427E"
 
 PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
-  PACKAGE.Darklang.Stdlib.Crypto.sha256_v0 (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "")
+  PACKAGE.Darklang.Stdlib.Crypto.sha256_v0 (
+    PACKAGE.Darklang.Stdlib.String.toBytes_v0 ""
+  )
 ) = "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
 
 PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
-  PACKAGE.Darklang.Stdlib.Crypto.sha384_v0 (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "")
+  PACKAGE.Darklang.Stdlib.Crypto.sha384_v0 (
+    PACKAGE.Darklang.Stdlib.String.toBytes_v0 ""
+  )
 ) = "38B060A751AC96384CD9327EB1B1E36A21FDB71114BE07434C0CC7BF63F6E1DA274EDEBFE76F65FBD51AD2F14898B95B"
 
 PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
   PACKAGE.Darklang.Stdlib.Crypto.md5_v0 (
-    PACKAGE.Darklang.Stdlib.String.toBytes_v0 "a longer string that's more interesting"
+    PACKAGE.Darklang.Stdlib.String.toBytes_v0
+      "a longer string that's more interesting"
   )
 ) = "D95E619F023B430CAAAEB6778A0B9BD1"
 
@@ -25,7 +32,8 @@ PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
 
 PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
   PACKAGE.Darklang.Stdlib.Crypto.sha384_v0 (
-    PACKAGE.Darklang.Stdlib.String.toBytes_v0 "a longer string that's more interesting"
+    PACKAGE.Darklang.Stdlib.String.toBytes_v0
+      "a longer string that's more interesting"
   )
 ) = "AD7273EF514770D80B516D067354CB300FE458C042CE084EC97125718678C3C21415FE224658839963F0B2D90137AA7B"
 

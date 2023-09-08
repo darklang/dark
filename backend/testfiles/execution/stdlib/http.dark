@@ -1,9 +1,9 @@
 // TYPESCLEANUP - re-add all this with proper types
 // PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" {} = { ``Set-Cookie`` = "myCookie=myVal" }
-// PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Expires = (Builtin.DateTime.parse "2000-07-28T22:42:00Z") |> Builtin.unwrap; ``Max-Age`` = -100; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = false; SameSite = "Strict" } = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=-100; Expires=Fri, 28 Jul 2000 22:42:00 GMT; Domain=darklang.com"}
+// PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Expires = (PACKAGE.Darklang.Stdlib.DateTime.parse "2000-07-28T22:42:00Z") |> Builtin.unwrap; ``Max-Age`` = -100; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = false; SameSite = "Strict" } = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=-100; Expires=Fri, 28 Jul 2000 22:42:00 GMT; Domain=darklang.com"}
 
 // date
-// (match Builtin.DateTime.parse "2019-07-28T22:42:00Z" with
+// (match PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:00Z" with
 // | Ok date -> PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Expires = date; ``Max-Age`` = 3600; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = true; SameSite = "Strict" }) = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=3600; HttpOnly; Expires=Sun, 28 Jul 2019 22:42:00 GMT; Domain=darklang.com"}
 
 // module Errors =
