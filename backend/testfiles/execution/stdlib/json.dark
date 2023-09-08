@@ -4,8 +4,7 @@
 Builtin.Json.serialize<Unit> () = PACKAGE.Darklang.Stdlib.Result.Result.Ok "null"
 Builtin.Json.parse<Unit> "null" = PACKAGE.Darklang.Stdlib.Result.Result.Ok()
 
-Builtin.Json.parse<Int> "()" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "not JSON"
+Builtin.Json.parse<Int> "()" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 
 Builtin.Json.parse<Unit> "0" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Can't parse JSON `0` as type `Unit` at path: `root`"
