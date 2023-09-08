@@ -296,10 +296,10 @@ module Roundtrip =
   type PasswordsDB = Passwords
 
   // TYPESCLEANUP - support passwords
-  // (let pw = Builtin.Password.hash_v0 "password" in
+  // (let pw = PACKAGE.Darklang.Stdlib.Password.hash_v0 "password" in
   //  let x = Builtin.DB.set (Passwords { password = pw }) "test" PasswordsDB in
   //  let y = (Builtin.DB.queryOne PasswordsDB (fun p -> p.password == pw)) |> Builtin.unwrap in
-  //  Builtin.Password.check_v0 y.password "password") = true
+  //  PACKAGE.Darklang.Stdlib.Password.check_v0 y.password "password") = true
 
   module QueryEquality =
     let fetch (fn: 'a -> Bool) : List<'a> =
