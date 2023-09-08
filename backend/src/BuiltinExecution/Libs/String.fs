@@ -404,7 +404,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromBytes" 0
+    { name = fn "fromBytesWithReplacement" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TString
@@ -421,7 +421,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromBytesRecoverable" 0
+    { name = fn "fromBytes" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TypeReference.option TString

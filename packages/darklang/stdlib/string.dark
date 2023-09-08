@@ -127,7 +127,7 @@ module Darklang =
         : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
         match (Builtin.Bytes.base64Decode s) with
         | Ok bytes ->
-          match (Builtin.String.fromBytesRecoverable bytes) with
+          match (Builtin.String.fromBytes bytes) with
           | Some str -> PACKAGE.Darklang.Stdlib.Result.Result.Ok str
           | None ->
             PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid UTF-8 string"
@@ -337,7 +337,8 @@ module Darklang =
 
 
       /// Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters
-      let fromBytes (bytes: Bytes) : String = Builtin.String.fromBytes bytes
+      let fromBytesWithReplacement (bytes: Bytes) : String =
+        Builtin.String.fromBytesWithReplacement bytes
 
 
       /// Checks if <param subject> starts with <param prefix>

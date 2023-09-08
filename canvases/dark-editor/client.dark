@@ -31,7 +31,8 @@ let openAIcompletion
     let url = "http://dark-editor.dlio.localhost:11003/openai-apikey-yikes"
 
     match Builtin.HttpClient.request "get" url [] Builtin.Bytes.empty with
-    | Ok response -> response.body |> PACKAGE.Darklang.Stdlib.String.fromBytes
+    | Ok response ->
+      response.body |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
 
   let openAIRequest =
     OpenAIChatCompletionRequest
@@ -58,7 +59,7 @@ let openAIcompletion
     | Ok r ->
       match
         Builtin.Json.parse<OpenAIChatCompletionResponse> (
-          PACKAGE.Darklang.Stdlib.String.fromBytes r.body
+          PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement r.body
         )
       with
       | Ok r ->
@@ -89,14 +90,14 @@ let parseAndSerializeProgram
       response
       |> Builtin.unwrap
       |> (fun r -> r.body)
-      |> PACKAGE.Darklang.Stdlib.String.fromBytes
+      |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
     )
   | 400 ->
     Error(
       response
       |> Builtin.unwrap
       |> (fun r -> r.body)
-      |> PACKAGE.Darklang.Stdlib.String.fromBytes
+      |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
     )
   | _ ->
     Error(
@@ -184,7 +185,8 @@ let update (model: Model) (msg: Msg) : Model =
     match systemPrompt with
     | Ok response ->
       { response with
-          systemPrompt = PACKAGE.Darklang.Stdlib.String.fromBytes response.body }
+          systemPrompt =
+            PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement response.body }
     | Error err -> logErr "Couldn't load system prompt"
 
 
@@ -209,7 +211,7 @@ let update (model: Model) (msg: Msg) : Model =
         Builtin.Bytes.empty)
       |> Builtin.unwrap
       |> (fun r -> r.body)
-      |> PACKAGE.Darklang.Stdlib.String.fromBytes
+      |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
       |> PACKAGE.Darklang.Stdlib.String.append $"\n\n {userPrompt}"
 
     // I guess, until we have cmds or something,
@@ -451,7 +453,7 @@ let init () : Model =
         log "got response"
 
         response.body
-        |> PACKAGE.Darklang.Stdlib.String.fromBytes
+        |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
         |> PACKAGE.Darklang.Stdlib.String.split "\n\n"
 
       | Error err -> "Error getting response: " ++ err
@@ -470,7 +472,7 @@ let init () : Model =
         log "got response"
 
         response.body
-        |> PACKAGE.Darklang.Stdlib.String.fromBytes
+        |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
         |> PACKAGE.Darklang.Stdlib.String.split "\n\n"
 
       | Error err -> "Error getting response: " ++ err

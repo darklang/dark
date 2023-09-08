@@ -31,7 +31,7 @@ type PackageItemDB = PackageItem
 let _handler _req =
   let typeToSave =
     request.body
-    |> PACKAGE.Darklang.Stdlib.String.fromBytes
+    |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
     |> Builtin.Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
     |> Builtin.unwrap
 
@@ -56,7 +56,7 @@ let _handler _req =
 let _handler _req =
   let fnToSave =
     request.body
-    |> PACKAGE.Darklang.Stdlib.String.fromBytes
+    |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
     |> Builtin.Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
     |> Builtin.unwrap
 
@@ -82,7 +82,7 @@ let _handler _req =
 let _handler _req =
   let constantToSave =
     request.body
-    |> PACKAGE.Darklang.Stdlib.String.fromBytes
+    |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
     |> Builtin.Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
     |> Builtin.unwrap
 

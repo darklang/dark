@@ -22,7 +22,7 @@ let _handler _req =
     | Ok f -> f
 
   PACKAGE.Darklang.Stdlib.Http.responseWithHtml
-    (PACKAGE.Darklang.Stdlib.String.fromBytes body)
+    (PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement body)
     200
 
 [<HttpHandler("GET", "/assets/:path")>]
@@ -80,7 +80,7 @@ let _handler _req =
 
   let program =
     Experiments.parseAndSerializeProgram
-      (PACKAGE.Darklang.Stdlib.String.fromBytes sourceInBytes)
+      (PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement sourceInBytes)
       "user-code.dark"
 
   match program with
