@@ -9,9 +9,9 @@ module Documentation =
   ((Builtin.DarkInternal.Documentation.list_v0 ())
    |> PACKAGE.Darklang.Stdlib.List.map (fun f -> (f.name, f))
    |> PACKAGE.Darklang.Stdlib.Dict.fromList_v0
-   |> Builtin.unwrap
+   |> PACKAGE.Darklang.Stdlib.unwrap
    |> PACKAGE.Darklang.Stdlib.Dict.get "Int.add"
-   |> Builtin.unwrap
+   |> PACKAGE.Darklang.Stdlib.unwrap
    |> (fun f -> f.parameters)) = [ Builtin.DarkInternal.Documentation.Parameter
                                      { name = "a"; ``type`` = "Int" }
                                    Builtin.DarkInternal.Documentation.Parameter
@@ -45,7 +45,7 @@ module Domains =
     ((Builtin.Test.getCanvasID ())
      |> Builtin.DarkInternal.Canvas.Domain.get
      |> PACKAGE.Darklang.Stdlib.List.head
-     |> Builtin.unwrap
+     |> PACKAGE.Darklang.Stdlib.unwrap
      |> Builtin.DarkInternal.Canvas.Domain.toCanvasID) = PACKAGE
       .Darklang
       .Stdlib
@@ -56,7 +56,7 @@ module Domains =
   module Errors =
     Builtin.DarkInternal.Canvas.Domain.get (
       (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
-      |> Builtin.unwrap
+      |> PACKAGE.Darklang.Stdlib.unwrap
     ) = []
 
     Builtin.DarkInternal.Canvas.Domain.toCanvasID "not-a-real-domain" = PACKAGE.Darklang.Stdlib.Result.Result.Error

@@ -1,5 +1,5 @@
 let c (arg: String) : Char =
-  (Builtin.Test.toChar_v0 arg) |> Builtin.unwrap
+  (Builtin.Test.toChar_v0 arg) |> PACKAGE.Darklang.Stdlib.unwrap
 
 module Equality =
   "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
@@ -303,15 +303,15 @@ module Random =
     "Expected `length` to be positive, but it was `-1`"
 
   PACKAGE.Darklang.Stdlib.String.length (
-    (PACKAGE.Darklang.Stdlib.String.random 10) |> Builtin.unwrap
+    (PACKAGE.Darklang.Stdlib.String.random 10) |> PACKAGE.Darklang.Stdlib.unwrap
   ) = 10
 
   PACKAGE.Darklang.Stdlib.String.length (
-    (PACKAGE.Darklang.Stdlib.String.random 5) |> Builtin.unwrap
+    (PACKAGE.Darklang.Stdlib.String.random 5) |> PACKAGE.Darklang.Stdlib.unwrap
   ) = 5
 
   PACKAGE.Darklang.Stdlib.String.length (
-    (PACKAGE.Darklang.Stdlib.String.random 0) |> Builtin.unwrap
+    (PACKAGE.Darklang.Stdlib.String.random 0) |> PACKAGE.Darklang.Stdlib.unwrap
   ) = 0
 
 

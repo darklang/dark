@@ -887,7 +887,7 @@ module Darklang =
           let s =
             (Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
               expr)
-            |> Builtin.unwrap
+            |> PACKAGE.Darklang.Stdlib.unwrap
 
           $"{s}"
 

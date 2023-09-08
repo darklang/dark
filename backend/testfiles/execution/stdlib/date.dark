@@ -1,5 +1,6 @@
 let d (datestr: String) : DateTime =
-  (PACKAGE.Darklang.Stdlib.DateTime.parse datestr) |> Builtin.unwrap
+  (PACKAGE.Darklang.Stdlib.DateTime.parse datestr)
+  |> PACKAGE.Darklang.Stdlib.unwrap
 
 let p (datestr: String) : PACKAGE.Darklang.Stdlib.Result.Result<DateTime, String> =
   (PACKAGE.Darklang.Stdlib.DateTime.parse datestr)

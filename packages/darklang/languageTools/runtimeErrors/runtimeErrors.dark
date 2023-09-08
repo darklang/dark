@@ -88,7 +88,7 @@ module Darklang =
                   | FullValue dv ->
                     PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv
                   | segment ->
-                    $"(RTETODO toString parts {(Builtin.Json.serialize<ErrorSegment> segment) |> Builtin.unwrap})"
+                    $"(RTETODO toString parts {(Builtin.Json.serialize<ErrorSegment> segment) |> PACKAGE.Darklang.Stdlib.unwrap})"
 
                 PACKAGE.Darklang.Stdlib.List.push prevSegments newSegment)
 
@@ -184,7 +184,7 @@ module Darklang =
                 extraExplanation =
                   [ e
                     |> Builtin.Json.serialize<Error>
-                    |> Builtin.unwrap
+                    |> PACKAGE.Darklang.Stdlib.unwrap
                     |> ErrorSegment.ErrorSegment.String ]
                 actual = []
                 expected = [] }

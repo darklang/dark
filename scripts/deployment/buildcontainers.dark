@@ -6,9 +6,7 @@ type DirectoryContents = { files: List<String> }
 
 type DockerBuildResponse = { id: String }
 
-let Builtin.unwrap
-  (result: PACKAGE.Darklang.Stdlib.Result.Result<String, 'a>)
-  : String =
+let unwrap (result: PACKAGE.Darklang.Stdlib.Result.Result<String, 'a>) : String =
   match result with
   | Ok value -> value
   | Error error -> ()
@@ -32,7 +30,8 @@ let main () : Int =
       DockerImageID { imageID = parsedResponse.id })
 
   let jsonImageIds =
-    (Builtin.Json.serialize<List<DockerImageId>> imageIds) |> Builtin.unwrap
+    (Builtin.Json.serialize<List<DockerImageId>> imageIds)
+    |> PACKAGE.Darklang.Stdlib.unwrap
 
   let _ =
     Builtin.File.write

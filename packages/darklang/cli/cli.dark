@@ -20,7 +20,7 @@ module Darklang =
       let statusCode =
         fns
         |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
-        |> Builtin.unwrap
+        |> PACKAGE.Darklang.Stdlib.unwrap
 
       let parsedFns =
         if statusCode == 200 then
@@ -29,7 +29,7 @@ module Darklang =
           |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
           |> Builtin.Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>>
-          |> Builtin.unwrap
+          |> PACKAGE.Darklang.Stdlib.unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
         else
           PACKAGE.Darklang.Stdlib.Option.Option.None
@@ -69,7 +69,7 @@ module Darklang =
       let statusCode =
         types
         |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
-        |> Builtin.unwrap
+        |> PACKAGE.Darklang.Stdlib.unwrap
 
       let parsedTypes =
         if statusCode == 200 then
@@ -78,7 +78,7 @@ module Darklang =
           |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
           |> Builtin.Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>>
-          |> Builtin.unwrap
+          |> PACKAGE.Darklang.Stdlib.unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
         else
           PACKAGE.Darklang.Stdlib.Option.Option.None
@@ -120,7 +120,7 @@ module Darklang =
       let statusCode =
         constants
         |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
-        |> Builtin.unwrap
+        |> PACKAGE.Darklang.Stdlib.unwrap
 
       let parsedConstants =
         if statusCode == 200 then
@@ -129,7 +129,7 @@ module Darklang =
           |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
           |> Builtin.Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>>
-          |> Builtin.unwrap
+          |> PACKAGE.Darklang.Stdlib.unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
         else
           PACKAGE.Darklang.Stdlib.Option.Option.None
@@ -178,7 +178,7 @@ module Darklang =
       let statusCode =
         modules
         |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
-        |> Builtin.unwrap
+        |> PACKAGE.Darklang.Stdlib.unwrap
 
       let parsedModules =
         if statusCode == 200 then
@@ -187,7 +187,7 @@ module Darklang =
           |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
           |> Builtin.Json.parse<PACKAGE.Darklang.Stdlib.Packages>
-          |> Builtin.unwrap
+          |> PACKAGE.Darklang.Stdlib.unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
         else
           PACKAGE.Darklang.Stdlib.Option.Option.None
@@ -221,7 +221,7 @@ module Darklang =
       let statusCode =
         packages
         |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
-        |> Builtin.unwrap
+        |> PACKAGE.Darklang.Stdlib.unwrap
 
       let parsedPackages =
         if statusCode == 200 then
@@ -342,7 +342,7 @@ Options:
           fullName
           |> PACKAGE.Darklang.Stdlib.String.split "."
           |> PACKAGE.Darklang.Stdlib.List.head
-          |> Builtin.unwrap
+          |> PACKAGE.Darklang.Stdlib.unwrap
 
         let modules =
           fullName
@@ -355,7 +355,7 @@ Options:
           |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1
           |> PACKAGE.Darklang.Stdlib.String.split "."
           |> PACKAGE.Darklang.Stdlib.List.last
-          |> Builtin.unwrap
+          |> PACKAGE.Darklang.Stdlib.unwrap
 
         let categoryRequest =
           PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -367,7 +367,7 @@ Options:
         let statusCode =
           categoryRequest
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)
-          |> Builtin.unwrap
+          |> PACKAGE.Darklang.Stdlib.unwrap
 
         let category =
           if statusCode == 200 then
