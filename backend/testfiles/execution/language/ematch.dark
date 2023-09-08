@@ -45,7 +45,7 @@
 
 module Errors =
   (match "nothing matches" with
-   | "not this" -> "fail") = Builtin.Test.derrorMessage "No match"
+   | "not this" -> "fail") = Builtin.Test.derrorMessage "No match for \"nothing m..."
 
   (match Builtin.Test.runtimeError "cond is error" with
    | 5 -> "fail"
@@ -300,7 +300,8 @@ type TestType =
  | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
  | [ i ] -> "list:" ++ i
  | (1, 2) -> "1 and 2"
- | None -> "constructor nothing") = Builtin.Test.derrorMessage "No match"
+ | None -> "constructor nothing") = Builtin.Test.derrorMessage
+  "No match for \"not match..."
 
 module ListCons =
   (match [ 1; 2; 3 ] with
