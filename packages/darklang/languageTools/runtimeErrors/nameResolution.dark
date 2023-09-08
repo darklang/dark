@@ -45,30 +45,19 @@ module Darklang =
                 expected = [] }
 
           | MissingEnumModuleName caseName ->
-            let suffix =
-              if e.names == [] then
-                [ ErrorSegment.ErrorSegment.String ": "
-                  ErrorSegment.ErrorSegment.VarName caseName ]
-              else
-                [ ErrorSegment.ErrorSegment.String ": "
-                  ErrorSegment.ErrorSegment.VarName(
-                    PACKAGE.Darklang.Stdlib.String.join e.names "."
-                  ) ]
+            let name =
+              let names = Builtin.List.append e.names [ caseName ]
+              ErrorSegment.ErrorSegment.VarName(Builtin.String.join names ".")
 
             let summary =
-              PACKAGE.Darklang.Stdlib.List.append
-                [ ErrorSegment.ErrorSegment.String "Missing type name for enum case" ]
-                suffix
+              [ ErrorSegment.ErrorSegment.String "Missing type name for enum case"
+                ErrorSegment.ErrorSegment.String ": "
+                ErrorSegment.ErrorSegment.String caseName ]
 
             ErrorOutput
               { summary = summary
                 extraExplanation = []
-                actual =
-                  if e.names == [] then
-                    [ ErrorSegment.ErrorSegment.String "No Names" ]
-                  else
-                    [ Builtin.List.map e.names (fun name ->
-                        ErrorSegment.ErrorSegment.String name) ]
+                actual = [ name ]
                 expected = [] }
 
           | InvalidPackageName ->
