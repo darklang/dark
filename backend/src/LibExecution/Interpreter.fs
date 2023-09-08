@@ -40,7 +40,7 @@ module Error =
     DEnum(typeName, typeName, caseName, fields) |> RuntimeError.executionError
 
   let matchExprUnmatched (matchVal : Dval) : RuntimeError =
-    case "MatchExprUnmatched" [ matchVal ]
+    case "MatchExprUnmatched" [ RT2DT.Dval.toDT matchVal ]
 
   let incomplete = case "Incomplete" []
 
