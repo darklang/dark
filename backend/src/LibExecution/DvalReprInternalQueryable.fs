@@ -138,7 +138,7 @@ let rec private toJsonV0
           let typ = Types.substitute decl.typeParams typeArgs typeRef
           do! writeDval typ dv
 
-        | TypeDeclaration.Record fields, DRecord(_, _, dm) ->
+        | TypeDeclaration.Record fields, DRecord(_, _, _, dm) ->
           let fields = NEList.toList fields
           do!
             w.writeObject (fun () ->
@@ -318,7 +318,8 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                   dval |> Ply.map (fun dval -> f.name, dval))
                 |> Ply.List.flatten
                 // TYPESCLEANUP: I don't think the original is name right here?
-                |> Ply.map (fun mapped -> DRecord(typeName, typeName, Map mapped))
+                |> Ply.map (fun mapped ->
+                  DRecord(typeName, typeName, valueTypesTODO, Map mapped))
             else
               return
                 Exception.raiseInternal

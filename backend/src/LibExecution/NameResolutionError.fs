@@ -82,7 +82,7 @@ module RTE =
 
     let fromDT (dv : RT.Dval) : Error =
       match dv with
-      | RT.DRecord(_, _, m) ->
+      | RT.DRecord(_, _, _, m) ->
         let errorType = m |> D.field "errorType" |> ErrorType.fromDT
         let nameType = m |> D.field "nameType" |> NameType.fromDT
         let names = m |> D.stringListField "names"

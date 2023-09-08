@@ -352,7 +352,8 @@ let rec unify
               | Ok resolvedAliasType ->
                 return! unify context types tst resolvedAliasType value
 
-            | { definition = TypeDeclaration.Record _ }, DRecord(tn, _, dmap) ->
+            | { definition = TypeDeclaration.Record _ },
+              DRecord(tn, _, _valueTypesTODO, dmap) ->
               // TYPESCLEANUP: this search should no longer be required
               let! aliasedType =
                 getTypeReferenceFromAlias types (TCustomType(Ok tn, []))

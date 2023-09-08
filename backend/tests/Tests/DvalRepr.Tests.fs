@@ -38,6 +38,7 @@ let queryableRoundtripsSuccessfullyInRecord
       RT.DRecord(
         RT.FQName.UserProgram typeName,
         RT.FQName.UserProgram typeName,
+        RT.valueTypesTODO,
         Map.ofList [ "field", dv ]
       )
     let typeRef = S.userTypeReference [] "MyType" 0
@@ -222,6 +223,7 @@ module Password =
         RT.DRecord(
           RT.FQName.UserProgram typeName,
           RT.FQName.UserProgram typeName,
+          RT.valueTypesTODO,
           Map.ofList [ "x", RT.DPassword(Password bytes) ]
         )
 

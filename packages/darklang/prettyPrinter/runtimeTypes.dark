@@ -354,7 +354,7 @@ module Darklang =
 
               $"({inl}{long}{nl})"
 
-          | DRecord(_, typeName, o) ->
+          | DRecord(_, typeName, typeArgs, o) ->
             let strs =
               o
               |> PACKAGE.Darklang.Stdlib.Dict.toList
@@ -364,7 +364,17 @@ module Darklang =
 
             let elems = PACKAGE.Darklang.Stdlib.String.join strs $",{inl}"
             let typeStr = typeName typeName
-            typeStr ++ " {" ++ inl ++ elems ++ nl ++ "}"
+
+            let typeArgsPart =
+              match typeArgs with
+              | [] -> ""
+              | args ->
+                args
+                |> Builtin.List.map (fun t -> valueTypeName t)
+                |> Builtin.String.join ", "
+                |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+
+            typeStr ++ typeArgsPart ++ " {" ++ inl ++ elems ++ nl ++ "}"
 
           // | DDict o ->
           //   if Map.isEmpty o then

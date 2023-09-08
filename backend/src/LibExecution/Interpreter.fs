@@ -1,4 +1,4 @@
-﻿/// Interprets Dark expressions resulting in (tasks of) Dvals
+/// Interprets Dark expressions resulting in (tasks of) Dvals
 module LibExecution.Interpreter
 
 open System.Threading.Tasks
@@ -390,7 +390,7 @@ let rec eval'
                     return v
                   else
                     match r with
-                    | DRecord(typeName, original, m) ->
+                    | DRecord(typeName, original, _valueTypesTODO, m) ->
                       if Map.containsKey k m then
                         return errStr id $"Duplicate field `{k}` in {typeStr}"
                       else
@@ -400,13 +400,20 @@ let rec eval'
                         let check =
                           TypeChecker.unify context types Map.empty fieldType v
                         match! check with
-                        | Ok() -> return DRecord(typeName, original, Map.add k v m)
+                        | Ok() ->
+                          return
+                            DRecord(
+                              typeName,
+                              original,
+                              valueTypesTODO,
+                              Map.add k v m
+                            )
                         | Error e -> return err id e
                     | _ -> return errStr id "Expected a record in typecheck"
               })
-            (DRecord(aliasTypeName, typeName, Map.empty)) // use the alias name here
+            (DRecord(aliasTypeName, typeName, valueTypesTODO, Map.empty)) // use the alias name here
         match result with
-        | DRecord(_, _, fields) ->
+        | DRecord(_, _, _valueTypesTODO, fields) ->
           if Map.count fields = Map.count expectedFields then
             return result
           else
@@ -418,7 +425,7 @@ let rec eval'
     | ERecordUpdate(id, baseRecord, updates) ->
       let! baseRecord = eval state tst st baseRecord
       match baseRecord with
-      | DRecord(typeName, _, _) ->
+      | DRecord(typeName, _, _valueTypesTODO, _) ->
         let typeStr = TypeName.toString typeName
         let types = ExecutionState.availableTypes state
         match! recordMaybe types typeName with
@@ -438,14 +445,16 @@ let rec eval'
                   | _, "", _ -> return errStr id $"Empty key for value `{v}`"
                   | _, _, _ when not (Map.containsKey k expectedFields) ->
                     return errStr id $"Unexpected field `{k}` in {typeStr}"
-                  | DRecord(typeName, original, m), k, v ->
+                  | DRecord(typeName, original, _valueTypesTODO, m), k, v ->
                     let fieldType = Map.find k expectedFields
                     let context =
                       TypeChecker.RecordField(typeName, k, fieldType, None)
                     match!
                       TypeChecker.unify context types Map.empty fieldType v
                     with
-                    | Ok() -> return DRecord(typeName, original, Map.add k v m)
+                    | Ok() ->
+                      return
+                        DRecord(typeName, original, valueTypesTODO, Map.add k v m)
                     | Error rte -> return DError(SourceID(state.tlid, id), rte)
                   | _ ->
                     return
@@ -493,7 +502,7 @@ let rec eval'
         return errStr id "Field name is empty"
       else
         match obj with
-        | DRecord(_, typeName, o) ->
+        | DRecord(_, typeName, _, o) ->
           match Map.tryFind field o with
           | Some v -> return v
           | None ->

@@ -49,7 +49,7 @@ module FQName =
 
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : FQName.BuiltIn<'name> =
       match d with
-      | DRecord(_, _, m) ->
+      | DRecord(_, _, _, m) ->
         let modules = modulesField m
         let name = nameField m |> nameMapper
         let version = versionField m
@@ -68,7 +68,7 @@ module FQName =
 
     let fromDT (nameMapper : Dval -> 'name) (v : Dval) : FQName.UserProgram<'name> =
       match v with
-      | DRecord(_, _, m) ->
+      | DRecord(_, _, _, m) ->
         let modules = modulesField m
         let name = nameField m |> nameMapper
         let version = versionField m
@@ -88,7 +88,7 @@ module FQName =
 
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : FQName.Package<'name> =
       match d with
-      | DRecord(_, _, m) ->
+      | DRecord(_, _, _, m) ->
         let owner = ownerField m
         let modules =
           modulesField m
@@ -812,11 +812,11 @@ module Dval =
           "body", Expr.toDT l.body ]
         |> Map.ofList
 
-      DRecord(typeName, typeName, fields)
+      DRecord(typeName, typeName, valueTypesTODO, fields)
 
     let fromDT (d : Dval) : LambdaImpl =
       match d with
-      | DRecord(_, _, fields) ->
+      | DRecord(_, _, _, fields) ->
         let typeSymbolTable =
           fields |> D.mapField "typeSymbolTable" |> Map.map TypeReference.fromDT
 
@@ -889,10 +889,11 @@ module Dval =
 
       | DDict map -> "DDict", [ DDict(Map.map toDT map) ]
 
-      | DRecord(runtimeTypeName, sourceTypeName, map) ->
+      | DRecord(runtimeTypeName, sourceTypeName, typeArgs, map) ->
         "DRecord",
         [ TypeName.toDT runtimeTypeName
           TypeName.toDT sourceTypeName
+          typeArgs |> List.map ValueType.toDT |> Dval.list valueTypeTODO
           DDict(Map.map toDT map) ]
 
       | DEnum(runtimeTypeName, sourceTypeName, caseName, fields) ->
@@ -932,10 +933,14 @@ module Dval =
     | DEnum(_, _, "DBytes", [ DBytes b ]) -> DBytes b
 
     | DEnum(_, _, "DDict", [ DDict map ]) -> DDict(Map.map fromDT map)
-    | DEnum(_, _, "DRecord", [ runtimeTypeName; sourceTypeName; DDict map ]) ->
+    | DEnum(_,
+            _,
+            "DRecord",
+            [ runtimeTypeName; sourceTypeName; DList(_, typeArgs); DDict map ]) ->
       DRecord(
         TypeName.fromDT runtimeTypeName,
         TypeName.fromDT sourceTypeName,
+        List.map ValueType.fromDT typeArgs,
         Map.map fromDT map
       )
     | DEnum(_,

@@ -146,7 +146,7 @@ let toRepr (dv : Dval) : string =
         let long = String.concat $"{inl}, " (List.map (toRepr_ indent) l)
         $"({inl}{long}{nl})"
 
-    | DRecord(_, typeName, o) ->
+    | DRecord(_, typeName, _, o) ->
       let strs =
         o
         |> Map.toList
