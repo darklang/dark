@@ -42,12 +42,16 @@ module Darklang =
           | _ -> PACKAGE.Darklang.Stdlib.List.last tail
 
 
+      // Todo: remove the helper function once we have recursive lambdas
+      let reverseHelper (list: List<'a>) (acc: List<'a>) : List<'a> =
+        match list with
+        | [] -> acc
+        | head :: tail ->
+          reverseHelper tail (PACKAGE.Darklang.Stdlib.List.push acc head)
+
       /// Returns a reversed copy of <param list>
       let reverse (list: List<'a>) : List<'a> =
-        match list with
-        | [] -> []
-        | head :: tail ->
-          Builtin.List.append_v0 (PACKAGE.Darklang.Stdlib.List.reverse tail) [ head ]
+        PACKAGE.Darklang.Stdlib.List.reverseHelper list []
 
 
       /// Returns {{Some firstMatch}} where <var firstMatch> is the first value of the
