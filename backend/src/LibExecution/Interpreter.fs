@@ -587,29 +587,37 @@ let rec eval'
             if caseName <> dCaseName then
               let (allVars, allSubTraces) = traceFields ()
               Ok false, allVars, allSubTraces
-            else if List.length dFields <> List.length fieldPats then
-              let (allVars, allSubTraces) = traceFields ()
-              let err =
-                Error.matchExprEnumPatternWrongCount
-                  dCaseName
-                  (List.length fieldPats)
-                  (List.length dFields)
-              Error(id, err), allVars, allSubTraces
             else
-              let (passResults, newVarResults, traceResults) =
-                List.zip dFields fieldPats
-                |> List.map (fun (dv, pat) -> checkPattern dv pat)
-                |> List.unzip3
+              let dvFieldLength = List.length dFields
+              match fieldPats with
+              // wildcard
+              | [ MPVariable(_, "_") ] when dvFieldLength > 0 ->
+                Ok true, [], [ (id, dv) ]
+              | _ ->
+                let patFieldLength = List.length fieldPats
+                if dvFieldLength <> patFieldLength then
+                  let (allVars, allSubTraces) = traceFields ()
+                  let err =
+                    Error.matchExprEnumPatternWrongCount
+                      dCaseName
+                      patFieldLength
+                      dvFieldLength
+                  Error(id, err), allVars, allSubTraces
+                else
+                  let (passResults, newVarResults, traceResults) =
+                    List.zip dFields fieldPats
+                    |> List.map (fun (dv, pat) -> checkPattern dv pat)
+                    |> List.unzip3
 
-              let allPass = combineMatchedList passResults
-              let allVars = newVarResults |> List.collect identity
-              let allSubTraces = traceResults |> List.collect identity
+                  let allPass = combineMatchedList passResults
+                  let allVars = newVarResults |> List.collect identity
+                  let allSubTraces = traceResults |> List.collect identity
 
-              match allPass with
-              | Ok true -> Ok true, allVars, (id, dv) :: allSubTraces
-              | Ok false
-              | Error _ ->
-                allPass, allVars, (id, dincomplete state id) :: allSubTraces
+                  match allPass with
+                  | Ok true -> Ok true, allVars, (id, dv) :: allSubTraces
+                  | Ok false
+                  | Error _ ->
+                    allPass, allVars, (id, dincomplete state id) :: allSubTraces
 
           | _dv ->
             let (allVars, allSubTraces) = traceFields ()
