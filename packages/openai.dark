@@ -52,7 +52,7 @@ module OpenAI =
         | Ok r ->
           match
             Builtin.Json.parse<PACKAGE.OpenAI.Completion.Response> (
-              PACKAGE.Darklang.Stdlib.String.fromBytes r.body
+              PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement r.body
             )
           with
           | Ok r ->
@@ -157,7 +157,7 @@ module OpenAI =
         | Ok r ->
           match
             Builtin.Json.parse<PACKAGE.OpenAI.ChatCompletion.Response> (
-              PACKAGE.Darklang.Stdlib.String.fromBytes r.body
+              PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement r.body
             )
           with
           | Ok r ->
@@ -211,7 +211,7 @@ module OpenAI =
         | Ok r ->
           match
             Builtin.Json.parse<PACKAGE.OpenAI.ChatCompletion.Response> (
-              PACKAGE.Darklang.Stdlib.String.fromBytes r.body
+              PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement r.body
             )
           with
           | Ok r ->
@@ -267,7 +267,7 @@ module OpenAI =
         | Ok r ->
           match
             Builtin.Json.parse<PACKAGE.OpenAI.ImageGeneration.Response> (
-              PACKAGE.Darklang.Stdlib.String.fromBytes r.body
+              PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement r.body
             )
           with
           | Ok r ->
@@ -313,7 +313,7 @@ module OpenAI =
       match modelResponse with
       | Ok r ->
         r.body
-        |> PACKAGE.Darklang.Stdlib.String.fromBytes
+        |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
         |> PACKAGE.Darklang.Stdlib.Result.Result.Ok
       | Error e ->
         PACKAGE.Darklang.Stdlib.Result.Result.Error(
@@ -336,7 +336,7 @@ module OpenAI =
       match modelResponse with
       | Ok r ->
         r.body
-        |> PACKAGE.Darklang.Stdlib.String.fromBytes
+        |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
         |> PACKAGE.Darklang.Stdlib.Result.Result.Ok
       | Error e ->
         PACKAGE.Darklang.Stdlib.Result.Result.Error(

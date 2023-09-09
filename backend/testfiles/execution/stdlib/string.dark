@@ -252,15 +252,14 @@ module Base64Decode =
     "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
 
 
-  // These produce strings of bytes which are technically legal it seems
-  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "-p" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-    "�"
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "-p" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Invalid UTF-8 string"
 
-  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "lI" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-    "�"
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "lI" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Invalid UTF-8 string"
 
-  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "5Sk" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-    "�)"
+  PACKAGE.Darklang.Stdlib.String.base64Decode_v0 "5Sk" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    "Invalid UTF-8 string"
 
 
 module Base64Encode =

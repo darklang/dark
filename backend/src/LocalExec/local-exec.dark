@@ -49,7 +49,7 @@ let saveItemToCanvas
         $"Status: {PACKAGE.Darklang.Stdlib.Int.toString response.statusCode}"
 
       Builtin.print
-        $"Body: {response.body |> PACKAGE.Darklang.Stdlib.String.fromBytes}"
+        $"Body: {response.body |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement}"
 
       Builtin.print errMsg
       PACKAGE.Darklang.Stdlib.Result.Result.Error errMsg
@@ -68,7 +68,7 @@ let loadPackageFileIntoDarkCanvas
     filename
     |> Builtin.File.read
     |> Builtin.unwrap
-    |> PACKAGE.Darklang.Stdlib.String.fromBytes
+    |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
     |> Builtin.LocalExec.Packages.parse filename
     |> Builtin.unwrap
 

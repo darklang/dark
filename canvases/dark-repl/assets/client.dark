@@ -18,7 +18,7 @@ let parseAndSerializeProgram (userProgram: String) : String =
   response
   |> rUnwrap
   |> (fun r -> r.body)
-  |> PACKAGE.Darklang.Stdlib.String.fromBytes
+  |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
 
 let handleEvent
   (userProgramSource: String)

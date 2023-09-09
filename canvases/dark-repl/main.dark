@@ -60,7 +60,7 @@ let _handler _req =
 
   let program =
     Experiments.parseAndSerializeProgram
-      (PACKAGE.Darklang.Stdlib.String.fromBytes sourceInBytes)
+      (PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement sourceInBytes)
       "code.dark"
 
   match program with

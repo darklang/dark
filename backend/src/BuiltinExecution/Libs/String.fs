@@ -404,7 +404,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromBytes" 0
+    { name = fn "fromBytesWithReplacement" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TString
@@ -415,6 +415,26 @@ let fns : List<BuiltInFn> =
         | _, _, [ DBytes bytes ] ->
           let str = System.Text.Encoding.UTF8.GetString bytes
           Ply(DString str)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromBytes" 0
+      typeParams = []
+      parameters = [ Param.make "bytes" TBytes "" ]
+      returnType = TypeReference.option TString
+      description =
+        "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"
+      fn =
+        (function
+        | _, _, [ DBytes bytes ] ->
+          try
+            let str = System.Text.UTF8Encoding(false, true).GetString bytes
+            Ply(Dval.optionSome (DString str))
+          with e ->
+            Ply(Dval.optionNone)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
