@@ -5,6 +5,7 @@ module Darklang =
         type Error =
           | Incomplete
           | MatchExprUnmatched of RuntimeTypes.Dval.Dval
+          | MatchExprPatternWrongShape
 
         let toSegments (e: Error) : ErrorOutput =
           match e with
@@ -15,7 +16,7 @@ module Darklang =
                 actual = []
                 expected = [] }
 
-          | MatchExprUnmatched(dv) ->
+          | MatchExprUnmatched dv ->
             let summary =
               [ ErrorSegment.ErrorSegment.String "No match for "
                 ErrorSegment.ErrorSegment.InlineValue dv ]
@@ -26,5 +27,13 @@ module Darklang =
             ErrorOutput
               { summary = summary
                 extraExplanation = extraExplanation
+                actual = []
+                expected = [] }
+
+          | MatchExprPatternWrongShape ->
+            ErrorOutput
+              { summary =
+                  [ ErrorSegment.ErrorSegment.String "Match pattern has wrong shape" ]
+                extraExplanation = []
                 actual = []
                 expected = [] }
