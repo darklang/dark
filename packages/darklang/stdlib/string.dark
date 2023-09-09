@@ -341,6 +341,11 @@ module Darklang =
         Builtin.String.fromBytesWithReplacement bytes
 
 
+      /// Converts the UTF8-encoded byte sequence into a string
+      let fromBytes (bytes: Bytes) : PACKAGE.Darklang.Stdlib.Option.Option<String> =
+        Builtin.String.fromBytes bytes
+
+
       /// Checks if <param subject> starts with <param prefix>
       let startsWith (subject: String) (prefix: String) : Bool =
         PACKAGE.Darklang.Stdlib.String.slice_v0
