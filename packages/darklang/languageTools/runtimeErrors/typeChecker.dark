@@ -163,7 +163,7 @@ module Darklang =
 
             | context ->
               [ ErrorSegment.ErrorSegment.String
-                  $"(RTETODO: contextSummary {(Builtin.Json.serialize<Context> context) |> PACKAGE.Darklang.Stdlib.unwrap})" ]
+                  $"(RTETODO: contextSummary {(Builtin.Json.serialize<Context> context) |> Builtin.unwrap})" ]
 
           let rec contextAsActualExpected
             (argument: RuntimeTypes.Dval.Dval)
@@ -320,7 +320,7 @@ module Darklang =
             | _ ->
               defaultActual,
               [ ErrorSegment.ErrorSegment.String
-                  $"(RTETODO: contextAsActualExpected {(Builtin.Json.serialize<Context> context) |> PACKAGE.Darklang.Stdlib.unwrap})" ]
+                  $"(RTETODO: contextAsActualExpected {(Builtin.Json.serialize<Context> context) |> Builtin.unwrap})" ]
 
           // let contextVerb (context: Context) : String =
           //   match context with

@@ -22,7 +22,7 @@ let userFn () : Int = 6
 
 ([ 5 ]
  |> PACKAGE.Darklang.Stdlib.List.head
- |> PACKAGE.Darklang.Stdlib.unwrap
+ |> Builtin.unwrap
  |> PACKAGE.Darklang.Stdlib.Int.add_v0 1
  |> (+) 3
  |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 9

@@ -243,13 +243,13 @@ module Roundtrip =
         char = 'c'
         resultOk = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
         resultError = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-        emojiChar = (Builtin.Test.toChar "👍") |> PACKAGE.Darklang.Stdlib.unwrap
+        emojiChar = (Builtin.Test.toChar "👍") |> Builtin.unwrap
         uuid =
           (PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
-          |> PACKAGE.Darklang.Stdlib.unwrap
+          |> Builtin.unwrap
         datetime =
           (PACKAGE.Darklang.Stdlib.DateTime.parse "2020-01-01T00:00:00Z")
-          |> PACKAGE.Darklang.Stdlib.unwrap
+          |> Builtin.unwrap
         unit = ()
       // dont test password because hashing it twice will get different values
       }
@@ -273,10 +273,10 @@ module Roundtrip =
         emojiChar = 'e'
         uuid =
           (PACKAGE.Darklang.Stdlib.Uuid.parse "55555555-5555-5555-5555-555555555555")
-          |> PACKAGE.Darklang.Stdlib.unwrap
+          |> Builtin.unwrap
         datetime =
           (PACKAGE.Darklang.Stdlib.DateTime.parse "2011-11-11T11:11:11Z")
-          |> PACKAGE.Darklang.Stdlib.unwrap
+          |> Builtin.unwrap
         unit = ()
       // dont test password because hashing it twice will get different values
       }
@@ -298,7 +298,7 @@ module Roundtrip =
   // TYPESCLEANUP - support passwords
   // (let pw = PACKAGE.Darklang.Stdlib.Password.hash_v0 "password" in
   //  let x = Builtin.DB.set (Passwords { password = pw }) "test" PasswordsDB in
-  //  let y = (Builtin.DB.queryOne PasswordsDB (fun p -> p.password == pw)) |> PACKAGE.Darklang.Stdlib.unwrap in
+  //  let y = (Builtin.DB.queryOne PasswordsDB (fun p -> p.password == pw)) |> Builtin.unwrap in
   //  PACKAGE.Darklang.Stdlib.Password.check_v0 y.password "password") = true
 
   module QueryEquality =
@@ -377,45 +377,43 @@ module Roundtrip =
     fetch (fun p -> p.char != 'c') = [ otherSample () ]
     fetch (fun p -> p.char == 'x') = []
 
-    fetch (fun p ->
-      p.emojiChar == ((Builtin.Test.toChar "👍") |> PACKAGE.Darklang.Stdlib.unwrap)) = [ sample
-                                                                                           () ]
+    fetch (fun p -> p.emojiChar == ((Builtin.Test.toChar "👍") |> Builtin.unwrap)) = [ sample
+                                                                                         () ]
 
-    fetch (fun p ->
-      p.emojiChar != ((Builtin.Test.toChar "👍") |> PACKAGE.Darklang.Stdlib.unwrap)) = [ otherSample
-                                                                                           () ]
+    fetch (fun p -> p.emojiChar != ((Builtin.Test.toChar "👍") |> Builtin.unwrap)) = [ otherSample
+                                                                                         () ]
 
     fetch (fun p -> p.emojiChar == 'x') = []
 
     fetch (fun p ->
       p.uuid
       == ((PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
-          |> PACKAGE.Darklang.Stdlib.unwrap)) = [ sample () ]
+          |> Builtin.unwrap)) = [ sample () ]
 
     fetch (fun p ->
       p.uuid
       != ((PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
-          |> PACKAGE.Darklang.Stdlib.unwrap)) = [ otherSample () ]
+          |> Builtin.unwrap)) = [ otherSample () ]
 
     fetch (fun p ->
       p.uuid
       == ((PACKAGE.Darklang.Stdlib.Uuid.parse "11111111-1111-1111-1111-000000000000")
-          |> PACKAGE.Darklang.Stdlib.unwrap)) = []
+          |> Builtin.unwrap)) = []
 
     fetch (fun p ->
       p.datetime
       == ((PACKAGE.Darklang.Stdlib.DateTime.parse "2020-01-01T00:00:00Z")
-          |> PACKAGE.Darklang.Stdlib.unwrap)) = [ sample () ]
+          |> Builtin.unwrap)) = [ sample () ]
 
     fetch (fun p ->
       p.datetime
       != ((PACKAGE.Darklang.Stdlib.DateTime.parse "2020-01-01T00:00:00Z")
-          |> PACKAGE.Darklang.Stdlib.unwrap)) = [ otherSample () ]
+          |> Builtin.unwrap)) = [ otherSample () ]
 
     fetch (fun p ->
       p.datetime
       == ((PACKAGE.Darklang.Stdlib.DateTime.parse "2019-12-31T23:59:59Z")
-          |> PACKAGE.Darklang.Stdlib.unwrap)) = []
+          |> Builtin.unwrap)) = []
 
     (fetch (fun p -> p.unit == ()))
     |> PACKAGE.Darklang.Stdlib.List.sortBy (fun v -> v.int) = [ sample ()
@@ -426,14 +424,14 @@ module Roundtrip =
     // Test equality for two different function results - this tests TVariable types, esp checking that we keep track of them correctly
     fetch (fun p ->
       ((PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
-       |> PACKAGE.Darklang.Stdlib.unwrap)
+       |> Builtin.unwrap)
       == p.uuid) = [ sample () ]
 
     ((fetch (fun p ->
       ((PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
-       |> PACKAGE.Darklang.Stdlib.unwrap)
+       |> Builtin.unwrap)
       == ((PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
-          |> PACKAGE.Darklang.Stdlib.unwrap)))
+          |> Builtin.unwrap)))
      |> PACKAGE.Darklang.Stdlib.List.length) = 2
 
 
@@ -561,7 +559,7 @@ module GetMany =
    let two = Builtin.DB.set (X { x = "goodbye" }) "two" XDB in
 
    (Builtin.DB.getMany [ "one"; "two" ] XDB)
-   |> PACKAGE.Darklang.Stdlib.unwrap
+   |> Builtin.unwrap
    |> PACKAGE.Darklang.Stdlib.List.sortBy (fun v -> v.x)) = [ (X { x = "goodbye" })
                                                               (X { x = "hello" }) ]
 
@@ -631,8 +629,7 @@ let addFriend
   (dob: String)
   (income: Float)
   : Person =
-  let dob =
-    (PACKAGE.Darklang.Stdlib.DateTime.parse dob) |> PACKAGE.Darklang.Stdlib.unwrap in
+  let dob = (PACKAGE.Darklang.Stdlib.DateTime.parse dob) |> Builtin.unwrap in
 
   let obj =
     Person
@@ -653,8 +650,7 @@ let prepFriends () : Unit =
    ())
 
 let d (datestr: String) : DateTime =
-  (PACKAGE.Darklang.Stdlib.DateTime.parse datestr)
-  |> PACKAGE.Darklang.Stdlib.unwrap
+  (PACKAGE.Darklang.Stdlib.DateTime.parse datestr) |> Builtin.unwrap
 
 let rossDOB () : DateTime = d "1967-05-12T00:00:00Z"
 
@@ -921,7 +917,7 @@ module QueryOneWithKey =
   (let _ = prepFriends () in
 
    (Builtin.DB.queryOneWithKey PersonDB (fun p -> p.name == "Rachel"))
-   |> PACKAGE.Darklang.Stdlib.unwrap
+   |> Builtin.unwrap
    |> (fun v -> (PACKAGE.Darklang.Stdlib.Tuple2.second v).name)) = "Rachel"
 
   // interpolated

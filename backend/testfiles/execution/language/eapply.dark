@@ -72,10 +72,10 @@ module UserDefined =
   returnsInt () = 5
   returnsString () = "string"
   returnsOptionSome () = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
-  (returnsOptionSome ()) |> PACKAGE.Darklang.Stdlib.unwrap = 5
+  (returnsOptionSome ()) |> Builtin.unwrap = 5
   returnsOptionNone () = PACKAGE.Darklang.Stdlib.Option.Option.None
   returnsResultOk () = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
-  (returnsResultOk ()) |> PACKAGE.Darklang.Stdlib.unwrap = 5
+  (returnsResultOk ()) |> Builtin.unwrap = 5
   fnWithTypeArgAndOneParam<Int> 1 = 1
   fnWithTypeArgs<Int, String> 5 "x" = 5
   fnWithTypedReturn<Int> () = 5
@@ -139,13 +139,13 @@ module Packages =
   PACKAGE.Darklang.Test.returnsOptionSome () = PACKAGE.Darklang.Stdlib.Option.Option.Some
     5
 
-  (PACKAGE.Darklang.Test.returnsOptionSome ()) |> PACKAGE.Darklang.Stdlib.unwrap = 5
+  (PACKAGE.Darklang.Test.returnsOptionSome ()) |> Builtin.unwrap = 5
   PACKAGE.Darklang.Test.returnsOptionNone () = PACKAGE.Darklang.Stdlib.Option.Option.None
 
   PACKAGE.Darklang.Test.returnsResultOk () = PACKAGE.Darklang.Stdlib.Result.Result.Ok
     5
 
-  (PACKAGE.Darklang.Test.returnsResultOk ()) |> PACKAGE.Darklang.Stdlib.unwrap = 5
+  (PACKAGE.Darklang.Test.returnsResultOk ()) |> Builtin.unwrap = 5
 
   PACKAGE.Darklang.Test.returnsResultError () = PACKAGE.Darklang.Stdlib.Result.Result.Error
     false

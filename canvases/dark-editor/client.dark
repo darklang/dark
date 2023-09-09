@@ -82,21 +82,20 @@ let parseAndSerializeProgram
       []
       (PACKAGE.Darklang.Stdlib.String.toBytes userProgram)
 
-  let statusCode =
-    response |> PACKAGE.Darklang.Stdlib.unwrap |> (fun r -> r.statusCode)
+  let statusCode = response |> Builtin.unwrap |> (fun r -> r.statusCode)
 
   match statusCode with
   | 200 ->
     Ok(
       response
-      |> PACKAGE.Darklang.Stdlib.unwrap
+      |> Builtin.unwrap
       |> (fun r -> r.body)
       |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
     )
   | 400 ->
     Error(
       response
-      |> PACKAGE.Darklang.Stdlib.unwrap
+      |> Builtin.unwrap
       |> (fun r -> r.body)
       |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
     )
@@ -199,9 +198,7 @@ let update (model: Model) (msg: Msg) : Model =
             PACKAGE.Darklang.Stdlib.List.append
               model.chatHistory
               [ ChatHistoryItem.UserPrompt
-                  (PACKAGE.Darklang.Stdlib.unwrap (
-                    PACKAGE.Darklang.Stdlib.String.random 5
-                  ))
+                  (Builtin.unwrap (PACKAGE.Darklang.Stdlib.String.random 5))
                   userPrompt ] }
 
     updateStateInJS newModel
@@ -212,7 +209,7 @@ let update (model: Model) (msg: Msg) : Model =
         "http://dark-editor.dlio.localhost:11003/task-creation-prompt"
         []
         Builtin.Bytes.empty)
-      |> PACKAGE.Darklang.Stdlib.unwrap
+      |> Builtin.unwrap
       |> (fun r -> r.body)
       |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
       |> PACKAGE.Darklang.Stdlib.String.append $"\n\n {userPrompt}"
@@ -237,9 +234,7 @@ let update (model: Model) (msg: Msg) : Model =
           |> PACKAGE.Darklang.Stdlib.String.split "\n"
           |> PACKAGE.Darklang.Stdlib.List.map (fun line ->
             Task
-              { id =
-                  (PACKAGE.Darklang.Stdlib.String.random 5)
-                  |> PACKAGE.Darklang.Stdlib.unwrap
+              { id = (PACKAGE.Darklang.Stdlib.String.random 5) |> Builtin.unwrap
                 description = line
                 status = Status.Todo })
 
@@ -254,10 +249,7 @@ let update (model: Model) (msg: Msg) : Model =
           if text == "" then
             acc
           else if i % 2 == 1 then
-            let snippetId =
-              PACKAGE.Darklang.Stdlib.unwrap (
-                PACKAGE.Darklang.Stdlib.String.random 5
-              )
+            let snippetId = Builtin.unwrap (PACKAGE.Darklang.Stdlib.String.random 5)
 
             let updatedCodeSnippets =
               PACKAGE.Darklang.Stdlib.List.append
@@ -281,10 +273,10 @@ let update (model: Model) (msg: Msg) : Model =
 
       let newChatItemsItems =
         [ ChatHistoryItem.UserPrompt
-            (PACKAGE.Darklang.Stdlib.unwrap (PACKAGE.Darklang.Stdlib.String.random 5))
+            (Builtin.unwrap (PACKAGE.Darklang.Stdlib.String.random 5))
             userPrompt
           ChatHistoryItem.BotResponse
-            (PACKAGE.Darklang.Stdlib.unwrap (PACKAGE.Darklang.Stdlib.String.random 5))
+            (Builtin.unwrap (PACKAGE.Darklang.Stdlib.String.random 5))
             botResponseParts ]
 
       Model
@@ -427,27 +419,23 @@ let init () : Model =
   let initState =
     let demoSnippet =
       CodeSnippet
-        { id =
-            (PACKAGE.Darklang.Stdlib.String.random 5)
-            |> PACKAGE.Darklang.Stdlib.unwrap
+        { id = (PACKAGE.Darklang.Stdlib.String.random 5) |> Builtin.unwrap
           code = "let incr (i: Int): Int = i + 1\n\nincr 5"
           eval = PACKAGE.Darklang.Stdlib.Option.Option.None }
 
     let demoAction =
       [ Action
-          { id =
-              (PACKAGE.Darklang.Stdlib.String.random 5)
-              |> PACKAGE.Darklang.Stdlib.unwrap
+          { id = (PACKAGE.Darklang.Stdlib.String.random 5) |> Builtin.unwrap
             description = "Demo action"
             status = Status.InProgress } ]
 
     let chatHistory =
       [ ChatHistoryItem.UserPrompt
-          (PACKAGE.Darklang.Stdlib.unwrap (PACKAGE.Darklang.Stdlib.String.random 5))
+          (Builtin.unwrap (PACKAGE.Darklang.Stdlib.String.random 5))
           "Hello, I want a function that increments an integer!"
 
         ChatHistoryItem.BotResponse
-          (PACKAGE.Darklang.Stdlib.unwrap (PACKAGE.Darklang.Stdlib.String.random 5))
+          (Builtin.unwrap (PACKAGE.Darklang.Stdlib.String.random 5))
           [ BotResponseItem.Text "OK - here's some code:"
             BotResponseItem.CodeSnippet demoSnippet.id
             BotResponseItem.Actions demoAction ] ]

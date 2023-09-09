@@ -33,7 +33,7 @@ let _handler _req =
     request.body
     |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
     |> Builtin.Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
-    |> PACKAGE.Darklang.Stdlib.unwrap
+    |> Builtin.unwrap
 
   let item =
     NameToCategory
@@ -58,7 +58,7 @@ let _handler _req =
     request.body
     |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
     |> Builtin.Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
-    |> PACKAGE.Darklang.Stdlib.unwrap
+    |> Builtin.unwrap
 
   let item =
     NameToCategory
@@ -84,7 +84,7 @@ let _handler _req =
     request.body
     |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
     |> Builtin.Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
-    |> PACKAGE.Darklang.Stdlib.unwrap
+    |> Builtin.unwrap
 
 
   let item =
@@ -141,7 +141,7 @@ let _handler _req =
   let respBody =
     (Builtin.DB.getAll PackageTypeDB)
     |> Builtin.Json.serialize<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>>
-    |> PACKAGE.Darklang.Stdlib.unwrap
+    |> Builtin.unwrap
     |> PACKAGE.Darklang.Stdlib.String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
@@ -152,7 +152,7 @@ let _handler _req =
   let respBody =
     (Builtin.DB.getAll PackageConstantDB)
     |> Builtin.Json.serialize<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>>
-    |> PACKAGE.Darklang.Stdlib.unwrap
+    |> Builtin.unwrap
     |> PACKAGE.Darklang.Stdlib.String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
@@ -163,7 +163,7 @@ let _handler _req =
   let respBody =
     (Builtin.DB.getAll PackageFnDB)
     |> Builtin.Json.serialize<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>>
-    |> PACKAGE.Darklang.Stdlib.unwrap
+    |> Builtin.unwrap
     |> PACKAGE.Darklang.Stdlib.String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
@@ -210,7 +210,7 @@ let _handler _req =
   let respBody =
     found
     |> Builtin.Json.serialize<PACKAGE.Darklang.Stdlib.Option.Option<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>>
-    |> PACKAGE.Darklang.Stdlib.unwrap
+    |> Builtin.unwrap
     |> PACKAGE.Darklang.Stdlib.String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
@@ -233,7 +233,7 @@ let _handler _req =
   let respBody =
     found
     |> Builtin.Json.serialize<PACKAGE.Darklang.Stdlib.Option.Option<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>>
-    |> PACKAGE.Darklang.Stdlib.unwrap
+    |> Builtin.unwrap
     |> PACKAGE.Darklang.Stdlib.String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
@@ -256,7 +256,7 @@ let _handler _req =
   let respBody =
     found
     |> Builtin.Json.serialize<PACKAGE.Darklang.Stdlib.Option.Option<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>>
-    |> PACKAGE.Darklang.Stdlib.unwrap
+    |> Builtin.unwrap
     |> PACKAGE.Darklang.Stdlib.String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
@@ -291,7 +291,7 @@ let _handler _req =
     name
     |> PACKAGE.Darklang.Stdlib.String.split "."
     |> PACKAGE.Darklang.Stdlib.List.head
-    |> PACKAGE.Darklang.Stdlib.unwrap
+    |> Builtin.unwrap
 
   let modules =
     name
@@ -317,7 +317,7 @@ let _handler _req =
           |> PACKAGE.Darklang.Stdlib.List.filter (fun c ->
             c.name.owner == owner && c.name.modules == modules) })
     |> Builtin.Json.serialize<PACKAGE.Darklang.Stdlib.Packages>
-    |> PACKAGE.Darklang.Stdlib.unwrap
+    |> Builtin.unwrap
     |> PACKAGE.Darklang.Stdlib.String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
@@ -327,11 +327,9 @@ let _handler _req =
 let _handler _req =
   let fullName = name |> PACKAGE.Darklang.Stdlib.String.split "."
 
-  let owner =
-    fullName |> PACKAGE.Darklang.Stdlib.List.head |> PACKAGE.Darklang.Stdlib.unwrap
+  let owner = fullName |> PACKAGE.Darklang.Stdlib.List.head |> Builtin.unwrap
 
-  let name =
-    fullName |> PACKAGE.Darklang.Stdlib.List.last |> PACKAGE.Darklang.Stdlib.unwrap
+  let name = fullName |> PACKAGE.Darklang.Stdlib.List.last |> Builtin.unwrap
 
   let modules =
     fullName

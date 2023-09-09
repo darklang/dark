@@ -30,8 +30,7 @@ let main () : Int =
       DockerImageID { imageID = parsedResponse.id })
 
   let jsonImageIds =
-    (Builtin.Json.serialize<List<DockerImageId>> imageIds)
-    |> PACKAGE.Darklang.Stdlib.unwrap
+    (Builtin.Json.serialize<List<DockerImageId>> imageIds) |> Builtin.unwrap
 
   let _ =
     Builtin.File.write

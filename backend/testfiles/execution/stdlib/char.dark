@@ -1,13 +1,11 @@
 let smiley () : Char =
-  "😂" |> PACKAGE.Darklang.Stdlib.String.head |> PACKAGE.Darklang.Stdlib.unwrap
+  "😂" |> PACKAGE.Darklang.Stdlib.String.head |> Builtin.unwrap
 
 let hand () : Char =
-  "✋🏿" |> PACKAGE.Darklang.Stdlib.String.head |> PACKAGE.Darklang.Stdlib.unwrap
+  "✋🏿" |> PACKAGE.Darklang.Stdlib.String.head |> Builtin.unwrap
 
 let family () : Char =
-  "👩‍👩‍👧‍👦"
-  |> PACKAGE.Darklang.Stdlib.String.head
-  |> PACKAGE.Darklang.Stdlib.unwrap
+  "👩‍👩‍👧‍👦" |> PACKAGE.Darklang.Stdlib.String.head |> Builtin.unwrap
 
 PACKAGE.Darklang.Stdlib.Char.toLowercase 'A' = 'a'
 PACKAGE.Darklang.Stdlib.Char.toLowercase 'a' = 'a'

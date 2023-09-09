@@ -374,8 +374,7 @@ module Darklang =
           ""
         else
           Builtin.String.join
-            ((PACKAGE.Darklang.Stdlib.List.repeat count string)
-             |> PACKAGE.Darklang.Stdlib.unwrap)
+            ((PACKAGE.Darklang.Stdlib.List.repeat count string) |> Builtin.unwrap)
             ""
 
 

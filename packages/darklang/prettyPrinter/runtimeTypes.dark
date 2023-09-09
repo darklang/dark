@@ -286,7 +286,7 @@ module Darklang =
 
         let makeSpaces (len: Int) : String =
           (PACKAGE.Darklang.Stdlib.List.repeat len " ")
-          |> PACKAGE.Darklang.Stdlib.unwrap
+          |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.String.join ""
 
         let withIndent
@@ -416,7 +416,7 @@ module Darklang =
 
           | _ ->
             $"(PP.RT.Dval TODO {(Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval> dv)
-                                |> PACKAGE.Darklang.Stdlib.unwrap})"
+                                |> Builtin.unwrap})"
 
 
       let dval (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval) : String =

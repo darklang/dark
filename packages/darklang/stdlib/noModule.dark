@@ -6,7 +6,3 @@ module Darklang =
 
     /// Returns true if the two value are not equal
     let notEquals (a: 'a) (b: 'a) : Bool = Builtin.notEquals a b
-
-
-    /// Unwrap an Option or Result, returning the value or a DError if None
-    let unwrap (value: 'a) : 'a = Builtin.unwrap value

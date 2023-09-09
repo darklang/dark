@@ -279,7 +279,7 @@ Builtin.Json.parse<Float> "00000000.000" = PACKAGE.Darklang.Stdlib.Result.Result
 
 // Chars
 //let charFromString (s: String) =
-//  (PACKAGE.Darklang.Stdlib.String.toList s) |> PACKAGE.Darklang.Stdlib.List.head |> PACKAGE.Darklang.Stdlib.unwrap
+//  (PACKAGE.Darklang.Stdlib.String.toList s) |> PACKAGE.Darklang.Stdlib.List.head |> Builtin.unwrap
 
 Builtin.Json.serialize<Char> 'a' = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"a\""
 Builtin.Json.parse<Char> "\"a\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 'a'
@@ -337,8 +337,7 @@ Builtin.Json.parse<String>
 
 // Datetimes
 let d (datestr: String) : DateTime =
-  (PACKAGE.Darklang.Stdlib.DateTime.parse datestr)
-  |> PACKAGE.Darklang.Stdlib.unwrap
+  (PACKAGE.Darklang.Stdlib.DateTime.parse datestr) |> Builtin.unwrap
 
 // now-ish
 Builtin.Json.serialize<DateTime> (d "2023-07-28T22:42:36Z") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
@@ -397,7 +396,7 @@ Builtin.Json.parse<DateTime> "1" = PACKAGE.Darklang.Stdlib.Result.Result.Error
 
 // UUIDs
 let uuid (s: String) : Uuid =
-  (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 s) |> PACKAGE.Darklang.Stdlib.unwrap
+  (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 s) |> Builtin.unwrap
 
 // empty
 Builtin.Json.serialize<Uuid> (uuid "00000000-0000-0000-0000-000000000000") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
@@ -984,9 +983,9 @@ Builtin.Json.parse<Combo<Person, Combo<People, Int>>>
                     Person { Name = "George B"; Age = 42 } ] }
           e2 = 5 } })
 |> Builtin.Json.serialize<Combo<Person, Combo<People, Int>>>
-|> PACKAGE.Darklang.Stdlib.unwrap
+|> Builtin.unwrap
 |> Builtin.Json.parse<Combo<Person, Combo<People, Int>>>
-|> PACKAGE.Darklang.Stdlib.unwrap = (Combo
+|> Builtin.unwrap = (Combo
   { e1 = Person { Name = "Bob"; Age = 42 }
     e2 =
       Combo
