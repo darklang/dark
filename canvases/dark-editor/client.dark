@@ -30,7 +30,9 @@ let openAIcompletion
   let apiKey =
     let url = "http://dark-editor.dlio.localhost:11003/openai-apikey-yikes"
 
-    match PACKAGE.Darklang.Stdlib.HttpClient.request "get" url [] Builtin.Bytes.empty with
+    match
+      PACKAGE.Darklang.Stdlib.HttpClient.request "get" url [] Builtin.Bytes.empty
+    with
     | Ok response ->
       response.body |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
 
