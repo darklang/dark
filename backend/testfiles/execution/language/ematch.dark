@@ -634,18 +634,17 @@ module TypeErrors =
     | NoArgs
     | OneArg of Int
     | TwoArgs of Int * Int
-    | ThreeArgs of Int * Int * Int
 
-// // enum with more pattern params than actual args
-// (match TestType.NoArgs with
-//  | NoArgs _ -> "wrong number") = Builtin.Test.runtimeError "x"
+  // enum with more pattern params than actual args
+  (match TestType.NoArgs with
+   | NoArgs _ -> "wrong number") = Builtin.Test.derrorMessage
+    "NoArgs pattern is expecting 1 field, but NoArgs has 0 fields"
 
-// enum with fewer pattern params than actual args
-// TODO error properly for wrong number of args
-// (match TestType.OneArg 1 with
-//  | OneArg -> "wrong number") = Builtin.Test.derrorMessage "No match"
+  // enum with fewer pattern params than actual args
+  (match TestType.OneArg 1 with
+   | OneArg -> "wrong number") = Builtin.Test.derrorMessage
+    "OneArg pattern is expecting 0 fields, but OneArg has 1 field"
 
-// enum with single wildcard
-// TODO: allow enums with a single wildcard to match anything
-// (match TestType.ThreeArgs(1, 2, 3) with
-//  | ThreeArgs _ -> "correct number") = "correct number"
+  // enum with a single wildcard
+  (match TestType.TwoArgs(1, 2) with
+   | TwoArgs _ -> "wildcards allowed") = "wildcards allowed"

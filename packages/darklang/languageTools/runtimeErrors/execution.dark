@@ -6,6 +6,7 @@ module Darklang =
           | Incomplete
           | MatchExprUnmatched of RuntimeTypes.Dval.Dval
           | MatchExprPatternWrongShape
+          | MatchExprEnumPatternWrongCount of String * expected: Int * actual: Int
 
         let toSegments (e: Error) : ErrorOutput =
           match e with
@@ -31,9 +32,39 @@ module Darklang =
                 expected = [] }
 
           | MatchExprPatternWrongShape ->
+            let summary =
+              [ ErrorSegment.ErrorSegment.String "Pattern has wrong shape" ]
+
+            let extraExplanation = []
+
             ErrorOutput
-              { summary =
-                  [ ErrorSegment.ErrorSegment.String "Match pattern has wrong shape" ]
-                extraExplanation = []
+              { summary = summary
+                extraExplanation = extraExplanation
+                actual = []
+                expected = [] }
+
+          | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
+            let summary =
+              [ ErrorSegment.ErrorSegment.String caseName
+                ErrorSegment.ErrorSegment.String " pattern is expecting "
+                ErrorSegment.ErrorSegment.Count(
+                  expected,
+                  ErrorSegment.ErrorSegment.String "field",
+                  ErrorSegment.ErrorSegment.String "fields"
+                )
+                ErrorSegment.ErrorSegment.String ", but "
+                ErrorSegment.ErrorSegment.String caseName
+                ErrorSegment.ErrorSegment.String " has "
+                ErrorSegment.ErrorSegment.Count(
+                  actual,
+                  ErrorSegment.ErrorSegment.String "field",
+                  ErrorSegment.ErrorSegment.String "fields"
+                ) ]
+
+            let extraExplanation = []
+
+            ErrorOutput
+              { summary = summary
+                extraExplanation = extraExplanation
                 actual = []
                 expected = [] }

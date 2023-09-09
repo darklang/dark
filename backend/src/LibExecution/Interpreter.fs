@@ -45,21 +45,30 @@ module Error =
   let matchExprPatternWrongShape : RuntimeError =
     case "MatchExprPatternWrongShape" []
 
+  let matchExprEnumPatternWrongCount
+    (caseName : string)
+    (expected : int)
+    (actual : int)
+    : RuntimeError =
+    case
+      "MatchExprEnumPatternWrongCount"
+      [ DString caseName; DInt expected; DInt actual ]
+
   let incomplete : RuntimeError = case "Incomplete" []
 
-type Matched = Result<bool, unit>
+type Matched = Result<bool, id * RuntimeError>
 
 let combineMatched (a : Matched) (b : Matched) : Matched =
   match a, b with
-  | Ok(true), Ok(true) -> Ok(true)
-  | Ok(false), Ok(false) -> Ok(false)
-  | Ok(true), Ok(false) -> Ok(false)
-  | Ok(false), Ok(true) -> Ok(false)
-  | Error(), _ -> Error()
-  | _, Error() -> Error()
+  | Ok true, Ok true -> Ok true
+  | Ok false, Ok false -> Ok false
+  | Ok true, Ok false -> Ok false
+  | Ok false, Ok true -> Ok false
+  | Error _, _ -> a
+  | _, Error _ -> b
 
 let combineMatchedList (l : Matched list) : Matched =
-  l |> List.fold combineMatched (Ok(true))
+  l |> List.fold combineMatched (Ok true)
 
 let dincomplete (state : ExecutionState) (id : id) =
   DError(SourceID(state.tlid, id), Error.incomplete)
@@ -580,7 +589,12 @@ let rec eval'
               Ok false, allVars, allSubTraces
             else if List.length dFields <> List.length fieldPats then
               let (allVars, allSubTraces) = traceFields ()
-              Error(), allVars, allSubTraces
+              let err =
+                Error.matchExprEnumPatternWrongCount
+                  dCaseName
+                  (List.length fieldPats)
+                  (List.length dFields)
+              Error(id, err), allVars, allSubTraces
             else
               let (passResults, newVarResults, traceResults) =
                 List.zip dFields fieldPats
@@ -594,12 +608,12 @@ let rec eval'
               match allPass with
               | Ok true -> Ok true, allVars, (id, dv) :: allSubTraces
               | Ok false
-              | Error() ->
+              | Error _ ->
                 allPass, allVars, (id, dincomplete state id) :: allSubTraces
 
           | _dv ->
             let (allVars, allSubTraces) = traceFields ()
-            Error(), allVars, allSubTraces
+            Error(id, Error.matchExprPatternWrongShape), allVars, allSubTraces
 
 
         | MPTuple(id, firstPat, secondPat, theRestPat) ->
@@ -624,7 +638,7 @@ let rec eval'
               match allPass with
               | Ok true -> Ok true, allVars, (id, dv) :: allSubTraces
               | Ok false
-              | Error() ->
+              | Error _ ->
                 allPass,
                 allVars,
                 traceIncompleteWithArgs id allPatterns @ allSubTraces
@@ -646,7 +660,7 @@ let rec eval'
             match pass with
             | Ok true -> Ok true, allSubVars, (id, dv) :: allSubTraces
             | Ok false
-            | Error() ->
+            | Error _ ->
               pass, allSubVars, traceIncompleteWithArgs id [ headPat; tailPat ]
 
           // TODO if not a list, error
@@ -668,7 +682,7 @@ let rec eval'
               match allPass with
               | Ok true -> Ok true, allVars, (id, dv) :: allSubTraces
               | Ok false
-              | Error() ->
+              | Error _ ->
                 allPass, allVars, traceIncompleteWithArgs id pats @ allSubTraces
             else
               Ok false, [], traceIncompleteWithArgs id pats
@@ -706,11 +720,9 @@ let rec eval'
             matchResult <- Some r
           // "Real" evaluations don't need to persist non-matched traces
           else if isRealExecution then
-            if passes = Error() then
-              matchResult <-
-                Some(DError(sourceID id, Error.matchExprPatternWrongShape))
-            else
-              ()
+            match passes with
+            | Error(id, err) -> matchResult <- Some(DError(sourceID id, err))
+            | Ok _ -> ()
           else
             // If we're "previewing" (analysis), persist traces for all patterns
             traces |> List.iter (fun (id, dv) -> state.tracing.traceDval false id dv)
