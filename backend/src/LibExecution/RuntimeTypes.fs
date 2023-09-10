@@ -540,44 +540,50 @@ and RuntimeError = private RuntimeError of Dval
 
 // We use NoComparison here to avoid accidentally using structural comparison
 and [<NoComparison>] Dval =
+  | DUnit
+
+  // Simple types
+  | DBool of bool
   | DInt of int64
   | DFloat of double
-  | DBool of bool
-  | DUnit
-  | DString of string
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
-
-  // compound types
-  | DList of ValueType * List<Dval>
-  | DTuple of Dval * Dval * List<Dval>
-
-  | DFnVal of FnValImpl
-
-  /// Represents something that shouldn't have happened in the engine,
-  /// that should have been reported elsewhere. It's usually a type error of
-  /// some kind, but occasionally we'll paint ourselves into a corner and need
-  /// to represent a runtime error using this.
-  | DError of DvalSource * RuntimeError
-
-  | DDB of string
+  | DString of string
   | DDateTime of DarkDateTime.T
-  | DPassword of Password
   | DUuid of System.Guid
   | DBytes of byte array
 
-  | DDict of DvalMap // VTTODO add ValueType
+  // Compound types
+  | DList of ValueType * List<Dval>
+  | DTuple of first : Dval * second : Dval * theRest : List<Dval>
+  | DDict of entries : DvalMap
 
   | DRecord of
+    // CLEANUP nitpick: maybe move sourceTypeName before runtimeTypeName?
     runtimeTypeName : TypeName.TypeName *
     sourceTypeName : TypeName.TypeName *
     typeArgs : List<ValueType> *
     fields : DvalMap
 
   | DEnum of
+    // CLEANUP nitpick: maybe move sourceTypeName before runtimeTypeName?
     runtimeTypeName : TypeName.TypeName *
     sourceTypeName : TypeName.TypeName *
     caseName : string *
-    List<Dval>
+    fields : List<Dval>
+
+  // Functions
+  | DFnVal of FnValImpl // VTTODO I'm not sure how ValueType fits in here
+
+  // References
+  | DDB of name : string
+  | DPassword of Password
+
+  // To be removed from Dval
+  /// Represents something that shouldn't have happened in the engine,
+  /// that should have been reported elsewhere. It's usually a type error of
+  /// some kind, but occasionally we'll paint ourselves into a corner and need
+  /// to represent a runtime error using this.
+  | DError of DvalSource * RuntimeError
 
 
 and DvalTask = Ply<Dval>
