@@ -426,7 +426,7 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! result = UserDB.queryCount state db b
               match result with
-              | Ok result -> return Dval.int result
+              | Ok result -> return DvalUtils.int result
               | Error rte -> return DError(SourceNone, rte)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e

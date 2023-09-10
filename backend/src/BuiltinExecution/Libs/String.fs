@@ -161,7 +161,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the length of the string"
       fn =
         (function
-        | _, _, [ DString s ] -> s |> String.lengthInEgcs |> Dval.int |> Ply
+        | _, _, [ DString s ] -> s |> String.lengthInEgcs |> DvalUtils.int  |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented // there isn't a unicode version of length
       previewable = Pure

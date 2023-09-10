@@ -269,7 +269,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the year portion of <param date> as an <type Int>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> d.Year |> Dval.int |> Ply
+        | _, _, [ DDateTime d ] -> d.Year |> DvalUtils.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'year'" ])
       previewable = Pure
@@ -284,7 +284,7 @@ let fns : List<BuiltInFn> =
         "Returns the month portion of <param date> as an <type Int> between {{1}} and {{12}}"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> d.Month |> Dval.int |> Ply
+        | _, _, [ DDateTime d ] -> d.Month |> DvalUtils.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'month'" ])
       previewable = Pure
@@ -298,7 +298,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the day portion of <param date> as an <type Int>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> d.Day |> Dval.int |> Ply
+        | _, _, [ DDateTime d ] -> d.Day |> DvalUtils.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'day'" ])
       previewable = Pure
@@ -327,7 +327,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the hour portion of <param date> as an <type Int>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> Ply(Dval.int d.Hour)
+        | _, _, [ DDateTime d ] -> Ply(DvalUtils.int d.Hour)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
       previewable = Pure
@@ -341,7 +341,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the minute portion of <param date> as an <type Int>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> Ply(Dval.int d.Minute)
+        | _, _, [ DDateTime d ] -> Ply(DvalUtils.int d.Minute)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
       previewable = Pure
@@ -355,7 +355,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the second portion of <param date> as an <type Int>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> Ply(Dval.int d.Second)
+        | _, _, [ DDateTime d ] -> Ply(DvalUtils.int d.Second)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
       previewable = Pure

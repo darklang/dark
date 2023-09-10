@@ -1,13 +1,32 @@
+// -- Creating Dvals --
+// Dvals should never be constructed that contain fakevals - the fakeval
+// should always propagate (though, there are specific cases in the
+// interpreter where they are discarded instead of propagated; still they are
+// never put into other dvals). These static members check before creating the values.
+// additionally, these functions fill in any ValueTypes relevant to a Dval,
+// failing if they conflict with any expected valueType.
+
+// Soon, some of thse are going to need a `Types` argument, which will be
+// needed to look up types (i.e. for DEnum construction).
+// When that happens, I suspect:
+// - we'll need to pass in a `types: Types` argument to several of these fns
+// - this whole module will become recursively defined
+
+// These could just as well be renamed DvalCreators
+// , but that name feels bad to me?
+//
+// maybe `CreateDval` or `DvalMaker` or something?
+// i.e. `CreateDval.enum ...` seems reasonable-ish
 module LibExecution.DvalUtils
 
 open LibExecution.RuntimeTypes
 
-// -- Creating Dvals --
 
 
 // type DvalCreator = draft of an idea...
 //   { list: List<Dval> -> Dval }
 
+let int (i : int) = DInt(int64 i)
 
 
 // CLEANUP - this fn was unused so I commented it out
@@ -99,52 +118,3 @@ let result (dv : Result<Dval, Dval>) : Dval =
   match dv with
   | Ok dv -> resultOk dv
   | Error dv -> resultError dv
-
-
-
-// Extracting data from Dvals
-
-let asList (dv : Dval) : Option<List<Dval>> =
-  match dv with
-  | DList(_, l) -> Some l
-  | _ -> None
-
-let asDict (dv : Dval) : Option<Map<string, Dval>> =
-  match dv with
-  | DDict d -> Some d
-  | _ -> None
-
-let asTuple2 (dv : Dval) : Option<Dval * Dval> =
-  match dv with
-  | DTuple(first, second, _) -> Some(first, second)
-  | _ -> None
-
-let asTuple3 (dv : Dval) : Option<Dval * Dval * Dval> =
-  match dv with
-  | DTuple(first, second, [ third ]) -> Some(first, second, third)
-  | _ -> None
-
-let asString (dv : Dval) : Option<string> =
-  match dv with
-  | DString s -> Some s
-  | _ -> None
-
-let asInt (dv : Dval) : Option<int64> =
-  match dv with
-  | DInt i -> Some i
-  | _ -> None
-
-let asFloat (dv : Dval) : Option<double> =
-  match dv with
-  | DFloat f -> Some f
-  | _ -> None
-
-let asBool (dv : Dval) : Option<bool> =
-  match dv with
-  | DBool b -> Some b
-  | _ -> None
-
-let asUuid (dv : Dval) : Option<System.Guid> =
-  match dv with
-  | DUuid u -> Some u
-  | _ -> None

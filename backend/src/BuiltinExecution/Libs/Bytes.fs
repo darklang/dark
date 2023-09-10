@@ -123,7 +123,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the number of bytes in <param bytes>"
       fn =
         (function
-        | _, _, [ DBytes bytes ] -> bytes |> Array.length |> Dval.int |> Ply
+        | _, _, [ DBytes bytes ] -> bytes |> Array.length |> DvalUtils.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

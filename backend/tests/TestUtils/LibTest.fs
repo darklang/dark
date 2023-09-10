@@ -150,7 +150,7 @@ let fns : List<BuiltInFn> =
       description = "Return the value of the side-effect counter"
       fn =
         (function
-        | state, _, [ DUnit ] -> Ply(Dval.int state.test.sideEffectCount)
+        | state, _, [ DUnit ] -> Ply(DvalUtils.int state.test.sideEffectCount)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
