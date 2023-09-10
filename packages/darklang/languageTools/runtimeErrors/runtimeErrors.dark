@@ -54,7 +54,9 @@ module Darklang =
                 | IndefiniteArticle ->
                   match Stdlib.List.head prevSegments with
                   | None -> ""
-                  | Some prev -> Stdlib.String.articleFor prev ++ " "
+                  | Some prev ->
+                    (Stdlib.String.articleFor (ErrorSegment.toString [ prev ]))
+                    ++ " "
 
                 | FunctionName fn ->
                   PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.fnName fn
