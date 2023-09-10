@@ -139,11 +139,11 @@ let typecheckDval
   (types : Types)
   (dval : Dval)
   (expectedType : TypeReference)
-  =
+  : Ply<unit> =
   uply {
     let context = TypeChecker.DBQueryVariable(name, expectedType, None)
     match! TypeChecker.unify context types Map.empty expectedType dval with
-    | Ok() -> return ()
+    | Ok _typeSymbolTableTODO -> return ()
     | Error err -> raise (SqlCompilerRuntimeError err)
   }
 
@@ -630,10 +630,10 @@ let rec lambdaToSql
             | TUuid -> "uuid"
             | TUnit -> "bigint" // CLEANUP why is this bigint?
             | TVariable varName ->
-              match Map.get varName tst with
-              | Some found -> primitiveFieldType found
-              | None ->
-                error $"Could not resolve type variable in lambdaToSql: {varName}"
+              // match Map.get varName tst with
+              // | Some found -> primitiveFieldType found
+              // | None ->
+              error $"Could not resolve type variable in lambdaToSql: {varName}"
             | _ -> error $"We do not support this type of DB field yet: {t}"
 
           let fieldAccessPath = NEList.map escapeFieldname fieldAccessPath

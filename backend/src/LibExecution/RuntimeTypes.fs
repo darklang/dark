@@ -352,7 +352,7 @@ type KnownType =
 
   // let empty =    [] // KTList Unknown
   // let intList = [1] // KTList (ValueType.Known KTInt)
-  | KTList of ValueType
+  | KTList of inner : ValueType
 
   // Intuitively, since Dvals generate KnownTypes, you would think that we can
   // use KnownTypes in a KTTuple.
@@ -361,7 +361,7 @@ type KnownType =
   // which doesn't exist. For example, in `List.zip [] []`, we create the result
   // from the types of the two lists, which themselves might be (and likely are)
   // `Unknown`.
-  | KTTuple of ValueType * ValueType * List<ValueType>
+  | KTTuple of first : ValueType * second : ValueType * theRest : List<ValueType>
 
   // let f = (fun x -> x)        // KTFn([Unknown], Unknown)
   // let intF = (fun (x: Int) -> x) // KTFn([Known KTInt], Unknown)
@@ -382,16 +382,22 @@ type KnownType =
   // referenced directly, but we expect to eventually allow references to DBs
   // where the type may be unknown
   // List.head ([]: List<DB<'a>>) // KTDB (Unknown)
-  | KTDB of ValueType
+  | KTDB of inner : ValueType
 
   /// let n = None          // type args: [Unknown]
   /// let s = Some(5)       // type args: [Known KTInt]
   /// let o = Ok (5)        // type args: [Known KTInt, Unknown]
   /// let e = Error ("str") // type args: [Unknown, Known KTString]
+  ///
+  /// VTTODO consider splitting this into KTRecord and KTEnum
+  /// Lookups and such will end up being the same, but it feels appropriate
+  /// to represent that the value is a known _enum_ vs a known _record_
+  /// , and storing this information can be useful when pretty-printing errors
+  /// etc (without having to do type lookup)
   | KTCustomType of TypeName.TypeName * typeArgs : List<ValueType>
 
   // let myDict = {} // KTDict Unknown
-  | KTDict of ValueType
+  | KTDict of inner : ValueType
 
 /// Represents the actual type of a Dval
 ///
@@ -597,14 +603,16 @@ and [<NoComparison>] Dval =
   | DRecord of
     runtimeTypeName : TypeName.TypeName *
     sourceTypeName : TypeName.TypeName *
+    // I wonder if it makes any sense to have sourceTypeArgs as well, referencing TypeReferences instead...
     typeArgs : List<ValueType> *
     fields : DvalMap
 
   | DEnum of
     runtimeTypeName : TypeName.TypeName *
     sourceTypeName : TypeName.TypeName *
+    //typeArgs : List<ValueType> *
     caseName : string *
-    List<Dval>
+    fields : List<Dval>
 
 
 and DvalTask = Ply<Dval>
@@ -625,7 +633,7 @@ and Symtable = Map<string, Dval>
 ///   `serialize<int> 1`,
 /// we would have a TypeSymbolTable of
 ///  { "a" => TInt }
-and TypeSymbolTable = Map<string, TypeReference>
+and TypeSymbolTable = Map<string, ValueType>
 
 
 // Record the source of an incomplete or error. Would be useful to add more
@@ -986,10 +994,7 @@ module Dval =
       KTCustomType(typeName, typeArgs) |> ValueType.Known
 
     | DEnum(typeName, _, _caseName, _fields) ->
-      let typeArgs =
-        // TODO: somehow need to derive `typeArgs` from the `fields` (and `case`?)
-        // we might need to look up the type...
-        //fields |> List.map toValueType |> List.map Option.some
+      let typeArgs = // TODO: not sure how
         []
       KTCustomType(typeName, typeArgs) |> ValueType.Known
 
@@ -1137,6 +1142,7 @@ module Dval =
 
   let enum
     (typeName : TypeName.TypeName)
+    //(typeArgs: List<ValueType>) // this should always be the length expected by TypeName, but many/all may be Unknown
     (caseName : string)
     (fields : List<Dval>)
     : Dval =
@@ -1626,6 +1632,7 @@ let rec getTypeReferenceFromAlias
       | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
         return!
           getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
+      | Some({ definition = TypeDeclaration.Alias innerType }) -> return Ok innerType
       | _ -> return Ok typ
     }
 

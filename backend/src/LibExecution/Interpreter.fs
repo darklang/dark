@@ -1,4 +1,4 @@
-/// Interprets Dark expressions resulting in (tasks of) Dvals
+﻿/// Interprets Dark expressions resulting in (tasks of) Dvals
 module LibExecution.Interpreter
 
 open System.Threading.Tasks
@@ -350,7 +350,7 @@ let rec eval'
                         let check =
                           TypeChecker.unify context types Map.empty fieldType v
                         match! check with
-                        | Ok() ->
+                        | Ok _typeSymbolTableTODO ->
                           return
                             DRecord(
                               typeName,
@@ -402,7 +402,7 @@ let rec eval'
                     match!
                       TypeChecker.unify context types Map.empty fieldType v
                     with
-                    | Ok() ->
+                    | Ok _typeSymbolTableTODO ->
                       return
                         DRecord(typeName, original, valueTypesTODO, Map.add k v m)
                     | Error rte -> return DError(SourceID(state.tlid, id), rte)
@@ -780,7 +780,7 @@ let rec eval'
                         match!
                           TypeChecker.unify context types Map.empty enumFieldType v
                         with
-                        | Ok() ->
+                        | Ok _typeSymbolTableTODO ->
                           match r with
                           | DEnum(typeName, original, caseName, existing) ->
                             return
@@ -940,10 +940,7 @@ and callFn
       | Some fn ->
         match checkArgsLength fn with
         | Error errMsg -> return DError(sourceID, RuntimeError.oldError errMsg)
-        | Ok() ->
-          let newlyBoundTypeArgs = List.zip fn.typeParams typeArgs |> Map
-          let updatedTypeSymbolTable = Map.mergeFavoringRight tst newlyBoundTypeArgs
-          return! execFn state updatedTypeSymbolTable desc callerID fn typeArgs args
+        | Ok() -> return! execFn state tst desc callerID fn typeArgs args
   }
 
 
@@ -975,17 +972,13 @@ and execFn
             executingFnName = Some fnDesc
             callstack = Set.add fnDesc state.callstack }
 
-      let fnRecord = (state.tlid, fnDesc, id) in
+      let fnRecord = (state.tlid, fnDesc, id)
 
       let types = ExecutionState.availableTypes state
 
-      let typeArgsResolvedInFn = List.zip fn.typeParams typeArgs |> Map
-      let typeSymbolTable = Map.mergeFavoringRight tst typeArgsResolvedInFn
-
-      match! TypeChecker.checkFunctionCall types typeSymbolTable fn args with
+      match! TypeChecker.checkFunctionCall types tst fn typeArgs args with
       | Error rte -> return DError(sourceID, rte)
-      | Ok() ->
-
+      | Ok tst ->
         let! result =
           match fn.fn with
           | BuiltInFunction f ->
@@ -1041,14 +1034,12 @@ and execFn
               |> NEList.map2 (fun dv p -> (p.name, dv)) args
               |> Map.ofNEList
               |> withGlobals state
-            eval state typeSymbolTable symTable body
+            eval state tst symTable body
 
         if Dval.isFake result then
           return result
         else
-          match!
-            TypeChecker.checkFunctionReturnType types typeSymbolTable fn result
-          with
+          match! TypeChecker.checkFunctionReturnType types tst fn result with
           | Error rte -> return DError(sourceID, rte)
-          | Ok() -> return result
+          | Ok _typeSymbolTableTODO -> return result
   }

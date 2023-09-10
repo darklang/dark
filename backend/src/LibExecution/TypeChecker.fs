@@ -175,281 +175,129 @@ module Error =
           fields
       )
 
-let rec valueTypeUnifies
+let rec unifyValueType
+  (types : Types)
   (tst : TypeSymbolTable)
   (expected : TypeReference)
   (actual : ValueType)
-  : Ply<bool> =
-  let r = valueTypeUnifies tst
+  : Ply<Result<TypeSymbolTable, unit>> =
+  let r = unifyValueType types
 
-  let rMult (expected : List<TypeReference>) (actual : List<ValueType>) : Ply<bool> =
+  let rMult
+    (tst : TypeSymbolTable)
+    (expected : List<TypeReference>)
+    (actual : List<ValueType>)
+    : Ply<Result<TypeSymbolTable, unit>> =
     if List.length expected <> List.length actual then
-      Ply false
+      Ply(Error())
     else
       List.zip expected actual
       |> Ply.List.foldSequentially
         (fun acc (e, a) ->
           match acc with
-          | false -> Ply acc
-          | true -> r e a)
-        true
+          | Error() -> Ply acc
+          | Ok tst -> r tst e a)
+        (Ok tst)
 
   uply {
     match expected, actual with
-    | _, ValueType.Unknown -> return true
+    | TVariable name, actual ->
+      //debuG "TVariable" (name, actual)
+      match Map.get name tst with
+      | None -> return Ok(Map.add name actual tst)
+      | Some t ->
+        match Dval.mergeValueTypes t actual with
+        | Ok merged -> return Ok(Map.add name merged tst)
+        | Error err -> return Error()
 
-    | TUnit, ValueType.Known KTUnit -> return true
-    | TBool, ValueType.Known KTBool -> return true
-    | TInt, ValueType.Known KTInt -> return true
-    | TFloat, ValueType.Known KTFloat -> return true
-    | TChar, ValueType.Known KTChar -> return true
-    | TString, ValueType.Known KTString -> return true
-    | TUuid, ValueType.Known KTUuid -> return true
-    | TDateTime, ValueType.Known KTDateTime -> return true
-    | TBytes, ValueType.Known KTBytes -> return true
+    | _, ValueType.Unknown -> return Ok tst
 
-    | TList innerT, ValueType.Known(KTList innerV) -> return! r innerT innerV
+    | TUnit, ValueType.Known KTUnit -> return Ok tst
+    | TBool, ValueType.Known KTBool -> return Ok tst
+    | TInt, ValueType.Known KTInt -> return Ok tst
+    | TFloat, ValueType.Known KTFloat -> return Ok tst
+    | TChar, ValueType.Known KTChar -> return Ok tst
+    | TString, ValueType.Known KTString -> return Ok tst
+    | TUuid, ValueType.Known KTUuid -> return Ok tst
+    | TDateTime, ValueType.Known KTDateTime -> return Ok tst
+    | TBytes, ValueType.Known KTBytes -> return Ok tst
 
-    | TDict innerT, ValueType.Known(KTDict innerV) -> return! r innerT innerV
+    | TList innerT, ValueType.Known(KTList innerV) -> return! r tst innerT innerV
+
+    | TDict innerT, ValueType.Known(KTDict innerV) -> return! r tst innerT innerV
 
     | TTuple(tFirst, tSecond, tRest),
       ValueType.Known(KTTuple(vFirst, vSecond, vRest)) ->
       let expected = tFirst :: tSecond :: tRest
       let actual = vFirst :: vSecond :: vRest
-      return! rMult expected actual
+      return! rMult tst expected actual
 
-    | TCustomType(Error _, _), _ ->
-      return
-        Exception.raiseInternal
-          $"Unexpected - Error typeName in TCustomType in unifyValueType"
-          []
-    | TCustomType(Ok _typeNameT, _typeArgsT),
-      ValueType.Known(KTCustomType(_typeNameV, _typeArgsV)) ->
-      // TODO: follow up here when:
-      // - type name aliases are and resolved
-      // - type args are properly passed around and handled
+    | TCustomType(Error _, _), _ -> return Error()
+    | TCustomType(Ok typeNameT, typeArgsT), actual ->
+      match! Types.find typeNameT types with
+      | None -> return Error()
+      | Some expected ->
+        match expected, actual with
+        | { definition = TypeDeclaration.Alias aliasType }, _ ->
+          match! getTypeReferenceFromAlias types aliasType with
+          | Error _rte -> return Error()
+          | Ok expected -> return! r tst expected actual
 
-      // TODO: assert type names are the same,
-      // after we've handled all type aliases
-      //return! rMult typeArgsT typeArgsV
-      return true
+        | { definition = TypeDeclaration.Record _ },
+          ValueType.Known(KTCustomType(typeNameV, typeArgsV)) ->
+          if typeNameV <> typeNameT then
+            return Error()
+          else
+            match! rMult tst typeArgsT typeArgsV with
+            | Error() -> return Error()
+            | Ok tst -> return Ok tst
+
+        | { definition = TypeDeclaration.Enum _ },
+          ValueType.Known(KTCustomType(typeNameV, typeArgsV)) ->
+          if typeNameV <> typeNameT then
+            return Error()
+          else
+            match! rMult tst typeArgsT typeArgsV with
+            | Error() -> return Error()
+            | Ok tst -> return Ok tst
+
+        | _, _ -> return Error()
 
     | TFn(argTypes, returnType), ValueType.Known(KTFn(vArgs, vRet)) ->
-      // TODO: follow up here when type args are properly passed around and handled
+      let expected = returnType :: (NEList.toList argTypes)
+      let actual = vRet :: (NEList.toList vArgs)
+      return! rMult tst expected actual
 
-      // let expected = returnType :: (NEList.toList argTypes)
-      // let actual = vRet :: (NEList.toList vArgs)
-      // return! rMult expected actual
-      return true
+    | TPassword, ValueType.Known KTPassword -> return Ok tst
+    | TDB innerT, ValueType.Known(KTDB innerV) -> return! r tst innerT innerV
 
-    | TPassword, ValueType.Known KTPassword -> return true
-    | TDB innerT, ValueType.Known(KTDB innerV) -> return! r innerT innerV
 
-    | TVariable name, _ ->
-      match Map.get name tst with
-      | None -> return true
-      | Some t -> return! r t actual
-
-    | _, _ -> return false
+    | _, _ -> return Error()
   }
 
-let rec unify
+
+let unify
   (context : Context)
   (types : Types)
   (tst : TypeSymbolTable)
   (expected : TypeReference)
-  (value : Dval)
-  : Ply<Result<unit, RuntimeError>> =
+  (actual : Dval)
+  : Ply<Result<TypeSymbolTable, RuntimeError>> =
   uply {
-    match! getTypeReferenceFromAlias types expected with
-    | Error rte -> return Error rte
-    | Ok expected ->
-      match (expected, value) with
-      // Any should be removed, but we currently allow it as a param type
-      // in user functions, so we should allow it here.
-      //
-      // Potentially needs to be removed before we use this type checker for DBs?
-      //   - Could always have a type checking context that allows/disallows any
-      | TVariable name, _ ->
-        match Map.get name tst with
-        // for now, allow undefined type variables. In the future, we would create a
-        // type from the value and return any variables defined this way for usage in
-        // further arguments and return values.
-        | None -> return Ok()
-        | Some t -> return! unify context types tst t value
-      | TInt, DInt _ -> return Ok()
-      | TFloat, DFloat _ -> return Ok()
-      | TBool, DBool _ -> return Ok()
-      | TUnit, DUnit -> return Ok()
-      | TString, DString _ -> return Ok()
-      | TDateTime, DDateTime _ -> return Ok()
-      | TPassword, DPassword _ -> return Ok()
-      | TUuid, DUuid _ -> return Ok()
-      | TChar, DChar _ -> return Ok()
-      | TBytes, DBytes _ -> return Ok()
-      | TDB _, DDB _ -> return Ok() // TODO: check DB type
-      | TList nested, DList(vt, _dvs) ->
-        match! valueTypeUnifies tst nested vt with
-        | false ->
-          return
-            ValueNotExpectedType(value, expected, context)
-            |> Error.toRuntimeError
-            |> Error
-
-        | true -> return! Ply()
-
-      | TDict valueType, DDict dmap ->
-        // let! results =
-        //   dmap
-        //   |> Map.toList
-        //   |> Ply.List.mapSequentially (fun (k, v) ->
-        //     let location = Context.toLocation context
-        //     let context = DictKey(k, valueType, location)
-        //     unify context types tst valueType v)
-        // return combineErrorsUnit results
-        // CLEANUP DDict should include a TypeReference, in which case
-        // the type-checking here would just be a `tValue = dValue` check.
-        // (the construction of that DDict should have already checked that the
-        // keys match)
-        return Ok()
-
-      | TFn(argTypes, returnType), DFnVal fnVal -> return Ok() // TYPESTODO check lambdas and fnVals
-      | TTuple(t1, t2, tRest), DTuple(v1, v2, vRest) ->
-        let ts = t1 :: t2 :: tRest
-        let vs = v1 :: v2 :: vRest
-        if List.length ts <> List.length vs then
-          return
-            ValueNotExpectedType(value, expected, context)
-            |> Error.toRuntimeError
-            |> Error
-        else
-          // let! results =
-          //   List.zip ts vs
-          //   |> Ply.List.mapSequentiallyWithIndex (fun i (t, v) ->
-          //     let context = TupleIndex(i, t, context)
-          //     unify context types tst t v)
-          // return combineErrorsUnit results
-          // CLEANUP DTuple should include a TypeReference for each part, in which
-          // case the type-checking here would just be a comparison of typeRefs.
-          // (the construction of that DTuple should have already checked that the
-          // types match)
-          return Ok()
-
-      // TYPESCLEANUP: handle typeArgs
-      | TCustomType(typeName, _typeArgs), value ->
-
-        match typeName with
-        | Error rte -> return Error rte
-        | Ok typeName ->
-          match! Types.find typeName types with
-          | None ->
-            return
-              TypeDoesntExist(typeName, context) |> Error.toRuntimeError |> Error
-          | Some ut ->
-            let err =
-              ValueNotExpectedType(value, expected, context)
-              |> Error.toRuntimeError
-              |> Error
-
-            match ut, value with
-            | { definition = TypeDeclaration.Alias aliasType }, _ ->
-              let! resolvedAliasType = getTypeReferenceFromAlias types aliasType
-
-              match resolvedAliasType with
-              | Error rte -> return Error rte
-              | Ok resolvedAliasType ->
-                return! unify context types tst resolvedAliasType value
-
-            | { definition = TypeDeclaration.Record _ },
-              DRecord(tn, _, _valueTypesTODO, dmap) ->
-              // TYPESCLEANUP: this search should no longer be required
-              let! aliasedType =
-                getTypeReferenceFromAlias types (TCustomType(Ok tn, []))
-              match aliasedType with
-              | Ok(TCustomType(Error rte, _)) -> return Error rte
-              | Ok(TCustomType(Ok concreteTn, typeArgs)) ->
-                if concreteTn <> typeName then
-                  return
-                    ValueNotExpectedType(value, expected, context)
-                    |> Error.toRuntimeError
-                    |> Error
-                else
-                  // CLEANUP DRecord should include a TypeReference, in which case
-                  // the type-checking here would just be a `tField = dField` check.
-                  // (the construction of that DRecord should have already checked
-                  // that the fields match)
-                  return Ok()
-              | _ -> return err
-
-            | { definition = TypeDeclaration.Enum cases },
-              DEnum(tn, _, caseName, valFields) ->
-              // TODO: deal with aliased type?
-              if tn <> typeName then
-                return
-                  ValueNotExpectedType(value, expected, context)
-                  |> Error.toRuntimeError
-                  |> Error
-              else
-                let matchingCase : Option<TypeDeclaration.EnumCase> =
-                  cases |> NEList.find (fun c -> c.name = caseName)
-
-                match matchingCase with
-                | None -> return err
-                | Some case ->
-                  if List.length case.fields = List.length valFields then
-                    // let! unified =
-                    //   List.zip case.fields valFields
-                    //   |> List.mapi (fun i (expected, actual) ->
-                    //     let context =
-                    //       EnumField(
-                    //         tn,
-                    //         expected,
-                    //         case.name,
-                    //         i,
-                    //         Context.toLocation context
-                    //       )
-                    //     unify context types tst expected.typ actual)
-                    //   |> Ply.List.mapSequentially identity
-
-                    // return combineErrorsUnit unified
-                    // CLEANUP DEnum should include a TypeReference, in which case
-                    // the type-checking here would just be a `tField = dField` check.
-                    // (the construction of that DEnum should have already checked
-                    // that the fields match)
-                    return Ok()
-                  else
-                    return err
-            | _, _ -> return err
-
-      // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695
-      // TODO: exhaustiveness check
-      | TTuple _, _
-      | TCustomType _, _
-      | TVariable _, _
-      | TInt, _
-      | TFloat, _
-      | TBool, _
-      | TUnit, _
-      | TString, _
-      | TList _, _
-      | TDateTime, _
-      | TDict _, _
-      | TFn _, _
-      | TPassword, _
-      | TUuid, _
-      | TChar, _
-      | TDB _, _
-      | TBytes, _ ->
+    let actualType = Dval.toValueType actual
+    match! unifyValueType types tst expected actualType with
+    | Error() ->
+      match! getTypeReferenceFromAlias types expected with
+      | Error rte -> return Error rte
+      | Ok expected ->
         return
-          ValueNotExpectedType(value, expected, context)
+          ValueNotExpectedType(actual, expected, context)
           |> Error.toRuntimeError
           |> Error
+    | Ok updatedTst -> return Ok updatedTst
   }
 
 
-
-// TODO: there are missing type checks around type arguments that we should backfill.
-//
 // given a function
 // ```fsharp
 // let f<'a>(x: 'a, y: int): List<'a> =
@@ -472,17 +320,34 @@ let checkFunctionCall
   (types : Types)
   (tst : TypeSymbolTable)
   (fn : Fn)
+  (typeArgs : List<TypeReference>)
   (args : NEList<Dval>)
-  : Ply<Result<unit, RuntimeError>> =
-  // The interpreter checks these are the same length
-  fn.parameters
-  |> NEList.map2WithIndex
-    (fun i value param ->
-      let context = FunctionCallParameter(fn.name, param, i, None)
-      unify context types tst param.typ value)
-    args
-  |> Ply.NEList.mapSequentially identity
-  |> Ply.map combineErrorsUnit
+  : Ply<Result<TypeSymbolTable, RuntimeError>> =
+  uply {
+    // given let myFn<'a>(x: 'a, y: int): List<'a> = ...
+    // and a call to myFn<Int>(1, 2),
+    // update the tst with "a" -> "Int"
+    let typeSymbolsBoundExplicitly =
+      List.zip
+        fn.typeParams
+        (List.map (Types.ValueType.fromTypeReference tst) typeArgs)
+      |> Map
+
+    let tst = Map.mergeFavoringRight tst typeSymbolsBoundExplicitly
+
+    return!
+      Ply.List.foldSequentiallyWithIndex
+        (fun i acc (param, value) ->
+          uply {
+            match acc with
+            | Error _ as err -> return err
+            | Ok tst ->
+              let context = FunctionCallParameter(fn.name, param, i, None)
+              return! unify context types tst param.typ value
+          })
+        (Ok tst)
+        (NEList.zip fn.parameters args |> NEList.toList)
+  }
 
 
 let checkFunctionReturnType
@@ -490,6 +355,6 @@ let checkFunctionReturnType
   (tst : TypeSymbolTable)
   (fn : Fn)
   (result : Dval)
-  : Ply<Result<unit, RuntimeError>> =
+  : Ply<Result<TypeSymbolTable, RuntimeError>> =
   let context = FunctionCallResult(fn.name, fn.returnType, None)
   unify context types tst fn.returnType result

@@ -801,7 +801,7 @@ module Dval =
       let typeName = rtTyp [] "LambdaImpl" 0
 
       let fields =
-        [ "typeSymbolTable", DDict(Map.map TypeReference.toDT l.typeSymbolTable)
+        [ "typeSymbolTable", DDict(Map.map ValueType.toDT l.typeSymbolTable)
           "symtable", DDict(Map.map Dval.toDT l.symtable)
           "parameters",
           Dval.list
@@ -818,7 +818,7 @@ module Dval =
       match d with
       | DRecord(_, _, _, fields) ->
         let typeSymbolTable =
-          fields |> D.mapField "typeSymbolTable" |> Map.map TypeReference.fromDT
+          fields |> D.mapField "typeSymbolTable" |> Map.map ValueType.fromDT
 
         let symtable = fields |> D.mapField "symtable" |> Map.map Dval.fromDT
 
