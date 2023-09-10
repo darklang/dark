@@ -85,7 +85,7 @@ let fns : List<BuiltInFn> =
            |> String.toEgcSeq
            |> Seq.map (fun c -> DChar c)
            |> Seq.toList
-           |> Dval.list (ValueType.Known KTChar)
+           |> DvalUtils.list (ValueType.Known KTChar)
            |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -161,7 +161,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the length of the string"
       fn =
         (function
-        | _, _, [ DString s ] -> s |> String.lengthInEgcs |> DvalUtils.int  |> Ply
+        | _, _, [ DString s ] -> s |> String.lengthInEgcs |> DvalUtils.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented // there isn't a unicode version of length
       previewable = Pure
@@ -271,7 +271,10 @@ let fns : List<BuiltInFn> =
                 (s |> String.toEgcSeq |> Seq.toList)
                 (sep |> String.toEgcSeq |> Seq.toList)
 
-          parts |> List.map DString |> Dval.list (ValueType.Known KTString) |> Ply
+          parts
+          |> List.map DString
+          |> DvalUtils.list (ValueType.Known KTString)
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

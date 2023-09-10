@@ -394,7 +394,7 @@ let parse
       |> Seq.mapi (fun i v -> convert nested (JsonPath.Index i :: pathSoFar) v)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (Dval.list valueTypeTODO)
+      |> Ply.map (DvalUtils.list valueTypeTODO)
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let values = j.EnumerateArray() |> Seq.toList

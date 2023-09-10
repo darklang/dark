@@ -67,7 +67,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUnit ] ->
           uply {
             let! hosts = Canvas.allCanvasIDs ()
-            return hosts |> List.map DUuid |> Dval.list (ValueType.Known KTUuid)
+            return hosts |> List.map DUuid |> DvalUtils.list (ValueType.Known KTUuid)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -179,14 +179,14 @@ let fns : List<BuiltInFn> =
               |> Map.values
               |> Seq.toList
               |> List.map PT2DT.UserType.toDT
-              |> Dval.list valueTypeTODO
+              |> DvalUtils.list valueTypeTODO
 
             let fns =
               canvas.userFunctions
               |> Map.values
               |> Seq.toList
               |> List.map PT2DT.UserFunction.toDT
-              |> Dval.list valueTypeTODO
+              |> DvalUtils.list valueTypeTODO
 
             // let dbs =
             //   Map.values canvas.dbs
@@ -195,7 +195,7 @@ let fns : List<BuiltInFn> =
             //     [ "tlid", DString(db.tlid.ToString()); "name", DString db.name ]
             //     |> Map
             //     |> DDict)
-            //   |> Dval.list valueTypeTODO
+            //   |> DvalUtils.list valueTypeTODO
 
             // let httpHandlers =
             //   Map.values canvas.handlers
@@ -212,7 +212,7 @@ let fns : List<BuiltInFn> =
             //       |> Map
             //       |> DDict
             //       |> Some)
-            //   |> Dval.list valueTypeTODO
+            //   |> DvalUtils.list valueTypeTODO
 
             return
               DvalUtils.record

@@ -76,10 +76,10 @@ let fns : List<BuiltInFn> =
                       ("type", DString(typeNameToStr p.typ)) ])
               [ ("name", DString(FnName.builtinToString key))
                 ("description", DString data.description)
-                ("parameters", Dval.list valueTypeTODO parameters)
+                ("parameters", DvalUtils.list valueTypeTODO parameters)
                 ("returnType", DString returnType) ]
             DvalUtils.record typeName alist)
-          |> Dval.list valueTypeTODO
+          |> DvalUtils.list valueTypeTODO
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

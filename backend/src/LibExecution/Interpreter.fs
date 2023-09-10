@@ -340,7 +340,7 @@ let rec eval'
 
       match List.tryFind Dval.isFake results with
       | Some fakeDval -> return fakeDval
-      | None -> return Dval.list valueTypeTODO results
+      | None -> return DvalUtils.list valueTypeTODO results
 
 
     | ETuple(_id, first, second, theRest) ->
@@ -710,7 +710,7 @@ let rec eval'
           | DList(vt, headVal :: tailVals) ->
             let (headPass, headVars, headTraces) = checkPattern headVal headPat
             let (tailPass, tailVars, tailTraces) =
-              checkPattern (Dval.list vt tailVals) tailPat
+              checkPattern (DvalUtils.list vt tailVals) tailPat
 
             let allSubVars = headVars @ tailVars
             let allSubTraces = headTraces @ tailTraces

@@ -262,7 +262,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
       |> Seq.map (convert nested)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (Dval.list valueTypeTODO)
+      |> Ply.map (DvalUtils.list valueTypeTODO)
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let arr = j.EnumerateArray() |> Seq.toList

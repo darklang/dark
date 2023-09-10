@@ -51,7 +51,7 @@ let fns : List<BuiltInFn> =
                   [ "name", DString s.name
                     "value", DString s.value
                     "version", DInt s.version ])
-              |> Dval.list (ValueType.Known(KTCustomType(typeName, [])))
+              |> DvalUtils.list (ValueType.Known(KTCustomType(typeName, [])))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

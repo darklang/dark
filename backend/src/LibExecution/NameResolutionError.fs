@@ -76,7 +76,7 @@ module RTE =
           "names",
           (e.names
            |> List.map RT.DString
-           |> RT.Dval.list (RT.ValueType.Known RT.KTString)) ]
+           |> DvalUtils.list (RT.ValueType.Known RT.KTString)) ]
 
       DvalUtils.record errorTypeName fields
 

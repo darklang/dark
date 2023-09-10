@@ -84,7 +84,7 @@ and valueTypeName (typ : ValueType) : string =
   | ValueType.Unknown -> "_"
 
 
-let toTypeName (dv : Dval) : string = dv |> Dval.toValueType |> valueTypeName
+let toTypeName (dv : Dval) : string = dv |> DvalUtils.toValueType |> valueTypeName
 
 
 // SERIALIZER_DEF Custom DvalReprDeveloper.toRepr

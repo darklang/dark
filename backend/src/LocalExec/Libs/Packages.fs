@@ -141,7 +141,7 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
             return
-              Dval.list
+              DvalUtils.list
                 valueTypeTODO
                 (packages
                  |> List.map (fun (owner, fnname, modules, version) ->
@@ -152,7 +152,7 @@ let fns : List<BuiltInFn> =
                         modules
                         |> String.split "."
                         |> List.map DString
-                        |> Dval.list valueTypeTODO)
+                        |> DvalUtils.list valueTypeTODO)
                        ("name", DString fnname)
                        ("version", DInt version) ]))
 
@@ -188,7 +188,7 @@ let fns : List<BuiltInFn> =
                  read.int "version"))
 
             return
-              Dval.list
+              DvalUtils.list
                 valueTypeTODO
                 (packages
                  |> List.map (fun (owner, typename, modules, version) ->
@@ -199,7 +199,7 @@ let fns : List<BuiltInFn> =
                         modules
                         |> String.split "."
                         |> List.map DString
-                        |> Dval.list valueTypeTODO)
+                        |> DvalUtils.list valueTypeTODO)
                        ("name", DString typename)
                        ("version", DInt version) ]))
 
@@ -234,7 +234,7 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
             return
-              (Dval.list
+              (DvalUtils.list
                 valueTypeTODO
                 (packages
                  |> List.map (fun (owner, fnname, modules, version) ->
@@ -245,7 +245,7 @@ let fns : List<BuiltInFn> =
                         modules
                         |> String.split "."
                         |> List.map DString
-                        |> Dval.list valueTypeTODO)
+                        |> DvalUtils.list valueTypeTODO)
                        ("name", DString fnname)
                        ("version", DInt version) ])))
           }

@@ -225,7 +225,7 @@ let constants : List<BuiltInConstant> =
   [ { name = constant "empty" 0
       typ = TList varA
       description = "Returns an empty list"
-      body = Dval.list ValueType.Unknown []
+      body = DvalUtils.list ValueType.Unknown []
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
@@ -236,7 +236,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a one-element list containing the given <param val>"
       fn =
         (function
-        | _, _, [ v ] -> Ply(Dval.list ValueType.Unknown [ v ])
+        | _, _, [ v ] -> Ply(DvalUtils.list ValueType.Unknown [ v ])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -275,7 +275,7 @@ let fns : List<BuiltInFn> =
                 |> List.distinctBy snd
                 |> List.map fst
                 |> List.sortWith DvalComparator.compareDval
-                |> Dval.list vt
+                |> DvalUtils.list vt
             with _ ->
               // TODO: we should prevent this as soon as the different types are added
               // Ideally we'd catch the exception thrown during comparison but the sort
@@ -305,7 +305,7 @@ let fns : List<BuiltInFn> =
           try
             List.distinct l
             |> List.sortWith DvalComparator.compareDval
-            |> Dval.list vt
+            |> DvalUtils.list vt
             |> Ply
           with _ ->
             // TODO: we should prevent this as soon as the different types are added
@@ -335,7 +335,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DList(vt, list) ] ->
           try
-            list |> List.sortWith DvalComparator.compareDval |> Dval.list vt |> Ply
+            list
+            |> List.sortWith DvalComparator.compareDval
+            |> DvalUtils.list vt
+            |> Ply
           with _ ->
             // TODO: we should prevent this as soon as the different types are added
             // Ideally we'd catch the exception thrown during comparison but the sort
@@ -385,7 +388,7 @@ let fns : List<BuiltInFn> =
                 |> List.sortWith (fun (k1, _) (k2, _) ->
                   DvalComparator.compareDval k1 k2)
                 |> List.map snd
-                |> Dval.list vt
+                |> DvalUtils.list vt
             with _ ->
               // TODO: we should prevent this as soon as the different types are added
               // Ideally we'd catch the exception thrown during comparison but the sort
@@ -444,7 +447,7 @@ let fns : List<BuiltInFn> =
               let array = List.toArray list
               do! Sort.sort fn array
               // CLEANUP: check fakevals
-              return array |> Array.toList |> Dval.list vt |> DvalUtils.resultOk
+              return array |> Array.toList |> DvalUtils.list vt |> DvalUtils.resultOk
             with
             | Errors.FakeDvalFound dv -> return dv
             | e -> return DvalUtils.resultError (DString e.Message)
@@ -468,7 +471,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DList(vt1, l1); DList(vt2, l2) ] ->
           // VTTODO should fail here in the case of vt1 conflicting with vt2?
           // (or is this handled by the interpreter?)
-          Ply(Dval.list vt1 (List.append l1 l2)) // no checking for DError required
+          Ply(DvalUtils.list vt1 (List.append l1 l2)) // no checking for DError required
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -516,7 +519,7 @@ let fns : List<BuiltInFn> =
             let! result = Ply.List.filterSequentially f l
 
             match abortReason.Value with
-            | None -> return Dval.list vt (result)
+            | None -> return DvalUtils.list vt (result)
             | Some v -> return v
           }
         | _ -> incorrectArgs ())
@@ -590,7 +593,7 @@ let fns : List<BuiltInFn> =
             let! result = Ply.List.filterMapSequentially f l
 
             match abortReason.Value with
-            | None -> return Dval.list valueTypeTODO result
+            | None -> return DvalUtils.list valueTypeTODO result
             | Some v -> return v
           }
         | _ -> incorrectArgs ())
@@ -627,7 +630,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state 0UL b [] args)
                 list
 
-            return Dval.list valueTypeTODO result
+            return DvalUtils.list valueTypeTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -674,7 +677,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state 0UL b [] args)
                 list
 
-            return Dval.list valueTypeTODO result
+            return DvalUtils.list valueTypeTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -721,7 +724,7 @@ let fns : List<BuiltInFn> =
                     Interpreter.applyFnVal state 0UL b [] args)
                   list
 
-              return DvalUtils.optionSome (Dval.list valueTypeTODO result)
+              return DvalUtils.optionSome (DvalUtils.list valueTypeTODO result)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -796,8 +799,8 @@ let fns : List<BuiltInFn> =
                 |> Seq.toList
                 |> List.map (fun (key, elementsWithKey) ->
                   let elements = Seq.map snd elementsWithKey |> Seq.toList
-                  DTuple(key, Dval.list valueTypeTODO elements, []))
-                |> Dval.list valueTypeTODO
+                  DTuple(key, DvalUtils.list valueTypeTODO elements, []))
+                |> DvalUtils.list valueTypeTODO
 
               return groups
           }

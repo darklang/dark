@@ -415,7 +415,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                       DString(String.toLowercase v),
                       []
                     ))
-                  |> Dval.list (
+                  |> DvalUtils.list (
                     ValueType.Known(
                       KTTuple(ValueType.Known KTString, ValueType.Known KTString, [])
                     )

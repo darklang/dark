@@ -7,6 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module DvalUtils = LibExecution.DvalUtils
 module UserDB = LibCloud.UserDB
 
 let modules = [ "DarkInternal"; "Canvas"; "DB" ]
@@ -33,7 +34,7 @@ let fns : List<BuiltInFn> =
               tlids
               |> List.map int64
               |> List.map DInt
-              |> Dval.list (ValueType.Known KTInt)
+              |> DvalUtils.list (ValueType.Known KTInt)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -55,7 +56,7 @@ let fns : List<BuiltInFn> =
               unlocked
               |> List.map int64
               |> List.map DInt
-              |> Dval.list (ValueType.Known KTInt)
+              |> DvalUtils.list (ValueType.Known KTInt)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -110,7 +110,7 @@ let fns : List<BuiltInFn> =
             let! items = UserDB.getMany state db skeys
 
             if List.length items = List.length skeys then
-              return items |> Dval.list valueTypeDbTODO |> DvalUtils.optionSome
+              return items |> DvalUtils.list valueTypeDbTODO |> DvalUtils.optionSome
             else
               return DvalUtils.optionNone
           }
@@ -140,7 +140,7 @@ let fns : List<BuiltInFn> =
                 keys
 
             let! result = UserDB.getMany state db skeys
-            return result |> Dval.list valueTypeDbTODO
+            return result |> DvalUtils.list valueTypeDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -225,7 +225,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAll state db
-            return results |> List.map snd |> Dval.list valueTypeDbTODO
+            return results |> List.map snd |> DvalUtils.list valueTypeDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -299,7 +299,9 @@ let fns : List<BuiltInFn> =
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAllKeys state db
             return
-              results |> List.map DString |> Dval.list (ValueType.Known KTString)
+              results
+              |> List.map DString
+              |> DvalUtils.list (ValueType.Known KTString)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -321,7 +323,7 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! results = UserDB.queryValues state db b
               match results with
-              | Ok results -> return results |> Dval.list valueTypeDbTODO
+              | Ok results -> return results |> DvalUtils.list valueTypeDbTODO
               | Error rte -> return DError(SourceNone, rte)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e

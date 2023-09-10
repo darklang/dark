@@ -27,7 +27,7 @@ module Request =
       headers
       |> lowercaseHeaderKeys
       |> List.map (fun (k, v) -> RT.DTuple(RT.DString(k), RT.DString(v), []))
-      |> RT.Dval.list (
+      |> DvalUtils.list (
         RT.ValueType.Known(
           RT.KTTuple(
             RT.ValueType.Known RT.KTString,

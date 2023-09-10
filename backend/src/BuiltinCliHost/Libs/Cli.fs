@@ -40,7 +40,7 @@ module CliRuntimeError =
             let metadata =
               metadata
               |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
-              |> Dval.list (
+              |> DvalUtils.list (
                 ValueType.Known(
                   KTTuple(ValueType.Known KTString, ValueType.Known KTString, [])
                 )
@@ -50,7 +50,7 @@ module CliRuntimeError =
 
           | MultipleExpressionsToExecute exprs ->
             "MultipleExpressionsToExecute",
-            [ "exprs", Dval.list valueTypeTODO (List.map DString exprs) ]
+            [ "exprs", DvalUtils.list valueTypeTODO (List.map DString exprs) ]
 
           | NonIntReturned actuallyReturned ->
             "NonIntReturned",
