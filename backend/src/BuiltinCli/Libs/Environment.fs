@@ -7,6 +7,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 
+module DvalUtils = LibExecution.DvalUtils
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
@@ -28,9 +29,9 @@ let fns : List<BuiltInFn> =
           let envValue = System.Environment.GetEnvironmentVariable(varName)
 
           if isNull envValue then
-            Ply(Dval.optionNone)
+            Ply(DvalUtils.optionNone)
           else
-            Ply(Dval.optionSome (DString envValue))
+            Ply(DvalUtils.optionSome (DString envValue))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

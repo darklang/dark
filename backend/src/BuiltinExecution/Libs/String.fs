@@ -13,6 +13,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module DvalUtils = LibExecution.DvalUtils
 module Errors = LibExecution.Errors
 
 
@@ -432,9 +433,9 @@ let fns : List<BuiltInFn> =
         | _, _, [ DBytes bytes ] ->
           try
             let str = System.Text.UTF8Encoding(false, true).GetString bytes
-            Ply(Dval.optionSome (DString str))
+            Ply(DvalUtils.optionSome (DString str))
           with e ->
-            Ply(Dval.optionNone)
+            Ply(DvalUtils.optionNone)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -457,9 +458,9 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString str; DString search ] ->
           let index = str.IndexOf(search)
           if index = -1 then
-            Ply(Dval.optionNone)
+            Ply(DvalUtils.optionNone)
           else
-            Ply(Dval.optionSome (DInt index))
+            Ply(DvalUtils.optionSome (DInt index))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -476,10 +477,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString str ] ->
           if str = "" then
-            Ply(Dval.optionNone)
+            Ply(DvalUtils.optionNone)
           else
             let head = String.toEgcSeq str |> Seq.head
-            Ply(Dval.optionSome (DChar head))
+            Ply(DvalUtils.optionSome (DChar head))
         | _ -> incorrectArgs ())
 
       sqlSpec = NotYetImplemented

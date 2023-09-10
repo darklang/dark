@@ -1094,8 +1094,6 @@ module Dval =
 
   let resultType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0
 
-  let optionType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0
-
   let resultOk (dv : Dval) : Dval =
     if isFake dv then dv else DEnum(resultType, resultType, "Ok", [ dv ])
   let resultError (dv : Dval) : Dval =
@@ -1107,17 +1105,6 @@ module Dval =
     | Ok dv -> resultOk dv
     | Error dv -> resultError dv
 
-
-  let optionSome (dv : Dval) : Dval =
-    if isFake dv then dv else DEnum(optionType, optionType, "Some", [ dv ])
-
-  let optionNone : Dval = DEnum(optionType, optionType, "None", [])
-
-  // Wraps in an Option after checking that the value is not a fakeval
-  let option (dv : Option<Dval>) : Dval =
-    match dv with
-    | Some dv -> optionSome dv // checks isFake
-    | None -> optionNone
 
   let errStr (s : string) : Dval = DError(SourceNone, RuntimeError.oldError s)
 

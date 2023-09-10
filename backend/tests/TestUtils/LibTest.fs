@@ -114,9 +114,11 @@ let fns : List<BuiltInFn> =
           let chars = String.toEgcSeq s
 
           if Seq.length chars = 1 then
-            chars |> Seq.toList |> (fun l -> l[0] |> DChar |> Dval.optionSome |> Ply)
+            chars
+            |> Seq.toList
+            |> (fun l -> l[0] |> DChar |> DvalUtils.optionSome |> Ply)
           else
-            Ply(Dval.optionNone)
+            Ply(DvalUtils.optionNone)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -179,7 +181,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString msg ] ->
-          Ply(Dval.optionSome (DError(SourceNone, RuntimeError.oldError msg)))
+          Ply(DvalUtils.optionSome (DError(SourceNone, RuntimeError.oldError msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

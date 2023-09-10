@@ -78,11 +78,11 @@ module Error =
   module Location =
     let toDT (location : Location) : Dval =
       match location with
-      | None -> Dval.optionNone
+      | None -> DvalUtils.optionNone
       | Some(tlid, id) ->
         let tlid = DInt(int64 tlid)
         let id = DInt(int64 id)
-        Dval.optionSome (DTuple(tlid, id, []))
+        DvalUtils.optionSome (DTuple(tlid, id, []))
 
 
   module Context =

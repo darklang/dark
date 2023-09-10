@@ -13,6 +13,7 @@ open Prelude
 
 module DarkDateTime = LibExecution.DarkDateTime
 module RT = LibExecution.RuntimeTypes
+module DvalUtils = LibExecution.DvalUtils
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
@@ -1148,9 +1149,11 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("password", DPassword(Password(UTF8.toBytes "somebytes")), TPassword)
     ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"), TUuid)
     ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"), TUuid)
-    ("option", Dval.optionNone, TypeReference.option TInt)
-    ("option2", Dval.optionSome (Dval.int 15), TypeReference.option TInt)
-    ("option3", Dval.optionSome (DString "a string"), TypeReference.option TString)
+    ("option", DvalUtils.optionNone, TypeReference.option TInt)
+    ("option2", DvalUtils.optionSome (Dval.int 15), TypeReference.option TInt)
+    ("option3",
+     DvalUtils.optionSome (DString "a string"),
+     TypeReference.option TString)
     ("character", DChar "s", TChar)
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
     // use image bytes here to test for any weird bytes forms

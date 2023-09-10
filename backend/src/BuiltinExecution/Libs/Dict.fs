@@ -7,6 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module DvalUtils = LibExecution.DvalUtils
 module Errors = LibExecution.Errors
 module Interpreter = LibExecution.Interpreter
 
@@ -179,8 +180,8 @@ let fns : List<BuiltInFn> =
           let result = List.fold f (Some Map.empty) l
 
           match result with
-          | Some map -> Ply(Dval.optionSome (DDict map))
-          | None -> Ply(Dval.optionNone)
+          | Some map -> Ply(DvalUtils.optionSome (DDict map))
+          | None -> Ply(DvalUtils.optionNone)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -196,7 +197,7 @@ let fns : List<BuiltInFn> =
          wrapped in an <type Option>: {{Some value}}. Otherwise, returns {{None}}."
       fn =
         (function
-        | _, _, [ DDict o; DString s ] -> Map.tryFind s o |> Dval.option |> Ply
+        | _, _, [ DDict o; DString s ] -> Map.tryFind s o |> DvalUtils.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

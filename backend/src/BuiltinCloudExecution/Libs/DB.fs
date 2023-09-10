@@ -5,10 +5,10 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module DvalUtils = LibExecution.DvalUtils
 module Errors = LibExecution.Errors
 
 module UserDB = LibCloud.UserDB
-
 module Db = LibCloud.Db
 
 
@@ -80,7 +80,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getOption state db key
-            return Dval.option result
+            return DvalUtils.option result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -110,9 +110,9 @@ let fns : List<BuiltInFn> =
             let! items = UserDB.getMany state db skeys
 
             if List.length items = List.length skeys then
-              return items |> Dval.list valueTypeDbTODO |> Dval.optionSome
+              return items |> Dval.list valueTypeDbTODO |> DvalUtils.optionSome
             else
-              return Dval.optionNone
+              return DvalUtils.optionNone
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -372,8 +372,8 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.query state db b
 
               match results with
-              | Ok [ (_, v) ] -> return Dval.optionSome v
-              | Ok _ -> return Dval.optionNone
+              | Ok [ (_, v) ] -> return DvalUtils.optionSome v
+              | Ok _ -> return DvalUtils.optionNone
               | Error rte -> return DError(SourceNone, rte)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
@@ -400,8 +400,8 @@ let fns : List<BuiltInFn> =
 
               match results with
               | Ok [ (key, dv) ] ->
-                return Dval.optionSome (DTuple(DString key, dv, []))
-              | Ok _ -> return Dval.optionNone
+                return DvalUtils.optionSome (DTuple(DString key, dv, []))
+              | Ok _ -> return DvalUtils.optionNone
               | Error rte -> return DError(SourceNone, rte)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e

@@ -641,7 +641,7 @@ module Expr =
 
       // control flow
       | PT.EIf(id, cond, thenExpr, elseExpr) ->
-        let elseExpr = elseExpr |> Option.map toDT |> Dval.option
+        let elseExpr = elseExpr |> Option.map toDT |> DvalUtils.option
         "EIf", [ DInt(int64 id); toDT cond; toDT thenExpr; elseExpr ]
 
       | PT.EMatch(id, arg, cases) ->
@@ -911,7 +911,7 @@ module TypeDeclaration =
       Dval.record
         (ptTyp [ "TypeDeclaration" ] "EnumField" 0)
         [ "typ", TypeReference.toDT ef.typ
-          "label", ef.label |> Option.map DString |> Dval.option
+          "label", ef.label |> Option.map DString |> DvalUtils.option
           "description", DString ef.description ]
 
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumField =

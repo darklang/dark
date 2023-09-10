@@ -4,6 +4,8 @@ open LibExecution.RuntimeTypes
 
 // Creating Dvals
 
+
+
 let enum
   (typeName : TypeName.TypeName)
   (caseName : string)
@@ -12,6 +14,21 @@ let enum
   match List.find Dval.isFake fields with
   | Some v -> v
   | None -> DEnum(typeName, typeName, caseName, fields)
+
+
+
+let optionType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0
+
+let optionSome (dv : Dval) : Dval =
+  if Dval.isFake dv then dv else DEnum(optionType, optionType, "Some", [ dv ])
+
+let optionNone : Dval = DEnum(optionType, optionType, "None", [])
+
+// Wraps in an Option after checking that the value is not a fakeval
+let option (dv : Option<Dval>) : Dval =
+  match dv with
+  | Some dv -> optionSome dv // checks isFake
+  | None -> optionNone
 
 // CLEANUP - this fn was unused so I commented it out
 // remove? or will it be handy?
