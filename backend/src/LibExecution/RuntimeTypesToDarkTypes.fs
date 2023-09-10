@@ -111,7 +111,7 @@ module FQName =
       | FQName.Package u -> "Package", [ Package.toDT nameMapper u ]
       | FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameMapper u ]
 
-    Dval.enum (rtTyp [ "FQName" ] "FQName" 0) caseName fields
+    DvalUtils.enum (rtTyp [ "FQName" ] "FQName" 0) caseName fields
 
   let fromDT (nameMapper : Dval -> 'name) (d : Dval) : FQName.FQName<'name> =
     match d with
@@ -129,7 +129,7 @@ module TypeName =
         match u with
         | TypeName.TypeName name -> "TypeName", [ DString name ]
 
-      Dval.enum (rtTyp [ "TypeName" ] "Name" 0) caseName fields
+      DvalUtils.enum (rtTyp [ "TypeName" ] "Name" 0) caseName fields
 
     let fromDT (d : Dval) : TypeName.Name =
       match d with
@@ -161,7 +161,7 @@ module FnName =
         match u with
         | FnName.FnName name -> "FnName", [ DString name ]
 
-      Dval.enum (rtTyp [ "FnName" ] "Name" 0) caseName fields
+      DvalUtils.enum (rtTyp [ "FnName" ] "Name" 0) caseName fields
 
     let fromDT (d : Dval) : FnName.Name =
       match d with
@@ -192,7 +192,7 @@ module ConstantName =
         match u with
         | ConstantName.ConstantName name -> "ConstantName", [ DString name ]
 
-      Dval.enum (rtTyp [ "ConstantName" ] "Name" 0) caseName fields
+      DvalUtils.enum (rtTyp [ "ConstantName" ] "Name" 0) caseName fields
 
     let fromDT (d : Dval) : ConstantName.Name =
       match d with
@@ -269,7 +269,7 @@ module TypeReference =
         "TFn",
         [ Dval.list valueTypeTODO (List.map toDT (NEList.toList args)); toDT ret ]
 
-    Dval.enum (rtTyp [] "TypeReference" 0) name fields
+    DvalUtils.enum (rtTyp [] "TypeReference" 0) name fields
 
   let rec fromDT (d : Dval) : TypeReference =
     match d with
@@ -324,7 +324,7 @@ module LetPattern =
           toDT second
           Dval.list valueTypeTODO (List.map toDT theRest) ]
 
-    Dval.enum (rtTyp [] "LetPattern" 0) name fields
+    DvalUtils.enum (rtTyp [] "LetPattern" 0) name fields
 
   let rec fromDT (d : Dval) : LetPattern =
     match d with
@@ -365,7 +365,7 @@ module MatchPattern =
           DString caseName
           Dval.list valueTypeTODO (List.map toDT fieldPats) ]
 
-    Dval.enum (rtTyp [] "MatchPattern" 0) name fields
+    DvalUtils.enum (rtTyp [] "MatchPattern" 0) name fields
 
   let rec fromDT (d : Dval) : MatchPattern =
     match d with
@@ -397,7 +397,7 @@ module StringSegment =
       | StringText text -> "StringText", [ DString text ]
       | StringInterpolation expr -> "StringInterpolation", [ exprToDT expr ]
 
-    Dval.enum (rtTyp [] "StringSegment" 0) name fields
+    DvalUtils.enum (rtTyp [] "StringSegment" 0) name fields
 
   let fromDT (exprFromDT : Dval -> Expr) (d : Dval) : StringSegment =
     match d with
@@ -520,7 +520,7 @@ module Expr =
           List.map toDT exprs |> Dval.list valueTypeTODO ]
 
 
-    Dval.enum (rtTyp [] "Expr" 0) name fields
+    DvalUtils.enum (rtTyp [] "Expr" 0) name fields
 
   let rec fromDT (d : Dval) : Expr =
     match d with
@@ -903,7 +903,7 @@ module Dval =
           DString caseName
           Dval.list valueTypeTODO (List.map toDT fields) ]
 
-    Dval.enum (rtTyp [ "Dval" ] "Dval" 0) name fields
+    DvalUtils.enum (rtTyp [ "Dval" ] "Dval" 0) name fields
 
 
   let fromDT (d : Dval) : Dval =

@@ -1064,7 +1064,6 @@ module Dval =
       | Error e -> DError(SourceNone, e)
 
 
-
   let record
     (typeName : TypeName.TypeName)
     // TODO: (typeArgs: List<ValueType>)
@@ -1091,39 +1090,6 @@ module Dval =
         | m, _, _ -> m)
       (DRecord(typeName, typeName, valueTypesTODO, Map.empty))
       fields
-
-  let enum
-    (typeName : TypeName.TypeName)
-    (caseName : string)
-    (fields : List<Dval>)
-    : Dval =
-    match List.find isFake fields with
-    | Some v -> v
-    | None -> DEnum(typeName, typeName, caseName, fields)
-
-  // CLEANUP - this fn was unused so I commented it out
-  // emove? or will it be handy?
-  // let dict (fields : List<string * Dval>) : Dval =
-  //   // Give a warning for duplicate keys
-  //   List.fold
-  //     (DDict(Map.empty))
-  //     (fun m (k, v) ->
-  //       match m, k, v with
-  //       // TYPESCLEANUP: remove hacks
-  //       // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
-  //       | m, _k, _v when isFake m -> m
-  //       // Errors should propagate (but only if we're not already propagating an error)
-  //       | DDict _, _, v when isFake v -> v
-  //       // Skip empty rows
-  //       | _, "", _ -> DError(SourceNone, $"Empty key: {k}")
-  //       // Error if the key appears twice
-  //       | DDict m, k, _v when Map.containsKey k m ->
-  //         DError(SourceNone, $"Duplicate key: {k}")
-  //       // Otherwise add it
-  //       | DDict m, k, v -> DDict(Map.add k v m)
-  //       // If we haven't got a DDict we're propagating an error so let it go
-  //       | m, _, _ -> m)
-  //     fields
 
 
   let resultType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0

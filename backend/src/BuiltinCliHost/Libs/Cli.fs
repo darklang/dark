@@ -10,10 +10,11 @@ open LibExecution.Builtin.Shortcuts
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module WT = LibParser.WrittenTypes
+module DvalUtils = LibExecution.DvalUtils
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module Exe = LibExecution.Execution
+module WT = LibParser.WrittenTypes
 module Json = BuiltinExecution.Libs.Json
 
 
@@ -55,7 +56,7 @@ module CliRuntimeError =
             "NonIntReturned",
             [ "actuallyReturned", RT2DT.Dval.toDT actuallyReturned ]
 
-        RT.Dval.enum nameTypeName caseName []
+        DvalUtils.enum nameTypeName caseName []
 
 
     let toRuntimeError (e : Error) : RT.RuntimeError =

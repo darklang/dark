@@ -14,6 +14,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module PT = LibExecution.ProgramTypes
+module DvalUtils = LibExecution.DvalUtils
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 open LibCloud.Db
@@ -56,7 +57,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString error ] ->
-          Dval.enum
+          DvalUtils.enum
             (RuntimeError.name [ "Error" ] "ErrorMessage" 0)
             "ErrorString"
             [ DString error ]
@@ -92,7 +93,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString errorString ] ->
           let msg = LibCloud.SqlCompiler.errorTemplate + errorString
-          Dval.enum
+          DvalUtils.enum
             (RuntimeError.name [ "Error" ] "ErrorMessage" 0)
             "ErrorString"
             [ DString msg ]
