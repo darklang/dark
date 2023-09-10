@@ -20,7 +20,7 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build-tests",
-      "program": "/home/dark/app/backend/Build/out/Tests/Debug/net7.0/linux-x64/Tests",
+      "program": "/home/dark/app/backend/Build/out/Tests/Debug/net7.0/Tests",
       //"args": ["--filter-test-list", "HttpClient"],
       "args": ["--filter-test-case", "response-string-text"],
       "cwd": "${workspaceFolder}/backend",
