@@ -78,7 +78,7 @@ module RTE =
            |> List.map RT.DString
            |> RT.Dval.list (RT.ValueType.Known RT.KTString)) ]
 
-      RT.Dval.record errorTypeName fields
+      DvalUtils.record errorTypeName fields
 
     let fromDT (dv : RT.Dval) : Error =
       match dv with

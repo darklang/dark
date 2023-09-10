@@ -41,7 +41,7 @@ module FQName =
 
   module BuiltIn =
     let toDT (nameMapper : 'name -> Dval) (u : FQName.BuiltIn<'name>) : Dval =
-      Dval.record
+      DvalUtils.record
         (rtTyp [ "FQName" ] "BuiltIn" 0)
         [ "modules", Dval.list valueTypeTODO (List.map DString u.modules)
           "name", nameMapper u.name
@@ -60,7 +60,7 @@ module FQName =
 
   module UserProgram =
     let toDT (nameMapper : 'name -> Dval) (u : FQName.UserProgram<'name>) : Dval =
-      Dval.record
+      DvalUtils.record
         (rtTyp [ "FQName" ] "UserProgram" 0)
         [ "modules", Dval.list valueTypeTODO (List.map DString u.modules)
           "name", nameMapper u.name
@@ -79,7 +79,7 @@ module FQName =
 
   module Package =
     let toDT (nameMapper : 'name -> Dval) (u : FQName.Package<'name>) : Dval =
-      Dval.record
+      DvalUtils.record
         (rtTyp [ "FQName" ] "Package" 0)
         [ "owner", DString u.owner
           "modules", Dval.list valueTypeTODO (List.map DString u.modules)
@@ -306,7 +306,7 @@ module TypeReference =
 
 module Param =
   let toDT (p : Param) : Dval =
-    Dval.record
+    DvalUtils.record
       (rtTyp [] "Param" 0)
       [ ("name", DString p.name); ("typ", TypeReference.toDT p.typ) ]
 

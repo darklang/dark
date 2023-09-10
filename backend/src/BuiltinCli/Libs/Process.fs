@@ -7,6 +7,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 
+module DvalUtils = LibExecution.DvalUtils
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
@@ -51,7 +52,7 @@ let fns : List<BuiltInFn> =
 
           p.WaitForExit()
 
-          Dval.record
+          DvalUtils.record
             (TypeName.fqBuiltIn [ "Process" ] "Error" 0)
             [ ("exitCode", DInt(p.ExitCode))
               ("stdout", DString(stdout))

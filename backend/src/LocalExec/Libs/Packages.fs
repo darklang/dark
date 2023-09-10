@@ -9,9 +9,9 @@ open LibCloud.Db
 
 open Prelude
 open LibExecution.RuntimeTypes
-
 open LibExecution.Builtin.Shortcuts
 
+module DvalUtils = LibExecution.DvalUtils
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 let types : List<BuiltInType> =
@@ -145,7 +145,7 @@ let fns : List<BuiltInFn> =
                 valueTypeTODO
                 (packages
                  |> List.map (fun (owner, fnname, modules, version) ->
-                   Dval.record
+                   DvalUtils.record
                      (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0))
                      [ ("owner", DString owner)
                        ("modules",
@@ -192,7 +192,7 @@ let fns : List<BuiltInFn> =
                 valueTypeTODO
                 (packages
                  |> List.map (fun (owner, typename, modules, version) ->
-                   Dval.record
+                   DvalUtils.record
                      (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0))
                      [ ("owner", DString owner)
                        ("modules",
@@ -238,7 +238,7 @@ let fns : List<BuiltInFn> =
                 valueTypeTODO
                 (packages
                  |> List.map (fun (owner, fnname, modules, version) ->
-                   Dval.record
+                   DvalUtils.record
                      (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0))
                      [ ("owner", DString owner)
                        ("modules",

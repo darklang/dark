@@ -209,7 +209,7 @@ let fns : List<BuiltInFn> =
             let err (msg : string) (metadata : List<string * string>) =
               let metadata = metadata |> List.map (fun (k, v) -> k, DString v) |> Map
               DvalUtils.resultError (
-                Dval.record
+                DvalUtils.record
                   (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
                   [ "msg", DString msg; "metadata", DDict metadata ]
               )

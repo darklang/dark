@@ -215,7 +215,7 @@ let fns : List<BuiltInFn> =
             //   |> Dval.list valueTypeTODO
 
             return
-              Dval.record
+              DvalUtils.record
                 (FQName.BuiltIn(typ "Program" 0))
                 [ "types", types; "fns", fns ]
               |> DvalUtils.resultOk

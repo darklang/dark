@@ -7,6 +7,7 @@ module LibHttpMiddleware.Http
 open Prelude
 open LibExecution.Builtin.Shortcuts
 
+module DvalUtils = LibExecution.DvalUtils
 module RT = LibExecution.RuntimeTypes
 module Telemetry = LibService.Telemetry
 
@@ -37,7 +38,7 @@ module Request =
       )
 
     [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]
-    |> RT.Dval.record typ
+    |> DvalUtils.record typ
 
 
 module Response =

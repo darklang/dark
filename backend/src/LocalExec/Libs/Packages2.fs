@@ -79,7 +79,7 @@ let fns : List<BuiltInFn> =
 
             return
               DvalUtils.resultOk (
-                Dval.record
+                DvalUtils.record
                   (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0))
                   [ ("fns", Dval.list valueTypeTODO packagesFns)
                     ("types", Dval.list valueTypeTODO packagesTypes)

@@ -46,7 +46,7 @@ let fns : List<BuiltInFn> =
             return
               secrets
               |> List.map (fun s ->
-                Dval.record
+                DvalUtils.record
                   typeName
                   [ "name", DString s.name
                     "value", DString s.value

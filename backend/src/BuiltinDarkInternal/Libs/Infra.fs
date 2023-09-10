@@ -7,6 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module DvalUtils = LibExecution.DvalUtils
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Telemetry = LibService.Telemetry
 
@@ -105,7 +106,7 @@ human-readable data."
                    ("rows", DInt(ts.rows))
                    ("diskHuman", DString ts.diskHuman)
                    ("rowsHuman", DString ts.rowsHuman) ]
-                 |> Dval.record typeName))
+                 |> DvalUtils.record typeName))
               |> Map
               |> DDict
           }

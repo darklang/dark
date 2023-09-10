@@ -8,6 +8,8 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module DvalUtils = LibExecution.DvalUtils
+
 let modules = [ "DarkInternal"; "Documentation" ]
 
 let typ = typ modules
@@ -68,7 +70,7 @@ let fns : List<BuiltInFn> =
               let parameters =
                 data.parameters
                 |> List.map (fun p ->
-                  Dval.record
+                  DvalUtils.record
                     paramTypeName
                     [ ("name", DString p.name)
                       ("type", DString(typeNameToStr p.typ)) ])
@@ -76,7 +78,7 @@ let fns : List<BuiltInFn> =
                 ("description", DString data.description)
                 ("parameters", Dval.list valueTypeTODO parameters)
                 ("returnType", DString returnType) ]
-            Dval.record typeName alist)
+            DvalUtils.record typeName alist)
           |> Dval.list valueTypeTODO
           |> Ply
         | _ -> incorrectArgs ())

@@ -1064,34 +1064,6 @@ module Dval =
       | Error e -> DError(SourceNone, e)
 
 
-  let record
-    (typeName : TypeName.TypeName)
-    // TODO: (typeArgs: List<ValueType>)
-    (fields : List<string * Dval>)
-    : Dval =
-    // Give a warning for duplicate keys
-    List.fold
-      (fun m (k, v) ->
-        match m, k, v with
-        // TYPESCLEANUP: remove hacks
-        // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
-        | m, _k, _v when isFake m -> m
-        // Errors should propagate (but only if we're not already propagating an error)
-        | DRecord _, _, v when isFake v -> v
-        // Skip empty rows
-        | _, "", _ -> DError(SourceNone, RuntimeError.oldError $"Empty key {k}")
-        // Error if the key appears twice
-        | DRecord(_, _, _typeArgsTODO, m), k, _v when Map.containsKey k m ->
-          DError(SourceNone, RuntimeError.oldError $"Duplicate key: {k}")
-        // Otherwise add it
-        | DRecord(tn, o, _typeArgsTODO, m), k, v ->
-          DRecord(tn, o, valueTypesTODO, Map.add k v m)
-        // If we haven't got a DDict we're propagating an error so let it go
-        | m, _, _ -> m)
-      (DRecord(typeName, typeName, valueTypesTODO, Map.empty))
-      fields
-
-
   let errStr (s : string) : Dval = DError(SourceNone, RuntimeError.oldError s)
 
   let errSStr (source : DvalSource) (s : string) : Dval =

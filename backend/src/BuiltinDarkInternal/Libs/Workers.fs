@@ -8,6 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module DvalUtils = LibExecution.DvalUtils
 module DarkDateTime = LibExecution.DarkDateTime
 module SchedulingRules = LibCloud.QueueSchedulingRules
 module Pusher = LibCloud.Pusher
@@ -39,7 +40,7 @@ let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Dval =
 
   rules
   |> List.map (fun r ->
-    Dval.record
+    DvalUtils.record
       typeName
       [ ("id", Dval.int r.id)
         ("rule_type", r.ruleType.ToString() |> DString)

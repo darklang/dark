@@ -56,7 +56,7 @@ module FQName =
 
   module BuiltIn =
     let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.BuiltIn<'name>) : Dval =
-      Dval.record
+      DvalUtils.record
         (ptTyp [ "FQName" ] "BuiltIn" 0)
         [ "modules", Dval.list valueTypeTODO (List.map DString u.modules)
           "name", nameMapper u.name
@@ -75,7 +75,7 @@ module FQName =
 
   module UserProgram =
     let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.UserProgram<'name>) : Dval =
-      Dval.record
+      DvalUtils.record
         (ptTyp [ "FQName" ] "UserProgram" 0)
         [ "modules",
           Dval.list (ValueType.Known KTString) (List.map DString u.modules)
@@ -99,7 +99,7 @@ module FQName =
 
   module Package =
     let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.Package<'name>) : Dval =
-      Dval.record
+      DvalUtils.record
         (ptTyp [ "FQName" ] "Package" 0)
         [ "owner", DString u.owner
           "modules",
@@ -889,7 +889,7 @@ module Deprecation =
 module TypeDeclaration =
   module RecordField =
     let toDT (rf : PT.TypeDeclaration.RecordField) : Dval =
-      Dval.record
+      DvalUtils.record
         (ptTyp [ "TypeDeclaration" ] "RecordField" 0)
         [ "name", DString rf.name
           "typ", TypeReference.toDT rf.typ
@@ -908,7 +908,7 @@ module TypeDeclaration =
 
   module EnumField =
     let toDT (ef : PT.TypeDeclaration.EnumField) : Dval =
-      Dval.record
+      DvalUtils.record
         (ptTyp [ "TypeDeclaration" ] "EnumField" 0)
         [ "typ", TypeReference.toDT ef.typ
           "label", ef.label |> Option.map DString |> DvalUtils.option
@@ -935,7 +935,7 @@ module TypeDeclaration =
 
   module EnumCase =
     let toDT (ec : PT.TypeDeclaration.EnumCase) : Dval =
-      Dval.record
+      DvalUtils.record
         (ptTyp [ "TypeDeclaration" ] "EnumCase" 0)
         [ "name", DString ec.name
           "fields", Dval.list valueTypeTODO (List.map EnumField.toDT ec.fields)
@@ -992,7 +992,7 @@ module TypeDeclaration =
 
 
   let toDT (td : PT.TypeDeclaration.T) : Dval =
-    Dval.record
+    DvalUtils.record
       (ptTyp [ "TypeDeclaration" ] "TypeDeclaration" 0)
       [ "typeParams", Dval.list valueTypeTODO (List.map DString td.typeParams)
         "definition", Definition.toDT td.definition ]
@@ -1057,7 +1057,7 @@ module Handler =
       | _ -> Exception.raiseInternal "Invalid Spec" []
 
   let toDT (h : PT.Handler.T) : Dval =
-    Dval.record
+    DvalUtils.record
       (ptTyp [ "Handler" ] "Handler" 0)
       [ "tlid", DInt(int64 h.tlid)
         "ast", Expr.toDT h.ast
@@ -1077,7 +1077,7 @@ module Handler =
 
 module DB =
   let toDT (db : PT.DB.T) : Dval =
-    Dval.record
+    DvalUtils.record
       (ptTyp [] "DB" 0)
       [ "tlid", DInt(int64 db.tlid)
         "name", DString db.name
@@ -1098,7 +1098,7 @@ module DB =
 
 module UserType =
   let toDT (userType : PT.UserType.T) : Dval =
-    Dval.record
+    DvalUtils.record
       (ptTyp [] "UserType" 0)
       [ "tlid", DInt(int64 userType.tlid)
         "name", TypeName.UserProgram.toDT userType.name
@@ -1128,7 +1128,7 @@ module UserType =
 module UserFunction =
   module Parameter =
     let toDT (p : PT.UserFunction.Parameter) : Dval =
-      Dval.record
+      DvalUtils.record
         (ptTyp [ "UserFunction" ] "Parameter" 0)
         [ "name", DString p.name
           "typ", TypeReference.toDT p.typ
@@ -1147,7 +1147,7 @@ module UserFunction =
 
 
   let toDT (userFn : PT.UserFunction.T) : Dval =
-    Dval.record
+    DvalUtils.record
       (ptTyp [ "UserFunction" ] "UserFunction" 0)
       [ "tlid", DInt(int64 userFn.tlid)
         "name", FnName.UserProgram.toDT userFn.name
@@ -1191,7 +1191,7 @@ module UserFunction =
 
 module UserConstant =
   let toDT (userConstant : PT.UserConstant.T) : Dval =
-    Dval.record
+    DvalUtils.record
       (ptTyp [] "UserConstant" 0)
       [ "tlid", DInt(int64 userConstant.tlid)
         "name", ConstantName.UserProgram.toDT userConstant.name
@@ -1220,7 +1220,7 @@ module UserConstant =
 
 module Secret =
   let toDT (s : PT.Secret.T) : Dval =
-    Dval.record
+    DvalUtils.record
       (ptTyp [] "Secret" 0)
       [ "name", DString s.name; "value", DString s.value; "version", DInt s.version ]
 
@@ -1238,7 +1238,7 @@ module Secret =
 
 module PackageType =
   let toDT (p : PT.PackageType.T) : Dval =
-    Dval.record
+    DvalUtils.record
       (ptTyp [] "PackageType" 0)
       [ "tlid", DInt(int64 p.tlid)
         "id", DUuid p.id
@@ -1271,7 +1271,7 @@ module PackageType =
 module PackageFn =
   module Parameter =
     let toDT (p : PT.PackageFn.Parameter) : Dval =
-      Dval.record
+      DvalUtils.record
         (ptTyp [ "PackageFn" ] "Parameter" 0)
         [ "name", DString p.name
           "typ", TypeReference.toDT p.typ
@@ -1289,7 +1289,7 @@ module PackageFn =
       | _ -> Exception.raiseInternal "Invalid PackageFn.Parameter" []
 
   let toDT (p : PT.PackageFn.T) : Dval =
-    Dval.record
+    DvalUtils.record
       (ptTyp [ "PackageFn" ] "PackageFn" 0)
       [ "tlid", DInt(int64 p.tlid)
         "id", DUuid p.id
@@ -1337,7 +1337,7 @@ module PackageFn =
 
 module PackageConstant =
   let toDT (p : PT.PackageConstant.T) : Dval =
-    Dval.record
+    DvalUtils.record
       (ptTyp [] "PackageConstant" 0)
       [ "tlid", DInt(int64 p.tlid)
         "id", DUuid p.id

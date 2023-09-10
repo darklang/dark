@@ -428,7 +428,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                   [ ("statusCode", DInt(int64 response.statusCode))
                     ("headers", responseHeaders)
                     ("body", DBytes response.body) ]
-                  |> Dval.record typ
+                  |> DvalUtils.record typ
                   |> DvalUtils.resultOk
 
               | Error(BadUrl details) ->
