@@ -1,26 +1,38 @@
-// -- Creating Dvals --
-// Dvals should never be constructed that contain fakevals - the fakeval
-// should always propagate (though, there are specific cases in the
-// interpreter where they are discarded instead of propagated; still they are
-// never put into other dvals). These static members check before creating the values.
-// additionally, these functions fill in any ValueTypes relevant to a Dval,
-// failing if they conflict with any expected valueType.
-
-// Soon, some of thse are going to need a `Types` argument, which will be
-// needed to look up types (i.e. for DEnum construction).
-// When that happens, I suspect:
-// - we'll need to pass in a `types: Types` argument to several of these fns
-// - this whole module will become recursively defined
-
-// These could just as well be renamed DvalCreators
-// , but that name feels bad to me?
-//
-// maybe `CreateDval` or `DvalMaker` or something?
-// i.e. `CreateDval.enum ...` seems reasonable-ish
+/// Dvals should be created carefully:
+/// - to not have fakevals
+///  i.e. we should not have a list that contains a DError.
+///
+/// - to have the correct valueTypes, where appropriate
+///  i.e. we should not have DList(Known KTInt, [ DString("hi") ])
+///
+/// - similarly, we should fail when trying to merge Dvals with conflicting valueTypes
+///   i.e. `List.append [1] ["hi"]` should fail
+///   because we can't merge `Known KTInt` and `Known KTString`
+///
+/// These functions are intended to help with both of these.
+/// Direct construction of Dvals like `DList(Known KTInt, [ DString("hi") ])` would
+/// ideally be impossible in all files (I think?) but this one (and tests), but
+/// that's not possible right now, technically.
+///
+/// -----
+///
+/// Notes for WIP:
+/// Soon, some of these are going to need a `Types` argument, which will be
+/// needed to look up types (i.e. for DEnum construction, to ensure the fields
+/// provided match the expected type, and/or help to fill in any Unknowns in the
+/// type args
+///
+/// When that happens, I suspect:
+/// - we'll need to pass in a `types: Types` argument to several of these fns
+/// - this whole module will become recursively defined
 module LibExecution.DvalUtils
 
 open LibExecution.RuntimeTypes
 
+
+// TODO: rename this module. Ideas:
+//   `DvalCreator`, `CreateDval`, `DvalMaker`, `DvalBuilder`, etc.
+// `CreateDval.enum ...` isn't too bad
 
 // type DvalCreator = draft of an idea...
 //   { list: List<Dval> -> Dval }
@@ -174,18 +186,6 @@ let private listPush
   (listType : ValueType)
   (dv : Dval)
   : Result<ValueType * List<Dval>, RuntimeError> =
-  // what happens if we insert 5 into a list of strings? we should return an Error!
-
-  // if we try to insert an `Error` (with the _error_ type known)
-  // into a list of `Ok`s (with the _ok_ type known),
-  // then we merge those types (result: `TCustomType` with both `OK` and `Error` types)
-
-  // `KTCustomType("Result", [None, Some KTString])`
-  // and
-  // `KTCustomType("Result", [Some KTInt, None])`
-  // merges to be come
-  // `KTCustomType("Result", [Some KTInt, Some KTString])`
-
   let dvalType = toValueType dv
   let newType = mergeValueTypes listType dvalType
 
