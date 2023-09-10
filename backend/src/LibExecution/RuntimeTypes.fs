@@ -401,32 +401,32 @@ and [<RequireQualifiedAccess>] ValueType =
   | Unknown
   | Known of KnownType
 
-module private rec ValueType =
+
+module private ValueType =
   // _just_ enough to make some tests less ugly - this should all be in Dark code soon
   // CLEANUP VTTODO ^
-  let private knownTypeToString (kt : KnownType) : string =
-    match kt with
-    | KTUnit -> "Unit"
-    | KTBool -> "Bool"
-    | KTInt -> "Int"
-    | KTFloat -> "Float"
-    | KTChar -> "Char"
-    | KTString -> "String"
-    | KTUuid -> "Uuid"
-    | KTBytes -> "Bytes"
-    | KTDateTime -> "DateTime"
-    | KTPassword -> "Password"
-    | KTList inner -> $"List<{toString inner}>"
-    | KTTuple _ -> "Tuple (TODO)"
-    | KTFn _ -> "Fn (TODO)"
-    | KTDB _ -> "DB (TODO)"
-    | KTCustomType _ -> "CustomType (TODO)"
-    | KTDict _ -> "Dict (TODO)"
-
-  let toString (vt : ValueType) : string =
+  let rec toString (vt : ValueType) : string =
     match vt with
     | ValueType.Unknown -> "_"
-    | ValueType.Known kt -> knownTypeToString kt
+    | ValueType.Known kt ->
+      match kt with
+      | KTUnit -> "Unit"
+      | KTBool -> "Bool"
+      | KTInt -> "Int"
+      | KTFloat -> "Float"
+      | KTChar -> "Char"
+      | KTString -> "String"
+      | KTUuid -> "Uuid"
+      | KTBytes -> "Bytes"
+      | KTDateTime -> "DateTime"
+      | KTPassword -> "Password"
+      | KTList inner -> $"List<{toString inner}>"
+      | KTTuple _ -> "Tuple (TODO)"
+      | KTFn _ -> "Fn (TODO)"
+      | KTDB _ -> "DB (TODO)"
+      | KTCustomType _ -> "Custom Type (TODO)"
+      | KTDict _ -> "Dict (TODO)"
+
 
 /// VTTODO if this is used somewhere, re-evaluate the usage - it feels there's something to be done...
 /// CLEANUP eventually remove this binding
