@@ -302,12 +302,14 @@ module Darklang =
           // let justType = $"<{typename}>"
 
           match dv with
-          | DUnit -> "unit"
+          | DUnit -> "()"
 
           | DBool true -> "true"
           | DBool false -> "false"
 
-          | DChar c -> $"'{c}'"
+          | DChar c ->
+            let c = Stdlib.Char.toString c
+            $"'{c}'"
           | DString s -> $"\"{s}\""
 
           | DInt i -> Builtin.Int.toString i

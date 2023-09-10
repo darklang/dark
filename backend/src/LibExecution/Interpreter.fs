@@ -42,6 +42,9 @@ module Error =
   let matchExprUnmatched (matchVal : Dval) : RuntimeError =
     case "MatchExprUnmatched" [ RT2DT.Dval.toDT matchVal ]
 
+  let matchExprPatternWrongType (expected : string) (actual : Dval) : RuntimeError =
+    case "MatchExprPatternWrongType" [ DString expected; RT2DT.Dval.toDT actual ]
+
   let matchExprPatternWrongShape : RuntimeError =
     case "MatchExprPatternWrongShape" []
 
@@ -230,7 +233,9 @@ let rec eval'
                 | DString s -> return Ok(str + s)
                 | DError _ -> return Error(result)
                 | dv ->
-                  let msg = "Expected string, got " + DvalReprDeveloper.toRepr dv
+                  let msg =
+                    "Expected string in interpolated string, got "
+                    + DvalReprDeveloper.toRepr dv
                   return Error(errStr id msg)
               | Error dv, _ -> return Error dv
             })
@@ -558,13 +563,30 @@ let rec eval'
         (pattern : MatchPattern)
         : Matched * List<string * Dval> * List<id * Dval> =
         match pattern with
-        // TODO these should all fail if they're the wrong type
-        | MPInt(id, i) -> Ok(dv = DInt i), [], [ (id, DInt i) ]
-        | MPBool(id, b) -> Ok(dv = DBool b), [], [ (id, DBool b) ]
-        | MPChar(id, c) -> Ok(dv = DChar c), [], [ (id, DChar c) ]
-        | MPString(id, s) -> Ok(dv = DString s), [], [ (id, DString s) ]
-        | MPFloat(id, f) -> Ok(dv = DFloat f), [], [ (id, DFloat f) ]
-        | MPUnit(id) -> Ok(dv = DUnit), [], [ (id, DUnit) ]
+        | MPInt(id, pi) ->
+          match dv with
+          | DInt di -> Ok(di = pi), [], [ (id, dv) ]
+          | _ -> Error(id, Error.matchExprPatternWrongType "Int" dv), [], []
+        | MPBool(id, pb) ->
+          match dv with
+          | DBool db -> Ok(db = pb), [], [ (id, dv) ]
+          | _ -> Error(id, Error.matchExprPatternWrongType "Bool" dv), [], []
+        | MPChar(id, pc) ->
+          match dv with
+          | DChar dc -> Ok(dc = pc), [], [ (id, dv) ]
+          | _ -> Error(id, Error.matchExprPatternWrongType "Char" dv), [], []
+        | MPString(id, ps) ->
+          match dv with
+          | DString ds -> Ok(ds = ps), [], [ (id, dv) ]
+          | _ -> Error(id, Error.matchExprPatternWrongType "String" dv), [], []
+        | MPFloat(id, pf) ->
+          match dv with
+          | DFloat df -> Ok(df = pf), [], [ (id, dv) ]
+          | _ -> Error(id, Error.matchExprPatternWrongType "Float" dv), [], []
+        | MPUnit(id) ->
+          match dv with
+          | DUnit -> Ok true, [], [ (id, dv) ]
+          | _ -> Error(id, Error.matchExprPatternWrongType "Unit" dv), [], []
 
         | MPVariable(id, varName) -> Ok true, [ (varName, dv) ], [ (id, dv) ]
 
