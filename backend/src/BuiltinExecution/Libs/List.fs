@@ -444,10 +444,10 @@ let fns : List<BuiltInFn> =
               let array = List.toArray list
               do! Sort.sort fn array
               // CLEANUP: check fakevals
-              return array |> Array.toList |> Dval.list vt |> Dval.resultOk
+              return array |> Array.toList |> Dval.list vt |> DvalUtils.resultOk
             with
             | Errors.FakeDvalFound dv -> return dv
-            | e -> return Dval.resultError (DString e.Message)
+            | e -> return DvalUtils.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

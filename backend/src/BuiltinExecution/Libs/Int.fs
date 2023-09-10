@@ -9,6 +9,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module DvalUtils = LibExecution.DvalUtils
 module Errors = LibExecution.Errors
 
 let types : List<BuiltInType> = []
@@ -58,7 +59,7 @@ let fns : List<BuiltInFn> =
     //     (function
     //     | _, [ DInt v; DInt m ] ->
     //       (try
-    //         Ply(Dval.resultOk(DInt(v % m)))
+    //         Ply(DvalUtils.resultOk(DInt(v % m)))
     //        with
     //        | e ->
     //          if m <= 0L then
@@ -98,10 +99,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DInt v; DInt d ] ->
           (try
-            v % d |> DInt |> Dval.resultOk |> Ply
+            v % d |> DInt |> DvalUtils.resultOk |> Ply
            with e ->
              if d = 0L then
-               Ply(Dval.resultError (DString($"`divisor` must be non-zero")))
+               Ply(DvalUtils.resultError (DString($"`divisor` must be non-zero")))
              else
                Exception.raiseInternal
                  "unexpected failure case in Int.remainder"
@@ -166,8 +167,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DInt number; DInt exp as expdv ] ->
-          let errPipe e = e |> DString |> Dval.resultError |> Ply
-          let okPipe r = r |> DInt |> Dval.resultOk |> Ply
+          let errPipe e = e |> DString |> DvalUtils.resultError |> Ply
+          let okPipe r = r |> DInt |> DvalUtils.resultOk |> Ply
           (try
             if exp < 0L then
               Errors.argumentWasnt "positive" "exponent" expdv |> errPipe
@@ -337,11 +338,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString s ] ->
           (try
-            s |> System.Convert.ToInt64 |> DInt |> Dval.resultOk |> Ply
+            s |> System.Convert.ToInt64 |> DInt |> DvalUtils.resultOk |> Ply
            with _e ->
              $"Expected to parse String with only numbers, instead got \"{s}\""
              |> DString
-             |> Dval.resultError
+             |> DvalUtils.resultError
              |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

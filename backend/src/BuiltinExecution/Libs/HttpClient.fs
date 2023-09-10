@@ -429,32 +429,33 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     ("headers", responseHeaders)
                     ("body", DBytes response.body) ]
                   |> Dval.record typ
-                  |> Dval.resultOk
+                  |> DvalUtils.resultOk
 
               | Error(BadUrl details) ->
                 // TODO: include a DvalSource rather than SourceNone
-                return Dval.resultError (DString $"Bad URL: {details}")
+                return DvalUtils.resultError (DString $"Bad URL: {details}")
 
               | Error(Timeout) ->
-                return Dval.resultError (DString $"Request timed out")
+                return DvalUtils.resultError (DString $"Request timed out")
 
               | Error(NetworkError) ->
-                return Dval.resultError (DString $"Network error")
+                return DvalUtils.resultError (DString $"Network error")
 
-              | Error(Other details) -> return Dval.resultError (DString details)
+              | Error(Other details) ->
+                return DvalUtils.resultError (DString details)
             }
 
           | Error reqHeadersErr, _ ->
             uply {
               match reqHeadersErr with
-              | BadInput details -> return Dval.resultError (DString details)
+              | BadInput details -> return DvalUtils.resultError (DString details)
               | TypeMismatch details ->
                 return DError(SourceNone, RuntimeError.oldError details)
             }
 
           | _, None ->
             let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
-            uply { return Dval.resultError (DString error) }
+            uply { return DvalUtils.resultError (DString error) }
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

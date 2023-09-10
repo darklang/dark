@@ -173,17 +173,18 @@ let fns : List<BuiltInFn> =
               match parsedScript with
               | Ok mod' ->
                 match! execute state mod' symtable with
-                | DInt i -> return Dval.resultOk (DInt i)
-                | DError(_, e) -> return e |> RuntimeError.toDT |> Dval.resultError
+                | DInt i -> return DvalUtils.resultOk (DInt i)
+                | DError(_, e) ->
+                  return e |> RuntimeError.toDT |> DvalUtils.resultError
                 | result ->
                   return
                     CliRuntimeError.NonIntReturned result
                     |> CliRuntimeError.RTE.toRuntimeError
                     |> RuntimeError.toDT
-                    |> Dval.resultError
-              | Error e -> return e |> RuntimeError.toDT |> Dval.resultError
+                    |> DvalUtils.resultError
+              | Error e -> return e |> RuntimeError.toDT |> DvalUtils.resultError
             with e ->
-              return exnError e |> RuntimeError.toDT |> Dval.resultError
+              return exnError e |> RuntimeError.toDT |> DvalUtils.resultError
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -207,7 +208,7 @@ let fns : List<BuiltInFn> =
           uply {
             let err (msg : string) (metadata : List<string * string>) =
               let metadata = metadata |> List.map (fun (k, v) -> k, DString v) |> Map
-              Dval.resultError (
+              DvalUtils.resultError (
                 Dval.record
                   (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
                   [ "msg", DString msg; "metadata", DDict metadata ]
@@ -300,10 +301,10 @@ let fns : List<BuiltInFn> =
                         |> RuntimeError.toDT
                         |> LibExecution.DvalReprDeveloper.toRepr
                         |> DString
-                        |> Dval.resultError
+                        |> DvalUtils.resultError
                     | value ->
                       let asString = LibExecution.DvalReprDeveloper.toRepr value
-                      return Dval.resultOk (DString asString)
+                      return DvalUtils.resultOk (DString asString)
               | _ -> return incorrectArgs ()
             with e ->
               return exnError e

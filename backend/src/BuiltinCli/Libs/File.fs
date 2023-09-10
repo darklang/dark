@@ -7,6 +7,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 
+module DvalUtils = LibExecution.DvalUtils
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
@@ -28,9 +29,10 @@ let fns : List<BuiltInFn> =
           uply {
             try
               let! contents = System.IO.File.ReadAllBytesAsync path
-              return Dval.resultOk (DBytes contents)
+              return DvalUtils.resultOk (DBytes contents)
             with e ->
-              return Dval.resultError (DString($"Error reading file: {e.Message}"))
+              return
+                DvalUtils.resultError (DString($"Error reading file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -50,9 +52,10 @@ let fns : List<BuiltInFn> =
           uply {
             try
               do! System.IO.File.WriteAllBytesAsync(path, contents)
-              return Dval.resultOk (DUnit)
+              return DvalUtils.resultOk (DUnit)
             with e ->
-              return Dval.resultError (DString($"Error writing file: {e.Message}"))
+              return
+                DvalUtils.resultError (DString($"Error writing file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -72,9 +75,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               do! System.IO.File.WriteAllBytesAsync(path, content)
-              return Dval.resultOk DUnit
+              return DvalUtils.resultOk DUnit
             with e ->
-              return Dval.resultError (DString e.Message)
+              return DvalUtils.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -94,9 +97,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               let tempPath = System.IO.Path.GetTempFileName()
-              return Dval.resultOk (DString tempPath)
+              return DvalUtils.resultOk (DString tempPath)
             with e ->
-              return Dval.resultError (DString e.Message)
+              return DvalUtils.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -187,9 +190,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               let fileInfo = System.IO.FileInfo(path)
-              return Dval.resultOk (DInt fileInfo.Length)
+              return DvalUtils.resultOk (DInt fileInfo.Length)
             with e ->
-              return Dval.resultError (DString e.Message)
+              return DvalUtils.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

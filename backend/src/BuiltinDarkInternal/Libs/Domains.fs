@@ -7,6 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module DvalUtils = LibExecution.DvalUtils
 module Canvas = LibCloud.Canvas
 
 let modules = [ "DarkInternal"; "Canvas"; "Domain" ]
@@ -48,8 +49,8 @@ let fns : List<BuiltInFn> =
           uply {
             let! name = Canvas.canvasIDForDomain domain
             match name with
-            | Some name -> return Dval.resultOk (DUuid name)
-            | None -> return Dval.resultError (DString "Canvas not found")
+            | Some name -> return DvalUtils.resultOk (DUuid name)
+            | None -> return DvalUtils.resultError (DString "Canvas not found")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

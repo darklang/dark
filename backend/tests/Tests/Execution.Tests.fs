@@ -697,9 +697,9 @@ let testMatchPreview : Test =
 
       t
         "ok: y"
-        (let typeName = Dval.resultType
+        (let typeName = DvalUtils.resultType
          eEnum typeName "Ok" [ eStr "y" ])
-        [ (pOkVarOkId, "ok pat 2", er (Dval.resultOk (DString "y")))
+        [ (pOkVarOkId, "ok pat 2", er (DvalUtils.resultOk (DString "y")))
           (pOkVarVarId, "var pat", er (DString "y"))
           (okVarRhsId, "rhs", er (DString "ok: y"))
           (okVarRhsVarId, "rhs", er (DString "y"))

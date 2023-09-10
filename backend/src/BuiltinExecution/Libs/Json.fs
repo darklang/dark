@@ -7,7 +7,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module DarkDateTime = LibExecution.DarkDateTime
-
+module DvalUtils = LibExecution.DvalUtils
 
 
 // parsing
@@ -590,7 +590,7 @@ let fns : List<BuiltInFn> =
             let types = ExecutionState.availableTypes state
             let! response =
               writeJson (fun w -> serialize types w typeToSerializeAs arg)
-            return Dval.resultOk (DString response)
+            return DvalUtils.resultOk (DString response)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -610,8 +610,8 @@ let fns : List<BuiltInFn> =
           let types = ExecutionState.availableTypes state
           uply {
             match! parse types typeArg arg with
-            | Ok v -> return Dval.resultOk v
-            | Error e -> return Dval.resultError (DString e)
+            | Ok v -> return DvalUtils.resultOk v
+            | Error e -> return DvalUtils.resultError (DString e)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

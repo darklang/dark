@@ -1,12 +1,14 @@
 module BuiltinExecution.Libs.Bytes
 
-open LibExecution.RuntimeTypes
-open Prelude
 open System
 open System.Text
+open System.Text.RegularExpressions
+
+open Prelude
+open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-open System.Text.RegularExpressions
+module DvalUtils = LibExecution.DvalUtils
 
 let types : List<BuiltInType> = []
 
@@ -44,20 +46,20 @@ let fns : List<BuiltInFn> =
 
           if s = "" then
             // This seems like we should allow it
-            [||] |> DBytes |> Dval.resultOk |> Ply
+            [||] |> DBytes |> DvalUtils.resultOk |> Ply
           elif Regex.IsMatch(s, @"\s") then
             // dotnet ignores whitespace but we don't allow it
-            "Not a valid base64 string" |> DString |> Dval.resultError |> Ply
+            "Not a valid base64 string" |> DString |> DvalUtils.resultError |> Ply
           else
             try
               s
               |> base64FromUrlEncoded
               |> Convert.FromBase64String
               |> DBytes
-              |> Dval.resultOk
+              |> DvalUtils.resultOk
               |> Ply
             with e ->
-              Ply(Dval.resultError (DString("Not a valid base64 string")))
+              Ply(DvalUtils.resultError (DString("Not a valid base64 string")))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

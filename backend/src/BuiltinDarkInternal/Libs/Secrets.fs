@@ -7,6 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module DvalUtils = LibExecution.DvalUtils
 module Secret = LibCloud.Secret
 
 
@@ -94,9 +95,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               do! Secret.insert canvasID name value (int version)
-              return Dval.resultOk DUnit
+              return DvalUtils.resultOk DUnit
             with _ ->
-              return Dval.resultError (DString "Error inserting secret")
+              return DvalUtils.resultError (DString "Error inserting secret")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

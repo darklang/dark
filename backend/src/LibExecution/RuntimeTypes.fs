@@ -1092,20 +1092,6 @@ module Dval =
       fields
 
 
-  let resultType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0
-
-  let resultOk (dv : Dval) : Dval =
-    if isFake dv then dv else DEnum(resultType, resultType, "Ok", [ dv ])
-  let resultError (dv : Dval) : Dval =
-    if isFake dv then dv else DEnum(resultType, resultType, "Error", [ dv ])
-
-  // Wraps in a Result after checking that the value is not a fakeval
-  let result (dv : Result<Dval, Dval>) : Dval =
-    match dv with
-    | Ok dv -> resultOk dv
-    | Error dv -> resultError dv
-
-
   let errStr (s : string) : Dval = DError(SourceNone, RuntimeError.oldError s)
 
   let errSStr (source : DvalSource) (s : string) : Dval =

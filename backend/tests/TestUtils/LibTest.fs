@@ -196,7 +196,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString msg ] ->
-          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
+          Ply(DvalUtils.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -211,7 +211,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString msg ] ->
-          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
+          Ply(DvalUtils.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -8,6 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module DvalUtils = LibExecution.DvalUtils
 module PT = LibExecution.ProgramTypes
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
@@ -217,7 +218,7 @@ let fns : List<BuiltInFn> =
               Dval.record
                 (FQName.BuiltIn(typ "Program" 0))
                 [ "types", types; "fns", fns ]
-              |> Dval.resultOk
+              |> DvalUtils.resultOk
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

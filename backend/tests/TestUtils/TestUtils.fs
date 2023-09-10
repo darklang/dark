@@ -1172,7 +1172,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DTuple(Dval.int 1, Dval.int 2, [ DUnit ]),
      TTuple(TInt, TInt, [ TUnit ]))
     ("tupleWithError",
-     DTuple(Dval.int 1, Dval.resultError (DString "error"), []),
+     DTuple(Dval.int 1, DvalUtils.resultError (DString "error"), []),
      TTuple(TInt, TypeReference.result TInt TString, [])) ]
 
 let sampleDvals : List<string * (Dval * TypeReference)> =

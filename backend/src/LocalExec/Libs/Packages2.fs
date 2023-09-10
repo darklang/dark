@@ -9,6 +9,7 @@ open LibExecution.RuntimeTypes
 
 open LibExecution.Builtin.Shortcuts
 
+module DvalUtils = LibExecution.DvalUtils
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 let packageManager = LibCloud.PackageManager.packageManager
@@ -77,7 +78,7 @@ let fns : List<BuiltInFn> =
             let packagesConstants = constants |> List.map PT2DT.PackageConstant.toDT
 
             return
-              Dval.resultOk (
+              DvalUtils.resultOk (
                 Dval.record
                   (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0))
                   [ ("fns", Dval.list valueTypeTODO packagesFns)

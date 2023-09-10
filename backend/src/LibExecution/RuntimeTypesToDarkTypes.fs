@@ -224,13 +224,13 @@ module ConstantName =
 module NameResolution =
   let toDT (f : 'p -> Dval) (result : NameResolution<'p>) : Dval =
     match result with
-    | Ok name -> Dval.resultOk (f name)
-    | Error err -> Dval.resultError (RuntimeError.toDT err)
+    | Ok name -> DvalUtils.resultOk (f name)
+    | Error err -> DvalUtils.resultError (RuntimeError.toDT err)
 
   let fromDT (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
     match d with
-    | DEnum(tn, _, "Ok", [ v ]) when tn = Dval.resultType -> Ok(f v)
-    | DEnum(tn, _, "Error", [ v ]) when tn = Dval.resultType ->
+    | DEnum(tn, _, "Ok", [ v ]) when tn = DvalUtils.resultType -> Ok(f v)
+    | DEnum(tn, _, "Error", [ v ]) when tn = DvalUtils.resultType ->
       Error(RuntimeError.fromDT v)
     | _ -> Exception.raiseInternal "Invalid NameResolution" []
 

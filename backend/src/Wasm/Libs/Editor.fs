@@ -9,6 +9,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 open Wasm.EvalHelpers
 
+module DvalUtils = LibExecution.DvalUtils
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
@@ -49,10 +50,12 @@ let fns : List<BuiltInFn> =
             try
               let state = editor.CurrentState
               // TODO: assert that the type matches the given typeParam
-              return Dval.resultOk state
+              return DvalUtils.resultOk state
             with e ->
               return
-                $"Error getting state: {e.Message}" |> DString |> Dval.resultError
+                $"Error getting state: {e.Message}"
+                |> DString
+                |> DvalUtils.resultError
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -72,7 +75,7 @@ let fns : List<BuiltInFn> =
           uply {
             // TODO: verify that the type matches the given typeParam
             editor <- { editor with CurrentState = v }
-            return Dval.resultOk v
+            return DvalUtils.resultOk v
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -111,14 +114,14 @@ let fns : List<BuiltInFn> =
             uply {
               try
                 do Wasm.WasmHelpers.callJSFunction functionName args
-                return Dval.resultOk DUnit
+                return DvalUtils.resultOk DUnit
               with e ->
                 return
                   $"Error calling {functionName} with provided args: {e.Message}"
                   |> DString
-                  |> Dval.resultError
+                  |> DvalUtils.resultError
             }
-          | Error err -> Ply(Dval.resultError (DString err))
+          | Error err -> Ply(DvalUtils.resultError (DString err))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -160,12 +163,12 @@ let fns : List<BuiltInFn> =
             match result with
             | DError(_source, rte) ->
               // TODO probably need to call `toString` on the RTE, or raise it
-              return Dval.resultError (DString(string rte))
+              return DvalUtils.resultError (DString(string rte))
             | result ->
               return
                 LibExecution.DvalReprDeveloper.toRepr result
                 |> DString
-                |> Dval.resultOk
+                |> DvalUtils.resultOk
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
