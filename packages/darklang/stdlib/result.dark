@@ -42,9 +42,15 @@ module Darklang =
       /// to <var v1>, <var v2>, and <var v3>, and the result is wrapped in {{Ok}}.
       /// Otherwise, returns the first of <param result1>, <param result2>, and
       /// <param result3> that is an error.
-      let map3 (result1: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'e>) (result2: PACKAGE.Darklang.Stdlib.Result.Result<'b, 'e>) (result3: PACKAGE.Darklang.Stdlib.Result.Result<'c, 'e>) (fn: 'a -> 'b -> 'c -> 'd) : PACKAGE.Darklang.Stdlib.Result.Result<'d, 'e> =
+      let map3
+        (result1: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'e>)
+        (result2: PACKAGE.Darklang.Stdlib.Result.Result<'b, 'e>)
+        (result3: PACKAGE.Darklang.Stdlib.Result.Result<'c, 'e>)
+        (fn: 'a -> 'b -> 'c -> 'd)
+        : PACKAGE.Darklang.Stdlib.Result.Result<'d, 'e> =
         match (result1, result2, result3) with
-        | (Ok v1, Ok v2, Ok v3) -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn v1 v2 v3)
+        | (Ok v1, Ok v2, Ok v3) ->
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn v1 v2 v3)
         | (Error e1, _, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e1
         | (_, Error e2, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e2
         | (_, _, Error e3) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e3
@@ -57,9 +63,16 @@ module Darklang =
       /// and the result is wrapped in {{Ok}}. Otherwise, returns the first of <param
       /// result1>, <param result2>, <param result3>, and <param result4> that is an
       /// error.
-      let map4 (result1: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'e>) (result2: PACKAGE.Darklang.Stdlib.Result.Result<'b, 'e>) (result3: PACKAGE.Darklang.Stdlib.Result.Result<'c, 'e>) (result4: PACKAGE.Darklang.Stdlib.Result.Result<'d, 'e>) (fn: 'a -> 'b -> 'c -> 'd -> 'f) : PACKAGE.Darklang.Stdlib.Result.Result<'f, 'e> =
+      let map4
+        (result1: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'e>)
+        (result2: PACKAGE.Darklang.Stdlib.Result.Result<'b, 'e>)
+        (result3: PACKAGE.Darklang.Stdlib.Result.Result<'c, 'e>)
+        (result4: PACKAGE.Darklang.Stdlib.Result.Result<'d, 'e>)
+        (fn: 'a -> 'b -> 'c -> 'd -> 'f)
+        : PACKAGE.Darklang.Stdlib.Result.Result<'f, 'e> =
         match (result1, result2, result3, result4) with
-        | (Ok v1, Ok v2, Ok v3, Ok v4) -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn v1 v2 v3 v4)
+        | (Ok v1, Ok v2, Ok v3, Ok v4) ->
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn v1 v2 v3 v4)
         | (Error e1, _, _, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e1
         | (_, Error e2, _, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e2
         | (_, _, Error e3, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e3
@@ -73,9 +86,17 @@ module Darklang =
       /// <var v1>, <var v2>, <var v3>, <var v4>, and <var v5>, and the result is
       /// wrapped in {{Ok}}. Otherwise, returns the first of <param result1>, <param
       /// result2>, <param result3>, <param result4>, and <param result5> that is an error.
-      let map5 (result1: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'e>) (result2: PACKAGE.Darklang.Stdlib.Result.Result<'b, 'e>) (result3: PACKAGE.Darklang.Stdlib.Result.Result<'c, 'e>) (result4: PACKAGE.Darklang.Stdlib.Result.Result<'d, 'e>) (result5: PACKAGE.Darklang.Stdlib.Result.Result<'f, 'e>) (fn: 'a -> 'b -> 'c -> 'd -> 'f -> 'g) : PACKAGE.Darklang.Stdlib.Result.Result<'g, 'e> =
+      let map5
+        (result1: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'e>)
+        (result2: PACKAGE.Darklang.Stdlib.Result.Result<'b, 'e>)
+        (result3: PACKAGE.Darklang.Stdlib.Result.Result<'c, 'e>)
+        (result4: PACKAGE.Darklang.Stdlib.Result.Result<'d, 'e>)
+        (result5: PACKAGE.Darklang.Stdlib.Result.Result<'f, 'e>)
+        (fn: 'a -> 'b -> 'c -> 'd -> 'f -> 'g)
+        : PACKAGE.Darklang.Stdlib.Result.Result<'g, 'e> =
         match (result1, result2, result3, result4, result5) with
-        | (Ok v1, Ok v2, Ok v3, Ok v4, Ok v5) -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn v1 v2 v3 v4 v5)
+        | (Ok v1, Ok v2, Ok v3, Ok v4, Ok v5) ->
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn v1 v2 v3 v4 v5)
         | (Error e1, _, _, _, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e1
         | (_, Error e2, _, _, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e2
         | (_, _, Error e3, _, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e3
@@ -184,15 +205,20 @@ module Darklang =
         | Error _ -> true
 
       /// Returns <param result2> if <param result1> is {{Ok <var value>}}. Otherwise, returns <param result1>.
-      let ``and`` (result1: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>) (result2: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>) : PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e> =
+      let ``and``
+        (result1: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>)
+        (result2: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>)
+        : PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e> =
         match result1 with
         | Ok _ -> result2
         | Error _ -> result1
 
 
       /// Returns <param result1> if it is {{Ok _}}. Otherwise, returns <param result2>.
-      let ``or`` (result1: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>) (result2: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>) : PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e> =
+      let ``or``
+        (result1: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>)
+        (result2: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>)
+        : PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e> =
         match result1 with
         | Ok _ -> result1
         | Error _ -> result2
-
