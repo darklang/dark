@@ -24,7 +24,6 @@
 ///
 /// When that happens, I suspect:
 /// - we'll need to pass in a `types: Types` argument to several of these fns
-/// - this whole module will become recursively defined
 module LibExecution.DvalUtils
 
 open LibExecution.RuntimeTypes
