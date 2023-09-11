@@ -241,3 +241,39 @@ module Darklang =
         match result with
         | Ok value -> value
         | Error e -> PACKAGE.Darklang.Stdlib.Result.Result.Error e
+
+
+      /// Combines a list of results into a single list of unwrapped values.
+      /// If all of the results are {{Ok <var value>}}, returns {{Ok <list of unwrapped values>}}.
+      /// If any of the results are {{Error <var msg>}}, returns {{Error <var msg>}}.
+      let combine
+        (results: List<PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>>)
+        : PACKAGE.Darklang.Stdlib.Result.Result<List<'t>, 'e> =
+        results
+        |> PACKAGE.Darklang.Stdlib.List.fold
+          (PACKAGE.Darklang.Stdlib.Result.Result.Ok [])
+          (fun acc result ->
+            match (acc, result) with
+            | (Ok acc, Ok result) ->
+              PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+                PACKAGE.Darklang.Stdlib.List.pushBack acc result
+              )
+            | (Ok _, Error err) -> PACKAGE.Darklang.Stdlib.Result.Result.Error err
+            | (Error err, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error err)
+
+
+      /// Returns a list of all the values that are {{Ok <var value>}}, and ignores any values that are {{Error <var msg>}}.
+      let values
+        (results: List<PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>>)
+        : PACKAGE.Darklang.Stdlib.Result.Result<List<'t>, 'e> =
+        results
+        |> PACKAGE.Darklang.Stdlib.List.fold
+          (PACKAGE.Darklang.Stdlib.Result.Result.Ok [])
+          (fun acc result ->
+            match (acc, result) with
+            | (Ok acc, Ok result) ->
+              PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+                PACKAGE.Darklang.Stdlib.List.pushBack acc result
+              )
+            | (Ok _, Error _) -> acc
+            | (Error err, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error err)

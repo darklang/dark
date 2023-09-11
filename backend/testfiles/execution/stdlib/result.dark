@@ -345,3 +345,45 @@ PACKAGE.Darklang.Stdlib.Result.join_v0 (
 PACKAGE.Darklang.Stdlib.Result.join_v0 (
   PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
 ) = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+
+
+PACKAGE.Darklang.Stdlib.Result.combine_v0
+  [ PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok 2
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok 3 ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ 1; 2; 3 ]
+
+PACKAGE.Darklang.Stdlib.Result.combine_v0
+  [ PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+    PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok 3 ] = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "test"
+
+PACKAGE.Darklang.Stdlib.Result.combine_v0
+  [ PACKAGE.Darklang.Stdlib.Result.Result.Error "test1"
+    PACKAGE.Darklang.Stdlib.Result.Result.Error "test2" ] = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "test1"
+
+PACKAGE.Darklang.Stdlib.Result.combine_v0 [] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  []
+
+
+PACKAGE.Darklang.Stdlib.Result.values_v0
+  [ PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok 2
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok 3 ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ 1; 2; 3 ]
+
+PACKAGE.Darklang.Stdlib.Result.values_v0
+  [ PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+    PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok 3 ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ 1; 3 ]
+
+PACKAGE.Darklang.Stdlib.Result.values_v0
+  [ PACKAGE.Darklang.Stdlib.Result.Result.Error "test1"
+    PACKAGE.Darklang.Stdlib.Result.Result.Error "test2" ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  []
+
+PACKAGE.Darklang.Stdlib.Result.values_v0 [] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  []
