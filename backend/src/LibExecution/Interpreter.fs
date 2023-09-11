@@ -234,7 +234,7 @@ let rec eval'
                 | DError _ -> return Error(result)
                 | dv ->
                   let msg =
-                    "Expected string in interpolated string, got "
+                    "Expected String in string interpolation, got "
                     + DvalReprDeveloper.toRepr dv
                   return Error(errStr id msg)
               | Error dv, _ -> return Error dv
