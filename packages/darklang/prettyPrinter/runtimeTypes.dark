@@ -370,8 +370,8 @@ module Darklang =
               | [] -> ""
               | args ->
                 args
-                |> Builtin.List.map (fun t -> valueTypeName t)
-                |> Builtin.String.join ", "
+                |> PACKAGE.Darklang.Stdlib.List.map (fun t -> valueTypeName t)
+                |> PACKAGE.Darklang.Stdlib.String.join ", "
                 |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
             typeStr ++ typeArgsPart ++ " {" ++ inl ++ elems ++ nl ++ "}"
