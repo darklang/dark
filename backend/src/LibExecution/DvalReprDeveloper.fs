@@ -121,7 +121,7 @@ let toRepr (dv : Dval) : string =
       else
         let result = sprintf "%.12g" f
         if result.Contains "." then result else $"{result}.0"
-    | DUnit -> "unit"
+    | DUnit -> "()"
     | DFnVal _ ->
       // TODO: we should print this, as this use case is safe
       // See docs/dblock-serialization.md

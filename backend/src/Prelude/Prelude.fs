@@ -159,6 +159,9 @@ let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
 
 let print (string : string) : unit = NonBlockingConsole.writeLine string
 
+let printTime (string : string) : unit =
+  let now = System.DateTime.UtcNow.ToString("mm:ss.ff")
+  print $"{now} {string}"
 
 // Print the value of `a`. Note that since this is wrapped in a task, it must
 // resolve the task before it can print, which could lead to different ordering

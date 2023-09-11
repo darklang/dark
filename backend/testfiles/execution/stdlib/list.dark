@@ -106,14 +106,6 @@ PACKAGE.Darklang.Stdlib.List.filterMap_v0 [ 1; 2; 3 ] (fun item ->
   else
     (PACKAGE.Darklang.Stdlib.Option.Option.Some(item * 2))) = [ 2; 6 ]
 
-// TODO: better error message
-PACKAGE.Darklang.Stdlib.List.filterMap_v0 [ 1; 2; 3 ] (fun item ->
-  if item == 2 then
-    false
-  else
-    (PACKAGE.Darklang.Stdlib.Option.Option.Some(item * 2))) = Builtin.Test.derrorMessage
-  "No match"
-
 PACKAGE.Darklang.Stdlib.List.filterMap_v0 [] (fun item -> 0) = []
 
 PACKAGE.Darklang.Stdlib.List.findFirst [ 1; 2; 3 ] (fun x -> x > 5) = PACKAGE.Darklang.Stdlib.Option.Option.None

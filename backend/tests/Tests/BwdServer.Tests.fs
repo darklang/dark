@@ -466,4 +466,4 @@ let init (token : System.Threading.CancellationToken) : Task =
   let port = TestConfig.bwdServerBackendPort
   let k8sPort = TestConfig.bwdServerKubernetesPort
   let logger = configureLogging "test-bwdserver"
-  (BwdServer.Server.webserver logger port k8sPort).RunAsync(token)
+  (BwdServer.Server.webserver (Some logger) port k8sPort).RunAsync(token)

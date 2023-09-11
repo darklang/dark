@@ -33,6 +33,7 @@ variable "service_env_vars" {
 
     # Logging
     "DARK_CONFIG_ENV_DISPLAY_NAME" = "production"
+    "DARK_CONFIG_DEFAULT_LOGGER"   = "none" # We use telemety instead
 
     # Rollbar
     "DARK_CONFIG_ROLLBAR_ENABLED"          = "y"

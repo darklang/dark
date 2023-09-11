@@ -277,6 +277,15 @@ def reload_all_packages():
   return run_backend(start, f"scripts/build/reload-packages {configuration}")
 
 
+def reload_canvas(f):
+  start = time.time()
+  # make relative to cwd
+  f = os.path.normpath(f)
+  f = os.path.relpath(f, "canvases")  # remove /canvases
+  (f, _) = os.path.split(f)  # remove filename
+  return run_backend(start, f"scripts/run-canvas-hack {f}")
+
+
 class Should:
 
   def __init__(self):
@@ -288,6 +297,7 @@ class Should:
     self.backend_full_build = False
     self.backend_test = False
     self.reload_all_packages = False
+    self.reload_canvases = []
     self.npm_install = False
     self.circleci_validate = False
     self.clear_local_db = False
@@ -334,6 +344,10 @@ def execute(should):
 
   if should.reload_all_packages:
     if not reload_all_packages(): success = False
+
+  if should.reload_canvases != []:
+    if not all([reload_canvas(f) for f in should.reload_canvases]):
+      success = False
 
   if should.copy_dark_wasm:
     if not copy_dark_wasm(): success = False
@@ -395,6 +409,9 @@ def mark(should, f):
 
   elif ("/packages/" in f) and (f.endswith(".dark")):
     should.reload_all_packages = True
+
+  elif ("/canvases/" in f) and (f.endswith(".dark")):
+    should.reload_canvases += [f]
 
   # elif ("/LocalExec/" in f) and (f.endswith(".dark")):
   #   should.reload_all_packages = True

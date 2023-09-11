@@ -201,6 +201,7 @@ let processNotification
                   // CLEANUP Set a time limit of 3m
                   try
                     let program = Canvas.toProgram c
+                    // CLEANUP check DError
                     let! (result, traceResults) =
                       CloudExecution.executeHandler
                         LibClientTypesToCloudTypes.Pusher.eventSerializer
@@ -322,7 +323,7 @@ let initSerializers () =
 let main _ : int =
   try
     let name = "QueueWorker"
-    print "Starting QueueWorker"
+    printTime "Starting QueueWorker"
     initSerializers ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries

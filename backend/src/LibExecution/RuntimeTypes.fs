@@ -703,7 +703,8 @@ module RuntimeError =
   let sqlCompilerRuntimeError (internalError : RuntimeError) =
     case "SqlCompilerRuntimeError" [ toDT internalError ]
 
-  let incomplete = case "Incomplete" []
+  let executionError field = case "ExecutionError" [ field ]
+
 
   // let exceptionThrown (ex : System.Exception) : RuntimeError =
   //   case
@@ -1460,6 +1461,7 @@ and BuiltIns =
 and PackageManager =
   { getType : TypeName.Package -> Ply<Option<PackageType.T>>
     getFn : FnName.Package -> Ply<Option<PackageFn.T>>
+    getFnByTLID : tlid -> Ply<Option<PackageFn.T>>
     getConstant : ConstantName.Package -> Ply<Option<PackageConstant.T>>
 
     init : Ply<unit> }
@@ -1467,6 +1469,7 @@ and PackageManager =
   static member Empty =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
+      getFnByTLID = (fun _ -> Ply None)
       getConstant = (fun _ -> Ply None)
 
       init = uply { return () } }

@@ -205,8 +205,10 @@ let rec serialize
           | _ ->
             Exception.raiseInternal
               "Expected a DRecord but got something else"
-              [ "dval", dval
-                "type", LibExecution.DvalReprDeveloper.toTypeName dval ]
+              [ "actualDval", dval
+                "actualType", LibExecution.DvalReprDeveloper.toTypeName dval
+                "expectedType", typeName
+                "expectedFields", fields ]
 
 
     | TCustomType(Error errTypeName, _typeArgs), dval ->

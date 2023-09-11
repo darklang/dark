@@ -144,7 +144,10 @@ let testRecursionInEditor : Test =
       (Dictionary.get skippedCallerID results)
       (Some(
         AT.NonExecutedResult(
-          DError(SourceID(recurse.tlid, skippedCallerID), RuntimeError.incomplete)
+          DError(
+            SourceID(recurse.tlid, skippedCallerID),
+            LibExecution.Interpreter.Error.incomplete
+          )
         )
       ))
       "result is incomplete for other path"
@@ -399,7 +402,9 @@ let testLambdaPreview : Test =
              )
            ))
           (p1ID,
-           AT.NonExecutedResult(DError(SourceID(7UL, p1ID), RuntimeError.incomplete)))
+           AT.NonExecutedResult(
+             DError(SourceID(7UL, p1ID), LibExecution.Interpreter.Error.incomplete)
+           ))
           (65UL, AT.NonExecutedResult(DString "body")) ]) ]
 
 
@@ -600,7 +605,8 @@ let testMatchPreview : Test =
   // helpers
   let er x = AT.ExecutedResult x
   let ner x = AT.NonExecutedResult x
-  let inc iid = DError(SourceID(id 7, iid), RuntimeError.incomplete)
+  let inc iid =
+    DError(SourceID(id 7, iid), LibExecution.Interpreter.Error.incomplete)
 
   testList
     "test match evaluation"
@@ -815,7 +821,7 @@ let testLetPreview : Test =
           (Map.get lpID result)
           (Some(
             AT.NonExecutedResult(
-              DError(SourceID(7UL, lpID), RuntimeError.incomplete)
+              DError(SourceID(7UL, lpID), LibExecution.Interpreter.Error.incomplete)
             )
           ))
           "let pattern is incomplete due to error in RHS"
@@ -886,7 +892,7 @@ let testLetPreview : Test =
 
 let tests =
   testList
-    "ExecutionUnitTests"
+    "ExecutionTests"
     [ testRecursionInEditor
       testIfPreview
       testOrPreview

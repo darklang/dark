@@ -650,77 +650,82 @@ module ET2PT = ExternalTypesToProgramTypes
 
 // TODO: copy back to LibCloud/LibCloudExecution, or relocate somewhere central
 // TODO: what should we do when the shape of types at the corresponding endpoints change?
+
 let packageManager : RT.PackageManager =
   let httpClient = new System.Net.Http.HttpClient() // CLEANUP pass this in as param? or mutate it externally?
 
-  // TODO: bring back caching of some sort
+  let withCache (f : 'name -> Ply<Option<'value>>) =
+    let cache = System.Collections.Concurrent.ConcurrentDictionary<'name, 'value>()
+    fun (name : 'name) ->
+      uply {
+        let mutable cached = Unchecked.defaultof<'value>
+        let inCache = cache.TryGetValue(name, &cached)
+        if inCache then
+          return Some cached
+        else
+          let! result = f name
+          match result with
+          | Some v -> cache.TryAdd(name, v) |> ignore<bool>
+          | None -> ()
+          return result
+      }
+
+  let fetch
+    (kind : string)
+    (name : string)
+    (f : 'serverType -> 'cachedType)
+    : Ply<Option<'cachedType>> =
+    uply {
+      let! response =
+        $"http://dark-packages.dlio.localhost:11003/{kind}/by-name/{name}"
+        |> httpClient.GetAsync
+
+      let! responseStr = response.Content.ReadAsStringAsync()
+      try
+        let deserialized =
+          responseStr |> Json.Vanilla.deserialize<Option<'serverType>>
+        match deserialized with
+        | None -> return None
+        | Some deserialized ->
+          let cached = f deserialized
+          return Some cached
+      with e ->
+        return
+          Exception.raiseInternal
+            "Failed to deserialize package"
+            [ "responseStr", responseStr ]
+            e
+    }
 
   { getType =
-      fun name ->
+      withCache (fun name ->
         uply {
-          let name =
-            let modulesPart = String.concat "." name.modules
-            let namePart =
-              match name.name with
-              | RT.TypeName.TypeName name -> name
-            $"{name.owner}.{modulesPart}.{namePart}"
-          let! response =
-            $"http://dark-packages.dlio.localhost:11003/type/by-name/{name}"
-            |> httpClient.GetAsync
-
-          let! responseStr = response.Content.ReadAsStringAsync()
-
-          return
-            responseStr
-            |> Json.Vanilla.deserialize<Option<ProgramTypes.PackageType>>
-            |> Option.map (fun parsed ->
-              parsed |> ET2PT.PackageType.toPT |> PT2RT.PackageType.toRT)
-        }
+          let nameString = RT.TypeName.packageToString name
+          let conversionFn (parsed : EPT.PackageType) : RT.PackageType.T =
+            parsed |> ET2PT.PackageType.toPT |> PT2RT.PackageType.toRT
+          return! fetch "type" nameString conversionFn
+        })
 
     getFn =
-      fun name ->
+      withCache (fun name ->
         uply {
-          let name =
-            let modulesPart = String.concat "." name.modules
-            let namePart =
-              match name.name with
-              | RT.FnName.FnName name -> name
-            $"{name.owner}.{modulesPart}.{namePart}"
+          let nameString = RT.FnName.packageToString name
+          let conversionFn (parsed : EPT.PackageFn.PackageFn) : RT.PackageFn.T =
+            parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT
+          return! fetch "function" nameString conversionFn
+        })
 
-          let! response =
-            $"http://dark-packages.dlio.localhost:11003/function/by-name/{name}"
-            |> httpClient.GetAsync
-
-          let! responseStr = response.Content.ReadAsStringAsync()
-
-          return
-            responseStr
-            |> Json.Vanilla.deserialize<Option<ProgramTypes.PackageFn.PackageFn>>
-            |> Option.map (fun parsed ->
-              parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT)
-        }
+    getFnByTLID =
+      withCache (fun tlid ->
+        uply { return Exception.raiseInternal "TODO getFnByTLID" [] })
 
     getConstant =
-      fun name ->
+      withCache (fun name ->
         uply {
-          let name =
-            let modulesPart = String.concat "." name.modules
-            let namePart =
-              match name.name with
-              | RT.ConstantName.ConstantName name -> name
-            $"{name.owner}.{modulesPart}.{namePart}"
-
-          let! response =
-            $"http://dark-packages.dlio.localhost:11003/constant/by-name/{name}"
-            |> httpClient.GetAsync
-
-          let! responseStr = response.Content.ReadAsStringAsync()
-
-          return
-            responseStr
-            |> Json.Vanilla.deserialize<Option<ProgramTypes.PackageConstant>>
-            |> Option.map (fun parsed ->
-              parsed |> ET2PT.PackageConstant.toPT |> PT2RT.PackageConstant.toRT)
-        }
+          let nameString = RT.ConstantName.packageToString name
+          let conversionFn (parsed : EPT.PackageConstant) : RT.PackageConstant.T =
+            parsed |> ET2PT.PackageConstant.toPT |> PT2RT.PackageConstant.toRT
+          return! fetch "constant" nameString conversionFn
+        })
 
     init = uply { return () } }

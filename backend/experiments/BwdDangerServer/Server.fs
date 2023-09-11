@@ -30,12 +30,13 @@ module Pusher = LibCloud.Pusher
 
 module LibHttpMiddleware = LibHttpMiddleware.Http
 
-module RealExe = DangerExecution
+module CloudExe = DangerExecution
 
 module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
 module Rollbar = LibService.Rollbar
 module Telemetry = LibService.Telemetry
+module Logging = LibService.Logging
 
 module CTPusher = LibClientTypes.Pusher
 
@@ -319,13 +320,13 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
-            RealExe.executeHandler
+            CloudExe.executeHandler
               LibClientTypesToCloudTypes.Pusher.eventSerializer
               (PT2RT.Handler.toRT handler)
               (Canvas.toProgram canvas)
               traceID
               inputVars
-              (RealExe.InitialExecution(desc, "request", request))
+              (CloudExe.InitialExecution(desc, "request", request))
 
           let result = LibHttpMiddleware.Response.toHttpResponse result
 
@@ -421,6 +422,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> Kubernetes.configureApp healthCheckPort
+  |> Logging.addHttpLogging
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
@@ -434,7 +436,7 @@ let configureServices (services : IServiceCollection) : unit =
 
 
 let webserver
-  (loggerSetup : ILoggingBuilder -> unit)
+  (providedLogger : Option<ILoggingBuilder -> unit>)
   (httpPort : int)
   (healthCheckPort : int)
   : WebApplication =
@@ -445,7 +447,7 @@ let webserver
   Kubernetes.registerServerTimeout builder.WebHost
 
   builder.WebHost
-  |> fun wh -> wh.ConfigureLogging(loggerSetup)
+  |> fun wh -> wh.ConfigureLogging(Logging.defaultLogger providedLogger)
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
   |> fun wh -> wh.UseUrls(hcUrl, $"http://*:{httpPort}")
   |> ignore<IWebHostBuilder>
@@ -457,7 +459,7 @@ let webserver
 let run () : unit =
   let port = LibService.Config.bwdDangerServerPort
   let k8sPort = LibService.Config.bwdDangerServerKubernetesPort
-  (webserver LibService.Logging.noLogger port k8sPort).Run()
+  (webserver None port k8sPort).Run()
 
 
 // Generally speaking, this should be the same list as QueueWorker's
@@ -495,7 +497,7 @@ let initSerializers () =
 let main _ =
   try
     let name = "BwdDangerServer"
-    print "Starting BwdDangerServer"
+    printTime "Starting BwdDangerServer"
     initSerializers ()
     LibService.Init.init name
     (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result

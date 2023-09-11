@@ -339,7 +339,7 @@ module AspNet =
 
 
 let init (serviceName : string) : unit =
-  print "Configuring Rollbar"
+  printTime "Configuring Rollbar"
   let config =
     Rollbar.RollbarInfrastructureConfig(
       Config.rollbarServerAccessToken,
@@ -431,5 +431,5 @@ let init (serviceName : string) : unit =
 
   Exception.sendRollbarError <- fun msg metadata -> sendError msg metadata
 
-  print " Configured rollbar"
+  printTime " Configured rollbar"
   ()

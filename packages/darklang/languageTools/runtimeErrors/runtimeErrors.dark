@@ -12,6 +12,7 @@ module Darklang =
           | Int of Int
           | Ordinal of Int // 1st, 2nd, etc
           | IndefiniteArticle // "a" or "an" (chosen based on the next segment)
+          | Count of Int * singular: ErrorSegment * plural: ErrorSegment // 2 errors, 1 error, etc
 
           // -- Functions
           | FunctionName of PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.FnName
@@ -53,6 +54,15 @@ module Darklang =
                   | String s -> s
                   | Int i -> PACKAGE.Darklang.Stdlib.Int.toString i
                   | Ordinal i -> Stdlib.String.toOrdinal i
+                  | Count(i, singular, plural) ->
+                    let count = PACKAGE.Darklang.Stdlib.Int.toString i
+
+                    if i == 1 then
+                      let segment = toString [ singular ]
+                      $"{count} {segment}"
+                    else
+                      let segment = toString [ plural ]
+                      $"{count} {segment}"
 
                   | IndefiniteArticle ->
                     match Stdlib.List.head prevSegments with
@@ -140,7 +150,8 @@ module Darklang =
         | NameResolutionError of
           PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error
         | SqlCompilerRuntimeError of Error
-        | Incomplete
+        | ExecutionError of
+          PACKAGE.Darklang.LanguageTools.RuntimeErrors.Execution.Error
         | OldStringErrorTODO of String
       //| ExceptionThrown of ExceptionThrown.ExceptionThrown
 
@@ -165,6 +176,8 @@ module Darklang =
           | TypeCheckerError err -> TypeChecker.Error.toSegments err
 
           | NameResolutionError err -> NameResolution.toSegments err
+
+          | ExecutionError err -> Execution.toSegments err
 
           | SqlCompilerRuntimeError err ->
             let innerOutput = toSegments err

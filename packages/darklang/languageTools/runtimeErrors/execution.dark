@@ -1,0 +1,91 @@
+module Darklang =
+  module LanguageTools =
+    module RuntimeErrors =
+      module Execution =
+        type Error =
+          | Incomplete
+          | MatchExprUnmatched of RuntimeTypes.Dval.Dval
+          | MatchExprPatternWrongShape
+          | MatchExprPatternWrongType of String * RuntimeTypes.Dval.Dval
+          | MatchExprEnumPatternWrongCount of String * expected: Int * actual: Int
+
+        let toSegments (e: Error) : ErrorOutput =
+          match e with
+          | Incomplete ->
+            ErrorOutput
+              { summary = [ ErrorSegment.ErrorSegment.String "Incomplete" ]
+                extraExplanation = []
+                actual = []
+                expected = [] }
+
+          | MatchExprUnmatched dv ->
+            let summary =
+              [ ErrorSegment.ErrorSegment.String "No match for "
+                ErrorSegment.ErrorSegment.InlineValue dv ]
+
+            // TODO include patterns in error message
+            let extraExplanation = []
+
+            ErrorOutput
+              { summary = summary
+                extraExplanation = extraExplanation
+                actual = []
+                expected = [] }
+
+          | MatchExprPatternWrongShape ->
+            let summary =
+              [ ErrorSegment.ErrorSegment.String "Pattern has wrong shape" ]
+
+            let extraExplanation = []
+
+            ErrorOutput
+              { summary = summary
+                extraExplanation = extraExplanation
+                actual = []
+                expected = [] }
+
+          | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
+            let summary =
+              [ ErrorSegment.ErrorSegment.String caseName
+                ErrorSegment.ErrorSegment.String " pattern is expecting "
+                ErrorSegment.ErrorSegment.Count(
+                  expected,
+                  ErrorSegment.ErrorSegment.String "field",
+                  ErrorSegment.ErrorSegment.String "fields"
+                )
+                ErrorSegment.ErrorSegment.String ", but "
+                ErrorSegment.ErrorSegment.String caseName
+                ErrorSegment.ErrorSegment.String " has "
+                ErrorSegment.ErrorSegment.Count(
+                  actual,
+                  ErrorSegment.ErrorSegment.String "field",
+                  ErrorSegment.ErrorSegment.String "fields"
+                ) ]
+
+            let extraExplanation = []
+
+            ErrorOutput
+              { summary = summary
+                extraExplanation = extraExplanation
+                actual = []
+                expected = [] }
+
+          | MatchExprPatternWrongType(patternType, dv) ->
+            let summary =
+              // "Cannot match Int value 6 with a Float pattern"
+              [ ErrorSegment.ErrorSegment.String "Cannot match "
+                ErrorSegment.ErrorSegment.TypeOfValue dv
+                ErrorSegment.ErrorSegment.String " value "
+                ErrorSegment.ErrorSegment.InlineValue dv
+                ErrorSegment.ErrorSegment.String " with "
+                ErrorSegment.ErrorSegment.IndefiniteArticle
+                ErrorSegment.ErrorSegment.String patternType
+                ErrorSegment.ErrorSegment.String " pattern" ]
+
+            let extraExplanation = []
+
+            ErrorOutput
+              { summary = summary
+                extraExplanation = extraExplanation
+                actual = []
+                expected = [] }
