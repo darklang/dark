@@ -54,8 +54,9 @@ let fns : List<BuiltInFn> =
       fn =
         function
         | _, _, [ DChar c ] ->
-          if c.Length = 1 then
-            Dval.optionSome (DInt(System.Char.ConvertToUtf32(c, 0))) |> Ply
+          let charValue = System.Char.ConvertToUtf32(c, 0)
+          if charValue >= 0 && charValue < 256 then
+            Dval.optionSome (DInt(charValue)) |> Ply
           else
             Dval.optionNone |> Ply
         | _ -> incorrectArgs ()
