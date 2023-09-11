@@ -222,3 +222,22 @@ module Darklang =
         match result1 with
         | Ok _ -> result1
         | Error _ -> result2
+
+
+      /// Returns a list containing <param value> if <param result> is {{Ok <var value>}}. Otherwise, returns an empty list.
+      let toList (result: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>) : List<'t> =
+        match result with
+        | Ok value -> [ value ]
+        | Error _ -> []
+
+
+      /// Flattens a nested result. If <param result> is {{Ok (Ok <var value>)}},
+      /// returns {{Ok <var value>}}. If <param result> is {{Ok (Error <var msg>)}}, returns {{Error <var msg>}}.
+      /// If <param result> is {{Error <var msg>}}, returns {{Error <var msg>}}.
+      let join
+        (result:
+          PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>, 'e>)
+        : PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e> =
+        match result with
+        | Ok value -> value
+        | Error e -> PACKAGE.Darklang.Stdlib.Result.Result.Error e

@@ -320,3 +320,29 @@ PACKAGE.Darklang.Stdlib.Result.or_v0
   (PACKAGE.Darklang.Stdlib.Result.Result.Error "test1")
   (PACKAGE.Darklang.Stdlib.Result.Result.Error "test2") = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "test2"
+
+
+PACKAGE.Darklang.Stdlib.Result.toList_v0 (
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok "test"
+) = [ "test" ]
+
+PACKAGE.Darklang.Stdlib.Result.toList_v0 (
+  PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+) = []
+
+
+PACKAGE.Darklang.Stdlib.Result.join_v0 (
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok "test"
+  )
+) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "test"
+
+PACKAGE.Darklang.Stdlib.Result.join_v0 (
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+    PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+  )
+) = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+
+PACKAGE.Darklang.Stdlib.Result.join_v0 (
+  PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+) = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
