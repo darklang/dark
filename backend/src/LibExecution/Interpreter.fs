@@ -564,29 +564,41 @@ let rec eval'
         : Matched * List<string * Dval> * List<id * Dval> =
         match pattern with
         | MPInt(id, pi) ->
+          let patternTrace = [ (id, DInt pi) ]
           match dv with
-          | DInt di -> Ok(di = pi), [], [ (id, dv) ]
-          | _ -> Error(id, Error.matchExprPatternWrongType "Int" dv), [], []
+          | DInt di -> Ok(di = pi), [], patternTrace
+          | _ ->
+            Error(id, Error.matchExprPatternWrongType "Int" dv), [], patternTrace
         | MPBool(id, pb) ->
+          let patternTrace = [ (id, DBool pb) ]
           match dv with
-          | DBool db -> Ok(db = pb), [], [ (id, dv) ]
-          | _ -> Error(id, Error.matchExprPatternWrongType "Bool" dv), [], []
+          | DBool db -> Ok(db = pb), [], patternTrace
+          | _ ->
+            Error(id, Error.matchExprPatternWrongType "Bool" dv), [], patternTrace
         | MPChar(id, pc) ->
+          let patternTrace = [ (id, DChar pc) ]
           match dv with
-          | DChar dc -> Ok(dc = pc), [], [ (id, dv) ]
-          | _ -> Error(id, Error.matchExprPatternWrongType "Char" dv), [], []
+          | DChar dc -> Ok(dc = pc), [], patternTrace
+          | _ ->
+            Error(id, Error.matchExprPatternWrongType "Char" dv), [], patternTrace
         | MPString(id, ps) ->
+          let patternTrace = [ (id, DString ps) ]
           match dv with
-          | DString ds -> Ok(ds = ps), [], [ (id, dv) ]
-          | _ -> Error(id, Error.matchExprPatternWrongType "String" dv), [], []
+          | DString ds -> Ok(ds = ps), [], patternTrace
+          | _ ->
+            Error(id, Error.matchExprPatternWrongType "String" dv), [], patternTrace
         | MPFloat(id, pf) ->
+          let patternTrace = [ (id, DFloat pf) ]
           match dv with
-          | DFloat df -> Ok(df = pf), [], [ (id, dv) ]
-          | _ -> Error(id, Error.matchExprPatternWrongType "Float" dv), [], []
+          | DFloat df -> Ok(df = pf), [], patternTrace
+          | _ ->
+            Error(id, Error.matchExprPatternWrongType "Float" dv), [], patternTrace
         | MPUnit(id) ->
+          let patternTrace = [ (id, DUnit) ]
           match dv with
-          | DUnit -> Ok true, [], [ (id, dv) ]
-          | _ -> Error(id, Error.matchExprPatternWrongType "Unit" dv), [], []
+          | DUnit -> Ok true, [], patternTrace
+          | _ ->
+            Error(id, Error.matchExprPatternWrongType "Unit" dv), [], patternTrace
 
         | MPVariable(id, varName) -> Ok true, [ (varName, dv) ], [ (id, dv) ]
 
@@ -643,7 +655,9 @@ let rec eval'
 
           | _dv ->
             let (allVars, allSubTraces) = traceFields ()
-            Error(id, Error.matchExprPatternWrongShape), allVars, allSubTraces
+            Error(id, Error.matchExprPatternWrongType caseName dv),
+            allVars,
+            allSubTraces
 
 
         | MPTuple(id, firstPat, secondPat, theRestPat) ->
@@ -674,11 +688,16 @@ let rec eval'
                 traceIncompleteWithArgs id allPatterns @ allSubTraces
             else
               Ok false, [], traceIncompleteWithArgs id allPatterns
-          | _ -> Ok false, [], traceIncompleteWithArgs id allPatterns
+          | _ ->
+            Error(id, Error.matchExprPatternWrongType "Tuple" dv),
+            [],
+            traceIncompleteWithArgs id allPatterns
 
 
         | MPListCons(id, headPat, tailPat) ->
           match dv with
+          | DList(_, []) ->
+            Ok false, [], traceIncompleteWithArgs id [ headPat; tailPat ]
           | DList(vt, headVal :: tailVals) ->
             let (headPass, headVars, headTraces) = checkPattern headVal headPat
             let (tailPass, tailVars, tailTraces) =
@@ -693,8 +712,10 @@ let rec eval'
             | Error _ ->
               pass, allSubVars, traceIncompleteWithArgs id [ headPat; tailPat ]
 
-          // TODO if not a list, error
-          | _ -> Ok false, [], traceIncompleteWithArgs id [ headPat; tailPat ]
+          | _ ->
+            Error(id, Error.matchExprPatternWrongType "List" dv),
+            [],
+            traceIncompleteWithArgs id [ headPat; tailPat ]
 
         | MPList(id, pats) ->
           match dv with
@@ -716,8 +737,10 @@ let rec eval'
                 allPass, allVars, traceIncompleteWithArgs id pats @ allSubTraces
             else
               Ok false, [], traceIncompleteWithArgs id pats
-          // TODO if not a list, error
-          | _ -> Ok false, [], traceIncompleteWithArgs id pats
+          | _ ->
+            Error(id, Error.matchExprPatternWrongType "List" dv),
+            [],
+            traceIncompleteWithArgs id pats
 
       // This is to avoid checking `state.tracing.realOrPreview = Real` below.
       // If RealOrPreview gets additional branches, reconsider what to do here.

@@ -1,3 +1,8 @@
+// One module for each type of pattern.
+// In each module, there should be at least 2 error tests, one checking the incorrect
+// dval for that pattern, and one checking the incorrect pattern for that dval. (The
+// error checking in the interpreter tests is at the pattern side, not the dval side)
+
 module Int =
   (match 6 with
    | 5 -> "fail"
@@ -15,15 +20,18 @@ module Int =
    | 6 -> "fail"
    | 5 -> "fail") = "pass"
 
-  (match 6 with
-   | 6.0 -> "fail"
-   | 6 -> "fail"
-   | 5 -> "fail") = Builtin.Test.derrorMessage
-    "Cannot match Int value 6 with a Float pattern"
-
   (match 999999999999999L with
    | 0 -> "fail"
    | 999999999999999L -> "pass") = "pass"
+
+
+  (match 6 with
+   | 6.0 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Int value 6 with a Float pattern"
+
+  (match 6.0 with
+   | 6 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Float value 6.0 with an Int pattern"
 
 
 module String =
@@ -45,10 +53,13 @@ module String =
    | "y" -> "fail") = "pass: x"
 
   (match "x" with
-   | 6 -> "fail"
-   | "x" -> "fail"
-   | "y" -> "fail") = Builtin.Test.derrorMessage
+   | 6 -> "fail") = Builtin.Test.derrorMessage
     "Cannot match String value \"x\" with an Int pattern"
+
+  (match 6 with
+   | "x" -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Int value 6 with a String pattern"
+
 
 module Bool =
 
@@ -78,10 +89,12 @@ module Bool =
    | true -> "fail") = "pass"
 
   (match false with
-   | "false" -> "fail"
-   | false -> "fail"
-   | true -> "fail") = Builtin.Test.derrorMessage
+   | "false" -> "fail") = Builtin.Test.derrorMessage
     "Cannot match Bool value false with a String pattern"
+
+  (match "false" with
+   | false -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match String value \"false\" with a Bool pattern"
 
 
 module Float =
@@ -118,10 +131,12 @@ module Float =
    | 4.7 -> "fail") = "pass: -4.7"
 
   (match -4.7 with
-   | true -> "fail"
-   | -4.7 -> "fail"
-   | 4.7 -> "fail") = Builtin.Test.derrorMessage
+   | true -> "fail") = Builtin.Test.derrorMessage
     "Cannot match Float value -4.7 with a Bool pattern"
+
+  (match true with
+   | -4.7 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Bool value true with a Float pattern"
 
 
 module Unit =
@@ -135,9 +150,12 @@ module Unit =
    | () -> "fail") = "pass"
 
   (match () with
-   | 0 -> "fail"
-   | () -> "fail") = Builtin.Test.derrorMessage
+   | 0 -> "fail") = Builtin.Test.derrorMessage
     "Cannot match Unit value () with an Int pattern"
+
+  (match 0 with
+   | () -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Int value 0 with an Unit pattern"
 
 
 module Char =
@@ -168,10 +186,12 @@ module Char =
    | 'd' -> "fail") = "pass"
 
   (match 'c' with
-   | true -> "fail"
-   | 'c' -> "fail"
-   | 'd' -> "fail") = Builtin.Test.derrorMessage
+   | true -> "fail") = Builtin.Test.derrorMessage
     "Cannot match Char value 'c' with a Bool pattern"
+
+  (match true with
+   | 'c' -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Bool value true with a Char pattern"
 
 
 module List =
@@ -202,12 +222,6 @@ module List =
    | var -> "fail") = "pass"
 
   (match [ 1; 2; 3 ] with
-   | "1,2,3" -> "fail"
-   | [ 1; 2; 3 ] -> "fail"
-   | [] -> "fail") = Builtin.Test.derrorMessage
-    "Cannot match List value [1,2,3] with a String pattern"
-
-  (match [ 1; 2; 3 ] with
    | [ 1; 2 ] -> "fail"
    | [ 1; 2; 3; 4 ] -> "fail"
    | [ 1; 2; 3 ] -> "pass"
@@ -225,6 +239,18 @@ module List =
   (match [ 1; 2; 5 ] with
    | [ a; a; a ] -> a
    | name -> name ++ "var") = 5
+
+  (match [ 1; 2; 3 ] with
+   | "1,2,3" -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match List<Int> value [  1, 2, ... with a String pattern"
+
+  (match [ 1; 2; 3 ] with
+   | [ 1.0; 2.0; 3.0 ] -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Int value 1 with a Float pattern"
+
+  (match "" with
+   | [ 1; 2; 3 ] -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match String value \"\" with a List pattern"
 
 
 
@@ -259,17 +285,28 @@ module List =
      | [ _; [ 3; _ ] ] -> "pass"
      | _ -> "fail") = "pass"
 
-  // (match [ [ 1; 2 ]; [ 3; 4 ] ] with
-  //  | "1,2,3,4" -> "fail"
-  //  | [ [ 1; 2 ]; [ 3; 4 ] ] -> "fail"
-  //  | _ -> "fail") = Builtin.Test.derrorMessage
-  //   "Cannot match NestedList value [[1,2],[3,4]] with a String pattern"
+    (match [ [ 1; 2 ]; [ 3; 4 ] ] with
+     | "1,2,3,4" -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match List<List<Int>> value [  [    ... with a String pattern"
 
-  // (match [ [ 1; 2 ]; [ 3; 4 ] ] with
-  //  | [ [ 1.0; 2.0 ]; [ 3; 4 ] ] -> "fail"
-  //  | [ [ 1; 2 ]; [ 3; 4 ] ] -> "fail"
-  //  | _ -> "fail") = Builtin.Test.derrorMessage
-  //   "Cannot match NestedList value [[1,2],[3,4]] with a Float pattern in the nested list"
+    (match [ "" ] with
+     // Different lengths
+     | [ 1; 2; 3 ] -> "fail") = Builtin.Test.derrorMessage "No match for [  \"\"]"
+
+    (match [ "" ] with
+     | [ 1 ] -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match String value \"\" with an Int pattern"
+
+    (match [ [ 1.0 ] ] with
+     | [ [ 1 ] ] -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match Float value 1.0 with an Int pattern"
+
+    (match [ [ 1; 2 ]; [ 3; 4 ] ] with
+     | [ [ 1.0; 2.0 ]; [ 3; 4 ] ] -> "fail"
+     | [ [ 1; 2 ]; [ 3; 4 ] ] -> "fail"
+     | _ -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match Int value 1 with a Float pattern"
+
 
   module ListCons =
     (match [ 1; 2; 3 ] with
@@ -293,6 +330,10 @@ module List =
     (match [ 1; 2; 3 ] with
      | head :: rest ->
        head + (rest |> PACKAGE.Darklang.Stdlib.List.head |> Builtin.unwrap)) = 3
+
+    (match "" with
+     | head :: rest -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match String value \"\" with a List pattern"
 
     // head tail
     let headTail (list: List<Int>) : (Int * List<Int>) =
@@ -372,18 +413,19 @@ module Tuple =
    | (1, _, true) -> "pass"
    | _ -> "fail") = "pass"
 
-  // (match (1, 'a') with
-  //  | "1,a" -> "fail"
-  //  | (1, 'a') -> "fail"
-  //  | (2, 'b') -> "fail") = Builtin.Test.derrorMessage
-  //   "Cannot match Tuple value (1,'a') with a String pattern"
+  (match (1, 'a') with
+   | "1,a" -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match (Int, Char) value (1, 'a') with a String pattern"
 
-  // TODO should fail
-  // (match (1, 'a') with
-  //  | (1.0, 'a') -> "fail"
-  //  | (1, 'a') -> "fail"
-  //  | (2, 'b') -> "fail") = Builtin.Test.derrorMessage
-  //   "Cannot match Tuple value (1,'a') with a Float pattern in the first position"
+  (match "1,a" with
+   | (1, 'a') -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match String value \"1,a\" with a Tuple pattern"
+
+  (match (1, 'a') with
+   | (1.0, 'a') -> "fail"
+   | (1, 'a') -> "fail"
+   | (2, 'b') -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Int value 1 with a Float pattern"
 
   (match (1, 'a') with
    | (1, 'a', true) -> "fail"
@@ -428,17 +470,19 @@ module Tuple =
      | ((1, _), (_, 2.0)) -> "pass"
      | _ -> "fail") = "pass"
 
-    // (match ((1, 'a'), (true, 2.0)) with
-    //  | "1,a,true,2.0" -> "fail"
-    //  | ((1, 'a'), (true, 2.0)) -> "fail"
-    //  | _ -> "fail") = Builtin.Test.derrorMessage
-    //   "Cannot match NestedTuple value ((1,'a'),(true,2.0)) with a String pattern"
+    (match ((1, 'a'), (true, 2.0)) with
+     | "1,a,true,2.0" -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match ((Int, Char), (Bool, Float)) value ((1, 'a'),... with a String pattern"
 
-    // (match ((1, 'a'), (true, 2.0)) with
-    //  | ((1.0, 'a'), (true, 2.0)) -> "fail"
-    //  | ((1, 'a'), (true, 2.0)) -> "fail"
-    //  | _ -> "fail") = Builtin.Test.derrorMessage
-    //   "Cannot match NestedTuple value ((1,'a'),(true,2.0)) with a Float pattern in the first position of the inner tuple"
+    (match "" with
+     | ((1.0, 'a'), (true, 2.0)) -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match String value \"\" with a Tuple pattern"
+
+    (match ((1, 'a'), (true, 2.0)) with
+     | ((1.0, 'a'), (true, 2.0)) -> "fail"
+     | ((1, 'a'), (true, 2.0)) -> "fail"
+     | _ -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match Int value 1 with a Float pattern"
 
     (match ((1, 'a'), (true, 2.0)) with
      | ((_, _), (_, _)) -> "pass"
