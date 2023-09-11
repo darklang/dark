@@ -225,3 +225,29 @@ module Darklang =
         match option with
         | Some v -> v
         | None -> PACKAGE.Darklang.Stdlib.Option.Option.None
+
+
+      /// Combines a list of options into a single option containing a list of unwrapped values.
+      /// If all options in the list are {{Some _}}, then return {{Some <list of unwrapped values>}}.
+      /// If any option is {{None}}, then return {{None}}.
+      let combine
+        (options: List<PACKAGE.Darklang.Stdlib.Option.Option<'a>>)
+        : PACKAGE.Darklang.Stdlib.Option.Option<List<'a>> =
+        PACKAGE.Darklang.Stdlib.List.fold
+          options
+          (PACKAGE.Darklang.Stdlib.Option.Option.Some [])
+          (fun acc option ->
+            PACKAGE.Darklang.Stdlib.Option.andThen2 acc option (fun acc value ->
+              PACKAGE.Darklang.Stdlib.Option.Option.Some(
+                PACKAGE.Darklang.Stdlib.List.append acc [ value ]
+              )))
+
+
+      /// Returns a list of all the values that are present, throwing away any Nothings
+      let values
+        (options: List<PACKAGE.Darklang.Stdlib.Option.Option<'a>>)
+        : List<'a> =
+        PACKAGE.Darklang.Stdlib.List.filterMap options (fun option ->
+          match option with
+          | Some v -> PACKAGE.Darklang.Stdlib.Option.Option.Some v
+          | None -> PACKAGE.Darklang.Stdlib.Option.Option.None)
