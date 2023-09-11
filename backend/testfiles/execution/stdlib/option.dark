@@ -241,8 +241,7 @@ PACKAGE.Darklang.Stdlib.Option.map5_v0
   (PACKAGE.Darklang.Stdlib.Option.Option.Some 2)
   (PACKAGE.Darklang.Stdlib.Option.Option.Some 3)
   (PACKAGE.Darklang.Stdlib.Option.Option.Some 4)
-  (fun a b c d e -> a - b - c - d - e) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0
+  (fun a b c d e -> a - b - c - d - e) = PACKAGE.Darklang.Stdlib.Option.Option.Some 0
 
 PACKAGE.Darklang.Stdlib.Option.map5_v0
   (PACKAGE.Darklang.Stdlib.Option.Option.Some 10)

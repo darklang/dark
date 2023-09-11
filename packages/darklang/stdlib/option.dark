@@ -248,6 +248,4 @@ module Darklang =
         (options: List<PACKAGE.Darklang.Stdlib.Option.Option<'a>>)
         : List<'a> =
         PACKAGE.Darklang.Stdlib.List.filterMap options (fun option ->
-          match option with
-          | Some v -> PACKAGE.Darklang.Stdlib.Option.Option.Some v
-          | None -> PACKAGE.Darklang.Stdlib.Option.Option.None)
+          Fun.identity option)
