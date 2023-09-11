@@ -54,7 +54,7 @@ let fns : List<BuiltInFn> =
             |> Seq.cast<System.Collections.DictionaryEntry>
             |> Seq.map (fun kv -> (string kv.Key, DString(string kv.Value)))
             |> Seq.toList
-            |> DvalUtils.dict
+            |> DvalUtils.dict valueTypeTODO
 
           Ply(envMap)
         | _ -> incorrectArgs ())

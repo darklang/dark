@@ -348,7 +348,7 @@ let rec debugDval (v : Dval) : string =
     |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
     |> String.concat ",\n  "
     |> fun contents -> $"DRecord {typeStr} {{\n  {contents}}}"
-  | DDict obj ->
+  | DDict(_vtTODO, obj) ->
     obj
     |> Map.toList
     |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
@@ -389,7 +389,7 @@ module Expect =
     | DFloat _ -> true
     | DList(_, vs) -> List.all check vs
     | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
-    | DDict vs -> vs |> Map.values |> List.all check
+    | DDict(_, vs) -> vs |> Map.values |> List.all check
     | DRecord(_, _, _typeArgsTODO, vs) -> vs |> Map.values |> List.all check
     | DString str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
@@ -747,7 +747,7 @@ module Expect =
       check ("Length" :: path) (List.length theRestL) (List.length theRestR)
       List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) theRestL theRestR
 
-    | DDict ls, DDict rs ->
+    | DDict(_vtTODO1, ls), DDict(_vtTODO2, rs) ->
       // check keys from ls are in both, check matching values
       Map.iterWithIndex
         (fun key v1 ->
@@ -867,7 +867,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let rec visit dv : unit =
     match dv with
     // Keep for exhaustiveness checking
-    | DDict map -> Map.values map |> List.map visit |> ignore<List<unit>>
+    | DDict(_, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
     | DRecord(_, _, _typeArgsTODO, map) ->
       Map.values map |> List.map visit |> ignore<List<unit>>
     | DEnum(_typeName, _, _caseName, fields) ->
@@ -1059,15 +1059,20 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
          [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    ("dict", DvalUtils.dict [ "foo", DvalUtils.int 5 ], TDict TInt)
+    ("dict", DvalUtils.dict valueTypeTODO [ "foo", DvalUtils.int 5 ], TDict TInt)
     ("dict3",
-     DvalUtils.dict [ ("type", DString "weird"); ("value", DString "x") ],
+     DvalUtils.dict
+       valueTypeTODO
+       [ ("type", DString "weird"); ("value", DString "x") ],
      TDict TString)
     // More Json.NET tests
-    ("dict4", DvalUtils.dict [ "foo\\\\bar", DvalUtils.int 5 ], TDict TInt)
-    ("dict5", DvalUtils.dict [ "$type", DvalUtils.int 5 ], TDict TInt)
+    ("dict4",
+     DvalUtils.dict valueTypeTODO [ "foo\\\\bar", DvalUtils.int 5 ],
+     TDict TInt)
+    ("dict5", DvalUtils.dict valueTypeTODO [ "$type", DvalUtils.int 5 ], TDict TInt)
     ("dict with error",
      DvalUtils.dict
+       valueTypeTODO
        [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ],
      TDict TInt)
     ("error", DError(SourceNone, RuntimeError.oldError "some error string"), TString)

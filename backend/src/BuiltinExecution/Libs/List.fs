@@ -44,7 +44,8 @@ module DvalComparator =
     | DPassword _, DPassword _ -> 0 // CLEANUP - how do we handle this?
     | DUuid u1, DUuid u2 -> compare u1 u2
     | DBytes b1, DBytes b2 -> compare b1 b2
-    | DDict o1, DDict o2 -> compareMaps (Map.toList o1) (Map.toList o2)
+    | DDict(_vtTODO1, o1), DDict(_vtTODO2, o2) ->
+      compareMaps (Map.toList o1) (Map.toList o2)
     | DRecord(tn1, _, _typeArgsTODO1, o1), DRecord(tn2, _, _typeArgsTODO2, o2) ->
       let c = compare tn1 tn2
       if c = 0 then compareMaps (Map.toList o1) (Map.toList o2) else c

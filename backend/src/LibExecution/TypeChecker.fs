@@ -280,8 +280,8 @@ let rec unify
       | TChar, DChar _ -> return Ok()
       | TBytes, DBytes _ -> return Ok()
       | TDB _, DDB _ -> return Ok() // TODO: check DB type
-      | TList nested, DList(vt, _dvs) ->
-        match! valueTypeUnifies tst nested vt with
+      | TList expected, DList(actual, _dvs) ->
+        match! valueTypeUnifies tst expected actual with
         | false ->
           return
             ValueNotExpectedType(value, expected, context)
@@ -290,19 +290,16 @@ let rec unify
 
         | true -> return! Ply()
 
-      | TDict valueType, DDict dmap ->
-        // let! results =
-        //   dmap
-        //   |> Map.toList
-        //   |> Ply.List.mapSequentially (fun (k, v) ->
-        //     let location = Context.toLocation context
-        //     let context = DictKey(k, valueType, location)
-        //     unify context types tst valueType v)
-        // return combineErrorsUnit results
-        // CLEANUP DDict should include a TypeReference, in which case
-        // the type-checking here would just be a `tValue = dValue` check.
-        // (the construction of that DDict should have already checked that the
-        // keys match)
+      | TDict _expected, DDict(_actual, _entries) ->
+        // VTTODO uncomment this
+        // match! valueTypeUnifies tst expected actual with
+        // | false ->
+        //   return
+        //     ValueNotExpectedType(value, expected, context)
+        //     |> Error.toRuntimeError
+        //     |> Error
+
+        // | true -> return! Ply()
         return Ok()
 
       | TFn(argTypes, returnType), DFnVal fnVal -> return Ok() // TYPESTODO check lambdas and fnVals

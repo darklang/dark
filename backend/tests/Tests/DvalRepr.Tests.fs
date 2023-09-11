@@ -80,7 +80,10 @@ let testDvalRoundtrippableRoundtrips =
   testMany
     "special roundtrippable dvals roundtrip"
     roundtrippableRoundtripsSuccessfully
-    [ DvalUtils.dict [ ("", RT.DFloat 1.797693135e+308); ("a", RT.DFloat nan) ], true ]
+    [ DvalUtils.dict
+        RT.valueTypeTODO
+        [ ("", RT.DFloat 1.797693135e+308); ("a", RT.DFloat nan) ],
+      true ]
 
 
 let testToDeveloperRepr =
@@ -92,7 +95,7 @@ let testToDeveloperRepr =
         [ RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(1, 2, 3)"
-          DvalUtils.dict [ "", RT.DUnit ], "{\n  : ()\n}"
+          DvalUtils.dict RT.valueTypeTODO [ "", RT.DUnit ], "{\n  : ()\n}"
           RT.DList(RT.ValueType.Known RT.KTUnit, [ RT.DUnit ]), "[\n  ()\n]" ] ]
 
 module ToHashableRepr =

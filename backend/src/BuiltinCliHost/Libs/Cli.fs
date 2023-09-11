@@ -149,7 +149,7 @@ let fns : List<BuiltInFn> =
       description = "Parses and executes arbitrary Dark code"
       fn =
         function
-        | state, [], [ DString filename; DString code; DDict symtable ] ->
+        | state, [], [ DString filename; DString code; DDict(_vtTODO, symtable) ] ->
           uply {
             let exnError (e : exn) : RuntimeError =
               let msg = Exception.getMessages e |> String.concat "\n"
@@ -211,7 +211,8 @@ let fns : List<BuiltInFn> =
               DvalUtils.resultError (
                 DvalUtils.record
                   (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
-                  [ "msg", DString msg; "metadata", DvalUtils.dict metadata ]
+                  [ "msg", DString msg
+                    "metadata", DvalUtils.dict valueTypeTODO metadata ]
               )
 
             let exnError (e : exn) : Dval =

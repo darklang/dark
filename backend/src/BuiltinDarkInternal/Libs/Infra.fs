@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides. Returns its input"
       fn =
         (function
-        | _, _, [ DString level; DString name; DDict log as result ] ->
+        | _, _, [ DString level; DString name; DDict(_valueTypeTODO, log) as result ] ->
           let args =
             log
             |> Map.toList
@@ -107,7 +107,7 @@ human-readable data."
                    ("diskHuman", DString ts.diskHuman)
                    ("rowsHuman", DString ts.rowsHuman) ]
                  |> DvalUtils.record typeName))
-              |> DvalUtils.dict
+              |> DvalUtils.dict valueTypeTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

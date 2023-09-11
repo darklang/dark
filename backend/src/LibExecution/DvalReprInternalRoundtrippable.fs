@@ -244,7 +244,7 @@ module FormatV0 =
     | DList of ValueType.ValueType * List<Dval>
     | DTuple of Dval * Dval * List<Dval>
     | DLambda // See docs/dblock-serialization.md
-    | DDict of DvalMap
+    | DDict of ValueType.ValueType * DvalMap
     | DDB of string
     | DDateTime of NodaTime.LocalDateTime
     | DPassword of byte array // We are allowed serialize this here, so don't use the Password type which doesn't deserialize
@@ -286,7 +286,7 @@ module FormatV0 =
     | DList(typ, l) -> RT.DList(ValueType.toRT typ, List.map toRT l)
     | DTuple(first, second, theRest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)
-    | DDict entries -> entries |> Map.map toRT |> DvalUtils.dictFromMap
+    | DDict(typ, entries) -> RT.DDict(ValueType.toRT typ, Map.map toRT entries)
     | DRecord(typeName, original, typeArgs, o) ->
       RT.DRecord(
         TypeName.toRT typeName,
@@ -327,7 +327,7 @@ module FormatV0 =
     | RT.DList(typ, l) -> DList(ValueType.fromRT typ, List.map fromRT l)
     | RT.DTuple(first, second, theRest) ->
       DTuple(fromRT first, fromRT second, List.map fromRT theRest)
-    | RT.DDict entries -> entries |> Map.map fromRT |> DDict
+    | RT.DDict(typ, entries) -> DDict(ValueType.fromRT typ, Map.map fromRT entries)
     | RT.DRecord(typeName, original, typeArgs, o) ->
       DRecord(
         TypeName.fromRT typeName,
@@ -384,7 +384,7 @@ module Test =
     | RT.DEnum(_typeName, _, _caseName, fields) ->
       List.all isRoundtrippableDval fields
     | RT.DList(_, dvals) -> List.all isRoundtrippableDval dvals
-    | RT.DDict map -> map |> Map.values |> List.all isRoundtrippableDval
+    | RT.DDict(_, map) -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DRecord(_, _, _, map) -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DUuid _ -> true
     | RT.DTuple(v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)

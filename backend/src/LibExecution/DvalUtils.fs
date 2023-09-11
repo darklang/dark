@@ -145,7 +145,7 @@ let rec toValueType (dv : Dval) : ValueType =
   | DPassword _ -> ValueType.Known KTPassword
 
   | DList(t, _) -> ValueType.Known(KTList t)
-  | DDict _t -> ValueType.Known(KTDict ValueType.Unknown) // VTTODO
+  | DDict(t, _) -> ValueType.Known(KTDict t)
   | DTuple(first, second, theRest) ->
     ValueType.Known(
       KTTuple(toValueType first, toValueType second, theRest |> List.map toValueType)
@@ -238,12 +238,16 @@ let list (initialType : ValueType) (list : List<Dval>) : Dval =
 //       | m, _, _ -> m)
 //     fields
 
-// CLEANUP it'd probably be better for this to accept a Map<string, Dval> as this
-// signature may cause consumers to map some Map to a List just for the sake of
-// calling this
-let dict (entries : List<string * Dval>) : Dval = DDict(Map.ofList entries)
+// CLEANUP it'd probably be better for this to consolidate the two `dict` fns
+let dict (valueType : ValueType) (entries : List<string * Dval>) : Dval =
+  // TODO: use valueType in the same way that we use it for Lists
+  // (some tests will likely break..)
+  DDict(valueType, Map.ofList entries)
 
-let dictFromMap (entries : Map<string, Dval>) : Dval = DDict entries
+let dictFromMap (valueType : ValueType) (entries : Map<string, Dval>) : Dval =
+  // TODO: use valueType in the same way that we use it for Lists
+  // (some tests will likely break..)
+  DDict(valueType, entries)
 
 
 

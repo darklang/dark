@@ -118,7 +118,7 @@ let rec private toJsonV0
         w.writeArray (fun () ->
           Ply.List.iterSequentially (fun (t, d) -> writeDval t d) zipped)
 
-    | TDict objType, DDict o ->
+    | TDict objType, DDict(_valueTypeTODO, o) ->
       do!
         w.writeObject (fun () ->
           Ply.List.iterSequentially
@@ -284,7 +284,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
       |> Map.toList
       |> List.map (fun (k, v) -> convert typ v |> Ply.map (fun v -> k, v))
       |> Ply.List.flatten
-      |> Ply.map DvalUtils.dict
+      |> Ply.map (DvalUtils.dict valueTypeTODO)
 
 
     | TCustomType(Ok typeName, typeArgs), valueKind ->
@@ -399,10 +399,13 @@ module Test =
     | DChar _
     | DFloat _
     | DUuid _ -> true
+
+    // VTTODO these should probably just check the valueType, not any internal data
     | DList(_, dvals) -> List.all isQueryableDval dvals
-    | DDict map -> map |> Map.values |> List.all isQueryableDval
-    | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all isQueryableDval
+    | DDict(_, map) -> map |> Map.values |> List.all isQueryableDval
     | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
+
+    | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all isQueryableDval
 
     // TODO support
     | DRecord _ // TYPESCLEANUP

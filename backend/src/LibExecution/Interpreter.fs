@@ -473,13 +473,13 @@ let rec eval'
               | r, _, _ when Dval.isFake r -> return r
               | _, _, v when Dval.isFake v -> return v
 
-              | DDict entries, k, v ->
-                return entries |> Map.add k v |> DvalUtils.dictFromMap
+              | DDict(vt, entries), k, v ->
+                return entries |> Map.add k v |> DvalUtils.dictFromMap vt
 
               // If we haven't got a DDict we're propagating an error so let it go
               | r, _, _v -> return r
             })
-          (DvalUtils.dict [])
+          (DvalUtils.dict ValueType.Unknown [])
           fields
 
 

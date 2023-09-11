@@ -808,8 +808,9 @@ module Dval =
       let typeName = rtTyp [] "LambdaImpl" 0
 
       let fields =
-        [ "typeSymbolTable", DDict(Map.map TypeReference.toDT l.typeSymbolTable)
-          "symtable", DDict(Map.map Dval.toDT l.symtable)
+        [ "typeSymbolTable",
+          DDict(valueTypeTODO, Map.map TypeReference.toDT l.typeSymbolTable)
+          "symtable", DDict(valueTypeTODO, Map.map Dval.toDT l.symtable)
           "parameters",
           DvalUtils.list
             valueTypeTODO
@@ -897,14 +898,15 @@ module Dval =
 
       | DPassword p -> "DPassword", [ DPassword p ]
 
-      | DDict map -> "DDict", [ DDict(Map.map toDT map) ]
+      | DDict(vt, map) ->
+        "DDict", [ ValueType.toDT vt; DDict(valueTypeTODO, Map.map toDT map) ]
 
       | DRecord(runtimeTypeName, sourceTypeName, typeArgs, map) ->
         "DRecord",
         [ TypeName.toDT runtimeTypeName
           TypeName.toDT sourceTypeName
           typeArgs |> List.map ValueType.toDT |> DvalUtils.list valueTypeTODO
-          DDict(Map.map toDT map) ]
+          DDict(valueTypeTODO, Map.map toDT map) ]
 
       | DEnum(runtimeTypeName, sourceTypeName, caseName, fields) ->
         "DEnum",
@@ -942,11 +944,16 @@ module Dval =
     | DEnum(_, _, "DUuid", [ DUuid u ]) -> DUuid u
     | DEnum(_, _, "DBytes", [ DBytes b ]) -> DBytes b
 
-    | DEnum(_, _, "DDict", [ DDict map ]) -> DDict(Map.map fromDT map)
+    | DEnum(_, _, "DDict", [ vt; DDict(_vtTODO, map) ]) ->
+      DDict(ValueType.fromDT vt, Map.map fromDT map)
+
     | DEnum(_,
             _,
             "DRecord",
-            [ runtimeTypeName; sourceTypeName; DList(_, typeArgs); DDict map ]) ->
+            [ runtimeTypeName
+              sourceTypeName
+              DList(_, typeArgs)
+              DDict(_valueTypeTODO, map) ]) ->
       DRecord(
         TypeName.fromDT runtimeTypeName,
         TypeName.fromDT sourceTypeName,

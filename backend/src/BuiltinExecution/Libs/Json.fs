@@ -106,7 +106,7 @@ let rec serialize
     | TList ltype, DList(_, l) ->
       do! w.writeArray (fun () -> Ply.List.iterSequentially (r ltype) l)
 
-    | TDict objType, DDict fields ->
+    | TDict objType, DDict(_vtTODO, fields) ->
       do!
         w.writeObject (fun () ->
           fields
@@ -421,7 +421,7 @@ let parse
         })
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map DvalUtils.dict
+      |> Ply.map (DvalUtils.dict valueTypeTODO)
 
     | TCustomType(Ok typeName, typeArgs), jsonValueKind ->
       uply {

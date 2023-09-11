@@ -555,7 +555,11 @@ and [<NoComparison>] Dval =
   // Compound types
   | DList of ValueType * List<Dval>
   | DTuple of first : Dval * second : Dval * theRest : List<Dval>
-  | DDict of entries : DvalMap
+  | DDict of
+    // _values_, not the keys. Once users can specify the key type, we likely will
+    // need to add a `keyType: ValueType` field here.
+    valueType : ValueType *
+    entries : DvalMap
 
   | DRecord of
     // CLEANUP nitpick: maybe move sourceTypeName before runtimeTypeName?
@@ -834,7 +838,7 @@ module Dval =
 
       pairs |> List.all (fun (v, subtype) -> r subtype v)
     | DList(_vtTODO, l), TList t -> List.all (r t) l
-    | DDict m, TDict t -> Map.all (r t) m
+    | DDict(_vtTODO, m), TDict t -> Map.all (r t) m
     | DFnVal(Lambda l), TFn(parameters, _) ->
       NEList.length parameters = NEList.length l.parameters
 
@@ -887,7 +891,7 @@ module Dval =
 
   let asDict (dv : Dval) : Option<Map<string, Dval>> =
     match dv with
-    | DDict d -> Some d
+    | DDict(_, d) -> Some d
     | _ -> None
 
   let asTuple2 (dv : Dval) : Option<Dval * Dval> =

@@ -168,7 +168,7 @@ let fns : List<BuiltInFn> =
                 keys
 
             let! result = UserDB.getManyWithKeys state db skeys
-            return DvalUtils.dict result
+            return DvalUtils.dict valueTypeDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -245,7 +245,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getAll state db
-            return DvalUtils.dict result
+            return DvalUtils.dict valueTypeDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -348,7 +348,7 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! results = UserDB.query state db b
               match results with
-              | Ok results -> return DvalUtils.dict results
+              | Ok results -> return DvalUtils.dict valueTypeDbTODO results
               | Error rte -> return DError(SourceNone, rte)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e

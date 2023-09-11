@@ -155,7 +155,7 @@ let toRepr (dv : Dval) : string =
       let elems = String.concat $",{inl}" strs
       let typeStr = TypeName.toString typeName
       $"{typeStr} {{" + $"{inl}{elems}{nl}" + "}"
-    | DDict o ->
+    | DDict(_valueTypeTODO, o) ->
       if Map.isEmpty o then
         "{}"
       else

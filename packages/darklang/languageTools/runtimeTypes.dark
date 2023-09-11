@@ -190,7 +190,7 @@ module Darklang =
           | DUuid of Uuid
 
           | DList of ValueType * List<Dval>
-          | DDict of DvalMap
+          | DDict of ValueType * DvalMap
           | DTuple of Dval * Dval * List<Dval>
 
           | DFnVal of FnValImpl
@@ -228,7 +228,7 @@ module Darklang =
           | DPassword _ -> ValueType.Known KnownType.KTPassword
 
           | DList(t, _) -> ValueType.Known(KnownType.KTList t)
-          | DDict _t -> ValueType.Known(KnownType.KTDict ValueType.Unknown) // VTTODO
+          | DDict(t, _) -> ValueType.Known(KnownType.KTDict t)
           | DTuple(first, second, theRest) ->
             (KnownType.KTTuple(
               toValueType first,

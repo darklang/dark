@@ -27,7 +27,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
       Exception.raiseCode "tuples must be the same length"
     else
       equals a1 b1 && equals a2 b2 && List.forall2 equals a3 b3
-  | DDict a, DDict b ->
+  | DDict(_vtTODO1, a), DDict(_vtTODO2, b) ->
     Map.count a = Map.count b
     && Map.forall
       (fun k v ->
