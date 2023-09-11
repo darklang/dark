@@ -1,0 +1,4 @@
+PACKAGE.Darklang.Stdlib.TimeSpan.ticksPerDay = 0
+
+// ((PACKAGE.Darklang.Stdlib.TimeSpan.fromSeconds 5)
+//  |> PACKAGE.Darklang.Stdlib.TimeSpan.toString) = "0 days, 0 hours, 0 minutes, 5 seconds, 0 ms"
