@@ -892,7 +892,7 @@ let testLetPreview : Test =
 
 let tests =
   testList
-    "ExecutionUnitTests"
+    "ExecutionTests"
     [ testRecursionInEditor
       testIfPreview
       testOrPreview
