@@ -526,11 +526,11 @@ module Result =
    | Ok((1, 'a')) -> "pass"
    | _ -> "fail") = "pass"
 
-  // (match PACKAGE.Darklang.Stdlib.Result.Result.Error "failure" with
-  //  | "failure" -> "fail"
-  //  | Error "failure" -> "fail"
-  //  | _ -> "fail") = Builtin.Test.derrorMessage
-  //   "Cannot match Result type Error with a String pattern"
+  (match PACKAGE.Darklang.Stdlib.Result.Result.Error "failure" with
+   | "failure" -> "fail"
+   | Error "failure" -> "fail"
+   | _ -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match PACKAGE.Darklang.Stdlib.Result.Result value PACKAGE.Da... with a String pattern"
 
   (match PACKAGE.Darklang.Stdlib.Result.Result.Ok 5.0 with
    | Ok 6.0 -> "fail"
@@ -573,11 +573,12 @@ module Option =
    | Some((1, 'a')) -> "pass"
    | _ -> "fail") = "pass"
 
-  // (match PACKAGE.Darklang.Stdlib.Option.Option.Some "hello" with
-  //  | "hello" -> "fail"
-  //  | Some "hello" -> "fail"
-  //  | _ -> "fail") = Builtin.Test.derrorMessage
-  //   "Cannot match Option type Some with a String pattern directly"
+  (match PACKAGE.Darklang.Stdlib.Option.Option.Some "hello" with
+   | "hello" -> "fail"
+   | Some "hello" -> "fail"
+   | _ -> "fail") = Builtin.Test.derrorMessage
+    // TODO bad error message
+    "Cannot match PACKAGE.Darklang.Stdlib.Option.Option value PACKAGE.Da... with a String pattern"
 
   (match PACKAGE.Darklang.Stdlib.Option.Option.Some 5.0 with
    | Some 6.0 -> "fail"
