@@ -563,6 +563,7 @@ and [<NoComparison>] Dval =
 
   | DRecord of
     // CLEANUP nitpick: maybe move sourceTypeName before runtimeTypeName?
+    // CLEANUP we may need a sourceTypeArgs here as well
     runtimeTypeName : TypeName.TypeName *
     sourceTypeName : TypeName.TypeName *
     typeArgs : List<ValueType> *
@@ -570,8 +571,10 @@ and [<NoComparison>] Dval =
 
   | DEnum of
     // CLEANUP nitpick: maybe move sourceTypeName before runtimeTypeName?
+    // CLEANUP we may need a sourceTypeArgs here as well
     runtimeTypeName : TypeName.TypeName *
     sourceTypeName : TypeName.TypeName *
+    // VTTODO typeArgs : List<ValueType> *
     caseName : string *
     fields : List<Dval>
 
