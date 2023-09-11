@@ -193,8 +193,7 @@ let fns : List<BuiltInFn> =
             //   |> Seq.toList
             //   |> List.map (fun db ->
             //     [ "tlid", DString(db.tlid.ToString()); "name", DString db.name ]
-            //     |> Map
-            //     |> DDict)
+            //     |> DvalUtils.dict)
             //   |> DvalUtils.list valueTypeTODO
 
             // let httpHandlers =
@@ -209,8 +208,7 @@ let fns : List<BuiltInFn> =
             //       [ "tlid", DString(handler.tlid.ToString())
             //         "method", DString method
             //         "route", DString route ]
-            //       |> Map
-            //       |> DDict
+            //       |> DvalUtils.dict
             //       |> Some)
             //   |> DvalUtils.list valueTypeTODO
 

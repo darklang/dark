@@ -7,8 +7,9 @@ open Expecto
 open Prelude
 open TestUtils.TestUtils
 
-module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module DvalUtils = LibExecution.DvalUtils
+module PT = LibExecution.ProgramTypes
 
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
@@ -79,8 +80,7 @@ let testDvalRoundtrippableRoundtrips =
   testMany
     "special roundtrippable dvals roundtrip"
     roundtrippableRoundtripsSuccessfully
-    [ RT.DDict(Map.ofList [ ("", RT.DFloat 1.797693135e+308); ("a", RT.DFloat nan) ]),
-      true ]
+    [ DvalUtils.dict [ ("", RT.DFloat 1.797693135e+308); ("a", RT.DFloat nan) ], true ]
 
 
 let testToDeveloperRepr =
@@ -92,7 +92,7 @@ let testToDeveloperRepr =
         [ RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(1, 2, 3)"
-          RT.DDict(Map.ofList [ "", RT.DUnit ]), "{\n  : ()\n}"
+          DvalUtils.dict [ "", RT.DUnit ], "{\n  : ()\n}"
           RT.DList(RT.ValueType.Known RT.KTUnit, [ RT.DUnit ]), "[\n  ()\n]" ] ]
 
 module ToHashableRepr =

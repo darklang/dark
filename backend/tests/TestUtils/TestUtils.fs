@@ -799,6 +799,7 @@ module Expect =
       check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
       exprEqualityBaseFn false path l1.body l2.body errorFn
     | DString _, DString _ -> check path (debugDval actual) (debugDval expected)
+
     // Keep for exhaustiveness checking
     | DDict _, _
     | DRecord _, _
@@ -859,9 +860,6 @@ module Expect =
     let success = ref true
     dvalEqualityBaseFn [] left right (fun _ _ _ -> success.Value <- false)
     success.Value
-
-  let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) =
-    dvalEquality (DDict m1) (DDict m2)
 
 let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let mutable state = []
@@ -1061,18 +1059,16 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
          [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    ("dict", DDict(Map.ofList [ "foo", DvalUtils.int 5 ]), TDict TInt)
+    ("dict", DvalUtils.dict [ "foo", DvalUtils.int 5 ], TDict TInt)
     ("dict3",
-     DDict(Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]),
+     DvalUtils.dict [ ("type", DString "weird"); ("value", DString "x") ],
      TDict TString)
     // More Json.NET tests
-    ("dict4", DDict(Map.ofList [ "foo\\\\bar", DvalUtils.int 5 ]), TDict TInt)
-    ("dict5", DDict(Map.ofList [ "$type", DvalUtils.int 5 ]), TDict TInt)
+    ("dict4", DvalUtils.dict [ "foo\\\\bar", DvalUtils.int 5 ], TDict TInt)
+    ("dict5", DvalUtils.dict [ "$type", DvalUtils.int 5 ], TDict TInt)
     ("dict with error",
-     DDict(
-       Map.ofList
-         [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ]
-     ),
+     DvalUtils.dict
+       [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ],
      TDict TInt)
     ("error", DError(SourceNone, RuntimeError.oldError "some error string"), TString)
     ("lambda",

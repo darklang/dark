@@ -472,11 +472,14 @@ let rec eval'
               match (r, k, v) with
               | r, _, _ when Dval.isFake r -> return r
               | _, _, v when Dval.isFake v -> return v
-              | DDict m, k, v -> return (DDict(Map.add k v m))
+
+              | DDict entries, k, v ->
+                return entries |> Map.add k v |> DvalUtils.dictFromMap
+
               // If we haven't got a DDict we're propagating an error so let it go
-              | r, _, v -> return r
+              | r, _, _v -> return r
             })
-          (DDict Map.empty)
+          (DvalUtils.dict [])
           fields
 
 

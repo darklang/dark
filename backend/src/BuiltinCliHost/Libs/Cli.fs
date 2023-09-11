@@ -207,11 +207,11 @@ let fns : List<BuiltInFn> =
         | state, [], [ DString functionName; DList(_vtTODO, args) ] ->
           uply {
             let err (msg : string) (metadata : List<string * string>) =
-              let metadata = metadata |> List.map (fun (k, v) -> k, DString v) |> Map
+              let metadata = metadata |> List.map (fun (k, v) -> k, DString v)
               DvalUtils.resultError (
                 DvalUtils.record
                   (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
-                  [ "msg", DString msg; "metadata", DDict metadata ]
+                  [ "msg", DString msg; "metadata", DvalUtils.dict metadata ]
               )
 
             let exnError (e : exn) : Dval =

@@ -53,8 +53,8 @@ let fns : List<BuiltInFn> =
             envVars
             |> Seq.cast<System.Collections.DictionaryEntry>
             |> Seq.map (fun kv -> (string kv.Key, DString(string kv.Value)))
-            |> Map.ofSeq
-            |> DDict
+            |> Seq.toList
+            |> DvalUtils.dict
 
           Ply(envMap)
         | _ -> incorrectArgs ())

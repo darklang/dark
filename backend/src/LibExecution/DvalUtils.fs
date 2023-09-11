@@ -238,6 +238,15 @@ let list (initialType : ValueType) (list : List<Dval>) : Dval =
 //       | m, _, _ -> m)
 //     fields
 
+// CLEANUP it'd probably be better for this to accept a Map<string, Dval> as this
+// signature may cause consumers to map some Map to a List just for the sake of
+// calling this
+let dict (entries : List<string * Dval>) : Dval = DDict(Map.ofList entries)
+
+let dictFromMap (entries : Map<string, Dval>) : Dval = DDict entries
+
+
+
 let record
   (typeName : TypeName.TypeName)
   // TODO: (typeArgs: List<ValueType>)

@@ -421,7 +421,7 @@ let parse
         })
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (fun fields -> Map fields |> DDict)
+      |> Ply.map DvalUtils.dict
 
     | TCustomType(Ok typeName, typeArgs), jsonValueKind ->
       uply {

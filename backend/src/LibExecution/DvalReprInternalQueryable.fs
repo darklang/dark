@@ -284,7 +284,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
       |> Map.toList
       |> List.map (fun (k, v) -> convert typ v |> Ply.map (fun v -> k, v))
       |> Ply.List.flatten
-      |> Ply.map (Map >> DDict)
+      |> Ply.map DvalUtils.dict
 
 
     | TCustomType(Ok typeName, typeArgs), valueKind ->

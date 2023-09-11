@@ -107,8 +107,7 @@ human-readable data."
                    ("diskHuman", DString ts.diskHuman)
                    ("rowsHuman", DString ts.rowsHuman) ]
                  |> DvalUtils.record typeName))
-              |> Map
-              |> DDict
+              |> DvalUtils.dict
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

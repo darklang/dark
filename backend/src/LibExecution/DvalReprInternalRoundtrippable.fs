@@ -286,7 +286,7 @@ module FormatV0 =
     | DList(typ, l) -> RT.DList(ValueType.toRT typ, List.map toRT l)
     | DTuple(first, second, theRest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)
-    | DDict o -> RT.DDict(Map.map toRT o)
+    | DDict entries -> entries |> Map.map toRT |> DvalUtils.dictFromMap
     | DRecord(typeName, original, typeArgs, o) ->
       RT.DRecord(
         TypeName.toRT typeName,
@@ -327,7 +327,7 @@ module FormatV0 =
     | RT.DList(typ, l) -> DList(ValueType.fromRT typ, List.map fromRT l)
     | RT.DTuple(first, second, theRest) ->
       DTuple(fromRT first, fromRT second, List.map fromRT theRest)
-    | RT.DDict o -> DDict(Map.map fromRT o)
+    | RT.DDict entries -> entries |> Map.map fromRT |> DDict
     | RT.DRecord(typeName, original, typeArgs, o) ->
       DRecord(
         TypeName.fromRT typeName,

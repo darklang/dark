@@ -103,8 +103,7 @@ let fns : List<BuiltInFn> =
                 [ "types", DString(Json.Vanilla.serialize types)
                   "fns", DString(Json.Vanilla.serialize fns)
                   "exprs", DString(Json.Vanilla.serialize exprs) ]
-                |> Map.ofList
-                |> DDict
+                |> DvalUtils.dict
                 |> DvalUtils.resultOk
             with e ->
               let error = Exception.getMessages e |> String.concat " "
