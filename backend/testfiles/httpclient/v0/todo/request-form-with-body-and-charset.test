@@ -19,7 +19,7 @@ Content-Length: LENGTH
 // CLEANUP: clearly it should actually use form encoding here, right?
 (let reqHeaders = {"Content-Type" = "application/x-www-form-urlencoded; charset=utf-8" }
  let reqBody = { var1 = 2; var2 = [] }
- let response = (Builtin.HttpClient.request "post" "http://URL" reqBody {} reqHeaders) |> Builtin.unwrap
+ let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "post" "http://URL" reqBody {} reqHeaders) |> Builtin.unwrap
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
 {response with headers = respHeaders}) =
    Builtin.HttpClient.Response

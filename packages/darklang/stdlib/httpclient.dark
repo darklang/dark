@@ -2,6 +2,25 @@ module Darklang =
   module Stdlib =
     module HttpClient =
 
+      /// The response from a HTTP request
+      type Response =
+        { statusCode: Int
+          headers: List<String * String>
+          body: Bytes }
+
+
+      /// Make blocking HTTP call to <param uri>. Returns a <type Result> where
+      /// the response is wrapped in {{ Ok }} if a response was successfully
+      /// received and parsed, and is wrapped in {{ Error }} otherwise
+      let request
+        (method: String)
+        (uri: String)
+        (headers: List<Tuple<String, String>>)
+        (body: Bytes)
+        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, String> =
+        Builtin.HttpClient.request method uri headers body
+
+
       // Note: this function currently doesn't work, as Base64.encode doesn't exist
       /// Returns a header <type (String*String))> with {{'authorization'}} created using HTTP basic auth
       let basicAuth

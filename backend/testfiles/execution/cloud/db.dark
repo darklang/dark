@@ -247,7 +247,9 @@ module Roundtrip =
         uuid =
           (PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
           |> Builtin.unwrap
-        datetime = (Builtin.DateTime.parse "2020-01-01T00:00:00Z") |> Builtin.unwrap
+        datetime =
+          (PACKAGE.Darklang.Stdlib.DateTime.parse "2020-01-01T00:00:00Z")
+          |> Builtin.unwrap
         unit = ()
       // dont test password because hashing it twice will get different values
       }
@@ -272,7 +274,9 @@ module Roundtrip =
         uuid =
           (PACKAGE.Darklang.Stdlib.Uuid.parse "55555555-5555-5555-5555-555555555555")
           |> Builtin.unwrap
-        datetime = (Builtin.DateTime.parse "2011-11-11T11:11:11Z") |> Builtin.unwrap
+        datetime =
+          (PACKAGE.Darklang.Stdlib.DateTime.parse "2011-11-11T11:11:11Z")
+          |> Builtin.unwrap
         unit = ()
       // dont test password because hashing it twice will get different values
       }
@@ -292,10 +296,10 @@ module Roundtrip =
   type PasswordsDB = Passwords
 
   // TYPESCLEANUP - support passwords
-  // (let pw = Builtin.Password.hash_v0 "password" in
+  // (let pw = PACKAGE.Darklang.Stdlib.Password.hash_v0 "password" in
   //  let x = Builtin.DB.set (Passwords { password = pw }) "test" PasswordsDB in
   //  let y = (Builtin.DB.queryOne PasswordsDB (fun p -> p.password == pw)) |> Builtin.unwrap in
-  //  Builtin.Password.check_v0 y.password "password") = true
+  //  PACKAGE.Darklang.Stdlib.Password.check_v0 y.password "password") = true
 
   module QueryEquality =
     let fetch (fn: 'a -> Bool) : List<'a> =
@@ -398,17 +402,18 @@ module Roundtrip =
 
     fetch (fun p ->
       p.datetime
-      == ((Builtin.DateTime.parse "2020-01-01T00:00:00Z") |> Builtin.unwrap)) = [ sample
-                                                                                    () ]
+      == ((PACKAGE.Darklang.Stdlib.DateTime.parse "2020-01-01T00:00:00Z")
+          |> Builtin.unwrap)) = [ sample () ]
 
     fetch (fun p ->
       p.datetime
-      != ((Builtin.DateTime.parse "2020-01-01T00:00:00Z") |> Builtin.unwrap)) = [ otherSample
-                                                                                    () ]
+      != ((PACKAGE.Darklang.Stdlib.DateTime.parse "2020-01-01T00:00:00Z")
+          |> Builtin.unwrap)) = [ otherSample () ]
 
     fetch (fun p ->
       p.datetime
-      == ((Builtin.DateTime.parse "2019-12-31T23:59:59Z") |> Builtin.unwrap)) = []
+      == ((PACKAGE.Darklang.Stdlib.DateTime.parse "2019-12-31T23:59:59Z")
+          |> Builtin.unwrap)) = []
 
     (fetch (fun p -> p.unit == ()))
     |> PACKAGE.Darklang.Stdlib.List.sortBy (fun v -> v.int) = [ sample ()
@@ -624,7 +629,7 @@ let addFriend
   (dob: String)
   (income: Float)
   : Person =
-  let dob = (Builtin.DateTime.parse dob) |> Builtin.unwrap in
+  let dob = (PACKAGE.Darklang.Stdlib.DateTime.parse dob) |> Builtin.unwrap in
 
   let obj =
     Person
@@ -645,7 +650,7 @@ let prepFriends () : Unit =
    ())
 
 let d (datestr: String) : DateTime =
-  (Builtin.DateTime.parse datestr) |> Builtin.unwrap
+  (PACKAGE.Darklang.Stdlib.DateTime.parse datestr) |> Builtin.unwrap
 
 let rossDOB () : DateTime = d "1967-05-12T00:00:00Z"
 
@@ -803,52 +808,56 @@ module CompiledFunctions =
                                                                               "Ross" ]
 
   (friends (fun p ->
-    Builtin.DateTime.lessThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [ " Chandler "
-                                                                              "Rachel"
-                                                                              "Ross" ]
-
-  (friends (fun p -> Builtin.DateTime.lessThanOrEqualTo p.dob (rossDOB ()))) = [ "Ross" ]
-  (friends (fun p -> Builtin.DateTime.lessThan p.dob (rossDOB ()))) = []
-
-  (friends (fun p ->
-    Builtin.DateTime.greaterThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [ "GrumpyCat" ]
-
-  (friends (fun p -> Builtin.DateTime.greaterThanOrEqualTo p.dob (rossDOB ()))) = [ " Chandler "
-                                                                                    "GrumpyCat"
-                                                                                    "Rachel"
-                                                                                    "Ross" ]
-
-  (friends (fun p -> Builtin.DateTime.greaterThan p.dob (rossDOB ()))) = [ " Chandler "
-                                                                           "GrumpyCat"
-                                                                           "Rachel" ]
-
-  (friends (fun p ->
-    Builtin.DateTime.lessThanOrEqualTo
+    PACKAGE.Darklang.Stdlib.DateTime.lessThanOrEqualTo
       p.dob
-      (Builtin.DateTime.addSeconds_v0 (Builtin.DateTime.now_v0 ()) 1))) = [ " Chandler "
-                                                                            "GrumpyCat"
-                                                                            "Rachel"
-                                                                            "Ross" ]
+      (d "2000-01-01T01:02:03Z"))) = [ " Chandler "; "Rachel"; "Ross" ]
 
   (friends (fun p ->
-    Builtin.DateTime.lessThanOrEqualTo
+    PACKAGE.Darklang.Stdlib.DateTime.lessThanOrEqualTo p.dob (rossDOB ()))) = [ "Ross" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.lessThan p.dob (rossDOB ()))) = []
+
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.DateTime.greaterThanOrEqualTo
       p.dob
-      (Builtin.DateTime.subtractSeconds_v0 (Builtin.DateTime.now_v0 ()) 1))) = [ " Chandler "
-                                                                                 "GrumpyCat"
-                                                                                 "Rachel"
-                                                                                 "Ross" ]
+      (d "2000-01-01T01:02:03Z"))) = [ "GrumpyCat" ]
 
   (friends (fun p ->
-    Builtin.DateTime.atStartOfDay_v0 p.dob == (d "1969-08-19T00:00:00Z"))) = [ " Chandler " ]
+    PACKAGE.Darklang.Stdlib.DateTime.greaterThanOrEqualTo p.dob (rossDOB ()))) = [ " Chandler "
+                                                                                   "GrumpyCat"
+                                                                                   "Rachel"
+                                                                                   "Ross" ]
 
-  (friends (fun p -> Builtin.DateTime.hour p.dob == 10)) = [ " Chandler " ]
-  (friends (fun p -> Builtin.DateTime.day_v0 p.dob == 19)) = [ " Chandler " ]
-  (friends (fun p -> Builtin.DateTime.minute p.dob == 13)) = [ " Chandler " ]
-  (friends (fun p -> Builtin.DateTime.month_v0 p.dob == 8)) = [ " Chandler " ]
-  (friends (fun p -> Builtin.DateTime.second p.dob == 42)) = [ " Chandler " ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.greaterThan p.dob (rossDOB ()))) = [ " Chandler "
+                                                                                           "GrumpyCat"
+                                                                                           "Rachel" ]
 
-  (friends (fun p -> Builtin.DateTime.year_v0 p.dob == 1969)) = [ " Chandler "
-                                                                  "Rachel" ]
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.DateTime.lessThanOrEqualTo
+      p.dob
+      (PACKAGE.Darklang.Stdlib.DateTime.addSeconds_v0
+        (PACKAGE.Darklang.Stdlib.DateTime.now_v0 ())
+        1))) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.DateTime.lessThanOrEqualTo
+      p.dob
+      (PACKAGE.Darklang.Stdlib.DateTime.subtractSeconds_v0
+        (PACKAGE.Darklang.Stdlib.DateTime.now_v0 ())
+        1))) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.DateTime.atStartOfDay_v0 p.dob
+    == (d "1969-08-19T00:00:00Z"))) = [ " Chandler " ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.hour p.dob == 10)) = [ " Chandler " ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.day_v0 p.dob == 19)) = [ " Chandler " ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.minute p.dob == 13)) = [ " Chandler " ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.month_v0 p.dob == 8)) = [ " Chandler " ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.second p.dob == 42)) = [ " Chandler " ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.year_v0 p.dob == 1969)) = [ " Chandler "
+                                                                                  "Rachel" ]
 
   // Test package constants
   (friends (fun p ->

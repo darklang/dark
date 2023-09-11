@@ -303,6 +303,29 @@ let sqlOpForPackageFunction (fnName : FnName.Package) : SqlSpec =
   | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "multiply" -> SqlBinOp "*"
   | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "divide" -> SqlBinOp "/"
   | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "power" -> SqlBinOp "^"
+  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "addSeconds" -> SqlBinOp "+"
+  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "subtractSeconds" ->
+    SqlBinOp "-"
+  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "lessThan" -> SqlBinOp "<"
+  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "lessThanOrEqualTo" ->
+    SqlBinOp "<="
+  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "greaterThan" -> SqlBinOp ">"
+  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "greaterThanOrEqualTo" ->
+    SqlBinOp ">="
+  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "year" ->
+    SqlFunctionWithPrefixArgs("date_part", [ "'year'" ])
+  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "month" ->
+    SqlFunctionWithPrefixArgs("date_part", [ "'month'" ])
+  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "day" ->
+    SqlFunctionWithPrefixArgs("date_part", [ "'day'" ])
+  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "hour" ->
+    SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
+  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "minute" ->
+    SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
+  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "second" ->
+    SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
+  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "atStartOfDay" ->
+    SqlFunctionWithPrefixArgs("date_trunc", [ "'day'" ])
   | _ -> NotQueryable
 
 

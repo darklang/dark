@@ -337,7 +337,7 @@ Builtin.Json.parse<String>
 
 // Datetimes
 let d (datestr: String) : DateTime =
-  (Builtin.DateTime.parse datestr) |> Builtin.unwrap
+  (PACKAGE.Darklang.Stdlib.DateTime.parse datestr) |> Builtin.unwrap
 
 // now-ish
 Builtin.Json.serialize<DateTime> (d "2023-07-28T22:42:36Z") = PACKAGE.Darklang.Stdlib.Result.Result.Ok

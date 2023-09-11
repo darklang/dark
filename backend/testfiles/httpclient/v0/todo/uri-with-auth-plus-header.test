@@ -17,7 +17,7 @@ Content-Length: LENGTH
 
 [test]
 (let headers = Dict { Authorization = "Basic: bWU6b3BlbnNlc2FtZQ==" }
- let response = (Builtin.HttpClient.request "get" "http://user:password@URL" {} headers) |> Builtin.unwrap
+ let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://user:password@URL" {} headers) |> Builtin.unwrap
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    Builtin.HttpClient.Response

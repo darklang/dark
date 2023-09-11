@@ -326,7 +326,9 @@ let _handler _req =
 [<HttpHandler("GET", "/category/:name")>]
 let _handler _req =
   let fullName = name |> PACKAGE.Darklang.Stdlib.String.split "."
+
   let owner = fullName |> PACKAGE.Darklang.Stdlib.List.head |> Builtin.unwrap
+
   let name = fullName |> PACKAGE.Darklang.Stdlib.List.last |> Builtin.unwrap
 
   let modules =

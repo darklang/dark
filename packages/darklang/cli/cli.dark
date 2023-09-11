@@ -11,7 +11,7 @@ module Darklang =
 
     let showFn (name: String) (owner: String) (modules: List<String>) : Int =
       let fns =
-        Builtin.HttpClient.request
+        PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/functions/")
           []
@@ -60,7 +60,7 @@ module Darklang =
 
     let showType (name: String) (owner: String) (modules: List<String>) : Int =
       let types =
-        Builtin.HttpClient.request
+        PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/types/")
           []
@@ -111,7 +111,7 @@ module Darklang =
 
     let showConstant (name: String) (owner: String) (modules: List<String>) : Int =
       let constants =
-        Builtin.HttpClient.request
+        PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/constants/")
           []
@@ -169,7 +169,7 @@ module Darklang =
 
     let showModule (name: String) : Int =
       let modules =
-        Builtin.HttpClient.request
+        PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/modules/" ++ name)
           []
@@ -212,7 +212,7 @@ module Darklang =
 
     let showPackage (owner: String) : Int =
       let packages =
-        Builtin.HttpClient.request
+        PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/owner/" ++ owner)
           []
@@ -358,7 +358,7 @@ Options:
           |> Builtin.unwrap
 
         let categoryRequest =
-          Builtin.HttpClient.request
+          PACKAGE.Darklang.Stdlib.HttpClient.request
             "GET"
             ("http://dark-packages.dlio.localhost:11003/category/" ++ fullName)
             []
