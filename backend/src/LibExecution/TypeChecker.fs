@@ -284,7 +284,7 @@ let rec unify
         match! valueTypeUnifies tst expected actual with
         | false ->
           return
-            ValueNotExpectedType(value, expected, context)
+            ValueNotExpectedType(value, TList expected, context)
             |> Error.toRuntimeError
             |> Error
 
