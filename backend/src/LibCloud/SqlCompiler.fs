@@ -13,6 +13,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
+module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 module TypeChecker = LibExecution.TypeChecker
 
 module RuntimeTypesAst = LibExecution.RuntimeTypesAst
@@ -597,6 +598,14 @@ let rec lambdaToSql
 
             return (sql, vars, TList actualType)
           | _ -> return error "Expected a List"
+
+        | EEnum(_, typeName, caseName, []) ->
+          let dv = Dval.enum typeName caseName []
+          let typ = (TCustomType(Ok typeName, []))
+          typecheck $"Enum '{dv}'" typ expectedType
+          let! v = DvalReprInternalQueryable.toJsonStringV0 types typ dv
+          let name = randomString 10
+          return $"(@{name})", [ name, Sql.jsonb v ], typ
 
 
         | EFieldAccess(_, subExpr, fieldname) ->

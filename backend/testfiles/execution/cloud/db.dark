@@ -187,6 +187,14 @@ module AddToTestEnumDBs =
                                                                   { x = "hello"
                                                                     y = MyEnum.A } ]
 
+  (let testQuery =
+    Builtin.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
+
+   (Builtin.DB.query TestEnumDB (fun p -> p.y == MyEnum.A))) = [ EnumTestRecord
+                                                                  { x = "hello"
+                                                                    y = MyEnum.A } ]
+
+
 
 type MyTlid =
   { mytlid: PACKAGE.Darklang.LanguageTools.TLID }
