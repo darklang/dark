@@ -194,7 +194,10 @@ let rec private toJsonV0
     // Not supported
     | TVariable _, _
     | TFn _, DFnVal _
-    | TDB _, DDB _ -> Exception.raiseInternal "Not supported in queryable" []
+    | TDB _, DDB _ ->
+      Exception.raiseInternal
+        "Not supported in queryable"
+        [ "value", dv; "type", typ ]
 
     // exhaustiveness checking
     | TInt, _
