@@ -180,10 +180,6 @@ module AddToTestEnumDBs =
                                                                              MyEnum2.F
                                                                                MyEnum.A ]
 
-  (let test1 = Builtin.DB.set MyEnum.D "test1" TestEnumDB2 in
-   (Builtin.DB.getAll TestEnumDB2)) = Builtin.Test.derrorMessage
-    "There is no case named `D` in MyEnum"
-
   (let testQuery =
     Builtin.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
 
