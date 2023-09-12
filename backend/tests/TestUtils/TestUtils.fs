@@ -13,6 +13,7 @@ open Prelude
 
 module DarkDateTime = LibExecution.DarkDateTime
 module RT = LibExecution.RuntimeTypes
+module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
@@ -340,14 +341,14 @@ let rec debugDval (v : Dval) : string =
     $"DString '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
   | DDateTime d ->
     $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
-  | DRecord(tn, _, o) ->
+  | DRecord(tn, _, _typeArgsTODO, o) ->
     let typeStr = TypeName.toString tn
     o
     |> Map.toList
     |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
     |> String.concat ",\n  "
     |> fun contents -> $"DRecord {typeStr} {{\n  {contents}}}"
-  | DDict obj ->
+  | DDict(_vtTODO, obj) ->
     obj
     |> Map.toList
     |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
@@ -388,8 +389,8 @@ module Expect =
     | DFloat _ -> true
     | DList(_, vs) -> List.all check vs
     | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
-    | DDict vs -> vs |> Map.values |> List.all check
-    | DRecord(_, _, vs) -> vs |> Map.values |> List.all check
+    | DDict(_, vs) -> vs |> Map.values |> List.all check
+    | DRecord(_, _, _typeArgsTODO, vs) -> vs |> Map.values |> List.all check
     | DString str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
     | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all check
@@ -746,7 +747,7 @@ module Expect =
       check ("Length" :: path) (List.length theRestL) (List.length theRestR)
       List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) theRestL theRestR
 
-    | DDict ls, DDict rs ->
+    | DDict(_vtTODO1, ls), DDict(_vtTODO2, rs) ->
       // check keys from ls are in both, check matching values
       Map.iterWithIndex
         (fun key v1 ->
@@ -763,7 +764,7 @@ module Expect =
         rs
       check ("Length" :: path) (Map.count ls) (Map.count rs)
 
-    | DRecord(ltn, _, ls), DRecord(rtn, _, rs) ->
+    | DRecord(ltn, _, _typeArgsTODO1, ls), DRecord(rtn, _, _typeArgsTODO2, rs) ->
       userTypeNameEqualityBaseFn path ltn rtn errorFn
       // check keys from ls are in both, check matching values
       Map.iterWithIndex
@@ -798,6 +799,7 @@ module Expect =
       check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
       exprEqualityBaseFn false path l1.body l2.body errorFn
     | DString _, DString _ -> check path (debugDval actual) (debugDval expected)
+
     // Keep for exhaustiveness checking
     | DDict _, _
     | DRecord _, _
@@ -859,17 +861,15 @@ module Expect =
     dvalEqualityBaseFn [] left right (fun _ _ _ -> success.Value <- false)
     success.Value
 
-  let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) =
-    dvalEquality (DDict m1) (DDict m2)
-
 let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let mutable state = []
   let f dv = state <- f dv :: state
   let rec visit dv : unit =
     match dv with
     // Keep for exhaustiveness checking
-    | DDict map -> Map.values map |> List.map visit |> ignore<List<unit>>
-    | DRecord(_, _, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
+    | DDict(_, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
+    | DRecord(_, _, _typeArgsTODO, map) ->
+      Map.values map |> List.map visit |> ignore<List<unit>>
     | DEnum(_typeName, _, _caseName, fields) ->
       fields |> List.map visit |> ignore<List<unit>>
     | DList(_, dvs) -> List.map visit dvs |> ignore<List<unit>>
@@ -1013,6 +1013,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0,
        S.fqUserTypeName [ "Two"; "Modules" ] "FooAlias" 0,
+       valueTypesTODO,
        Map.ofList [ "foo", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0), []))
@@ -1020,6 +1021,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "FooAlias" 0,
+       valueTypesTODO,
        Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1027,6 +1029,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
+       valueTypesTODO,
        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1035,6 +1038,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
+       valueTypesTODO,
        Map.ofList [ "foo\\\\bar", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1042,6 +1046,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
+       valueTypesTODO,
        Map.ofList [ "$type", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1049,22 +1054,22 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
+       valueTypesTODO,
        Map.ofList
          [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    ("dict", DDict(Map.ofList [ "foo", Dval.int 5 ]), TDict TInt)
+    ("dict", Dval.dict valueTypeTODO [ "foo", Dval.int 5 ], TDict TInt)
     ("dict3",
-     DDict(Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]),
+     Dval.dict valueTypeTODO [ ("type", DString "weird"); ("value", DString "x") ],
      TDict TString)
     // More Json.NET tests
-    ("dict4", DDict(Map.ofList [ "foo\\\\bar", Dval.int 5 ]), TDict TInt)
-    ("dict5", DDict(Map.ofList [ "$type", Dval.int 5 ]), TDict TInt)
+    ("dict4", Dval.dict valueTypeTODO [ "foo\\\\bar", Dval.int 5 ], TDict TInt)
+    ("dict5", Dval.dict valueTypeTODO [ "$type", Dval.int 5 ], TDict TInt)
     ("dict with error",
-     DDict(
-       Map.ofList
-         [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ]
-     ),
+     Dval.dict
+       valueTypeTODO
+       [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ],
      TDict TInt)
     ("error", DError(SourceNone, RuntimeError.oldError "some error string"), TString)
     ("lambda",

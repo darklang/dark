@@ -7,6 +7,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 
+module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
@@ -52,8 +53,8 @@ let fns : List<BuiltInFn> =
             envVars
             |> Seq.cast<System.Collections.DictionaryEntry>
             |> Seq.map (fun kv -> (string kv.Key, DString(string kv.Value)))
-            |> Map.ofSeq
-            |> DDict
+            |> Seq.toList
+            |> Dval.dict valueTypeTODO
 
           Ply(envMap)
         | _ -> incorrectArgs ())

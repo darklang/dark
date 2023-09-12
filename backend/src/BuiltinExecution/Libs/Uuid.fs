@@ -7,6 +7,7 @@ open FSharp.Control.Tasks
 open LibExecution.RuntimeTypes
 open Prelude
 open LibExecution.Builtin.Shortcuts
+module Dval = LibExecution.Dval
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []

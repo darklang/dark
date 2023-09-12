@@ -7,6 +7,7 @@ module LibHttpMiddleware.Http
 open Prelude
 open LibExecution.Builtin.Shortcuts
 
+module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
 module Telemetry = LibService.Telemetry
 
@@ -26,7 +27,7 @@ module Request =
       headers
       |> lowercaseHeaderKeys
       |> List.map (fun (k, v) -> RT.DTuple(RT.DString(k), RT.DString(v), []))
-      |> RT.Dval.list (
+      |> Dval.list (
         RT.ValueType.Known(
           RT.KTTuple(
             RT.ValueType.Known RT.KTString,
@@ -37,7 +38,7 @@ module Request =
       )
 
     [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]
-    |> RT.Dval.record typ
+    |> Dval.record typ
 
 
 module Response =
@@ -52,6 +53,7 @@ module Response =
                                      name = RT.TypeName.TypeName "Response"
                                      version = 0 },
                  _,
+                 _typeArgsTODO,
                  fields) ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
       let code = Map.get "statusCode" fields

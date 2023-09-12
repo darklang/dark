@@ -9,6 +9,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 open Wasm.EvalHelpers
 
+module Dval = LibExecution.Dval
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []

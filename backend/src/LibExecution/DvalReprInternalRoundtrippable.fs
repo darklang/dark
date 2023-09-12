@@ -244,7 +244,7 @@ module FormatV0 =
     | DList of ValueType.ValueType * List<Dval>
     | DTuple of Dval * Dval * List<Dval>
     | DLambda // See docs/dblock-serialization.md
-    | DDict of DvalMap
+    | DDict of ValueType.ValueType * DvalMap
     | DDB of string
     | DDateTime of NodaTime.LocalDateTime
     | DPassword of byte array // We are allowed serialize this here, so don't use the Password type which doesn't deserialize
@@ -253,12 +253,13 @@ module FormatV0 =
     | DRecord of
       runtimeTypeName : TypeName.TypeName *
       sourceTypeName : TypeName.TypeName *
-      DvalMap
+      typeArgs : List<ValueType.ValueType> *
+      fields : DvalMap
     | DEnum of
       runtimeTypeName : TypeName.TypeName *
       sourceTypeName : TypeName.TypeName *
       caseName : string *
-      List<Dval>
+      fields : List<Dval>
 
     | DError of RuntimeError // CLEANUP remove
 
@@ -285,9 +286,14 @@ module FormatV0 =
     | DList(typ, l) -> RT.DList(ValueType.toRT typ, List.map toRT l)
     | DTuple(first, second, theRest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)
-    | DDict o -> RT.DDict(Map.map toRT o)
-    | DRecord(typeName, original, o) ->
-      RT.DRecord(TypeName.toRT typeName, TypeName.toRT original, Map.map toRT o)
+    | DDict(typ, entries) -> RT.DDict(ValueType.toRT typ, Map.map toRT entries)
+    | DRecord(typeName, original, typeArgs, o) ->
+      RT.DRecord(
+        TypeName.toRT typeName,
+        TypeName.toRT original,
+        List.map ValueType.toRT typeArgs,
+        Map.map toRT o
+      )
     | DBytes bytes -> RT.DBytes bytes
     | DEnum(typeName, original, caseName, fields) ->
       RT.DEnum(
@@ -321,9 +327,14 @@ module FormatV0 =
     | RT.DList(typ, l) -> DList(ValueType.fromRT typ, List.map fromRT l)
     | RT.DTuple(first, second, theRest) ->
       DTuple(fromRT first, fromRT second, List.map fromRT theRest)
-    | RT.DDict o -> DDict(Map.map fromRT o)
-    | RT.DRecord(typeName, original, o) ->
-      DRecord(TypeName.fromRT typeName, TypeName.fromRT original, Map.map fromRT o)
+    | RT.DDict(typ, entries) -> DDict(ValueType.fromRT typ, Map.map fromRT entries)
+    | RT.DRecord(typeName, original, typeArgs, o) ->
+      DRecord(
+        TypeName.fromRT typeName,
+        TypeName.fromRT original,
+        List.map ValueType.fromRT typeArgs,
+        Map.map fromRT o
+      )
     | RT.DBytes bytes -> DBytes bytes
     | RT.DEnum(typeName, original, caseName, fields) ->
       DEnum(
@@ -373,8 +384,8 @@ module Test =
     | RT.DEnum(_typeName, _, _caseName, fields) ->
       List.all isRoundtrippableDval fields
     | RT.DList(_, dvals) -> List.all isRoundtrippableDval dvals
-    | RT.DDict map -> map |> Map.values |> List.all isRoundtrippableDval
-    | RT.DRecord(_, _, map) -> map |> Map.values |> List.all isRoundtrippableDval
+    | RT.DDict(_, map) -> map |> Map.values |> List.all isRoundtrippableDval
+    | RT.DRecord(_, _, _, map) -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DUuid _ -> true
     | RT.DTuple(v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
     | RT.DDB _

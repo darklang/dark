@@ -7,8 +7,9 @@ open Expecto
 open Prelude
 open TestUtils.TestUtils
 
-module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module Dval = LibExecution.Dval
+module PT = LibExecution.ProgramTypes
 
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
@@ -38,6 +39,7 @@ let queryableRoundtripsSuccessfullyInRecord
       RT.DRecord(
         RT.FQName.UserProgram typeName,
         RT.FQName.UserProgram typeName,
+        RT.valueTypesTODO,
         Map.ofList [ "field", dv ]
       )
     let typeRef = S.userTypeReference [] "MyType" 0
@@ -78,7 +80,9 @@ let testDvalRoundtrippableRoundtrips =
   testMany
     "special roundtrippable dvals roundtrip"
     roundtrippableRoundtripsSuccessfully
-    [ RT.DDict(Map.ofList [ ("", RT.DFloat 1.797693135e+308); ("a", RT.DFloat nan) ]),
+    [ Dval.dict
+        RT.valueTypeTODO
+        [ ("", RT.DFloat 1.797693135e+308); ("a", RT.DFloat nan) ],
       true ]
 
 
@@ -91,7 +95,7 @@ let testToDeveloperRepr =
         [ RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(1, 2, 3)"
-          RT.DDict(Map.ofList [ "", RT.DUnit ]), "{\n  : ()\n}"
+          Dval.dict RT.valueTypeTODO [ "", RT.DUnit ], "{\n  : ()\n}"
           RT.DList(RT.ValueType.Known RT.KTUnit, [ RT.DUnit ]), "[\n  ()\n]" ] ]
 
 module ToHashableRepr =
@@ -222,6 +226,7 @@ module Password =
         RT.DRecord(
           RT.FQName.UserProgram typeName,
           RT.FQName.UserProgram typeName,
+          RT.valueTypesTODO,
           Map.ofList [ "x", RT.DPassword(Password bytes) ]
         )
 

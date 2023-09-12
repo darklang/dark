@@ -5,6 +5,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Errors = LibExecution.Errors
+module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
@@ -43,8 +44,9 @@ module DvalComparator =
     | DPassword _, DPassword _ -> 0 // CLEANUP - how do we handle this?
     | DUuid u1, DUuid u2 -> compare u1 u2
     | DBytes b1, DBytes b2 -> compare b1 b2
-    | DDict o1, DDict o2 -> compareMaps (Map.toList o1) (Map.toList o2)
-    | DRecord(tn1, _, o1), DRecord(tn2, _, o2) ->
+    | DDict(_vtTODO1, o1), DDict(_vtTODO2, o2) ->
+      compareMaps (Map.toList o1) (Map.toList o2)
+    | DRecord(tn1, _, _typeArgsTODO1, o1), DRecord(tn2, _, _typeArgsTODO2, o2) ->
       let c = compare tn1 tn2
       if c = 0 then compareMaps (Map.toList o1) (Map.toList o2) else c
     | DEnum(tn1, _, c1, f1), DEnum(tn2, _, c2, f2) ->

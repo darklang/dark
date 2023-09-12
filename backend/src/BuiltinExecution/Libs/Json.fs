@@ -7,7 +7,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module DarkDateTime = LibExecution.DarkDateTime
-
+module Dval = LibExecution.Dval
 
 
 // parsing
@@ -106,7 +106,7 @@ let rec serialize
     | TList ltype, DList(_, l) ->
       do! w.writeArray (fun () -> Ply.List.iterSequentially (r ltype) l)
 
-    | TDict objType, DDict fields ->
+    | TDict objType, DDict(_vtTODO, fields) ->
       do!
         w.writeObject (fun () ->
           fields
@@ -179,7 +179,9 @@ let rec serialize
 
         | TypeDeclaration.Record fields ->
           match dval with
-          | DRecord(actualTypeName, _, dvalMap) when actualTypeName = typeName ->
+          | DRecord(actualTypeName, _, _typeArgsTODO, dvalMap) when
+            actualTypeName = typeName
+            ->
             do!
               w.writeObject (fun () ->
                 dvalMap
@@ -198,7 +200,7 @@ let rec serialize
                     Types.substitute decl.typeParams typeArgs matchingFieldDef.typ
                   r typ dval))
 
-          | DRecord(actualTypeName, _, _) ->
+          | DRecord(actualTypeName, _, _typeArgsTODO, _) ->
             Exception.raiseInternal
               "Incorrect record type"
               [ "actual", actualTypeName; "expected", typeName ]
@@ -419,7 +421,7 @@ let parse
         })
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (fun fields -> Map fields |> DDict)
+      |> Ply.map (Dval.dict valueTypeTODO)
 
     | TCustomType(Ok typeName, typeArgs), jsonValueKind ->
       uply {
@@ -463,15 +465,14 @@ let parse
                   $"Couldn't parse Enum as incorrect # of fields provided"
                   []
 
-              let! mapped =
+              let! fields =
                 List.zip matchingCase.fields j
                 |> List.map (fun (typ, j) ->
                   let typ = Types.substitute decl.typeParams typeArgs typ
                   convert typ pathSoFar j) // TODO revisit if we need to do anything with path
                 |> Ply.List.flatten
 
-              // TYPESCLEANUP: we should have the original type here as well as the alias-resolved type
-              return DEnum(typeName, typeName, caseName, mapped)
+              return Dval.enum typeName typeName caseName fields
 
             | _ -> return Exception.raiseInternal "TODO" []
 
@@ -512,7 +513,7 @@ let parse
               |> Ply.List.flatten
               |> Ply.map Map.ofList
 
-            return DRecord(typeName, typeName, fields)
+            return DRecord(typeName, typeName, valueTypesTODO, fields)
       }
 
 

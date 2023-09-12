@@ -118,7 +118,7 @@ let rec private toJsonV0
         w.writeArray (fun () ->
           Ply.List.iterSequentially (fun (t, d) -> writeDval t d) zipped)
 
-    | TDict objType, DDict o ->
+    | TDict objType, DDict(_valueTypeTODO, o) ->
       do!
         w.writeObject (fun () ->
           Ply.List.iterSequentially
@@ -138,7 +138,7 @@ let rec private toJsonV0
           let typ = Types.substitute decl.typeParams typeArgs typeRef
           do! writeDval typ dv
 
-        | TypeDeclaration.Record fields, DRecord(_, _, dm) ->
+        | TypeDeclaration.Record fields, DRecord(_, _, _, dm) ->
           let fields = NEList.toList fields
           do!
             w.writeObject (fun () ->
@@ -153,7 +153,6 @@ let rec private toJsonV0
                 fields)
 
         | TypeDeclaration.Enum(cases), DEnum(_, _, caseName, fields) ->
-
           let matchingCase =
             cases
             |> NEList.find (fun c -> c.name = caseName)
@@ -284,7 +283,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
       |> Map.toList
       |> List.map (fun (k, v) -> convert typ v |> Ply.map (fun v -> k, v))
       |> Ply.List.flatten
-      |> Ply.map (Map >> DDict)
+      |> Ply.map (Dval.dict valueTypeTODO)
 
 
     | TCustomType(Ok typeName, typeArgs), valueKind ->
@@ -318,7 +317,8 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                   dval |> Ply.map (fun dval -> f.name, dval))
                 |> Ply.List.flatten
                 // TYPESCLEANUP: I don't think the original is name right here?
-                |> Ply.map (fun mapped -> DRecord(typeName, typeName, Map mapped))
+                |> Ply.map (fun mapped ->
+                  DRecord(typeName, typeName, valueTypesTODO, Map mapped))
             else
               return
                 Exception.raiseInternal
@@ -351,7 +351,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 |> Ply.List.flatten
 
               // TYPESCLEANUP: I don't think the original is name right here?
-              return DEnum(typeName, typeName, caseName, fields)
+              return Dval.enum typeName typeName caseName fields
           | _, _ ->
             return
               Exception.raiseInternal
@@ -398,10 +398,13 @@ module Test =
     | DChar _
     | DFloat _
     | DUuid _ -> true
+
+    // VTTODO these should probably just check the valueType, not any internal data
     | DList(_, dvals) -> List.all isQueryableDval dvals
-    | DDict map -> map |> Map.values |> List.all isQueryableDval
-    | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all isQueryableDval
+    | DDict(_, map) -> map |> Map.values |> List.all isQueryableDval
     | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
+
+    | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all isQueryableDval
 
     // TODO support
     | DRecord _ // TYPESCLEANUP

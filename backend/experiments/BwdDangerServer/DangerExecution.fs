@@ -8,8 +8,9 @@ open System.Threading.Tasks
 
 open Prelude
 
-module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module Dval = LibExecution.Dval
+module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
@@ -152,11 +153,11 @@ let executeHandler
             name = RT.TypeName.TypeName "Response"
             version = 0 }
 
-      RT.Dval.record
+      Dval.record
         typeName
         [ "statusCode", RT.DInt 500
           "headers",
-          RT.Dval.list
+          Dval.list
             (RT.ValueType.Known(
               RT.KTTuple(
                 RT.ValueType.Known RT.KTString,

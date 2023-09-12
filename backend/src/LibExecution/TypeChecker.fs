@@ -147,7 +147,7 @@ module Error =
           let parent = toDT parent
           "TupleIndex", [ index; elementType; parent ]
 
-      Dval.enum nameTypeName caseName fields
+      Dval.enum nameTypeName nameTypeName caseName fields
 
 
   let toRuntimeError (e : Error) : RuntimeError =
@@ -159,13 +159,18 @@ module Error =
           expectedType |> RT2DT.TypeReference.toDT
           Context.toDT context ]
 
+      let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
       RuntimeError.typeCheckerError (
-        Dval.enum typeName "ValueNotExpectedType" fields
+        Dval.enum typeName typeName "ValueNotExpectedType" fields
       )
 
     | TypeDoesntExist(typeName, context) ->
       let fields = [ RT2DT.TypeName.toDT typeName; Context.toDT context ]
-      RuntimeError.typeCheckerError (Dval.enum typeName "TypeDoesntExist" fields)
+
+      let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
+      RuntimeError.typeCheckerError (
+        Dval.enum typeName typeName "TypeDoesntExist" fields
+      )
 
 let rec valueTypeUnifies
   (tst : TypeSymbolTable)
@@ -280,29 +285,26 @@ let rec unify
       | TChar, DChar _ -> return Ok()
       | TBytes, DBytes _ -> return Ok()
       | TDB _, DDB _ -> return Ok() // TODO: check DB type
-      | TList nested, DList(vt, _dvs) ->
-        match! valueTypeUnifies tst nested vt with
+      | TList expected, DList(actual, _dvs) ->
+        match! valueTypeUnifies tst expected actual with
         | false ->
           return
-            ValueNotExpectedType(value, expected, context)
+            ValueNotExpectedType(value, TList expected, context)
             |> Error.toRuntimeError
             |> Error
 
         | true -> return! Ply()
 
-      | TDict valueType, DDict dmap ->
-        // let! results =
-        //   dmap
-        //   |> Map.toList
-        //   |> Ply.List.mapSequentially (fun (k, v) ->
-        //     let location = Context.toLocation context
-        //     let context = DictKey(k, valueType, location)
-        //     unify context types tst valueType v)
-        // return combineErrorsUnit results
-        // CLEANUP DDict should include a TypeReference, in which case
-        // the type-checking here would just be a `tValue = dValue` check.
-        // (the construction of that DDict should have already checked that the
-        // keys match)
+      | TDict _expected, DDict(_actual, _entries) ->
+        // VTTODO uncomment this
+        // match! valueTypeUnifies tst expected actual with
+        // | false ->
+        //   return
+        //     ValueNotExpectedType(value, expected, context)
+        //     |> Error.toRuntimeError
+        //     |> Error
+
+        // | true -> return! Ply()
         return Ok()
 
       | TFn(argTypes, returnType), DFnVal fnVal -> return Ok() // TYPESTODO check lambdas and fnVals
@@ -352,7 +354,8 @@ let rec unify
               | Ok resolvedAliasType ->
                 return! unify context types tst resolvedAliasType value
 
-            | { definition = TypeDeclaration.Record _ }, DRecord(tn, _, dmap) ->
+            | { definition = TypeDeclaration.Record _ },
+              DRecord(tn, _, _valueTypesTODO, dmap) ->
               // TYPESCLEANUP: this search should no longer be required
               let! aliasedType =
                 getTypeReferenceFromAlias types (TCustomType(Ok tn, []))

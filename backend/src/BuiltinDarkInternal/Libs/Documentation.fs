@@ -8,6 +8,8 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module Dval = LibExecution.Dval
+
 let modules = [ "DarkInternal"; "Documentation" ]
 
 let typ = typ modules

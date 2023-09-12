@@ -1,12 +1,14 @@
 module BuiltinExecution.Libs.Bytes
 
-open LibExecution.RuntimeTypes
-open Prelude
 open System
 open System.Text
+open System.Text.RegularExpressions
+
+open Prelude
+open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-open System.Text.RegularExpressions
+module Dval = LibExecution.Dval
 
 let types : List<BuiltInType> = []
 

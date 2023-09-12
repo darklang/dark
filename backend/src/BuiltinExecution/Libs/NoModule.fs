@@ -7,6 +7,7 @@ module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+module Dval = LibExecution.Dval
 
 
 let rec equals (a : Dval) (b : Dval) : bool =
@@ -26,13 +27,13 @@ let rec equals (a : Dval) (b : Dval) : bool =
       Exception.raiseCode "tuples must be the same length"
     else
       equals a1 b1 && equals a2 b2 && List.forall2 equals a3 b3
-  | DDict a, DDict b ->
+  | DDict(_vtTODO1, a), DDict(_vtTODO2, b) ->
     Map.count a = Map.count b
     && Map.forall
       (fun k v ->
         Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
       a
-  | DRecord(tn1, _, a), DRecord(tn2, _, b) ->
+  | DRecord(tn1, _, _typeArgsTODO1, a), DRecord(tn2, _, _typeArgsTODO2, b) ->
     tn1 = tn2 // these should be the fully resolved type
     && Map.count a = Map.count b
     && Map.forall

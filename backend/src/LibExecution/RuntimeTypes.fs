@@ -401,36 +401,10 @@ and [<RequireQualifiedAccess>] ValueType =
   | Unknown
   | Known of KnownType
 
-module private rec ValueType =
-  // _just_ enough to make some tests less ugly - this should all be in Dark code soon
-  // CLEANUP VTTODO ^
-  let private knownTypeToString (kt : KnownType) : string =
-    match kt with
-    | KTUnit -> "Unit"
-    | KTBool -> "Bool"
-    | KTInt -> "Int"
-    | KTFloat -> "Float"
-    | KTChar -> "Char"
-    | KTString -> "String"
-    | KTUuid -> "Uuid"
-    | KTBytes -> "Bytes"
-    | KTDateTime -> "DateTime"
-    | KTPassword -> "Password"
-    | KTList inner -> $"List<{toString inner}>"
-    | KTTuple _ -> "Tuple (TODO)"
-    | KTFn _ -> "Fn (TODO)"
-    | KTDB _ -> "DB (TODO)"
-    | KTCustomType _ -> "CustomType (TODO)"
-    | KTDict _ -> "Dict (TODO)"
-
-  let toString (vt : ValueType) : string =
-    match vt with
-    | ValueType.Unknown -> "_"
-    | ValueType.Known kt -> knownTypeToString kt
-
 /// VTTODO if this is used somewhere, re-evaluate the usage - it feels there's something to be done...
 /// CLEANUP eventually remove this binding
 let valueTypeTODO = ValueType.Unknown
+let valueTypesTODO = []
 
 /// VTTODO follow up here when DDB references include a type
 let valueTypeDbTODO = ValueType.Unknown
@@ -566,41 +540,57 @@ and RuntimeError = private RuntimeError of Dval
 
 // We use NoComparison here to avoid accidentally using structural comparison
 and [<NoComparison>] Dval =
+  | DUnit
+
+  // Simple types
+  | DBool of bool
   | DInt of int64
   | DFloat of double
-  | DBool of bool
-  | DUnit
-  | DString of string
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
+  | DString of string
+  | DDateTime of DarkDateTime.T
+  | DUuid of System.Guid
+  | DBytes of byte array
 
-  // compound types
+  // Compound types
   | DList of ValueType * List<Dval>
-  | DTuple of Dval * Dval * List<Dval>
+  | DTuple of first : Dval * second : Dval * theRest : List<Dval>
+  | DDict of
+    // _values_, not the keys. Once users can specify the key type, we likely will
+    // need to add a `keyType: ValueType` field here.
+    valueType : ValueType *
+    entries : DvalMap
 
-  | DFnVal of FnValImpl
+  | DRecord of
+    // CLEANUP nitpick: maybe move sourceTypeName before runtimeTypeName?
+    // CLEANUP we may need a sourceTypeArgs here as well
+    runtimeTypeName : TypeName.TypeName *
+    sourceTypeName : TypeName.TypeName *
+    typeArgs : List<ValueType> *
+    fields : DvalMap
 
+  | DEnum of
+    // CLEANUP nitpick: maybe move sourceTypeName before runtimeTypeName?
+    // CLEANUP we may need a sourceTypeArgs here as well
+    runtimeTypeName : TypeName.TypeName *
+    sourceTypeName : TypeName.TypeName *
+    // VTTODO typeArgs : List<ValueType> *
+    caseName : string *
+    fields : List<Dval>
+
+  // Functions
+  | DFnVal of FnValImpl // VTTODO I'm not sure how ValueType fits in here
+
+  // References
+  | DDB of name : string
+  | DPassword of Password
+
+  // To be removed from Dval
   /// Represents something that shouldn't have happened in the engine,
   /// that should have been reported elsewhere. It's usually a type error of
   /// some kind, but occasionally we'll paint ourselves into a corner and need
   /// to represent a runtime error using this.
   | DError of DvalSource * RuntimeError
-
-  | DDB of string
-  | DDateTime of DarkDateTime.T
-  | DPassword of Password
-  | DUuid of System.Guid
-  | DBytes of byte array
-
-  | DDict of DvalMap
-  | DRecord of
-    runtimeTypeName : TypeName.TypeName *
-    sourceTypeName : TypeName.TypeName *
-    DvalMap
-  | DEnum of
-    runtimeTypeName : TypeName.TypeName *
-    sourceTypeName : TypeName.TypeName *
-    caseName : string *
-    List<Dval>
 
 
 and DvalTask = Ply<Dval>
@@ -691,7 +681,8 @@ module RuntimeError =
       version
 
   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
-    DEnum(name [] "Error" 0, name [] "Error" 0, caseName, fields) |> RuntimeError
+    let typeName = name [] "Error" 0
+    DEnum(typeName, typeName, caseName, fields) |> RuntimeError
 
 
   let cliError field = case "CliError" [ field ]
@@ -819,7 +810,6 @@ module Dval =
     | _ -> false
 
 
-
   // <summary>
   // Checks if a runtime's value matches a given type
   // </summary>
@@ -852,11 +842,12 @@ module Dval =
 
       pairs |> List.all (fun (v, subtype) -> r subtype v)
     | DList(_vtTODO, l), TList t -> List.all (r t) l
-    | DDict m, TDict t -> Map.all (r t) m
+    | DDict(_vtTODO, m), TDict t -> Map.all (r t) m
     | DFnVal(Lambda l), TFn(parameters, _) ->
       NEList.length parameters = NEList.length l.parameters
 
-    | DRecord(typeName, _, fields), TCustomType(Ok typeName', typeArgs) ->
+    | DRecord(typeName, _, _typeArgsTODO, fields),
+      TCustomType(Ok typeName', _typeArgs) ->
       // TYPESCLEANUP: should load type by name
       // TYPESCLEANUP: are we handling type arguments here?
       // TYPESCLEANUP: do we need to check fields?
@@ -891,177 +882,10 @@ module Dval =
     | DEnum _, _ -> false
 
 
-  let rec mergeKnownTypes
-    (left : KnownType)
-    (right : KnownType)
-    : Result<KnownType, unit> =
-    match left, right with
-    | KTUnit, KTUnit -> KTUnit |> Ok
-    | KTBool, KTBool -> KTBool |> Ok
-    | KTInt, KTInt -> KTInt |> Ok
-    | KTFloat, KTFloat -> KTFloat |> Ok
-    | KTChar, KTChar -> KTChar |> Ok
-    | KTString, KTString -> KTString |> Ok
-    | KTUuid, KTUuid -> KTUuid |> Ok
-    | KTBytes, KTBytes -> KTBytes |> Ok
-    | KTDateTime, KTDateTime -> KTDateTime |> Ok
+  let errStr (s : string) : Dval = DError(SourceNone, RuntimeError.oldError s)
 
-    | KTList left, KTList right -> mergeValueTypes left right |> Result.map KTList
-    | KTDict left, KTDict right -> mergeValueTypes left right |> Result.map KTDict
-    | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
-      let firstMerged = mergeValueTypes l1 r1
-      let secondMerged = mergeValueTypes l2 r2
-      let restMerged =
-        List.map2 (fun l r -> mergeValueTypes l r) ls rs |> Result.collect
-
-      match firstMerged, secondMerged, restMerged with
-      | Ok first, Ok second, Ok rest -> Ok(KTTuple(first, second, rest))
-      | _ -> Error()
-
-    | KTCustomType(lName, lArgs), KTCustomType(rName, rArgs) ->
-      if lName <> rName then
-        Error()
-      else if List.length lArgs <> List.length rArgs then
-        Error()
-      else
-        List.map2 mergeValueTypes lArgs rArgs
-        |> Result.collect
-        |> Result.map (fun args -> KTCustomType(lName, args))
-
-    | KTFn(lArgs, lRet), KTFn(rArgs, rRet) ->
-      let argsMerged = NEList.map2 mergeValueTypes lArgs rArgs |> Result.collectNE
-      let retMerged = mergeValueTypes lRet rRet
-
-      match argsMerged, retMerged with
-      | Ok args, Ok ret -> Ok(KTFn(args, ret))
-      | _ -> Error()
-
-
-    | KTPassword, KTPassword -> KTPassword |> Ok
-
-    | _ -> Error()
-
-  and mergeValueTypes
-    (left : ValueType)
-    (right : ValueType)
-    : Result<ValueType, unit> =
-    match left, right with
-    | ValueType.Unknown, v
-    | v, ValueType.Unknown -> Ok v
-
-    | ValueType.Known left, ValueType.Known right ->
-      mergeKnownTypes left right |> Result.map ValueType.Known
-
-
-
-  let rec toValueType (dv : Dval) : ValueType =
-    match dv with
-    | DUnit -> ValueType.Known KTUnit
-    | DBool _ -> ValueType.Known KTBool
-    | DInt _ -> ValueType.Known KTInt
-    | DFloat _ -> ValueType.Known KTFloat
-    | DChar _ -> ValueType.Known KTChar
-    | DString _ -> ValueType.Known KTString
-    | DUuid _ -> ValueType.Known KTUuid
-    | DBytes _ -> ValueType.Known KTBytes
-    | DDateTime _ -> ValueType.Known KTDateTime
-    | DPassword _ -> ValueType.Known KTPassword
-
-    | DList(t, _) -> ValueType.Known(KTList t)
-    | DDict _t -> ValueType.Known(KTDict ValueType.Unknown) // VTTODO
-    | DTuple(first, second, theRest) ->
-      ValueType.Known(
-        KTTuple(
-          toValueType first,
-          toValueType second,
-          theRest |> List.map toValueType
-        )
-      )
-
-    | DRecord(typeName, _, _fields) ->
-      let typeArgs =
-        // TODO: somehow need to derive `typeArgs` from the `fields`
-        // we might need to look up the type...
-        //fields |> Map.toList |> List.map (fun (_, v) -> toValueType v)
-        []
-      KTCustomType(typeName, typeArgs) |> ValueType.Known
-
-    | DEnum(typeName, _, _caseName, _fields) ->
-      let typeArgs =
-        // TODO: somehow need to derive `typeArgs` from the `fields` (and `case`?)
-        // we might need to look up the type...
-        //fields |> List.map toValueType |> List.map Option.some
-        []
-      KTCustomType(typeName, typeArgs) |> ValueType.Known
-
-    | DFnVal fnImpl ->
-      match fnImpl with
-      | Lambda lambda ->
-        KTFn(
-          NEList.map (fun _ -> ValueType.Unknown) lambda.parameters,
-          ValueType.Unknown
-        )
-        |> ValueType.Known
-
-      // VTTODO look up type, etc
-      | NamedFn _named -> ValueType.Unknown
-
-    // CLEANUP follow up when DDB has a typeReference
-    | DDB _ -> ValueType.Unknown
-
-    | DError _ -> Exception.raiseInternal "DError is being moved out of Dval" []
-
-
-
-  // Dvals should never be constructed that contain fakevals - the fakeval
-  // should always propagate (though, there are specific cases in the
-  // interpreter where they are discarded instead of propagated; still they are
-  // never put into other dvals). These static members check before creating the values
-  let int (i : int) = DInt(int64 i)
-
-  let private listPush
-    (list : List<Dval>)
-    (listType : ValueType)
-    (dv : Dval)
-    : Result<ValueType * List<Dval>, RuntimeError> =
-    // what happens if we insert 5 into a list of strings? we should return an Error!
-
-    // if we try to insert an `Error` (with the _error_ type known)
-    // into a list of `Ok`s (with the _ok_ type known),
-    // then we merge those types (result: `TCustomType` with both `OK` and `Error` types)
-
-    // `KTCustomType("Result", [None, Some KTString])`
-    // and
-    // `KTCustomType("Result", [Some KTInt, None])`
-    // merges to be come
-    // `KTCustomType("Result", [Some KTInt, Some KTString])`
-
-    let dvalType = toValueType dv
-    let newType = mergeValueTypes listType dvalType
-
-    match newType with
-    | Ok newType -> Ok(newType, dv :: list)
-    | Error() ->
-      RuntimeError.oldError
-        $"Could not merge types List<{ValueType.toString listType}> and List<{ValueType.toString dvalType}>"
-      |> Error
-
-  let list (initialType : ValueType) (list : List<Dval>) : Dval =
-    match List.find isFake list with
-    | Some fake -> fake
-    | None ->
-      let result =
-        List.fold
-          (fun acc dv ->
-            match acc with
-            | Ok(typ, dvs) -> listPush dvs typ dv
-            | Error e -> Error e)
-          (Ok(initialType, []))
-          (List.rev list)
-
-      match result with
-      | Ok(typ, dvs) -> DList(typ, dvs)
-      | Error e -> DError(SourceNone, e)
+  let errSStr (source : DvalSource) (s : string) : Dval =
+    DError(source, RuntimeError.oldError s)
 
 
   let asList (dv : Dval) : Option<List<Dval>> =
@@ -1071,7 +895,7 @@ module Dval =
 
   let asDict (dv : Dval) : Option<Map<string, Dval>> =
     match dv with
-    | DDict d -> Some d
+    | DDict(_, d) -> Some d
     | _ -> None
 
   let asTuple2 (dv : Dval) : Option<Dval * Dval> =
@@ -1109,93 +933,6 @@ module Dval =
     | DUuid u -> Some u
     | _ -> None
 
-  let record (typeName : TypeName.TypeName) (fields : List<string * Dval>) : Dval =
-    // Give a warning for duplicate keys
-    List.fold
-      (fun m (k, v) ->
-        match m, k, v with
-        // TYPESCLEANUP: remove hacks
-        // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
-        | m, _k, _v when isFake m -> m
-        // Errors should propagate (but only if we're not already propagating an error)
-        | DRecord _, _, v when isFake v -> v
-        // Skip empty rows
-        | _, "", _ -> DError(SourceNone, RuntimeError.oldError $"Empty key {k}")
-        // Error if the key appears twice
-        | DRecord(_, _, m), k, _v when Map.containsKey k m ->
-          DError(SourceNone, RuntimeError.oldError $"Duplicate key: {k}")
-        // Otherwise add it
-        | DRecord(tn, o, m), k, v -> DRecord(tn, o, Map.add k v m)
-        // If we haven't got a DDict we're propagating an error so let it go
-        | m, _, _ -> m)
-      (DRecord(typeName, typeName, Map.empty))
-      fields
-
-  let enum
-    (typeName : TypeName.TypeName)
-    (caseName : string)
-    (fields : List<Dval>)
-    : Dval =
-    match List.find isFake fields with
-    | Some v -> v
-    | None -> DEnum(typeName, typeName, caseName, fields)
-
-  // CLEANUP - this fn was unused so I commented it out
-  // emove? or will it be handy?
-  // let dict (fields : List<string * Dval>) : Dval =
-  //   // Give a warning for duplicate keys
-  //   List.fold
-  //     (DDict(Map.empty))
-  //     (fun m (k, v) ->
-  //       match m, k, v with
-  //       // TYPESCLEANUP: remove hacks
-  //       // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
-  //       | m, _k, _v when isFake m -> m
-  //       // Errors should propagate (but only if we're not already propagating an error)
-  //       | DDict _, _, v when isFake v -> v
-  //       // Skip empty rows
-  //       | _, "", _ -> DError(SourceNone, $"Empty key: {k}")
-  //       // Error if the key appears twice
-  //       | DDict m, k, _v when Map.containsKey k m ->
-  //         DError(SourceNone, $"Duplicate key: {k}")
-  //       // Otherwise add it
-  //       | DDict m, k, v -> DDict(Map.add k v m)
-  //       // If we haven't got a DDict we're propagating an error so let it go
-  //       | m, _, _ -> m)
-  //     fields
-
-
-  let resultType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0
-
-  let optionType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0
-
-  let resultOk (dv : Dval) : Dval =
-    if isFake dv then dv else DEnum(resultType, resultType, "Ok", [ dv ])
-  let resultError (dv : Dval) : Dval =
-    if isFake dv then dv else DEnum(resultType, resultType, "Error", [ dv ])
-
-  // Wraps in a Result after checking that the value is not a fakeval
-  let result (dv : Result<Dval, Dval>) : Dval =
-    match dv with
-    | Ok dv -> resultOk dv
-    | Error dv -> resultError dv
-
-
-  let optionSome (dv : Dval) : Dval =
-    if isFake dv then dv else DEnum(optionType, optionType, "Some", [ dv ])
-
-  let optionNone : Dval = DEnum(optionType, optionType, "None", [])
-
-  // Wraps in an Option after checking that the value is not a fakeval
-  let option (dv : Option<Dval>) : Dval =
-    match dv with
-    | Some dv -> optionSome dv // checks isFake
-    | None -> optionNone
-
-  let errStr (s : string) : Dval = DError(SourceNone, RuntimeError.oldError s)
-
-  let errSStr (source : DvalSource) (s : string) : Dval =
-    DError(source, RuntimeError.oldError s)
 
 module Handler =
   type CronInterval =

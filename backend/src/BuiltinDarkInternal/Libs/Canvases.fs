@@ -8,6 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
@@ -192,8 +193,7 @@ let fns : List<BuiltInFn> =
             //   |> Seq.toList
             //   |> List.map (fun db ->
             //     [ "tlid", DString(db.tlid.ToString()); "name", DString db.name ]
-            //     |> Map
-            //     |> DDict)
+            //     |> Dval.dict)
             //   |> Dval.list valueTypeTODO
 
             // let httpHandlers =
@@ -208,8 +208,7 @@ let fns : List<BuiltInFn> =
             //       [ "tlid", DString(handler.tlid.ToString())
             //         "method", DString method
             //         "route", DString route ]
-            //       |> Map
-            //       |> DDict
+            //       |> Dval.dict
             //       |> Some)
             //   |> Dval.list valueTypeTODO
 

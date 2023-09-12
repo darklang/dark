@@ -146,7 +146,7 @@ let toRepr (dv : Dval) : string =
         let long = String.concat $"{inl}, " (List.map (toRepr_ indent) l)
         $"({inl}{long}{nl})"
 
-    | DRecord(_, typeName, o) ->
+    | DRecord(_, typeName, _, o) ->
       let strs =
         o
         |> Map.toList
@@ -155,7 +155,7 @@ let toRepr (dv : Dval) : string =
       let elems = String.concat $",{inl}" strs
       let typeStr = TypeName.toString typeName
       $"{typeStr} {{" + $"{inl}{elems}{nl}" + "}"
-    | DDict o ->
+    | DDict(_valueTypeTODO, o) ->
       if Map.isEmpty o then
         "{}"
       else

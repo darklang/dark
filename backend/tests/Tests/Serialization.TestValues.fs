@@ -9,6 +9,7 @@ open Prelude
 open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
+module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
@@ -255,7 +256,7 @@ module RuntimeTypes =
     sampleDvals
     |> List.filter (fun (name, _dv) -> name <> "password")
     |> List.map (fun (name, (dv, t)) -> name, dv)
-    |> RT.Dval.record typeName
+    |> Dval.record typeName
 
 
 module ProgramTypes =

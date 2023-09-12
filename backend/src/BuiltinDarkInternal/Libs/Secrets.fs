@@ -7,6 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module Dval = LibExecution.Dval
 module Secret = LibCloud.Secret
 
 

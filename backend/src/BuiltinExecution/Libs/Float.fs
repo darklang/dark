@@ -6,6 +6,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module Dval = LibExecution.Dval
 module Errors = LibExecution.Errors
 
 let types : List<BuiltInType> = []

@@ -9,6 +9,7 @@ open LibExecution.RuntimeTypes
 
 open LibExecution.Builtin.Shortcuts
 
+module Dval = LibExecution.Dval
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 let packageManager = LibCloud.PackageManager.packageManager

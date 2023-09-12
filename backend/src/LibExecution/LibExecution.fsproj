@@ -13,6 +13,7 @@
     <None Include="paket.references" />
     <Compile Include="DarkDateTime.fs" />
     <Compile Include="RuntimeTypes.fs" />
+    <Compile Include="Dval.fs" />
     <Compile Include="DvalDecoder.fs" />
     <Compile Include="NameResolutionError.fs" />
     <Compile Include="RuntimeTypesAst.fs" />

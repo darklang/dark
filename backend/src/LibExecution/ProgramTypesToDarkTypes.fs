@@ -34,9 +34,14 @@ let errorsTyp
 // maybe rename this file to InternalTypesToDarkTypes?
 module Sign =
   let toDT (s : Sign) : Dval =
-    match s with
-    | Positive -> Dval.enum (languageToolsTyp [] "Sign" 0) "Positive" []
-    | Negative -> Dval.enum (languageToolsTyp [] "Sign" 0) "Negative" []
+    let caseName, fields =
+      match s with
+      | Positive -> "Positive", []
+      | Negative -> "Negative", []
+
+    let typeName = languageToolsTyp [] "Sign" 0
+    Dval.enum typeName typeName caseName fields
+
 
   let fromDT (d : Dval) : Sign =
     match d with
@@ -64,7 +69,7 @@ module FQName =
 
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.BuiltIn<'name> =
       match d with
-      | DRecord(_, _, m) ->
+      | DRecord(_, _, _, m) ->
         let modules = modulesField m
         let name = nameField m |> nameMapper
         let version = versionField m
@@ -88,8 +93,7 @@ module FQName =
       : PT.FQName.UserProgram<'name> =
       let unwrap = Exception.unwrapOptionInternal
       match v with
-      | DRecord(_, _, m) ->
-
+      | DRecord(_, _, _, m) ->
         let modules = modulesField m
         let name = nameField m |> nameMapper
         let version = versionField m
@@ -110,7 +114,7 @@ module FQName =
 
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.Package<'name> =
       match d with
-      | DRecord(_, _, m) ->
+      | DRecord(_, _, _, m) ->
         let owner = ownerField m
         let modules = modulesField m
         let name = nameField m |> nameMapper
@@ -128,7 +132,8 @@ module FQName =
       | PT.FQName.Package u -> "Package", [ Package.toDT nameMapper u ]
       | PT.FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameMapper u ]
 
-    Dval.enum (ptTyp [ "FQName" ] "FQName" 0) caseName fields
+    let typeName = ptTyp [ "FQName" ] "FQName" 0
+    Dval.enum typeName typeName caseName fields
 
   let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.FQName<'name> =
     match d with
@@ -146,7 +151,8 @@ module TypeName =
         match u with
         | PT.TypeName.TypeName name -> "TypeName", [ DString name ]
 
-      Dval.enum (ptTyp [ "TypeName" ] "Name" 0) caseName fields
+      let typeName = ptTyp [ "TypeName" ] "Name" 0
+      Dval.enum typeName typeName caseName fields
 
     let fromDT (d : Dval) : PT.TypeName.Name =
       match d with
@@ -179,7 +185,8 @@ module FnName =
         match u with
         | PT.FnName.FnName name -> "FnName", [ DString name ]
 
-      Dval.enum (ptTyp [ "FnName" ] "Name" 0) caseName fields
+      let typeName = ptTyp [ "FnName" ] "Name" 0
+      Dval.enum typeName typeName caseName fields
 
     let fromDT (d : Dval) : PT.FnName.Name =
       match d with
@@ -209,7 +216,8 @@ module ConstantName =
         match u with
         | PT.ConstantName.ConstantName name -> "ConstantName", [ DString name ]
 
-      Dval.enum (ptTyp [ "ConstantName" ] "Name" 0) caseName fields
+      let typeName = ptTyp [ "ConstantName" ] "Name" 0
+      Dval.enum typeName typeName caseName fields
 
     let fromDT (d : Dval) : PT.ConstantName.Name =
       match d with
@@ -254,7 +262,7 @@ module NameResolution =
 
 module TypeReference =
   let rec toDT (t : PT.TypeReference) : Dval =
-    let name, fields =
+    let caseName, fields =
       match t with
       | PT.TVariable name -> "TVariable", [ DString name ]
 
@@ -288,7 +296,8 @@ module TypeReference =
         [ Dval.list valueTypeTODO (args |> NEList.toList |> List.map toDT)
           toDT ret ]
 
-    Dval.enum (ptTyp [] "TypeReference" 0) name fields
+    let typeName = ptTyp [] "TypeReference" 0
+    Dval.enum typeName typeName caseName fields
 
   let rec fromDT (d : Dval) : PT.TypeReference =
     match d with
@@ -326,7 +335,7 @@ module TypeReference =
 
 module LetPattern =
   let rec toDT (p : PT.LetPattern) : Dval =
-    let name, fields =
+    let caseName, fields =
       match p with
       | PT.LPVariable(id, name) -> "LPVariable", [ DInt(int64 id); DString name ]
       | PT.LPUnit id -> "LPUnit", [ DInt(int64 id) ]
@@ -337,7 +346,8 @@ module LetPattern =
           toDT second
           Dval.list valueTypeTODO (List.map toDT theRest) ]
 
-    Dval.enum (ptTyp [] "LetPattern" 0) name fields
+    let typeName = ptTyp [] "LetPattern" 0
+    Dval.enum typeName typeName caseName fields
 
 
   let rec fromDT (d : Dval) : PT.LetPattern =
@@ -352,7 +362,7 @@ module LetPattern =
 
 module MatchPattern =
   let rec toDT (p : PT.MatchPattern) : Dval =
-    let name, fields =
+    let caseName, fields =
       match p with
       | PT.MPVariable(id, name) -> "MPVariable", [ DInt(int64 id); DString name ]
 
@@ -381,7 +391,8 @@ module MatchPattern =
           DString caseName
           Dval.list valueTypeTODO (List.map toDT fieldPats) ]
 
-    Dval.enum (ptTyp [] "MatchPattern" 0) name fields
+    let typeName = ptTyp [] "MatchPattern" 0
+    Dval.enum typeName typeName caseName fields
 
   let rec fromDT (d : Dval) : PT.MatchPattern =
     match d with
@@ -409,9 +420,10 @@ module MatchPattern =
 
 module BinaryOperation =
   let toDT (b : PT.BinaryOperation) : Dval =
+    let typeName = ptTyp [] "BinaryOperation" 0
     match b with
-    | PT.BinOpAnd -> Dval.enum (ptTyp [] "BinaryOperation" 0) "BinOpAnd" []
-    | PT.BinOpOr -> Dval.enum (ptTyp [] "BinaryOperation" 0) "BinOpOr" []
+    | PT.BinOpAnd -> Dval.enum typeName typeName "BinOpAnd" []
+    | PT.BinOpOr -> Dval.enum typeName typeName "BinOpOr" []
 
   let fromDT (d : Dval) : PT.BinaryOperation =
     match d with
@@ -422,7 +434,7 @@ module BinaryOperation =
 
 module InfixFnName =
   let toDT (i : PT.InfixFnName) : Dval =
-    let name, fields =
+    let caseName, fields =
       match i with
       | PT.ArithmeticPlus -> "ArithmeticPlus", []
       | PT.ArithmeticMinus -> "ArithmeticMinus", []
@@ -438,7 +450,8 @@ module InfixFnName =
       | PT.ComparisonNotEquals -> "ComparisonNotEquals", []
       | PT.StringConcat -> "StringConcat", []
 
-    Dval.enum (ptTyp [] "InfixFnName" 0) name fields
+    let typeName = ptTyp [] "InfixFnName" 0
+    Dval.enum typeName typeName caseName fields
 
   let fromDT (d : Dval) : PT.InfixFnName =
     match d with
@@ -461,12 +474,13 @@ module InfixFnName =
 
 module Infix =
   let toDT (i : PT.Infix) : Dval =
-    let name, fields =
+    let caseName, fields =
       match i with
       | PT.InfixFnCall infixFnName -> "InfixFnCall", [ InfixFnName.toDT infixFnName ]
       | PT.BinOp binOp -> "BinOp", [ BinaryOperation.toDT binOp ]
 
-    Dval.enum (ptTyp [] "Infix" 0) name fields
+    let typeName = ptTyp [] "Infix" 0
+    Dval.enum typeName typeName caseName fields
 
   let fromDT (d : Dval) : PT.Infix =
     match d with
@@ -478,12 +492,13 @@ module Infix =
 
 module StringSegment =
   let toDT (exprToDT : PT.Expr -> Dval) (s : PT.StringSegment) : Dval =
-    let name, fields =
+    let caseName, fields =
       match s with
       | PT.StringText text -> "StringText", [ DString text ]
       | PT.StringInterpolation expr -> "StringInterpolation", [ exprToDT expr ]
 
-    Dval.enum (ptTyp [] "StringSegment" 0) name fields
+    let typeName = ptTyp [] "StringSegment" 0
+    Dval.enum typeName typeName caseName fields
 
   let fromDT (exprFromDT : Dval -> PT.Expr) (d : Dval) : PT.StringSegment =
     match d with
@@ -495,7 +510,7 @@ module StringSegment =
 
 module PipeExpr =
   let toDT (exprToDT : PT.Expr -> Dval) (s : PT.PipeExpr) : Dval =
-    let name, fields =
+    let caseName, fields =
       match s with
       | PT.EPipeVariable(id, varName, exprs) ->
         "EPipeVariable",
@@ -530,7 +545,8 @@ module PipeExpr =
           DString caseName
           Dval.list valueTypeTODO (List.map exprToDT fields) ]
 
-    Dval.enum (ptTyp [] "PipeExpr" 0) name fields
+    let typeName = ptTyp [] "PipeExpr" 0
+    Dval.enum typeName typeName caseName fields
 
   let fromDT (exprFromDT : Dval -> PT.Expr) (d : Dval) : PT.PipeExpr =
     match d with
@@ -579,7 +595,7 @@ module PipeExpr =
 
 module Expr =
   let rec toDT (e : PT.Expr) : Dval =
-    let name, fields =
+    let caseName, fields =
       match e with
       | PT.EUnit id -> "EUnit", [ DInt(int64 id) ]
 
@@ -696,7 +712,8 @@ module Expr =
         "ERecordUpdate",
         [ DInt(int64 id); toDT record; Dval.list valueTypeTODO (updates) ]
 
-    Dval.enum (ptTyp [] "Expr" 0) name fields
+    let typeName = ptTyp [] "Expr" 0
+    Dval.enum typeName typeName caseName fields
 
   let rec fromDT (d : Dval) : PT.Expr =
     match d with
@@ -825,7 +842,7 @@ module Expr =
 
 module Const =
   let rec toDT (c : PT.Const) : Dval =
-    let name, fields =
+    let caseName, fields =
       match c with
       | PT.Const.CInt i -> "CInt", [ DInt i ]
       | PT.Const.CBool b -> "CBool", [ DBool b ]
@@ -842,7 +859,9 @@ module Const =
         [ NameResolution.toDT TypeName.toDT typeName
           DString caseName
           Dval.list valueTypeTODO (List.map toDT fields) ]
-    Dval.enum (ptTyp [] "Const" 0) name fields
+
+    let typeName = ptTyp [] "Const" 0
+    Dval.enum typeName typeName caseName fields
 
   let rec fromDT (d : Dval) : PT.Const =
     match d with
@@ -873,7 +892,8 @@ module Deprecation =
       | PT.Deprecation.DeprecatedBecause reason ->
         "DeprecatedBecause", [ DString reason ]
 
-    Dval.enum (ptTyp [] "Deprecation" 0) caseName fields
+    let typeName = ptTyp [] "Deprecation" 0
+    Dval.enum typeName typeName caseName fields
 
   let fromDT (inner : Dval -> 'a) (d : Dval) : PT.Deprecation<'a> =
     match d with
@@ -898,7 +918,7 @@ module TypeDeclaration =
 
     let fromDT (d : Dval) : PT.TypeDeclaration.RecordField =
       match d with
-      | DRecord(_, _, fields) ->
+      | DRecord(_, _, _, fields) ->
         let name = fields |> D.stringField "name"
         let typ = fields |> D.field "typ" |> TypeReference.fromDT
         let description = D.stringField "description" fields
@@ -917,7 +937,7 @@ module TypeDeclaration =
 
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumField =
       match d with
-      | DRecord(_, _, fields) ->
+      | DRecord(_, _, _, fields) ->
         let typ = fields |> D.field "typ" |> TypeReference.fromDT
 
         let label =
@@ -944,7 +964,7 @@ module TypeDeclaration =
 
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumCase =
       match d with
-      | DRecord(_, _, attributes) ->
+      | DRecord(_, _, _, attributes) ->
         let name = D.stringField "name" attributes
         let fields = attributes |> D.listField "fields" |> List.map EnumField.fromDT
         let description = attributes |> D.stringField "description"
@@ -974,7 +994,8 @@ module TypeDeclaration =
             |> List.map EnumCase.toDT
             |> Dval.list valueTypeTODO ]
 
-      Dval.enum (ptTyp [ "TypeDeclaration" ] "Definition" 0) caseName fields
+      let typeName = ptTyp [ "TypeDeclaration" ] "Definition" 0
+      Dval.enum typeName typeName caseName fields
 
     let fromDT (d : Dval) : PT.TypeDeclaration.Definition =
       match d with
@@ -1000,7 +1021,7 @@ module TypeDeclaration =
 
   let fromDT (d : Dval) : PT.TypeDeclaration.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let typeParams = D.stringListField "typeParams" fields
       let definition = fields |> D.field "definition" |> Definition.fromDT
 
@@ -1012,7 +1033,7 @@ module TypeDeclaration =
 module Handler =
   module CronInterval =
     let toDT (ci : PT.Handler.CronInterval) : Dval =
-      let name, fields =
+      let caseName, fields =
         match ci with
         | PT.Handler.CronInterval.EveryMinute -> "EveryMinute", []
         | PT.Handler.CronInterval.EveryHour -> "EveryHour", []
@@ -1021,7 +1042,8 @@ module Handler =
         | PT.Handler.CronInterval.EveryWeek -> "EveryWeek", []
         | PT.Handler.CronInterval.EveryFortnight -> "EveryFortnight", []
 
-      Dval.enum (ptTyp [ "Handler" ] "CronInterval" 0) name fields
+      let typeName = ptTyp [ "Handler" ] "CronInterval" 0
+      Dval.enum typeName typeName caseName fields
 
     let fromDT (d : Dval) : PT.Handler.CronInterval =
       match d with
@@ -1036,7 +1058,7 @@ module Handler =
 
   module Spec =
     let toDT (s : PT.Handler.Spec) : Dval =
-      let name, fields =
+      let caseName, fields =
         match s with
         | PT.Handler.Spec.HTTP(route, method) ->
           "HTTP", [ DString route; DString method ]
@@ -1045,7 +1067,8 @@ module Handler =
           "Cron", [ DString name; CronInterval.toDT interval ]
         | PT.Handler.Spec.REPL name -> "REPL", [ DString name ]
 
-      Dval.enum (ptTyp [ "Handler" ] "Spec" 0) name fields
+      let typeName = ptTyp [ "Handler" ] "Spec" 0
+      Dval.enum typeName typeName caseName fields
 
     let fromDT (d : Dval) : PT.Handler.Spec =
       match d with
@@ -1066,7 +1089,7 @@ module Handler =
 
   let fromDT (d : Dval) : PT.Handler.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
       let ast = fields |> D.field "ast" |> Expr.fromDT
       let spec = fields |> D.field "spec" |> Spec.fromDT
@@ -1087,7 +1110,7 @@ module DB =
 
   let fromDT (d : Dval) : PT.DB.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _typeArgsTODO, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
       let name = fields |> D.stringField "name"
       let version = fields |> D.intField "version"
@@ -1109,7 +1132,7 @@ module UserType =
 
   let fromDT (d : Dval) : PT.UserType.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
       let name = fields |> D.field "name" |> TypeName.UserProgram.fromDT
       let declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
@@ -1137,7 +1160,7 @@ module UserFunction =
 
     let fromDT (d : Dval) : PT.UserFunction.Parameter =
       match d with
-      | DRecord(_, _, fields) ->
+      | DRecord(_, _, _, fields) ->
         let name = fields |> D.stringField "name"
         let typ = fields |> D.field "typ" |> TypeReference.fromDT
         let description = fields |> D.stringField "description"
@@ -1164,7 +1187,7 @@ module UserFunction =
 
   let fromDT (d : Dval) : PT.UserFunction.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
       let name = fields |> D.field "name" |> FnName.UserProgram.fromDT
       let typeParams = fields |> D.stringListField "typeParams"
@@ -1202,7 +1225,7 @@ module UserConstant =
 
   let fromDT (d : Dval) : PT.UserConstant.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
 
       let name = fields |> D.field "name" |> ConstantName.UserProgram.fromDT
@@ -1227,7 +1250,7 @@ module Secret =
 
   let fromDT (d : Dval) : PT.Secret.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let name = fields |> D.stringField "name"
       let value = fields |> D.stringField "value"
       let version = fields |> D.intField "version"
@@ -1250,7 +1273,7 @@ module PackageType =
 
   let fromDT (d : Dval) : PT.PackageType.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
       let id = fields |> D.uuidField "id"
       let name = fields |> D.field "name" |> TypeName.Package.fromDT
@@ -1280,7 +1303,7 @@ module PackageFn =
 
     let fromDT (d : Dval) : PT.PackageFn.Parameter =
       match d with
-      | DRecord(_, _, fields) ->
+      | DRecord(_, _, _, fields) ->
         let name = fields |> D.stringField "name"
         let typ = fields |> D.field "typ" |> TypeReference.fromDT
         let description = fields |> D.stringField "description"
@@ -1307,7 +1330,7 @@ module PackageFn =
 
   let fromDT (d : Dval) : PT.PackageFn.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
       let id = fields |> D.uuidField "id"
       let name = fields |> D.field "name" |> FnName.Package.fromDT
@@ -1349,7 +1372,7 @@ module PackageConstant =
 
   let fromDT (d : Dval) : PT.PackageConstant.T =
     match d with
-    | DRecord(_, _, fields) ->
+    | DRecord(_, _, _, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
       let id = fields |> D.uuidField "id"
       let name = fields |> D.field "name" |> ConstantName.Package.fromDT

@@ -10,10 +10,11 @@ open LibExecution.Builtin.Shortcuts
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module WT = LibParser.WrittenTypes
+module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module Exe = LibExecution.Execution
+module WT = LibParser.WrittenTypes
 module Json = BuiltinExecution.Libs.Json
 
 
@@ -55,7 +56,7 @@ module CliRuntimeError =
             "NonIntReturned",
             [ "actuallyReturned", RT2DT.Dval.toDT actuallyReturned ]
 
-        RT.Dval.enum nameTypeName caseName []
+        Dval.enum nameTypeName nameTypeName caseName []
 
 
     let toRuntimeError (e : Error) : RT.RuntimeError =
@@ -148,7 +149,7 @@ let fns : List<BuiltInFn> =
       description = "Parses and executes arbitrary Dark code"
       fn =
         function
-        | state, [], [ DString filename; DString code; DDict symtable ] ->
+        | state, [], [ DString filename; DString code; DDict(_vtTODO, symtable) ] ->
           uply {
             let exnError (e : exn) : RuntimeError =
               let msg = Exception.getMessages e |> String.concat "\n"
@@ -205,11 +206,12 @@ let fns : List<BuiltInFn> =
         | state, [], [ DString functionName; DList(_vtTODO, args) ] ->
           uply {
             let err (msg : string) (metadata : List<string * string>) =
-              let metadata = metadata |> List.map (fun (k, v) -> k, DString v) |> Map
+              let metadata = metadata |> List.map (fun (k, v) -> k, DString v)
               Dval.resultError (
                 Dval.record
                   (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
-                  [ "msg", DString msg; "metadata", DDict metadata ]
+                  [ "msg", DString msg
+                    "metadata", Dval.dict valueTypeTODO metadata ]
               )
 
             let exnError (e : exn) : Dval =

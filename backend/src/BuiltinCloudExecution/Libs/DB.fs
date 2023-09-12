@@ -5,10 +5,10 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module Dval = LibExecution.Dval
 module Errors = LibExecution.Errors
 
 module UserDB = LibCloud.UserDB
-
 module Db = LibCloud.Db
 
 
@@ -168,7 +168,7 @@ let fns : List<BuiltInFn> =
                 keys
 
             let! result = UserDB.getManyWithKeys state db skeys
-            return result |> Map.ofList |> DDict
+            return Dval.dict valueTypeDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -245,7 +245,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getAll state db
-            return result |> Map.ofList |> DDict
+            return Dval.dict valueTypeDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -346,7 +346,7 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! results = UserDB.query state db b
               match results with
-              | Ok results -> return results |> Map.ofList |> DDict
+              | Ok results -> return Dval.dict valueTypeDbTODO results
               | Error rte -> return DError(SourceNone, rte)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e

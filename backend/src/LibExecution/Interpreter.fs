@@ -390,7 +390,7 @@ let rec eval'
                     return v
                   else
                     match r with
-                    | DRecord(typeName, original, m) ->
+                    | DRecord(typeName, original, _valueTypesTODO, m) ->
                       if Map.containsKey k m then
                         return errStr id $"Duplicate field `{k}` in {typeStr}"
                       else
@@ -400,13 +400,20 @@ let rec eval'
                         let check =
                           TypeChecker.unify context types Map.empty fieldType v
                         match! check with
-                        | Ok() -> return DRecord(typeName, original, Map.add k v m)
+                        | Ok() ->
+                          return
+                            DRecord(
+                              typeName,
+                              original,
+                              valueTypesTODO,
+                              Map.add k v m
+                            )
                         | Error e -> return err id e
                     | _ -> return errStr id "Expected a record in typecheck"
               })
-            (DRecord(aliasTypeName, typeName, Map.empty)) // use the alias name here
+            (DRecord(aliasTypeName, typeName, valueTypesTODO, Map.empty)) // use the alias name here
         match result with
-        | DRecord(_, _, fields) ->
+        | DRecord(_, _, _valueTypesTODO, fields) ->
           if Map.count fields = Map.count expectedFields then
             return result
           else
@@ -418,7 +425,7 @@ let rec eval'
     | ERecordUpdate(id, baseRecord, updates) ->
       let! baseRecord = eval state tst st baseRecord
       match baseRecord with
-      | DRecord(typeName, _, _) ->
+      | DRecord(typeName, _, _valueTypesTODO, _) ->
         let typeStr = TypeName.toString typeName
         let types = ExecutionState.availableTypes state
         match! recordMaybe types typeName with
@@ -438,14 +445,16 @@ let rec eval'
                   | _, "", _ -> return errStr id $"Empty key for value `{v}`"
                   | _, _, _ when not (Map.containsKey k expectedFields) ->
                     return errStr id $"Unexpected field `{k}` in {typeStr}"
-                  | DRecord(typeName, original, m), k, v ->
+                  | DRecord(typeName, original, _valueTypesTODO, m), k, v ->
                     let fieldType = Map.find k expectedFields
                     let context =
                       TypeChecker.RecordField(typeName, k, fieldType, None)
                     match!
                       TypeChecker.unify context types Map.empty fieldType v
                     with
-                    | Ok() -> return DRecord(typeName, original, Map.add k v m)
+                    | Ok() ->
+                      return
+                        DRecord(typeName, original, valueTypesTODO, Map.add k v m)
                     | Error rte -> return DError(SourceID(state.tlid, id), rte)
                   | _ ->
                     return
@@ -463,11 +472,14 @@ let rec eval'
               match (r, k, v) with
               | r, _, _ when Dval.isFake r -> return r
               | _, _, v when Dval.isFake v -> return v
-              | DDict m, k, v -> return (DDict(Map.add k v m))
+
+              | DDict(vt, entries), k, v ->
+                return entries |> Map.add k v |> Dval.dictFromMap vt
+
               // If we haven't got a DDict we're propagating an error so let it go
-              | r, _, v -> return r
+              | r, _, _v -> return r
             })
-          (DDict Map.empty)
+          (Dval.dict ValueType.Unknown [])
           fields
 
 
@@ -493,7 +505,7 @@ let rec eval'
         return errStr id "Field name is empty"
       else
         match obj with
-        | DRecord(_, typeName, o) ->
+        | DRecord(_, typeName, _, o) ->
           match Map.tryFind field o with
           | Some v -> return v
           | None ->
@@ -851,14 +863,15 @@ let rec eval'
         return errStr id "&& only supports Booleans"
 
 
-    | EEnum(id, typeName, caseName, fields) ->
-      let typeStr = TypeName.toString typeName
+    | EEnum(id, sourceTypeName, caseName, fields) ->
+      let typeStr = TypeName.toString sourceTypeName
       let types = ExecutionState.availableTypes state
 
-      match! enumMaybe types typeName with
+      match! enumMaybe types sourceTypeName with
       | Error e -> return err id e
-      | Ok(aliasTypeName, _, cases) ->
+      | Ok(resolvedTypeName, _, cases) ->
         let case = cases |> NEList.find (fun c -> c.name = caseName)
+
         match case with
         | None ->
           return errStr id $"There is no case named `{caseName}` in {typeStr}"
@@ -868,47 +881,47 @@ let rec eval'
               $"Case `{caseName}` expected {case.fields.Length} fields but got {fields.Length}"
             return errStr id msg
           else
-            let fields = List.zip case.fields fields
-            return!
+            // note: the Error here is intended to be the first bad/fake dval, if any
+            let! (fieldsMaybe : Result<List<Dval>, Dval>) =
               Ply.List.foldSequentiallyWithIndex
-                (fun i r ((enumFieldType : TypeReference), expr) ->
+                (fun fieldIndex acc ((enumFieldType : TypeReference), fieldExpr) ->
                   uply {
-                    if Dval.isFake r then
-                      do! preview tst st expr
-                      return r
-                    else
-                      let! v = eval state tst st expr
+                    match acc with
+                    | Error fakeDval ->
+                      do! preview tst st fieldExpr
+                      return Error fakeDval
+                    | Ok fieldsSoFar ->
+                      let! v = eval state tst st fieldExpr
+
                       if Dval.isFake v then
-                        return v
+                        return Error v
                       else
                         let context =
                           TypeChecker.EnumField(
-                            typeName,
+                            sourceTypeName,
                             case.name,
-                            i,
+                            fieldIndex,
                             List.length fields,
                             enumFieldType,
                             None
                           )
 
                         match!
+                          // VTTODO: we should be passing in a proper tst, not Map.empty - right?
                           TypeChecker.unify context types Map.empty enumFieldType v
                         with
-                        | Ok() ->
-                          match r with
-                          | DEnum(typeName, original, caseName, existing) ->
-                            return
-                              DEnum(
-                                typeName,
-                                original,
-                                caseName,
-                                List.append existing [ v ]
-                              )
-                          | _ -> return errStr id "Expected an enum"
-                        | Error rte -> return DError(SourceID(state.tlid, id), rte)
+                        | Ok() -> return Ok(List.append fieldsSoFar [ v ])
+                        | Error rte ->
+                          return Error(DError(SourceID(state.tlid, id), rte))
                   })
-                (DEnum(aliasTypeName, typeName, caseName, []))
-                fields
+                (Ok [])
+                (List.zip case.fields fields)
+
+            match fieldsMaybe with
+            | Error firstFakeDvalField -> return firstFakeDvalField
+            | Ok fields ->
+              return Dval.enum resolvedTypeName sourceTypeName caseName fields
+
     | EError(id, rte, exprs) ->
       let! args = Ply.List.mapSequentially (eval state tst st) exprs
 

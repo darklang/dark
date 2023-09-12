@@ -5,10 +5,10 @@ open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
-
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-
 open LibExecution.Builtin.Shortcuts
+
+module Dval = LibExecution.Dval
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 // This makes extra careful that we're only accessing files where we expect to
 /// find files, and that we're not checking outside these directories
@@ -103,8 +103,7 @@ let fns : List<BuiltInFn> =
                 [ "types", DString(Json.Vanilla.serialize types)
                   "fns", DString(Json.Vanilla.serialize fns)
                   "exprs", DString(Json.Vanilla.serialize exprs) ]
-                |> Map.ofList
-                |> DDict
+                |> Dval.dict valueTypeTODO
                 |> Dval.resultOk
             with e ->
               let error = Exception.getMessages e |> String.concat " "

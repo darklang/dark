@@ -7,6 +7,7 @@ open System.Security.Cryptography.X509Certificates
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+module Dval = LibExecution.Dval
 
 let varA = TVariable "a"
 let varB = TVariable "b"

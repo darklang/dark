@@ -9,9 +9,9 @@ open LibCloud.Db
 
 open Prelude
 open LibExecution.RuntimeTypes
-
 open LibExecution.Builtin.Shortcuts
 
+module Dval = LibExecution.Dval
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 let types : List<BuiltInType> =
