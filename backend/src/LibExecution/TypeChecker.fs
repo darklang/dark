@@ -147,7 +147,7 @@ module Error =
           let parent = toDT parent
           "TupleIndex", [ index; elementType; parent ]
 
-      DvalUtils.enum nameTypeName caseName fields
+      DvalUtils.enum nameTypeName nameTypeName caseName fields
 
 
   let toRuntimeError (e : Error) : RuntimeError =
@@ -159,13 +159,18 @@ module Error =
           expectedType |> RT2DT.TypeReference.toDT
           Context.toDT context ]
 
+      let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
       RuntimeError.typeCheckerError (
-        DvalUtils.enum typeName "ValueNotExpectedType" fields
+        DvalUtils.enum typeName typeName "ValueNotExpectedType" fields
       )
 
     | TypeDoesntExist(typeName, context) ->
       let fields = [ RT2DT.TypeName.toDT typeName; Context.toDT context ]
-      RuntimeError.typeCheckerError (DvalUtils.enum typeName "TypeDoesntExist" fields)
+
+      let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
+      RuntimeError.typeCheckerError (
+        DvalUtils.enum typeName typeName "TypeDoesntExist" fields
+      )
 
 let rec valueTypeUnifies
   (tst : TypeSymbolTable)

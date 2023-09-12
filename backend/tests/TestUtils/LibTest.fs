@@ -57,11 +57,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString error ] ->
-          DvalUtils.enum
-            (RuntimeError.name [ "Error" ] "ErrorMessage" 0)
-            "ErrorString"
-            [ DString error ]
-          |> Ply
+          let typeName = RuntimeError.name [ "Error" ] "ErrorMessage" 0
+          DvalUtils.enum typeName typeName "ErrorString" [ DString error ] |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -93,11 +90,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString errorString ] ->
           let msg = LibCloud.SqlCompiler.errorTemplate + errorString
-          DvalUtils.enum
-            (RuntimeError.name [ "Error" ] "ErrorMessage" 0)
-            "ErrorString"
-            [ DString msg ]
-          |> Ply
+          let typeName = RuntimeError.name [ "Error" ] "ErrorMessage" 0
+          DvalUtils.enum typeName typeName "ErrorString" [ DString msg ] |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

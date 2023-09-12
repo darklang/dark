@@ -56,7 +56,7 @@ module CliRuntimeError =
             "NonIntReturned",
             [ "actuallyReturned", RT2DT.Dval.toDT actuallyReturned ]
 
-        DvalUtils.enum nameTypeName caseName []
+        DvalUtils.enum nameTypeName nameTypeName caseName []
 
 
     let toRuntimeError (e : Error) : RT.RuntimeError =

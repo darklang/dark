@@ -153,7 +153,6 @@ let rec private toJsonV0
                 fields)
 
         | TypeDeclaration.Enum(cases), DEnum(_, _, caseName, fields) ->
-
           let matchingCase =
             cases
             |> NEList.find (fun c -> c.name = caseName)
@@ -352,7 +351,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 |> Ply.List.flatten
 
               // TYPESCLEANUP: I don't think the original is name right here?
-              return DEnum(typeName, typeName, caseName, fields)
+              return DvalUtils.enum typeName typeName caseName fields
           | _, _ ->
             return
               Exception.raiseInternal

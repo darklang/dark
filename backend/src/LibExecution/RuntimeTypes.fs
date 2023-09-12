@@ -681,7 +681,8 @@ module RuntimeError =
       version
 
   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
-    DEnum(name [] "Error" 0, name [] "Error" 0, caseName, fields) |> RuntimeError
+    let typeName = name [] "Error" 0
+    DEnum(typeName, typeName, caseName, fields) |> RuntimeError
 
 
   let cliError field = case "CliError" [ field ]

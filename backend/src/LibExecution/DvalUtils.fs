@@ -133,15 +133,15 @@ and mergeValueTypes
 let rec toValueType (dv : Dval) : ValueType =
   match dv with
   | DUnit -> ValueType.Known KTUnit
+
   | DBool _ -> ValueType.Known KTBool
   | DInt _ -> ValueType.Known KTInt
   | DFloat _ -> ValueType.Known KTFloat
   | DChar _ -> ValueType.Known KTChar
   | DString _ -> ValueType.Known KTString
+  | DDateTime _ -> ValueType.Known KTDateTime
   | DUuid _ -> ValueType.Known KTUuid
   | DBytes _ -> ValueType.Known KTBytes
-  | DDateTime _ -> ValueType.Known KTDateTime
-  | DPassword _ -> ValueType.Known KTPassword
 
   | DList(t, _) -> ValueType.Known(KTList t)
   | DDict(t, _) -> ValueType.Known(KTDict t)
@@ -175,6 +175,7 @@ let rec toValueType (dv : Dval) : ValueType =
 
   // CLEANUP follow up when DDB has a typeReference
   | DDB _ -> ValueType.Unknown
+  | DPassword _ -> ValueType.Known KTPassword
 
   | DError _ -> Exception.raiseInternal "DError is being moved out of Dval" []
 
@@ -279,14 +280,17 @@ let record
 
 
 let enum
-  (typeName : TypeName.TypeName)
-  // TODO: (typeArgs: List<ValueType>)
+  // TODO: pass in (types: Types) arg
+  // TODO: nitpick: reorder these typeName params (i.e. source first)
+  (resolvedTypeName : TypeName.TypeName)
+  (sourceTypeName : TypeName.TypeName) // TODO: maybe just pass in sourceTypeName
+  // TODO: (typeArgs: Option<List<ValueType>>) // note: must match the count expected by the typeName
   (caseName : string)
   (fields : List<Dval>)
   : Dval =
   match List.find Dval.isFake fields with
   | Some v -> v
-  | None -> DEnum(typeName, typeName, caseName, fields)
+  | None -> DEnum(resolvedTypeName, sourceTypeName, caseName, fields)
 
 
 let optionType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0

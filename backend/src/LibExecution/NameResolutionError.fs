@@ -38,7 +38,7 @@ module RTE =
         | MissingEnumModuleName caseName ->
           "MissingEnumModuleName", [ RT.DString caseName ]
         | InvalidPackageName -> "InvalidPackageName", []
-      DvalUtils.enum nameTypeName caseName fields
+      DvalUtils.enum nameTypeName nameTypeName caseName fields
 
     let fromDT (dv : RT.Dval) : ErrorType =
       match dv with
@@ -58,7 +58,7 @@ module RTE =
         | Function -> "Function"
         | Type -> "Type"
         | Constant -> "Constant"
-      DvalUtils.enum nameTypeName caseName []
+      DvalUtils.enum nameTypeName nameTypeName caseName []
 
     let fromDT (dv : RT.Dval) : NameType =
       match dv with

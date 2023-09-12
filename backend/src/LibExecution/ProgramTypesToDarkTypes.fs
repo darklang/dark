@@ -34,9 +34,14 @@ let errorsTyp
 // maybe rename this file to InternalTypesToDarkTypes?
 module Sign =
   let toDT (s : Sign) : Dval =
-    match s with
-    | Positive -> DvalUtils.enum (languageToolsTyp [] "Sign" 0) "Positive" []
-    | Negative -> DvalUtils.enum (languageToolsTyp [] "Sign" 0) "Negative" []
+    let caseName, fields =
+      match s with
+      | Positive -> "Positive", []
+      | Negative -> "Negative", []
+
+    let typeName = languageToolsTyp [] "Sign" 0
+    DvalUtils.enum typeName typeName caseName fields
+
 
   let fromDT (d : Dval) : Sign =
     match d with
@@ -127,7 +132,8 @@ module FQName =
       | PT.FQName.Package u -> "Package", [ Package.toDT nameMapper u ]
       | PT.FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameMapper u ]
 
-    DvalUtils.enum (ptTyp [ "FQName" ] "FQName" 0) caseName fields
+    let typeName = ptTyp [ "FQName" ] "FQName" 0
+    DvalUtils.enum typeName typeName caseName fields
 
   let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.FQName<'name> =
     match d with
@@ -145,7 +151,8 @@ module TypeName =
         match u with
         | PT.TypeName.TypeName name -> "TypeName", [ DString name ]
 
-      DvalUtils.enum (ptTyp [ "TypeName" ] "Name" 0) caseName fields
+      let typeName = ptTyp [ "TypeName" ] "Name" 0
+      DvalUtils.enum typeName typeName caseName fields
 
     let fromDT (d : Dval) : PT.TypeName.Name =
       match d with
@@ -178,7 +185,8 @@ module FnName =
         match u with
         | PT.FnName.FnName name -> "FnName", [ DString name ]
 
-      DvalUtils.enum (ptTyp [ "FnName" ] "Name" 0) caseName fields
+      let typeName = ptTyp [ "FnName" ] "Name" 0
+      DvalUtils.enum typeName typeName caseName fields
 
     let fromDT (d : Dval) : PT.FnName.Name =
       match d with
@@ -208,7 +216,8 @@ module ConstantName =
         match u with
         | PT.ConstantName.ConstantName name -> "ConstantName", [ DString name ]
 
-      DvalUtils.enum (ptTyp [ "ConstantName" ] "Name" 0) caseName fields
+      let typeName = ptTyp [ "ConstantName" ] "Name" 0
+      DvalUtils.enum typeName typeName caseName fields
 
     let fromDT (d : Dval) : PT.ConstantName.Name =
       match d with
@@ -253,7 +262,7 @@ module NameResolution =
 
 module TypeReference =
   let rec toDT (t : PT.TypeReference) : Dval =
-    let name, fields =
+    let caseName, fields =
       match t with
       | PT.TVariable name -> "TVariable", [ DString name ]
 
@@ -289,7 +298,8 @@ module TypeReference =
         [ DvalUtils.list valueTypeTODO (args |> NEList.toList |> List.map toDT)
           toDT ret ]
 
-    DvalUtils.enum (ptTyp [] "TypeReference" 0) name fields
+    let typeName = ptTyp [] "TypeReference" 0
+    DvalUtils.enum typeName typeName caseName fields
 
   let rec fromDT (d : Dval) : PT.TypeReference =
     match d with
@@ -327,7 +337,7 @@ module TypeReference =
 
 module LetPattern =
   let rec toDT (p : PT.LetPattern) : Dval =
-    let name, fields =
+    let caseName, fields =
       match p with
       | PT.LPVariable(id, name) -> "LPVariable", [ DInt(int64 id); DString name ]
       | PT.LPUnit id -> "LPUnit", [ DInt(int64 id) ]
@@ -338,7 +348,8 @@ module LetPattern =
           toDT second
           DvalUtils.list valueTypeTODO (List.map toDT theRest) ]
 
-    DvalUtils.enum (ptTyp [] "LetPattern" 0) name fields
+    let typeName = ptTyp [] "LetPattern" 0
+    DvalUtils.enum typeName typeName caseName fields
 
 
   let rec fromDT (d : Dval) : PT.LetPattern =
@@ -353,7 +364,7 @@ module LetPattern =
 
 module MatchPattern =
   let rec toDT (p : PT.MatchPattern) : Dval =
-    let name, fields =
+    let caseName, fields =
       match p with
       | PT.MPVariable(id, name) -> "MPVariable", [ DInt(int64 id); DString name ]
 
@@ -383,7 +394,8 @@ module MatchPattern =
           DString caseName
           DvalUtils.list valueTypeTODO (List.map toDT fieldPats) ]
 
-    DvalUtils.enum (ptTyp [] "MatchPattern" 0) name fields
+    let typeName = ptTyp [] "MatchPattern" 0
+    DvalUtils.enum typeName typeName caseName fields
 
   let rec fromDT (d : Dval) : PT.MatchPattern =
     match d with
@@ -411,9 +423,10 @@ module MatchPattern =
 
 module BinaryOperation =
   let toDT (b : PT.BinaryOperation) : Dval =
+    let typeName = ptTyp [] "BinaryOperation" 0
     match b with
-    | PT.BinOpAnd -> DvalUtils.enum (ptTyp [] "BinaryOperation" 0) "BinOpAnd" []
-    | PT.BinOpOr -> DvalUtils.enum (ptTyp [] "BinaryOperation" 0) "BinOpOr" []
+    | PT.BinOpAnd -> DvalUtils.enum typeName typeName "BinOpAnd" []
+    | PT.BinOpOr -> DvalUtils.enum typeName typeName "BinOpOr" []
 
   let fromDT (d : Dval) : PT.BinaryOperation =
     match d with
@@ -424,7 +437,7 @@ module BinaryOperation =
 
 module InfixFnName =
   let toDT (i : PT.InfixFnName) : Dval =
-    let name, fields =
+    let caseName, fields =
       match i with
       | PT.ArithmeticPlus -> "ArithmeticPlus", []
       | PT.ArithmeticMinus -> "ArithmeticMinus", []
@@ -440,7 +453,8 @@ module InfixFnName =
       | PT.ComparisonNotEquals -> "ComparisonNotEquals", []
       | PT.StringConcat -> "StringConcat", []
 
-    DvalUtils.enum (ptTyp [] "InfixFnName" 0) name fields
+    let typeName = ptTyp [] "InfixFnName" 0
+    DvalUtils.enum typeName typeName caseName fields
 
   let fromDT (d : Dval) : PT.InfixFnName =
     match d with
@@ -463,12 +477,13 @@ module InfixFnName =
 
 module Infix =
   let toDT (i : PT.Infix) : Dval =
-    let name, fields =
+    let caseName, fields =
       match i with
       | PT.InfixFnCall infixFnName -> "InfixFnCall", [ InfixFnName.toDT infixFnName ]
       | PT.BinOp binOp -> "BinOp", [ BinaryOperation.toDT binOp ]
 
-    DvalUtils.enum (ptTyp [] "Infix" 0) name fields
+    let typeName = ptTyp [] "Infix" 0
+    DvalUtils.enum typeName typeName caseName fields
 
   let fromDT (d : Dval) : PT.Infix =
     match d with
@@ -480,12 +495,13 @@ module Infix =
 
 module StringSegment =
   let toDT (exprToDT : PT.Expr -> Dval) (s : PT.StringSegment) : Dval =
-    let name, fields =
+    let caseName, fields =
       match s with
       | PT.StringText text -> "StringText", [ DString text ]
       | PT.StringInterpolation expr -> "StringInterpolation", [ exprToDT expr ]
 
-    DvalUtils.enum (ptTyp [] "StringSegment" 0) name fields
+    let typeName = ptTyp [] "StringSegment" 0
+    DvalUtils.enum typeName typeName caseName fields
 
   let fromDT (exprFromDT : Dval -> PT.Expr) (d : Dval) : PT.StringSegment =
     match d with
@@ -497,7 +513,7 @@ module StringSegment =
 
 module PipeExpr =
   let toDT (exprToDT : PT.Expr -> Dval) (s : PT.PipeExpr) : Dval =
-    let name, fields =
+    let caseName, fields =
       match s with
       | PT.EPipeVariable(id, varName, exprs) ->
         "EPipeVariable",
@@ -532,7 +548,8 @@ module PipeExpr =
           DString caseName
           DvalUtils.list valueTypeTODO (List.map exprToDT fields) ]
 
-    DvalUtils.enum (ptTyp [] "PipeExpr" 0) name fields
+    let typeName = ptTyp [] "PipeExpr" 0
+    DvalUtils.enum typeName typeName caseName fields
 
   let fromDT (exprFromDT : Dval -> PT.Expr) (d : Dval) : PT.PipeExpr =
     match d with
@@ -581,7 +598,7 @@ module PipeExpr =
 
 module Expr =
   let rec toDT (e : PT.Expr) : Dval =
-    let name, fields =
+    let caseName, fields =
       match e with
       | PT.EUnit id -> "EUnit", [ DInt(int64 id) ]
 
@@ -699,7 +716,8 @@ module Expr =
         "ERecordUpdate",
         [ DInt(int64 id); toDT record; DvalUtils.list valueTypeTODO (updates) ]
 
-    DvalUtils.enum (ptTyp [] "Expr" 0) name fields
+    let typeName = ptTyp [] "Expr" 0
+    DvalUtils.enum typeName typeName caseName fields
 
   let rec fromDT (d : Dval) : PT.Expr =
     match d with
@@ -828,7 +846,7 @@ module Expr =
 
 module Const =
   let rec toDT (c : PT.Const) : Dval =
-    let name, fields =
+    let caseName, fields =
       match c with
       | PT.Const.CInt i -> "CInt", [ DInt i ]
       | PT.Const.CBool b -> "CBool", [ DBool b ]
@@ -847,7 +865,9 @@ module Const =
         [ NameResolution.toDT TypeName.toDT typeName
           DString caseName
           DvalUtils.list valueTypeTODO (List.map toDT fields) ]
-    DvalUtils.enum (ptTyp [] "Const" 0) name fields
+
+    let typeName = ptTyp [] "Const" 0
+    DvalUtils.enum typeName typeName caseName fields
 
   let rec fromDT (d : Dval) : PT.Const =
     match d with
@@ -878,7 +898,8 @@ module Deprecation =
       | PT.Deprecation.DeprecatedBecause reason ->
         "DeprecatedBecause", [ DString reason ]
 
-    DvalUtils.enum (ptTyp [] "Deprecation" 0) caseName fields
+    let typeName = ptTyp [] "Deprecation" 0
+    DvalUtils.enum typeName typeName caseName fields
 
   let fromDT (inner : Dval -> 'a) (d : Dval) : PT.Deprecation<'a> =
     match d with
@@ -979,7 +1000,8 @@ module TypeDeclaration =
             |> List.map EnumCase.toDT
             |> DvalUtils.list valueTypeTODO ]
 
-      DvalUtils.enum (ptTyp [ "TypeDeclaration" ] "Definition" 0) caseName fields
+      let typeName = ptTyp [ "TypeDeclaration" ] "Definition" 0
+      DvalUtils.enum typeName typeName caseName fields
 
     let fromDT (d : Dval) : PT.TypeDeclaration.Definition =
       match d with
@@ -1017,7 +1039,7 @@ module TypeDeclaration =
 module Handler =
   module CronInterval =
     let toDT (ci : PT.Handler.CronInterval) : Dval =
-      let name, fields =
+      let caseName, fields =
         match ci with
         | PT.Handler.CronInterval.EveryMinute -> "EveryMinute", []
         | PT.Handler.CronInterval.EveryHour -> "EveryHour", []
@@ -1026,7 +1048,8 @@ module Handler =
         | PT.Handler.CronInterval.EveryWeek -> "EveryWeek", []
         | PT.Handler.CronInterval.EveryFortnight -> "EveryFortnight", []
 
-      DvalUtils.enum (ptTyp [ "Handler" ] "CronInterval" 0) name fields
+      let typeName = ptTyp [ "Handler" ] "CronInterval" 0
+      DvalUtils.enum typeName typeName caseName fields
 
     let fromDT (d : Dval) : PT.Handler.CronInterval =
       match d with
@@ -1041,7 +1064,7 @@ module Handler =
 
   module Spec =
     let toDT (s : PT.Handler.Spec) : Dval =
-      let name, fields =
+      let caseName, fields =
         match s with
         | PT.Handler.Spec.HTTP(route, method) ->
           "HTTP", [ DString route; DString method ]
@@ -1050,7 +1073,8 @@ module Handler =
           "Cron", [ DString name; CronInterval.toDT interval ]
         | PT.Handler.Spec.REPL name -> "REPL", [ DString name ]
 
-      DvalUtils.enum (ptTyp [ "Handler" ] "Spec" 0) name fields
+      let typeName = ptTyp [ "Handler" ] "Spec" 0
+      DvalUtils.enum typeName typeName caseName fields
 
     let fromDT (d : Dval) : PT.Handler.Spec =
       match d with

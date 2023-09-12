@@ -465,15 +465,14 @@ let parse
                   $"Couldn't parse Enum as incorrect # of fields provided"
                   []
 
-              let! mapped =
+              let! fields =
                 List.zip matchingCase.fields j
                 |> List.map (fun (typ, j) ->
                   let typ = Types.substitute decl.typeParams typeArgs typ
                   convert typ pathSoFar j) // TODO revisit if we need to do anything with path
                 |> Ply.List.flatten
 
-              // TYPESCLEANUP: we should have the original type here as well as the alias-resolved type
-              return DEnum(typeName, typeName, caseName, mapped)
+              return DvalUtils.enum typeName typeName caseName fields
 
             | _ -> return Exception.raiseInternal "TODO" []
 
