@@ -7,7 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module Secret = LibCloud.Secret
 
 
@@ -46,12 +46,12 @@ let fns : List<BuiltInFn> =
             return
               secrets
               |> List.map (fun s ->
-                DvalUtils.record
+                Dval.record
                   typeName
                   [ "name", DString s.name
                     "value", DString s.value
                     "version", DInt s.version ])
-              |> DvalUtils.list (ValueType.Known(KTCustomType(typeName, [])))
+              |> Dval.list (ValueType.Known(KTCustomType(typeName, [])))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -95,9 +95,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               do! Secret.insert canvasID name value (int version)
-              return DvalUtils.resultOk DUnit
+              return Dval.resultOk DUnit
             with _ ->
-              return DvalUtils.resultError (DString "Error inserting secret")
+              return Dval.resultError (DString "Error inserting secret")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

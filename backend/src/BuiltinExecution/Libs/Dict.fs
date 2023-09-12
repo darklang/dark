@@ -7,7 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module Errors = LibExecution.Errors
 module Interpreter = LibExecution.Interpreter
 
@@ -24,7 +24,7 @@ let constants : List<BuiltInConstant> =
   [ { name = constant "empty" 0
       typ = TDict varA
       description = "Returns an empty dictionary"
-      body = DvalUtils.dict ValueType.Unknown []
+      body = Dval.dict ValueType.Unknown []
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
@@ -36,7 +36,7 @@ let fns : List<BuiltInFn> =
         "Returns a dictionary with a single entry {{<param key>: <param value>}}"
       fn =
         (function
-        | _, _, [ DString k; v ] -> Ply(DvalUtils.dict valueTypeTODO [ (k, v) ])
+        | _, _, [ DString k; v ] -> Ply(Dval.dict valueTypeTODO [ (k, v) ])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -70,7 +70,7 @@ let fns : List<BuiltInFn> =
           |> Map.keys
           |> Seq.map (fun k -> DString k)
           |> Seq.toList
-          |> fun l -> DvalUtils.list (ValueType.Known KTString) l
+          |> fun l -> Dval.list (ValueType.Known KTString) l
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -90,7 +90,7 @@ let fns : List<BuiltInFn> =
           o
           |> Map.values
           |> Seq.toList
-          |> (fun l -> DvalUtils.list valueTypeTODO l |> Ply)
+          |> (fun l -> Dval.list valueTypeTODO l |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -108,7 +108,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DDict(_vtTODO, o) ] ->
           Map.toList o
           |> List.map (fun (k, v) -> DTuple(DString k, v, []))
-          |> DvalUtils.list (
+          |> Dval.list (
             ValueType.Known(KTTuple(ValueType.Known KTString, valueTypeTODO, []))
           )
           |> Ply
@@ -143,7 +143,7 @@ let fns : List<BuiltInFn> =
             | _ -> Exception.raiseCode "All list items must be `(key, value)`"
 
           let result = l |> List.fold f Map.empty |> Map.toList
-          Ply(DvalUtils.dict valueTypeTODO result)
+          Ply(Dval.dict valueTypeTODO result)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -181,12 +181,8 @@ let fns : List<BuiltInFn> =
 
           match result with
           | Some map ->
-            map
-            |> Map.toList
-            |> DvalUtils.dict valueTypeTODO
-            |> DvalUtils.optionSome
-            |> Ply
-          | None -> Ply(DvalUtils.optionNone)
+            map |> Map.toList |> Dval.dict valueTypeTODO |> Dval.optionSome |> Ply
+          | None -> Ply(Dval.optionNone)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -203,7 +199,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict(_vtTODO, o); DString s ] ->
-          Map.tryFind s o |> DvalUtils.option |> Ply
+          Map.tryFind s o |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -259,7 +255,7 @@ let fns : List<BuiltInFn> =
                     (NEList.ofList (DString key) [ dv ]))
                 mapped
 
-            return DvalUtils.dict valueTypeTODO (Map.toList result)
+            return Dval.dict valueTypeTODO (Map.toList result)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -351,7 +347,7 @@ let fns : List<BuiltInFn> =
               Ply.Map.foldSequentially filterPropagatingErrors (Ok Map.empty) o
 
             match filteredResult with
-            | Ok map -> return map |> Map.toList |> DvalUtils.dict valueTypeTODO
+            | Ok map -> return map |> Map.toList |> Dval.dict valueTypeTODO
             | Error dv -> return dv
           }
         | _ -> incorrectArgs ())
@@ -421,7 +417,7 @@ let fns : List<BuiltInFn> =
             let! result = Ply.Map.filterMapSequentially f o
 
             match abortReason.Value with
-            | None -> return result |> Map.toList |> DvalUtils.dict valueTypeTODO
+            | None -> return result |> Map.toList |> Dval.dict valueTypeTODO
             | Some v -> return v
           }
         | _ -> incorrectArgs ())
@@ -453,10 +449,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict(_vtTODO1, l); DDict(_vtTODO2, r) ] ->
-          Map.mergeFavoringRight l r
-          |> Map.toList
-          |> DvalUtils.dict valueTypeTODO
-          |> Ply
+          Map.mergeFavoringRight l r |> Map.toList |> Dval.dict valueTypeTODO |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -475,7 +468,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict(vt, o); DString k; v ] ->
-          Map.add k v o |> DvalUtils.dictFromMap vt |> Ply
+          Map.add k v o |> Dval.dictFromMap vt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -491,7 +484,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict(vt, o); DString k ] ->
-          Map.remove k o |> DvalUtils.dictFromMap vt |> Ply
+          Map.remove k o |> Dval.dictFromMap vt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

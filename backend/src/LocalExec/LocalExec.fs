@@ -7,7 +7,7 @@ open FSharp.Control.Tasks
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
@@ -281,7 +281,7 @@ let runLocalExecScript (args : string[]) : Ply<int> =
       args
       |> Array.toList
       |> List.map RT.DString
-      |> DvalUtils.list (RT.ValueType.Known RT.KTString)
+      |> Dval.list (RT.ValueType.Known RT.KTString)
 
     let result = execute modul (Map [ "args", args ])
 

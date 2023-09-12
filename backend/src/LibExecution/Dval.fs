@@ -24,43 +24,36 @@
 ///
 /// When that happens, I suspect:
 /// - we'll need to pass in a `types: Types` argument to several of these fns
-module LibExecution.DvalUtils
+///   (Dval.enum, Dval.record, maybe others)
+module LibExecution.Dval
 
 open LibExecution.RuntimeTypes
 
 
-// TODO: rename this module. Ideas:
-//   `DvalCreator`, `CreateDval`, `DvalMaker`, `DvalBuilder`, etc.
-// `CreateDval.enum ...` isn't too bad
 
-// type DvalCreator = draft of an idea...
-//   { list: List<Dval> -> Dval }
-
-
-module private ValueType =
-  // _just_ enough to make some tests less ugly - this should all be in Dark code soon
-  // CLEANUP VTTODO ^
-  let rec toString (vt : ValueType) : string =
-    match vt with
-    | ValueType.Unknown -> "_"
-    | ValueType.Known kt ->
-      match kt with
-      | KTUnit -> "Unit"
-      | KTBool -> "Bool"
-      | KTInt -> "Int"
-      | KTFloat -> "Float"
-      | KTChar -> "Char"
-      | KTString -> "String"
-      | KTUuid -> "Uuid"
-      | KTBytes -> "Bytes"
-      | KTDateTime -> "DateTime"
-      | KTPassword -> "Password"
-      | KTList inner -> $"List<{toString inner}>"
-      | KTTuple _ -> "Tuple (TODO)"
-      | KTFn _ -> "Fn (TODO)"
-      | KTDB _ -> "DB (TODO)"
-      | KTCustomType _ -> "Custom Type (TODO)"
-      | KTDict _ -> "Dict (TODO)"
+// _just_ enough to make some tests less ugly - this should all be in Dark code soon
+// CLEANUP VTTODO ^
+let rec private valueTypeToString (vt : ValueType) : string =
+  match vt with
+  | ValueType.Unknown -> "_"
+  | ValueType.Known kt ->
+    match kt with
+    | KTUnit -> "Unit"
+    | KTBool -> "Bool"
+    | KTInt -> "Int"
+    | KTFloat -> "Float"
+    | KTChar -> "Char"
+    | KTString -> "String"
+    | KTUuid -> "Uuid"
+    | KTBytes -> "Bytes"
+    | KTDateTime -> "DateTime"
+    | KTPassword -> "Password"
+    | KTList inner -> $"List<{valueTypeToString inner}>"
+    | KTTuple _ -> "Tuple (TODO)"
+    | KTFn _ -> "Fn (TODO)"
+    | KTDB _ -> "DB (TODO)"
+    | KTCustomType _ -> "Custom Type (TODO)"
+    | KTDict _ -> "Dict (TODO)"
 
 
 
@@ -193,7 +186,7 @@ let private listPush
   | Ok newType -> Ok(newType, dv :: list)
   | Error() ->
     RuntimeError.oldError
-      $"Could not merge types List<{ValueType.toString listType}> and List<{ValueType.toString dvalType}>"
+      $"Could not merge types List<{valueTypeToString listType}> and List<{valueTypeToString dvalType}>"
     |> Error
 
 let list (initialType : ValueType) (list : List<Dval>) : Dval =
@@ -238,7 +231,9 @@ let list (initialType : ValueType) (list : List<Dval>) : Dval =
 //       | m, _, _ -> m)
 //     fields
 
-// CLEANUP it'd probably be better for this to consolidate the two `dict` fns
+
+// CLEANUP it'd probably be better to consolidate the two `dict` fns
+// I can't decide which, though
 let dict (valueType : ValueType) (entries : List<string * Dval>) : Dval =
   // TODO: use valueType in the same way that we use it for Lists
   // (some tests will likely break..)
@@ -251,32 +246,41 @@ let dictFromMap (valueType : ValueType) (entries : Map<string, Dval>) : Dval =
 
 
 
+// TYPESCLEANUP: remove hacks around fakeVals
+/// Constructs a Dval.DRecord
+///
+/// note: if provided, the typeArgs must match the # of typeArgs expected by the type
 let record
   (typeName : TypeName.TypeName)
-  // TODO: (typeArgs: List<ValueType>)
+  // TODO: (typeArgs: Option<List<ValueType>>)
   (fields : List<string * Dval>)
   : Dval =
-  // Give a warning for duplicate keys
-  List.fold
-    (fun m (k, v) ->
-      match m, k, v with
-      // TYPESCLEANUP: remove hacks
-      // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
-      | m, _k, _v when Dval.isFake m -> m
-      // Errors should propagate (but only if we're not already propagating an error)
-      | DRecord _, _, v when Dval.isFake v -> v
-      // Skip empty rows
-      | _, "", _ -> DError(SourceNone, RuntimeError.oldError $"Empty key {k}")
-      // Error if the key appears twice
-      | DRecord(_, _, _typeArgsTODO, m), k, _v when Map.containsKey k m ->
-        DError(SourceNone, RuntimeError.oldError $"Duplicate key: {k}")
-      // Otherwise add it
-      | DRecord(tn, o, _typeArgsTODO, m), k, v ->
-        DRecord(tn, o, valueTypesTODO, Map.add k v m)
-      // If we haven't got a DDict we're propagating an error so let it go
-      | m, _, _ -> m)
-    (DRecord(typeName, typeName, valueTypesTODO, Map.empty))
-    fields
+  let (fieldsMaybe : Result<Map<string, Dval>, Dval>) =
+    List.fold
+      (fun acc (k, v) ->
+        match acc with
+        | Error err -> Error err
+        | Ok fields ->
+          match fields, k, v with
+          // Errors should propagate (but only if we're not already propagating an error)
+          | _, _, v when Dval.isFake v -> Error v
+
+          // Skip empty rows
+          | _, "", _ ->
+            Error(DError(SourceNone, RuntimeError.oldError $"Empty key {k}"))
+
+          // Error if the key appears twice
+          | fields, k, _v when Map.containsKey k fields ->
+            Error(DError(SourceNone, RuntimeError.oldError $"Duplicate key: {k}"))
+
+          // Otherwise add it
+          | fields, k, v -> Ok(Map.add k v fields))
+      (Ok Map.empty)
+      fields
+
+  match fieldsMaybe with
+  | Ok fields -> DRecord(typeName, typeName, valueTypesTODO, fields)
+  | Error err -> err
 
 
 let enum

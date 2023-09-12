@@ -8,7 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 
 let modules = [ "DarkInternal"; "Documentation" ]
 
@@ -70,16 +70,16 @@ let fns : List<BuiltInFn> =
               let parameters =
                 data.parameters
                 |> List.map (fun p ->
-                  DvalUtils.record
+                  Dval.record
                     paramTypeName
                     [ ("name", DString p.name)
                       ("type", DString(typeNameToStr p.typ)) ])
               [ ("name", DString(FnName.builtinToString key))
                 ("description", DString data.description)
-                ("parameters", DvalUtils.list valueTypeTODO parameters)
+                ("parameters", Dval.list valueTypeTODO parameters)
                 ("returnType", DString returnType) ]
-            DvalUtils.record typeName alist)
-          |> DvalUtils.list valueTypeTODO
+            Dval.record typeName alist)
+          |> Dval.list valueTypeTODO
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

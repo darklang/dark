@@ -8,7 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module DarkDateTime = LibExecution.DarkDateTime
 module SchedulingRules = LibCloud.QueueSchedulingRules
 module Pusher = LibCloud.Pusher
@@ -40,15 +40,15 @@ let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Dval =
 
   rules
   |> List.map (fun r ->
-    DvalUtils.record
+    Dval.record
       typeName
-      [ ("id", DvalUtils.int r.id)
+      [ ("id", Dval.int r.id)
         ("rule_type", r.ruleType.ToString() |> DString)
         ("canvas_id", DUuid r.canvasID)
         ("handler_name", DString r.handlerName)
         ("event_space", DString r.eventSpace)
         ("created_at", DDateTime(DarkDateTime.fromInstant r.createdAt)) ])
-  |> DvalUtils.list (ValueType.Known(KTCustomType(typeName, [])))
+  |> Dval.list (ValueType.Known(KTCustomType(typeName, [])))
 
 let types : List<BuiltInType> =
   [ { name = schedulingRuleTypeName

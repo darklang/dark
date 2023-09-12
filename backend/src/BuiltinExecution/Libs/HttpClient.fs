@@ -415,7 +415,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                       DString(String.toLowercase v),
                       []
                     ))
-                  |> DvalUtils.list (
+                  |> Dval.list (
                     ValueType.Known(
                       KTTuple(ValueType.Known KTString, ValueType.Known KTString, [])
                     )
@@ -428,34 +428,33 @@ let fns (config : Configuration) : List<BuiltInFn> =
                   [ ("statusCode", DInt(int64 response.statusCode))
                     ("headers", responseHeaders)
                     ("body", DBytes response.body) ]
-                  |> DvalUtils.record typ
-                  |> DvalUtils.resultOk
+                  |> Dval.record typ
+                  |> Dval.resultOk
 
               | Error(BadUrl details) ->
                 // TODO: include a DvalSource rather than SourceNone
-                return DvalUtils.resultError (DString $"Bad URL: {details}")
+                return Dval.resultError (DString $"Bad URL: {details}")
 
               | Error(Timeout) ->
-                return DvalUtils.resultError (DString $"Request timed out")
+                return Dval.resultError (DString $"Request timed out")
 
               | Error(NetworkError) ->
-                return DvalUtils.resultError (DString $"Network error")
+                return Dval.resultError (DString $"Network error")
 
-              | Error(Other details) ->
-                return DvalUtils.resultError (DString details)
+              | Error(Other details) -> return Dval.resultError (DString details)
             }
 
           | Error reqHeadersErr, _ ->
             uply {
               match reqHeadersErr with
-              | BadInput details -> return DvalUtils.resultError (DString details)
+              | BadInput details -> return Dval.resultError (DString details)
               | TypeMismatch details ->
                 return DError(SourceNone, RuntimeError.oldError details)
             }
 
           | _, None ->
             let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
-            uply { return DvalUtils.resultError (DString error) }
+            uply { return Dval.resultError (DString error) }
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

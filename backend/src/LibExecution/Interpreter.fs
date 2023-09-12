@@ -340,7 +340,7 @@ let rec eval'
 
       match List.tryFind Dval.isFake results with
       | Some fakeDval -> return fakeDval
-      | None -> return DvalUtils.list valueTypeTODO results
+      | None -> return Dval.list valueTypeTODO results
 
 
     | ETuple(_id, first, second, theRest) ->
@@ -474,12 +474,12 @@ let rec eval'
               | _, _, v when Dval.isFake v -> return v
 
               | DDict(vt, entries), k, v ->
-                return entries |> Map.add k v |> DvalUtils.dictFromMap vt
+                return entries |> Map.add k v |> Dval.dictFromMap vt
 
               // If we haven't got a DDict we're propagating an error so let it go
               | r, _, _v -> return r
             })
-          (DvalUtils.dict ValueType.Unknown [])
+          (Dval.dict ValueType.Unknown [])
           fields
 
 
@@ -713,7 +713,7 @@ let rec eval'
           | DList(vt, headVal :: tailVals) ->
             let (headPass, headVars, headTraces) = checkPattern headVal headPat
             let (tailPass, tailVars, tailTraces) =
-              checkPattern (DvalUtils.list vt tailVals) tailPat
+              checkPattern (Dval.list vt tailVals) tailPat
 
             let allSubVars = headVars @ tailVars
             let allSubTraces = headTraces @ tailTraces
@@ -920,7 +920,7 @@ let rec eval'
             match fieldsMaybe with
             | Error firstFakeDvalField -> return firstFakeDvalField
             | Ok fields ->
-              return DvalUtils.enum resolvedTypeName sourceTypeName caseName fields
+              return Dval.enum resolvedTypeName sourceTypeName caseName fields
 
     | EError(id, rte, exprs) ->
       let! args = Ply.List.mapSequentially (eval state tst st) exprs

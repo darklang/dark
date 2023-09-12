@@ -75,8 +75,8 @@ let fns : List<BuiltInFn> = []
 //                 "timestamp", DDateTime(DarkDateTime.fromInstant instant)
 //                 "traceID",
 //                 DUuid(LibExecution.AnalysisTypes.TraceID.toUUID traceID) ]
-//               |> DvalUtils.record typeName)
-//             |> DvalUtils.list valueTypeTODO
+//               |> Dval.record typeName)
+//             |> Dval.list valueTypeTODO
 //         }
 //       | _ -> incorrectArgs ())
 //     sqlSpec = NotQueryable

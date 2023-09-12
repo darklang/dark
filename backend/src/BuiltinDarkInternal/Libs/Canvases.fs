@@ -8,7 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
@@ -67,7 +67,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUnit ] ->
           uply {
             let! hosts = Canvas.allCanvasIDs ()
-            return hosts |> List.map DUuid |> DvalUtils.list (ValueType.Known KTUuid)
+            return hosts |> List.map DUuid |> Dval.list (ValueType.Known KTUuid)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -179,22 +179,22 @@ let fns : List<BuiltInFn> =
               |> Map.values
               |> Seq.toList
               |> List.map PT2DT.UserType.toDT
-              |> DvalUtils.list valueTypeTODO
+              |> Dval.list valueTypeTODO
 
             let fns =
               canvas.userFunctions
               |> Map.values
               |> Seq.toList
               |> List.map PT2DT.UserFunction.toDT
-              |> DvalUtils.list valueTypeTODO
+              |> Dval.list valueTypeTODO
 
             // let dbs =
             //   Map.values canvas.dbs
             //   |> Seq.toList
             //   |> List.map (fun db ->
             //     [ "tlid", DString(db.tlid.ToString()); "name", DString db.name ]
-            //     |> DvalUtils.dict)
-            //   |> DvalUtils.list valueTypeTODO
+            //     |> Dval.dict)
+            //   |> Dval.list valueTypeTODO
 
             // let httpHandlers =
             //   Map.values canvas.handlers
@@ -208,15 +208,15 @@ let fns : List<BuiltInFn> =
             //       [ "tlid", DString(handler.tlid.ToString())
             //         "method", DString method
             //         "route", DString route ]
-            //       |> DvalUtils.dict
+            //       |> Dval.dict
             //       |> Some)
-            //   |> DvalUtils.list valueTypeTODO
+            //   |> Dval.list valueTypeTODO
 
             return
-              DvalUtils.record
+              Dval.record
                 (FQName.BuiltIn(typ "Program" 0))
                 [ "types", types; "fns", fns ]
-              |> DvalUtils.resultOk
+              |> Dval.resultOk
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

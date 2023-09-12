@@ -11,7 +11,7 @@ open TestUtils.TestUtils
 open LibExecution.RuntimeTypes
 open TestUtils.RTShortcuts
 
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module Exe = LibExecution.Execution
 module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 
@@ -697,9 +697,9 @@ let testMatchPreview : Test =
 
       t
         "ok: y"
-        (let typeName = DvalUtils.resultType
+        (let typeName = Dval.resultType
          eEnum typeName "Ok" [ eStr "y" ])
-        [ (pOkVarOkId, "ok pat 2", er (DvalUtils.resultOk (DString "y")))
+        [ (pOkVarOkId, "ok pat 2", er (Dval.resultOk (DString "y")))
           (pOkVarVarId, "var pat", er (DString "y"))
           (okVarRhsId, "rhs", er (DString "ok: y"))
           (okVarRhsVarId, "rhs", er (DString "y"))
@@ -716,9 +716,9 @@ let testMatchPreview : Test =
 
       t
         "none"
-        (let typeName = DvalUtils.optionType
+        (let typeName = Dval.optionType
          eEnum typeName "None" [])
-        [ (pNoneId, "none pat", er (DvalUtils.optionNone))
+        [ (pNoneId, "none pat", er (Dval.optionNone))
           (noneRhsId, "rhs", er (DString "enum none")) ]
 
       // TODO: test enum around a literal

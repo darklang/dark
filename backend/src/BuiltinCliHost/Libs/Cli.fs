@@ -10,7 +10,7 @@ open LibExecution.Builtin.Shortcuts
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module Exe = LibExecution.Execution
@@ -40,7 +40,7 @@ module CliRuntimeError =
             let metadata =
               metadata
               |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
-              |> DvalUtils.list (
+              |> Dval.list (
                 ValueType.Known(
                   KTTuple(ValueType.Known KTString, ValueType.Known KTString, [])
                 )
@@ -50,13 +50,13 @@ module CliRuntimeError =
 
           | MultipleExpressionsToExecute exprs ->
             "MultipleExpressionsToExecute",
-            [ "exprs", DvalUtils.list valueTypeTODO (List.map DString exprs) ]
+            [ "exprs", Dval.list valueTypeTODO (List.map DString exprs) ]
 
           | NonIntReturned actuallyReturned ->
             "NonIntReturned",
             [ "actuallyReturned", RT2DT.Dval.toDT actuallyReturned ]
 
-        DvalUtils.enum nameTypeName nameTypeName caseName []
+        Dval.enum nameTypeName nameTypeName caseName []
 
 
     let toRuntimeError (e : Error) : RT.RuntimeError =
@@ -173,18 +173,17 @@ let fns : List<BuiltInFn> =
               match parsedScript with
               | Ok mod' ->
                 match! execute state mod' symtable with
-                | DInt i -> return DvalUtils.resultOk (DInt i)
-                | DError(_, e) ->
-                  return e |> RuntimeError.toDT |> DvalUtils.resultError
+                | DInt i -> return Dval.resultOk (DInt i)
+                | DError(_, e) -> return e |> RuntimeError.toDT |> Dval.resultError
                 | result ->
                   return
                     CliRuntimeError.NonIntReturned result
                     |> CliRuntimeError.RTE.toRuntimeError
                     |> RuntimeError.toDT
-                    |> DvalUtils.resultError
-              | Error e -> return e |> RuntimeError.toDT |> DvalUtils.resultError
+                    |> Dval.resultError
+              | Error e -> return e |> RuntimeError.toDT |> Dval.resultError
             with e ->
-              return exnError e |> RuntimeError.toDT |> DvalUtils.resultError
+              return exnError e |> RuntimeError.toDT |> Dval.resultError
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -208,11 +207,11 @@ let fns : List<BuiltInFn> =
           uply {
             let err (msg : string) (metadata : List<string * string>) =
               let metadata = metadata |> List.map (fun (k, v) -> k, DString v)
-              DvalUtils.resultError (
-                DvalUtils.record
+              Dval.resultError (
+                Dval.record
                   (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
                   [ "msg", DString msg
-                    "metadata", DvalUtils.dict valueTypeTODO metadata ]
+                    "metadata", Dval.dict valueTypeTODO metadata ]
               )
 
             let exnError (e : exn) : Dval =
@@ -302,10 +301,10 @@ let fns : List<BuiltInFn> =
                         |> RuntimeError.toDT
                         |> LibExecution.DvalReprDeveloper.toRepr
                         |> DString
-                        |> DvalUtils.resultError
+                        |> Dval.resultError
                     | value ->
                       let asString = LibExecution.DvalReprDeveloper.toRepr value
-                      return DvalUtils.resultOk (DString asString)
+                      return Dval.resultOk (DString asString)
               | _ -> return incorrectArgs ()
             with e ->
               return exnError e

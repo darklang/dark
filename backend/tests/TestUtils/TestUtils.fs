@@ -13,7 +13,7 @@ open Prelude
 
 module DarkDateTime = LibExecution.DarkDateTime
 module RT = LibExecution.RuntimeTypes
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
@@ -999,14 +999,14 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("int string2", DString "-1039485", TString)
     ("int string3", DString "0", TString)
     ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6", TString)
-    ("list", DList(ValueType.Known KTInt, [ DvalUtils.int 4 ]), TList TInt)
+    ("list", DList(ValueType.Known KTInt, [ Dval.int 4 ]), TList TInt)
     ("list with derror",
      DList(
        ValueType.Unknown,
-       [ DvalUtils.int 3
+       [ Dval.int 3
          DError(SourceNone, RuntimeError.oldError "some error string")
          DList(ValueType.Known KTInt, [])
-         DvalUtils.int 4 ]
+         Dval.int 4 ]
      ),
      TList TInt)
     ("record",
@@ -1014,7 +1014,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0,
        S.fqUserTypeName [ "Two"; "Modules" ] "FooAlias" 0,
        valueTypesTODO,
-       Map.ofList [ "foo", DvalUtils.int 5 ]
+       Map.ofList [ "foo", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0), []))
     ("record2",
@@ -1039,7 +1039,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
        valueTypesTODO,
-       Map.ofList [ "foo\\\\bar", DvalUtils.int 5 ]
+       Map.ofList [ "foo\\\\bar", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
     ("record5",
@@ -1047,7 +1047,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
        valueTypesTODO,
-       Map.ofList [ "$type", DvalUtils.int 5 ]
+       Map.ofList [ "$type", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
     ("record with error",
@@ -1059,19 +1059,15 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
          [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    ("dict", DvalUtils.dict valueTypeTODO [ "foo", DvalUtils.int 5 ], TDict TInt)
+    ("dict", Dval.dict valueTypeTODO [ "foo", Dval.int 5 ], TDict TInt)
     ("dict3",
-     DvalUtils.dict
-       valueTypeTODO
-       [ ("type", DString "weird"); ("value", DString "x") ],
+     Dval.dict valueTypeTODO [ ("type", DString "weird"); ("value", DString "x") ],
      TDict TString)
     // More Json.NET tests
-    ("dict4",
-     DvalUtils.dict valueTypeTODO [ "foo\\\\bar", DvalUtils.int 5 ],
-     TDict TInt)
-    ("dict5", DvalUtils.dict valueTypeTODO [ "$type", DvalUtils.int 5 ], TDict TInt)
+    ("dict4", Dval.dict valueTypeTODO [ "foo\\\\bar", Dval.int 5 ], TDict TInt)
+    ("dict5", Dval.dict valueTypeTODO [ "$type", Dval.int 5 ], TDict TInt)
     ("dict with error",
-     DvalUtils.dict
+     Dval.dict
        valueTypeTODO
        [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ],
      TDict TInt)
@@ -1150,11 +1146,9 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("password", DPassword(Password(UTF8.toBytes "somebytes")), TPassword)
     ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"), TUuid)
     ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"), TUuid)
-    ("option", DvalUtils.optionNone, TypeReference.option TInt)
-    ("option2", DvalUtils.optionSome (DvalUtils.int 15), TypeReference.option TInt)
-    ("option3",
-     DvalUtils.optionSome (DString "a string"),
-     TypeReference.option TString)
+    ("option", Dval.optionNone, TypeReference.option TInt)
+    ("option2", Dval.optionSome (Dval.int 15), TypeReference.option TInt)
+    ("option3", Dval.optionSome (DString "a string"), TypeReference.option TString)
     ("character", DChar "s", TChar)
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
     // use image bytes here to test for any weird bytes forms
@@ -1165,17 +1159,15 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      ),
      TBytes)
 
-    ("simple2Tuple",
-     DTuple(DvalUtils.int 1, DvalUtils.int 2, []),
-     TTuple(TInt, TInt, []))
+    ("simple2Tuple", DTuple(Dval.int 1, Dval.int 2, []), TTuple(TInt, TInt, []))
     ("simple3Tuple",
-     DTuple(DvalUtils.int 1, DvalUtils.int 2, [ DvalUtils.int 3 ]),
+     DTuple(Dval.int 1, Dval.int 2, [ Dval.int 3 ]),
      TTuple(TInt, TInt, [ TInt ]))
     ("tupleWithUnit",
-     DTuple(DvalUtils.int 1, DvalUtils.int 2, [ DUnit ]),
+     DTuple(Dval.int 1, Dval.int 2, [ DUnit ]),
      TTuple(TInt, TInt, [ TUnit ]))
     ("tupleWithError",
-     DTuple(DvalUtils.int 1, DvalUtils.resultError (DString "error"), []),
+     DTuple(Dval.int 1, Dval.resultError (DString "error"), []),
      TTuple(TInt, TypeReference.result TInt TString, [])) ]
 
 let sampleDvals : List<string * (Dval * TypeReference)> =

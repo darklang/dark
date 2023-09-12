@@ -5,7 +5,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module Errors = LibExecution.Errors
 
 module UserDB = LibCloud.UserDB
@@ -80,7 +80,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getOption state db key
-            return DvalUtils.option result
+            return Dval.option result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -110,9 +110,9 @@ let fns : List<BuiltInFn> =
             let! items = UserDB.getMany state db skeys
 
             if List.length items = List.length skeys then
-              return items |> DvalUtils.list valueTypeDbTODO |> DvalUtils.optionSome
+              return items |> Dval.list valueTypeDbTODO |> Dval.optionSome
             else
-              return DvalUtils.optionNone
+              return Dval.optionNone
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -140,7 +140,7 @@ let fns : List<BuiltInFn> =
                 keys
 
             let! result = UserDB.getMany state db skeys
-            return result |> DvalUtils.list valueTypeDbTODO
+            return result |> Dval.list valueTypeDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -168,7 +168,7 @@ let fns : List<BuiltInFn> =
                 keys
 
             let! result = UserDB.getManyWithKeys state db skeys
-            return DvalUtils.dict valueTypeDbTODO result
+            return Dval.dict valueTypeDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -225,7 +225,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAll state db
-            return results |> List.map snd |> DvalUtils.list valueTypeDbTODO
+            return results |> List.map snd |> Dval.list valueTypeDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -245,7 +245,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getAll state db
-            return DvalUtils.dict valueTypeDbTODO result
+            return Dval.dict valueTypeDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -299,9 +299,7 @@ let fns : List<BuiltInFn> =
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAllKeys state db
             return
-              results
-              |> List.map DString
-              |> DvalUtils.list (ValueType.Known KTString)
+              results |> List.map DString |> Dval.list (ValueType.Known KTString)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -323,7 +321,7 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! results = UserDB.queryValues state db b
               match results with
-              | Ok results -> return results |> DvalUtils.list valueTypeDbTODO
+              | Ok results -> return results |> Dval.list valueTypeDbTODO
               | Error rte -> return DError(SourceNone, rte)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
@@ -348,7 +346,7 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! results = UserDB.query state db b
               match results with
-              | Ok results -> return DvalUtils.dict valueTypeDbTODO results
+              | Ok results -> return Dval.dict valueTypeDbTODO results
               | Error rte -> return DError(SourceNone, rte)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
@@ -374,8 +372,8 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.query state db b
 
               match results with
-              | Ok [ (_, v) ] -> return DvalUtils.optionSome v
-              | Ok _ -> return DvalUtils.optionNone
+              | Ok [ (_, v) ] -> return Dval.optionSome v
+              | Ok _ -> return Dval.optionNone
               | Error rte -> return DError(SourceNone, rte)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
@@ -402,8 +400,8 @@ let fns : List<BuiltInFn> =
 
               match results with
               | Ok [ (key, dv) ] ->
-                return DvalUtils.optionSome (DTuple(DString key, dv, []))
-              | Ok _ -> return DvalUtils.optionNone
+                return Dval.optionSome (DTuple(DString key, dv, []))
+              | Ok _ -> return Dval.optionNone
               | Error rte -> return DError(SourceNone, rte)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
@@ -428,7 +426,7 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! result = UserDB.queryCount state db b
               match result with
-              | Ok result -> return DvalUtils.int result
+              | Ok result -> return Dval.int result
               | Error rte -> return DError(SourceNone, rte)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e

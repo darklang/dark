@@ -7,7 +7,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
@@ -48,9 +48,9 @@ let fns : List<BuiltInFn> =
             try
               System.IO.Directory.CreateDirectory(path)
               |> ignore<System.IO.DirectoryInfo>
-              return DvalUtils.resultOk DUnit
+              return Dval.resultOk DUnit
             with e ->
-              return DvalUtils.resultError (DString e.Message)
+              return Dval.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -70,9 +70,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               System.IO.Directory.Delete(path, false)
-              return DvalUtils.resultOk DUnit
+              return Dval.resultOk DUnit
             with e ->
-              return DvalUtils.resultError (DString e.Message)
+              return Dval.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -95,8 +95,7 @@ let fns : List<BuiltInFn> =
                 System.IO.Directory.EnumerateFileSystemEntries path |> Seq.toList
               with _ ->
                 []
-            return
-              List.map DString contents |> DvalUtils.list (ValueType.Known KTString)
+            return List.map DString contents |> Dval.list (ValueType.Known KTString)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

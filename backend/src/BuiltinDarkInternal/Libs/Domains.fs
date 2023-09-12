@@ -7,7 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module Canvas = LibCloud.Canvas
 
 let modules = [ "DarkInternal"; "Canvas"; "Domain" ]
@@ -30,8 +30,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! name = Canvas.domainsForCanvasID canvasID
-            return
-              name |> List.map DString |> DvalUtils.list (ValueType.Known KTString)
+            return name |> List.map DString |> Dval.list (ValueType.Known KTString)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -50,8 +49,8 @@ let fns : List<BuiltInFn> =
           uply {
             let! name = Canvas.canvasIDForDomain domain
             match name with
-            | Some name -> return DvalUtils.resultOk (DUuid name)
-            | None -> return DvalUtils.resultError (DString "Canvas not found")
+            | Some name -> return Dval.resultOk (DUuid name)
+            | None -> return Dval.resultError (DString "Canvas not found")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

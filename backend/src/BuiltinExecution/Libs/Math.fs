@@ -9,7 +9,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 
 let varA = TVariable "a"
 
@@ -97,9 +97,9 @@ let fns : List<BuiltInFn> =
           let res = System.Math.Acos r in
 
           if System.Double.IsNaN res then
-            Ply(DvalUtils.optionNone)
+            Ply(Dval.optionNone)
           else
-            Ply(DvalUtils.optionSome (DFloat res))
+            Ply(Dval.optionSome (DFloat res))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -124,9 +124,9 @@ let fns : List<BuiltInFn> =
           let res = System.Math.Asin r in
 
           if System.Double.IsNaN res then
-            Ply(DvalUtils.optionNone)
+            Ply(Dval.optionNone)
           else
-            Ply(DvalUtils.optionSome (DFloat res))
+            Ply(Dval.optionSome (DFloat res))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

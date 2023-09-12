@@ -11,7 +11,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 let types : List<BuiltInType> =
@@ -141,18 +141,18 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
             return
-              DvalUtils.list
+              Dval.list
                 valueTypeTODO
                 (packages
                  |> List.map (fun (owner, fnname, modules, version) ->
-                   DvalUtils.record
+                   Dval.record
                      (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0))
                      [ ("owner", DString owner)
                        ("modules",
                         modules
                         |> String.split "."
                         |> List.map DString
-                        |> DvalUtils.list valueTypeTODO)
+                        |> Dval.list valueTypeTODO)
                        ("name", DString fnname)
                        ("version", DInt version) ]))
 
@@ -188,18 +188,18 @@ let fns : List<BuiltInFn> =
                  read.int "version"))
 
             return
-              DvalUtils.list
+              Dval.list
                 valueTypeTODO
                 (packages
                  |> List.map (fun (owner, typename, modules, version) ->
-                   DvalUtils.record
+                   Dval.record
                      (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0))
                      [ ("owner", DString owner)
                        ("modules",
                         modules
                         |> String.split "."
                         |> List.map DString
-                        |> DvalUtils.list valueTypeTODO)
+                        |> Dval.list valueTypeTODO)
                        ("name", DString typename)
                        ("version", DInt version) ]))
 
@@ -234,18 +234,18 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
             return
-              (DvalUtils.list
+              (Dval.list
                 valueTypeTODO
                 (packages
                  |> List.map (fun (owner, fnname, modules, version) ->
-                   DvalUtils.record
+                   Dval.record
                      (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0))
                      [ ("owner", DString owner)
                        ("modules",
                         modules
                         |> String.split "."
                         |> List.map DString
-                        |> DvalUtils.list valueTypeTODO)
+                        |> Dval.list valueTypeTODO)
                        ("name", DString fnname)
                        ("version", DInt version) ])))
           }

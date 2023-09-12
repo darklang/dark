@@ -6,7 +6,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module Errors = LibExecution.Errors
 
 let types : List<BuiltInType> = []
@@ -276,11 +276,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString s ] ->
           (try
-            float (s) |> DFloat |> DvalUtils.resultOk |> Ply
+            float (s) |> DFloat |> Dval.resultOk |> Ply
            with e ->
              "Expected a String representation of an IEEE float"
              |> DString
-             |> DvalUtils.resultError
+             |> Dval.resultError
              |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

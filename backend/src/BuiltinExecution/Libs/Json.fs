@@ -7,7 +7,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module DarkDateTime = LibExecution.DarkDateTime
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 
 
 // parsing
@@ -394,7 +394,7 @@ let parse
       |> Seq.mapi (fun i v -> convert nested (JsonPath.Index i :: pathSoFar) v)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (DvalUtils.list valueTypeTODO)
+      |> Ply.map (Dval.list valueTypeTODO)
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let values = j.EnumerateArray() |> Seq.toList
@@ -421,7 +421,7 @@ let parse
         })
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (DvalUtils.dict valueTypeTODO)
+      |> Ply.map (Dval.dict valueTypeTODO)
 
     | TCustomType(Ok typeName, typeArgs), jsonValueKind ->
       uply {
@@ -472,7 +472,7 @@ let parse
                   convert typ pathSoFar j) // TODO revisit if we need to do anything with path
                 |> Ply.List.flatten
 
-              return DvalUtils.enum typeName typeName caseName fields
+              return Dval.enum typeName typeName caseName fields
 
             | _ -> return Exception.raiseInternal "TODO" []
 
@@ -589,7 +589,7 @@ let fns : List<BuiltInFn> =
             let types = ExecutionState.availableTypes state
             let! response =
               writeJson (fun w -> serialize types w typeToSerializeAs arg)
-            return DvalUtils.resultOk (DString response)
+            return Dval.resultOk (DString response)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -609,8 +609,8 @@ let fns : List<BuiltInFn> =
           let types = ExecutionState.availableTypes state
           uply {
             match! parse types typeArg arg with
-            | Ok v -> return DvalUtils.resultOk v
-            | Error e -> return DvalUtils.resultError (DString e)
+            | Ok v -> return Dval.resultOk v
+            | Error e -> return Dval.resultError (DString e)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

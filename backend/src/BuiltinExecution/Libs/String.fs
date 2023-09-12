@@ -13,7 +13,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module Errors = LibExecution.Errors
 
 
@@ -85,7 +85,7 @@ let fns : List<BuiltInFn> =
            |> String.toEgcSeq
            |> Seq.map (fun c -> DChar c)
            |> Seq.toList
-           |> DvalUtils.list (ValueType.Known KTChar)
+           |> Dval.list (ValueType.Known KTChar)
            |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -161,7 +161,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the length of the string"
       fn =
         (function
-        | _, _, [ DString s ] -> s |> String.lengthInEgcs |> DvalUtils.int |> Ply
+        | _, _, [ DString s ] -> s |> String.lengthInEgcs |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented // there isn't a unicode version of length
       previewable = Pure
@@ -271,10 +271,7 @@ let fns : List<BuiltInFn> =
                 (s |> String.toEgcSeq |> Seq.toList)
                 (sep |> String.toEgcSeq |> Seq.toList)
 
-          parts
-          |> List.map DString
-          |> DvalUtils.list (ValueType.Known KTString)
-          |> Ply
+          parts |> List.map DString |> Dval.list (ValueType.Known KTString) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -436,9 +433,9 @@ let fns : List<BuiltInFn> =
         | _, _, [ DBytes bytes ] ->
           try
             let str = System.Text.UTF8Encoding(false, true).GetString bytes
-            Ply(DvalUtils.optionSome (DString str))
+            Ply(Dval.optionSome (DString str))
           with e ->
-            Ply(DvalUtils.optionNone)
+            Ply(Dval.optionNone)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -461,9 +458,9 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString str; DString search ] ->
           let index = str.IndexOf(search)
           if index = -1 then
-            Ply(DvalUtils.optionNone)
+            Ply(Dval.optionNone)
           else
-            Ply(DvalUtils.optionSome (DInt index))
+            Ply(Dval.optionSome (DInt index))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -480,10 +477,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString str ] ->
           if str = "" then
-            Ply(DvalUtils.optionNone)
+            Ply(Dval.optionNone)
           else
             let head = String.toEgcSeq str |> Seq.head
-            Ply(DvalUtils.optionSome (DChar head))
+            Ply(Dval.optionSome (DChar head))
         | _ -> incorrectArgs ())
 
       sqlSpec = NotYetImplemented

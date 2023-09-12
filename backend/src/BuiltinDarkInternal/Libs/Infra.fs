@@ -7,7 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Telemetry = LibService.Telemetry
 
@@ -106,8 +106,8 @@ human-readable data."
                    ("rows", DInt(ts.rows))
                    ("diskHuman", DString ts.diskHuman)
                    ("rowsHuman", DString ts.rowsHuman) ]
-                 |> DvalUtils.record typeName))
-              |> DvalUtils.dict valueTypeTODO
+                 |> Dval.record typeName))
+              |> Dval.dict valueTypeTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

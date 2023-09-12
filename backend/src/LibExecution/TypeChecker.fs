@@ -78,11 +78,11 @@ module Error =
   module Location =
     let toDT (location : Location) : Dval =
       match location with
-      | None -> DvalUtils.optionNone
+      | None -> Dval.optionNone
       | Some(tlid, id) ->
         let tlid = DInt(int64 tlid)
         let id = DInt(int64 id)
-        DvalUtils.optionSome (DTuple(tlid, id, []))
+        Dval.optionSome (DTuple(tlid, id, []))
 
 
   module Context =
@@ -147,7 +147,7 @@ module Error =
           let parent = toDT parent
           "TupleIndex", [ index; elementType; parent ]
 
-      DvalUtils.enum nameTypeName nameTypeName caseName fields
+      Dval.enum nameTypeName nameTypeName caseName fields
 
 
   let toRuntimeError (e : Error) : RuntimeError =
@@ -161,7 +161,7 @@ module Error =
 
       let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
       RuntimeError.typeCheckerError (
-        DvalUtils.enum typeName typeName "ValueNotExpectedType" fields
+        Dval.enum typeName typeName "ValueNotExpectedType" fields
       )
 
     | TypeDoesntExist(typeName, context) ->
@@ -169,7 +169,7 @@ module Error =
 
       let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
       RuntimeError.typeCheckerError (
-        DvalUtils.enum typeName typeName "TypeDoesntExist" fields
+        Dval.enum typeName typeName "TypeDoesntExist" fields
       )
 
 let rec valueTypeUnifies

@@ -7,7 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 // This makes extra careful that we're only accessing files where we expect to
@@ -103,15 +103,15 @@ let fns : List<BuiltInFn> =
                 [ "types", DString(Json.Vanilla.serialize types)
                   "fns", DString(Json.Vanilla.serialize fns)
                   "exprs", DString(Json.Vanilla.serialize exprs) ]
-                |> DvalUtils.dict valueTypeTODO
-                |> DvalUtils.resultOk
+                |> Dval.dict valueTypeTODO
+                |> Dval.resultOk
             with e ->
               let error = Exception.getMessages e |> String.concat " "
               let metadata = Exception.nestedMetadata e
               let metadataDval = metadata |> Map.ofList
               return
                 DString($"Error parsing code: {error} {metadataDval}")
-                |> DvalUtils.resultError
+                |> Dval.resultError
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -134,10 +134,9 @@ let fns : List<BuiltInFn> =
                 RestrictedFileIO.readfileBytes
                   RestrictedFileIO.Config.BackendStatic
                   path
-              return DBytes contents |> DvalUtils.resultOk
+              return DBytes contents |> Dval.resultOk
             with e ->
-              return
-                DString($"Error reading file: {e.Message}") |> DvalUtils.resultError
+              return DString($"Error reading file: {e.Message}") |> Dval.resultError
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -160,10 +159,9 @@ let fns : List<BuiltInFn> =
                 RestrictedFileIO.readfileBytes
                   RestrictedFileIO.Config.CanvasesFiles
                   path
-              return DvalUtils.resultOk (DBytes contents)
+              return Dval.resultOk (DBytes contents)
             with e ->
-              return
-                DvalUtils.resultError (DString($"Error reading file: {e.Message}"))
+              return Dval.resultError (DString($"Error reading file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

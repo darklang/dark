@@ -5,7 +5,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Errors = LibExecution.Errors
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
@@ -226,7 +226,7 @@ let constants : List<BuiltInConstant> =
   [ { name = constant "empty" 0
       typ = TList varA
       description = "Returns an empty list"
-      body = DvalUtils.list ValueType.Unknown []
+      body = Dval.list ValueType.Unknown []
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
@@ -237,7 +237,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a one-element list containing the given <param val>"
       fn =
         (function
-        | _, _, [ v ] -> Ply(DvalUtils.list ValueType.Unknown [ v ])
+        | _, _, [ v ] -> Ply(Dval.list ValueType.Unknown [ v ])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -276,7 +276,7 @@ let fns : List<BuiltInFn> =
                 |> List.distinctBy snd
                 |> List.map fst
                 |> List.sortWith DvalComparator.compareDval
-                |> DvalUtils.list vt
+                |> Dval.list vt
             with _ ->
               // TODO: we should prevent this as soon as the different types are added
               // Ideally we'd catch the exception thrown during comparison but the sort
@@ -306,7 +306,7 @@ let fns : List<BuiltInFn> =
           try
             List.distinct l
             |> List.sortWith DvalComparator.compareDval
-            |> DvalUtils.list vt
+            |> Dval.list vt
             |> Ply
           with _ ->
             // TODO: we should prevent this as soon as the different types are added
@@ -336,10 +336,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DList(vt, list) ] ->
           try
-            list
-            |> List.sortWith DvalComparator.compareDval
-            |> DvalUtils.list vt
-            |> Ply
+            list |> List.sortWith DvalComparator.compareDval |> Dval.list vt |> Ply
           with _ ->
             // TODO: we should prevent this as soon as the different types are added
             // Ideally we'd catch the exception thrown during comparison but the sort
@@ -389,7 +386,7 @@ let fns : List<BuiltInFn> =
                 |> List.sortWith (fun (k1, _) (k2, _) ->
                   DvalComparator.compareDval k1 k2)
                 |> List.map snd
-                |> DvalUtils.list vt
+                |> Dval.list vt
             with _ ->
               // TODO: we should prevent this as soon as the different types are added
               // Ideally we'd catch the exception thrown during comparison but the sort
@@ -448,10 +445,10 @@ let fns : List<BuiltInFn> =
               let array = List.toArray list
               do! Sort.sort fn array
               // CLEANUP: check fakevals
-              return array |> Array.toList |> DvalUtils.list vt |> DvalUtils.resultOk
+              return array |> Array.toList |> Dval.list vt |> Dval.resultOk
             with
             | Errors.FakeDvalFound dv -> return dv
-            | e -> return DvalUtils.resultError (DString e.Message)
+            | e -> return Dval.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -472,7 +469,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DList(vt1, l1); DList(vt2, l2) ] ->
           // VTTODO should fail here in the case of vt1 conflicting with vt2?
           // (or is this handled by the interpreter?)
-          Ply(DvalUtils.list vt1 (List.append l1 l2)) // no checking for DError required
+          Ply(Dval.list vt1 (List.append l1 l2)) // no checking for DError required
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -520,7 +517,7 @@ let fns : List<BuiltInFn> =
             let! result = Ply.List.filterSequentially f l
 
             match abortReason.Value with
-            | None -> return DvalUtils.list vt (result)
+            | None -> return Dval.list vt (result)
             | Some v -> return v
           }
         | _ -> incorrectArgs ())
@@ -594,7 +591,7 @@ let fns : List<BuiltInFn> =
             let! result = Ply.List.filterMapSequentially f l
 
             match abortReason.Value with
-            | None -> return DvalUtils.list valueTypeTODO result
+            | None -> return Dval.list valueTypeTODO result
             | Some v -> return v
           }
         | _ -> incorrectArgs ())
@@ -631,7 +628,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state 0UL b [] args)
                 list
 
-            return DvalUtils.list valueTypeTODO result
+            return Dval.list valueTypeTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -678,7 +675,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state 0UL b [] args)
                 list
 
-            return DvalUtils.list valueTypeTODO result
+            return Dval.list valueTypeTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -714,7 +711,7 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList(_vtTODO1, l1); DList(_vtTODO2, l2); DFnVal b ] ->
           uply {
             if List.length l1 <> List.length l2 then
-              return DvalUtils.optionNone
+              return Dval.optionNone
             else
               let list = List.zip l1 l2
 
@@ -725,7 +722,7 @@ let fns : List<BuiltInFn> =
                     Interpreter.applyFnVal state 0UL b [] args)
                   list
 
-              return DvalUtils.optionSome (DvalUtils.list valueTypeTODO result)
+              return Dval.optionSome (Dval.list valueTypeTODO result)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -743,14 +740,14 @@ let fns : List<BuiltInFn> =
          empty."
       fn =
         (function
-        | _, _, [ DList(_, []) ] -> Ply(DvalUtils.optionNone)
+        | _, _, [ DList(_, []) ] -> Ply(Dval.optionNone)
         | _, _, [ DList(_, l) ] ->
           // Will return <= (length - 1)
           // Maximum value is Int64.MaxValue which is half of UInt64.MaxValue, but
           // that won't affect this as we won't have a list that big for a long long
           // long time.
           let index = RNG.GetInt32(l.Length)
-          (List.tryItem index l) |> DvalUtils.option |> Ply
+          (List.tryItem index l) |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
@@ -800,8 +797,8 @@ let fns : List<BuiltInFn> =
                 |> Seq.toList
                 |> List.map (fun (key, elementsWithKey) ->
                   let elements = Seq.map snd elementsWithKey |> Seq.toList
-                  DTuple(key, DvalUtils.list valueTypeTODO elements, []))
-                |> DvalUtils.list valueTypeTODO
+                  DTuple(key, Dval.list valueTypeTODO elements, []))
+                |> Dval.list valueTypeTODO
 
               return groups
           }

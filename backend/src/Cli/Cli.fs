@@ -6,7 +6,7 @@ open FSharp.Control.Tasks
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
@@ -88,7 +88,7 @@ let execute (args : List<string>) : Task<RT.Dval> =
     let args =
       args
       |> List.map RT.DString
-      |> DvalUtils.list (RT.ValueType.Known RT.KTString)
+      |> Dval.list (RT.ValueType.Known RT.KTString)
       |> NEList.singleton
     return! Exe.executeFunction state 7UL fnName [] args
   }

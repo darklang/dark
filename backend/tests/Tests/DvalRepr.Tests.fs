@@ -8,7 +8,7 @@ open Prelude
 open TestUtils.TestUtils
 
 module RT = LibExecution.RuntimeTypes
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
@@ -80,7 +80,7 @@ let testDvalRoundtrippableRoundtrips =
   testMany
     "special roundtrippable dvals roundtrip"
     roundtrippableRoundtripsSuccessfully
-    [ DvalUtils.dict
+    [ Dval.dict
         RT.valueTypeTODO
         [ ("", RT.DFloat 1.797693135e+308); ("a", RT.DFloat nan) ],
       true ]
@@ -95,7 +95,7 @@ let testToDeveloperRepr =
         [ RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(1, 2, 3)"
-          DvalUtils.dict RT.valueTypeTODO [ "", RT.DUnit ], "{\n  : ()\n}"
+          Dval.dict RT.valueTypeTODO [ "", RT.DUnit ], "{\n  : ()\n}"
           RT.DList(RT.ValueType.Known RT.KTUnit, [ RT.DUnit ]), "[\n  ()\n]" ] ]
 
 module ToHashableRepr =

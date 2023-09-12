@@ -14,7 +14,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module PT = LibExecution.ProgramTypes
-module DvalUtils = LibExecution.DvalUtils
+module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 open LibCloud.Db
@@ -58,7 +58,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString error ] ->
           let typeName = RuntimeError.name [ "Error" ] "ErrorMessage" 0
-          DvalUtils.enum typeName typeName "ErrorString" [ DString error ] |> Ply
+          Dval.enum typeName typeName "ErrorString" [ DString error ] |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -91,7 +91,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString errorString ] ->
           let msg = LibCloud.SqlCompiler.errorTemplate + errorString
           let typeName = RuntimeError.name [ "Error" ] "ErrorMessage" 0
-          DvalUtils.enum typeName typeName "ErrorString" [ DString msg ] |> Ply
+          Dval.enum typeName typeName "ErrorString" [ DString msg ] |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -108,11 +108,9 @@ let fns : List<BuiltInFn> =
           let chars = String.toEgcSeq s
 
           if Seq.length chars = 1 then
-            chars
-            |> Seq.toList
-            |> (fun l -> l[0] |> DChar |> DvalUtils.optionSome |> Ply)
+            chars |> Seq.toList |> (fun l -> l[0] |> DChar |> Dval.optionSome |> Ply)
           else
-            Ply(DvalUtils.optionNone)
+            Ply(Dval.optionNone)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -144,7 +142,7 @@ let fns : List<BuiltInFn> =
       description = "Return the value of the side-effect counter"
       fn =
         (function
-        | state, _, [ DUnit ] -> Ply(DvalUtils.int state.test.sideEffectCount)
+        | state, _, [ DUnit ] -> Ply(Dval.int state.test.sideEffectCount)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -175,7 +173,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString msg ] ->
-          Ply(DvalUtils.optionSome (DError(SourceNone, RuntimeError.oldError msg)))
+          Ply(Dval.optionSome (DError(SourceNone, RuntimeError.oldError msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -190,7 +188,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString msg ] ->
-          Ply(DvalUtils.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
+          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -205,7 +203,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString msg ] ->
-          Ply(DvalUtils.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
+          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -250,7 +248,7 @@ let fns : List<BuiltInFn> =
             let results =
               results
               |> List.map (fun x -> DString(LibExecution.DvalReprDeveloper.toRepr x))
-            return DvalUtils.list (ValueType.Known KTString) results
+            return Dval.list (ValueType.Known KTString) results
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
