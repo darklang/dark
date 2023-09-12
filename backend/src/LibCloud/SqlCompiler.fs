@@ -29,6 +29,9 @@ let error (str : string) : 'a = raise (SqlCompilerException(errorTemplate + str)
 
 let error2 (msg : string) (v : string) : 'a = error $"{msg}: {v}"
 
+let error3 (msg : string) (v1 : string) (v2 : string) : 'a =
+  error $"{msg}:\n  {v1}\n  {v2}"
+
 type position =
   | First
   | Last
@@ -41,80 +44,98 @@ let rec canonicalize (expr : Expr) : Expr = expr
 // Returns a typeReference since we don't always know what type it should have (eg is
 // a polymorphic function is being called)
 let rec dvalToSql
+  (types : Types)
   (expectedType : TypeReference)
   (dval : Dval)
-  : (SqlValue * TypeReference) =
-  match expectedType, dval with
-  | _, DError _ -> Errors.foundFakeDval dval
-  | _, DFnVal _
-  | _, DDB _
-  | _, DDict _ // CLEANUP allow
-  | _, DPassword _ // CLEANUP allow
-  | _, DBytes _ // CLEANUP allow
-  | _, DEnum _ // TODO: revisit
-  | _, DRecord _ // CLEANUP allow
-  | _, DTuple _ -> // CLEANUP allow
-    error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
-  | TVariable _, DDateTime date
-  | TDateTime, DDateTime date ->
-    (date |> LibExecution.DarkDateTime.toDateTimeUtc |> Sql.timestamptz, TDateTime)
-  | TVariable _, DInt i
-  | TInt, DInt i -> Sql.int64 i, TInt
-  | TVariable _, DFloat v
-  | TFloat, DFloat v -> Sql.double v, TFloat
-  | TVariable _, DBool b
-  | TBool, DBool b -> Sql.bool b, TBool
-  | TVariable _, DString s
-  | TString, DString s -> Sql.string s, TString
-  | TVariable _, DChar c
-  | TChar, DChar c -> Sql.string c, TChar
-  | TVariable _, DUuid id
-  | TUuid, DUuid id -> Sql.uuid id, TUuid
-  | TVariable _, DUnit
-  | TUnit, DUnit -> Sql.int64 0, TUnit
-  // CLEANUP: add test first
-  // | TList typ, DList l ->
-  //   let typeName = DvalReprDeveloper.typeName typ
-  //   let typeToNpgSqlType (t : DType) : NpgsqlTypes.NpgsqlDbType =
-  //     match t with
-  //     | TString -> NpgsqlTypes.NpgsqlDbType.Text
-  //     | TInt -> NpgsqlTypes.NpgsqlDbType.Bigint
-  //     | TFloat -> NpgsqlTypes.NpgsqlDbType.Double
-  //     | TBool -> NpgsqlTypes.NpgsqlDbType.Boolean
-  //     | TDateTime -> NpgsqlTypes.NpgsqlDbType.TimestampTz
-  //     | TChar -> NpgsqlTypes.NpgsqlDbType.Text
-  //     | TUuid -> NpgsqlTypes.NpgsqlDbType.Uuid
-  //     | _ -> error $"We do not support this type of DB field yet: {t}"
-  //   l
-  //   |> List.map (fun v ->
-  //     match v with
-  //     | DString s -> s : obj
-  //     | DInt i -> i
-  //     | DFloat f -> f
-  //     | DBool b -> b
-  //     | DDateTime date -> string date
-  //     | DChar c -> c
-  //     | DUuid uuid -> string uuid
-  //     | _ ->
-  //       error2
-  //         $"{typeName} list should contain {typeName} but contains"
-  //         (DvalReprDeveloper.toRepr v))
-  //   |> List.toArray
-  //   |> Sql.array (typeToNpgSqlType typ)
-  // exhaustiveness check
-  | _, DInt _
-  | _, DFloat _
-  | _, DBool _
-  | _, DString _
-  | _, DChar _
-  | _, DUuid _
-  | _, DUnit
-  | _, DList _
-  | _, DDateTime _ ->
-    error
-      "This value is not of the expected type"
-      (DvalReprDeveloper.toRepr dval)
-      (DvalReprDeveloper.typeName expectedType)
+  : Ply<SqlValue * TypeReference> =
+  uply {
+    match expectedType, dval with
+    | _, DError _ -> return Errors.foundFakeDval dval
+    | _, DFnVal _
+    | _, DDB _
+    | _, DDict _ // CLEANUP allow
+    | _, DPassword _ // CLEANUP allow
+    | _, DBytes _ // CLEANUP allow
+    | _, DEnum _ // TODO: revisit
+    | _, DTuple _ -> // CLEANUP allow
+      return error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
+    | TVariable _, DRecord(typeName, _, _)
+    | TVariable _, DEnum(typeName, _, _, _) ->
+      let! jsonString =
+        DvalReprInternalQueryable.toJsonStringV0 types expectedType dval
+      return Sql.jsonb jsonString, TCustomType(Ok typeName, [])
+    | TCustomType(_, []), DEnum _
+    | TCustomType(_, []), DRecord _ ->
+      let! jsonString =
+        DvalReprInternalQueryable.toJsonStringV0 types expectedType dval
+      return Sql.jsonb jsonString, expectedType
+    | TVariable _, DDateTime date
+    | TDateTime, DDateTime date ->
+      return
+        (date |> LibExecution.DarkDateTime.toDateTimeUtc |> Sql.timestamptz,
+         TDateTime)
+    | TVariable _, DInt i
+    | TInt, DInt i -> return Sql.int64 i, TInt
+    | TVariable _, DFloat v
+    | TFloat, DFloat v -> return Sql.double v, TFloat
+    | TVariable _, DBool b
+    | TBool, DBool b -> return Sql.bool b, TBool
+    | TVariable _, DString s
+    | TString, DString s -> return Sql.string s, TString
+    | TVariable _, DChar c
+    | TChar, DChar c -> return Sql.string c, TChar
+    | TVariable _, DUuid id
+    | TUuid, DUuid id -> return Sql.uuid id, TUuid
+    | TVariable _, DUnit
+    | TUnit, DUnit -> return Sql.int64 0, TUnit
+    // CLEANUP: add test first
+    // | TList typ, DList l ->
+    //   let typeName = DvalReprDeveloper.typeName typ
+    //   let typeToNpgSqlType (t : DType) : NpgsqlTypes.NpgsqlDbType =
+    //     match t with
+    //     | TString -> NpgsqlTypes.NpgsqlDbType.Text
+    //     | TInt -> NpgsqlTypes.NpgsqlDbType.Bigint
+    //     | TFloat -> NpgsqlTypes.NpgsqlDbType.Double
+    //     | TBool -> NpgsqlTypes.NpgsqlDbType.Boolean
+    //     | TDateTime -> NpgsqlTypes.NpgsqlDbType.TimestampTz
+    //     | TChar -> NpgsqlTypes.NpgsqlDbType.Text
+    //     | TUuid -> NpgsqlTypes.NpgsqlDbType.Uuid
+    //     | _ -> error $"We do not support this type of DB field yet: {t}"
+    //   l
+    //   |> List.map (fun v ->
+    //     match v with
+    //     | DString s -> s : obj
+    //     | DInt i -> i
+    //     | DFloat f -> f
+    //     | DBool b -> b
+    //     | DDateTime date -> string date
+    //     | DChar c -> c
+    //     | DUuid uuid -> string uuid
+    //     | _ ->
+    //       error2
+    //         $"{typeName} list should contain {typeName} but contains"
+    //         (DvalReprDeveloper.toRepr v))
+    //   |> List.toArray
+    //   |> Sql.array (typeToNpgSqlType typ)
+    // exhaustiveness check
+    | _, DInt _
+    | _, DFloat _
+    | _, DBool _
+    | _, DString _
+    | _, DChar _
+    | _, DUuid _
+    | _, DUnit
+    | _, DList _
+    | _, DRecord _
+    | _, DDateTime _ ->
+      return
+        error3
+          "This value is not of the expected type"
+          (DvalReprDeveloper.toRepr dval)
+          (DvalReprDeveloper.typeName expectedType)
+  }
+
+
 
 
 // TYPESTODO: combine with TypeChecker.unify, which needs to add unification
@@ -384,7 +405,7 @@ let rec lambdaToSql
             }
           let random = randomString 8
           let newname = $"{nameStr}_{random}"
-          let (sqlValue, actualType) = dvalToSql expectedType constant
+          let! (sqlValue, actualType) = dvalToSql types expectedType constant
           return ($"(@{newname})", [ newname, sqlValue ], actualType)
 
         | EApply(_, EFnName(_, (fnName)), [], args) ->
@@ -520,7 +541,7 @@ let rec lambdaToSql
             let newname = $"{varname}_{random}"
             // Fetch the actualType here as well as we might be passing in an abstract
             // type.
-            let (sqlValue, actualType) = dvalToSql expectedType dval
+            let! (sqlValue, actualType) = dvalToSql types expectedType dval
             return $"(@{newname})", [ newname, sqlValue ], actualType
           | None -> return error $"This variable is not defined: {varname}"
 
@@ -637,7 +658,9 @@ let rec lambdaToSql
               // Realistically - if someone is accessing a variable that isn't the
               // variable bound in the lambda, we should just eval the expression,
               // right?
-              return error $"We do not yet support compiling this code: {expr}"
+              return
+                error
+                  $"We do not yet support compiling code with fields that are not the paramName: {expr}"
 
           let rec dbFieldType
             (typeRef : TypeReference)
@@ -706,7 +729,8 @@ let rec lambdaToSql
               | Some found -> primitiveFieldType found
               | None ->
                 error $"Could not resolve type variable in lambdaToSql: {varName}"
-            | _ -> error $"We do not support this type of DB field yet: {t}"
+            | _ ->
+              error $"We do not support this type of primitive DB field yet: {t}"
 
           let fieldAccessPath = NEList.map escapeFieldname fieldAccessPath
           match dbFieldType with
