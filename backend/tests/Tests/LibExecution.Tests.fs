@@ -154,7 +154,7 @@ let t
             let errorMessageFn =
               RT.FnName.fqPackage
                 "Darklang"
-                [ "LanguageTools"; "RuntimeErrors"; "Error" ]
+                [ "LanguageTools"; "RuntimeErrors"; "ErrorSegment" ]
                 "toErrorMessage"
                 0
 
