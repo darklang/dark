@@ -247,5 +247,4 @@ module Darklang =
       let values
         (options: List<PACKAGE.Darklang.Stdlib.Option.Option<'a>>)
         : List<'a> =
-        PACKAGE.Darklang.Stdlib.List.filterMap options (fun option ->
-          Fun.identity option)
+        PACKAGE.Darklang.Stdlib.List.filterMap options (fun option -> option)
