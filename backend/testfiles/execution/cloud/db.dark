@@ -104,27 +104,26 @@ module NestedRecordFieldAccess =
 
 
 // Query data from a type with generics
-type GenericThing<'a> = { name: 'a }
+type GenericThing<'thing> = { name: 'thing }
 type RecordWithGenericThing = GenericThing<String>
 
 [<DB>]
 type TestRecordWithGenericThing = RecordWithGenericThing
 
-// module AccessDataInGenericField =
-//   (Builtin.DB.set
-//     (RecordWithGenericThing { name = "joe" })
-//     "jjj"
-//     TestRecordWithGenericThing
+module AccessDataInGenericField =
+  (Builtin.DB.set
+    (RecordWithGenericThing { name = "joe" })
+    "jjj"
+    TestRecordWithGenericThing
 
-//    Builtin.DB.set
-//      (RecordWithGenericThing { name = "frank" })
-//      "fff"
-//      TestRecordWithGenericThing
+   Builtin.DB.set
+     (RecordWithGenericThing { name = "frank" })
+     "fff"
+     TestRecordWithGenericThing
 
-//    let shouldBeJustJoe =
-//      Builtin.DB.query TestRecordWithGenericThing (fun p -> p.name == "joe")
-
-//    PACKAGE.Darklang.Stdlib.List.length shouldBeJustJoe) = 1
+   Builtin.DB.query TestRecordWithGenericThing (fun p -> p.name == "joe")) = [ RecordWithGenericThing
+                                                                                 { name =
+                                                                                     "joe" } ]
 
 
 module AddToTestEnumDBs =
@@ -191,8 +190,8 @@ module AddToTestEnumDBs =
     Builtin.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
 
    (Builtin.DB.query TestEnumDB (fun p -> p.y == MyEnum.A))) = [ EnumTestRecord
-                                                                  { x = "hello"
-                                                                    y = MyEnum.A } ]
+                                                                   { x = "hello"
+                                                                     y = MyEnum.A } ]
 
 
 

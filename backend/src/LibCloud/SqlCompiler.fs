@@ -408,7 +408,7 @@ let rec lambdaToSql
           let! (sqlValue, actualType) = dvalToSql types expectedType constant
           return ($"(@{newname})", [ newname, sqlValue ], actualType)
 
-        | EApply(_, EFnName(_, (fnName)), [], args) ->
+        | EApply(_, EFnName(_, fnName), [], args) ->
           let nameStr = FnName.toString fnName
 
           let! (returnType, parameters, sqlSpec) =
@@ -471,7 +471,7 @@ let rec lambdaToSql
                           prevSqls @ [ compiled.sql ],
                           prevVars @ compiled.vars
                       })
-                    (Map.empty, [], [])
+                    (tst, [], [])
                     zipped
 
               else
@@ -629,7 +629,29 @@ let rec lambdaToSql
           return $"(@{name})", [ name, Sql.jsonb v ], typ
 
 
-        | EFieldAccess(_, subExpr, fieldname) ->
+        | EFieldAccess(_, subExpr, fieldName) ->
+
+          // This is the core part of the query compiler - being able to query fields
+          // of the DB rows.
+          //
+          // Typically, there a DB row:
+          //   { a : 5 }
+          //
+          // and we want to query it with
+          //   (fun v -> v.a = 5)
+          //
+          // We're going to produce the SQL:
+          //   ((data::jsonb->'a')::bigint = 5)
+          //
+          // This part of the code is responsible for producing the SQL:
+          //   (data::jsonb->'a')::bigint
+          //
+          // Note that the type is needed so it can do a comparison. However, we are
+          // allowed fallback to untyped (`::jsonb`) so long as we know that the rhs
+          // of the expression will also be typed as jsonb. We do not have a
+          // coordination mechanism though, so this is iffy at present.
+
+
           // returns (variable name * fieldPath)
           // i.e. `fun (a, b) -> b.x.y` would be `(Some b, [ "x"; "y" ])`
           let rec getPath
@@ -642,7 +664,9 @@ let rec lambdaToSql
 
             | EVariable(_, v) -> (Some v, pathSoFar)
 
-            | _ -> error "Support for field access in DB queries may be incomplete"
+            | _ ->
+              error
+                $"Support for field access in DB queries is incomplete: {subExpr}"
 
           let (varName, fieldAccessPath) =
             getPath (NEList.singleton fieldname) subExpr
@@ -660,7 +684,7 @@ let rec lambdaToSql
               // right?
               return
                 error
-                  $"We do not yet support compiling code with fields that are not the paramName: {expr}"
+                  $"We do not yet support compiling lambdas with fields that are not the lambda paramName: {expr}"
 
           let rec dbFieldType
             (typeRef : TypeReference)
@@ -668,16 +692,18 @@ let rec lambdaToSql
             : Ply<TypeReference> =
             uply {
               match typeRef with
-              // TYPESCLEANUP use typeArgs
-              | TCustomType(Ok typeName, _typeArgs) ->
+              | TCustomType(Ok typeName, typeArgs) ->
                 match! Types.find typeName types with
-                | Some({ definition = TypeDeclaration.Alias aliasedType }) ->
-                  return! dbFieldType aliasedType fieldName
+                | Some({ definition = TypeDeclaration.Alias aliasedType
+                         typeParams = typeParams }) ->
+                  let! fieldType = dbFieldType aliasedType fieldName
+                  return Types.substitute typeParams typeArgs fieldType
 
-                | Some({ definition = TypeDeclaration.Record fields }) ->
+                | Some({ definition = TypeDeclaration.Record fields
+                         typeParams = typeParams }) ->
                   let field = fields |> NEList.find (fun f -> f.name = fieldName)
                   match field with
-                  | Some v -> return v.typ
+                  | Some v -> return Types.substitute typeParams typeArgs v.typ
                   | None ->
                     return
                       error2 "The datastore does not have a field named" fieldName
@@ -768,6 +794,16 @@ let rec lambdaToSql
               $"(ARRAY(SELECT jsonb_array_elements_text(data::jsonb {jsonAccessPath})::{typename}))::{typename}[]"
 
             return (sql, [], dbFieldType)
+
+          | TCustomType(Ok(t), []) ->
+            let jsonAccessPath =
+              fieldAccessPath
+              |> NEList.toList
+              |> List.map (fun fieldNamePart -> $"->'{fieldNamePart}'")
+              |> String.concat " "
+
+            // No typename, we'll just compare the json value
+            return ($"(data::jsonb {jsonAccessPath})", [], dbFieldType)
 
           | _ ->
             return
@@ -1047,15 +1083,20 @@ let compileLambda
       let fns = ExecutionState.availableFunctions state
       let constants = ExecutionState.availableConstants state
 
-      let! compiled =
-        lambdaToSql fns types constants tst symtable paramName dbType TBool body
+      // Resolve typeArgs/aliases in the definition
+      let! dbType = getTypeReferenceFromAlias types dbType
+      match dbType with
+      | Ok dbType ->
+        let! compiled =
+          lambdaToSql fns types constants tst symtable paramName dbType TBool body
 
-      return Ok { sql = compiled.sql; vars = compiled.vars }
-
+        return Ok { sql = compiled.sql; vars = compiled.vars }
+      | Error err -> return Error err
     with
     | SqlCompilerRuntimeError internalError ->
       let err = RuntimeError.sqlCompilerRuntimeError internalError
       return Error err
 
     | SqlCompilerException errStr -> return Error(RuntimeError.oldError errStr)
+  // return Error(RuntimeError.oldError (errStr + $"\n\nIn body: {body}"))
   }
