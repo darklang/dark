@@ -659,17 +659,13 @@ let rec lambdaToSql
             (subExpr : Expr)
             : (Option<string> * NEList<string>) =
             match subExpr with
+            | EVariable(_, v) -> (Some v, pathSoFar)
             | EFieldAccess(_, subExpr, childFieldName) ->
               getPath (NEList.push childFieldName pathSoFar) subExpr
-
-            | EVariable(_, v) -> (Some v, pathSoFar)
-
-            | _ ->
-              error
-                $"Support for field access in DB queries is incomplete: {subExpr}"
+            | _ -> error $"Invalid field access pattern: {subExpr}"
 
           let (varName, fieldAccessPath) =
-            getPath (NEList.singleton fieldname) subExpr
+            getPath (NEList.singleton fieldName) subExpr
 
           // I don't think it's really possible for the varName to end up None,
           // but just in case the parser did something wonky, we're prepared...
@@ -738,7 +734,7 @@ let rec lambdaToSql
           let! dbFieldType =
             dbFieldTypeFromPath dbTypeRef (NEList.toList fieldAccessPath)
 
-          typecheck fieldname dbFieldType expectedType
+          typecheck fieldName dbFieldType expectedType
 
           let rec primitiveFieldType t =
             match t with
