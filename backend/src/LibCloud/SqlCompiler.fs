@@ -454,6 +454,13 @@ let rec lambdaToSql
                          (actualTypes, prevSqls, prevVars)
                          (argExpr, (paramName, paramType)) ->
                       uply {
+                        let paramType =
+                          match paramType with
+                          | TVariable name ->
+                            match Map.get name actualTypes with
+                            | Some typ -> typ
+                            | None -> paramType
+                          | _ -> paramType
                         let! compiled = lts paramType argExpr
                         let newActuals =
                           match paramType with
@@ -465,7 +472,6 @@ let rec lambdaToSql
                               actualTypes
                             | None -> Map.add name compiled.actualType actualTypes
                           | _ -> actualTypes
-
                         return
                           newActuals,
                           prevSqls @ [ compiled.sql ],

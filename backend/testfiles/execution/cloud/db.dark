@@ -125,6 +125,28 @@ module AccessDataInGenericField =
                                                                                  { name =
                                                                                      "joe" } ]
 
+type RecordThing = { nested: String }
+
+[<DB>]
+type TestRecordWithNestedRecordThing = GenericThing<RecordThing>
+
+module AccessRecordInGenericField =
+  (Builtin.DB.set
+    (GenericThing { name = RecordThing { nested = "joe" } })
+    "jjj"
+    TestRecordWithNestedRecordThing
+
+   Builtin.DB.set
+     (GenericThing { name = RecordThing { nested = "frank" } })
+     "fff"
+     TestRecordWithNestedRecordThing
+
+   let nestedValue = RecordThing { nested = "joe" }
+
+   Builtin.DB.query TestRecordWithNestedRecordThing (fun p -> p.name == nestedValue)) = [ GenericThing
+                                                                                            { name =
+                                                                                                { nested =
+                                                                                                    "joe" } } ]
 
 module AddToTestEnumDBs =
   (let test1 =
@@ -318,16 +340,16 @@ module Roundtrip =
     //   Builtin.Test.derrorSqlMessage "Incorrect type in variable, expected Bool, but got a Error"
 
     fetch (fun p -> p.int == "str") = Builtin.Test.derrorSqlMessage
-      "Incorrect type in b, expected Int, but got a String"
+      "Incorrect type in String \"str\", expected Int, but got a String"
 
     fetch (fun p -> p.int != "str") = Builtin.Test.derrorSqlMessage
-      "Incorrect type in b, expected Int, but got a String"
+      "Incorrect type in String \"str\", expected Int, but got a String"
 
     fetch (fun p -> "str" == p.int) = Builtin.Test.derrorSqlMessage
-      "Incorrect type in b, expected String, but got a Int"
+      "Incorrect type in int, expected String, but got a Int"
 
     fetch (fun p -> "str" == p.int) = Builtin.Test.derrorSqlMessage
-      "Incorrect type in b, expected String, but got a Int"
+      "Incorrect type in int, expected String, but got a Int"
 
     fetch (fun p -> p.iNsEnSiTiVe == "iNsEnSiTiVe") = [ sample () ]
     fetch (fun p -> p.iNsEnSiTiVe != "iNsEnSiTiVe") = [ otherSample () ]
