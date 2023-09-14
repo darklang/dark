@@ -254,4 +254,6 @@ let partialEvaluation =
 
 
 let tests =
-  testList "SqlCompiler" [ inlineWorksAtRoot; inlineWorksWithNested; partialEvaluation; compileTests ]
+  testList
+    "SqlCompiler"
+    [ inlineWorksAtRoot; inlineWorksWithNested; partialEvaluation; compileTests ]
