@@ -223,52 +223,43 @@ let rec inline'
 
       match expr with
       | EApply(_, EFnName(_, (fnName)), [], args) ->
-          uply {
-            let! arguments = Ply.List.mapSequentially (inline' fns paramName symtable) (args |> NEList.toList)
-            let nameStr = FnName.toString fnName
-            match fnName with
-            | FQName.Package p ->
-                match! fns.package p with
-                | Some fn ->
-                  let parameters =
-                    fn.parameters
-                    |> NEList.toList
-                    |> List.map (fun p -> p.name, p.typ)
-                  let body = fn.body
-                  let paramToArgMap =
-                    List.zip parameters arguments
-                    |> List.map (fun ((name, _), arg) -> name, arg)
-                    |> Map.ofList
-                  let! inlinedBody = inline' fns paramName paramToArgMap body
-                  return inlinedBody
-                | None ->
-                  return expr
-              | _ ->
-                return expr
-          }
-      | ELet (_, lpVariable, expr, body) ->
+        uply {
+          let! arguments =
+            Ply.List.mapSequentially
+              (inline' fns paramName symtable)
+              (args |> NEList.toList)
+          let nameStr = FnName.toString fnName
+          match fnName with
+          | FQName.Package p ->
+            match! fns.package p with
+            | Some fn ->
+              let parameters =
+                fn.parameters |> NEList.toList |> List.map (fun p -> p.name, p.typ)
+              let body = fn.body
+              let paramToArgMap =
+                List.zip parameters arguments
+                |> List.map (fun ((name, _), arg) -> name, arg)
+                |> Map.ofList
+              let! inlinedBody = inline' fns paramName paramToArgMap body
+              return inlinedBody
+            | None -> return expr
+          | _ -> return expr
+        }
+      | ELet(_, lpVariable, expr, body) ->
         let newMap = mapLetPattern symtable (expr, lpVariable)
         inline' fns paramName newMap body
       | EVariable(_, name) as expr when name <> paramName ->
         match Map.get name symtable with
-        | Some found ->
-          uply {
-            return found
-          }
+        | Some found -> uply { return found }
         | None ->
-           // the variable might be in the symtable, so put it back to fill in later
-            uply {
-              return expr
-            }
-      | EFieldAccess (id, expr, fieldname) ->
+          // the variable might be in the symtable, so put it back to fill in later
+          uply { return expr }
+      | EFieldAccess(id, expr, fieldname) ->
         uply {
           let! newexpr = inline' fns paramName symtable expr
-          return EFieldAccess (id,newexpr, fieldname)
+          return EFieldAccess(id, newexpr, fieldname)
         }
-      | expr ->
-          uply {
-            return expr
-          }
+      | expr -> uply { return expr }
 
     )
     identityPly
@@ -695,7 +686,7 @@ let rec lambdaToSql
           | _ ->
             return
               error $"We do not support this type of DB field yet: {dbFieldType}"
-        | EIf (_, cond, then_, else_) ->
+        | EIf(_, cond, then_, else_) ->
           let! cond = lts TBool cond
           let! then_ = lts expectedType then_
           let! else_ =
@@ -706,9 +697,9 @@ let rec lambdaToSql
           typecheck "if then" then_.actualType expectedType
           typecheck "if else" else_.actualType expectedType
           return
-            ( $"(CASE WHEN {cond.sql} THEN {then_.sql} ELSE {else_.sql} END)"
-            , cond.vars @ then_.vars @ else_.vars
-            , expectedType )
+            ($"(CASE WHEN {cond.sql} THEN {then_.sql} ELSE {else_.sql} END)",
+             cond.vars @ then_.vars @ else_.vars,
+             expectedType)
 
         | _ -> return error $"We do not yet support compiling this code: {expr}"
       }

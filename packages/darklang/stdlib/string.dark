@@ -370,10 +370,12 @@ module Darklang =
         (str: String)
         (searchFor: String)
         : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
-         if (Builtin.String.indexOf str searchFor) == -1 then
-           PACKAGE.Darklang.Stdlib.Option.Option.None
-         else
-           PACKAGE.Darklang.Stdlib.Option.Option.Some (Builtin.String.indexOf str searchFor)
+        if (Builtin.String.indexOf str searchFor) == -1 then
+          PACKAGE.Darklang.Stdlib.Option.Option.None
+        else
+          PACKAGE.Darklang.Stdlib.Option.Option.Some(
+            Builtin.String.indexOf str searchFor
+          )
 
 
 

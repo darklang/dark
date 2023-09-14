@@ -242,15 +242,11 @@ module Result =
     : Ply<Result<'b, 'err>> =
     match result with
     | Ok v -> map (fun v -> Ok v) (f v)
-    | Error err -> Ply (Error err)
+    | Error err -> Ply(Error err)
 
 // TODO : Add more functions
 module Option =
-  let mapSequentially
-    (f : 'a -> Ply<'b>)
-    (option : Option<'a>)
-    : Ply<Option<'b>> =
+  let mapSequentially (f : 'a -> Ply<'b>) (option : Option<'a>) : Ply<Option<'b>> =
     match option with
     | Some v -> map (fun v -> Some v) (f v)
     | None -> Ply None
-

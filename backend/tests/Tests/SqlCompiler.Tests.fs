@@ -135,7 +135,15 @@ let compileTests =
 
 let inlineWorksAtRoot =
   testTask "inlineWorksAtRoot" {
-    let! state = executionStateFor (System.Guid.NewGuid()) false false Map.empty Map.empty Map.empty Map.empty
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
     let fns = ExecutionState.availableFunctions state
     let! expr =
       LibParser.Parser.parseRTExpr
@@ -155,7 +163,15 @@ let inlineWorksAtRoot =
 
 let inlineWorksWithNested =
   testTask "inlineWorksWithNested" {
-    let! state = executionStateFor (System.Guid.NewGuid()) false false Map.empty Map.empty Map.empty Map.empty
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
     let fns = ExecutionState.availableFunctions state
     let! expr = p "let x = 5 in (let x = 6 in (3 + (let x = 7 in x)))"
 
@@ -238,6 +254,4 @@ let partialEvaluation =
 
 
 let tests =
-  testList
-    "SqlCompiler"
-    [ inlineWorksAtRoot; partialEvaluation; compileTests ]
+  testList "SqlCompiler" [ inlineWorksAtRoot; partialEvaluation; compileTests ]

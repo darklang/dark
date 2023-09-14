@@ -330,7 +330,15 @@ let rec postTraversalAsync
     }
 
   uply {
-    let r = postTraversalAsync exprFn typeRefFn fqtnFn fqfnFn fqcnFn letPatternFn matchPatternFn
+    let r =
+      postTraversalAsync
+        exprFn
+        typeRefFn
+        fqtnFn
+        fqfnFn
+        fqcnFn
+        letPatternFn
+        matchPatternFn
 
     let! expr =
       match expr with
@@ -339,152 +347,152 @@ let rec postTraversalAsync
       | EChar _
       | EUnit _
       | EVariable _
-      | EFloat _ ->  uply { return expr }
+      | EFloat _ -> uply { return expr }
       | EAnd(id, left, right) ->
-          uply {
-              let! left = r left
-              let! right = r right
-              return EAnd(id, left, right)
-          }
+        uply {
+          let! left = r left
+          let! right = r right
+          return EAnd(id, left, right)
+        }
       | EOr(id, left, right) ->
-          uply {
-              let! left = r left
-              let! right = r right
-              return EOr(id, left, right)
-          }
+        uply {
+          let! left = r left
+          let! right = r right
+          return EOr(id, left, right)
+        }
       | ELambda(id, names, expr) ->
-          uply {
-              let! expr = r expr
-              return ELambda(id, names, expr)
-          }
+        uply {
+          let! expr = r expr
+          return ELambda(id, names, expr)
+        }
       | ELet(id, pat, rhs, next) ->
-          uply {
-              let! pat = postTraversalLetPattern pat
-              let! rhs = r rhs
-              let! next = r next
-              return ELet(id, pat, rhs, next)
-          }
+        uply {
+          let! pat = postTraversalLetPattern pat
+          let! rhs = r rhs
+          let! next = r next
+          return ELet(id, pat, rhs, next)
+        }
       | EList(id, exprs) ->
-          uply {
-              let! exprs = Ply.List.mapSequentially r exprs
-              return EList(id, exprs)
-          }
+        uply {
+          let! exprs = Ply.List.mapSequentially r exprs
+          return EList(id, exprs)
+        }
       | ETuple(id, first, second, theRest) ->
-          uply {
-              let! first = r first
-              let! second = r second
-              let! theRest = Ply.List.mapSequentially r theRest
-              return ETuple(id, first, second, theRest)
-          }
+        uply {
+          let! first = r first
+          let! second = r second
+          let! theRest = Ply.List.mapSequentially r theRest
+          return ETuple(id, first, second, theRest)
+        }
       | EIf(id, cond, ifexpr, elseexpr) ->
-          uply {
-              let! cond = r cond
-              let! ifexpr = r ifexpr
-              let! elseexpr = Ply.Option.mapSequentially r elseexpr
-              return EIf(id, cond, ifexpr, elseexpr)
-          }
+        uply {
+          let! cond = r cond
+          let! ifexpr = r ifexpr
+          let! elseexpr = Ply.Option.mapSequentially r elseexpr
+          return EIf(id, cond, ifexpr, elseexpr)
+        }
       | EMatch(id, mexpr, pairs) ->
-          uply {
-              let! mexpr = r mexpr
-              let! pairs =
-                  Ply.NEList.mapSequentially
-                      (fun (pattern, expr) ->
-                          uply {
-                              let! pattern = postTraverseMatchPattern pattern
-                              let! expr = r expr
-                              return (pattern, expr)
-                          })
-                      pairs
-              return EMatch(id, mexpr, pairs)
-          }
+        uply {
+          let! mexpr = r mexpr
+          let! pairs =
+            Ply.NEList.mapSequentially
+              (fun (pattern, expr) ->
+                uply {
+                  let! pattern = postTraverseMatchPattern pattern
+                  let! expr = r expr
+                  return (pattern, expr)
+                })
+              pairs
+          return EMatch(id, mexpr, pairs)
+        }
 
       | ERecord(id, typeName, fields) ->
-          uply {
-              let! fields =
-                  Ply.NEList.mapSequentially
-                      (fun (name, expr) ->
-                          uply {
-                              let! expr = r expr
-                              return (name, expr)
-                          })
-                      fields
-              return ERecord(id, typeName, fields)
-          }
+        uply {
+          let! fields =
+            Ply.NEList.mapSequentially
+              (fun (name, expr) ->
+                uply {
+                  let! expr = r expr
+                  return (name, expr)
+                })
+              fields
+          return ERecord(id, typeName, fields)
+        }
       | ERecordUpdate(id, record, updates) ->
-          uply {
-              let! record = r record
-              let! updates =
-                  Ply.NEList.mapSequentially
-                      (fun (name, expr) ->
-                          uply {
-                              let! expr = r expr
-                              return (name, expr)
-                          })
-                      updates
-              return ERecordUpdate(id, record, updates)
-          }
+        uply {
+          let! record = r record
+          let! updates =
+            Ply.NEList.mapSequentially
+              (fun (name, expr) ->
+                uply {
+                  let! expr = r expr
+                  return (name, expr)
+                })
+              updates
+          return ERecordUpdate(id, record, updates)
+        }
       | EApply(id, name, typeArgs, args) ->
-          uply {
-              let! name = r name
-              let! typeArgs = Ply.List.mapSequentially postTraversalTypeRef typeArgs
-              let! args = Ply.NEList.mapSequentially r args
-              return EApply(id, name, typeArgs, args)
-          }
+        uply {
+          let! name = r name
+          let! typeArgs = Ply.List.mapSequentially postTraversalTypeRef typeArgs
+          let! args = Ply.NEList.mapSequentially r args
+          return EApply(id, name, typeArgs, args)
+        }
       | EError(id, msg, exprs) ->
-          uply {
-              let! exprs = Ply.List.mapSequentially r exprs
-              return EError(id, msg, exprs)
-          }
+        uply {
+          let! exprs = Ply.List.mapSequentially r exprs
+          return EError(id, msg, exprs)
+        }
       | EDict(id, pairs) ->
-          uply {
-              let! pairs =
-                  Ply.List.mapSequentially
-                      (fun (k, v) ->
-                          uply {
-                              let! v = r v
-                              return (k, v)
-                          })
-                      pairs
-              return EDict(id, pairs)
-          }
+        uply {
+          let! pairs =
+            Ply.List.mapSequentially
+              (fun (k, v) ->
+                uply {
+                  let! v = r v
+                  return (k, v)
+                })
+              pairs
+          return EDict(id, pairs)
+        }
       | EFnName(id, name) ->
-          uply {
-              let! name = fqfnFn name
-              return EFnName(id, name)
-          }
+        uply {
+          let! name = fqfnFn name
+          return EFnName(id, name)
+        }
       | EConstant(id, name) ->
-          uply {
-              let! name = fqcnFn name
-              return EConstant(id, name)
-          }
+        uply {
+          let! name = fqcnFn name
+          return EConstant(id, name)
+        }
       | EEnum(id, typeName, caseName, fields) ->
-          uply {
-              let! typeName = fqtnFn typeName
-              let! fields = Ply.List.mapSequentially r fields
-              return EEnum(id, typeName, caseName, fields)
-          }
+        uply {
+          let! typeName = fqtnFn typeName
+          let! fields = Ply.List.mapSequentially r fields
+          return EEnum(id, typeName, caseName, fields)
+        }
       | EFieldAccess(id, expr, fieldname) ->
-          uply {
-              let! expr = r expr
-              return EFieldAccess(id, expr, fieldname)
-          }
+        uply {
+          let! expr = r expr
+          return EFieldAccess(id, expr, fieldname)
+        }
 
 
       | EString(id, strs) ->
-          uply {
-              let! strs =
-                  Ply.List.mapSequentially
-                      (fun s ->
-                          uply {
-                              match s with
-                              | StringText t -> return (StringText t)
-                              | StringInterpolation e ->
-                                  let! e = r e
-                                  return (StringInterpolation(e))
-                          })
-                      strs
-              return EString(id, strs)
-          }
+        uply {
+          let! strs =
+            Ply.List.mapSequentially
+              (fun s ->
+                uply {
+                  match s with
+                  | StringText t -> return (StringText t)
+                  | StringInterpolation e ->
+                    let! e = r e
+                    return (StringInterpolation(e))
+                })
+              strs
+          return EString(id, strs)
+        }
 
     return! exprFn expr
   }

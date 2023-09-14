@@ -459,9 +459,7 @@ let fns : List<BuiltInFn> =
           let index = str.IndexOf(search)
           Ply(DInt index)
         | _ -> incorrectArgs ())
-      sqlSpec =
-        SqlCallback2(fun str search ->
-          $"strpos({str}, {search}) - 1")
+      sqlSpec = SqlCallback2(fun str search -> $"strpos({str}, {search}) - 1")
       previewable = Pure
       deprecated = NotDeprecated }
 
