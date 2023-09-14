@@ -89,6 +89,9 @@ let fns : List<BuiltInFn> =
       fn =
         function
         | _, _, [ DString code; DString filename ] ->
+          let okType = ValueType.Known(KTDict(ValueType.Known KTString))
+          let errType = ValueType.Known KTString
+
           uply {
             try
               // TODO: this needs builtins and packages
@@ -103,15 +106,15 @@ let fns : List<BuiltInFn> =
                 [ "types", DString(Json.Vanilla.serialize types)
                   "fns", DString(Json.Vanilla.serialize fns)
                   "exprs", DString(Json.Vanilla.serialize exprs) ]
-                |> Dval.dict valueTypeTODO
-                |> Dval.resultOk
+                |> Dval.dict (ValueType.Known KTString)
+                |> Dval.resultOk okType errType
             with e ->
               let error = Exception.getMessages e |> String.concat " "
               let metadata = Exception.nestedMetadata e
               let metadataDval = metadata |> Map.ofList
               return
                 DString($"Error parsing code: {error} {metadataDval}")
-                |> Dval.resultError
+                |> Dval.resultError okType errType
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -128,15 +131,19 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString path ] ->
+          let okType = ValueType.Known KTBytes
+          let errType = ValueType.Known KTString
           uply {
             try
               let contents =
                 RestrictedFileIO.readfileBytes
                   RestrictedFileIO.Config.BackendStatic
                   path
-              return DBytes contents |> Dval.resultOk
+              return DBytes contents |> Dval.resultOk okType errType
             with e ->
-              return DString($"Error reading file: {e.Message}") |> Dval.resultError
+              return
+                DString($"Error reading file: {e.Message}")
+                |> Dval.resultError okType errType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -153,15 +160,21 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString path ] ->
+          let okType = ValueType.Known KTBytes
+          let errType = ValueType.Known KTString
           uply {
             try
               let contents =
                 RestrictedFileIO.readfileBytes
                   RestrictedFileIO.Config.CanvasesFiles
                   path
-              return Dval.resultOk (DBytes contents)
+              return Dval.resultOk okType errType (DBytes contents)
             with e ->
-              return Dval.resultError (DString($"Error reading file: {e.Message}"))
+              return
+                Dval.resultError
+                  okType
+                  errType
+                  (DString($"Error reading file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

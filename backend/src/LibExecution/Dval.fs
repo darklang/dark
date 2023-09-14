@@ -30,33 +30,6 @@ module LibExecution.Dval
 open LibExecution.RuntimeTypes
 
 
-
-// _just_ enough to make some tests less ugly - this should all be in Dark code soon
-// CLEANUP VTTODO ^
-let rec private valueTypeToString (vt : ValueType) : string =
-  match vt with
-  | ValueType.Unknown -> "_"
-  | ValueType.Known kt ->
-    match kt with
-    | KTUnit -> "Unit"
-    | KTBool -> "Bool"
-    | KTInt -> "Int"
-    | KTFloat -> "Float"
-    | KTChar -> "Char"
-    | KTString -> "String"
-    | KTUuid -> "Uuid"
-    | KTBytes -> "Bytes"
-    | KTDateTime -> "DateTime"
-    | KTPassword -> "Password"
-    | KTList inner -> $"List<{valueTypeToString inner}>"
-    | KTTuple _ -> "Tuple (TODO)"
-    | KTFn _ -> "Fn (TODO)"
-    | KTDB _ -> "DB (TODO)"
-    | KTCustomType _ -> "Custom Type (TODO)"
-    | KTDict _ -> "Dict (TODO)"
-
-
-
 let int (i : int) = DInt(int64 i)
 
 
@@ -146,12 +119,7 @@ let rec toValueType (dv : Dval) : ValueType =
   | DRecord(typeName, _, typeArgs, _fields) ->
     KTCustomType(typeName, typeArgs) |> ValueType.Known
 
-  | DEnum(typeName, _, _caseName, _fields) ->
-    let typeArgs =
-      // TODO: somehow need to derive `typeArgs` from the `fields` (and `case`?)
-      // we might need to look up the type...
-      //fields |> List.map toValueType |> List.map Option.some
-      []
+  | DEnum(typeName, _, typeArgs, _caseName, _fields) ->
     KTCustomType(typeName, typeArgs) |> ValueType.Known
 
   | DFnVal fnImpl ->
@@ -172,21 +140,30 @@ let rec toValueType (dv : Dval) : ValueType =
 
   | DError _ -> Exception.raiseInternal "DError is being moved out of Dval" []
 
-
+let mergeFailureRte
+  (sourceId : DvalSource)
+  (vt1 : ValueType)
+  (vt2 : ValueType)
+  : Dval =
+  RuntimeError.oldError
+    $"Could not merge types {ValueType.toString vt1} and {ValueType.toString vt2}"
+  |> fun e -> DError(sourceId, e)
 
 let private listPush
   (list : List<Dval>)
   (listType : ValueType)
   (dv : Dval)
-  : Result<ValueType * List<Dval>, RuntimeError> =
+  : Result<ValueType * List<Dval>, Dval> =
   let dvalType = toValueType dv
   let newType = mergeValueTypes listType dvalType
 
   match newType with
   | Ok newType -> Ok(newType, dv :: list)
   | Error() ->
-    RuntimeError.oldError
-      $"Could not merge types List<{valueTypeToString listType}> and List<{valueTypeToString dvalType}>"
+    mergeFailureRte
+      SourceNone
+      (ValueType.Known(KTList listType))
+      (ValueType.Known(KTList dvalType))
     |> Error
 
 let list (initialType : ValueType) (list : List<Dval>) : Dval =
@@ -204,7 +181,7 @@ let list (initialType : ValueType) (list : List<Dval>) : Dval =
 
     match result with
     | Ok(typ, dvs) -> DList(typ, dvs)
-    | Error e -> DError(SourceNone, e)
+    | Error e -> e
 
 
 // CLEANUP - this fn was unused so I commented it out
@@ -282,44 +259,98 @@ let record
   | Ok fields -> DRecord(typeName, typeName, valueTypesTODO, fields)
   | Error err -> err
 
+let valueTypeArgsTODO = None
 
 let enum
   // TODO: pass in (types: Types) arg
   // TODO: nitpick: reorder these typeName params (i.e. source first)
   (resolvedTypeName : TypeName.TypeName)
   (sourceTypeName : TypeName.TypeName) // TODO: maybe just pass in sourceTypeName
-  // TODO: (typeArgs: Option<List<ValueType>>) // note: must match the count expected by the typeName
+  (typeArgs : Option<List<ValueType>>) // note: must match the count expected by the typeName, if provided
   (caseName : string)
   (fields : List<Dval>)
   : Dval =
   match List.find Dval.isFake fields with
   | Some v -> v
-  | None -> DEnum(resolvedTypeName, sourceTypeName, caseName, fields)
+  | None ->
+    let typeArgs =
+      match typeArgs with
+      | Some t -> t
+      | None ->
+        // Note: this could really cause issues if it's the wrong #
+        //
+        // We need to start taking in a Types arg, doing type lookups to determine
+        // required type args, etc
+        []
+
+    DEnum(resolvedTypeName, sourceTypeName, typeArgs, caseName, fields)
 
 
 let optionType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0
 
-let optionSome (dv : Dval) : Dval =
-  if Dval.isFake dv then dv else DEnum(optionType, optionType, "Some", [ dv ])
+let optionSome (innerType : ValueType) (dv : Dval) : Dval =
+  if Dval.isFake dv then
+    dv
+  else
+    let dvalType = toValueType dv
+    match mergeValueTypes innerType dvalType with
+    | Ok typ -> DEnum(optionType, optionType, [ typ ], "Some", [ dv ])
+    | Error() ->
+      mergeFailureRte
+        SourceNone
+        (ValueType.Known(KTCustomType(optionType, [ innerType ])))
+        (ValueType.Known(KTCustomType(optionType, [ dvalType ])))
 
-let optionNone : Dval = DEnum(optionType, optionType, "None", [])
+
+let optionNone (innerType : ValueType) : Dval =
+  DEnum(optionType, optionType, [ innerType ], "None", [])
 
 // Wraps in an Option after checking that the value is not a fakeval
-let option (dv : Option<Dval>) : Dval =
+let option (innerType : ValueType) (dv : Option<Dval>) : Dval =
   match dv with
-  | Some dv -> optionSome dv // checks isFake
-  | None -> optionNone
+  | Some dv -> optionSome innerType dv // checks isFake
+  | None -> optionNone innerType
 
 
 let resultType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0
 
-let resultOk (dv : Dval) : Dval =
-  if Dval.isFake dv then dv else DEnum(resultType, resultType, "Ok", [ dv ])
-let resultError (dv : Dval) : Dval =
-  if Dval.isFake dv then dv else DEnum(resultType, resultType, "Error", [ dv ])
+let resultOk (okType : ValueType) (errorType : ValueType) (dvOk : Dval) : Dval =
+  if Dval.isFake dvOk then
+    dvOk
+  else
+    let dvalType = toValueType dvOk
+    match mergeValueTypes okType dvalType with
+    | Ok typ -> DEnum(resultType, resultType, [ typ; errorType ], "Ok", [ dvOk ])
+    | Error() ->
+      mergeFailureRte
+        SourceNone
+        (ValueType.Known(KTCustomType(resultType, [ okType; errorType ])))
+        (ValueType.Known(KTCustomType(resultType, [ dvalType; errorType ])))
+
+
+let resultError
+  (okType : ValueType)
+  (errorType : ValueType)
+  (dvError : Dval)
+  : Dval =
+  if Dval.isFake dvError then
+    dvError
+  else
+    let dvalType = toValueType dvError
+    match mergeValueTypes errorType dvalType with
+    | Ok typ -> DEnum(resultType, resultType, [ okType; typ ], "Error", [ dvError ])
+    | Error() ->
+      mergeFailureRte
+        SourceNone
+        (ValueType.Known(KTCustomType(resultType, [ okType; errorType ])))
+        (ValueType.Known(KTCustomType(resultType, [ okType; dvalType ])))
 
 // Wraps in a Result after checking that the value is not a fakeval
-let result (dv : Result<Dval, Dval>) : Dval =
+let result
+  (okType : ValueType)
+  (errorType : ValueType)
+  (dv : Result<Dval, Dval>)
+  : Dval =
   match dv with
-  | Ok dv -> resultOk dv
-  | Error dv -> resultError dv
+  | Ok dv -> resultOk okType errorType dv
+  | Error dv -> resultError okType errorType dv

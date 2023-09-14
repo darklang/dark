@@ -26,12 +26,13 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString varName ] ->
+          let optType = ValueType.string
           let envValue = System.Environment.GetEnvironmentVariable(varName)
 
           if isNull envValue then
-            Ply(Dval.optionNone)
+            Ply(Dval.optionNone optType)
           else
-            Ply(Dval.optionSome (DString envValue))
+            Ply(Dval.optionSome optType (DString envValue))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

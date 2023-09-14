@@ -6,6 +6,7 @@ open LibExecution.Builtin.Shortcuts
 
 module Errors = LibExecution.Errors
 module Dval = LibExecution.Dval
+module VT = ValueType
 module Interpreter = LibExecution.Interpreter
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
@@ -49,11 +50,12 @@ module DvalComparator =
     | DRecord(tn1, _, _typeArgsTODO1, o1), DRecord(tn2, _, _typeArgsTODO2, o2) ->
       let c = compare tn1 tn2
       if c = 0 then compareMaps (Map.toList o1) (Map.toList o2) else c
-    | DEnum(tn1, _, c1, f1), DEnum(tn2, _, c2, f2) ->
-      let c = compare tn1 tn2
+    | DEnum(typeName1, _, _typeArgsTODO1, case1, fields1),
+      DEnum(typeName2, _, _typeArgsTODO2, case2, fields2) ->
+      let c = compare typeName1 typeName2
       if c = 0 then
-        let c = compare c1 c2
-        if c = 0 then compareLists f1 f2 else c
+        let c = compare case1 case2
+        if c = 0 then compareLists fields1 fields2 else c
       else
         c
     // exhaustiveness check
@@ -422,6 +424,8 @@ let fns : List<BuiltInFn> =
          Consider <fn List.sort> or <fn List.sortBy> if you don't need this level
          of control."
       fn =
+        let okType = VT.unknownTODO
+        let errType = VT.string
         (function
         | state, _, [ DList(vt, list); DFnVal f ] ->
           let fn (dv1 : Dval) (dv2 : Dval) : Ply<int> =
@@ -444,11 +448,11 @@ let fns : List<BuiltInFn> =
             try
               let array = List.toArray list
               do! Sort.sort fn array
-              // CLEANUP: check fakevals
-              return array |> Array.toList |> Dval.list vt |> Dval.resultOk
+              return
+                array |> Array.toList |> Dval.list vt |> Dval.resultOk okType errType
             with
             | Errors.FakeDvalFound dv -> return dv
-            | e -> return Dval.resultError (DString e.Message)
+            | e -> return Dval.resultError okType errType (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -567,12 +571,14 @@ let fns : List<BuiltInFn> =
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
                           _,
+                          _,
                           "Some",
                           [ o ]) -> return Some o
                   | DEnum(FQName.Package { owner = "Darklang"
                                            modules = [ "Stdlib"; "Option" ]
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
+                          _,
                           _,
                           "None",
                           []) -> return None
@@ -693,7 +699,7 @@ let fns : List<BuiltInFn> =
             (TFn(NEList.doubleton varA varB, varC))
             ""
             [ "a"; "b" ] ]
-      returnType = TypeReference.option varC
+      returnType = TypeReference.option (TList varC)
       description =
         "If the lists are the same length, returns {{Some list}} formed by mapping
          <param fn> over <param as> and <param bs> in parallel, calling {{fn a b}} on
@@ -707,11 +713,12 @@ let fns : List<BuiltInFn> =
          List.map2shortest> if you want to drop values from the longer list
          instead)."
       fn =
+        let optType = VT.list VT.unknownTODO
         (function
         | state, _, [ DList(_vtTODO1, l1); DList(_vtTODO2, l2); DFnVal b ] ->
           uply {
             if List.length l1 <> List.length l2 then
-              return Dval.optionNone
+              return Dval.optionNone optType
             else
               let list = List.zip l1 l2
 
@@ -722,7 +729,7 @@ let fns : List<BuiltInFn> =
                     Interpreter.applyFnVal state 0UL b [] args)
                   list
 
-              return Dval.optionSome (Dval.list valueTypeTODO result)
+              return Dval.optionSome optType (Dval.list valueTypeTODO result)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -739,15 +746,16 @@ let fns : List<BuiltInFn> =
          selected value in <param list>. Returns {{None}} if <param list> is
          empty."
       fn =
+        let optType = VT.unknownTODO
         (function
-        | _, _, [ DList(_, []) ] -> Ply(Dval.optionNone)
+        | _, _, [ DList(_, []) ] -> Ply(Dval.optionNone optType)
         | _, _, [ DList(_, l) ] ->
           // Will return <= (length - 1)
           // Maximum value is Int64.MaxValue which is half of UInt64.MaxValue, but
           // that won't affect this as we won't have a list that big for a long long
           // long time.
           let index = RNG.GetInt32(l.Length)
-          (List.tryItem index l) |> Dval.option |> Ply
+          (List.tryItem index l) |> Dval.option optType |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure

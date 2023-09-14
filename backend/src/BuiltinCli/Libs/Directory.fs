@@ -44,13 +44,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString path ] ->
+          let okType = ValueType.unit
+          let errType = ValueType.string
           uply {
             try
               System.IO.Directory.CreateDirectory(path)
               |> ignore<System.IO.DirectoryInfo>
-              return Dval.resultOk DUnit
+              return Dval.resultOk okType errType DUnit
             with e ->
-              return Dval.resultError (DString e.Message)
+              return Dval.resultError okType errType (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -67,12 +69,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString path ] ->
+          let okType = ValueType.unit
+          let errType = ValueType.string
           uply {
             try
               System.IO.Directory.Delete(path, false)
-              return Dval.resultOk DUnit
+              return Dval.resultOk okType errType DUnit
             with e ->
-              return Dval.resultError (DString e.Message)
+              return Dval.resultError okType errType (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

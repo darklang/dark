@@ -10,6 +10,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
+module VT = ValueType
 module Errors = LibExecution.Errors
 
 let types : List<BuiltInType> = []
@@ -96,13 +97,20 @@ let fns : List<BuiltInFn> =
 
          Returns an {{Error}} if <param divisor> is {{0}}."
       fn =
+        let okType = VT.int
+        let errType = VT.string
         (function
         | _, _, [ DInt v; DInt d ] ->
           (try
-            v % d |> DInt |> Dval.resultOk |> Ply
+            v % d |> DInt |> Dval.resultOk okType errType |> Ply
            with e ->
              if d = 0L then
-               Ply(Dval.resultError (DString($"`divisor` must be non-zero")))
+               Ply(
+                 Dval.resultError
+                   okType
+                   errType
+                   (DString($"`divisor` must be non-zero"))
+               )
              else
                Exception.raiseInternal
                  "unexpected failure case in Int.remainder"
@@ -165,10 +173,12 @@ let fns : List<BuiltInFn> =
         <param exponent> must to be positive.
         Return value wrapped in a {{Result}} "
       fn =
+        let okType = VT.int
+        let errType = VT.string
         (function
         | _, _, [ DInt number; DInt exp as expdv ] ->
-          let errPipe e = e |> DString |> Dval.resultError |> Ply
-          let okPipe r = r |> DInt |> Dval.resultOk |> Ply
+          let errPipe e = e |> DString |> Dval.resultError okType errType |> Ply
+          let okPipe r = r |> DInt |> Dval.resultOk okType errType |> Ply
           (try
             if exp < 0L then
               Errors.argumentWasnt "positive" "exponent" expdv |> errPipe
@@ -335,14 +345,20 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.result TInt TString
       description = "Returns the <type Int> value of a <type String>"
       fn =
+        let okType = VT.int
+        let errType = VT.string
         (function
         | _, _, [ DString s ] ->
           (try
-            s |> System.Convert.ToInt64 |> DInt |> Dval.resultOk |> Ply
+            s
+            |> System.Convert.ToInt64
+            |> DInt
+            |> Dval.resultOk okType errType
+            |> Ply
            with _e ->
              $"Expected to parse String with only numbers, instead got \"{s}\""
              |> DString
-             |> Dval.resultError
+             |> Dval.resultError okType errType
              |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

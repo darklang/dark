@@ -3,6 +3,7 @@ module LibExecution.TypeChecker
 
 open Prelude
 open RuntimeTypes
+module VT = ValueType
 
 
 /// Returns `Ok ()` if no errors, or `Error first` otherwise
@@ -77,17 +78,17 @@ module Error =
 
   module Location =
     let toDT (location : Location) : Dval =
+      let optType = VT.tuple VT.int VT.int []
       match location with
-      | None -> Dval.optionNone
+      | None -> Dval.optionNone optType
       | Some(tlid, id) ->
         let tlid = DInt(int64 tlid)
         let id = DInt(int64 id)
-        Dval.optionSome (DTuple(tlid, id, []))
+        Dval.optionSome optType (DTuple(tlid, id, []))
 
 
   module Context =
     let rec toDT (context : Context) : Dval =
-      let nameTypeName = RuntimeError.name [ "TypeChecker" ] "Context" 0
       let (caseName, fields) =
         match context with
         | FunctionCallParameter(fnName, param, paramIndex, location) ->
@@ -147,7 +148,8 @@ module Error =
           let parent = toDT parent
           "TupleIndex", [ index; elementType; parent ]
 
-      Dval.enum nameTypeName nameTypeName caseName fields
+      let typeName = RuntimeError.name [ "TypeChecker" ] "Context" 0
+      Dval.enum typeName typeName (Some []) caseName fields
 
 
   let toRuntimeError (e : Error) : RuntimeError =
@@ -161,7 +163,7 @@ module Error =
 
       let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
       RuntimeError.typeCheckerError (
-        Dval.enum typeName typeName "ValueNotExpectedType" fields
+        Dval.enum typeName typeName (Some []) "ValueNotExpectedType" fields
       )
 
     | TypeDoesntExist(typeName, context) ->
@@ -169,7 +171,7 @@ module Error =
 
       let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
       RuntimeError.typeCheckerError (
-        Dval.enum typeName typeName "TypeDoesntExist" fields
+        Dval.enum typeName typeName (Some []) "TypeDoesntExist" fields
       )
 
 let rec valueTypeUnifies
@@ -376,7 +378,7 @@ let rec unify
               | _ -> return err
 
             | { definition = TypeDeclaration.Enum cases },
-              DEnum(tn, _, caseName, valFields) ->
+              DEnum(tn, _, _typeArgsTODO, caseName, valFields) ->
               // TODO: deal with aliased type?
               if tn <> typeName then
                 return

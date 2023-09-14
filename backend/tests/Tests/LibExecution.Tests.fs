@@ -198,7 +198,7 @@ let t
                   Exception.raiseInternal
                     ("We received a DError, and when trying to stringify it, there was an error. There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
                     [ "originalError", actual; "stringifyError", result ]
-              | RT.DEnum(_, _, "ErrorString", [ RT.DString _ ]) -> return result
+              | RT.DEnum(_, _, [], "ErrorString", [ RT.DString _ ]) -> return result
               | _ ->
                 return
                   Exception.raiseInternal

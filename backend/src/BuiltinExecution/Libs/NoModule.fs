@@ -51,7 +51,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DUuid a, DUuid b -> a = b
   | DBytes a, DBytes b -> a = b
   | DDB a, DDB b -> a = b
-  | DEnum(a1, _, a2, a3), DEnum(b1, _, b2, b3) -> // these should be the fully resolved type
+  | DEnum(a1, _, _typeArgsTODO1, a2, a3), DEnum(b1, _, _typeArgsTODO2, b2, b3) -> // these should be the fully resolved type
     a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 equals a3 b3
 
   // exhaustiveness check
@@ -320,6 +320,7 @@ let fns : List<BuiltInFn> =
                                    name = TypeName.TypeName "Option"
                                    version = 0 }),
                   _,
+                  _,
                   caseName,
                   [ value ]) ] ->
           uply {
@@ -339,6 +340,7 @@ let fns : List<BuiltInFn> =
                                    modules = [ "Stdlib"; "Result" ]
                                    name = TypeName.TypeName "Result"
                                    version = 0 }),
+                  _,
                   _,
                   caseName,
                   [ value ]) ] ->

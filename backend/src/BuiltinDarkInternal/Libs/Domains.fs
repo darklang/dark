@@ -8,6 +8,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
+module VT = ValueType
 module Canvas = LibCloud.Canvas
 
 let modules = [ "DarkInternal"; "Canvas"; "Domain" ]
@@ -46,11 +47,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString domain ] ->
+          let okType = VT.uuid
+          let errType = VT.string
           uply {
             let! name = Canvas.canvasIDForDomain domain
             match name with
-            | Some name -> return Dval.resultOk (DUuid name)
-            | None -> return Dval.resultError (DString "Canvas not found")
+            | Some name -> return Dval.resultOk okType errType (DUuid name)
+            | None ->
+              return Dval.resultError okType errType (DString "Canvas not found")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

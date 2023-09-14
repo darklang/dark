@@ -9,6 +9,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
+module VT = ValueType
 module PT = LibExecution.ProgramTypes
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
@@ -216,7 +217,7 @@ let fns : List<BuiltInFn> =
               Dval.record
                 (FQName.BuiltIn(typ "Program" 0))
                 [ "types", types; "fns", fns ]
-              |> Dval.resultOk
+              |> Dval.resultOk VT.unknownTODO VT.unknownTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

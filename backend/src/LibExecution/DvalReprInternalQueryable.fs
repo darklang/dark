@@ -404,7 +404,7 @@ module Test =
     | DDict(_, map) -> map |> Map.values |> List.all isQueryableDval
     | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
 
-    | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all isQueryableDval
+    | DEnum(_typeName, _, _, _caseName, fields) -> fields |> List.all isQueryableDval
 
     // TODO support
     | DRecord _ // TYPESCLEANUP

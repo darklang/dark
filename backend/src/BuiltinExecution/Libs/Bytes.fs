@@ -9,6 +9,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
+module VT = ValueType
 
 let types : List<BuiltInType> = []
 
@@ -36,6 +37,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString s ] ->
+          let okType = VT.bytes
+          let errType = VT.string
           let base64FromUrlEncoded (str : string) : string =
             let initial = str.Replace('-', '+').Replace('_', '/')
             let length = initial.Length
@@ -46,20 +49,28 @@ let fns : List<BuiltInFn> =
 
           if s = "" then
             // This seems like we should allow it
-            [||] |> DBytes |> Dval.resultOk |> Ply
+            [||] |> DBytes |> Dval.resultOk okType errType |> Ply
           elif Regex.IsMatch(s, @"\s") then
             // dotnet ignores whitespace but we don't allow it
-            "Not a valid base64 string" |> DString |> Dval.resultError |> Ply
+            "Not a valid base64 string"
+            |> DString
+            |> Dval.resultError okType errType
+            |> Ply
           else
             try
               s
               |> base64FromUrlEncoded
               |> Convert.FromBase64String
               |> DBytes
-              |> Dval.resultOk
+              |> Dval.resultOk okType errType
               |> Ply
             with e ->
-              Ply(Dval.resultError (DString("Not a valid base64 string")))
+              Ply(
+                Dval.resultError
+                  okType
+                  errType
+                  (DString("Not a valid base64 string"))
+              )
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

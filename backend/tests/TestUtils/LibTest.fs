@@ -13,8 +13,9 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module PT = LibExecution.ProgramTypes
 module Dval = LibExecution.Dval
+module VT = ValueType
+module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 open LibCloud.Db
@@ -58,7 +59,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString error ] ->
           let typeName = RuntimeError.name [ "Error" ] "ErrorMessage" 0
-          Dval.enum typeName typeName "ErrorString" [ DString error ] |> Ply
+          Dval.enum typeName typeName (Some []) "ErrorString" [ DString error ]
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -91,7 +93,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString errorString ] ->
           let msg = LibCloud.SqlCompiler.errorTemplate + errorString
           let typeName = RuntimeError.name [ "Error" ] "ErrorMessage" 0
-          Dval.enum typeName typeName "ErrorString" [ DString msg ] |> Ply
+          Dval.enum typeName typeName (Some []) "ErrorString" [ DString msg ] |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -108,9 +110,11 @@ let fns : List<BuiltInFn> =
           let chars = String.toEgcSeq s
 
           if Seq.length chars = 1 then
-            chars |> Seq.toList |> (fun l -> l[0] |> DChar |> Dval.optionSome |> Ply)
+            chars
+            |> Seq.toList
+            |> (fun l -> l[0] |> DChar |> Dval.optionSome VT.char |> Ply)
           else
-            Ply(Dval.optionNone)
+            Ply(Dval.optionNone VT.char)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -173,7 +177,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString msg ] ->
-          Ply(Dval.optionSome (DError(SourceNone, RuntimeError.oldError msg)))
+          Ply(
+            Dval.optionSome
+              valueTypeTODO
+              (DError(SourceNone, RuntimeError.oldError msg))
+          )
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -188,7 +196,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString msg ] ->
-          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
+          Ply(
+            Dval.resultOk
+              valueTypeTODO
+              valueTypeTODO
+              (DError(SourceNone, RuntimeError.oldError msg))
+          )
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -203,7 +216,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString msg ] ->
-          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
+          Ply(
+            Dval.resultOk
+              valueTypeTODO
+              valueTypeTODO
+              (DError(SourceNone, RuntimeError.oldError msg))
+          )
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -7,6 +7,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 
+module VT = LibExecution.RuntimeTypes.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
@@ -26,12 +27,18 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString path ] ->
+          let okType = VT.bytes
+          let errType = VT.string
           uply {
             try
               let! contents = System.IO.File.ReadAllBytesAsync path
-              return Dval.resultOk (DBytes contents)
+              return Dval.resultOk okType errType (DBytes contents)
             with e ->
-              return Dval.resultError (DString($"Error reading file: {e.Message}"))
+              return
+                Dval.resultError
+                  okType
+                  errType
+                  (DString($"Error reading file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -48,12 +55,18 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DBytes contents; DString path ] ->
+          let okType = VT.unit
+          let errType = VT.string
           uply {
             try
               do! System.IO.File.WriteAllBytesAsync(path, contents)
-              return Dval.resultOk (DUnit)
+              return Dval.resultOk okType errType DUnit
             with e ->
-              return Dval.resultError (DString($"Error writing file: {e.Message}"))
+              return
+                Dval.resultError
+                  okType
+                  errType
+                  (DString($"Error writing file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -70,12 +83,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DBytes content; DString path ] ->
+          let okType = VT.unit
+          let errType = VT.string
           uply {
             try
               do! System.IO.File.WriteAllBytesAsync(path, content)
-              return Dval.resultOk DUnit
+              return Dval.resultOk okType errType DUnit
             with e ->
-              return Dval.resultError (DString e.Message)
+              return Dval.resultError okType errType (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -92,12 +107,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DUnit ] ->
+          let okType = VT.string
+          let errType = VT.string
           uply {
             try
               let tempPath = System.IO.Path.GetTempFileName()
-              return Dval.resultOk (DString tempPath)
+              return Dval.resultOk okType errType (DString tempPath)
             with e ->
-              return Dval.resultError (DString e.Message)
+              return Dval.resultError okType errType (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -185,12 +202,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString path ] ->
+          let okType = VT.int
+          let errType = VT.string
           uply {
             try
               let fileInfo = System.IO.FileInfo(path)
-              return Dval.resultOk (DInt fileInfo.Length)
+              return Dval.resultOk okType errType (DInt fileInfo.Length)
             with e ->
-              return Dval.resultError (DString e.Message)
+              return Dval.resultError okType errType (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

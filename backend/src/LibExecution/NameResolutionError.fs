@@ -38,16 +38,16 @@ module RTE =
         | MissingEnumModuleName caseName ->
           "MissingEnumModuleName", [ RT.DString caseName ]
         | InvalidPackageName -> "InvalidPackageName", []
-      Dval.enum nameTypeName nameTypeName caseName fields
+      Dval.enum nameTypeName nameTypeName (Some []) caseName fields
 
     let fromDT (dv : RT.Dval) : ErrorType =
       match dv with
-      | RT.DEnum(_, _, "NotFound", []) -> NotFound
-      | RT.DEnum(_, _, "ExpectedEnumButNot", []) -> ExpectedEnumButNot
-      | RT.DEnum(_, _, "ExpectedRecordButNot", []) -> ExpectedRecordButNot
-      | RT.DEnum(_, _, "MissingEnumModuleName", [ RT.DString caseName ]) ->
+      | RT.DEnum(_, _, [], "NotFound", []) -> NotFound
+      | RT.DEnum(_, _, [], "ExpectedEnumButNot", []) -> ExpectedEnumButNot
+      | RT.DEnum(_, _, [], "ExpectedRecordButNot", []) -> ExpectedRecordButNot
+      | RT.DEnum(_, _, [], "MissingEnumModuleName", [ RT.DString caseName ]) ->
         MissingEnumModuleName(caseName)
-      | RT.DEnum(_, _, "InvalidPackageName", []) -> InvalidPackageName
+      | RT.DEnum(_, _, [], "InvalidPackageName", []) -> InvalidPackageName
       | _ -> Exception.raiseInternal "Invalid ErrorType" []
 
   module NameType =
@@ -58,13 +58,13 @@ module RTE =
         | Function -> "Function"
         | Type -> "Type"
         | Constant -> "Constant"
-      Dval.enum nameTypeName nameTypeName caseName []
+      Dval.enum nameTypeName nameTypeName (Some []) caseName []
 
     let fromDT (dv : RT.Dval) : NameType =
       match dv with
-      | RT.DEnum(_, _, "Function", []) -> Function
-      | RT.DEnum(_, _, "Type", []) -> Type
-      | RT.DEnum(_, _, "Constant", []) -> Constant
+      | RT.DEnum(_, _, [], "Function", []) -> Function
+      | RT.DEnum(_, _, [], "Type", []) -> Type
+      | RT.DEnum(_, _, [], "Constant", []) -> Constant
       | _ -> Exception.raiseInternal "Invalid NameType" []
 
   module Error =

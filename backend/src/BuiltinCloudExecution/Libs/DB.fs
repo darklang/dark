@@ -6,6 +6,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
+module VT = ValueType
 module Errors = LibExecution.Errors
 
 module UserDB = LibCloud.UserDB
@@ -80,7 +81,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getOption state db key
-            return Dval.option result
+            return Dval.option valueTypeDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -97,6 +98,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ DList(_, keys); DDB dbname ] ->
+          let optType = VT.unknownTODO
           uply {
             let db = state.program.dbs[dbname]
 
@@ -110,9 +112,9 @@ let fns : List<BuiltInFn> =
             let! items = UserDB.getMany state db skeys
 
             if List.length items = List.length skeys then
-              return items |> Dval.list valueTypeDbTODO |> Dval.optionSome
+              return items |> Dval.list valueTypeDbTODO |> Dval.optionSome optType
             else
-              return Dval.optionNone
+              return Dval.optionNone optType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -366,14 +368,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
+          let optType = valueTypeDbTODO
           uply {
             try
               let db = state.program.dbs[dbname]
               let! results = UserDB.query state db b
 
               match results with
-              | Ok [ (_, v) ] -> return Dval.optionSome v
-              | Ok _ -> return Dval.optionNone
+              | Ok [ (_, v) ] -> return Dval.optionSome optType v
+              | Ok _ -> return Dval.optionNone optType
               | Error rte -> return DError(SourceNone, rte)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
@@ -393,6 +396,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
+          let optType = VT.tuple VT.string VT.unknownTODO []
           uply {
             try
               let db = state.program.dbs[dbname]
@@ -400,8 +404,8 @@ let fns : List<BuiltInFn> =
 
               match results with
               | Ok [ (key, dv) ] ->
-                return Dval.optionSome (DTuple(DString key, dv, []))
-              | Ok _ -> return Dval.optionNone
+                return Dval.optionSome optType (DTuple(DString key, dv, []))
+              | Ok _ -> return Dval.optionNone optType
               | Error rte -> return DError(SourceNone, rte)
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e

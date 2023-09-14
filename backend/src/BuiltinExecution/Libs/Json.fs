@@ -8,6 +8,7 @@ open LibExecution.Builtin.Shortcuts
 
 module DarkDateTime = LibExecution.DarkDateTime
 module Dval = LibExecution.Dval
+module VT = ValueType
 
 
 // parsing
@@ -144,7 +145,7 @@ let rec serialize
 
         | TypeDeclaration.Enum cases ->
           match dval with
-          | DEnum(dTypeName, _, caseName, fields) ->
+          | DEnum(dTypeName, _, _typeArgsTODO, caseName, fields) ->
             let matchingCase = cases |> NEList.filter (fun c -> c.name = caseName)
 
             match matchingCase with
@@ -472,7 +473,8 @@ let parse
                   convert typ pathSoFar j) // TODO revisit if we need to do anything with path
                 |> Ply.List.flatten
 
-              return Dval.enum typeName typeName caseName fields
+              return
+                Dval.enum typeName typeName Dval.valueTypeArgsTODO caseName fields
 
             | _ -> return Exception.raiseInternal "TODO" []
 
@@ -589,7 +591,7 @@ let fns : List<BuiltInFn> =
             let types = ExecutionState.availableTypes state
             let! response =
               writeJson (fun w -> serialize types w typeToSerializeAs arg)
-            return Dval.resultOk (DString response)
+            return Dval.resultOk VT.string VT.string (DString response)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -604,13 +606,15 @@ let fns : List<BuiltInFn> =
       description =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =
+        let okType = VT.unknownTODO
+        let errType = VT.string
         (function
         | state, [ typeArg ], [ DString arg ] ->
           let types = ExecutionState.availableTypes state
           uply {
             match! parse types typeArg arg with
-            | Ok v -> return Dval.resultOk v
-            | Error e -> return Dval.resultError (DString e)
+            | Ok v -> return Dval.resultOk okType errType v
+            | Error e -> return Dval.resultError okType errType (DString e)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

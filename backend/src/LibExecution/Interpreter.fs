@@ -1,4 +1,4 @@
-﻿/// Interprets Dark expressions resulting in (tasks of) Dvals
+/// Interprets Dark expressions resulting in (tasks of) Dvals
 module LibExecution.Interpreter
 
 open System.Threading.Tasks
@@ -36,17 +36,22 @@ module Error =
       0
 
 
-  let case (caseName : string) (fields : List<Dval>) : RuntimeError =
-    DEnum(typeName, typeName, caseName, fields) |> RuntimeError.executionError
+  let case
+    (typeArgs : List<ValueType>)
+    (caseName : string)
+    (fields : List<Dval>)
+    : RuntimeError =
+    DEnum(typeName, typeName, typeArgs, caseName, fields)
+    |> RuntimeError.executionError
 
   let matchExprUnmatched (matchVal : Dval) : RuntimeError =
-    case "MatchExprUnmatched" [ RT2DT.Dval.toDT matchVal ]
+    case [] "MatchExprUnmatched" [ RT2DT.Dval.toDT matchVal ]
 
   let matchExprPatternWrongType (expected : string) (actual : Dval) : RuntimeError =
-    case "MatchExprPatternWrongType" [ DString expected; RT2DT.Dval.toDT actual ]
+    case [] "MatchExprPatternWrongType" [ DString expected; RT2DT.Dval.toDT actual ]
 
   let matchExprPatternWrongShape : RuntimeError =
-    case "MatchExprPatternWrongShape" []
+    case [] "MatchExprPatternWrongShape" []
 
   let matchExprEnumPatternWrongCount
     (caseName : string)
@@ -54,10 +59,11 @@ module Error =
     (actual : int)
     : RuntimeError =
     case
+      []
       "MatchExprEnumPatternWrongCount"
       [ DString caseName; DInt expected; DInt actual ]
 
-  let incomplete : RuntimeError = case "Incomplete" []
+  let incomplete : RuntimeError = case [] "Incomplete" []
 
 type Matched = Result<bool, id * RuntimeError>
 

@@ -8,6 +8,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
+module VT = ValueType
 module Errors = LibExecution.Errors
 module Interpreter = LibExecution.Interpreter
 
@@ -166,6 +167,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DList(_vtTODO, l) ] ->
+          let dictType = VT.unknownTODO
+          let optType = VT.dict dictType
+
           let f acc e =
             match acc, e with
             | Some acc, DTuple(DString k, _, _) when Map.containsKey k acc -> None
@@ -181,8 +185,12 @@ let fns : List<BuiltInFn> =
 
           match result with
           | Some map ->
-            map |> Map.toList |> Dval.dict valueTypeTODO |> Dval.optionSome |> Ply
-          | None -> Ply(Dval.optionNone)
+            map
+            |> Map.toList
+            |> Dval.dict dictType
+            |> Dval.optionSome optType
+            |> Ply
+          | None -> Ply(Dval.optionNone optType)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -199,7 +207,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict(_vtTODO, o); DString s ] ->
-          Map.tryFind s o |> Dval.option |> Ply
+          Map.tryFind s o |> Dval.option VT.unknownTODO |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -391,12 +399,14 @@ let fns : List<BuiltInFn> =
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
                           _,
+                          _,
                           "Some",
                           [ o ]) -> return Some o
                   | DEnum(FQName.Package { owner = "Darklang"
                                            modules = [ "Stdlib"; "Option" ]
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
+                          _,
                           _,
                           "None",
                           []) -> return None

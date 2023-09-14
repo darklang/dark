@@ -8,6 +8,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
+module VT = ValueType
 module Secret = LibCloud.Secret
 
 
@@ -92,12 +93,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DUuid canvasID; DString name; DString value; DInt version ] ->
+          let okType = VT.unit
+          let errType = VT.string
           uply {
             try
               do! Secret.insert canvasID name value (int version)
-              return Dval.resultOk DUnit
+              return Dval.resultOk okType errType DUnit
             with _ ->
-              return Dval.resultError (DString "Error inserting secret")
+              return
+                Dval.resultError okType errType (DString "Error inserting secret")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

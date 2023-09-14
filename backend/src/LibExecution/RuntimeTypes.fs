@@ -401,6 +401,78 @@ and [<RequireQualifiedAccess>] ValueType =
   | Unknown
   | Known of KnownType
 
+[<RequireQualifiedAccess>]
+module ValueType =
+  // some helpers to reduce typing elsewhere
+  let unknown = ValueType.Unknown
+  let unknownTODO = ValueType.Unknown
+
+  let known inner = ValueType.Known inner
+
+  let unit = known KTUnit
+  let bool = known KTBool
+  let int = known KTInt
+  let float = known KTFloat
+  let char = known KTChar
+  let string = known KTString
+  let dateTime = known KTDateTime
+  let uuid = known KTUuid
+  let bytes = known KTString
+
+  let list (inner : ValueType) : ValueType = known (KTList inner)
+  let dict (inner : ValueType) : ValueType = known (KTDict inner)
+  let tuple
+    (first : ValueType)
+    (second : ValueType)
+    (theRest : List<ValueType>)
+    : ValueType =
+    KTTuple(first, second, theRest) |> known
+
+  let option (inner : ValueType) : ValueType =
+    KTCustomType(
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0,
+      [ inner ]
+    )
+    |> known
+
+  let record (okType : ValueType) (errType : ValueType) : ValueType =
+    KTCustomType(
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0,
+      [ okType; errType ]
+    )
+    |> known
+
+  let rec toString (vt : ValueType) : string =
+    match vt with
+    | ValueType.Unknown -> "_"
+    | ValueType.Known kt ->
+      match kt with
+      | KTUnit -> "Unit"
+      | KTBool -> "Bool"
+      | KTInt -> "Int"
+      | KTFloat -> "Float"
+      | KTChar -> "Char"
+      | KTString -> "String"
+      | KTUuid -> "Uuid"
+      | KTBytes -> "Bytes"
+      | KTDateTime -> "DateTime"
+
+      | KTList inner -> $"List<{toString inner}>"
+      | KTDict inner -> $"Dict<{toString inner}>"
+      | KTTuple(first, second, theRest) ->
+        first :: second :: theRest
+        |> List.map toString
+        |> String.concat " * "
+        |> fun inner -> $"({inner})"
+      | KTCustomType _ -> "Custom Type (TODO)"
+
+      | KTFn(args, ret) ->
+        NEList.toList args @ [ ret ] |> List.map toString |> String.concat " -> "
+
+      | KTPassword -> "Password"
+      | KTDB inner -> $"DB<{toString inner}>"
+
+
 /// VTTODO if this is used somewhere, re-evaluate the usage - it feels there's something to be done...
 /// CLEANUP eventually remove this binding
 let valueTypeTODO = ValueType.Unknown
@@ -556,8 +628,8 @@ and [<NoComparison>] Dval =
   | DList of ValueType * List<Dval>
   | DTuple of first : Dval * second : Dval * theRest : List<Dval>
   | DDict of
-    // _values_, not the keys. Once users can specify the key type, we likely will
-    // need to add a `keyType: ValueType` field here.
+    // this is the type of the _values_, not the keys. Once users can specify the
+    // key type, we likely will need to add a `keyType: ValueType` field here.
     valueType : ValueType *
     entries : DvalMap
 
@@ -574,7 +646,7 @@ and [<NoComparison>] Dval =
     // CLEANUP we may need a sourceTypeArgs here as well
     runtimeTypeName : TypeName.TypeName *
     sourceTypeName : TypeName.TypeName *
-    // VTTODO typeArgs : List<ValueType> *
+    typeArgs : List<ValueType> *
     caseName : string *
     fields : List<Dval>
 
@@ -682,7 +754,7 @@ module RuntimeError =
 
   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
     let typeName = name [] "Error" 0
-    DEnum(typeName, typeName, caseName, fields) |> RuntimeError
+    DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError
 
 
   let cliError field = case "CliError" [ field ]
@@ -853,7 +925,8 @@ module Dval =
       // TYPESCLEANUP: do we need to check fields?
       typeName = typeName'
 
-    | DEnum(typeName, _, casename, fields), TCustomType(Ok typeName', typeArgs) ->
+    | DEnum(typeName, _, _typeArgsTODO, casename, fields),
+      TCustomType(Ok typeName', typeArgs) ->
       // TYPESCLEANUP: should load type by name
       // TYPESCLEANUP: are we handling type arguments here?
       // TYPESCLEANUP: do we need to check fields?

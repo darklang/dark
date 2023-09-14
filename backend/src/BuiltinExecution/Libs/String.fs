@@ -14,6 +14,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
+module VT = ValueType
 module Errors = LibExecution.Errors
 
 
@@ -429,13 +430,14 @@ let fns : List<BuiltInFn> =
       description =
         "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"
       fn =
+        let optType = VT.string
         (function
         | _, _, [ DBytes bytes ] ->
           try
             let str = System.Text.UTF8Encoding(false, true).GetString bytes
-            Ply(Dval.optionSome (DString str))
+            Ply(Dval.optionSome optType (DString str))
           with e ->
-            Ply(Dval.optionNone)
+            Ply(Dval.optionNone optType)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -454,13 +456,14 @@ let fns : List<BuiltInFn> =
       description =
         "Returns {{Some index}} of the first occurrence of <param searchFor> in <param str>, or returns {{None}} if <param searchFor> does not occur."
       fn =
+        let optType = VT.int
         (function
         | _, _, [ DString str; DString search ] ->
           let index = str.IndexOf(search)
           if index = -1 then
-            Ply(Dval.optionNone)
+            Ply(Dval.optionNone optType)
           else
-            Ply(Dval.optionSome (DInt index))
+            Ply(Dval.optionSome optType (DInt index))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -474,13 +477,14 @@ let fns : List<BuiltInFn> =
       description =
         "Returns {{Some char}} of the first character of <param str>, or returns {{None}} if <param str> is empty."
       fn =
+        let optType = VT.char
         (function
         | _, _, [ DString str ] ->
           if str = "" then
-            Ply(Dval.optionNone)
+            Ply(Dval.optionNone optType)
           else
             let head = String.toEgcSeq str |> Seq.head
-            Ply(Dval.optionSome (DChar head))
+            Ply(Dval.optionSome optType (DChar head))
         | _ -> incorrectArgs ())
 
       sqlSpec = NotYetImplemented

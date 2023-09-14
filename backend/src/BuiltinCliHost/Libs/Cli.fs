@@ -11,6 +11,7 @@ open LibExecution.Builtin.Shortcuts
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
+module VT = ValueType
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module Exe = LibExecution.Execution
@@ -31,7 +32,6 @@ module CliRuntimeError =
   module RTE =
     module Error =
       let toDT (et : Error) : RT.Dval =
-        let nameTypeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
         let caseName, fields =
           match et with
           | NoExpressionsToExecute -> "NoExpressionsToExecute", []
@@ -46,17 +46,17 @@ module CliRuntimeError =
                 )
               )
 
-            "UncaughtException", [ "msg", DString msg; "metadata", metadata ]
+            "UncaughtException", [ DString msg; metadata ]
 
           | MultipleExpressionsToExecute exprs ->
             "MultipleExpressionsToExecute",
-            [ "exprs", Dval.list valueTypeTODO (List.map DString exprs) ]
+            [ Dval.list VT.string (List.map DString exprs) ]
 
           | NonIntReturned actuallyReturned ->
-            "NonIntReturned",
-            [ "actuallyReturned", RT2DT.Dval.toDT actuallyReturned ]
+            "NonIntReturned", [ RT2DT.Dval.toDT actuallyReturned ]
 
-        Dval.enum nameTypeName nameTypeName caseName []
+        let typeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
+        Dval.enum typeName typeName (Some []) caseName fields
 
 
     let toRuntimeError (e : Error) : RT.RuntimeError =
@@ -149,7 +149,10 @@ let fns : List<BuiltInFn> =
       description = "Parses and executes arbitrary Dark code"
       fn =
         function
-        | state, [], [ DString filename; DString code; DDict(_vtTODO, symtable) ] ->
+        | state, [], [ DString filename; DString code; DDict(_, symtable) ] ->
+          let okType = VT.int
+          let errType = VT.unknownTODO
+
           uply {
             let exnError (e : exn) : RuntimeError =
               let msg = Exception.getMessages e |> String.concat "\n"
@@ -173,17 +176,20 @@ let fns : List<BuiltInFn> =
               match parsedScript with
               | Ok mod' ->
                 match! execute state mod' symtable with
-                | DInt i -> return Dval.resultOk (DInt i)
-                | DError(_, e) -> return e |> RuntimeError.toDT |> Dval.resultError
+                | DInt i -> return Dval.resultOk okType errType (DInt i)
+                | DError(_, e) ->
+                  return e |> RuntimeError.toDT |> Dval.resultError okType errType
                 | result ->
                   return
                     CliRuntimeError.NonIntReturned result
                     |> CliRuntimeError.RTE.toRuntimeError
                     |> RuntimeError.toDT
-                    |> Dval.resultError
-              | Error e -> return e |> RuntimeError.toDT |> Dval.resultError
+                    |> Dval.resultError okType errType
+              | Error e ->
+                return e |> RuntimeError.toDT |> Dval.resultError okType errType
             with e ->
-              return exnError e |> RuntimeError.toDT |> Dval.resultError
+              return
+                exnError e |> RuntimeError.toDT |> Dval.resultError okType errType
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -204,15 +210,18 @@ let fns : List<BuiltInFn> =
       fn =
         function
         | state, [], [ DString functionName; DList(_vtTODO, args) ] ->
+          let okType = VT.string
+          let errType = VT.unknownTODO
           uply {
             let err (msg : string) (metadata : List<string * string>) =
               let metadata = metadata |> List.map (fun (k, v) -> k, DString v)
-              Dval.resultError (
-                Dval.record
+              Dval.resultError
+                okType
+                errType
+                (Dval.record
                   (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
                   [ "msg", DString msg
-                    "metadata", Dval.dict valueTypeTODO metadata ]
-              )
+                    "metadata", Dval.dict valueTypeTODO metadata ])
 
             let exnError (e : exn) : Dval =
               let msg = Exception.getMessages e |> String.concat "\n"
@@ -301,10 +310,10 @@ let fns : List<BuiltInFn> =
                         |> RuntimeError.toDT
                         |> LibExecution.DvalReprDeveloper.toRepr
                         |> DString
-                        |> Dval.resultError
+                        |> Dval.resultError okType errType
                     | value ->
                       let asString = LibExecution.DvalReprDeveloper.toRepr value
-                      return Dval.resultOk (DString asString)
+                      return Dval.resultOk okType errType (DString asString)
               | _ -> return incorrectArgs ()
             with e ->
               return exnError e

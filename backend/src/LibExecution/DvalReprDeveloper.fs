@@ -167,7 +167,15 @@ let toRepr (dv : Dval) : string =
         let elems = String.concat $",{inl}" strs
         "{" + $"{inl}{elems}{nl}" + "}"
     | DBytes bytes -> Base64.defaultEncodeToString bytes
-    | DEnum(_, typeName, caseName, fields) ->
+    | DEnum(_, typeName, typeArgs, caseName, fields) ->
+      let typeArgsPart =
+        match typeArgs with
+        | [] -> ""
+        | typeArgs ->
+          typeArgs
+          |> List.map ValueType.toString
+          |> String.concat ", "
+          |> fun parts -> $"<{parts}>"
       let short =
         let fieldStr =
           fields
@@ -177,7 +185,7 @@ let toRepr (dv : Dval) : string =
         let fieldStr = if fieldStr = "" then "" else $"({fieldStr})"
 
         let typeStr = TypeName.toString typeName
-        $"{typeStr}.{caseName}{fieldStr}"
+        $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
       if String.length short <= 80 then
         short
@@ -190,7 +198,7 @@ let toRepr (dv : Dval) : string =
         let fieldStr = if fieldStr = "" then "" else $"({inl}{fieldStr}{nl})"
 
         let typeStr = TypeName.toString typeName
-        $"{typeStr}.{caseName}{fieldStr}"
+        $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
 
   toRepr_ 0 dv

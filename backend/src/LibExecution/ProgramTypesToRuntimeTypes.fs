@@ -412,6 +412,7 @@ module Const =
       RT.DEnum(
         TypeName.toRT typeName,
         TypeName.toRT typeName,
+        RT.valueTypesTODO,
         caseName,
         List.map toRT fields
       )

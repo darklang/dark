@@ -10,6 +10,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
+module VT = ValueType
 
 let varA = TVariable "a"
 
@@ -92,14 +93,15 @@ let fns : List<BuiltInFn> =
 
          This function is the inverse of <fn Math.cos>."
       fn =
+        let optType = VT.unknownTODO
         (function
         | _, _, [ DFloat r ] ->
           let res = System.Math.Acos r in
 
           if System.Double.IsNaN res then
-            Ply(Dval.optionNone)
+            Ply(Dval.optionNone optType)
           else
-            Ply(Dval.optionSome (DFloat res))
+            Ply(Dval.optionSome optType (DFloat res))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -109,7 +111,7 @@ let fns : List<BuiltInFn> =
     { name = fn "asin" 0
       typeParams = []
       parameters = [ Param.make "ratio" TFloat "" ]
-      returnType = TypeReference.option varA
+      returnType = TypeReference.option TFloat
       description =
         "Returns the arc sine of <param ratio>, as an <type Option>.
 
@@ -119,14 +121,15 @@ let fns : List<BuiltInFn> =
 
          This function is the inverse of <fn Math.sin>."
       fn =
+        let optType = VT.float
         (function
         | _, _, [ DFloat r ] ->
           let res = System.Math.Asin r in
 
           if System.Double.IsNaN res then
-            Ply(Dval.optionNone)
+            Ply(Dval.optionNone optType)
           else
-            Ply(Dval.optionSome (DFloat res))
+            Ply(Dval.optionSome optType (DFloat res))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
