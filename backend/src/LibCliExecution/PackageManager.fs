@@ -687,9 +687,18 @@ let packageManager : RT.PackageManager =
 
       let! responseStr = response.Content.ReadAsStringAsync()
       try
-        let deserialized = responseStr |> Json.Vanilla.deserialize<'serverType>
-        let cached = f deserialized
-        return Some cached
+        if response.StatusCode = System.Net.HttpStatusCode.OK then
+          let deserialized = responseStr |> Json.Vanilla.deserialize<'serverType>
+          let cached = f deserialized
+          return Some cached
+        else if response.StatusCode = System.Net.HttpStatusCode.NotFound then
+          return None
+        else
+          return
+            Exception.raiseInternal
+              "Failed to fetch package"
+              [ "responseStr", responseStr ]
+              null
       with e ->
         return
           Exception.raiseInternal
