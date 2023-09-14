@@ -145,8 +145,9 @@ module AccessRecordInGenericField =
 
    Builtin.DB.query TestRecordWithNestedRecordThing (fun p -> p.name == nestedValue)) = [ GenericThing
                                                                                             { name =
-                                                                                                { nested =
-                                                                                                    "joe" } } ]
+                                                                                                RecordThing
+                                                                                                  { nested =
+                                                                                                      "joe" } } ]
 
 module AddToTestEnumDBs =
   (let test1 =
