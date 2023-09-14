@@ -298,8 +298,6 @@ module Darklang =
           let indent = indent + 2
 
           let valueTypeName = valueTypeName dv
-          //let wrap (str: String) = $"<{valueTypeName}: {str}>"
-          // let justType = $"<{typename}>"
 
           match dv with
           | DUnit -> "()"
@@ -366,17 +364,19 @@ module Darklang =
             let typeStr = typeName typeName
             typeStr ++ " {" ++ inl ++ elems ++ nl ++ "}"
 
-          // | DDict o ->
-          //   if Map.isEmpty o then
-          //     "{}"
-          //   else
-          //     let strs =
-          //       o
-          //       |> Map.toList
-          //       |> PACKAGE.Darklang.Stdlib.List.map (fun (key, value) -> ($"{key}: {withIndent indent value}"))
+          | DDict d ->
+            if d == Builtin.Dict.empty then
+              "{}"
+            else
+              let strs =
+                d
+                |> PACKAGE.Darklang.Stdlib.Dict.toList
+                |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
+                  let (key, value) = pair
+                  $"{key}: {withIndent indent value}")
 
-          //     let elems = PACKAGE.Darklang.Stdlib.String.concat $",{inl}" strs
-          //     "{" + $"{inl}{elems}{nl}" + "}"
+              let elems = PACKAGE.Darklang.Stdlib.String.join strs $",{inl}"
+              "{" ++ inl ++ elems ++ nl ++ "}"
 
           | DEnum(_, typeName, caseName, fields) ->
             let short =
