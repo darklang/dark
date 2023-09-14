@@ -1,4 +1,4 @@
-/// Interprets Dark expressions resulting in (tasks of) Dvals
+﻿/// Interprets Dark expressions resulting in (tasks of) Dvals
 module LibExecution.Interpreter
 
 open System.Threading.Tasks
@@ -635,7 +635,7 @@ let rec eval'
             (allVars, (id, dincomplete state id) :: allSubTraces)
 
           match dv with
-          | DEnum(_dTypeName, _oTypeName, dCaseName, dFields) ->
+          | DEnum(_dTypeName, _oTypeName, _typeArgsTODO, dCaseName, dFields) ->
             if caseName <> dCaseName then
               let (allVars, allSubTraces) = traceFields ()
               Ok false, allVars, allSubTraces
@@ -926,7 +926,12 @@ let rec eval'
             match fieldsMaybe with
             | Error firstFakeDvalField -> return firstFakeDvalField
             | Ok fields ->
-              return Dval.enum resolvedTypeName sourceTypeName caseName fields
+              let typeArgs =
+                // problematic if wrong length (it usually is)
+                Dval.valueTypeArgsTODO
+
+              return
+                Dval.enum resolvedTypeName sourceTypeName typeArgs caseName fields
 
     | EError(id, rte, exprs) ->
       let! args = Ply.List.mapSequentially (eval state tst st) exprs
