@@ -190,11 +190,13 @@ let escapeFieldname (str : string) : string =
 //  evaluation. We expect users to write pure code in here, and if they don't
 //  we can solve that in the next version.
 let rec inline'
+  (fns : Functions)
   (paramName : string)
   (symtable : Map<string, Expr>)
   (expr : Expr)
-  : Expr =
-  RuntimeTypesAst.postTraversal
+  : Ply<Expr> =
+  let identityPly x = uply { return x }
+  RuntimeTypesAst.postTraversalAsync
     (fun expr ->
 
       let rec mapLetPattern
@@ -219,28 +221,62 @@ let rec inline'
 
           | _ -> error "Expected a tuple"
 
-
-
       match expr with
-      | ELet(_, lpVariable, expr, body) ->
+      | EApply(_, EFnName(_, (fnName)), [], args) ->
+          uply {
+            let! arguments = Ply.List.mapSequentially (inline' fns paramName symtable) (args |> NEList.toList)
+            let nameStr = FnName.toString fnName
+            match fnName with
+            | FQName.Package p ->
+                match! fns.package p with
+                | Some fn ->
+                  let parameters =
+                    fn.parameters
+                    |> NEList.toList
+                    |> List.map (fun p -> p.name, p.typ)
+                  let body = fn.body
+                  let paramToArgMap =
+                    List.zip parameters arguments
+                    |> List.map (fun ((name, _), arg) -> name, arg)
+                    |> Map.ofList
+                  let! inlinedBody = inline' fns paramName paramToArgMap body
+                  return inlinedBody
+                | None ->
+                  return expr
+              | _ ->
+                return expr
+          }
+      | ELet (_, lpVariable, expr, body) ->
         let newMap = mapLetPattern symtable (expr, lpVariable)
-
-        inline' paramName newMap body
-
+        inline' fns paramName newMap body
       | EVariable(_, name) as expr when name <> paramName ->
-        (match Map.get name symtable with
-         | Some found -> found
-         | None ->
+        match Map.get name symtable with
+        | Some found ->
+          uply {
+            return found
+          }
+        | None ->
            // the variable might be in the symtable, so put it back to fill in later
-           expr)
+            uply {
+              return expr
+            }
+      | EFieldAccess (id, expr, fieldname) ->
+        uply {
+          let! newexpr = inline' fns paramName symtable expr
+          return EFieldAccess (id,newexpr, fieldname)
+        }
+      | expr ->
+          uply {
+            return expr
+          }
 
-      | expr -> expr)
-    identity
-    identity
-    identity
-    identity
-    identity
-    identity
+    )
+    identityPly
+    identityPly
+    identityPly
+    identityPly
+    identityPly
+    identityPly
     expr
 
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
@@ -257,76 +293,6 @@ let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
 type CompiledSqlQuery =
   { sql : string; vars : List<string * SqlValue>; actualType : TypeReference }
 
-// TODO: Handle these with inlining
-let sqlOpForPackageFunction (fnName : FnName.Package) : SqlSpec =
-  match fnName.owner, fnName.modules, fnName.name with
-  | "Darklang", [ "Stdlib"; "Bool" ], FnName.FnName "and" -> SqlBinOp "AND"
-  | "Darklang", [ "Stdlib"; "Bool" ], FnName.FnName "or" -> SqlBinOp "OR"
-  | "Darklang", [ "Stdlib"; "Bool" ], FnName.FnName "not" -> SqlFunction "NOT"
-  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "contains" ->
-    SqlCallback2(fun lookingIn searchingFor ->
-      // strpos returns indexed from 1; 0 means missing
-      $"strpos({lookingIn}, {searchingFor}) > 0")
-  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "replaceAll" ->
-    SqlFunction "replace"
-  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "toUppercase" ->
-    SqlFunction "upper"
-  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "toLowercase" ->
-    SqlFunction "lower"
-  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "reverse" ->
-    SqlFunction "reverse"
-  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "trim" -> SqlFunction "trim"
-  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "trimStart" ->
-    SqlFunction "ltrim"
-  | "Darklang", [ "Stdlib"; "String" ], FnName.FnName "trimEnd" ->
-    SqlFunction "rtrim"
-  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "lessThan" -> SqlBinOp "<"
-  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "lessThanOrEqualTo" ->
-    SqlBinOp "<="
-  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "greaterThan" -> SqlBinOp ">"
-  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "greaterThanOrEqualTo" ->
-    SqlBinOp ">="
-  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "add" -> SqlBinOp "+"
-  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "subtract" -> SqlBinOp "-"
-  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "multiply" -> SqlBinOp "*"
-  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "divide" -> SqlBinOp "/"
-  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "power" -> SqlBinOp "^"
-  | "Darklang", [ "Stdlib"; "Int" ], FnName.FnName "mod" -> SqlBinOp "%"
-  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "lessThan" -> SqlBinOp "<"
-  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "lessThanOrEqualTo" ->
-    SqlBinOp "<="
-  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "greaterThan" -> SqlBinOp ">"
-  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "greaterThanOrEqualTo" ->
-    SqlBinOp ">="
-  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "add" -> SqlBinOp "+"
-  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "subtract" -> SqlBinOp "-"
-  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "multiply" -> SqlBinOp "*"
-  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "divide" -> SqlBinOp "/"
-  | "Darklang", [ "Stdlib"; "Float" ], FnName.FnName "power" -> SqlBinOp "^"
-  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "addSeconds" -> SqlBinOp "+"
-  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "subtractSeconds" ->
-    SqlBinOp "-"
-  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "lessThan" -> SqlBinOp "<"
-  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "lessThanOrEqualTo" ->
-    SqlBinOp "<="
-  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "greaterThan" -> SqlBinOp ">"
-  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "greaterThanOrEqualTo" ->
-    SqlBinOp ">="
-  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "year" ->
-    SqlFunctionWithPrefixArgs("date_part", [ "'year'" ])
-  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "month" ->
-    SqlFunctionWithPrefixArgs("date_part", [ "'month'" ])
-  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "day" ->
-    SqlFunctionWithPrefixArgs("date_part", [ "'day'" ])
-  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "hour" ->
-    SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
-  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "minute" ->
-    SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
-  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "second" ->
-    SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
-  | "Darklang", [ "Stdlib"; "DateTime" ], FnName.FnName "atStartOfDay" ->
-    SqlFunctionWithPrefixArgs("date_trunc", [ "'day'" ])
-  | _ -> NotQueryable
 
 
 /// Generate SQL from an Expr. This expects that all the hard stuff has been
@@ -398,17 +364,7 @@ let rec lambdaToSql
                   let parameters = fn.parameters |> List.map (fun p -> p.name, p.typ)
                   return fn.returnType, parameters, fn.sqlSpec
                 | None -> return error $"Builtin functions {nameStr} not found"
-              | FQName.Package p ->
-                match! fns.package p with
-                | Some fn ->
-                  let parameters =
-                    fn.parameters
-                    |> NEList.toList
-                    |> List.map (fun p -> p.name, p.typ)
-                  let sqlSpec = sqlOpForPackageFunction fn.name
-                  return fn.returnType, parameters, sqlSpec
-                | None -> return error $"Package functions {nameStr} not found"
-              | FQName.UserProgram u -> return error $"Todo: user program {u}"
+              | u -> return error $"Todo: user program {u}"
             }
 
           typecheck nameStr returnType expectedType
@@ -739,6 +695,21 @@ let rec lambdaToSql
           | _ ->
             return
               error $"We do not support this type of DB field yet: {dbFieldType}"
+        | EIf (_, cond, then_, else_) ->
+          let! cond = lts TBool cond
+          let! then_ = lts expectedType then_
+          let! else_ =
+            match else_ with
+            | Some e -> lts expectedType e
+            | None -> error $"We do not yet support compiling this code: {expr}"
+          typecheck "if condition" cond.actualType TBool
+          typecheck "if then" then_.actualType expectedType
+          typecheck "if else" else_.actualType expectedType
+          return
+            ( $"(CASE WHEN {cond.sql} THEN {then_.sql} ELSE {else_.sql} END)"
+            , cond.vars @ then_.vars @ else_.vars
+            , expectedType )
+
         | _ -> return error $"We do not yet support compiling this code: {expr}"
       }
 
@@ -1000,19 +971,20 @@ let compileLambda
   : Ply<Result<CompileLambdaResult, RuntimeError>> =
   uply {
     try
+      let fns = ExecutionState.availableFunctions state
+      let types = ExecutionState.availableTypes state
+      let constants = ExecutionState.availableConstants state
+
       let! symtable, body =
         body
         // Simplify for later passes
         |> canonicalize
         // Inline the RHS of any let within the lambda body. See comment for more
         // details.
-        |> inline' paramName Map.empty
+        |> inline' fns paramName Map.empty
         // Replace expressions which can be calculated now with their result. See
         // comment for more details.
-        |> partiallyEvaluate state tst symtable paramName
-      let types = ExecutionState.availableTypes state
-      let fns = ExecutionState.availableFunctions state
-      let constants = ExecutionState.availableConstants state
+        |> Ply.bind (partiallyEvaluate state tst symtable paramName)
 
       let! compiled =
         lambdaToSql fns types constants tst symtable paramName dbType TBool body
