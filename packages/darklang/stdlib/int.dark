@@ -3,10 +3,10 @@ module Darklang =
     module Int =
 
       /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-      ///The modulus <param b> must be 0 or negative.
+      /// The modulus <param b> must be 0 or negative.
       /// Use <fn Int.remainder> if you want the remainder after division, which has
       /// a different behavior for negative numbers.
-      let ``mod`` (a: Int) (b: Int) : Int = Builtin.Int.``mod`` a b
+      let ``mod`` (a: Int) (b: Int) : Int = a % b
 
 
       /// Returns the integer remainder left over after dividing <param value> by
@@ -23,15 +23,15 @@ module Darklang =
 
 
       /// Adds two integers together
-      let add (a: Int) (b: Int) : Int = Builtin.Int.add a b
+      let add (a: Int) (b: Int) : Int = a + b
 
 
       /// Subtracts two integers
-      let subtract (a: Int) (b: Int) : Int = Builtin.Int.subtract a b
+      let subtract (a: Int) (b: Int) : Int = a - b
 
 
       /// Multiplies two integers
-      let multiply (a: Int) (b: Int) : Int = Builtin.Int.multiply a b
+      let multiply (a: Int) (b: Int) : Int = a * b
 
 
       /// Divides two integers
@@ -45,7 +45,7 @@ module Darklang =
         (``base``: Int)
         (exponent: Int)
         : PACKAGE.Darklang.Stdlib.Result.Result<Int, String> =
-        Builtin.Int.power ``base`` exponent
+        ``base`` ^ exponent
 
 
       /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
@@ -53,24 +53,22 @@ module Darklang =
 
 
       /// Returns the negation of <param a>, {{-a}}
-      let negate (a: Int) : Int = Builtin.Int.negate a
+      let negate (a: Int) : Int = -a
 
 
       /// Returns {{true}} if <param a> is greater than <param b>
-      let greaterThan (a: Int) (b: Int) : Bool = Builtin.Int.greaterThan a b
+      let greaterThan (a: Int) (b: Int) : Bool = a > b
 
 
       /// Returns {{true}} if <param a> is greater than or equal to <param b>
-      let greaterThanOrEqualTo (a: Int) (b: Int) : Bool =
-        Builtin.Int.greaterThanOrEqualTo a b
+      let greaterThanOrEqualTo (a: Int) (b: Int) : Bool = a >= b
 
 
       /// Returns {{true}} if <param a> is less than <param b>
-      let lessThan (a: Int) (b: Int) : Bool = Builtin.Int.lessThan a b
+      let lessThan (a: Int) (b: Int) : Bool = a < b
 
       /// Returns {{true}} if <param a> is less than or equal to <param b>
-      let lessThanOrEqualTo (a: Int) (b: Int) : Bool =
-        Builtin.Int.lessThanOrEqualTo a b
+      let lessThanOrEqualTo (a: Int) (b: Int) : Bool = a <= b
 
 
       /// Returns a random integer between <param start> and <param end> (inclusive)

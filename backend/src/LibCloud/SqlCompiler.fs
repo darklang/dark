@@ -257,7 +257,7 @@ let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
 type CompiledSqlQuery =
   { sql : string; vars : List<string * SqlValue>; actualType : TypeReference }
 
-
+// TODO: Handle these with inlining
 let sqlOpForPackageFunction (fnName : FnName.Package) : SqlSpec =
   match fnName.owner, fnName.modules, fnName.name with
   | "Darklang", [ "Stdlib"; "Bool" ], FnName.FnName "and" -> SqlBinOp "AND"

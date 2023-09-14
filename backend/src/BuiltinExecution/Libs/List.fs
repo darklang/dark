@@ -230,21 +230,7 @@ let constants : List<BuiltInConstant> =
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "singleton" 0
-      typeParams = []
-      parameters = [ Param.make "val" (TVariable "a") "" ]
-      returnType = TList(TVariable "a")
-      description = "Returns a one-element list containing the given <param val>"
-      fn =
-        (function
-        | _, _, [ v ] -> Ply(Dval.list ValueType.Unknown [ v ])
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "uniqueBy" 0
+  [ { name = fn "uniqueBy" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""

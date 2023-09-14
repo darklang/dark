@@ -28,22 +28,7 @@ let constants : List<BuiltInConstant> =
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "singleton" 0
-      typeParams = []
-      parameters = [ Param.make "key" TString ""; Param.make "value" varA "" ]
-      returnType = TDict varA
-      description =
-        "Returns a dictionary with a single entry {{<param key>: <param value>}}"
-      fn =
-        (function
-        | _, _, [ DString k; v ] -> Ply(Dval.dict valueTypeTODO [ (k, v) ])
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "size" 0
+  [ { name = fn "size" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TInt
