@@ -1,0 +1,4 @@
+module Darklang =
+  module Stdlib =
+    module Fun =
+      let identity (value: 'a) : 'a = value
