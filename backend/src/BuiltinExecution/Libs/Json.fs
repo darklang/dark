@@ -84,7 +84,7 @@ let rec serialize
       else if System.Double.IsPositiveInfinity f then
         w.WriteStringValue "Infinity"
       else
-        let result = sprintf "%.12g" f
+        let result = sprintf "%.16g" f
         let result = if result.Contains "." then result else $"{result}.0"
         w.WriteRawValue result
 

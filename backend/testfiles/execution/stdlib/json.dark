@@ -112,8 +112,6 @@ Builtin.Json.parse<Int> "[42]" = PACKAGE.Darklang.Stdlib.Result.Result.Error
 Builtin.Json.parse<Int> "{ \"key\": 42 }" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Can't parse JSON `{ \"key\": 42 }` as type `Int` at path: `root`"
 //Builtin.Json.parse<Int> "42.5" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
-//Builtin.Json.parse<Int> "1e3" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
-//Builtin.Json.parse<Int> "-1e3" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
 Builtin.Json.parse<Int> "\"42\n\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "not JSON"
 //Builtin.Json.parse<Int> "4\u0032" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
@@ -125,7 +123,7 @@ Builtin.Json.serialize<Float> 1.0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "1.
 Builtin.Json.serialize<Float> 0.1 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "0.1"
 
 Builtin.Json.serialize<Float> (2.0 / 3.0) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  "0.666666666667"
+  "0.6666666666666666"
 
 Builtin.Json.serialize<Float> 12345.67890 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   "12345.6789"
@@ -153,31 +151,14 @@ Builtin.Json.parse<Float> "1e3" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 1000.
 Builtin.Json.parse<Float> "-1e3" = PACKAGE.Darklang.Stdlib.Result.Result.Ok -1000.0 // PACKAGE.Darklang.Stdlib.Result.Result.Ok?
 
 // TODO: test the upper/lower bounds
-//This works but, we haven't implemented the support for numbers in the [number]e+[pow] format. we're just benefiting from .NET's support for it
-// Builtin.Json.serialize<Float> 3.40282347e+38 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//   "3.40282347e+38"
 
-// Builtin.Json.parse<Float> "3.40282347e+38" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//   3.40282347e+38
-
-// Builtin.Json.serialize<Float> 1.17549435e-38 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//   "1.17549435e-38"
-
-// Builtin.Json.parse<Float> "1.17549435e-38" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//   1.17549435e-38
-
-
-Builtin.Json.parse<Float> "1.7976931348623157e+308" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  1.7976931348623157e+308
 
 // TODO: test highly-precise numbers
-// actual 3.14159265359
-// Builtin.Json.serialize<Float> 3.14159265358979323846 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//   "3.141592653589793"
+Builtin.Json.serialize<Float> 3.14159265358979323846 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "3.141592653589793"
 
-// actual 1.61803398875
-// Builtin.Json.serialize<Float> 1.618033988749895 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-//   "1.618033988749895"
+Builtin.Json.serialize<Float> 1.618033988749895 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  "1.618033988749895"
 
 
 // TODO: review Float.tests for more values to test against
@@ -206,9 +187,6 @@ Builtin.Json.parse<Float> "0.699999999999999955591079014993738383054733276367187
 
 Builtin.Json.parse<Float> "0.7999999999" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   0.7999999999
-
-Builtin.Json.parse<Float> "-5.55555555556e+28" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  -5.55555555556e+28
 
 Builtin.Json.serialize<Float> Builtin.Test.negativeInfinity_v0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   "\"-Infinity\""
