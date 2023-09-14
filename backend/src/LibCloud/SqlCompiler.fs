@@ -56,7 +56,6 @@ let rec dvalToSql
     | _, DDict _ // CLEANUP allow
     | _, DPassword _ // CLEANUP allow
     | _, DBytes _ // CLEANUP allow
-    | _, DEnum _ // TODO: revisit
     | _, DTuple _ -> // CLEANUP allow
       return error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
     | TVariable _, DRecord(typeName, _, _)
@@ -127,6 +126,7 @@ let rec dvalToSql
     | _, DUnit
     | _, DList _
     | _, DRecord _
+    | _, DEnum _
     | _, DDateTime _ ->
       return
         error3
