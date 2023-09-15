@@ -58,7 +58,7 @@ let rec dvalToSql
     | _, DBytes _ // CLEANUP allow
     | _, DTuple _ -> // CLEANUP allow
       return error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
-    | TVariable _, DRecord(typeName, _, _)
+    | TVariable _, DRecord(typeName, _, _, _)
     | TVariable _, DEnum(typeName, _, _, _) ->
       let! jsonString =
         DvalReprInternalQueryable.toJsonStringV0 types expectedType dval
@@ -627,7 +627,7 @@ let rec lambdaToSql
           | _ -> return error "Expected a List"
 
         | EEnum(_, typeName, caseName, []) ->
-          let dv = Dval.enum typeName caseName []
+          let dv = LibExecution.Dval.enum typeName typeName caseName []
           let typ = (TCustomType(Ok typeName, []))
           typecheck $"Enum '{dv}'" typ expectedType
           let! v = DvalReprInternalQueryable.toJsonStringV0 types typ dv
