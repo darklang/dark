@@ -4,7 +4,11 @@
 set -euo pipefail
 
 
-EXE="backend/Build/out/CanvasHack/Debug/net7.0/CanvasHack"
+if [[ "$PUBLISHED" == "true" ]]; then
+  EXE="backend/Build/out/CanvasHack/Release/net7.0/linux-x64/CanvasHack"
+else
+  EXE="backend/Build/out/CanvasHack/Debug/net7.0/CanvasHack"
+fi
 
 ./scripts/devcontainer/_wait-for-background-services postgresql
 

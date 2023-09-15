@@ -8,6 +8,7 @@ reset="\033[0m"
 
 TEST=false
 PUBLISHED=false
+PUBLISHED_FLAG=
 
 for i in "$@"
 do
@@ -16,7 +17,10 @@ do
     TEST=true
     shift
     ;;
-    --published) PUBLISHED=true ;;
+    --published)
+      PUBLISHED=true
+      PUBLISHED_FLAG=$i
+      ;;
   esac
 done
 
@@ -49,8 +53,8 @@ echo -e "Loading packages into DB ${grey}($LOG_DB)${reset}"
 
 if [[ "$TEST" != "true" ]]; then
   # make sure the target canvas exists and is cleared
-  ./scripts/run-canvas-hack dark-packages
+  ./scripts/run-canvas-hack $PUBLISHED_FLAG dark-packages
 
   echo -e "Loading packages into Dark canvas ${grey}($LOG_CANVAS)${reset}"
-  ./scripts/run-local-exec load-packages-dark > $LOG_CANVAS 2>&1
+  ./scripts/run-local-exec $PUBLISHED_FLAG load-packages-dark > $LOG_CANVAS 2>&1
 fi
