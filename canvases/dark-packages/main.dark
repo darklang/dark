@@ -157,17 +157,6 @@ let _handler _req =
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
-[<HttpHandler("GET", "/constant")>]
-let _handler _req =
-  let respBody =
-    (Builtin.DB.getAll PackageConstantDB)
-    |> PACKAGE.Darklang.Stdlib.List.map (fun c ->
-      PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageConstant c)
-    |> PACKAGE.Darklang.Stdlib.String.join "\n\n"
-    |> PACKAGE.Darklang.Stdlib.String.toBytes
-
-  PACKAGE.Darklang.Stdlib.Http.response respBody 200
-
 
 [<HttpHandler("GET", "/functions")>]
 let _handler _req =
