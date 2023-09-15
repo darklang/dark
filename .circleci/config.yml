@@ -200,8 +200,10 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper paket restore
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsdark.sln /p:DebugType=None /p:DebugSymbols=false
-      - run: scripts/run-backend-tests --published
+      # Do this first, needed by reload-packages, which is needed by run-backend-tests
       - run: scripts/run-backend-server --published
+      - run: scripts/run-backend-tests --published
+      # Test package manager/cli integration works
       - run: scripts/build/reload-packages --published
       - run: scripts/run-cli @Darklang.Stdlib.Float.add 1.9 2.0
       - assert-clean-worktree
