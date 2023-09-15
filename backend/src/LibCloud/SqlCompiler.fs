@@ -686,21 +686,6 @@ let rec lambdaToSql
           | _ ->
             return
               error $"We do not support this type of DB field yet: {dbFieldType}"
-        | EIf(_, cond, then_, else_) ->
-          let! cond = lts TBool cond
-          let! then_ = lts expectedType then_
-          let! else_ =
-            match else_ with
-            | Some e -> lts expectedType e
-            | None -> error $"We do not yet support compiling this code: {expr}"
-          typecheck "if condition" cond.actualType TBool
-          typecheck "if then" then_.actualType expectedType
-          typecheck "if else" else_.actualType expectedType
-          return
-            ($"(CASE WHEN {cond.sql} THEN {then_.sql} ELSE {else_.sql} END)",
-             cond.vars @ then_.vars @ else_.vars,
-             expectedType)
-
         | _ -> return error $"We do not yet support compiling this code: {expr}"
       }
 
