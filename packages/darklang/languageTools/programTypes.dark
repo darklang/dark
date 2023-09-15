@@ -104,6 +104,7 @@ module Darklang =
           caseName: String *
           fields: List<Const>
         | CList of List<Const>
+        | CDict of List<String * Const>
 
 
       type LetPattern =

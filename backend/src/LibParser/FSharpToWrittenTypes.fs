@@ -762,6 +762,7 @@ module Constant =
       | WT.EEnum(_, typeName, caseName, fields) ->
         WT.CEnum(typeName, caseName, List.map c fields)
       | WT.EList(_, items) -> WT.CList(List.map c items)
+      | WT.EDict(_, fields) -> WT.CDict(List.map (fun (k, v) -> (k, c v)) fields)
       | _ -> Exception.raiseInternal "Unsupported constant" [ "expr", expr ]
     expr |> Expr.fromSynExpr |> c
 

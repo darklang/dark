@@ -1,5 +1,5 @@
 module Empty =
-  Builtin.Dict.empty_v0 = Dict { }
+  PACKAGE.Darklang.Stdlib.Dict.empty = Dict { }
 
 
 module FilterMap =

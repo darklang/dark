@@ -861,7 +861,11 @@ module Const =
           Dval.list valueTypeTODO (List.map toDT fields) ]
       | PT.Const.CList(inner) ->
         "CList", [ Dval.list valueTypeTODO (List.map toDT inner) ]
-
+      | PT.Const.CDict(pairs) ->
+        "CDict",
+        [ Dval.list
+            valueTypeTODO
+            (pairs |> List.map (fun (k, v) -> DTuple(DString k, toDT v, []))) ]
     let typeName = ptTyp [] "Const" 0
     Dval.enum typeName typeName caseName fields
 
@@ -884,6 +888,24 @@ module Const =
       )
     | DEnum(_, _, "CList", [ DList(_vtTODO, inner) ]) ->
       PT.Const.CList(List.map fromDT inner)
+    | DEnum(_, _, "CDict", [ DList(_vtTODO, pairs) ]) ->
+      let pairs =
+        pairs
+        |> List.map (fun pair ->
+          match pair with
+          | DTuple(k, v, _) -> (fromDT k, fromDT v)
+          | _ -> Exception.raiseInternal "Invalid pair" [])
+      PT.Const.CDict(
+        List.map
+          (fun (k, v) ->
+            (match k with
+             | PT.Const.CString s -> s
+             | _ -> Exception.raiseInternal "Invalid key" []),
+            v)
+          pairs
+      )
+
+
     | _ -> Exception.raiseInternal "Invalid Const" []
 
 module Deprecation =

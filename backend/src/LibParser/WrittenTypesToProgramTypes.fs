@@ -364,6 +364,16 @@ module Const =
       | WT.CList items ->
         let! items = Ply.List.mapSequentially toPT items
         return PT.CList items
+      | WT.CDict items ->
+        let! items =
+          Ply.List.mapSequentially
+            (fun (key, value) ->
+              uply {
+                let! value = toPT value
+                return (key, value)
+              })
+            items
+        return PT.CDict items
       | WT.CUnit -> return PT.CUnit
     }
 
