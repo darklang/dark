@@ -10,6 +10,7 @@ do
   case "${i}" in
     --published)
       PUBLISHED=true
+      shift
       ;;
   esac
 done
