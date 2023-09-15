@@ -672,23 +672,33 @@ let packageManager : RT.PackageManager =
 
   let fetch
     (kind : string)
+    (owner : string)
+    (modules : List<string>)
     (name : string)
+    (version : int)
     (f : 'serverType -> 'cachedType)
     : Ply<Option<'cachedType>> =
     uply {
+      let modules = modules |> String.concat "."
+      let nameString = $"{owner}.{modules}.{name}_v{version}"
       let! response =
-        $"http://dark-packages.dlio.localhost:11003/{kind}/by-name/{name}"
+        $"http://dark-packages.dlio.localhost:11003/{kind}/by-name/{nameString}"
         |> httpClient.GetAsync
 
       let! responseStr = response.Content.ReadAsStringAsync()
       try
-        let deserialized =
-          responseStr |> Json.Vanilla.deserialize<Option<'serverType>>
-        match deserialized with
-        | None -> return None
-        | Some deserialized ->
+        if response.StatusCode = System.Net.HttpStatusCode.OK then
+          let deserialized = responseStr |> Json.Vanilla.deserialize<'serverType>
           let cached = f deserialized
           return Some cached
+        else if response.StatusCode = System.Net.HttpStatusCode.NotFound then
+          return None
+        else
+          return
+            Exception.raiseInternal
+              "Failed to fetch package"
+              [ "responseStr", responseStr ]
+              null
       with e ->
         return
           Exception.raiseInternal
@@ -698,34 +708,25 @@ let packageManager : RT.PackageManager =
     }
 
   { getType =
-      withCache (fun name ->
-        uply {
-          let nameString = RT.TypeName.packageToString name
-          let conversionFn (parsed : EPT.PackageType) : RT.PackageType.T =
-            parsed |> ET2PT.PackageType.toPT |> PT2RT.PackageType.toRT
-          return! fetch "type" nameString conversionFn
-        })
+      withCache (fun ({ name = RT.TypeName.TypeName typeName } as name) ->
+        let conversionFn (parsed : EPT.PackageType) : RT.PackageType.T =
+          parsed |> ET2PT.PackageType.toPT |> PT2RT.PackageType.toRT
+        fetch "type" name.owner name.modules typeName name.version conversionFn)
 
     getFn =
-      withCache (fun name ->
-        uply {
-          let nameString = RT.FnName.packageToString name
-          let conversionFn (parsed : EPT.PackageFn.PackageFn) : RT.PackageFn.T =
-            parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT
-          return! fetch "function" nameString conversionFn
-        })
+      withCache (fun ({ name = RT.FnName.FnName fnName } as name) ->
+        let conversionFn (parsed : EPT.PackageFn.PackageFn) : RT.PackageFn.T =
+          parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT
+        fetch "function" name.owner name.modules fnName name.version conversionFn)
 
     getFnByTLID =
       withCache (fun tlid ->
         uply { return Exception.raiseInternal "TODO getFnByTLID" [] })
 
     getConstant =
-      withCache (fun name ->
-        uply {
-          let nameString = RT.ConstantName.packageToString name
-          let conversionFn (parsed : EPT.PackageConstant) : RT.PackageConstant.T =
-            parsed |> ET2PT.PackageConstant.toPT |> PT2RT.PackageConstant.toRT
-          return! fetch "constant" nameString conversionFn
-        })
+      withCache (fun ({ name = RT.ConstantName.ConstantName constName } as name) ->
+        let conversionFn (parsed : EPT.PackageConstant) : RT.PackageConstant.T =
+          parsed |> ET2PT.PackageConstant.toPT |> PT2RT.PackageConstant.toRT
+        fetch "constant" name.owner name.modules constName name.version conversionFn)
 
     init = uply { return () } }

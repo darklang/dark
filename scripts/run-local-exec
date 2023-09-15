@@ -9,9 +9,9 @@ for i in "$@"
 do
   case "${i}" in
     --published)
-    PUBLISHED=true
-    shift
-    ;;
+      PUBLISHED=true
+      ;;
+    *) ARGS+=("${i}");;
   esac
 done
 
@@ -20,9 +20,9 @@ done
 ./scripts/run-cloud-storage-emulator
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  EXE="backend/Build/out/LocalExec/Release/net7.0/linux-x64/publish/LocalExec"
+  EXE="backend/Build/out/LocalExec/Release/net7.0/linux-x64/LocalExec"
 else
   EXE="backend/Build/out/LocalExec/Debug/net7.0/LocalExec"
 fi
 
-"${EXE}" "$@"
+"${EXE}" "${ARGS[@]}"

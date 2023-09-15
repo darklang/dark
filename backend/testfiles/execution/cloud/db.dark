@@ -104,27 +104,68 @@ module NestedRecordFieldAccess =
 
 
 // Query data from a type with generics
-type GenericThing<'a> = { name: 'a }
+type GenericThing<'thing> = { name: 'thing }
 type RecordWithGenericThing = GenericThing<String>
 
 [<DB>]
 type TestRecordWithGenericThing = RecordWithGenericThing
 
-// module AccessDataInGenericField =
-//   (Builtin.DB.set
-//     (RecordWithGenericThing { name = "joe" })
-//     "jjj"
-//     TestRecordWithGenericThing
+module AccessDataInGenericField =
+  (Builtin.DB.set
+    (RecordWithGenericThing { name = "joe" })
+    "jjj"
+    TestRecordWithGenericThing
 
-//    Builtin.DB.set
-//      (RecordWithGenericThing { name = "frank" })
-//      "fff"
-//      TestRecordWithGenericThing
+   Builtin.DB.set
+     (RecordWithGenericThing { name = "frank" })
+     "fff"
+     TestRecordWithGenericThing
 
-//    let shouldBeJustJoe =
-//      Builtin.DB.query TestRecordWithGenericThing (fun p -> p.name == "joe")
+   Builtin.DB.query TestRecordWithGenericThing (fun p -> p.name == "joe")) = [ RecordWithGenericThing
+                                                                                 { name =
+                                                                                     "joe" } ]
 
-//    PACKAGE.Darklang.Stdlib.List.length shouldBeJustJoe) = 1
+module AccessRecordInGenericField =
+  type RecordThing = { nested: String }
+
+  [<DB>]
+  type TestDB = GenericThing<RecordThing>
+
+
+  (Builtin.DB.set
+    (GenericThing { name = RecordThing { nested = "joe" } })
+    "jjj"
+    TestDB
+
+   Builtin.DB.set
+     (GenericThing { name = RecordThing { nested = "frank" } })
+     "fff"
+     TestDB
+
+   let nestedValue = RecordThing { nested = "joe" }
+
+   Builtin.DB.query TestDB (fun p -> p.name == nestedValue)) = [ GenericThing
+                                                                   { name =
+                                                                       RecordThing
+                                                                         { nested =
+                                                                             "joe" } } ]
+
+module AccessEnumInGenericField =
+  type EnumThing = A of String
+
+  [<DB>]
+  type TestDB = GenericThing<EnumThing>
+
+
+  (Builtin.DB.set (GenericThing { name = EnumThing.A "joe" }) "jjj" TestDB
+   Builtin.DB.set (GenericThing { name = EnumThing.A "frank" }) "fff" TestDB
+
+   let nestedValue = EnumThing.A "joe"
+
+   Builtin.DB.query TestDB (fun p -> p.name == nestedValue)) = [ GenericThing
+                                                                   { name =
+                                                                       EnumThing.A
+                                                                         "joe" } ]
 
 
 module AddToTestEnumDBs =
@@ -180,16 +221,20 @@ module AddToTestEnumDBs =
                                                                              MyEnum2.F
                                                                                MyEnum.A ]
 
-  (let test1 = Builtin.DB.set MyEnum.D "test1" TestEnumDB2 in
-   (Builtin.DB.getAll TestEnumDB2)) = Builtin.Test.derrorMessage
-    "There is no case named `D` in MyEnum"
-
   (let testQuery =
     Builtin.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
 
    (Builtin.DB.query TestEnumDB (fun p -> p.x == "hello"))) = [ EnumTestRecord
                                                                   { x = "hello"
                                                                     y = MyEnum.A } ]
+
+  (let testQuery =
+    Builtin.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
+
+   (Builtin.DB.query TestEnumDB (fun p -> p.y == MyEnum.A))) = [ EnumTestRecord
+                                                                   { x = "hello"
+                                                                     y = MyEnum.A } ]
+
 
 
 type MyTlid =
@@ -315,16 +360,16 @@ module Roundtrip =
     //   Builtin.Test.derrorSqlMessage "Incorrect type in variable, expected Bool, but got a Error"
 
     fetch (fun p -> p.int == "str") = Builtin.Test.derrorSqlMessage
-      "Incorrect type in b, expected Int, but got a String"
+      "Incorrect type in String \"str\", expected Int, but got a String"
 
     fetch (fun p -> p.int != "str") = Builtin.Test.derrorSqlMessage
-      "Incorrect type in b, expected Int, but got a String"
+      "Incorrect type in String \"str\", expected Int, but got a String"
 
     fetch (fun p -> "str" == p.int) = Builtin.Test.derrorSqlMessage
-      "Incorrect type in b, expected String, but got a Int"
+      "Incorrect type in int, expected String, but got a Int"
 
     fetch (fun p -> "str" == p.int) = Builtin.Test.derrorSqlMessage
-      "Incorrect type in b, expected String, but got a Int"
+      "Incorrect type in int, expected String, but got a Int"
 
     fetch (fun p -> p.iNsEnSiTiVe == "iNsEnSiTiVe") = [ sample () ]
     fetch (fun p -> p.iNsEnSiTiVe != "iNsEnSiTiVe") = [ otherSample () ]

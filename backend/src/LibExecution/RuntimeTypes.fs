@@ -1355,12 +1355,12 @@ let rec getTypeReferenceFromAlias
   (typ : TypeReference)
   : Ply<Result<TypeReference, RuntimeError>> =
   match typ with
-  | TCustomType(Ok typeName, typeArgs) ->
+  | TCustomType(Ok outerTypeName, outerTypeArgs) ->
     uply {
-      match! Types.find typeName types with
-      | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
-        return!
-          getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
+      match! Types.find outerTypeName types with
+      | Some { definition = TypeDeclaration.Alias typ; typeParams = typeParams } as decl ->
+        let typ = Types.substitute typeParams outerTypeArgs typ
+        return! getTypeReferenceFromAlias types typ
       | _ -> return Ok typ
     }
 
