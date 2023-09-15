@@ -100,10 +100,7 @@ module Darklang =
 
 
       /// Returns the number of values in <param list>
-      let ``length`` (list: List<'a>) : Int =
-        match list with
-        | [] -> 0
-        | _ :: tail -> 1 + (PACKAGE.Darklang.Stdlib.List.length tail)
+      let ``length`` (list: List<'a>) : Int = Builtin.List.length_v0 list
 
 
       /// Returns a list of numbers where each element is {{1}} larger than the

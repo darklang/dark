@@ -277,6 +277,20 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "length" 0
+      typeParams = []
+      parameters = [ Param.make "list" (TList varA) "" ]
+      returnType = TInt
+      description = "Returns the number of values in <param list>"
+      fn =
+        (function
+        | _, _, [ DList(vt, l) ] -> Ply(Dval.int (l.Length))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     // TODO: type check to ensure `varA` is "comparable"
     { name = fn "unique" 0
       typeParams = []
