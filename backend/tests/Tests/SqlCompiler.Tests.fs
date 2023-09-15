@@ -158,7 +158,7 @@ let inlineWorksAtRoot =
         let! result = C.inline' fns "value" Map.empty expr
         return Expect.equalExprIgnoringIDs result expected
       }
-    return (result |> Ply.toTask |> Async.AwaitTask |> Async.RunSynchronously)
+    return! result |> Ply.toTask
   }
 
 let inlineWorksWithNested =
