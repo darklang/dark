@@ -131,8 +131,9 @@ let main (args : string[]) =
         do! seedCanvas canvasName
 
       | _ ->
+        let args = args |> Array.toList |> String.concat " "
         print
-          $"CanvasHack isn't sure what to do with these arguments.
+          $"CanvasHack isn't sure what to do with these arguments: [{args}]
           Currently expecting just '{CommandNames.import}'"
 
       NonBlockingConsole.wait ()

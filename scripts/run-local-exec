@@ -9,9 +9,9 @@ for i in "$@"
 do
   case "${i}" in
     --published)
-    PUBLISHED=true
-    shift
-    ;;
+      PUBLISHED=true
+      ;;
+    *) ARGS+=("${i}");;
   esac
 done
 
@@ -25,4 +25,4 @@ else
   EXE="backend/Build/out/LocalExec/Debug/net7.0/LocalExec"
 fi
 
-"${EXE}" "$@"
+"${EXE}" "${ARGS[@]}"
