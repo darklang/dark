@@ -103,6 +103,7 @@ module Darklang =
           NameResolution<TypeName.TypeName> *
           caseName: String *
           fields: List<Const>
+        | CList of List<Const>
 
 
       type LetPattern =

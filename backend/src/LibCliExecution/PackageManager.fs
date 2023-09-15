@@ -240,6 +240,8 @@ module ProgramTypes =
     | CUnit
     | CTuple of first : Const * second : Const * rest : List<Const>
     | CEnum of NameResolution<TypeName.TypeName> * caseName : string * List<Const>
+    | CList of List<Const>
+
 
   type PackageConstant =
     { tlid : TLID
@@ -633,6 +635,8 @@ module ExternalTypesToProgramTypes =
           caseName,
           List.map toPT fields
         )
+      | EPT.CList l -> PT.CList(List.map toPT l)
+
 
   module PackageConstant =
     let toPT (c : EPT.PackageConstant) : PT.PackageConstant.T =

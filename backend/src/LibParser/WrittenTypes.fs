@@ -193,7 +193,7 @@ type Const =
   | CUnit
   | CTuple of first : Const * second : Const * rest : List<Const>
   | CEnum of typeName : UnresolvedEnumTypeName * caseName : string * List<Const>
-
+  | CList of List<Const>
 
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }

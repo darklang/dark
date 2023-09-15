@@ -46,3 +46,4 @@ module Darklang =
       let charConst = 'c'
       let unitConst = ()
       let enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
+      let listConst = [ 1; 2; 3 ]

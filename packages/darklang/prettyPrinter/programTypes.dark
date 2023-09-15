@@ -437,6 +437,13 @@ module Darklang =
 
             $"{typeNamePart}.{caseName}({fieldPart})"
 
+        | CList items ->
+          items
+          |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.constant item)
+          |> PACKAGE.Darklang.Stdlib.String.join "; "
+          |> fun parts -> "[" ++ parts ++ "]"
+
         | _ -> "TODO"
 
 

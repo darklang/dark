@@ -761,6 +761,7 @@ module Constant =
         WT.CTuple(c first, c second, List.map c rest)
       | WT.EEnum(_, typeName, caseName, fields) ->
         WT.CEnum(typeName, caseName, List.map c fields)
+      | WT.EList(_, items) -> WT.CList(List.map c items)
       | _ -> Exception.raiseInternal "Unsupported constant" [ "expr", expr ]
     expr |> Expr.fromSynExpr |> c
 

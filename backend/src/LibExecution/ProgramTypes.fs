@@ -631,6 +631,7 @@ type Const =
   | CUnit
   | CTuple of first : Const * second : Const * rest : List<Const>
   | CEnum of NameResolution<TypeName.TypeName> * caseName : string * List<Const>
+  | CList of List<Const>
 
 module UserConstant =
   type T =

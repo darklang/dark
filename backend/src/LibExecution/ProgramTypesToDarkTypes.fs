@@ -859,6 +859,8 @@ module Const =
         [ NameResolution.toDT TypeName.toDT typeName
           DString caseName
           Dval.list valueTypeTODO (List.map toDT fields) ]
+      | PT.Const.CList(inner) ->
+        "CList", [ Dval.list valueTypeTODO (List.map toDT inner) ]
 
     let typeName = ptTyp [] "Const" 0
     Dval.enum typeName typeName caseName fields
@@ -880,6 +882,8 @@ module Const =
         caseName,
         List.map fromDT fields
       )
+    | DEnum(_, _, "CList", [ DList(_vtTODO, inner) ]) ->
+      PT.Const.CList(List.map fromDT inner)
     | _ -> Exception.raiseInternal "Invalid Const" []
 
 module Deprecation =
