@@ -40,18 +40,18 @@ else
   LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net7.0/LocalExec"
 fi
 
-echo "Waiting for BwdDangerServer to be ready"
-until curl -s -o /dev/null "localhost:${DARK_CONFIG_BWDSERVER_DANGER_KUBERNETES_PORT}" ; do
-  printf '.'
-  sleep 0.1
-done
-
-
 echo -e "Loading packages into DB ${grey}($LOG_DB)${reset}"
 "${LOCALEXEC_EXE}" load-packages > $LOG_DB 2>&1
 
 
 if [[ "$TEST" != "true" ]]; then
+
+  echo "Waiting for BwdDangerServer to be ready"
+  until curl -s -o /dev/null "localhost:${DARK_CONFIG_BWDSERVER_DANGER_KUBERNETES_PORT}" ; do
+    printf '.'
+    sleep 0.1
+  done
+
   # make sure the target canvas exists and is cleared
   ./scripts/run-canvas-hack "${PUBLISHED_FLAG}" dark-packages
 
