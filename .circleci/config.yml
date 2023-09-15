@@ -204,6 +204,7 @@ jobs:
 
       # Test package manager/cli integration works
       - run: scripts/run-backend-server --published
+      - run: sleep 5 # let migrations run
       - run: scripts/build/reload-packages --published
       - run: scripts/run-cli @Darklang.Stdlib.Float.add 1.9 2.0
 
