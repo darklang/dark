@@ -93,6 +93,13 @@ do
 done
 echo "Done waiting for compiled servers"
 
+# Wait for cloud-storage-emulator (can be slow on CI)
+echo "Waiting for cloud-storage-emulator"
+until curl -s -o /dev/null "localhost:4444" ; do
+  printf '.'
+  sleep 0.1
+done
+
 grey="\033[1;30m"
 reset="\033[0m"
 
