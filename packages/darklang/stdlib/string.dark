@@ -190,10 +190,7 @@ module Darklang =
 
       /// Checks if <param lookingIn> contains <param searchingFor>
       let contains (lookingIn: String) (searchingFor: String) : Bool =
-        if (Builtin.String.indexOf lookingIn searchingFor) == -1 then
-          false
-        else
-          true
+        Builtin.String.indexOf lookingIn searchingFor != -1
 
 
       /// Returns the substring of <param string> between the <param from> and <param to> indices.
