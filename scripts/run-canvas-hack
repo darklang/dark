@@ -3,6 +3,17 @@
 
 set -euo pipefail
 
+PUBLISHED=false
+
+for i in "$@"
+do
+  case "${i}" in
+    --published)
+      PUBLISHED=true
+      ;;
+  esac
+done
+
 
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE="backend/Build/out/CanvasHack/Release/net7.0/linux-x64/CanvasHack"
