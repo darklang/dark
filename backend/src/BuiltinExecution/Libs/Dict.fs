@@ -20,12 +20,7 @@ let constant = constant modules
 
 let types : List<BuiltInType> = []
 
-let constants : List<BuiltInConstant> =
-  [ { name = constant "empty" 0
-      typ = TDict varA
-      description = "Returns an empty dictionary"
-      body = Dval.dict ValueType.Unknown []
-      deprecated = NotDeprecated } ]
+let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "size" 0
