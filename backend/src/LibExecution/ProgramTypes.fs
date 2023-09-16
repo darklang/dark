@@ -381,7 +381,6 @@ type TypeReference =
   | TDB of TypeReference
   | TDateTime
   | TChar
-  | TPassword
   | TUuid
   | TBytes
   // A named variable, eg `a` in `List<a>`, matches anything

@@ -136,7 +136,6 @@ module FormatV0 =
         | KTUuid
         | KTBytes
         | KTDateTime
-        | KTPassword
 
         | KTList of ValueType
         | KTTuple of ValueType * ValueType * List<ValueType>
@@ -159,7 +158,6 @@ module FormatV0 =
         | KTUuid -> RT.KTUuid
         | KTBytes -> RT.KTBytes
         | KTDateTime -> RT.KTDateTime
-        | KTPassword -> RT.KTPassword
 
         | KTList vt -> RT.KTList(ValueType.toRT vt)
         | KTTuple(vt1, vt2, vts) ->
@@ -189,7 +187,6 @@ module FormatV0 =
         | RT.KTUuid -> KTUuid
         | RT.KTBytes -> KTBytes
         | RT.KTDateTime -> KTDateTime
-        | RT.KTPassword -> KTPassword
 
         | RT.KTList vt -> KTList(ValueType.fromRT vt)
         | RT.KTTuple(vt1, vt2, vts) ->
@@ -247,7 +244,6 @@ module FormatV0 =
     | DDict of ValueType.ValueType * DvalMap
     | DDB of string
     | DDateTime of NodaTime.LocalDateTime
-    | DPassword of byte array // We are allowed serialize this here, so don't use the Password type which doesn't deserialize
     | DUuid of System.Guid
     | DBytes of byte array
     | DRecord of
@@ -282,7 +278,6 @@ module FormatV0 =
     | DDateTime d -> RT.DDateTime d
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
-    | DPassword pw -> RT.DPassword(Password pw)
     | DList(typ, l) -> RT.DList(ValueType.toRT typ, List.map toRT l)
     | DTuple(first, second, theRest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)
@@ -323,7 +318,6 @@ module FormatV0 =
     | RT.DDateTime d -> DDateTime d
     | RT.DDB name -> DDB name
     | RT.DUuid uuid -> DUuid uuid
-    | RT.DPassword(Password pw) -> DPassword pw
     | RT.DList(typ, l) -> DList(ValueType.fromRT typ, List.map fromRT l)
     | RT.DTuple(first, second, theRest) ->
       DTuple(fromRT first, fromRT second, List.map fromRT theRest)
@@ -379,8 +373,7 @@ module Test =
     | RT.DBool _
     | RT.DChar _
     | RT.DBytes _
-    | RT.DDateTime _
-    | RT.DPassword _ -> true
+    | RT.DDateTime _ -> true
     | RT.DEnum(_typeName, _, _caseName, fields) ->
       List.all isRoundtrippableDval fields
     | RT.DList(_, dvals) -> List.all isRoundtrippableDval dvals

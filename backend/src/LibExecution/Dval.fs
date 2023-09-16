@@ -47,7 +47,6 @@ let rec private valueTypeToString (vt : ValueType) : string =
     | KTUuid -> "Uuid"
     | KTBytes -> "Bytes"
     | KTDateTime -> "DateTime"
-    | KTPassword -> "Password"
     | KTList inner -> $"List<{valueTypeToString inner}>"
     | KTTuple _ -> "Tuple (TODO)"
     | KTFn _ -> "Fn (TODO)"
@@ -104,9 +103,6 @@ let rec mergeKnownTypes
     match argsMerged, retMerged with
     | Ok args, Ok ret -> Ok(KTFn(args, ret))
     | _ -> Error()
-
-
-  | KTPassword, KTPassword -> KTPassword |> Ok
 
   | _ -> Error()
 
@@ -168,7 +164,6 @@ let rec toValueType (dv : Dval) : ValueType =
 
   // CLEANUP follow up when DDB has a typeReference
   | DDB _ -> ValueType.Unknown
-  | DPassword _ -> ValueType.Known KTPassword
 
   | DError _ -> Exception.raiseInternal "DError is being moved out of Dval" []
 

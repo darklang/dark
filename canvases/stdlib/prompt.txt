@@ -131,7 +131,6 @@ type DType =
   | TUuid
   | TBytes
   | TDateTime
-  | TPassword
 
   // nested types
   | TList of DType
@@ -183,7 +182,6 @@ and [<NoComparison>] Dval =
 
   | DDB of string
   | DDateTime of DarkDateTime.T
-  | DPassword of Password
   | DUuid of System.Guid
   | DBytes of byte array
 

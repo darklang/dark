@@ -22,7 +22,6 @@ let rec typeName (t : TypeReference) : string =
   | TVariable varname -> $"'{varname}"
   | TDB _ -> "Datastore"
   | TDateTime -> "DateTime"
-  | TPassword -> "Password"
   | TUuid -> "Uuid"
   | TCustomType(Ok t, typeArgs) ->
     let typeArgsPortion =
@@ -47,7 +46,6 @@ let rec knownTypeName (vt : KnownType) : string =
   | KTChar -> "Char"
   | KTString -> "String"
   | KTDateTime -> "DateTime"
-  | KTPassword -> "Password"
   | KTUuid -> "Uuid"
   | KTBytes -> "Bytes"
 
@@ -89,7 +87,7 @@ let toTypeName (dv : Dval) : string = dv |> Dval.toValueType |> valueTypeName
 
 // SERIALIZER_DEF Custom DvalReprDeveloper.toRepr
 /// For printing something for the developer to read, as a live-value, error
-/// message, etc. Redacts passwords.
+/// message, etc.
 ///
 /// Customers should not come to rely on this format. Do not use in stdlib fns
 /// or other places a developer could rely on it (i.e. telemetry and error
@@ -105,7 +103,6 @@ let toRepr (dv : Dval) : string =
     let justType = $"<{typename}>"
 
     match dv with
-    | DPassword _ -> "<password>"
     | DString s -> $"\"{s}\""
     | DChar c -> $"'{c}'"
     | DInt i -> string i

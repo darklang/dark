@@ -98,9 +98,6 @@ let rec serialize
     | TBytes, DBytes bytes ->
       bytes |> Base64.defaultEncodeToString |> w.WriteStringValue
 
-    | TPassword, DPassword(Password hashed) ->
-      hashed |> Base64.defaultEncodeToString |> w.WriteStringValue
-
 
     // Nested types
     | TList ltype, DList(_, l) ->
@@ -240,7 +237,6 @@ let rec serialize
     | TUuid, _
     | TBytes, _
     | TDateTime, _
-    | TPassword, _
     | TList _, _
     | TTuple _, _
     | TFn _, _
@@ -382,9 +378,6 @@ let parse
         JsonParseError.CantMatchWithType(TDateTime, j.GetRawText(), pathSoFar)
         |> JsonParseError.JsonParseException
         |> raise
-
-    | TPassword, JsonValueKind.String ->
-      j.GetString() |> Base64.decodeFromString |> Password |> DPassword |> Ply
 
 
     // Nested types
@@ -536,7 +529,6 @@ let parse
     | TUuid, _
     | TBytes, _
     | TDateTime, _
-    | TPassword, _
     | TList _, _
     | TTuple _, _
     | TCustomType _, _

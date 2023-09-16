@@ -41,14 +41,6 @@ let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 // ----------------------
 // Some fundamental types that we want to use everywhere.
 
-// DO NOT define any serialization on these types. If you want to serialize
-// them, you should move these to the files with specific formats and serialize
-// them there.
-// ----------------------
-// This is important to prevent auto-serialization accidentally leaking this,
-// though it never should anyway
-type Password = Password of byte array
-
 type NEList<'a> = NEList.NEList<'a>
 type Metadata = Exception.Metadata
 

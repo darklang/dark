@@ -239,7 +239,6 @@ let rec valueTypeUnifies
       // return! rMult expected actual
       return true
 
-    | TPassword, ValueType.Known KTPassword -> return true
     | TDB innerT, ValueType.Known(KTDB innerV) -> return! r innerT innerV
 
     | TVariable name, _ ->
@@ -280,7 +279,6 @@ let rec unify
       | TUnit, DUnit -> return Ok()
       | TString, DString _ -> return Ok()
       | TDateTime, DDateTime _ -> return Ok()
-      | TPassword, DPassword _ -> return Ok()
       | TUuid, DUuid _ -> return Ok()
       | TChar, DChar _ -> return Ok()
       | TBytes, DBytes _ -> return Ok()
@@ -429,7 +427,6 @@ let rec unify
       | TDateTime, _
       | TDict _, _
       | TFn _, _
-      | TPassword, _
       | TUuid, _
       | TChar, _
       | TDB _, _

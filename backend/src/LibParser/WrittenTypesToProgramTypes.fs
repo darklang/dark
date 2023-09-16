@@ -51,7 +51,6 @@ module TypeReference =
       | WT.TDB typ -> return! toPT typ |> Ply.map PT.TDB
       | WT.TDateTime -> return PT.TDateTime
       | WT.TChar -> return PT.TChar
-      | WT.TPassword -> return PT.TPassword
       | WT.TUuid -> return PT.TUuid
       | WT.TCustomType(t, typeArgs) ->
         let! t = NameResolver.TypeName.resolve resolver currentModule t

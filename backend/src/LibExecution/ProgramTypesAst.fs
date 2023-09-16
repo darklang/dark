@@ -107,7 +107,6 @@ let rec preTraversal
     | TUuid
     | TDateTime
     | TBytes
-    | TPassword
     | TVariable _
     | TString -> typeRef
     | TList tr -> TList(f tr)

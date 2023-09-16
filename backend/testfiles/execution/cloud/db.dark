@@ -295,9 +295,7 @@ module Roundtrip =
         datetime =
           (PACKAGE.Darklang.Stdlib.DateTime.parse "2020-01-01T00:00:00Z")
           |> Builtin.unwrap
-        unit = ()
-      // dont test password because hashing it twice will get different values
-      }
+        unit = () }
 
   let otherSample () : Sample =
     Sample
@@ -322,9 +320,7 @@ module Roundtrip =
         datetime =
           (PACKAGE.Darklang.Stdlib.DateTime.parse "2011-11-11T11:11:11Z")
           |> Builtin.unwrap
-        unit = ()
-      // dont test password because hashing it twice will get different values
-      }
+        unit = () }
 
   // TODO: Add roundtrip for records, unit, tuple, option, result, bytes
   (let v = sample ()
@@ -334,17 +330,6 @@ module Roundtrip =
                                             sample ()
                                           ))
 
-
-  type Passwords = { password: Password }
-
-  [<DB>]
-  type PasswordsDB = Passwords
-
-  // TYPESCLEANUP - support passwords
-  // (let pw = PACKAGE.Darklang.Stdlib.Password.hash_v0 "password" in
-  //  let x = Builtin.DB.set (Passwords { password = pw }) "test" PasswordsDB in
-  //  let y = (Builtin.DB.queryOne PasswordsDB (fun p -> p.password == pw)) |> Builtin.unwrap in
-  //  PACKAGE.Darklang.Stdlib.Password.check_v0 y.password "password") = true
 
   module QueryEquality =
     let fetch (fn: 'a -> Bool) : List<'a> =

@@ -79,7 +79,6 @@ module ProgramTypes =
     | TDateTime
     | TUuid
     | TBytes
-    | TPassword
     | TList of TypeReference
     | TTuple of TypeReference * TypeReference * List<TypeReference>
     | TDict of TypeReference
@@ -408,7 +407,6 @@ module ExternalTypesToProgramTypes =
       | EPT.TDB typ -> PT.TDB(toPT typ)
       | EPT.TDateTime -> PT.TDateTime
       | EPT.TChar -> PT.TChar
-      | EPT.TPassword -> PT.TPassword
       | EPT.TUuid -> PT.TUuid
       | EPT.TCustomType(t, typeArgs) ->
         PT.TCustomType(NameResolution.toPT TypeName.toPT t, List.map toPT typeArgs)

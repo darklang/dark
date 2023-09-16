@@ -76,7 +76,6 @@ module TypeReference =
     | PT.TDB typ -> RT.TDB(toRT typ)
     | PT.TDateTime -> RT.TDateTime
     | PT.TChar -> RT.TChar
-    | PT.TPassword -> RT.TPassword
     | PT.TUuid -> RT.TUuid
     | PT.TCustomType(typeName, typeArgs) ->
       RT.TCustomType(

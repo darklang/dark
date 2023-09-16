@@ -421,8 +421,6 @@ Builtin.Json.serialize<Bytes> Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Resu
 Builtin.Json.parse<Bytes> "\"\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   Builtin.Bytes.empty
 
-// Passwords - TODO
-
 
 // Lists
 type Person = { Name: String; Age: Int }

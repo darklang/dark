@@ -71,7 +71,6 @@ type Utf8JsonWriter with
 // List
 // Dict
 // Date
-// Password
 // UUID
 
 let rec private toJsonV0
@@ -105,8 +104,6 @@ let rec private toJsonV0
     | TBytes, DBytes bytes ->
       bytes |> Base64.defaultEncodeToString |> w.WriteStringValue
     | TDateTime, DDateTime date -> w.WriteStringValue(DarkDateTime.toIsoString date)
-    | TPassword, DPassword(Password hashed) ->
-      hashed |> Base64.defaultEncodeToString |> w.WriteStringValue
 
     // nested types
     | TList ltype, DList(_, l) ->
@@ -208,7 +205,6 @@ let rec private toJsonV0
     | TDict _, _
     | TChar, _
     | TDateTime, _
-    | TPassword, _
     | TUuid, _
     | TTuple _, _
     | TBytes, _
@@ -248,8 +244,6 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
     | TChar, JsonValueKind.String -> DChar(j.GetString()) |> Ply
     | TString, JsonValueKind.String -> DString(j.GetString()) |> Ply
     | TUuid, JsonValueKind.String -> DUuid(System.Guid(j.GetString())) |> Ply
-    | TPassword, JsonValueKind.String ->
-      j.GetString() |> Base64.decodeFromString |> Password |> DPassword |> Ply
     | TDateTime, JsonValueKind.String ->
       j.GetString()
       |> NodaTime.Instant.ofIsoString
@@ -375,7 +369,6 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
     | TChar, _
     | TString, _
     | TUuid, _
-    | TPassword, _
     | TDateTime, _
     | TTuple _, _
     | TList _, _
@@ -397,7 +390,6 @@ module Test =
     | DUnit _
     | DBool _
     | DDateTime _
-    | DPassword _
     | DChar _
     | DFloat _
     | DUuid _ -> true

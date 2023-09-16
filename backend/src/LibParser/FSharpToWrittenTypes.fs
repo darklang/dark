@@ -63,7 +63,6 @@ module TypeReference =
     | [], "DateTime", [] -> WT.TDateTime
     | [], "Uuid", [] -> WT.TUuid
     | [], "Unit", [] -> WT.TUnit
-    | [], "Password", [] -> WT.TPassword
 
     // with type args
     | [], "List", [ arg ] -> WT.TList(fromSynType arg)

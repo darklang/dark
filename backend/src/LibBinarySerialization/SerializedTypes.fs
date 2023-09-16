@@ -5,7 +5,6 @@ module LibBinarySerialization.SerializedTypes
 type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
-type Password = Prelude.Password
 
 // The types in this files are serialized using MessagePack.
 //
@@ -213,7 +212,6 @@ type TypeReference =
   | TDB of TypeReference
   | TDateTime
   | TChar
-  | TPassword
   | TUuid
   | TCustomType of
     typeName : NameResolution<TypeName.TypeName> *

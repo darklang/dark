@@ -76,7 +76,6 @@ module Darklang =
         | TDateTime
         | TUuid
         | TBytes
-        | TPassword
 
         | TList of TypeReference
         | TTuple of TypeReference * TypeReference * List<TypeReference>

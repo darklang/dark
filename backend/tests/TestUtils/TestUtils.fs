@@ -380,7 +380,6 @@ module Expect =
     | DBool _
     | DFloat _
     | DUnit
-    | DPassword _
     | DFnVal _
     | DError _
     | DDB _
@@ -526,7 +525,6 @@ module Expect =
     | TDB(_), _
     | TDateTime, _
     | TChar, _
-    | TPassword, _
     | TUuid, _
     | TBytes, _
     | TVariable(_), _
@@ -813,7 +811,6 @@ module Expect =
     | DFloat _, _
     | DUnit, _
     | DChar _, _
-    | DPassword _, _
     | DFnVal _, _
     | DError _, _
     | DDB _, _
@@ -882,7 +879,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DFloat _
     | DUnit
     | DChar _
-    | DPassword _
     | DFnVal _
     | DError _
     | DDB _
@@ -892,13 +888,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     f dv
   visit dv
   state
-
-let containsPassword (dv : Dval) : bool =
-  let isPassword dval =
-    match dval with
-    | RT.DPassword _ -> true
-    | _ -> false
-  dv |> visitDval isPassword |> List.any identity
 
 let containsFakeDval (dv : Dval) : bool =
   dv |> visitDval RT.Dval.isFake |> List.any identity
@@ -1143,7 +1132,6 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        DarkDateTime.fromInstant (NodaTime.Instant.ofIsoString "2018-09-14T00:31:41Z")
      ),
      TDateTime)
-    ("password", DPassword(Password(UTF8.toBytes "somebytes")), TPassword)
     ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"), TUuid)
     ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"), TUuid)
     ("option", Dval.optionNone, TypeReference.option TInt)
