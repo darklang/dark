@@ -318,7 +318,7 @@ let rec postTraversalAsync
         return TDB(tr)
       | TCustomType(name, trs) ->
         let! trs = Ply.List.mapSequentially r trs
-        let! name = Ply.Result.mapSequentially fqtnFn name
+        let! name = Ply.Result.map fqtnFn name
         return TCustomType(name, trs)
       | TDict(tr) ->
         let! tr = r tr
@@ -347,7 +347,7 @@ let rec postTraversalAsync
       | EChar _
       | EUnit _
       | EVariable _
-      | EFloat _ -> uply { return expr }
+      | EFloat _ -> Ply expr
       | EAnd(id, left, right) ->
         uply {
           let! left = r left
@@ -388,7 +388,7 @@ let rec postTraversalAsync
         uply {
           let! cond = r cond
           let! ifexpr = r ifexpr
-          let! elseexpr = Ply.Option.mapSequentially r elseexpr
+          let! elseexpr = Ply.Option.map r elseexpr
           return EIf(id, cond, ifexpr, elseexpr)
         }
       | EMatch(id, mexpr, pairs) ->

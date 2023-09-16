@@ -9,7 +9,6 @@ open Npgsql
 open Prelude
 
 open Db
-open Ply
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PT = LibExecution.ProgramTypes

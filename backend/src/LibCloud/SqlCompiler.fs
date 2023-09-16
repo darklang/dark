@@ -240,8 +240,7 @@ let rec inline'
                 List.zip parameters arguments
                 |> List.map (fun ((name, _), arg) -> name, arg)
                 |> Map.ofList
-              let! inlinedBody = inline' fns paramName paramToArgMap body
-              return inlinedBody
+              return! inline' fns paramName paramToArgMap body
             | None -> return expr
           | _ -> return expr
         }
@@ -250,16 +249,16 @@ let rec inline'
         inline' fns paramName newMap body
       | EVariable(_, name) as expr when name <> paramName ->
         match Map.get name symtable with
-        | Some found -> uply { return found }
+        | Some found -> Ply found
         | None ->
           // the variable might be in the symtable, so put it back to fill in later
-          uply { return expr }
+          Ply expr
       | EFieldAccess(id, expr, fieldname) ->
         uply {
           let! newexpr = inline' fns paramName symtable expr
           return EFieldAccess(id, newexpr, fieldname)
         }
-      | expr -> uply { return expr }
+      | expr -> Ply expr
 
     )
     identityPly
