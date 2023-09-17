@@ -348,7 +348,6 @@ type KnownType =
   | KTUuid
   | KTBytes
   | KTDateTime
-  | KTPassword
 
   // let empty =    [] // KTList Unknown
   // let intList = [1] // KTList (ValueType.Known KTInt)
@@ -423,7 +422,6 @@ and TypeReference =
   | TUuid
   | TBytes
   | TDateTime
-  | TPassword
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TFn of NEList<TypeReference> * TypeReference
@@ -457,8 +455,7 @@ and TypeReference =
       | TString
       | TUuid
       | TBytes
-      | TDateTime
-      | TPassword -> true
+      | TDateTime -> true
     isConcrete this
 
 
@@ -583,7 +580,6 @@ and [<NoComparison>] Dval =
 
   // References
   | DDB of name : string
-  | DPassword of Password
 
   // To be removed from Dval
   /// Represents something that shouldn't have happened in the engine,
@@ -831,7 +827,6 @@ module Dval =
     | DUnit, TUnit
     | DString _, TString
     | DDateTime _, TDateTime
-    | DPassword _, TPassword
     | DUuid _, TUuid
     | DChar _, TChar
     | DDB _, TDB _
@@ -869,7 +864,6 @@ module Dval =
     | DUnit, _
     | DString _, _
     | DDateTime _, _
-    | DPassword _, _
     | DUuid _, _
     | DChar _, _
     | DDB _, _
@@ -1336,8 +1330,7 @@ module Types =
     | TString
     | TUuid
     | TBytes
-    | TDateTime
-    | TPassword -> typ
+    | TDateTime -> typ
 
     | TList t -> TList(substitute t)
     | TTuple(t1, t2, rest) ->

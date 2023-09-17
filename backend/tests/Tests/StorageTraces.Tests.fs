@@ -203,42 +203,6 @@ let testTraceRoundtrip =
   }
 
 
-// let testTraceDataJsonFormatRedactsPasswords =
-//   testTask "trace data json format redacts passwords" {
-//     // set up
-//     let id = gid ()
-
-//     let traceData : AT.TraceData =
-//       { input = [ ("event", DPassword(Password(UTF8.toBytes "redactme1"))) ]
-//         timestamp = NodaTime.Instant.UnixEpoch
-//         function_results =
-//           [ ("Password.hash",
-//              id,
-//              "foobar",
-//              0,
-//              DPassword(Password(UTF8.toBytes "redactme2"))) ] }
-
-//     let expected : AT.TraceData =
-//       { input = [ ("event", DPassword(Password(UTF8.toBytes "Redacted"))) ]
-//         timestamp = NodaTime.Instant.UnixEpoch
-//         function_results =
-//           [ ("Password.hash",
-//              id,
-//              "foobar",
-//              0,
-//              DPassword(Password(UTF8.toBytes "Redacted"))) ] }
-
-//     // roundtrip serialization
-//     let actual =
-//       traceData
-//       |> Json.OCamlCompatible.serialize
-//       |> Json.OCamlCompatible.deserialize<AT.TraceData>
-
-//     // check
-//     Expect.equal actual expected "traceData round trip"
-//   }
-
-
 // let testFunctionTracesAreStored =
 //   testTask "function traces are stored" {
 //     // set up canvas, user fn
@@ -363,7 +327,6 @@ let tests =
       // testRouteVariablesWorkWithStoredEvents
       // testRouteVariablesWorkWithTraceInputsAndWildcards
       testTraceRoundtrip
-      // testTraceDataJsonFormatRedactsPasswords
       // testFunctionTracesAreStored
       // testErrorTracesAreStored
       // testLaunchdarklyParsingCode

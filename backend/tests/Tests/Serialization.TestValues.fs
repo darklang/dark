@@ -226,7 +226,6 @@ module RuntimeTypes =
       known RT.KnownType.KTUuid
       known RT.KnownType.KTBytes
       known RT.KnownType.KTDateTime
-      known RT.KnownType.KTPassword
       known (RT.KnownType.KTList ktUnit)
       known (RT.KnownType.KTTuple(ktUnit, ktUnit, []))
       known (RT.KnownType.KTFn(NEList.singleton ktUnit, ktUnit))
@@ -245,16 +244,13 @@ module RuntimeTypes =
 
   let dvals : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.
-    sampleDvals
-    |> List.filter (fun (name, _dv) -> name <> "password")
-    |> List.map (fun (name, (dv, t)) -> dv)
+    sampleDvals |> List.map (fun (name, (dv, t)) -> dv)
 
   let dval : RT.Dval =
     let typeName =
       RT.FQName.UserProgram
         { modules = []; name = RT.TypeName.TypeName "MyType"; version = 0 }
     sampleDvals
-    |> List.filter (fun (name, _dv) -> name <> "password")
     |> List.map (fun (name, (dv, t)) -> name, dv)
     |> Dval.record typeName
 

@@ -115,7 +115,6 @@ type TypeReference =
   | TDB of TypeReference
   | TDateTime
   | TChar
-  | TPassword
   | TUuid
   | TBytes
   | TVariable of string

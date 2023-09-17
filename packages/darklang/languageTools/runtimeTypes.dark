@@ -72,7 +72,6 @@ module Darklang =
         | TUuid
         | TBytes
         | TDateTime
-        | TPassword
         | TList of TypeReference
         | TTuple of TypeReference * TypeReference * List<TypeReference>
         | TFn of List<TypeReference> * TypeReference
@@ -162,7 +161,6 @@ module Darklang =
         | KTUuid
         | KTBytes
         | KTDateTime
-        | KTPassword
         | KTList of ValueType
         | KTTuple of ValueType * ValueType * List<ValueType>
         | KTFn of List<ValueType> * ValueType
@@ -196,7 +194,6 @@ module Darklang =
           | DFnVal of FnValImpl
 
           | DDB of String
-          | DPassword of Password
 
           | DRecord of
             runtimeTypeName: TypeName.TypeName *
@@ -225,7 +222,6 @@ module Darklang =
           | DUuid _ -> ValueType.Known KnownType.KTUuid
           | DBytes _ -> ValueType.Known KnownType.KTBytes
           | DDateTime _ -> ValueType.Known KnownType.KTDateTime
-          | DPassword _ -> ValueType.Known KnownType.KTPassword
 
           | DList(t, _) -> ValueType.Known(KnownType.KTList t)
           | DDict(t, _) -> ValueType.Known(KnownType.KTDict t)

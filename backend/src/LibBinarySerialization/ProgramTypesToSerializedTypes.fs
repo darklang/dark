@@ -279,7 +279,6 @@ module TypeReference =
     | PT.TDB typ -> ST.TDB(toST typ)
     | PT.TDateTime -> ST.TDateTime
     | PT.TChar -> ST.TChar
-    | PT.TPassword -> ST.TPassword
     | PT.TUuid -> ST.TUuid
     | PT.TCustomType(t, typeArgs) ->
       ST.TCustomType(NameResolution.toST TypeName.toST t, List.map toST typeArgs)
@@ -302,7 +301,6 @@ module TypeReference =
     | ST.TDB typ -> PT.TDB(toPT typ)
     | ST.TDateTime -> PT.TDateTime
     | ST.TChar -> PT.TChar
-    | ST.TPassword -> PT.TPassword
     | ST.TUuid -> PT.TUuid
     | ST.TCustomType(t, typeArgs) ->
       PT.TCustomType(NameResolution.toPT TypeName.toPT t, List.map toPT typeArgs)

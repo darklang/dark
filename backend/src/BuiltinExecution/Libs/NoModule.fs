@@ -47,7 +47,6 @@ let rec equals (a : Dval) (b : Dval) : bool =
     | Lambda _, _
     | NamedFn _, _ -> false
   | DDateTime a, DDateTime b -> a = b
-  | DPassword _, DPassword _ -> false
   | DUuid a, DUuid b -> a = b
   | DBytes a, DBytes b -> a = b
   | DDB a, DDB b -> a = b
@@ -67,7 +66,6 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DRecord _, _
   | DFnVal _, _
   | DDateTime _, _
-  | DPassword _, _
   | DUuid _, _
   | DBytes _, _
   | DDB _, _

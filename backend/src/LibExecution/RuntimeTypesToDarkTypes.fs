@@ -253,7 +253,6 @@ module TypeReference =
       | TDateTime -> "TDateTime", []
       | TUuid -> "TUuid", []
       | TBytes -> "TBytes", []
-      | TPassword -> "TPassword", []
 
       | TList inner -> "TList", [ toDT inner ]
 
@@ -289,7 +288,6 @@ module TypeReference =
     | DEnum(_, _, "TDateTime", []) -> TDateTime
     | DEnum(_, _, "TUuid", []) -> TUuid
     | DEnum(_, _, "TBytes", []) -> TBytes
-    | DEnum(_, _, "TPassword", []) -> TPassword
 
     | DEnum(_, _, "TList", [ inner ]) -> TList(fromDT inner)
 
@@ -731,7 +729,6 @@ module Dval =
             ValueType.toDT ret ]
 
         | KTDB d -> "KTDB", [ ValueType.toDT d ]
-        | KTPassword -> "KTPassword", []
 
       let typeName = rtTyp [] "KnownType" 0
       Dval.enum typeName typeName caseName fields
@@ -768,7 +765,6 @@ module Dval =
           ValueType.fromDT ret
         )
       | DEnum(_, _, "KTDB", [ inner ]) -> KTDB(ValueType.fromDT inner)
-      | DEnum(_, _, "KTPassword", []) -> KTPassword
 
       | _ -> Exception.raiseInternal "Invalid KnownType" []
 
@@ -894,8 +890,6 @@ module Dval =
 
       | DDB name -> "DDB", [ DString name ]
 
-      | DPassword p -> "DPassword", [ DPassword p ]
-
       | DDict(vt, map) ->
         "DDict", [ ValueType.toDT vt; DDict(valueTypeTODO, Map.map toDT map) ]
 
@@ -939,7 +933,6 @@ module Dval =
     | DEnum(_, _, "DDB", [ DString name ]) -> DDB name
 
     | DEnum(_, _, "DDateTime", [ DDateTime d ]) -> DDateTime d
-    | DEnum(_, _, "DPassword", [ DPassword p ]) -> DPassword p
     | DEnum(_, _, "DUuid", [ DUuid u ]) -> DUuid u
     | DEnum(_, _, "DBytes", [ DBytes b ]) -> DBytes b
 

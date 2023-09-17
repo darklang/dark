@@ -186,7 +186,6 @@ module Darklang =
         | TUuid -> "Uuid"
         | TBytes -> "Bytes"
         | TDateTime -> "DateTime"
-        | TPassword -> "Password"
 
         | TList inner -> $"List<{typeReference inner}>"
         | TDict inner -> $"Dict<{typeReference inner}>"
@@ -267,7 +266,6 @@ module Darklang =
           (typeName name) ++ typeArgsPortion
 
         | KTDB typ -> $"Datastore<{valueType typ}>"
-        | KTPassword -> "Password"
 
 
       let valueType
@@ -422,7 +420,6 @@ module Darklang =
           //   justType
 
           | DDB name -> $"<{valueTypeName}: {name}>"
-          | DPassword _ -> "<password>"
 
           // | DError(_, msg) -> $"<error: {msg}>"
 
