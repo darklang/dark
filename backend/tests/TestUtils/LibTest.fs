@@ -74,7 +74,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString errorString ] ->
-          Ply(DError(SourceNone, RuntimeError.oldError errorString))
+          raiseUntargetedRTE (RuntimeError.oldError errorString)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

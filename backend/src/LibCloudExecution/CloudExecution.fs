@@ -144,7 +144,7 @@ let executeHandler
       | RT.SourceNone -> Ply "No source"
       | RT.SourceID(tlid, id) -> sourceOf tlid id
 
-    let error (msg : string) =
+    let error (msg : string) : RT.Dval =
       let typeName =
         RT.FQName.Package
           { owner = "Darklang"
@@ -172,24 +172,26 @@ let executeHandler
     let! result =
       task {
         match result with
-        | RT.DError(originalSource, originalRTE) ->
+        | Ok result -> return result
+        | Error(originalSource, originalRTE) ->
           let! originalSource = sourceString originalSource
           match! Exe.runtimeErrorToString state originalRTE with
-          | RT.DString msg ->
+          | Ok(RT.DString msg) ->
             let msg = $"Error: {msg}\n\nSource: {originalSource}"
             return error msg
-          | RT.DError(firstErrorSource, firstErrorRTE) ->
+          | Ok result -> return result
+          | Error(firstErrorSource, firstErrorRTE) ->
             let! firstErrorSource = sourceString firstErrorSource
             match! Exe.runtimeErrorToString state firstErrorRTE with
-            | RT.DString msg ->
+            | Ok(RT.DString msg) ->
               return
                 error (
                   $"An error occured trying to print a runtime error."
                   + $"\n\nThe formatting error occurred in {firstErrorSource}. The error was:\n{msg}"
                   + $"\n\nThe original error is ({originalSource}) {originalRTE}"
                 )
-
-            | RT.DError(secondErrorSource, secondErrorRTE) ->
+            | Ok result -> return result
+            | Error(secondErrorSource, secondErrorRTE) ->
               let! secondErrorSource = sourceString secondErrorSource
               return
                 error (
@@ -198,9 +200,6 @@ let executeHandler
                   + $"\n\nThe first formatting error occurred in {firstErrorSource}. The error was:\n{firstErrorRTE}"
                   + $"\n\nThe original error is ({originalSource}) {originalRTE}"
                 )
-            | _ -> return result
-          | _ -> return result
-        | _ -> return result
       }
 
     tracing.storeTraceResults ()
@@ -230,7 +229,7 @@ let reexecuteFunction
   (name : RT.FnName.FnName)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
-  : Task<RT.Dval * Tracing.TraceResults.T> =
+  : Task<RT.ExecutionResult * Tracing.TraceResults.T> =
   task {
     // FIX - the TLID here is the tlid of the toplevel in which the call exists, not
     // the rootTLID of the trace.

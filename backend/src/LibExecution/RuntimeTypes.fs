@@ -646,8 +646,15 @@ and BuiltInParam =
 and Param = { name : string; typ : TypeReference }
 
 
-exception UncaughtRuntimeError of RuntimeError
-let raiseRTE (rte : RuntimeError) = raise (UncaughtRuntimeError rte)
+exception RuntimeErrorException of DvalSource * RuntimeError
+
+let raiseRTE (source : DvalSource) (rte : RuntimeError) =
+  raise (RuntimeErrorException(source, rte))
+
+let raiseUntargetedRTE (rte : RuntimeError) =
+  raise (RuntimeErrorException(SourceNone, rte))
+
+type ExecutionResult = Result<Dval, DvalSource * RuntimeError>
 
 
 
@@ -876,10 +883,10 @@ module Dval =
     | DEnum _, _ -> false
 
 
-  let errStr (s : string) : Dval = DError(SourceNone, RuntimeError.oldError s)
+  let errStr (s : string) : Dval = raiseUntargetedRTE (RuntimeError.oldError s)
 
   let errSStr (source : DvalSource) (s : string) : Dval =
-    DError(source, RuntimeError.oldError s)
+    raiseRTE source (RuntimeError.oldError s)
 
 
   let asList (dv : Dval) : Option<List<Dval>> =

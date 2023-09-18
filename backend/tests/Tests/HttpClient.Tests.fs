@@ -175,10 +175,13 @@ let makeTest versionName filename =
         Expect.equal actualRequest tc.expectedRequest "requests don't match"
 
       // Second check: expected result (Dval) matches actual result (Dval)
-      let actual = normalizeDvalResult actual
+      let actual = Result.map normalizeDvalResult actual
 
       let! expected = Exe.executeExpr state Map.empty test.expected
-      return Expect.equalDval actual expected $"Responses don't match"
+      match actual, expected with
+      | Ok actual, Ok expected ->
+        return Expect.equalDval actual expected $"Responses don't match"
+      | _ -> Expect.equal actual expected $"Responses don't match"
   }
 
 

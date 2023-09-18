@@ -91,7 +91,7 @@ let rec eval'
   // TODO remove link from code or avail document - it is either gone or hidden behind login
   let sourceID id = SourceID(state.tlid, id)
   let errStr id msg = Dval.errSStr (sourceID id) msg
-  let err id rte = DError(sourceID id, rte)
+  let err id rte = raiseRTE (sourceID id) rte
 
   /// This function ensures any value not on the execution path is evaluated.
   let preview (tst : TypeSymbolTable) (st : Symtable) (expr : Expr) : Ply<unit> =
@@ -455,7 +455,7 @@ let rec eval'
                     | Ok() ->
                       return
                         DRecord(typeName, original, valueTypesTODO, Map.add k v m)
-                    | Error rte -> return DError(SourceID(state.tlid, id), rte)
+                    | Error rte -> return raiseRTE (SourceID(state.tlid, id)) rte
                   | _ ->
                     return
                       errStr id "Expected a record but {typeStr} is something else"
@@ -786,7 +786,7 @@ let rec eval'
           // "Real" evaluations don't need to persist non-matched traces
           else if isRealExecution then
             match passes with
-            | Error(id, err) -> matchResult <- Some(DError(sourceID id, err))
+            | Error(id, err) -> raiseRTE (sourceID id) err
             | Ok _ -> ()
           else
             // If we're "previewing" (analysis), persist traces for all patterns
@@ -795,7 +795,7 @@ let rec eval'
 
       match matchResult with
       | Some r -> return r
-      | None -> return DError(sourceID id, Error.matchExprUnmatched matchVal)
+      | None -> return raiseRTE (sourceID id) (Error.matchExprUnmatched matchVal)
 
 
     | EIf(id, cond, thenBody, elseBody) ->
@@ -912,7 +912,7 @@ let rec eval'
                         with
                         | Ok() -> return Ok(List.append fieldsSoFar [ v ])
                         | Error rte ->
-                          return Error(DError(SourceID(state.tlid, id), rte))
+                          return raiseRTE (SourceID(state.tlid, id)) rte
                   })
                 (Ok [])
                 (List.zip case.fields fields)
@@ -983,11 +983,10 @@ and executeLambda
     let actualLength = NEList.length args
     if expectedLength <> actualLength then
       Ply(
-        DError(
-          SourceNone,
-          RuntimeError.oldError
-            $"Expected {expectedLength} arguments, got {actualLength}"
-        )
+        raiseRTE
+          SourceNone
+          (RuntimeError.oldError
+            $"Expected {expectedLength} arguments, got {actualLength}")
       )
     else
       NEList.iter
@@ -1023,10 +1022,9 @@ and callFn
       match fnResult with
       | Some(result, _ts) -> result
       | None ->
-        DError(
-          sourceID,
-          RuntimeError.oldError $"Function {FnName.toString desc} is not found"
-        )
+        raiseRTE
+          sourceID
+          (RuntimeError.oldError $"Function {FnName.toString desc} is not found")
 
     let checkArgsLength fn : Result<unit, string> =
       let expectedTypeParamLength = List.length fn.typeParams
@@ -1066,7 +1064,7 @@ and callFn
       | None -> return handleMissingFunction ()
       | Some fn ->
         match checkArgsLength fn with
-        | Error errMsg -> return DError(sourceID, RuntimeError.oldError errMsg)
+        | Error errMsg -> return raiseRTE sourceID (RuntimeError.oldError errMsg)
         | Ok() ->
           let newlyBoundTypeArgs = List.zip fn.typeParams typeArgs |> Map
           let updatedTypeSymbolTable = Map.mergeFavoringRight tst newlyBoundTypeArgs
@@ -1110,7 +1108,7 @@ and execFn
       let typeSymbolTable = Map.mergeFavoringRight tst typeArgsResolvedInFn
 
       match! TypeChecker.checkFunctionCall types typeSymbolTable fn args with
-      | Error rte -> return DError(sourceID, rte)
+      | Error rte -> return raiseRTE sourceID rte
       | Ok() ->
 
         let! result =
@@ -1133,7 +1131,6 @@ and execFn
                           "typeArgs", typeArgs
                           "id", id ]
                       match e with
-                      | UncaughtRuntimeError rte -> return DError(sourceID, rte)
                       | Errors.IncorrectArgs ->
                         return Errors.incorrectArgsToDError sourceID fn args
                       | Errors.FakeDvalFound dv -> return dv
@@ -1141,6 +1138,8 @@ and execFn
                         // There errors are created by us, within the libraries, so they are
                         // safe to show to users (but not grandusers)
                         return Dval.errSStr sourceID e.Message
+                      | RuntimeErrorException(source, rte) ->
+                        return Exception.reraise e
                       | e ->
                         // TODO could we show the user the execution id here?
                         state.reportException state context e
@@ -1176,6 +1175,6 @@ and execFn
           match!
             TypeChecker.checkFunctionReturnType types typeSymbolTable fn result
           with
-          | Error rte -> return DError(sourceID, rte)
+          | Error rte -> return raiseRTE sourceID rte
           | Ok() -> return result
   }

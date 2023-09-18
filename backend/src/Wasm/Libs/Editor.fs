@@ -159,10 +159,10 @@ let fns : List<BuiltInFn> =
               LibExecution.Execution.executeExpr state inputVars expr
 
             match result with
-            | DError(_source, rte) ->
+            | Error(_source, rte) ->
               // TODO probably need to call `toString` on the RTE, or raise it
               return Dval.resultError (DString(string rte))
-            | result ->
+            | Ok result ->
               return
                 LibExecution.DvalReprDeveloper.toRepr result
                 |> DString

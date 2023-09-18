@@ -75,7 +75,7 @@ let state () =
 let execute
   (mod' : LibParser.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
-  : Task<RT.Dval> =
+  : Task<RT.ExecutionResult> =
   task {
     let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
@@ -288,25 +288,29 @@ let runLocalExecScript (args : string[]) : Ply<int> =
     NonBlockingConsole.wait ()
 
     match result.Result with
-    | RT.DError(source, rte) ->
+    | Error(source, rte) ->
       let state = state ()
       let source =
         match source with
         | RT.SourceID(tlid, id) -> sourceOf mainFile tlid id modul
         | RT.SourceNone -> "unknown"
       match! LibExecution.Execution.runtimeErrorToString state rte with
-      | RT.DString s ->
+      | Ok(RT.DString s) ->
         System.Console.WriteLine $"Error: {s}"
         System.Console.WriteLine source
-      | newErr ->
+      | Ok unexpected ->
+        System.Console.WriteLine $"Unexpected value while stringifying error\n"
+        System.Console.WriteLine $"Original Error: {rte}"
+        System.Console.WriteLine $"New Error is:\n{unexpected}"
+      | Error(_, newErr) ->
         System.Console.WriteLine $"Error while stringifying error\n"
         System.Console.WriteLine $"Original Error: {rte}"
         System.Console.WriteLine $"New Error is:\n{newErr}"
       System.Console.WriteLine source
       // System.Console.WriteLine $"module is: {modul}"
       return 1
-    | RT.DInt i -> return (int i)
-    | dval ->
+    | Ok(RT.DInt i) -> return (int i)
+    | Ok dval ->
       let output = LibExecution.DvalReprDeveloper.toRepr dval
       System.Console.WriteLine
         $"Error: main function must return an int, not {output}"

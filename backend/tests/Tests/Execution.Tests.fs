@@ -92,7 +92,7 @@ let testExecFunctionTLIDs : Test =
         (NEList.singleton DUnit)
 
     Expect.equal (HashSet.toList tlids) [ fn.tlid ] "tlid of function is traced"
-    Expect.equal value (DInt 5L) "sanity check"
+    Expect.equal value (Ok(DInt 5L)) "make sure"
   }
 
 // TYPESCLEANUP add tests for non-record-shaped types

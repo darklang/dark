@@ -81,7 +81,7 @@ let execute
   (parentState : RT.ExecutionState)
   (mod' : LibParser.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
-  : Task<RT.Dval> =
+  : Task<Result<RT.Dval, DvalSource * RuntimeError>> =
 
   task {
     let program : Program =
@@ -119,17 +119,19 @@ let execute
       return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
     else if mod'.exprs.Length = 0 then
       return
-        DError(
-          SourceNone,
-          CliRuntimeError.NoExpressionsToExecute
-          |> CliRuntimeError.RTE.toRuntimeError
+        Error(
+          (SourceNone,
+           CliRuntimeError.NoExpressionsToExecute
+           |> CliRuntimeError.RTE.toRuntimeError)
         )
     else // mod'.exprs.Length > 1
       return
-        DError(
-          SourceNone,
-          CliRuntimeError.MultipleExpressionsToExecute(mod'.exprs |> List.map string)
-          |> CliRuntimeError.RTE.toRuntimeError
+        Error(
+          (SourceNone,
+           CliRuntimeError.MultipleExpressionsToExecute(
+             mod'.exprs |> List.map string
+           )
+           |> CliRuntimeError.RTE.toRuntimeError)
         )
   }
 
@@ -173,14 +175,14 @@ let fns : List<BuiltInFn> =
               match parsedScript with
               | Ok mod' ->
                 match! execute state mod' symtable with
-                | DInt i -> return Dval.resultOk (DInt i)
-                | DError(_, e) -> return e |> RuntimeError.toDT |> Dval.resultError
-                | result ->
+                | Ok(DInt i) -> return Dval.resultOk (DInt i)
+                | Ok result ->
                   return
                     CliRuntimeError.NonIntReturned result
                     |> CliRuntimeError.RTE.toRuntimeError
                     |> RuntimeError.toDT
                     |> Dval.resultError
+                | Error(_, e) -> return e |> RuntimeError.toDT |> Dval.resultError
               | Error e -> return e |> RuntimeError.toDT |> Dval.resultError
             with e ->
               return exnError e |> RuntimeError.toDT |> Dval.resultError
@@ -293,7 +295,7 @@ let fns : List<BuiltInFn> =
                         (NEList.ofList args.Head args.Tail)
 
                     match result with
-                    | DError(_, e) ->
+                    | Error(_, e) ->
                       // TODO we should probably return the error here as-is, and handle by calling the
                       // toSegments on the error within the CLI
                       return
@@ -302,7 +304,7 @@ let fns : List<BuiltInFn> =
                         |> LibExecution.DvalReprDeveloper.toRepr
                         |> DString
                         |> Dval.resultError
-                    | value ->
+                    | Ok value ->
                       let asString = LibExecution.DvalReprDeveloper.toRepr value
                       return Dval.resultOk (DString asString)
               | _ -> return incorrectArgs ()
