@@ -263,6 +263,21 @@ let rec inline'
                 |> Map.ofList
               return! inline' fns paramName paramToArgMap body
             | None -> return expr
+          | FQName.UserProgram u ->
+            match Map.get u fns.userProgram with
+            | Some fn ->
+              let parameters =
+                fn.parameters
+                |> NEList.map (fun p -> p.name, p.typ)
+                |> NEList.toList
+              let body = fn.body
+              let paramToArgMap =
+                List.zip parameters arguments
+                |> List.map (fun ((name, _), arg) -> name, arg)
+                |> Map.ofList
+              return! inline' fns paramName paramToArgMap body
+            | None -> return expr
+
           | _ -> return expr
         }
       | ELet(_, lpVariable, expr, body) ->
@@ -375,7 +390,7 @@ let rec lambdaToSql
                   let parameters = fn.parameters |> List.map (fun p -> p.name, p.typ)
                   return fn.returnType, parameters, fn.sqlSpec
                 | None -> return error $"Builtin functions {nameStr} not found"
-              | u -> return error $"Todo: user program {u}"
+              | _ -> return error $"Functions {nameStr} not found"
             }
 
           typecheck nameStr returnType expectedType

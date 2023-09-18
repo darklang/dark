@@ -749,6 +749,27 @@ module FindAll =
                                                                                       "Rachel"
                                                                                       "Ross" ]
 
+  // inlining user functions
+  let userAnd (user: Person) (human: Bool) : Bool =
+    PACKAGE.Darklang.Stdlib.Bool.and_v0 user human
+
+  let userStringContains (user: Person) (str: String) : Bool =
+    PACKAGE.Darklang.Stdlib.String.contains_v0 user.name str
+
+  let userLessThan (user: Person) (height: Int) : Bool =
+    Builtin.Int.lessThan_v0 user height
+
+  let nestedUserFn (user: Person) (height: Int) : Bool =
+    userAnd user.human (userLessThan user.height height)
+
+  (friends (fun p -> userAnd p.human true)) = [ " Chandler "; "Rachel"; "Ross" ]
+
+  (friends (fun p -> userStringContains p "Chandler")) = [ " Chandler " ]
+
+  (friends (fun p -> userLessThan p.height 65)) = [ "GrumpyCat" ]
+
+  (friends (fun p -> nestedUserFn p 68)) = [ "Rachel" ]
+
   // pipes
   (friends (fun p -> p.height |> (*) 2 |> (<) 40)) = [ "GrumpyCat" ]
 
