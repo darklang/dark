@@ -49,7 +49,7 @@ PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1; 5; 2; 2 ] (fun item -> item < 3) 
 
 PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [] (fun item -> item < 3) = []
 
-Builtin.List.empty_v0 = []
+PACKAGE.Darklang.Stdlib.List.empty_v0 = []
 
 (PACKAGE.Darklang.Stdlib.List.iter [ 1; 2; 3 ] (fun x ->
   Builtin.Test.incrementSideEffectCounter ())

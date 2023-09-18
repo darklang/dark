@@ -436,6 +436,24 @@ module Darklang =
 
             $"{typeNamePart}.{caseName}({fieldPart})"
 
+        | CList items ->
+          items
+          |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.constant item)
+          |> PACKAGE.Darklang.Stdlib.String.join "; "
+          |> fun parts -> "[" ++ parts ++ "]"
+
+        | CDict pairs ->
+          let pairPart =
+            pairs
+            |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
+              let (key, value) = pair
+              $"{key} = {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.constant value}")
+            |> PACKAGE.Darklang.Stdlib.String.join "; "
+            |> fun parts -> " { " ++ parts ++ " }"
+
+          $"Dict {pairPart}"
+
         | _ -> "TODO"
 
 

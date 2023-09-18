@@ -575,6 +575,8 @@ module Const =
         caseName,
         List.map toST fields
       )
+    | PT.Const.CList items -> ST.Const.CList(List.map toST items)
+    | PT.Const.CDict items -> ST.Const.CDict(List.map (Tuple2.mapSecond toST) items)
 
   let rec toPT (c : ST.Const) : PT.Const =
     match c with
@@ -592,6 +594,8 @@ module Const =
         caseName,
         List.map toPT fields
       )
+    | ST.Const.CList items -> PT.Const.CList(List.map toPT items)
+    | ST.Const.CDict items -> PT.Const.CDict(List.map (Tuple2.mapSecond toPT) items)
 
 
 module Deprecation =

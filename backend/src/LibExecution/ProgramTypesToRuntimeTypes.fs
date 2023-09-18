@@ -414,6 +414,13 @@ module Const =
         caseName,
         List.map toRT fields
       )
+    | PT.Const.CList items -> RT.DList(RT.ValueType.Unknown, (List.map toRT items))
+    | PT.Const.CDict items ->
+      RT.DDict(
+        RT.ValueType.Unknown,
+        (List.map (Tuple2.mapSecond toRT) items) |> Map.ofList
+      )
+
     | PT.Const.CEnum(Error msg, caseName, fields) ->
       RT.DError(RT.SourceNone, RT.RuntimeError.oldError "Invalid const name: {msg}")
 

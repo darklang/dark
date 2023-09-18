@@ -220,12 +220,7 @@ let fn = fn modules
 let constant = constant modules
 
 let types : List<BuiltInType> = []
-let constants : List<BuiltInConstant> =
-  [ { name = constant "empty" 0
-      typ = TList varA
-      description = "Returns an empty list"
-      body = Dval.list ValueType.Unknown []
-      deprecated = NotDeprecated } ]
+let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "uniqueBy" 0

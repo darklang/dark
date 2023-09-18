@@ -963,7 +963,7 @@ module QueryOneWithKey =
 module QueryWithKey =
   // none
   (let _ = prepFriends () in
-   Builtin.DB.queryWithKey PersonDB (fun p -> p.name == "bob")) = Builtin.Dict.empty
+   Builtin.DB.queryWithKey PersonDB (fun p -> p.name == "bob")) = PACKAGE.Darklang.Stdlib.Dict.empty
 
   // one
   (let _ = prepFriends () in

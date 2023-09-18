@@ -1,6 +1,8 @@
 module Darklang =
   module Stdlib =
     module List =
+      /// Returns an empty list
+      let empty = []
 
       /// Returns a one-element list containing the given <param val>
       let singleton (value: 'a) : List<'a> = [ value ]
