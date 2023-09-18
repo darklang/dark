@@ -754,6 +754,7 @@ module FindAll =
   // sql injection
   friendsError (fun p -> "; select * from users;" == p.name) = []
 
+
 module CompiledFunctions =
   (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
 
@@ -762,6 +763,18 @@ module CompiledFunctions =
                                                                             "Rachel" ]
 
   (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.greaterThan_v0 p.income 90.0)) = [ "Ross" ]
+
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.divide_v0 p.income 2.0 == 50.0)) = [ "Ross" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.multiply_v0 p.income 2.0 == 200.0)) = [ "Ross" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.power p.income 2.0 == 10000.0)) = [ "Ross" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.add p.income 0.0 == 0.0)) = [ "GrumpyCat" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.subtract p.income 3.0 == 80.0)) = [ " Chandler " ]
+
 
   (friends (fun p ->
     PACKAGE.Darklang.Stdlib.Float.greaterThanOrEqualTo_v0 82.10 p.income)) = [ "GrumpyCat"
@@ -778,6 +791,17 @@ module CompiledFunctions =
 
   (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.greaterThan_v0 p.height 65)) = [ " Chandler "
                                                                                   "Ross" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.add p.height 1 == 11)) = [ "GrumpyCat" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.subtract p.height 3 == 69)) = [ " Chandler " ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.multiply_v0 p.height 2 == 146)) = [ "Ross" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.divide_v0 p.height 2 == 5)) = [ "GrumpyCat" ]
+
+  // TODO: This test should pass, but it is causing an infinite recursion
+  // (friends (fun p -> (PACKAGE.Darklang.Stdlib.Int.power p.height 2) == PACKAGE.Darklang.Stdlib.Result.Result.Ok(100))) = [ "GrumpyCat" ]
 
   (friends (fun p -> PACKAGE.Darklang.Stdlib.String.toLowercase p.name == "rachel")) = [ "Rachel" ]
   (friends (fun p -> PACKAGE.Darklang.Stdlib.String.toUppercase p.name == "RACHEL")) = [ "Rachel" ]
@@ -821,9 +845,6 @@ module CompiledFunctions =
   (friends (fun p -> PACKAGE.Darklang.Stdlib.Bool.or_v0 p.human p.human)) = [ " Chandler "
                                                                               "Rachel"
                                                                               "Ross" ]
-
-  // can't test xor. We do not yet support compiling this code: EIf
-  // (friends (fun p -> PACKAGE.Darklang.Stdlib.Bool.xor_v0 p.human p.human)) = []
 
   (friends (fun p ->
     PACKAGE.Darklang.Stdlib.Bool.not_v0 (
@@ -971,6 +992,24 @@ module PartialEvaluation =
   (friends (fun p ->
     let (a0, a1, a2, a3, ((b, c), d)) = (0, 1, 2, 3, ((5, "aa"), 'a'))
     b < p.height)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+
+
+module QueryOne =
+  (let _ = prepFriends () in
+   Builtin.DB.queryOne PersonDB (fun p -> p.name == "bob")) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+  (let _ = prepFriends () in
+    Builtin.DB.queryOne PersonDB (fun p -> p.name == "Rachel"))
+    |> PACKAGE.Darklang.Stdlib.Option.map (fun v -> v.name) = PACKAGE.Darklang.Stdlib.Option.Option.Some "Rachel"
+
+
+  // interpolated
+  (let _ = prepFriends ()
+   let test = "ache"
+
+   (Builtin.DB.queryOne PersonDB (fun p -> p.name == $"R{test}l"))
+   |> PACKAGE.Darklang.Stdlib.Option.map (fun v -> v.name)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+    "Rachel"
 
 
 module QueryOneWithKey =
