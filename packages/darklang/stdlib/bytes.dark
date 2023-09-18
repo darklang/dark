@@ -17,5 +17,5 @@ module Darklang =
 
 
       /// Returns true if <param bytes> contains <param segment>
-      let containsSegment (bytes: Bytes) (segment: Bytes) : Bool =
-        Builtin.Bytes.containsSegment bytes segment
+      let contains (bytes: Bytes) (segment: Bytes) : Bool =
+        Builtin.Bytes.contains bytes segment

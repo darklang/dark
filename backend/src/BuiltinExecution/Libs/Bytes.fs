@@ -82,7 +82,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "containsSegment" 0
+    { name = fn "contains" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes ""; Param.make "segment" TBytes "" ]
       returnType = TBool

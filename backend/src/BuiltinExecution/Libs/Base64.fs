@@ -60,7 +60,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "encode" 0
+    { name = fn "urlEncode" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TString

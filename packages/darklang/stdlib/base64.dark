@@ -13,4 +13,4 @@ module Darklang =
       /// Base64URL encodes <param bytes> with {{=}} padding. Uses URL-safe encoding
       /// with {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in RFC 4648
       /// section [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
-      let encode (bytes: Bytes) : String = Builtin.Base64.encode bytes
+      let urlEncode (bytes: Bytes) : String = Builtin.Base64.urlEncode bytes
