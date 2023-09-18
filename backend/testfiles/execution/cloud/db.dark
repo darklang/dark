@@ -995,12 +995,12 @@ module PartialEvaluation =
 
 
 module QueryOne =
-  (let _ = prepFriends () in
-   Builtin.DB.queryOne PersonDB (fun p -> p.name == "bob")) = PACKAGE.Darklang.Stdlib.Option.Option.None
+  (let _ = prepFriends () in Builtin.DB.queryOne PersonDB (fun p -> p.name == "bob")) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
   (let _ = prepFriends () in
-    Builtin.DB.queryOne PersonDB (fun p -> p.name == "Rachel"))
-    |> PACKAGE.Darklang.Stdlib.Option.map (fun v -> v.name) = PACKAGE.Darklang.Stdlib.Option.Option.Some "Rachel"
+   Builtin.DB.queryOne PersonDB (fun p -> p.name == "Rachel"))
+  |> PACKAGE.Darklang.Stdlib.Option.map (fun v -> v.name) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+    "Rachel"
 
 
   // interpolated
