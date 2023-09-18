@@ -306,11 +306,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString s; DInt first; DInt last ] ->
-          String.toEgcSeq s
-          |> Seq.toList
-          |> FSharpPlus.List.drop (int first)
-          |> List.truncate (int (last - first))
-          |> String.concat ""
+
+          let sliceSeq start stop seq =
+            seq |> Seq.skip start |> Seq.take (stop - start)
+
+          let chars = String.toEgcSeq s
+
+          chars
+          |> sliceSeq (int first) (int last)
+          |> Seq.fold (fun acc char -> acc + char) ""
           |> DString
           |> Ply
         | _ -> incorrectArgs ())
