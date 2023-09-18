@@ -220,6 +220,9 @@ module Roundtrip =
       uuid: Uuid
       resultOk: PACKAGE.Darklang.Stdlib.Result.Result<Int, String>
       resultError: PACKAGE.Darklang.Stdlib.Result.Result<Int, String>
+      option: PACKAGE.Darklang.Stdlib.Option.Option<Int>
+      tuple: (Int * String)
+      record: MyTlid
       list: List<Int>
       datetime: DateTime
       unit: Unit }
@@ -243,6 +246,9 @@ module Roundtrip =
         char = 'c'
         resultOk = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
         resultError = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+        option = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
+        record = MyTlid { mytlid = 1234 }
+        tuple = (1, "hello")
         emojiChar = (Builtin.Test.toChar "👍") |> Builtin.unwrap
         uuid =
           (PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
@@ -270,6 +276,9 @@ module Roundtrip =
         char = 'd'
         resultOk = PACKAGE.Darklang.Stdlib.Result.Result.Ok 6
         resultError = PACKAGE.Darklang.Stdlib.Result.Result.Error "other test"
+        option = PACKAGE.Darklang.Stdlib.Option.Option.None
+        record = MyTlid { mytlid = 1235 }
+        tuple = (2, "goodbye")
         emojiChar = 'e'
         uuid =
           (PACKAGE.Darklang.Stdlib.Uuid.parse "55555555-5555-5555-5555-555555555555")
@@ -281,7 +290,7 @@ module Roundtrip =
       // dont test password because hashing it twice will get different values
       }
 
-  // TODO: Add roundtrip for records, unit, tuple, option, result, bytes
+  // TODO: Add roundtrip for bytes (Bytes values not supported yet)
   (let v = sample ()
    let z = Builtin.DB.set v "all" SampleDB in
    (z, Builtin.DB.get "all" SampleDB)) = (sample (),
@@ -704,6 +713,12 @@ module FindAll =
                                                               "Rachel"
                                                               "Ross" ]
 
+  // inlining package functions
+  (friends (fun p ->
+    let x = p.height in true && PACKAGE.Darklang.Stdlib.Int.greaterThan_v0 x 32)) = [ " Chandler "
+                                                                                      "Rachel"
+                                                                                      "Ross" ]
+
   // pipes
   (friends (fun p -> p.height |> (*) 2 |> (<) 40)) = [ "GrumpyCat" ]
 
@@ -807,6 +822,36 @@ module CompiledFunctions =
                                                                               "Rachel"
                                                                               "Ross" ]
 
+  // can't test xor. We do not yet support compiling this code: EIf
+  // (friends (fun p -> PACKAGE.Darklang.Stdlib.Bool.xor_v0 p.human p.human)) = []
+
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.Bool.not_v0 (
+      PACKAGE.Darklang.Stdlib.Bool.and_v0 p.human p.human
+    ))) = [ "GrumpyCat" ]
+
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.Bool.and_v0
+      p.human
+      (PACKAGE.Darklang.Stdlib.Bool.not_v0 p.human))) = []
+
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.Bool.or_v0
+      p.human
+      (PACKAGE.Darklang.Stdlib.Bool.not_v0 p.human))) = [ " Chandler "
+                                                          "GrumpyCat"
+                                                          "Rachel"
+                                                          "Ross" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.String.reverse_v0 p.name == "lehcaR")) = [ "Rachel" ]
+
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.String.reverse_v0 (
+      (PACKAGE.Darklang.Stdlib.String.toLowercase p.name)
+      |> PACKAGE.Darklang.Stdlib.String.toUppercase
+    )
+    == "LEHCAR")) = [ "Rachel" ]
+
   (friends (fun p ->
     PACKAGE.Darklang.Stdlib.DateTime.lessThanOrEqualTo
       p.dob
@@ -860,12 +905,35 @@ module CompiledFunctions =
                                                                                   "Rachel" ]
 
   // Test package constants
+  // Bool
   (friends (fun p ->
     PACKAGE.Darklang.Stdlib.Bool.and_v0
       p.human
       PACKAGE.Darklang.Test.Constants.boolConst)) = [ " Chandler "
                                                       "Rachel"
                                                       "Ross" ]
+
+  // Float
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.Float.lessThanOrEqualTo
+      p.income
+      PACKAGE.Darklang.Test.Constants.floatConst)) = [ "GrumpyCat" ]
+
+  // Int
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo
+      p.height
+      PACKAGE.Darklang.Test.Constants.intConst)) = [ " Chandler "
+                                                     "GrumpyCat"
+                                                     "Rachel"
+                                                     "Ross" ]
+
+  // String
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.String.contains_v0
+      p.name
+      PACKAGE.Darklang.Test.Constants.stringConst)) = []
+
 
 module PartialEvaluation =
   type A = { a: Int }
