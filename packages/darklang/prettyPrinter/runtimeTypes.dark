@@ -373,7 +373,7 @@ module Darklang =
             typeStr ++ typeArgsPart ++ " {" ++ inl ++ elems ++ nl ++ "}"
 
           | DDict d ->
-            if d == Builtin.Dict.empty then
+            if d == PACKAGE.Darklang.Stdlib.Dict.empty then
               "{}"
             else
               let strs =
