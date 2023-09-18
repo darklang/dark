@@ -92,47 +92,45 @@ module ToBytes =
 
 module FromBytesWithReplacement =
   PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement_v0 (
-    (PACKAGE.Darklang.Stdlib.Bytes.base64Decode_v0 "w6I") |> Builtin.unwrap
+    (PACKAGE.Darklang.Stdlib.Base64.decode_v0 "w6I") |> Builtin.unwrap
   ) = "â"
 
   PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement_v0 (
-    (PACKAGE.Darklang.Stdlib.Bytes.base64Decode_v0 "aGVsbG8g8J+YgA==")
-    |> Builtin.unwrap
+    (PACKAGE.Darklang.Stdlib.Base64.decode_v0 "aGVsbG8g8J+YgA==") |> Builtin.unwrap
   ) = "hello 😀"
 
   PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement_v0 (
-    (PACKAGE.Darklang.Stdlib.Bytes.base64Decode_v0 "ww==") |> Builtin.unwrap
+    (PACKAGE.Darklang.Stdlib.Base64.decode_v0 "ww==") |> Builtin.unwrap
   ) = "�"
 
   PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement_v0 (
-    (PACKAGE.Darklang.Stdlib.Bytes.base64Decode_v0 "7aCA") |> Builtin.unwrap
+    (PACKAGE.Darklang.Stdlib.Base64.decode_v0 "7aCA") |> Builtin.unwrap
   ) = "���"
 
   PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement_v0 (
-    (PACKAGE.Darklang.Stdlib.Bytes.base64Decode_v0 "aMM=") |> Builtin.unwrap
+    (PACKAGE.Darklang.Stdlib.Base64.decode_v0 "aMM=") |> Builtin.unwrap
   ) = "h�"
 
 
 module FromBytes =
   PACKAGE.Darklang.Stdlib.String.fromBytes_v0 (
-    (PACKAGE.Darklang.Stdlib.Bytes.base64Decode_v0 "w6I") |> Builtin.unwrap
+    (PACKAGE.Darklang.Stdlib.Base64.decode_v0 "w6I") |> Builtin.unwrap
   ) = PACKAGE.Darklang.Stdlib.Option.Option.Some("â")
 
   PACKAGE.Darklang.Stdlib.String.fromBytes_v0 (
-    (PACKAGE.Darklang.Stdlib.Bytes.base64Decode_v0 "aGVsbG8g8J+YgA==")
-    |> Builtin.unwrap
+    (PACKAGE.Darklang.Stdlib.Base64.decode_v0 "aGVsbG8g8J+YgA==") |> Builtin.unwrap
   ) = PACKAGE.Darklang.Stdlib.Option.Option.Some("hello 😀")
 
   PACKAGE.Darklang.Stdlib.String.fromBytes_v0 (
-    (PACKAGE.Darklang.Stdlib.Bytes.base64Decode_v0 "ww==") |> Builtin.unwrap
+    (PACKAGE.Darklang.Stdlib.Base64.decode_v0 "ww==") |> Builtin.unwrap
   ) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
   PACKAGE.Darklang.Stdlib.String.fromBytes_v0 (
-    (PACKAGE.Darklang.Stdlib.Bytes.base64Decode_v0 "7aCA") |> Builtin.unwrap
+    (PACKAGE.Darklang.Stdlib.Base64.decode_v0 "7aCA") |> Builtin.unwrap
   ) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
   PACKAGE.Darklang.Stdlib.String.fromBytes_v0 (
-    (PACKAGE.Darklang.Stdlib.Bytes.base64Decode_v0 "aMM=") |> Builtin.unwrap
+    (PACKAGE.Darklang.Stdlib.Base64.decode_v0 "aMM=") |> Builtin.unwrap
   ) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 
