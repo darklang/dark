@@ -300,7 +300,6 @@ let rec postTraversalAsync
       | TUuid
       | TDateTime
       | TBytes
-      | TPassword
       | TVariable _
       | TString -> return typeRef
       | TList tr ->

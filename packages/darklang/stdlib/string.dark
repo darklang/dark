@@ -112,7 +112,7 @@ module Darklang =
       /// {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
       /// [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)
       let base64Encode (s: String) : String =
-        let encoded = s |> Builtin.String.toBytes |> Builtin.Bytes.base64Encode
+        let encoded = s |> Builtin.String.toBytes |> Builtin.Base64.urlEncode
         PACKAGE.Darklang.Stdlib.String.replaceAll encoded "=" ""
 
 
@@ -125,7 +125,7 @@ module Darklang =
       let base64Decode
         (s: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
-        match (Builtin.Bytes.base64Decode s) with
+        match (Builtin.Base64.decode s) with
         | Ok bytes ->
           match (Builtin.String.fromBytes bytes) with
           | Some str -> PACKAGE.Darklang.Stdlib.Result.Result.Ok str
@@ -140,7 +140,7 @@ module Darklang =
         let sha384Hash =
           Builtin.Crypto.sha384_v0 (PACKAGE.Darklang.Stdlib.String.toBytes_v0 s)
 
-        sha384Hash |> PACKAGE.Darklang.Stdlib.Bytes.base64Encode
+        sha384Hash |> PACKAGE.Darklang.Stdlib.Base64.urlEncode
 
 
       /// Generate a <type String> of length <param length> from random characters
