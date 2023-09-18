@@ -184,25 +184,41 @@ let getConstant
 // CLEANUP this package manager should be removed, and all usages replaced with the
 // one that fetches things from the `dark-packages` canvas' http endpoints
 let packageManager : RT.PackageManager =
+
+  /// TODO I'm not sure what to do here.
+  ///
+  /// - the `RuntimeError` type is something we often want to create `Dval`s for
+  /// - normally, we type-check complex values such as these upon creation, ensuring
+  ///   the fields match the expected types, etc
+  /// - in WT2PT, we attempt to resolve the names of anything written, and represent
+  ///   this as a `NameResolutionError`. this type is referenced by a number of
+  ///   `ProgramTypes`
+  ///   (e.g. `TCustomType`, `ERecord`, `CEnum`, etc) and treated as a 'valid'
+  ///   program at this point, without raising a runtime error or exception
+  /// - `NRE` is a case of the `RuntimeError` enum.
+  /// - in `PT2RT` (`ProgramTypesToRuntimeTypes`), we ..
+  /// - TOOD: continue to explain here
+  let types = RT.Types.empty
+
   { getType =
       fun name ->
         uply {
           let! typ = name |> PT2RT.TypeName.Package.fromRT |> getType
-          return Option.map PT2RT.PackageType.toRT typ
+          return Option.map (PT2RT.PackageType.toRT types) typ
         }
 
     getFn =
       fun name ->
         uply {
           let! typ = name |> PT2RT.FnName.Package.fromRT |> getFn
-          return Option.map PT2RT.PackageFn.toRT typ
+          return Option.map (PT2RT.PackageFn.toRT types) typ
         }
 
     getFnByTLID =
       fun tlid ->
         uply {
           let! typ = tlid |> getFnByTLID
-          return Option.map PT2RT.PackageFn.toRT typ
+          return Option.map (PT2RT.PackageFn.toRT types) typ
         }
 
     getConstant =

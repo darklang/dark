@@ -56,13 +56,19 @@ module TypeName =
 
 
 module NameResolution =
-  let toRT (f : 'a -> 'b) (nr : PT.NameResolution<'a>) : RT.NameResolution<'b> =
+  let toRT
+    (types : RT.Types)
+    (f : 'a -> 'b)
+    (nr : PT.NameResolution<'a>)
+    : RT.NameResolution<'b> =
     match nr with
     | Ok x -> Ok(f x)
-    | Error e -> Error(NameResolutionError.RTE.toRuntimeError e)
+    | Error e -> Error(NameResolutionError.RTE.toRuntimeError types e)
 
 module TypeReference =
-  let rec toRT (t : PT.TypeReference) : RT.TypeReference =
+  let rec toRT (types : RT.Types) (t : PT.TypeReference) : RT.TypeReference =
+    let toRT = toRT types
+
     match t with
     | PT.TInt -> RT.TInt
     | PT.TFloat -> RT.TFloat
@@ -80,7 +86,7 @@ module TypeReference =
     | PT.TUuid -> RT.TUuid
     | PT.TCustomType(typeName, typeArgs) ->
       RT.TCustomType(
-        NameResolution.toRT TypeName.toRT typeName,
+        NameResolution.toRT types TypeName.toRT typeName,
         List.map toRT typeArgs
       )
     | PT.TBytes -> RT.TBytes
@@ -227,11 +233,14 @@ module MatchPattern =
     | PT.MPListCons(id, head, tail) -> RT.MPListCons(id, toRT head, toRT tail)
 
 module Expr =
-  let rec toRT (e : PT.Expr) : RT.Expr =
+  let rec toRT (types : RT.Types) (e : PT.Expr) : RT.Expr =
+    let toRT = toRT types
+
     match e with
     | PT.EChar(id, char) -> RT.EChar(id, char)
     | PT.EInt(id, num) -> RT.EInt(id, num)
-    | PT.EString(id, segments) -> RT.EString(id, List.map stringSegmentToRT segments)
+    | PT.EString(id, segments) ->
+      RT.EString(id, List.map (stringSegmentToRT types) segments)
     | PT.EFloat(id, sign, whole, fraction) ->
       let whole = if whole = "" then "0" else whole
       let fraction = if fraction = "" then "0" else fraction
@@ -240,19 +249,19 @@ module Expr =
     | PT.EUnit id -> RT.EUnit id
     | PT.EConstant(id, Ok name) -> RT.EConstant(id, ConstantName.toRT name)
     | PT.EConstant(id, Error err) ->
-      RT.EError(id, NameResolutionError.RTE.toRuntimeError err, [])
+      RT.EError(id, NameResolutionError.RTE.toRuntimeError types err, [])
     | PT.EVariable(id, var) -> RT.EVariable(id, var)
     | PT.EFieldAccess(id, obj, fieldname) -> RT.EFieldAccess(id, toRT obj, fieldname)
     | PT.EApply(id, fnName, typeArgs, args) ->
       RT.EApply(
         id,
         toRT fnName,
-        List.map TypeReference.toRT typeArgs,
+        List.map (TypeReference.toRT types) typeArgs,
         NEList.map toRT args
       )
     | PT.EFnName(id, Ok name) -> RT.EFnName(id, FnName.toRT name)
     | PT.EFnName(id, Error err) ->
-      RT.EError(id, NameResolutionError.RTE.toRuntimeError err, [])
+      RT.EError(id, NameResolutionError.RTE.toRuntimeError types err, [])
     | PT.EInfix(id, PT.InfixFnCall fnName, arg1, arg2) ->
       let (modules, fn, version) = InfixFnName.toFnName fnName
       let name =
@@ -303,7 +312,7 @@ module Expr =
     | PT.ERecord(id, Error err, fields) ->
       RT.EError(
         id,
-        NameResolutionError.RTE.toRuntimeError err,
+        NameResolutionError.RTE.toRuntimeError types err,
         fields |> List.map Tuple2.second |> List.map toRT
       )
 
@@ -322,14 +331,14 @@ module Expr =
         | PT.EPipeFnCall(id, Error err, _typeArgs, exprs) ->
           RT.EError(
             id,
-            NameResolutionError.RTE.toRuntimeError err,
+            NameResolutionError.RTE.toRuntimeError types err,
             prev :: List.map toRT exprs
           )
         | PT.EPipeFnCall(id, Ok fnName, typeArgs, exprs) ->
           RT.EApply(
             id,
             RT.EFnName(id, FnName.toRT fnName),
-            List.map TypeReference.toRT typeArgs,
+            List.map (TypeReference.toRT types) typeArgs,
             NEList.ofList prev (List.map toRT exprs)
           )
         | PT.EPipeInfix(id, PT.InfixFnCall fnName, expr) ->
@@ -356,7 +365,7 @@ module Expr =
         | PT.EPipeEnum(id, Error err, _caseName, fields) ->
           RT.EError(
             id,
-            NameResolutionError.RTE.toRuntimeError err,
+            NameResolutionError.RTE.toRuntimeError types err,
             prev :: List.map toRT fields
           )
         | PT.EPipeVariable(id, name, exprs) ->
@@ -386,15 +395,21 @@ module Expr =
     | PT.EEnum(id, Ok typeName, caseName, fields) ->
       RT.EEnum(id, TypeName.toRT typeName, caseName, List.map toRT fields)
     | PT.EEnum(id, Error err, _caseName, fields) ->
-      RT.EError(id, NameResolutionError.RTE.toRuntimeError err, List.map toRT fields)
+      RT.EError(
+        id,
+        NameResolutionError.RTE.toRuntimeError types err,
+        List.map toRT fields
+      )
     | PT.EDict(id, fields) -> RT.EDict(id, List.map (Tuple2.mapSecond toRT) fields)
 
 
-
-  and stringSegmentToRT (segment : PT.StringSegment) : RT.StringSegment =
+  and stringSegmentToRT
+    (types : RT.Types)
+    (segment : PT.StringSegment)
+    : RT.StringSegment =
     match segment with
     | PT.StringText text -> RT.StringText text
-    | PT.StringInterpolation expr -> RT.StringInterpolation(toRT expr)
+    | PT.StringInterpolation expr -> RT.StringInterpolation(toRT types expr)
 
 module Const =
   let rec toRT (c : PT.Const) : RT.Dval =
@@ -421,29 +436,41 @@ module Const =
 
 module TypeDeclaration =
   module RecordField =
-    let toRT (f : PT.TypeDeclaration.RecordField) : RT.TypeDeclaration.RecordField =
-      { name = f.name; typ = TypeReference.toRT f.typ }
+    let toRT
+      (types : RT.Types)
+      (f : PT.TypeDeclaration.RecordField)
+      : RT.TypeDeclaration.RecordField =
+      { name = f.name; typ = TypeReference.toRT types f.typ }
 
   module EnumField =
-    let toRT (f : PT.TypeDeclaration.EnumField) : RT.TypeReference =
-      TypeReference.toRT f.typ
+    let toRT
+      (types : RT.Types)
+      (f : PT.TypeDeclaration.EnumField)
+      : RT.TypeReference =
+      TypeReference.toRT types f.typ
 
   module EnumCase =
-    let toRT (c : PT.TypeDeclaration.EnumCase) : RT.TypeDeclaration.EnumCase =
-      { name = c.name; fields = List.map EnumField.toRT c.fields }
+    let toRT
+      (types : RT.Types)
+      (c : PT.TypeDeclaration.EnumCase)
+      : RT.TypeDeclaration.EnumCase =
+      { name = c.name; fields = List.map (EnumField.toRT types) c.fields }
 
   module Definition =
-    let toRT (d : PT.TypeDeclaration.Definition) : RT.TypeDeclaration.Definition =
+    let toRT
+      (types : RT.Types)
+      (d : PT.TypeDeclaration.Definition)
+      : RT.TypeDeclaration.Definition =
       match d with
       | PT.TypeDeclaration.Definition.Alias(typ) ->
-        RT.TypeDeclaration.Alias(TypeReference.toRT typ)
+        RT.TypeDeclaration.Alias(TypeReference.toRT types typ)
       | PT.TypeDeclaration.Record fields ->
-        RT.TypeDeclaration.Record(NEList.map RecordField.toRT fields)
+        RT.TypeDeclaration.Record(NEList.map (RecordField.toRT types) fields)
       | PT.TypeDeclaration.Enum cases ->
-        RT.TypeDeclaration.Enum(NEList.map EnumCase.toRT cases)
+        RT.TypeDeclaration.Enum(NEList.map (EnumCase.toRT types) cases)
 
-  let toRT (t : PT.TypeDeclaration.T) : RT.TypeDeclaration.T =
-    { typeParams = t.typeParams; definition = Definition.toRT t.definition }
+  let toRT (types : RT.Types) (t : PT.TypeDeclaration.T) : RT.TypeDeclaration.T =
+    { typeParams = t.typeParams; definition = (Definition.toRT types) t.definition }
 
 
 module Handler =
@@ -466,21 +493,21 @@ module Handler =
         RT.Handler.Cron(name, CronInterval.toRT interval)
       | PT.Handler.REPL name -> RT.Handler.REPL name
 
-  let toRT (h : PT.Handler.T) : RT.Handler.T =
-    { tlid = h.tlid; ast = Expr.toRT h.ast; spec = Spec.toRT h.spec }
+  let toRT (types : RT.Types) (h : PT.Handler.T) : RT.Handler.T =
+    { tlid = h.tlid; ast = Expr.toRT types h.ast; spec = Spec.toRT h.spec }
 
 module DB =
-  let toRT (db : PT.DB.T) : RT.DB.T =
+  let toRT (types : RT.Types) (db : PT.DB.T) : RT.DB.T =
     { tlid = db.tlid
       name = db.name
       version = db.version
-      typ = TypeReference.toRT db.typ }
+      typ = TypeReference.toRT types db.typ }
 
 module UserType =
-  let toRT (t : PT.UserType.T) : RT.UserType.T =
+  let toRT (types : RT.Types) (t : PT.UserType.T) : RT.UserType.T =
     { tlid = t.tlid
       name = TypeName.UserProgram.toRT t.name
-      declaration = TypeDeclaration.toRT t.declaration }
+      declaration = TypeDeclaration.toRT types t.declaration }
 
 module UserConstant =
   let toRT (c : PT.UserConstant.T) : RT.UserConstant.T =
@@ -490,24 +517,27 @@ module UserConstant =
 
 module UserFunction =
   module Parameter =
-    let toRT (p : PT.UserFunction.Parameter) : RT.UserFunction.Parameter =
-      { name = p.name; typ = TypeReference.toRT p.typ }
+    let toRT
+      (types : RT.Types)
+      (p : PT.UserFunction.Parameter)
+      : RT.UserFunction.Parameter =
+      { name = p.name; typ = TypeReference.toRT types p.typ }
 
-  let toRT (f : PT.UserFunction.T) : RT.UserFunction.T =
+  let toRT (types : RT.Types) (f : PT.UserFunction.T) : RT.UserFunction.T =
     { tlid = f.tlid
       name = FnName.UserProgram.toRT f.name
       typeParams = f.typeParams
-      parameters = NEList.map Parameter.toRT f.parameters
-      returnType = TypeReference.toRT f.returnType
-      body = Expr.toRT f.body }
+      parameters = NEList.map (Parameter.toRT types) f.parameters
+      returnType = TypeReference.toRT types f.returnType
+      body = Expr.toRT types f.body }
 
 module Toplevel =
-  let toRT (tl : PT.Toplevel.T) : RT.Toplevel.T =
+  let toRT (types : RT.Types) (tl : PT.Toplevel.T) : RT.Toplevel.T =
     match tl with
-    | PT.Toplevel.TLHandler h -> RT.Toplevel.TLHandler(Handler.toRT h)
-    | PT.Toplevel.TLDB db -> RT.Toplevel.TLDB(DB.toRT db)
-    | PT.Toplevel.TLFunction f -> RT.Toplevel.TLFunction(UserFunction.toRT f)
-    | PT.Toplevel.TLType t -> RT.Toplevel.TLType(UserType.toRT t)
+    | PT.Toplevel.TLHandler h -> RT.Toplevel.TLHandler(Handler.toRT types h)
+    | PT.Toplevel.TLDB db -> RT.Toplevel.TLDB(DB.toRT types db)
+    | PT.Toplevel.TLFunction f -> RT.Toplevel.TLFunction(UserFunction.toRT types f)
+    | PT.Toplevel.TLType t -> RT.Toplevel.TLType(UserType.toRT types t)
     | PT.Toplevel.TLConstant c -> RT.Toplevel.TLConstant(UserConstant.toRT c)
 
 module Secret =
@@ -516,21 +546,24 @@ module Secret =
 
 module PackageFn =
   module Parameter =
-    let toRT (p : PT.PackageFn.Parameter) : RT.PackageFn.Parameter =
-      { name = p.name; typ = TypeReference.toRT p.typ }
+    let toRT
+      (types : RT.Types)
+      (p : PT.PackageFn.Parameter)
+      : RT.PackageFn.Parameter =
+      { name = p.name; typ = TypeReference.toRT types p.typ }
 
-  let toRT (f : PT.PackageFn.T) : RT.PackageFn.T =
+  let toRT (types : RT.Types) (f : PT.PackageFn.T) : RT.PackageFn.T =
     { name = FnName.Package.toRT f.name
       tlid = f.tlid
-      body = Expr.toRT f.body
+      body = Expr.toRT types f.body
       typeParams = f.typeParams
-      parameters = NEList.map Parameter.toRT f.parameters
-      returnType = TypeReference.toRT f.returnType }
+      parameters = NEList.map (Parameter.toRT types) f.parameters
+      returnType = TypeReference.toRT types f.returnType }
 
 module PackageType =
-  let toRT (t : PT.PackageType.T) : RT.PackageType.T =
+  let toRT (types : RT.Types) (t : PT.PackageType.T) : RT.PackageType.T =
     { name = TypeName.Package.toRT t.name
-      declaration = TypeDeclaration.toRT t.declaration }
+      declaration = TypeDeclaration.toRT types t.declaration }
 
 module PackageConstant =
   let toRT (c : PT.PackageConstant.T) : RT.PackageConstant.T =

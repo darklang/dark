@@ -12,6 +12,10 @@ module NRE = LibExecution.NameResolutionError
 
 type NameResolver =
   {
+    // maybe just have RT.Types, RT.Constants, and RT.Functions here,
+    // rather than re-shape things?
+    // this does better
+
     builtinTypes : Set<PT.TypeName.BuiltIn>
     builtinFns : Set<PT.FnName.BuiltIn>
     builtinConstants : Set<PT.ConstantName.BuiltIn>
@@ -319,7 +323,8 @@ module TypeName =
     : Ply<bool> =
     match pm with
     | None -> Ply false
-    | Some pm -> pm.getType typeName |> Ply.map (fun found -> found |> Option.isSome)
+    | Some pm ->
+      pm.getType typeName |> Ply.map (fun found -> found |> Option.isSome)
 
   let maybeResolve
     (resolver : NameResolver)

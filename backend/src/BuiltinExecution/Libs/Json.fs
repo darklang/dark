@@ -474,7 +474,13 @@ let parse
                 |> Ply.List.flatten
 
               return
-                Dval.enum typeName typeName Dval.valueTypeArgsTODO caseName fields
+                Dval.enum
+                  types
+                  typeName
+                  typeName
+                  Dval.valueTypeArgsTODO
+                  caseName
+                  fields
 
             | _ -> return Exception.raiseInternal "TODO" []
 

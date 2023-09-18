@@ -185,11 +185,7 @@ let fns : List<BuiltInFn> =
 
           match result with
           | Some map ->
-            map
-            |> Map.toList
-            |> Dval.dict dictType
-            |> Dval.optionSome optType
-            |> Ply
+            map |> Map.toList |> Dval.dict dictType |> Dval.optionSome optType |> Ply
           | None -> Ply(Dval.optionNone optType)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

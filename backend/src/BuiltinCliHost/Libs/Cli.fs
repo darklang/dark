@@ -31,7 +31,7 @@ module CliRuntimeError =
   /// to RuntimeError
   module RTE =
     module Error =
-      let toDT (et : Error) : RT.Dval =
+      let toDT (types : RT.Types) (et : Error) : RT.Dval =
         let caseName, fields =
           match et with
           | NoExpressionsToExecute -> "NoExpressionsToExecute", []
@@ -56,11 +56,11 @@ module CliRuntimeError =
             "NonIntReturned", [ RT2DT.Dval.toDT actuallyReturned ]
 
         let typeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
-        Dval.enum typeName typeName (Some []) caseName fields
+        Dval.enum types typeName typeName (Some []) caseName fields
 
 
-    let toRuntimeError (e : Error) : RT.RuntimeError =
-      Error.toDT e |> RT.RuntimeError.fromDT
+    let toRuntimeError (types : RT.Types) (e : Error) : RT.RuntimeError =
+      Error.toDT types e |> RT.RuntimeError.fromDT types
 
 let libExecutionContents =
   BuiltinExecution.Builtin.contents BuiltinExecution.Libs.HttpClient.defaultConfig
@@ -78,6 +78,7 @@ let builtIns : RT.BuiltIns =
 let packageManager = LibCliExecution.PackageManager.packageManager
 
 let execute
+  (types : RT.Types)
   (parentState : RT.ExecutionState)
   (mod' : LibParser.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
@@ -122,14 +123,14 @@ let execute
         DError(
           SourceNone,
           CliRuntimeError.NoExpressionsToExecute
-          |> CliRuntimeError.RTE.toRuntimeError
+          |> CliRuntimeError.RTE.toRuntimeError types
         )
     else // mod'.exprs.Length > 1
       return
         DError(
           SourceNone,
           CliRuntimeError.MultipleExpressionsToExecute(mod'.exprs |> List.map string)
-          |> CliRuntimeError.RTE.toRuntimeError
+          |> CliRuntimeError.RTE.toRuntimeError types
         )
   }
 
@@ -148,18 +149,18 @@ let fns : List<BuiltInFn> =
           (TCustomType(Ok(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)), []))
       description = "Parses and executes arbitrary Dark code"
       fn =
-        function
+        let okType = VT.int
+        let errType = VT.unknownTODO
+        (function
         | state, [], [ DString filename; DString code; DDict(_, symtable) ] ->
-          let okType = VT.int
-          let errType = VT.unknownTODO
-
           uply {
+            let types = ExecutionState.availableTypes state
             let exnError (e : exn) : RuntimeError =
               let msg = Exception.getMessages e |> String.concat "\n"
               let metadata =
                 Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
               CliRuntimeError.UncaughtException(msg, metadata)
-              |> CliRuntimeError.RTE.toRuntimeError
+              |> CliRuntimeError.RTE.toRuntimeError types
 
             let nameResolver = LibParser.NameResolver.fromExecutionState state
 
@@ -175,14 +176,14 @@ let fns : List<BuiltInFn> =
             try
               match parsedScript with
               | Ok mod' ->
-                match! execute state mod' symtable with
+                match! execute types state mod' symtable with
                 | DInt i -> return Dval.resultOk okType errType (DInt i)
                 | DError(_, e) ->
                   return e |> RuntimeError.toDT |> Dval.resultError okType errType
                 | result ->
                   return
                     CliRuntimeError.NonIntReturned result
-                    |> CliRuntimeError.RTE.toRuntimeError
+                    |> CliRuntimeError.RTE.toRuntimeError types
                     |> RuntimeError.toDT
                     |> Dval.resultError okType errType
               | Error e ->
@@ -191,7 +192,7 @@ let fns : List<BuiltInFn> =
               return
                 exnError e |> RuntimeError.toDT |> Dval.resultError okType errType
           }
-        | _ -> incorrectArgs ()
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }

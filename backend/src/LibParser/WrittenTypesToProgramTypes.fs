@@ -4,6 +4,7 @@ module LibParser.WrittenTypesToProgramTypes
 open Prelude
 
 module WT = WrittenTypes
+module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module FS2WT = FSharpToWrittenTypes
 module NRE = LibExecution.NameResolutionError
@@ -212,7 +213,8 @@ module Expr =
         let! theRest = Ply.List.mapSequentially toPT theRest
         return PT.ETuple(id, first, second, theRest)
       | WT.ERecord(id, typeName, fields) ->
-        let! typeName = NameResolver.TypeName.resolve resolver currentModule typeName
+        let! typeName =
+          NameResolver.TypeName.resolve resolver currentModule typeName
         let! fields =
           Ply.List.mapSequentially
             (fun (fieldName, fieldExpr) ->

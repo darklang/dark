@@ -28,7 +28,7 @@ type Error =
 /// to RuntimeError
 module RTE =
   module ErrorType =
-    let toDT (et : ErrorType) : RT.Dval =
+    let toDT (types : RT.Types) (et : ErrorType) : RT.Dval =
       let nameTypeName = RT.RuntimeError.name [ "NameResolution" ] "ErrorType" 0
       let caseName, fields =
         match et with
@@ -38,7 +38,7 @@ module RTE =
         | MissingEnumModuleName caseName ->
           "MissingEnumModuleName", [ RT.DString caseName ]
         | InvalidPackageName -> "InvalidPackageName", []
-      Dval.enum nameTypeName nameTypeName (Some []) caseName fields
+      Dval.enum types nameTypeName nameTypeName (Some []) caseName fields
 
     let fromDT (dv : RT.Dval) : ErrorType =
       match dv with
@@ -51,14 +51,14 @@ module RTE =
       | _ -> Exception.raiseInternal "Invalid ErrorType" []
 
   module NameType =
-    let toDT (nt : NameType) : RT.Dval =
+    let toDT (types : RT.Types) (nt : NameType) : RT.Dval =
       let nameTypeName = RT.RuntimeError.name [ "NameResolution" ] "NameType" 0
       let caseName =
         match nt with
         | Function -> "Function"
         | Type -> "Type"
         | Constant -> "Constant"
-      Dval.enum nameTypeName nameTypeName (Some []) caseName []
+      Dval.enum types nameTypeName nameTypeName (Some []) caseName []
 
     let fromDT (dv : RT.Dval) : NameType =
       match dv with
@@ -68,11 +68,11 @@ module RTE =
       | _ -> Exception.raiseInternal "Invalid NameType" []
 
   module Error =
-    let toDT (e : Error) : RT.Dval =
+    let toDT (types : RT.Types) (e : Error) : RT.Dval =
       let errorTypeName = RT.RuntimeError.name [ "NameResolution" ] "Error" 0
       let fields =
-        [ "errorType", ErrorType.toDT e.errorType
-          "nameType", NameType.toDT e.nameType
+        [ "errorType", ErrorType.toDT types e.errorType
+          "nameType", NameType.toDT types e.nameType
           "names",
           (e.names
            |> List.map RT.DString
@@ -91,8 +91,8 @@ module RTE =
 
       | _ -> Exception.raiseInternal "Expected DRecord" []
 
-  let toRuntimeError (e : Error) : RT.RuntimeError =
-    Error.toDT e |> RT.RuntimeError.nameResolutionError
+  let toRuntimeError (types : RT.Types) (e : Error) : RT.RuntimeError =
+    Error.toDT types e |> RT.RuntimeError.nameResolutionError
 
   let fromRuntimeError (re : RT.RuntimeError) : Error =
     // TODO: this probably doesn't unwrap the type

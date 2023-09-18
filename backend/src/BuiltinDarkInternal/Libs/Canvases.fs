@@ -171,22 +171,24 @@ let fns : List<BuiltInFn> =
         "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"
       fn =
         (function
-        | _, _, [ DUuid canvasID ] ->
+        | state, _, [ DUuid canvasID ] ->
           uply {
+            let availableTypes = ExecutionState.availableTypes state
+
             let! canvas = Canvas.loadAll canvasID
 
             let types =
               canvas.userTypes
               |> Map.values
               |> Seq.toList
-              |> List.map PT2DT.UserType.toDT
+              |> List.map (PT2DT.UserType.toDT availableTypes)
               |> Dval.list valueTypeTODO
 
             let fns =
               canvas.userFunctions
               |> Map.values
               |> Seq.toList
-              |> List.map PT2DT.UserFunction.toDT
+              |> List.map (PT2DT.UserFunction.toDT availableTypes)
               |> Dval.list valueTypeTODO
 
             // let dbs =

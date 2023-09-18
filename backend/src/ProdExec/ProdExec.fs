@@ -12,6 +12,7 @@ open System.Threading.Tasks
 
 open Prelude
 
+module RT = LibExecution.RuntimeTypes
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 module CTPusher = LibClientTypes.Pusher
@@ -93,10 +94,10 @@ let usesDB (options : Options) =
   | ConvertST2RTAll
   | Help -> false
 
-let convertToRT (canvasID : CanvasID) : Task<unit> =
+let convertToRT (types : RT.Types) (canvasID : CanvasID) : Task<unit> =
   task {
     let! canvas = LibCloud.Canvas.loadAll canvasID
-    let _program = LibCloud.Canvas.toProgram canvas
+    let _program = LibCloud.Canvas.toProgram types canvas
     let _handlers =
       canvas.handlers
       |> Map.values

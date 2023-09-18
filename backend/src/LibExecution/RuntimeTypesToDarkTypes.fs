@@ -106,6 +106,7 @@ module FQName =
 
 
   let toDT
+    (types : Types)
     (nameTypeArg : ValueType)
     (nameMapper : 'name -> Dval)
     (u : FQName.FQName<'name>)
@@ -117,7 +118,7 @@ module FQName =
       | FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameMapper u ]
 
     let typeName = rtTyp [ "FQName" ] "FQName" 0
-    Dval.enum typeName typeName (Some [ nameTypeArg ]) caseName fields
+    Dval.enum types typeName typeName (Some [ nameTypeArg ]) caseName fields
 
   let fromDT (nameMapper : Dval -> 'name) (d : Dval) : FQName.FQName<'name> =
     match d with
@@ -132,13 +133,13 @@ module FQName =
 
 module TypeName =
   module Name =
-    let toDT (u : TypeName.Name) : Dval =
+    let toDT (types : Types) (u : TypeName.Name) : Dval =
       let caseName, fields =
         match u with
         | TypeName.TypeName name -> "TypeName", [ DString name ]
 
       let typeName = rtTyp [ "TypeName" ] "Name" 0
-      Dval.enum typeName typeName (Some []) caseName fields
+      Dval.enum types typeName typeName (Some []) caseName fields
 
     let fromDT (d : Dval) : TypeName.Name =
       match d with
@@ -146,32 +147,36 @@ module TypeName =
       | _ -> Exception.raiseInternal "Invalid TypeName" []
 
   module BuiltIn =
-    let toDT (u : TypeName.BuiltIn) : Dval = FQName.BuiltIn.toDT Name.toDT u
+    let toDT (types : Types) (u : TypeName.BuiltIn) : Dval =
+      FQName.BuiltIn.toDT (Name.toDT types) u
     let fromDT (d : Dval) : TypeName.BuiltIn = FQName.BuiltIn.fromDT Name.fromDT d
 
   module UserProgram =
-    let toDT (u : TypeName.UserProgram) : Dval = FQName.UserProgram.toDT Name.toDT u
+    let toDT (types : Types) (u : TypeName.UserProgram) : Dval =
+      FQName.UserProgram.toDT (Name.toDT types) u
 
     let fromDT (d : Dval) : TypeName.UserProgram =
       FQName.UserProgram.fromDT Name.fromDT d
 
   module Package =
-    let toDT (u : TypeName.Package) : Dval = FQName.Package.toDT Name.toDT u
+    let toDT (types : Types) (u : TypeName.Package) : Dval =
+      FQName.Package.toDT (Name.toDT types) u
     let fromDT (d : Dval) : TypeName.Package = FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : TypeName.TypeName) : Dval = FQName.toDT VT.unknownTODO Name.toDT u
+  let toDT (types : Types) (u : TypeName.TypeName) : Dval =
+    FQName.toDT types VT.unknownTODO (Name.toDT types) u
   let fromDT (d : Dval) : TypeName.TypeName = FQName.fromDT Name.fromDT d
 
 
 module FnName =
   module Name =
-    let toDT (u : FnName.Name) : Dval =
+    let toDT (types : Types) (u : FnName.Name) : Dval =
       let caseName, fields =
         match u with
         | FnName.FnName name -> "FnName", [ DString name ]
 
       let typeName = rtTyp [ "FnName" ] "Name" 0
-      Dval.enum typeName typeName (Some []) caseName fields
+      Dval.enum types typeName typeName (Some []) caseName fields
 
     let fromDT (d : Dval) : FnName.Name =
       match d with
@@ -179,31 +184,35 @@ module FnName =
       | _ -> Exception.raiseInternal "Invalid FnName" []
 
   module BuiltIn =
-    let toDT (u : FnName.BuiltIn) : Dval = FQName.BuiltIn.toDT Name.toDT u
+    let toDT (types : Types) (u : FnName.BuiltIn) : Dval =
+      FQName.BuiltIn.toDT (Name.toDT types) u
     let fromDT (d : Dval) : FnName.BuiltIn = FQName.BuiltIn.fromDT Name.fromDT d
 
   module UserProgram =
-    let toDT (u : FnName.UserProgram) : Dval = FQName.UserProgram.toDT Name.toDT u
+    let toDT (types : Types) (u : FnName.UserProgram) : Dval =
+      FQName.UserProgram.toDT (Name.toDT types) u
     let fromDT (d : Dval) : FnName.UserProgram =
       FQName.UserProgram.fromDT Name.fromDT d
 
   module Package =
-    let toDT (u : FnName.Package) : Dval = FQName.Package.toDT Name.toDT u
+    let toDT (types : Types) (u : FnName.Package) : Dval =
+      FQName.Package.toDT (Name.toDT types) u
     let fromDT (d : Dval) : FnName.Package = FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : FnName.FnName) : Dval = FQName.toDT VT.unknownTODO Name.toDT u
+  let toDT (types : Types) (u : FnName.FnName) : Dval =
+    FQName.toDT types VT.unknownTODO (Name.toDT types) u
   let fromDT (d : Dval) : FnName.FnName = FQName.fromDT Name.fromDT d
 
 
 module ConstantName =
   module Name =
-    let toDT (u : ConstantName.Name) : Dval =
+    let toDT (types : Types) (u : ConstantName.Name) : Dval =
       let caseName, fields =
         match u with
         | ConstantName.ConstantName name -> "ConstantName", [ DString name ]
 
       let typeName = rtTyp [ "ConstantName" ] "Name" 0
-      Dval.enum typeName typeName (Some []) caseName fields
+      Dval.enum types typeName typeName (Some []) caseName fields
 
     let fromDT (d : Dval) : ConstantName.Name =
       match d with
@@ -212,45 +221,49 @@ module ConstantName =
       | _ -> Exception.raiseInternal "Invalid ConstantName" []
 
   module BuiltIn =
-    let toDT (u : ConstantName.BuiltIn) : Dval = FQName.BuiltIn.toDT Name.toDT u
+    let toDT (types : Types) (u : ConstantName.BuiltIn) : Dval =
+      FQName.BuiltIn.toDT (Name.toDT types) u
     let fromDT (d : Dval) : ConstantName.BuiltIn =
       FQName.BuiltIn.fromDT Name.fromDT d
 
   module UserProgram =
-    let toDT (u : ConstantName.UserProgram) : Dval =
-      FQName.UserProgram.toDT Name.toDT u
+    let toDT (types : Types) (u : ConstantName.UserProgram) : Dval =
+      FQName.UserProgram.toDT (Name.toDT types) u
 
     let fromDT (d : Dval) : ConstantName.UserProgram =
       FQName.UserProgram.fromDT Name.fromDT d
 
   module Package =
-    let toDT (u : ConstantName.Package) : Dval = FQName.Package.toDT Name.toDT u
+    let toDT (types : Types) (u : ConstantName.Package) : Dval =
+      FQName.Package.toDT (Name.toDT types) u
     let fromDT (d : Dval) : ConstantName.Package =
       FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : ConstantName.ConstantName) : Dval =
-    FQName.toDT VT.unknownTODO Name.toDT u
+  let toDT (types : Types) (u : ConstantName.ConstantName) : Dval =
+    FQName.toDT types VT.unknownTODO (Name.toDT types) u
   let fromDT (d : Dval) : ConstantName.ConstantName = FQName.fromDT Name.fromDT d
 
 
 module NameResolution =
-  let toDT (f : 'p -> Dval) (result : NameResolution<'p>) : Dval =
+  let toDT (types : Types) (f : 'p -> Dval) (result : NameResolution<'p>) : Dval =
     let okType = VT.unknownTODO
     let errType = VT.unknownTODO
     match result with
     | Ok name -> Dval.resultOk okType errType (f name)
-    | Error err -> Dval.resultError okType errType (RuntimeError.toDT err)
+    | Error err -> Dval.resultError okType errType (RuntimeError.toDT types err)
 
-  let fromDT (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
+  let fromDT (types : Types) (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
     match d with
     | DEnum(tn, _, [ _okType; _errType ], "Ok", [ v ]) when tn = Dval.resultType ->
       Ok(f v)
     | DEnum(tn, _, [ _okType; _errType ], "Error", [ v ]) when tn = Dval.resultType ->
-      Error(RuntimeError.fromDT v)
+      Error(RuntimeError.fromDT types v)
     | _ -> Exception.raiseInternal "Invalid NameResolution" []
 
 module TypeReference =
-  let rec toDT (t : TypeReference) : Dval =
+  let rec toDT (types : Types) (t : TypeReference) : Dval =
+    let toDT = toDT types
+
     let caseName, fields =
       match t with
       | TVariable name -> "TVariable", [ DString name ]
@@ -276,7 +289,7 @@ module TypeReference =
 
       | TCustomType(typeName, typeArgs) ->
         "TCustomType",
-        [ NameResolution.toDT TypeName.toDT typeName
+        [ NameResolution.toDT types (TypeName.toDT types) typeName
           Dval.list valueTypeTODO (List.map toDT typeArgs) ]
 
       | TDB inner -> "TDB", [ toDT inner ]
@@ -285,9 +298,12 @@ module TypeReference =
         [ Dval.list valueTypeTODO (List.map toDT (NEList.toList args)); toDT ret ]
 
     let typeName = rtTyp [] "TypeReference" 0
-    Dval.enum typeName typeName (Some []) caseName fields
+    Dval.enum types typeName typeName (Some []) caseName fields
 
-  let rec fromDT (d : Dval) : TypeReference =
+
+  let rec fromDT (types : Types) (d : Dval) : TypeReference =
+    let fromDT = fromDT types
+
     match d with
     | DEnum(_, _, [], "TVariable", [ DString name ]) -> TVariable(name)
 
@@ -311,7 +327,7 @@ module TypeReference =
 
     | DEnum(_, _, [], "TCustomType", [ typeName; DList(_vtTODO, typeArgs) ]) ->
       TCustomType(
-        NameResolution.fromDT TypeName.fromDT typeName,
+        NameResolution.fromDT types TypeName.fromDT typeName,
         List.map fromDT typeArgs
       )
 
@@ -321,14 +337,16 @@ module TypeReference =
     | _ -> Exception.raiseInternal "Invalid TypeReference" [ "typeRef", d ]
 
 module Param =
-  let toDT (p : Param) : Dval =
+  let toDT (types : Types) (p : Param) : Dval =
     Dval.record
       (rtTyp [] "Param" 0)
-      [ ("name", DString p.name); ("typ", TypeReference.toDT p.typ) ]
+      [ ("name", DString p.name); ("typ", TypeReference.toDT types p.typ) ]
 
 
 module LetPattern =
-  let rec toDT (p : LetPattern) : Dval =
+  let rec toDT (types : Types) (p : LetPattern) : Dval =
+    let toDT = toDT types
+
     let caseName, fields =
       match p with
       | LPVariable(id, name) -> "LPVariable", [ DInt(int64 id); DString name ]
@@ -341,7 +359,7 @@ module LetPattern =
           Dval.list valueTypeTODO (List.map toDT theRest) ]
 
     let typeName = rtTyp [] "LetPattern" 0
-    Dval.enum typeName typeName (Some []) caseName fields
+    Dval.enum types typeName typeName (Some []) caseName fields
 
   let rec fromDT (d : Dval) : LetPattern =
     match d with
@@ -354,7 +372,9 @@ module LetPattern =
 
 
 module MatchPattern =
-  let rec toDT (p : MatchPattern) : Dval =
+  let rec toDT (types : Types) (p : MatchPattern) : Dval =
+    let toDT = toDT types
+
     let caseName, fields =
       match p with
       | MPVariable(id, name) -> "MPVariable", [ DInt(int64 id); DString name ]
@@ -383,7 +403,7 @@ module MatchPattern =
           Dval.list valueTypeTODO (List.map toDT fieldPats) ]
 
     let typeName = rtTyp [] "MatchPattern" 0
-    Dval.enum typeName typeName (Some []) caseName fields
+    Dval.enum types typeName typeName (Some []) caseName fields
 
   let rec fromDT (d : Dval) : MatchPattern =
     match d with
@@ -413,14 +433,14 @@ module MatchPattern =
 
 
 module StringSegment =
-  let toDT (exprToDT : Expr -> Dval) (s : StringSegment) : Dval =
+  let toDT (types : Types) (exprToDT : Expr -> Dval) (s : StringSegment) : Dval =
     let caseName, fields =
       match s with
       | StringText text -> "StringText", [ DString text ]
       | StringInterpolation expr -> "StringInterpolation", [ exprToDT expr ]
 
     let typeName = rtTyp [] "StringSegment" 0
-    Dval.enum typeName typeName (Some []) caseName fields
+    Dval.enum types typeName typeName (Some []) caseName fields
 
   let fromDT (exprFromDT : Dval -> Expr) (d : Dval) : StringSegment =
     match d with
@@ -431,7 +451,8 @@ module StringSegment =
 
 
 module Expr =
-  let rec toDT (e : Expr) : Dval =
+  let rec toDT (types : Types) (e : Expr) : Dval =
+    let toDT = toDT types
     let caseName, fields =
       match e with
       | EUnit id -> "EUnit", [ DInt(int64 id) ]
@@ -444,7 +465,7 @@ module Expr =
       | EString(id, segments) ->
         "EString",
         [ DInt(int64 id)
-          Dval.list valueTypeTODO (List.map (StringSegment.toDT toDT) segments) ]
+          Dval.list valueTypeTODO (List.map (StringSegment.toDT types toDT) segments) ]
 
       // structures of data
       | EList(id, inner) ->
@@ -470,18 +491,20 @@ module Expr =
           |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
 
         "ERecord",
-        [ DInt(int64 id); TypeName.toDT name; Dval.list valueTypeTODO (fields) ]
+        [ DInt(int64 id)
+          TypeName.toDT types name
+          Dval.list valueTypeTODO (fields) ]
 
       | EEnum(id, typeName, caseName, fields) ->
         "EEnum",
         [ DInt(int64 id)
-          TypeName.toDT typeName
+          TypeName.toDT types typeName
           DString caseName
           Dval.list valueTypeTODO (List.map toDT fields) ]
 
       // declaring and accessing variables
       | ELet(id, lp, expr, body) ->
-        "ELet", [ DInt(int64 id); LetPattern.toDT lp; toDT expr; toDT body ]
+        "ELet", [ DInt(int64 id); LetPattern.toDT types lp; toDT expr; toDT body ]
 
       | EFieldAccess(id, expr, fieldName) ->
         "EFieldAccess", [ DInt(int64 id); toDT expr; DString fieldName ]
@@ -498,7 +521,7 @@ module Expr =
         let cases =
           (NEList.toList cases)
           |> List.map (fun (pattern, expr) ->
-            DTuple(MatchPattern.toDT pattern, toDT expr, []))
+            DTuple(MatchPattern.toDT types pattern, toDT expr, []))
 
         "EMatch", [ DInt(int64 id); toDT arg; Dval.list valueTypeTODO cases ]
 
@@ -514,16 +537,16 @@ module Expr =
         "ELambda", [ DInt(int64 id); variables; toDT body ]
 
       | EConstant(id, name) ->
-        "EConstant", [ DInt(int64 id); ConstantName.toDT name ]
+        "EConstant", [ DInt(int64 id); ConstantName.toDT types name ]
 
       | EApply(id, name, typeArgs, args) ->
         "EApply",
         [ DInt(int64 id)
           toDT name
-          Dval.list valueTypeTODO (List.map TypeReference.toDT typeArgs)
+          Dval.list valueTypeTODO (List.map (TypeReference.toDT types) typeArgs)
           Dval.list valueTypeTODO (List.map toDT (NEList.toList args)) ]
 
-      | EFnName(id, name) -> "EFnName", [ DInt(int64 id); FnName.toDT name ]
+      | EFnName(id, name) -> "EFnName", [ DInt(int64 id); FnName.toDT types name ]
 
       | ERecordUpdate(id, record, updates) ->
         let updates =
@@ -544,9 +567,12 @@ module Expr =
 
 
     let typeName = rtTyp [] "Expr" 0
-    Dval.enum typeName typeName (Some []) caseName fields
+    Dval.enum types typeName typeName (Some []) caseName fields
 
-  let rec fromDT (d : Dval) : Expr =
+
+  let rec fromDT (types : Types) (d : Dval) : Expr =
+    let fromDT = fromDT types
+
     match d with
     | DEnum(_, _, [], "EUnit", [ DInt id ]) -> EUnit(uint64 id)
 
@@ -669,7 +695,7 @@ module Expr =
       EApply(
         uint64 id,
         fromDT name,
-        List.map TypeReference.fromDT typeArgs,
+        List.map (TypeReference.fromDT types) typeArgs,
         NEList.map fromDT args
       )
 
@@ -700,23 +726,25 @@ module Expr =
       EOr(uint64 id, fromDT left, fromDT right)
 
     | DEnum(_, _, [], "EError", [ DInt id; rtError; DList(_vtTODO, exprs) ]) ->
-      EError(uint64 id, RuntimeError.fromDT rtError, List.map fromDT exprs)
+      EError(uint64 id, RuntimeError.fromDT types rtError, List.map fromDT exprs)
 
 
     | e -> Exception.raiseInternal "Invalid Expr" [ "e", e ]
 
 
 module RuntimeError =
-  let toDT (e : RuntimeError) : Dval =
-    e |> RuntimeTypes.RuntimeError.toDT |> Dval.toDT
+  let toDT (types : Types) (e : RuntimeError) : Dval =
+    e |> RuntimeTypes.RuntimeError.toDT |> Dval.toDT types
 
-  let fromDT (d : Dval) : RuntimeError =
-    d |> Dval.fromDT |> RuntimeTypes.RuntimeError.fromDT
+  let fromDT (types : Types) (d : Dval) : RuntimeError =
+    d |> Dval.fromDT types |> RuntimeTypes.RuntimeError.fromDT
 
 
 module Dval =
   module KnownType =
-    let toDT (kt : KnownType) : Dval =
+    let toDT (types : Types) (kt : KnownType) : Dval =
+      let vtToDT = ValueType.toDT types
+
       let caseName, fields =
         match kt with
         | KTUnit -> "KTUnit", []
@@ -729,29 +757,29 @@ module Dval =
         | KTDateTime -> "KTDateTime", []
         | KTBytes -> "KTBytes", []
 
-        | KTList inner -> "KTList", [ ValueType.toDT inner ]
+        | KTList inner -> "KTList", [ vtToDT inner ]
         | KTTuple(first, second, theRest) ->
           "KTTuple",
-          [ ValueType.toDT first
-            ValueType.toDT second
-            Dval.list valueTypeTODO (List.map ValueType.toDT theRest) ]
-        | KTDict inner -> "KTDict", [ ValueType.toDT inner ]
+          [ vtToDT first
+            vtToDT second
+            Dval.list valueTypeTODO (List.map vtToDT theRest) ]
+        | KTDict inner -> "KTDict", [ vtToDT inner ]
 
         | KTCustomType(typeName, typeArgs) ->
           "KTCustomType",
-          [ TypeName.toDT typeName
-            Dval.list valueTypeTODO (List.map ValueType.toDT typeArgs) ]
+          [ TypeName.toDT types typeName
+            Dval.list valueTypeTODO (List.map vtToDT typeArgs) ]
 
         | KTFn(args, ret) ->
           "KTFn",
-          [ Dval.list valueTypeTODO (List.map ValueType.toDT (NEList.toList args))
-            ValueType.toDT ret ]
+          [ Dval.list valueTypeTODO (List.map vtToDT (NEList.toList args))
+            vtToDT ret ]
 
-        | KTDB d -> "KTDB", [ ValueType.toDT d ]
+        | KTDB d -> "KTDB", [ vtToDT d ]
         | KTPassword -> "KTPassword", []
 
       let typeName = rtTyp [] "KnownType" 0
-      Dval.enum typeName typeName (Some []) caseName fields
+      Dval.enum types typeName typeName (Some []) caseName fields
 
     let fromDT (d : Dval) : KnownType =
       match d with
@@ -790,13 +818,14 @@ module Dval =
       | _ -> Exception.raiseInternal "Invalid KnownType" []
 
   module ValueType =
-    let toDT (vt : ValueType) : Dval =
+    let toDT (types : Types) (vt : ValueType) : Dval =
       let caseName, fields =
         match vt with
         | ValueType.Unknown -> "Unknown", []
-        | ValueType.Known kt -> "Known", [ KnownType.toDT kt ]
+        | ValueType.Known kt -> "Known", [ KnownType.toDT types kt ]
+
       let typeName = rtTyp [] "ValueType" 0
-      Dval.enum typeName typeName (Some []) caseName fields
+      Dval.enum types typeName typeName (Some []) caseName fields
 
     let fromDT (d : Dval) : ValueType =
       match d with
@@ -806,14 +835,14 @@ module Dval =
       | _ -> Exception.raiseInternal "Invalid ValueType" []
 
   module DvalSource =
-    let toDT (s : DvalSource) : Dval =
+    let toDT (types : Types) (s : DvalSource) : Dval =
       let caseName, fields =
         match s with
         | SourceNone -> "SourceNone", []
         | SourceID(tlid, id) -> "SourceID", [ DInt(int64 tlid); DInt(int64 id) ]
 
       let typeName = rtTyp [] "DvalSource" 0
-      Dval.enum typeName typeName (Some []) caseName fields
+      Dval.enum types typeName typeName (Some []) caseName fields
 
     let fromDT (d : Dval) : DvalSource =
       match d with
@@ -824,31 +853,33 @@ module Dval =
 
 
   module LambdaImpl =
-    let toDT (l : LambdaImpl) : Dval =
+    let toDT (types : Types) (l : LambdaImpl) : Dval =
       let typeName = rtTyp [] "LambdaImpl" 0
 
       let fields =
         [ "typeSymbolTable",
-          DDict(valueTypeTODO, Map.map TypeReference.toDT l.typeSymbolTable)
-          "symtable", DDict(valueTypeTODO, Map.map Dval.toDT l.symtable)
+          DDict(valueTypeTODO, Map.map (TypeReference.toDT types) l.typeSymbolTable)
+          "symtable", DDict(valueTypeTODO, Map.map (Dval.toDT types) l.symtable)
           "parameters",
           Dval.list
             valueTypeTODO
             (List.map
               (fun (id, name) -> DTuple(DInt(int64 id), DString name, []))
               (NEList.toList l.parameters))
-          "body", Expr.toDT l.body ]
+          "body", Expr.toDT types l.body ]
         |> Map.ofList
 
       DRecord(typeName, typeName, valueTypesTODO, fields)
 
-    let fromDT (d : Dval) : LambdaImpl =
+    let fromDT (types : Types) (d : Dval) : LambdaImpl =
       match d with
       | DRecord(_, _, _, fields) ->
         let typeSymbolTable =
-          fields |> D.mapField "typeSymbolTable" |> Map.map TypeReference.fromDT
+          fields
+          |> D.mapField "typeSymbolTable"
+          |> Map.map (TypeReference.fromDT types)
 
-        let symtable = fields |> D.mapField "symtable" |> Map.map Dval.fromDT
+        let symtable = fields |> D.mapField "symtable" |> Map.map (Dval.fromDT types)
 
         let parameters =
           fields
@@ -860,7 +891,7 @@ module Dval =
           |> NEList.ofListUnsafe
             "RT2DT.Dval.fromDT expected at least one parameter in LambdaImpl"
             []
-        let body = fields |> D.field "body" |> Expr.fromDT
+        let body = fields |> D.field "body" |> Expr.fromDT types
 
         { typeSymbolTable = typeSymbolTable
           symtable = symtable
@@ -870,22 +901,24 @@ module Dval =
       | _ -> Exception.raiseInternal "Invalid LambdaImpl" []
 
   module FnValImpl =
-    let toDT (fnValImpl : FnValImpl) : Dval =
+    let toDT (types : Types) (fnValImpl : FnValImpl) : Dval =
       let caseName, fields =
         match fnValImpl with
-        | Lambda lambda -> "Lambda", [ LambdaImpl.toDT lambda ]
-        | NamedFn fnName -> "NamedFn", [ FnName.toDT fnName ]
+        | Lambda lambda -> "Lambda", [ LambdaImpl.toDT types lambda ]
+        | NamedFn fnName -> "NamedFn", [ FnName.toDT types fnName ]
 
       let typeName = rtTyp [] "FnValImpl" 0
-      Dval.enum typeName typeName (Some []) caseName fields
+      Dval.enum types typeName typeName (Some []) caseName fields
 
-    let fromDT (d : Dval) : FnValImpl =
+    let fromDT (types : Types) (d : Dval) : FnValImpl =
       match d with
-      | DEnum(_, _, [], "Lambda", [ lambda ]) -> Lambda(LambdaImpl.fromDT lambda)
+      | DEnum(_, _, [], "Lambda", [ lambda ]) ->
+        Lambda(LambdaImpl.fromDT types lambda)
       | DEnum(_, _, [], "NamedFn", [ fnName ]) -> NamedFn(FnName.fromDT fnName)
       | _ -> Exception.raiseInternal "Invalid FnValImpl" []
 
-  let rec toDT (dv : Dval) : Dval =
+  let rec toDT (types : Types) (dv : Dval) : Dval =
+    let toDT = toDT types
     let caseName, fields =
       match dv with
       | DUnit -> "DUnit", []
@@ -900,43 +933,45 @@ module Dval =
 
 
       | DList(vt, l) ->
-        "DList", [ ValueType.toDT vt; Dval.list valueTypeTODO (List.map toDT l) ]
+        "DList",
+        [ ValueType.toDT types vt; Dval.list valueTypeTODO (List.map toDT l) ]
       | DTuple(first, second, theRest) ->
         "DTuple",
         [ toDT first; toDT second; Dval.list valueTypeTODO (List.map toDT theRest) ]
 
-      | DFnVal fnImpl -> "DFnVal", [ FnValImpl.toDT fnImpl ]
+      | DFnVal fnImpl -> "DFnVal", [ FnValImpl.toDT types fnImpl ]
 
       | DError(source, err) ->
-        "DError", [ DvalSource.toDT source; RuntimeError.toDT err ]
+        "DError", [ DvalSource.toDT types source; RuntimeError.toDT types err ]
 
       | DDB name -> "DDB", [ DString name ]
 
       | DPassword p -> "DPassword", [ DPassword p ]
 
       | DDict(vt, map) ->
-        "DDict", [ ValueType.toDT vt; DDict(valueTypeTODO, Map.map toDT map) ]
+        "DDict", [ ValueType.toDT types vt; DDict(valueTypeTODO, Map.map toDT map) ]
 
       | DRecord(runtimeTypeName, sourceTypeName, typeArgs, map) ->
         "DRecord",
-        [ TypeName.toDT runtimeTypeName
-          TypeName.toDT sourceTypeName
-          typeArgs |> List.map ValueType.toDT |> Dval.list valueTypeTODO
+        [ TypeName.toDT types runtimeTypeName
+          TypeName.toDT types sourceTypeName
+          typeArgs |> List.map (ValueType.toDT types) |> Dval.list valueTypeTODO
           DDict(valueTypeTODO, Map.map toDT map) ]
 
       | DEnum(runtimeTypeName, sourceTypeName, typeArgs, caseName, fields) ->
         "DEnum",
-        [ TypeName.toDT runtimeTypeName
-          TypeName.toDT sourceTypeName
-          Dval.list VT.unknownTODO (List.map ValueType.toDT typeArgs)
+        [ TypeName.toDT types runtimeTypeName
+          TypeName.toDT types sourceTypeName
+          Dval.list VT.unknownTODO (List.map (ValueType.toDT types) typeArgs)
           DString caseName
           Dval.list valueTypeTODO (List.map toDT fields) ]
 
     let typeName = rtTyp [ "Dval" ] "Dval" 0
-    Dval.enum typeName typeName (Some []) caseName fields
+    Dval.enum types typeName typeName (Some []) caseName fields
 
 
-  let fromDT (d : Dval) : Dval =
+  let fromDT (types : Types) (d : Dval) : Dval =
+    let fromDT = fromDT types
     match d with
     | DEnum(_, _, [], "DInt", [ DInt i ]) -> DInt i
     | DEnum(_, _, [], "DFloat", [ DFloat f ]) -> DFloat f
@@ -950,10 +985,10 @@ module Dval =
     | DEnum(_, _, [], "DTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
       DTuple(fromDT first, fromDT second, List.map fromDT theRest)
 
-    | DEnum(_, _, [], "DFnVal", [ fnImpl ]) -> DFnVal(FnValImpl.fromDT fnImpl)
+    | DEnum(_, _, [], "DFnVal", [ fnImpl ]) -> DFnVal(FnValImpl.fromDT types fnImpl)
 
     | DEnum(_, _, [], "DError", [ source; err ]) ->
-      DError(DvalSource.fromDT source, RuntimeError.fromDT err)
+      DError(DvalSource.fromDT source, RuntimeError.fromDT types err)
 
     | DEnum(_, _, [], "DDB", [ DString name ]) -> DDB name
 
@@ -986,6 +1021,7 @@ module Dval =
               DString caseName
               DList(_, fields) ]) ->
       Dval.enum
+        types
         (TypeName.fromDT runtimeTypeName)
         (TypeName.fromDT sourceTypeName)
         (Some(List.map ValueType.fromDT typeArgs))

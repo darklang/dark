@@ -531,26 +531,26 @@ let healthCheck : LibService.Kubernetes.HealthCheck =
     probeTypes = [ LibService.Kubernetes.Startup ] }
 
 
-let toProgram (c : T) : RT.Program =
+let toProgram (types : RT.Types) (c : T) : RT.Program =
 
   let dbs =
     c.dbs
     |> Map.values
-    |> List.map (fun db -> (db.name, PT2RT.DB.toRT db))
+    |> List.map (fun db -> (db.name, PT2RT.DB.toRT types db))
     |> Map.ofList
 
   let userFns =
     c.userFunctions
     |> Map.values
     |> List.map (fun f ->
-      (PT2RT.FnName.UserProgram.toRT f.name, PT2RT.UserFunction.toRT f))
+      (PT2RT.FnName.UserProgram.toRT f.name, PT2RT.UserFunction.toRT types f))
     |> Map.ofList
 
   let userTypes =
     c.userTypes
     |> Map.values
     |> List.map (fun t ->
-      (PT2RT.TypeName.UserProgram.toRT t.name, PT2RT.UserType.toRT t))
+      (PT2RT.TypeName.UserProgram.toRT t.name, PT2RT.UserType.toRT types t))
     |> Map.ofList
 
   let userConstants =

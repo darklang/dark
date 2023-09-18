@@ -259,6 +259,7 @@ let parseTestFile
   }
 
 let parseSingleTestFromFile
+  (types : RT.Types)
   (resolver : NameResolver.NameResolver)
   (filename : string)
   (testSource : string)
@@ -273,8 +274,8 @@ let parseSingleTestFromFile
     let! actual = wtTest.actual |> WT2PT.Expr.toPT resolver []
     let! expected = wtTest.expected |> WT2PT.Expr.toPT resolver []
     return
-      { actual = actual |> PT2RT.Expr.toRT
-        expected = expected |> PT2RT.Expr.toRT
+      { actual = actual |> PT2RT.Expr.toRT types
+        expected = expected |> PT2RT.Expr.toRT types
         lineNumber = wtTest.lineNumber
         name = wtTest.name }
   }

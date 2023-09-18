@@ -44,11 +44,18 @@ module Error =
     DEnum(typeName, typeName, typeArgs, caseName, fields)
     |> RuntimeError.executionError
 
-  let matchExprUnmatched (matchVal : Dval) : RuntimeError =
-    case [] "MatchExprUnmatched" [ RT2DT.Dval.toDT matchVal ]
+  let matchExprUnmatched (types : Types) (matchVal : Dval) : RuntimeError =
+    case [] "MatchExprUnmatched" [ RT2DT.Dval.toDT types matchVal ]
 
-  let matchExprPatternWrongType (expected : string) (actual : Dval) : RuntimeError =
-    case [] "MatchExprPatternWrongType" [ DString expected; RT2DT.Dval.toDT actual ]
+  let matchExprPatternWrongType
+    (types : Types)
+    (expected : string)
+    (actual : Dval)
+    : RuntimeError =
+    case
+      []
+      "MatchExprPatternWrongType"
+      [ DString expected; RT2DT.Dval.toDT types actual ]
 
   let matchExprPatternWrongShape : RuntimeError =
     case [] "MatchExprPatternWrongShape" []
@@ -108,6 +115,8 @@ let rec eval'
         return ()
     }
 
+  let types = ExecutionState.availableTypes state
+
   let typeResolutionError
     (errorType : NameResolutionError.ErrorType)
     (typeName : TypeName.TypeName)
@@ -116,10 +125,9 @@ let rec eval'
       { errorType = errorType
         nameType = NameResolutionError.Type
         names = [ TypeName.toString typeName ] }
-    Error(NameResolutionError.RTE.toRuntimeError error)
+    Error(NameResolutionError.RTE.toRuntimeError types error)
 
   let recordMaybe
-    (types : Types)
     (typeName : TypeName.TypeName)
     // TypeName, typeParam list, fully-resolved (except for typeParam) field list
     : Ply<Result<TypeName.TypeName * List<string> * List<string * TypeReference>, RuntimeError>> =
@@ -186,7 +194,6 @@ let rec eval'
     inner typeName
 
   let enumMaybe
-    (types : Types)
     (typeName : TypeName.TypeName)
     : Ply<Result<TypeName.TypeName * List<string> * NEList<TypeDeclaration.EnumCase>, RuntimeError>> =
     let rec inner (typeName : TypeName.TypeName) =
@@ -350,7 +357,6 @@ let rec eval'
 
 
     | ETuple(_id, first, second, theRest) ->
-
       let! firstResult = eval state tst st first
       let! secondResult = eval state tst st second
       let! otherResults = Ply.List.mapSequentially (eval state tst st) theRest
@@ -372,9 +378,8 @@ let rec eval'
 
     | ERecord(id, typeName, fields) ->
       let typeStr = TypeName.toString typeName
-      let types = ExecutionState.availableTypes state
 
-      match! recordMaybe types typeName with
+      match! recordMaybe typeName with
       | Error e -> return err id e
       | Ok(aliasTypeName, typeParams, expected) ->
         let expectedFields = Map expected
@@ -433,8 +438,7 @@ let rec eval'
       match baseRecord with
       | DRecord(typeName, _, _valueTypesTODO, _) ->
         let typeStr = TypeName.toString typeName
-        let types = ExecutionState.availableTypes state
-        match! recordMaybe types typeName with
+        match! recordMaybe typeName with
         | Error e -> return err id e
         | Ok(_, _, expected) ->
           let expectedFields = Map expected
@@ -577,46 +581,61 @@ let rec eval'
       /// - new vars (name * value)
       /// - traces
       let rec checkPattern
+        (types : Types)
         (dv : Dval)
         (pattern : MatchPattern)
         : Matched * List<string * Dval> * List<id * Dval> =
+        let checkPattern = checkPattern types
+
         match pattern with
         | MPInt(id, pi) ->
           let patternTrace = [ (id, DInt pi) ]
           match dv with
           | DInt di -> Ok(di = pi), [], patternTrace
           | _ ->
-            Error(id, Error.matchExprPatternWrongType "Int" dv), [], patternTrace
+            Error(id, Error.matchExprPatternWrongType types "Int" dv),
+            [],
+            patternTrace
         | MPBool(id, pb) ->
           let patternTrace = [ (id, DBool pb) ]
           match dv with
           | DBool db -> Ok(db = pb), [], patternTrace
           | _ ->
-            Error(id, Error.matchExprPatternWrongType "Bool" dv), [], patternTrace
+            Error(id, Error.matchExprPatternWrongType types "Bool" dv),
+            [],
+            patternTrace
         | MPChar(id, pc) ->
           let patternTrace = [ (id, DChar pc) ]
           match dv with
           | DChar dc -> Ok(dc = pc), [], patternTrace
           | _ ->
-            Error(id, Error.matchExprPatternWrongType "Char" dv), [], patternTrace
+            Error(id, Error.matchExprPatternWrongType types "Char" dv),
+            [],
+            patternTrace
         | MPString(id, ps) ->
           let patternTrace = [ (id, DString ps) ]
           match dv with
           | DString ds -> Ok(ds = ps), [], patternTrace
           | _ ->
-            Error(id, Error.matchExprPatternWrongType "String" dv), [], patternTrace
+            Error(id, Error.matchExprPatternWrongType types "String" dv),
+            [],
+            patternTrace
         | MPFloat(id, pf) ->
           let patternTrace = [ (id, DFloat pf) ]
           match dv with
           | DFloat df -> Ok(df = pf), [], patternTrace
           | _ ->
-            Error(id, Error.matchExprPatternWrongType "Float" dv), [], patternTrace
+            Error(id, Error.matchExprPatternWrongType types "Float" dv),
+            [],
+            patternTrace
         | MPUnit(id) ->
           let patternTrace = [ (id, DUnit) ]
           match dv with
           | DUnit -> Ok true, [], patternTrace
           | _ ->
-            Error(id, Error.matchExprPatternWrongType "Unit" dv), [], patternTrace
+            Error(id, Error.matchExprPatternWrongType types "Unit" dv),
+            [],
+            patternTrace
 
         | MPVariable(id, varName) -> Ok true, [ (varName, dv) ], [ (id, dv) ]
 
@@ -673,7 +692,7 @@ let rec eval'
 
           | _dv ->
             let (allVars, allSubTraces) = traceFields ()
-            Error(id, Error.matchExprPatternWrongType caseName dv),
+            Error(id, Error.matchExprPatternWrongType types caseName dv),
             allVars,
             allSubTraces
 
@@ -707,7 +726,7 @@ let rec eval'
             else
               Ok false, [], traceIncompleteWithArgs id allPatterns
           | _ ->
-            Error(id, Error.matchExprPatternWrongType "Tuple" dv),
+            Error(id, Error.matchExprPatternWrongType types "Tuple" dv),
             [],
             traceIncompleteWithArgs id allPatterns
 
@@ -731,7 +750,7 @@ let rec eval'
               pass, allSubVars, traceIncompleteWithArgs id [ headPat; tailPat ]
 
           | _ ->
-            Error(id, Error.matchExprPatternWrongType "List" dv),
+            Error(id, Error.matchExprPatternWrongType types "List" dv),
             [],
             traceIncompleteWithArgs id [ headPat; tailPat ]
 
@@ -756,7 +775,7 @@ let rec eval'
             else
               Ok false, [], traceIncompleteWithArgs id pats
           | _ ->
-            Error(id, Error.matchExprPatternWrongType "List" dv),
+            Error(id, Error.matchExprPatternWrongType types "List" dv),
             [],
             traceIncompleteWithArgs id pats
 
@@ -775,11 +794,12 @@ let rec eval'
         if Dval.isFake matchVal then Some matchVal else None
 
 
+
       for (pattern, rhsExpr) in NEList.toList cases do
         if Option.isSome matchResult && isRealExecution then
           ()
         else
-          let passes, newDefs, traces = checkPattern matchVal pattern
+          let passes, newDefs, traces = checkPattern types matchVal pattern
           let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
 
           if matchResult = None && passes = Ok true then
@@ -801,7 +821,7 @@ let rec eval'
 
       match matchResult with
       | Some r -> return r
-      | None -> return DError(sourceID id, Error.matchExprUnmatched matchVal)
+      | None -> return DError(sourceID id, Error.matchExprUnmatched types matchVal)
 
 
     | EIf(id, cond, thenBody, elseBody) ->
@@ -871,9 +891,8 @@ let rec eval'
 
     | EEnum(id, sourceTypeName, caseName, fields) ->
       let typeStr = TypeName.toString sourceTypeName
-      let types = ExecutionState.availableTypes state
 
-      match! enumMaybe types sourceTypeName with
+      match! enumMaybe sourceTypeName with
       | Error e -> return err id e
       | Ok(resolvedTypeName, _, cases) ->
         let case = cases |> NEList.find (fun c -> c.name = caseName)
@@ -931,7 +950,13 @@ let rec eval'
                 Dval.valueTypeArgsTODO
 
               return
-                Dval.enum resolvedTypeName sourceTypeName typeArgs caseName fields
+                Dval.enum
+                  types
+                  resolvedTypeName
+                  sourceTypeName
+                  typeArgs
+                  caseName
+                  fields
 
     | EError(id, rte, exprs) ->
       let! args = Ply.List.mapSequentially (eval state tst st) exprs
@@ -1021,6 +1046,8 @@ and callFn
   (args : NEList<Dval>)
   : DvalTask =
   uply {
+    let types = ExecutionState.availableTypes state
+
     let sourceID = SourceID(state.tlid, callerID)
     let handleMissingFunction () : Dval =
       // Functions which aren't implemented in the client may have results

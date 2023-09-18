@@ -322,8 +322,8 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let! (result, _) =
             CloudExe.executeHandler
               LibClientTypesToCloudTypes.Pusher.eventSerializer
-              (PT2RT.Handler.toRT handler)
-              (Canvas.toProgram canvas)
+              (PT2RT.Handler.toRT types handler)
+              (Canvas.toProgram types canvas)
               traceID
               inputVars
               (CloudExe.InitialExecution(desc, "request", request))

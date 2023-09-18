@@ -88,7 +88,7 @@ let fns : List<BuiltInFn> =
         "Parses Dark code and serializes the result to JSON. Expects only types, fns, and exprs."
       fn =
         function
-        | _, _, [ DString code; DString filename ] ->
+        | state, _, [ DString code; DString filename ] ->
           let okType = ValueType.Known(KTDict(ValueType.Known KTString))
           let errType = ValueType.Known KTString
 
@@ -98,9 +98,11 @@ let fns : List<BuiltInFn> =
               let! canvas =
                 LibParser.Canvas.parse LibParser.NameResolver.empty filename code
 
-              let types = List.map PT2RT.UserType.toRT canvas.types
-              let fns = List.map PT2RT.UserFunction.toRT canvas.fns
-              let exprs = List.map PT2RT.Expr.toRT canvas.exprs
+              let t = ExecutionState.availableTypes state
+
+              let types = List.map (PT2RT.UserType.toRT t) canvas.types
+              let fns = List.map (PT2RT.UserFunction.toRT t) canvas.fns
+              let exprs = List.map (PT2RT.Expr.toRT t) canvas.exprs
 
               return
                 [ "types", DString(Json.Vanilla.serialize types)

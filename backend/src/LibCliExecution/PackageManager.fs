@@ -697,12 +697,18 @@ let packageManager : RT.PackageManager =
             e
     }
 
+
+  /// TODO I'm not sure what to do here.
+  ///
+  /// See longer note in LibCloud/PackageManager.fs
+  let types = RT.Types.empty
+
   { getType =
       withCache (fun name ->
         uply {
           let nameString = RT.TypeName.packageToString name
           let conversionFn (parsed : EPT.PackageType) : RT.PackageType.T =
-            parsed |> ET2PT.PackageType.toPT |> PT2RT.PackageType.toRT
+            parsed |> ET2PT.PackageType.toPT |> PT2RT.PackageType.toRT types
           return! fetch "type" nameString conversionFn
         })
 
@@ -711,7 +717,7 @@ let packageManager : RT.PackageManager =
         uply {
           let nameString = RT.FnName.packageToString name
           let conversionFn (parsed : EPT.PackageFn.PackageFn) : RT.PackageFn.T =
-            parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT
+            parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT types
           return! fetch "function" nameString conversionFn
         })
 

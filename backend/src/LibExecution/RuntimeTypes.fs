@@ -1342,7 +1342,10 @@ and Types =
     userProgram : Map<TypeName.UserProgram, UserType.T> }
 
 
+
 module ExecutionState =
+  // TODO: probably move this to a field on ExecutionState itself,
+  // for performance, since it's being constructed in a bunch of places
   let availableTypes (state : ExecutionState) : Types =
     { builtIn = state.builtIns.types
       package = state.packageManager.getType

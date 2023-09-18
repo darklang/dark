@@ -262,7 +262,7 @@ let record
 let valueTypeArgsTODO = None
 
 let enum
-  // TODO: pass in (types: Types) arg
+  (types : Types)
   // TODO: nitpick: reorder these typeName params (i.e. source first)
   (resolvedTypeName : TypeName.TypeName)
   (sourceTypeName : TypeName.TypeName) // TODO: maybe just pass in sourceTypeName

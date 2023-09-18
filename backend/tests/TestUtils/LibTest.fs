@@ -57,9 +57,15 @@ let fns : List<BuiltInFn> =
       description = "Return a value representing a runtime type error"
       fn =
         (function
-        | _, _, [ DString error ] ->
+        | state, _, [ DString error ] ->
           let typeName = RuntimeError.name [ "Error" ] "ErrorMessage" 0
-          Dval.enum typeName typeName (Some []) "ErrorString" [ DString error ]
+          Dval.enum
+            (types)
+            typeName
+            typeName
+            (Some [])
+            "ErrorString"
+            [ DString error ]
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
