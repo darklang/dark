@@ -225,3 +225,60 @@ PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
   PACKAGE.Darklang.Stdlib.String.toBytes_v0
     "dlkjkd329823333333333fjfidjsfudsdhs}{||!|!|!|!!$%^&^&﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
 ) = "646C6B6A6B64333239383233333333333333333333666A6669646A73667564736468737D7B7C7C217C217C217C212124255E265E26EFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BD"
+
+
+PACKAGE.Darklang.Stdlib.Bytes.append_v0
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "hello")
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 " world") = PACKAGE.Darklang.Stdlib.String.toBytes_v0
+  "hello world"
+
+PACKAGE.Darklang.Stdlib.Bytes.append_v0
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷") = PACKAGE.Darklang.Stdlib.String.toBytes_v0
+  "👱👱🏻👱🏼👱🏽👱🏾👱🏿👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"
+
+PACKAGE.Darklang.Stdlib.Bytes.append_v0
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "اختبار")
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 " النص") = PACKAGE.Darklang.Stdlib.String.toBytes_v0
+  "اختبار النص"
+
+
+PACKAGE.Darklang.Stdlib.Bytes.containsSegment_v0
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "hello world")
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "world") = true
+
+PACKAGE.Darklang.Stdlib.Bytes.containsSegment_v0
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "hello world")
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "hello") = true
+
+PACKAGE.Darklang.Stdlib.Bytes.containsSegment_v0
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "hello world")
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "hello world") = true
+
+PACKAGE.Darklang.Stdlib.Bytes.containsSegment_v0
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "hello world")
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "hello world!") = false
+
+PACKAGE.Darklang.Stdlib.Bytes.containsSegment_v0
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "👱🏿👱🏾👱🏽👱🏼") = false
+
+PACKAGE.Darklang.Stdlib.Bytes.containsSegment_v0
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "👱👱🏻👱🏼") = true
+
+PACKAGE.Darklang.Stdlib.Bytes.containsSegment_v0
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "اختبار النص")
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "اختبار") = true
+
+PACKAGE.Darklang.Stdlib.Bytes.containsSegment_v0
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "اختبار النص")
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "نص") = true
+
+PACKAGE.Darklang.Stdlib.Bytes.containsSegment_v0
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇")
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚") = true
+
+PACKAGE.Darklang.Stdlib.Bytes.containsSegment_v0
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇")
+  (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̔ͮ̇͐̇") = false

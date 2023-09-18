@@ -9,3 +9,13 @@ module Darklang =
 
       /// Returns the number of bytes in <param bytes>
       let length (bytes: Bytes) : Int = Builtin.Bytes.length bytes
+
+
+      /// Returns the concatenation of <param bytes1> and <param bytes2>
+      let append (bytes1: Bytes) (bytes2: Bytes) : Bytes =
+        Builtin.Bytes.append bytes1 bytes2
+
+
+      /// Returns true if <param bytes> contains <param segment>
+      let containsSegment (bytes: Bytes) (segment: Bytes) : Bool =
+        Builtin.Bytes.containsSegment bytes segment

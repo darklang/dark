@@ -64,6 +64,45 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "append" 0
+      typeParams = []
+      parameters = [ Param.make "bytes1" TBytes ""; Param.make "bytes2" TBytes "" ]
+      returnType = TBytes
+      description = "Returns the concatenation of <param bytes1> and <param bytes2>"
+      fn =
+        (function
+        | _, _, [ DBytes bytes1; DBytes bytes2 ] ->
+          bytes2 |> Array.append bytes1 |> DBytes |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "containsSegment" 0
+      typeParams = []
+      parameters = [ Param.make "bytes" TBytes ""; Param.make "segment" TBytes "" ]
+      returnType = TBool
+      description = "Returns true if <param bytes> contains <param segment>"
+      fn =
+        (function
+        | _, _, [ DBytes bytes; DBytes segment ] ->
+          let segmentLength = Array.length segment
+          let limit = (Array.length bytes) - segmentLength
+
+          let rec searchSegmentFromIndex idx =
+            if idx > limit then false
+            else if Array.sub bytes idx segmentLength = segment then true
+            else searchSegmentFromIndex (idx + 1)
+
+          (searchSegmentFromIndex 0) |> DBool |> Ply
+
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 let contents = (fns, types, constants)
