@@ -265,6 +265,9 @@ module Roundtrip =
       uuid: Uuid
       resultOk: PACKAGE.Darklang.Stdlib.Result.Result<Int, String>
       resultError: PACKAGE.Darklang.Stdlib.Result.Result<Int, String>
+      option: PACKAGE.Darklang.Stdlib.Option.Option<Int>
+      tuple: (Int * String)
+      record: MyTlid
       list: List<Int>
       datetime: DateTime
       unit: Unit }
@@ -288,6 +291,9 @@ module Roundtrip =
         char = 'c'
         resultOk = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
         resultError = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+        option = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
+        record = MyTlid { mytlid = 1234 }
+        tuple = (1, "hello")
         emojiChar = (Builtin.Test.toChar "👍") |> Builtin.unwrap
         uuid =
           (PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
@@ -313,6 +319,9 @@ module Roundtrip =
         char = 'd'
         resultOk = PACKAGE.Darklang.Stdlib.Result.Result.Ok 6
         resultError = PACKAGE.Darklang.Stdlib.Result.Result.Error "other test"
+        option = PACKAGE.Darklang.Stdlib.Option.Option.None
+        record = MyTlid { mytlid = 1235 }
+        tuple = (2, "goodbye")
         emojiChar = 'e'
         uuid =
           (PACKAGE.Darklang.Stdlib.Uuid.parse "55555555-5555-5555-5555-555555555555")
@@ -322,7 +331,7 @@ module Roundtrip =
           |> Builtin.unwrap
         unit = () }
 
-  // TODO: Add roundtrip for records, unit, tuple, option, result, bytes
+  // TODO: Add roundtrip for bytes (Bytes values not supported yet)
   (let v = sample ()
    let z = Builtin.DB.set v "all" SampleDB in
    (z, Builtin.DB.get "all" SampleDB)) = (sample (),
@@ -734,6 +743,12 @@ module FindAll =
                                                               "Rachel"
                                                               "Ross" ]
 
+  // inlining package functions
+  (friends (fun p ->
+    let x = p.height in true && PACKAGE.Darklang.Stdlib.Int.greaterThan_v0 x 32)) = [ " Chandler "
+                                                                                      "Rachel"
+                                                                                      "Ross" ]
+
   // pipes
   (friends (fun p -> p.height |> (*) 2 |> (<) 40)) = [ "GrumpyCat" ]
 
@@ -769,6 +784,7 @@ module FindAll =
   // sql injection
   friendsError (fun p -> "; select * from users;" == p.name) = []
 
+
 module CompiledFunctions =
   (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
 
@@ -777,6 +793,18 @@ module CompiledFunctions =
                                                                             "Rachel" ]
 
   (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.greaterThan_v0 p.income 90.0)) = [ "Ross" ]
+
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.divide_v0 p.income 2.0 == 50.0)) = [ "Ross" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.multiply_v0 p.income 2.0 == 200.0)) = [ "Ross" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.power p.income 2.0 == 10000.0)) = [ "Ross" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.add p.income 0.0 == 0.0)) = [ "GrumpyCat" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Float.subtract p.income 3.0 == 80.0)) = [ " Chandler " ]
+
 
   (friends (fun p ->
     PACKAGE.Darklang.Stdlib.Float.greaterThanOrEqualTo_v0 82.10 p.income)) = [ "GrumpyCat"
@@ -793,6 +821,17 @@ module CompiledFunctions =
 
   (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.greaterThan_v0 p.height 65)) = [ " Chandler "
                                                                                   "Ross" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.add p.height 1 == 11)) = [ "GrumpyCat" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.subtract p.height 3 == 69)) = [ " Chandler " ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.multiply_v0 p.height 2 == 146)) = [ "Ross" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.divide_v0 p.height 2 == 5)) = [ "GrumpyCat" ]
+
+  // TODO: This test should pass, but it is causing an infinite recursion
+  // (friends (fun p -> (PACKAGE.Darklang.Stdlib.Int.power p.height 2) == PACKAGE.Darklang.Stdlib.Result.Result.Ok(100))) = [ "GrumpyCat" ]
 
   (friends (fun p -> PACKAGE.Darklang.Stdlib.String.toLowercase p.name == "rachel")) = [ "Rachel" ]
   (friends (fun p -> PACKAGE.Darklang.Stdlib.String.toUppercase p.name == "RACHEL")) = [ "Rachel" ]
@@ -836,6 +875,33 @@ module CompiledFunctions =
   (friends (fun p -> PACKAGE.Darklang.Stdlib.Bool.or_v0 p.human p.human)) = [ " Chandler "
                                                                               "Rachel"
                                                                               "Ross" ]
+
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.Bool.not_v0 (
+      PACKAGE.Darklang.Stdlib.Bool.and_v0 p.human p.human
+    ))) = [ "GrumpyCat" ]
+
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.Bool.and_v0
+      p.human
+      (PACKAGE.Darklang.Stdlib.Bool.not_v0 p.human))) = []
+
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.Bool.or_v0
+      p.human
+      (PACKAGE.Darklang.Stdlib.Bool.not_v0 p.human))) = [ " Chandler "
+                                                          "GrumpyCat"
+                                                          "Rachel"
+                                                          "Ross" ]
+
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.String.reverse_v0 p.name == "lehcaR")) = [ "Rachel" ]
+
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.String.reverse_v0 (
+      (PACKAGE.Darklang.Stdlib.String.toLowercase p.name)
+      |> PACKAGE.Darklang.Stdlib.String.toUppercase
+    )
+    == "LEHCAR")) = [ "Rachel" ]
 
   (friends (fun p ->
     PACKAGE.Darklang.Stdlib.DateTime.lessThanOrEqualTo
@@ -890,12 +956,35 @@ module CompiledFunctions =
                                                                                   "Rachel" ]
 
   // Test package constants
+  // Bool
   (friends (fun p ->
     PACKAGE.Darklang.Stdlib.Bool.and_v0
       p.human
       PACKAGE.Darklang.Test.Constants.boolConst)) = [ " Chandler "
                                                       "Rachel"
                                                       "Ross" ]
+
+  // Float
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.Float.lessThanOrEqualTo
+      p.income
+      PACKAGE.Darklang.Test.Constants.floatConst)) = [ "GrumpyCat" ]
+
+  // Int
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo
+      p.height
+      PACKAGE.Darklang.Test.Constants.intConst)) = [ " Chandler "
+                                                     "GrumpyCat"
+                                                     "Rachel"
+                                                     "Ross" ]
+
+  // String
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.String.contains_v0
+      p.name
+      PACKAGE.Darklang.Test.Constants.stringConst)) = []
+
 
 module PartialEvaluation =
   type A = { a: Int }
@@ -933,6 +1022,24 @@ module PartialEvaluation =
   (friends (fun p ->
     let (a0, a1, a2, a3, ((b, c), d)) = (0, 1, 2, 3, ((5, "aa"), 'a'))
     b < p.height)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+
+
+module QueryOne =
+  (let _ = prepFriends () in Builtin.DB.queryOne PersonDB (fun p -> p.name == "bob")) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+  (let _ = prepFriends () in
+   Builtin.DB.queryOne PersonDB (fun p -> p.name == "Rachel"))
+  |> PACKAGE.Darklang.Stdlib.Option.map (fun v -> v.name) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+    "Rachel"
+
+
+  // interpolated
+  (let _ = prepFriends ()
+   let test = "ache"
+
+   (Builtin.DB.queryOne PersonDB (fun p -> p.name == $"R{test}l"))
+   |> PACKAGE.Darklang.Stdlib.Option.map (fun v -> v.name)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+    "Rachel"
 
 
 module QueryOneWithKey =

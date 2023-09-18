@@ -135,6 +135,16 @@ let compileTests =
 
 let inlineWorksAtRoot =
   testTask "inlineWorksAtRoot" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+    let fns = ExecutionState.availableFunctions state
     let! expr =
       LibParser.Parser.parseRTExpr
         nameResolver
@@ -143,17 +153,35 @@ let inlineWorksAtRoot =
       |> Ply.toTask
 
     let! expected = p "3 + 5"
-    let result = C.inline' "value" Map.empty expr
-    return Expect.equalExprIgnoringIDs result expected
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
   }
 
 let inlineWorksWithNested =
   testTask "inlineWorksWithNested" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+    let fns = ExecutionState.availableFunctions state
     let! expr = p "let x = 5 in (let x = 6 in (3 + (let x = 7 in x)))"
 
     let! expected = p "3 + 7"
-    let result = C.inline' "value" Map.empty expr
-    return Expect.equalExprIgnoringIDs result expected
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
   }
 
 let partialEvaluation =

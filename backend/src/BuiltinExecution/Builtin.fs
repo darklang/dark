@@ -17,7 +17,8 @@ let typeRenames =
 
 let contents (httpConfig : Libs.HttpClient.Configuration) : Builtin.Contents =
   Builtin.combine
-    [ Libs.Bytes.contents
+    [ Libs.Bool.contents
+      Libs.Bytes.contents
       Libs.Char.contents
       Libs.DateTime.contents
       Libs.Dict.contents

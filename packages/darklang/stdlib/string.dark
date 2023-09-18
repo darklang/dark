@@ -190,9 +190,7 @@ module Darklang =
 
       /// Checks if <param lookingIn> contains <param searchingFor>
       let contains (lookingIn: String) (searchingFor: String) : Bool =
-        PACKAGE.Darklang.Stdlib.Option.isSome (
-          Builtin.String.indexOf lookingIn searchingFor
-        )
+        Builtin.String.indexOf lookingIn searchingFor != -1
 
 
       /// Returns the substring of <param string> between the <param from> and <param to> indices.
@@ -369,7 +367,13 @@ module Darklang =
         (str: String)
         (searchFor: String)
         : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
-        Builtin.String.indexOf str searchFor
+        if (Builtin.String.indexOf str searchFor) == -1 then
+          PACKAGE.Darklang.Stdlib.Option.Option.None
+        else
+          PACKAGE.Darklang.Stdlib.Option.Option.Some(
+            Builtin.String.indexOf str searchFor
+          )
+
 
 
       /// Returns the <param string> repeated for a specified <param count> times.

@@ -450,19 +450,16 @@ let fns : List<BuiltInFn> =
             "searchFor"
             TString
             "The string to search for within <param str>" ]
-      returnType = TypeReference.option TInt
+      returnType = TInt
       description =
-        "Returns {{Some index}} of the first occurrence of <param searchFor> in <param str>, or returns {{None}} if <param searchFor> does not occur."
+        "Returns the index of the first occurrence of <param searchFor> in <param str>, or returns -1 if <param searchFor> does not occur."
       fn =
         (function
         | _, _, [ DString str; DString search ] ->
           let index = str.IndexOf(search)
-          if index = -1 then
-            Ply(Dval.optionNone)
-          else
-            Ply(Dval.optionSome (DInt index))
+          Ply(DInt index)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
+      sqlSpec = SqlCallback2(fun str search -> $"strpos({str}, {search}) - 1")
       previewable = Pure
       deprecated = NotDeprecated }
 
