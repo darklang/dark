@@ -195,11 +195,13 @@ let inlineWorksWithPackageFunctionsSqlBinOp =
         Map.empty
         Map.empty
     let fns = ExecutionState.availableFunctions state
-    let! expr = p "let x = true in (let y = false in (PACKAGE.Darklang.Stdlib.Bool.and_v0 x y))"
+    let! expr =
+      p
+        "let x = true in (let y = false in (PACKAGE.Darklang.Stdlib.Bool.and_v0 x y))"
 
     let! expected = p "true && false"
     let result =
-      uply{
+      uply {
         let! result = C.inline' fns "value" Map.empty expr
         return Expect.equalExprIgnoringIDs result expected
       }
@@ -218,7 +220,9 @@ let inlineWorksWithPackageFunctionsSqlFunction =
         Map.empty
         Map.empty
     let fns = ExecutionState.availableFunctions state
-    let! expr = p """let x = "package" in (let y = "e" in (PACKAGE.Darklang.Stdlib.String.replaceAll_v0 x y "es"))"""
+    let! expr =
+      p
+        """let x = "package" in (let y = "e" in (PACKAGE.Darklang.Stdlib.String.replaceAll_v0 x y "es"))"""
 
     let! expected = p """Builtin.String.replaceAll_v0 "package" "e" "es" """
     let result =
@@ -302,4 +306,9 @@ let partialEvaluation =
 let tests =
   testList
     "SqlCompiler"
-    [ inlineWorksAtRoot; inlineWorksWithNested; inlineWorksWithPackageFunctionsSqlBinOp; inlineWorksWithPackageFunctionsSqlFunction; partialEvaluation; compileTests ]
+    [ inlineWorksAtRoot
+      inlineWorksWithNested
+      inlineWorksWithPackageFunctionsSqlBinOp
+      inlineWorksWithPackageFunctionsSqlFunction
+      partialEvaluation
+      compileTests ]

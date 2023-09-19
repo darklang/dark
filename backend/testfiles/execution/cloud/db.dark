@@ -668,7 +668,7 @@ let addFriend
   (human: Bool)
   (dob: String)
   (income: Float)
-  (age : Int)
+  (age: Int)
   : Person =
   let dob = (PACKAGE.Darklang.Stdlib.DateTime.parse dob) |> Builtin.unwrap in
 
@@ -753,8 +753,7 @@ module FindAll =
                                                                                       "Ross" ]
 
   // inlining user functions
-  let userAnd (a : Bool) (b: Bool) : Bool =
-    PACKAGE.Darklang.Stdlib.Bool.and_v0 a b
+  let userAnd (a: Bool) (b: Bool) : Bool = PACKAGE.Darklang.Stdlib.Bool.and_v0 a b
 
   let userStringContains (user: Person) (str: String) : Bool =
     PACKAGE.Darklang.Stdlib.String.contains_v0 user.name str
@@ -762,7 +761,7 @@ module FindAll =
   let userLessThan (user: Person) (height: Int) : Bool =
     Builtin.Int.lessThan_v0 user height
 
-  let useAdd (a : Int) (b : Int) : Int = a + b
+  let useAdd (a: Int) (b: Int) : Int = a + b
 
 
   (friends (fun p -> userAnd p.human true)) = [ " Chandler "; "Rachel"; "Ross" ]
@@ -771,7 +770,10 @@ module FindAll =
 
   (friends (fun p -> userLessThan p.height 65)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> let a = 1 in let b = 9 in (p.height == useAdd 6 4) && (p.age == b) )) = [ "GrumpyCat" ]
+  (friends (fun p ->
+    let a = 1 in
+    let b = 9 in
+    (p.height == useAdd 6 4) && (p.age == b))) = [ "GrumpyCat" ]
 
 
   // Tests for functions that are inlined 2-3 functions deep
@@ -781,7 +783,9 @@ module FindAll =
   let anotherNestedUserFn (user: Person) (height: Int) : Bool =
     userAnd
       user.human
-      (PACKAGE.Darklang.Stdlib.Int.lessThan_v0 user.height (PACKAGE.Darklang.Stdlib.Int.add height 1))
+      (PACKAGE.Darklang.Stdlib.Int.lessThan_v0
+        user.height
+        (PACKAGE.Darklang.Stdlib.Int.add height 1))
 
 
   (friends (fun p -> nestedUserFn p 68)) = [ "Rachel" ]
