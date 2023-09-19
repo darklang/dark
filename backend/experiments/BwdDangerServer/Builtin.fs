@@ -1,4 +1,4 @@
-module BwdDangerServer.StdLib
+module BwdDangerServer.Builtin
 
 open Prelude
 module Builtin = LibExecution.Builtin

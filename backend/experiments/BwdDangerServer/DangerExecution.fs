@@ -1,7 +1,7 @@
 module BwdDangerServer.DangerExecution
 
 // For executing code with the appropriate production "real" execution, setting
-// traces, stdlib, etc, appropriately. Used by most of the executables.
+// traces, builtin, etc, appropriately. Used by most of the executables.
 
 open FSharp.Control.Tasks
 open System.Threading.Tasks
@@ -24,7 +24,7 @@ let builtIns : RT.BuiltIns =
       [ BuiltinExecution.Builtin.contents
           BuiltinExecution.Libs.HttpClient.defaultConfig
         BuiltinCloudExecution.Builtin.contents
-        BwdDangerServer.StdLib.contents
+        BwdDangerServer.Builtin.contents
         BuiltinDarkInternal.Builtin.contents ]
       []
       []

@@ -57,7 +57,7 @@ let seedCanvas (canvasName : string) =
           [ BuiltinExecution.Builtin.contents
               BuiltinExecution.Libs.HttpClient.defaultConfig
             BuiltinCloudExecution.Builtin.contents
-            BwdDangerServer.StdLib.contents
+            BwdDangerServer.Builtin.contents
             BuiltinDarkInternal.Builtin.contents ]
           []
           []
