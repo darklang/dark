@@ -342,35 +342,35 @@ let loadTLIDsWithDBs (id : CanvasID) (tlids : List<tlid>) : Task<T> =
 
 let getToplevel (tlid : tlid) (c : T) : Option<Serialize.Deleted * PT.Toplevel.T> =
   let handler () =
-    Map.tryFind tlid c.handlers
+    Map.find tlid c.handlers
     |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLHandler h))
 
   let deletedHandler () =
-    Map.tryFind tlid c.deletedHandlers
+    Map.find tlid c.deletedHandlers
     |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLHandler h))
 
   let db () =
-    Map.tryFind tlid c.dbs
+    Map.find tlid c.dbs
     |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLDB h))
 
   let deletedDB () =
-    Map.tryFind tlid c.deletedDBs
+    Map.find tlid c.deletedDBs
     |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLDB h))
 
   let userFunction () =
-    Map.tryFind tlid c.userFunctions
+    Map.find tlid c.userFunctions
     |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLFunction h))
 
   let deletedUserFunction () =
-    Map.tryFind tlid c.deletedUserFunctions
+    Map.find tlid c.deletedUserFunctions
     |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLFunction h))
 
   let userType () =
-    Map.tryFind tlid c.userTypes
+    Map.find tlid c.userTypes
     |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLType h))
 
   let deletedUserType () =
-    Map.tryFind tlid c.deletedUserTypes
+    Map.find tlid c.deletedUserTypes
     |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLType h))
 
   handler ()

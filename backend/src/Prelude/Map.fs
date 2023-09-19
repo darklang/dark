@@ -39,11 +39,11 @@ let all (f : 'v -> bool) (m : Map<'k, 'v>) : bool = Map.forall (fun _ v -> f v) 
 let map (f : 'a -> 'b) (m : Map<'k, 'a>) : Map<'k, 'b> = Map.map (fun _ v -> f v) m
 let mapWithIndex (f : 'k -> 'a -> 'b) (m : Map<'k, 'a>) : Map<'k, 'b> = Map.map f m
 
-let get (k : 'k) (m : Map<'k, 'v>) : Option<'v> = Map.tryFind k m
+let get (k : 'k) (m : Map<'k, 'v>) : Option<'v> = Map.find k m
 
 let findUnsafe (k : 'k) (m : Map<'k, 'v>) : 'v = Map.find k m
 
-let find (k : 'k) (m : Map<'k, 'v>) : Option<'v> = Map.tryFind k m
+let find (k : 'k) (m : Map<'k, 'v>) : Option<'v> = Map.find k m
 
 
 let update

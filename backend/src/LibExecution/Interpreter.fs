@@ -414,7 +414,7 @@ let rec eval
       else
         match obj with
         | DRecord(_, typeName, _, o) ->
-          match Map.tryFind field o with
+          match Map.find field o with
           | Some v -> return v
           | None ->
             let typeStr = TypeName.toString typeName

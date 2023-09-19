@@ -304,7 +304,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 fields
                 |> List.map (fun f ->
                   let dval =
-                    match Map.tryFind f.name objFields with
+                    match Map.find f.name objFields with
                     | Some j ->
                       let typ = Types.substitute decl.typeParams typeArgs f.typ
                       convert typ j
