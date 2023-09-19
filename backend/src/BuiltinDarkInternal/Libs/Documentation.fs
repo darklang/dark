@@ -1,4 +1,4 @@
-/// StdLib functions for documentation
+/// Builtin functions for documentation
 module BuiltinDarkInternal.Libs.Documentation
 
 open System.Threading.Tasks
@@ -32,7 +32,7 @@ let types : List<BuiltInType> =
                   { name = "returnType"; typ = TString } ]
             ) }
       deprecated = NotDeprecated
-      description = "A Darklang stdlib function" }
+      description = "A Darklang builtin function" }
     { name = typ "Parameter" 0
       declaration =
         { typeParams = []

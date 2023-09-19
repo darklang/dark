@@ -1,6 +1,6 @@
-module Tests.StdLib
+module Tests.Builtin
 
-// Misc tests of Stdlib (both LibCloud and LibExecution) that could not be
+// Misc tests of Builtin (both LibCloud and LibExecution) that could not be
 // tested via LibExecution.tests
 
 open Expecto
@@ -68,4 +68,4 @@ let oldTypesAreDeprecated =
       counts.Value
   }
 
-let tests = testList "stdlib" [ oldFunctionsAreDeprecated; oldTypesAreDeprecated ]
+let tests = testList "builtin" [ oldFunctionsAreDeprecated; oldTypesAreDeprecated ]

@@ -30,7 +30,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Libs/Experiments.fs" />
-    <Compile Include="StdLib.fs" />
+    <Compile Include="Builtin.fs" />
     <Compile Include="DangerExecution.fs" />
     <Compile Include="Server.fs" />
   </ItemGroup>

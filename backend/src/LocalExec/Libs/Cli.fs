@@ -1,5 +1,5 @@
-/// StdLib functions for building the CLI
-/// (as opposed to functions needed by CLI programs, which are in StdLibCli)
+/// Builtin functions for building the CLI
+/// (as opposed to functions needed by CLI programs, which are in BuiltinCli)
 module LocalExec.Libs.Cli
 
 open System.Threading.Tasks

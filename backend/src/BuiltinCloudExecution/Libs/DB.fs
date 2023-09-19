@@ -1,4 +1,4 @@
-/// StdLib functions for accessing and manipulating user datastores
+/// Builtin functions for accessing and manipulating user datastores
 module BuiltinCloudExecution.Libs.DB
 
 open Prelude

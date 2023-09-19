@@ -1,4 +1,4 @@
-/// StdLib functions for emitting events
+/// Builtin functions for emitting events
 ///
 /// Those events are handled by Workers
 module BuiltinCloudExecution.Libs.Event

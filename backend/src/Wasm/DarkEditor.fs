@@ -29,9 +29,9 @@ let httpConfig : BuiltinExecution.Libs.HttpClient.Configuration =
           WasmHelpers.callJSFunction "console.warn" [ string metadata; string e ]) }
 
 
-let stdLib =
+let builtin =
   LibExecution.Builtin.combine
-    [ BuiltinExecution.Builtin.contents httpConfig; StdLib.contents ]
+    [ BuiltinExecution.Builtin.contents httpConfig; Builtin.contents ]
     []
     []
 
@@ -74,7 +74,7 @@ let LoadClient (canvasName : string) : Task<string> =
     let! initialState =
       let state =
         getStateForEval
-          stdLib
+          builtin
           clientSource.types
           clientSource.fns
           clientSource.constants
@@ -109,7 +109,7 @@ let HandleEvent (serializedEvent : string) : Task<string> =
   task {
     let state =
       getStateForEval
-        stdLib
+        builtin
         Libs.Editor.editor.Types
         Libs.Editor.editor.Functions
         Libs.Editor.editor.Constants

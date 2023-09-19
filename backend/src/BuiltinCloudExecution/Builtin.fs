@@ -1,4 +1,4 @@
-/// StdLib functions that can only be run on the backend
+/// Builtin functions that can only be run on the backend
 ///
 /// Aggregates functions in other modules
 module BuiltinCloudExecution.Builtin

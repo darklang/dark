@@ -1,5 +1,4 @@
-/// Include libraries here that we would not want to even be possible from other environments
-module LocalExec.StdLib
+module BwdDangerServer.Builtin
 
 open Prelude
 module Builtin = LibExecution.Builtin
@@ -15,11 +14,4 @@ let typeRenames : Builtin.TypeRenames =
   []
 
 let contents : Builtin.Contents =
-  Builtin.combine
-    [ Libs.Packages.contents
-      Libs.Packages2.contents
-      Libs.Cli.contents
-      Libs.List.contents
-      Libs.String.contents ]
-    fnRenames
-    typeRenames
+  Builtin.combine [ Libs.Experiments.contents ] fnRenames typeRenames

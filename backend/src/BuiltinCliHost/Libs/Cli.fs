@@ -1,4 +1,4 @@
-/// StdLib functions for building the CLI
+/// Builtin functions for building the CLI
 /// (as opposed to functions needed by CLI programs, which are in StdLibCli)
 module BuiltinCliHost.Libs.Cli
 

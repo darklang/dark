@@ -1,4 +1,4 @@
-/// This module coordinates testing of our `HttpClient` stdlib functions.
+/// This module coordinates testing of our `HttpClient` builtin functions.
 ///
 /// There are a variety of http client tests located in
 /// `../testfiles/httpclient`. They all follow a standard format; this module

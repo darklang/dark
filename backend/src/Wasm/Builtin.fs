@@ -1,7 +1,10 @@
-module BwdDangerServer.StdLib
+module Wasm.Builtin
 
 open Prelude
+open LibExecution.RuntimeTypes
+
 module Builtin = LibExecution.Builtin
+
 
 let fnRenames : Builtin.FnRenames =
   // old names, new names
@@ -13,5 +16,4 @@ let typeRenames : Builtin.TypeRenames =
   // eg: typ "Http" "Response" 0, typ "Http" "Response" 1
   []
 
-let contents : Builtin.Contents =
-  Builtin.combine [ Libs.Experiments.contents ] fnRenames typeRenames
+let contents = Builtin.combine [ Libs.Editor.contents ] fnRenames typeRenames

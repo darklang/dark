@@ -1,4 +1,4 @@
-/// StdLib functions to work with X.509 public keys
+/// Builtin functions to work with X.509 public keys
 module BuiltinExecution.Libs.X509
 
 open System.Security.Cryptography
