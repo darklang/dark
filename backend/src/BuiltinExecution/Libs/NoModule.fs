@@ -24,7 +24,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
     && List.forall2 equals a b
   | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->
     if a3.Length <> b3.Length then // special case - this is a type error
-      Exception.raiseCode "tuples must be the same length"
+      raiseString "tuples must be the same length"
     else
       equals a1 b1 && equals a2 b2 && List.forall2 equals a3 b3
   | DDict(_vtTODO1, a), DDict(_vtTODO2, b) ->
@@ -69,8 +69,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DUuid _, _
   | DBytes _, _
   | DDB _, _
-  | DEnum _, _
-  | DError _, _ -> Exception.raiseCode "Both values must be the same type"
+  | DEnum _, _ -> raiseString "Both values must be the same type"
 
 and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
   NEList.length impl1.parameters = NEList.length impl2.parameters
@@ -308,7 +307,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "value" (TVariable "optOrRes") "" ]
       returnType = TVariable "a"
       description =
-        "Unwrap an Option or Result, returning the value or a DError if None"
+        "Unwrap an Option or Result, returning the value or raising a RuntimeError if None"
       fn =
         (function
         | _,
@@ -325,11 +324,9 @@ let fns : List<BuiltInFn> =
             | "Some" -> return value
             | "None" ->
               return
-                DError(
-                  SourceNone,
-                  RuntimeError.oldError (DvalReprDeveloper.toRepr value)
-                )
-            | _ -> return DError(SourceNone, RuntimeError.oldError "Invalid Result")
+                RuntimeError.oldError (DvalReprDeveloper.toRepr value)
+                |> raiseUntargetedRTE
+            | _ -> return raiseUntargetedRTE (RuntimeError.oldError "Invalid Option")
           }
         | _,
           _,
@@ -344,13 +341,10 @@ let fns : List<BuiltInFn> =
             match caseName with
             | "Ok" -> return value
             | "Error" ->
-              // CLEANUP should we raiseRTE here instead?
               return
-                DError(
-                  SourceNone,
-                  RuntimeError.oldError (DvalReprDeveloper.toRepr value)
-                )
-            | _ -> return DError(SourceNone, RuntimeError.oldError "Invalid Result")
+                RuntimeError.oldError (DvalReprDeveloper.toRepr value)
+                |> raiseUntargetedRTE
+            | _ -> return raiseUntargetedRTE (RuntimeError.oldError "Invalid Option")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

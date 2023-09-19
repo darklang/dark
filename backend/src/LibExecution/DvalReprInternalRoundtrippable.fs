@@ -257,7 +257,6 @@ module FormatV0 =
       caseName : string *
       fields : List<Dval>
 
-    | DError of RuntimeError // CLEANUP remove
 
   let rec toRT (dv : Dval) : RT.Dval =
     match dv with
@@ -298,12 +297,6 @@ module FormatV0 =
         List.map toRT fields
       )
 
-    | DError(RuntimeError(SourceID(tlid, id), rte)) ->
-      RT.DError(RT.SourceID(tlid, id), RT.RuntimeError.fromDT (toRT rte))
-
-    | DError(RuntimeError(SourceNone, rte)) ->
-      RT.DError(RT.SourceNone, RT.RuntimeError.fromDT (toRT rte))
-
 
 
   let rec fromRT (dv : RT.Dval) : Dval =
@@ -337,12 +330,6 @@ module FormatV0 =
         caseName,
         List.map fromRT fields
       )
-
-    | RT.DError(RT.SourceID(tlid, id), rte) ->
-      DError(RuntimeError(SourceID(tlid, id), rte |> RT.RuntimeError.toDT |> fromRT))
-
-    | RT.DError(RT.SourceNone, rte) ->
-      DError(RuntimeError(SourceNone, rte |> RT.RuntimeError.toDT |> fromRT))
 
 
 let toJsonV0 (dv : RT.Dval) : string =
@@ -381,5 +368,4 @@ module Test =
     | RT.DRecord(_, _, _, map) -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DUuid _ -> true
     | RT.DTuple(v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
-    | RT.DDB _
-    | RT.DError _ -> true
+    | RT.DDB _ -> true

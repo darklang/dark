@@ -185,7 +185,7 @@ let rec private toJsonV0
             "Value to be stored does not match a declared type"
             [ "value", dv; "type", typ; "typeName", typeName ]
 
-    | TCustomType(Error err, _), _ -> raiseRTE err
+    | TCustomType(Error err, _), _ -> raiseRTE SourceNone err
 
     // Not supported
     | TVariable _, _
@@ -407,5 +407,4 @@ module Test =
 
     // Maybe never support
     | DFnVal _
-    | DError _
     | DDB _ -> false

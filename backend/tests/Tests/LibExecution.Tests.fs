@@ -135,13 +135,16 @@ let t
       if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
         debuGList "results" (Dictionary.toList results |> List.sortBy fst)
 
-      let actual = normalizeDvalResult actual
-      let expected = normalizeDvalResult expected
+      let actual = Result.map normalizeDvalResult actual
+      let expected = Result.map normalizeDvalResult expected
 
-      let canonical = Expect.isCanonical actual
-      if not canonical then
-        debugDval actual |> debuG "not canonicalized"
-        Expect.isTrue canonical "expected is canonicalized"
+      match actual with
+      | Error _ -> ()
+      | Ok actual ->
+        let canonical = Expect.isCanonical actual
+        if not canonical then
+          debugDval actual |> debuG "not canonicalized"
+          Expect.isTrue canonical "expected is canonicalized"
 
       // CLEANUP consider not doing the toErrorMessage call
       // just test the actual RuntimeError Dval,
@@ -149,8 +152,9 @@ let t
       let! actual =
         uply {
           match actual with
-          | RT.DError(_, actual) ->
-            let actual = RT.RuntimeError.toDT actual
+          | Ok _ -> return actual
+          | Error(_, actualRTE) ->
+            let actual = RT.RuntimeError.toDT actualRTE
             let errorMessageFn =
               RT.FnName.fqPackage
                 "Darklang"
@@ -185,42 +189,40 @@ let t
             | Ok _ ->
               // The result was correctly a RuntimeError, try to stringify it
               let! result =
-                LibExecution.Interpreter.callFn
+                LibExecution.Execution.executeFunction
                   state
-                  Map.empty
                   0UL
                   errorMessageFn
                   []
                   (NEList.ofList actual [])
               match result with
-              | RT.DError _ ->
+              | Error _ ->
                 return
                   Exception.raiseInternal
-                    ("We received a DError, and when trying to stringify it, there was an error. There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
+                    ("We received an RTE, and when trying to stringify it, there was another RTE error. There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
                     [ "originalError", actual; "stringifyError", result ]
-              | RT.DEnum(_, _, "ErrorString", [ RT.DString _ ]) -> return result
-              | _ ->
+              | Ok(RT.DEnum(_, _, "ErrorString", [ RT.DString _ ])) -> return result
+              | Ok _ ->
                 return
                   Exception.raiseInternal
-                    "We received a DError, and when trying to stringify it, got neither a result or a DError. Instead we got"
+                    "We received an RTE, and when trying to stringify it, got a non-ErrorString response. Instead we got"
                     [ "result", result ]
 
             | Error e ->
               // The result was not a RuntimeError, try to stringify the typechecker error
               return!
-                LibExecution.Interpreter.callFn
+                LibExecution.Execution.executeFunction
                   state
-                  Map.empty
                   0UL
                   errorMessageFn
                   []
                   (NEList.ofList (RT.RuntimeError.toDT e) [])
-
-          | _ -> return actual
         }
         |> Ply.toTask
 
-      return Expect.equalDval actual expected msg
+      match actual, expected with
+      | Ok actual, Ok expected -> return Expect.equalDval actual expected msg
+      | _ -> return Expect.equal actual expected msg
     with
     | :? Expecto.AssertException as e -> Exception.reraise e
     | e ->

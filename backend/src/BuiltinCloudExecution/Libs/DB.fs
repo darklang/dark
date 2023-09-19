@@ -31,7 +31,7 @@ let handleUnexpectedExceptionDuringQuery
   (e : System.Exception)
   : Dval =
   match e with
-  | :? Exception.CodeException -> Exception.reraise e
+  | RuntimeErrorException _ -> Exception.reraise e
   | e ->
     state.reportException
       state
@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
 
             match id with
             | Ok _id -> return value
-            | Error rte -> return DError(SourceNone, rte)
+            | Error rte -> return raiseRTE SourceNone rte
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -322,7 +322,7 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.queryValues state db b
               match results with
               | Ok results -> return results |> Dval.list valueTypeDbTODO
-              | Error rte -> return DError(SourceNone, rte)
+              | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }
@@ -347,7 +347,7 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.query state db b
               match results with
               | Ok results -> return Dval.dict valueTypeDbTODO results
-              | Error rte -> return DError(SourceNone, rte)
+              | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }
@@ -374,7 +374,7 @@ let fns : List<BuiltInFn> =
               match results with
               | Ok [ (_, v) ] -> return Dval.optionSome v
               | Ok _ -> return Dval.optionNone
-              | Error rte -> return DError(SourceNone, rte)
+              | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }
@@ -402,7 +402,7 @@ let fns : List<BuiltInFn> =
               | Ok [ (key, dv) ] ->
                 return Dval.optionSome (DTuple(DString key, dv, []))
               | Ok _ -> return Dval.optionNone
-              | Error rte -> return DError(SourceNone, rte)
+              | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }
@@ -427,7 +427,7 @@ let fns : List<BuiltInFn> =
               let! result = UserDB.queryCount state db b
               match result with
               | Ok result -> return Dval.int result
-              | Error rte -> return DError(SourceNone, rte)
+              | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }

@@ -123,7 +123,6 @@ let toRepr (dv : Dval) : string =
       // TODO: we should print this, as this use case is safe
       // See docs/dblock-serialization.md
       justType
-    | DError(_, msg) -> $"<error: {msg}>"
     | DDateTime d -> wrap (DarkDateTime.toIsoString d)
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)

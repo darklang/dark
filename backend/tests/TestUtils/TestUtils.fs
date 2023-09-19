@@ -187,9 +187,9 @@ let executionStateFor
           fun tc _ ->
             // In an effort to find errors in the test suite, we track exceptions
             // that we report in the runtime and check for them after the test
-            // completes.  There are a lot of places where exceptions are allowed,
+            // completes. There are a lot of places where exceptions are allowed,
             // possibly too many to annotate, so we assume that errors are intended
-            // to be reported anytime the result is a DError.
+            // to be reported anytime the result is a RTE.
             let exceptionCountMatches =
               tc.exceptionReports.Length = tc.expectedExceptionCount
 
@@ -329,8 +329,8 @@ let testListUsingPropertyAsync
 
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
+  // Nothing interesting right now
   match dv with
-  | RT.DError(_, rte) -> RT.DError(RT.SourceNone, rte)
   | dv -> dv
 
 open LibExecution.RuntimeTypes
@@ -381,7 +381,6 @@ module Expect =
     | DFloat _
     | DUnit
     | DFnVal _
-    | DError _
     | DDB _
     | DUuid _
     | DBytes _
@@ -789,8 +788,6 @@ module Expect =
       List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) fields fields'
       ()
 
-    | DError(_, err1), DError(_, err2) ->
-      check path (RuntimeError.toDT err1) (RuntimeError.toDT err2)
     | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
       let vals l = NEList.map Tuple2.second l
       check ("lambdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
@@ -812,7 +809,6 @@ module Expect =
     | DUnit, _
     | DChar _, _
     | DFnVal _, _
-    | DError _, _
     | DDB _, _
     | DUuid _, _
     | DBytes _, _ -> check path actual expected
@@ -880,7 +876,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DUnit
     | DChar _
     | DFnVal _
-    | DError _
     | DDB _
     | DUuid _
     | DBytes _
@@ -888,9 +883,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     f dv
   visit dv
   state
-
-let containsFakeDval (dv : Dval) : bool =
-  dv |> visitDval RT.Dval.isFake |> List.any identity
 
 
 let interestingStrings : List<string * string> =
@@ -989,15 +981,6 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("int string3", DString "0", TString)
     ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6", TString)
     ("list", DList(ValueType.Known KTInt, [ Dval.int 4 ]), TList TInt)
-    ("list with derror",
-     DList(
-       ValueType.Unknown,
-       [ Dval.int 3
-         DError(SourceNone, RuntimeError.oldError "some error string")
-         DList(ValueType.Known KTInt, [])
-         Dval.int 4 ]
-     ),
-     TList TInt)
     ("record",
      DRecord(
        S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0,
@@ -1039,15 +1022,6 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        Map.ofList [ "$type", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    ("record with error",
-     DRecord(
-       S.fqUserTypeName [] "Foo" 0,
-       S.fqUserTypeName [] "Foo" 0,
-       valueTypesTODO,
-       Map.ofList
-         [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ]
-     ),
-     TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
     ("dict", Dval.dict valueTypeTODO [ "foo", Dval.int 5 ], TDict TInt)
     ("dict3",
      Dval.dict valueTypeTODO [ ("type", DString "weird"); ("value", DString "x") ],
@@ -1055,12 +1029,6 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     // More Json.NET tests
     ("dict4", Dval.dict valueTypeTODO [ "foo\\\\bar", Dval.int 5 ], TDict TInt)
     ("dict5", Dval.dict valueTypeTODO [ "$type", Dval.int 5 ], TDict TInt)
-    ("dict with error",
-     Dval.dict
-       valueTypeTODO
-       [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ],
-     TDict TInt)
-    ("error", DError(SourceNone, RuntimeError.oldError "some error string"), TString)
     ("lambda",
      DFnVal(
        Lambda

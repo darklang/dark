@@ -26,7 +26,7 @@ let fns : List<BuiltInFn> =
           let encodeBasicAuth (u : string) (p : string) : string =
             let input : byte[] =
               if u.Contains("-") then
-                Exception.raiseCode "Username cannot contain a hyphen"
+                raiseString "Username cannot contain a hyphen"
               else
                 toBytes $"{u}:{p}"
 

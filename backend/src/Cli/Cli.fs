@@ -81,7 +81,9 @@ let state () =
 
 
 
-let execute (args : List<string>) : Task<RT.Dval> =
+let execute
+  (args : List<string>)
+  : Task<Result<RT.Dval, RT.DvalSource * RT.RuntimeError>> =
   task {
     let state = state ()
     let fnName = RT.FnName.fqPackage "Darklang" [ "Cli" ] "executeCliCommand" 0
@@ -114,21 +116,26 @@ let main (args : string[]) =
     NonBlockingConsole.wait ()
 
     match result with
-    | RT.DError(source, rte) ->
+    | Error(source, rte) ->
       let state = state ()
       let source =
         match source with
         | RT.SourceID(tlid, id) -> $"(source: {tlid}, {id})"
         | RT.SourceNone -> "(source unknown)"
       match (LibExecution.Execution.runtimeErrorToString state rte).Result with
-      | RT.DString s -> System.Console.WriteLine $"Error {source}:\n  {s}"
-      | newErr ->
+      | Ok(RT.DString s) -> System.Console.WriteLine $"Error {source}:\n  {s}"
+      | Ok otherVal ->
+        System.Console.WriteLine
+          $"Unexpected value while stringifying error {source}\n"
+        System.Console.WriteLine $"Original Error: {rte}"
+        System.Console.WriteLine $"Value is:\n{otherVal}"
+      | Error(_, newErr) ->
         System.Console.WriteLine $"Error while stringifying error {source}\n"
         System.Console.WriteLine $"Original Error: {rte}"
         System.Console.WriteLine $"New Error is:\n{newErr}"
       1
-    | RT.DInt i -> (int i)
-    | dval ->
+    | Ok(RT.DInt i) -> (int i)
+    | Ok dval ->
       let output = LibExecution.DvalReprDeveloper.toRepr dval
       System.Console.WriteLine
         $"Error: main function must return an int (returned {output})"

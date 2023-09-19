@@ -50,7 +50,6 @@ let rec dvalToSql
   : Ply<SqlValue * TypeReference> =
   uply {
     match expectedType, dval with
-    | _, DError _ -> return Errors.foundFakeDval dval
     | _, DFnVal _
     | _, DDB _
     | _, DDict _ // CLEANUP allow
@@ -361,18 +360,16 @@ let rec lambdaToSql
               | FQName.BuiltIn b ->
                 match Map.get b constants.builtIn with
                 | None -> return! error $"No built-in constant {nameStr} found"
-                | Some c ->
-                  typecheck nameStr c.typ expectedType
-                  return c.body
+                | Some c -> return c.body
               | FQName.Package p ->
                 match! constants.package p with
                 | None -> return error $"No package constant {nameStr} found"
                 | Some c ->
-                  do! typecheckDval nameStr types c.body expectedType
-                  return c.body
+                  return LibExecution.Interpreter.evalConst SourceNone c.body
               | FQName.UserProgram _ ->
                 return error $"User constants are not yet supported"
             }
+          do! typecheckDval nameStr types constant expectedType
           let random = randomString 8
           let newname = $"{nameStr}_{random}"
           let! (sqlValue, actualType) = dvalToSql types expectedType constant

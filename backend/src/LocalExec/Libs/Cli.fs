@@ -34,7 +34,7 @@ let execute
   (parentState : RT.ExecutionState)
   (mod' : LibParser.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
-  : Task<RT.Dval> =
+  : Task<RT.ExecutionResult> =
 
   task {
     let program : Program =
@@ -72,10 +72,10 @@ let execute
     if mod'.exprs.Length = 1 then
       return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
     else if mod'.exprs.Length = 0 then
-      return DError(SourceNone, RuntimeError.oldError "No expressions to execute")
+      return Error(SourceNone, RuntimeError.oldError "No expressions to execute")
     else // mod'.exprs.Length > 1
       return
-        DError(SourceNone, RuntimeError.oldError "Multiple expressions to execute")
+        Error(SourceNone, RuntimeError.oldError "Multiple expressions to execute")
   }
 
 let constants : List<BuiltInConstant> = []
@@ -99,8 +99,7 @@ let fns : List<BuiltInFn> =
               return DBytes contents
             with e ->
               return
-                DError(
-                  SourceNone,
+                raiseUntargetedRTE (
                   RuntimeError.oldError $"Error reading file: {e.Message}"
                 )
           }

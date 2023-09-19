@@ -65,7 +65,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
     // CLEANUP consider renaming to `oldError` or something more clear
-    // TODO remove this in favor of derror
     { name = fn "runtimeError" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
@@ -74,7 +73,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString errorString ] ->
-          Ply(DError(SourceNone, RuntimeError.oldError errorString))
+          raiseUntargetedRTE (RuntimeError.oldError errorString)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -159,51 +158,6 @@ let fns : List<BuiltInFn> =
         | _, _, [ v; DString msg ] ->
           print $"{msg}: {v}"
           Ply v
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "justWithTypeError" 0
-      typeParams = []
-      parameters = [ Param.make "msg" TString "" ]
-      returnType = TypeReference.option varA
-      description = "Returns a DError in a Some"
-      fn =
-        (function
-        | _, _, [ DString msg ] ->
-          Ply(Dval.optionSome (DError(SourceNone, RuntimeError.oldError msg)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "okWithTypeError" 0
-      typeParams = []
-      parameters = [ Param.make "msg" TString "" ]
-      returnType = TypeReference.result varA varB
-      description = "Returns a DError in an OK"
-      fn =
-        (function
-        | _, _, [ DString msg ] ->
-          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "errorWithTypeError" 0
-      typeParams = []
-      parameters = [ Param.make "msg" TString "" ]
-      returnType = TypeReference.result varA varB
-      description = "Returns a DError in a Result.Error"
-      fn =
-        (function
-        | _, _, [ DString msg ] ->
-          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -305,7 +259,7 @@ let fns : List<BuiltInFn> =
           |> Array.map (fun dval ->
             match dval with
             | DInt i -> byte i
-            | other -> Exception.raiseCode "Expected int" [ "actual", other ])
+            | other -> raiseString $"Expected int, got {other}")
           |> DBytes
           |> Ply
 

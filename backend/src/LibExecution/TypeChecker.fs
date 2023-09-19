@@ -71,6 +71,7 @@ type Error =
   | TypeDoesntExist of TypeName.TypeName * Context
 
 
+
 module Error =
 
   module RT2DT = RuntimeTypesToDarkTypes
@@ -159,7 +160,6 @@ module Error =
           expectedType |> RT2DT.TypeReference.toDT
           Context.toDT context ]
 
-      let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
       RuntimeError.typeCheckerError (
         Dval.enum typeName typeName "ValueNotExpectedType" fields
       )
@@ -167,10 +167,19 @@ module Error =
     | TypeDoesntExist(typeName, context) ->
       let fields = [ RT2DT.TypeName.toDT typeName; Context.toDT context ]
 
-      let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
       RuntimeError.typeCheckerError (
         Dval.enum typeName typeName "TypeDoesntExist" fields
       )
+
+let raiseValueNotExpectedType
+  (source : DvalSource)
+  (dv : Dval)
+  (typ : TypeReference)
+  (context : Context)
+  : 'a =
+  raiseRTE source (ValueNotExpectedType(dv, typ, context) |> Error.toRuntimeError)
+
+
 
 let rec valueTypeUnifies
   (tst : TypeSymbolTable)

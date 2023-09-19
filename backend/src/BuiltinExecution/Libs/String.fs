@@ -50,22 +50,18 @@ let fns : List<BuiltInFn> =
            |> (fun dvals ->
              (uply {
                let! (dvals : List<Dval>) = dvals
+               let chars =
+                 List.map
+                   (function
+                   | DChar c -> c
+                   | dv ->
+                     Exception.raiseInternal
+                       (Errors.expectedLambdaType "fn" TChar dv)
+                       [])
+                   dvals
 
-               match List.tryFind (fun dv -> Dval.isFake dv) dvals with
-               | Some i -> return i
-               | None ->
-                 let chars =
-                   List.map
-                     (function
-                     | DChar c -> c
-                     | dv ->
-                       Exception.raiseInternal
-                         (Errors.expectedLambdaType "fn" TChar dv)
-                         [])
-                     dvals
-
-                 let str = String.concat "" chars
-                 return DString str
+               let str = String.concat "" chars
+               return DString str
              })))
 
         | _ -> incorrectArgs ())

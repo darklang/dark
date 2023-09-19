@@ -22,23 +22,6 @@ type InternalException(message : string, metadata : Metadata, inner : exn) =
   new(msg : string, inner : exn) = InternalException(msg, [], inner)
 
 
-/// An error during code execution, which is the responsibility of the
-/// User/Developer. The message can be shown to the developer. You can alternatively
-/// use GrandUser exception in code which is used in both Libraries and in the
-/// HttpFramework.
-type CodeException(message : string, inner : exn) =
-  inherit System.Exception(message, inner)
-  new(msg : string) = CodeException(msg, null)
-
-/// An editor exception is one which is caused by an invalid action on the part of
-/// the Dark editor, such as an Redo or rename that isn't allowed.  We are
-/// interested in these, as the editor should have caught this on the client and not
-/// made the request. The message may be shown to the logged-in user, and should be
-/// suitable for this.
-type EditorException(message : string, inner : exn) =
-  inherit System.Exception(message, inner)
-  new(msg : string) = EditorException(msg, null)
-
 // A pageable exception will cause the pager to go off! This is something that should
 // never happen and is an indicator that the service is broken in some way.  The
 // pager goes off because a pageable exception sets the `{ is_pageable: true }`
@@ -67,8 +50,6 @@ let toMetadata (e : exn) : Metadata =
     match e with
     | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
     | :? InternalException as e -> e.metadata
-    | :? EditorException
-    | :? CodeException
     | _ -> []
   thisMetadata
 
@@ -79,8 +60,6 @@ let rec nestedMetadata (e : exn) : Metadata =
     match e with
     | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
     | :? InternalException as e -> e.metadata
-    | :? EditorException
-    | :? CodeException
     | _ -> []
   thisMetadata @ innerMetadata
 
@@ -95,28 +74,10 @@ let callExceptionCallback (e : exn) =
     System.Console.WriteLine e.StackTrace
 
 
-// CLEANUP remove this -- most of the errors caught by this can now be raiseInternals,
-// as the type-checker should have prevented them
-let raiseCode (msg : string) =
-  let e = CodeException(msg)
-  callExceptionCallback e
-  raise e
-
-let unwrapOptionCode (msg : string) (o : Option<'a>) : 'a =
-  match o with
-  | Some v -> v
-  | None -> raiseCode msg
-
-let unwrapResultCode (r : Result<'a, string>) : 'a =
-  match r with
-  | Ok v -> v
-  | Error msg -> raiseCode msg
-
 let raiseInternal (msg : string) (tags : Metadata) =
   let e = InternalException(msg, tags)
   callExceptionCallback e
   raise e
-
 
 
 let unwrapOptionInternal (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =

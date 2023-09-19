@@ -488,8 +488,7 @@ and Expr =
 
   // A runtime error. This is included so that we can allow the program to run in the
   // presence of compile-time errors (which are converted to this error). We may
-  // adapt this to include more information as we go, possibly using a standard Error
-  // type (the same as used in DErrors and Results). This list of exprs is the
+  // adapt this to include more information as we go. This list of exprs is the
   // subexpressions to evaluate before evaluating the error.
   | EError of id * RuntimeError * List<Expr>
 
@@ -581,13 +580,6 @@ and [<NoComparison>] Dval =
   // References
   | DDB of name : string
 
-  // To be removed from Dval
-  /// Represents something that shouldn't have happened in the engine,
-  /// that should have been reported elsewhere. It's usually a type error of
-  /// some kind, but occasionally we'll paint ourselves into a corner and need
-  /// to represent a runtime error using this.
-  | DError of DvalSource * RuntimeError
-
 
 and DvalTask = Ply<Dval>
 
@@ -645,9 +637,6 @@ and BuiltInParam =
 
 and Param = { name : string; typ : TypeReference }
 
-
-exception UncaughtRuntimeError of RuntimeError
-let raiseRTE (rte : RuntimeError) = raise (UncaughtRuntimeError rte)
 
 
 
@@ -708,6 +697,20 @@ module RuntimeError =
   // TODO remove all usages of this in favor of better error cases
   let oldError (msg : string) : RuntimeError =
     case "OldStringErrorTODO" [ DString msg ]
+
+exception RuntimeErrorException of DvalSource * RuntimeError
+
+let raiseRTE (source : DvalSource) (rte : RuntimeError) =
+  raise (RuntimeErrorException(source, rte))
+
+// TODO add sources to all RTEs
+let raiseUntargetedRTE (rte : RuntimeError) =
+  raise (RuntimeErrorException(SourceNone, rte))
+
+// TODO remove all usages of this in favor of better error cases
+let raiseString (s : string) : 'a = raiseUntargetedRTE (RuntimeError.oldError s)
+
+type ExecutionResult = Result<Dval, DvalSource * RuntimeError>
 
 
 
@@ -794,17 +797,6 @@ module MatchPattern =
 
 // Functions for working with Dark runtime values
 module Dval =
-  // A Fake Dval is some control-flow that's modelled in the interpreter as a
-  // Dval. This is sort of like an Exception. Anytime we see a FakeDval we return
-  // it instead of operating on it, including when they're put in a list, in a
-  // value, in a record, as a parameter to a function, etc.
-  // There used to be multiple types of FakeVal but now there's only DError - which
-  // will be removed as well soon.
-  let isFake (dv : Dval) : bool =
-    match dv with
-    | DError _ -> true
-    | _ -> false
-
 
   // <summary>
   // Checks if a runtime's value matches a given type
@@ -854,9 +846,6 @@ module Dval =
       // TYPESCLEANUP: do we need to check fields?
       typeName = typeName'
 
-    // Dont match these fakevals, functions do not have these types
-    | DError _, _ -> false
-
     // exhaustiveness checking
     | DInt _, _
     | DFloat _, _
@@ -876,10 +865,10 @@ module Dval =
     | DEnum _, _ -> false
 
 
-  let errStr (s : string) : Dval = DError(SourceNone, RuntimeError.oldError s)
+  let errStr (s : string) : 'a = raiseUntargetedRTE (RuntimeError.oldError s)
 
-  let errSStr (source : DvalSource) (s : string) : Dval =
-    DError(source, RuntimeError.oldError s)
+  let errSStr (source : DvalSource) (s : string) : 'a =
+    raiseRTE source (RuntimeError.oldError s)
 
 
   let asList (dv : Dval) : Option<List<Dval>> =
@@ -952,8 +941,21 @@ module UserType =
   type T =
     { tlid : tlid; name : TypeName.UserProgram; declaration : TypeDeclaration.T }
 
+type Const =
+  | CInt of int64
+  | CBool of bool
+  | CString of string
+  | CChar of string
+  | CFloat of Sign * string * string
+  | CUnit
+  | CTuple of first : Const * second : Const * rest : List<Const>
+  | CEnum of NameResolution<TypeName.TypeName> * caseName : string * List<Const>
+  | CList of List<Const>
+  | CDict of List<string * Const>
+
+
 module UserConstant =
-  type T = { tlid : tlid; name : ConstantName.UserProgram; body : Dval }
+  type T = { tlid : tlid; name : ConstantName.UserProgram; body : Const }
 
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference }
@@ -1005,7 +1007,7 @@ module PackageType =
   type T = { name : TypeName.Package; declaration : TypeDeclaration.T }
 
 module PackageConstant =
-  type T = { name : ConstantName.Package; body : Dval }
+  type T = { name : ConstantName.Package; body : Const }
 
 // <summary>
 // Used to mark whether a function can be run on the client rather than backend.

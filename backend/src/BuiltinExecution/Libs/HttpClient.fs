@@ -227,7 +227,7 @@ let makeRequest
                 req.Content.Headers.ContentType <-
                   Headers.MediaTypeHeaderValue.Parse(v)
               with :? System.FormatException ->
-                Exception.raiseCode "Invalid content-type header"
+                raiseString "Invalid content-type header"
             else
               let added = req.Headers.TryAddWithoutValidation(k, v)
 
@@ -384,7 +384,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     Ok((k, v) :: pairs)
 
                 | (_, notAPair) ->
-                  // this should be a DError, not a "normal" error
+                  // this should be an RTE, not a "normal" error
                   TypeMismatch
                     $"Expected request headers to be a `List<String*String>`, but got: {DvalReprDeveloper.toRepr notAPair}"
                   |> Error)
@@ -449,7 +449,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
               match reqHeadersErr with
               | BadInput details -> return Dval.resultError (DString details)
               | TypeMismatch details ->
-                return DError(SourceNone, RuntimeError.oldError details)
+                return raiseUntargetedRTE (RuntimeError.oldError details)
             }
 
           | _, None ->
