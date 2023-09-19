@@ -32,6 +32,10 @@ module Darklang =
           | FieldName of String // records and enums
           | InlineFieldName of String // records and enums
 
+          // -- Constants
+          | ConstantName of
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.ConstantName.ConstantName
+
           // -- Variables
           | DBName of String
           | VarName of String
@@ -77,6 +81,8 @@ module Darklang =
                   | InlineParamName p -> p // Inline versions don't have quotes
                   | TypeName t ->
                     PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeName t
+                  | ConstantName c ->
+                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.constantName c
                   | ShortTypeName t ->
                     // TODO: make it short
                     PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeName t

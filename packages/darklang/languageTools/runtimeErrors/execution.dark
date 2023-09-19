@@ -3,11 +3,12 @@ module Darklang =
     module RuntimeErrors =
       module Execution =
         type Error =
-          | Incomplete
           | MatchExprUnmatched of RuntimeTypes.Dval.Dval
           | MatchExprPatternWrongShape
           | MatchExprPatternWrongType of String * RuntimeTypes.Dval.Dval
           | MatchExprEnumPatternWrongCount of String * expected: Int * actual: Int
+          | NonStringInStringInterpolation of RuntimeTypes.Dval.Dval
+          | ConstDoesntExist of RuntimeTypes.ConstantName.ConstantName
 
         let toSegments (e: Error) : ErrorOutput =
           match e with
@@ -81,6 +82,35 @@ module Darklang =
                 ErrorSegment.ErrorSegment.IndefiniteArticle
                 ErrorSegment.ErrorSegment.String patternType
                 ErrorSegment.ErrorSegment.String " pattern" ]
+
+            let extraExplanation = []
+
+            ErrorOutput
+              { summary = summary
+                extraExplanation = extraExplanation
+                actual = []
+                expected = [] }
+
+          // Expected String in string interpolation, got 1.0
+          | NonStringInStringInterpolation dv ->
+            let summary =
+              [ ErrorSegment.ErrorSegment.String
+                  "Expected String in string interpolation, got "
+                ErrorSegment.ErrorSegment.InlineValue dv ]
+
+            let extraExplanation = []
+
+            ErrorOutput
+              { summary = summary
+                extraExplanation = extraExplanation
+                actual = []
+                expected = [] }
+
+          | ConstDoesntExist name ->
+            let summary =
+              [ ErrorSegment.ErrorSegment.String "Constant "
+                ErrorSegment.ErrorSegment.ConstantName name
+                ErrorSegment.ErrorSegment.String " doesn't exist" ]
 
             let extraExplanation = []
 

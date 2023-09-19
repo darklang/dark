@@ -57,6 +57,24 @@ module Error =
       "MatchExprEnumPatternWrongCount"
       [ DString caseName; DInt expected; DInt actual ]
 
+  type Error =
+    | MatchExprEnumPatternWrongCount of string * int * int
+    | MatchExprUnmatched of Dval
+    | NonStringInStringInterpolation of Dval
+    | ConstDoesntExist of ConstantName.ConstantName
+
+  let toDT (e : Error) : RuntimeError =
+    match e with
+    | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
+      matchExprEnumPatternWrongCount caseName expected actual
+    | MatchExprUnmatched dv -> matchExprUnmatched dv
+    | NonStringInStringInterpolation dv ->
+      case "NonStringInStringInterpolation" [ RT2DT.Dval.toDT dv ]
+    | ConstDoesntExist name ->
+      case "ConstDoesntExist" [ DString(ConstantName.toString name) ]
+
+  let raise (source : DvalSource) (e : Error) : 'a = raiseRTE source (toDT e)
+
 
 let rec evalConst (source : DvalSource) (c : Const) : Dval =
   let r = evalConst source
@@ -90,11 +108,8 @@ let rec eval'
   (st : Symtable)
   (e : Expr)
   : DvalTask =
-  // Design doc for execution results and previews:
-  // https://www.notion.so/darklang/Live-Value-Branching-44ee705af61e416abed90917e34da48e
-  // TODO remove link from code or avail document - it is either gone or hidden behind login
   let sourceID id = SourceID(state.tlid, id)
-  let errStr id msg : 'a = Dval.errSStr (sourceID id) msg
+  let errStr id msg : 'a = raiseRTE (sourceID id) (RuntimeError.oldError msg)
   let err id rte : 'a = raiseRTE (sourceID id) rte
 
   let typeResolutionError
@@ -227,10 +242,11 @@ let rec eval'
                 match result with
                 | DString s -> return str + s
                 | dv ->
-                  let msg =
-                    "Expected String in string interpolation, got "
-                    + DvalReprDeveloper.toRepr dv
-                  return errStr id msg
+                  // TODO: maybe better with a type error here
+                  return
+                    Error.raise
+                      (sourceID id)
+                      (Error.NonStringInStringInterpolation dv)
             })
           ""
       return DString(String.normalize str)
@@ -244,15 +260,15 @@ let rec eval'
       match name with
       | FQName.UserProgram c ->
         match state.program.constants.TryFind c with
-        | None -> return errStr id $"There is no user defined constant named: {name}"
+        | None -> return Error.raise source (Error.ConstDoesntExist name)
         | Some constant -> return evalConst source constant.body
       | FQName.BuiltIn c ->
         match state.builtIns.constants.TryFind c with
-        | None -> return errStr id $"There is no builtin constant named: {name}"
+        | None -> return Error.raise source (Error.ConstDoesntExist name)
         | Some constant -> return constant.body
       | FQName.Package c ->
         match! state.packageManager.getConstant c with
-        | None -> return errStr id $"There is no package constant named: {name}"
+        | None -> return Error.raise source (Error.ConstDoesntExist name)
         | Some constant -> return evalConst source constant.body
 
 
