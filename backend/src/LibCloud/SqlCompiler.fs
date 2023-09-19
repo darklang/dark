@@ -399,8 +399,8 @@ let rec lambdaToSql
                 | Some fn ->
                   let parameters = fn.parameters |> List.map (fun p -> p.name, p.typ)
                   return fn.returnType, parameters, fn.sqlSpec
-                | None -> return error $"Builtin functions {nameStr} not found"
-              | _ -> return error $"Functions {nameStr} not found"
+                | None -> return error $"Builtin function {nameStr} not found"
+              | _ -> return error $"Function {nameStr} not found"
             }
 
           typecheck nameStr returnType expectedType
