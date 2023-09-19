@@ -90,7 +90,7 @@ module Shortcuts =
   let fn = FnName.builtIn
   let typ = TypeName.builtIn
   let constant = ConstantName.builtIn
-  let incorrectArgs = Errors.incorrectArgs
+  let incorrectArgs = RuntimeTypes.incorrectArgs
 
   type Param = BuiltInParam
 

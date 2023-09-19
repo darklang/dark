@@ -710,8 +710,15 @@ let raiseUntargetedRTE (rte : RuntimeError) =
 // TODO remove all usages of this in favor of better error cases
 let raiseString (s : string) : 'a = raiseUntargetedRTE (RuntimeError.oldError s)
 
+/// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
+/// boundary, typically in Execution.fs, we will catch the exception, and return this
+/// type.
 type ExecutionResult = Result<Dval, DvalSource * RuntimeError>
 
+/// IncorrectArgs should never happen, as all functions are type-checked before
+/// calling. If it does happen, it means that the type parameters in the Fn structure
+/// do not match the args expected in the F# function definition.
+let incorrectArgs () = Exception.raiseInternal "IncorrectArgs" []
 
 
 
