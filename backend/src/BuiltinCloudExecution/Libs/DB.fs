@@ -31,7 +31,7 @@ let handleUnexpectedExceptionDuringQuery
   (e : System.Exception)
   : Dval =
   match e with
-  | :? Exception.CodeException -> Exception.reraise e
+  | RuntimeErrorException _ -> Exception.reraise e
   | e ->
     state.reportException
       state
