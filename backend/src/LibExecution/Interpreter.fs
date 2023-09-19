@@ -88,7 +88,7 @@ let rec evalConst (source : DvalSource) (c : Const) : Dval =
 
 /// Interprets an expression and reduces to a Dark value
 /// (or task that should result in such)
-let rec eval'
+let rec eval
   (state : ExecutionState)
   (tst : TypeSymbolTable)
   (st : Symtable)
@@ -403,7 +403,7 @@ let rec eval'
     | EFnName(_id, name) -> return DFnVal(NamedFn name)
 
     | EApply(id, fnTarget, typeArgs, exprs) ->
-      match! eval' state tst st fnTarget with
+      match! eval state tst st fnTarget with
       | DFnVal fnVal ->
         let! args = Ply.NEList.mapSequentially (eval state tst st) exprs
         return! applyFnVal state id fnVal typeArgs args
@@ -677,18 +677,7 @@ let rec eval'
       return raiseRTE (sourceID id) rte
   }
 
-/// Interprets an expression and reduces to a Dark value
-/// (or a task that results in a dval)
-and eval
-  (state : ExecutionState)
-  (tst : TypeSymbolTable)
-  (st : Symtable)
-  (e : Expr)
-  : DvalTask =
-  uply {
-    let! (result : Dval) = eval' state tst st e
-    return result
-  }
+
 
 /// Unwrap the dval, which we expect to be a function, and error if it's not
 and applyFnVal
