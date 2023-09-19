@@ -211,23 +211,20 @@ let rec eval
   uply {
     match e with
     | EString(id, segments) ->
-      let! str =
+      let! segments =
         segments
-        |> Ply.List.foldSequentially
-          (fun builtUpString seg ->
-            uply {
-              match builtUpString, seg with
-              | str, StringText(text) -> return (str + text)
-              | str, StringInterpolation(expr) ->
-                let! result = eval state tst st expr
-                match result with
-                | DString s -> return str + s
-                | dv ->
-                  // TODO: maybe better with a type error here
-                  return raiseExeRTE id (Error.NonStringInStringInterpolation dv)
-            })
-          ""
-      return DString(String.normalize str)
+        |> Ply.List.mapSequentially (fun seg ->
+          uply {
+            match seg with
+            | StringText text -> return text
+            | StringInterpolation expr ->
+              match! eval state tst st expr with
+              | DString s -> return s
+              | dv ->
+                // TODO: maybe better with a type error here
+                return raiseExeRTE id (Error.NonStringInStringInterpolation dv)
+          })
+      return segments |> String.concat "" |> String.normalize |> DString
     | EBool(_id, b) -> return DBool b
     | EInt(_id, i) -> return DInt i
     | EFloat(_id, value) -> return DFloat value
