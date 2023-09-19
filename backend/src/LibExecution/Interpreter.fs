@@ -59,6 +59,28 @@ module Error =
 
   let incomplete : RuntimeError = case "Incomplete" []
 
+let rec evalConst (source : DvalSource) (c : Const) : Dval =
+  let r = evalConst source
+  match c with
+  | CInt i -> DInt i
+  | CBool b -> DBool b
+  | CString s -> DString s
+  | CChar c -> DChar c
+  | CFloat(sign, w, f) -> DFloat(makeFloat sign w f)
+  | CUnit -> DUnit
+  | CTuple(first, second, rest) -> DTuple(r first, r second, List.map r rest)
+  | CEnum(Ok typeName, caseName, fields) ->
+    // TYPESTODO: this uses the original type name, so if it's an alias, it won't be equal to the
+    DEnum(typeName, typeName, caseName, List.map r fields)
+  | CEnum(Error msg, caseName, fields) ->
+    raiseRTE source (RuntimeError.oldError $"Invalid const name: {msg}")
+  | CList items -> DList(ValueType.Unknown, (List.map r items))
+  | CDict items ->
+    DDict(ValueType.Unknown, (List.map (Tuple2.mapSecond r) items) |> Map.ofList)
+
+
+
+
 // fsharplint:disable FL0039
 
 /// Interprets an expression and reduces to a Dark value
@@ -219,11 +241,12 @@ let rec eval'
     | EUnit _id -> return DUnit
     | EChar(_id, s) -> return DChar s
     | EConstant(id, name) ->
+      let source = sourceID id
       match name with
       | FQName.UserProgram c ->
         match state.program.constants.TryFind c with
         | None -> return errStr id $"There is no user defined constant named: {name}"
-        | Some constant -> return constant.body
+        | Some constant -> return evalConst source constant.body
       | FQName.BuiltIn c ->
         match state.builtIns.constants.TryFind c with
         | None -> return errStr id $"There is no builtin constant named: {name}"
@@ -231,7 +254,8 @@ let rec eval'
       | FQName.Package c ->
         match! state.packageManager.getConstant c with
         | None -> return errStr id $"There is no package constant named: {name}"
-        | Some constant -> return constant.body
+        | Some constant -> return evalConst source constant.body
+
 
     | ELet(id, pattern, rhs, body) ->
       /// Does the dval 'match' the given pattern?

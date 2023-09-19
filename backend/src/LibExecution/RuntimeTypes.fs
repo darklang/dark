@@ -937,8 +937,21 @@ module UserType =
   type T =
     { tlid : tlid; name : TypeName.UserProgram; declaration : TypeDeclaration.T }
 
+type Const =
+  | CInt of int64
+  | CBool of bool
+  | CString of string
+  | CChar of string
+  | CFloat of Sign * string * string
+  | CUnit
+  | CTuple of first : Const * second : Const * rest : List<Const>
+  | CEnum of NameResolution<TypeName.TypeName> * caseName : string * List<Const>
+  | CList of List<Const>
+  | CDict of List<string * Const>
+
+
 module UserConstant =
-  type T = { tlid : tlid; name : ConstantName.UserProgram; body : Dval }
+  type T = { tlid : tlid; name : ConstantName.UserProgram; body : Const }
 
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference }
@@ -990,7 +1003,7 @@ module PackageType =
   type T = { name : TypeName.Package; declaration : TypeDeclaration.T }
 
 module PackageConstant =
-  type T = { name : ConstantName.Package; body : Dval }
+  type T = { name : ConstantName.Package; body : Const }
 
 // <summary>
 // Used to mark whether a function can be run on the client rather than backend.

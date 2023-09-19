@@ -396,34 +396,25 @@ module Expr =
     | PT.StringInterpolation expr -> RT.StringInterpolation(toRT expr)
 
 module Const =
-  let rec toRT (c : PT.Const) : RT.Dval =
+
+  let rec toRT (c : PT.Const) : RT.Const =
     match c with
-    | PT.Const.CInt i -> RT.DInt i
-    | PT.Const.CBool b -> RT.DBool b
-    | PT.Const.CString s -> RT.DString s
-    | PT.Const.CChar c -> RT.DChar c
-    | PT.Const.CFloat(sign, w, f) -> RT.DFloat(makeFloat sign w f)
-    | PT.Const.CUnit -> RT.DUnit
+    | PT.Const.CInt i -> RT.CInt i
+    | PT.Const.CBool b -> RT.CBool b
+    | PT.Const.CString s -> RT.CString s
+    | PT.Const.CChar c -> RT.CChar c
+    | PT.Const.CFloat(sign, w, f) -> RT.CFloat(sign, w, f)
+    | PT.Const.CUnit -> RT.CUnit
     | PT.Const.CTuple(first, second, rest) ->
-      RT.DTuple(toRT first, toRT second, List.map toRT rest)
-    | PT.Const.CEnum(Ok typeName, caseName, fields) ->
-      // TYPESTODO: this uses the original type name, so if it's an alias, it won't be equal to the
-      RT.DEnum(
-        TypeName.toRT typeName,
-        TypeName.toRT typeName,
+      RT.CTuple(toRT first, toRT second, List.map toRT rest)
+    | PT.Const.CEnum(typeName, caseName, fields) ->
+      RT.CEnum(
+        NameResolution.toRT TypeName.toRT typeName,
         caseName,
         List.map toRT fields
       )
-    | PT.Const.CList items -> RT.DList(RT.ValueType.Unknown, (List.map toRT items))
-    | PT.Const.CDict items ->
-      RT.DDict(
-        RT.ValueType.Unknown,
-        (List.map (Tuple2.mapSecond toRT) items) |> Map.ofList
-      )
-
-    | PT.Const.CEnum(Error msg, caseName, fields) ->
-      // TODO: I don't like this at all
-      RT.raiseUntargetedRTE (RT.RuntimeError.oldError "Invalid const name: {msg}")
+    | PT.Const.CList items -> RT.CList(List.map toRT items)
+    | PT.Const.CDict items -> RT.CDict(List.map (Tuple2.mapSecond toRT) items)
 
 module TypeDeclaration =
   module RecordField =
