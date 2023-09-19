@@ -71,7 +71,7 @@ let matchSql
     (fun g ->
       match g.Count with // implicit full match counts for 1
       | 1 -> true
-      | 2 -> Map.find g[1].Value args = expected[0]
+      | 2 -> Map.findUnsafe g[1].Value args = expected[0]
       | _ -> Exception.raiseInternal "not supported yet" [ "count", g.Count ])
     "compare sql"
 
@@ -203,7 +203,7 @@ let partialEvaluation =
         let result = C.partiallyEvaluate state Map.empty (Map vars) "x" expr
         let! (dvals, result) = Ply.TplPrimitives.runPlyAsTask result
         match result with
-        | EVariable(_, name) -> return (Map.find name dvals)
+        | EVariable(_, name) -> return (Map.findUnsafe name dvals)
         | _ ->
           Expect.isTrue false "didn't match"
           return DUnit

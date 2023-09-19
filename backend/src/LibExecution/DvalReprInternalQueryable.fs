@@ -143,7 +143,7 @@ let rec private toJsonV0
                 (fun (f : TypeDeclaration.RecordField) ->
                   uply {
                     w.WritePropertyName f.name
-                    let dval = Map.find f.name dm
+                    let dval = Map.findUnsafe f.name dm
                     let typ = Types.substitute decl.typeParams typeArgs f.typ
                     do! writeDval typ dval
                   })

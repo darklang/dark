@@ -299,7 +299,7 @@ let rec eval
 
 
     | EVariable(id, name) ->
-      match st.TryFind name with
+      match Map.find name st with
       | None -> return errStr id $"There is no variable named: {name}"
       | Some other -> return other
 
@@ -316,16 +316,15 @@ let rec eval
         |> Ply.List.foldSequentially
           (fun r (k, expr) ->
             uply {
-              if not (Map.containsKey k expectedFields) then
-                return errStr id $"Unexpected field `{k}` in {typeStr}"
-              else
+              match Map.find k expectedFields with
+              | None -> return errStr id $"Unexpected field `{k}` in {typeStr}"
+              | Some fieldType ->
                 let! v = eval state tst st expr
                 match r with
                 | DRecord(typeName, original, _valueTypesTODO, m) ->
                   if Map.containsKey k m then
                     return errStr id $"Duplicate field `{k}` in {typeStr}"
                   else
-                    let fieldType = Map.find k expectedFields
                     let context =
                       TypeChecker.RecordField(original, k, fieldType, None)
                     let check =
@@ -368,7 +367,7 @@ let rec eval
                 | _, _, _ when not (Map.containsKey k expectedFields) ->
                   return errStr id $"Unexpected field `{k}` in {typeStr}"
                 | DRecord(typeName, original, _valueTypesTODO, m), k, v ->
-                  let fieldType = Map.find k expectedFields
+                  let fieldType = Map.findUnsafe k expectedFields
                   let context =
                     TypeChecker.RecordField(typeName, k, fieldType, None)
                   match! TypeChecker.unify context types Map.empty fieldType v with
