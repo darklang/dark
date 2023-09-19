@@ -16,6 +16,14 @@ let filterWithIndex (f : int -> 'a -> bool) (l : List<'a>) : List<'a> =
     (0, [])
   |> snd
 
+let foldWithIndex (f : int -> 'b -> 'a -> 'b) (initial : 'b) (l : List<'a>) : 'b =
+  List.fold
+    (fun ((i, accum) : (int * 'b)) (item : 'a) -> (i + 1, f i accum item))
+    (0, initial)
+    l
+  |> Tuple2.second
+
+
 let any (f : 'a -> bool) (l : List<'a>) : bool = List.exists f l
 
 let all (f : 'a -> bool) (l : List<'a>) : bool = List.forall f l

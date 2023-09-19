@@ -30,7 +30,7 @@ let parseYamlExn<'a> (filename : string) : 'a =
 
   match List.head deserialized with
   | Some(Legivel.Serialization.Success s) -> s.Data
-  | ex -> Exception.raiseCode $"couldn't parse {filename}" [ "error", ex ]
+  | ex -> raise (Exception($"couldn't parse {filename} with error {ex}"))
 
 let packageManager = LibCloud.PackageManager.packageManager
 

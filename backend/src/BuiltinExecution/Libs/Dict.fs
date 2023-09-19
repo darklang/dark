@@ -6,6 +6,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+module TypeChecker = LibExecution.TypeChecker
 
 module Dval = LibExecution.Dval
 module Errors = LibExecution.Errors
@@ -98,35 +99,50 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromListOverwritingDuplicates" 0
-      typeParams = []
-      parameters = [ Param.make "entries" (TList(TTuple(TString, varA, []))) "" ]
-      returnType = TDict varB
-      description =
-        "Returns a <type dict> with <param entries>. Each value in <param entries>
-         must be a {{(key, value)}} tuple, where <var key> is a <type String>.
+    (let name = fn "fromListOverwritingDuplicates" 0
+     let tupleType = TTuple(TString, varA, [])
+     let arg0Context =
+       TypeChecker.FunctionCallParameter(
+         FQName.BuiltIn(name),
+         { name = "entries"; typ = TList(tupleType) },
+         0,
+         None
+       )
+     let wrongType = TypeChecker.raiseValueNotExpectedType
 
-         If <param entries> contains duplicate <var key>s, the last entry with that
-         key will be used in the resulting dictionary (use <fn Dict.fromList> if you
-         want to enforce unique keys).
+     { name = name
+       typeParams = []
+       parameters = [ Param.make "entries" (TList(tupleType)) "" ]
+       returnType = TDict varB
+       description =
+         "Returns a <type dict> with <param entries>. Each value in <param entries>
+          must be a {{(key, value)}} tuple, where <var key> is a <type String>.
 
-         This function is the opposite of <fn Dict.toList>."
-      fn =
-        (function
-        | _, _, [ DList(_, l) ] ->
-          let f acc e =
-            match e with
-            | DTuple(DString k, value, []) -> Map.add k value acc
-            | DTuple(k, _, []) ->
-              Exception.raiseCode (Errors.argumentWasntType TString "key" k)
-            | _ -> Exception.raiseCode "All list items must be `(key, value)`"
+          If <param entries> contains duplicate <var key>s, the last entry with that
+          key will be used in the resulting dictionary (use <fn Dict.fromList> if you
+          want to enforce unique keys).
 
-          let result = l |> List.fold f Map.empty |> Map.toList
-          Ply(Dval.dict valueTypeTODO result)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
+          This function is the opposite of <fn Dict.toList>."
+       fn =
+         (function
+         | _, _, [ DList(_, l) ] ->
+           let f i acc e =
+             match e with
+             | DTuple(DString k, value, []) -> Map.add k value acc
+             | DTuple(k, _, []) ->
+               let listContext = TypeChecker.ListIndex(i, tupleType, arg0Context)
+               let tupleContext = TypeChecker.TupleIndex(0, TString, listContext)
+               wrongType SourceNone k TString tupleContext
+             | _ ->
+               let listContext = TypeChecker.ListIndex(i, tupleType, arg0Context)
+               wrongType SourceNone e tupleType listContext
+
+           let result = l |> List.foldWithIndex f Map.empty |> Map.toList
+           Ply(Dval.dict valueTypeTODO result)
+         | _ -> incorrectArgs ())
+       sqlSpec = NotYetImplemented
+       previewable = Pure
+       deprecated = NotDeprecated })
 
 
     { name = fn "fromList" 0
@@ -150,9 +166,8 @@ let fns : List<BuiltInFn> =
             | Some acc, DTuple(DString k, _, _) when Map.containsKey k acc -> None
             | Some acc, DTuple(DString k, value, []) -> Some(Map.add k value acc)
             | Some _, DTuple(k, _, []) ->
-              Exception.raiseCode (Errors.argumentWasntType TString "key" k)
-            | Some _, _ ->
-              Exception.raiseCode "All list items must be `(key, value)`"
+              raiseString (Errors.argumentWasntType TString "key" k)
+            | Some _, _ -> raiseString "All list items must be `(key, value)`"
             | None, _ -> None
 
           let result = List.fold f (Some Map.empty) l
@@ -265,8 +280,7 @@ let fns : List<BuiltInFn> =
                     let args = NEList.ofList (DString key) [ dv ]
                     match! Interpreter.applyFnVal state 0UL b [] args with
                     | DUnit -> return ()
-                    | dv ->
-                      Exception.raiseCode (Errors.resultWasntType TUnit dv)
+                    | dv -> raiseString (Errors.resultWasntType TUnit dv)
                   })
                 list
             return DUnit
@@ -311,10 +325,7 @@ let fns : List<BuiltInFn> =
                   | DBool true -> return Ok(Map.add key data m)
                   | DBool false -> return Ok m
                   | other ->
-                    return
-                      Exception.raiseCode (
-                        Errors.expectedLambdaType "fn" TBool other
-                      )
+                    return raiseString (Errors.expectedLambdaType "fn" TBool other)
                 }
 
             let! filteredResult =
@@ -375,7 +386,7 @@ let fns : List<BuiltInFn> =
                           "None",
                           []) -> return None
                   | v ->
-                    Exception.raiseCode (
+                    raiseString (
                       Errors.expectedLambdaType "fn" (TypeReference.option varB) v
                     )
 

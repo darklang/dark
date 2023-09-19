@@ -42,8 +42,7 @@ let fns : List<BuiltInFn> =
                   let args = NEList.singleton e
                   match! Interpreter.applyFnVal state 0UL b [] args with
                   | DUnit -> return ()
-                  | v ->
-                    Exception.raiseCode (Errors.expectedLambdaValue "fn" "unit" v)
+                  | v -> raiseString (Errors.expectedLambdaValue "fn" "unit" v)
                 })
             return DUnit
           }
@@ -66,7 +65,7 @@ let fns : List<BuiltInFn> =
           let f acc i =
             match i with
             | DList(_vtTODO, l) -> List.append acc l
-            | _ -> Exception.raiseCode "Flattening non-lists"
+            | _ -> raiseString "Flattening non-lists"
 
           List.fold f [] l |> Dval.list valueTypeTODO |> Ply
         | _ -> incorrectArgs ())

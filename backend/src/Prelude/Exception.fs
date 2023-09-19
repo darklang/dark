@@ -95,28 +95,10 @@ let callExceptionCallback (e : exn) =
     System.Console.WriteLine e.StackTrace
 
 
-// CLEANUP remove this -- most of the errors caught by this can now be raiseInternals,
-// as the type-checker should have prevented them
-let raiseCode (msg : string) =
-  let e = CodeException(msg)
-  callExceptionCallback e
-  raise e
-
-let unwrapOptionCode (msg : string) (o : Option<'a>) : 'a =
-  match o with
-  | Some v -> v
-  | None -> raiseCode msg
-
-let unwrapResultCode (r : Result<'a, string>) : 'a =
-  match r with
-  | Ok v -> v
-  | Error msg -> raiseCode msg
-
 let raiseInternal (msg : string) (tags : Metadata) =
   let e = InternalException(msg, tags)
   callExceptionCallback e
   raise e
-
 
 
 let unwrapOptionInternal (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =

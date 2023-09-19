@@ -638,16 +638,6 @@ and BuiltInParam =
 and Param = { name : string; typ : TypeReference }
 
 
-exception RuntimeErrorException of DvalSource * RuntimeError
-
-let raiseRTE (source : DvalSource) (rte : RuntimeError) =
-  raise (RuntimeErrorException(source, rte))
-
-let raiseUntargetedRTE (rte : RuntimeError) =
-  raise (RuntimeErrorException(SourceNone, rte))
-
-type ExecutionResult = Result<Dval, DvalSource * RuntimeError>
-
 
 
 module TypeReference =
@@ -707,6 +697,20 @@ module RuntimeError =
   // TODO remove all usages of this in favor of better error cases
   let oldError (msg : string) : RuntimeError =
     case "OldStringErrorTODO" [ DString msg ]
+
+exception RuntimeErrorException of DvalSource * RuntimeError
+
+let raiseRTE (source : DvalSource) (rte : RuntimeError) =
+  raise (RuntimeErrorException(source, rte))
+
+// TODO add sources to all RTEs
+let raiseUntargetedRTE (rte : RuntimeError) =
+  raise (RuntimeErrorException(SourceNone, rte))
+
+// TODO remove all usages of this in favor of better error cases
+let raiseString (s : string) : 'a = raiseUntargetedRTE (RuntimeError.oldError s)
+
+type ExecutionResult = Result<Dval, DvalSource * RuntimeError>
 
 
 

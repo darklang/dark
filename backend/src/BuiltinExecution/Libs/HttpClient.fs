@@ -227,7 +227,7 @@ let makeRequest
                 req.Content.Headers.ContentType <-
                   Headers.MediaTypeHeaderValue.Parse(v)
               with :? System.FormatException ->
-                Exception.raiseCode "Invalid content-type header"
+                raiseString "Invalid content-type header"
             else
               let added = req.Headers.TryAddWithoutValidation(k, v)
 

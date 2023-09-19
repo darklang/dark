@@ -69,7 +69,7 @@ module DvalComparator =
     | DDict _, _
     | DRecord _, _
     | DEnum _, _ ->
-      Exception.raiseCode "Comparing different types" [ "dv1", dv1; "dv2", dv2 ]
+      raiseString "Comparing different types" [ "dv1", dv1; "dv2", dv2 ]
 
   and compareLists (l1 : List<Dval>) (l2 : List<Dval>) : int =
     match l1, l2 with
@@ -422,7 +422,7 @@ let fns : List<BuiltInFn> =
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
               | _ ->
                 return
-                  Exception.raiseCode (
+                  raiseString (
                     // CLEANUP this yields pretty confusing error messages
                     Errors.expectedLambdaValue "fn" "-1, 0, 1" result
                   )
@@ -490,9 +490,7 @@ let fns : List<BuiltInFn> =
 
                   match result with
                   | DBool b -> return b
-                  | v ->
-                    return
-                      Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
+                  | v -> return raiseString (Errors.expectedLambdaType "fn" TBool v)
                 else
                   return false
               }
@@ -561,7 +559,7 @@ let fns : List<BuiltInFn> =
                           []) -> return None
                   | v ->
                     return
-                      Exception.raiseCode (
+                      raiseString (
                         Errors.expectedLambdaType "fn" (TypeReference.option varB) v
                       )
                 else

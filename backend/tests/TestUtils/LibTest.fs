@@ -259,7 +259,7 @@ let fns : List<BuiltInFn> =
           |> Array.map (fun dval ->
             match dval with
             | DInt i -> byte i
-            | other -> Exception.raiseCode "Expected int" [ "actual", other ])
+            | other -> raiseString $"Expected int, got {other}")
           |> DBytes
           |> Ply
 
