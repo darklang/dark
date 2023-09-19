@@ -342,15 +342,15 @@ def execute(should):
     should.backend_test |= success
     should.reload_backend_server |= success
 
-  if should.reload_all_packages:
-    if not reload_all_packages(): success = False
-
   if should.reload_canvases != []:
     if not all([reload_canvas(f) for f in should.reload_canvases]):
       success = False
 
   if should.copy_dark_wasm:
     if not copy_dark_wasm(): success = False
+
+  if should.reload_backend_server:
+    if not reload_backend_server(): success = False
 
   if should.clear_local_db:
     if not clear_local_db(): success = False
@@ -360,8 +360,8 @@ def execute(should):
   if should.run_migrations:
     if not run_migrations(): success = False
 
-  if should.reload_backend_server:
-    if not reload_backend_server(): success = False
+  if should.reload_all_packages:
+    if not reload_all_packages(): success = False
 
   if should.backend_test:
     if not backend_test(): success = False
