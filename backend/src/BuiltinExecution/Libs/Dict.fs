@@ -119,7 +119,6 @@ let fns : List<BuiltInFn> =
             | DTuple(DString k, value, []) -> Map.add k value acc
             | DTuple(k, _, []) ->
               Exception.raiseCode (Errors.argumentWasntType TString "key" k)
-            | (DError _) as dv -> Errors.foundFakeDval dv
             | _ -> Exception.raiseCode "All list items must be `(key, value)`"
 
           let result = l |> List.fold f Map.empty |> Map.toList
@@ -150,7 +149,6 @@ let fns : List<BuiltInFn> =
             match acc, e with
             | Some acc, DTuple(DString k, _, _) when Map.containsKey k acc -> None
             | Some acc, DTuple(DString k, value, []) -> Some(Map.add k value acc)
-            | _, (DError _ as dv) -> Errors.foundFakeDval dv
             | Some _, DTuple(k, _, []) ->
               Exception.raiseCode (Errors.argumentWasntType TString "key" k)
             | Some _, _ ->
@@ -315,7 +313,6 @@ let fns : List<BuiltInFn> =
                   match result with
                   | DBool true -> return Ok(Map.add key data m)
                   | DBool false -> return Ok m
-                  | (DError _ as e) -> return Error e
                   | other ->
                     return
                       Exception.raiseCode (
@@ -380,9 +377,6 @@ let fns : List<BuiltInFn> =
                           _,
                           "None",
                           []) -> return None
-                  | (DError _) as dv ->
-                    abortReason.Value <- Some dv
-                    return None
                   | v ->
                     Exception.raiseCode (
                       Errors.expectedLambdaType "fn" (TypeReference.option varB) v

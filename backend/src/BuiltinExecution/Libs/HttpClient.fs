@@ -449,7 +449,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
               match reqHeadersErr with
               | BadInput details -> return Dval.resultError (DString details)
               | TypeMismatch details ->
-                return DError(SourceNone, RuntimeError.oldError details)
+                return raiseUntargetedRTE (RuntimeError.oldError details)
             }
 
           | _, None ->

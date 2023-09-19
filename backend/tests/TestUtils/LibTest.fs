@@ -165,51 +165,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "justWithTypeError" 0
-      typeParams = []
-      parameters = [ Param.make "msg" TString "" ]
-      returnType = TypeReference.option varA
-      description = "Returns a DError in a Some"
-      fn =
-        (function
-        | _, _, [ DString msg ] ->
-          Ply(Dval.optionSome (DError(SourceNone, RuntimeError.oldError msg)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "okWithTypeError" 0
-      typeParams = []
-      parameters = [ Param.make "msg" TString "" ]
-      returnType = TypeReference.result varA varB
-      description = "Returns a DError in an OK"
-      fn =
-        (function
-        | _, _, [ DString msg ] ->
-          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "errorWithTypeError" 0
-      typeParams = []
-      parameters = [ Param.make "msg" TString "" ]
-      returnType = TypeReference.result varA varB
-      description = "Returns a DError in a Result.Error"
-      fn =
-        (function
-        | _, _, [ DString msg ] ->
-          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "deleteUser" 0
       typeParams = []
       parameters = [ Param.make "username" TString "" ]

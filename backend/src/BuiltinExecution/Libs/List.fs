@@ -497,9 +497,6 @@ let fns : List<BuiltInFn> =
 
                   match result with
                   | DBool b -> return b
-                  | (DError _) as dv ->
-                    abortReason.Value <- Some dv
-                    return false
                   | v ->
                     return
                       Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)

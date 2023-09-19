@@ -664,12 +664,8 @@ let rec eval'
             return Dval.enum resolvedTypeName sourceTypeName caseName fields
 
     | EError(id, rte, exprs) ->
-      let! args = Ply.List.mapSequentially (eval state tst st) exprs
-
-      return
-        args
-        |> List.tryFind Dval.isFake
-        |> Option.defaultValue (DError(sourceID id, rte))
+      let! (_ : List<Dval>) = Ply.List.mapSequentially (eval state tst st) exprs
+      return raiseRTE (sourceID id) rte
   }
 
 /// Interprets an expression and reduces to a Dark value

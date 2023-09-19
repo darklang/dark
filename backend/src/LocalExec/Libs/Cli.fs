@@ -99,8 +99,7 @@ let fns : List<BuiltInFn> =
               return DBytes contents
             with e ->
               return
-                DError(
-                  SourceNone,
+                raiseUntargetedRTE (
                   RuntimeError.oldError $"Error reading file: {e.Message}"
                 )
           }

@@ -308,7 +308,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "value" (TVariable "optOrRes") "" ]
       returnType = TVariable "a"
       description =
-        "Unwrap an Option or Result, returning the value or a DError if None"
+        "Unwrap an Option or Result, returning the value or raising a RuntimeError if None"
       fn =
         (function
         | _,
