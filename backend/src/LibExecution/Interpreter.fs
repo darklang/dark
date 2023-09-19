@@ -39,8 +39,6 @@ module Error =
   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
     DEnum(typeName, typeName, caseName, fields) |> RuntimeError.executionError
 
-  let matchExprUnmatched (matchVal : Dval) : RuntimeError =
-    case "MatchExprUnmatched" [ RT2DT.Dval.toDT matchVal ]
 
   let matchExprPatternWrongType (expected : string) (actual : Dval) : RuntimeError =
     case "MatchExprPatternWrongType" [ DString expected; RT2DT.Dval.toDT actual ]
@@ -64,7 +62,7 @@ module Error =
     match e with
     | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
       matchExprEnumPatternWrongCount caseName expected actual
-    | MatchExprUnmatched dv -> matchExprUnmatched dv
+    | MatchExprUnmatched dv -> case "MatchExprUnmatched" [ RT2DT.Dval.toDT dv ]
     | NonStringInStringInterpolation dv ->
       case "NonStringInStringInterpolation" [ RT2DT.Dval.toDT dv ]
     | ConstDoesntExist name ->
@@ -108,6 +106,7 @@ let rec eval'
   let sourceID id = SourceID(state.tlid, id)
   let errStr id msg : 'a = raiseRTE (sourceID id) (RuntimeError.oldError msg)
   let err id rte : 'a = raiseRTE (sourceID id) rte
+  let raiseExeRTE id (e : Error.Error) : 'a = Error.raise (sourceID id) e
 
   let typeResolutionError
     (errorType : NameResolutionError.ErrorType)
@@ -240,10 +239,7 @@ let rec eval'
                 | DString s -> return str + s
                 | dv ->
                   // TODO: maybe better with a type error here
-                  return
-                    Error.raise
-                      (sourceID id)
-                      (Error.NonStringInStringInterpolation dv)
+                  return raiseExeRTE id (Error.NonStringInStringInterpolation dv)
             })
           ""
       return DString(String.normalize str)
@@ -617,7 +613,7 @@ let rec eval'
 
       match matchResult with
       | Some r -> return r
-      | None -> return raiseRTE (sourceID id) (Error.matchExprUnmatched matchVal)
+      | None -> return raiseExeRTE id (Error.MatchExprUnmatched matchVal)
 
 
     | EIf(id, cond, thenBody, elseBody) ->
