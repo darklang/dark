@@ -57,7 +57,6 @@ module Error =
       "MatchExprEnumPatternWrongCount"
       [ DString caseName; DInt expected; DInt actual ]
 
-  let incomplete : RuntimeError = case "Incomplete" []
 
 let rec evalConst (source : DvalSource) (c : Const) : Dval =
   let r = evalConst source
@@ -760,7 +759,7 @@ and callFn
     let sourceID = SourceID(state.tlid, callerID)
     let handleMissingFunction () : Dval =
       // Functions which aren't implemented in the client may have results
-      // available, otherwise they just return incomplete.
+      // available, otherwise they error.
       let fnRecord = (state.tlid, desc, callerID)
       let fnResult = state.tracing.loadFnResult fnRecord args
 
