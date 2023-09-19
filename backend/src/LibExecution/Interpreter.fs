@@ -28,45 +28,36 @@ let withGlobals (state : ExecutionState) (symtable : Symtable) : Symtable =
 module Error =
   module RT2DT = RuntimeTypesToDarkTypes
 
-  let typeName =
-    TypeName.fqPackage
-      "Darklang"
-      [ "LanguageTools"; "RuntimeErrors"; "Execution" ]
-      "Error"
-      0
-
-
-  let case (caseName : string) (fields : List<Dval>) : RuntimeError =
-    DEnum(typeName, typeName, caseName, fields) |> RuntimeError.executionError
-
-
-  let matchExprPatternWrongType (expected : string) (actual : Dval) : RuntimeError =
-    case "MatchExprPatternWrongType" [ DString expected; RT2DT.Dval.toDT actual ]
-
-  let matchExprEnumPatternWrongCount
-    (caseName : string)
-    (expected : int)
-    (actual : int)
-    : RuntimeError =
-    case
-      "MatchExprEnumPatternWrongCount"
-      [ DString caseName; DInt expected; DInt actual ]
-
   type Error =
     | MatchExprEnumPatternWrongCount of string * int * int
+    | MatchExprPatternWrongType of string * Dval
     | MatchExprUnmatched of Dval
     | NonStringInStringInterpolation of Dval
     | ConstDoesntExist of ConstantName.ConstantName
 
   let toDT (e : Error) : RuntimeError =
+    let typeName =
+      TypeName.fqPackage
+        "Darklang"
+        [ "LanguageTools"; "RuntimeErrors"; "Execution" ]
+        "Error"
+        0
+
+    let case (caseName : string) (fields : List<Dval>) : RuntimeError =
+      DEnum(typeName, typeName, caseName, fields) |> RuntimeError.executionError
+
     match e with
     | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
-      matchExprEnumPatternWrongCount caseName expected actual
+      case
+        "MatchExprEnumPatternWrongCount"
+        [ DString caseName; DInt expected; DInt actual ]
+    | MatchExprPatternWrongType(expected, actual) ->
+      case "MatchExprPatternWrongType" [ DString expected; RT2DT.Dval.toDT actual ]
     | MatchExprUnmatched dv -> case "MatchExprUnmatched" [ RT2DT.Dval.toDT dv ]
     | NonStringInStringInterpolation dv ->
       case "NonStringInStringInterpolation" [ RT2DT.Dval.toDT dv ]
     | ConstDoesntExist name ->
-      case "ConstDoesntExist" [ DString(ConstantName.toString name) ]
+      case "ConstDoesntExist" [ RT2DT.ConstantName.toDT name ]
 
   let raise (source : DvalSource) (e : Error) : 'a = raiseRTE source (toDT e)
 
@@ -488,27 +479,27 @@ let rec eval'
         | MPInt(id, pi) ->
           match dv with
           | DInt di -> (di = pi), []
-          | _ -> err id (Error.matchExprPatternWrongType "Int" dv)
+          | _ -> raiseExeRTE id (Error.MatchExprPatternWrongType("Int", dv))
         | MPBool(id, pb) ->
           match dv with
           | DBool db -> (db = pb), []
-          | _ -> err id (Error.matchExprPatternWrongType "Bool" dv)
+          | _ -> raiseExeRTE id (Error.MatchExprPatternWrongType("Bool", dv))
         | MPChar(id, pc) ->
           match dv with
           | DChar dc -> (dc = pc), []
-          | _ -> err id (Error.matchExprPatternWrongType "Char" dv)
+          | _ -> raiseExeRTE id (Error.MatchExprPatternWrongType("Char", dv))
         | MPString(id, ps) ->
           match dv with
           | DString ds -> (ds = ps), []
-          | _ -> err id (Error.matchExprPatternWrongType "String" dv)
+          | _ -> raiseExeRTE id (Error.MatchExprPatternWrongType("String", dv))
         | MPFloat(id, pf) ->
           match dv with
           | DFloat df -> (df = pf), []
-          | _ -> err id (Error.matchExprPatternWrongType "Float" dv)
+          | _ -> raiseExeRTE id (Error.MatchExprPatternWrongType("Float", dv))
         | MPUnit(id) ->
           match dv with
           | DUnit -> true, []
-          | _ -> err id (Error.matchExprPatternWrongType "Unit" dv)
+          | _ -> raiseExeRTE id (Error.MatchExprPatternWrongType("Unit", dv))
 
         | MPVariable(id, varName) -> true, [ (varName, dv) ]
 
@@ -526,12 +517,13 @@ let rec eval'
               | _ ->
                 let patFieldLength = List.length fieldPats
                 if dvFieldLength <> patFieldLength then
-                  let rte =
-                    Error.matchExprEnumPatternWrongCount
-                      dCaseName
-                      patFieldLength
+                  raiseExeRTE
+                    id
+                    (Error.MatchExprEnumPatternWrongCount(
+                      dCaseName,
+                      patFieldLength,
                       dvFieldLength
-                  err id rte
+                    ))
                 else
                   let (passResults, newVarResults) =
                     List.zip dFields fieldPats
@@ -542,7 +534,7 @@ let rec eval'
                   let allVars = newVarResults |> List.collect identity
                   allPass, allVars
 
-          | _dv -> err id (Error.matchExprPatternWrongType caseName dv)
+          | _dv -> raiseExeRTE id (Error.MatchExprPatternWrongType(caseName, dv))
 
 
         | MPTuple(id, firstPat, secondPat, theRestPat) ->
@@ -563,7 +555,7 @@ let rec eval'
               allPass, allVars
             else
               false, []
-          | _ -> err id (Error.matchExprPatternWrongType "Tuple" dv)
+          | _ -> raiseExeRTE id (Error.MatchExprPatternWrongType("Tuple", dv))
 
 
         | MPListCons(id, headPat, tailPat) ->
@@ -577,7 +569,7 @@ let rec eval'
             let pass = headPass && tailPass
             pass, allSubVars
 
-          | _ -> err id (Error.matchExprPatternWrongType "List" dv)
+          | _ -> raiseExeRTE id (Error.MatchExprPatternWrongType("List", dv))
 
         | MPList(id, pats) ->
           match dv with
@@ -593,7 +585,7 @@ let rec eval'
               allPass, allVars
             else
               false, []
-          | _ -> err id (Error.matchExprPatternWrongType "List" dv)
+          | _ -> raiseExeRTE id (Error.MatchExprPatternWrongType("List", dv))
 
 
       // The value we're matching against
