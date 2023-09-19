@@ -45,9 +45,6 @@ module Error =
   let matchExprPatternWrongType (expected : string) (actual : Dval) : RuntimeError =
     case "MatchExprPatternWrongType" [ DString expected; RT2DT.Dval.toDT actual ]
 
-  let matchExprPatternWrongShape : RuntimeError =
-    case "MatchExprPatternWrongShape" []
-
   let matchExprEnumPatternWrongCount
     (caseName : string)
     (expected : int)

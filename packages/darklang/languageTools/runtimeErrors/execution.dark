@@ -4,7 +4,6 @@ module Darklang =
       module Execution =
         type Error =
           | MatchExprUnmatched of RuntimeTypes.Dval.Dval
-          | MatchExprPatternWrongShape
           | MatchExprPatternWrongType of String * RuntimeTypes.Dval.Dval
           | MatchExprEnumPatternWrongCount of String * expected: Int * actual: Int
           | NonStringInStringInterpolation of RuntimeTypes.Dval.Dval
@@ -12,13 +11,6 @@ module Darklang =
 
         let toSegments (e: Error) : ErrorOutput =
           match e with
-          | Incomplete ->
-            ErrorOutput
-              { summary = [ ErrorSegment.ErrorSegment.String "Incomplete" ]
-                extraExplanation = []
-                actual = []
-                expected = [] }
-
           | MatchExprUnmatched dv ->
             let summary =
               [ ErrorSegment.ErrorSegment.String "No match for "
@@ -33,17 +25,6 @@ module Darklang =
                 actual = []
                 expected = [] }
 
-          | MatchExprPatternWrongShape ->
-            let summary =
-              [ ErrorSegment.ErrorSegment.String "Pattern has wrong shape" ]
-
-            let extraExplanation = []
-
-            ErrorOutput
-              { summary = summary
-                extraExplanation = extraExplanation
-                actual = []
-                expected = [] }
 
           | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
             let summary =
@@ -70,6 +51,7 @@ module Darklang =
                 extraExplanation = extraExplanation
                 actual = []
                 expected = [] }
+
 
           | MatchExprPatternWrongType(patternType, dv) ->
             let summary =
