@@ -102,18 +102,18 @@ let rec eval'
   let typeResolutionError
     (errorType : NameResolutionError.ErrorType)
     (typeName : TypeName.TypeName)
-    : Result<'a, RuntimeError> =
+    : 'a =
     let error : NameResolutionError.Error =
       { errorType = errorType
         nameType = NameResolutionError.Type
         names = [ TypeName.toString typeName ] }
-    Error(NameResolutionError.RTE.toRuntimeError error)
+    raiseRTE SourceNone (NameResolutionError.RTE.toRuntimeError error)
 
   let recordMaybe
     (types : Types)
     (typeName : TypeName.TypeName)
     // TypeName, typeParam list, fully-resolved (except for typeParam) field list
-    : Ply<Result<TypeName.TypeName * List<string> * List<string * TypeReference>, RuntimeError>> =
+    : Ply<TypeName.TypeName * List<string> * List<string * TypeReference>> =
     let rec inner (typeName : TypeName.TypeName) =
       uply {
         match! Types.find typeName types with
@@ -145,27 +145,23 @@ let rec eval'
           //   outerTypeParams = ["a"]
           // So the effective result of this is:
           //   type Outer<'a> = { x : 'a; y : Int }
-          let! next = inner innerTypeName
+          let! (innerTypeName, innerTypeParams, fields) = inner innerTypeName
           return
-            next
-            |> Result.map (fun (innerTypeName, innerTypeParams, fields) ->
-              (innerTypeName,
-               outerTypeParams,
-               fields
-               |> List.map (fun (k, v) ->
-                 (k, Types.substitute innerTypeParams outerTypeArgs v))))
+            (innerTypeName,
+             outerTypeParams,
+             fields
+             |> List.map (fun (k, v) ->
+               (k, Types.substitute innerTypeParams outerTypeArgs v)))
 
         | Some({ definition = TypeDeclaration.Alias(TCustomType(Error e, _)) }) ->
-          return Error e
+          return raiseRTE SourceNone e
 
         | Some({ typeParams = typeParams
                  definition = TypeDeclaration.Record fields }) ->
           return
-            Ok(
-              typeName,
-              typeParams,
-              fields |> NEList.toList |> List.map (fun f -> f.name, f.typ)
-            )
+            (typeName,
+             typeParams,
+             fields |> NEList.toList |> List.map (fun f -> f.name, f.typ))
 
         | Some({ definition = TypeDeclaration.Alias(_) })
         | Some({ definition = TypeDeclaration.Enum _ }) ->
@@ -314,47 +310,45 @@ let rec eval'
       let typeStr = TypeName.toString typeName
       let types = ExecutionState.availableTypes state
 
-      match! recordMaybe types typeName with
-      | Error e -> return err id e
-      | Ok(aliasTypeName, typeParams, expected) ->
-        let expectedFields = Map expected
-        let! result =
-          fields
-          |> NEList.toList
-          |> Ply.List.foldSequentially
-            (fun r (k, expr) ->
-              uply {
-                if not (Map.containsKey k expectedFields) then
-                  return errStr id $"Unexpected field `{k}` in {typeStr}"
-                else
-                  let! v = eval state tst st expr
-                  match r with
-                  | DRecord(typeName, original, _valueTypesTODO, m) ->
-                    if Map.containsKey k m then
-                      return errStr id $"Duplicate field `{k}` in {typeStr}"
-                    else
-                      let fieldType = Map.find k expectedFields
-                      let context =
-                        TypeChecker.RecordField(original, k, fieldType, None)
-                      let check =
-                        TypeChecker.unify context types Map.empty fieldType v
-                      match! check with
-                      | Ok() ->
-                        return
-                          DRecord(typeName, original, valueTypesTODO, Map.add k v m)
-                      | Error e -> return err id e
-                  | _ -> return errStr id "Expected a record in typecheck"
-              })
-            (DRecord(aliasTypeName, typeName, valueTypesTODO, Map.empty)) // use the alias name here
-        match result with
-        | DRecord(_, _, _valueTypesTODO, fields) ->
-          if Map.count fields = Map.count expectedFields then
-            return result
-          else
-            let expectedKeys = Map.keys expectedFields
-            let key = Seq.find (fun k -> not (Map.containsKey k fields)) expectedKeys
-            return errStr id $"Missing field `{key}` in {typeStr}"
-        | _ -> return result
+      let! (aliasTypeName, typeParams, expected) = recordMaybe types typeName
+      let expectedFields = Map expected
+      let! result =
+        fields
+        |> NEList.toList
+        |> Ply.List.foldSequentially
+          (fun r (k, expr) ->
+            uply {
+              if not (Map.containsKey k expectedFields) then
+                return errStr id $"Unexpected field `{k}` in {typeStr}"
+              else
+                let! v = eval state tst st expr
+                match r with
+                | DRecord(typeName, original, _valueTypesTODO, m) ->
+                  if Map.containsKey k m then
+                    return errStr id $"Duplicate field `{k}` in {typeStr}"
+                  else
+                    let fieldType = Map.find k expectedFields
+                    let context =
+                      TypeChecker.RecordField(original, k, fieldType, None)
+                    let check =
+                      TypeChecker.unify context types Map.empty fieldType v
+                    match! check with
+                    | Ok() ->
+                      return
+                        DRecord(typeName, original, valueTypesTODO, Map.add k v m)
+                    | Error e -> return err id e
+                | _ -> return errStr id "Expected a record in typecheck"
+            })
+          (DRecord(aliasTypeName, typeName, valueTypesTODO, Map.empty)) // use the alias name here
+      match result with
+      | DRecord(_, _, _valueTypesTODO, fields) ->
+        if Map.count fields = Map.count expectedFields then
+          return result
+        else
+          let expectedKeys = Map.keys expectedFields
+          let key = Seq.find (fun k -> not (Map.containsKey k fields)) expectedKeys
+          return errStr id $"Missing field `{key}` in {typeStr}"
+      | _ -> return result
 
     | ERecordUpdate(id, baseRecord, updates) ->
       let! baseRecord = eval state tst st baseRecord
@@ -362,37 +356,33 @@ let rec eval'
       | DRecord(typeName, _, _valueTypesTODO, _) ->
         let typeStr = TypeName.toString typeName
         let types = ExecutionState.availableTypes state
-        match! recordMaybe types typeName with
-        | Error e -> return err id e
-        | Ok(_, _, expected) ->
-          let expectedFields = Map expected
-          return!
-            updates
-            |> NEList.toList
-            |> Ply.List.foldSequentially
-              (fun r (k, expr) ->
-                uply {
-                  let! v = eval state tst st expr
-                  match r, k, v with
-                  | _, "", _ -> return errStr id $"Empty key for value `{v}`"
-                  | _, _, _ when not (Map.containsKey k expectedFields) ->
-                    return errStr id $"Unexpected field `{k}` in {typeStr}"
-                  | DRecord(typeName, original, _valueTypesTODO, m), k, v ->
-                    let fieldType = Map.find k expectedFields
-                    let context =
-                      TypeChecker.RecordField(typeName, k, fieldType, None)
-                    match!
-                      TypeChecker.unify context types Map.empty fieldType v
-                    with
-                    | Ok() ->
-                      return
-                        DRecord(typeName, original, valueTypesTODO, Map.add k v m)
-                    | Error rte -> return raiseRTE (SourceID(state.tlid, id)) rte
-                  | _ ->
+        let! (_, _, expected) = recordMaybe types typeName
+        let expectedFields = Map expected
+        return!
+          updates
+          |> NEList.toList
+          |> Ply.List.foldSequentially
+            (fun r (k, expr) ->
+              uply {
+                let! v = eval state tst st expr
+                match r, k, v with
+                | _, "", _ -> return errStr id $"Empty key for value `{v}`"
+                | _, _, _ when not (Map.containsKey k expectedFields) ->
+                  return errStr id $"Unexpected field `{k}` in {typeStr}"
+                | DRecord(typeName, original, _valueTypesTODO, m), k, v ->
+                  let fieldType = Map.find k expectedFields
+                  let context =
+                    TypeChecker.RecordField(typeName, k, fieldType, None)
+                  match! TypeChecker.unify context types Map.empty fieldType v with
+                  | Ok() ->
                     return
-                      errStr id "Expected a record but {typeStr} is something else"
-                })
-              baseRecord
+                      DRecord(typeName, original, valueTypesTODO, Map.add k v m)
+                  | Error rte -> return raiseRTE (SourceID(state.tlid, id)) rte
+                | _ ->
+                  return
+                    errStr id "Expected a record but {typeStr} is something else"
+              })
+            baseRecord
       | _ -> return errStr id "Expected a record in record update"
 
     | EDict(_, fields) ->
