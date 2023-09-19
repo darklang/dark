@@ -1,4 +1,4 @@
-/// StdLib functions for building Dark functionality via Dark canvases
+/// Builtin functions for building Dark functionality via Dark canvases
 module BuiltinDarkInternal.Libs.Domains
 
 open System.Threading.Tasks

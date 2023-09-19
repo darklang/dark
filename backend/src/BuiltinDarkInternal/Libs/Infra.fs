@@ -1,4 +1,4 @@
-/// StdLib functions for looking at Dark infra
+/// Builtin functions for looking at Dark infra
 module BuiltinDarkInternal.Libs.Infra
 
 open System.Threading.Tasks

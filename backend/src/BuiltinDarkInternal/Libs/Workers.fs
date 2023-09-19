@@ -1,4 +1,4 @@
-/// StdLib functions for building Dark functionality for Workers
+/// Builtin functions for building Dark functionality for Workers
 /// Also has infra functions for managing workers - TODO: separate these
 module BuiltinDarkInternal.Libs.Workers
 

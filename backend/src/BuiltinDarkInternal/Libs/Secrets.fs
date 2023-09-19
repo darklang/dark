@@ -1,4 +1,4 @@
-/// StdLib functions for building Secrets functionality via Dark canvases
+/// Builtin functions for building Secrets functionality via Dark canvases
 module BuiltinDarkInternal.Libs.Secrets
 
 open System.Threading.Tasks
