@@ -234,32 +234,24 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DList(vt, l); DFnVal b ] ->
           uply {
-            try
-              let! projected =
-                Ply.List.mapSequentially
-                  (fun dv ->
-                    uply {
-                      let args = NEList.singleton dv
-                      let! key = Interpreter.applyFnVal state 0UL b [] args
+            let! projected =
+              Ply.List.mapSequentially
+                (fun dv ->
+                  uply {
+                    let args = NEList.singleton dv
+                    let! key = Interpreter.applyFnVal state 0UL b [] args
 
-                      // TODO: type check to ensure `varB` is "comparable"
-                      return (dv, key)
-                    })
-                  l
+                    // TODO: type check to ensure `varB` is "comparable"
+                    return (dv, key)
+                  })
+                l
 
-              return
-                projected
-                |> List.distinctBy snd
-                |> List.map fst
-                |> List.sortWith DvalComparator.compareDval
-                |> Dval.list vt
-            with _ ->
-              // TODO: we should prevent this as soon as the different types are added
-              // Ideally we'd catch the exception thrown during comparison but the sort
-              // catches it so we lose the error message
-              return
-                Dval.errStr
-                  "List.uniqueBy: Unable to sort list, perhaps the list elements are different types"
+            return
+              projected
+              |> List.distinctBy snd
+              |> List.map fst
+              |> List.sortWith DvalComparator.compareDval
+              |> Dval.list vt
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -281,7 +273,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TODO: type check to ensure `varA` is "comparable"
     { name = fn "unique" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
@@ -293,18 +284,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DList(vt, l) ] ->
-          try
-            List.distinct l
-            |> List.sortWith DvalComparator.compareDval
-            |> Dval.list vt
-            |> Ply
-          with _ ->
-            // TODO: we should prevent this as soon as the different types are added
-            // Ideally we'd catch the exception thrown during comparison but the sort
-            // catches it so we lose the error message
-            Dval.errStr
-              "List.unique: Unable to sort list, perhaps the list elements are different types"
-            |> Ply
+          List.distinct l
+          |> List.sortWith DvalComparator.compareDval
+          |> Dval.list vt
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -463,28 +446,18 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DList(vt, l); DFnVal fn ] ->
           uply {
-            let abortReason = ref None
-
             let f (dv : Dval) : Ply<bool> =
               uply {
-                let run = abortReason.Value = None
+                let args = NEList.singleton dv
+                let! result = Interpreter.applyFnVal state 0UL fn [] args
 
-                if run then
-                  let args = NEList.singleton dv
-                  let! result = Interpreter.applyFnVal state 0UL fn [] args
-
-                  match result with
-                  | DBool b -> return b
-                  | v -> return raiseString (Errors.expectedLambdaType "fn" TBool v)
-                else
-                  return false
+                match result with
+                | DBool b -> return b
+                | v -> return raiseString (Errors.expectedLambdaType "fn" TBool v)
               }
 
             let! result = Ply.List.filterSequentially f l
-
-            match abortReason.Value with
-            | None -> return Dval.list vt (result)
-            | Some v -> return v
+            return Dval.list vt result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -517,45 +490,35 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DList(_, l); DFnVal b ] ->
           uply {
-            let abortReason = ref None
-
             let f (dv : Dval) : Ply<Option<Dval>> =
               uply {
-                let run = abortReason.Value = None
+                let args = NEList.singleton dv
+                let! result = Interpreter.applyFnVal state 0UL b [] args
 
-                if run then
-                  let args = NEList.singleton dv
-                  let! result = Interpreter.applyFnVal state 0UL b [] args
-
-                  match result with
-                  | DEnum(FQName.Package { owner = "Darklang"
-                                           modules = [ "Stdlib"; "Option" ]
-                                           name = TypeName.TypeName "Option"
-                                           version = 0 },
-                          _,
-                          "Some",
-                          [ o ]) -> return Some o
-                  | DEnum(FQName.Package { owner = "Darklang"
-                                           modules = [ "Stdlib"; "Option" ]
-                                           name = TypeName.TypeName "Option"
-                                           version = 0 },
-                          _,
-                          "None",
-                          []) -> return None
-                  | v ->
-                    return
-                      raiseString (
-                        Errors.expectedLambdaType "fn" (TypeReference.option varB) v
-                      )
-                else
-                  return None
+                match result with
+                | DEnum(FQName.Package { owner = "Darklang"
+                                         modules = [ "Stdlib"; "Option" ]
+                                         name = TypeName.TypeName "Option"
+                                         version = 0 },
+                        _,
+                        "Some",
+                        [ o ]) -> return Some o
+                | DEnum(FQName.Package { owner = "Darklang"
+                                         modules = [ "Stdlib"; "Option" ]
+                                         name = TypeName.TypeName "Option"
+                                         version = 0 },
+                        _,
+                        "None",
+                        []) -> return None
+                | v ->
+                  return
+                    raiseString (
+                      Errors.expectedLambdaType "fn" (TypeReference.option varB) v
+                    )
               }
 
             let! result = Ply.List.filterMapSequentially f l
-
-            match abortReason.Value with
-            | None -> return Dval.list valueTypeTODO result
-            | Some v -> return v
+            return Dval.list valueTypeTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
