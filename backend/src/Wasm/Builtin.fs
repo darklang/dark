@@ -1,4 +1,4 @@
-module Wasm.StdLib
+module Wasm.Builtin
 
 open Prelude
 open LibExecution.RuntimeTypes

@@ -1,4 +1,4 @@
-/// StdLib for handling JS-WASM interactions via WASM'd Darklang code
+/// Builtin for handling JS-WASM interactions via WASM'd Darklang code
 module Wasm.Libs.Editor
 
 open System
@@ -145,7 +145,7 @@ let fns : List<BuiltInFn> =
                         "console.warn"
                         [ string metadata; string e ]) }
 
-            let stdLib =
+            let builtin =
               LibExecution.Builtin.combine
                 [ BuiltinExecution.Builtin.contents httpConfig ]
                 []
@@ -154,7 +154,7 @@ let fns : List<BuiltInFn> =
             let! result =
               let expr = exprsCollapsedIntoOne source.exprs
               let state =
-                getStateForEval stdLib source.types source.fns source.constants
+                getStateForEval builtin source.types source.fns source.constants
               let inputVars = Map.empty
               LibExecution.Execution.executeExpr state inputVars expr
 

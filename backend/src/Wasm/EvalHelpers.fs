@@ -5,7 +5,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 
 let getStateForEval
-  (stdlib : LibExecution.Builtin.Contents)
+  (builtin : LibExecution.Builtin.Contents)
   (types : List<UserType.T>)
   (fns : List<UserFunction.T>)
   (constants : List<UserConstant.T>)
@@ -13,7 +13,7 @@ let getStateForEval
   : ExecutionState =
 
   let builtIns : BuiltIns =
-    let builtInFns, builtInTypes, builtInConstants = stdlib
+    let builtInFns, builtInTypes, builtInConstants = builtin
     { types = builtInTypes |> List.map (fun typ -> typ.name, typ) |> Map
       fns = builtInFns |> List.map (fun fn -> fn.name, fn) |> Map
       constants = builtInConstants |> List.map (fun c -> c.name, c) |> Map }
