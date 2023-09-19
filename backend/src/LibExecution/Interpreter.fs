@@ -59,23 +59,6 @@ module Error =
 
   let incomplete : RuntimeError = case "Incomplete" []
 
-type Matched = Result<bool, id * RuntimeError>
-
-let combineMatched (a : Matched) (b : Matched) : Matched =
-  match a, b with
-  | Ok true, Ok true -> Ok true
-  | Ok false, Ok false -> Ok false
-  | Ok true, Ok false -> Ok false
-  | Ok false, Ok true -> Ok false
-  | Error _, _ -> a
-  | _, Error _ -> b
-
-let combineMatchedList (l : Matched list) : Matched =
-  l |> List.fold combineMatched (Ok true)
-
-let dincomplete (state : ExecutionState) (id : id) =
-  DError(SourceID(state.tlid, id), Error.incomplete)
-
 // fsharplint:disable FL0039
 
 /// Interprets an expression and reduces to a Dark value
@@ -90,17 +73,8 @@ let rec eval'
   // https://www.notion.so/darklang/Live-Value-Branching-44ee705af61e416abed90917e34da48e
   // TODO remove link from code or avail document - it is either gone or hidden behind login
   let sourceID id = SourceID(state.tlid, id)
-  let errStr id msg = Dval.errSStr (sourceID id) msg
-  let err id rte = raiseRTE (sourceID id) rte
-
-  /// This function ensures any value not on the execution path is evaluated.
-  let preview (tst : TypeSymbolTable) (st : Symtable) (expr : Expr) : Ply<unit> =
-    uply {
-      if state.tracing.realOrPreview = Preview then
-        let state = { state with onExecutionPath = false }
-        let! (_result : Dval) = eval state tst st expr
-        return ()
-    }
+  let errStr id msg : 'a = Dval.errSStr (sourceID id) msg
+  let err id rte : 'a = raiseRTE (sourceID id) rte
 
   let typeResolutionError
     (errorType : NameResolutionError.ErrorType)
@@ -220,29 +194,25 @@ let rec eval'
   uply {
     match e with
     | EString(id, segments) ->
-      let! result =
+      let! str =
         segments
         |> Ply.List.foldSequentially
           (fun builtUpString seg ->
             uply {
               match builtUpString, seg with
-              | Ok str, StringText(text) -> return Ok(str + text)
-              | Ok str, StringInterpolation(expr) ->
+              | str, StringText(text) -> return (str + text)
+              | str, StringInterpolation(expr) ->
                 let! result = eval state tst st expr
                 match result with
-                | DString s -> return Ok(str + s)
-                | DError _ -> return Error(result)
+                | DString s -> return str + s
                 | dv ->
                   let msg =
                     "Expected String in string interpolation, got "
                     + DvalReprDeveloper.toRepr dv
-                  return Error(errStr id msg)
-              | Error dv, _ -> return Error dv
+                  return errStr id msg
             })
-          (Ok "")
-      match result with
-      | Ok str -> return DString(String.normalize str)
-      | Error dv -> return dv
+          ""
+      return DString(String.normalize str)
     | EBool(_id, b) -> return DBool b
     | EInt(_id, i) -> return DInt i
     | EFloat(_id, value) -> return DFloat value
@@ -264,31 +234,18 @@ let rec eval'
         | Some constant -> return constant.body
 
     | ELet(id, pattern, rhs, body) ->
-      /// Returns `incomplete` traces for subpatterns of an unmatched pattern
-      let traceIncompleteWithArgs id argPatterns =
-        let argTraces =
-          argPatterns
-          |> List.map LetPattern.toID
-          |> List.map (fun pId -> (pId, dincomplete state pId))
-
-        (id, dincomplete state id) :: argTraces
-
       /// Does the dval 'match' the given pattern?
       ///
       /// Returns:
       /// - whether or not the expr 'matches' the pattern
       /// - new vars (name * value)
-      /// - traces
-      let rec checkPattern
-        (dv : Dval)
-        (pattern : LetPattern)
-        : bool * List<string * Dval> * List<id * Dval> =
+      let rec checkPattern (dv : Dval) (pattern : LetPattern) : List<string * Dval> =
         match pattern with
 
-        | LPVariable(id, varName) ->
-          not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
+        | LPVariable(id, varName) -> [ (varName, dv) ]
 
-        | LPUnit id -> dv = DUnit, [], [ (id, DUnit) ]
+        | LPUnit id ->
+          if dv <> DUnit then errStr id "Unit pattern does not match" else []
 
         | LPTuple(id, firstPat, secondPat, theRestPat) ->
           let allPatterns = firstPat :: secondPat :: theRestPat
@@ -298,49 +255,22 @@ let rec eval'
             let allVals = first :: second :: theRest
 
             if List.length allVals = List.length allPatterns then
-              let (passResults, newVarResults, traceResults) =
-                List.zip allVals allPatterns
-                |> List.map (fun (dv, pat) -> checkPattern dv pat)
-                |> List.unzip3
-
-              let allPass = passResults |> List.forall identity
-              let allVars = newVarResults |> List.collect identity
-              let allSubTraces = traceResults |> List.collect identity
-
-              if allPass then
-                true, allVars, (id, dv) :: allSubTraces
-              else
-                false, allVars, traceIncompleteWithArgs id allPatterns @ allSubTraces
+              List.zip allVals allPatterns
+              |> List.map (fun (dv, pat) -> checkPattern dv pat)
+              |> List.concat
             else
-              false, [], traceIncompleteWithArgs id allPatterns
-          | _ -> false, [], traceIncompleteWithArgs id allPatterns
+              errStr id "Tuple pattern has wrong number of elements"
+          | _ -> errStr id "Tuple pattern does not match"
 
       let! rhs = eval state tst st rhs
-      let passes, newDefs, traces = checkPattern rhs pattern
+      let newDefs = checkPattern rhs pattern
       let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
 
-      let traceDval onExecutionPath (id, dv) =
-        state.tracing.traceDval onExecutionPath id dv
-
-      match rhs with
-      | DError _ ->
-        List.iter (traceDval false) traces
-        return rhs
-      | _ ->
-        if passes then
-          List.iter (traceDval state.onExecutionPath) traces
-        else
-          List.iter (traceDval false) traces
-
-        let! r = eval state tst newSymtable body
-        return r
+      return! eval state tst newSymtable body
 
     | EList(_id, exprs) ->
       let! results = Ply.List.mapSequentially (eval state tst st) exprs
-
-      match List.tryFind Dval.isFake results with
-      | Some fakeDval -> return fakeDval
-      | None -> return Dval.list valueTypeTODO results
+      return Dval.list valueTypeTODO results
 
 
     | ETuple(_id, first, second, theRest) ->
@@ -348,14 +278,7 @@ let rec eval'
       let! firstResult = eval state tst st first
       let! secondResult = eval state tst st second
       let! otherResults = Ply.List.mapSequentially (eval state tst st) theRest
-
-      let allResults = [ firstResult; secondResult ] @ otherResults
-
-      // If any element in a tuple is fake (blank, error, etc.),
-      // we don't want to return a tuple, but rather the fake val.
-      match List.tryFind Dval.isFake allResults with
-      | Some fakeDval -> return fakeDval
-      | None -> return DTuple(firstResult, secondResult, otherResults)
+      return DTuple(firstResult, secondResult, otherResults)
 
 
     | EVariable(id, name) ->
@@ -378,38 +301,26 @@ let rec eval'
           |> Ply.List.foldSequentially
             (fun r (k, expr) ->
               uply {
-                if Dval.isFake r then
-                  do! preview tst st expr
-                  return r
-                else if not (Map.containsKey k expectedFields) then
-                  do! preview tst st expr
+                if not (Map.containsKey k expectedFields) then
                   return errStr id $"Unexpected field `{k}` in {typeStr}"
                 else
                   let! v = eval state tst st expr
-                  if Dval.isFake v then
-                    return v
-                  else
-                    match r with
-                    | DRecord(typeName, original, _valueTypesTODO, m) ->
-                      if Map.containsKey k m then
-                        return errStr id $"Duplicate field `{k}` in {typeStr}"
-                      else
-                        let fieldType = Map.find k expectedFields
-                        let context =
-                          TypeChecker.RecordField(original, k, fieldType, None)
-                        let check =
-                          TypeChecker.unify context types Map.empty fieldType v
-                        match! check with
-                        | Ok() ->
-                          return
-                            DRecord(
-                              typeName,
-                              original,
-                              valueTypesTODO,
-                              Map.add k v m
-                            )
-                        | Error e -> return err id e
-                    | _ -> return errStr id "Expected a record in typecheck"
+                  match r with
+                  | DRecord(typeName, original, _valueTypesTODO, m) ->
+                    if Map.containsKey k m then
+                      return errStr id $"Duplicate field `{k}` in {typeStr}"
+                    else
+                      let fieldType = Map.find k expectedFields
+                      let context =
+                        TypeChecker.RecordField(original, k, fieldType, None)
+                      let check =
+                        TypeChecker.unify context types Map.empty fieldType v
+                      match! check with
+                      | Ok() ->
+                        return
+                          DRecord(typeName, original, valueTypesTODO, Map.add k v m)
+                      | Error e -> return err id e
+                  | _ -> return errStr id "Expected a record in typecheck"
               })
             (DRecord(aliasTypeName, typeName, valueTypesTODO, Map.empty)) // use the alias name here
         match result with
@@ -440,8 +351,6 @@ let rec eval'
                 uply {
                   let! v = eval state tst st expr
                   match r, k, v with
-                  | r, _, _ when Dval.isFake r -> return r
-                  | _, _, v when Dval.isFake v -> return v
                   | _, "", _ -> return errStr id $"Empty key for value `{v}`"
                   | _, _, _ when not (Map.containsKey k expectedFields) ->
                     return errStr id $"Unexpected field `{k}` in {typeStr}"
@@ -470,9 +379,6 @@ let rec eval'
             uply {
               let! v = eval state tst st expr
               match (r, k, v) with
-              | r, _, _ when Dval.isFake r -> return r
-              | _, _, v when Dval.isFake v -> return v
-
               | DDict(vt, entries), k, v ->
                 return entries |> Map.add k v |> Dval.dictFromMap vt
 
@@ -490,11 +396,10 @@ let rec eval'
       | DFnVal fnVal ->
         let! args = Ply.NEList.mapSequentially (eval state tst st) exprs
         return! applyFnVal state id fnVal typeArgs args
-      | other when Dval.isFake other -> return other
       | other ->
         return
-          Dval.errSStr
-            (SourceID(state.tlid, id))
+          errStr
+            id
             $"Expected a function value, got something else: {DvalReprDeveloper.toRepr other}"
 
 
@@ -517,7 +422,6 @@ let rec eval'
             + "(use `DB.*` standard library functions to interact with Datastores. "
             + "Field access only work with records)"
           return errStr id msg
-        | _ when Dval.isFake obj -> return obj
         | _ ->
           let msg =
             $"Attempting to access field '{field}' of a "
@@ -526,22 +430,6 @@ let rec eval'
 
 
     | ELambda(_id, parameters, body) ->
-      if state.tracing.realOrPreview = Preview then
-        // In case this never gets executed, add default analysis results
-        parameters
-        |> NEList.iter (fun (id, _name) ->
-          state.tracing.traceDval false id (dincomplete state id))
-
-        // Since we return a DBlock, it's contents may never be
-        // executed. So first we execute with no context to get some
-        // live values.
-        let previewST =
-          parameters
-          |> NEList.map (fun (id, name) -> (name, dincomplete state id))
-          |> NEList.toList
-          |> Map.ofList
-        do! preview tst previewST body
-
       // It is the responsibility of wherever executes the DBlock to pass in
       // args and execute the body.
       return
@@ -555,243 +443,141 @@ let rec eval'
 
 
     | EMatch(id, matchExpr, cases) ->
-      /// Returns `incomplete` traces for subpatterns of an unmatched pattern
-      let traceIncompleteWithArgs id argPatterns =
-        let argTraces =
-          argPatterns
-          |> List.map MatchPattern.toID
-          |> List.map (fun pId -> (pId, dincomplete state pId))
-
-        (id, dincomplete state id) :: argTraces
-
       /// Does the dval 'match' the given pattern?
       ///
       /// Returns:
       /// - whether or not the expr 'matches' the pattern
       /// - new vars (name * value)
-      /// - traces
       let rec checkPattern
         (dv : Dval)
         (pattern : MatchPattern)
-        : Matched * List<string * Dval> * List<id * Dval> =
+        : bool * List<string * Dval> =
         match pattern with
         | MPInt(id, pi) ->
-          let patternTrace = [ (id, DInt pi) ]
           match dv with
-          | DInt di -> Ok(di = pi), [], patternTrace
-          | _ ->
-            Error(id, Error.matchExprPatternWrongType "Int" dv), [], patternTrace
+          | DInt di -> (di = pi), []
+          | _ -> err id (Error.matchExprPatternWrongType "Int" dv)
         | MPBool(id, pb) ->
-          let patternTrace = [ (id, DBool pb) ]
           match dv with
-          | DBool db -> Ok(db = pb), [], patternTrace
-          | _ ->
-            Error(id, Error.matchExprPatternWrongType "Bool" dv), [], patternTrace
+          | DBool db -> (db = pb), []
+          | _ -> err id (Error.matchExprPatternWrongType "Bool" dv)
         | MPChar(id, pc) ->
-          let patternTrace = [ (id, DChar pc) ]
           match dv with
-          | DChar dc -> Ok(dc = pc), [], patternTrace
-          | _ ->
-            Error(id, Error.matchExprPatternWrongType "Char" dv), [], patternTrace
+          | DChar dc -> (dc = pc), []
+          | _ -> err id (Error.matchExprPatternWrongType "Char" dv)
         | MPString(id, ps) ->
-          let patternTrace = [ (id, DString ps) ]
           match dv with
-          | DString ds -> Ok(ds = ps), [], patternTrace
-          | _ ->
-            Error(id, Error.matchExprPatternWrongType "String" dv), [], patternTrace
+          | DString ds -> (ds = ps), []
+          | _ -> err id (Error.matchExprPatternWrongType "String" dv)
         | MPFloat(id, pf) ->
-          let patternTrace = [ (id, DFloat pf) ]
           match dv with
-          | DFloat df -> Ok(df = pf), [], patternTrace
-          | _ ->
-            Error(id, Error.matchExprPatternWrongType "Float" dv), [], patternTrace
+          | DFloat df -> (df = pf), []
+          | _ -> err id (Error.matchExprPatternWrongType "Float" dv)
         | MPUnit(id) ->
-          let patternTrace = [ (id, DUnit) ]
           match dv with
-          | DUnit -> Ok true, [], patternTrace
-          | _ ->
-            Error(id, Error.matchExprPatternWrongType "Unit" dv), [], patternTrace
+          | DUnit -> true, []
+          | _ -> err id (Error.matchExprPatternWrongType "Unit" dv)
 
-        | MPVariable(id, varName) -> Ok true, [ (varName, dv) ], [ (id, dv) ]
+        | MPVariable(id, varName) -> true, [ (varName, dv) ]
 
 
         | MPEnum(id, caseName, fieldPats) ->
-          let traceFields () =
-            let (newVarResults, traceResults) =
-              fieldPats
-              |> List.map (fun fp ->
-                let pID = MatchPattern.toID fp
-                let (_, newVars, traces) = checkPattern (dincomplete state pID) fp
-                newVars, (id, dincomplete state id) :: traces)
-              |> List.unzip
-            let allVars = newVarResults |> List.collect identity
-            let allSubTraces = traceResults |> List.collect identity
-            (allVars, (id, dincomplete state id) :: allSubTraces)
-
           match dv with
           | DEnum(_dTypeName, _oTypeName, dCaseName, dFields) ->
             if caseName <> dCaseName then
-              let (allVars, allSubTraces) = traceFields ()
-              Ok false, allVars, allSubTraces
+              false, []
             else
               let dvFieldLength = List.length dFields
               match fieldPats with
               // wildcard
-              | [ MPVariable(_, "_") ] when dvFieldLength > 0 ->
-                Ok true, [], [ (id, dv) ]
+              | [ MPVariable(_, "_") ] when dvFieldLength > 0 -> true, []
               | _ ->
                 let patFieldLength = List.length fieldPats
                 if dvFieldLength <> patFieldLength then
-                  let (allVars, allSubTraces) = traceFields ()
-                  let err =
+                  let rte =
                     Error.matchExprEnumPatternWrongCount
                       dCaseName
                       patFieldLength
                       dvFieldLength
-                  Error(id, err), allVars, allSubTraces
+                  err id rte
                 else
-                  let (passResults, newVarResults, traceResults) =
+                  let (passResults, newVarResults) =
                     List.zip dFields fieldPats
                     |> List.map (fun (dv, pat) -> checkPattern dv pat)
-                    |> List.unzip3
+                    |> List.unzip
 
-                  let allPass = combineMatchedList passResults
+                  let allPass = List.forall identity passResults
                   let allVars = newVarResults |> List.collect identity
-                  let allSubTraces = traceResults |> List.collect identity
+                  allPass, allVars
 
-                  match allPass with
-                  | Ok true -> Ok true, allVars, (id, dv) :: allSubTraces
-                  | Ok false
-                  | Error _ ->
-                    allPass, allVars, (id, dincomplete state id) :: allSubTraces
-
-          | _dv ->
-            let (allVars, allSubTraces) = traceFields ()
-            Error(id, Error.matchExprPatternWrongType caseName dv),
-            allVars,
-            allSubTraces
+          | _dv -> err id (Error.matchExprPatternWrongType caseName dv)
 
 
         | MPTuple(id, firstPat, secondPat, theRestPat) ->
           let allPatterns = firstPat :: secondPat :: theRestPat
 
-          // TODO type error if not tuple
           match dv with
           | DTuple(first, second, theRest) ->
             let allVals = first :: second :: theRest
 
-            // TODO type error if the wrong size
             if List.length allVals = List.length allPatterns then
-              let (passResults, newVarResults, traceResults) =
+              let (passResults, newVarResults) =
                 List.zip allVals allPatterns
                 |> List.map (fun (dv, pat) -> checkPattern dv pat)
-                |> List.unzip3
+                |> List.unzip
 
-              let allPass = combineMatchedList passResults
+              let allPass = List.forall identity passResults
               let allVars = newVarResults |> List.collect identity
-              let allSubTraces = traceResults |> List.collect identity
-
-              match allPass with
-              | Ok true -> Ok true, allVars, (id, dv) :: allSubTraces
-              | Ok false
-              | Error _ ->
-                allPass,
-                allVars,
-                traceIncompleteWithArgs id allPatterns @ allSubTraces
+              allPass, allVars
             else
-              Ok false, [], traceIncompleteWithArgs id allPatterns
-          | _ ->
-            Error(id, Error.matchExprPatternWrongType "Tuple" dv),
-            [],
-            traceIncompleteWithArgs id allPatterns
+              false, []
+          | _ -> err id (Error.matchExprPatternWrongType "Tuple" dv)
 
 
         | MPListCons(id, headPat, tailPat) ->
           match dv with
-          | DList(_, []) ->
-            Ok false, [], traceIncompleteWithArgs id [ headPat; tailPat ]
+          | DList(_, []) -> false, []
           | DList(vt, headVal :: tailVals) ->
-            let (headPass, headVars, headTraces) = checkPattern headVal headPat
-            let (tailPass, tailVars, tailTraces) =
-              checkPattern (Dval.list vt tailVals) tailPat
+            let (headPass, headVars) = checkPattern headVal headPat
+            let (tailPass, tailVars) = checkPattern (Dval.list vt tailVals) tailPat
 
             let allSubVars = headVars @ tailVars
-            let allSubTraces = headTraces @ tailTraces
-            let pass = combineMatched headPass tailPass
-            match pass with
-            | Ok true -> Ok true, allSubVars, (id, dv) :: allSubTraces
-            | Ok false
-            | Error _ ->
-              pass, allSubVars, traceIncompleteWithArgs id [ headPat; tailPat ]
+            let pass = headPass && tailPass
+            pass, allSubVars
 
-          | _ ->
-            Error(id, Error.matchExprPatternWrongType "List" dv),
-            [],
-            traceIncompleteWithArgs id [ headPat; tailPat ]
+          | _ -> err id (Error.matchExprPatternWrongType "List" dv)
 
         | MPList(id, pats) ->
           match dv with
           | DList(_, vals) ->
             if List.length vals = List.length pats then
-              let (passResults, newVarResults, traceResults) =
+              let (passResults, newVarResults) =
                 List.zip vals pats
                 |> List.map (fun (dv, pat) -> checkPattern dv pat)
-                |> List.unzip3
+                |> List.unzip
 
-              let allPass = combineMatchedList passResults
+              let allPass = List.forall identity passResults
               let allVars = newVarResults |> List.collect identity
-              let allSubTraces = traceResults |> List.collect identity
-
-              match allPass with
-              | Ok true -> Ok true, allVars, (id, dv) :: allSubTraces
-              | Ok false
-              | Error _ ->
-                allPass, allVars, traceIncompleteWithArgs id pats @ allSubTraces
+              allPass, allVars
             else
-              Ok false, [], traceIncompleteWithArgs id pats
-          | _ ->
-            Error(id, Error.matchExprPatternWrongType "List" dv),
-            [],
-            traceIncompleteWithArgs id pats
+              false, []
+          | _ -> err id (Error.matchExprPatternWrongType "List" dv)
 
-      // This is to avoid checking `state.tracing.realOrPreview = Real` below.
-      // If RealOrPreview gets additional branches, reconsider what to do here.
-      let isRealExecution =
-        match state.tracing.realOrPreview with
-        | Real -> true
-        | Preview -> false
 
       // The value we're matching against
       let! matchVal = eval state tst st matchExpr
 
-      let mutable matchResult =
-        // Even though we know it's fakeval, we still run through each pattern for analysis
-        if Dval.isFake matchVal then Some matchVal else None
-
+      let mutable matchResult = None
 
       for (pattern, rhsExpr) in NEList.toList cases do
-        if Option.isSome matchResult && isRealExecution then
+        if Option.isSome matchResult then
           ()
         else
-          let passes, newDefs, traces = checkPattern matchVal pattern
+          let passes, newDefs = checkPattern matchVal pattern
           let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
-
-          if matchResult = None && passes = Ok true then
-            traces
-            |> List.iter (fun (id, dv) ->
-              state.tracing.traceDval state.onExecutionPath id dv)
-
+          if matchResult = None && passes then
             let! r = eval state tst newSymtable rhsExpr
             matchResult <- Some r
-          // "Real" evaluations don't need to persist non-matched traces
-          else if isRealExecution then
-            match passes with
-            | Error(id, err) -> raiseRTE (sourceID id) err
-            | Ok _ -> ()
-          else
-            // If we're "previewing" (analysis), persist traces for all patterns
-            traces |> List.iter (fun (id, dv) -> state.tracing.traceDval false id dv)
-            do! preview tst newSymtable rhsExpr
 
       match matchResult with
       | Some r -> return r
@@ -801,66 +587,31 @@ let rec eval'
     | EIf(id, cond, thenBody, elseBody) ->
       match! eval state tst st cond with
       | DBool false ->
-        do! preview tst st thenBody
         match elseBody with
         | None -> return DUnit
         | Some eb -> return! eval state tst st eb
-      | DBool true ->
-        let! result = eval state tst st thenBody
-        match elseBody with
-        | None -> ()
-        | Some eb -> do! preview tst st eb
-        return result
-      | cond when Dval.isFake cond ->
-        do! preview tst st thenBody
-        match elseBody with
-        | None -> ()
-        | Some eb -> do! preview tst st eb
-        return cond
-      | _ ->
-        do! preview tst st thenBody
-        match elseBody with
-        | None -> ()
-        | Some eb -> do! preview tst st eb
-        return errStr id "If only supports Booleans"
+      | DBool true -> return! eval state tst st thenBody
+      | _ -> return errStr id "If only supports Booleans"
 
 
     | EOr(id, left, right) ->
       match! eval state tst st left with
-      | DBool true ->
-        do! preview tst st right
-        return DBool true
+      | DBool true -> return DBool true
       | DBool false ->
         match! eval state tst st right with
-        | DBool true -> return DBool true
-        | DBool false -> return DBool false
-        | right when Dval.isFake right -> return right
+        | DBool _ as b -> return b
         | _ -> return errStr id "|| only supports Booleans"
-      | left when Dval.isFake left ->
-        do! preview tst st right
-        return left
-      | _ ->
-        do! preview tst st right
-        return errStr id "|| only supports Booleans"
+      | _ -> return errStr id "|| only supports Booleans"
 
 
     | EAnd(id, left, right) ->
       match! eval state tst st left with
-      | DBool false ->
-        do! preview tst st right
-        return DBool false
+      | DBool false -> return DBool false
       | DBool true ->
         match! eval state tst st right with
-        | DBool true -> return DBool true
-        | DBool false -> return DBool false
-        | right when Dval.isFake right -> return right
+        | DBool _ as b -> return b
         | _ -> return errStr id "&& only supports Booleans"
-      | left when Dval.isFake left ->
-        do! preview tst st right
-        return left
-      | _ ->
-        do! preview tst st right
-        return errStr id "&& only supports Booleans"
+      | _ -> return errStr id "&& only supports Booleans"
 
 
     | EEnum(id, sourceTypeName, caseName, fields) ->
@@ -881,46 +632,36 @@ let rec eval'
               $"Case `{caseName}` expected {case.fields.Length} fields but got {fields.Length}"
             return errStr id msg
           else
-            // note: the Error here is intended to be the first bad/fake dval, if any
-            let! (fieldsMaybe : Result<List<Dval>, Dval>) =
+            let! (fields : List<Dval>) =
               Ply.List.foldSequentiallyWithIndex
-                (fun fieldIndex acc ((enumFieldType : TypeReference), fieldExpr) ->
+                (fun
+                     fieldIndex
+                     fieldsSoFar
+                     ((enumFieldType : TypeReference), fieldExpr) ->
                   uply {
-                    match acc with
-                    | Error fakeDval ->
-                      do! preview tst st fieldExpr
-                      return Error fakeDval
-                    | Ok fieldsSoFar ->
-                      let! v = eval state tst st fieldExpr
+                    let! v = eval state tst st fieldExpr
 
-                      if Dval.isFake v then
-                        return Error v
-                      else
-                        let context =
-                          TypeChecker.EnumField(
-                            sourceTypeName,
-                            case.name,
-                            fieldIndex,
-                            List.length fields,
-                            enumFieldType,
-                            None
-                          )
+                    let context =
+                      TypeChecker.EnumField(
+                        sourceTypeName,
+                        case.name,
+                        fieldIndex,
+                        List.length fields,
+                        enumFieldType,
+                        None
+                      )
 
-                        match!
-                          // VTTODO: we should be passing in a proper tst, not Map.empty - right?
-                          TypeChecker.unify context types Map.empty enumFieldType v
-                        with
-                        | Ok() -> return Ok(List.append fieldsSoFar [ v ])
-                        | Error rte ->
-                          return raiseRTE (SourceID(state.tlid, id)) rte
+                    // VTTODO: we should be passing in a proper tst, not Map.empty - right?
+                    match!
+                      TypeChecker.unify context types Map.empty enumFieldType v
+                    with
+                    | Ok() -> return (List.append fieldsSoFar [ v ])
+                    | Error rte -> return raiseRTE (SourceID(state.tlid, id)) rte
                   })
-                (Ok [])
+                []
                 (List.zip case.fields fields)
 
-            match fieldsMaybe with
-            | Error firstFakeDvalField -> return firstFakeDvalField
-            | Ok fields ->
-              return Dval.enum resolvedTypeName sourceTypeName caseName fields
+            return Dval.enum resolvedTypeName sourceTypeName caseName fields
 
     | EError(id, rte, exprs) ->
       let! args = Ply.List.mapSequentially (eval state tst st) exprs
@@ -941,7 +682,6 @@ and eval
   : DvalTask =
   uply {
     let! (result : Dval) = eval' state tst st e
-    state.tracing.traceDval state.onExecutionPath (Expr.toID e) result
     return result
   }
 
@@ -967,38 +707,26 @@ and executeLambda
   (args : NEList<Dval>)
   : DvalTask =
 
-  // If one of the args is fake value used as a marker, return it instead of
-  // executing. This is the same behaviour as in fn calls.
-  let firstMarker = NEList.find Dval.isFake args
+  let parameters = NEList.map snd l.parameters
+  // One of the reasons to take a separate list of params and args is to
+  // provide this error message here. We don't have this information in
+  // other places, and the alternative is just to provide incompletes
+  // with no context
+  let expectedLength = NEList.length l.parameters
+  let actualLength = NEList.length args
+  if expectedLength <> actualLength then
+    raiseRTE
+      SourceNone
+      (RuntimeError.oldError
+        $"Expected {expectedLength} arguments, got {actualLength}")
 
-  match firstMarker with
-  | Some dv -> Ply dv
-  | None ->
-    let parameters = NEList.map snd l.parameters
-    // One of the reasons to take a separate list of params and args is to
-    // provide this error message here. We don't have this information in
-    // other places, and the alternative is just to provide incompletes
-    // with no context
-    let expectedLength = NEList.length l.parameters
-    let actualLength = NEList.length args
-    if expectedLength <> actualLength then
-      Ply(
-        raiseRTE
-          SourceNone
-          (RuntimeError.oldError
-            $"Expected {expectedLength} arguments, got {actualLength}")
-      )
-    else
-      NEList.iter
-        (fun ((id, _), dv) -> state.tracing.traceDval state.onExecutionPath id dv)
-        (NEList.zip l.parameters args)
+  else
+    let paramSyms = NEList.zip parameters args |> NEList.toList |> Map
+    // paramSyms is higher priority
 
-      let paramSyms = NEList.zip parameters args |> NEList.toList |> Map
-      // paramSyms is higher priority
+    let newSymtable = Map.mergeFavoringRight l.symtable paramSyms
 
-      let newSymtable = Map.mergeFavoringRight l.symtable paramSyms
-
-      eval state l.typeSymbolTable newSymtable l.body
+    eval state l.typeSymbolTable newSymtable l.body
 
 and callFn
   (state : ExecutionState)
@@ -1026,7 +754,7 @@ and callFn
           sourceID
           (RuntimeError.oldError $"Function {FnName.toString desc} is not found")
 
-    let checkArgsLength fn : Result<unit, string> =
+    let checkArgsLength fn : unit =
       let expectedTypeParamLength = List.length fn.typeParams
       let expectedArgLength = NEList.length fn.parameters
 
@@ -1037,38 +765,32 @@ and callFn
         expectedTypeParamLength = actualTypeArgLength
         && expectedArgLength = actualArgLength
       then
-        Ok()
+        ()
       else
-        Error(
+        let msg =
           $"{FnName.toString desc} has {expectedTypeParamLength} type parameters and {expectedArgLength} parameters, "
           + $"but here was called with {actualTypeArgLength} type arguments and {actualArgLength} arguments."
-        )
+        raiseRTE sourceID (RuntimeError.oldError msg)
 
+    let! fn =
+      match desc with
+      | FQName.BuiltIn std ->
+        state.builtIns.fns.TryFind std |> Option.map builtInFnToFn |> Ply
+      | FQName.UserProgram u ->
+        state.program.fns.TryFind u |> Option.map userFnToFn |> Ply
+      | FQName.Package pkg ->
+        uply {
+          let! fn = state.packageManager.getFn pkg
+          return Option.map packageFnToFn fn
+        }
 
-    match NEList.find Dval.isFake args with
-    | Some fakeArg -> return fakeArg
-    | None ->
-      let! fn =
-        match desc with
-        | FQName.BuiltIn std ->
-          state.builtIns.fns.TryFind std |> Option.map builtInFnToFn |> Ply
-        | FQName.UserProgram u ->
-          state.program.fns.TryFind u |> Option.map userFnToFn |> Ply
-        | FQName.Package pkg ->
-          uply {
-            let! fn = state.packageManager.getFn pkg
-            return Option.map packageFnToFn fn
-          }
-
-      match fn with
-      | None -> return handleMissingFunction ()
-      | Some fn ->
-        match checkArgsLength fn with
-        | Error errMsg -> return raiseRTE sourceID (RuntimeError.oldError errMsg)
-        | Ok() ->
-          let newlyBoundTypeArgs = List.zip fn.typeParams typeArgs |> Map
-          let updatedTypeSymbolTable = Map.mergeFavoringRight tst newlyBoundTypeArgs
-          return! execFn state updatedTypeSymbolTable desc callerID fn typeArgs args
+    match fn with
+    | None -> return handleMissingFunction ()
+    | Some fn ->
+      checkArgsLength fn
+      let newlyBoundTypeArgs = List.zip fn.typeParams typeArgs |> Map
+      let updatedTypeSymbolTable = Map.mergeFavoringRight tst newlyBoundTypeArgs
+      return! execFn state updatedTypeSymbolTable desc callerID fn typeArgs args
   }
 
 
@@ -1085,96 +807,68 @@ and execFn
   uply {
     let sourceID = SourceID(state.tlid, id) in
 
-    if
-      state.tracing.realOrPreview = Preview
-      && not state.onExecutionPath
-      && Set.contains fnDesc state.callstack
-    then
-      // Don't recurse (including transitively!) when previewing unexecuted paths
-      // in the editor. If we do, we'll recurse forever and blow the stack.
-      return dincomplete state id
-    else
-      // CLEANUP: optimization opportunity
-      let state =
-        { state with
-            executingFnName = Some fnDesc
-            callstack = Set.add fnDesc state.callstack }
+    // CLEANUP: optimization opportunity
+    let state =
+      { state with
+          executingFnName = Some fnDesc
+          callstack = Set.add fnDesc state.callstack }
 
-      let fnRecord = (state.tlid, fnDesc, id) in
+    let fnRecord = (state.tlid, fnDesc, id) in
 
-      let types = ExecutionState.availableTypes state
+    let types = ExecutionState.availableTypes state
 
-      let typeArgsResolvedInFn = List.zip fn.typeParams typeArgs |> Map
-      let typeSymbolTable = Map.mergeFavoringRight tst typeArgsResolvedInFn
+    let typeArgsResolvedInFn = List.zip fn.typeParams typeArgs |> Map
+    let typeSymbolTable = Map.mergeFavoringRight tst typeArgsResolvedInFn
 
-      match! TypeChecker.checkFunctionCall types typeSymbolTable fn args with
-      | Error rte -> return raiseRTE sourceID rte
-      | Ok() ->
+    match! TypeChecker.checkFunctionCall types typeSymbolTable fn args with
+    | Error rte -> return raiseRTE sourceID rte
+    | Ok() ->
 
-        let! result =
-          match fn.fn with
-          | BuiltInFunction f ->
-            if state.tracing.realOrPreview = Preview && fn.previewable <> Pure then
-              match state.tracing.loadFnResult fnRecord args with
-              | Some(result, _ts) -> Ply result
-              | None -> Ply(dincomplete state id)
-            else
+      let! result =
+        match fn.fn with
+        | BuiltInFunction f ->
+          uply {
+            let! result =
               uply {
-                let! result =
-                  uply {
-                    try
-                      return! f (state, typeArgs, NEList.toList args)
-                    with e ->
-                      let context : Metadata =
-                        [ "fn", fnDesc
-                          "args", args
-                          "typeArgs", typeArgs
-                          "id", id ]
-                      match e with
-                      | Errors.IncorrectArgs ->
-                        return Errors.incorrectArgsToDError sourceID fn args
-                      | Errors.FakeDvalFound dv -> return dv
-                      | (:? Exception.CodeException) as e ->
-                        // There errors are created by us, within the libraries, so they are
-                        // safe to show to users (but not grandusers)
-                        return Dval.errSStr sourceID e.Message
-                      | RuntimeErrorException(source, rte) ->
-                        return Exception.reraise e
-                      | e ->
-                        // TODO could we show the user the execution id here?
-                        state.reportException state context e
-                        // These are arbitrary errors, and could include sensitive
-                        // information, so best not to show it to the user. If we'd
-                        // like to show it to the user, we should catch it and give
-                        // them a known safe error.
+                try
+                  return! f (state, typeArgs, NEList.toList args)
+                with e ->
+                  // TODO: IncorrectArgs - should be an internal error now
+                  // Code exceptions - should be RTE or internal error
+                  let context : Metadata =
+                    [ "fn", fnDesc; "args", args; "typeArgs", typeArgs; "id", id ]
+                  match e with
+                  | RuntimeErrorException(source, rte) -> return Exception.reraise e
+                  | e ->
+                    // TODO could we show the user the execution id here?
+                    state.reportException state context e
+                    // These are arbitrary errors, and could include sensitive
+                    // information, so best not to show it to the user. If we'd
+                    // like to show it to the user, we should catch it and give
+                    // them a known safe error.
 
-                        return Dval.errSStr sourceID Exception.unknownErrorMessage
-                  }
-
-                // there's no point storing data we'll never ask for
-                if fn.previewable <> Pure then
-                  state.tracing.storeFnResult fnRecord args result
-
-                return result
+                    return Dval.errSStr sourceID Exception.unknownErrorMessage
               }
 
-          | PackageFunction(tlid, body)
-          | UserProgramFunction(tlid, body) ->
-            state.tracing.traceTLID tlid
-            let state = { state with tlid = tlid }
-            let symTable =
-              fn.parameters // Lengths are checked in checkFunctionCall
-              |> NEList.map2 (fun dv p -> (p.name, dv)) args
-              |> Map.ofNEList
-              |> withGlobals state
-            eval state typeSymbolTable symTable body
+            // there's no point storing data we'll never ask for
+            if fn.previewable <> Pure then
+              state.tracing.storeFnResult fnRecord args result
 
-        if Dval.isFake result then
-          return result
-        else
-          match!
-            TypeChecker.checkFunctionReturnType types typeSymbolTable fn result
-          with
-          | Error rte -> return raiseRTE sourceID rte
-          | Ok() -> return result
+            return result
+          }
+
+        | PackageFunction(tlid, body)
+        | UserProgramFunction(tlid, body) ->
+          state.tracing.traceTLID tlid
+          let state = { state with tlid = tlid }
+          let symTable =
+            fn.parameters // Lengths are checked in checkFunctionCall
+            |> NEList.map2 (fun dv p -> (p.name, dv)) args
+            |> Map.ofNEList
+            |> withGlobals state
+          eval state typeSymbolTable symTable body
+
+      match! TypeChecker.checkFunctionReturnType types typeSymbolTable fn result with
+      | Error rte -> return raiseRTE sourceID rte
+      | Ok() -> return result
   }

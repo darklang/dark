@@ -189,37 +189,34 @@ let t
             | Ok _ ->
               // The result was correctly a RuntimeError, try to stringify it
               let! result =
-                LibExecution.Interpreter.callFn
+                LibExecution.Execution.executeFunction
                   state
-                  Map.empty
                   0UL
                   errorMessageFn
                   []
                   (NEList.ofList actual [])
               match result with
-              | RT.DError _ ->
+              | Error _ ->
                 return
                   Exception.raiseInternal
-                    ("We received a DError, and when trying to stringify it, there was an error. There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
+                    ("We received an RTE, and when trying to stringify it, there was another RTE error. There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
                     [ "originalError", actual; "stringifyError", result ]
-              | RT.DEnum(_, _, "ErrorString", [ RT.DString _ ]) -> return Ok result
-              | _ ->
+              | Ok(RT.DEnum(_, _, "ErrorString", [ RT.DString _ ])) -> return result
+              | Ok _ ->
                 return
                   Exception.raiseInternal
-                    "We received a DError, and when trying to stringify it, got neither a result or a DError. Instead we got"
+                    "We received an RTE, and when trying to stringify it, got a non-ErrorString response. Instead we got"
                     [ "result", result ]
 
             | Error e ->
               // The result was not a RuntimeError, try to stringify the typechecker error
-              let! result =
-                LibExecution.Interpreter.callFn
+              return!
+                LibExecution.Execution.executeFunction
                   state
-                  Map.empty
                   0UL
                   errorMessageFn
                   []
                   (NEList.ofList (RT.RuntimeError.toDT e) [])
-              return Ok result
         }
         |> Ply.toTask
 

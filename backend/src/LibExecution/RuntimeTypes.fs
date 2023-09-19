@@ -883,9 +883,9 @@ module Dval =
     | DEnum _, _ -> false
 
 
-  let errStr (s : string) : Dval = raiseUntargetedRTE (RuntimeError.oldError s)
+  let errStr (s : string) : 'a = raiseUntargetedRTE (RuntimeError.oldError s)
 
-  let errSStr (source : DvalSource) (s : string) : Dval =
+  let errSStr (source : DvalSource) (s : string) : 'a =
     raiseRTE source (RuntimeError.oldError s)
 
 
