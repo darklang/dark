@@ -175,32 +175,30 @@ let rec eval'
   let enumMaybe
     (types : Types)
     (typeName : TypeName.TypeName)
-    : Ply<Result<TypeName.TypeName * List<string> * NEList<TypeDeclaration.EnumCase>, RuntimeError>> =
+    : Ply<TypeName.TypeName * List<string> * NEList<TypeDeclaration.EnumCase>> =
     let rec inner (typeName : TypeName.TypeName) =
       uply {
         match! Types.find typeName types with
         | Some({ typeParams = outerTypeParams
                  definition = TypeDeclaration.Alias(TCustomType(Ok(innerTypeName),
                                                                 outerTypeArgs)) }) ->
-          let! next = inner innerTypeName
+          let! (innerTypeName, innerTypeParams, cases) = inner innerTypeName
           return
-            next
-            |> Result.map (fun (innerTypeName, innerTypeParams, cases) ->
-              (innerTypeName,
-               outerTypeParams,
-               cases
-               |> NEList.map (fun (c : TypeDeclaration.EnumCase) ->
-                 { c with
-                     fields =
-                       List.map
-                         (Types.substitute innerTypeParams outerTypeArgs)
-                         c.fields })))
+            (innerTypeName,
+             outerTypeParams,
+             cases
+             |> NEList.map (fun (c : TypeDeclaration.EnumCase) ->
+               { c with
+                   fields =
+                     List.map
+                       (Types.substitute innerTypeParams outerTypeArgs)
+                       c.fields }))
 
         | Some({ definition = TypeDeclaration.Alias(TCustomType(Error e, _)) }) ->
-          return Error e
+          return raiseRTE SourceNone e
 
         | Some({ typeParams = typeParams; definition = TypeDeclaration.Enum cases }) ->
-          return Ok(typeName, typeParams, cases)
+          return (typeName, typeParams, cases)
 
         | Some({ definition = TypeDeclaration.Alias _ })
         | Some({ definition = TypeDeclaration.Record _ }) ->
@@ -632,50 +630,47 @@ let rec eval'
       let typeStr = TypeName.toString sourceTypeName
       let types = ExecutionState.availableTypes state
 
-      match! enumMaybe types sourceTypeName with
-      | Error e -> return err id e
-      | Ok(resolvedTypeName, _, cases) ->
-        let case = cases |> NEList.find (fun c -> c.name = caseName)
+      let! (resolvedTypeName, _, cases) = enumMaybe types sourceTypeName
+      let case = cases |> NEList.find (fun c -> c.name = caseName)
 
-        match case with
-        | None ->
-          return errStr id $"There is no case named `{caseName}` in {typeStr}"
-        | Some case ->
-          if case.fields.Length <> fields.Length then
-            let msg =
-              $"Case `{caseName}` expected {case.fields.Length} fields but got {fields.Length}"
-            return errStr id msg
-          else
-            let! (fields : List<Dval>) =
-              Ply.List.foldSequentiallyWithIndex
-                (fun
-                     fieldIndex
-                     fieldsSoFar
-                     ((enumFieldType : TypeReference), fieldExpr) ->
-                  uply {
-                    let! v = eval state tst st fieldExpr
+      match case with
+      | None -> return errStr id $"There is no case named `{caseName}` in {typeStr}"
+      | Some case ->
+        if case.fields.Length <> fields.Length then
+          let msg =
+            $"Case `{caseName}` expected {case.fields.Length} fields but got {fields.Length}"
+          return errStr id msg
+        else
+          let! (fields : List<Dval>) =
+            Ply.List.foldSequentiallyWithIndex
+              (fun
+                   fieldIndex
+                   fieldsSoFar
+                   ((enumFieldType : TypeReference), fieldExpr) ->
+                uply {
+                  let! v = eval state tst st fieldExpr
 
-                    let context =
-                      TypeChecker.EnumField(
-                        sourceTypeName,
-                        case.name,
-                        fieldIndex,
-                        List.length fields,
-                        enumFieldType,
-                        None
-                      )
+                  let context =
+                    TypeChecker.EnumField(
+                      sourceTypeName,
+                      case.name,
+                      fieldIndex,
+                      List.length fields,
+                      enumFieldType,
+                      None
+                    )
 
-                    // VTTODO: we should be passing in a proper tst, not Map.empty - right?
-                    match!
-                      TypeChecker.unify context types Map.empty enumFieldType v
-                    with
-                    | Ok() -> return (List.append fieldsSoFar [ v ])
-                    | Error rte -> return raiseRTE (SourceID(state.tlid, id)) rte
-                  })
-                []
-                (List.zip case.fields fields)
+                  // VTTODO: we should be passing in a proper tst, not Map.empty - right?
+                  match!
+                    TypeChecker.unify context types Map.empty enumFieldType v
+                  with
+                  | Ok() -> return (List.append fieldsSoFar [ v ])
+                  | Error rte -> return raiseRTE (SourceID(state.tlid, id)) rte
+                })
+              []
+              (List.zip case.fields fields)
 
-            return Dval.enum resolvedTypeName sourceTypeName caseName fields
+          return Dval.enum resolvedTypeName sourceTypeName caseName fields
 
     | EError(id, rte, exprs) ->
       let! (_ : List<Dval>) = Ply.List.mapSequentially (eval state tst st) exprs
