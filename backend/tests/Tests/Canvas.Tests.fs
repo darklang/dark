@@ -160,7 +160,7 @@ let testSetHandlerAfterDelete =
 
     let! (c1 : Canvas.T) = Canvas.loadAll canvasID
 
-    Expect.equal (c1.deletedHandlers.TryFind h1.tlid) (Some h1) "deleted in deleted"
+    Expect.equal (Map.find h1.tlid c1.deletedHandlers) (Some h1) "deleted in deleted"
     Expect.equal c1.deletedHandlers.Count 1 "only deleted in deleted"
     Expect.equal c1.handlers.Count 0 "deleted not in handlers"
 
@@ -171,9 +171,9 @@ let testSetHandlerAfterDelete =
 
     let! (c2 : Canvas.T) = Canvas.loadAll canvasID
 
-    Expect.equal (c2.deletedHandlers.TryFind h1.tlid) (Some h1) "deleted in deleted"
+    Expect.equal (Map.find h1.tlid c2.deletedHandlers) (Some h1) "deleted in deleted"
     Expect.equal c2.deletedHandlers.Count 1 "only deleted still in deleted"
-    Expect.equal (c2.handlers.TryFind h2.tlid) (Some h2) "live is in handlers"
+    Expect.equal (Map.find h2.tlid c2.handlers) (Some h2) "live is in handlers"
     Expect.equal c2.handlers.Count 1 "only live is in handlers"
   }
 
@@ -192,7 +192,7 @@ let testSetFunctionAfterDelete =
     let! (c1 : Canvas.T) = Canvas.loadAll canvasID
 
     Expect.equal
-      (c1.deletedUserFunctions.TryFind f1.tlid)
+      (Map.find f1.tlid c1.deletedUserFunctions)
       (Some f1)
       "deleted in deleted"
     Expect.equal c1.deletedUserFunctions.Count 1 "only deleted in deleted"
@@ -205,11 +205,11 @@ let testSetFunctionAfterDelete =
     let! (c2 : Canvas.T) = Canvas.loadAll canvasID
 
     Expect.equal
-      (c2.deletedUserFunctions.TryFind f1.tlid)
+      (Map.find f1.tlid c2.deletedUserFunctions)
       (Some f1)
       "deleted still in deleted"
     Expect.equal c2.deletedUserFunctions.Count 1 "only deleted still in deleted"
-    Expect.equal (c2.userFunctions.TryFind f2.tlid) (Some f2) "live is present"
+    Expect.equal (Map.find f2.tlid c2.userFunctions) (Some f2) "live is present"
     Expect.equal c2.userFunctions.Count 1 "only live is present"
   }
 

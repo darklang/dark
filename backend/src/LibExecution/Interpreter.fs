@@ -237,11 +237,11 @@ let rec eval
       let source = sourceID id
       match name with
       | FQName.UserProgram c ->
-        match state.program.constants.TryFind c with
+        match Map.find c state.program.constants with
         | None -> return Error.raise source (Error.ConstDoesntExist name)
         | Some constant -> return evalConst source constant.body
       | FQName.BuiltIn c ->
-        match state.builtIns.constants.TryFind c with
+        match Map.find c state.builtIns.constants with
         | None -> return Error.raise source (Error.ConstDoesntExist name)
         | Some constant -> return constant.body
       | FQName.Package c ->
@@ -761,9 +761,9 @@ and callFn
     let! fn =
       match desc with
       | FQName.BuiltIn std ->
-        state.builtIns.fns.TryFind std |> Option.map builtInFnToFn |> Ply
+        Map.find std state.builtIns.fns |> Option.map builtInFnToFn |> Ply
       | FQName.UserProgram u ->
-        state.program.fns.TryFind u |> Option.map userFnToFn |> Ply
+        Map.find u state.program.fns |> Option.map userFnToFn |> Ply
       | FQName.Package pkg ->
         uply {
           let! fn = state.packageManager.getFn pkg
