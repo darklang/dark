@@ -407,6 +407,7 @@ module ValueType =
   let unknownTODO = ValueType.Unknown
   let unknownDbTODO = ValueType.Unknown
   let uknownTypeArgsTODO = []
+  let uknownTypeArgsTODO' = None
 
   let known inner = ValueType.Known inner
 
@@ -635,7 +636,7 @@ and [<NoComparison>] Dval =
     // CLEANUP we may need a sourceTypeArgs here as well
     runtimeTypeName : TypeName.TypeName *
     sourceTypeName : TypeName.TypeName *
-    // VTTODO typeArgs : List<ValueType> *
+    typeArgs : List<ValueType> *
     caseName : string *
     fields : List<Dval>
 
@@ -732,7 +733,11 @@ module RuntimeError =
 
   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
     let typeName = name [] "Error" 0
-    DEnum(typeName, typeName, caseName, fields) |> RuntimeError
+
+    // VTTODO This should be created via Dval.enum, but we have an F# cyclical dependency issue:
+    // - we want to create a RuntimeError via Dval.enum
+    // - when Dval.enum fails, it creates a RuntimeError
+    DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError
 
 
   let cliError field = case "CliError" [ field ]
@@ -912,7 +917,8 @@ module Dval =
       // TYPESCLEANUP: do we need to check fields?
       typeName = typeName'
 
-    | DEnum(typeName, _, casename, fields), TCustomType(Ok typeName', typeArgs) ->
+    | DEnum(typeName, _, _typeArgsDEnumTODO, casename, fields),
+      TCustomType(Ok typeName', typeArgs) ->
       // TYPESCLEANUP: should load type by name
       // TYPESCLEANUP: are we handling type arguments here?
       // TYPESCLEANUP: do we need to check fields?

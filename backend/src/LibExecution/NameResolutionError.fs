@@ -29,7 +29,6 @@ type Error =
 module RTE =
   module ErrorType =
     let toDT (et : ErrorType) : RT.Dval =
-      let nameTypeName = RT.RuntimeError.name [ "NameResolution" ] "ErrorType" 0
       let caseName, fields =
         match et with
         | NotFound -> "NotFound", []
@@ -38,33 +37,36 @@ module RTE =
         | MissingEnumModuleName caseName ->
           "MissingEnumModuleName", [ RT.DString caseName ]
         | InvalidPackageName -> "InvalidPackageName", []
-      Dval.enum nameTypeName nameTypeName caseName fields
+
+      let typeName = RT.RuntimeError.name [ "NameResolution" ] "ErrorType" 0
+      Dval.enum typeName typeName (Some []) caseName fields
 
     let fromDT (dv : RT.Dval) : ErrorType =
       match dv with
-      | RT.DEnum(_, _, "NotFound", []) -> NotFound
-      | RT.DEnum(_, _, "ExpectedEnumButNot", []) -> ExpectedEnumButNot
-      | RT.DEnum(_, _, "ExpectedRecordButNot", []) -> ExpectedRecordButNot
-      | RT.DEnum(_, _, "MissingEnumModuleName", [ RT.DString caseName ]) ->
+      | RT.DEnum(_, _, [], "NotFound", []) -> NotFound
+      | RT.DEnum(_, _, [], "ExpectedEnumButNot", []) -> ExpectedEnumButNot
+      | RT.DEnum(_, _, [], "ExpectedRecordButNot", []) -> ExpectedRecordButNot
+      | RT.DEnum(_, _, [], "MissingEnumModuleName", [ RT.DString caseName ]) ->
         MissingEnumModuleName(caseName)
-      | RT.DEnum(_, _, "InvalidPackageName", []) -> InvalidPackageName
+      | RT.DEnum(_, _, [], "InvalidPackageName", []) -> InvalidPackageName
       | _ -> Exception.raiseInternal "Invalid ErrorType" []
 
   module NameType =
     let toDT (nt : NameType) : RT.Dval =
-      let nameTypeName = RT.RuntimeError.name [ "NameResolution" ] "NameType" 0
-      let caseName =
+      let caseName, fields =
         match nt with
-        | Function -> "Function"
-        | Type -> "Type"
-        | Constant -> "Constant"
-      Dval.enum nameTypeName nameTypeName caseName []
+        | Function -> "Function", []
+        | Type -> "Type", []
+        | Constant -> "Constant", []
+
+      let typeName = RT.RuntimeError.name [ "NameResolution" ] "NameType" 0
+      Dval.enum typeName typeName (Some []) caseName fields
 
     let fromDT (dv : RT.Dval) : NameType =
       match dv with
-      | RT.DEnum(_, _, "Function", []) -> Function
-      | RT.DEnum(_, _, "Type", []) -> Type
-      | RT.DEnum(_, _, "Constant", []) -> Constant
+      | RT.DEnum(_, _, [], "Function", []) -> Function
+      | RT.DEnum(_, _, [], "Type", []) -> Type
+      | RT.DEnum(_, _, [], "Constant", []) -> Constant
       | _ -> Exception.raiseInternal "Invalid NameType" []
 
   module Error =

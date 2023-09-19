@@ -372,6 +372,7 @@ let fns : List<BuiltInFn> =
                                          name = TypeName.TypeName "Option"
                                          version = 0 },
                         _,
+                        _typeArgsDEnumTODO,
                         "Some",
                         [ o ]) -> return Some o
                 | DEnum(FQName.Package { owner = "Darklang"
@@ -379,6 +380,7 @@ let fns : List<BuiltInFn> =
                                          name = TypeName.TypeName "Option"
                                          version = 0 },
                         _,
+                        _typeArgsDEnumTODO,
                         "None",
                         []) -> return None
                 | v ->

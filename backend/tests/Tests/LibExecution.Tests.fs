@@ -195,13 +195,15 @@ let t
                   errorMessageFn
                   []
                   (NEList.ofList actual [])
+
               match result with
               | Error _ ->
                 return
                   Exception.raiseInternal
                     ("We received an RTE, and when trying to stringify it, there was another RTE error. There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
                     [ "originalError", actual; "stringifyError", result ]
-              | Ok(RT.DEnum(_, _, "ErrorString", [ RT.DString _ ])) -> return result
+              | Ok(RT.DEnum(_, _, [], "ErrorString", [ RT.DString _ ])) ->
+                return result
               | Ok _ ->
                 return
                   Exception.raiseInternal

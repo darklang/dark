@@ -113,14 +113,16 @@ module FQName =
       | FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameMapper u ]
 
     let typeName = rtTyp [ "FQName" ] "FQName" 0
-    Dval.enum typeName typeName caseName fields
+    Dval.enum typeName typeName VT.uknownTypeArgsTODO' caseName fields
 
   let fromDT (nameMapper : Dval -> 'name) (d : Dval) : FQName.FQName<'name> =
     match d with
-    | DEnum(_, _, "UserProgram", [ u ]) ->
+    | DEnum(_, _, _typeArgsDEnumTODO, "UserProgram", [ u ]) ->
       FQName.UserProgram(UserProgram.fromDT nameMapper u)
-    | DEnum(_, _, "Package", [ u ]) -> FQName.Package(Package.fromDT nameMapper u)
-    | DEnum(_, _, "BuiltIn", [ u ]) -> FQName.BuiltIn(BuiltIn.fromDT nameMapper u)
+    | DEnum(_, _, _typeArgsDEnumTODO, "Package", [ u ]) ->
+      FQName.Package(Package.fromDT nameMapper u)
+    | DEnum(_, _, _typeArgsDEnumTODO, "BuiltIn", [ u ]) ->
+      FQName.BuiltIn(BuiltIn.fromDT nameMapper u)
     | _ -> Exception.raiseInternal "Invalid FQName" []
 
 
@@ -132,11 +134,11 @@ module TypeName =
         | TypeName.TypeName name -> "TypeName", [ DString name ]
 
       let typeName = rtTyp [ "TypeName" ] "Name" 0
-      Dval.enum typeName typeName caseName fields
+      Dval.enum typeName typeName (Some []) caseName fields
 
     let fromDT (d : Dval) : TypeName.Name =
       match d with
-      | DEnum(_, _, "TypeName", [ DString name ]) -> TypeName.TypeName(name)
+      | DEnum(_, _, [], "TypeName", [ DString name ]) -> TypeName.TypeName(name)
       | _ -> Exception.raiseInternal "Invalid TypeName" []
 
   module BuiltIn =
@@ -165,11 +167,11 @@ module FnName =
         | FnName.FnName name -> "FnName", [ DString name ]
 
       let typeName = rtTyp [ "FnName" ] "Name" 0
-      Dval.enum typeName typeName caseName fields
+      Dval.enum typeName typeName (Some []) caseName fields
 
     let fromDT (d : Dval) : FnName.Name =
       match d with
-      | DEnum(_, _, "FnName", [ DString name ]) -> FnName.FnName(name)
+      | DEnum(_, _, [], "FnName", [ DString name ]) -> FnName.FnName(name)
       | _ -> Exception.raiseInternal "Invalid FnName" []
 
   module BuiltIn =
@@ -197,11 +199,11 @@ module ConstantName =
         | ConstantName.ConstantName name -> "ConstantName", [ DString name ]
 
       let typeName = rtTyp [ "ConstantName" ] "Name" 0
-      Dval.enum typeName typeName caseName fields
+      Dval.enum typeName typeName (Some []) caseName fields
 
     let fromDT (d : Dval) : ConstantName.Name =
       match d with
-      | DEnum(_, _, "ConstantName", [ DString name ]) ->
+      | DEnum(_, _, [], "ConstantName", [ DString name ]) ->
         ConstantName.ConstantName(name)
       | _ -> Exception.raiseInternal "Invalid ConstantName" []
 
@@ -234,8 +236,9 @@ module NameResolution =
 
   let fromDT (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
     match d with
-    | DEnum(tn, _, "Ok", [ v ]) when tn = Dval.resultType -> Ok(f v)
-    | DEnum(tn, _, "Error", [ v ]) when tn = Dval.resultType ->
+    | DEnum(tn, _, _typeArgsDEnumTODO, "Ok", [ v ]) when tn = Dval.resultType ->
+      Ok(f v)
+    | DEnum(tn, _, _typeArgsDEnumTODO, "Error", [ v ]) when tn = Dval.resultType ->
       Error(RuntimeError.fromDT v)
     | _ -> Exception.raiseInternal "Invalid NameResolution" []
 
@@ -274,37 +277,37 @@ module TypeReference =
         [ Dval.list VT.unknownTODO (List.map toDT (NEList.toList args)); toDT ret ]
 
     let typeName = rtTyp [] "TypeReference" 0
-    Dval.enum typeName typeName caseName fields
+    Dval.enum typeName typeName (Some []) caseName fields
 
   let rec fromDT (d : Dval) : TypeReference =
     match d with
-    | DEnum(_, _, "TVariable", [ DString name ]) -> TVariable(name)
+    | DEnum(_, _, [], "TVariable", [ DString name ]) -> TVariable(name)
 
-    | DEnum(_, _, "TUnit", []) -> TUnit
-    | DEnum(_, _, "TBool", []) -> TBool
-    | DEnum(_, _, "TInt", []) -> TInt
-    | DEnum(_, _, "TFloat", []) -> TFloat
-    | DEnum(_, _, "TChar", []) -> TChar
-    | DEnum(_, _, "TString", []) -> TString
-    | DEnum(_, _, "TDateTime", []) -> TDateTime
-    | DEnum(_, _, "TUuid", []) -> TUuid
-    | DEnum(_, _, "TBytes", []) -> TBytes
+    | DEnum(_, _, [], "TUnit", []) -> TUnit
+    | DEnum(_, _, [], "TBool", []) -> TBool
+    | DEnum(_, _, [], "TInt", []) -> TInt
+    | DEnum(_, _, [], "TFloat", []) -> TFloat
+    | DEnum(_, _, [], "TChar", []) -> TChar
+    | DEnum(_, _, [], "TString", []) -> TString
+    | DEnum(_, _, [], "TDateTime", []) -> TDateTime
+    | DEnum(_, _, [], "TUuid", []) -> TUuid
+    | DEnum(_, _, [], "TBytes", []) -> TBytes
 
-    | DEnum(_, _, "TList", [ inner ]) -> TList(fromDT inner)
+    | DEnum(_, _, [], "TList", [ inner ]) -> TList(fromDT inner)
 
-    | DEnum(_, _, "TTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
+    | DEnum(_, _, [], "TTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
       TTuple(fromDT first, fromDT second, List.map fromDT theRest)
 
-    | DEnum(_, _, "TDict", [ inner ]) -> TDict(fromDT inner)
+    | DEnum(_, _, [], "TDict", [ inner ]) -> TDict(fromDT inner)
 
-    | DEnum(_, _, "TCustomType", [ typeName; DList(_vtTODO, typeArgs) ]) ->
+    | DEnum(_, _, [], "TCustomType", [ typeName; DList(_vtTODO, typeArgs) ]) ->
       TCustomType(
         NameResolution.fromDT TypeName.fromDT typeName,
         List.map fromDT typeArgs
       )
 
-    | DEnum(_, _, "TDB", [ inner ]) -> TDB(fromDT inner)
-    | DEnum(_, _, "TFn", [ DList(_vtTODO, firstArg :: otherArgs); ret ]) ->
+    | DEnum(_, _, [], "TDB", [ inner ]) -> TDB(fromDT inner)
+    | DEnum(_, _, [], "TFn", [ DList(_vtTODO, firstArg :: otherArgs); ret ]) ->
       TFn(NEList.ofList (fromDT firstArg) (List.map fromDT otherArgs), fromDT ret)
     | _ -> Exception.raiseInternal "Invalid TypeReference" [ "typeRef", d ]
 
@@ -329,14 +332,14 @@ module LetPattern =
           Dval.list VT.unknownTODO (List.map toDT theRest) ]
 
     let typeName = rtTyp [] "LetPattern" 0
-    Dval.enum typeName typeName caseName fields
+    Dval.enum typeName typeName (Some []) caseName fields
 
   let rec fromDT (d : Dval) : LetPattern =
     match d with
-    | DEnum(_, _, "LPVariable", [ DInt id; DString name ]) ->
+    | DEnum(_, _, [], "LPVariable", [ DInt id; DString name ]) ->
       LPVariable(uint64 id, name)
-    | DEnum(_, _, "LPUnit", [ DInt id ]) -> LPUnit(uint64 id)
-    | DEnum(_, _, "LPTuple", [ DInt id; first; second; DList(_vtTODO, theRest) ]) ->
+    | DEnum(_, _, [], "LPUnit", [ DInt id ]) -> LPUnit(uint64 id)
+    | DEnum(_, _, [], "LPTuple", [ DInt id; first; second; DList(_vtTODO, theRest) ]) ->
       LPTuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
     | _ -> Exception.raiseInternal "Invalid LetPattern" []
 
@@ -371,27 +374,31 @@ module MatchPattern =
           Dval.list VT.unknownTODO (List.map toDT fieldPats) ]
 
     let typeName = rtTyp [] "MatchPattern" 0
-    Dval.enum typeName typeName caseName fields
+    Dval.enum typeName typeName (Some []) caseName fields
 
   let rec fromDT (d : Dval) : MatchPattern =
     match d with
-    | DEnum(_, _, "MPVariable", [ DInt id; DString name ]) ->
+    | DEnum(_, _, [], "MPVariable", [ DInt id; DString name ]) ->
       MPVariable(uint64 id, name)
 
-    | DEnum(_, _, "MPUnit", [ DInt id ]) -> MPUnit(uint64 id)
-    | DEnum(_, _, "MPBool", [ DInt id; DBool b ]) -> MPBool(uint64 id, b)
-    | DEnum(_, _, "MPInt", [ DInt id; DInt i ]) -> MPInt(uint64 id, i)
-    | DEnum(_, _, "MPFloat", [ DInt id; DFloat f ]) -> MPFloat(uint64 id, f)
-    | DEnum(_, _, "MPChar", [ DInt id; DString c ]) -> MPChar(uint64 id, c)
-    | DEnum(_, _, "MPString", [ DInt id; DString s ]) -> MPString(uint64 id, s)
+    | DEnum(_, _, [], "MPUnit", [ DInt id ]) -> MPUnit(uint64 id)
+    | DEnum(_, _, [], "MPBool", [ DInt id; DBool b ]) -> MPBool(uint64 id, b)
+    | DEnum(_, _, [], "MPInt", [ DInt id; DInt i ]) -> MPInt(uint64 id, i)
+    | DEnum(_, _, [], "MPFloat", [ DInt id; DFloat f ]) -> MPFloat(uint64 id, f)
+    | DEnum(_, _, [], "MPChar", [ DInt id; DString c ]) -> MPChar(uint64 id, c)
+    | DEnum(_, _, [], "MPString", [ DInt id; DString s ]) -> MPString(uint64 id, s)
 
-    | DEnum(_, _, "MPList", [ DInt id; DList(_vtTODO, inner) ]) ->
+    | DEnum(_, _, [], "MPList", [ DInt id; DList(_vtTODO, inner) ]) ->
       MPList(uint64 id, List.map fromDT inner)
-    | DEnum(_, _, "MPListCons", [ DInt id; head; tail ]) ->
+    | DEnum(_, _, [], "MPListCons", [ DInt id; head; tail ]) ->
       MPListCons(uint64 id, fromDT head, fromDT tail)
-    | DEnum(_, _, "MPTuple", [ DInt id; first; second; DList(_vtTODO, theRest) ]) ->
+    | DEnum(_, _, [], "MPTuple", [ DInt id; first; second; DList(_vtTODO, theRest) ]) ->
       MPTuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
-    | DEnum(_, _, "MPEnum", [ DInt id; DString caseName; DList(_vtTODO, fieldPats) ]) ->
+    | DEnum(_,
+            _,
+            [],
+            "MPEnum",
+            [ DInt id; DString caseName; DList(_vtTODO, fieldPats) ]) ->
       MPEnum(uint64 id, caseName, List.map fromDT fieldPats)
     | _ -> Exception.raiseInternal "Invalid MatchPattern" []
 
@@ -404,12 +411,12 @@ module StringSegment =
       | StringInterpolation expr -> "StringInterpolation", [ exprToDT expr ]
 
     let typeName = rtTyp [] "StringSegment" 0
-    Dval.enum typeName typeName caseName fields
+    Dval.enum typeName typeName (Some []) caseName fields
 
   let fromDT (exprFromDT : Dval -> Expr) (d : Dval) : StringSegment =
     match d with
-    | DEnum(_, _, "StringText", [ DString text ]) -> StringText text
-    | DEnum(_, _, "StringInterpolation", [ expr ]) ->
+    | DEnum(_, _, [], "StringText", [ DString text ]) -> StringText text
+    | DEnum(_, _, [], "StringInterpolation", [ expr ]) ->
       StringInterpolation(exprFromDT expr)
     | _ -> Exception.raiseInternal "Invalid StringSegment" []
 
@@ -528,25 +535,25 @@ module Expr =
 
 
     let typeName = rtTyp [] "Expr" 0
-    Dval.enum typeName typeName caseName fields
+    Dval.enum typeName typeName (Some []) caseName fields
 
   let rec fromDT (d : Dval) : Expr =
     match d with
-    | DEnum(_, _, "EUnit", [ DInt id ]) -> EUnit(uint64 id)
+    | DEnum(_, _, [], "EUnit", [ DInt id ]) -> EUnit(uint64 id)
 
     // simple data
-    | DEnum(_, _, "EBool", [ DInt id; DBool b ]) -> EBool(uint64 id, b)
-    | DEnum(_, _, "EInt", [ DInt id; DInt i ]) -> EInt(uint64 id, i)
-    | DEnum(_, _, "EFloat", [ DInt id; DFloat f ]) -> EFloat(uint64 id, f)
-    | DEnum(_, _, "EChar", [ DInt id; DString c ]) -> EChar(uint64 id, c)
-    | DEnum(_, _, "EString", [ DInt id; DList(_vtTODO, segments) ]) ->
+    | DEnum(_, _, [], "EBool", [ DInt id; DBool b ]) -> EBool(uint64 id, b)
+    | DEnum(_, _, [], "EInt", [ DInt id; DInt i ]) -> EInt(uint64 id, i)
+    | DEnum(_, _, [], "EFloat", [ DInt id; DFloat f ]) -> EFloat(uint64 id, f)
+    | DEnum(_, _, [], "EChar", [ DInt id; DString c ]) -> EChar(uint64 id, c)
+    | DEnum(_, _, [], "EString", [ DInt id; DList(_vtTODO, segments) ]) ->
       EString(uint64 id, List.map (StringSegment.fromDT fromDT) segments)
 
 
     // structures of data
-    | DEnum(_, _, "EList", [ DInt id; DList(_vtTODO, inner) ]) ->
+    | DEnum(_, _, [], "EList", [ DInt id; DList(_vtTODO, inner) ]) ->
       EList(uint64 id, List.map fromDT inner)
-    | DEnum(_, _, "EDict", [ DInt id; DList(_vtTODO, pairsList) ]) ->
+    | DEnum(_, _, [], "EDict", [ DInt id; DList(_vtTODO, pairsList) ]) ->
       let pairs =
         pairsList
         |> List.collect (fun pair ->
@@ -556,10 +563,10 @@ module Expr =
       EDict(uint64 id, pairs)
 
 
-    | DEnum(_, _, "ETuple", [ DInt id; first; second; DList(_vtTODO, theRest) ]) ->
+    | DEnum(_, _, [], "ETuple", [ DInt id; first; second; DList(_vtTODO, theRest) ]) ->
       ETuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
 
-    | DEnum(_, _, "ERecord", [ DInt id; typeName; DList(_vtTODO1, fieldsList) ]) ->
+    | DEnum(_, _, [], "ERecord", [ DInt id; typeName; DList(_vtTODO1, fieldsList) ]) ->
       let fields =
         fieldsList
         |> List.collect (fun field ->
@@ -578,31 +585,32 @@ module Expr =
 
     | DEnum(_,
             _,
+            [],
             "EEnum",
             [ DInt id; typeName; DString caseName; DList(_vtTODO, fields) ]) ->
       EEnum(uint64 id, TypeName.fromDT typeName, caseName, List.map fromDT fields)
 
     // declaring and accessing variables
-    | DEnum(_, _, "ELet", [ DInt id; lp; expr; body ]) ->
+    | DEnum(_, _, [], "ELet", [ DInt id; lp; expr; body ]) ->
       ELet(uint64 id, LetPattern.fromDT lp, fromDT expr, fromDT body)
 
-    | DEnum(_, _, "EFieldAccess", [ DInt id; expr; DString fieldName ]) ->
+    | DEnum(_, _, [], "EFieldAccess", [ DInt id; expr; DString fieldName ]) ->
       EFieldAccess(uint64 id, fromDT expr, fieldName)
 
-    | DEnum(_, _, "EVariable", [ DInt id; DString varName ]) ->
+    | DEnum(_, _, [], "EVariable", [ DInt id; DString varName ]) ->
       EVariable(uint64 id, varName)
 
     // control flow
-    | DEnum(_, _, "EIf", [ DInt id; cond; thenExpr; elseExpr ]) ->
+    | DEnum(_, _, [], "EIf", [ DInt id; cond; thenExpr; elseExpr ]) ->
       let elseExpr =
         match elseExpr with
-        | DEnum(_, _, "Some", [ dv ]) -> Some(fromDT dv)
-        | DEnum(_, _, "None", []) -> None
+        | DEnum(_, _, _typeArgsDEnumTODO, "Some", [ dv ]) -> Some(fromDT dv)
+        | DEnum(_, _, _typeArgsDEnumTODO, "None", []) -> None
         | _ ->
           Exception.raiseInternal "Invalid else expression" [ "elseExpr", elseExpr ]
       EIf(uint64 id, fromDT cond, fromDT thenExpr, elseExpr)
 
-    | DEnum(_, _, "EMatch", [ DInt id; arg; DList(_vtTODO, cases) ]) ->
+    | DEnum(_, _, [], "EMatch", [ DInt id; arg; DList(_vtTODO, cases) ]) ->
       let cases =
         cases
         |> List.collect (fun case ->
@@ -620,7 +628,7 @@ module Expr =
       )
 
 
-    | DEnum(_, _, "ELambda", [ DInt id; DList(_vtTODO, variables); body ]) ->
+    | DEnum(_, _, [], "ELambda", [ DInt id; DList(_vtTODO, variables); body ]) ->
       let args =
         variables
         |> List.collect (fun arg ->
@@ -640,6 +648,7 @@ module Expr =
 
     | DEnum(_,
             _,
+            [],
             "EApply",
             [ DInt id; name; DList(_vtTODO1, typeArgs); DList(_vtTODO2, args) ]) ->
       let args =
@@ -655,10 +664,10 @@ module Expr =
         NEList.map fromDT args
       )
 
-    | DEnum(_, _, "EFnName", [ DInt id; name ]) ->
+    | DEnum(_, _, [], "EFnName", [ DInt id; name ]) ->
       EFnName(uint64 id, FnName.fromDT name)
 
-    | DEnum(_, _, "ERecordUpdate", [ DInt id; record; DList(_vtTODO, updates) ]) ->
+    | DEnum(_, _, [], "ERecordUpdate", [ DInt id; record; DList(_vtTODO, updates) ]) ->
       let updates =
         updates
         |> List.collect (fun update ->
@@ -675,13 +684,13 @@ module Expr =
       )
 
     // now for EAnd, EOr and EError
-    | DEnum(_, _, "EAnd", [ DInt id; left; right ]) ->
+    | DEnum(_, _, [], "EAnd", [ DInt id; left; right ]) ->
       EAnd(uint64 id, fromDT left, fromDT right)
 
-    | DEnum(_, _, "EOr", [ DInt id; left; right ]) ->
+    | DEnum(_, _, [], "EOr", [ DInt id; left; right ]) ->
       EOr(uint64 id, fromDT left, fromDT right)
 
-    | DEnum(_, _, "EError", [ DInt id; rtError; DList(_vtTODO, exprs) ]) ->
+    | DEnum(_, _, [], "EError", [ DInt id; rtError; DList(_vtTODO, exprs) ]) ->
       EError(uint64 id, RuntimeError.fromDT rtError, List.map fromDT exprs)
 
 
@@ -732,55 +741,58 @@ module Dval =
         | KTDB d -> "KTDB", [ ValueType.toDT d ]
 
       let typeName = rtTyp [] "KnownType" 0
-      Dval.enum typeName typeName caseName fields
+      Dval.enum typeName typeName (Some []) caseName fields
 
     let fromDT (d : Dval) : KnownType =
       match d with
-      | DEnum(_, _, "KTUnit", []) -> KTUnit
-      | DEnum(_, _, "KTBool", []) -> KTBool
-      | DEnum(_, _, "KTInt", []) -> KTInt
-      | DEnum(_, _, "KTFloat", []) -> KTFloat
-      | DEnum(_, _, "KTChar", []) -> KTChar
-      | DEnum(_, _, "KTString", []) -> KTString
-      | DEnum(_, _, "KTUuid", []) -> KTUuid
-      | DEnum(_, _, "KTDateTime", []) -> KTDateTime
-      | DEnum(_, _, "KTBytes", []) -> KTBytes
+      | DEnum(_, _, [], "KTUnit", []) -> KTUnit
+      | DEnum(_, _, [], "KTBool", []) -> KTBool
+      | DEnum(_, _, [], "KTInt", []) -> KTInt
+      | DEnum(_, _, [], "KTFloat", []) -> KTFloat
+      | DEnum(_, _, [], "KTChar", []) -> KTChar
+      | DEnum(_, _, [], "KTString", []) -> KTString
+      | DEnum(_, _, [], "KTUuid", []) -> KTUuid
+      | DEnum(_, _, [], "KTDateTime", []) -> KTDateTime
+      | DEnum(_, _, [], "KTBytes", []) -> KTBytes
 
-      | DEnum(_, _, "KTList", [ inner ]) -> KTList(ValueType.fromDT inner)
-      | DEnum(_, _, "KTTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
+      | DEnum(_, _, [], "KTList", [ inner ]) -> KTList(ValueType.fromDT inner)
+      | DEnum(_, _, [], "KTTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
         KTTuple(
           ValueType.fromDT first,
           ValueType.fromDT second,
           List.map ValueType.fromDT theRest
         )
-      | DEnum(_, _, "KTDict", [ inner ]) -> KTDict(ValueType.fromDT inner)
+      | DEnum(_, _, [], "KTDict", [ inner ]) -> KTDict(ValueType.fromDT inner)
 
-      | DEnum(_, _, "KTCustomType", [ typeName; DList(_vtTODO, typeArgs) ]) ->
+      | DEnum(_, _, [], "KTCustomType", [ typeName; DList(_vtTODO, typeArgs) ]) ->
         KTCustomType(TypeName.fromDT typeName, List.map ValueType.fromDT typeArgs)
 
-      | DEnum(_, _, "KTFn", [ DList(_vtTODO, firstArg :: otherArgs); ret ]) ->
+      | DEnum(_, _, [], "KTFn", [ DList(_vtTODO, firstArg :: otherArgs); ret ]) ->
         KTFn(
           NEList.ofList
             (ValueType.fromDT firstArg)
             (List.map ValueType.fromDT otherArgs),
           ValueType.fromDT ret
         )
-      | DEnum(_, _, "KTDB", [ inner ]) -> KTDB(ValueType.fromDT inner)
+      | DEnum(_, _, [], "KTDB", [ inner ]) -> KTDB(ValueType.fromDT inner)
 
       | _ -> Exception.raiseInternal "Invalid KnownType" []
 
   module ValueType =
     let toDT (vt : ValueType) : Dval =
+
+      let caseName, fields =
+        match vt with
+        | ValueType.Unknown -> "Unknown", []
+        | ValueType.Known kt -> "Known", [ KnownType.toDT kt ]
+
       let typeName = rtTyp [] "ValueType" 0
-      match vt with
-      | ValueType.Unknown -> Dval.enum typeName typeName "Unknown" []
-      | ValueType.Known kt ->
-        Dval.enum typeName typeName "Known" [ KnownType.toDT kt ]
+      Dval.enum typeName typeName (Some []) caseName fields
 
     let fromDT (d : Dval) : ValueType =
       match d with
-      | DEnum(_, _, "Unknown", []) -> ValueType.Unknown
-      | DEnum(_, _, "Known", [ kt ]) -> ValueType.Known(KnownType.fromDT kt)
+      | DEnum(_, _, [], "Unknown", []) -> ValueType.Unknown
+      | DEnum(_, _, [], "Known", [ kt ]) -> ValueType.Known(KnownType.fromDT kt)
 
       | _ -> Exception.raiseInternal "Invalid ValueType" []
 
@@ -792,12 +804,12 @@ module Dval =
         | SourceID(tlid, id) -> "SourceID", [ DInt(int64 tlid); DInt(int64 id) ]
 
       let typeName = rtTyp [] "DvalSource" 0
-      Dval.enum typeName typeName caseName fields
+      Dval.enum typeName typeName (Some []) caseName fields
 
     let fromDT (d : Dval) : DvalSource =
       match d with
-      | DEnum(_, _, "SourceNone", []) -> SourceNone
-      | DEnum(_, _, "SourceID", [ DInt tlid; DInt id ]) ->
+      | DEnum(_, _, [], "SourceNone", []) -> SourceNone
+      | DEnum(_, _, [], "SourceID", [ DInt tlid; DInt id ]) ->
         SourceID(uint64 tlid, uint64 id)
       | _ -> Exception.raiseInternal "Invalid DvalSource" []
 
@@ -856,12 +868,12 @@ module Dval =
         | NamedFn fnName -> "NamedFn", [ FnName.toDT fnName ]
 
       let typeName = rtTyp [] "FnValImpl" 0
-      Dval.enum typeName typeName caseName fields
+      Dval.enum typeName typeName (Some []) caseName fields
 
     let fromDT (d : Dval) : FnValImpl =
       match d with
-      | DEnum(_, _, "Lambda", [ lambda ]) -> Lambda(LambdaImpl.fromDT lambda)
-      | DEnum(_, _, "NamedFn", [ fnName ]) -> NamedFn(FnName.fromDT fnName)
+      | DEnum(_, _, [], "Lambda", [ lambda ]) -> Lambda(LambdaImpl.fromDT lambda)
+      | DEnum(_, _, [], "NamedFn", [ fnName ]) -> NamedFn(FnName.fromDT fnName)
       | _ -> Exception.raiseInternal "Invalid FnValImpl" []
 
   let rec toDT (dv : Dval) : Dval =
@@ -898,44 +910,46 @@ module Dval =
           typeArgs |> List.map ValueType.toDT |> Dval.list VT.unknownTODO
           DDict(VT.unknownTODO, Map.map toDT map) ]
 
-      | DEnum(runtimeTypeName, sourceTypeName, caseName, fields) ->
+      | DEnum(runtimeTypeName, sourceTypeName, typeArgs, caseName, fields) ->
         "DEnum",
         [ TypeName.toDT runtimeTypeName
           TypeName.toDT sourceTypeName
+          typeArgs |> List.map ValueType.toDT |> Dval.list VT.unknownTODO
           DString caseName
           Dval.list VT.unknownTODO (List.map toDT fields) ]
 
     let typeName = rtTyp [ "Dval" ] "Dval" 0
-    Dval.enum typeName typeName caseName fields
+    Dval.enum typeName typeName (Some []) caseName fields
 
 
   let fromDT (d : Dval) : Dval =
     match d with
-    | DEnum(_, _, "DInt", [ DInt i ]) -> DInt i
-    | DEnum(_, _, "DFloat", [ DFloat f ]) -> DFloat f
-    | DEnum(_, _, "DBool", [ DBool b ]) -> DBool b
-    | DEnum(_, _, "DUnit", []) -> DUnit
-    | DEnum(_, _, "DString", [ DString s ]) -> DString s
-    | DEnum(_, _, "DChar", [ DChar c ]) -> DChar c
+    | DEnum(_, _, [], "DInt", [ DInt i ]) -> DInt i
+    | DEnum(_, _, [], "DFloat", [ DFloat f ]) -> DFloat f
+    | DEnum(_, _, [], "DBool", [ DBool b ]) -> DBool b
+    | DEnum(_, _, [], "DUnit", []) -> DUnit
+    | DEnum(_, _, [], "DString", [ DString s ]) -> DString s
+    | DEnum(_, _, [], "DChar", [ DChar c ]) -> DChar c
 
-    | DEnum(_, _, "DList", [ vt; DList(_vtTODO, l) ]) ->
+    | DEnum(_, _, [], "DList", [ vt; DList(_vtTODO, l) ]) ->
       DList(ValueType.fromDT vt, List.map fromDT l)
-    | DEnum(_, _, "DTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
+    | DEnum(_, _, [], "DTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
       DTuple(fromDT first, fromDT second, List.map fromDT theRest)
 
-    | DEnum(_, _, "DFnVal", [ fnImpl ]) -> DFnVal(FnValImpl.fromDT fnImpl)
+    | DEnum(_, _, [], "DFnVal", [ fnImpl ]) -> DFnVal(FnValImpl.fromDT fnImpl)
 
-    | DEnum(_, _, "DDB", [ DString name ]) -> DDB name
+    | DEnum(_, _, [], "DDB", [ DString name ]) -> DDB name
 
-    | DEnum(_, _, "DDateTime", [ DDateTime d ]) -> DDateTime d
-    | DEnum(_, _, "DUuid", [ DUuid u ]) -> DUuid u
-    | DEnum(_, _, "DBytes", [ DBytes b ]) -> DBytes b
+    | DEnum(_, _, [], "DDateTime", [ DDateTime d ]) -> DDateTime d
+    | DEnum(_, _, [], "DUuid", [ DUuid u ]) -> DUuid u
+    | DEnum(_, _, [], "DBytes", [ DBytes b ]) -> DBytes b
 
-    | DEnum(_, _, "DDict", [ vt; DDict(_vtTODO, map) ]) ->
+    | DEnum(_, _, [], "DDict", [ vt; DDict(_vtTODO, map) ]) ->
       DDict(ValueType.fromDT vt, Map.map fromDT map)
 
     | DEnum(_,
             _,
+            [],
             "DRecord",
             [ runtimeTypeName
               sourceTypeName
@@ -949,14 +963,17 @@ module Dval =
       )
     | DEnum(_,
             _,
+            [],
             "DEnum",
             [ runtimeTypeName
               sourceTypeName
+              DList(_vtTODO1, typeArgs)
               DString caseName
-              DList(_vtTODO, fields) ]) ->
+              DList(_vtTODO2, fields) ]) ->
       Dval.enum
         (TypeName.fromDT runtimeTypeName)
         (TypeName.fromDT sourceTypeName)
+        (Some(List.map ValueType.fromDT typeArgs)) // OK?
         caseName
         (List.map fromDT fields)
 

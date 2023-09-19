@@ -32,7 +32,6 @@ module CliRuntimeError =
   module RTE =
     module Error =
       let toDT (et : Error) : RT.Dval =
-        let nameTypeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
         let caseName, fields =
           match et with
           | NoExpressionsToExecute -> "NoExpressionsToExecute", []
@@ -57,7 +56,8 @@ module CliRuntimeError =
             "NonIntReturned",
             [ "actuallyReturned", RT2DT.Dval.toDT actuallyReturned ]
 
-        Dval.enum nameTypeName nameTypeName caseName []
+        let typeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
+        Dval.enum typeName typeName (Some []) caseName []
 
 
     let toRuntimeError (e : Error) : RT.RuntimeError =

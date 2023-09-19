@@ -150,7 +150,8 @@ let rec private toJsonV0
                   })
                 fields)
 
-        | TypeDeclaration.Enum(cases), DEnum(_, _, caseName, fields) ->
+        | TypeDeclaration.Enum cases,
+          DEnum(_, _, _typeArgsDEnumTODO, caseName, fields) ->
           let matchingCase =
             cases
             |> NEList.find (fun c -> c.name = caseName)
@@ -349,7 +350,8 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 |> Ply.List.flatten
 
               // TYPESCLEANUP: I don't think the original is name right here?
-              return Dval.enum typeName typeName caseName fields
+              return
+                Dval.enum typeName typeName VT.uknownTypeArgsTODO' caseName fields
           | _, _ ->
             return
               Exception.raiseInternal
@@ -400,7 +402,7 @@ module Test =
     | DDict(_, map) -> map |> Map.values |> List.all isQueryableDval
     | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
 
-    | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all isQueryableDval
+    | DEnum(_typeName, _, _, _caseName, fields) -> fields |> List.all isQueryableDval
 
     // TODO support
     | DRecord _ // TYPESCLEANUP

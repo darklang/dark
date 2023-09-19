@@ -142,7 +142,7 @@ let rec serialize
 
         | TypeDeclaration.Enum cases ->
           match dval with
-          | DEnum(dTypeName, _, caseName, fields) ->
+          | DEnum(dTypeName, _, _typeArgsDEnumTODO, caseName, fields) ->
             let matchingCase = cases |> NEList.filter (fun c -> c.name = caseName)
 
             match matchingCase with
@@ -466,7 +466,8 @@ let parse
                   convert typ pathSoFar j) // TODO revisit if we need to do anything with path
                 |> Ply.List.flatten
 
-              return Dval.enum typeName typeName caseName fields
+              return
+                Dval.enum typeName typeName VT.uknownTypeArgsTODO' caseName fields
 
             | _ -> return Exception.raiseInternal "TODO" []
 

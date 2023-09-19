@@ -254,6 +254,7 @@ module FormatV0 =
     | DEnum of
       runtimeTypeName : TypeName.TypeName *
       sourceTypeName : TypeName.TypeName *
+      typeArgs : List<ValueType.ValueType> *
       caseName : string *
       fields : List<Dval>
 
@@ -289,10 +290,11 @@ module FormatV0 =
         Map.map toRT o
       )
     | DBytes bytes -> RT.DBytes bytes
-    | DEnum(typeName, original, caseName, fields) ->
+    | DEnum(typeName, original, typeArgs, caseName, fields) ->
       RT.DEnum(
         TypeName.toRT typeName,
         TypeName.toRT original,
+        List.map ValueType.toRT typeArgs,
         caseName,
         List.map toRT fields
       )
@@ -323,10 +325,11 @@ module FormatV0 =
         Map.map fromRT o
       )
     | RT.DBytes bytes -> DBytes bytes
-    | RT.DEnum(typeName, original, caseName, fields) ->
+    | RT.DEnum(typeName, original, typeArgs, caseName, fields) ->
       DEnum(
         TypeName.fromRT typeName,
         TypeName.fromRT original,
+        List.map ValueType.fromRT typeArgs,
         caseName,
         List.map fromRT fields
       )
@@ -361,7 +364,7 @@ module Test =
     | RT.DChar _
     | RT.DBytes _
     | RT.DDateTime _ -> true
-    | RT.DEnum(_typeName, _, _caseName, fields) ->
+    | RT.DEnum(_typeName, _, _typeArgsDEnumTODO, _caseName, fields) ->
       List.all isRoundtrippableDval fields
     | RT.DList(_, dvals) -> List.all isRoundtrippableDval dvals
     | RT.DDict(_, map) -> map |> Map.values |> List.all isRoundtrippableDval

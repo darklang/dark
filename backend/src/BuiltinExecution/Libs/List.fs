@@ -46,11 +46,12 @@ module DvalComparator =
     | DRecord(tn1, _, _typeArgsTODO1, o1), DRecord(tn2, _, _typeArgsTODO2, o2) ->
       let c = compare tn1 tn2
       if c = 0 then compareMaps (Map.toList o1) (Map.toList o2) else c
-    | DEnum(tn1, _, c1, f1), DEnum(tn2, _, c2, f2) ->
-      let c = compare tn1 tn2
+    | DEnum(typeName1, _, _typeArgsTODO1, case1, fields1),
+      DEnum(typeName2, _, _typeArgsTODO2, case2, fields2) ->
+      let c = compare typeName1 typeName2
       if c = 0 then
-        let c = compare c1 c2
-        if c = 0 then compareLists f1 f2 else c
+        let c = compare case1 case2
+        if c = 0 then compareLists fields1 fields2 else c
       else
         c
     // exhaustiveness check
@@ -502,6 +503,7 @@ let fns : List<BuiltInFn> =
                                          name = TypeName.TypeName "Option"
                                          version = 0 },
                         _,
+                        _typeArgsDEnumTODO,
                         "Some",
                         [ o ]) -> return Some o
                 | DEnum(FQName.Package { owner = "Darklang"
@@ -509,6 +511,7 @@ let fns : List<BuiltInFn> =
                                          name = TypeName.TypeName "Option"
                                          version = 0 },
                         _,
+                        _typeArgsDEnumTODO,
                         "None",
                         []) -> return None
                 | v ->

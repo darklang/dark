@@ -88,88 +88,85 @@ module Error =
 
   module Context =
     let rec toDT (context : Context) : Dval =
-      let nameTypeName = RuntimeError.name [ "TypeChecker" ] "Context" 0
       let (caseName, fields) =
         match context with
         | FunctionCallParameter(fnName, param, paramIndex, location) ->
-          let fnName = RT2DT.FnName.toDT fnName
-          let param = RT2DT.Param.toDT param
-          let paramIndex = DInt paramIndex
-          let location = Location.toDT location
-          "FunctionCallParameter", [ fnName; param; paramIndex; location ]
+          "FunctionCallParameter",
+          [ RT2DT.FnName.toDT fnName
+            RT2DT.Param.toDT param
+            DInt paramIndex
+            Location.toDT location ]
+
         | FunctionCallResult(fnName, returnType, location) ->
-          let fnName = RT2DT.FnName.toDT fnName
-          let returnType = RT2DT.TypeReference.toDT returnType
-          let location = Location.toDT location
-          "FunctionCallResult", [ fnName; returnType; location ]
+          "FunctionCallResult",
+          [ RT2DT.FnName.toDT fnName
+            RT2DT.TypeReference.toDT returnType
+            Location.toDT location ]
+
         | RecordField(recordTypeName, fieldName, fieldType, location) ->
-          let recordTypeName = RT2DT.TypeName.toDT recordTypeName
-          let fieldName = DString fieldName
-          let fieldType = RT2DT.TypeReference.toDT fieldType
-          let location = Location.toDT location
-          "RecordField", [ recordTypeName; fieldName; fieldType; location ]
+          "RecordField",
+          [ RT2DT.TypeName.toDT recordTypeName
+            DString fieldName
+            RT2DT.TypeReference.toDT fieldType
+            Location.toDT location ]
+
         | DictKey(key, typ, location) ->
-          let key = DString key
-          let typ = RT2DT.TypeReference.toDT typ
-          let location = Location.toDT location
-          "DictKey", [ key; typ; location ]
+          "DictKey",
+          [ DString key; RT2DT.TypeReference.toDT typ; Location.toDT location ]
+
         | EnumField(enumTypeName,
                     caseName,
                     fieldIndex,
                     fieldCount,
                     fieldType,
                     location) ->
-          let enumTypeName = RT2DT.TypeName.toDT enumTypeName
-          let caseName = DString caseName
-          let fieldIndex = DInt fieldIndex
-          let fieldCount = DInt fieldCount
-          let fieldType = RT2DT.TypeReference.toDT fieldType
-          let location = Location.toDT location
           "EnumField",
-          [ enumTypeName; caseName; fieldIndex; fieldCount; fieldType; location ]
-        | DBQueryVariable(varName, expected, location) ->
-          let varName = DString varName
-          let expected = RT2DT.TypeReference.toDT expected
-          let location = Location.toDT location
-          "DBQueryVariable", [ varName; expected; location ]
-        | DBSchemaType(name, expectedType, location) ->
-          let name = DString name
-          let expectedType = RT2DT.TypeReference.toDT expectedType
-          let location = Location.toDT location
-          "DBSchemaType", [ name; expectedType; location ]
-        | ListIndex(index, listTyp, parent) ->
-          let index = DInt index
-          let listTyp = RT2DT.TypeReference.toDT listTyp
-          let parent = toDT parent
-          "ListIndex", [ index; listTyp; parent ]
-        | TupleIndex(index, elementType, parent) ->
-          let index = DInt index
-          let elementType = RT2DT.TypeReference.toDT elementType
-          let parent = toDT parent
-          "TupleIndex", [ index; elementType; parent ]
+          [ RT2DT.TypeName.toDT enumTypeName
+            DString caseName
+            DInt fieldIndex
+            DInt fieldCount
+            RT2DT.TypeReference.toDT fieldType
+            Location.toDT location ]
 
-      Dval.enum nameTypeName nameTypeName caseName fields
+        | DBQueryVariable(varName, expected, location) ->
+          "DBQueryVariable",
+          [ DString varName
+            RT2DT.TypeReference.toDT expected
+            Location.toDT location ]
+
+        | DBSchemaType(name, expectedType, location) ->
+          "DBSchemaType",
+          [ DString name
+            RT2DT.TypeReference.toDT expectedType
+            Location.toDT location ]
+
+        | ListIndex(index, listTyp, parent) ->
+          "ListIndex", [ DInt index; RT2DT.TypeReference.toDT listTyp; toDT parent ]
+
+        | TupleIndex(index, elementType, parent) ->
+          "TupleIndex",
+          [ DInt index; RT2DT.TypeReference.toDT elementType; toDT parent ]
+
+      let typeName = RuntimeError.name [ "TypeChecker" ] "Context" 0
+      Dval.enum typeName typeName (Some []) caseName fields
 
 
   let toRuntimeError (e : Error) : RuntimeError =
-    let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
-    match e with
-    | ValueNotExpectedType(actualValue, expectedType, context) ->
-      let fields =
+    let caseName, fields =
+      match e with
+      | ValueNotExpectedType(actualValue, expectedType, context) ->
+        "ValueNotExpectedType",
         [ actualValue |> RT2DT.Dval.toDT
           expectedType |> RT2DT.TypeReference.toDT
           Context.toDT context ]
 
-      RuntimeError.typeCheckerError (
-        Dval.enum typeName typeName "ValueNotExpectedType" fields
-      )
+      | TypeDoesntExist(typeName, context) ->
+        "TypeDoesntExist", [ RT2DT.TypeName.toDT typeName; Context.toDT context ]
 
-    | TypeDoesntExist(typeName, context) ->
-      let fields = [ RT2DT.TypeName.toDT typeName; Context.toDT context ]
-
-      RuntimeError.typeCheckerError (
-        Dval.enum typeName typeName "TypeDoesntExist" fields
-      )
+    let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
+    RuntimeError.typeCheckerError (
+      Dval.enum typeName typeName (Some []) caseName fields
+    )
 
 let raiseValueNotExpectedType
   (source : DvalSource)
@@ -383,7 +380,7 @@ let rec unify
               | _ -> return err
 
             | { definition = TypeDeclaration.Enum cases },
-              DEnum(tn, _, caseName, valFields) ->
+              DEnum(tn, _, _typeArgsDEnumTODO, caseName, valFields) ->
               // TODO: deal with aliased type?
               if tn <> typeName then
                 return

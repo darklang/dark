@@ -204,6 +204,7 @@ module Darklang =
           | DEnum of
             runtimeTypeName: TypeName.TypeName *
             sourceTypeName: TypeName.TypeName *
+            typeArgs: List<ValueType> *
             caseName: String *
             fields: List<Dval>
 
@@ -237,13 +238,7 @@ module Darklang =
           | DRecord(typeName, _, typeArgs, fields) ->
             ValueType.Known(KnownType.KTCustomType(typeName, typeArgs))
 
-          | DEnum(typeName, _, _caseName, _fields) ->
-            let typeArgs =
-              // TODO: somehow need to derive `typeArgs` from the `fields` (and `case`?)
-              // we might need to look up the type...
-              //fields |> List.map toValueType |> List.map Option.some
-              []
-
+          | DEnum(typeName, _, typeArgs, _caseName, _fields) ->
             ValueType.Known(KnownType.KTCustomType(typeName, typeArgs))
 
           | DFnVal fnImpl ->

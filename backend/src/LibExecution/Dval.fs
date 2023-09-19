@@ -114,12 +114,7 @@ let rec toValueType (dv : Dval) : ValueType =
   | DRecord(typeName, _, typeArgs, _fields) ->
     KTCustomType(typeName, typeArgs) |> ValueType.Known
 
-  | DEnum(typeName, _, _caseName, _fields) ->
-    let typeArgs =
-      // TODO: somehow need to derive `typeArgs` from the `fields` (and `case`?)
-      // we might need to look up the type...
-      //fields |> List.map toValueType |> List.map Option.some
-      []
+  | DEnum(typeName, _, typeArgs, _caseName, _fields) ->
     KTCustomType(typeName, typeArgs) |> ValueType.Known
 
   | DFnVal fnImpl ->
@@ -245,22 +240,33 @@ let record
 
 
 let enum
-  // TODO: pass in (types: Types) arg
-  // TODO: nitpick: reorder these typeName params (i.e. source first)
+  // CLEANUP nitpick: reorder these typeName params (i.e. source first)
   (resolvedTypeName : TypeName.TypeName)
   (sourceTypeName : TypeName.TypeName) // TODO: maybe just pass in sourceTypeName
-  // TODO: (typeArgs: Option<List<ValueType>>) // note: must match the count expected by the typeName
+  (typeArgs : Option<List<ValueType>>) // note: must match the count expected by the typeName
   (caseName : string)
   (fields : List<Dval>)
   : Dval =
-  DEnum(resolvedTypeName, sourceTypeName, caseName, fields)
+  // TODO:
+  // - pass in a (types: Types) arg
+  // - use it to determine type args of resultant Dval
+  // - ensure fields match the expected shape (defined by type args and field defs)
+  //   - this process should also effect the type args of the resultant Dval
+  let typeArgs =
+    match typeArgs with
+    | Some typeArgs -> typeArgs
+    | None -> VT.uknownTypeArgsTODO
+
+  DEnum(resolvedTypeName, sourceTypeName, typeArgs, caseName, fields)
 
 
 let optionType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0
 
-let optionSome (dv : Dval) : Dval = DEnum(optionType, optionType, "Some", [ dv ])
+let optionSome (dv : Dval) : Dval =
+  DEnum(optionType, optionType, VT.uknownTypeArgsTODO, "Some", [ dv ])
 
-let optionNone : Dval = DEnum(optionType, optionType, "None", [])
+let optionNone : Dval =
+  DEnum(optionType, optionType, VT.uknownTypeArgsTODO, "None", [])
 
 // Wraps in an Option after checking that the value is not a fakeval
 let option (dv : Option<Dval>) : Dval =
@@ -271,8 +277,11 @@ let option (dv : Option<Dval>) : Dval =
 
 let resultType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0
 
-let resultOk (dv : Dval) : Dval = DEnum(resultType, resultType, "Ok", [ dv ])
-let resultError (dv : Dval) : Dval = DEnum(resultType, resultType, "Error", [ dv ])
+
+let resultOk (dv : Dval) : Dval =
+  DEnum(resultType, resultType, VT.uknownTypeArgsTODO, "Ok", [ dv ])
+let resultError (dv : Dval) : Dval =
+  DEnum(resultType, resultType, VT.uknownTypeArgsTODO, "Error", [ dv ])
 
 // Wraps in a Result after checking that the value is not a fakeval
 let result (dv : Result<Dval, Dval>) : Dval =

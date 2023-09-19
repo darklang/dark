@@ -386,7 +386,17 @@ module Darklang =
               let elems = PACKAGE.Darklang.Stdlib.String.join strs $",{inl}"
               "{" ++ inl ++ elems ++ nl ++ "}"
 
-          | DEnum(_, typeName, caseName, fields) ->
+          | DEnum(_, typeName, typeArgs, caseName, fields) ->
+            let typeArgsPart =
+              match typeArgs with
+              | [] -> ""
+              | typeArgs ->
+                typeArgs
+                |> PACKAGE.Darklang.Stdlib.List.map (fun typeArg ->
+                  valueType typeArg)
+                |> PACKAGE.Darklang.Stdlib.String.join ", "
+                |> fun parts -> $"<{parts}>"
+
             let short =
               let fieldStr =
                 fields
@@ -397,7 +407,7 @@ module Darklang =
               let fieldStr = if fieldStr == "" then "" else $"({fieldStr})"
 
               let typeStr = typeName typeName
-              $"{typeStr}.{caseName}{fieldStr}"
+              $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
             if PACKAGE.Darklang.Stdlib.String.length short <= 80 then
               short
@@ -411,7 +421,7 @@ module Darklang =
               let fieldStr = if fieldStr == "" then "" else $"({inl}{fieldStr}{nl})"
 
               let typeStr = typeName typeName
-              $"{typeStr}.{caseName}{fieldStr}"
+              $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
 
           // | DFnVal _ ->

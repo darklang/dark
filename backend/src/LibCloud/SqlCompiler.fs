@@ -12,6 +12,7 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
+module VT = ValueType
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 module TypeChecker = LibExecution.TypeChecker
@@ -56,8 +57,8 @@ let rec dvalToSql
     | _, DBytes _ // CLEANUP allow
     | _, DTuple _ -> // CLEANUP allow
       return error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
-    | TVariable _, DRecord(typeName, _, _, _)
-    | TVariable _, DEnum(typeName, _, _, _) ->
+    | TVariable _, DRecord(typeName, _, [], _)
+    | TVariable _, DEnum(typeName, _, [], _, _) ->
       let! jsonString =
         DvalReprInternalQueryable.toJsonStringV0 types expectedType dval
       return Sql.jsonb jsonString, TCustomType(Ok typeName, [])
@@ -584,7 +585,13 @@ let rec lambdaToSql
           | _ -> return error "Expected a List"
 
         | EEnum(_, typeName, caseName, []) ->
-          let dv = LibExecution.Dval.enum typeName typeName caseName []
+          let dv =
+            LibExecution.Dval.enum
+              typeName
+              typeName
+              VT.uknownTypeArgsTODO'
+              caseName
+              []
           let typ = (TCustomType(Ok typeName, []))
           typecheck $"Enum '{dv}'" typ expectedType
           let! v = DvalReprInternalQueryable.toJsonStringV0 types typ dv
