@@ -384,21 +384,14 @@ let rec eval
       | _ -> return errStr id "Expected a record in record update"
 
     | EDict(_, fields) ->
-      return!
-        Ply.List.foldSequentially
-          (fun r (k, expr) ->
-            uply {
-              let! v = eval state tst st expr
-              match (r, k, v) with
-              | DDict(vt, entries), k, v ->
-                return entries |> Map.add k v |> Dval.dictFromMap vt
-
-              // If we haven't got a DDict we're propagating an error so let it go
-              | r, _, _v -> return r
-            })
-          (Dval.dict ValueType.Unknown [])
-          fields
-
+      let! fields =
+        fields
+        |> Ply.List.mapSequentially (fun (k, v) ->
+          uply {
+            let! v = eval state tst st v
+            return (k, v)
+          })
+      return Dval.dict ValueType.Unknown fields
 
     | EFnName(_id, name) -> return DFnVal(NamedFn name)
 
