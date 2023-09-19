@@ -20,7 +20,7 @@ let builtIns : RT.BuiltIns =
       [ BuiltinExecution.Builtin.contents
           BuiltinExecution.Libs.HttpClient.defaultConfig
         BuiltinCli.Builtin.contents
-        StdLib.contents
+        Builtin.contents
         BuiltinCliHost.Builtin.contents
         BuiltinCloudExecution.Builtin.contents
         TestUtils.LibTest.contents ]

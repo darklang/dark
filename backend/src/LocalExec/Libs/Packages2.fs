@@ -15,7 +15,7 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 let packageManager = LibCloud.PackageManager.packageManager
 
 let resolver : LibParser.NameResolver.NameResolver =
-  let stdlibResolver =
+  let builtinResolver =
     // CLEANUP we need a better way to determine what builtins should be
     // available to the name resolver, as this currently assumes builtins
     // from _all_ environments are available
@@ -46,7 +46,7 @@ let resolver : LibParser.NameResolver.NameResolver =
                 "parse"
                 0 ] }
 
-  LibParser.NameResolver.merge stdlibResolver thisResolver (Some packageManager)
+  LibParser.NameResolver.merge builtinResolver thisResolver (Some packageManager)
 
 
 
