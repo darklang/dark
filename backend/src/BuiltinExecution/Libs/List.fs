@@ -100,6 +100,7 @@ module DvalComparator =
 // Based on https://github.com/dotnet/runtime/blob/57bfe474518ab5b7cfe6bf7424a79ce3af9d6657/src/coreclr/tools/Common/Sorting/MergeSortCore.cs#L55
 module Sort =
 
+  exception InvalidSortComparator of int64
 
   type Comparer = Dval -> Dval -> Ply<int>
 
@@ -324,15 +325,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DList(vt, list) ] ->
-          try
-            list |> List.sortWith DvalComparator.compareDval |> Dval.list vt |> Ply
-          with _ ->
-            // TODO: we should prevent this as soon as the different types are added
-            // Ideally we'd catch the exception thrown during comparison but the sort
-            // catches it so we lose the error message
-            Dval.errStr
-              "List.sort: Unable to sort list, perhaps the list elements are different types"
-            |> Ply
+          list |> List.sortWith DvalComparator.compareDval |> Dval.list vt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -358,31 +351,23 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DList(vt, list); DFnVal b ] ->
           uply {
-            try
-              let fn dv =
-                let args = NEList.singleton dv
-                Interpreter.applyFnVal state 0UL b [] args
-              let! withKeys =
-                list
-                |> Ply.List.mapSequentially (fun v ->
-                  uply {
-                    let! key = fn v
-                    return (key, v)
-                  })
+            let fn dv =
+              let args = NEList.singleton dv
+              Interpreter.applyFnVal state 0UL b [] args
+            let! withKeys =
+              list
+              |> Ply.List.mapSequentially (fun v ->
+                uply {
+                  let! key = fn v
+                  return (key, v)
+                })
 
-              return
-                withKeys
-                |> List.sortWith (fun (k1, _) (k2, _) ->
-                  DvalComparator.compareDval k1 k2)
-                |> List.map snd
-                |> Dval.list vt
-            with _ ->
-              // TODO: we should prevent this as soon as the different types are added
-              // Ideally we'd catch the exception thrown during comparison but the sort
-              // catches it so we lose the error message
-              return
-                Dval.errStr
-                  "List.sortBy: Unable to sort list, perhaps the list elements are different types"
+            return
+              withKeys
+              |> List.sortWith (fun (k1, _) (k2, _) ->
+                DvalComparator.compareDval k1 k2)
+              |> List.map snd
+              |> Dval.list vt
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -420,12 +405,10 @@ let fns : List<BuiltInFn> =
 
               match result with
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
-              | _ ->
-                return
-                  raiseString (
-                    // CLEANUP this yields pretty confusing error messages
-                    Errors.expectedLambdaValue "fn" "-1, 0, 1" result
-                  )
+              | DInt i -> return raise (Sort.InvalidSortComparator i)
+              | v ->
+                // CLEANUP this yields pretty confusing error messages
+                return raiseString (Errors.expectedLambdaValue "fn" "-1, 0, 1" v)
             }
 
           uply {
@@ -433,8 +416,10 @@ let fns : List<BuiltInFn> =
               let array = List.toArray list
               do! Sort.sort fn array
               return array |> Array.toList |> Dval.list vt |> Dval.resultOk
-            with e ->
-              return Dval.resultError (DString e.Message)
+            with Sort.InvalidSortComparator i ->
+              // CLEANUP this yields pretty confusing error messages
+              let message = Errors.expectedLambdaValue "fn" "-1, 0, 1" (DInt i)
+              return Dval.resultError (DString message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
