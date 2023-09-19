@@ -210,6 +210,9 @@ let rec eval
 
   uply {
     match e with
+    | EString(_, [ StringText s ]) ->
+      // We expect strings to be normalized during parsing
+      return DString(s)
     | EString(id, segments) ->
       let! segments =
         segments

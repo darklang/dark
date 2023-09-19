@@ -193,7 +193,8 @@ module MatchPattern =
     | SynPat.Const(SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
       WT.MPFloat(id, sign, whole, fraction)
-    | SynPat.Const(SynConst.String(s, _, _), _) -> WT.MPString(id, s)
+    | SynPat.Const(SynConst.String(s, _, _), _) ->
+      WT.MPString(id, String.normalize s)
     | SynPat.LongIdent(SynLongIdent(names, _, _), _, _, SynArgPats.Pats args, _, _) ->
       let enumName =
         List.last names |> Exception.unwrapOptionInternal "missing enum name" []
@@ -319,13 +320,14 @@ module Expr =
 
     // Strings
     | SynExpr.Const(SynConst.String(s, _, _), _) ->
-      WT.EString(id, [ WT.StringText s ])
+      WT.EString(id, [ WT.StringText(String.normalize s) ])
     | SynExpr.InterpolatedString(parts, _, _) ->
       let parts =
         parts
         |> List.filterMap (function
           | SynInterpolatedStringPart.String("", _) -> None
-          | SynInterpolatedStringPart.String(s, _) -> Some(WT.StringText s)
+          | SynInterpolatedStringPart.String(s, _) ->
+            Some(WT.StringText(String.normalize s))
           | SynInterpolatedStringPart.FillExpr(e, _) ->
             Some(WT.StringInterpolation(c e)))
       WT.EString(id, parts)
