@@ -3,6 +3,7 @@ module LibExecution.ProgramTypesToDarkTypes
 open Prelude
 
 open RuntimeTypes
+module VT = ValueType
 module PT = ProgramTypes
 module NRE = LibExecution.NameResolutionError
 module D = LibExecution.DvalDecoder
@@ -63,7 +64,7 @@ module FQName =
     let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.BuiltIn<'name>) : Dval =
       Dval.record
         (ptTyp [ "FQName" ] "BuiltIn" 0)
-        [ "modules", Dval.list valueTypeTODO (List.map DString u.modules)
+        [ "modules", Dval.list VT.unknownTODO (List.map DString u.modules)
           "name", nameMapper u.name
           "version", DInt u.version ]
 
@@ -280,19 +281,19 @@ module TypeReference =
 
       | PT.TTuple(first, second, theRest) ->
         "TTuple",
-        [ toDT first; toDT second; Dval.list valueTypeTODO (List.map toDT theRest) ]
+        [ toDT first; toDT second; Dval.list VT.unknownTODO (List.map toDT theRest) ]
 
       | PT.TDict inner -> "TDict", [ toDT inner ]
 
       | PT.TCustomType(typeName, typeArgs) ->
         "TCustomType",
         [ NameResolution.toDT TypeName.toDT typeName
-          Dval.list valueTypeTODO (List.map toDT typeArgs) ]
+          Dval.list VT.unknownTODO (List.map toDT typeArgs) ]
 
       | PT.TDB inner -> "TDB", [ toDT inner ]
       | PT.TFn(args, ret) ->
         "TFn",
-        [ Dval.list valueTypeTODO (args |> NEList.toList |> List.map toDT)
+        [ Dval.list VT.unknownTODO (args |> NEList.toList |> List.map toDT)
           toDT ret ]
 
     let typeName = ptTyp [] "TypeReference" 0
@@ -342,7 +343,7 @@ module LetPattern =
         [ DInt(int64 id)
           toDT first
           toDT second
-          Dval.list valueTypeTODO (List.map toDT theRest) ]
+          Dval.list VT.unknownTODO (List.map toDT theRest) ]
 
     let typeName = ptTyp [] "LetPattern" 0
     Dval.enum typeName typeName caseName fields
@@ -374,7 +375,7 @@ module MatchPattern =
       | PT.MPString(id, s) -> "MPString", [ DInt(int64 id); DString s ]
 
       | PT.MPList(id, inner) ->
-        "MPList", [ DInt(int64 id); Dval.list valueTypeTODO (List.map toDT inner) ]
+        "MPList", [ DInt(int64 id); Dval.list VT.unknownTODO (List.map toDT inner) ]
       | PT.MPListCons(id, head, tail) ->
         "MPListCons", [ DInt(int64 id); toDT head; toDT tail ]
       | PT.MPTuple(id, first, second, theRest) ->
@@ -382,12 +383,12 @@ module MatchPattern =
         [ DInt(int64 id)
           toDT first
           toDT second
-          Dval.list valueTypeTODO (List.map toDT theRest) ]
+          Dval.list VT.unknownTODO (List.map toDT theRest) ]
       | PT.MPEnum(id, caseName, fieldPats) ->
         "MPEnum",
         [ DInt(int64 id)
           DString caseName
-          Dval.list valueTypeTODO (List.map toDT fieldPats) ]
+          Dval.list VT.unknownTODO (List.map toDT fieldPats) ]
 
     let typeName = ptTyp [] "MatchPattern" 0
     Dval.enum typeName typeName caseName fields
@@ -514,14 +515,14 @@ module PipeExpr =
         "EPipeVariable",
         [ DInt(int64 id)
           DString varName
-          Dval.list valueTypeTODO (List.map exprToDT exprs) ]
+          Dval.list VT.unknownTODO (List.map exprToDT exprs) ]
       | PT.EPipeLambda(id, args, body) ->
         let variables =
           args
           |> NEList.toList
           |> List.map (fun (id, varName) ->
             DTuple(DInt(int64 id), DString varName, []))
-          |> Dval.list valueTypeTODO
+          |> Dval.list VT.unknownTODO
 
         "EPipeLambda", [ DInt(int64 id); variables; exprToDT body ]
 
@@ -533,15 +534,15 @@ module PipeExpr =
         "EPipeFnCall",
         [ DInt(int64 id)
           NameResolution.toDT FnName.toDT fnName
-          Dval.list valueTypeTODO (List.map TypeReference.toDT typeArgs)
-          Dval.list valueTypeTODO (List.map exprToDT args) ]
+          Dval.list VT.unknownTODO (List.map TypeReference.toDT typeArgs)
+          Dval.list VT.unknownTODO (List.map exprToDT args) ]
 
       | PT.EPipeEnum(id, typeName, caseName, fields) ->
         "EPipeEnum",
         [ DInt(int64 id)
           NameResolution.toDT TypeName.toDT typeName
           DString caseName
-          Dval.list valueTypeTODO (List.map exprToDT fields) ]
+          Dval.list VT.unknownTODO (List.map exprToDT fields) ]
 
     let typeName = ptTyp [] "PipeExpr" 0
     Dval.enum typeName typeName caseName fields
@@ -607,17 +608,17 @@ module Expr =
       | PT.EString(id, segments) ->
         "EString",
         [ DInt(int64 id)
-          Dval.list valueTypeTODO (List.map (StringSegment.toDT toDT) segments) ]
+          Dval.list VT.unknownTODO (List.map (StringSegment.toDT toDT) segments) ]
 
       // structures of data
       | PT.EList(id, inner) ->
-        "EList", [ DInt(int64 id); Dval.list valueTypeTODO (List.map toDT inner) ]
+        "EList", [ DInt(int64 id); Dval.list VT.unknownTODO (List.map toDT inner) ]
 
       | PT.EDict(id, pairs) ->
         "EDict",
         [ DInt(int64 id)
           Dval.list
-            valueTypeTODO
+            VT.unknownTODO
             (List.map (fun (k, v) -> DTuple(DString k, toDT v, [])) pairs) ]
 
       | PT.ETuple(id, first, second, theRest) ->
@@ -625,7 +626,7 @@ module Expr =
         [ DInt(int64 id)
           toDT first
           toDT second
-          Dval.list valueTypeTODO (List.map toDT theRest) ]
+          Dval.list VT.unknownTODO (List.map toDT theRest) ]
 
       | PT.ERecord(id, name, fields) ->
         let fields =
@@ -635,14 +636,14 @@ module Expr =
         "ERecord",
         [ DInt(int64 id)
           NameResolution.toDT TypeName.toDT name
-          Dval.list valueTypeTODO (fields) ]
+          Dval.list VT.unknownTODO (fields) ]
 
       | PT.EEnum(id, typeName, caseName, fields) ->
         "EEnum",
         [ DInt(int64 id)
           NameResolution.toDT TypeName.toDT typeName
           DString caseName
-          Dval.list valueTypeTODO (List.map toDT fields) ]
+          Dval.list VT.unknownTODO (List.map toDT fields) ]
 
       // declaring and accessing variables
       | PT.ELet(id, lp, expr, body) ->
@@ -665,13 +666,13 @@ module Expr =
           |> List.map (fun (pattern, expr) ->
             DTuple(MatchPattern.toDT pattern, toDT expr, []))
 
-        "EMatch", [ DInt(int64 id); toDT arg; Dval.list valueTypeTODO (cases) ]
+        "EMatch", [ DInt(int64 id); toDT arg; Dval.list VT.unknownTODO (cases) ]
 
       | PT.EPipe(id, expr, pipeExprs) ->
         "EPipe",
         [ DInt(int64 id)
           toDT expr
-          Dval.list valueTypeTODO (List.map (PipeExpr.toDT toDT) pipeExprs) ]
+          Dval.list VT.unknownTODO (List.map (PipeExpr.toDT toDT) pipeExprs) ]
 
 
       // function calls
@@ -684,7 +685,7 @@ module Expr =
           |> NEList.toList
           |> List.map (fun (id, varName) ->
             DTuple(DInt(int64 id), DString varName, []))
-          |> Dval.list valueTypeTODO
+          |> Dval.list VT.unknownTODO
 
         "ELambda", [ DInt(int64 id); variables; toDT body ]
 
@@ -695,8 +696,8 @@ module Expr =
         "EApply",
         [ DInt(int64 id)
           toDT name
-          Dval.list valueTypeTODO (List.map TypeReference.toDT typeArgs)
-          Dval.list valueTypeTODO (args |> NEList.toList |> List.map toDT) ]
+          Dval.list VT.unknownTODO (List.map TypeReference.toDT typeArgs)
+          Dval.list VT.unknownTODO (args |> NEList.toList |> List.map toDT) ]
 
       | PT.EFnName(id, name) ->
         "EFnName", [ DInt(int64 id); NameResolution.toDT FnName.toDT name ]
@@ -708,7 +709,7 @@ module Expr =
           |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
 
         "ERecordUpdate",
-        [ DInt(int64 id); toDT record; Dval.list valueTypeTODO (updates) ]
+        [ DInt(int64 id); toDT record; Dval.list VT.unknownTODO (updates) ]
 
     let typeName = ptTyp [] "Expr" 0
     Dval.enum typeName typeName caseName fields
@@ -851,18 +852,18 @@ module Const =
       | PT.Const.CUnit -> "CUnit", []
       | PT.Const.CTuple(first, second, rest) ->
         "CTuple",
-        [ toDT first; toDT second; Dval.list valueTypeTODO (List.map toDT rest) ]
+        [ toDT first; toDT second; Dval.list VT.unknownTODO (List.map toDT rest) ]
       | PT.Const.CEnum(typeName, caseName, fields) ->
         "CEnum",
         [ NameResolution.toDT TypeName.toDT typeName
           DString caseName
-          Dval.list valueTypeTODO (List.map toDT fields) ]
+          Dval.list VT.unknownTODO (List.map toDT fields) ]
       | PT.Const.CList(inner) ->
-        "CList", [ Dval.list valueTypeTODO (List.map toDT inner) ]
+        "CList", [ Dval.list VT.unknownTODO (List.map toDT inner) ]
       | PT.Const.CDict(pairs) ->
         "CDict",
         [ Dval.list
-            valueTypeTODO
+            VT.unknownTODO
             (pairs |> List.map (fun (k, v) -> DTuple(DString k, toDT v, []))) ]
     let typeName = ptTyp [] "Const" 0
     Dval.enum typeName typeName caseName fields
@@ -983,7 +984,7 @@ module TypeDeclaration =
       Dval.record
         (ptTyp [ "TypeDeclaration" ] "EnumCase" 0)
         [ "name", DString ec.name
-          "fields", Dval.list valueTypeTODO (List.map EnumField.toDT ec.fields)
+          "fields", Dval.list VT.unknownTODO (List.map EnumField.toDT ec.fields)
           "description", DString ec.description ]
 
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumCase =
@@ -1009,14 +1010,14 @@ module TypeDeclaration =
           [ fields
             |> NEList.toList
             |> List.map RecordField.toDT
-            |> Dval.list valueTypeTODO ]
+            |> Dval.list VT.unknownTODO ]
 
         | PT.TypeDeclaration.Enum cases ->
           "Enum",
           [ cases
             |> NEList.toList
             |> List.map EnumCase.toDT
-            |> Dval.list valueTypeTODO ]
+            |> Dval.list VT.unknownTODO ]
 
       let typeName = ptTyp [ "TypeDeclaration" ] "Definition" 0
       Dval.enum typeName typeName caseName fields
@@ -1040,7 +1041,7 @@ module TypeDeclaration =
   let toDT (td : PT.TypeDeclaration.T) : Dval =
     Dval.record
       (ptTyp [ "TypeDeclaration" ] "TypeDeclaration" 0)
-      [ "typeParams", Dval.list valueTypeTODO (List.map DString td.typeParams)
+      [ "typeParams", Dval.list VT.unknownTODO (List.map DString td.typeParams)
         "definition", Definition.toDT td.definition ]
 
   let fromDT (d : Dval) : PT.TypeDeclaration.T =
@@ -1199,10 +1200,10 @@ module UserFunction =
       (ptTyp [ "UserFunction" ] "UserFunction" 0)
       [ "tlid", DInt(int64 userFn.tlid)
         "name", FnName.UserProgram.toDT userFn.name
-        "typeParams", Dval.list valueTypeTODO (List.map DString userFn.typeParams)
+        "typeParams", Dval.list VT.unknownTODO (List.map DString userFn.typeParams)
         "parameters",
         Dval.list
-          valueTypeTODO
+          VT.unknownTODO
           (userFn.parameters |> NEList.toList |> List.map Parameter.toDT)
         "returnType", TypeReference.toDT userFn.returnType
         "body", Expr.toDT userFn.body
@@ -1343,10 +1344,10 @@ module PackageFn =
         "id", DUuid p.id
         "name", FnName.Package.toDT p.name
         "body", Expr.toDT p.body
-        "typeParams", Dval.list valueTypeTODO (List.map DString p.typeParams)
+        "typeParams", Dval.list VT.unknownTODO (List.map DString p.typeParams)
         "parameters",
         Dval.list
-          valueTypeTODO
+          VT.unknownTODO
           (p.parameters |> NEList.toList |> List.map Parameter.toDT)
         "returnType", TypeReference.toDT p.returnType
         "description", DString p.description

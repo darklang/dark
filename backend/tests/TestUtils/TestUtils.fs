@@ -13,6 +13,7 @@ open Prelude
 
 module DarkDateTime = LibExecution.DarkDateTime
 module RT = LibExecution.RuntimeTypes
+module VT = RT.ValueType
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
@@ -985,7 +986,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0,
        S.fqUserTypeName [ "Two"; "Modules" ] "FooAlias" 0,
-       valueTypesTODO,
+       VT.uknownTypeArgsTODO,
        Map.ofList [ "foo", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0), []))
@@ -993,7 +994,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "FooAlias" 0,
-       valueTypesTODO,
+       VT.uknownTypeArgsTODO,
        Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1001,7 +1002,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       valueTypesTODO,
+       VT.uknownTypeArgsTODO,
        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1010,7 +1011,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       valueTypesTODO,
+       VT.uknownTypeArgsTODO,
        Map.ofList [ "foo\\\\bar", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1018,17 +1019,17 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       valueTypesTODO,
+       VT.uknownTypeArgsTODO,
        Map.ofList [ "$type", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    ("dict", Dval.dict valueTypeTODO [ "foo", Dval.int 5 ], TDict TInt)
+    ("dict", Dval.dict VT.unknownTODO [ "foo", Dval.int 5 ], TDict TInt)
     ("dict3",
-     Dval.dict valueTypeTODO [ ("type", DString "weird"); ("value", DString "x") ],
+     Dval.dict VT.unknownTODO [ ("type", DString "weird"); ("value", DString "x") ],
      TDict TString)
     // More Json.NET tests
-    ("dict4", Dval.dict valueTypeTODO [ "foo\\\\bar", Dval.int 5 ], TDict TInt)
-    ("dict5", Dval.dict valueTypeTODO [ "$type", Dval.int 5 ], TDict TInt)
+    ("dict4", Dval.dict VT.unknownTODO [ "foo\\\\bar", Dval.int 5 ], TDict TInt)
+    ("dict5", Dval.dict VT.unknownTODO [ "$type", Dval.int 5 ], TDict TInt)
     ("lambda",
      DFnVal(
        Lambda

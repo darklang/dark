@@ -8,6 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
 module Dval = LibExecution.Dval
 module Errors = LibExecution.Errors
 module Interpreter = LibExecution.Interpreter
@@ -67,7 +68,7 @@ let fns : List<BuiltInFn> =
             | DList(_vtTODO, l) -> List.append acc l
             | _ -> raiseString "Flattening non-lists"
 
-          List.fold f [] l |> Dval.list valueTypeTODO |> Ply
+          List.fold f [] l |> Dval.list VT.unknownTODO |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

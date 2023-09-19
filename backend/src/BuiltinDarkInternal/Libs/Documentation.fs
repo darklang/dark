@@ -8,6 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
 module Dval = LibExecution.Dval
 
 let modules = [ "DarkInternal"; "Documentation" ]
@@ -76,10 +77,10 @@ let fns : List<BuiltInFn> =
                       ("type", DString(typeNameToStr p.typ)) ])
               [ ("name", DString(FnName.builtinToString key))
                 ("description", DString data.description)
-                ("parameters", Dval.list valueTypeTODO parameters)
+                ("parameters", Dval.list VT.unknownTODO parameters)
                 ("returnType", DString returnType) ]
             Dval.record typeName alist)
-          |> Dval.list valueTypeTODO
+          |> Dval.list VT.unknownTODO
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

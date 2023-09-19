@@ -5,6 +5,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
 module Dval = LibExecution.Dval
 module Errors = LibExecution.Errors
 
@@ -110,7 +111,7 @@ let fns : List<BuiltInFn> =
             let! items = UserDB.getMany state db skeys
 
             if List.length items = List.length skeys then
-              return items |> Dval.list valueTypeDbTODO |> Dval.optionSome
+              return items |> Dval.list VT.unknownDbTODO |> Dval.optionSome
             else
               return Dval.optionNone
           }
@@ -140,7 +141,7 @@ let fns : List<BuiltInFn> =
                 keys
 
             let! result = UserDB.getMany state db skeys
-            return result |> Dval.list valueTypeDbTODO
+            return result |> Dval.list VT.unknownDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -168,7 +169,7 @@ let fns : List<BuiltInFn> =
                 keys
 
             let! result = UserDB.getManyWithKeys state db skeys
-            return Dval.dict valueTypeDbTODO result
+            return Dval.dict VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -225,7 +226,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAll state db
-            return results |> List.map snd |> Dval.list valueTypeDbTODO
+            return results |> List.map snd |> Dval.list VT.unknownDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -245,7 +246,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getAll state db
-            return Dval.dict valueTypeDbTODO result
+            return Dval.dict VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -321,7 +322,7 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! results = UserDB.queryValues state db b
               match results with
-              | Ok results -> return results |> Dval.list valueTypeDbTODO
+              | Ok results -> return results |> Dval.list VT.unknownDbTODO
               | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
@@ -346,7 +347,7 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! results = UserDB.query state db b
               match results with
-              | Ok results -> return Dval.dict valueTypeDbTODO results
+              | Ok results -> return Dval.dict VT.unknownDbTODO results
               | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e

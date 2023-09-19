@@ -10,6 +10,7 @@ open LibExecution.Builtin.Shortcuts
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module VT = RT.ValueType
 module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
@@ -50,7 +51,7 @@ module CliRuntimeError =
 
           | MultipleExpressionsToExecute exprs ->
             "MultipleExpressionsToExecute",
-            [ "exprs", Dval.list valueTypeTODO (List.map DString exprs) ]
+            [ "exprs", Dval.list VT.unknownTODO (List.map DString exprs) ]
 
           | NonIntReturned actuallyReturned ->
             "NonIntReturned",
@@ -213,7 +214,7 @@ let fns : List<BuiltInFn> =
                 Dval.record
                   (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
                   [ "msg", DString msg
-                    "metadata", Dval.dict valueTypeTODO metadata ]
+                    "metadata", Dval.dict VT.unknownTODO metadata ]
               )
 
             let exnError (e : exn) : Dval =

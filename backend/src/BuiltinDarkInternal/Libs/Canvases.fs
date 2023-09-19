@@ -8,6 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module Canvas = LibCloud.Canvas
@@ -179,14 +180,14 @@ let fns : List<BuiltInFn> =
               |> Map.values
               |> Seq.toList
               |> List.map PT2DT.UserType.toDT
-              |> Dval.list valueTypeTODO
+              |> Dval.list VT.unknownTODO
 
             let fns =
               canvas.userFunctions
               |> Map.values
               |> Seq.toList
               |> List.map PT2DT.UserFunction.toDT
-              |> Dval.list valueTypeTODO
+              |> Dval.list VT.unknownTODO
 
             // let dbs =
             //   Map.values canvas.dbs
@@ -194,7 +195,7 @@ let fns : List<BuiltInFn> =
             //   |> List.map (fun db ->
             //     [ "tlid", DString(db.tlid.ToString()); "name", DString db.name ]
             //     |> Dval.dict)
-            //   |> Dval.list valueTypeTODO
+            //   |> Dval.list VT.unknownTODO
 
             // let httpHandlers =
             //   Map.values canvas.handlers
@@ -210,7 +211,7 @@ let fns : List<BuiltInFn> =
             //         "route", DString route ]
             //       |> Dval.dict
             //       |> Some)
-            //   |> Dval.list valueTypeTODO
+            //   |> Dval.list VT.unknownTODO
 
             return
               Dval.record

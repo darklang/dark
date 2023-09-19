@@ -7,6 +7,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 
+module VT = ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
@@ -54,7 +55,7 @@ let fns : List<BuiltInFn> =
             |> Seq.cast<System.Collections.DictionaryEntry>
             |> Seq.map (fun kv -> (string kv.Key, DString(string kv.Value)))
             |> Seq.toList
-            |> Dval.dict valueTypeTODO
+            |> Dval.dict VT.unknownTODO
 
           Ply(envMap)
         | _ -> incorrectArgs ())

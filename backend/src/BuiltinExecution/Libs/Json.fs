@@ -7,6 +7,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module DarkDateTime = LibExecution.DarkDateTime
+module VT = ValueType
 module Dval = LibExecution.Dval
 
 
@@ -387,7 +388,7 @@ let parse
       |> Seq.mapi (fun i v -> convert nested (JsonPath.Index i :: pathSoFar) v)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (Dval.list valueTypeTODO)
+      |> Ply.map (Dval.list VT.unknownTODO)
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let values = j.EnumerateArray() |> Seq.toList
@@ -414,7 +415,7 @@ let parse
         })
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (Dval.dict valueTypeTODO)
+      |> Ply.map (Dval.dict VT.unknownTODO)
 
     | TCustomType(Ok typeName, typeArgs), jsonValueKind ->
       uply {
@@ -506,7 +507,7 @@ let parse
               |> Ply.List.flatten
               |> Ply.map Map.ofList
 
-            return DRecord(typeName, typeName, valueTypesTODO, fields)
+            return DRecord(typeName, typeName, VT.uknownTypeArgsTODO, fields)
       }
 
 

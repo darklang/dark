@@ -7,6 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
 module Dval = LibExecution.Dval
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Telemetry = LibService.Telemetry
@@ -48,7 +49,7 @@ let fns : List<BuiltInFn> =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides. Returns its input"
       fn =
         (function
-        | _, _, [ DString level; DString name; DDict(_valueTypeTODO, log) as result ] ->
+        | _, _, [ DString level; DString name; DDict(_typeArgsTODO, log) as result ] ->
           let args =
             log
             |> Map.toList
@@ -107,7 +108,7 @@ human-readable data."
                    ("diskHuman", DString ts.diskHuman)
                    ("rowsHuman", DString ts.rowsHuman) ]
                  |> Dval.record typeName))
-              |> Dval.dict valueTypeTODO
+              |> Dval.dict VT.unknownTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -7,6 +7,7 @@ open FSharp.Control.Tasks.Affine.Unsafe
 
 open Prelude
 open RuntimeTypes
+module VT = ValueType
 
 /// Gathers any global data (Secrets, DBs, etc.)
 /// that may be needed to evaluate an expression
@@ -287,7 +288,7 @@ let rec eval
 
     | EList(_id, exprs) ->
       let! results = Ply.List.mapSequentially (eval state tst st) exprs
-      return Dval.list valueTypeTODO results
+      return Dval.list VT.unknownTODO results
 
 
     | ETuple(_id, first, second, theRest) ->
@@ -332,11 +333,16 @@ let rec eval
                     match! check with
                     | Ok() ->
                       return
-                        DRecord(typeName, original, valueTypesTODO, Map.add k v m)
+                        DRecord(
+                          typeName,
+                          original,
+                          VT.uknownTypeArgsTODO,
+                          Map.add k v m
+                        )
                     | Error e -> return err id e
                 | _ -> return errStr id "Expected a record in typecheck"
             })
-          (DRecord(aliasTypeName, typeName, valueTypesTODO, Map.empty)) // use the alias name here
+          (DRecord(aliasTypeName, typeName, VT.uknownTypeArgsTODO, Map.empty)) // use the alias name here
       match result with
       | DRecord(_, _, _valueTypesTODO, fields) ->
         if Map.count fields = Map.count expectedFields then
@@ -353,6 +359,7 @@ let rec eval
       | DRecord(typeName, _, _valueTypesTODO, _) ->
         let typeStr = TypeName.toString typeName
         let types = ExecutionState.availableTypes state
+
         let! (_, _, expected) = recordMaybe types typeName
         let expectedFields = Map expected
         return!
@@ -372,8 +379,14 @@ let rec eval
                     TypeChecker.RecordField(typeName, k, fieldType, None)
                   match! TypeChecker.unify context types Map.empty fieldType v with
                   | Ok() ->
+
                     return
-                      DRecord(typeName, original, valueTypesTODO, Map.add k v m)
+                      DRecord(
+                        typeName,
+                        original,
+                        VT.uknownTypeArgsTODO,
+                        Map.add k v m
+                      )
                   | Error rte -> return raiseRTE (SourceID(state.tlid, id)) rte
                 | _ ->
                   return

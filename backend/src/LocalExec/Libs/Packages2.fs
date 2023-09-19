@@ -6,9 +6,9 @@ open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
-
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
 module Dval = LibExecution.Dval
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
@@ -81,9 +81,9 @@ let fns : List<BuiltInFn> =
               Dval.resultOk (
                 Dval.record
                   (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0))
-                  [ ("fns", Dval.list valueTypeTODO packagesFns)
-                    ("types", Dval.list valueTypeTODO packagesTypes)
-                    ("constants", Dval.list valueTypeTODO packagesConstants) ]
+                  [ ("fns", Dval.list VT.unknownTODO packagesFns)
+                    ("types", Dval.list VT.unknownTODO packagesTypes)
+                    ("constants", Dval.list VT.unknownTODO packagesConstants) ]
               )
           }
         | _ -> incorrectArgs ()

@@ -5,6 +5,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Errors = LibExecution.Errors
+module VT = ValueType
 module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
@@ -518,7 +519,7 @@ let fns : List<BuiltInFn> =
               }
 
             let! result = Ply.List.filterMapSequentially f l
-            return Dval.list valueTypeTODO result
+            return Dval.list VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -554,7 +555,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state 0UL b [] args)
                 list
 
-            return Dval.list valueTypeTODO result
+            return Dval.list VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -601,7 +602,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state 0UL b [] args)
                 list
 
-            return Dval.list valueTypeTODO result
+            return Dval.list VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -648,7 +649,7 @@ let fns : List<BuiltInFn> =
                     Interpreter.applyFnVal state 0UL b [] args)
                   list
 
-              return Dval.optionSome (Dval.list valueTypeTODO result)
+              return Dval.optionSome (Dval.list VT.unknownTODO result)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -718,8 +719,8 @@ let fns : List<BuiltInFn> =
               |> Seq.toList
               |> List.map (fun (key, elementsWithKey) ->
                 let elements = Seq.map snd elementsWithKey |> Seq.toList
-                DTuple(key, Dval.list valueTypeTODO elements, []))
-              |> Dval.list valueTypeTODO
+                DTuple(key, Dval.list VT.unknownTODO elements, []))
+              |> Dval.list VT.unknownTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
