@@ -853,14 +853,12 @@ and execFn
                 try
                   return! f (state, typeArgs, NEList.toList args)
                 with e ->
-                  // TODO: IncorrectArgs - should be an internal error now
-                  // Code exceptions - should be RTE or internal error
-                  let context : Metadata =
-                    [ "fn", fnDesc; "args", args; "typeArgs", typeArgs; "id", id ]
                   match e with
                   | RuntimeErrorException(source, rte) -> return Exception.reraise e
                   | e ->
                     // TODO could we show the user the execution id here?
+                    let context : Metadata =
+                      [ "fn", fnDesc; "args", args; "typeArgs", typeArgs; "id", id ]
                     state.reportException state context e
                     // These are arbitrary errors, and could include sensitive
                     // information, so best not to show it to the user. If we'd
