@@ -50,7 +50,6 @@ let rec dvalToSql
   : Ply<SqlValue * TypeReference> =
   uply {
     match expectedType, dval with
-    | _, DError _ -> return Errors.foundFakeDval dval
     | _, DFnVal _
     | _, DDB _
     | _, DDict _ // CLEANUP allow

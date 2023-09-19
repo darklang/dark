@@ -266,10 +266,7 @@ let fns : List<BuiltInFn> =
                     match! Interpreter.applyFnVal state 0UL b [] args with
                     | DUnit -> return ()
                     | dv ->
-                      if Dval.isFake dv then
-                        Errors.foundFakeDval dv
-                      else
-                        Exception.raiseCode (Errors.resultWasntType TUnit dv)
+                      Exception.raiseCode (Errors.resultWasntType TUnit dv)
                   })
                 list
             return DUnit

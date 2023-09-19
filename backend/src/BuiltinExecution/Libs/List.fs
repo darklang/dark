@@ -36,9 +36,6 @@ module DvalComparator =
       else
         c
 
-    | DError _, DError _ ->
-      Exception.raiseInternal "We should not be trying to compare DErrors" []
-
     | DDB name1, DDB name2 -> compare name1 name2
     | DDateTime dt1, DDateTime dt2 -> compare dt1 dt2
     | DUuid u1, DUuid u2 -> compare u1 u2
@@ -65,7 +62,6 @@ module DvalComparator =
     | DList _, _
     | DTuple _, _
     | DFnVal _, _
-    | DError _, _
     | DDB _, _
     | DDateTime _, _
     | DUuid _, _
@@ -424,7 +420,6 @@ let fns : List<BuiltInFn> =
 
               match result with
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
-              | dv when Dval.isFake dv -> return Errors.foundFakeDval dv
               | _ ->
                 return
                   Exception.raiseCode (
@@ -437,11 +432,9 @@ let fns : List<BuiltInFn> =
             try
               let array = List.toArray list
               do! Sort.sort fn array
-              // CLEANUP: check fakevals
               return array |> Array.toList |> Dval.list vt |> Dval.resultOk
-            with
-            | Errors.FakeDvalFound dv -> return dv
-            | e -> return Dval.resultError (DString e.Message)
+            with e ->
+              return Dval.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -462,7 +455,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DList(vt1, l1); DList(vt2, l2) ] ->
           // VTTODO should fail here in the case of vt1 conflicting with vt2?
           // (or is this handled by the interpreter?)
-          Ply(Dval.list vt1 (List.append l1 l2)) // no checking for DError required
+          Ply(Dval.list vt1 (List.append l1 l2))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -566,9 +559,6 @@ let fns : List<BuiltInFn> =
                           _,
                           "None",
                           []) -> return None
-                  | (DError _) as dv ->
-                    abortReason.Value <- Some dv
-                    return None
                   | v ->
                     return
                       Exception.raiseCode (
@@ -776,21 +766,14 @@ let fns : List<BuiltInFn> =
                   })
                 l
 
-            let badKey = List.tryFind (fun (k, _) -> Dval.isFake k) result
-
-            match badKey with
-            | Some(key, _) -> return key
-            | None ->
-              let groups =
-                result
-                |> Seq.groupBy fst
-                |> Seq.toList
-                |> List.map (fun (key, elementsWithKey) ->
-                  let elements = Seq.map snd elementsWithKey |> Seq.toList
-                  DTuple(key, Dval.list valueTypeTODO elements, []))
-                |> Dval.list valueTypeTODO
-
-              return groups
+            return
+              result
+              |> Seq.groupBy fst
+              |> Seq.toList
+              |> List.map (fun (key, elementsWithKey) ->
+                let elements = Seq.map snd elementsWithKey |> Seq.toList
+                DTuple(key, Dval.list valueTypeTODO elements, []))
+              |> Dval.list valueTypeTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

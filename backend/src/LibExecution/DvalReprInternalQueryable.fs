@@ -407,5 +407,4 @@ module Test =
 
     // Maybe never support
     | DFnVal _
-    | DError _
     | DDB _ -> false

@@ -14,12 +14,7 @@ open RuntimeTypes
 /// Standard error raised for calling a function with arguments of an incorrect type
 exception IncorrectArgs
 
-/// When we encounter a fakeDval, this exception allows us to jump out of the
-/// computation immediately, and the caller can return the dval. This is useful
-/// for jumping out of folds and other complicated constructs.
-exception FakeDvalFound of Dval
 // CLEANUP add word 'exception' to exception names
-
 
 // ------------------
 // Messages
@@ -94,31 +89,3 @@ let incorrectArgsMsg (name : FnName.FnName) (p : Param) (actual : Dval) : string
   $"{FnName.toString name} was expected to be called with a `{expectedTypeRepr}`"
   + $" in {p.name}, but was actually called with {actualRepr}"
   + conversionMsg
-
-let incorrectArgsToDError (source : DvalSource) (fn : Fn) (argList : NEList<Dval>) =
-  let paramLength = NEList.length fn.parameters
-  let argLength = NEList.length argList
-
-  if paramLength <> argLength then
-    (Dval.errSStr
-      source
-      ($"{FnName.toString fn.name} has {paramLength} parameters,"
-       + $" but here was called with {argLength} arguments."))
-
-  else
-    let invalid =
-      NEList.zip fn.parameters argList
-      |> NEList.filter (fun (p, a) -> not (Dval.typeMatches p.typ a))
-
-    match invalid with
-    | [] ->
-      Dval.errSStr
-        source
-        $"unknown error calling {FnName.toString fn.name}, with args {argList} and params {fn.parameters}"
-    | (p, actual) :: _ ->
-      let msg = incorrectArgsMsg fn.name p actual
-      Dval.errSStr source msg
-
-
-/// When you have a fakeval, you typically just want to return it.
-let foundFakeDval (dv : Dval) : 'a = raise (FakeDvalFound dv)

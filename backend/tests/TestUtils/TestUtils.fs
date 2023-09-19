@@ -187,9 +187,9 @@ let executionStateFor
           fun tc _ ->
             // In an effort to find errors in the test suite, we track exceptions
             // that we report in the runtime and check for them after the test
-            // completes.  There are a lot of places where exceptions are allowed,
+            // completes. There are a lot of places where exceptions are allowed,
             // possibly too many to annotate, so we assume that errors are intended
-            // to be reported anytime the result is a DError.
+            // to be reported anytime the result is a RTE.
             let exceptionCountMatches =
               tc.exceptionReports.Length = tc.expectedExceptionCount
 
@@ -381,7 +381,6 @@ module Expect =
     | DFloat _
     | DUnit
     | DFnVal _
-    | DError _
     | DDB _
     | DUuid _
     | DBytes _
@@ -789,8 +788,6 @@ module Expect =
       List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) fields fields'
       ()
 
-    | DError(_, err1), DError(_, err2) ->
-      check path (RuntimeError.toDT err1) (RuntimeError.toDT err2)
     | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
       let vals l = NEList.map Tuple2.second l
       check ("lambdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
@@ -812,7 +809,6 @@ module Expect =
     | DUnit, _
     | DChar _, _
     | DFnVal _, _
-    | DError _, _
     | DDB _, _
     | DUuid _, _
     | DBytes _, _ -> check path actual expected
@@ -880,7 +876,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DUnit
     | DChar _
     | DFnVal _
-    | DError _
     | DDB _
     | DUuid _
     | DBytes _
@@ -888,9 +883,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     f dv
   visit dv
   state
-
-let containsFakeDval (dv : Dval) : bool =
-  dv |> visitDval RT.Dval.isFake |> List.any identity
 
 
 let interestingStrings : List<string * string> =

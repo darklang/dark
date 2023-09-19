@@ -885,9 +885,6 @@ module Dval =
 
       | DFnVal fnImpl -> "DFnVal", [ FnValImpl.toDT fnImpl ]
 
-      | DError(source, err) ->
-        "DError", [ DvalSource.toDT source; RuntimeError.toDT err ]
-
       | DDB name -> "DDB", [ DString name ]
 
       | DDict(vt, map) ->
@@ -926,9 +923,6 @@ module Dval =
       DTuple(fromDT first, fromDT second, List.map fromDT theRest)
 
     | DEnum(_, _, "DFnVal", [ fnImpl ]) -> DFnVal(FnValImpl.fromDT fnImpl)
-
-    | DEnum(_, _, "DError", [ source; err ]) ->
-      DError(DvalSource.fromDT source, RuntimeError.fromDT err)
 
     | DEnum(_, _, "DDB", [ DString name ]) -> DDB name
 

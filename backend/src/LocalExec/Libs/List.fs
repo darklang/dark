@@ -42,7 +42,6 @@ let fns : List<BuiltInFn> =
                   let args = NEList.singleton e
                   match! Interpreter.applyFnVal state 0UL b [] args with
                   | DUnit -> return ()
-                  | DError _ as dv -> return Errors.foundFakeDval dv
                   | v ->
                     Exception.raiseCode (Errors.expectedLambdaValue "fn" "unit" v)
                 })

@@ -65,7 +65,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
     // CLEANUP consider renaming to `oldError` or something more clear
-    // TODO remove this in favor of derror
     { name = fn "runtimeError" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]

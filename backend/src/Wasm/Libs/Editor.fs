@@ -101,7 +101,7 @@ let fns : List<BuiltInFn> =
                 | (Error err, _) -> Error err
                 | (Ok l, DString arg) -> Ok(arg :: l)
                 | (_, notAString) ->
-                  // CLEANUP this should be a DError, not a "normal" error
+                  // CLEANUP this should be an RTE, not a "normal" error
                   $"Expected args to be a `List<String>`, but got: {LibExecution.DvalReprDeveloper.toRepr notAString}"
                   |> Error)
               (Ok [])

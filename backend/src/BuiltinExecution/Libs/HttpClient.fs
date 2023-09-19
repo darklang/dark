@@ -384,7 +384,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     Ok((k, v) :: pairs)
 
                 | (_, notAPair) ->
-                  // this should be a DError, not a "normal" error
+                  // this should be an RTE, not a "normal" error
                   TypeMismatch
                     $"Expected request headers to be a `List<String*String>`, but got: {DvalReprDeveloper.toRepr notAPair}"
                   |> Error)

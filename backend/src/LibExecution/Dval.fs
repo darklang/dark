@@ -1,7 +1,4 @@
 /// Dvals should be created carefully:
-/// - to not have fakevals
-///  i.e. we should not have a list that contains a DError.
-///
 /// - to have the correct valueTypes, where appropriate
 ///  i.e. we should not have DList(Known KTInt, [ DString("hi") ])
 ///
@@ -165,8 +162,6 @@ let rec toValueType (dv : Dval) : ValueType =
   // CLEANUP follow up when DDB has a typeReference
   | DDB _ -> ValueType.Unknown
 
-  | DError _ -> Exception.raiseInternal "DError is being moved out of Dval" []
-
 
 
 let private listPush
@@ -185,21 +180,18 @@ let private listPush
     |> Error
 
 let list (initialType : ValueType) (list : List<Dval>) : Dval =
-  match List.find Dval.isFake list with
-  | Some fake -> fake
-  | None ->
-    let result =
-      List.fold
-        (fun acc dv ->
-          match acc with
-          | Ok(typ, dvs) -> listPush dvs typ dv
-          | Error e -> Error e)
-        (Ok(initialType, []))
-        (List.rev list)
+  let result =
+    List.fold
+      (fun acc dv ->
+        match acc with
+        | Ok(typ, dvs) -> listPush dvs typ dv
+        | Error e -> Error e)
+      (Ok(initialType, []))
+      (List.rev list)
 
-    match result with
-    | Ok(typ, dvs) -> DList(typ, dvs)
-    | Error e -> raiseUntargetedRTE e
+  match result with
+  | Ok(typ, dvs) -> DList(typ, dvs)
+  | Error e -> raiseUntargetedRTE e
 
 
 // CLEANUP it'd probably be better to consolidate the two `dict` fns
@@ -257,15 +249,12 @@ let enum
   (caseName : string)
   (fields : List<Dval>)
   : Dval =
-  match List.find Dval.isFake fields with
-  | Some v -> v
-  | None -> DEnum(resolvedTypeName, sourceTypeName, caseName, fields)
+  DEnum(resolvedTypeName, sourceTypeName, caseName, fields)
 
 
 let optionType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0
 
-let optionSome (dv : Dval) : Dval =
-  if Dval.isFake dv then dv else DEnum(optionType, optionType, "Some", [ dv ])
+let optionSome (dv : Dval) : Dval = DEnum(optionType, optionType, "Some", [ dv ])
 
 let optionNone : Dval = DEnum(optionType, optionType, "None", [])
 
@@ -278,10 +267,8 @@ let option (dv : Option<Dval>) : Dval =
 
 let resultType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0
 
-let resultOk (dv : Dval) : Dval =
-  if Dval.isFake dv then dv else DEnum(resultType, resultType, "Ok", [ dv ])
-let resultError (dv : Dval) : Dval =
-  if Dval.isFake dv then dv else DEnum(resultType, resultType, "Error", [ dv ])
+let resultOk (dv : Dval) : Dval = DEnum(resultType, resultType, "Ok", [ dv ])
+let resultError (dv : Dval) : Dval = DEnum(resultType, resultType, "Error", [ dv ])
 
 // Wraps in a Result after checking that the value is not a fakeval
 let result (dv : Result<Dval, Dval>) : Dval =

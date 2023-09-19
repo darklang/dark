@@ -488,8 +488,7 @@ and Expr =
 
   // A runtime error. This is included so that we can allow the program to run in the
   // presence of compile-time errors (which are converted to this error). We may
-  // adapt this to include more information as we go, possibly using a standard Error
-  // type (the same as used in DErrors and Results). This list of exprs is the
+  // adapt this to include more information as we go. This list of exprs is the
   // subexpressions to evaluate before evaluating the error.
   | EError of id * RuntimeError * List<Expr>
 
@@ -580,13 +579,6 @@ and [<NoComparison>] Dval =
 
   // References
   | DDB of name : string
-
-  // To be removed from Dval
-  /// Represents something that shouldn't have happened in the engine,
-  /// that should have been reported elsewhere. It's usually a type error of
-  /// some kind, but occasionally we'll paint ourselves into a corner and need
-  /// to represent a runtime error using this.
-  | DError of DvalSource * RuntimeError
 
 
 and DvalTask = Ply<Dval>
@@ -801,17 +793,6 @@ module MatchPattern =
 
 // Functions for working with Dark runtime values
 module Dval =
-  // A Fake Dval is some control-flow that's modelled in the interpreter as a
-  // Dval. This is sort of like an Exception. Anytime we see a FakeDval we return
-  // it instead of operating on it, including when they're put in a list, in a
-  // value, in a record, as a parameter to a function, etc.
-  // There used to be multiple types of FakeVal but now there's only DError - which
-  // will be removed as well soon.
-  let isFake (dv : Dval) : bool =
-    match dv with
-    | DError _ -> true
-    | _ -> false
-
 
   // <summary>
   // Checks if a runtime's value matches a given type
@@ -860,9 +841,6 @@ module Dval =
       // TYPESCLEANUP: are we handling type arguments here?
       // TYPESCLEANUP: do we need to check fields?
       typeName = typeName'
-
-    // Dont match these fakevals, functions do not have these types
-    | DError _, _ -> false
 
     // exhaustiveness checking
     | DInt _, _

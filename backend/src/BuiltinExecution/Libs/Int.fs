@@ -33,7 +33,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DInt v; DInt m as mdv ] ->
           if m <= 0L then
-            Ply(Dval.errStr (Errors.argumentWasnt "positive" "b" mdv))
+            Dval.errStr (Errors.argumentWasnt "positive" "b" mdv)
           else
             let result = v % m
             let result = if result < 0L then m + result else result
@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "%"
       previewable = Pure
       // TODO: Deprecate this when we can version infix operators and when infix operators support Result return types (https://github.com/darklang/dark/issues/4267)
-      // The current function returns DError (it used to rollbar) on negative `b`.
+      // The current function returns an RTE (it used to rollbar) on negative `b`.
       deprecated = NotDeprecated }
 
 

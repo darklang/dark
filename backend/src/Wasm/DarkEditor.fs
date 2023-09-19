@@ -35,16 +35,6 @@ let builtin =
     []
     []
 
-let ensureNonFakeDval (dv : Dval) : Result<Dval, string> =
-  match dv with
-  | DError(_source, rte) ->
-    // CLEANUP we should stringify this better, or raise the RTE rather than hide it here
-    Error $"Error calling handleEvent with provided args: {rte}"
-
-  | DFnVal(_) -> Error $"handleError returned DFnVal"
-
-  | result -> Ok dv
-
 
 /// Load the Darklang program that manages the state of and interactions with
 /// the JS side of the editor.
@@ -78,29 +68,30 @@ let LoadClient (canvasName : string) : Task<string> =
           clientSource.types
           clientSource.fns
           clientSource.constants
-      Ply.toTask (
-        LibExecution.Interpreter.callFn
-          state
-          Map.empty
-          (gid ())
-          (FnName.fqUserProgram [] "init" 0)
-          []
-          (NEList.singleton DUnit)
-      )
+      LibExecution.Execution.executeFunction
+        state
+        (gid ())
+        (FnName.fqUserProgram [] "init" 0)
+        []
+        (NEList.singleton DUnit)
 
-    match ensureNonFakeDval initialState with
+
+    match initialState with
     | Ok result ->
       Libs.Editor.editor <-
         { Types = clientSource.types
           Functions = clientSource.fns
           Constants = clientSource.constants
-          CurrentState = initialState }
+          CurrentState = result }
 
       return LibExecution.DvalReprDeveloper.toRepr result
 
     | Error err ->
-      WasmHelpers.callJSFunction "console.error" [ err ]
-      return err
+      // TODO convert to a string
+      // WasmHelpers.callJSFunction "console.error" [ err ]
+      // return err
+      WasmHelpers.callJSFunction "console.error" [ "error in LoadClient" ]
+      return Exception.raiseInternal "TODO" [ "rte", err ]
   }
 
 
@@ -115,19 +106,20 @@ let HandleEvent (serializedEvent : string) : Task<string> =
         Libs.Editor.editor.Constants
 
     let! result =
-      Ply.toTask (
-        LibExecution.Interpreter.callFn
-          state
-          Map.empty
-          (gid ())
-          (FnName.fqUserProgram [] "handleEvent" 0)
-          []
-          (NEList.singleton (DString serializedEvent))
-      )
+      LibExecution.Execution.executeFunction
+        state
+        (gid ())
+        (FnName.fqUserProgram [] "handleEvent" 0)
+        []
+        (NEList.singleton (DString serializedEvent))
 
-    match ensureNonFakeDval result with
+
+    match result with
     | Ok result -> return LibExecution.DvalReprDeveloper.toRepr result
     | Error err ->
-      WasmHelpers.callJSFunction "console.error" [ err ]
-      return err
+      // TODO convert to a string
+      // WasmHelpers.callJSFunction "console.error" [ err ]
+      // return err
+      WasmHelpers.callJSFunction "console.error" [ "error in HandleEvent" ]
+      return Exception.raiseInternal "TODO" [ "rte", err ]
   }

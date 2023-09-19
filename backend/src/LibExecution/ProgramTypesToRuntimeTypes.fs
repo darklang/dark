@@ -422,7 +422,8 @@ module Const =
       )
 
     | PT.Const.CEnum(Error msg, caseName, fields) ->
-      RT.DError(RT.SourceNone, RT.RuntimeError.oldError "Invalid const name: {msg}")
+      // TODO: I don't like this at all
+      RT.raiseUntargetedRTE (RT.RuntimeError.oldError "Invalid const name: {msg}")
 
 module TypeDeclaration =
   module RecordField =
