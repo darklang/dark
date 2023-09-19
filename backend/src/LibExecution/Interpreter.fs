@@ -741,8 +741,8 @@ and executeLambda
 
   else
     let paramSyms = NEList.zip parameters args |> NEList.toList |> Map
-    // paramSyms is higher priority
 
+    // paramSyms is higher priority
     let newSymtable = Map.mergeFavoringRight l.symtable paramSyms
 
     eval state l.typeSymbolTable newSymtable l.body
