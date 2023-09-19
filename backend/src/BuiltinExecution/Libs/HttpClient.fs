@@ -1,4 +1,4 @@
-/// StdLib functions in the HttpClient module
+/// Builtin functions in the HttpClient module
 module BuiltinExecution.Libs.HttpClient
 
 open System.IO

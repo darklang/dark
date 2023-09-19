@@ -1,5 +1,5 @@
 /// <summary>
-/// StdLib functions for cryptography
+/// Builtin functions for cryptography
 ///
 /// Computes hashes such as sha256, md5, etc.
 /// </summary>

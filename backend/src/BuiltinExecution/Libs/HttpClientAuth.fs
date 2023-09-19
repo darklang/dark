@@ -1,4 +1,4 @@
-/// StdLib HttpClient Auth functions
+/// Builtin HttpClient Auth functions
 module BuiltinExecution.Libs.HttpClientAuth
 
 open FSharpPlus
