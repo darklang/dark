@@ -68,6 +68,9 @@ module Darklang =
 
           | TupleIndex of index: Int * elementType: RTTypeReference * parent: Context
 
+          | FnValResult of returnType: RTTypeReference * location: Location
+
+
 
         type Error =
           | ValueNotExpectedType of
@@ -102,6 +105,7 @@ module Darklang =
             | DBQueryVariable _ -> context
             | ListIndex(_, _, parent) -> rootContext parent
             | TupleIndex(_, _, parent) -> rootContext parent
+            | FnValResult(_, _) -> context
 
 
           /// Return the segments describing the context as a short name, used in the description of errors
@@ -149,21 +153,23 @@ module Darklang =
               [ ErrorSegment.ErrorSegment.String "Variable "
                 ErrorSegment.ErrorSegment.VarName varName ]
 
-            // | TupleIndex(index, typ, parent) ->
-            //   let rootContext = rootContext parent
-            //   [ String "In " ]
-            //   @ contextSummary rootContext
-            //   @ [ String ", the nested value "; VarName(valuePath context) ]
+            | TupleIndex(index, typ, parent) ->
+              let rootContext = rootContext parent
 
-            // | ListIndex(index, typ, parent) ->
-            //   let rootContext = rootContext parent
-            //   [ String "In " ]
-            //   @ contextSummary rootContext
-            //   @ [ String ", the nested value "; VarName(valuePath context) ]
+              [ String "In " ]
+              @ contextSummary rootContext
+              @ [ String ", the nested value "; VarName(valuePath context) ]
 
-            | context ->
-              [ ErrorSegment.ErrorSegment.String
-                  $"(RTETODO: contextSummary {(Builtin.Json.serialize<Context> context) |> Builtin.unwrap})" ]
+            | ListIndex(index, typ, parent) ->
+              let rootContext = rootContext parent
+
+              [ String "In " ]
+              @ contextSummary rootContext
+              @ [ String ", the nested value "; VarName(valuePath context) ]
+
+            | FnValResult(_, _) ->
+              [ ErrorSegment.ErrorSegment.String "Function return value" ]
+
 
           let rec contextAsActualExpected
             (argument: RuntimeTypes.Dval.Dval)
@@ -192,16 +198,18 @@ module Darklang =
 
 
             | FunctionCallResult(fnName, returnType, _) ->
-              //   // format:
-              //   // Option<String>
+              // format:
+              // Option<String>
               let segment = [ ErrorSegment.ErrorSegment.TypeReference returnType ]
               (defaultActual, segment)
 
+
             | RecordField(recordType, fieldName, fieldType, _) ->
-              //   // format:
-              //   // TODO: fetch the type and lookup the field definition as a comment
+              // format:
+              // ({ name : string; ... }) // some description
+
+              // TODO: fetch the type and lookup the field definition as a comment
               let comment = []
-              //   // ({ name : string; ... }) // some description
               // let comment =
               //   if fieldDef.description = "" then
               //     []
@@ -220,30 +228,24 @@ module Darklang =
               (defaultActual, segment)
 
 
-            //   defaultActual,
-            //   ([ String "({ "
-            //     InlineFieldName fieldName
-            //     String ": "
-            //     TypeReference fieldType
-            //     String "; ... })" ]
-            //   @ comment)
+            | DictKey(key, typ, _) ->
+              // format:
+              // ({ "name" : String; ... })
+              let segment =
+                [ ErrorSegment.ErrorSegment.String "({ "
+                  ErrorSegment.ErrorSegment.InlineFieldName key
+                  ErrorSegment.ErrorSegment.String ": "
+                  ErrorSegment.ErrorSegment.TypeReference typ
+                  ErrorSegment.ErrorSegment.String "; ... })" ]
 
+              defaultActual, segment
 
-            // | TCK.DictKey(key, typ, _) ->
-            // format:
-            // ({ "name" : String; ... })
-            //   defaultActual,
-            //   ([ String "({ "
-            //     InlineFieldName key
-            //     String ": "
-            //     TypeReference typ
-            //     String "; ... })" ])
 
 
             | EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType, _) ->
-              //   // format:
-              //   //   Ok (..., string, ...) // some description
-              //   // RTETODO: extract description from the type definition later
+              // format:
+              //   Ok (..., string, ...) // some description
+              // RTETODO: extract description from the type definition later
 
               let prefix =
                 if fieldIndex == 0 then
@@ -298,8 +300,6 @@ module Darklang =
 
 
             | DBSchemaType(dbName, expectedType, _) ->
-              //   // format:
-              //   // String
               let segment = [ ErrorSegment.ErrorSegment.TypeReference expectedType ]
               (defaultActual, segment)
 
@@ -314,25 +314,28 @@ module Darklang =
 
               (defaultActual, segment)
 
-            // | TCK.ListIndex(index, typ, parent) -> defaultActual, [ TypeReference typ ]
+            | ListIndex(index, typ, parent) ->
+              defaultActual, [ ErrorSegment.ErrorSegment.TypeReference typ ]
 
-            // | TCK.TupleIndex(index, typ, parent) -> defaultActual, [ TypeReference typ ]
-            | _ ->
-              defaultActual,
-              [ ErrorSegment.ErrorSegment.String
-                  $"(RTETODO: contextAsActualExpected {(Builtin.Json.serialize<Context> context) |> Builtin.unwrap})" ]
+            | TupleIndex(index, typ, parent) ->
+              defaultActual, [ ErrorSegment.ErrorSegment.TypeReference typ ]
 
-          // let contextVerb (context: Context) : String =
-          //   match context with
-          //   | FunctionCallParameter _ -> "passed"
-          //   | FunctionCallResult _ -> "returned"
-          //   | RecordField _ -> "passed"
-          //   | DictKey _ -> "passed"
-          //   | EnumField _ -> "passed"
-          //   | DBSchemaType _ -> "passed"
-          //   | DBQueryVariable _ -> "passed"
-          //   | ListIndex _ -> "passed"
-          //   | TupleIndex _ -> "passed"
+            | FnValResult(returnType, _) ->
+              defaultActual, [ ErrorSegment.ErrorSegment.TypeReference returnType ]
+
+
+          let contextVerb (context: Context) : String =
+            match context with
+            | FunctionCallParameter _ -> "passed"
+            | FunctionCallResult _ -> "returned"
+            | RecordField _ -> "passed"
+            | DictKey _ -> "passed"
+            | EnumField _ -> "passed"
+            | DBSchemaType _ -> "passed"
+            | DBQueryVariable _ -> "passed"
+            | ListIndex _ -> "passed"
+            | TupleIndex _ -> "passed"
+            | FnValResult _ -> "returned"
 
           let toSegments (e: Error) : REErrorOutput =
             match e with
@@ -350,7 +353,9 @@ module Darklang =
                   ErrorSegment.ErrorSegment.TypeOfValue argument
                   ErrorSegment.ErrorSegment.String " ("
                   ErrorSegment.ErrorSegment.InlineValue argument
-                  ErrorSegment.ErrorSegment.String ") was passed instead." ]
+                  ErrorSegment.ErrorSegment.String ") was "
+                  ErrorSegment.ErrorSegment.String(contextVerb context)
+                  ErrorSegment.ErrorSegment.String " instead." ]
 
               let (actual, expected) = contextAsActualExpected argument context
 
@@ -360,30 +365,6 @@ module Darklang =
                   actual = actual
                   expected = expected }
 
-            // | TypeDoesntExist(typeName, _) ->
-            //   // Perhaps this should be an internal error as this shouldn't be possible
-            //   let summary = [ TypeName typeName; String " doesn't exist" ]
-
-            //   let extraExplanation = []
-            //   let actual = []
-            //   let expected = []
-
-            //   { summary = summary
-            //     extraExplanation = extraExplanation
-            //     actual = actual
-            //     expected = expected }
-
-            // | VTTODOMismatchedType msg ->
-            //   { summary = [ String "VTTODOMismatchedType"; String msg ]
-            //     extraExplanation = []
-            //     actual = []
-            //     expected = [] }
-
-            // | VTTODOMergedValueTypeWrapper err ->
-            //   { summary = [ String "VTTODOMergedValueTypeWrapper"; String err ]
-            //     extraExplanation = []
-            //     actual = []
-            //     expected = [] }
             | _ ->
               ErrorOutput
                 { summary =

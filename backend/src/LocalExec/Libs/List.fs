@@ -12,6 +12,7 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 module Errors = LibExecution.Errors
 module Interpreter = LibExecution.Interpreter
+module TypeChecker = LibExecution.TypeChecker
 
 let varA = TVariable "a"
 
@@ -43,7 +44,9 @@ let fns : List<BuiltInFn> =
                   let args = NEList.singleton e
                   match! Interpreter.applyFnVal state 0UL b [] args with
                   | DUnit -> return ()
-                  | v -> raiseString (Errors.expectedLambdaValue "fn" "unit" v)
+                  | v ->
+                    let context = TypeChecker.Context.FnValResult(TUnit, None)
+                    TypeChecker.raiseValueNotExpectedType SourceNone v TUnit context
                 })
             return DUnit
           }
@@ -66,7 +69,7 @@ let fns : List<BuiltInFn> =
           let f acc i =
             match i with
             | DList(_vtTODO, l) -> List.append acc l
-            | _ -> raiseString "Flattening non-lists"
+            | _ -> Exception.raiseInternal "flatten: expected list of lists" []
 
           List.fold f [] l |> Dval.list VT.unknownTODO |> Ply
         | _ -> incorrectArgs ())

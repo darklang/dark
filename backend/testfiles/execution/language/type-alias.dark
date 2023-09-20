@@ -41,7 +41,7 @@ module NestedAlias =
   getUserID (("Alice", "EMP123")) = "EMP123"
 
   getUserID (("Alice", 123)) = Builtin.Test.derrorMessage
-    "NestedAlias.getUserID's return value should be a String. However, an Int (123) was passed instead.\n\nExpected: Id\nActual: an Int: 123"
+    "NestedAlias.getUserID's return value should be a String. However, an Int (123) was returned instead.\n\nExpected: Id\nActual: an Int: 123"
 
   type UserProfile =
     { credential: UserCredential

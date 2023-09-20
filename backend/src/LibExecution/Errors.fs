@@ -16,14 +16,6 @@ let expectedLambdaType
   let typ = DvalReprDeveloper.typeName typ
   $"Expected `{fnName}` to return a {typ}, but it returned `{actual}`"
 
-let expectedLambdaValue
-  (fnName : string)
-  (expected : string)
-  (actual : Dval)
-  : string =
-  let actual = DvalReprDeveloper.toRepr actual
-  $"Expected `{fnName}` to return {expected}, but it returned `{actual}`"
-
 
 /// Used for values which are outside the range of expected values for some
 /// reason. Really, any function using this should have a Result type instead.

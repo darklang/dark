@@ -8,6 +8,7 @@ module Errors = LibExecution.Errors
 module VT = ValueType
 module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
+module TypeChecker = LibExecution.TypeChecker
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 
@@ -71,6 +72,7 @@ module DvalComparator =
     | DDict _, _
     | DRecord _, _
     | DEnum _, _ ->
+      // TODO: Feels like this should hook into typechecker and ValueTypes somehow
       raiseString "Comparing different types" [ "dv1", dv1; "dv2", dv2 ]
 
   and compareLists (l1 : List<Dval>) (l2 : List<Dval>) : int =
@@ -95,14 +97,14 @@ module DvalComparator =
       else
         c
 
-  and compareExprs (e1 : Expr) (e2 : Expr) : int = 0 // CLEAP
+  and compareExprs (e1 : Expr) (e2 : Expr) : int = 0 // CLEANUP
 
 
 
 // Based on https://github.com/dotnet/runtime/blob/57bfe474518ab5b7cfe6bf7424a79ce3af9d6657/src/coreclr/tools/Common/Sorting/MergeSortCore.cs#L55
 module Sort =
 
-  exception InvalidSortComparator of int64
+  exception InvalidSortComparatorInt of int64
 
   type Comparer = Dval -> Dval -> Ply<int>
 
@@ -394,10 +396,9 @@ let fns : List<BuiltInFn> =
 
               match result with
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
-              | DInt i -> return raise (Sort.InvalidSortComparator i)
+              | DInt i -> return raise (Sort.InvalidSortComparatorInt i)
               | v ->
-                // CLEANUP this yields pretty confusing error messages
-                return raiseString (Errors.expectedLambdaValue "fn" "-1, 0, 1" v)
+                return TypeChecker.raiseFnValResultNotExpectedType SourceNone v TInt
             }
 
           uply {
@@ -405,9 +406,9 @@ let fns : List<BuiltInFn> =
               let array = List.toArray list
               do! Sort.sort fn array
               return array |> Array.toList |> Dval.list vt |> resultOk
-            with Sort.InvalidSortComparator i ->
-              // CLEANUP this yields pretty confusing error messages
-              let message = Errors.expectedLambdaValue "fn" "-1, 0, 1" (DInt i)
+            with Sort.InvalidSortComparatorInt i ->
+              let message =
+                $"Expected comparator function to return -1, 0, or 1, but it returned {i}"
               return resultError (DString message)
           }
         | _ -> incorrectArgs ())
@@ -459,7 +460,9 @@ let fns : List<BuiltInFn> =
 
                 match result with
                 | DBool b -> return b
-                | v -> return raiseString (Errors.expectedLambdaType "fn" TBool v)
+                | v ->
+                  return
+                    TypeChecker.raiseFnValResultNotExpectedType SourceNone v TBool
               }
 
             let! result = Ply.List.filterSequentially f l
@@ -520,9 +523,10 @@ let fns : List<BuiltInFn> =
                         []) -> return None
                 | v ->
                   return
-                    raiseString (
-                      Errors.expectedLambdaType "fn" (TypeReference.option varB) v
-                    )
+                    TypeChecker.raiseFnValResultNotExpectedType
+                      SourceNone
+                      v
+                      (TypeReference.option varB)
               }
 
             let! result = Ply.List.filterMapSequentially f l

@@ -704,8 +704,6 @@ let rec eval
   }
 
 
-
-/// Unwrap the dval, which we expect to be a function, and error if it's not
 and applyFnVal
   (state : ExecutionState)
   (id : id)
