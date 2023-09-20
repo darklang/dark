@@ -7,15 +7,6 @@ open RuntimeTypes
 // ------------------
 // Messages
 // ------------------
-let expectedLambdaType
-  (fnName : string)
-  (typ : TypeReference)
-  (actual : Dval)
-  : string =
-  let actual = DvalReprDeveloper.toRepr actual
-  let typ = DvalReprDeveloper.typeName typ
-  $"Expected `{fnName}` to return a {typ}, but it returned `{actual}`"
-
 
 /// Used for values which are outside the range of expected values for some
 /// reason. Really, any function using this should have a Result type instead.
@@ -32,8 +23,3 @@ let argumentWasntType
   let actual = DvalReprDeveloper.toRepr dv
   let expected = DvalReprDeveloper.typeName expected
   $"Expected `{paramName}` to be a `{expected}`, but it was `{actual}`"
-
-let resultWasntType (expected : TypeReference) (dv : Dval) : string =
-  let actual = DvalReprDeveloper.toRepr dv
-  let expected = DvalReprDeveloper.typeName expected
-  $"Expected result to be a `{expected}`, but it was `{actual}`"

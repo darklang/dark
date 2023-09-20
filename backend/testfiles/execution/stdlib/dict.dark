@@ -21,13 +21,12 @@ module FilterMap =
       if value == "y" then
         false
       else
-        (PACKAGE.Darklang.Stdlib.Option.Option.Some(key ++ value)))) = (Builtin
-    .Test
-    .derrorMessage (
-      "Expected `fn` to return a "
-      ++ "PACKAGE.Darklang.Stdlib.Option.Option<'b>,"
-      ++ " but it returned `false`"
-    ))
+        PACKAGE.Darklang.Stdlib.Option.Option.Some(key ++ value))) = Builtin.Test.derrorMessage
+    """Function return value should be a PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, a Bool (false) was returned instead.
+
+Expected: PACKAGE.Darklang.Stdlib.Option.Option<'b>
+Actual: a Bool: false"""
+
 
 
 module Filter =
@@ -42,7 +41,10 @@ module Filter =
 
   PACKAGE.Darklang.Stdlib.Dict.filter (Dict { a = 1; b = 2; c = 3 }) (fun (k, v) ->
     2) = Builtin.Test.derrorMessage
-    "Expected `fn` to return a Bool, but it returned `2`"
+    """Function return value should be a Bool. However, an Int (2) was returned instead.
+
+Expected: Bool
+Actual: an Int: 2"""
 
 
 module FromListOverwritingDuplicates =
