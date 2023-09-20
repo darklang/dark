@@ -160,6 +160,8 @@ let fns : List<BuiltInFn> =
          Otherwise, returns {{None}} (use <fn Dict.fromListOverwritingDuplicates>
          if you want to overwrite duplicate keys)."
       fn =
+        let dictType = VT.unknownTODO
+        let optType = VT.dict dictType
         (function
         | _, _, [ DList(_vtTODO, l) ] ->
           let f acc e =
@@ -175,8 +177,8 @@ let fns : List<BuiltInFn> =
 
           match result with
           | Some map ->
-            map |> Map.toList |> Dval.dict VT.unknownTODO |> Dval.optionSome |> Ply
-          | None -> Ply(Dval.optionNone)
+            map |> Map.toList |> Dval.dict dictType |> Dval.optionSome optType |> Ply
+          | None -> Ply(Dval.optionNone optType)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -193,7 +195,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict(_vtTODO, o); DString s ] ->
-          Map.find s o |> Dval.option |> Ply
+          Map.find s o |> Dval.option VT.unknownTODO |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

@@ -482,7 +482,7 @@ module Expr =
 
       // control flow
       | EIf(id, cond, thenExpr, elseExpr) ->
-        let elseExpr = elseExpr |> Option.map toDT |> Dval.option
+        let elseExpr = elseExpr |> Option.map toDT |> Dval.option VT.unknownTODO
         "EIf", [ DInt(int64 id); toDT cond; toDT thenExpr; elseExpr ]
 
       | EMatch(id, arg, cases) ->

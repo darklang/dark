@@ -1104,9 +1104,11 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      TDateTime)
     ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"), TUuid)
     ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"), TUuid)
-    ("option", Dval.optionNone, TypeReference.option TInt)
-    ("option2", Dval.optionSome (Dval.int 15), TypeReference.option TInt)
-    ("option3", Dval.optionSome (DString "a string"), TypeReference.option TString)
+    ("option", Dval.optionNone VT.int, TypeReference.option TInt)
+    ("option2", Dval.optionSome VT.int (Dval.int 15), TypeReference.option TInt)
+    ("option3",
+     Dval.optionSome VT.string (DString "a string"),
+     TypeReference.option TString)
     ("character", DChar "s", TChar)
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
     // use image bytes here to test for any weird bytes forms

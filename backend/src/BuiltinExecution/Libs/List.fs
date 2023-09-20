@@ -637,11 +637,12 @@ let fns : List<BuiltInFn> =
          List.map2shortest> if you want to drop values from the longer list
          instead)."
       fn =
+        let optType = VT.unknownTODO
         (function
         | state, _, [ DList(_vtTODO1, l1); DList(_vtTODO2, l2); DFnVal b ] ->
           uply {
             if List.length l1 <> List.length l2 then
-              return Dval.optionNone
+              return Dval.optionNone optType
             else
               let list = List.zip l1 l2
 
@@ -652,7 +653,7 @@ let fns : List<BuiltInFn> =
                     Interpreter.applyFnVal state 0UL b [] args)
                   list
 
-              return Dval.optionSome (Dval.list VT.unknownTODO result)
+              return Dval.optionSome optType (Dval.list VT.unknownTODO result)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -669,15 +670,16 @@ let fns : List<BuiltInFn> =
          selected value in <param list>. Returns {{None}} if <param list> is
          empty."
       fn =
+        let optType = VT.unknownTODO
         (function
-        | _, _, [ DList(_, []) ] -> Ply(Dval.optionNone)
+        | _, _, [ DList(_, []) ] -> Ply(Dval.optionNone optType)
         | _, _, [ DList(_, l) ] ->
           // Will return <= (length - 1)
           // Maximum value is Int64.MaxValue which is half of UInt64.MaxValue, but
           // that won't affect this as we won't have a list that big for a long long
           // long time.
           let index = RNG.GetInt32(l.Length)
-          (List.tryItem index l) |> Dval.option |> Ply
+          (List.tryItem index l) |> Dval.option optType |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure

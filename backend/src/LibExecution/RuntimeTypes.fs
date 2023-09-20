@@ -437,7 +437,7 @@ module ValueType =
     )
     |> known
 
-  let record (okType : ValueType) (errType : ValueType) : ValueType =
+  let result (okType : ValueType) (errType : ValueType) : ValueType =
     KTCustomType(
       TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0,
       [ okType; errType ]

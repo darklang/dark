@@ -3,6 +3,7 @@ module LibExecution.TypeChecker
 
 open Prelude
 open RuntimeTypes
+module VT = ValueType
 
 
 /// Returns `Ok ()` if no errors, or `Error first` otherwise
@@ -78,12 +79,13 @@ module Error =
 
   module Location =
     let toDT (location : Location) : Dval =
+      let optType = VT.unknownTODO
       match location with
-      | None -> Dval.optionNone
+      | None -> Dval.optionNone optType
       | Some(tlid, id) ->
         let tlid = DInt(int64 tlid)
         let id = DInt(int64 id)
-        Dval.optionSome (DTuple(tlid, id, []))
+        Dval.optionSome optType (DTuple(tlid, id, []))
 
 
   module Context =

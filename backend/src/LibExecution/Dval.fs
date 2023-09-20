@@ -262,17 +262,51 @@ let enum
 
 let optionType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0
 
-let optionSome (dv : Dval) : Dval =
-  DEnum(optionType, optionType, VT.uknownTypeArgsTODO, "Some", [ dv ])
+let optionSome (innerType : ValueType) (dv : Dval) : Dval =
+  let dvalType = toValueType dv
+  match mergeValueTypes innerType dvalType with
+  | Ok typ -> DEnum(optionType, optionType, [ typ ], "Some", [ dv ])
+  | Error() ->
+    mergeFailureRte
+      SourceNone
+      (ValueType.Known(KTCustomType(optionType, [ innerType ])))
+      (ValueType.Known(KTCustomType(optionType, [ dvalType ])))
 
-let optionNone : Dval =
-  DEnum(optionType, optionType, VT.uknownTypeArgsTODO, "None", [])
+let optionNone (innerType : ValueType) : Dval =
+  DEnum(optionType, optionType, [ innerType ], "None", [])
 
 // Wraps in an Option after checking that the value is not a fakeval
-let option (dv : Option<Dval>) : Dval =
+let option (innerType : ValueType) (dv : Option<Dval>) : Dval =
   match dv with
-  | Some dv -> optionSome dv // checks isFake
-  | None -> optionNone
+  | Some dv -> optionSome innerType dv // checks isFake
+  | None -> optionNone innerType
+
+// CLEANUP consider extracting a partial active pattern to match against the Option type defined in Dark
+// Something like:
+// let (|DOptionNone|_|) result =
+//   match result with
+//   | DEnum(FQName.Package { owner = "Darklang"
+//                            modules = [ "Stdlib"; "Option" ]
+//                            name = TypeName.TypeName "Option"
+//                            version = 0 },
+//           _,
+//           _typeArgsDEnumTODO,
+//           "None",
+//           []) -> Some()
+//   | _ -> None
+
+// let (|DOptionSome|_|) result =
+//   match result with
+//   | DEnum(FQName.Package { owner = "Darklang"
+//                            modules = [ "Stdlib"; "Option" ]
+//                            name = TypeName.TypeName "Option"
+//                            version = 0 },
+//           _,
+//           _typeArgsDEnumTODO,
+//           "Some",
+//           [ o ]) -> Some o
+
+//   | _ -> None
 
 
 let resultType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0
