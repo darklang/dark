@@ -11,10 +11,16 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
 module Dval = LibExecution.Dval
-module Errors = LibExecution.Errors
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
+
+/// Used for values which are outside the range of expected values for some
+/// reason. Really, any function using this should have a Result type instead.
+let argumentWasntPositive (paramName : string) (dv : Dval) : string =
+  let actual = LibExecution.DvalReprDeveloper.toRepr dv
+  $"Expected `{paramName}` to be positive, but it was `{actual}`"
+
 
 let fn = fn [ "Int" ]
 
@@ -34,7 +40,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DInt v; DInt m as mdv ] ->
           if m <= 0L then
-            raiseString (Errors.argumentWasnt "positive" "b" mdv)
+            raiseString (argumentWasntPositive "b" mdv)
           else
             let result = v % m
             let result = if result < 0L then m + result else result
@@ -175,20 +181,15 @@ let fns : List<BuiltInFn> =
           let okPipe r = r |> DInt |> resultOk |> Ply
           let errPipe e = e |> DString |> resultError |> Ply
           (try
-            if exp < 0L then
-              Errors.argumentWasnt "positive" "exponent" expdv |> errPipe
+            if exp < 0L then argumentWasntPositive "exponent" expdv |> errPipe
             // Handle some edge cases around 1. We want to make this match
             // OCaml, so we have to support an exponent above int32, but
             // below int63. This only matters for 1 or -1, and otherwise a
             // number raised to an int63 exponent wouldn't fit in an int63
-            else if number = 1L then
-              1L |> okPipe
-            else if number = -1L && exp % 2L = 0L then
-              1L |> okPipe
-            else if number = -1L then
-              -1L |> okPipe
-            else
-              (bigint number) ** (int exp) |> int64 |> okPipe
+            else if number = 1L then 1L |> okPipe
+            else if number = -1L && exp % 2L = 0L then 1L |> okPipe
+            else if number = -1L then -1L |> okPipe
+            else (bigint number) ** (int exp) |> int64 |> okPipe
            with _ ->
              "Error raising to exponent" |> errPipe)
         | _ -> incorrectArgs ())
