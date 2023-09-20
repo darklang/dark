@@ -30,15 +30,13 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DDict(_vtTODO1, a), DDict(_vtTODO2, b) ->
     Map.count a = Map.count b
     && Map.forall
-      (fun k v ->
-        Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
+      (fun k v -> Map.find k b |> Option.map (equals v) |> Option.defaultValue false)
       a
   | DRecord(tn1, _, _typeArgsTODO1, a), DRecord(tn2, _, _typeArgsTODO2, b) ->
     tn1 = tn2 // these should be the fully resolved type
     && Map.count a = Map.count b
     && Map.forall
-      (fun k v ->
-        Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
+      (fun k v -> Map.find k b |> Option.map (equals v) |> Option.defaultValue false)
       a
   | DFnVal a, DFnVal b ->
     match a, b with
@@ -83,8 +81,7 @@ and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
 and equalsSymtable (a : Symtable) (b : Symtable) : bool =
   Map.count a = Map.count b
   && Map.forall
-    (fun k v ->
-      Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
+    (fun k v -> Map.find k b |> Option.map (equals v) |> Option.defaultValue false)
     a
 
 and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =

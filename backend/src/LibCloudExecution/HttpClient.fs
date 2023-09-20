@@ -76,7 +76,7 @@ module LocalAccess =
   let hasInstanceMetadataHeader (headers : List<string * string>) =
     let eq = String.equalsCaseInsensitive
     headers
-    |> List.tryFind (fun (k, v) ->
+    |> List.find (fun (k, v) ->
       let (k, v) = (String.trim k, String.trim v)
       (eq k "Metadata-Flavor" && eq v "Google")
       // Old but allowed https://cloud.google.com/compute/docs/metadata/overview#querying

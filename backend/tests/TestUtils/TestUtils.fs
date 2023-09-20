@@ -748,14 +748,14 @@ module Expect =
       // check keys from ls are in both, check matching values
       Map.iterWithIndex
         (fun key v1 ->
-          match Map.tryFind key rs with
+          match Map.find key rs with
           | Some v2 -> de (key :: path) v1 v2
           | None -> check (key :: path) ls rs)
         ls
       // check keys from rs are in both
       Map.iterWithIndex
         (fun key _ ->
-          match Map.tryFind key rs with
+          match Map.find key rs with
           | Some _ -> () // already checked
           | None -> check (key :: path) ls rs)
         rs
@@ -766,14 +766,14 @@ module Expect =
       // check keys from ls are in both, check matching values
       Map.iterWithIndex
         (fun key v1 ->
-          match Map.tryFind key rs with
+          match Map.find key rs with
           | Some v2 -> de (key :: path) v1 v2
           | None -> check (key :: path) ls rs)
         ls
       // check keys from rs are in both
       Map.iterWithIndex
         (fun key _ ->
-          match Map.tryFind key rs with
+          match Map.find key rs with
           | Some _ -> () // already checked
           | None -> check (key :: path) ls rs)
         rs
@@ -850,9 +850,9 @@ module Expect =
       Expect.equal a e (formatMsg "" path actual))
 
   let dvalEquality (left : Dval) (right : Dval) : bool =
-    let success = ref true
-    dvalEqualityBaseFn [] left right (fun _ _ _ -> success.Value <- false)
-    success.Value
+    let mutable success = true
+    dvalEqualityBaseFn [] left right (fun _ _ _ -> success <- false)
+    success
 
 let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let mutable state = []

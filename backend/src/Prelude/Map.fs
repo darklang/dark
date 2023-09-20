@@ -41,6 +41,11 @@ let mapWithIndex (f : 'k -> 'a -> 'b) (m : Map<'k, 'a>) : Map<'k, 'b> = Map.map 
 
 let get (k : 'k) (m : Map<'k, 'v>) : Option<'v> = Map.tryFind k m
 
+let findUnsafe (k : 'k) (m : Map<'k, 'v>) : 'v = Map.find k m
+
+let find (k : 'k) (m : Map<'k, 'v>) : Option<'v> = Map.tryFind k m
+
+
 let update
   (key : 'a)
   (f : Option<'b> -> Option<'b>)

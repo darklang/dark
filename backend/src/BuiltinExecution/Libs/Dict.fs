@@ -192,7 +192,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict(_vtTODO, o); DString s ] ->
-          Map.tryFind s o |> Dval.option |> Ply
+          Map.find s o |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -360,47 +360,35 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DDict(_vtTODO, o); DFnVal b ] ->
           uply {
-            let abortReason = ref None
-
             let f (key : string) (data : Dval) : Ply<Option<Dval>> =
               uply {
-                let run = abortReason.Value = None
+                let args = NEList.ofList (DString key) [ data ]
+                let! result = Interpreter.applyFnVal state 0UL b [] args
 
-                if run then
-                  let args = NEList.ofList (DString key) [ data ]
-                  let! result = Interpreter.applyFnVal state 0UL b [] args
-
-                  match result with
-                  | DEnum(FQName.Package { owner = "Darklang"
-                                           modules = [ "Stdlib"; "Option" ]
-                                           name = TypeName.TypeName "Option"
-                                           version = 0 },
-                          _,
-                          "Some",
-                          [ o ]) -> return Some o
-                  | DEnum(FQName.Package { owner = "Darklang"
-                                           modules = [ "Stdlib"; "Option" ]
-                                           name = TypeName.TypeName "Option"
-                                           version = 0 },
-                          _,
-                          "None",
-                          []) -> return None
-                  | v ->
+                match result with
+                | DEnum(FQName.Package { owner = "Darklang"
+                                         modules = [ "Stdlib"; "Option" ]
+                                         name = TypeName.TypeName "Option"
+                                         version = 0 },
+                        _,
+                        "Some",
+                        [ o ]) -> return Some o
+                | DEnum(FQName.Package { owner = "Darklang"
+                                         modules = [ "Stdlib"; "Option" ]
+                                         name = TypeName.TypeName "Option"
+                                         version = 0 },
+                        _,
+                        "None",
+                        []) -> return None
+                | v ->
+                  return
                     raiseString (
                       Errors.expectedLambdaType "fn" (TypeReference.option varB) v
                     )
-
-                    return None
-
-                else
-                  return None
               }
 
             let! result = Ply.Map.filterMapSequentially f o
-
-            match abortReason.Value with
-            | None -> return result |> Map.toList |> Dval.dict valueTypeTODO
-            | Some v -> return v
+            return result |> Map.toList |> Dval.dict valueTypeTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

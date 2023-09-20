@@ -28,7 +28,7 @@ let renameFunctions
     |> List.fold
       (fun renamedFns (oldName, newName) ->
         let newFn =
-          Map.tryFind newName (Map.mergeFavoringLeft renamedFns existingMap)
+          Map.find newName (Map.mergeFavoringLeft renamedFns existingMap)
           |> Exception.unwrapOptionInternal
             $"all fns should exist {oldName} -> {newName}"
             [ "oldName", oldName; "newName", newName ]
@@ -52,7 +52,7 @@ let renameTypes
     |> List.fold
       (fun renamedTypes (oldName, newName) ->
         let newType =
-          Map.tryFind newName (Map.mergeFavoringLeft renamedTypes existingMap)
+          Map.find newName (Map.mergeFavoringLeft renamedTypes existingMap)
           |> Exception.unwrapOptionInternal
             $"all types should exist {oldName} -> {newName}"
             [ "oldName", oldName; "newName", newName ]
@@ -90,7 +90,7 @@ module Shortcuts =
   let fn = FnName.builtIn
   let typ = TypeName.builtIn
   let constant = ConstantName.builtIn
-  let incorrectArgs = Errors.incorrectArgs
+  let incorrectArgs = RuntimeTypes.incorrectArgs
 
   type Param = BuiltInParam
 
