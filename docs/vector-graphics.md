@@ -1,4 +1,5 @@
 ## Adding Vector Graphics
+
 All our SVG icons are converted into a font set via [Glyphter](https://glyphter.com/).
 They are stored in `client/static/dark-icons-font-vX`. And defined for usage in `client/styles/_dark-icons.scss`.
 To add a new font:

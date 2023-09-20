@@ -2,8 +2,8 @@
 
 ## Overview
 
-Unit tests run automatically on the backend, as part of
-the builder script, if enabled with `--test`.
+Unit tests run automatically on the backend, as part of the builder script, if
+enabled with `--test`. This is actually super slow, so I wouldn't recommend it.
 
 ## Backend
 
