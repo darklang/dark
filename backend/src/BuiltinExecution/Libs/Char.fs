@@ -8,6 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
 module Dval = LibExecution.Dval
 
 
@@ -54,13 +55,14 @@ let fns : List<BuiltInFn> =
       description =
         "Return {{Some <var code>}} if <param c> is a valid ASCII character, otherwise {{None}}"
       fn =
+        let optType = VT.int
         function
         | _, _, [ DChar c ] ->
           let charValue = int c.[0]
           if charValue >= 0 && charValue < 256 then
-            Dval.optionSome (DInt charValue) |> Ply
+            Dval.optionSome optType (DInt charValue) |> Ply
           else
-            Dval.optionNone |> Ply
+            Dval.optionNone optType |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure

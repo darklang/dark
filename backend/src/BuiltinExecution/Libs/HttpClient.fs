@@ -10,7 +10,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution
 open LibExecution.RuntimeTypes
-
+module VT = ValueType
 
 type Method = HttpMethod
 
@@ -366,10 +366,11 @@ let fns (config : Configuration) : List<BuiltInFn> =
         the response is wrapped in {{ Ok }} if a response was successfully
         received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
+        let resultOk = Dval.resultOk VT.unknownTODO VT.string
+        let resultErrorStr str =
+          Dval.resultError VT.unknownTODO VT.string (DString str)
         (function
-        | state,
-          _,
-          [ DString method; DString uri; DList(_, reqHeaders); DBytes reqBody ] ->
+        | _, _, [ DString method; DString uri; DList(_, reqHeaders); DBytes reqBody ] ->
           let reqHeaders : Result<List<string * string>, HeaderError> =
             reqHeaders
             |> List.fold
@@ -429,32 +430,26 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     ("headers", responseHeaders)
                     ("body", DBytes response.body) ]
                   |> Dval.record typ
-                  |> Dval.resultOk
+                  |> resultOk
 
-              | Error(BadUrl details) ->
-                // TODO: include a DvalSource rather than SourceNone
-                return Dval.resultError (DString $"Bad URL: {details}")
-
-              | Error(Timeout) ->
-                return Dval.resultError (DString $"Request timed out")
-
-              | Error(NetworkError) ->
-                return Dval.resultError (DString $"Network error")
-
-              | Error(Other details) -> return Dval.resultError (DString details)
+              // TODO: include a DvalSource rather than SourceNone
+              | Error(BadUrl details) -> return resultErrorStr $"Bad URL: {details}"
+              | Error(Timeout) -> return resultErrorStr $"Request timed out"
+              | Error(NetworkError) -> return resultErrorStr $"Network error"
+              | Error(Other details) -> return resultErrorStr details
             }
 
           | Error reqHeadersErr, _ ->
             uply {
               match reqHeadersErr with
-              | BadInput details -> return Dval.resultError (DString details)
+              | BadInput details -> return resultErrorStr details
               | TypeMismatch details ->
                 return raiseUntargetedRTE (RuntimeError.oldError details)
             }
 
           | _, None ->
             let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
-            uply { return Dval.resultError (DString error) }
+            uply { return resultErrorStr error }
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

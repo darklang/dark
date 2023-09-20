@@ -8,6 +8,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 module TypeChecker = LibExecution.TypeChecker
 
+module VT = ValueType
 module Dval = LibExecution.Dval
 module Errors = LibExecution.Errors
 module Interpreter = LibExecution.Interpreter
@@ -71,7 +72,7 @@ let fns : List<BuiltInFn> =
           o
           |> Map.values
           |> Seq.toList
-          |> (fun l -> Dval.list valueTypeTODO l |> Ply)
+          |> (fun l -> Dval.list VT.unknownTODO l |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -90,7 +91,7 @@ let fns : List<BuiltInFn> =
           Map.toList o
           |> List.map (fun (k, v) -> DTuple(DString k, v, []))
           |> Dval.list (
-            ValueType.Known(KTTuple(ValueType.Known KTString, valueTypeTODO, []))
+            ValueType.Known(KTTuple(ValueType.Known KTString, VT.unknownTODO, []))
           )
           |> Ply
         | _ -> incorrectArgs ())
@@ -138,7 +139,7 @@ let fns : List<BuiltInFn> =
                wrongType SourceNone e tupleType listContext
 
            let result = l |> List.foldWithIndex f Map.empty |> Map.toList
-           Ply(Dval.dict valueTypeTODO result)
+           Ply(Dval.dict VT.unknownTODO result)
          | _ -> incorrectArgs ())
        sqlSpec = NotYetImplemented
        previewable = Pure
@@ -159,6 +160,8 @@ let fns : List<BuiltInFn> =
          Otherwise, returns {{None}} (use <fn Dict.fromListOverwritingDuplicates>
          if you want to overwrite duplicate keys)."
       fn =
+        let dictType = VT.unknownTODO
+        let optType = VT.dict dictType
         (function
         | _, _, [ DList(_vtTODO, l) ] ->
           let f acc e =
@@ -174,8 +177,8 @@ let fns : List<BuiltInFn> =
 
           match result with
           | Some map ->
-            map |> Map.toList |> Dval.dict valueTypeTODO |> Dval.optionSome |> Ply
-          | None -> Ply(Dval.optionNone)
+            map |> Map.toList |> Dval.dict dictType |> Dval.optionSome optType |> Ply
+          | None -> Ply(Dval.optionNone optType)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -192,7 +195,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict(_vtTODO, o); DString s ] ->
-          Map.find s o |> Dval.option |> Ply
+          Map.find s o |> Dval.option VT.unknownTODO |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -248,7 +251,7 @@ let fns : List<BuiltInFn> =
                     (NEList.ofList (DString key) [ dv ]))
                 mapped
 
-            return Dval.dict valueTypeTODO (Map.toList result)
+            return Dval.dict VT.unknownTODO (Map.toList result)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -332,7 +335,7 @@ let fns : List<BuiltInFn> =
               Ply.Map.foldSequentially filterPropagatingErrors (Ok Map.empty) o
 
             match filteredResult with
-            | Ok map -> return map |> Map.toList |> Dval.dict valueTypeTODO
+            | Ok map -> return map |> Map.toList |> Dval.dict VT.unknownTODO
             | Error dv -> return dv
           }
         | _ -> incorrectArgs ())
@@ -371,6 +374,7 @@ let fns : List<BuiltInFn> =
                                          name = TypeName.TypeName "Option"
                                          version = 0 },
                         _,
+                        _typeArgsDEnumTODO,
                         "Some",
                         [ o ]) -> return Some o
                 | DEnum(FQName.Package { owner = "Darklang"
@@ -378,6 +382,7 @@ let fns : List<BuiltInFn> =
                                          name = TypeName.TypeName "Option"
                                          version = 0 },
                         _,
+                        _typeArgsDEnumTODO,
                         "None",
                         []) -> return None
                 | v ->
@@ -388,7 +393,7 @@ let fns : List<BuiltInFn> =
               }
 
             let! result = Ply.Map.filterMapSequentially f o
-            return result |> Map.toList |> Dval.dict valueTypeTODO
+            return result |> Map.toList |> Dval.dict VT.unknownTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -419,7 +424,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict(_vtTODO1, l); DDict(_vtTODO2, r) ] ->
-          Map.mergeFavoringRight l r |> Map.toList |> Dval.dict valueTypeTODO |> Ply
+          Map.mergeFavoringRight l r |> Map.toList |> Dval.dict VT.unknownTODO |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

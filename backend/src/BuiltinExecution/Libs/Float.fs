@@ -6,6 +6,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
 module Dval = LibExecution.Dval
 module Errors = LibExecution.Errors
 
@@ -273,14 +274,16 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the <type Float> value wrapped in a {{Result}} of the <type String>"
       fn =
+        let resultOk = Dval.resultOk VT.float VT.string
+        let resultError = Dval.resultError VT.float VT.string
         (function
         | _, _, [ DString s ] ->
           (try
-            float (s) |> DFloat |> Dval.resultOk |> Ply
+            float (s) |> DFloat |> resultOk |> Ply
            with e ->
              "Expected a String representation of an IEEE float"
              |> DString
-             |> Dval.resultError
+             |> resultError
              |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

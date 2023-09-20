@@ -7,6 +7,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 
+module VT = ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
@@ -24,14 +25,15 @@ let fns : List<BuiltInFn> =
       description =
         "Gets the value of the environment variable with the given <param varName> if it exists."
       fn =
+        let optType = VT.string
         (function
         | _, _, [ DString varName ] ->
           let envValue = System.Environment.GetEnvironmentVariable(varName)
 
           if isNull envValue then
-            Ply(Dval.optionNone)
+            Ply(Dval.optionNone optType)
           else
-            Ply(Dval.optionSome (DString envValue))
+            Ply(Dval.optionSome optType (DString envValue))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -54,7 +56,7 @@ let fns : List<BuiltInFn> =
             |> Seq.cast<System.Collections.DictionaryEntry>
             |> Seq.map (fun kv -> (string kv.Key, DString(string kv.Value)))
             |> Seq.toList
-            |> Dval.dict valueTypeTODO
+            |> Dval.dict VT.unknownTODO
 
           Ply(envMap)
         | _ -> incorrectArgs ())

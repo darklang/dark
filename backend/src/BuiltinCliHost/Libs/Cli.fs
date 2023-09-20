@@ -10,6 +10,7 @@ open LibExecution.Builtin.Shortcuts
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module VT = RT.ValueType
 module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
@@ -31,7 +32,6 @@ module CliRuntimeError =
   module RTE =
     module Error =
       let toDT (et : Error) : RT.Dval =
-        let nameTypeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
         let caseName, fields =
           match et with
           | NoExpressionsToExecute -> "NoExpressionsToExecute", []
@@ -50,13 +50,14 @@ module CliRuntimeError =
 
           | MultipleExpressionsToExecute exprs ->
             "MultipleExpressionsToExecute",
-            [ "exprs", Dval.list valueTypeTODO (List.map DString exprs) ]
+            [ "exprs", Dval.list VT.unknownTODO (List.map DString exprs) ]
 
           | NonIntReturned actuallyReturned ->
             "NonIntReturned",
             [ "actuallyReturned", RT2DT.Dval.toDT actuallyReturned ]
 
-        Dval.enum nameTypeName nameTypeName caseName []
+        let typeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
+        Dval.enum typeName typeName (Some []) caseName []
 
 
     let toRuntimeError (e : Error) : RT.RuntimeError =
@@ -150,7 +151,10 @@ let fns : List<BuiltInFn> =
           (TCustomType(Ok(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)), []))
       description = "Parses and executes arbitrary Dark code"
       fn =
-        function
+        let errType = VT.unknownTODO
+        let resultOk = Dval.resultOk VT.int errType
+        let resultError = Dval.resultError VT.int errType
+        (function
         | state, [], [ DString filename; DString code; DDict(_vtTODO, symtable) ] ->
           uply {
             let exnError (e : exn) : RuntimeError =
@@ -175,19 +179,19 @@ let fns : List<BuiltInFn> =
               match parsedScript with
               | Ok mod' ->
                 match! execute state mod' symtable with
-                | Ok(DInt i) -> return Dval.resultOk (DInt i)
+                | Ok(DInt i) -> return resultOk (DInt i)
                 | Ok result ->
                   return
                     CliRuntimeError.NonIntReturned result
                     |> CliRuntimeError.RTE.toRuntimeError
                     |> RuntimeError.toDT
-                    |> Dval.resultError
-                | Error(_, e) -> return e |> RuntimeError.toDT |> Dval.resultError
-              | Error e -> return e |> RuntimeError.toDT |> Dval.resultError
+                    |> resultError
+                | Error(_, e) -> return e |> RuntimeError.toDT |> resultError
+              | Error e -> return e |> RuntimeError.toDT |> resultError
             with e ->
-              return exnError e |> RuntimeError.toDT |> Dval.resultError
+              return exnError e |> RuntimeError.toDT |> resultError
           }
-        | _ -> incorrectArgs ()
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -204,16 +208,20 @@ let fns : List<BuiltInFn> =
           (TCustomType(Ok(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)), []))
       description = "Executes an arbitrary Dark function"
       fn =
+        let errType = VT.unknownTODO
+        let resultOk = Dval.resultOk VT.string errType
+        let resultError = Dval.resultError VT.string errType
+
         function
         | state, [], [ DString functionName; DList(_vtTODO, args) ] ->
           uply {
             let err (msg : string) (metadata : List<string * string>) =
               let metadata = metadata |> List.map (fun (k, v) -> k, DString v)
-              Dval.resultError (
+              resultError (
                 Dval.record
                   (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
                   [ "msg", DString msg
-                    "metadata", Dval.dict valueTypeTODO metadata ]
+                    "metadata", Dval.dict VT.unknownTODO metadata ]
               )
 
             let exnError (e : exn) : Dval =
@@ -234,6 +242,7 @@ let fns : List<BuiltInFn> =
 
               match fnName, args with
               | Ok fnName, firstArg :: additionalArgs ->
+
                 let desc = fnName |> PT2RT.FnName.toRT
                 let! fn =
                   match desc with
@@ -297,10 +306,10 @@ let fns : List<BuiltInFn> =
                       |> RuntimeError.toDT
                       |> LibExecution.DvalReprDeveloper.toRepr
                       |> DString
-                      |> Dval.resultError
+                      |> resultError
                   | Ok value ->
                     let asString = LibExecution.DvalReprDeveloper.toRepr value
-                    return Dval.resultOk (DString asString)
+                    return resultOk (DString asString)
               | _ -> return incorrectArgs ()
             with e ->
               return exnError e

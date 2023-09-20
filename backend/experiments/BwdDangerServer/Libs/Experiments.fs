@@ -7,6 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
 module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
@@ -87,6 +88,9 @@ let fns : List<BuiltInFn> =
       description =
         "Parses Dark code and serializes the result to JSON. Expects only types, fns, and exprs."
       fn =
+        let okType = VT.dict VT.string
+        let resultOk = Dval.resultOk okType VT.string
+        let resultError = Dval.resultError okType VT.string
         function
         | _, _, [ DString code; DString filename ] ->
           uply {
@@ -103,15 +107,14 @@ let fns : List<BuiltInFn> =
                 [ "types", DString(Json.Vanilla.serialize types)
                   "fns", DString(Json.Vanilla.serialize fns)
                   "exprs", DString(Json.Vanilla.serialize exprs) ]
-                |> Dval.dict valueTypeTODO
-                |> Dval.resultOk
+                |> Dval.dict VT.unknownTODO
+                |> resultOk
             with e ->
               let error = Exception.getMessages e |> String.concat " "
               let metadata = Exception.nestedMetadata e
               let metadataDval = metadata |> Map.ofList
               return
-                DString($"Error parsing code: {error} {metadataDval}")
-                |> Dval.resultError
+                DString($"Error parsing code: {error} {metadataDval}") |> resultError
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -126,6 +129,8 @@ let fns : List<BuiltInFn> =
       description =
         "Reads a file at backend/static/<param path>, and returns its contents as Bytes wrapped in a Result"
       fn =
+        let resultOk = Dval.resultOk VT.bytes VT.string
+        let resultError = Dval.resultError VT.bytes VT.string
         (function
         | _, _, [ DString path ] ->
           uply {
@@ -134,9 +139,9 @@ let fns : List<BuiltInFn> =
                 RestrictedFileIO.readfileBytes
                   RestrictedFileIO.Config.BackendStatic
                   path
-              return DBytes contents |> Dval.resultOk
+              return DBytes contents |> resultOk
             with e ->
-              return DString($"Error reading file: {e.Message}") |> Dval.resultError
+              return DString($"Error reading file: {e.Message}") |> resultError
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -151,6 +156,8 @@ let fns : List<BuiltInFn> =
       description =
         "Reads a file at canvases/<param path>, and returns its contents as Bytes wrapped in a Result"
       fn =
+        let resultOk = Dval.resultOk VT.bytes VT.string
+        let resultError = Dval.resultError VT.bytes VT.string
         (function
         | _, _, [ DString path ] ->
           uply {
@@ -159,9 +166,9 @@ let fns : List<BuiltInFn> =
                 RestrictedFileIO.readfileBytes
                   RestrictedFileIO.Config.CanvasesFiles
                   path
-              return Dval.resultOk (DBytes contents)
+              return resultOk (DBytes contents)
             with e ->
-              return Dval.resultError (DString($"Error reading file: {e.Message}"))
+              return resultError (DString($"Error reading file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

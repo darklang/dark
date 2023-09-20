@@ -13,6 +13,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
 module PT = LibExecution.ProgramTypes
 module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
@@ -58,7 +59,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString error ] ->
           let typeName = RuntimeError.name [ "Error" ] "ErrorMessage" 0
-          Dval.enum typeName typeName "ErrorString" [ DString error ] |> Ply
+          Dval.enum typeName typeName (Some []) "ErrorString" [ DString error ]
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -90,7 +92,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString errorString ] ->
           let msg = LibCloud.SqlCompiler.errorTemplate + errorString
           let typeName = RuntimeError.name [ "Error" ] "ErrorMessage" 0
-          Dval.enum typeName typeName "ErrorString" [ DString msg ] |> Ply
+          Dval.enum typeName typeName (Some []) "ErrorString" [ DString msg ] |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -102,14 +104,17 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.option TChar
       description = "Turns a string of length 1 into a character"
       fn =
+        let optType = VT.char
         (function
         | _, _, [ DString s ] ->
           let chars = String.toEgcSeq s
 
           if Seq.length chars = 1 then
-            chars |> Seq.toList |> (fun l -> l[0] |> DChar |> Dval.optionSome |> Ply)
+            chars
+            |> Seq.toList
+            |> (fun l -> l[0] |> DChar |> Dval.optionSome optType |> Ply)
           else
-            Ply(Dval.optionNone)
+            Ply(Dval.optionNone optType)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

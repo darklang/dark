@@ -5,6 +5,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Errors = LibExecution.Errors
+module VT = ValueType
 module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
@@ -45,11 +46,12 @@ module DvalComparator =
     | DRecord(tn1, _, _typeArgsTODO1, o1), DRecord(tn2, _, _typeArgsTODO2, o2) ->
       let c = compare tn1 tn2
       if c = 0 then compareMaps (Map.toList o1) (Map.toList o2) else c
-    | DEnum(tn1, _, c1, f1), DEnum(tn2, _, c2, f2) ->
-      let c = compare tn1 tn2
+    | DEnum(typeName1, _, _typeArgsTODO1, case1, fields1),
+      DEnum(typeName2, _, _typeArgsTODO2, case2, fields2) ->
+      let c = compare typeName1 typeName2
       if c = 0 then
-        let c = compare c1 c2
-        if c = 0 then compareLists f1 f2 else c
+        let c = compare case1 case2
+        if c = 0 then compareLists fields1 fields2 else c
       else
         c
     // exhaustiveness check
@@ -379,6 +381,10 @@ let fns : List<BuiltInFn> =
          Consider <fn List.sort> or <fn List.sortBy> if you don't need this level
          of control."
       fn =
+        let okType = VT.unknownTODO
+        let resultOk = Dval.resultOk okType VT.string
+        let resultError = Dval.resultError okType VT.string
+
         (function
         | state, _, [ DList(vt, list); DFnVal f ] ->
           let fn (dv1 : Dval) (dv2 : Dval) : Ply<int> =
@@ -398,11 +404,11 @@ let fns : List<BuiltInFn> =
             try
               let array = List.toArray list
               do! Sort.sort fn array
-              return array |> Array.toList |> Dval.list vt |> Dval.resultOk
+              return array |> Array.toList |> Dval.list vt |> resultOk
             with Sort.InvalidSortComparator i ->
               // CLEANUP this yields pretty confusing error messages
               let message = Errors.expectedLambdaValue "fn" "-1, 0, 1" (DInt i)
-              return Dval.resultError (DString message)
+              return resultError (DString message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -501,6 +507,7 @@ let fns : List<BuiltInFn> =
                                          name = TypeName.TypeName "Option"
                                          version = 0 },
                         _,
+                        _typeArgsDEnumTODO,
                         "Some",
                         [ o ]) -> return Some o
                 | DEnum(FQName.Package { owner = "Darklang"
@@ -508,6 +515,7 @@ let fns : List<BuiltInFn> =
                                          name = TypeName.TypeName "Option"
                                          version = 0 },
                         _,
+                        _typeArgsDEnumTODO,
                         "None",
                         []) -> return None
                 | v ->
@@ -518,7 +526,7 @@ let fns : List<BuiltInFn> =
               }
 
             let! result = Ply.List.filterMapSequentially f l
-            return Dval.list valueTypeTODO result
+            return Dval.list VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -554,7 +562,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state 0UL b [] args)
                 list
 
-            return Dval.list valueTypeTODO result
+            return Dval.list VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -601,7 +609,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state 0UL b [] args)
                 list
 
-            return Dval.list valueTypeTODO result
+            return Dval.list VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -633,11 +641,12 @@ let fns : List<BuiltInFn> =
          List.map2shortest> if you want to drop values from the longer list
          instead)."
       fn =
+        let optType = VT.unknownTODO
         (function
         | state, _, [ DList(_vtTODO1, l1); DList(_vtTODO2, l2); DFnVal b ] ->
           uply {
             if List.length l1 <> List.length l2 then
-              return Dval.optionNone
+              return Dval.optionNone optType
             else
               let list = List.zip l1 l2
 
@@ -648,7 +657,7 @@ let fns : List<BuiltInFn> =
                     Interpreter.applyFnVal state 0UL b [] args)
                   list
 
-              return Dval.optionSome (Dval.list valueTypeTODO result)
+              return Dval.optionSome optType (Dval.list VT.unknownTODO result)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -665,15 +674,16 @@ let fns : List<BuiltInFn> =
          selected value in <param list>. Returns {{None}} if <param list> is
          empty."
       fn =
+        let optType = VT.unknownTODO
         (function
-        | _, _, [ DList(_, []) ] -> Ply(Dval.optionNone)
+        | _, _, [ DList(_, []) ] -> Ply(Dval.optionNone optType)
         | _, _, [ DList(_, l) ] ->
           // Will return <= (length - 1)
           // Maximum value is Int64.MaxValue which is half of UInt64.MaxValue, but
           // that won't affect this as we won't have a list that big for a long long
           // long time.
           let index = RNG.GetInt32(l.Length)
-          (List.tryItem index l) |> Dval.option |> Ply
+          (List.tryItem index l) |> Dval.option optType |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
@@ -718,8 +728,8 @@ let fns : List<BuiltInFn> =
               |> Seq.toList
               |> List.map (fun (key, elementsWithKey) ->
                 let elements = Seq.map snd elementsWithKey |> Seq.toList
-                DTuple(key, Dval.list valueTypeTODO elements, []))
-              |> Dval.list valueTypeTODO
+                DTuple(key, Dval.list VT.unknownTODO elements, []))
+              |> Dval.list VT.unknownTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

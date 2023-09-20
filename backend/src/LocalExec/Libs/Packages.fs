@@ -11,6 +11,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
 module Dval = LibExecution.Dval
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
@@ -142,7 +143,7 @@ let fns : List<BuiltInFn> =
                  read.int "version"))
             return
               Dval.list
-                valueTypeTODO
+                VT.unknownTODO
                 (packages
                  |> List.map (fun (owner, fnname, modules, version) ->
                    Dval.record
@@ -152,7 +153,7 @@ let fns : List<BuiltInFn> =
                         modules
                         |> String.split "."
                         |> List.map DString
-                        |> Dval.list valueTypeTODO)
+                        |> Dval.list VT.unknownTODO)
                        ("name", DString fnname)
                        ("version", DInt version) ]))
 
@@ -189,7 +190,7 @@ let fns : List<BuiltInFn> =
 
             return
               Dval.list
-                valueTypeTODO
+                VT.unknownTODO
                 (packages
                  |> List.map (fun (owner, typename, modules, version) ->
                    Dval.record
@@ -199,7 +200,7 @@ let fns : List<BuiltInFn> =
                         modules
                         |> String.split "."
                         |> List.map DString
-                        |> Dval.list valueTypeTODO)
+                        |> Dval.list VT.unknownTODO)
                        ("name", DString typename)
                        ("version", DInt version) ]))
 
@@ -235,7 +236,7 @@ let fns : List<BuiltInFn> =
                  read.int "version"))
             return
               (Dval.list
-                valueTypeTODO
+                VT.unknownTODO
                 (packages
                  |> List.map (fun (owner, fnname, modules, version) ->
                    Dval.record
@@ -245,7 +246,7 @@ let fns : List<BuiltInFn> =
                         modules
                         |> String.split "."
                         |> List.map DString
-                        |> Dval.list valueTypeTODO)
+                        |> Dval.list VT.unknownTODO)
                        ("name", DString fnname)
                        ("version", DInt version) ])))
           }

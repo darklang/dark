@@ -8,6 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
 module Dval = LibExecution.Dval
 
 
@@ -28,6 +29,8 @@ let fns : List<BuiltInFn> =
          sections [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
          [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
+        let resultOk = Dval.resultOk VT.bytes VT.string
+        let resultError = Dval.resultError VT.bytes VT.string
         (function
         | _, _, [ DString s ] ->
           let base64FromUrlEncoded (str : string) : string =
@@ -40,20 +43,20 @@ let fns : List<BuiltInFn> =
 
           if s = "" then
             // This seems like we should allow it
-            [||] |> DBytes |> Dval.resultOk |> Ply
+            [||] |> DBytes |> resultOk |> Ply
           elif Regex.IsMatch(s, @"\s") then
             // dotnet ignores whitespace but we don't allow it
-            "Not a valid base64 string" |> DString |> Dval.resultError |> Ply
+            "Not a valid base64 string" |> DString |> resultError |> Ply
           else
             try
               s
               |> base64FromUrlEncoded
               |> Convert.FromBase64String
               |> DBytes
-              |> Dval.resultOk
+              |> resultOk
               |> Ply
             with e ->
-              Ply(Dval.resultError (DString("Not a valid base64 string")))
+              Ply(resultError (DString("Not a valid base64 string")))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

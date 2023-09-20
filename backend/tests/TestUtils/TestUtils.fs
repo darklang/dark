@@ -13,6 +13,7 @@ open Prelude
 
 module DarkDateTime = LibExecution.DarkDateTime
 module RT = LibExecution.RuntimeTypes
+module VT = RT.ValueType
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
@@ -391,7 +392,7 @@ module Expect =
     | DRecord(_, _, _typeArgsTODO, vs) -> vs |> Map.values |> List.all check
     | DString str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
-    | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all check
+    | DEnum(_, _, _, _, fields) -> fields |> List.all check
 
   type Path = string list
 
@@ -780,7 +781,8 @@ module Expect =
       check ("Length" :: path) (Map.count ls) (Map.count rs)
 
 
-    | DEnum(typeName, _, caseName, fields), DEnum(typeName', _, caseName', fields') ->
+    | DEnum(typeName, _, _typeArgsDEnumTODO, caseName, fields),
+      DEnum(typeName', _, _typeArgsDEnumTODO', caseName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
       check ("caseName" :: path) caseName caseName'
 
@@ -863,7 +865,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DDict(_, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
     | DRecord(_, _, _typeArgsTODO, map) ->
       Map.values map |> List.map visit |> ignore<List<unit>>
-    | DEnum(_typeName, _, _caseName, fields) ->
+    | DEnum(_typeName, _, _, _, fields) ->
       fields |> List.map visit |> ignore<List<unit>>
     | DList(_, dvs) -> List.map visit dvs |> ignore<List<unit>>
     | DTuple(first, second, theRest) ->
@@ -985,7 +987,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0,
        S.fqUserTypeName [ "Two"; "Modules" ] "FooAlias" 0,
-       valueTypesTODO,
+       VT.uknownTypeArgsTODO,
        Map.ofList [ "foo", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0), []))
@@ -993,7 +995,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "FooAlias" 0,
-       valueTypesTODO,
+       VT.uknownTypeArgsTODO,
        Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1001,7 +1003,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       valueTypesTODO,
+       VT.uknownTypeArgsTODO,
        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1010,7 +1012,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       valueTypesTODO,
+       VT.uknownTypeArgsTODO,
        Map.ofList [ "foo\\\\bar", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1018,17 +1020,17 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       valueTypesTODO,
+       VT.uknownTypeArgsTODO,
        Map.ofList [ "$type", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    ("dict", Dval.dict valueTypeTODO [ "foo", Dval.int 5 ], TDict TInt)
+    ("dict", Dval.dict VT.unknownTODO [ "foo", Dval.int 5 ], TDict TInt)
     ("dict3",
-     Dval.dict valueTypeTODO [ ("type", DString "weird"); ("value", DString "x") ],
+     Dval.dict VT.unknownTODO [ ("type", DString "weird"); ("value", DString "x") ],
      TDict TString)
     // More Json.NET tests
-    ("dict4", Dval.dict valueTypeTODO [ "foo\\\\bar", Dval.int 5 ], TDict TInt)
-    ("dict5", Dval.dict valueTypeTODO [ "$type", Dval.int 5 ], TDict TInt)
+    ("dict4", Dval.dict VT.unknownTODO [ "foo\\\\bar", Dval.int 5 ], TDict TInt)
+    ("dict5", Dval.dict VT.unknownTODO [ "$type", Dval.int 5 ], TDict TInt)
     ("lambda",
      DFnVal(
        Lambda
@@ -1102,9 +1104,11 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      TDateTime)
     ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"), TUuid)
     ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"), TUuid)
-    ("option", Dval.optionNone, TypeReference.option TInt)
-    ("option2", Dval.optionSome (Dval.int 15), TypeReference.option TInt)
-    ("option3", Dval.optionSome (DString "a string"), TypeReference.option TString)
+    ("option", Dval.optionNone VT.int, TypeReference.option TInt)
+    ("option2", Dval.optionSome VT.int (Dval.int 15), TypeReference.option TInt)
+    ("option3",
+     Dval.optionSome VT.string (DString "a string"),
+     TypeReference.option TString)
     ("character", DChar "s", TChar)
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
     // use image bytes here to test for any weird bytes forms
@@ -1123,7 +1127,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DTuple(Dval.int 1, Dval.int 2, [ DUnit ]),
      TTuple(TInt, TInt, [ TUnit ]))
     ("tupleWithError",
-     DTuple(Dval.int 1, Dval.resultError (DString "error"), []),
+     DTuple(Dval.int 1, Dval.resultError VT.unknown VT.string (DString "error"), []),
      TTuple(TInt, TypeReference.result TInt TString, [])) ]
 
 let sampleDvals : List<string * (Dval * TypeReference)> =

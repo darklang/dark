@@ -8,6 +8,7 @@ open Prelude
 open TestUtils.TestUtils
 
 module RT = LibExecution.RuntimeTypes
+module VT = RT.ValueType
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 
@@ -39,7 +40,7 @@ let queryableRoundtripsSuccessfullyInRecord
       RT.DRecord(
         RT.FQName.UserProgram typeName,
         RT.FQName.UserProgram typeName,
-        RT.valueTypesTODO,
+        VT.uknownTypeArgsTODO,
         Map.ofList [ "field", dv ]
       )
     let typeRef = S.userTypeReference [] "MyType" 0
@@ -81,7 +82,7 @@ let testDvalRoundtrippableRoundtrips =
     "special roundtrippable dvals roundtrip"
     roundtrippableRoundtripsSuccessfully
     [ Dval.dict
-        RT.valueTypeTODO
+        VT.unknownTODO
         [ ("", RT.DFloat 1.797693135e+308); ("a", RT.DFloat nan) ],
       true ]
 
@@ -95,8 +96,8 @@ let testToDeveloperRepr =
         [ RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(1, 2, 3)"
-          Dval.dict RT.valueTypeTODO [ "", RT.DUnit ], "{\n  : ()\n}"
-          RT.DList(RT.ValueType.Known RT.KTUnit, [ RT.DUnit ]), "[\n  ()\n]" ] ]
+          Dval.dict VT.unknownTODO [ "", RT.DUnit ], "{\n  : ()\n}"
+          RT.DList(VT.unit, [ RT.DUnit ]), "[\n  ()\n]" ] ]
 
 module ToHashableRepr =
   open LibExecution.RuntimeTypes

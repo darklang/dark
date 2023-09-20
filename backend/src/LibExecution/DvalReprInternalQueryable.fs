@@ -11,6 +11,7 @@ open System.Text.Json
 open Prelude
 
 open RuntimeTypes
+module VT = ValueType
 
 
 let parseJson (s : string) : JsonElement =
@@ -115,7 +116,7 @@ let rec private toJsonV0
         w.writeArray (fun () ->
           Ply.List.iterSequentially (fun (t, d) -> writeDval t d) zipped)
 
-    | TDict objType, DDict(_valueTypeTODO, o) ->
+    | TDict objType, DDict(_typeArgsTODO, o) ->
       do!
         w.writeObject (fun () ->
           Ply.List.iterSequentially
@@ -149,7 +150,8 @@ let rec private toJsonV0
                   })
                 fields)
 
-        | TypeDeclaration.Enum(cases), DEnum(_, _, caseName, fields) ->
+        | TypeDeclaration.Enum cases,
+          DEnum(_, _, _typeArgsDEnumTODO, caseName, fields) ->
           let matchingCase =
             cases
             |> NEList.find (fun c -> c.name = caseName)
@@ -258,7 +260,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
       |> Seq.map (convert nested)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (Dval.list valueTypeTODO)
+      |> Ply.map (Dval.list VT.unknownTODO)
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let arr = j.EnumerateArray() |> Seq.toList
@@ -280,7 +282,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
       |> Map.toList
       |> List.map (fun (k, v) -> convert typ v |> Ply.map (fun v -> k, v))
       |> Ply.List.flatten
-      |> Ply.map (Dval.dict valueTypeTODO)
+      |> Ply.map (Dval.dict VT.unknownTODO)
 
 
     | TCustomType(Ok typeName, typeArgs), valueKind ->
@@ -315,7 +317,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 |> Ply.List.flatten
                 // TYPESCLEANUP: I don't think the original is name right here?
                 |> Ply.map (fun mapped ->
-                  DRecord(typeName, typeName, valueTypesTODO, Map mapped))
+                  DRecord(typeName, typeName, VT.uknownTypeArgsTODO, Map mapped))
             else
               return
                 Exception.raiseInternal
@@ -348,7 +350,8 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 |> Ply.List.flatten
 
               // TYPESCLEANUP: I don't think the original is name right here?
-              return Dval.enum typeName typeName caseName fields
+              return
+                Dval.enum typeName typeName VT.uknownTypeArgsTODO' caseName fields
           | _, _ ->
             return
               Exception.raiseInternal
@@ -399,7 +402,7 @@ module Test =
     | DDict(_, map) -> map |> Map.values |> List.all isQueryableDval
     | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
 
-    | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all isQueryableDval
+    | DEnum(_typeName, _, _, _caseName, fields) -> fields |> List.all isQueryableDval
 
     // TODO support
     | DRecord _ // TYPESCLEANUP
