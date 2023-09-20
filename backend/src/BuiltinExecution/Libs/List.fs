@@ -4,7 +4,6 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module Errors = LibExecution.Errors
 module VT = ValueType
 module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter

@@ -12,7 +12,6 @@ open LibExecution.RuntimeTypes
 
 module C = LibCloud.SqlCompiler
 module S = TestUtils.RTShortcuts
-module Errors = LibExecution.Errors
 
 let p (code : string) : Task<Expr> =
   LibParser.Parser.parseRTExpr nameResolver "sqlcompiler.tests.fs" code

@@ -7,7 +7,6 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
 module Dval = LibExecution.Dval
-module Errors = LibExecution.Errors
 
 module UserDB = LibCloud.UserDB
 module Db = LibCloud.Db

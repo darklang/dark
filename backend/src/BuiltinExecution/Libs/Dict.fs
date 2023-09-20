@@ -10,7 +10,6 @@ module TypeChecker = LibExecution.TypeChecker
 
 module VT = ValueType
 module Dval = LibExecution.Dval
-module Errors = LibExecution.Errors
 module Interpreter = LibExecution.Interpreter
 
 let varA = TVariable "a"
