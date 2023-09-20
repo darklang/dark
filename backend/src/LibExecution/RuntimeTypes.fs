@@ -939,10 +939,6 @@ module Dval =
     | DEnum _, _ -> false
 
 
-  let errStr (s : string) : 'a = raiseUntargetedRTE (RuntimeError.oldError s)
-
-  let errSStr (source : DvalSource) (s : string) : 'a =
-    raiseRTE source (RuntimeError.oldError s)
 
 
   let asList (dv : Dval) : Option<List<Dval>> =

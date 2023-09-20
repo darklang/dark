@@ -34,7 +34,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DInt v; DInt m as mdv ] ->
           if m <= 0L then
-            Dval.errStr (Errors.argumentWasnt "positive" "b" mdv)
+            raiseString (Errors.argumentWasnt "positive" "b" mdv)
           else
             let result = v % m
             let result = if result < 0L then m + result else result
@@ -205,7 +205,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DInt a; DInt b ] ->
-          if b = 0L then Ply(Dval.errStr "Division by zero") else Ply(DInt(a / b))
+          if b = 0L then Ply(raiseString "Division by zero") else Ply(DInt(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "/"
       previewable = Pure

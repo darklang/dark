@@ -95,8 +95,6 @@ let reraiseAsPageable (msg : string) (tags : Metadata) (e : exn) =
   callExceptionCallback e
   raise e
 
-let unknownErrorMessage = "Unknown error"
-
 let taskCatch (f : unit -> Task<'r>) : Task<Option<'r>> =
   task {
     try
