@@ -913,11 +913,11 @@ module Dval =
       // TYPESCLEANUP: do we need to check fields?
       typeName = typeName'
 
-    | DEnum(typeName, _, _typeArgsDEnumTODO, casename, fields),
-      TCustomType(Ok typeName', typeArgs) ->
+    | DEnum(typeName, _, _typeArgsDEnumTODO, _casename, _fields),
+      TCustomType(Ok typeName', _typeArgsExpected) ->
       // TYPESCLEANUP: should load type by name
-      // TYPESCLEANUP: are we handling type arguments here?
-      // TYPESCLEANUP: do we need to check fields?
+      // TYPESCLEANUP: convert TCustomType's typeArgs to valueTypes, and compare
+      // against the typeArgs in the DEnum - their zipped values should merge OK
       typeName = typeName'
 
     // exhaustiveness checking
