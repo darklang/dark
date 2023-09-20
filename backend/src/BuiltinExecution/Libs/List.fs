@@ -381,6 +381,10 @@ let fns : List<BuiltInFn> =
          Consider <fn List.sort> or <fn List.sortBy> if you don't need this level
          of control."
       fn =
+        let okType = VT.unknownTODO
+        let resultOk = Dval.resultOk okType VT.string
+        let resultError = Dval.resultError okType VT.string
+
         (function
         | state, _, [ DList(vt, list); DFnVal f ] ->
           let fn (dv1 : Dval) (dv2 : Dval) : Ply<int> =
@@ -400,11 +404,11 @@ let fns : List<BuiltInFn> =
             try
               let array = List.toArray list
               do! Sort.sort fn array
-              return array |> Array.toList |> Dval.list vt |> Dval.resultOk
+              return array |> Array.toList |> Dval.list vt |> resultOk
             with Sort.InvalidSortComparator i ->
               // CLEANUP this yields pretty confusing error messages
               let message = Errors.expectedLambdaValue "fn" "-1, 0, 1" (DInt i)
-              return Dval.resultError (DString message)
+              return resultError (DString message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

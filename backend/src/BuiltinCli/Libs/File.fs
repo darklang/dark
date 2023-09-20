@@ -6,7 +6,7 @@ open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
-
+module VT = ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
@@ -24,14 +24,16 @@ let fns : List<BuiltInFn> =
       description =
         "Reads the contents of a file specified by <param path> asynchronously and returns its contents as Bytes wrapped in a Result"
       fn =
+        let resultOk = Dval.resultOk VT.bytes VT.string
+        let resultError = Dval.resultError VT.bytes VT.string
         (function
         | _, _, [ DString path ] ->
           uply {
             try
               let! contents = System.IO.File.ReadAllBytesAsync path
-              return Dval.resultOk (DBytes contents)
+              return resultOk (DBytes contents)
             with e ->
-              return Dval.resultError (DString($"Error reading file: {e.Message}"))
+              return resultError (DString($"Error reading file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -46,14 +48,16 @@ let fns : List<BuiltInFn> =
       description =
         "Writes the specified byte array <param contents> to the file specified by <param path> asynchronously"
       fn =
+        let resultOk = Dval.resultOk VT.unit VT.string
+        let resultError = Dval.resultError VT.unit VT.string
         (function
         | _, _, [ DBytes contents; DString path ] ->
           uply {
             try
               do! System.IO.File.WriteAllBytesAsync(path, contents)
-              return Dval.resultOk (DUnit)
+              return resultOk DUnit
             with e ->
-              return Dval.resultError (DString($"Error writing file: {e.Message}"))
+              return resultError (DString($"Error writing file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -68,14 +72,16 @@ let fns : List<BuiltInFn> =
       description =
         "Appends the given <param content> to the file at the specified <param path>. If the file does not exist, a new file is created with the content. Returns a Result type indicating success or failure."
       fn =
+        let resultOk = Dval.resultOk VT.unit VT.string
+        let resultError = Dval.resultError VT.unit VT.string
         (function
         | _, _, [ DBytes content; DString path ] ->
           uply {
             try
               do! System.IO.File.WriteAllBytesAsync(path, content)
-              return Dval.resultOk DUnit
+              return resultOk DUnit
             with e ->
-              return Dval.resultError (DString e.Message)
+              return resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -90,14 +96,16 @@ let fns : List<BuiltInFn> =
       description =
         "Creates a new temporary file with a unique name in the system's temporary directory. Returns a Result type containing the temporary file path or an error if the creation fails."
       fn =
+        let resultOk = Dval.resultOk VT.string VT.string
+        let resultError = Dval.resultError VT.string VT.string
         (function
         | _, _, [ DUnit ] ->
           uply {
             try
               let tempPath = System.IO.Path.GetTempFileName()
-              return Dval.resultOk (DString tempPath)
+              return resultOk (DString tempPath)
             with e ->
-              return Dval.resultError (DString e.Message)
+              return resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -183,14 +191,16 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the size of the file at the specified <param path> in bytes, or an error if the file does not exist or an error occurs"
       fn =
+        let resultOk = Dval.resultOk VT.int VT.string
+        let resultError = Dval.resultError VT.int VT.string
         (function
         | _, _, [ DString path ] ->
           uply {
             try
               let fileInfo = System.IO.FileInfo(path)
-              return Dval.resultOk (DInt fileInfo.Length)
+              return resultOk (DInt fileInfo.Length)
             with e ->
-              return Dval.resultError (DString e.Message)
+              return resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

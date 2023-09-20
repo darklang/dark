@@ -7,6 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
 module Dval = LibExecution.Dval
 module Secret = LibCloud.Secret
 
@@ -90,14 +91,16 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.result TUnit TString
       description = "Add a secret"
       fn =
+        let resultOk = Dval.resultOk VT.unit VT.string
+        let resultError = Dval.resultError VT.unit VT.string
         (function
         | _, _, [ DUuid canvasID; DString name; DString value; DInt version ] ->
           uply {
             try
               do! Secret.insert canvasID name value (int version)
-              return Dval.resultOk DUnit
+              return resultOk DUnit
             with _ ->
-              return Dval.resultError (DString "Error inserting secret")
+              return resultError (DString "Error inserting secret")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

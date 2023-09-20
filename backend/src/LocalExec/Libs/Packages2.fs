@@ -78,13 +78,14 @@ let fns : List<BuiltInFn> =
             let packagesConstants = constants |> List.map PT2DT.PackageConstant.toDT
 
             return
-              Dval.resultOk (
-                Dval.record
+              Dval.resultOk
+                VT.unknownTODO
+                VT.string
+                (Dval.record
                   (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0))
                   [ ("fns", Dval.list VT.unknownTODO packagesFns)
                     ("types", Dval.list VT.unknownTODO packagesTypes)
-                    ("constants", Dval.list VT.unknownTODO packagesConstants) ]
-              )
+                    ("constants", Dval.list VT.unknownTODO packagesConstants) ])
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

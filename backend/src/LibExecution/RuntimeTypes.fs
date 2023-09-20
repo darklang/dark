@@ -419,7 +419,7 @@ module ValueType =
   let string = known KTString
   let dateTime = known KTDateTime
   let uuid = known KTUuid
-  let bytes = known KTString
+  let bytes = known KTBytes
 
   let list (inner : ValueType) : ValueType = known (KTList inner)
   let dict (inner : ValueType) : ValueType = known (KTDict inner)
@@ -429,20 +429,6 @@ module ValueType =
     (theRest : List<ValueType>)
     : ValueType =
     KTTuple(first, second, theRest) |> known
-
-  let option (inner : ValueType) : ValueType =
-    KTCustomType(
-      TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0,
-      [ inner ]
-    )
-    |> known
-
-  let result (okType : ValueType) (errType : ValueType) : ValueType =
-    KTCustomType(
-      TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0,
-      [ okType; errType ]
-    )
-    |> known
 
   let rec toString (vt : ValueType) : string =
     match vt with
@@ -466,7 +452,17 @@ module ValueType =
         |> List.map toString
         |> String.concat " * "
         |> fun inner -> $"({inner})"
-      | KTCustomType _ -> "Custom Type (TODO)"
+      | KTCustomType(typeName, typeArgs) ->
+        let typeArgsPart =
+          match typeArgs with
+          | [] -> ""
+          | _ ->
+            typeArgs
+            |> List.map toString
+            |> String.concat ", "
+            |> fun inner -> $"<{inner}>"
+
+        $"{TypeName.toString typeName}{typeArgsPart}"
 
       | KTFn(args, ret) ->
         NEList.toList args @ [ ret ] |> List.map toString |> String.concat " -> "

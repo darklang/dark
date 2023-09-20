@@ -229,10 +229,16 @@ module ConstantName =
 
 
 module NameResolution =
-  let toDT (f : 'p -> Dval) (result : NameResolution<'p>) : Dval =
+  let toDT
+    (nameValueType : ValueType)
+    (f : 'p -> Dval)
+    (result : NameResolution<'p>)
+    : Dval =
+    let errType = VT.unknownTODO // NameResolutionError
+
     match result with
-    | Ok name -> Dval.resultOk (f name)
-    | Error err -> Dval.resultError (RuntimeError.toDT err)
+    | Ok name -> Dval.resultOk nameValueType errType (f name)
+    | Error err -> Dval.resultError nameValueType errType (RuntimeError.toDT err)
 
   let fromDT (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
     match d with
@@ -268,7 +274,7 @@ module TypeReference =
 
       | TCustomType(typeName, typeArgs) ->
         "TCustomType",
-        [ NameResolution.toDT TypeName.toDT typeName
+        [ NameResolution.toDT ValueType.unknownTODO TypeName.toDT typeName
           Dval.list VT.unknownTODO (List.map toDT typeArgs) ]
 
       | TDB inner -> "TDB", [ toDT inner ]

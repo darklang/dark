@@ -217,7 +217,7 @@ let fns : List<BuiltInFn> =
               Dval.record
                 (FQName.BuiltIn(typ "Program" 0))
                 [ "types", types; "fns", fns ]
-              |> Dval.resultOk
+              |> Dval.resultOk VT.unknownTODO VT.string
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

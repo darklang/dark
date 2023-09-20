@@ -583,7 +583,7 @@ let fns : List<BuiltInFn> =
             let types = ExecutionState.availableTypes state
             let! response =
               writeJson (fun w -> serialize types w typeToSerializeAs arg)
-            return Dval.resultOk (DString response)
+            return Dval.resultOk VT.string VT.string (DString response)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -598,13 +598,15 @@ let fns : List<BuiltInFn> =
       description =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =
+        let resultOk = Dval.resultOk VT.unknownTODO VT.string
+        let resultError = Dval.resultError VT.unknownTODO VT.string
         (function
         | state, [ typeArg ], [ DString arg ] ->
           let types = ExecutionState.availableTypes state
           uply {
             match! parse types typeArg arg with
-            | Ok v -> return Dval.resultOk v
-            | Error e -> return Dval.resultError (DString e)
+            | Ok v -> return resultOk v
+            | Error e -> return resultError (DString e)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

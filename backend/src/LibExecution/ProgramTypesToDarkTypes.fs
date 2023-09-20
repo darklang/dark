@@ -249,10 +249,16 @@ module ConstantName =
   let fromDT (d : Dval) : PT.ConstantName.ConstantName = FQName.fromDT Name.fromDT d
 
 module NameResolution =
-  let toDT (f : 'p -> Dval) (result : PT.NameResolution<'p>) : Dval =
+  let toDT
+    (nameValueType : ValueType)
+    (f : 'p -> Dval)
+    (result : PT.NameResolution<'p>)
+    : Dval =
+    let errType = VT.unknownTODO // NameResolutionError
+
     match result with
-    | Ok name -> Dval.resultOk (f name)
-    | Error err -> Dval.resultError (err |> NRE.RTE.Error.toDT)
+    | Ok name -> Dval.resultOk nameValueType errType (f name)
+    | Error err -> Dval.resultError nameValueType errType (err |> NRE.RTE.Error.toDT)
 
   let fromDT (f : Dval -> 'a) (d : Dval) : PT.NameResolution<'a> =
     match d with
@@ -290,7 +296,7 @@ module TypeReference =
 
       | PT.TCustomType(typeName, typeArgs) ->
         "TCustomType",
-        [ NameResolution.toDT TypeName.toDT typeName
+        [ NameResolution.toDT VT.unknownTODO TypeName.toDT typeName
           Dval.list VT.unknownTODO (List.map toDT typeArgs) ]
 
       | PT.TDB inner -> "TDB", [ toDT inner ]
@@ -546,14 +552,14 @@ module PipeExpr =
       | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
         "EPipeFnCall",
         [ DInt(int64 id)
-          NameResolution.toDT FnName.toDT fnName
+          NameResolution.toDT VT.unknownTODO FnName.toDT fnName
           Dval.list VT.unknownTODO (List.map TypeReference.toDT typeArgs)
           Dval.list VT.unknownTODO (List.map exprToDT args) ]
 
       | PT.EPipeEnum(id, typeName, caseName, fields) ->
         "EPipeEnum",
         [ DInt(int64 id)
-          NameResolution.toDT TypeName.toDT typeName
+          NameResolution.toDT VT.unknownTODO TypeName.toDT typeName
           DString caseName
           Dval.list VT.unknownTODO (List.map exprToDT fields) ]
 
@@ -654,13 +660,13 @@ module Expr =
 
         "ERecord",
         [ DInt(int64 id)
-          NameResolution.toDT TypeName.toDT name
+          NameResolution.toDT VT.unknownTODO TypeName.toDT name
           Dval.list VT.unknownTODO (fields) ]
 
       | PT.EEnum(id, typeName, caseName, fields) ->
         "EEnum",
         [ DInt(int64 id)
-          NameResolution.toDT TypeName.toDT typeName
+          NameResolution.toDT VT.unknownTODO TypeName.toDT typeName
           DString caseName
           Dval.list VT.unknownTODO (List.map toDT fields) ]
 
@@ -709,7 +715,8 @@ module Expr =
         "ELambda", [ DInt(int64 id); variables; toDT body ]
 
       | PT.EConstant(id, name) ->
-        "EConstant", [ DInt(int64 id); NameResolution.toDT ConstantName.toDT name ]
+        "EConstant",
+        [ DInt(int64 id); NameResolution.toDT VT.unknownTODO ConstantName.toDT name ]
 
       | PT.EApply(id, name, typeArgs, args) ->
         "EApply",
@@ -719,7 +726,8 @@ module Expr =
           Dval.list VT.unknownTODO (args |> NEList.toList |> List.map toDT) ]
 
       | PT.EFnName(id, name) ->
-        "EFnName", [ DInt(int64 id); NameResolution.toDT FnName.toDT name ]
+        "EFnName",
+        [ DInt(int64 id); NameResolution.toDT VT.unknownTODO FnName.toDT name ]
 
       | PT.ERecordUpdate(id, record, updates) ->
         let updates =
@@ -880,7 +888,7 @@ module Const =
         [ toDT first; toDT second; Dval.list VT.unknownTODO (List.map toDT rest) ]
       | PT.Const.CEnum(typeName, caseName, fields) ->
         "CEnum",
-        [ NameResolution.toDT TypeName.toDT typeName
+        [ NameResolution.toDT VT.unknownTODO TypeName.toDT typeName
           DString caseName
           Dval.list VT.unknownTODO (List.map toDT fields) ]
       | PT.Const.CList(inner) ->

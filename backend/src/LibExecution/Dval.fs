@@ -35,6 +35,7 @@ let rec mergeKnownTypes
   (left : KnownType)
   (right : KnownType)
   : Result<KnownType, unit> =
+  let r = mergeValueTypes
   match left, right with
   | KTUnit, KTUnit -> KTUnit |> Ok
   | KTBool, KTBool -> KTBool |> Ok
@@ -46,13 +47,13 @@ let rec mergeKnownTypes
   | KTBytes, KTBytes -> KTBytes |> Ok
   | KTDateTime, KTDateTime -> KTDateTime |> Ok
 
-  | KTList left, KTList right -> mergeValueTypes left right |> Result.map KTList
-  | KTDict left, KTDict right -> mergeValueTypes left right |> Result.map KTDict
+  | KTList left, KTList right -> r left right |> Result.map KTList
+  | KTDict left, KTDict right -> r left right |> Result.map KTDict
   | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
-    let firstMerged = mergeValueTypes l1 r1
-    let secondMerged = mergeValueTypes l2 r2
+    let firstMerged = r l1 r1
+    let secondMerged = r l2 r2
     let restMerged =
-      List.map2 (fun l r -> mergeValueTypes l r) ls rs |> Result.collect
+      List.map2 (fun left right -> r left right) ls rs |> Result.collect
 
     match firstMerged, secondMerged, restMerged with
     | Ok first, Ok second, Ok rest -> Ok(KTTuple(first, second, rest))
@@ -64,13 +65,13 @@ let rec mergeKnownTypes
     else if List.length lArgs <> List.length rArgs then
       Error()
     else
-      List.map2 mergeValueTypes lArgs rArgs
+      List.map2 r lArgs rArgs
       |> Result.collect
       |> Result.map (fun args -> KTCustomType(lName, args))
 
   | KTFn(lArgs, lRet), KTFn(rArgs, rRet) ->
-    let argsMerged = NEList.map2 mergeValueTypes lArgs rArgs |> Result.collectNE
-    let retMerged = mergeValueTypes lRet rRet
+    let argsMerged = NEList.map2 r lArgs rArgs |> Result.collectNE
+    let retMerged = r lRet rRet
 
     match argsMerged, retMerged with
     | Ok args, Ok ret -> Ok(KTFn(args, ret))
@@ -88,7 +89,6 @@ and mergeValueTypes
 
   | ValueType.Known left, ValueType.Known right ->
     mergeKnownTypes left right |> Result.map ValueType.Known
-
 
 
 let rec toValueType (dv : Dval) : ValueType =
@@ -133,6 +133,7 @@ let rec toValueType (dv : Dval) : ValueType =
   | DDB _ -> ValueType.Unknown
 
 
+
 let mergeFailureRte
   (sourceId : DvalSource)
   (vt1 : ValueType)
@@ -141,6 +142,8 @@ let mergeFailureRte
   RuntimeError.oldError
     $"Could not merge types {ValueType.toString vt1} and {ValueType.toString vt2}"
   |> fun e -> raiseRTE sourceId e
+
+
 
 let private listPush
   (list : List<Dval>)
@@ -168,6 +171,7 @@ let list (initialType : ValueType) (list : List<Dval>) : Dval =
   DList(typ, dvs)
 
 
+
 // CLEANUP - this fn was unused so I commented it out
 // remove? or will it be handy?
 // let dict (fields : List<string * Dval>) : Dval =
@@ -191,7 +195,6 @@ let list (initialType : ValueType) (list : List<Dval>) : Dval =
 //       // If we haven't got a DDict we're propagating an error so let it go
 //       | m, _, _ -> m)
 //     fields
-
 
 // CLEANUP it'd probably be better to consolidate the two `dict` fns
 // I can't decide which, though
@@ -239,6 +242,7 @@ let record
   | Error err -> err
 
 
+
 let enum
   // CLEANUP nitpick: reorder these typeName params (i.e. source first)
   (resolvedTypeName : TypeName.TypeName)
@@ -260,12 +264,24 @@ let enum
   DEnum(resolvedTypeName, sourceTypeName, typeArgs, caseName, fields)
 
 
+/// VTTODO
+/// the interpreter "throws away" any valueTypes currently,
+/// so while these .option and .result functions are great in that they
+/// return the correct typeArgs, they conflict with what the interpreter will do
+///
+/// So, to make some tests happy, let's ignore these for now.
+///
+/// (might need better explanation^)
+let ignoreAndUseEmpty (_ignoredForNow : List<ValueType>) = []
+
+
 let optionType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0
 
 let optionSome (innerType : ValueType) (dv : Dval) : Dval =
   let dvalType = toValueType dv
   match mergeValueTypes innerType dvalType with
-  | Ok typ -> DEnum(optionType, optionType, [ typ ], "Some", [ dv ])
+  | Ok typ ->
+    DEnum(optionType, optionType, ignoreAndUseEmpty [ typ ], "Some", [ dv ])
   | Error() ->
     mergeFailureRte
       SourceNone
@@ -273,7 +289,7 @@ let optionSome (innerType : ValueType) (dv : Dval) : Dval =
       (ValueType.Known(KTCustomType(optionType, [ dvalType ])))
 
 let optionNone (innerType : ValueType) : Dval =
-  DEnum(optionType, optionType, [ innerType ], "None", [])
+  DEnum(optionType, optionType, ignoreAndUseEmpty [ innerType ], "None", [])
 
 // Wraps in an Option after checking that the value is not a fakeval
 let option (innerType : ValueType) (dv : Option<Dval>) : Dval =
@@ -309,16 +325,55 @@ let option (innerType : ValueType) (dv : Option<Dval>) : Dval =
 //   | _ -> None
 
 
+
 let resultType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0
 
 
-let resultOk (dv : Dval) : Dval =
-  DEnum(resultType, resultType, VT.uknownTypeArgsTODO, "Ok", [ dv ])
-let resultError (dv : Dval) : Dval =
-  DEnum(resultType, resultType, VT.uknownTypeArgsTODO, "Error", [ dv ])
+let resultOk (okType : ValueType) (errorType : ValueType) (dvOk : Dval) : Dval =
+  let dvalType = toValueType dvOk
+  match mergeValueTypes okType dvalType with
+  | Ok typ ->
+    DEnum(
+      resultType,
+      resultType,
+      ignoreAndUseEmpty [ typ; errorType ],
+      "Ok",
+      [ dvOk ]
+    )
+  | Error() ->
+    mergeFailureRte
+      SourceNone
+      (ValueType.Known(KTCustomType(resultType, [ okType; errorType ])))
+      (ValueType.Known(KTCustomType(resultType, [ dvalType; errorType ])))
+
+
+let resultError
+  (okType : ValueType)
+  (errorType : ValueType)
+  (dvError : Dval)
+  : Dval =
+  let dvalType = toValueType dvError
+  match mergeValueTypes errorType dvalType with
+  | Ok typ ->
+    DEnum(
+      resultType,
+      resultType,
+      ignoreAndUseEmpty [ okType; typ ],
+      "Error",
+      [ dvError ]
+    )
+  | Error() ->
+    mergeFailureRte
+      SourceNone
+      (ValueType.Known(KTCustomType(resultType, [ okType; errorType ])))
+      (ValueType.Known(KTCustomType(resultType, [ okType; dvalType ])))
 
 // Wraps in a Result after checking that the value is not a fakeval
-let result (dv : Result<Dval, Dval>) : Dval =
+let result
+  (okType : ValueType)
+  (errorType : ValueType)
+  (dv : Result<Dval, Dval>)
+  : Dval =
   match dv with
-  | Ok dv -> resultOk dv
-  | Error dv -> resultError dv
+  | Ok dv -> resultOk okType errorType dv
+  | Error dv -> resultError okType errorType dv
