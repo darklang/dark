@@ -234,6 +234,104 @@ let inlineWorksWithPackageFunctionsSqlFunction =
   }
 
 
+let inlineWorksWithUserFunctions =
+  testTask "inlineWorksWithUserFunctions" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+    let fns = ExecutionState.availableFunctions state
+    let! expr =
+      p
+        "let a = 1 in let b = 9 in let c = userAdd 6 4 in (p.height == c) && (p.age == b)"
+
+    let! expected = p "p.height == userAdd 6 4 && p.age == 9"
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
+  }
+
+let inlineWorksWithNestedUserFunctions =
+  testTask "inlineWorksWithNestedUserFunctions" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+    let fns = ExecutionState.availableFunctions state
+    let! expr = p "(let a = 20 in anotherNestedUserFn p a)"
+
+    let! expected = p "anotherNestedUserFn p 20"
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
+  }
+
+let inlineWorksWithPackageAndUserFunctions =
+  testTask "inlineWorksWithUserFunctions" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+    let fns = ExecutionState.availableFunctions state
+    let! expr =
+      p
+        "let a = 1 in let b = 9 in let c = userAdd 6 4 in PACKAGE.Darklang.Stdlib.Bool.and_v0 (p.height == c) (p.age == b)"
+
+    let! expected = p "p.height == userAdd 6 4 && p.age == 9"
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
+  }
+
+
+let inlineFunctionArguments =
+  testTask "inlineWorksWith" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+    let fns = ExecutionState.availableFunctions state
+    let! expr = p "let a = 1 in let b = 9 in (p.height == userAdd 6 (b - 4))"
+
+    let! expected = p "p.height == userAdd 6 (9 - 4)"
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
+  }
+
+
 let partialEvaluation =
   testManyTask
     "partialEvaluate"
@@ -310,5 +408,9 @@ let tests =
       inlineWorksWithNested
       inlineWorksWithPackageFunctionsSqlBinOp
       inlineWorksWithPackageFunctionsSqlFunction
+      inlineWorksWithUserFunctions
+      inlineWorksWithNestedUserFunctions
+      inlineWorksWithPackageAndUserFunctions
+      inlineFunctionArguments
       partialEvaluation
       compileTests ]

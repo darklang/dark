@@ -761,8 +761,13 @@ module FindAll =
   let userLessThan (user: Person) (height: Int) : Bool =
     Builtin.Int.lessThan_v0 user height
 
-  let useAdd (a: Int) (b: Int) : Int = a + b
+  let userAdd (a: Int) (b: Int) : Int = a + b
 
+  (friends (fun p -> userAnd (true || false) (p.height > 66))) = [ " Chandler "
+                                                                   "Ross" ]
+
+  (friends (fun p -> let a = true in (userAnd (a && a) (p.height > 66)))) = [ " Chandler "
+                                                                              "Ross" ]
 
   (friends (fun p -> userAnd p.human true)) = [ " Chandler "; "Rachel"; "Ross" ]
 
@@ -773,7 +778,26 @@ module FindAll =
   (friends (fun p ->
     let a = 1 in
     let b = 9 in
-    (p.height == useAdd 6 4) && (p.age == b))) = [ "GrumpyCat" ]
+    (p.height == (userAdd 1 b) && (p.age == b)))) = [ "GrumpyCat" ]
+
+  (friends (fun p ->
+    let a = 1 in
+    let b = 9 in
+    (p.height == (userAdd (b - 8) b) && (p.age == b)))) = [ "GrumpyCat" ]
+
+  // TODO: this should work, but it doesn't. There is an error when we try to inline the function's parameters/arguments
+  // (friends (fun p -> let a = 1 in let b = 9 in (p.height == userAdd 6 (b - 5)))) = [ "GrumpyCat" ]
+
+  (friends (fun p ->
+    let a = 1 in
+    let b = 9 in
+    (p.height == (userAdd (b - 5) b) && (p.age == b)))) = []
+
+  (friends (fun p ->
+    let a = 1 in
+    let b = 9 in
+    let c = userAdd 6 4 in
+    (p.height == c) && (p.age == b))) = [ "GrumpyCat" ]
 
 
   // Tests for functions that are inlined 2-3 functions deep
