@@ -13,13 +13,3 @@ open RuntimeTypes
 let argumentWasnt (expected : string) (paramName : string) (dv : Dval) : string =
   let actual = DvalReprDeveloper.toRepr dv
   $"Expected `{paramName}` to be {expected}, but it was `{actual}`"
-
-/// Used for lists which contain invalid values for some reason.
-let argumentWasntType
-  (expected : TypeReference)
-  (paramName : string)
-  (dv : Dval)
-  : string =
-  let actual = DvalReprDeveloper.toRepr dv
-  let expected = DvalReprDeveloper.typeName expected
-  $"Expected `{paramName}` to be a `{expected}`, but it was `{actual}`"
