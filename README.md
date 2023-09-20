@@ -8,18 +8,18 @@ expanding features, or otherwise contributing. Dark is [source available, not
 open source](https://github.com/darklang/dark/blob/main/LICENSE.md).
 
 Note that the production version of Darklang is not in this repo. That is
-currently in https://github.com/darklang/stable-dark.
+currently in https://github.com/darklang/classic-dark.
 
 Darklang is currently undergoing an experimental shift to discern how AI
 technologies will change what Darklang does and how it operates. This is being
-tracked in https://darklang.com/magicbox
+tracked in https://darklang.com/magicbox.
 
 See also:
 
 - [Darklang Community Discord](https://darklang.com/discord-invite)
 - [Contributor guide](https://docs.darklang.com/contributing/getting-started)
-
-See our [guide to the repo](https://docs.darklang.com/contributing/repo-layout) for help browsing.
+- [Darklang Classic login](https://darklang.com/login)
+- See our [guide to the repo](https://docs.darklang.com/contributing/repo-layout) for help browsing.
 
 ## Contributing
 
@@ -28,7 +28,12 @@ We are committed to make Dark easy to contribute to. Our
 will help guide you through your first PR, find good projects to contribute to,
 and learn about the code base.
 
-## Getting started
+### Getting started
+
+The easiest way to get to get started is to [follow our VSCode setup instructions](docs/vscode-setup.md).
+
+Note that there are contribution instructions - if you just want to try darklang out,
+sign up at https://darklang.com.
 
 We try to make it really easy to get started. If you have any problems, please ask in
 [Discord](https://darklang.com/discord-invite) and we'll work to fix any issues you have.
@@ -92,10 +97,10 @@ These steps apply for all builds, VSCode or using `scripts/builder`:
 
 ### Trying out the AI prompt
 
-For more info check [the CanvasHack readme.](backend/src/CanvasHack/README.md). But the main steps are:
+For more info check [the CanvasHack readme](backend/experiments/CanvasHack/README.md). But the main steps are:
 
 - Run `./scripts/run-canvas-hack load-from-disk`
-- Open http://dark-editor.dlio.localhost:11001/
+- Open http://dark-editor.dlio.localhost:11003/
 
 ### Using Dark scripts
 
@@ -111,8 +116,6 @@ by a human, though they are often also called by other scripts as well.
 If you've gotten this far, you're now ready to [contribute your first PR](https://darklang.github.io/docs/contributing/getting-started#first-contribution).
 
 ## Testing
-
-Unit tests run when you specify `--test` to `scripts/builder`. You can run them as a once off using:
 
 - `scripts/run-backend-tests`
 
@@ -165,8 +168,5 @@ these have a self-contained codebase).
 ### Less important docs
 
 - [Docs around running Dark in production](docs/production)
-- [Oplist serialization](docs/oplist-serialization.md)
-- [Writing Stdlib docstrings](docs/writing-docstrings.md)
-- [Using fuzzers to develop Dark](docs/fuzzer.md)
-- [Logging and telemetry](docs/logging-and-telemetry.md)
 - [Writing docstrings in the Dark Standard library](docs/writing-docstrings.md)
+- [Logging and telemetry](docs/logging-and-telemetry.md)

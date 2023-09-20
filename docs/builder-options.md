@@ -4,6 +4,9 @@
 
 - Run `scripts/builder --compile --serve`
 
+Note that if you're using a VS Code devcontainer, this will happen automatically and
+you don't need to run it.
+
 ### (Not) Rebuilding the dev container
 
 If you pull a commit with a Dockerfile update, and then restart your
