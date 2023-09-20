@@ -365,11 +365,7 @@ let fns : List<BuiltInFn> =
               }
 
             let! result = Ply.Map.filterMapSequentially f o
-<<<<<<< HEAD
-            return result |> Map.toList |> Dval.dict VT.unknownTODO
-=======
-            return Dval.dictFromMap valueTypeTODO result
->>>>>>> 633a1ac93 (Some dict refactoring)
+            return Dval.dictFromMap VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
