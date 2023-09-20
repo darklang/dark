@@ -21,7 +21,6 @@ module Darklang =
         Builtin.HttpClient.request method uri headers body
 
 
-      // Note: this function currently doesn't work, as Base64.encode doesn't exist
       /// Returns a header <type (String*String))> with {{'authorization'}} created using HTTP basic auth
       let basicAuth
         (username: String)
