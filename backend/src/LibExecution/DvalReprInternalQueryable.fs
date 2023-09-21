@@ -317,7 +317,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 |> Ply.List.flatten
                 // TYPESCLEANUP: I don't think the original is name right here?
                 |> Ply.map (fun mapped ->
-                  DRecord(typeName, typeName, VT.uknownTypeArgsTODO, Map mapped))
+                  DRecord(typeName, typeName, VT.typeArgsTODO, Map mapped))
             else
               return
                 Exception.raiseInternal
@@ -350,8 +350,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 |> Ply.List.flatten
 
               // TYPESCLEANUP: I don't think the original is name right here?
-              return
-                Dval.enum typeName typeName VT.uknownTypeArgsTODO' caseName fields
+              return Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
           | _, _ ->
             return
               Exception.raiseInternal

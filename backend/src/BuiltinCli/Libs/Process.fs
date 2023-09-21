@@ -54,6 +54,7 @@ let fns : List<BuiltInFn> =
 
           Dval.record
             (TypeName.fqBuiltIn [ "Process" ] "Error" 0)
+            (Some [])
             [ ("exitCode", DInt(p.ExitCode))
               ("stdout", DString(stdout))
               ("stderr", DString(stderr)) ]

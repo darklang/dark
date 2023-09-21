@@ -154,6 +154,7 @@ let executeHandler
 
       Dval.record
         typeName
+        (Some [])
         [ "statusCode", RT.DInt 500
           "headers",
           Dval.list

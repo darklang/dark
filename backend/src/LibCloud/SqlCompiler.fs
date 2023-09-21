@@ -56,35 +56,47 @@ let rec dvalToSql
     | _, DBytes _ // CLEANUP allow
     | _, DTuple _ -> // CLEANUP allow
       return error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
+
+    // TYPEARGSTODO handle non-empty type args fpr all 4 branches below
     | TVariable _, DRecord(typeName, _, [], _)
     | TVariable _, DEnum(typeName, _, [], _, _) ->
       let! jsonString =
         DvalReprInternalQueryable.toJsonStringV0 types expectedType dval
       return Sql.jsonb jsonString, TCustomType(Ok typeName, [])
+
     | TCustomType(_, []), DEnum _
     | TCustomType(_, []), DRecord _ ->
       let! jsonString =
         DvalReprInternalQueryable.toJsonStringV0 types expectedType dval
       return Sql.jsonb jsonString, expectedType
+
     | TVariable _, DDateTime date
     | TDateTime, DDateTime date ->
       return
         (date |> LibExecution.DarkDateTime.toDateTimeUtc |> Sql.timestamptz,
          TDateTime)
+
     | TVariable _, DInt i
     | TInt, DInt i -> return Sql.int64 i, TInt
+
     | TVariable _, DFloat v
     | TFloat, DFloat v -> return Sql.double v, TFloat
+
     | TVariable _, DBool b
     | TBool, DBool b -> return Sql.bool b, TBool
+
     | TVariable _, DString s
     | TString, DString s -> return Sql.string s, TString
+
     | TVariable _, DChar c
     | TChar, DChar c -> return Sql.string c, TChar
+
     | TVariable _, DUuid id
     | TUuid, DUuid id -> return Sql.uuid id, TUuid
+
     | TVariable _, DUnit
     | TUnit, DUnit -> return Sql.int64 0, TUnit
+
     // CLEANUP: add test first
     // | TList typ, DList l ->
     //   let typeName = DvalReprDeveloper.typeName typ
@@ -114,6 +126,7 @@ let rec dvalToSql
     //         (DvalReprDeveloper.toRepr v))
     //   |> List.toArray
     //   |> Sql.array (typeToNpgSqlType typ)
+
     // exhaustiveness check
     | _, DInt _
     | _, DFloat _
@@ -585,12 +598,7 @@ let rec lambdaToSql
 
         | EEnum(_, typeName, caseName, []) ->
           let dv =
-            LibExecution.Dval.enum
-              typeName
-              typeName
-              VT.uknownTypeArgsTODO'
-              caseName
-              []
+            LibExecution.Dval.enum typeName typeName VT.typeArgsTODO' caseName []
           let typ = (TCustomType(Ok typeName, []))
           typecheck $"Enum '{dv}'" typ expectedType
           let! v = DvalReprInternalQueryable.toJsonStringV0 types typ dv

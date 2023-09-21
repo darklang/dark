@@ -406,8 +406,8 @@ module ValueType =
   let unknown = ValueType.Unknown
   let unknownTODO = ValueType.Unknown
   let unknownDbTODO = ValueType.Unknown
-  let uknownTypeArgsTODO = []
-  let uknownTypeArgsTODO' = None
+  let typeArgsTODO = []
+  let typeArgsTODO' = None
 
   let known inner = ValueType.Known inner
 

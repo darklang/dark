@@ -42,6 +42,7 @@ let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Dval =
   |> List.map (fun r ->
     Dval.record
       typeName
+      (Some [])
       [ ("id", Dval.int r.id)
         ("rule_type", r.ruleType.ToString() |> DString)
         ("canvas_id", DUuid r.canvasID)

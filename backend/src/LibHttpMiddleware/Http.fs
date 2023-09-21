@@ -38,7 +38,7 @@ module Request =
       )
 
     [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]
-    |> Dval.record typ
+    |> Dval.record typ (Some [])
 
 
 module Response =
@@ -53,12 +53,14 @@ module Response =
                                      name = RT.TypeName.TypeName "Response"
                                      version = 0 },
                  _,
-                 _typeArgsTODO,
+                 [],
                  fields) ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
+
       let code = Map.get "statusCode" fields
       let headers = Map.get "headers" fields
       let body = Map.get "body" fields
+
       match code, headers, body with
       | Some(RT.DInt code), Some(RT.DList(_, headers)), Some(RT.DBytes body) ->
         let headers =
@@ -72,6 +74,7 @@ module Response =
               | Ok _, _ -> Error $"Header must be a string"
               | Error _, _ -> acc)
             (Ok [])
+
         match headers with
         | Ok headers ->
           { statusCode = int code
@@ -81,6 +84,7 @@ module Response =
           { statusCode = 500
             headers = [ "Content-Type", "text/plain; charset=utf-8" ]
             body = UTF8.toBytes msg }
+
       // Error responses
       | _incorrectFieldTypes ->
         { statusCode = 500
@@ -92,6 +96,7 @@ module Response =
     // Error responses
     | uncaughtResult ->
       Telemetry.addTags [ "response-type", "error"; "result", uncaughtResult ]
+
       { statusCode = 500
         headers = [ "Content-Type", "text/plain; charset=utf-8" ]
         body =

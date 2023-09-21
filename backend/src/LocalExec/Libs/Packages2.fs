@@ -83,6 +83,7 @@ let fns : List<BuiltInFn> =
                 VT.string
                 (Dval.record
                   (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0))
+                  (Some [])
                   [ ("fns", Dval.list VT.unknownTODO packagesFns)
                     ("types", Dval.list VT.unknownTODO packagesTypes)
                     ("constants", Dval.list VT.unknownTODO packagesConstants) ])
