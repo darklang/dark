@@ -63,6 +63,24 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "encode" 0
+      typeParams = []
+      parameters = [ Param.make "bytes" TBytes "" ]
+      returnType = TString
+      description =
+        "Base64 encodes <param bytes> with {{=}} padding. Uses the standard
+         alphabet defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
+         section [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4)."
+      fn =
+        (function
+        | _, _, [ DBytes bytes ] ->
+          System.Convert.ToBase64String(bytes) |> DString |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "urlEncode" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]

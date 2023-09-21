@@ -21,13 +21,12 @@ module Darklang =
         Builtin.HttpClient.request method uri headers body
 
 
-      // Note: this function currently doesn't work, as Base64.encode doesn't exist
       /// Returns a header <type (String*String))> with {{'authorization'}} created using HTTP basic auth
       let basicAuth
         (username: String)
         (password: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<(String * String), String> =
-        if PACKAGE.Darklang.Stdlib.String.contains "-" username then
+        if PACKAGE.Darklang.Stdlib.String.contains username "-" then
           PACKAGE.Darklang.Stdlib.Result.Result.Error
             "Username cannot contain a hyphen"
         else
@@ -35,8 +34,7 @@ module Darklang =
             PACKAGE.Darklang.Stdlib.String.base64Encode $"{username}:{password}"
 
           PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-            "authorization",
-            $"basic {encoded}"
+            ("authorization", $"basic {encoded}")
           )
 
       /// Returns a header <type (String*String))> with {{'authorization'}} set to <param token>

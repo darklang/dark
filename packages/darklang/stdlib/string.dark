@@ -111,9 +111,14 @@ module Darklang =
       /// URLBase64 encodes a string without padding. Uses URL-safe encoding with
       /// {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
       /// [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)
-      let base64Encode (s: String) : String =
+      let base64UrlEncode (s: String) : String =
         let encoded = s |> Builtin.String.toBytes |> Builtin.Base64.urlEncode
         PACKAGE.Darklang.Stdlib.String.replaceAll encoded "=" ""
+
+      /// Base64 encodes a string. Uses {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
+      /// [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) with padding.
+      let base64Encode (s: String) : String =
+        s |> Builtin.String.toBytes |> Builtin.Base64.encode
 
 
       /// Base64 decodes a string. The returned value is wrapped in {{Result}}.
