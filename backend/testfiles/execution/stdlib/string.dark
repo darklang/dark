@@ -30,7 +30,7 @@ module Append =
 
 module Join =
   (PACKAGE.Darklang.Stdlib.String.join_v0 [ "a"; "̂" ] "")
-  |> PACKAGE.Darklang.Stdlib.String.base64Encode_v0 = "w6I"
+  |> PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0 = "w6I"
 
   PACKAGE.Darklang.Stdlib.String.join_v0 [ "hello"; " world" ] "" = "hello world"
   PACKAGE.Darklang.Stdlib.String.join_v0 [ "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"; "🧟‍♀️" ] "" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽🧟‍♀️"
@@ -303,24 +303,44 @@ module Base64Decode =
     "Invalid UTF-8 string"
 
 
-module Base64Encode =
-  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "+" = "Kw"
-  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "Ⱥ" = "yLo"
-  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "żółw" = "xbzDs8WCdw"
-  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "/*-+(&@98521" = "LyotKygmQDk4NTIx"
-  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "" = ""
-  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "f" = "Zg"
-  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "fo" = "Zm8"
-  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "foo" = "Zm9v"
-  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "foob" = "Zm9vYg"
-  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "fooba" = "Zm9vYmE"
-  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "foobar" = "Zm9vYmFy"
-  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "Hello World" = "SGVsbG8gV29ybGQ"
+module Base64UrlEncode =
+  PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0 "+" = "Kw"
+  PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0 "Ⱥ" = "yLo"
+  PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0 "żółw" = "xbzDs8WCdw"
+  PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0 "/*-+(&@98521" = "LyotKygmQDk4NTIx"
+  PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0 "" = ""
+  PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0 "f" = "Zg"
+  PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0 "fo" = "Zm8"
+  PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0 "foo" = "Zm9v"
+  PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0 "foob" = "Zm9vYg"
+  PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0 "fooba" = "Zm9vYmE"
+  PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0 "foobar" = "Zm9vYmFy"
+  PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0 "Hello World" = "SGVsbG8gV29ybGQ"
 
-  PACKAGE.Darklang.Stdlib.String.base64Encode_v0
+  PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0
     "from=06/07/2013 query=\"Καλώς ορίσατε\"" = "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig"
 
-  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78"
+  PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78"
+
+
+module Base64Encode =
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "+" = "Kw=="
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "Ⱥ" = "yLo="
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "żółw" = "xbzDs8WCdw=="
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "/*-+(&@98521" = "LyotKygmQDk4NTIx"
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "" = ""
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "f" = "Zg=="
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "fo" = "Zm8="
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "foo" = "Zm9v"
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "foob" = "Zm9vYg=="
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "fooba" = "Zm9vYmE="
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "foobar" = "Zm9vYmFy"
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "Hello World" = "SGVsbG8gV29ybGQ="
+
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0
+    "from=06/07/2013 query=\"Καλώς ορίσατε\"" = "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs+CIM6/z4HOr8+DzrHPhM61Ig=="
+
+  PACKAGE.Darklang.Stdlib.String.base64Encode_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "8J+RsfCfkbHwn4+78J+RsfCfj7zwn5Gx8J+PvfCfkbHwn4++8J+RsfCfj78="
 
 
 module Digest =

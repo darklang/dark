@@ -23,14 +23,14 @@ module NoInternal =
     .Stdlib
     .Result
     .Result
-    .Ok(("authorization", "basic dXNlcm5hbWU6cGFzc3dvcmQ"))
+    .Ok(("authorization", "basic dXNlcm5hbWU6cGFzc3dvcmQ="))
 
   PACKAGE.Darklang.Stdlib.HttpClient.basicAuth "" "" = PACKAGE
     .Darklang
     .Stdlib
     .Result
     .Result
-    .Ok(("authorization", "basic Og"))
+    .Ok(("authorization", "basic Og=="))
 
   PACKAGE.Darklang.Stdlib.HttpClient.basicAuth "-" "" = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Username cannot contain a hyphen"
@@ -40,21 +40,35 @@ module NoInternal =
     .Stdlib
     .Result
     .Result
-    .Ok(("authorization", "basic Oi0"))
+    .Ok(("authorization", "basic Oi0="))
 
   PACKAGE.Darklang.Stdlib.HttpClient.basicAuth ":" "" = PACKAGE
     .Darklang
     .Stdlib
     .Result
     .Result
-    .Ok(("authorization", "basic Ojo"))
+    .Ok(("authorization", "basic Ojo="))
 
   PACKAGE.Darklang.Stdlib.HttpClient.basicAuth "" ":" = PACKAGE
     .Darklang
     .Stdlib
     .Result
     .Result
-    .Ok(("authorization", "basic Ojo"))
+    .Ok(("authorization", "basic Ojo="))
+
+  PACKAGE.Darklang.Stdlib.HttpClient.basicAuth "hello>" "world" = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Ok(("authorization", "basic aGVsbG8+Ondvcmxk"))
+
+  PACKAGE.Darklang.Stdlib.HttpClient.basicAuth "hello" "world?" = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Ok(("authorization", "basic aGVsbG86d29ybGQ/"))
 
 
 
