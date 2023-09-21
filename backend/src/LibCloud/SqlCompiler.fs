@@ -257,10 +257,7 @@ let rec inline'
       match expr with
       | EApply(_, EFnName(_, (fnName)), [], args) ->
         uply {
-          let! arguments =
-            Ply.List.mapSequentially
-              (inline' fns paramName symtable)
-              (args |> NEList.toList)
+          let arguments = args |> NEList.toList
           let nameStr = FnName.toString fnName
           match fnName with
           | FQName.Package p ->
