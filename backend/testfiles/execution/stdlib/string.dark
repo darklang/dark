@@ -197,6 +197,16 @@ module Map =
   PACKAGE.Darklang.Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x ->
     x) = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 
+  PACKAGE.Darklang.Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x ->
+    'c') = "cccc"
+
+  PACKAGE.Darklang.Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x ->
+    5) = Builtin.Test.derrorMessage
+    """Function return value should be a Character. However, an Int (5) was returned instead.
+
+Expected: Character
+Actual: an Int: 5"""
+
   // Check that map executes the right number of times
   (let v =
     PACKAGE.Darklang.Stdlib.String.map "a string" (fun x ->

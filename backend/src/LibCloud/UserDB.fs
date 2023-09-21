@@ -22,7 +22,6 @@ open Prelude
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module Errors = LibExecution.Errors
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 
 // Bump this if you make a breaking change to the underlying data format, and

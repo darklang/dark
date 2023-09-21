@@ -704,8 +704,6 @@ let rec eval
   }
 
 
-
-/// Unwrap the dval, which we expect to be a function, and error if it's not
 and applyFnVal
   (state : ExecutionState)
   (id : id)
@@ -856,16 +854,14 @@ and execFn
                   match e with
                   | RuntimeErrorException(source, rte) -> return Exception.reraise e
                   | e ->
-                    // TODO could we show the user the execution id here?
                     let context : Metadata =
                       [ "fn", fnDesc; "args", args; "typeArgs", typeArgs; "id", id ]
                     state.reportException state context e
                     // These are arbitrary errors, and could include sensitive
                     // information, so best not to show it to the user. If we'd
-                    // like to show it to the user, we should catch it and give
-                    // them a known safe error.
-
-                    return Dval.errSStr sourceID Exception.unknownErrorMessage
+                    // like to show it to the user, we should catch it where it happens
+                    // and give them a known safe error via a RuntimeError
+                    return raiseRTE sourceID (RuntimeError.oldError "Unknown error")
               }
 
             // there's no point storing data we'll never ask for

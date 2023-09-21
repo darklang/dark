@@ -7,7 +7,6 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
 module Dval = LibExecution.Dval
-module Errors = LibExecution.Errors
 
 module UserDB = LibCloud.UserDB
 module Db = LibCloud.Db
@@ -103,16 +102,14 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
 
-            let skeys =
-              List.map
-                (function
+            let! items =
+              keys
+              |> List.map (function
                 | DString s -> s
-                | t -> Errors.argumentWasntType (TList TString) "keys" t)
-                keys
+                | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
+              |> UserDB.getMany state db
 
-            let! items = UserDB.getMany state db skeys
-
-            if List.length items = List.length skeys then
+            if List.length items = List.length keys then
               return items |> Dval.list valueType |> Dval.optionSome optType
             else
               return Dval.optionNone optType
@@ -135,14 +132,12 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
 
-            let skeys =
-              List.map
-                (function
+            let! result =
+              keys
+              |> List.map (function
                 | DString s -> s
-                | t -> Errors.argumentWasntType (TList TString) "keys" t)
-                keys
-
-            let! result = UserDB.getMany state db skeys
+                | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
+              |> UserDB.getMany state db
             return result |> Dval.list VT.unknownDbTODO
           }
         | _ -> incorrectArgs ())
@@ -162,15 +157,12 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList(_, keys); DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
-
-            let skeys =
-              List.map
-                (function
+            let! result =
+              keys
+              |> List.map (function
                 | DString s -> s
-                | t -> Errors.argumentWasntType (TList TString) "keys" t)
-                keys
-
-            let! result = UserDB.getManyWithKeys state db skeys
+                | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
+              |> UserDB.getManyWithKeys state db
             return Dval.dict VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())

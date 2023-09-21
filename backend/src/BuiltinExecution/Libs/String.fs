@@ -15,7 +15,8 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
 module Dval = LibExecution.Dval
-module Errors = LibExecution.Errors
+module TypeChecker = LibExecution.TypeChecker
+module Interpreter = LibExecution.Interpreter
 
 
 let modules = [ "String" ]
@@ -47,24 +48,16 @@ let fns : List<BuiltInFn> =
            |> Seq.toList
            |> Ply.List.mapSequentially (fun te ->
              let args = NEList.singleton (DChar te)
-             LibExecution.Interpreter.applyFnVal state 0UL b [] args)
-           |> (fun dvals ->
-             (uply {
-               let! (dvals : List<Dval>) = dvals
-               let chars =
-                 List.map
-                   (function
-                   | DChar c -> c
-                   | dv ->
-                     Exception.raiseInternal
-                       (Errors.expectedLambdaType "fn" TChar dv)
-                       [])
-                   dvals
-
-               let str = String.concat "" chars
-               return DString str
-             })))
-
+             Interpreter.applyFnVal state 0UL b [] args)
+           |> Ply.map (fun dvals ->
+             dvals
+             |> List.map (function
+               | DChar c -> c
+               | dv ->
+                 TypeChecker.raiseFnValResultNotExpectedType SourceNone dv TChar)
+             |> String.concat ""
+             |> String.normalize
+             |> DString))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -284,18 +277,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DList(_, l); DString sep ] ->
-          let strs =
-            List.map
-              (fun s ->
-                match s with
-                | DString st -> st
-                | dv ->
-                  Exception.raiseInternal
-                    (Errors.argumentWasntType (TList TString) "l" dv)
-                    [])
-              l
-
-          Ply(DString((String.concat sep strs).Normalize()))
+          l
+          |> List.map (fun s ->
+            match s with
+            | DString st -> st
+            | dv -> Exception.raiseInternal "expected string in join" [ "dval", dv ])
+          |> String.concat sep
+          |> String.normalize
+          |> DString
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -317,10 +307,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString s; DInt first; DInt last ] ->
-
-          let chars = String.toEgcSeq s
-
-          chars
+          String.toEgcSeq s
           |> Seq.toList
           |> FSharpPlus.List.drop (int first)
           |> List.truncate (int (last - first))

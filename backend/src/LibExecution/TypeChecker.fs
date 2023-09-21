@@ -48,6 +48,7 @@ type Context =
     location : Location
   | ListIndex of index : int * listTyp : TypeReference * parent : Context
   | TupleIndex of index : int * elementType : TypeReference * parent : Context
+  | FnValResult of returnType : TypeReference * location : Location
 
 
 module Context =
@@ -62,10 +63,10 @@ module Context =
     | DBSchemaType(_, _, location) -> location
     | ListIndex(_, _, parent) -> toLocation parent
     | TupleIndex(_, _, parent) -> toLocation parent
+    | FnValResult(_, location) -> location
 
 type Error =
   | ValueNotExpectedType of
-    // CLEANUP consider reordering fields to (context * expectedType * actualValue)
     actualValue : Dval *
     expectedType : TypeReference *
     Context
@@ -149,6 +150,10 @@ module Error =
           "TupleIndex",
           [ DInt index; RT2DT.TypeReference.toDT elementType; toDT parent ]
 
+        | FnValResult(returnType, location) ->
+          "FnValResult",
+          [ RT2DT.TypeReference.toDT returnType; Location.toDT location ]
+
       let typeName = RuntimeError.name [ "TypeChecker" ] "Context" 0
       Dval.enum typeName typeName (Some []) caseName fields
 
@@ -176,6 +181,18 @@ let raiseValueNotExpectedType
   (typ : TypeReference)
   (context : Context)
   : 'a =
+  raiseRTE source (ValueNotExpectedType(dv, typ, context) |> Error.toRuntimeError)
+
+let raiseFnValResultNotExpectedType
+  (source : DvalSource)
+  (dv : Dval)
+  (typ : TypeReference)
+  : 'a =
+  let location =
+    match source with
+    | SourceNone -> None
+    | SourceID(tlid, id) -> Some(tlid, id)
+  let context = FnValResult(typ, location)
   raiseRTE source (ValueNotExpectedType(dv, typ, context) |> Error.toRuntimeError)
 
 
