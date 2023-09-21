@@ -133,7 +133,7 @@ module FQName =
       | FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameValueType nameMapper u ]
 
     let typeName = rtTyp [ "FQName" ] "FQName" 0
-    Dval.enum typeName typeName VT.uknownTypeArgsTODO' caseName fields
+    Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
 
   let fromDT (nameMapper : Dval -> 'name) (d : Dval) : FQName.FQName<'name> =
     match d with

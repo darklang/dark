@@ -244,7 +244,7 @@ let record
   let typeArgs =
     match typeArgs with
     | Some _typeArgs -> [] //typeArgs // VTTODO uncomment when Interpreter respects this
-    | None -> VT.uknownTypeArgsTODO
+    | None -> VT.typeArgsTODO
 
   DRecord(resolvedTypeName, sourceTypeName, typeArgs, fields)
 
@@ -266,7 +266,7 @@ let enum
   let typeArgs =
     match typeArgs with
     | Some _typeArgs -> [] //typeArgs VTTODO uncomment when Interpreter respects this
-    | None -> VT.uknownTypeArgsTODO
+    | None -> VT.typeArgsTODO
 
   DEnum(resolvedTypeName, sourceTypeName, typeArgs, caseName, fields)
 

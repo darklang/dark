@@ -154,7 +154,7 @@ module FQName =
       | PT.FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameValueType nameMapper u ]
 
     let typeName = ptTyp [ "FQName" ] "FQName" 0
-    Dval.enum typeName typeName VT.uknownTypeArgsTODO' caseName fields
+    Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
 
   let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.FQName<'name> =
     match d with
@@ -993,7 +993,7 @@ module Deprecation =
         "DeprecatedBecause", [ DString reason ]
 
     let typeName = ptTyp [] "Deprecation" 0
-    Dval.enum typeName typeName VT.uknownTypeArgsTODO' caseName fields
+    Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
 
   let fromDT (inner : Dval -> 'a) (d : Dval) : PT.Deprecation<'a> =
     match d with
@@ -1219,7 +1219,7 @@ module DB =
 
   let fromDT (d : Dval) : PT.DB.T =
     match d with
-    | DRecord(_, _, _typeArgsTODO, fields) ->
+    | DRecord(_, _, _, fields) ->
       let tlid = fields |> D.uint64Field "tlid"
       let name = fields |> D.stringField "name"
       let version = fields |> D.intField "version"

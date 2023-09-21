@@ -1047,7 +1047,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       VT.uknownTypeArgsTODO,
+       VT.typeArgsTODO,
        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1056,7 +1056,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       VT.uknownTypeArgsTODO,
+       VT.typeArgsTODO,
        Map.ofList [ "foo\\\\bar", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1064,7 +1064,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       VT.uknownTypeArgsTODO,
+       VT.typeArgsTODO,
        Map.ofList [ "$type", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))

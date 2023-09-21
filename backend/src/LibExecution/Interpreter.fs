@@ -76,7 +76,7 @@ let rec evalConst (source : DvalSource) (c : Const) : Dval =
   | CTuple(first, second, rest) -> DTuple(r first, r second, List.map r rest)
   | CEnum(Ok typeName, caseName, fields) ->
     // TYPESTODO: this uses the original type name, so if it's an alias, it won't be equal to the
-    DEnum(typeName, typeName, VT.uknownTypeArgsTODO, caseName, List.map r fields)
+    DEnum(typeName, typeName, VT.typeArgsTODO, caseName, List.map r fields)
   | CEnum(Error msg, caseName, fields) ->
     raiseRTE source (RuntimeError.oldError $"Invalid const name: {msg}")
   | CList items -> DList(ValueType.Unknown, (List.map r items))
@@ -340,7 +340,7 @@ let rec eval
           Map.empty
 
       if Map.count fields = Map.count expectedFields then
-        return DRecord(aliasTypeName, typeName, VT.uknownTypeArgsTODO, fields)
+        return DRecord(aliasTypeName, typeName, VT.typeArgsTODO, fields)
       else
         let expectedKeys = Map.keys expectedFields
         let key = Seq.find (fun k -> not (Map.containsKey k fields)) expectedKeys
@@ -682,7 +682,7 @@ let rec eval
             Dval.enum
               resolvedTypeName
               sourceTypeName
-              VT.uknownTypeArgsTODO'
+              VT.typeArgsTODO'
               caseName
               fields
 

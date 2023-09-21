@@ -599,12 +599,7 @@ let rec lambdaToSql
 
         | EEnum(_, typeName, caseName, []) ->
           let dv =
-            LibExecution.Dval.enum
-              typeName
-              typeName
-              VT.uknownTypeArgsTODO'
-              caseName
-              []
+            LibExecution.Dval.enum typeName typeName VT.typeArgsTODO' caseName []
           let typ = (TCustomType(Ok typeName, []))
           typecheck $"Enum '{dv}'" typ expectedType
           let! v = DvalReprInternalQueryable.toJsonStringV0 types typ dv
