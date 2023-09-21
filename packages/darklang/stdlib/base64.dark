@@ -10,6 +10,12 @@ module Darklang =
         Builtin.Base64.decode s
 
 
+      /// Base64 encodes <param bytes> with {{=}} padding. Uses the standard
+      /// alphabet defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
+      /// section [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4).
+      let encode (bytes: Bytes) : String = Builtin.Base64.encode bytes
+
+
       /// Base64URL encodes <param bytes> with {{=}} padding. Uses URL-safe encoding
       /// with {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in RFC 4648
       /// section [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
