@@ -785,7 +785,10 @@ module FindAll =
     let b = 9 in
     (p.height == (userAdd (b - 8) b) && (p.age == b)))) = [ "GrumpyCat" ]
 
-  (friends (fun p -> let a = 1 in let b = 9 in (p.height == userAdd 6 (b - 5)))) = [ "GrumpyCat" ]
+  (friends (fun p ->
+    let a = 1 in
+    let b = 9 in
+    (p.height == userAdd 6 (b - 5)))) = [ "GrumpyCat" ]
 
   (friends (fun p ->
     let a = 1 in
