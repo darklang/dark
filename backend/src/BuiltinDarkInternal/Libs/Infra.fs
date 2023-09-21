@@ -98,6 +98,7 @@ human-readable data."
                   ("rows", ts.rows)
                   ("disk_human", ts.diskHuman)
                   ("rows_human", ts.rowsHuman) ])
+
             let typeName = FQName.BuiltIn(typ "TableSize" 0)
             return
               tableStats
@@ -107,7 +108,7 @@ human-readable data."
                    ("rows", DInt(ts.rows))
                    ("diskHuman", DString ts.diskHuman)
                    ("rowsHuman", DString ts.rowsHuman) ]
-                 |> Dval.record typeName))
+                 |> Dval.record typeName (Some [])))
               |> Dval.dict VT.unknownTODO
           }
         | _ -> incorrectArgs ())

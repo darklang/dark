@@ -49,6 +49,7 @@ let fns : List<BuiltInFn> =
               |> List.map (fun s ->
                 Dval.record
                   typeName
+                  (Some [])
                   [ "name", DString s.name
                     "value", DString s.value
                     "version", DInt s.version ])

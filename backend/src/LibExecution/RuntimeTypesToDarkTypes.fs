@@ -41,9 +41,14 @@ module FQName =
   let versionField m = m |> D.intField "version"
 
   module BuiltIn =
-    let toDT (nameMapper : 'name -> Dval) (u : FQName.BuiltIn<'name>) : Dval =
+    let toDT
+      (nameValueType : ValueType)
+      (nameMapper : 'name -> Dval)
+      (u : FQName.BuiltIn<'name>)
+      : Dval =
       Dval.record
         (rtTyp [ "FQName" ] "BuiltIn" 0)
+        (Some [ nameValueType ])
         [ "modules", Dval.list VT.unknownTODO (List.map DString u.modules)
           "name", nameMapper u.name
           "version", DInt u.version ]
@@ -60,9 +65,14 @@ module FQName =
       | _ -> Exception.raiseInternal "Unexpected value" []
 
   module UserProgram =
-    let toDT (nameMapper : 'name -> Dval) (u : FQName.UserProgram<'name>) : Dval =
+    let toDT
+      (nameValueType : ValueType)
+      (nameMapper : 'name -> Dval)
+      (u : FQName.UserProgram<'name>)
+      : Dval =
       Dval.record
         (rtTyp [ "FQName" ] "UserProgram" 0)
+        (Some [ nameValueType ])
         [ "modules", Dval.list VT.unknownTODO (List.map DString u.modules)
           "name", nameMapper u.name
           "version", DInt u.version ]
@@ -79,9 +89,14 @@ module FQName =
       | _ -> Exception.raiseInternal "Unexpected value" []
 
   module Package =
-    let toDT (nameMapper : 'name -> Dval) (u : FQName.Package<'name>) : Dval =
+    let toDT
+      (nameValueType : ValueType)
+      (nameMapper : 'name -> Dval)
+      (u : FQName.Package<'name>)
+      : Dval =
       Dval.record
         (rtTyp [ "FQName" ] "Package" 0)
+        (Some [ nameValueType ])
         [ "owner", DString u.owner
           "modules", Dval.list VT.unknownTODO (List.map DString u.modules)
           "name", nameMapper u.name
@@ -105,12 +120,17 @@ module FQName =
       | _ -> Exception.raiseInternal "Unexpected value" []
 
 
-  let toDT (nameMapper : 'name -> Dval) (u : FQName.FQName<'name>) : Dval =
+  let toDT
+    (nameValueType : ValueType)
+    (nameMapper : 'name -> Dval)
+    (u : FQName.FQName<'name>)
+    : Dval =
     let caseName, fields =
       match u with
-      | FQName.UserProgram u -> "UserProgram", [ UserProgram.toDT nameMapper u ]
-      | FQName.Package u -> "Package", [ Package.toDT nameMapper u ]
-      | FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameMapper u ]
+      | FQName.UserProgram u ->
+        "UserProgram", [ UserProgram.toDT nameValueType nameMapper u ]
+      | FQName.Package u -> "Package", [ Package.toDT nameValueType nameMapper u ]
+      | FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameValueType nameMapper u ]
 
     let typeName = rtTyp [ "FQName" ] "FQName" 0
     Dval.enum typeName typeName VT.uknownTypeArgsTODO' caseName fields
@@ -128,6 +148,8 @@ module FQName =
 
 module TypeName =
   module Name =
+    let valueType = VT.unknownTODO // @Darklang.LanguageTools.RuntimeTypes.TypeName.Name
+
     let toDT (u : TypeName.Name) : Dval =
       let caseName, fields =
         match u with
@@ -142,25 +164,30 @@ module TypeName =
       | _ -> Exception.raiseInternal "Invalid TypeName" []
 
   module BuiltIn =
-    let toDT (u : TypeName.BuiltIn) : Dval = FQName.BuiltIn.toDT Name.toDT u
+    let toDT (u : TypeName.BuiltIn) : Dval =
+      FQName.BuiltIn.toDT Name.valueType Name.toDT u
     let fromDT (d : Dval) : TypeName.BuiltIn = FQName.BuiltIn.fromDT Name.fromDT d
 
   module UserProgram =
-    let toDT (u : TypeName.UserProgram) : Dval = FQName.UserProgram.toDT Name.toDT u
+    let toDT (u : TypeName.UserProgram) : Dval =
+      FQName.UserProgram.toDT Name.valueType Name.toDT u
 
     let fromDT (d : Dval) : TypeName.UserProgram =
       FQName.UserProgram.fromDT Name.fromDT d
 
   module Package =
-    let toDT (u : TypeName.Package) : Dval = FQName.Package.toDT Name.toDT u
+    let toDT (u : TypeName.Package) : Dval =
+      FQName.Package.toDT Name.valueType Name.toDT u
     let fromDT (d : Dval) : TypeName.Package = FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : TypeName.TypeName) : Dval = FQName.toDT Name.toDT u
+  let toDT (u : TypeName.TypeName) : Dval = FQName.toDT Name.valueType Name.toDT u
   let fromDT (d : Dval) : TypeName.TypeName = FQName.fromDT Name.fromDT d
 
 
 module FnName =
   module Name =
+    let valueType = VT.unknownTODO // @Darklang.LanguageTools.RuntimeTypes.FnName.Name
+
     let toDT (u : FnName.Name) : Dval =
       let caseName, fields =
         match u with
@@ -175,24 +202,29 @@ module FnName =
       | _ -> Exception.raiseInternal "Invalid FnName" []
 
   module BuiltIn =
-    let toDT (u : FnName.BuiltIn) : Dval = FQName.BuiltIn.toDT Name.toDT u
+    let toDT (u : FnName.BuiltIn) : Dval =
+      FQName.BuiltIn.toDT Name.valueType Name.toDT u
     let fromDT (d : Dval) : FnName.BuiltIn = FQName.BuiltIn.fromDT Name.fromDT d
 
   module UserProgram =
-    let toDT (u : FnName.UserProgram) : Dval = FQName.UserProgram.toDT Name.toDT u
+    let toDT (u : FnName.UserProgram) : Dval =
+      FQName.UserProgram.toDT Name.valueType Name.toDT u
     let fromDT (d : Dval) : FnName.UserProgram =
       FQName.UserProgram.fromDT Name.fromDT d
 
   module Package =
-    let toDT (u : FnName.Package) : Dval = FQName.Package.toDT Name.toDT u
+    let toDT (u : FnName.Package) : Dval =
+      FQName.Package.toDT Name.valueType Name.toDT u
     let fromDT (d : Dval) : FnName.Package = FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : FnName.FnName) : Dval = FQName.toDT Name.toDT u
+  let toDT (u : FnName.FnName) : Dval = FQName.toDT Name.valueType Name.toDT u
   let fromDT (d : Dval) : FnName.FnName = FQName.fromDT Name.fromDT d
 
 
 module ConstantName =
   module Name =
+    let valueType = VT.unknownTODO // @Darklang.LanguageTools.RuntimeTypes.ConstantName.Name
+
     let toDT (u : ConstantName.Name) : Dval =
       let caseName, fields =
         match u with
@@ -208,23 +240,26 @@ module ConstantName =
       | _ -> Exception.raiseInternal "Invalid ConstantName" []
 
   module BuiltIn =
-    let toDT (u : ConstantName.BuiltIn) : Dval = FQName.BuiltIn.toDT Name.toDT u
+    let toDT (u : ConstantName.BuiltIn) : Dval =
+      FQName.BuiltIn.toDT Name.valueType Name.toDT u
     let fromDT (d : Dval) : ConstantName.BuiltIn =
       FQName.BuiltIn.fromDT Name.fromDT d
 
   module UserProgram =
     let toDT (u : ConstantName.UserProgram) : Dval =
-      FQName.UserProgram.toDT Name.toDT u
+      FQName.UserProgram.toDT Name.valueType Name.toDT u
 
     let fromDT (d : Dval) : ConstantName.UserProgram =
       FQName.UserProgram.fromDT Name.fromDT d
 
   module Package =
-    let toDT (u : ConstantName.Package) : Dval = FQName.Package.toDT Name.toDT u
+    let toDT (u : ConstantName.Package) : Dval =
+      FQName.Package.toDT Name.valueType Name.toDT u
     let fromDT (d : Dval) : ConstantName.Package =
       FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : ConstantName.ConstantName) : Dval = FQName.toDT Name.toDT u
+  let toDT (u : ConstantName.ConstantName) : Dval =
+    FQName.toDT Name.valueType Name.toDT u
   let fromDT (d : Dval) : ConstantName.ConstantName = FQName.fromDT Name.fromDT d
 
 
@@ -249,6 +284,8 @@ module NameResolution =
     | _ -> Exception.raiseInternal "Invalid NameResolution" []
 
 module TypeReference =
+  let valueType = ValueType.unknownTODO // @Darklang.LanguageTools.RuntimeTypes.TypeReference
+
   let rec toDT (t : TypeReference) : Dval =
     let caseName, fields =
       match t with
@@ -321,6 +358,7 @@ module Param =
   let toDT (p : Param) : Dval =
     Dval.record
       (rtTyp [] "Param" 0)
+      (Some [])
       [ ("name", DString p.name); ("typ", TypeReference.toDT p.typ) ]
 
 
@@ -428,6 +466,8 @@ module StringSegment =
 
 
 module Expr =
+  let valueType = VT.unknownTODO // @Darklang.LanguageTools.RuntimeTypes.Expr
+
   let rec toDT (e : Expr) : Dval =
     let caseName, fields =
       match e with
@@ -445,7 +485,7 @@ module Expr =
 
       // structures of data
       | EList(id, inner) ->
-        "EList", [ DInt(int64 id); Dval.list VT.unknownTODO (List.map toDT inner) ]
+        "EList", [ DInt(int64 id); Dval.list valueType (List.map toDT inner) ]
 
       | EDict(id, pairs) ->
         "EDict",
@@ -467,14 +507,14 @@ module Expr =
           |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
 
         "ERecord",
-        [ DInt(int64 id); TypeName.toDT name; Dval.list VT.unknownTODO (fields) ]
+        [ DInt(int64 id); TypeName.toDT name; Dval.list VT.unknownTODO fields ]
 
       | EEnum(id, typeName, caseName, fields) ->
         "EEnum",
         [ DInt(int64 id)
           TypeName.toDT typeName
           DString caseName
-          Dval.list VT.unknownTODO (List.map toDT fields) ]
+          Dval.list valueType (List.map toDT fields) ]
 
       // declaring and accessing variables
       | ELet(id, lp, expr, body) ->
@@ -488,7 +528,7 @@ module Expr =
 
       // control flow
       | EIf(id, cond, thenExpr, elseExpr) ->
-        let elseExpr = elseExpr |> Option.map toDT |> Dval.option VT.unknownTODO
+        let elseExpr = elseExpr |> Option.map toDT |> Dval.option valueType
         "EIf", [ DInt(int64 id); toDT cond; toDT thenExpr; elseExpr ]
 
       | EMatch(id, arg, cases) ->
@@ -517,8 +557,8 @@ module Expr =
         "EApply",
         [ DInt(int64 id)
           toDT name
-          Dval.list VT.unknownTODO (List.map TypeReference.toDT typeArgs)
-          Dval.list VT.unknownTODO (List.map toDT (NEList.toList args)) ]
+          Dval.list TypeReference.valueType (List.map TypeReference.toDT typeArgs)
+          Dval.list TypeReference.valueType (List.map toDT (NEList.toList args)) ]
 
       | EFnName(id, name) -> "EFnName", [ DInt(int64 id); FnName.toDT name ]
 
@@ -537,7 +577,7 @@ module Expr =
         "EError",
         [ DInt(int64 id)
           RuntimeTypes.RuntimeError.toDT rtError
-          List.map toDT exprs |> Dval.list VT.unknownTODO ]
+          List.map toDT exprs |> Dval.list valueType ]
 
 
     let typeName = rtTyp [] "Expr" 0
@@ -712,6 +752,8 @@ module RuntimeError =
 
 
 module Dval =
+  let valueType = VT.unknownTODO // @Darklang.LanguageTools.RuntimeTypes.Dval.Dval
+
   module KnownType =
     let toDT (kt : KnownType) : Dval =
       let caseName, fields =
@@ -731,17 +773,19 @@ module Dval =
           "KTTuple",
           [ ValueType.toDT first
             ValueType.toDT second
-            Dval.list VT.unknownTODO (List.map ValueType.toDT theRest) ]
+            Dval.list ValueType.valueType (List.map ValueType.toDT theRest) ]
         | KTDict inner -> "KTDict", [ ValueType.toDT inner ]
 
         | KTCustomType(typeName, typeArgs) ->
           "KTCustomType",
           [ TypeName.toDT typeName
-            Dval.list VT.unknownTODO (List.map ValueType.toDT typeArgs) ]
+            Dval.list ValueType.valueType (List.map ValueType.toDT typeArgs) ]
 
         | KTFn(args, ret) ->
           "KTFn",
-          [ Dval.list VT.unknownTODO (List.map ValueType.toDT (NEList.toList args))
+          [ Dval.list
+              ValueType.valueType
+              (List.map ValueType.toDT (NEList.toList args))
             ValueType.toDT ret ]
 
         | KTDB d -> "KTDB", [ ValueType.toDT d ]
@@ -785,8 +829,9 @@ module Dval =
       | _ -> Exception.raiseInternal "Invalid KnownType" []
 
   module ValueType =
-    let toDT (vt : ValueType) : Dval =
+    let valueType = VT.unknownTODO
 
+    let toDT (vt : ValueType) : Dval =
       let caseName, fields =
         match vt with
         | ValueType.Unknown -> "Unknown", []
@@ -835,9 +880,8 @@ module Dval =
               (fun (id, name) -> DTuple(DInt(int64 id), DString name, []))
               (NEList.toList l.parameters))
           "body", Expr.toDT l.body ]
-        |> Map.ofList
 
-      DRecord(typeName, typeName, VT.uknownTypeArgsTODO, fields)
+      Dval.record typeName (Some []) fields
 
     let fromDT (d : Dval) : LambdaImpl =
       match d with
@@ -913,14 +957,14 @@ module Dval =
         "DRecord",
         [ TypeName.toDT runtimeTypeName
           TypeName.toDT sourceTypeName
-          typeArgs |> List.map ValueType.toDT |> Dval.list VT.unknownTODO
+          typeArgs |> List.map ValueType.toDT |> Dval.list ValueType.valueType
           DDict(VT.unknownTODO, Map.map toDT map) ]
 
       | DEnum(runtimeTypeName, sourceTypeName, typeArgs, caseName, fields) ->
         "DEnum",
         [ TypeName.toDT runtimeTypeName
           TypeName.toDT sourceTypeName
-          typeArgs |> List.map ValueType.toDT |> Dval.list VT.unknownTODO
+          typeArgs |> List.map ValueType.toDT |> Dval.list ValueType.valueType
           DString caseName
           Dval.list VT.unknownTODO (List.map toDT fields) ]
 
@@ -957,15 +1001,12 @@ module Dval =
             _,
             [],
             "DRecord",
-            [ runtimeTypeName
-              sourceTypeName
-              DList(_, typeArgs)
-              DDict(_valueTypeTODO, map) ]) ->
+            [ runtimeTypeName; sourceTypeName; DList(_, typeArgs); DDict(_, entries) ]) ->
       DRecord(
         TypeName.fromDT runtimeTypeName,
         TypeName.fromDT sourceTypeName,
         List.map ValueType.fromDT typeArgs,
-        Map.map fromDT map
+        Map.map fromDT entries
       )
     | DEnum(_,
             _,

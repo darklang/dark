@@ -59,29 +59,32 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DUnit ] ->
           let typeNameToStr = LibExecution.DvalReprDeveloper.typeName
-          state.builtIns.fns
-          |> Map.toList
-          |> List.filter (fun (key, data) ->
-            (not (FnName.isInternalFn key)) && data.deprecated = NotDeprecated)
-          |> List.map (fun (key, data) ->
-            let typeName = TypeName.fqBuiltIn modules "Function" 0
-            let alist =
-              let returnType = typeNameToStr data.returnType
-              let paramTypeName = TypeName.fqBuiltIn modules "Parameter" 0
-              let parameters =
-                data.parameters
-                |> List.map (fun p ->
-                  Dval.record
-                    paramTypeName
-                    [ ("name", DString p.name)
-                      ("type", DString(typeNameToStr p.typ)) ])
-              [ ("name", DString(FnName.builtinToString key))
-                ("description", DString data.description)
-                ("parameters", Dval.list VT.unknownTODO parameters)
-                ("returnType", DString returnType) ]
-            Dval.record typeName alist)
-          |> Dval.list VT.unknownTODO
-          |> Ply
+
+          let fns =
+            state.builtIns.fns
+            |> Map.toList
+            |> List.filter (fun (key, data) ->
+              (not (FnName.isInternalFn key)) && data.deprecated = NotDeprecated)
+            |> List.map (fun (key, data) ->
+              let typeName = TypeName.fqBuiltIn modules "Function" 0
+              let alist =
+                let returnType = typeNameToStr data.returnType
+                let paramTypeName = TypeName.fqBuiltIn modules "Parameter" 0
+                let parameters =
+                  data.parameters
+                  |> List.map (fun p ->
+                    Dval.record
+                      paramTypeName
+                      (Some [])
+                      [ ("name", DString p.name)
+                        ("type", DString(typeNameToStr p.typ)) ])
+                [ ("name", DString(FnName.builtinToString key))
+                  ("description", DString data.description)
+                  ("parameters", Dval.list VT.unknownTODO parameters)
+                  ("returnType", DString returnType) ]
+              Dval.record typeName (Some []) alist)
+
+          Dval.list VT.unknownTODO fns |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

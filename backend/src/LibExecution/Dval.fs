@@ -214,32 +214,39 @@ let dictFromMap (valueType : ValueType) (entries : Map<string, Dval>) : Dval =
 ///
 /// note: if provided, the typeArgs must match the # of typeArgs expected by the type
 let record
-  (typeName : TypeName.TypeName)
-  // TODO: (typeArgs: Option<List<ValueType>>)
+  (sourceTypeName : TypeName.TypeName)
+  (typeArgs : Option<List<ValueType>>)
   (fields : List<string * Dval>)
   : Dval =
-  let (fieldsMaybe : Result<Map<string, Dval>, Dval>) =
+  let resolvedTypeName = sourceTypeName // TODO: alias lookup
+
+  let fields =
     List.fold
-      (fun acc (k, v) ->
-        match acc with
-        | Error err -> Error err
-        | Ok fields ->
-          match fields, k, v with
-          // Skip empty rows
-          | _, "", _ -> raiseUntargetedRTE (RuntimeError.oldError "Empty key")
+      (fun fields (k, v) ->
+        match fields, k, v with
+        // Skip empty rows
+        | _, "", _ -> raiseUntargetedRTE (RuntimeError.oldError "Empty key")
 
-          // Error if the key appears twice
-          | fields, k, _v when Map.containsKey k fields ->
-            raiseUntargetedRTE (RuntimeError.oldError $"Duplicate key: {k}")
+        // Error if the key appears twice
+        | fields, k, _v when Map.containsKey k fields ->
+          raiseUntargetedRTE (RuntimeError.oldError $"Duplicate key: {k}")
 
-          // Otherwise add it
-          | fields, k, v -> Ok(Map.add k v fields))
-      (Ok Map.empty)
+        // Otherwise add it
+        | fields, k, v -> Map.add k v fields)
+      Map.empty
       fields
 
-  match fieldsMaybe with
-  | Ok fields -> DRecord(typeName, typeName, VT.uknownTypeArgsTODO, fields)
-  | Error err -> err
+  // TODO:
+  // - pass in a (types: Types) arg
+  // - use it to determine type args of resultant Dval
+  // - ensure fields match the expected shape (defined by type args and field defs)
+  //   - this process should also effect the type args of the resultant Dval
+  let typeArgs =
+    match typeArgs with
+    | Some _typeArgs -> [] //typeArgs // VTTODO uncomment when Interpreter respects this
+    | None -> VT.uknownTypeArgsTODO
+
+  DRecord(resolvedTypeName, sourceTypeName, typeArgs, fields)
 
 
 
@@ -258,7 +265,7 @@ let enum
   //   - this process should also effect the type args of the resultant Dval
   let typeArgs =
     match typeArgs with
-    | Some typeArgs -> typeArgs
+    | Some _typeArgs -> [] //typeArgs VTTODO uncomment when Interpreter respects this
     | None -> VT.uknownTypeArgsTODO
 
   DEnum(resolvedTypeName, sourceTypeName, typeArgs, caseName, fields)

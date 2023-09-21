@@ -216,6 +216,7 @@ let fns : List<BuiltInFn> =
             return
               Dval.record
                 (FQName.BuiltIn(typ "Program" 0))
+                (Some [])
                 [ "types", types; "fns", fns ]
               |> Dval.resultOk VT.unknownTODO VT.string
           }

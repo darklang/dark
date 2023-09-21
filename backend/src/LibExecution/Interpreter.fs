@@ -314,54 +314,45 @@ let rec eval
       let typeStr = TypeName.toString typeName
       let types = ExecutionState.availableTypes state
 
-      let! (aliasTypeName, typeParams, expected) = recordMaybe types typeName
-      let expectedFields = Map expected
-      let! result =
+      let! (aliasTypeName, _typeParams, expectedFields) = recordMaybe types typeName
+      let expectedFields = Map expectedFields
+
+      let! fields =
         fields
         |> NEList.toList
         |> Ply.List.foldSequentially
-          (fun r (k, expr) ->
+          (fun fields (k, expr) ->
             uply {
               match Map.find k expectedFields with
               | None -> return errStr id $"Unexpected field `{k}` in {typeStr}"
               | Some fieldType ->
                 let! v = eval state tst st expr
-                match r with
-                | DRecord(typeName, original, _valueTypesTODO, m) ->
-                  if Map.containsKey k m then
-                    return errStr id $"Duplicate field `{k}` in {typeStr}"
-                  else
-                    let context =
-                      TypeChecker.RecordField(original, k, fieldType, None)
-                    let check =
-                      TypeChecker.unify context types Map.empty fieldType v
-                    match! check with
-                    | Ok() ->
-                      return
-                        DRecord(
-                          typeName,
-                          original,
-                          VT.uknownTypeArgsTODO,
-                          Map.add k v m
-                        )
-                    | Error e -> return err id e
-                | _ -> return errStr id "Expected a record in typecheck"
+                if Map.containsKey k fields then
+                  return errStr id $"Duplicate field `{k}` in {typeStr}"
+                else
+                  let context =
+                    TypeChecker.RecordField(typeName, k, fieldType, None)
+                  let check = TypeChecker.unify context types Map.empty fieldType v
+                  match! check with
+                  | Ok() -> return Map.add k v fields
+                  | Error e -> return err id e
             })
-          (DRecord(aliasTypeName, typeName, VT.uknownTypeArgsTODO, Map.empty)) // use the alias name here
-      match result with
-      | DRecord(_, _, _valueTypesTODO, fields) ->
-        if Map.count fields = Map.count expectedFields then
-          return result
-        else
-          let expectedKeys = Map.keys expectedFields
-          let key = Seq.find (fun k -> not (Map.containsKey k fields)) expectedKeys
-          return errStr id $"Missing field `{key}` in {typeStr}"
-      | _ -> return result
+          Map.empty
+
+      if Map.count fields = Map.count expectedFields then
+        return DRecord(aliasTypeName, typeName, VT.uknownTypeArgsTODO, fields)
+      else
+        let expectedKeys = Map.keys expectedFields
+        let key = Seq.find (fun k -> not (Map.containsKey k fields)) expectedKeys
+        return errStr id $"Missing field `{key}` in {typeStr}"
 
     | ERecordUpdate(id, baseRecord, updates) ->
+      // CLEANUP refactor this impl
+      // namely, focus more on the `fields` and don't pass around DRecord so much
+
       let! baseRecord = eval state tst st baseRecord
       match baseRecord with
-      | DRecord(typeName, _, _valueTypesTODO, _) ->
+      | DRecord(typeName, _, typ, _) ->
         let typeStr = TypeName.toString typeName
         let types = ExecutionState.availableTypes state
 
@@ -374,28 +365,25 @@ let rec eval
             (fun r (k, expr) ->
               uply {
                 let! v = eval state tst st expr
+
                 match r, k, v with
                 | _, "", _ -> return errStr id $"Empty key for value `{v}`"
                 | _, _, _ when not (Map.containsKey k expectedFields) ->
                   return errStr id $"Unexpected field `{k}` in {typeStr}"
-                | DRecord(typeName, original, _valueTypesTODO, m), k, v ->
+
+                | DRecord(typeName, original, _, m), k, v ->
                   let fieldType = Map.findUnsafe k expectedFields
+
                   let context =
                     TypeChecker.RecordField(typeName, k, fieldType, None)
-                  match! TypeChecker.unify context types Map.empty fieldType v with
-                  | Ok() ->
 
-                    return
-                      DRecord(
-                        typeName,
-                        original,
-                        VT.uknownTypeArgsTODO,
-                        Map.add k v m
-                      )
+                  match! TypeChecker.unify context types Map.empty fieldType v with
+                  | Ok() -> return DRecord(typeName, original, typ, Map.add k v m)
                   | Error rte -> return raiseRTE (SourceID(state.tlid, id)) rte
+
                 | _ ->
                   return
-                    errStr id "Expected a record but {typeStr} is something else"
+                    errStr id $"Expected a record but {typeStr} is something else"
               })
             baseRecord
       | _ -> return errStr id "Expected a record in record update"
@@ -424,28 +412,28 @@ let rec eval
             $"Expected a function value, got something else: {DvalReprDeveloper.toRepr other}"
 
 
-    | EFieldAccess(id, e, field) ->
+    | EFieldAccess(id, e, fieldName) ->
       let! obj = eval state tst st e
 
-      if field = "" then
+      if fieldName = "" then
         return errStr id "Field name is empty"
       else
         match obj with
-        | DRecord(_, typeName, _, o) ->
-          match Map.find field o with
+        | DRecord(_, typeName, _, fields) ->
+          match Map.find fieldName fields with
           | Some v -> return v
           | None ->
             let typeStr = TypeName.toString typeName
-            return errStr id $"No field named {field} in {typeStr} record"
+            return errStr id $"No field named {fieldName} in {typeStr} record"
         | DDB _ ->
           let msg =
-            $"Attempting to access field '{field}' of a Datastore "
+            $"Attempting to access field '{fieldName}' of a Datastore "
             + "(use `DB.*` standard library functions to interact with Datastores. "
             + "Field access only work with records)"
           return errStr id msg
         | _ ->
           let msg =
-            $"Attempting to access field '{field}' of a "
+            $"Attempting to access field '{fieldName}' of a "
             + $"{DvalReprDeveloper.toTypeName obj} (field access only works with records)"
           return errStr id msg
 

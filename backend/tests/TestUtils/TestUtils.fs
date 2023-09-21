@@ -338,23 +338,42 @@ open LibExecution.RuntimeTypes
 
 let rec debugDval (v : Dval) : string =
   match v with
+  // most Dvals print out reasonably nice-looking values automatically,
+  // but in these cases we'd like to print something a bit prettier
+
   | DString s ->
     $"DString '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
+
   | DDateTime d ->
     $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
-  | DRecord(tn, _, _typeArgsTODO, o) ->
+
+  | DRecord(tn, _, typeArgs, o) ->
     let typeStr = TypeName.toString tn
-    o
-    |> Map.toList
-    |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
-    |> String.concat ",\n  "
-    |> fun contents -> $"DRecord {typeStr} {{\n  {contents}}}"
+
+    let typeArgsPart =
+      match typeArgs with
+      | [] -> ""
+      | _ ->
+        typeArgs
+        |> List.map ValueType.toString
+        |> String.concat ", "
+        |> fun s -> $"<{s}>"
+
+    let fieldsPart =
+      o
+      |> Map.toList
+      |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
+      |> String.concat ",\n  "
+
+    $"DRecord {typeStr}{typeArgsPart} {{\n  {fieldsPart}}}"
+
   | DDict(_vtTODO, obj) ->
     obj
     |> Map.toList
     |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
     |> String.concat ",\n  "
     |> fun contents -> $"DDict {{\n  {contents}}}"
+
   | DBytes b ->
     b
     |> Array.toList
@@ -386,12 +405,14 @@ module Expect =
     | DUuid _
     | DBytes _
     | DFloat _ -> true
-    | DList(_, vs) -> List.all check vs
-    | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
-    | DDict(_, vs) -> vs |> Map.values |> List.all check
-    | DRecord(_, _, _typeArgsTODO, vs) -> vs |> Map.values |> List.all check
-    | DString str -> str.IsNormalized()
+
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
+    | DString str -> str.IsNormalized()
+
+    | DList(_, items) -> List.all check items
+    | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
+    | DDict(_, entries) -> entries |> Map.values |> List.all check
+    | DRecord(_, _, _, fields) -> fields |> Map.values |> List.all check
     | DEnum(_, _, _, _, fields) -> fields |> List.all check
 
   type Path = string list
@@ -468,7 +489,7 @@ module Expect =
       if a <> e then errorFn path (string actual) (string expected)
 
     let eqList path (l1 : List<RT.MatchPattern>) (l2 : List<RT.MatchPattern>) =
-      List.iteri2 (fun i l r -> eq (string i :: path) l r) l1 l2
+      List.iteri2 (fun i -> eq (string i :: path)) l1 l2
       check path (List.length l1) (List.length l2)
 
     if checkIDs then
@@ -547,11 +568,11 @@ module Expect =
       if a <> e then errorFn path (string actual) (string expected)
 
     let eqList path (l1 : List<RT.Expr>) (l2 : List<RT.Expr>) =
-      List.iteri2 (fun i l r -> eq (string i :: path) l r) l1 l2
+      List.iteri2 (fun i -> eq (string i :: path)) l1 l2
       check path (List.length l1) (List.length l2)
 
     let eqNEList path (l1 : NEList<RT.Expr>) (l2 : NEList<RT.Expr>) =
-      NEList.iteri2 (fun i l r -> eq (string i :: path) l r) l1 l2
+      NEList.iteri2 (fun i -> eq (string i :: path)) l1 l2
       check path (NEList.length l1) (NEList.length l2)
 
     if checkIDs then check path (Expr.toID actual) (Expr.toID expected)
@@ -708,6 +729,11 @@ module Expect =
     let check (path : Path) (a : 'a) (e : 'a) : unit =
       if a <> e then errorFn path (debugDval actual) (debugDval expected)
 
+    let checkValueType (path : Path) (a : ValueType) (e : ValueType) : unit =
+      match Dval.mergeValueTypes a e with
+      | Ok _merged -> ()
+      | Error() -> errorFn path (debugDval actual) (debugDval expected)
+
     match actual, expected with
     | DFloat l, DFloat r ->
       if System.Double.IsNaN l && System.Double.IsNaN r then
@@ -728,14 +754,12 @@ module Expect =
       // have the same number of ticks. For testing, we shall consider them
       // equal if they print the same string.
       check path (string l) (string r)
+
     | DList(lType, ls), DList(rType, rs) ->
-      match lType, rType with
-      | ValueType.Known lType, ValueType.Known rType ->
-        check ("Type" :: path) lType rType
-      | _ -> ()
+      checkValueType ("Type" :: path) lType rType
 
       check ("Length" :: path) (List.length ls) (List.length rs)
-      List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) ls rs
+      List.iteri2 (fun i -> de ($"[{i}]" :: path)) ls rs
 
     | DTuple(firstL, secondL, theRestL), DTuple(firstR, secondR, theRestR) ->
       de path firstL firstR
@@ -743,9 +767,13 @@ module Expect =
       de path secondL secondR
 
       check ("Length" :: path) (List.length theRestL) (List.length theRestR)
-      List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) theRestL theRestR
+      List.iteri2 (fun i -> de ($"[{i}]" :: path)) theRestL theRestR
 
-    | DDict(_vtTODO1, ls), DDict(_vtTODO2, rs) ->
+    | DDict(lType, ls), DDict(rType, rs) ->
+      check ("Length" :: path) (Map.count ls) (Map.count rs)
+
+      checkValueType ("Type" :: path) lType rType
+
       // check keys from ls are in both, check matching values
       Map.iterWithIndex
         (fun key v1 ->
@@ -753,6 +781,7 @@ module Expect =
           | Some v2 -> de (key :: path) v1 v2
           | None -> check (key :: path) ls rs)
         ls
+
       // check keys from rs are in both
       Map.iterWithIndex
         (fun key _ ->
@@ -760,34 +789,49 @@ module Expect =
           | Some _ -> () // already checked
           | None -> check (key :: path) ls rs)
         rs
-      check ("Length" :: path) (Map.count ls) (Map.count rs)
 
-    | DRecord(ltn, _, _typeArgsTODO1, ls), DRecord(rtn, _, _typeArgsTODO2, rs) ->
+
+    | DRecord(ltn, _, ltypeArgs, ls), DRecord(rtn, _, rtypeArgs, rs) ->
+      // check type name
       userTypeNameEqualityBaseFn path ltn rtn errorFn
-      // check keys from ls are in both, check matching values
+
+      // check type args
+      check
+        ("TypeArgsLength" :: path)
+        (List.length ltypeArgs)
+        (List.length rtypeArgs)
+      List.iteri2 (fun i -> checkValueType (string i :: path)) ltypeArgs rtypeArgs
+
+      check ("Length" :: path) (Map.count ls) (Map.count rs)
+
+      // check keys
+      // -- keys from ls are in both, check matching values
       Map.iterWithIndex
         (fun key v1 ->
           match Map.find key rs with
           | Some v2 -> de (key :: path) v1 v2
           | None -> check (key :: path) ls rs)
         ls
-      // check keys from rs are in both
+
+      // -- keys from rs are in both
       Map.iterWithIndex
         (fun key _ ->
           match Map.find key rs with
           | Some _ -> () // already checked
           | None -> check (key :: path) ls rs)
         rs
-      check ("Length" :: path) (Map.count ls) (Map.count rs)
 
 
-    | DEnum(typeName, _, _typeArgsDEnumTODO, caseName, fields),
-      DEnum(typeName', _, _typeArgsDEnumTODO', caseName', fields') ->
+    | DEnum(typeName, _, typeArgs, caseName, fields),
+      DEnum(typeName', _, typeArgs', caseName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
       check ("caseName" :: path) caseName caseName'
 
+      check ("TypeArgsLength" :: path) (List.length typeArgs) (List.length typeArgs')
+      List.iteri2 (fun i -> checkValueType (string i :: path)) typeArgs typeArgs'
+
       check ("fields.Length" :: path) (List.length fields) (List.length fields)
-      List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) fields fields'
+      List.iteri2 (fun i -> de ($"[{i}]" :: path)) fields fields'
       ()
 
     | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
@@ -795,6 +839,7 @@ module Expect =
       check ("lambdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
       check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
       exprEqualityBaseFn false path l1.body l2.body errorFn
+
     | DString _, DString _ -> check path (debugDval actual) (debugDval expected)
 
     // Keep for exhaustiveness checking
@@ -862,25 +907,24 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let rec visit dv : unit =
     match dv with
     // Keep for exhaustiveness checking
-    | DDict(_, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
-    | DRecord(_, _, _typeArgsTODO, map) ->
-      Map.values map |> List.map visit |> ignore<List<unit>>
-    | DEnum(_typeName, _, _, _, fields) ->
-      fields |> List.map visit |> ignore<List<unit>>
-    | DList(_, dvs) -> List.map visit dvs |> ignore<List<unit>>
+    | DDict(_, entries) -> Map.values entries |> List.map visit |> ignore<List<unit>>
+    | DRecord(_, _, _, fields) ->
+      Map.values fields |> List.map visit |> ignore<List<unit>>
+    | DEnum(_, _, _, _, fields) -> fields |> List.map visit |> ignore<List<unit>>
+    | DList(_, items) -> List.map visit items |> ignore<List<unit>>
     | DTuple(first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
-    | DString _
-    | DInt _
-    | DDateTime _
-    | DBool _
-    | DFloat _
+
     | DUnit
-    | DChar _
+    | DBool _
+    | DInt _
+    | DFloat _
     | DFnVal _
-    | DDB _
     | DUuid _
+    | DDateTime _
     | DBytes _
+    | DDB _
+    | DChar _
     | DString _ -> f dv
     f dv
   visit dv
@@ -987,7 +1031,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0,
        S.fqUserTypeName [ "Two"; "Modules" ] "FooAlias" 0,
-       VT.uknownTypeArgsTODO,
+       [],
        Map.ofList [ "foo", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0), []))
@@ -995,7 +1039,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "FooAlias" 0,
-       VT.uknownTypeArgsTODO,
+       [ VT.unknown; VT.bool ],
        Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))

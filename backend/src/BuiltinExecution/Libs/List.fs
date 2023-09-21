@@ -54,6 +54,7 @@ module DvalComparator =
         if c = 0 then compareLists fields1 fields2 else c
       else
         c
+
     // exhaustiveness check
     | DInt _, _
     | DFloat _, _

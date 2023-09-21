@@ -426,14 +426,13 @@ let fns : List<BuiltInFn> =
       description =
         "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"
       fn =
-        let optType = VT.string
         (function
         | _, _, [ DBytes bytes ] ->
           try
             let str = System.Text.UTF8Encoding(false, true).GetString bytes
-            Ply(Dval.optionSome optType (DString str))
+            Ply(Dval.optionSome VT.string (DString str))
           with e ->
-            Ply(Dval.optionNone optType)
+            Ply(Dval.optionNone VT.string)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -469,14 +468,13 @@ let fns : List<BuiltInFn> =
       description =
         "Returns {{Some char}} of the first character of <param str>, or returns {{None}} if <param str> is empty."
       fn =
-        let optType = VT.char
         (function
         | _, _, [ DString str ] ->
           if str = "" then
-            Ply(Dval.optionNone optType)
+            Ply(Dval.optionNone VT.char)
           else
             let head = String.toEgcSeq str |> Seq.head
-            Ply(Dval.optionSome optType (DChar head))
+            Ply(Dval.optionSome VT.char (DChar head))
         | _ -> incorrectArgs ())
 
       sqlSpec = NotYetImplemented

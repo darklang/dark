@@ -104,7 +104,6 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.option TChar
       description = "Turns a string of length 1 into a character"
       fn =
-        let optType = VT.char
         (function
         | _, _, [ DString s ] ->
           let chars = String.toEgcSeq s
@@ -112,9 +111,9 @@ let fns : List<BuiltInFn> =
           if Seq.length chars = 1 then
             chars
             |> Seq.toList
-            |> (fun l -> l[0] |> DChar |> Dval.optionSome optType |> Ply)
+            |> (fun l -> l[0] |> DChar |> Dval.optionSome VT.char |> Ply)
           else
-            Ply(Dval.optionNone optType)
+            Ply(Dval.optionNone VT.char)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

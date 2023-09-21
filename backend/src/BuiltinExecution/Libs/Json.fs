@@ -506,9 +506,8 @@ let parse
                   return (def.name, converted)
                 })
               |> Ply.List.flatten
-              |> Ply.map Map.ofList
 
-            return DRecord(typeName, typeName, VT.uknownTypeArgsTODO, fields)
+            return Dval.record typeName VT.uknownTypeArgsTODO' fields
       }
 
 

@@ -220,6 +220,7 @@ let fns : List<BuiltInFn> =
               resultError (
                 Dval.record
                   (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
+                  (Some [])
                   [ "msg", DString msg
                     "metadata", Dval.dict VT.unknownTODO metadata ]
               )
