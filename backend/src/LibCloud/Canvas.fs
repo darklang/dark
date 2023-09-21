@@ -393,6 +393,13 @@ let deleteToplevelForever (canvasID : CanvasID) (tlid : tlid) : Task<unit> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlid", Sql.id tlid ]
   |> Sql.executeStatementAsync
 
+let toplevelToDBTypeString (tl : PT.Toplevel.T) : string =
+  match tl with
+  | PT.Toplevel.TLDB _ -> "db"
+  | PT.Toplevel.TLHandler _ -> "handler"
+  | PT.Toplevel.TLFunction _ -> "user_function"
+  | PT.Toplevel.TLType _ -> "user_type"
+  | PT.Toplevel.TLConstant _ -> "user_constant"
 
 /// Save just the TLIDs listed (a canvas may load more tlids to support
 /// calling/testing these TLs, even though those TLs do not need to be updated)
@@ -471,7 +478,7 @@ let saveTLIDs
             [ "canvasID", Sql.uuid id
               "tlid", Sql.id tlid
               "digest", Sql.string "fsharp"
-              "typ", Sql.string (PTParser.Toplevel.toDBTypeString tl)
+              "typ", Sql.string (toplevelToDBTypeString tl)
               "name", Sql.stringOrNone name
               "module", Sql.stringOrNone module_
               "modifier", Sql.stringOrNone modifier
