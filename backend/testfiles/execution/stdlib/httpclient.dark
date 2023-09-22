@@ -173,14 +173,6 @@ PACKAGE.Darklang.Stdlib.HttpClient.request
 // Check for banned urls in the host name
 module Disallowed =
 
-// PACKAGE.Darklang.Stdlib.HttpClient.request
-//   "get"
-//   "http://google.com:79"
-//   []
-//   Builtin.Bytes.empty |> Result.mapError HttpClient.rqError.toString = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-//   "timeout"
-// )
-
   PACKAGE.Darklang.Stdlib.HttpClient.request
     "get"
     "http://0.0.0.0"
