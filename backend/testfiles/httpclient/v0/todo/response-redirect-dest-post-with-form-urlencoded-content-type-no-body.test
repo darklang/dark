@@ -20,7 +20,7 @@ Redirect destination reached
 (let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "post" "http://URL" "" {} {"Content-Type" = "application/x-www-form-urlencoded"}) |> Builtin.unwrap
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
-   Builtin.HttpClient.Response
+   PACKAGE.Darklang.Stdlib.HttpClient.Response
     { body = "Redirect destination reached"
       statusCode = 200
       headers =
