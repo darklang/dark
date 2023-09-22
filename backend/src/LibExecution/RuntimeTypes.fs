@@ -594,6 +594,10 @@ and FnValImpl =
 
 and DDateTime = NodaTime.LocalDate
 
+/// RuntimeError is the major way of representing errors in the runtime. These are
+/// primarily used for things where the user made an error, such as a type error, as
+/// opposed to a place where the runtime is flawed (use Exception.raiseInternal for those).
+/// See docs/errors.md for detailed discussion.
 and RuntimeError = private RuntimeError of Dval
 
 // We use NoComparison here to avoid accidentally using structural comparison
