@@ -186,7 +186,7 @@ ENUM ('handler', 'db', 'user_function', 'user_type', 'user_constant');
 CREATE TABLE IF NOT EXISTS
 toplevels_v0
 ( canvas_id UUID NOT NULL
-, tlid INTEGER NOT NULL
+, tlid BIGINT NOT NULL
 , digest CHAR(32) NOT NULL
 , tipe toplevel_type NOT NULL
 , name TEXT /* handlers only - used for http lookups */

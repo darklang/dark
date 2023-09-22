@@ -1,8 +1,7 @@
 /// Provides toString and fromString functions for program types
 ///
 /// We are moving to not needing parsers, but for now they are still necessary. They
-/// mostly convert to a format used in the database, or in the OCaml compatible
-/// representation (spoken by the client and used in the API for example)
+/// mostly convert to a format used in the database
 module LibExecution.ProgramTypesParser
 
 // CLEANUP remove this entire file ASAP
@@ -72,12 +71,3 @@ module Handler =
     // Same as a TraceInput.EventDesc
     let toEventDesc (s : PT.Handler.Spec) : Option<PT.Handler.HandlerDesc> =
       if isComplete s then Some(toModule s, toName s, toModifier s) else None
-
-module Toplevel =
-  let toDBTypeString (tl : PT.Toplevel.T) =
-    match tl with
-    | PT.Toplevel.TLDB _ -> "db"
-    | PT.Toplevel.TLHandler _ -> "handler"
-    | PT.Toplevel.TLFunction _ -> "user_function"
-    | PT.Toplevel.TLType _ -> "user_type"
-    | PT.Toplevel.TLConstant _ -> "user_constant"

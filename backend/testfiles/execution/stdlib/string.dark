@@ -739,9 +739,7 @@ module ToUppercase =
   // TODO: There are two types of unicode case "mapping" (conversion), "simple"
   // and "full". .NET supports simple mapping, which maps a single character to a
   // single character. It does not support "full" mapping, which maps a single
-  // character to multiple characters. OCaml does correctly support this however,
-  // so some of these tests need to be disabled for now while we come up with a
-  // solution.
+  // character to multiple characters.
 
   // Discussed at https://github.com/dotnet/runtime/issues/30960, specifially
   // https://github.com/dotnet/runtime/issues/30960#issuecomment-535274401

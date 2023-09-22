@@ -112,20 +112,12 @@ module Vanilla =
       System.Activator.CreateInstance(converterType) :?> JsonConverter
 
 
-  // Since we're getting this back from OCaml in DDates, we need to use the
-  // timezone even though there isn't one in the type
   type LocalDateTimeConverter() =
     inherit JsonConverter<NodaTime.LocalDateTime>()
 
     override _.Read(reader : byref<Utf8JsonReader>, tipe, options) =
       let rawToken = reader.GetString()
-      try
-        (NodaTime.Instant.ofIsoString rawToken).toUtcLocalTimeZone ()
-      with
-      // We briefly used this converter for `Vanilla` - this is us "falling
-      // back" so we're able to read values serialized during that time.
-      | _ ->
-        NodaConverters.LocalDateTimeConverter.Read(&reader, tipe, options)
+      (NodaTime.Instant.ofIsoString rawToken).toUtcLocalTimeZone ()
 
     override _.Write
       (
@@ -142,10 +134,6 @@ module Vanilla =
 
   type RawBytesConverter() =
     inherit JsonConverter<byte array>()
-    // In OCaml, we wrap the in DBytes with a RawBytes, whose serializer uses
-    // the url-safe version of base64. It's not appropriate for all byte
-    // arrays, but I think this is the only user. If not, we'll need to add a
-    // RawBytes type.
     override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
       reader.GetString() |> Base64.fromUrlEncoded |> Base64.decode
 
@@ -154,10 +142,7 @@ module Vanilla =
 
 
   // This is used for "normal" JSON conversion, such as converting Pos into
-  // json. It does not feature anything for conversion to OCaml-compatible
-  // stuff, such as may be required to communicate with the fuzzer or the
-  // frontend. It does handle F#-specific constructs.
-
+  // json.
   let getDefaultOptions () =
     let fsharpConverter =
       JsonFSharpConverter(unionEncoding = (JsonUnionEncoding.ExternalTag))

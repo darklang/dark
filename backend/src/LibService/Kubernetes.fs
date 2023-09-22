@@ -102,7 +102,7 @@ let configureApp (port : int) (app : IApplicationBuilder) : IApplicationBuilder 
 // 502s.
 //
 // Ideally we would make sure other resources are cleaned up (traces have been
-// uploaded, etc), but for now we'll stick to just doing what the OCaml version did,
+// uploaded, etc), but for now we'll stick to just doing what we've always done,
 // which is wait 28 seconds (leaving 2 seconds for the rest of the cleanup).
 //
 // .NET already knows to shut down when it gets a SIGTERM, after which it will wait

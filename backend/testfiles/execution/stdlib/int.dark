@@ -330,10 +330,10 @@ PACKAGE.Darklang.Stdlib.Int.parse_v0 "-10001" = PACKAGE.Darklang.Stdlib.Result.R
   -10001
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "-4611686018427387904" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  -4611686018427387904L // OCaml lower limit
+  -4611686018427387904L // int63 lower limit
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "-4611686018427387905" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  -4611686018427387905L // past the OCaml upper limit
+  -4611686018427387905L // past the int63 upper limit
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "-9223372036854775808" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   -9223372036854775808L // .NET lower limit
@@ -342,10 +342,10 @@ PACKAGE.Darklang.Stdlib.Int.parse_v0 "-9223372036854775809" = PACKAGE.Darklang.S
   "Expected to parse String with only numbers, instead got \"-9223372036854775809\""
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "4611686018427387903" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  4611686018427387903L // OCaml upper limit
+  4611686018427387903L // int63 upper limit
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "4611686018427387904" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  4611686018427387904L // past the OCaml upper limit
+  4611686018427387904L // past the int63 upper limit
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "9223372036854775807" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   9223372036854775807L // .NET upper limit
@@ -399,9 +399,9 @@ PACKAGE.Darklang.Stdlib.Int.parse_v0 "XIV" = PACKAGE.Darklang.Stdlib.Result.Resu
 PACKAGE.Darklang.Stdlib.Int.toString 0 = "0"
 PACKAGE.Darklang.Stdlib.Int.toString 1 = "1"
 PACKAGE.Darklang.Stdlib.Int.toString -1 = "-1"
-PACKAGE.Darklang.Stdlib.Int.toString -4611686018427387904L = "-4611686018427387904" // OCaml lower limit
-PACKAGE.Darklang.Stdlib.Int.toString -4611686018427387905L = "-4611686018427387905" // past the OCaml upper limit"
+PACKAGE.Darklang.Stdlib.Int.toString -4611686018427387904L = "-4611686018427387904" // int63 lower limit
+PACKAGE.Darklang.Stdlib.Int.toString -4611686018427387905L = "-4611686018427387905" // past the int63 upper limit"
 PACKAGE.Darklang.Stdlib.Int.toString -9223372036854775808L = "-9223372036854775808" // .NET lower limit
-PACKAGE.Darklang.Stdlib.Int.toString 4611686018427387903L = "4611686018427387903" // OCaml upper limit
-PACKAGE.Darklang.Stdlib.Int.toString 4611686018427387904L = "4611686018427387904" // past the OCaml upper limit
+PACKAGE.Darklang.Stdlib.Int.toString 4611686018427387903L = "4611686018427387903" // int63 upper limit
+PACKAGE.Darklang.Stdlib.Int.toString 4611686018427387904L = "4611686018427387904" // past the int63 upper limit
 PACKAGE.Darklang.Stdlib.Int.toString 9223372036854775807L = "9223372036854775807" // .NET upper limit

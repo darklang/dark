@@ -15,8 +15,7 @@ Open the Dark directory, and when prompted to open it in a container, do so.
 The container will build, hopefully without problem.
 
 When asked, install the suggested extensions as they are used to build Dark. We
-plan to automatically install the right extensions to build Dark, however right
-now we are missing the extensions for ReScript and OCaml.
+plan to automatically install the right extensions to build Dark.
 
 ## Build output
 

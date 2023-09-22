@@ -379,13 +379,7 @@ let randomSeeded () : System.Random =
 
 let gid () : uint64 =
   try
-    let rand64 = RNG.GetBytes(8) |> System.BitConverter.ToUInt64
-    // CLEANUP To be compabible to OCAML, keep this at 32 bit for now.
-    // This currently keeps us at 30 bits - we'd like to instead use 64, or
-    // settle on 63. Current blocker is client (needs research)
-    // 0b0000_0000_0000_0000_0000_0000_0000_0000_0011_1111_1111_1111_1111_1111_1111_1111L
-    let mask : uint64 = 1073741823UL
-    rand64 &&& mask
+    RNG.GetBytes(8) |> System.BitConverter.ToUInt64
   with e ->
     Exception.raiseInternal $"gid failed" [ "message", e.Message; "inner", e ]
 

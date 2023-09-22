@@ -949,7 +949,7 @@ let interestingStrings : List<string * string> =
 
 let interestingFloats : List<string * float> =
   let initial =
-    // interesting cause OCaml uses 31 bit ints
+    // interesting cause we used to use 31 bit ints
     [ "min 31 bit", System.Math.Pow(2.0, 30.0) - 1.0
       "max 31 bit", - System.Math.Pow(2.0, 30.0)
       // interesting cause boundary of 32 bit ints
@@ -958,7 +958,7 @@ let interestingFloats : List<string * float> =
       // interesting cause doubles support up to 53-bit ints
       "min 53 bit", System.Math.Pow(2.0, 52.0) - 1.0
       "max 53 bit", - System.Math.Pow(2.0, 52.0)
-      // interesting cause OCaml uses 63 bit ints
+      // interesting cause we used to have 63 bit ints
       "min 63 bit", System.Math.Pow(2.0, 62.0) - 1.0
       "max 63 bit", - System.Math.Pow(2.0, 62.0)
       // interesting cause boundary of 64 bit ints

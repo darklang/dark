@@ -154,9 +154,9 @@ module NotEquals =
 
 
 // Moving to packages
-// AWS.urlencode_v0 "%" = "" // Edge case bug(?) in OCaml implementation that F# needs to replicate
-// AWS.urlencode_v0 "%%" = "" // Edge case bug(?) in OCaml implementation that F# needs to replicate
-// AWS.urlencode_v0 "%A" = "A" // Edge case bug(?) in OCaml implementation that F# needs to replicate
+// AWS.urlencode_v0 "%" = ""
+// AWS.urlencode_v0 "%%" = ""
+// AWS.urlencode_v0 "%A" = "A"
 // AWS.urlencode_v0 "%AA" = "%AA"
 // AWS.urlencode_v0 "" = ""
 // AWS.urlencode_v0 "殢" = "%E6%AE%A2"

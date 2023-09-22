@@ -48,10 +48,10 @@ let fns : List<BuiltInFn> =
             let str = new System.String(chars) + "\n"
             str |> DString |> resultOk |> Ply
           with e ->
-            // The OCaml version seems to support anything starting in BEGIN
-            // CERTIFICATE. If it doesn't find that, it errors with No certificates. If
-            // it does find that, it tries to parse it, returning X509: failed to parse
-            // certificate if it fails (either data is bullshit or it's not an RSA cert).
+            // If it doesn't find BEGIN CERTIFICATE that, it errors with No
+            // certificates. If it does find that, it tries to parse it, returning
+            // X509: failed to parse certificate if it fails (either data is bullshit
+            // or it's not an RSA cert).
             Ply(resultError (DString "No certificates"))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

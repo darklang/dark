@@ -182,6 +182,7 @@ let fns : List<BuiltInFn> =
           let errPipe e = e |> DString |> resultError |> Ply
           (try
             if exp < 0L then argumentWasntPositive "exponent" expdv |> errPipe
+            // TODO: do this in a package, and keep it simple here
             // Handle some edge cases around 1. We want to make this match
             // OCaml, so we have to support an exponent above int32, but
             // below int63. This only matters for 1 or -1, and otherwise a
