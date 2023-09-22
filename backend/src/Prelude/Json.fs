@@ -112,20 +112,12 @@ module Vanilla =
       System.Activator.CreateInstance(converterType) :?> JsonConverter
 
 
-  // Since we're getting this back from OCaml in DDates, we need to use the
-  // timezone even though there isn't one in the type
   type LocalDateTimeConverter() =
     inherit JsonConverter<NodaTime.LocalDateTime>()
 
     override _.Read(reader : byref<Utf8JsonReader>, tipe, options) =
       let rawToken = reader.GetString()
-      try
-        (NodaTime.Instant.ofIsoString rawToken).toUtcLocalTimeZone ()
-      with
-      // We briefly used this converter for `Vanilla` - this is us "falling
-      // back" so we're able to read values serialized during that time.
-      | _ ->
-        NodaConverters.LocalDateTimeConverter.Read(&reader, tipe, options)
+      (NodaTime.Instant.ofIsoString rawToken).toUtcLocalTimeZone ()
 
     override _.Write
       (
