@@ -1,5 +1,5 @@
 /// The core types and functions used by the Dark language's runtime. These
-/// are not idential to the serialized types or the types used in the Editor,
+/// are not identical to the serialized types or the types used in the Editor,
 /// as those have unique constraints (typically, backward compatibility or
 /// continuous delivery).
 module LibExecution.RuntimeTypes

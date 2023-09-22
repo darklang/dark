@@ -26,13 +26,41 @@ type Response = { statusCode : int; headers : Headers.T; body : Body }
 
 // forked from Elm's HttpError type
 // https://package.elm-lang.org/packages/elm/http/latest/Http#Error
-type RequestError =
+
+module HeaderError =
+  type HeaderError =
+  | EmptyKey
+
+  let toDT (err : HeaderError) : Dval =
+    let caseName, fields =
+      match err with
+      | EmptyKey -> "EmptyKey", []
+
+    let typeName = TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "HeaderError" 0
+    Dval.enum typeName typeName (Some []) caseName fields
+
+module RequestError =
+  type RequestError =
   | BadUrl of details : string
   | Timeout
   | NetworkError
+  | HeaderError of HeaderError.HeaderError
   | Other of details : string
 
-type RequestResult = Result<Response, RequestError>
+  let toDT (err : RequestError) : Dval =
+    let caseName, fields =
+      match err with
+      | BadUrl details -> "BadUrl", [ DString details ]
+      | Timeout -> "Timeout", []
+      | NetworkError -> "NetworkError", []
+      | HeaderError err -> "HeaderError", [ HeaderError.toDT err ]
+      | Other details -> "Other", [ DString details ]
+
+    let typeName = TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "RequestError" 0
+    Dval.enum typeName typeName (Some []) caseName fields
+
+
+type RequestResult = Result<Response, RequestError.RequestError>
 
 type Configuration =
   { timeoutInMs : int
@@ -186,11 +214,11 @@ let makeRequest
 
         let host = uri.Host.Trim().ToLower()
         if not (config.allowedHost host) then
-          return Error(BadUrl "Invalid host")
+          return Error(RequestError.RequestError.BadUrl "Invalid host")
         else if not (config.allowedHeaders httpRequest.headers) then
-          return Error(BadUrl "Invalid request")
+          return Error(RequestError.RequestError.BadUrl "Invalid request")
         else if not (config.allowedScheme uri.Scheme) then
-          return Error(BadUrl "Unsupported Protocol")
+          return Error(RequestError.RequestError.BadUrl "Unsupported Protocol")
         else
           let reqUri =
             System.UriBuilder(
@@ -285,7 +313,7 @@ let makeRequest
       | :? TaskCanceledException ->
         config.telemetryAddTag "error" true
         config.telemetryAddTag "error.msg" "Timeout"
-        return Error Timeout
+        return Error RequestError.RequestError.Timeout
 
       | :? System.ArgumentException as e ->
         // We know of one specific case indicating Unsupported Protocol
@@ -298,18 +326,18 @@ let makeRequest
         then
           config.telemetryAddTag "error" true
           config.telemetryAddTag "error.msg" "Unsupported Protocol"
-          return Error(BadUrl "Unsupported Protocol")
+          return Error(RequestError.RequestError.BadUrl "Unsupported Protocol")
         else
           config.telemetryAddTag "error" true
           config.telemetryAddTag "error.msg" e.Message
-          return Error(Other e.Message)
+          return Error(RequestError.RequestError.Other e.Message)
 
       | :? System.UriFormatException ->
         config.telemetryAddTag "error" true
         config.telemetryAddTag "error.msg" "Invalid URI"
-        return Error(BadUrl "Invalid URI")
+        return Error(RequestError.RequestError.BadUrl "Invalid URI")
 
-      | :? IOException as e -> return Error(Other e.Message)
+      | :? IOException as e -> return Error(RequestError.RequestError.Other e.Message)
 
       | :? HttpRequestException as e ->
         // This is a bit of an awkward case. I'm unsure how it fits into our model.
@@ -321,32 +349,16 @@ let makeRequest
 
         config.telemetryAddException [ "error.status_code", statusCode ] e
 
-        return Error(Other(Exception.getMessages e |> String.concat " "))
+        return Error(RequestError.RequestError.Other(Exception.getMessages e |> String.concat " "))
     })
 
 
 let headersType = TList(TTuple(TString, TString, []))
 
-type HeaderError =
-  | BadInput of string
-  | TypeMismatch of string
 
 open LibExecution.Builtin.Shortcuts
 
-let types : List<BuiltInType> =
-  [ { name = typ [ "HttpClient" ] "Response" 0
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "statusCode"; typ = TInt }
-                [ { name = "headers"; typ = headersType }
-                  { name = "body"; typ = TBytes } ]
-            ) }
-      description = "The response from a HTTP request"
-      deprecated = NotDeprecated } ]
-
+let types : List<BuiltInType> = []
 
 let fns (config : Configuration) : List<BuiltInFn> =
   let httpClient = BaseClient.create config
@@ -359,8 +371,26 @@ let fns (config : Configuration) : List<BuiltInFn> =
           Param.make "body" TBytes "" ]
       returnType =
         TypeReference.result
-          (TCustomType(Ok(FQName.BuiltIn(typ [ "HttpClient" ] "Response" 0)), []))
-          TString
+          (TCustomType(
+            Ok(
+              FQName.Package
+                { owner = "Darklang"
+                  modules = [ "Stdlib"; "HttpClient" ]
+                  name = TypeName.TypeName "Response"
+                  version = 0 }
+            ),
+            []
+          ))
+          (TCustomType(
+            Ok(
+              FQName.Package
+                { owner = "Darklang"
+                  modules = [ "Stdlib"; "HttpClient" ]
+                  name = TypeName.TypeName "RequestError"
+                  version = 0 }
+            ),
+            []
+          ))
       description =
         "Make blocking HTTP call to <param uri>. Returns a <type Result> where
         the response is wrapped in {{ Ok }} if a response was successfully
@@ -370,9 +400,13 @@ let fns (config : Configuration) : List<BuiltInFn> =
           KTCustomType(FQName.BuiltIn(typ [ "HttpClient" ] "Response" 0), [])
         let resultOk = Dval.resultOk responseType KTString
         let resultErrorStr str = Dval.resultError responseType KTString (DString str)
+        let typeName = RuntimeError.name [ "HttpClient" ] "RequestError" 0
+        let resultError =
+          Dval.resultError VT.unknownTODO VT.unknownTODO
+
         (function
         | _, _, [ DString method; DString uri; DList(_, reqHeaders); DBytes reqBody ] ->
-          let reqHeaders : Result<List<string * string>, HeaderError> =
+          let reqHeaders : Result<List<string * string>, HeaderError.HeaderError> =
             reqHeaders
             |> List.fold
               (fun agg item ->
@@ -381,15 +415,13 @@ let fns (config : Configuration) : List<BuiltInFn> =
                 | (Ok pairs, DTuple(DString k, DString v, [])) ->
                   // TODO: what about whitespace? What else can break?
                   if k = "" then
-                    BadInput "Empty request header key provided" |> Error
+                    Error HeaderError.HeaderError.EmptyKey
                   else
                     Ok((k, v) :: pairs)
 
                 | (_, notAPair) ->
-                  // this should be an RTE, not a "normal" error
-                  TypeMismatch
-                    $"Expected request headers to be a `List<String*String>`, but got: {DvalReprDeveloper.toRepr notAPair}"
-                  |> Error)
+                  raiseUntargetedRTE (RuntimeError.oldError $"Expected request headers to be a `List<String*String>`, but got: {DvalReprDeveloper.toRepr notAPair}")
+              )
               (Ok [])
             |> Result.map (fun pairs -> List.rev pairs)
 
@@ -429,19 +461,15 @@ let fns (config : Configuration) : List<BuiltInFn> =
 
                 return DRecord(typ, typ, [], Map fields) |> resultOk
 
-              | Error(BadUrl details) -> return resultErrorStr $"Bad URL: {details}"
-              | Error(Timeout) -> return resultErrorStr $"Request timed out"
-              | Error(NetworkError) -> return resultErrorStr $"Network error"
-              | Error(Other details) -> return resultErrorStr details
+              // TODO: include a DvalSource rather than SourceNone
+
+              | Error (err) ->
+                return (err |> RequestError.toDT |> resultError)
+
             }
 
           | Error reqHeadersErr, _ ->
-            uply {
-              match reqHeadersErr with
-              | BadInput details -> return resultErrorStr details
-              | TypeMismatch details ->
-                return raiseUntargetedRTE (RuntimeError.oldError details)
-            }
+            uply { return  reqHeadersErr |> HeaderError.toDT |> resultError }
 
           | _, None ->
             let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"

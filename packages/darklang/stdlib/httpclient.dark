@@ -2,6 +2,22 @@ module Darklang =
   module Stdlib =
     module HttpClient =
 
+      type HeaderError =
+        | EmptyKey
+
+      type RequestError =
+        | BadUrl of details : String
+        | Timeout
+        | NetworkError
+        | Other of details : String
+
+      let toString (e: RequestError) : String =
+        match e with
+        | BadUrl details -> $"Bad URL: {details}"
+        | Timeout -> "Timeout"
+        | NetworkError -> "Network error"
+        | Other details -> $"Other error: {details}"
+
       /// The response from a HTTP request
       type Response =
         { statusCode: Int
@@ -17,7 +33,7 @@ module Darklang =
         (uri: String)
         (headers: List<String * String>)
         (body: Bytes)
-        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, String> =
+        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, PACKAGE.Darklang.Stdlib.HttpClient.RequestError> =
         Builtin.HttpClient.request method uri headers body
 
 
