@@ -2,14 +2,13 @@ module Darklang =
   module Stdlib =
     module HttpClient =
 
-      type HeaderError =
-        | EmptyKey
+      type HeaderError = | EmptyKey
 
       type RequestError =
-        | BadUrl of details : String
+        | BadUrl of details: String
         | Timeout
         | NetworkError
-        | Other of details : String
+        | Other of details: String
 
       let toString (e: RequestError) : String =
         match e with

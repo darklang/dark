@@ -26,26 +26,26 @@ type Response = { statusCode : int; headers : Headers.T; body : Body }
 
 
 module HeaderError =
-  type HeaderError =
-  | EmptyKey
+  type HeaderError = | EmptyKey
 
   let toDT (err : HeaderError) : Dval =
     let caseName, fields =
       match err with
       | EmptyKey -> "EmptyKey", []
 
-    let typeName = TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "HeaderError" 0
+    let typeName =
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "HeaderError" 0
     Dval.enum typeName typeName (Some []) caseName fields
 
 module RequestError =
   // forked from Elm's HttpError type
   // https://package.elm-lang.org/packages/elm/http/latest/Http#Error
   type RequestError =
-  | BadUrl of details : string
-  | Timeout
-  | NetworkError
-  | HeaderError of HeaderError.HeaderError
-  | Other of details : string
+    | BadUrl of details : string
+    | Timeout
+    | NetworkError
+    | HeaderError of HeaderError.HeaderError
+    | Other of details : string
 
   let toDT (err : RequestError) : Dval =
     let caseName, fields =
@@ -56,7 +56,8 @@ module RequestError =
       | HeaderError err -> "HeaderError", [ HeaderError.toDT err ]
       | Other details -> "Other", [ DString details ]
 
-    let typeName = TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "RequestError" 0
+    let typeName =
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "RequestError" 0
     Dval.enum typeName typeName (Some []) caseName fields
 
 
@@ -337,7 +338,8 @@ let makeRequest
         config.telemetryAddTag "error.msg" "Invalid URI"
         return Error(RequestError.RequestError.BadUrl "Invalid URI")
 
-      | :? IOException as e -> return Error(RequestError.RequestError.Other e.Message)
+      | :? IOException as e ->
+        return Error(RequestError.RequestError.Other e.Message)
 
       | :? HttpRequestException as e ->
         // This is a bit of an awkward case. I'm unsure how it fits into our model.
@@ -349,7 +351,12 @@ let makeRequest
 
         config.telemetryAddException [ "error.status_code", statusCode ] e
 
-        return Error(RequestError.RequestError.Other(Exception.getMessages e |> String.concat " "))
+        return
+          Error(
+            RequestError.RequestError.Other(
+              Exception.getMessages e |> String.concat " "
+            )
+          )
     })
 
 
@@ -403,7 +410,8 @@ let fns (config : Configuration) : List<BuiltInFn> =
         let typeName = RuntimeError.name [ "HttpClient" ] "RequestError" 0
         let resultError =
           Dval.resultError VT.unknownTODO VT.unknownTODO
-
+        let resultErrorStr str =
+          Dval.resultError VT.unknownTODO VT.string (DString str)
         (function
         | _, _, [ DString method; DString uri; DList(_, reqHeaders); DBytes reqBody ] ->
           let reqHeaders : Result<List<string * string>, HeaderError.HeaderError> =
@@ -420,8 +428,10 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     Ok((k, v) :: pairs)
 
                 | (_, notAPair) ->
-                  raiseUntargetedRTE (RuntimeError.oldError $"Expected request headers to be a `List<String*String>`, but got: {DvalReprDeveloper.toRepr notAPair}")
-              )
+                  raiseUntargetedRTE (
+                    RuntimeError.oldError
+                      $"Expected request headers to be a `List<String*String>`, but got: {DvalReprDeveloper.toRepr notAPair}"
+                  ))
               (Ok [])
             |> Result.map (fun pairs -> List.rev pairs)
 
@@ -467,13 +477,12 @@ let fns (config : Configuration) : List<BuiltInFn> =
 
               // TODO: include a DvalSource rather than SourceNone
 
-              | Error (err) ->
-                return (err |> RequestError.toDT |> resultError)
+              | Error(err) -> return (err |> RequestError.toDT |> resultError)
 
             }
 
           | Error reqHeadersErr, _ ->
-            uply { return  reqHeadersErr |> HeaderError.toDT |> resultError }
+            uply { return reqHeadersErr |> HeaderError.toDT |> resultError }
 
           | _, None ->
             let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
