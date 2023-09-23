@@ -24,8 +24,6 @@ type Request = { url : string; method : Method; headers : Headers.T; body : Body
 
 type Response = { statusCode : int; headers : Headers.T; body : Body }
 
-// forked from Elm's HttpError type
-// https://package.elm-lang.org/packages/elm/http/latest/Http#Error
 
 module HeaderError =
   type HeaderError =
@@ -40,6 +38,8 @@ module HeaderError =
     Dval.enum typeName typeName (Some []) caseName fields
 
 module RequestError =
+  // forked from Elm's HttpError type
+  // https://package.elm-lang.org/packages/elm/http/latest/Http#Error
   type RequestError =
   | BadUrl of details : string
   | Timeout
@@ -452,7 +452,11 @@ let fns (config : Configuration) : List<BuiltInFn> =
                   |> Dval.list (KTTuple(VT.string, VT.string, []))
 
                 let typ =
-                  FQName.BuiltIn(TypeName.builtIn [ "HttpClient" ] "Response" 0)
+                  FQName.Package
+                    { owner = "Darklang"
+                      modules = [ "Stdlib"; "HttpClient" ]
+                      name = TypeName.TypeName "Response"
+                      version = 0 }
 
                 let fields =
                   [ ("statusCode", DInt(int64 response.statusCode))
