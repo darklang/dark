@@ -120,9 +120,7 @@ let rec serialize
       let ds = d1 :: d2 :: rest
 
       if List.length ts <> List.length ds then
-        Exception.raiseInternal
-          $"Not sure what to do with mismatched tuple ({ds} doesn't match {ts})"
-          []
+        Exception.raiseInternal $"with mismatched tuple ({ds} doesn't match {ts})" []
 
       let zipped = List.zip (t1 :: t2 :: trest) (d1 :: d2 :: rest)
       do!
@@ -218,6 +216,7 @@ let rec serialize
 
 
     // Not supported
+    // TODO these should be runtime errors
     | TVariable name, dv ->
       Exception.raiseInternal
         "Variable types (i.e. 'a in List<'a>) cannot not be used as arguments"
@@ -245,6 +244,7 @@ let rec serialize
     | TVariable _, _
     | TCustomType _, _
     | TDict _, _ ->
+      // Internal error as this shouldn't get past the typechecker
       Exception.raiseInternal
         "Can't currently serialize this type/value combination"
         [ "value", dv; "type", DString(LibExecution.DvalReprDeveloper.typeName typ) ]
@@ -323,6 +323,14 @@ module JsonParseError =
     | CantMatchWithType(typ, json, errorPath) ->
       $"Can't parse JSON `{json}` as type `{LibExecution.DvalReprDeveloper.typeName typ}` at path: `{JsonPath.toString errorPath}`"
 
+let raiseCantMatchWithType
+  (typ : TypeReference)
+  (j : JsonElement)
+  (pathSoFar : JsonPath.JsonPath)
+  =
+  JsonParseError.CantMatchWithType(typ, j.GetRawText(), pathSoFar)
+  |> JsonParseError.JsonParseException
+  |> raise
 
 
 let parse
@@ -351,10 +359,15 @@ let parse
       | "NaN" -> DFloat System.Double.NaN
       | "Infinity" -> DFloat System.Double.PositiveInfinity
       | "-Infinity" -> DFloat System.Double.NegativeInfinity
-      | v -> Exception.raiseInternal "Invalid float" [ "value", v ]
+      | _ -> raiseCantMatchWithType TFloat j pathSoFar
       |> Ply
 
-    | TChar, JsonValueKind.String -> DChar(j.GetString()) |> Ply
+    | TChar, JsonValueKind.String ->
+      match String.toEgcChar (j.GetString()) with
+      | Some c -> Ply(DChar c)
+      | None -> raiseCantMatchWithType TChar j pathSoFar
+
+
     | TString, JsonValueKind.String -> DString(j.GetString()) |> Ply
 
     | TBytes, JsonValueKind.String ->
@@ -364,9 +377,7 @@ let parse
       try
         DUuid(System.Guid(j.GetString())) |> Ply
       with _ ->
-        JsonParseError.CantMatchWithType(TUuid, j.GetRawText(), pathSoFar)
-        |> JsonParseError.JsonParseException
-        |> raise
+        raiseCantMatchWithType TUuid j pathSoFar
 
     | TDateTime, JsonValueKind.String ->
       try
@@ -376,9 +387,7 @@ let parse
         |> DDateTime
         |> Ply
       with _ ->
-        JsonParseError.CantMatchWithType(TDateTime, j.GetRawText(), pathSoFar)
-        |> JsonParseError.JsonParseException
-        |> raise
+        raiseCantMatchWithType TDateTime j pathSoFar
 
 
     // Nested types
@@ -400,10 +409,7 @@ let parse
       |> Ply.map (fun mapped ->
         match mapped with
         | (d1 :: d2 :: rest) -> DTuple(d1, d2, rest)
-        | _ ->
-          Exception.raiseInternal
-            "Invalid tuple - really shouldn't be possible to hit this"
-            [])
+        | _ -> Exception.raiseInternal "Invalid tuple" [])
 
     | TDict tDict, JsonValueKind.Object ->
       j.EnumerateObject()
