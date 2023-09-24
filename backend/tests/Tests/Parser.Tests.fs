@@ -17,7 +17,8 @@ let parserTests =
       let! actual =
         LibParser.Parser.parseRTExpr nameResolver "parser.tests.fs" testStr
         |> Ply.toTask
-      return Expect.equalExprIgnoringIDs actual (PT2RT.Expr.toRT expectedExpr)
+      let! expectedExpr = PT2RT.Expr.toRT expectedExpr |> Ply.toTask
+      return Expect.equalExprIgnoringIDs actual expectedExpr
     }
   let id = 0UL // since we're ignoring IDs, just use the same one everywhere
   testList

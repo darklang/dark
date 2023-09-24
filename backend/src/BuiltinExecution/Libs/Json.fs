@@ -506,7 +506,7 @@ let parse
                 })
               |> Ply.List.flatten
 
-            return Dval.record typeName VT.typeArgsTODO' fields
+            return! Dval.record typeName VT.typeArgsTODO' fields
       }
 
 

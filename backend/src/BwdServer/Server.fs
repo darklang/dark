@@ -323,13 +323,16 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           // Do request
           use _ = Telemetry.child "executeHandler" []
 
-          let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
+          let! request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
           let inputVars = routeVars |> Map |> Map.add "request" request
+
+          let! handler = PT2RT.Handler.toRT handler
+          let! canvas = Canvas.toProgram canvas
           let! (result, _) =
             CloudExe.executeHandler
               LibClientTypesToCloudTypes.Pusher.eventSerializer
-              (PT2RT.Handler.toRT handler)
-              (Canvas.toProgram canvas)
+              handler
+              canvas
               traceID
               inputVars
               (CloudExe.InitialExecution(desc, "request", request))

@@ -70,7 +70,7 @@ module RTE =
       | _ -> Exception.raiseInternal "Invalid NameType" []
 
   module Error =
-    let toDT (e : Error) : RT.Dval =
+    let toDT (e : Error) : Ply<RT.Dval> =
       let errorTypeName = RT.RuntimeError.name [ "NameResolution" ] "Error" 0
       let fields =
         [ "errorType", ErrorType.toDT e.errorType
@@ -93,8 +93,8 @@ module RTE =
 
       | _ -> Exception.raiseInternal "Expected DRecord" []
 
-  let toRuntimeError (e : Error) : RT.RuntimeError =
-    Error.toDT e |> RT.RuntimeError.nameResolutionError
+  let toRuntimeError (e : Error) : Ply<RT.RuntimeError> =
+    Error.toDT e |> Ply.map RT.RuntimeError.nameResolutionError
 
   let fromRuntimeError (re : RT.RuntimeError) : Error =
     // TODO: this probably doesn't unwrap the type

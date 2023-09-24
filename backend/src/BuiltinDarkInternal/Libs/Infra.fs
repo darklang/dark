@@ -79,6 +79,7 @@ human-readable data."
         | _, _, [ DUnit ] ->
           uply {
             let! tableStats = LibCloud.Db.tableStats ()
+
             // Send events to honeycomb. We could save some events by sending
             // these all as a single event - tablename.disk = 1, etc - but
             // by having an event per table, it's easier to query and graph:
@@ -100,16 +101,23 @@ human-readable data."
                   ("rows_human", ts.rowsHuman) ])
 
             let typeName = FQName.BuiltIn(typ "TableSize" 0)
-            return
+
+            let! dict =
               tableStats
-              |> List.map (fun ts ->
-                (ts.relation,
-                 [ ("disk", DInt(ts.diskBytes))
-                   ("rows", DInt(ts.rows))
-                   ("diskHuman", DString ts.diskHuman)
-                   ("rowsHuman", DString ts.rowsHuman) ]
-                 |> Dval.record typeName (Some [])))
-              |> Dval.dict VT.unknownTODO
+              |> Ply.List.mapSequentially (fun ts ->
+                uply {
+                  let! v =
+                    [ ("disk", DInt(ts.diskBytes))
+                      ("rows", DInt(ts.rows))
+                      ("diskHuman", DString ts.diskHuman)
+                      ("rowsHuman", DString ts.rowsHuman) ]
+                    |> Dval.record typeName (Some [])
+
+                  return (ts.relation, v)
+                })
+              |> Ply.map (Dval.dict VT.unknownTODO)
+
+            return dict
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

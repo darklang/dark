@@ -531,41 +531,56 @@ let healthCheck : LibService.Kubernetes.HealthCheck =
     probeTypes = [ LibService.Kubernetes.Startup ] }
 
 
-let toProgram (c : T) : RT.Program =
+let toProgram (c : T) : Ply<RT.Program> =
+  uply {
+    let! dbs =
+      c.dbs
+      |> Map.values
+      |> Ply.List.mapSequentially (fun db ->
+        uply {
+          let! dbRT = PT2RT.DB.toRT db
+          return (db.name, dbRT)
+        })
+      |> Ply.map Map.ofList
 
-  let dbs =
-    c.dbs
-    |> Map.values
-    |> List.map (fun db -> (db.name, PT2RT.DB.toRT db))
-    |> Map.ofList
+    let! userFns =
+      c.userFunctions
+      |> Map.values
+      |> Ply.List.mapSequentially (fun f ->
+        uply {
+          let! fn = PT2RT.UserFunction.toRT f
+          return (PT2RT.FnName.UserProgram.toRT f.name, fn)
+        })
+      |> Ply.map Map.ofList
 
-  let userFns =
-    c.userFunctions
-    |> Map.values
-    |> List.map (fun f ->
-      (PT2RT.FnName.UserProgram.toRT f.name, PT2RT.UserFunction.toRT f))
-    |> Map.ofList
+    let! userTypes =
+      c.userTypes
+      |> Map.values
+      |> Ply.List.mapSequentially (fun t ->
+        uply {
+          let! typ = PT2RT.UserType.toRT t
+          return (PT2RT.TypeName.UserProgram.toRT t.name, typ)
+        })
+      |> Ply.map Map.ofList
 
-  let userTypes =
-    c.userTypes
-    |> Map.values
-    |> List.map (fun t ->
-      (PT2RT.TypeName.UserProgram.toRT t.name, PT2RT.UserType.toRT t))
-    |> Map.ofList
+    let! userConstants =
+      c.userConstants
+      |> Map.values
+      |> Ply.List.mapSequentially (fun c ->
+        uply {
+          let! constant = PT2RT.UserConstant.toRT c
+          return (PT2RT.ConstantName.UserProgram.toRT c.name, constant)
+        })
+      |> Ply.map Map.ofList
 
-  let userConstants =
-    c.userConstants
-    |> Map.values
-    |> List.map (fun c ->
-      (PT2RT.ConstantName.UserProgram.toRT c.name, PT2RT.UserConstant.toRT c))
-    |> Map.ofList
+    let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
 
-  let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
-
-  { canvasID = c.id
-    internalFnsAllowed = List.contains c.id Config.allowedDarkInternalCanvasIDs
-    fns = userFns
-    types = userTypes
-    constants = userConstants
-    dbs = dbs
-    secrets = secrets }
+    return
+      { canvasID = c.id
+        internalFnsAllowed = List.contains c.id Config.allowedDarkInternalCanvasIDs
+        fns = userFns
+        types = userTypes
+        constants = userConstants
+        dbs = dbs
+        secrets = secrets }
+  }

@@ -142,9 +142,9 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let fns =
+            let! fns =
               fns
-              |> List.map (fun (owner, fnname, modules, version) ->
+              |> Ply.List.mapSequentially (fun (owner, fnname, modules, version) ->
                 Dval.record
                   (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0))
                   (Some [])
@@ -189,20 +189,21 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let types =
+            let! types =
               types
-              |> List.map (fun (owner, typename, modules, version) ->
-                Dval.record
-                  (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0))
-                  (Some [])
-                  [ ("owner", DString owner)
-                    ("modules",
-                     modules
-                     |> String.split "."
-                     |> List.map DString
-                     |> Dval.list VT.unknownTODO)
-                    ("name", DString typename)
-                    ("version", DInt version) ])
+              |> Ply.List.mapSequentially
+                (fun (owner, typename, modules, version) ->
+                  Dval.record
+                    (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0))
+                    (Some [])
+                    [ ("owner", DString owner)
+                      ("modules",
+                       modules
+                       |> String.split "."
+                       |> List.map DString
+                       |> Dval.list VT.unknownTODO)
+                      ("name", DString typename)
+                      ("version", DInt version) ])
 
             return Dval.list VT.unknownTODO types
           }
@@ -236,9 +237,9 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let consts =
+            let! consts =
               consts
-              |> List.map (fun (owner, fnname, modules, version) ->
+              |> Ply.List.mapSequentially (fun (owner, fnname, modules, version) ->
                 Dval.record
                   (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0))
                   (Some [])

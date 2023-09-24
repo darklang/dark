@@ -45,7 +45,12 @@ let fns : List<BuiltInFn> =
                   | DUnit -> return ()
                   | v ->
                     let context = TypeChecker.Context.FnValResult(TUnit, None)
-                    TypeChecker.raiseValueNotExpectedType SourceNone v TUnit context
+                    return!
+                      TypeChecker.raiseValueNotExpectedType
+                        SourceNone
+                        v
+                        TUnit
+                        context
                 })
             return DUnit
           }

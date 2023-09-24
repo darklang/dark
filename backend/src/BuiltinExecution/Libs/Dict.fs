@@ -264,7 +264,7 @@ let fns : List<BuiltInFn> =
                   match! Interpreter.applyFnVal state 0UL b [] args with
                   | DUnit -> return ()
                   | dv ->
-                    return
+                    return!
                       TypeChecker.raiseFnValResultNotExpectedType
                         SourceNone
                         dv
@@ -302,7 +302,7 @@ let fns : List<BuiltInFn> =
                 match! Interpreter.applyFnVal state 0UL b [] args with
                 | DBool v -> return v
                 | v ->
-                  return
+                  return!
                     TypeChecker.raiseFnValResultNotExpectedType SourceNone v TBool
               }
             let! result = Ply.Map.filterSequentially f o
@@ -357,7 +357,7 @@ let fns : List<BuiltInFn> =
                         []) -> return None
                 | v ->
                   let expectedType = TypeReference.option varB
-                  return
+                  return!
                     TypeChecker.raiseFnValResultNotExpectedType
                       SourceNone
                       v

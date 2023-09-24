@@ -680,7 +680,7 @@ let packageManager : RT.PackageManager =
     (modules : List<string>)
     (name : string)
     (version : int)
-    (f : 'serverType -> 'cachedType)
+    (f : 'serverType -> Ply<'cachedType>)
     : Ply<Option<'cachedType>> =
     uply {
       let modules = modules |> String.concat "."
@@ -693,7 +693,7 @@ let packageManager : RT.PackageManager =
       try
         if response.StatusCode = System.Net.HttpStatusCode.OK then
           let deserialized = responseStr |> Json.Vanilla.deserialize<'serverType>
-          let cached = f deserialized
+          let! cached = f deserialized
           return Some cached
         else if response.StatusCode = System.Net.HttpStatusCode.NotFound then
           return None
@@ -713,13 +713,13 @@ let packageManager : RT.PackageManager =
 
   { getType =
       withCache (fun ({ name = RT.TypeName.TypeName typeName } as name) ->
-        let conversionFn (parsed : EPT.PackageType) : RT.PackageType.T =
+        let conversionFn (parsed : EPT.PackageType) : Ply<RT.PackageType.T> =
           parsed |> ET2PT.PackageType.toPT |> PT2RT.PackageType.toRT
         fetch "type" name.owner name.modules typeName name.version conversionFn)
 
     getFn =
       withCache (fun ({ name = RT.FnName.FnName fnName } as name) ->
-        let conversionFn (parsed : EPT.PackageFn.PackageFn) : RT.PackageFn.T =
+        let conversionFn (parsed : EPT.PackageFn.PackageFn) : Ply<RT.PackageFn.T> =
           parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT
         fetch "function" name.owner name.modules fnName name.version conversionFn)
 
@@ -729,7 +729,9 @@ let packageManager : RT.PackageManager =
 
     getConstant =
       withCache (fun ({ name = RT.ConstantName.ConstantName constName } as name) ->
-        let conversionFn (parsed : EPT.PackageConstant) : RT.PackageConstant.T =
+        let conversionFn
+          (parsed : EPT.PackageConstant)
+          : Ply<RT.PackageConstant.T> =
           parsed |> ET2PT.PackageConstant.toPT |> PT2RT.PackageConstant.toRT
         fetch "constant" name.owner name.modules constName name.version conversionFn)
 

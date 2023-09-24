@@ -24,6 +24,11 @@
 ///   (Dval.enum, Dval.record, maybe others)
 module LibExecution.Dval
 
+open FSharp.Control.Tasks
+open System.Threading.Tasks
+
+open Prelude
+
 open LibExecution.RuntimeTypes
 module VT = ValueType
 
@@ -215,9 +220,13 @@ let dictFromMap (valueType : ValueType) (entries : Map<string, Dval>) : Dval =
 /// note: if provided, the typeArgs must match the # of typeArgs expected by the type
 let record
   (sourceTypeName : TypeName.TypeName)
-  (typeArgs : Option<List<ValueType>>)
+  (sourceTypeArgs : Option<List<ValueType>>)
+  // CLEANUP consider Ply<List<string * Dval>> for the sake of the consumers of this
+  // It would make for much cleaner code, but I'm not sure if it's more right or more
+  // wrong than the current set-up. Seems like it'd yield RTEs
+  // at a higher level of Dvals than the current setup.
   (fields : List<string * Dval>)
-  : Dval =
+  : Ply<Dval> =
   let resolvedTypeName = sourceTypeName // TODO: alias lookup
 
   let fields =
@@ -242,11 +251,11 @@ let record
   // - ensure fields match the expected shape (defined by type args and field defs)
   //   - this process should also effect the type args of the resultant Dval
   let typeArgs =
-    match typeArgs with
+    match sourceTypeArgs with
     | Some _typeArgs -> [] //typeArgs // VTTODO uncomment when Interpreter respects this
     | None -> VT.typeArgsTODO
 
-  DRecord(resolvedTypeName, sourceTypeName, typeArgs, fields)
+  DRecord(resolvedTypeName, sourceTypeName, typeArgs, fields) |> Ply
 
 
 

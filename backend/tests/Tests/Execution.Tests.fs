@@ -71,9 +71,10 @@ let testExecFunctionTLIDs : Test =
     let! meta = initializeTestCanvas "exec-function-tlids"
     let name = "testFunction"
     let ps = NEList.singleton "param"
-    let fn =
+    let! (fn : UserFunction.T) =
       testUserFn name [] ps (PT.TVariable "a") (PT.EInt(gid (), 5))
       |> PT2RT.UserFunction.toRT
+      |> Ply.toTask
     let fns = Map.ofList [ (fn.name, fn) ]
     let! state = executionStateFor meta false false Map.empty Map.empty fns Map.empty
 

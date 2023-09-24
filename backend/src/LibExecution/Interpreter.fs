@@ -36,32 +36,45 @@ module ExecutionError =
     | NonStringInStringInterpolation of Dval
     | ConstDoesntExist of ConstantName.ConstantName
 
-  let toDT (e : Error) : RuntimeError =
-    let typeName =
-      TypeName.fqPackage
-        "Darklang"
-        [ "LanguageTools"; "RuntimeErrors"; "Execution" ]
-        "Error"
-        0
+  let toDT (e : Error) : Ply<RuntimeError> =
+    uply {
+      let typeName =
+        TypeName.fqPackage
+          "Darklang"
+          [ "LanguageTools"; "RuntimeErrors"; "Execution" ]
+          "Error"
+          0
 
-    let case (caseName : string) (fields : List<Dval>) : RuntimeError =
-      Dval.enum typeName typeName (Some []) caseName fields
-      |> RuntimeError.executionError
+      let case (caseName : string) (fields : List<Dval>) : RuntimeError =
+        Dval.enum typeName typeName (Some []) caseName fields
+        |> RuntimeError.executionError
 
-    match e with
-    | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
-      case
-        "MatchExprEnumPatternWrongCount"
-        [ DString caseName; DInt expected; DInt actual ]
-    | MatchExprPatternWrongType(expected, actual) ->
-      case "MatchExprPatternWrongType" [ DString expected; RT2DT.Dval.toDT actual ]
-    | MatchExprUnmatched dv -> case "MatchExprUnmatched" [ RT2DT.Dval.toDT dv ]
-    | NonStringInStringInterpolation dv ->
-      case "NonStringInStringInterpolation" [ RT2DT.Dval.toDT dv ]
-    | ConstDoesntExist name ->
-      case "ConstDoesntExist" [ RT2DT.ConstantName.toDT name ]
+      let! (caseName, fields) =
+        uply {
+          match e with
+          | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
+            return
+              "MatchExprEnumPatternWrongCount",
+              [ DString caseName; DInt expected; DInt actual ]
+          | MatchExprPatternWrongType(expected, actual) ->
+            let! actual = RT2DT.Dval.toDT actual
+            return "MatchExprPatternWrongType", [ DString expected; actual ]
+          | MatchExprUnmatched dv ->
+            let! dv = RT2DT.Dval.toDT dv
+            return "MatchExprUnmatched", [ dv ]
+          | NonStringInStringInterpolation dv ->
+            let! dv = RT2DT.Dval.toDT dv
+            return "NonStringInStringInterpolation", [ dv ]
+          | ConstDoesntExist name ->
+            let! name = RT2DT.ConstantName.toDT name
+            return "ConstDoesntExist", [ name ]
+        }
 
-  let raise (source : DvalSource) (e : Error) : 'a = raiseRTE source (toDT e)
+      return case caseName fields
+    }
+
+  let raise (source : DvalSource) (e : Error) : Ply<'a> =
+    toDT e |> Ply.map (raiseRTE source)
 
 
 let rec evalConst (source : DvalSource) (c : Const) : Dval =
@@ -98,18 +111,18 @@ let rec eval
   let sourceID id = SourceID(state.tlid, id)
   let errStr id msg : 'a = raiseRTE (sourceID id) (RuntimeError.oldError msg)
   let err id rte : 'a = raiseRTE (sourceID id) rte
-  let raiseExeRTE id (e : ExecutionError.Error) : 'a =
+  let raiseExeRTE id (e : ExecutionError.Error) : Ply<'a> =
     ExecutionError.raise (sourceID id) e
 
   let typeResolutionError
     (errorType : NameResolutionError.ErrorType)
     (typeName : TypeName.TypeName)
-    : 'a =
+    : Ply<'a> =
     let error : NameResolutionError.Error =
       { errorType = errorType
         nameType = NameResolutionError.Type
         names = [ TypeName.toString typeName ] }
-    raiseRTE SourceNone (NameResolutionError.RTE.toRuntimeError error)
+    error |> NameResolutionError.RTE.toRuntimeError |> Ply.map (raiseRTE SourceNone)
 
   let recordMaybe
     (types : Types)
@@ -167,10 +180,10 @@ let rec eval
 
         | Some({ definition = TypeDeclaration.Alias(_) })
         | Some({ definition = TypeDeclaration.Enum _ }) ->
-          return
+          return!
             typeResolutionError NameResolutionError.ExpectedRecordButNot typeName
 
-        | None -> return typeResolutionError NameResolutionError.NotFound typeName
+        | None -> return! typeResolutionError NameResolutionError.NotFound typeName
       }
     inner typeName
 
@@ -204,8 +217,8 @@ let rec eval
 
         | Some({ definition = TypeDeclaration.Alias _ })
         | Some({ definition = TypeDeclaration.Record _ }) ->
-          return typeResolutionError NameResolutionError.ExpectedEnumButNot typeName
-        | None -> return typeResolutionError NameResolutionError.NotFound typeName
+          return! typeResolutionError NameResolutionError.ExpectedEnumButNot typeName
+        | None -> return! typeResolutionError NameResolutionError.NotFound typeName
       }
     inner typeName
 
@@ -227,7 +240,7 @@ let rec eval
               | DString s -> return s
               | dv ->
                 // TODO: maybe better with a type error here
-                return
+                return!
                   raiseExeRTE id (ExecutionError.NonStringInStringInterpolation dv)
           })
       return segments |> String.concat "" |> String.normalize |> DString
@@ -242,17 +255,17 @@ let rec eval
       | FQName.UserProgram c ->
         match Map.find c state.program.constants with
         | None ->
-          return ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
+          return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
         | Some constant -> return evalConst source constant.body
       | FQName.BuiltIn c ->
         match Map.find c state.builtIns.constants with
         | None ->
-          return ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
+          return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
         | Some constant -> return constant.body
       | FQName.Package c ->
         match! state.packageManager.getConstant c with
         | None ->
-          return ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
+          return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
         | Some constant -> return evalConst source constant.body
 
 
@@ -460,128 +473,152 @@ let rec eval
       let rec checkPattern
         (dv : Dval)
         (pattern : MatchPattern)
-        : bool * List<string * Dval> =
-        match pattern with
-        | MPInt(id, pi) ->
-          match dv with
-          | DInt di -> (di = pi), []
-          | _ -> raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Int", dv))
+        : Ply<bool * List<string * Dval>> =
+        uply {
+          match pattern with
+          | MPInt(id, pi) ->
+            match dv with
+            | DInt di -> return (di = pi), []
+            | _ ->
+              return!
+                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Int", dv))
 
-        | MPBool(id, pb) ->
-          match dv with
-          | DBool db -> (db = pb), []
-          | _ ->
-            raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Bool", dv))
-        | MPChar(id, pc) ->
-          match dv with
-          | DChar dc -> (dc = pc), []
-          | _ ->
-            raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Char", dv))
-        | MPString(id, ps) ->
-          match dv with
-          | DString ds -> (ds = ps), []
-          | _ ->
-            raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("String", dv))
-        | MPFloat(id, pf) ->
-          match dv with
-          | DFloat df -> (df = pf), []
-          | _ ->
-            raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Float", dv))
-        | MPUnit(id) ->
-          match dv with
-          | DUnit -> true, []
-          | _ ->
-            raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Unit", dv))
+          | MPBool(id, pb) ->
+            match dv with
+            | DBool db -> return (db = pb), []
+            | _ ->
+              return!
+                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Bool", dv))
+          | MPChar(id, pc) ->
+            match dv with
+            | DChar dc -> return (dc = pc), []
+            | _ ->
+              return!
+                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Char", dv))
+          | MPString(id, ps) ->
+            match dv with
+            | DString ds -> return (ds = ps), []
+            | _ ->
+              return!
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("String", dv))
+          | MPFloat(id, pf) ->
+            match dv with
+            | DFloat df -> return (df = pf), []
+            | _ ->
+              return!
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("Float", dv))
+          | MPUnit(id) ->
+            match dv with
+            | DUnit -> return true, []
+            | _ ->
+              return!
+                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Unit", dv))
 
-        | MPVariable(id, varName) -> true, [ (varName, dv) ]
-
-
-        | MPEnum(id, caseName, fieldPats) ->
-          match dv with
-          | DEnum(_dTypeName, _oTypeName, _typeArgsDEnumTODO, dCaseName, dFields) ->
-            if caseName <> dCaseName then
-              false, []
-            else
-              let dvFieldLength = List.length dFields
-              match fieldPats with
-              // wildcard
-              | [ MPVariable(_, "_") ] when dvFieldLength > 0 -> true, []
-              | _ ->
-                let patFieldLength = List.length fieldPats
-                if dvFieldLength <> patFieldLength then
-                  raiseExeRTE
-                    id
-                    (ExecutionError.MatchExprEnumPatternWrongCount(
-                      dCaseName,
-                      patFieldLength,
-                      dvFieldLength
-                    ))
-                else
-                  let (passResults, newVarResults) =
-                    List.zip dFields fieldPats
-                    |> List.map (fun (dv, pat) -> checkPattern dv pat)
-                    |> List.unzip
-
-                  let allPass = List.forall identity passResults
-                  let allVars = newVarResults |> List.collect identity
-                  allPass, allVars
-
-          | _dv ->
-            raiseExeRTE id (ExecutionError.MatchExprPatternWrongType(caseName, dv))
+          | MPVariable(id, varName) -> return true, [ (varName, dv) ]
 
 
-        | MPTuple(id, firstPat, secondPat, theRestPat) ->
-          let allPatterns = firstPat :: secondPat :: theRestPat
+          | MPEnum(id, caseName, fieldPats) ->
+            match dv with
+            | DEnum(_dTypeName, _oTypeName, _typeArgsDEnumTODO, dCaseName, dFields) ->
+              if caseName <> dCaseName then
+                return false, []
+              else
+                let dvFieldLength = List.length dFields
+                match fieldPats with
+                // wildcard
+                | [ MPVariable(_, "_") ] when dvFieldLength > 0 -> return true, []
+                | _ ->
+                  let patFieldLength = List.length fieldPats
+                  if dvFieldLength <> patFieldLength then
+                    return!
+                      raiseExeRTE
+                        id
+                        (ExecutionError.MatchExprEnumPatternWrongCount(
+                          dCaseName,
+                          patFieldLength,
+                          dvFieldLength
+                        ))
+                  else
+                    let! (passResults, newVarResults) =
+                      List.zip dFields fieldPats
+                      |> Ply.List.mapSequentially (fun (dv, pat) ->
+                        checkPattern dv pat)
+                      |> Ply.map List.unzip
 
-          match dv with
-          | DTuple(first, second, theRest) ->
-            let allVals = first :: second :: theRest
+                    let allPass = List.forall identity passResults
+                    let allVars = newVarResults |> List.collect identity
+                    return allPass, allVars
 
-            if List.length allVals = List.length allPatterns then
-              let (passResults, newVarResults) =
-                List.zip allVals allPatterns
-                |> List.map (fun (dv, pat) -> checkPattern dv pat)
-                |> List.unzip
-
-              let allPass = List.forall identity passResults
-              let allVars = newVarResults |> List.collect identity
-              allPass, allVars
-            else
-              false, []
-          | _ ->
-            raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Tuple", dv))
+            | _dv ->
+              return!
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType(caseName, dv))
 
 
-        | MPListCons(id, headPat, tailPat) ->
-          match dv with
-          | DList(_, []) -> false, []
-          | DList(vt, headVal :: tailVals) ->
-            let (headPass, headVars) = checkPattern headVal headPat
-            let (tailPass, tailVars) = checkPattern (Dval.list vt tailVals) tailPat
+          | MPTuple(id, firstPat, secondPat, theRestPat) ->
+            let allPatterns = firstPat :: secondPat :: theRestPat
 
-            let allSubVars = headVars @ tailVars
-            let pass = headPass && tailPass
-            pass, allSubVars
+            match dv with
+            | DTuple(first, second, theRest) ->
+              let allVals = first :: second :: theRest
 
-          | _ ->
-            raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("List", dv))
+              if List.length allVals = List.length allPatterns then
+                let! (passResults, newVarResults) =
+                  List.zip allVals allPatterns
+                  |> Ply.List.mapSequentially (fun (dv, pat) -> checkPattern dv pat)
+                  |> Ply.map List.unzip
 
-        | MPList(id, pats) ->
-          match dv with
-          | DList(_, vals) ->
-            if List.length vals = List.length pats then
-              let (passResults, newVarResults) =
-                List.zip vals pats
-                |> List.map (fun (dv, pat) -> checkPattern dv pat)
-                |> List.unzip
+                let allPass = List.forall identity passResults
+                let allVars = newVarResults |> List.collect identity
+                return allPass, allVars
+              else
+                return false, []
+            | _ ->
+              return!
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("Tuple", dv))
 
-              let allPass = List.forall identity passResults
-              let allVars = newVarResults |> List.collect identity
-              allPass, allVars
-            else
-              false, []
-          | _ ->
-            raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("List", dv))
+
+          | MPListCons(id, headPat, tailPat) ->
+            match dv with
+            | DList(_, []) -> return false, []
+            | DList(vt, headVal :: tailVals) ->
+              let! (headPass, headVars) = checkPattern headVal headPat
+              let! (tailPass, tailVars) =
+                checkPattern (Dval.list vt tailVals) tailPat
+
+              let allSubVars = headVars @ tailVars
+              let pass = headPass && tailPass
+              return pass, allSubVars
+
+            | _ ->
+              return!
+                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("List", dv))
+
+          | MPList(id, pats) ->
+            match dv with
+            | DList(_, vals) ->
+              if List.length vals = List.length pats then
+                let! (passResults, newVarResults) =
+                  List.zip vals pats
+                  |> Ply.List.mapSequentially (fun (dv, pat) -> checkPattern dv pat)
+                  |> Ply.map List.unzip
+
+                let allPass = List.forall identity passResults
+                let allVars = newVarResults |> List.collect identity
+                return allPass, allVars
+              else
+                return false, []
+            | _ ->
+              return!
+                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("List", dv))
+        }
 
 
       // The value we're matching against
@@ -593,7 +630,7 @@ let rec eval
         if Option.isSome matchResult then
           ()
         else
-          let passes, newDefs = checkPattern matchVal pattern
+          let! passes, newDefs = checkPattern matchVal pattern
           let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
           if matchResult = None && passes then
             let! r = eval state tst newSymtable rhsExpr
@@ -601,7 +638,7 @@ let rec eval
 
       match matchResult with
       | Some r -> return r
-      | None -> return raiseExeRTE id (ExecutionError.MatchExprUnmatched matchVal)
+      | None -> return! raiseExeRTE id (ExecutionError.MatchExprUnmatched matchVal)
 
 
     | EIf(id, cond, thenBody, elseBody) ->

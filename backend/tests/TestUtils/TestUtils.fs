@@ -279,6 +279,10 @@ let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) 
         })
       values)
 
+let testManyPly (name : string) (fn : 'a -> Ply<'b>) (values : List<'a * 'b>) =
+  testManyTask name (fn >> Ply.toTask) values
+
+
 let testMany2Task
   (name : string)
   (fn : 'a -> 'b -> Task<'c>)

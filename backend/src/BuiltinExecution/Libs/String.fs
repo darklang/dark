@@ -49,15 +49,14 @@ let fns : List<BuiltInFn> =
            |> Ply.List.mapSequentially (fun te ->
              let args = NEList.singleton (DChar te)
              Interpreter.applyFnVal state 0UL b [] args)
-           |> Ply.map (fun dvals ->
+           |> Ply.bind (fun dvals ->
              dvals
-             |> List.map (function
-               | DChar c -> c
+             |> Ply.List.mapSequentially (function
+               | DChar c -> Ply c
                | dv ->
                  TypeChecker.raiseFnValResultNotExpectedType SourceNone dv TChar)
-             |> String.concat ""
-             |> String.normalize
-             |> DString))
+             |> Ply.map (fun parts ->
+               parts |> String.concat "" |> String.normalize |> DString)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
