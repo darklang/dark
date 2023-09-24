@@ -66,34 +66,53 @@ module Int =
   module Basic =
     Builtin.Json.serialize<Int> 0 = Result.Ok "0"
     Builtin.Json.serialize<Int> 12345 = Result.Ok "12345"
-
     Builtin.Json.serialize<Int> -12345 = Result.Ok "-12345"
+    Builtin.Json.parse<Int> "0" = Result.Ok 0
+    Builtin.Json.parse<Int> "0.0" = Result.Ok 0
+    Builtin.Json.parse<Int> "-0.0" = Result.Ok 0
+    Builtin.Json.parse<Int> "-1.0" = Result.Ok(-1)
+    Builtin.Json.parse<Int> "1.2E2" = Result.Ok 120
+    Builtin.Json.parse<Int> "1.2E+2" = Result.Ok 120
+    Builtin.Json.parse<Int> "1200E-1" = Result.Ok 120
 
   module Int32Limits =
     // test the limits of int32 (-2147483648 to 2147483647)
     Builtin.Json.serialize<Int> -2147483648 = Result.Ok "-2147483648"
-
     Builtin.Json.serialize<Int> 2147483647 = Result.Ok "2147483647"
-
-    Builtin.Json.parse<Int> "-2147483648" = Result.Ok -2147483648
-
-    // TODO: this should fail but doesn't
-    // Builtin.Json.parse<Int> "-2147483648" = Result.Ok 2147483648
+    Builtin.Json.parse<Int> "-2147483648" = Result.Ok -2147483648L
     Builtin.Json.parse<Int> "2147483647" = Result.Ok 2147483647
-  //Builtin.Json.serialize<Int> -2147483649 = Result.Ok "\"-2147483649\""
-  //Builtin.Json.serialize<Int> 2147483648 = Result.Ok "\"2147483648\""
-  //Builtin.Json.parse<Int> "\"-2147483649\"" = Result.Ok -2147483649
-  //Builtin.Json.parse<Int> "\"2147483648\"" = Result.Ok 2147483648
+    Builtin.Json.serialize<Int> -2147483649L = Result.Ok "-2147483649"
+    Builtin.Json.serialize<Int> 2147483648L = Result.Ok "2147483648"
+    Builtin.Json.parse<Int> "-2147483649" = Result.Ok(-2147483649L)
+    Builtin.Json.parse<Int> "2147483648" = Result.Ok(2147483648L)
 
   module Int64Limits =
-    1 = 1 // allow it to parse
-  // test the limits of int64 (-9223372036854775808 to 9223372036854775807)
-  //Builtin.Json.serialize<Int> 9223372036854775807 = Result.Ok "9223372036854775807"
-  //Builtin.Json.parse<Int> "9223372036854775807" = Result.Ok 9223372036854775807
-  //Builtin.Json.serialize<Int> 9223372036854775808 = Result.Ok "9223372036854775808"
-  //Builtin.Json.parse<Int> "9223372036854775808" = Result.Ok 9223372036854775808
-  //Builtin.Json.serialize<Int> -9223372036854775808 = Result.Ok "-9223372036854775808"
-  //Builtin.Json.parse<Int> "-9223372036854775808" = Result.Ok -9223372036854775808
+    // test the limits of int64 (-9223372036854775808 to 9223372036854775807)
+
+    // TODO: consider putting ints that won't fit exactly in a float into strings to
+    // be certain
+
+    // First number that doesn't fit in an int64
+    Builtin.Json.parse<Int> "9223372036854775808" = Result.Error
+      "Can't parse JSON `9223372036854775808` as type `Int` at path: `root`"
+
+    // This is a float that is a valid int64
+    Builtin.Json.parse<Int> "9.2E18" = Result.Ok 9200000000000000000L
+
+    // This is a float that is slightly above the int64 max
+    Builtin.Json.parse<Int> "9.3E18" = Result.Error
+      "Can't parse JSON `9.3E18` as type `Int` at path: `root`"
+
+    Builtin.Json.serialize<Int> 9223372036854775807L = Result.Ok
+      "9223372036854775807"
+
+    Builtin.Json.parse<Int> "9223372036854775807" = Result.Ok 9223372036854775807L
+
+    Builtin.Json.serialize<Int> -9223372036854775808L = Result.Ok
+      "-9223372036854775808"
+
+    Builtin.Json.parse<Int> "-9223372036854775808" = Result.Ok(-9223372036854775808L)
+
 
   module Errors =
 
@@ -122,9 +141,11 @@ module Int =
 
     Builtin.Json.parse<Int> "{ \"key\": 42 }" = Result.Error
       "Can't parse JSON `{ \"key\": 42 }` as type `Int` at path: `root`"
-    //Builtin.Json.parse<Int> "42.5" = Result.Error "Can't currently parse this type/value combination"
+
+    Builtin.Json.parse<Int> "42.5" = Result.Error
+      "Can't parse JSON `42.5` as type `Int` at path: `root`"
+
     Builtin.Json.parse<Int> "\"42\n\"" = Result.Error "not JSON"
-//Builtin.Json.parse<Int> "4\u0032" = Result.Error "not JSON"
 
 
 module Float =

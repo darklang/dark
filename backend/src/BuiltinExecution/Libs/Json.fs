@@ -351,7 +351,32 @@ let parse
     | TBool, JsonValueKind.True -> DBool true |> Ply
     | TBool, JsonValueKind.False -> DBool false |> Ply
 
-    | TInt, JsonValueKind.Number -> j.GetInt64() |> DInt |> Ply
+    | TInt, JsonValueKind.Number ->
+      let mutable i64 = 0L
+      let mutable ui64 = 0UL
+      let mutable d = 0.0
+      // dotnet will wrap 9223372036854775808 to be -9223372036854775808 instead, we
+      // don't want that and will error instead
+      if j.TryGetUInt64(&ui64) then
+        if ui64 <= uint64 System.Int64.MaxValue then
+          DInt(int64 ui64) |> Ply
+        else
+          raiseCantMatchWithType TInt j pathSoFar |> Ply
+      else if j.TryGetInt64(&i64) then
+        DInt i64 |> Ply
+      // We allow the user to specify numbers in int or float format (e.g. 1 or 1.0
+      // or even 1E+0) -- JSON uses floating point numbers, and the person/API
+      // client/server that is creating a field we understand to be an int may choose
+      // to print an int in a floating point format.
+      else if
+        j.TryGetDouble(&d)
+        && d <= (float System.Int64.MaxValue)
+        && d >= (float System.Int64.MinValue)
+        && System.Double.IsInteger d
+      then
+        int64 d |> DInt |> Ply
+      else
+        raiseCantMatchWithType TInt j pathSoFar |> Ply
 
     | TFloat, JsonValueKind.Number -> j.GetDouble() |> DFloat |> Ply
     | TFloat, JsonValueKind.String ->
