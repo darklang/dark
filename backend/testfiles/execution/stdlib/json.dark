@@ -222,8 +222,7 @@ module Float =
 
     Builtin.Json.parse<Float> " -42 . 0 " = Result.Error "not JSON"
 
-    // TODO this should be allowed
-    //Builtin.Json.parse<Float> "0" = Result.Error "Can't currently serialize this type/value combination"
+    Builtin.Json.parse<Float> "0" = Result.Ok 0.0
 
     Builtin.Json.parse<Float> " " = Result.Error "not JSON"
 
@@ -242,8 +241,8 @@ module Float =
     Builtin.Json.parse<Float> "false" = Result.Error
       "Can't parse JSON `false` as type `Float` at path: `root`"
 
-    // TODO enable this test
-    // Builtin.Json.parse<Float> "\"42\"" = Result.Error "Can't currently parse this type/value combination"
+    Builtin.Json.parse<Float> "\"42\"" = Result.Error
+      "Can't parse JSON `\"42\"` as type `Float` at path: `root`"
 
     Builtin.Json.parse<Float> "[42]" = Result.Error
       "Can't parse JSON `[42]` as type `Float` at path: `root`"
@@ -266,8 +265,6 @@ module Float =
     Builtin.Json.parse<Float> "\"65.0\"" = Result.Error
       "Can't parse JSON `\"65.0\"` as type `Float` at path: `root`"
 
-
-//Builtin.Json.parse<Float> "4\u0032" = Result.Error "not JSON"
 
 
 module Char =
