@@ -402,6 +402,7 @@ let parse
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let values = j.EnumerateArray() |> Seq.toList
       let types = t1 :: t2 :: rest
+      if values.Length <> types.Length then raiseCantMatchWithType typ j pathSoFar
 
       List.zip types values
       |> List.mapi (fun i (t, v) -> convert t (JsonPath.Index i :: pathSoFar) v)

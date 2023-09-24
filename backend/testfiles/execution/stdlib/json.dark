@@ -537,6 +537,12 @@ module Tuples =
     Builtin.Json.parse<String * String * Int> """[1, "two", 3]""" = Result.Error
       "Can't parse JSON `1` as type `String` at path: `root[0]`"
 
+    Builtin.Json.parse<String> """[1, "two", 3]""" = Result.Error
+      "Can't parse JSON `[1, \"two\", 3]` as type `String` at path: `root`"
+
+    Builtin.Json.parse<Int * String> """[1, "two", 3]""" = Result.Error
+      "Can't parse JSON `[1, \"two\", 3]` as type `(Int, String)` at path: `root`"
+
     Builtin.Json.parse<((List<String * String>) * Bytes) * (Person * Dict<String>)>
       "[[[[2,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":1}]]" = Result.Error
       "Can't parse JSON `2` as type `String` at path: `root[0][0][0][0]`"
