@@ -310,20 +310,30 @@ module Char =
 
 module String =
   Builtin.Json.serialize<String> "abc" = Result.Ok "\"abc\""
-
   Builtin.Json.parse<String> "\"abc\"" = Result.Ok "abc"
+
   Builtin.Json.serialize<String> "" = Result.Ok "\"\""
   Builtin.Json.parse<String> "\"\"" = Result.Ok ""
 
   Builtin.Json.serialize<String> "żółw" = Result.Ok "\"żółw\""
-
   Builtin.Json.parse<String> "\"żółw\"" = Result.Ok "żółw"
-  //Builtin.Json.serialize<String> "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = Result.Ok "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+
+  Builtin.Json.serialize<String> "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = Result.Ok
+    "\"\\uD83D\\uDC68‍❤️‍\\uD83D\\uDC8B‍\\uD83D\\uDC68\\uD83D\\uDC69‍\\uD83D\\uDC69‍\\uD83D\\uDC67‍\\uD83D\\uDC66\\uD83C\\uDFF3️‍⚧️‍️\\uD83C\\uDDF5\\uD83C\\uDDF7\""
+
   Builtin.Json.parse<String> "\"👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷\"" = Result.Ok
     "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-  //Builtin.Json.serialize<String> "👩‍👩‍👧‍👦" = Result.Ok "\"👩‍👩‍👧‍👦\""
-  //Builtin.Json.parse<String> "\"👩‍👩‍👧‍👦\"" = Result.Ok "👩‍👩‍👧‍👦"
-  // TODO: long strings
+
+
+  Builtin.Json.serialize<String> "👩‍👩‍👧‍👦" = Result.Ok
+    "\"\\uD83D\\uDC69‍\\uD83D\\uDC69‍\\uD83D\\uDC67‍\\uD83D\\uDC66\""
+
+  Builtin.Json.parse<String> "\"👩‍👩‍👧‍👦\"" = Result.Ok "👩‍👩‍👧‍👦"
+
+  Builtin.Json.parse<String>
+    "\"\\uD83D\\uDC69‍\\uD83D\\uDC69‍\\uD83D\\uDC67‍\\uD83D\\uDC66\"" = Result.Ok
+    "👩‍👩‍👧‍👦"
+
   Builtin.Json.serialize<String>
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor." = Result.Ok
     "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor.\""
