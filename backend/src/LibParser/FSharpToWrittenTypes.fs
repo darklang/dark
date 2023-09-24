@@ -67,9 +67,6 @@ module TypeReference =
     // with type args
     | [], "List", [ arg ] -> WT.TList(fromSynType arg)
     | [], "Dict", [ valArg ] -> WT.TDict(fromSynType valArg)
-    // TYPESCLEANUP - don't use word Tuple here
-    | [], "Tuple", first :: second :: theRest ->
-      WT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
     | _ -> WT.TCustomType(WT.Unresolved(names), List.map fromSynType typeArgs)
 
   and fromSynType (typ : SynType) : WT.TypeReference =

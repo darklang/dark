@@ -15,7 +15,7 @@ module Darklang =
       let request
         (method: String)
         (uri: String)
-        (headers: List<Tuple<String, String>>)
+        (headers: List<String * String>)
         (body: Bytes)
         : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, String> =
         Builtin.HttpClient.request method uri headers body

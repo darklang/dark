@@ -5,6 +5,8 @@
 // so do we really have to do anything here?
 // It feels like a "no" to me - ignoring for now.
 
+type Person = { Name: String; Age: Int }
+
 type Result<'ok, 'err> = PACKAGE.Darklang.Stdlib.Result.Result<'ok, 'err>
 type Option<'t> = PACKAGE.Darklang.Stdlib.Option.Option<'t>
 
@@ -390,7 +392,6 @@ module Bytes =
 
 
 module List =
-  type Person = { Name: String; Age: Int }
   type MyString = String
 
   Builtin.Json.serialize<List<Int>> [] = Result.Ok "[]"
@@ -455,62 +456,59 @@ module List =
 
 
 module Tuples =
-  // TODO remove "Tuple" hack from the parser
-  Builtin.Json.serialize<Tuple<Int, String, Int>> (1, "two", 3) = Result.Ok
+  Builtin.Json.serialize<Int * String * Int> (1, "two", 3) = Result.Ok
     "[1,\"two\",3]"
 
-  Builtin.Json.serialize<Tuple<List<Int>, List<Person>>> (
+  Builtin.Json.serialize<List<Int> * List<Person>> (
     [ 1; 2; 3 ],
     [ Person { Name = "Alice"; Age = 42 } ]
   ) = Result.Ok "[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]"
 
-  Builtin.Json.serialize<Tuple<Tuple<Int, String>, Tuple<Person, Dict<String>>>> (
+  Builtin.Json.serialize<(Int * String) * (Person * Dict<String>)> (
     (1, "two"),
     (Person { Name = "Alice"; Age = 42 },
      PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b")
   ) = Result.Ok "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
 
-  Builtin.Json.serialize<Tuple<Tuple<List<Tuple<Int, String>>, Bytes>, Tuple<Person, Dict<String>>>> (
+  Builtin.Json.serialize<(List<Int * String> * Bytes) * (Person * Dict<String>)> (
     ([ (1, "two"); (3, "four") ], Builtin.Bytes.empty),
     (Person { Name = "Alice"; Age = 42 },
      PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b")
   ) = Result.Ok
     "[[[[1,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
 
-  Builtin.Json.serialize<Tuple<Person, Option<Int>>> (
+  Builtin.Json.serialize<Person * Option<Int>> (
     Person { Name = "Alice"; Age = 42 },
     Option.Some 1
   ) = Result.Ok "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[1]}]"
 
-  Builtin.Json.serialize<Tuple<Option<Int>, Result<Int, String>>> (
+  Builtin.Json.serialize<Option<Int> * Result<Int, String>> (
     Option.Some 1,
     Result.Ok 2
   ) = Result.Ok "[{\"Some\":[1]},{\"Ok\":[2]}]"
 
-  Builtin.Json.serialize<Tuple<Char, Bool>> ('a', true) = Result.Ok "[\"a\",true]"
+  Builtin.Json.serialize<Char * Bool> ('a', true) = Result.Ok "[\"a\",true]"
 
-  Builtin.Json.serialize<Tuple<DateTime, Uuid>> (
+  Builtin.Json.serialize<DateTime * Uuid> (
     DateTime.d "2023-07-28T22:42:36Z",
     Uuid.uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
   ) = Result.Ok "[\"2023-07-28T22:42:36Z\",\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"]"
 
-  Builtin.Json.parse<Tuple<Int, String, Int>> "[1,\"two\",3]" = Result.Ok(
-    (1, "two", 3)
-  )
+  Builtin.Json.parse<Int * String * Int> "[1,\"two\",3]" = Result.Ok((1, "two", 3))
 
-  Builtin.Json.parse<Tuple<List<Int>, List<Person>>>
+  Builtin.Json.parse<List<Int> * List<Person>>
     "[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]" = Result.Ok(
     ([ 1; 2; 3 ], [ Person { Name = "Alice"; Age = 42 } ])
   )
 
-  Builtin.Json.parse<Tuple<Tuple<Int, String>, Tuple<Person, Dict<String>>>>
+  Builtin.Json.parse<(Int * String) * (Person * Dict<String>)>
     "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]" = Result.Ok(
     ((1, "two"),
      (Person { Name = "Alice"; Age = 42 },
       PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b"))
   )
 
-  Builtin.Json.parse<Tuple<Tuple<List<Tuple<Int, String>>, Bytes>, Tuple<Person, Dict<String>>>>
+  Builtin.Json.parse<(List<Int * String> * Bytes) * (Person * Dict<String>)>
     "[[[[1,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]" = Result
     .Ok(
       (([ (1, "two"); (3, "four") ], Builtin.Bytes.empty),
@@ -518,17 +516,17 @@ module Tuples =
         PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b"))
     )
 
-  Builtin.Json.parse<Tuple<Person, Option<Int>>>
+  Builtin.Json.parse<Person * Option<Int>>
     "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[1]}]" = Result.Ok(
     (Person { Name = "Alice"; Age = 42 }, Option.Some 1)
   )
 
-  Builtin.Json.parse<Tuple<Option<Int>, Result<Int, String>>>
+  Builtin.Json.parse<Option<Int> * Result<Int, String>>
     "[{\"Some\":[1]},{\"Ok\":[2]}]" = Result.Ok((Option.Some 1, Result.Ok 2))
 
-  Builtin.Json.parse<Tuple<Char, Bool>> "[\"a\",true]" = Result.Ok(('a', true))
+  Builtin.Json.parse<Char * Bool> "[\"a\",true]" = Result.Ok(('a', true))
 
-  Builtin.Json.parse<Tuple<DateTime, Uuid>>
+  Builtin.Json.parse<DateTime * Uuid>
     "[\"2023-07-28T22:42:36Z\",\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"]" = Result.Ok(
     (DateTime.d "2023-07-28T22:42:36Z",
      Uuid.uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
@@ -536,18 +534,18 @@ module Tuples =
 
 
   module Errors =
-    Builtin.Json.parse<Tuple<String, String, Int>> """[1, "two", 3]""" = Result.Error
+    Builtin.Json.parse<String * String * Int> """[1, "two", 3]""" = Result.Error
       "Can't parse JSON `1` as type `String` at path: `root[0]`"
 
-    Builtin.Json.parse<Tuple<Tuple<List<Tuple<String, String>>, Bytes>, Tuple<Person, Dict<String>>>>
+    Builtin.Json.parse<((List<String * String>) * Bytes) * (Person * Dict<String>)>
       "[[[[2,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":1}]]" = Result.Error
       "Can't parse JSON `2` as type `String` at path: `root[0][0][0][0]`"
 
-    Builtin.Json.parse<Tuple<List<Tuple<Int, List<String>>>, String>>
+    Builtin.Json.parse<(List<Int * List<String>>) * String>
       "[[[1,\"two\"],[3,\"four\"]],\"\"]" = Result.Error
       "Can't parse JSON `\"two\"` as type `List<String>` at path: `root[0][0][1]`"
 
-    Builtin.Json.parse<Tuple<Person, Option<Int>>>
+    Builtin.Json.parse<Person * Option<Int>>
       "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[\"one\"]}]" = Result.Error
       "Can't parse JSON `\"one\"` as type `Int` at path: `root[1]`"
 
@@ -588,14 +586,14 @@ module Result =
     Result.Error "err message"
   )
 
-  Builtin.Json.serialize<Result<List<Tuple<Dict<String>, Option<Int>>>, String>> (
+  Builtin.Json.serialize<Result<List<Dict<String> * Option<Int>>, String>> (
     Result.Ok
       [ (PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b", Option.Some 1)
         (PACKAGE.Darklang.Stdlib.Dict.singleton "c" "d", Option.None) ]
   ) = Result.Ok
     "{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}"
 
-  Builtin.Json.parse<Result<List<Tuple<Dict<String>, Option<Int>>>, String>>
+  Builtin.Json.parse<Result<List<Dict<String> * Option<Int>>, String>>
     "{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}" = Result
     .Ok(
       Result.Ok
@@ -687,8 +685,6 @@ module UserDefinedEnums =
     PrettyLikely2.PrettyLikely(PrettyLikely.Enh("printer broke", 7))
   )
 
-
-type Person = { Name: String; Age: Int }
 
 module UserDefinedRecords =
 
