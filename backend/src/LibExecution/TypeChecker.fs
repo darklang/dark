@@ -165,7 +165,7 @@ module Error =
           }
 
         let typeName = RuntimeError.name [ "TypeChecker" ] "Context" 0
-        return Dval.enum typeName typeName (Some []) caseName fields
+        return! Dval.enum typeName typeName (Some []) caseName fields
       }
 
 
@@ -187,10 +187,9 @@ module Error =
         }
 
       let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
-      return
-        RuntimeError.typeCheckerError (
-          Dval.enum typeName typeName (Some []) caseName fields
-        )
+      return!
+        Dval.enum typeName typeName (Some []) caseName fields
+        |> Ply.map RuntimeError.typeCheckerError
     }
 
 let raiseValueNotExpectedType

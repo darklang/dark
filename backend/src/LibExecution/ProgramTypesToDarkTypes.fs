@@ -34,7 +34,7 @@ let errorsTyp
 // This isn't in PT but I'm not sure where else to put it...
 // maybe rename this file to InternalTypesToDarkTypes?
 module Sign =
-  let toDT (s : Sign) : Dval =
+  let toDT (s : Sign) : Ply<Dval> =
     let caseName, fields =
       match s with
       | Positive -> "Positive", []
@@ -63,15 +63,19 @@ module FQName =
   module BuiltIn =
     let toDT
       (nameValueType : ValueType)
-      (nameMapper : 'name -> Dval)
+      (nameMapper : 'name -> Ply<Dval>)
       (u : PT.FQName.BuiltIn<'name>)
       : Ply<Dval> =
-      Dval.record
-        (ptTyp [ "FQName" ] "BuiltIn" 0)
-        (Some [ nameValueType ])
-        [ "modules", Dval.list VT.unknownTODO (List.map DString u.modules)
-          "name", nameMapper u.name
-          "version", DInt u.version ]
+      uply {
+        let! name = nameMapper u.name
+        return!
+          Dval.record
+            (ptTyp [ "FQName" ] "BuiltIn" 0)
+            (Some [ nameValueType ])
+            [ "modules", Dval.list VT.unknownTODO (List.map DString u.modules)
+              "name", name
+              "version", DInt u.version ]
+      }
 
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.BuiltIn<'name> =
       match d with
@@ -87,22 +91,25 @@ module FQName =
   module UserProgram =
     let toDT
       (nameValueType : ValueType)
-      (nameMapper : 'name -> Dval)
+      (nameMapper : 'name -> Ply<Dval>)
       (u : PT.FQName.UserProgram<'name>)
       : Ply<Dval> =
-      Dval.record
-        (ptTyp [ "FQName" ] "UserProgram" 0)
-        (Some [ nameValueType ])
-        [ "modules",
-          Dval.list (ValueType.Known KTString) (List.map DString u.modules)
-          "name", nameMapper u.name
-          "version", DInt u.version ]
+      uply {
+        let! name = nameMapper u.name
+        return!
+          Dval.record
+            (ptTyp [ "FQName" ] "UserProgram" 0)
+            (Some [ nameValueType ])
+            [ "modules",
+              Dval.list (ValueType.Known KTString) (List.map DString u.modules)
+              "name", name
+              "version", DInt u.version ]
+      }
 
     let fromDT
       (nameMapper : Dval -> 'name)
       (v : Dval)
       : PT.FQName.UserProgram<'name> =
-      let unwrap = Exception.unwrapOptionInternal
       match v with
       | DRecord(_, _, _, m) ->
         let modules = modulesField m
@@ -116,17 +123,21 @@ module FQName =
   module Package =
     let toDT
       (nameValueType : ValueType)
-      (nameMapper : 'name -> Dval)
+      (nameMapper : 'name -> Ply<Dval>)
       (u : PT.FQName.Package<'name>)
       : Ply<Dval> =
-      Dval.record
-        (ptTyp [ "FQName" ] "Package" 0)
-        (Some [ nameValueType ])
-        [ "owner", DString u.owner
-          "modules",
-          Dval.list (ValueType.Known KTString) (List.map DString u.modules)
-          "name", nameMapper u.name
-          "version", DInt u.version ]
+      uply {
+        let! name = nameMapper u.name
+        return!
+          Dval.record
+            (ptTyp [ "FQName" ] "Package" 0)
+            (Some [ nameValueType ])
+            [ "owner", DString u.owner
+              "modules",
+              Dval.list (ValueType.Known KTString) (List.map DString u.modules)
+              "name", name
+              "version", DInt u.version ]
+      }
 
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.Package<'name> =
       match d with
@@ -143,7 +154,7 @@ module FQName =
 
   let toDT
     (nameValueType : ValueType)
-    (nameMapper : 'name -> Dval)
+    (nameMapper : 'name -> Ply<Dval>)
     (u : PT.FQName.FQName<'name>)
     : Ply<Dval> =
     uply {
@@ -162,7 +173,7 @@ module FQName =
         }
 
       let typeName = ptTyp [ "FQName" ] "FQName" 0
-      return Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
+      return! Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
     }
 
   let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.FQName<'name> =
@@ -180,7 +191,7 @@ module TypeName =
   module Name =
     let valueType = VT.unknownTODO
 
-    let toDT (u : PT.TypeName.Name) : Dval =
+    let toDT (u : PT.TypeName.Name) : Ply<Dval> =
       let caseName, fields =
         match u with
         | PT.TypeName.TypeName name -> "TypeName", [ DString name ]
@@ -222,7 +233,7 @@ module FnName =
   module Name =
     let valueType = VT.unknownTODO
 
-    let toDT (u : PT.FnName.Name) : Dval =
+    let toDT (u : PT.FnName.Name) : Ply<Dval> =
       let caseName, fields =
         match u with
         | PT.FnName.FnName name -> "FnName", [ DString name ]
@@ -260,7 +271,7 @@ module ConstantName =
   module Name =
     let valueType = VT.unknownTODO
 
-    let toDT (u : PT.ConstantName.Name) : Dval =
+    let toDT (u : PT.ConstantName.Name) : Ply<Dval> =
       let caseName, fields =
         match u with
         | PT.ConstantName.ConstantName name -> "ConstantName", [ DString name ]
@@ -388,7 +399,7 @@ module TypeReference =
         }
 
       let typeName = ptTyp [] "TypeReference" 0
-      return Dval.enum typeName typeName (Some []) caseName fields
+      return! Dval.enum typeName typeName (Some []) caseName fields
     }
 
   let rec fromDT (d : Dval) : PT.TypeReference =
@@ -425,20 +436,27 @@ module TypeReference =
 
 
 module LetPattern =
-  let rec toDT (p : PT.LetPattern) : Dval =
-    let caseName, fields =
-      match p with
-      | PT.LPVariable(id, name) -> "LPVariable", [ DInt(int64 id); DString name ]
-      | PT.LPUnit id -> "LPUnit", [ DInt(int64 id) ]
-      | PT.LPTuple(id, first, second, theRest) ->
-        "LPTuple",
-        [ DInt(int64 id)
-          toDT first
-          toDT second
-          Dval.list VT.unknownTODO (List.map toDT theRest) ]
+  let rec toDT (p : PT.LetPattern) : Ply<Dval> =
+    uply {
+      let! (caseName, fields) =
+        uply {
+          match p with
+          | PT.LPVariable(id, name) ->
+            return "LPVariable", [ DInt(int64 id); DString name ]
+          | PT.LPUnit id -> return "LPUnit", [ DInt(int64 id) ]
+          | PT.LPTuple(id, first, second, theRest) ->
+            let! first = toDT first
+            let! second = toDT second
+            let! theRest =
+              theRest
+              |> Ply.List.mapSequentially toDT
+              |> Ply.map (Dval.list VT.unknownTODO)
+            return "LPTuple", [ DInt(int64 id); first; second; theRest ]
+        }
 
-    let typeName = ptTyp [] "LetPattern" 0
-    Dval.enum typeName typeName (Some []) caseName fields
+      let typeName = ptTyp [] "LetPattern" 0
+      return! Dval.enum typeName typeName (Some []) caseName fields
+    }
 
 
   let rec fromDT (d : Dval) : PT.LetPattern =
@@ -452,38 +470,53 @@ module LetPattern =
 
 
 module MatchPattern =
-  let rec toDT (p : PT.MatchPattern) : Dval =
-    let caseName, fields =
-      match p with
-      | PT.MPVariable(id, name) -> "MPVariable", [ DInt(int64 id); DString name ]
+  let rec toDT (p : PT.MatchPattern) : Ply<Dval> =
+    uply {
+      let! (caseName, fields) =
+        uply {
+          match p with
+          | PT.MPVariable(id, name) ->
+            return "MPVariable", [ DInt(int64 id); DString name ]
 
-      | PT.MPUnit id -> "MPUnit", [ DInt(int64 id) ]
-      | PT.MPBool(id, b) -> "MPBool", [ DInt(int64 id); DBool b ]
-      | PT.MPInt(id, i) -> "MPInt", [ DInt(int64 id); DInt i ]
-      | PT.MPFloat(id, sign, whole, remainder) ->
-        "MPFloat",
-        [ DInt(int64 id); Sign.toDT sign; DString whole; DString remainder ]
-      | PT.MPChar(id, c) -> "MPChar", [ DInt(int64 id); DString c ]
-      | PT.MPString(id, s) -> "MPString", [ DInt(int64 id); DString s ]
+          | PT.MPUnit id -> return "MPUnit", [ DInt(int64 id) ]
+          | PT.MPBool(id, b) -> return "MPBool", [ DInt(int64 id); DBool b ]
+          | PT.MPInt(id, i) -> return "MPInt", [ DInt(int64 id); DInt i ]
+          | PT.MPFloat(id, sign, whole, remainder) ->
+            let! sign = Sign.toDT sign
+            return
+              "MPFloat", [ DInt(int64 id); sign; DString whole; DString remainder ]
+          | PT.MPChar(id, c) -> return "MPChar", [ DInt(int64 id); DString c ]
+          | PT.MPString(id, s) -> return "MPString", [ DInt(int64 id); DString s ]
 
-      | PT.MPList(id, inner) ->
-        "MPList", [ DInt(int64 id); Dval.list VT.unknownTODO (List.map toDT inner) ]
-      | PT.MPListCons(id, head, tail) ->
-        "MPListCons", [ DInt(int64 id); toDT head; toDT tail ]
-      | PT.MPTuple(id, first, second, theRest) ->
-        "MPTuple",
-        [ DInt(int64 id)
-          toDT first
-          toDT second
-          Dval.list VT.unknownTODO (List.map toDT theRest) ]
-      | PT.MPEnum(id, caseName, fieldPats) ->
-        "MPEnum",
-        [ DInt(int64 id)
-          DString caseName
-          Dval.list VT.unknownTODO (List.map toDT fieldPats) ]
+          | PT.MPList(id, inner) ->
+            let! inner =
+              inner
+              |> Ply.List.mapSequentially toDT
+              |> Ply.map (Dval.list VT.unknownTODO)
+            return "MPList", [ DInt(int64 id); inner ]
+          | PT.MPListCons(id, head, tail) ->
+            let! head = toDT head
+            let! tail = toDT tail
+            return "MPListCons", [ DInt(int64 id); head; tail ]
+          | PT.MPTuple(id, first, second, theRest) ->
+            let! first = toDT first
+            let! second = toDT second
+            let! theRest =
+              theRest
+              |> Ply.List.mapSequentially toDT
+              |> Ply.map (Dval.list VT.unknownTODO)
+            return "MPTuple", [ DInt(int64 id); first; second; theRest ]
+          | PT.MPEnum(id, caseName, fieldPats) ->
+            let! fieldPats =
+              fieldPats
+              |> Ply.List.mapSequentially toDT
+              |> Ply.map (Dval.list VT.unknownTODO)
+            return "MPEnum", [ DInt(int64 id); DString caseName; fieldPats ]
+        }
 
-    let typeName = ptTyp [] "MatchPattern" 0
-    Dval.enum typeName typeName (Some []) caseName fields
+      let typeName = ptTyp [] "MatchPattern" 0
+      return! Dval.enum typeName typeName (Some []) caseName fields
+    }
 
   let rec fromDT (d : Dval) : PT.MatchPattern =
     match d with
@@ -515,7 +548,7 @@ module MatchPattern =
 
 
 module BinaryOperation =
-  let toDT (b : PT.BinaryOperation) : Dval =
+  let toDT (b : PT.BinaryOperation) : Ply<Dval> =
 
     let caseName, fields =
       match b with
@@ -533,7 +566,7 @@ module BinaryOperation =
 
 
 module InfixFnName =
-  let toDT (i : PT.InfixFnName) : Dval =
+  let toDT (i : PT.InfixFnName) : Ply<Dval> =
     let caseName, fields =
       match i with
       | PT.ArithmeticPlus -> "ArithmeticPlus", []
@@ -574,14 +607,22 @@ module InfixFnName =
 
 
 module Infix =
-  let toDT (i : PT.Infix) : Dval =
-    let caseName, fields =
-      match i with
-      | PT.InfixFnCall infixFnName -> "InfixFnCall", [ InfixFnName.toDT infixFnName ]
-      | PT.BinOp binOp -> "BinOp", [ BinaryOperation.toDT binOp ]
+  let toDT (i : PT.Infix) : Ply<Dval> =
+    uply {
+      let! (caseName, fields) =
+        uply {
+          match i with
+          | PT.InfixFnCall infixFnName ->
+            let! infixFnName = InfixFnName.toDT infixFnName
+            return "InfixFnCall", [ infixFnName ]
+          | PT.BinOp binOp ->
+            let! binOp = BinaryOperation.toDT binOp
+            return "BinOp", [ binOp ]
+        }
 
-    let typeName = ptTyp [] "Infix" 0
-    Dval.enum typeName typeName (Some []) caseName fields
+      let typeName = ptTyp [] "Infix" 0
+      return! Dval.enum typeName typeName (Some []) caseName fields
+    }
 
   let fromDT (d : Dval) : PT.Infix =
     match d with
@@ -604,7 +645,7 @@ module StringSegment =
         }
 
       let typeName = ptTyp [] "StringSegment" 0
-      return Dval.enum typeName typeName (Some []) caseName fields
+      return! Dval.enum typeName typeName (Some []) caseName fields
     }
 
   let fromDT (exprFromDT : Dval -> PT.Expr) (d : Dval) : PT.StringSegment =
@@ -643,8 +684,9 @@ module PipeExpr =
 
 
           | PT.EPipeInfix(id, infix, expr) ->
+            let! infix = Infix.toDT infix
             let! expr = exprToDT expr
-            return "EPipeInfix", [ DInt(int64 id); Infix.toDT infix; expr ]
+            return "EPipeInfix", [ DInt(int64 id); infix; expr ]
 
           | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
             let! name = NameResolution.toDT VT.unknownTODO FnName.toDT fnName
@@ -669,7 +711,7 @@ module PipeExpr =
         }
 
       let typeName = ptTyp [] "PipeExpr" 0
-      return Dval.enum typeName typeName (Some []) caseName fields
+      return! Dval.enum typeName typeName (Some []) caseName fields
     }
 
   let fromDT (exprFromDT : Dval -> PT.Expr) (d : Dval) : PT.PipeExpr =
@@ -735,9 +777,9 @@ module Expr =
           | PT.EBool(id, b) -> return "EBool", [ DInt(int64 id); DBool b ]
           | PT.EInt(id, i) -> return "EInt", [ DInt(int64 id); DInt i ]
           | PT.EFloat(id, sign, whole, remainder) ->
+            let! sign = Sign.toDT sign
             return
-              "EFloat",
-              [ DInt(int64 id); Sign.toDT sign; DString whole; DString remainder ]
+              "EFloat", [ DInt(int64 id); sign; DString whole; DString remainder ]
 
           | PT.EChar(id, c) -> return "EChar", [ DInt(int64 id); DString c ]
           | PT.EString(id, segments) ->
@@ -800,9 +842,10 @@ module Expr =
 
           // declaring and accessing variables
           | PT.ELet(id, lp, expr, body) ->
+            let! lp = LetPattern.toDT lp
             let! expr = toDT expr
             let! body = toDT body
-            return "ELet", [ DInt(int64 id); LetPattern.toDT lp; expr; body ]
+            return "ELet", [ DInt(int64 id); lp; expr; body ]
 
           | PT.EFieldAccess(id, expr, fieldName) ->
             let! expr = toDT expr
@@ -827,8 +870,9 @@ module Expr =
               cases
               |> Ply.List.mapSequentially (fun (pattern, expr) ->
                 uply {
+                  let! pattern = MatchPattern.toDT pattern
                   let! expr = toDT expr
-                  return DTuple(MatchPattern.toDT pattern, expr, [])
+                  return DTuple(pattern, expr, [])
                 })
               |> Ply.map (Dval.list VT.unknownTODO)
 
@@ -846,9 +890,10 @@ module Expr =
 
           // function calls
           | PT.EInfix(id, infix, lhs, rhs) ->
+            let! infix = Infix.toDT infix
             let! lhs = toDT lhs
             let! rhs = toDT rhs
-            return "EInfix", [ DInt(int64 id); Infix.toDT infix; lhs; rhs ]
+            return "EInfix", [ DInt(int64 id); infix; lhs; rhs ]
 
           | PT.ELambda(id, args, body) ->
             let variables =
@@ -901,7 +946,7 @@ module Expr =
         }
 
       let typeName = ptTyp [] "Expr" 0
-      return Dval.enum typeName typeName (Some []) caseName fields
+      return! Dval.enum typeName typeName (Some []) caseName fields
     }
 
   let rec fromDT (d : Dval) : PT.Expr =
@@ -1045,7 +1090,8 @@ module Const =
           | PT.Const.CBool b -> return "CBool", [ DBool b ]
           | PT.Const.CInt i -> return "CInt", [ DInt i ]
           | PT.Const.CFloat(sign, w, f) ->
-            return "CFloat", [ Sign.toDT sign; DString w; DString f ]
+            let! sign = Sign.toDT sign
+            return "CFloat", [ sign; DString w; DString f ]
           | PT.Const.CChar c -> return "CChar", [ DChar c ]
           | PT.Const.CString s -> return "CString", [ DString s ]
 
@@ -1086,7 +1132,7 @@ module Const =
         }
 
       let typeName = ptTyp [] "Const" 0
-      return Dval.enum typeName typeName (Some []) caseName fields
+      return! Dval.enum typeName typeName (Some []) caseName fields
     }
 
   let rec fromDT (d : Dval) : PT.Const =
@@ -1149,7 +1195,7 @@ module Deprecation =
         }
 
       let typeName = ptTyp [] "Deprecation" 0
-      return Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
+      return! Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
     }
 
   let fromDT (inner : Dval -> 'a) (d : Dval) : PT.Deprecation<'a> =
@@ -1280,7 +1326,7 @@ module TypeDeclaration =
           }
 
         let typeName = ptTyp [ "TypeDeclaration" ] "Definition" 0
-        return Dval.enum typeName typeName (Some []) caseName fields
+        return! Dval.enum typeName typeName (Some []) caseName fields
       }
 
     let fromDT (d : Dval) : PT.TypeDeclaration.Definition =
@@ -1324,7 +1370,7 @@ module TypeDeclaration =
 
 module Handler =
   module CronInterval =
-    let toDT (ci : PT.Handler.CronInterval) : Dval =
+    let toDT (ci : PT.Handler.CronInterval) : Ply<Dval> =
       let caseName, fields =
         match ci with
         | PT.Handler.CronInterval.EveryMinute -> "EveryMinute", []
@@ -1350,18 +1396,23 @@ module Handler =
 
 
   module Spec =
-    let toDT (s : PT.Handler.Spec) : Dval =
-      let caseName, fields =
-        match s with
-        | PT.Handler.Spec.HTTP(route, method) ->
-          "HTTP", [ DString route; DString method ]
-        | PT.Handler.Spec.Worker name -> "Worker", [ DString name ]
-        | PT.Handler.Spec.Cron(name, interval) ->
-          "Cron", [ DString name; CronInterval.toDT interval ]
-        | PT.Handler.Spec.REPL name -> "REPL", [ DString name ]
+    let toDT (s : PT.Handler.Spec) : Ply<Dval> =
+      uply {
+        let! (caseName, fields) =
+          uply {
+            match s with
+            | PT.Handler.Spec.HTTP(route, method) ->
+              return "HTTP", [ DString route; DString method ]
+            | PT.Handler.Spec.Worker name -> return "Worker", [ DString name ]
+            | PT.Handler.Spec.Cron(name, interval) ->
+              let! interval = CronInterval.toDT interval
+              return "Cron", [ DString name; interval ]
+            | PT.Handler.Spec.REPL name -> return "REPL", [ DString name ]
+          }
 
-      let typeName = ptTyp [ "Handler" ] "Spec" 0
-      Dval.enum typeName typeName (Some []) caseName fields
+        let typeName = ptTyp [ "Handler" ] "Spec" 0
+        return! Dval.enum typeName typeName (Some []) caseName fields
+      }
 
     let fromDT (d : Dval) : PT.Handler.Spec =
       match d with
@@ -1376,12 +1427,13 @@ module Handler =
   let toDT (h : PT.Handler.T) : Ply<Dval> =
     uply {
       let! ast = Expr.toDT h.ast
+      let! spec = Spec.toDT h.spec
 
       return!
         Dval.record
           (ptTyp [ "Handler" ] "Handler" 0)
           (Some [])
-          [ "tlid", DInt(int64 h.tlid); "ast", ast; "spec", Spec.toDT h.spec ]
+          [ "tlid", DInt(int64 h.tlid); "ast", ast; "spec", spec ]
     }
 
   let fromDT (d : Dval) : PT.Handler.T =

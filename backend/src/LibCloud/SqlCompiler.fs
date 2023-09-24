@@ -597,7 +597,7 @@ let rec lambdaToSql
           | _ -> return error "Expected a List"
 
         | EEnum(_, typeName, caseName, []) ->
-          let dv =
+          let! dv =
             LibExecution.Dval.enum typeName typeName VT.typeArgsTODO' caseName []
           let typ = (TCustomType(Ok typeName, []))
           typecheck $"Enum '{dv}'" typ expectedType

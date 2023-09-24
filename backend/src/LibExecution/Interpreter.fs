@@ -45,9 +45,9 @@ module ExecutionError =
           "Error"
           0
 
-      let case (caseName : string) (fields : List<Dval>) : RuntimeError =
+      let case (caseName : string) (fields : List<Dval>) : Ply<RuntimeError> =
         Dval.enum typeName typeName (Some []) caseName fields
-        |> RuntimeError.executionError
+        |> Ply.map RuntimeError.executionError
 
       let! (caseName, fields) =
         uply {
@@ -70,7 +70,7 @@ module ExecutionError =
             return "ConstDoesntExist", [ name ]
         }
 
-      return case caseName fields
+      return! case caseName fields
     }
 
   let raise (source : DvalSource) (e : Error) : Ply<'a> =
@@ -715,7 +715,7 @@ let rec eval
               []
               (List.zip case.fields fields)
 
-          return
+          return!
             Dval.enum
               resolvedTypeName
               sourceTypeName

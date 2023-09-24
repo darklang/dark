@@ -48,21 +48,20 @@ module CliRuntimeError =
                     )
                   )
 
-                return
-                  "UncaughtException", [ "msg", DString msg; "metadata", metadata ]
+                return "UncaughtException", [ DString msg; metadata ]
 
               | MultipleExpressionsToExecute exprs ->
                 return
                   "MultipleExpressionsToExecute",
-                  [ "exprs", Dval.list VT.unknownTODO (List.map DString exprs) ]
+                  [ Dval.list VT.unknownTODO (List.map DString exprs) ]
 
               | NonIntReturned actuallyReturned ->
                 let! actuallyReturned = RT2DT.Dval.toDT actuallyReturned
-                return "NonIntReturned", [ "actuallyReturned", actuallyReturned ]
+                return "NonIntReturned", [ actuallyReturned ]
             }
 
           let typeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
-          return Dval.enum typeName typeName (Some []) caseName []
+          return! Dval.enum typeName typeName (Some []) caseName fields
         }
 
 

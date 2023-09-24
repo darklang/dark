@@ -266,7 +266,7 @@ let enum
   (typeArgs : Option<List<ValueType>>) // note: must match the count expected by the typeName
   (caseName : string)
   (fields : List<Dval>)
-  : Dval =
+  : Ply<Dval> =
   // TODO:
   // - pass in a (types: Types) arg
   // - use it to determine type args of resultant Dval
@@ -277,7 +277,7 @@ let enum
     | Some _typeArgs -> [] //typeArgs VTTODO uncomment when Interpreter respects this
     | None -> VT.typeArgsTODO
 
-  DEnum(resolvedTypeName, sourceTypeName, typeArgs, caseName, fields)
+  DEnum(resolvedTypeName, sourceTypeName, typeArgs, caseName, fields) |> Ply
 
 
 /// VTTODO
