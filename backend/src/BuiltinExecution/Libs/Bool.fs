@@ -14,7 +14,7 @@ let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  // CLEANUP: Maybe Expose ENot
+  // TODO: Maybe Expose ENot
   [ { name = fn "not" 0
       typeParams = []
       parameters = [ Param.make "b" TBool "" ]
