@@ -362,7 +362,12 @@ let parse
       | _ -> raiseCantMatchWithType TFloat j pathSoFar
       |> Ply
 
-    | TChar, JsonValueKind.String -> DChar(j.GetString()) |> Ply
+    | TChar, JsonValueKind.String ->
+      match String.toEgcChar (j.GetString()) with
+      | Some c -> Ply(DChar c)
+      | None -> raiseCantMatchWithType TChar j pathSoFar
+
+
     | TString, JsonValueKind.String -> DString(j.GetString()) |> Ply
 
     | TBytes, JsonValueKind.String ->

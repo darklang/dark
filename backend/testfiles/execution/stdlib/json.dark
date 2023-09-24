@@ -275,8 +275,11 @@ Builtin.Json.serialize<Char> 'Ł' = PACKAGE.Darklang.Stdlib.Result.Result.Ok "\"
 Builtin.Json.parse<Char> "\"Ł\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 'Ł'
 
 // not chars
-//Builtin.Json.serialize<Char> "test" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
-//Builtin.Json.parse<Char> "\"test\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Builtin.Json.parse<Char> "\"test\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Can't parse JSON `\"test\"` as type `Char` at path: `root`"
+
+Builtin.Json.parse<Char> "\"\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Can't parse JSON `\"\"` as type `Char` at path: `root`"
 
 
 // Strings
