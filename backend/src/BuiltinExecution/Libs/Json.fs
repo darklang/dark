@@ -359,7 +359,7 @@ let parse
       | "NaN" -> DFloat System.Double.NaN
       | "Infinity" -> DFloat System.Double.PositiveInfinity
       | "-Infinity" -> DFloat System.Double.NegativeInfinity
-      | v -> Exception.raiseInternal "Invalid float" [ "value", v ]
+      | _ -> raiseCantMatchWithType TFloat j pathSoFar
       |> Ply
 
     | TChar, JsonValueKind.String -> DChar(j.GetString()) |> Ply

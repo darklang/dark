@@ -252,6 +252,12 @@ Builtin.Json.parse<Float> "-00000000.000" = PACKAGE.Darklang.Stdlib.Result.Resul
 Builtin.Json.parse<Float> "00000000.000" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "not JSON"
 
+// This tests that we get a Result.Error when trying to parse a string, not an
+// internal exception
+Builtin.Json.parse<Float> "\"65.0\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Can't parse JSON `\"65.0\"` as type `Float` at path: `root`"
+
+
 //Builtin.Json.parse<Float> "4\u0032" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 
 
