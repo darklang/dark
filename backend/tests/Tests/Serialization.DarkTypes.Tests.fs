@@ -36,12 +36,12 @@ module RoundtripTests =
     (testName : string)
     (typeName : RT.TypeName.TypeName)
     (original : 'a)
-    (toDT : 'a -> RT.Dval)
+    (toDT : 'a -> Ply<RT.Dval>)
     (fromDT : RT.Dval -> 'a)
     (customExpect : Option<'a -> 'a -> string -> unit>)
     =
     testTask testName {
-      let firstDT = original |> toDT
+      let! firstDT = original |> toDT |> Ply.toTask
 
       let context =
         LibExecution.TypeChecker.Context.FunctionCallResult(
@@ -86,7 +86,7 @@ module RoundtripTests =
     (testName : string)
     (typeName : RT.TypeName.TypeName)
     (original : List<'a>)
-    (toDT : 'a -> RT.Dval)
+    (toDT : 'a -> Ply<RT.Dval>)
     (fromDT : RT.Dval -> 'a)
     (customExpect : Option<'a -> 'a -> string -> unit>)
     =

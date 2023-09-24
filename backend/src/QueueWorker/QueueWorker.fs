@@ -200,11 +200,12 @@ let processNotification
 
                   // CLEANUP Set a time limit of 3m
                   try
-                    let program = Canvas.toProgram c
+                    let! handler = PT2RT.Handler.toRT h
+                    let! program = Canvas.toProgram c
                     let! (result, traceResults) =
                       CloudExecution.executeHandler
                         LibClientTypesToCloudTypes.Pusher.eventSerializer
-                        (PT2RT.Handler.toRT h)
+                        handler
                         program
                         traceID
                         (Map [ "event", event.value ])

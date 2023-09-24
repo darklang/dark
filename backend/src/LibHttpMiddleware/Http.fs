@@ -22,7 +22,7 @@ module Request =
     (uri : string)
     (headers : List<string * string>)
     (body : byte array)
-    : RT.Dval =
+    : Ply<RT.Dval> =
     let headers =
       headers
       |> lowercaseHeaderKeys

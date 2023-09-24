@@ -58,7 +58,6 @@ let fns : List<BuiltInFn> =
             [ ("exitCode", DInt(p.ExitCode))
               ("stdout", DString(stdout))
               ("stderr", DString(stderr)) ]
-          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

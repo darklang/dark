@@ -252,7 +252,7 @@ module RuntimeTypes =
         { modules = []; name = RT.TypeName.TypeName "MyType"; version = 0 }
     sampleDvals
     |> List.map (fun (name, (dv, t)) -> name, dv)
-    |> Dval.record typeName (Some [])
+    |> fun fields -> RT.DRecord(typeName, typeName, [], Map fields)
 
 
 module ProgramTypes =

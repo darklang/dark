@@ -31,37 +31,42 @@ module CliRuntimeError =
   /// to RuntimeError
   module RTE =
     module Error =
-      let toDT (et : Error) : RT.Dval =
-        let caseName, fields =
-          match et with
-          | NoExpressionsToExecute -> "NoExpressionsToExecute", []
+      let toDT (et : Error) : Ply<RT.Dval> =
+        uply {
+          let! caseName, fields =
+            uply {
+              match et with
+              | NoExpressionsToExecute -> return "NoExpressionsToExecute", []
 
-          | UncaughtException(msg, metadata) ->
-            let metadata =
-              metadata
-              |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
-              |> Dval.list (
-                ValueType.Known(
-                  KTTuple(ValueType.Known KTString, ValueType.Known KTString, [])
-                )
-              )
+              | UncaughtException(msg, metadata) ->
+                let metadata =
+                  metadata
+                  |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
+                  |> Dval.list (
+                    ValueType.Known(
+                      KTTuple(ValueType.Known KTString, ValueType.Known KTString, [])
+                    )
+                  )
 
-            "UncaughtException", [ "msg", DString msg; "metadata", metadata ]
+                return "UncaughtException", [ DString msg; metadata ]
 
-          | MultipleExpressionsToExecute exprs ->
-            "MultipleExpressionsToExecute",
-            [ "exprs", Dval.list VT.unknownTODO (List.map DString exprs) ]
+              | MultipleExpressionsToExecute exprs ->
+                return
+                  "MultipleExpressionsToExecute",
+                  [ Dval.list VT.unknownTODO (List.map DString exprs) ]
 
-          | NonIntReturned actuallyReturned ->
-            "NonIntReturned",
-            [ "actuallyReturned", RT2DT.Dval.toDT actuallyReturned ]
+              | NonIntReturned actuallyReturned ->
+                let! actuallyReturned = RT2DT.Dval.toDT actuallyReturned
+                return "NonIntReturned", [ actuallyReturned ]
+            }
 
-        let typeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
-        Dval.enum typeName typeName (Some []) caseName []
+          let typeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
+          return! Dval.enum typeName typeName (Some []) caseName fields
+        }
 
 
-    let toRuntimeError (e : Error) : RT.RuntimeError =
-      Error.toDT e |> RT.RuntimeError.fromDT
+    let toRuntimeError (e : Error) : Ply<RT.RuntimeError> =
+      Error.toDT e |> Ply.map RT.RuntimeError.fromDT
 
 let libExecutionContents =
   BuiltinExecution.Builtin.contents BuiltinExecution.Libs.HttpClient.defaultConfig
@@ -82,26 +87,35 @@ let execute
   (parentState : RT.ExecutionState)
   (mod' : LibParser.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
-  : Task<Result<RT.Dval, DvalSource * RuntimeError>> =
+  : Ply<Result<RT.Dval, DvalSource * RuntimeError>> =
 
-  task {
-    let program : Program =
-      { canvasID = System.Guid.NewGuid()
-        internalFnsAllowed = false
-        fns =
+  uply {
+    let! (program : Program) =
+      uply {
+        let! fns =
           mod'.fns
-          |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
-          |> Map.fromListBy (fun fn -> fn.name)
-        types =
+          |> Ply.List.mapSequentially PT2RT.UserFunction.toRT
+          |> Ply.map (Map.fromListBy (fun fn -> fn.name))
+
+        let! types =
           mod'.types
-          |> List.map (fun typ -> PT2RT.UserType.toRT typ)
-          |> Map.fromListBy (fun typ -> typ.name)
-        constants =
+          |> Ply.List.mapSequentially PT2RT.UserType.toRT
+          |> Ply.map (Map.fromListBy (fun typ -> typ.name))
+
+        let! constants =
           mod'.constants
-          |> List.map (fun c -> PT2RT.UserConstant.toRT c)
-          |> Map.fromListBy (fun c -> c.name)
-        dbs = Map.empty
-        secrets = [] }
+          |> Ply.List.mapSequentially PT2RT.UserConstant.toRT
+          |> Ply.map (Map.fromListBy (fun c -> c.name))
+
+        return
+          { canvasID = System.Guid.NewGuid()
+            internalFnsAllowed = false
+            fns = fns
+            types = types
+            constants = constants
+            dbs = Map.empty
+            secrets = [] }
+      }
 
     let tracing = Exe.noTracing RT.Real
     let notify = parentState.notify
@@ -117,23 +131,17 @@ let execute
         program
 
     if mod'.exprs.Length = 1 then
-      return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
+      let! expr = PT2RT.Expr.toRT mod'.exprs[0]
+      return! Exe.executeExpr state symtable expr
     else if mod'.exprs.Length = 0 then
-      return
-        Error(
-          (SourceNone,
-           CliRuntimeError.NoExpressionsToExecute
-           |> CliRuntimeError.RTE.toRuntimeError)
-        )
+      let! rte =
+        CliRuntimeError.NoExpressionsToExecute |> CliRuntimeError.RTE.toRuntimeError
+      return Error((SourceNone, rte))
     else // mod'.exprs.Length > 1
-      return
-        Error(
-          (SourceNone,
-           CliRuntimeError.MultipleExpressionsToExecute(
-             mod'.exprs |> List.map string
-           )
-           |> CliRuntimeError.RTE.toRuntimeError)
-        )
+      let! rte =
+        CliRuntimeError.MultipleExpressionsToExecute(mod'.exprs |> List.map string)
+        |> CliRuntimeError.RTE.toRuntimeError
+      return Error((SourceNone, rte))
   }
 
 let types : List<BuiltInType> = []
@@ -157,7 +165,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [], [ DString filename; DString code; DDict(_vtTODO, symtable) ] ->
           uply {
-            let exnError (e : exn) : RuntimeError =
+            let exnError (e : exn) : Ply<RuntimeError> =
               let msg = Exception.getMessages e |> String.concat "\n"
               let metadata =
                 Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
@@ -172,7 +180,8 @@ let fns : List<BuiltInFn> =
                   return!
                     LibParser.Canvas.parse nameResolver filename code |> Ply.map Ok
                 with e ->
-                  return Error(exnError e)
+                  let! err = exnError e
+                  return Error err
               }
 
             try
@@ -181,15 +190,14 @@ let fns : List<BuiltInFn> =
                 match! execute state mod' symtable with
                 | Ok(DInt i) -> return resultOk (DInt i)
                 | Ok result ->
-                  return
+                  return!
                     CliRuntimeError.NonIntReturned result
                     |> CliRuntimeError.RTE.toRuntimeError
-                    |> RuntimeError.toDT
-                    |> resultError
+                    |> Ply.map (RuntimeError.toDT >> resultError)
                 | Error(_, e) -> return e |> RuntimeError.toDT |> resultError
               | Error e -> return e |> RuntimeError.toDT |> resultError
             with e ->
-              return exnError e |> RuntimeError.toDT |> resultError
+              return! exnError e |> Ply.map (RuntimeError.toDT >> resultError)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -217,15 +225,13 @@ let fns : List<BuiltInFn> =
           uply {
             let err (msg : string) (metadata : List<string * string>) =
               let metadata = metadata |> List.map (fun (k, v) -> k, DString v)
-              resultError (
-                Dval.record
-                  (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
-                  (Some [])
-                  [ "msg", DString msg
-                    "metadata", Dval.dict VT.unknownTODO metadata ]
-              )
+              Dval.record
+                (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
+                (Some [])
+                [ "msg", DString msg; "metadata", Dval.dict VT.unknownTODO metadata ]
+              |> Ply.map resultError
 
-            let exnError (e : exn) : Dval =
+            let exnError (e : exn) : Ply<Dval> =
               let msg = Exception.getMessages e |> String.concat "\n"
               let metadata =
                 Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
@@ -313,7 +319,7 @@ let fns : List<BuiltInFn> =
                     return resultOk (DString asString)
               | _ -> return incorrectArgs ()
             with e ->
-              return exnError e
+              return! exnError e
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

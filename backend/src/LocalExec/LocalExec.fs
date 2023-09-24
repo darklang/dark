@@ -75,28 +75,33 @@ let state () =
 let execute
   (mod' : LibParser.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
-  : Task<RT.ExecutionResult> =
-  task {
+  : Ply<RT.ExecutionResult> =
+  uply {
+    let! fns =
+      mod'.fns
+      |> Ply.List.mapSequentially PT2RT.UserFunction.toRT
+      |> Ply.map (Map.fromListBy (fun fn -> fn.name))
+    let! types =
+      mod'.types
+      |> Ply.List.mapSequentially PT2RT.UserType.toRT
+      |> Ply.map (Map.fromListBy (fun typ -> typ.name))
+    let! constants =
+      mod'.constants
+      |> Ply.List.mapSequentially PT2RT.UserConstant.toRT
+      |> Ply.map (Map.fromListBy (fun c -> c.name))
+
     let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
-        fns =
-          mod'.fns
-          |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
-          |> Map.fromListBy (fun fn -> fn.name)
-        types =
-          mod'.types
-          |> List.map (fun typ -> PT2RT.UserType.toRT typ)
-          |> Map.fromListBy (fun typ -> typ.name)
-        constants =
-          mod'.constants
-          |> List.map (fun c -> PT2RT.UserConstant.toRT c)
-          |> Map.fromListBy (fun c -> c.name)
+        fns = fns
+        types = types
+        constants = constants
         dbs = Map.empty
         secrets = [] }
 
     let state = { state () with program = program }
-    return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
+    let! expr = PT2RT.Expr.toRT mod'.exprs[0]
+    return! Exe.executeExpr state symtable expr
   }
 
 
@@ -229,18 +234,25 @@ module PackageBootstrapping =
       // (any package references that may have been unresolved a second ago should now be OK)
       let (fns, types, consts) = packagesParsedWithUnresolvedNamesAllowed
 
-      let inMemPackageManager : RT.PackageManager =
-        let types = List.map PT2RT.PackageType.toRT types
-        let fns = List.map PT2RT.PackageFn.toRT fns
-        let consts = List.map PT2RT.PackageConstant.toRT consts
+      let! (inMemPackageManager : RT.PackageManager) =
+        uply {
+          let! types = types |> Ply.List.mapSequentially PT2RT.PackageType.toRT
+          let! fns = fns |> Ply.List.mapSequentially PT2RT.PackageFn.toRT
+          let! consts = consts |> Ply.List.mapSequentially PT2RT.PackageConstant.toRT
 
-        { getType = fun name -> types |> List.find (fun t -> t.name = name) |> Ply
-          getFn = fun name -> fns |> List.find (fun f -> f.name = name) |> Ply
-          getFnByTLID = fun tlid -> fns |> List.find (fun f -> f.tlid = tlid) |> Ply
-          getConstant =
-            fun name -> consts |> List.find (fun c -> c.name = name) |> Ply
+          let pm : RT.PackageManager =
+            { getType =
+                fun name -> types |> List.find (fun t -> t.name = name) |> Ply
+              getFn = fun name -> fns |> List.find (fun f -> f.name = name) |> Ply
+              getFnByTLID =
+                fun tlid -> fns |> List.find (fun f -> f.tlid = tlid) |> Ply
+              getConstant =
+                fun name -> consts |> List.find (fun c -> c.name = name) |> Ply
 
-          init = uply { return () } }
+              init = uply { return () } }
+
+          return pm
+        }
 
       let nameResolver =
         { nameResolver with

@@ -44,16 +44,17 @@ let fns : List<BuiltInFn> =
           uply {
             let! secrets = Secret.getCanvasSecrets canvasID
             let typeName = FQName.BuiltIn(typ "Secret" 0)
-            return
+
+            return!
               secrets
-              |> List.map (fun s ->
+              |> Ply.List.mapSequentially (fun s ->
                 Dval.record
                   typeName
                   (Some [])
                   [ "name", DString s.name
                     "value", DString s.value
                     "version", DInt s.version ])
-              |> Dval.list (ValueType.Known(KTCustomType(typeName, [])))
+              |> Ply.map (Dval.list (ValueType.Known(KTCustomType(typeName, []))))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

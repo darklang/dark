@@ -425,12 +425,12 @@ let fns (config : Configuration) : List<BuiltInFn> =
                 let typ =
                   FQName.BuiltIn(TypeName.builtIn [ "HttpClient" ] "Response" 0)
 
-                return
+                return!
                   [ ("statusCode", DInt(int64 response.statusCode))
                     ("headers", responseHeaders)
                     ("body", DBytes response.body) ]
                   |> Dval.record typ (Some [])
-                  |> resultOk
+                  |> Ply.map resultOk
 
               // TODO: include a DvalSource rather than SourceNone
               | Error(BadUrl details) -> return resultErrorStr $"Bad URL: {details}"

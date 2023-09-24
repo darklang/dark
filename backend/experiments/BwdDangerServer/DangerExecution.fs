@@ -181,13 +181,13 @@ let executeHandler
           match! Exe.runtimeErrorToString state originalRTE with
           | Ok(RT.DString msg) ->
             let msg = $"Error: {msg}\n\nSource: {originalSource}"
-            return error msg
+            return! error msg
           | Ok result -> return result
           | Error(firstErrorSource, firstErrorRTE) ->
             let! firstErrorSource = sourceString firstErrorSource
             match! Exe.runtimeErrorToString state firstErrorRTE with
             | Ok(RT.DString msg) ->
-              return
+              return!
                 error (
                   $"An error occured trying to print a runtime error."
                   + $"\n\nThe formatting error occurred in {firstErrorSource}. The error was:\n{msg}"
@@ -197,7 +197,7 @@ let executeHandler
 
             | Error(secondErrorSource, secondErrorRTE) ->
               let! secondErrorSource = sourceString secondErrorSource
-              return
+              return!
                 error (
                   $"Two errors occured trying to print a runtime error."
                   + $"\n\nThe 2nd formatting error occurred in {secondErrorSource}. The error was:\n{secondErrorRTE}"

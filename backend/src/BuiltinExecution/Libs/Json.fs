@@ -472,7 +472,7 @@ let parse
                   convert typ pathSoFar j) // TODO revisit if we need to do anything with path
                 |> Ply.List.flatten
 
-              return Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
+              return! Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
 
             | _ -> return Exception.raiseInternal "TODO" []
 
@@ -512,7 +512,7 @@ let parse
                 })
               |> Ply.List.flatten
 
-            return Dval.record typeName VT.typeArgsTODO' fields
+            return! Dval.record typeName VT.typeArgsTODO' fields
       }
 
 

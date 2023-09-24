@@ -52,7 +52,8 @@ let testPipesToRuntimeTypes =
 let testProgramTypesToRuntimeTypes =
   let u = PT.EUnit(8UL)
   let ru = RT.EUnit(8UL)
-  testMany
+
+  testManyPly
     "program types to runtime types"
     PT2RT.Expr.toRT
     [ PT.EFloat(7UL, Positive, "", "0"), RT.EFloat(7UL, 0.0)

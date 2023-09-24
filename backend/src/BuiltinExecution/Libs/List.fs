@@ -398,7 +398,7 @@ let fns : List<BuiltInFn> =
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
               | DInt i -> return raise (Sort.InvalidSortComparatorInt i)
               | v ->
-                return TypeChecker.raiseFnValResultNotExpectedType SourceNone v TInt
+                return! TypeChecker.raiseFnValResultNotExpectedType SourceNone v TInt
             }
 
           uply {
@@ -461,7 +461,7 @@ let fns : List<BuiltInFn> =
                 match result with
                 | DBool b -> return b
                 | v ->
-                  return
+                  return!
                     TypeChecker.raiseFnValResultNotExpectedType SourceNone v TBool
               }
 
@@ -522,7 +522,7 @@ let fns : List<BuiltInFn> =
                         "None",
                         []) -> return None
                 | v ->
-                  return
+                  return!
                     TypeChecker.raiseFnValResultNotExpectedType
                       SourceNone
                       v

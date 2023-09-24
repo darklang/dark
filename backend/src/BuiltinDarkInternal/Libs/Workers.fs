@@ -35,11 +35,11 @@ let schedulingRuleTypeName = typ [ "DarkInternal"; "SchedulingRule" ] "Rule" 0
 let schedulingRuleTypeRef =
   TCustomType(Ok(FQName.BuiltIn(schedulingRuleTypeName)), [])
 
-let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Dval =
+let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Ply<Dval> =
   let typeName = FQName.BuiltIn schedulingRuleTypeName
 
   rules
-  |> List.map (fun r ->
+  |> Ply.List.mapSequentially (fun r ->
     Dval.record
       typeName
       (Some [])
@@ -49,7 +49,7 @@ let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Dval =
         ("handler_name", DString r.handlerName)
         ("event_space", DString r.eventSpace)
         ("created_at", DDateTime(DarkDateTime.fromInstant r.createdAt)) ])
-  |> Dval.list (ValueType.Known(KTCustomType(typeName, [])))
+  |> Ply.map (Dval.list (ValueType.Known(KTCustomType(typeName, []))))
 
 let types : List<BuiltInType> =
   [ { name = schedulingRuleTypeName
@@ -99,7 +99,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! rules = SchedulingRules.getSchedulingRules canvasID
-            return rulesToDval rules
+            return! rulesToDval rules
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -143,7 +143,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUnit ] ->
           uply {
             let! rules = SchedulingRules.getAllSchedulingRules ()
-            return rulesToDval rules
+            return! rulesToDval rules
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

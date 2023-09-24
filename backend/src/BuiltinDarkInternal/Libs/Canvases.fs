@@ -175,19 +175,19 @@ let fns : List<BuiltInFn> =
           uply {
             let! canvas = Canvas.loadAll canvasID
 
-            let types =
+            let! types =
               canvas.userTypes
               |> Map.values
               |> Seq.toList
-              |> List.map PT2DT.UserType.toDT
-              |> Dval.list VT.unknownTODO
+              |> Ply.List.mapSequentially PT2DT.UserType.toDT
+              |> Ply.map (Dval.list VT.unknownTODO)
 
-            let fns =
+            let! fns =
               canvas.userFunctions
               |> Map.values
               |> Seq.toList
-              |> List.map PT2DT.UserFunction.toDT
-              |> Dval.list VT.unknownTODO
+              |> Ply.List.mapSequentially PT2DT.UserFunction.toDT
+              |> Ply.map (Dval.list VT.unknownTODO)
 
             // let dbs =
             //   Map.values canvas.dbs
@@ -213,12 +213,12 @@ let fns : List<BuiltInFn> =
             //       |> Some)
             //   |> Dval.list VT.unknownTODO
 
-            return
+            return!
               Dval.record
                 (FQName.BuiltIn(typ "Program" 0))
                 (Some [])
                 [ "types", types; "fns", fns ]
-              |> Dval.resultOk VT.unknownTODO VT.string
+              |> Ply.map (Dval.resultOk VT.unknownTODO VT.string)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
