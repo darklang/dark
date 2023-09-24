@@ -496,8 +496,10 @@ module List =
       "Can't parse JSON `\"three\"` as type `Int` at path: `root[2]`"
 
     Builtin.Json.parse<List<Int>> "[1, 2, ]" = Result.Error "not JSON"
-    //Builtin.Json.serialize<List<List<List<Int>>>> [[[1, 2, 3], [4, 5.5, 6]], [[7, 8], [9, 0]]] = Result.Error "Can't currently parse this type/value combination"
-    //Builtin.Json.parse<List<List<List<Int>>>> "[[[1,2,3],[4,5.5,6]],[[7,8],[9,0]]]" = Result.Error "Can't currently parse this type/value combination"
+
+    Builtin.Json.parse<List<List<List<Int>>>> "[[[1,2,3],[4,5.5,6]],[[7,8],[9,0]]]" = Result.Error
+      "Can't parse JSON `5.5` as type `Int` at path: `root[0][1][1]`"
+
     Builtin.Json.parse<List<Dict<Int>>>
       """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""" = Result.Error
       "Can't parse JSON `\"Alice\"` as type `Int` at path: `root[0].name`"
@@ -885,10 +887,10 @@ Actual: an UserDefinedAliases.Person1: UserDefinedAliases.Person1 {\n  Age: 42,\
 
   Builtin.Json.serialize<StringResult<Int>> (Result.Error "err") = Result.Ok
     "{\"Error\":[\"err\"]}"
-// Builtin.Json.serialize<StringResult<Int>> (Result.Error 1) = Result.Error "Can't currently serialize this type/value combination"
 
-// TODO: This test should fail but doesn't
-// Builtin.Json.serialize<StringResult<Int>> (Result.Error 1) = Result.Ok "{\"Error\":1}"
+// This test current gets by the typechecker, and so we get an internal exception
+// Builtin.Json.serialize<StringResult<Int>> (Result.Error 1) = Result.Error
+//   "Can't currently serialize this type/value combination"
 
 
 module Package =
