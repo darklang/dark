@@ -37,24 +37,47 @@ module HeaderError =
       TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "HeaderError" 0
     Dval.enum typeName typeName (Some []) caseName fields
 
+module BadUrl =
+  type BadUrlDetails =
+    | UnsupportedProtocol
+    | InvalidHost
+    | InvalidUri
+    | InvalidRequest
+
+  let toDT (err : BadUrlDetails) : Dval =
+    let caseName, fields =
+      match err with
+      | UnsupportedProtocol -> "UnsupportedProtocol", []
+      | InvalidHost -> "InvalidHost", []
+      | InvalidUri -> "InvalidUri", []
+      | InvalidRequest -> "InvalidRequest", []
+
+    let typeName =
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "BadUrlDetails" 0
+    Dval.enum typeName typeName (Some []) caseName fields
+
 module RequestError =
   // forked from Elm's HttpError type
   // https://package.elm-lang.org/packages/elm/http/latest/Http#Error
   type RequestError =
-    | BadUrl of details : string
+    | BadUrl of BadUrl.BadUrlDetails
     | Timeout
     | NetworkError
     | HeaderError of HeaderError.HeaderError
-    | Other of details : string
+    | ArgumentException of string
+    | IOException of string
+    | HttpRequestException of string
 
   let toDT (err : RequestError) : Dval =
     let caseName, fields =
       match err with
-      | BadUrl details -> "BadUrl", [ DString details ]
+      | BadUrl details -> "BadUrl", [ BadUrl.toDT details ]
       | Timeout -> "Timeout", []
       | NetworkError -> "NetworkError", []
       | HeaderError err -> "HeaderError", [ HeaderError.toDT err ]
-      | Other details -> "Other", [ DString details ]
+      | ArgumentException e -> "ArgumentException", [ DString e ]
+      | IOException e -> "IOException", [ DString e ]
+      | HttpRequestException e -> "HttpRequestException", [ DString e ]
 
     let typeName =
       TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "RequestError" 0
@@ -215,11 +238,19 @@ let makeRequest
 
         let host = uri.Host.Trim().ToLower()
         if not (config.allowedHost host) then
-          return Error(RequestError.RequestError.BadUrl "Invalid host")
+          return
+            Error(RequestError.RequestError.BadUrl BadUrl.BadUrlDetails.InvalidHost)
         else if not (config.allowedHeaders httpRequest.headers) then
-          return Error(RequestError.RequestError.BadUrl "Invalid request")
+          return
+            Error(
+              RequestError.RequestError.BadUrl BadUrl.BadUrlDetails.InvalidRequest
+            )
         else if not (config.allowedScheme uri.Scheme) then
-          return Error(RequestError.RequestError.BadUrl "Unsupported Protocol")
+          return
+            Error(
+              RequestError.RequestError.BadUrl
+                BadUrl.BadUrlDetails.UnsupportedProtocol
+            )
         else
           let reqUri =
             System.UriBuilder(
@@ -327,19 +358,23 @@ let makeRequest
         then
           config.telemetryAddTag "error" true
           config.telemetryAddTag "error.msg" "Unsupported Protocol"
-          return Error(RequestError.RequestError.BadUrl "Unsupported Protocol")
+          return
+            Error(
+              RequestError.RequestError.BadUrl
+                BadUrl.BadUrlDetails.UnsupportedProtocol
+            )
         else
           config.telemetryAddTag "error" true
           config.telemetryAddTag "error.msg" e.Message
-          return Error(RequestError.RequestError.Other e.Message)
+          return Error(RequestError.RequestError.ArgumentException e.Message)
 
       | :? System.UriFormatException ->
         config.telemetryAddTag "error" true
         config.telemetryAddTag "error.msg" "Invalid URI"
-        return Error(RequestError.RequestError.BadUrl "Invalid URI")
-
+        return
+          Error(RequestError.RequestError.BadUrl BadUrl.BadUrlDetails.InvalidUri)
       | :? IOException as e ->
-        return Error(RequestError.RequestError.Other e.Message)
+        return Error(RequestError.RequestError.IOException e.Message)
 
       | :? HttpRequestException as e ->
         // This is a bit of an awkward case. I'm unsure how it fits into our model.
@@ -353,7 +388,7 @@ let makeRequest
 
         return
           Error(
-            RequestError.RequestError.Other(
+            RequestError.RequestError.HttpRequestException(
               Exception.getMessages e |> String.concat " "
             )
           )

@@ -4,18 +4,38 @@ module Darklang =
 
       type HeaderError = | EmptyKey
 
+      type BadUrlDetails =
+        | UnsupportedProtocol
+        | InvalidHost
+        | InvalidUri
+        | InvalidRequest
+
       type RequestError =
-        | BadUrl of details: String
+        | BadUrl of BadUrlDetails
         | Timeout
         | NetworkError
-        | Other of details: String
+        | HeaderError of HeaderError
+        | ArgumentException of String
+        | IOException of String
+        | HttpRequestException of String
 
       let toString (e: RequestError) : String =
         match e with
-        | BadUrl details -> $"Bad URL: {details}"
+        | BadUrl details ->
+          match details with
+          | UnsupportedProtocol -> "Unsupported protocol"
+          | InvalidHost -> "Invalid host"
+          | InvalidUri -> "Invalid URI"
+          | InvalidRequest -> "Invalid request"
         | Timeout -> "Timeout"
+        | HeaderError details ->
+          match details with
+          | EmptyKey -> "Empty key"
+        | ArgumentException details -> $"Argument exception: {details}"
+        | IOException details -> $"URI format exception: {details}"
+        | HttpRequestException details -> $"HTTP request exception: {details}"
         | NetworkError -> "Network error"
-        | Other details -> $"Other error: {details}"
+
 
       /// The response from a HTTP request
       type Response =
