@@ -323,6 +323,14 @@ module JsonParseError =
     | CantMatchWithType(typ, json, errorPath) ->
       $"Can't parse JSON `{json}` as type `{LibExecution.DvalReprDeveloper.typeName typ}` at path: `{JsonPath.toString errorPath}`"
 
+let raiseCantMatchWithType
+  (typ : TypeReference)
+  (j : JsonElement)
+  (pathSoFar : JsonPath.JsonPath)
+  =
+  JsonParseError.CantMatchWithType(typ, j.GetRawText(), pathSoFar)
+  |> JsonParseError.JsonParseException
+  |> raise
 
 
 let parse
@@ -364,9 +372,7 @@ let parse
       try
         DUuid(System.Guid(j.GetString())) |> Ply
       with _ ->
-        JsonParseError.CantMatchWithType(TUuid, j.GetRawText(), pathSoFar)
-        |> JsonParseError.JsonParseException
-        |> raise
+        raiseCantMatchWithType TUuid j pathSoFar
 
     | TDateTime, JsonValueKind.String ->
       try
@@ -376,9 +382,7 @@ let parse
         |> DDateTime
         |> Ply
       with _ ->
-        JsonParseError.CantMatchWithType(TDateTime, j.GetRawText(), pathSoFar)
-        |> JsonParseError.JsonParseException
-        |> raise
+        raiseCantMatchWithType TDateTime j pathSoFar
 
 
     // Nested types
@@ -400,10 +404,7 @@ let parse
       |> Ply.map (fun mapped ->
         match mapped with
         | (d1 :: d2 :: rest) -> DTuple(d1, d2, rest)
-        | _ ->
-          Exception.raiseInternal
-            "Invalid tuple - really shouldn't be possible to hit this"
-            [])
+        | _ -> Exception.raiseInternal "Invalid tuple" [])
 
     | TDict tDict, JsonValueKind.Object ->
       j.EnumerateObject()
