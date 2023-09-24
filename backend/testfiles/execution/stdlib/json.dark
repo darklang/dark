@@ -268,16 +268,33 @@ module Float =
 
 
 module Char =
-  //let charFromString (s: String) =
-  //  (PACKAGE.Darklang.Stdlib.String.toList s) |> PACKAGE.Darklang.Stdlib.List.head |> Builtin.unwrap
+  let charFromString (s: String) : Char =
+    (PACKAGE.Darklang.Stdlib.String.head s) |> Builtin.unwrap
 
   Builtin.Json.serialize<Char> 'a' = Result.Ok "\"a\""
   Builtin.Json.parse<Char> "\"a\"" = Result.Ok 'a'
-  //Builtin.Json.serialize<Char> ("😂" |> charFromString ) = Result.Ok "😂"
-  //Builtin.Json.parse<Char> "\"😂\"" = Result.Ok '😂'
-  //Builtin.Json.serialize<Char> '👩‍👩‍👧‍👦' = Result.Ok "\"👩‍👩‍👧‍👦\""
-  //Builtin.Json.parse<Char> "\"👩‍👩‍👧‍👦\"" = Result.Ok '👩‍👩‍👧‍👦'
-  Builtin.Json.serialize<Char> 'Ł' = Result.Ok "\"Ł\""
+
+  module SimpleEmoji =
+    Builtin.Json.serialize<Char> ("😂" |> charFromString) = Result.Ok
+      "\"\\uD83D\\uDE02\""
+
+    Builtin.Json.parse<Char> "\"😂\"" = Result.Ok(charFromString "😂")
+    Builtin.Json.parse<Char> "\"\\uD83D\\uDE02\"" = Result.Ok(charFromString "😂")
+
+  module ComplexEmoji =
+    Builtin.Json.serialize<Char> (charFromString "👩‍👩‍👧‍👦") = Result.Ok
+      "\"\\uD83D\\uDC69‍\\uD83D\\uDC69‍\\uD83D\\uDC67‍\\uD83D\\uDC66\""
+
+    Builtin.Json.parse<Char>
+      "\"\\uD83D\\uDC69‍\\uD83D\\uDC69‍\\uD83D\\uDC67‍\\uD83D\\uDC66\"" = Result.Ok(
+      charFromString "👩‍👩‍👧‍👦"
+    )
+
+    Builtin.Json.parse<Char> "\"👩‍👩‍👧‍👦\"" = Result.Ok(
+      "👩‍👩‍👧‍👦" |> charFromString
+    )
+
+  Builtin.Json.serialize<Char> (charFromString "Ł") = Result.Ok "\"Ł\""
   Builtin.Json.parse<Char> "\"Ł\"" = Result.Ok 'Ł'
 
   module Errors =
@@ -286,6 +303,9 @@ module Char =
 
     Builtin.Json.parse<Char> "\"\"" = Result.Error
       "Can't parse JSON `\"\"` as type `Char` at path: `root`"
+
+    Builtin.Json.parse<Char> "62" = Result.Error
+      "Can't parse JSON `62` as type `Char` at path: `root`"
 
 
 module String =
