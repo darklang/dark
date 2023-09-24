@@ -428,6 +428,7 @@ let parse
       uply {
         match! Types.find typeName types with
         | None ->
+          // TODO should be an RTE
           return
             JsonParseError.TypeNotFound typ
             |> JsonParseError.JsonParseException
@@ -441,9 +442,7 @@ let parse
 
           | TypeDeclaration.Enum cases ->
             if jsonValueKind <> JsonValueKind.Object then
-              JsonParseError.CantMatchWithType(typ, j.GetRawText(), pathSoFar)
-              |> JsonParseError.JsonParseException
-              |> raise
+              raiseCantMatchWithType typ j pathSoFar
 
             let enumerated =
               j.EnumerateObject()
@@ -475,10 +474,12 @@ let parse
 
               return! Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
 
+            // TODO shouldn't be an internal error
             | _ -> return Exception.raiseInternal "TODO" []
 
           | TypeDeclaration.Record fields ->
             if jsonValueKind <> JsonValueKind.Object then
+              // TODO should be user facing
               Exception.raiseInternal
                 "Expected an object for a record"
                 [ "type", typeName; "value", j ]
@@ -499,8 +500,10 @@ let parse
 
                     match matchingFieldDef with
                     | [] ->
+                      // TODO should be user-facing error
                       Exception.raiseInternal "Couldn't find matching field" []
                     | [ matchingFieldDef ] -> matchingFieldDef.Value
+                    // TODO should be a user-facing error
                     | _ -> Exception.raiseInternal "Too many matching fields" []
 
                   let typ = Types.substitute decl.typeParams typeArgs def.typ
@@ -539,10 +542,7 @@ let parse
     | TList _, _
     | TTuple _, _
     | TCustomType _, _
-    | TDict _, _ ->
-      JsonParseError.CantMatchWithType(typ, j.GetRawText(), pathSoFar)
-      |> JsonParseError.JsonParseException
-      |> raise
+    | TDict _, _ -> raiseCantMatchWithType typ j pathSoFar
 
   let parsed =
     try
