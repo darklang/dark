@@ -120,9 +120,7 @@ let rec serialize
       let ds = d1 :: d2 :: rest
 
       if List.length ts <> List.length ds then
-        Exception.raiseInternal
-          $"Not sure what to do with mismatched tuple ({ds} doesn't match {ts})"
-          []
+        Exception.raiseInternal $"with mismatched tuple ({ds} doesn't match {ts})" []
 
       let zipped = List.zip (t1 :: t2 :: trest) (d1 :: d2 :: rest)
       do!
@@ -218,6 +216,7 @@ let rec serialize
 
 
     // Not supported
+    // TODO these should be runtime errors
     | TVariable name, dv ->
       Exception.raiseInternal
         "Variable types (i.e. 'a in List<'a>) cannot not be used as arguments"
@@ -245,6 +244,7 @@ let rec serialize
     | TVariable _, _
     | TCustomType _, _
     | TDict _, _ ->
+      // Internal error as this shouldn't get past the typechecker
       Exception.raiseInternal
         "Can't currently serialize this type/value combination"
         [ "value", dv; "type", DString(LibExecution.DvalReprDeveloper.typeName typ) ]
