@@ -141,43 +141,32 @@ let rec serialize
         | TypeDeclaration.Enum cases ->
           match dval with
           | DEnum(dTypeName, _, _typeArgsDEnumTODO, caseName, fields) ->
-            let matchingCase = cases |> NEList.filter (fun c -> c.name = caseName)
-
-            match matchingCase with
-            | [] ->
-              Exception.raiseInternal
-                $"Couldn't find matching case for {caseName}"
+            let matchingCase =
+              cases
+              |> NEList.find (fun c -> c.name = caseName)
+              |> Exception.unwrapOptionInternal
+                "Couldn't find matching case"
                 [ "typeName", dTypeName ]
 
-            | [ matchingCase ] ->
-              if List.length matchingCase.fields <> List.length fields then
-                Exception.raiseInternal
-                  $"Couldn't serialize Enum as incorrect # of fields provided"
-                  [ "defs", matchingCase.fields
-                    "fields", fields
-                    "typeName", typeName
-                    "caseName", caseName ]
+            if List.length matchingCase.fields <> List.length fields then
+              Exception.raiseInternal
+                $"Incorrect # of enum fields provided"
+                [ "typeName", typeName; "caseName", caseName ]
 
-              do!
-                w.writeObject (fun () ->
-                  w.WritePropertyName caseName
-                  w.writeArray (fun () ->
-                    List.zip matchingCase.fields fields
-                    |> Ply.List.iterSequentially (fun (fieldType, fieldVal) ->
-                      let typ =
-                        Types.substitute decl.typeParams typeArgs fieldType
-                      r typ fieldVal)))
-
-            | _ -> Exception.raiseInternal "Too many matching cases" []
-
+            do!
+              w.writeObject (fun () ->
+                w.WritePropertyName caseName
+                w.writeArray (fun () ->
+                  List.zip matchingCase.fields fields
+                  |> Ply.List.iterSequentially (fun (fieldType, fieldVal) ->
+                    let typ = Types.substitute decl.typeParams typeArgs fieldType
+                    r typ fieldVal)))
 
           | _ -> Exception.raiseInternal "Expected a DEnum but got something else" []
 
         | TypeDeclaration.Record fields ->
           match dval with
-          | DRecord(actualTypeName, _, _typeArgsTODO, dvalMap) when
-            actualTypeName = typeName
-            ->
+          | DRecord(actualTypeName, _, _typeArgsTODO, dvalMap) ->
             do!
               w.writeObject (fun () ->
                 dvalMap
@@ -190,16 +179,11 @@ let rec serialize
                     |> NEList.find (fun def -> def.name = fieldName)
                     |> Exception.unwrapOptionInternal
                       "Couldn't find matching field"
-                      []
+                      [ "fieldName", fieldName ]
 
                   let typ =
                     Types.substitute decl.typeParams typeArgs matchingFieldDef.typ
                   r typ dval))
-
-          | DRecord(actualTypeName, _, _typeArgsTODO, _) ->
-            Exception.raiseInternal
-              "Incorrect record type"
-              [ "actual", actualTypeName; "expected", typeName ]
           | _ ->
             Exception.raiseInternal
               "Expected a DRecord but got something else"
