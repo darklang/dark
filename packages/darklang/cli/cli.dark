@@ -11,7 +11,7 @@ module Darklang =
 
     let showFn (name: String) (owner: String) (modules: List<String>) : Int =
       let fns =
-        Builtin.HttpClient.request
+        PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/functions/")
           []
@@ -27,7 +27,7 @@ module Darklang =
           fns
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
-          |> Builtin.String.fromBytes
+          |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
           |> Builtin.Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>>
           |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
@@ -40,7 +40,7 @@ module Darklang =
         1
       | Some fn ->
         let packageSpecificFunction =
-          (Builtin.List.filter fn (fun f ->
+          (PACKAGE.Darklang.Stdlib.List.filter fn (fun f ->
             f.name.name
             == PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name.FnName(name)
             && f.name.owner == owner
@@ -60,7 +60,7 @@ module Darklang =
 
     let showType (name: String) (owner: String) (modules: List<String>) : Int =
       let types =
-        Builtin.HttpClient.request
+        PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/types/")
           []
@@ -76,7 +76,7 @@ module Darklang =
           types
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
-          |> Builtin.String.fromBytes
+          |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
           |> Builtin.Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>>
           |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
@@ -89,7 +89,7 @@ module Darklang =
         1
       | Some types ->
         let packageSpecificType =
-          (Builtin.List.filter types (fun t ->
+          (PACKAGE.Darklang.Stdlib.List.filter types (fun t ->
             t.name.name
             == PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name.TypeName(
               name
@@ -111,7 +111,7 @@ module Darklang =
 
     let showConstant (name: String) (owner: String) (modules: List<String>) : Int =
       let constants =
-        Builtin.HttpClient.request
+        PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/constants/")
           []
@@ -127,7 +127,7 @@ module Darklang =
           constants
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
-          |> Builtin.String.fromBytes
+          |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
           |> Builtin.Json.parse<List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>>
           |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
@@ -140,7 +140,7 @@ module Darklang =
         1
       | Some constants ->
         let packageSpecificConstant =
-          (Builtin.List.filter constants (fun c ->
+          (PACKAGE.Darklang.Stdlib.List.filter constants (fun c ->
             c.name.name
             == PACKAGE
               .Darklang
@@ -169,7 +169,7 @@ module Darklang =
 
     let showModule (name: String) : Int =
       let modules =
-        Builtin.HttpClient.request
+        PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/modules/" ++ name)
           []
@@ -185,7 +185,7 @@ module Darklang =
           modules
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
-          |> Builtin.String.fromBytes
+          |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
           |> Builtin.Json.parse<PACKAGE.Darklang.Stdlib.Packages>
           |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.Option.Option.Some
@@ -212,7 +212,7 @@ module Darklang =
 
     let showPackage (owner: String) : Int =
       let packages =
-        Builtin.HttpClient.request
+        PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
           ("http://dark-packages.dlio.localhost:11003/owner/" ++ owner)
           []
@@ -228,7 +228,7 @@ module Darklang =
           packages
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
-          |> Builtin.String.fromBytes
+          |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
           |> Builtin.print
 
           0
@@ -254,7 +254,7 @@ module Darklang =
       let systemPrompt =
         (Builtin.File.read "canvases/dark-editor/system-prompt-cli.txt")
         |> Builtin.unwrap
-        |> Builtin.String.fromBytes
+        |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
 
       let prompt = prompt ++ "\n" ++ systemPrompt
 
@@ -265,7 +265,10 @@ module Darklang =
         Builtin.print e
         1
       | Ok response ->
-        Builtin.File.write (Builtin.String.toBytes response) scriptPath
+        Builtin.File.write
+          (PACKAGE.Darklang.Stdlib.String.toBytes response)
+          scriptPath
+
         Builtin.print $"Generated code saved to {scriptPath}"
         0
 
@@ -299,7 +302,7 @@ module Darklang =
           Builtin.print e
           1
         | Ok script ->
-          let script = Builtin.String.fromBytes script
+          let script = PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement script
 
           match
             Builtin.Cli.parseAndExecuteScript
@@ -313,7 +316,8 @@ module Darklang =
             Builtin.print e.msg
 
             e.metadata
-            |> Builtin.Dict.iter (fun (k, v) -> Builtin.print $"  {k}: {v}")
+            |> PACKAGE.Darklang.Stdlib.Dict.iter (fun (k, v) ->
+              Builtin.print $"  {k}: {v}")
 
             1
 
@@ -336,25 +340,25 @@ Options:
 
         let owner =
           fullName
-          |> Builtin.String.split "."
+          |> PACKAGE.Darklang.Stdlib.String.split "."
           |> PACKAGE.Darklang.Stdlib.List.head
           |> Builtin.unwrap
 
         let modules =
           fullName
-          |> Builtin.String.split "."
+          |> PACKAGE.Darklang.Stdlib.String.split "."
           |> (PACKAGE.Darklang.Stdlib.List.drop 1)
           |> PACKAGE.Darklang.Stdlib.List.dropLast
 
         let name =
           name
           |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1
-          |> Builtin.String.split "."
+          |> PACKAGE.Darklang.Stdlib.String.split "."
           |> PACKAGE.Darklang.Stdlib.List.last
           |> Builtin.unwrap
 
         let categoryRequest =
-          Builtin.HttpClient.request
+          PACKAGE.Darklang.Stdlib.HttpClient.request
             "GET"
             ("http://dark-packages.dlio.localhost:11003/category/" ++ fullName)
             []
@@ -370,9 +374,9 @@ Options:
             categoryRequest
             |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
             |> Builtin.unwrap
-            |> Builtin.String.fromBytes
+            |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
           else
-            "Error" |> Builtin.String.toBytes
+            "Error" |> PACKAGE.Darklang.Stdlib.String.toBytes
 
         match category with
         | "fn" -> PACKAGE.Darklang.Cli.showFn name owner modules
@@ -381,7 +385,7 @@ Options:
         | _ ->
           let modules =
             fullName
-            |> Builtin.String.split "."
+            |> PACKAGE.Darklang.Stdlib.String.split "."
             |> (PACKAGE.Darklang.Stdlib.List.drop 1)
 
           if PACKAGE.Darklang.Stdlib.List.length modules == 0 then
@@ -399,7 +403,7 @@ Options:
         PACKAGE.Darklang.Cli.generateCode prompt scriptPath
 
       | Invalid args ->
-        let args = args |> Builtin.String.join " "
+        let args = args |> PACKAGE.Darklang.Stdlib.String.join " "
         Builtin.print $"Invalid command {args}. Use --help for more information."
         1
 

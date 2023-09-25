@@ -30,7 +30,7 @@ let parseYamlExn<'a> (filename : string) : 'a =
 
   match List.head deserialized with
   | Some(Legivel.Serialization.Success s) -> s.Data
-  | ex -> Exception.raiseCode $"couldn't parse {filename}" [ "error", ex ]
+  | ex -> raise (Exception($"couldn't parse {filename} with error {ex}"))
 
 let packageManager = LibCloud.PackageManager.packageManager
 
@@ -57,7 +57,7 @@ let seedCanvas (canvasName : string) =
           [ BuiltinExecution.Builtin.contents
               BuiltinExecution.Libs.HttpClient.defaultConfig
             BuiltinCloudExecution.Builtin.contents
-            BwdDangerServer.StdLib.contents
+            BwdDangerServer.Builtin.contents
             BuiltinDarkInternal.Builtin.contents ]
           []
           []
@@ -131,8 +131,9 @@ let main (args : string[]) =
         do! seedCanvas canvasName
 
       | _ ->
+        let args = args |> Array.toList |> String.concat " "
         print
-          $"CanvasHack isn't sure what to do with these arguments.
+          $"CanvasHack isn't sure what to do with these arguments: [{args}]
           Currently expecting just '{CommandNames.import}'"
 
       NonBlockingConsole.wait ()

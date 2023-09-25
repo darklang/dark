@@ -342,35 +342,35 @@ let loadTLIDsWithDBs (id : CanvasID) (tlids : List<tlid>) : Task<T> =
 
 let getToplevel (tlid : tlid) (c : T) : Option<Serialize.Deleted * PT.Toplevel.T> =
   let handler () =
-    Map.tryFind tlid c.handlers
+    Map.find tlid c.handlers
     |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLHandler h))
 
   let deletedHandler () =
-    Map.tryFind tlid c.deletedHandlers
+    Map.find tlid c.deletedHandlers
     |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLHandler h))
 
   let db () =
-    Map.tryFind tlid c.dbs
+    Map.find tlid c.dbs
     |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLDB h))
 
   let deletedDB () =
-    Map.tryFind tlid c.deletedDBs
+    Map.find tlid c.deletedDBs
     |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLDB h))
 
   let userFunction () =
-    Map.tryFind tlid c.userFunctions
+    Map.find tlid c.userFunctions
     |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLFunction h))
 
   let deletedUserFunction () =
-    Map.tryFind tlid c.deletedUserFunctions
+    Map.find tlid c.deletedUserFunctions
     |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLFunction h))
 
   let userType () =
-    Map.tryFind tlid c.userTypes
+    Map.find tlid c.userTypes
     |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLType h))
 
   let deletedUserType () =
-    Map.tryFind tlid c.deletedUserTypes
+    Map.find tlid c.deletedUserTypes
     |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLType h))
 
   handler ()
@@ -393,6 +393,13 @@ let deleteToplevelForever (canvasID : CanvasID) (tlid : tlid) : Task<unit> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlid", Sql.id tlid ]
   |> Sql.executeStatementAsync
 
+let toplevelToDBTypeString (tl : PT.Toplevel.T) : string =
+  match tl with
+  | PT.Toplevel.TLDB _ -> "db"
+  | PT.Toplevel.TLHandler _ -> "handler"
+  | PT.Toplevel.TLFunction _ -> "user_function"
+  | PT.Toplevel.TLType _ -> "user_type"
+  | PT.Toplevel.TLConstant _ -> "user_constant"
 
 /// Save just the TLIDs listed (a canvas may load more tlids to support
 /// calling/testing these TLs, even though those TLs do not need to be updated)
@@ -471,7 +478,7 @@ let saveTLIDs
             [ "canvasID", Sql.uuid id
               "tlid", Sql.id tlid
               "digest", Sql.string "fsharp"
-              "typ", Sql.string (PTParser.Toplevel.toDBTypeString tl)
+              "typ", Sql.string (toplevelToDBTypeString tl)
               "name", Sql.stringOrNone name
               "module", Sql.stringOrNone module_
               "modifier", Sql.stringOrNone modifier
@@ -531,41 +538,56 @@ let healthCheck : LibService.Kubernetes.HealthCheck =
     probeTypes = [ LibService.Kubernetes.Startup ] }
 
 
-let toProgram (c : T) : RT.Program =
+let toProgram (c : T) : Ply<RT.Program> =
+  uply {
+    let! dbs =
+      c.dbs
+      |> Map.values
+      |> Ply.List.mapSequentially (fun db ->
+        uply {
+          let! dbRT = PT2RT.DB.toRT db
+          return (db.name, dbRT)
+        })
+      |> Ply.map Map.ofList
 
-  let dbs =
-    c.dbs
-    |> Map.values
-    |> List.map (fun db -> (db.name, PT2RT.DB.toRT db))
-    |> Map.ofList
+    let! userFns =
+      c.userFunctions
+      |> Map.values
+      |> Ply.List.mapSequentially (fun f ->
+        uply {
+          let! fn = PT2RT.UserFunction.toRT f
+          return (PT2RT.FnName.UserProgram.toRT f.name, fn)
+        })
+      |> Ply.map Map.ofList
 
-  let userFns =
-    c.userFunctions
-    |> Map.values
-    |> List.map (fun f ->
-      (PT2RT.FnName.UserProgram.toRT f.name, PT2RT.UserFunction.toRT f))
-    |> Map.ofList
+    let! userTypes =
+      c.userTypes
+      |> Map.values
+      |> Ply.List.mapSequentially (fun t ->
+        uply {
+          let! typ = PT2RT.UserType.toRT t
+          return (PT2RT.TypeName.UserProgram.toRT t.name, typ)
+        })
+      |> Ply.map Map.ofList
 
-  let userTypes =
-    c.userTypes
-    |> Map.values
-    |> List.map (fun t ->
-      (PT2RT.TypeName.UserProgram.toRT t.name, PT2RT.UserType.toRT t))
-    |> Map.ofList
+    let! userConstants =
+      c.userConstants
+      |> Map.values
+      |> Ply.List.mapSequentially (fun c ->
+        uply {
+          let! constant = PT2RT.UserConstant.toRT c
+          return (PT2RT.ConstantName.UserProgram.toRT c.name, constant)
+        })
+      |> Ply.map Map.ofList
 
-  let userConstants =
-    c.userConstants
-    |> Map.values
-    |> List.map (fun c ->
-      (PT2RT.ConstantName.UserProgram.toRT c.name, PT2RT.UserConstant.toRT c))
-    |> Map.ofList
+    let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
 
-  let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
-
-  { canvasID = c.id
-    internalFnsAllowed = List.contains c.id Config.allowedDarkInternalCanvasIDs
-    fns = userFns
-    types = userTypes
-    constants = userConstants
-    dbs = dbs
-    secrets = secrets }
+    return
+      { canvasID = c.id
+        internalFnsAllowed = List.contains c.id Config.allowedDarkInternalCanvasIDs
+        fns = userFns
+        types = userTypes
+        constants = userConstants
+        dbs = dbs
+        secrets = secrets }
+  }

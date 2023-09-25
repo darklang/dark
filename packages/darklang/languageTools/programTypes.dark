@@ -32,11 +32,9 @@ module Darklang =
 
 
       module TypeName =
-        //PACKAGE.Darklang.LanguageTools.ProgramTypes.
         type Name = TypeName of String
 
-        type TypeName =
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.FQName<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name>
+        type TypeName = FQName.FQName<Name>
 
         type BuiltIn = FQName.BuiltIn<Name>
         type UserProgram = FQName.UserProgram<Name>
@@ -78,7 +76,6 @@ module Darklang =
         | TDateTime
         | TUuid
         | TBytes
-        | TPassword
 
         | TList of TypeReference
         | TTuple of TypeReference * TypeReference * List<TypeReference>
@@ -105,6 +102,8 @@ module Darklang =
           NameResolution<TypeName.TypeName> *
           caseName: String *
           fields: List<Const>
+        | CList of List<Const>
+        | CDict of List<String * Const>
 
 
       type LetPattern =

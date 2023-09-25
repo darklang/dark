@@ -2,7 +2,7 @@ module Write =
   let testContents () : String = "Test conrents"
 
   (let filename = (Builtin.File.createTemp ()) |> Builtin.unwrap
-   do (testContents ()) |> Builtin.String.toBytes |> (Builtin.File.write filename)
+   do (testContents ()) |> PACKAGE.Darklang.Stdlib.String.toBytes |> (Builtin.File.write filename)
    Builtin.File.read filename) = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-    (testContents ()) |> Builtin.String.toBytes
+    (testContents ()) |> PACKAGE.Darklang.Stdlib.String.toBytes
   )

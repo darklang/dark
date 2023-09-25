@@ -1,4 +1,4 @@
-/// StdLib functions in the HttpClient module
+/// Builtin functions in the HttpClient module
 module BuiltinExecution.Libs.HttpClient
 
 open System.IO
@@ -10,7 +10,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution
 open LibExecution.RuntimeTypes
-
+module VT = ValueType
 
 type Method = HttpMethod
 
@@ -227,7 +227,7 @@ let makeRequest
                 req.Content.Headers.ContentType <-
                   Headers.MediaTypeHeaderValue.Parse(v)
               with :? System.FormatException ->
-                Exception.raiseCode "Invalid content-type header"
+                raiseString "Invalid content-type header"
             else
               let added = req.Headers.TryAddWithoutValidation(k, v)
 
@@ -366,8 +366,11 @@ let fns (config : Configuration) : List<BuiltInFn> =
         the response is wrapped in {{ Ok }} if a response was successfully
         received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
+        let resultOk = Dval.resultOk VT.unknownTODO VT.string
+        let resultErrorStr str =
+          Dval.resultError VT.unknownTODO VT.string (DString str)
         (function
-        | state, _, [ DString method; DString uri; DList reqHeaders; DBytes reqBody ] ->
+        | _, _, [ DString method; DString uri; DList(_, reqHeaders); DBytes reqBody ] ->
           let reqHeaders : Result<List<string * string>, HeaderError> =
             reqHeaders
             |> List.fold
@@ -382,7 +385,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     Ok((k, v) :: pairs)
 
                 | (_, notAPair) ->
-                  // this should be a DError, not a "normal" error
+                  // this should be an RTE, not a "normal" error
                   TypeMismatch
                     $"Expected request headers to be a `List<String*String>`, but got: {DvalReprDeveloper.toRepr notAPair}"
                   |> Error)
@@ -413,42 +416,40 @@ let fns (config : Configuration) : List<BuiltInFn> =
                       DString(String.toLowercase v),
                       []
                     ))
-                  |> DList
+                  |> Dval.list (
+                    ValueType.Known(
+                      KTTuple(ValueType.Known KTString, ValueType.Known KTString, [])
+                    )
+                  )
 
                 let typ =
                   FQName.BuiltIn(TypeName.builtIn [ "HttpClient" ] "Response" 0)
 
-                return
+                return!
                   [ ("statusCode", DInt(int64 response.statusCode))
                     ("headers", responseHeaders)
                     ("body", DBytes response.body) ]
-                  |> Dval.record typ
-                  |> Dval.resultOk
+                  |> Dval.record typ (Some [])
+                  |> Ply.map resultOk
 
-              | Error(BadUrl details) ->
-                // TODO: include a DvalSource rather than SourceNone
-                return Dval.resultError (DString $"Bad URL: {details}")
-
-              | Error(Timeout) ->
-                return Dval.resultError (DString $"Request timed out")
-
-              | Error(NetworkError) ->
-                return Dval.resultError (DString $"Network error")
-
-              | Error(Other details) -> return Dval.resultError (DString details)
+              // TODO: include a DvalSource rather than SourceNone
+              | Error(BadUrl details) -> return resultErrorStr $"Bad URL: {details}"
+              | Error(Timeout) -> return resultErrorStr $"Request timed out"
+              | Error(NetworkError) -> return resultErrorStr $"Network error"
+              | Error(Other details) -> return resultErrorStr details
             }
 
           | Error reqHeadersErr, _ ->
             uply {
               match reqHeadersErr with
-              | BadInput details -> return Dval.resultError (DString details)
+              | BadInput details -> return resultErrorStr details
               | TypeMismatch details ->
-                return DError(SourceNone, RuntimeError.oldError details)
+                return raiseUntargetedRTE (RuntimeError.oldError details)
             }
 
           | _, None ->
             let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
-            uply { return Dval.resultError (DString error) }
+            uply { return resultErrorStr error }
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

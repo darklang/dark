@@ -96,9 +96,7 @@ Content-Length: LENGTH
 }
 ```
 
-The response is expected to be perfect down to the byte. However, JSON responses are
-not necessarily identical due to these tests originally being used to test both the
-OCaml and the F# servers, and so JSON is parsed and compared (_CLEANUP address this_).
+The response is expected to be perfect down to the byte.
 
 Response headers are normalized, removing the specific values from Date, Expires,
 x-darklang-execution-id, and some other headers. See BwdServer.Tests.fs for full

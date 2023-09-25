@@ -1,4 +1,4 @@
-/// StdLib functions for looking at Dark infra
+/// Builtin functions for looking at Dark infra
 module BuiltinDarkInternal.Libs.Infra
 
 open System.Threading.Tasks
@@ -7,6 +7,8 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
+module Dval = LibExecution.Dval
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Telemetry = LibService.Telemetry
 
@@ -47,7 +49,7 @@ let fns : List<BuiltInFn> =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides. Returns its input"
       fn =
         (function
-        | _, _, [ DString level; DString name; DDict log as result ] ->
+        | _, _, [ DString level; DString name; DDict(_typeArgsTODO, log) as result ] ->
           let args =
             log
             |> Map.toList
@@ -77,6 +79,7 @@ human-readable data."
         | _, _, [ DUnit ] ->
           uply {
             let! tableStats = LibCloud.Db.tableStats ()
+
             // Send events to honeycomb. We could save some events by sending
             // these all as a single event - tablename.disk = 1, etc - but
             // by having an event per table, it's easier to query and graph:
@@ -96,18 +99,25 @@ human-readable data."
                   ("rows", ts.rows)
                   ("disk_human", ts.diskHuman)
                   ("rows_human", ts.rowsHuman) ])
+
             let typeName = FQName.BuiltIn(typ "TableSize" 0)
-            return
+
+            let! dict =
               tableStats
-              |> List.map (fun ts ->
-                (ts.relation,
-                 [ ("disk", DInt(ts.diskBytes))
-                   ("rows", DInt(ts.rows))
-                   ("diskHuman", DString ts.diskHuman)
-                   ("rowsHuman", DString ts.rowsHuman) ]
-                 |> Dval.record typeName))
-              |> Map
-              |> DDict
+              |> Ply.List.mapSequentially (fun ts ->
+                uply {
+                  let! v =
+                    [ ("disk", DInt(ts.diskBytes))
+                      ("rows", DInt(ts.rows))
+                      ("diskHuman", DString ts.diskHuman)
+                      ("rowsHuman", DString ts.rowsHuman) ]
+                    |> Dval.record typeName (Some [])
+
+                  return (ts.relation, v)
+                })
+              |> Ply.map (Dval.dict VT.unknownTODO)
+
+            return dict
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

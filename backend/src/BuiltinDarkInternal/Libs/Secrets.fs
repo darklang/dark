@@ -1,4 +1,4 @@
-/// StdLib functions for building Secrets functionality via Dark canvases
+/// Builtin functions for building Secrets functionality via Dark canvases
 module BuiltinDarkInternal.Libs.Secrets
 
 open System.Threading.Tasks
@@ -7,6 +7,8 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
+module Dval = LibExecution.Dval
 module Secret = LibCloud.Secret
 
 
@@ -42,15 +44,17 @@ let fns : List<BuiltInFn> =
           uply {
             let! secrets = Secret.getCanvasSecrets canvasID
             let typeName = FQName.BuiltIn(typ "Secret" 0)
-            return
+
+            return!
               secrets
-              |> List.map (fun s ->
+              |> Ply.List.mapSequentially (fun s ->
                 Dval.record
                   typeName
+                  (Some [])
                   [ "name", DString s.name
                     "value", DString s.value
                     "version", DInt s.version ])
-              |> DList
+              |> Ply.map (Dval.list (ValueType.Known(KTCustomType(typeName, []))))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -89,14 +93,16 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.result TUnit TString
       description = "Add a secret"
       fn =
+        let resultOk = Dval.resultOk VT.unit VT.string
+        let resultError = Dval.resultError VT.unit VT.string
         (function
         | _, _, [ DUuid canvasID; DString name; DString value; DInt version ] ->
           uply {
             try
               do! Secret.insert canvasID name value (int version)
-              return Dval.resultOk DUnit
+              return resultOk DUnit
             with _ ->
-              return Dval.resultError (DString "Error inserting secret")
+              return resultError (DString "Error inserting secret")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -1,14 +1,14 @@
-/// StdLib functions for accessing and manipulating user datastores
+/// Builtin functions for accessing and manipulating user datastores
 module BuiltinCloudExecution.Libs.DB
 
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module Errors = LibExecution.Errors
+module VT = ValueType
+module Dval = LibExecution.Dval
 
 module UserDB = LibCloud.UserDB
-
 module Db = LibCloud.Db
 
 
@@ -31,7 +31,7 @@ let handleUnexpectedExceptionDuringQuery
   (e : System.Exception)
   : Dval =
   match e with
-  | :? Exception.CodeException -> Exception.reraise e
+  | RuntimeErrorException _ -> Exception.reraise e
   | e ->
     state.reportException
       state
@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
 
             match id with
             | Ok _id -> return value
-            | Error rte -> return DError(SourceNone, rte)
+            | Error rte -> return raiseRTE SourceNone rte
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -80,7 +80,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getOption state db key
-            return Dval.option result
+            return Dval.option VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -95,24 +95,24 @@ let fns : List<BuiltInFn> =
       description =
         "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Some a list of [values], otherwise returns None (to ignore missing keys, use DB.etExisting)"
       fn =
+        let valueType = VT.unknownDbTODO
+        let optType = VT.list valueType
         (function
-        | state, _, [ DList keys; DDB dbname ] ->
+        | state, _, [ DList(_, keys); DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
 
-            let skeys =
-              List.map
-                (function
+            let! items =
+              keys
+              |> List.map (function
                 | DString s -> s
-                | t -> Errors.argumentWasntType (TList TString) "keys" t)
-                keys
+                | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
+              |> UserDB.getMany state db
 
-            let! items = UserDB.getMany state db skeys
-
-            if List.length items = List.length skeys then
-              return items |> DList |> Dval.optionSome
+            if List.length items = List.length keys then
+              return items |> Dval.list valueType |> Dval.optionSome optType
             else
-              return Dval.optionNone
+              return Dval.optionNone optType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -128,19 +128,17 @@ let fns : List<BuiltInFn> =
         "Finds many values in <param table> by <param keys> (ignoring any missing items), returning a {{ [value] }} list of values"
       fn =
         (function
-        | state, _, [ DList keys; DDB dbname ] ->
+        | state, _, [ DList(_, keys); DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
 
-            let skeys =
-              List.map
-                (function
+            let! result =
+              keys
+              |> List.map (function
                 | DString s -> s
-                | t -> Errors.argumentWasntType (TList TString) "keys" t)
-                keys
-
-            let! result = UserDB.getMany state db skeys
-            return result |> DList
+                | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
+              |> UserDB.getMany state db
+            return result |> Dval.list VT.unknownDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -156,19 +154,16 @@ let fns : List<BuiltInFn> =
         "Finds many values in <param table> by <param keys>, returning a {{ {key:{value}, key2: {value2} } }} object of keys and values"
       fn =
         (function
-        | state, _, [ DList keys; DDB dbname ] ->
+        | state, _, [ DList(_, keys); DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
-
-            let skeys =
-              List.map
-                (function
+            let! result =
+              keys
+              |> List.map (function
                 | DString s -> s
-                | t -> Errors.argumentWasntType (TList TString) "keys" t)
-                keys
-
-            let! result = UserDB.getManyWithKeys state db skeys
-            return result |> Map.ofList |> DDict
+                | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
+              |> UserDB.getManyWithKeys state db
+            return Dval.dict VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -225,7 +220,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAll state db
-            return results |> List.map snd |> Dval.list
+            return results |> List.map snd |> Dval.list VT.unknownDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -245,7 +240,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getAll state db
-            return result |> Map.ofList |> DDict
+            return Dval.dict VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -298,7 +293,8 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAllKeys state db
-            return results |> List.map (fun k -> DString k) |> DList
+            return
+              results |> List.map DString |> Dval.list (ValueType.Known KTString)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -320,8 +316,8 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! results = UserDB.queryValues state db b
               match results with
-              | Ok results -> return results |> Dval.list
-              | Error rte -> return DError(SourceNone, rte)
+              | Ok results -> return results |> Dval.list VT.unknownDbTODO
+              | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }
@@ -345,8 +341,8 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! results = UserDB.query state db b
               match results with
-              | Ok results -> return results |> Map.ofList |> DDict
-              | Error rte -> return DError(SourceNone, rte)
+              | Ok results -> return Dval.dict VT.unknownDbTODO results
+              | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }
@@ -363,6 +359,7 @@ let fns : List<BuiltInFn> =
       description =
         "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Some value and if there is none or more than 1 found, it returns None. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
+        let optType = VT.unknownDbTODO
         (function
         | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
           uply {
@@ -371,9 +368,9 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.query state db b
 
               match results with
-              | Ok [ (_, v) ] -> return Dval.optionSome v
-              | Ok _ -> return Dval.optionNone
-              | Error rte -> return DError(SourceNone, rte)
+              | Ok [ (_, v) ] -> return Dval.optionSome optType v
+              | Ok _ -> return Dval.optionNone optType
+              | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }
@@ -390,6 +387,7 @@ let fns : List<BuiltInFn> =
       description =
         "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Some {key: value} and if there is none or more than 1 found, it returns None. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
+        let optType = VT.tuple VT.string VT.unknownTODO []
         (function
         | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
           uply {
@@ -399,9 +397,9 @@ let fns : List<BuiltInFn> =
 
               match results with
               | Ok [ (key, dv) ] ->
-                return Dval.optionSome (DTuple(DString key, dv, []))
-              | Ok _ -> return Dval.optionNone
-              | Error rte -> return DError(SourceNone, rte)
+                return Dval.optionSome optType (DTuple(DString key, dv, []))
+              | Ok _ -> return Dval.optionNone optType
+              | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }
@@ -426,7 +424,7 @@ let fns : List<BuiltInFn> =
               let! result = UserDB.queryCount state db b
               match result with
               | Ok result -> return Dval.int result
-              | Error rte -> return DError(SourceNone, rte)
+              | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }

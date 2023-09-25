@@ -1,4 +1,4 @@
-/// StdLib functions for building Dark functionality for Workers
+/// Builtin functions for building Dark functionality for Workers
 /// Also has infra functions for managing workers - TODO: separate these
 module BuiltinDarkInternal.Libs.Workers
 
@@ -8,6 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module Dval = LibExecution.Dval
 module DarkDateTime = LibExecution.DarkDateTime
 module SchedulingRules = LibCloud.QueueSchedulingRules
 module Pusher = LibCloud.Pusher
@@ -34,16 +35,21 @@ let schedulingRuleTypeName = typ [ "DarkInternal"; "SchedulingRule" ] "Rule" 0
 let schedulingRuleTypeRef =
   TCustomType(Ok(FQName.BuiltIn(schedulingRuleTypeName)), [])
 
-let ruleToDval (r : SchedulingRules.SchedulingRule.T) : Dval =
+let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Ply<Dval> =
   let typeName = FQName.BuiltIn schedulingRuleTypeName
-  Dval.record
-    typeName
-    [ ("id", Dval.int r.id)
-      ("rule_type", r.ruleType.ToString() |> DString)
-      ("canvas_id", DUuid r.canvasID)
-      ("handler_name", DString r.handlerName)
-      ("event_space", DString r.eventSpace)
-      ("created_at", DDateTime(DarkDateTime.fromInstant r.createdAt)) ]
+
+  rules
+  |> Ply.List.mapSequentially (fun r ->
+    Dval.record
+      typeName
+      (Some [])
+      [ ("id", Dval.int r.id)
+        ("rule_type", r.ruleType.ToString() |> DString)
+        ("canvas_id", DUuid r.canvasID)
+        ("handler_name", DString r.handlerName)
+        ("event_space", DString r.eventSpace)
+        ("created_at", DDateTime(DarkDateTime.fromInstant r.createdAt)) ])
+  |> Ply.map (Dval.list (ValueType.Known(KTCustomType(typeName, []))))
 
 let types : List<BuiltInType> =
   [ { name = schedulingRuleTypeName
@@ -93,7 +99,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! rules = SchedulingRules.getSchedulingRules canvasID
-            return rules |> List.map ruleToDval |> DList
+            return! rulesToDval rules
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -137,7 +143,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUnit ] ->
           uply {
             let! rules = SchedulingRules.getAllSchedulingRules ()
-            return rules |> List.map ruleToDval |> DList
+            return! rulesToDval rules
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -31,7 +31,7 @@
     <Compile Include="WasmHelpers.fs" />
     <Compile Include="EvalHelpers.fs" />
     <Compile Include="Libs/Editor.fs" />
-    <Compile Include="StdLib.fs" />
+    <Compile Include="Builtin.fs" />
     <Compile Include="Init.fs" />
     <Compile Include="DarkEditor.fs" />
     <Compile Include="Program.fs" />

@@ -6,15 +6,16 @@ open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
-
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
+module Dval = LibExecution.Dval
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 let packageManager = LibCloud.PackageManager.packageManager
 
 let resolver : LibParser.NameResolver.NameResolver =
-  let stdlibResolver =
+  let builtinResolver =
     // CLEANUP we need a better way to determine what builtins should be
     // available to the name resolver, as this currently assumes builtins
     // from _all_ environments are available
@@ -45,7 +46,7 @@ let resolver : LibParser.NameResolver.NameResolver =
                 "parse"
                 0 ] }
 
-  LibParser.NameResolver.merge stdlibResolver thisResolver (Some packageManager)
+  LibParser.NameResolver.merge builtinResolver thisResolver (Some packageManager)
 
 
 
@@ -72,18 +73,22 @@ let fns : List<BuiltInFn> =
             let! (fns, types, constants) =
               LibParser.Parser.parsePackageFile resolver path contents
 
-            let packagesFns = fns |> List.map (fun fn -> PT2DT.PackageFn.toDT fn)
-            let packagesTypes = types |> List.map PT2DT.PackageType.toDT
-            let packagesConstants = constants |> List.map PT2DT.PackageConstant.toDT
+            let! packagesFns =
+              fns |> Ply.List.mapSequentially (fun fn -> PT2DT.PackageFn.toDT fn)
+            let! packagesTypes =
+              types |> Ply.List.mapSequentially PT2DT.PackageType.toDT
+            let! packagesConstants =
+              constants |> Ply.List.mapSequentially PT2DT.PackageConstant.toDT
 
-            return
-              Dval.resultOk (
-                Dval.record
-                  (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0))
-                  [ ("fns", DList packagesFns)
-                    ("types", DList packagesTypes)
-                    ("constants", DList packagesConstants) ]
-              )
+            return!
+              Dval.record
+                (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0))
+                (Some [])
+                [ ("fns", Dval.list VT.unknownTODO packagesFns)
+                  ("types", Dval.list VT.unknownTODO packagesTypes)
+                  ("constants", Dval.list VT.unknownTODO packagesConstants) ]
+              |> Ply.map (Dval.resultOk VT.unknownTODO VT.string)
+
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

@@ -6,7 +6,8 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module Errors = LibExecution.Errors
+module VT = ValueType
+module Dval = LibExecution.Dval
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
@@ -212,7 +213,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
-      description = "Returns true if a is greater than b"
+      description = "Returns true if a is greater than or equal to b"
       fn =
         (function
         | _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a >= b))
@@ -240,7 +241,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
-      description = "Returns true if a is less than b"
+      description = "Returns true if a is less than or equal to b"
       fn =
         (function
         | _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a <= b))
@@ -272,14 +273,16 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the <type Float> value wrapped in a {{Result}} of the <type String>"
       fn =
+        let resultOk = Dval.resultOk VT.float VT.string
+        let resultError = Dval.resultError VT.float VT.string
         (function
         | _, _, [ DString s ] ->
           (try
-            float (s) |> DFloat |> Dval.resultOk |> Ply
+            float (s) |> DFloat |> resultOk |> Ply
            with e ->
              "Expected a String representation of an IEEE float"
              |> DString
-             |> Dval.resultError
+             |> resultError
              |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -291,7 +294,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "f" TFloat "" ]
       returnType = TString
-      description = "Return {\"true\"} or {\"false\"}"
+      description = "Stringify <param float>"
       fn =
         (function
         | _, _, [ DFloat f ] ->

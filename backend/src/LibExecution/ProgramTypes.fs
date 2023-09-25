@@ -381,7 +381,6 @@ type TypeReference =
   | TDB of TypeReference
   | TDateTime
   | TChar
-  | TPassword
   | TUuid
   | TBytes
   // A named variable, eg `a` in `List<a>`, matches anything
@@ -631,6 +630,8 @@ type Const =
   | CUnit
   | CTuple of first : Const * second : Const * rest : List<Const>
   | CEnum of NameResolution<TypeName.TypeName> * caseName : string * List<Const>
+  | CList of List<Const>
+  | CDict of List<string * Const>
 
 module UserConstant =
   type T =

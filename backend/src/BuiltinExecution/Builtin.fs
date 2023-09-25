@@ -17,13 +17,14 @@ let typeRenames =
 
 let contents (httpConfig : Libs.HttpClient.Configuration) : Builtin.Contents =
   Builtin.combine
-    [ Libs.Bytes.contents
+    [ Libs.Bool.contents
+      Libs.Base64.contents
+      Libs.Bytes.contents
       Libs.Char.contents
       Libs.DateTime.contents
       Libs.Dict.contents
       Libs.Float.contents
       Libs.HttpClient.contents httpConfig
-      Libs.HttpClientAuth.contents
       Libs.Json.contents
       Libs.Math.contents
       Libs.Uuid.contents
@@ -32,7 +33,6 @@ let contents (httpConfig : Libs.HttpClient.Configuration) : Builtin.Contents =
       Libs.NoModule.contents
       Libs.Crypto.contents
       Libs.String.contents
-      Libs.X509.contents
-      Libs.Password.contents ]
+      Libs.X509.contents ]
     fnRenames
     typeRenames

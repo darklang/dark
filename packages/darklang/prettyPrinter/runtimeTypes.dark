@@ -4,7 +4,7 @@ module Darklang =
       let nameResolutionError
         (nr: PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error)
         : String =
-        Builtin.String.join nr.names "."
+        PACKAGE.Darklang.Stdlib.String.join nr.names "."
 
 
       module FQName =
@@ -16,13 +16,15 @@ module Darklang =
             match t.modules with
             | [] -> ""
             | modules ->
-              modules |> Builtin.String.join "." |> (fun parts -> $"{parts}.")
+              modules
+              |> PACKAGE.Darklang.Stdlib.String.join "."
+              |> (fun parts -> $"{parts}.")
 
           let versionPart =
             if t.version == 0 then
               ""
             else
-              $"_v{Builtin.Int.toString t.version}"
+              $"_v{PACKAGE.Darklang.Stdlib.Int.toString t.version}"
 
           $"{modulesPart}{namePart}{versionPart}"
 
@@ -35,13 +37,15 @@ module Darklang =
             match u.modules with
             | [] -> ""
             | modules ->
-              modules |> Builtin.String.join "." |> (fun parts -> $"{parts}.")
+              modules
+              |> PACKAGE.Darklang.Stdlib.String.join "."
+              |> (fun parts -> $"{parts}.")
 
           let versionPart =
             if u.version == 0 then
               ""
             else
-              $"_v{Builtin.Int.toString u.version}"
+              $"_v{PACKAGE.Darklang.Stdlib.Int.toString u.version}"
 
           $"{modulesPart}{namePart}{versionPart}"
 
@@ -50,13 +54,13 @@ module Darklang =
           (namePart: String)
           (p: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.Package)
           : String =
-          let modulesPart = Builtin.String.join p.modules "."
+          let modulesPart = PACKAGE.Darklang.Stdlib.String.join p.modules "."
 
           let versionPart =
             if p.version == 0 then
               ""
             else
-              $"_v{Builtin.Int.toString p.version}"
+              $"_v{PACKAGE.Darklang.Stdlib.Int.toString p.version}"
 
           $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
 
@@ -182,20 +186,14 @@ module Darklang =
         | TUuid -> "Uuid"
         | TBytes -> "Bytes"
         | TDateTime -> "DateTime"
-        | TPassword -> "Password"
 
         | TList inner -> $"List<{typeReference inner}>"
-        | TTuple(first, second, theRest) ->
-          (Builtin.List.append [ first; second ] theRest)
-          |> Builtin.List.map (fun item -> typeReference item)
-          |> Builtin.String.join " * "
-          |> fun parts -> "(" ++ parts ++ ")"
-
         | TDict inner -> $"Dict<{typeReference inner}>"
-
-        | TDB inner -> $"DB<{typeReference inner}>"
-
-        | TVariable varName -> "'" ++ varName
+        | TTuple(first, second, theRest) ->
+          (PACKAGE.Darklang.Stdlib.List.append [ first; second ] theRest)
+          |> PACKAGE.Darklang.Stdlib.List.map (fun item -> typeReference item)
+          |> PACKAGE.Darklang.Stdlib.String.join " * "
+          |> fun parts -> "(" ++ parts ++ ")"
 
         | TCustomType(typ, args) ->
           let argsPart =
@@ -203,8 +201,8 @@ module Darklang =
             | [] -> ""
             | args ->
               args
-              |> Builtin.List.map (fun arg -> typeReference arg)
-              |> Builtin.String.join ", "
+              |> PACKAGE.Darklang.Stdlib.List.map (fun arg -> typeReference arg)
+              |> PACKAGE.Darklang.Stdlib.String.join ", "
               |> fun parts -> $"<{parts}>"
 
           let typeNamePart =
@@ -214,180 +212,231 @@ module Darklang =
 
           $"{typeNamePart}{argsPart}"
 
-
         | TFn(args, ret) ->
           let argPart =
             args
-            |> Builtin.List.map (fun arg -> typeReference arg)
-            |> Builtin.String.join ", "
+            |> PACKAGE.Darklang.Stdlib.List.map (fun arg -> typeReference arg)
+            |> PACKAGE.Darklang.Stdlib.String.join ", "
             |> fun parts -> "(" ++ parts ++ ")"
 
           $"{argPart} -> {typeReference ret}"
 
+        | TDB inner -> $"DB<{typeReference inner}>"
+
+        | TVariable varName -> "'" ++ varName
+
+
+      let knownType
+        (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.KnownType)
+        : String =
+        match t with
+        | KTUnit -> "Unit"
+        | KTBool -> "Bool"
+        | KTInt -> "Int"
+        | KTFloat -> "Float"
+        | KTChar -> "Char"
+        | KTString -> "String"
+        | KTDateTime -> "DateTime"
+        | KTUuid -> "Uuid"
+        | KTBytes -> "Bytes"
+
+        | KTList typ -> $"List<{valueType typ}>"
+        | KTDict typ -> $"Dict<{valueType typ}>"
+        | KTTuple(t1, t2, trest) ->
+          (PACKAGE.Darklang.Stdlib.List.append [ t1; t2 ] trest)
+          |> PACKAGE.Darklang.Stdlib.List.map (fun item -> valueType item)
+          |> PACKAGE.Darklang.Stdlib.String.join ", "
+          |> fun s -> $"({s})"
+
+        | KTFn(argTypes, retType) ->
+          (Stdlib.List.push retType argTypes)
+          |> PACKAGE.Darklang.Stdlib.List.map (fun vt -> valueType vt)
+          |> PACKAGE.Darklang.Stdlib.String.join parts " -> "
+
+        | KTCustomType(name, typeArgs) ->
+          let typeArgsPortion =
+            match typeArgs with
+            | [] -> ""
+            | args ->
+              args
+              |> PACKAGE.Darklang.Stdlib.List.map (fun t -> valueTypeName t)
+              |> PACKAGE.Darklang.Stdlib.String.join ", "
+              |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+
+          (typeName name) ++ typeArgsPortion
+
+        | KTDB typ -> $"Datastore<{valueType typ}>"
+
+
+      let valueType
+        (vt: PACKAGE.Darklang.LanguageTools.RuntimeTypes.ValueType)
+        : String =
+        match vt with
+        | Known kt -> knownType kt
+        | Unknown -> "_"
+
 
       module Dval =
-        // RTETODO remove this - someone should instead
-        // dv |> Dval.ToValueType |> PrettyPrinter.valueType
-        let dvalTypeName
-          (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval)
+        let valueTypeName
+          (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval)
           : String =
-          match dv with
-          | DUnit -> "Unit"
-          | DInt _ -> "Int"
-          | DFloat _ -> "Float"
-          | DBool _ -> "Bool"
-          | DChar _ -> "Char"
-          | DString _ -> "String"
-          | DBytes _ -> "Bytes"
-          | DUuid _ -> "Uuid"
-          | DDateTime _ -> "DateTime"
-
-          | DList [] -> "List<'a>"
-          | DList(v :: _) -> "List<" ++ (dvalTypeName v) ++ ">"
-          | DDict _ -> "Dict"
-          | DTuple(t1, t2, trest) ->
-            (Builtin.List.append [ t1; t2 ] trest)
-            |> Builtin.List.map (fun dv -> dvalTypeName dv)
-            |> Builtin.String.join ", "
-            |> fun s -> $"({s})"
-
-          | DRecord(typeName, _, _) -> PrettyPrinter.RuntimeTypes.typeName typeName
-          // | DEnum(typeName, _, _, _) -> TypeName.toString typeName
-
-          // | DFnVal(Lambda _) -> "Lambda"
-          // | DFnVal(NamedFn n) -> FnName.toString n
-          | DDB _ -> "Datastore"
-          | DPassword _ -> "Password"
-
-          | DError _ -> "Error"
-
-          | _ -> "TODO dvalTypeName"
+          dv |> LanguageTools.RuntimeTypes.Dval.toValueType |> valueType
 
         let makeSpaces (len: Int) : String =
-          (Builtin.List.repeat len " ") |> Builtin.unwrap |> Builtin.String.join ""
+          (PACKAGE.Darklang.Stdlib.List.repeat len " ")
+          |> Builtin.unwrap
+          |> PACKAGE.Darklang.Stdlib.String.join ""
 
         let withIndent
           (indent: Int)
-          (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval)
+          (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval)
           : String =
           let nl = "\n" ++ (makeSpaces indent)
           let inl = "\n" ++ (makeSpaces (indent + 2))
           let indent = indent + 2
 
-          // let typename = dvalTypeName dv
-          // let wrap str = $"<{typename}: {str}>"
-          // let justType = $"<{typename}>"
+          let valueTypeName = valueTypeName dv
 
           match dv with
-          | DUnit -> "unit"
+          | DUnit -> "()"
 
           | DBool true -> "true"
           | DBool false -> "false"
 
-          | DChar c -> $"'{c}'"
+          | DChar c ->
+            let c = Stdlib.Char.toString c
+            $"'{c}'"
           | DString s -> $"\"{s}\""
 
           | DInt i -> Builtin.Int.toString i
+          | DFloat f -> PACKAGE.Darklang.Stdlib.Float.toString f // CLEANUP: deal with Infinity, NegativeInfinity, and NaN
 
-          // CLEANUP: deal with Infinity, NegativeInfinity, and NaN
-          | DFloat f -> Builtin.Float.toString f
+          | DDateTime d ->
+            $"<{valueTypeName}: {PACKAGE.Darklang.Stdlib.DateTime.toString d}>"
+
+          | DBytes bytes ->
+            //Base64.defaultEncodeToString bytes
+            "<Bytes>"
+
+          | DUuid uuid ->
+            $"<{valueTypeName}: {PACKAGE.Darklang.Stdlib.Uuid.toString uuid}>"
 
 
-          // | DDateTime d -> wrap (DarkDateTime.toIsoString d)
 
-          // | DBytes bytes -> Base64.defaultEncodeToString bytes
+          | DList(vt, l) ->
+            if PACKAGE.Darklang.Stdlib.List.isEmpty l then
+              $"{valueTypeName} []"
+            else
+              let elems =
+                PACKAGE.Darklang.Stdlib.String.join
+                  (PACKAGE.Darklang.Stdlib.List.map l (fun item ->
+                    withIndent indent item))
+                  ", "
 
-          // | DUuid uuid -> wrap (string uuid)
-
-          // | DPassword _ -> "<password>"
-
-
-          // | DList l ->
-          //   if Builtin.List.isEmpty l then
-          //     "[]"
-          //   else
-          //     let elems = Builtin.String.concat ", " (Builtin.List.map (withIndent indent) l)
-          //     $"[{inl}{elems}{nl}]"
+              $"[{inl}{elems}{nl}]"
 
           | DTuple(first, second, theRest) ->
-            let l = Builtin.List.append [ first; second ] theRest
+            let l = PACKAGE.Darklang.Stdlib.List.append [ first; second ] theRest
 
-            let parts = Builtin.List.map l (fun item -> withIndent indent item)
+            let parts =
+              PACKAGE.Darklang.Stdlib.List.map l (fun item -> withIndent indent item)
 
-            let short = Builtin.String.join parts ", "
+            let short = PACKAGE.Darklang.Stdlib.String.join parts ", "
 
-            if Builtin.String.length short <= 80 then
+            if PACKAGE.Darklang.Stdlib.String.length short <= 80 then
               $"({short})"
             else
-              let long = Builtin.String.join parts $"{inl}, "
+              let long = PACKAGE.Darklang.Stdlib.String.join parts $"{inl}, "
 
               $"({inl}{long}{nl})"
 
-          | DRecord(_, typeName, o) ->
+          | DRecord(_, typeName, typeArgs, o) ->
             let strs =
               o
-              |> Builtin.Dict.toList
-              |> Builtin.List.map (fun pair ->
+              |> PACKAGE.Darklang.Stdlib.Dict.toList
+              |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
                 let (key, value) = pair
                 $"{key}: {withIndent indent value}")
 
-            let elems = Builtin.String.join strs $",{inl}"
+            let elems = PACKAGE.Darklang.Stdlib.String.join strs $",{inl}"
             let typeStr = typeName typeName
-            typeStr ++ " {" ++ inl ++ elems ++ nl ++ "}"
 
-          // | DDict o ->
-          //   if Map.isEmpty o then
-          //     "{}"
-          //   else
-          //     let strs =
-          //       o
-          //       |> Map.toList
-          //       |> Builtin.List.map (fun (key, value) -> ($"{key}: {withIndent indent value}"))
+            let typeArgsPart =
+              match typeArgs with
+              | [] -> ""
+              | args ->
+                args
+                |> PACKAGE.Darklang.Stdlib.List.map (fun t -> valueTypeName t)
+                |> PACKAGE.Darklang.Stdlib.String.join ", "
+                |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
-          //     let elems = Builtin.String.concat $",{inl}" strs
-          //     "{" + $"{inl}{elems}{nl}" + "}"
+            typeStr ++ typeArgsPart ++ " {" ++ inl ++ elems ++ nl ++ "}"
 
-          // | DEnum(_, typeName, caseName, fields) ->
-          //   let short =
-          //     let fieldStr =
-          //       fields
-          //       |> Builtin.List.map (fun value -> withIndent indent value)
-          //       |> Builtin.String.concat ", "
+          | DDict d ->
+            if d == PACKAGE.Darklang.Stdlib.Dict.empty then
+              "{}"
+            else
+              let strs =
+                d
+                |> PACKAGE.Darklang.Stdlib.Dict.toList
+                |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
+                  let (key, value) = pair
+                  $"{key}: {withIndent indent value}")
 
-          //     let fieldStr = if fieldStr = "" then "" else $"({fieldStr})"
+              let elems = PACKAGE.Darklang.Stdlib.String.join strs $",{inl}"
+              "{" ++ inl ++ elems ++ nl ++ "}"
 
-          //     let typeStr = TypeName.toString typeName
-          //     $"{typeStr}.{caseName}{fieldStr}"
+          | DEnum(_, typeName, typeArgs, caseName, fields) ->
+            let typeArgsPart =
+              match typeArgs with
+              | [] -> ""
+              | typeArgs ->
+                typeArgs
+                |> PACKAGE.Darklang.Stdlib.List.map (fun typeArg ->
+                  valueType typeArg)
+                |> PACKAGE.Darklang.Stdlib.String.join ", "
+                |> fun parts -> $"<{parts}>"
 
-          //   if Builtin.String.length short <= 80 then
-          //     short
-          //   else
-          //     let fieldStr =
-          //       fields
-          //       |> Builtin.List.map (fun value -> withIndent indent value)
-          //       |> Builtin.String.concat $",{inl}"
+            let short =
+              let fieldStr =
+                fields
+                |> PACKAGE.Darklang.Stdlib.List.map (fun value ->
+                  withIndent indent value)
+                |> PACKAGE.Darklang.Stdlib.String.join ", "
 
-          //     let fieldStr = if fieldStr = "" then "" else $"({inl}{fieldStr}{nl})"
+              let fieldStr = if fieldStr == "" then "" else $"({fieldStr})"
 
-          //     let typeStr = TypeName.toString typeName
-          //     $"{typeStr}.{caseName}{fieldStr}"
+              let typeStr = typeName typeName
+              $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
+            if PACKAGE.Darklang.Stdlib.String.length short <= 80 then
+              short
+            else
+              let fieldStr =
+                fields
+                |> PACKAGE.Darklang.Stdlib.List.map (fun value ->
+                  withIndent indent value)
+                |> PACKAGE.Darklang.Stdlib.String.join $",{inl}"
 
-          // | DDB name -> wrap name
+              let fieldStr = if fieldStr == "" then "" else $"({inl}{fieldStr}{nl})"
+
+              let typeStr = typeName typeName
+              $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
+
 
           // | DFnVal _ ->
           //   // TODO: we should Builtin.print this, as this use case is safe
           //   // See docs/dblock-serialization.md
           //   justType
 
-          // | DIncomplete _ -> justType
+          | DDB name -> $"<{valueTypeName}: {name}>"
 
           // | DError(_, msg) -> $"<error: {msg}>"
 
           | _ ->
-            $"(PP.RT.Dval TODO {(Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval> dv)
+            $"(PP.RT.Dval TODO {(Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval> dv)
                                 |> Builtin.unwrap})"
 
 
-      let dval (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval) : String =
+      let dval (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval) : String =
         Dval.withIndent 0 dv

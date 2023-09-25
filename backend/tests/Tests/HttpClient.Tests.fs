@@ -1,4 +1,4 @@
-/// This module coordinates testing of our `HttpClient` stdlib functions.
+/// This module coordinates testing of our `HttpClient` builtin functions.
 ///
 /// There are a variety of http client tests located in
 /// `../testfiles/httpclient`. They all follow a standard format; this module
@@ -155,7 +155,7 @@ let makeTest versionName filename =
         // compressed
         |> String.replace "LENGTH" (string response.body.Length)
         |> LibParser.TestModule.parseSingleTestFromFile
-          resolverWithBuiltinsAndPackageManager
+          nameResolver
           "httpclient.tests.fs"
         |> Ply.toTask
 
@@ -175,10 +175,13 @@ let makeTest versionName filename =
         Expect.equal actualRequest tc.expectedRequest "requests don't match"
 
       // Second check: expected result (Dval) matches actual result (Dval)
-      let actual = normalizeDvalResult actual
+      let actual = Result.map normalizeDvalResult actual
 
       let! expected = Exe.executeExpr state Map.empty test.expected
-      return Expect.equalDval actual expected $"Responses don't match"
+      match actual, expected with
+      | Ok actual, Ok expected ->
+        return Expect.equalDval actual expected $"Responses don't match"
+      | _ -> Expect.equal actual expected $"Responses don't match"
   }
 
 

@@ -1,0 +1,16 @@
+module Darklang =
+  module Stdlib =
+    module Uuid =
+      /// Generate a new <type Uuid> v4 according to RFC 4122
+      let generate () : Uuid = Builtin.Uuid.generate ()
+
+
+      /// Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}
+      let parse
+        (uuid: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<Uuid, String> =
+        Builtin.Uuid.parse uuid
+
+
+      /// Stringify <param uuid> to the format XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+      let toString (uuid: Uuid) : String = Builtin.Uuid.toString uuid

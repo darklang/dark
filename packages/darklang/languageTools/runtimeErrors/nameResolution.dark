@@ -6,7 +6,7 @@ module Darklang =
           | NotFound
           | ExpectedEnumButNot
           | ExpectedRecordButNot
-          | MissingModuleName
+          | MissingEnumModuleName of caseName: String
           | InvalidPackageName
 
         type NameType =
@@ -21,7 +21,7 @@ module Darklang =
             nameType: NameType
 
             /// The `.`-delimited name _parts_
-            /// e.g. `Builtin.List.fakeFunction` is `["List"; "fakeFunction"]`
+            /// e.g. `Builtin.List.fakeFunction` is `["Builtin"; "List"; "fakeFunction"]`
             names: List<String>
           }
 
@@ -38,36 +38,33 @@ module Darklang =
               { summary =
                   [ ErrorSegment.ErrorSegment.String $"There is no {nameType} named "
                     ErrorSegment.ErrorSegment.InlineVarName(
-                      Builtin.String.join e.names "."
+                      PACKAGE.Darklang.Stdlib.String.join e.names "."
                     ) ]
                 extraExplanation = []
                 actual = []
                 expected = [] }
 
-          | MissingModuleName ->
-            let suffix =
-              if e.names == [] then
-                []
-              else
-                [ ErrorSegment.ErrorSegment.String ": "
-                  ErrorSegment.ErrorSegment.VarName(Builtin.String.join e.names ".") ]
+          | MissingEnumModuleName caseName ->
+            let name =
+              let names = Builtin.List.append e.names [ caseName ]
+              ErrorSegment.ErrorSegment.VarName(Builtin.String.join names ".")
 
             let summary =
-              Builtin.List.append
-                [ ErrorSegment.ErrorSegment.String "Missing module name" ]
-                suffix
+              [ ErrorSegment.ErrorSegment.String "Missing type name for enum case"
+                ErrorSegment.ErrorSegment.String ": "
+                ErrorSegment.ErrorSegment.String caseName ]
 
             ErrorOutput
               { summary = summary
                 extraExplanation = []
-                actual = []
+                actual = [ name ]
                 expected = [] }
 
           | InvalidPackageName ->
             let summary =
               [ ErrorSegment.ErrorSegment.String "Invalid package name "
                 ErrorSegment.ErrorSegment.InlineVarName(
-                  Builtin.String.join e.names "."
+                  PACKAGE.Darklang.Stdlib.String.join e.names "."
                 ) ]
 
             ErrorOutput
@@ -80,7 +77,7 @@ module Darklang =
             let summary =
               [ ErrorSegment.ErrorSegment.String "Expected a record but "
                 ErrorSegment.ErrorSegment.InlineVarName(
-                  Builtin.String.join e.names "."
+                  PACKAGE.Darklang.Stdlib.String.join e.names "."
                 )
                 ErrorSegment.ErrorSegment.String " is an enum" ]
 

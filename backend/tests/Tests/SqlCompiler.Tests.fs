@@ -12,10 +12,9 @@ open LibExecution.RuntimeTypes
 
 module C = LibCloud.SqlCompiler
 module S = TestUtils.RTShortcuts
-module Errors = LibExecution.Errors
 
 let p (code : string) : Task<Expr> =
-  LibParser.Parser.parseRTExpr builtinResolver "sqlcompiler.tests.fs" code
+  LibParser.Parser.parseRTExpr nameResolver "sqlcompiler.tests.fs" code
   |> Ply.toTask
 
 let compile
@@ -71,7 +70,7 @@ let matchSql
     (fun g ->
       match g.Count with // implicit full match counts for 1
       | 1 -> true
-      | 2 -> Map.find g[1].Value args = expected[0]
+      | 2 -> Map.findUnsafe g[1].Value args = expected[0]
       | _ -> Exception.raiseInternal "not supported yet" [ "count", g.Count ])
     "compare sql"
 
@@ -135,25 +134,53 @@ let compileTests =
 
 let inlineWorksAtRoot =
   testTask "inlineWorksAtRoot" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+    let fns = ExecutionState.availableFunctions state
     let! expr =
       LibParser.Parser.parseRTExpr
-        builtinResolver
+        nameResolver
         "test.fs"
         "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
       |> Ply.toTask
 
     let! expected = p "3 + 5"
-    let result = C.inline' "value" Map.empty expr
-    return Expect.equalExprIgnoringIDs result expected
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
   }
 
 let inlineWorksWithNested =
   testTask "inlineWorksWithNested" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+    let fns = ExecutionState.availableFunctions state
     let! expr = p "let x = 5 in (let x = 6 in (3 + (let x = 7 in x)))"
 
     let! expected = p "3 + 7"
-    let result = C.inline' "value" Map.empty expr
-    return Expect.equalExprIgnoringIDs result expected
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
   }
 
 let partialEvaluation =
@@ -175,7 +202,7 @@ let partialEvaluation =
         let result = C.partiallyEvaluate state Map.empty (Map vars) "x" expr
         let! (dvals, result) = Ply.TplPrimitives.runPlyAsTask result
         match result with
-        | EVariable(_, name) -> return (Map.find name dvals)
+        | EVariable(_, name) -> return (Map.findUnsafe name dvals)
         | _ ->
           Expect.isTrue false "didn't match"
           return DUnit

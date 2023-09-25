@@ -6,6 +6,7 @@ module Darklang =
         | Some of 'v
         | None
 
+
       /// If <param option> is {{Some <var value>}}, returns {{fn <var value>}}. The
       /// lambda <fn fn> is applied to <var value> and the result is wrapped in
       /// {{Some}}. Otherwise, returns {{None}}
@@ -16,6 +17,7 @@ module Darklang =
         match option with
         | Some v -> PACKAGE.Darklang.Stdlib.Option.Option.Some(fn v)
         | None -> PACKAGE.Darklang.Stdlib.Option.Option.None
+
 
       ///  If both arguments are {{Some}} (<param option1> is {{Some <var v1>}} and
       ///  <param option2> is {{Some <var v2>}}), then return {{Some (fn <var v1>
@@ -33,6 +35,71 @@ module Darklang =
         | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None
 
 
+      /// if all three arguments are {{Some}} (<param option1> is {{Some <var v1>}},
+      /// <param option2> is {{Some <var v2>}}, and <param option3> is {{Some <var v3>}}),
+      /// then return {{Some (fn <var v1> <var v2> <var v3>)}}. The lambda <param fn> should have three parameters,
+      /// representing <var v1>, <var v2>, and <var v3>. But if any of <param option1>, <param option2>, or
+      /// <param option3> are {{None}}, returns {{None}} without applying <param fn>.
+      let map3
+        (option1: PACKAGE.Darklang.Stdlib.Option.Option<'a>)
+        (option2: PACKAGE.Darklang.Stdlib.Option.Option<'b>)
+        (option3: PACKAGE.Darklang.Stdlib.Option.Option<'c>)
+        (fn: 'a -> 'b -> 'c -> 'd)
+        : PACKAGE.Darklang.Stdlib.Option.Option<'d> =
+        match (option1, option2, option3) with
+        | Some v1, Some v2, Some v3 ->
+          PACKAGE.Darklang.Stdlib.Option.Option.Some(fn v1 v2 v3)
+        | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None
+
+
+      /// if all four arguments are {{Some}} (<param option1> is {{Some <var v1>}},
+      /// <param option2> is {{Some <var v2>}}, <param option3> is {{Some <var v3>}}, and <param option4> is {{Some <var v4>}}),
+      /// then return {{Some (fn <var v1> <var v2> <var v3> <var v4>)}}. The lambda <param fn> should have four parameters,
+      /// representing <var v1>, <var v2>, <var v3>, and <var v4>. But if any of <param option1>, <param option2>, <param option3>, or
+      /// <param option4> are {{None}}, returns {{None}} without applying <param fn>.
+      let map4
+        (option1: PACKAGE.Darklang.Stdlib.Option.Option<'a>)
+        (option2: PACKAGE.Darklang.Stdlib.Option.Option<'b>)
+        (option3: PACKAGE.Darklang.Stdlib.Option.Option<'c>)
+        (option4: PACKAGE.Darklang.Stdlib.Option.Option<'d>)
+        (fn: 'a -> 'b -> 'c -> 'd -> 'e)
+        : PACKAGE.Darklang.Stdlib.Option.Option<'e> =
+        match (option1, option2, option3, option4) with
+        | Some v1, Some v2, Some v3, Some v4 ->
+          PACKAGE.Darklang.Stdlib.Option.Option.Some(fn v1 v2 v3 v4)
+        | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None
+
+
+      /// if all five arguments are {{Some}} (<param option1> is {{Some <var v1>}},
+      /// <param option2> is {{Some <var v2>}}, <param option3> is {{Some <var v3>}}, <param option4> is {{Some <var v4>}}, and <param option5> is {{Some <var v5>}}),
+      /// then return {{Some (fn <var v1> <var v2> <var v3> <var v4> <var v5>)}}. The lambda <param fn> should have five parameters,
+      /// representing <var v1>, <var v2>, <var v3>, <var v4>, and <var v5>. But if any of <param option1>, <param option2>, <param option3>, <param option4>, or
+      /// <param option5> are {{None}}, returns {{None}} without applying <param fn>.
+      let map5
+        (option1: PACKAGE.Darklang.Stdlib.Option.Option<'a>)
+        (option2: PACKAGE.Darklang.Stdlib.Option.Option<'b>)
+        (option3: PACKAGE.Darklang.Stdlib.Option.Option<'c>)
+        (option4: PACKAGE.Darklang.Stdlib.Option.Option<'d>)
+        (option5: PACKAGE.Darklang.Stdlib.Option.Option<'e>)
+        (fn: 'a -> 'b -> 'c -> 'd -> 'e -> 'f)
+        : PACKAGE.Darklang.Stdlib.Option.Option<'f> =
+        match (option1, option2, option3, option4, option5) with
+        | Some v1, Some v2, Some v3, Some v4, Some v5 ->
+          PACKAGE.Darklang.Stdlib.Option.Option.Some(fn v1 v2 v3 v4 v5)
+        | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None
+
+
+      /// If <param option> is {{Some <var value>}}, returns {{fn <var value>}}. The lambda <fn fn> is applied to <var value> and the result is wrapped in {{Some}}. Otherwise, returns {{None}}
+      let mapWithDefault
+        (option: PACKAGE.Darklang.Stdlib.Option.Option<'a>)
+        (default_: 'b)
+        (fn: 'a -> 'b)
+        : 'b =
+        match option with
+        | Some v -> fn v
+        | None -> default_
+
+
       /// If <param option> is {{Some <var value>}}, returns {{fn <var value>}}. The
       /// lambda <fn fn> is applied to <var value> and the result is wrapped in
       /// {{Some}}. Otherwise, returns {{None}}
@@ -44,6 +111,49 @@ module Darklang =
         | Some v -> fn v
         | None -> PACKAGE.Darklang.Stdlib.Option.Option.None
 
+
+      /// If both <param option1> and <param option2> are {{Some}}, returns {{fn <var value1, value2>}}.
+      /// The lambda <fn fn> is applied to <var value1> and <var value2> and the result is wrapped in
+      /// {{Some}}. Otherwise, returns {{None}}
+      let andThen2
+        (option1: PACKAGE.Darklang.Stdlib.Option.Option<'a>)
+        (option2: PACKAGE.Darklang.Stdlib.Option.Option<'b>)
+        (fn: 'a -> 'b -> PACKAGE.Darklang.Stdlib.Option.Option<'c>)
+        : PACKAGE.Darklang.Stdlib.Option.Option<'c> =
+        match (option1, option2) with
+        | Some v1, Some v2 -> fn v1 v2
+        | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None
+
+
+      /// If all <param option1>, <param option2>, and <param option3> are {{Some}}, returns {{fn <var value1, value2, value3>}}.
+      /// The lambda <fn fn> is applied to <var value1>, <var value2>, and <var value3> and the result is wrapped in
+      /// {{Some}}. Otherwise, returns {{None}}
+      let andThen3
+        (option1: PACKAGE.Darklang.Stdlib.Option.Option<'a>)
+        (option2: PACKAGE.Darklang.Stdlib.Option.Option<'b>)
+        (option3: PACKAGE.Darklang.Stdlib.Option.Option<'c>)
+        (fn: 'a -> 'b -> 'c -> PACKAGE.Darklang.Stdlib.Option.Option<'d>)
+        : PACKAGE.Darklang.Stdlib.Option.Option<'d> =
+        match (option1, option2, option3) with
+        | Some v1, Some v2, Some v3 -> fn v1 v2 v3
+        | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None
+
+
+      /// If all <param option1>, <param option2>, <param option3>, and <param option4> are {{Some}}, returns {{fn <var value1, value2, value3, value4>}}.
+      /// The lambda <fn fn> is applied to <var value1>, <var value2>, <var value3>, and <var value4> and the result is wrapped in
+      /// {{Some}}. Otherwise, returns {{None}}
+      let andThen4
+        (option1: PACKAGE.Darklang.Stdlib.Option.Option<'a>)
+        (option2: PACKAGE.Darklang.Stdlib.Option.Option<'b>)
+        (option3: PACKAGE.Darklang.Stdlib.Option.Option<'c>)
+        (option4: PACKAGE.Darklang.Stdlib.Option.Option<'d>)
+        (fn: 'a -> 'b -> 'c -> 'd -> PACKAGE.Darklang.Stdlib.Option.Option<'e>)
+        : PACKAGE.Darklang.Stdlib.Option.Option<'e> =
+        match (option1, option2, option3, option4) with
+        | Some v1, Some v2, Some v3, Some v4 -> fn v1 v2 v3 v4
+        | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None
+
+
       /// If <param option> is {{Some <var value>}}, returns <var value>. Otherwise,
       /// returns <param default>
       let withDefault
@@ -53,3 +163,88 @@ module Darklang =
         match option with
         | Some v -> v
         | None -> default_
+
+
+      /// Returns true if <param option> is {{Some _}} and false if it is {{None}}
+      let isSome (option: PACKAGE.Darklang.Stdlib.Option.Option<'a>) : Bool =
+        match option with
+        | Some _ -> true
+        | None -> false
+
+
+      /// Returns true if <param option> is {{None}} and false if it is {{Some _}}
+      let isNone (option: PACKAGE.Darklang.Stdlib.Option.Option<'a>) : Bool =
+        match option with
+        | Some _ -> false
+        | None -> true
+
+
+      /// Turn a <type Option> into a <type Result>, using <param error> as the error message for Error. if <param option> is {{Some <var value>}}, returns {{Ok <var value>}}. Otherwise, returns {{Error <var error>}}
+      let toResult
+        (option: PACKAGE.Darklang.Stdlib.Option.Option<'a>)
+        (error: 'e)
+        : PACKAGE.Darklang.Stdlib.Result.Result<'a, 'e> =
+        match option with
+        | Some v -> PACKAGE.Darklang.Stdlib.Result.Result.Ok v
+        | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error error
+
+
+      /// If <param option1> is {{Some _}}, then returns the value of <param option2>.
+      /// Otherwise, returns {{None}}.
+      let ``and``
+        (option1: PACKAGE.Darklang.Stdlib.Option.Option<'a>)
+        (option2: PACKAGE.Darklang.Stdlib.Option.Option<'b>)
+        : PACKAGE.Darklang.Stdlib.Option.Option<'b> =
+        match option1 with
+        | Some _ -> option2
+        | None -> option1
+
+
+      /// Returns <param option1> if it is {{Some _}}. Otherwise, returns <param option2>.
+      let ``or``
+        (option1: PACKAGE.Darklang.Stdlib.Option.Option<'a>)
+        (option2: PACKAGE.Darklang.Stdlib.Option.Option<'a>)
+        : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+        match option1 with
+        | Some _ -> option1
+        | None -> option2
+
+
+      /// Returns a list containing the value of <param option> if it is {{Some _}}. Otherwise, returns an empty list.
+      let toList (option: PACKAGE.Darklang.Stdlib.Option.Option<'a>) : List<'a> =
+        match option with
+        | Some v -> [ v ]
+        | None -> []
+
+
+      /// Flattens a nested option. If <param option> is {{Some (Some <var value>)}}, returns {{Some <var value>}}. If <param option> is {{Some None}}, returns {{None}}.
+      let join
+        (option:
+          PACKAGE.Darklang.Stdlib.Option.Option<PACKAGE.Darklang.Stdlib.Option.Option<'a>>)
+        : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+        match option with
+        | Some v -> v
+        | None -> PACKAGE.Darklang.Stdlib.Option.Option.None
+
+
+      /// Combines a list of options into a single option containing a list of unwrapped values.
+      /// If all options in the list are {{Some _}}, then return {{Some <list of unwrapped values>}}.
+      /// If any option is {{None}}, then return {{None}}.
+      let combine
+        (options: List<PACKAGE.Darklang.Stdlib.Option.Option<'a>>)
+        : PACKAGE.Darklang.Stdlib.Option.Option<List<'a>> =
+        PACKAGE.Darklang.Stdlib.List.fold
+          options
+          (PACKAGE.Darklang.Stdlib.Option.Option.Some [])
+          (fun acc option ->
+            PACKAGE.Darklang.Stdlib.Option.andThen2 acc option (fun acc value ->
+              PACKAGE.Darklang.Stdlib.Option.Option.Some(
+                PACKAGE.Darklang.Stdlib.List.append acc [ value ]
+              )))
+
+
+      /// Returns a list of all the values that are {{Some _}}, and ignores all the {{None}} values.
+      let values
+        (options: List<PACKAGE.Darklang.Stdlib.Option.Option<'a>>)
+        : List<'a> =
+        PACKAGE.Darklang.Stdlib.List.filterMap options (fun option -> option)

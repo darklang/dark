@@ -11,6 +11,7 @@ open System.Text.Json
 open Prelude
 
 open RuntimeTypes
+module VT = ValueType
 
 
 let parseJson (s : string) : JsonElement =
@@ -71,7 +72,6 @@ type Utf8JsonWriter with
 // List
 // Dict
 // Date
-// Password
 // UUID
 
 let rec private toJsonV0
@@ -105,11 +105,9 @@ let rec private toJsonV0
     | TBytes, DBytes bytes ->
       bytes |> Base64.defaultEncodeToString |> w.WriteStringValue
     | TDateTime, DDateTime date -> w.WriteStringValue(DarkDateTime.toIsoString date)
-    | TPassword, DPassword(Password hashed) ->
-      hashed |> Base64.defaultEncodeToString |> w.WriteStringValue
 
     // nested types
-    | TList ltype, DList l ->
+    | TList ltype, DList(_, l) ->
       do! w.writeArray (fun () -> Ply.List.iterSequentially (writeDval ltype) l)
 
     | TTuple(t1, t2, trest), DTuple(d1, d2, rest) ->
@@ -118,7 +116,7 @@ let rec private toJsonV0
         w.writeArray (fun () ->
           Ply.List.iterSequentially (fun (t, d) -> writeDval t d) zipped)
 
-    | TDict objType, DDict o ->
+    | TDict objType, DDict(_typeArgsTODO, o) ->
       do!
         w.writeObject (fun () ->
           Ply.List.iterSequentially
@@ -138,7 +136,7 @@ let rec private toJsonV0
           let typ = Types.substitute decl.typeParams typeArgs typeRef
           do! writeDval typ dv
 
-        | TypeDeclaration.Record fields, DRecord(_, _, dm) ->
+        | TypeDeclaration.Record fields, DRecord(_, _, _, dm) ->
           let fields = NEList.toList fields
           do!
             w.writeObject (fun () ->
@@ -146,14 +144,14 @@ let rec private toJsonV0
                 (fun (f : TypeDeclaration.RecordField) ->
                   uply {
                     w.WritePropertyName f.name
-                    let dval = Map.find f.name dm
+                    let dval = Map.findUnsafe f.name dm
                     let typ = Types.substitute decl.typeParams typeArgs f.typ
                     do! writeDval typ dval
                   })
                 fields)
 
-        | TypeDeclaration.Enum(cases), DEnum(_, _, caseName, fields) ->
-
+        | TypeDeclaration.Enum cases,
+          DEnum(_, _, _typeArgsDEnumTODO, caseName, fields) ->
           let matchingCase =
             cases
             |> NEList.find (fun c -> c.name = caseName)
@@ -189,12 +187,15 @@ let rec private toJsonV0
             "Value to be stored does not match a declared type"
             [ "value", dv; "type", typ; "typeName", typeName ]
 
-    | TCustomType(Error err, _), _ -> raiseRTE err
+    | TCustomType(Error err, _), _ -> raiseRTE SourceNone err
 
     // Not supported
     | TVariable _, _
     | TFn _, DFnVal _
-    | TDB _, DDB _ -> Exception.raiseInternal "Not supported in queryable" []
+    | TDB _, DDB _ ->
+      Exception.raiseInternal
+        "Not supported in queryable"
+        [ "value", dv; "type", typ ]
 
     // exhaustiveness checking
     | TInt, _
@@ -206,7 +207,6 @@ let rec private toJsonV0
     | TDict _, _
     | TChar, _
     | TDateTime, _
-    | TPassword, _
     | TUuid, _
     | TTuple _, _
     | TBytes, _
@@ -246,8 +246,6 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
     | TChar, JsonValueKind.String -> DChar(j.GetString()) |> Ply
     | TString, JsonValueKind.String -> DString(j.GetString()) |> Ply
     | TUuid, JsonValueKind.String -> DUuid(System.Guid(j.GetString())) |> Ply
-    | TPassword, JsonValueKind.String ->
-      j.GetString() |> Base64.decodeFromString |> Password |> DPassword |> Ply
     | TDateTime, JsonValueKind.String ->
       j.GetString()
       |> NodaTime.Instant.ofIsoString
@@ -262,7 +260,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
       |> Seq.map (convert nested)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map DList
+      |> Ply.map (Dval.list VT.unknownTODO)
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let arr = j.EnumerateArray() |> Seq.toList
@@ -284,7 +282,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
       |> Map.toList
       |> List.map (fun (k, v) -> convert typ v |> Ply.map (fun v -> k, v))
       |> Ply.List.flatten
-      |> Ply.map (Map >> DDict)
+      |> Ply.map (Dval.dict VT.unknownTODO)
 
 
     | TCustomType(Ok typeName, typeArgs), valueKind ->
@@ -308,7 +306,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 fields
                 |> List.map (fun f ->
                   let dval =
-                    match Map.tryFind f.name objFields with
+                    match Map.find f.name objFields with
                     | Some j ->
                       let typ = Types.substitute decl.typeParams typeArgs f.typ
                       convert typ j
@@ -318,7 +316,8 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                   dval |> Ply.map (fun dval -> f.name, dval))
                 |> Ply.List.flatten
                 // TYPESCLEANUP: I don't think the original is name right here?
-                |> Ply.map (fun mapped -> DRecord(typeName, typeName, Map mapped))
+                |> Ply.map (fun mapped ->
+                  DRecord(typeName, typeName, VT.typeArgsTODO, Map mapped))
             else
               return
                 Exception.raiseInternal
@@ -351,7 +350,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 |> Ply.List.flatten
 
               // TYPESCLEANUP: I don't think the original is name right here?
-              return DEnum(typeName, typeName, caseName, fields)
+              return! Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
           | _, _ ->
             return
               Exception.raiseInternal
@@ -372,7 +371,6 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
     | TChar, _
     | TString, _
     | TUuid, _
-    | TPassword, _
     | TDateTime, _
     | TTuple _, _
     | TList _, _
@@ -394,14 +392,16 @@ module Test =
     | DUnit _
     | DBool _
     | DDateTime _
-    | DPassword _
     | DChar _
     | DFloat _
     | DUuid _ -> true
-    | DList dvals -> List.all isQueryableDval dvals
-    | DDict map -> map |> Map.values |> List.all isQueryableDval
-    | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all isQueryableDval
+
+    // VTTODO these should probably just check the valueType, not any internal data
+    | DList(_, dvals) -> List.all isQueryableDval dvals
+    | DDict(_, map) -> map |> Map.values |> List.all isQueryableDval
     | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
+
+    | DEnum(_typeName, _, _, _caseName, fields) -> fields |> List.all isQueryableDval
 
     // TODO support
     | DRecord _ // TYPESCLEANUP
@@ -409,5 +409,4 @@ module Test =
 
     // Maybe never support
     | DFnVal _
-    | DError _
     | DDB _ -> false

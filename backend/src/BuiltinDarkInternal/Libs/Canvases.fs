@@ -1,4 +1,4 @@
-/// StdLib functions for building Dark functionality via Dark canvases
+/// Builtin functions for building Dark functionality via Dark canvases
 module BuiltinDarkInternal.Libs.Canvases
 
 open System.Threading.Tasks
@@ -8,6 +8,8 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
+module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
@@ -66,7 +68,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUnit ] ->
           uply {
             let! hosts = Canvas.allCanvasIDs ()
-            return hosts |> List.map DUuid |> DList
+            return hosts |> List.map DUuid |> Dval.list (ValueType.Known KTUuid)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -173,27 +175,27 @@ let fns : List<BuiltInFn> =
           uply {
             let! canvas = Canvas.loadAll canvasID
 
-            let types =
+            let! types =
               canvas.userTypes
               |> Map.values
               |> Seq.toList
-              |> List.map PT2DT.UserType.toDT
-              |> DList
+              |> Ply.List.mapSequentially PT2DT.UserType.toDT
+              |> Ply.map (Dval.list VT.unknownTODO)
 
-            let fns =
+            let! fns =
               canvas.userFunctions
               |> Map.values
               |> Seq.toList
-              |> List.map PT2DT.UserFunction.toDT
-              |> DList
+              |> Ply.List.mapSequentially PT2DT.UserFunction.toDT
+              |> Ply.map (Dval.list VT.unknownTODO)
+
             // let dbs =
             //   Map.values canvas.dbs
             //   |> Seq.toList
             //   |> List.map (fun db ->
             //     [ "tlid", DString(db.tlid.ToString()); "name", DString db.name ]
-            //     |> Map
-            //     |> DDict)
-            //   |> DList
+            //     |> Dval.dict)
+            //   |> Dval.list VT.unknownTODO
 
             // let httpHandlers =
             //   Map.values canvas.handlers
@@ -207,16 +209,16 @@ let fns : List<BuiltInFn> =
             //       [ "tlid", DString(handler.tlid.ToString())
             //         "method", DString method
             //         "route", DString route ]
-            //       |> Map
-            //       |> DDict
+            //       |> Dval.dict
             //       |> Some)
-            //   |> DList
+            //   |> Dval.list VT.unknownTODO
 
-            return
+            return!
               Dval.record
                 (FQName.BuiltIn(typ "Program" 0))
+                (Some [])
                 [ "types", types; "fns", fns ]
-              |> Dval.resultOk
+              |> Ply.map (Dval.resultOk VT.unknownTODO VT.string)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

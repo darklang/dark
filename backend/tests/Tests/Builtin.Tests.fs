@@ -1,6 +1,6 @@
-module Tests.StdLib
+module Tests.Builtin
 
-// Misc tests of Stdlib (both LibCloud and LibExecution) that could not be
+// Misc tests of Builtin (both LibCloud and LibExecution) that could not be
 // tested via LibExecution.tests
 
 open Expecto
@@ -20,7 +20,7 @@ open TestUtils.TestUtils
 
 let oldFunctionsAreDeprecated =
   testTask "old functions are deprecated" {
-    let counts = ref Map.empty
+    let mutable counts = Map.empty
 
     let fns = localBuiltIns.fns |> Map.values
 
@@ -29,23 +29,23 @@ let oldFunctionsAreDeprecated =
       let key = RT.FnName.builtinToString { fn.name with version = 0 }
 
       if fn.deprecated = RT.NotDeprecated then
-        counts.Value <-
+        counts <-
           Map.update
             key
             (fun count -> count |> Option.defaultValue 0 |> (+) 1 |> Some)
-            counts.Value
+            counts
 
       ())
 
     Map.iter
       (fun name count ->
         Expect.equal count 1 $"{name} has more than one undeprecated function")
-      counts.Value
+      counts
   }
 
 let oldTypesAreDeprecated =
   testTask "old types are deprecated" {
-    let counts = ref Map.empty
+    let mutable counts = Map.empty
 
     let types = localBuiltIns.types |> Map.values
 
@@ -54,18 +54,18 @@ let oldTypesAreDeprecated =
       let key = RT.TypeName.builtinToString { typ.name with version = 0 }
 
       if typ.deprecated = RT.NotDeprecated then
-        counts.Value <-
+        counts <-
           Map.update
             key
             (fun count -> count |> Option.defaultValue 0 |> (+) 1 |> Some)
-            counts.Value
+            counts
 
       ())
 
     Map.iter
       (fun name count ->
         Expect.equal count 1 $"{name} has more than one undeprecated type")
-      counts.Value
+      counts
   }
 
-let tests = testList "stdlib" [ oldFunctionsAreDeprecated; oldTypesAreDeprecated ]
+let tests = testList "builtin" [ oldFunctionsAreDeprecated; oldTypesAreDeprecated ]

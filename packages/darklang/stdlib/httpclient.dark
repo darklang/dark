@@ -2,21 +2,39 @@ module Darklang =
   module Stdlib =
     module HttpClient =
 
-      // Note: this function currently doesn't work, as Base64.encode doesn't exist
+      /// The response from a HTTP request
+      type Response =
+        { statusCode: Int
+          headers: List<String * String>
+          body: Bytes }
+
+
+      /// Make blocking HTTP call to <param uri>. Returns a <type Result> where
+      /// the response is wrapped in {{ Ok }} if a response was successfully
+      /// received and parsed, and is wrapped in {{ Error }} otherwise
+      let request
+        (method: String)
+        (uri: String)
+        (headers: List<String * String>)
+        (body: Bytes)
+        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, String> =
+        Builtin.HttpClient.request method uri headers body
+
+
       /// Returns a header <type (String*String))> with {{'authorization'}} created using HTTP basic auth
       let basicAuth
         (username: String)
         (password: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<(String * String), String> =
-        if Builtin.String.contains "-" username then
+        if PACKAGE.Darklang.Stdlib.String.contains username "-" then
           PACKAGE.Darklang.Stdlib.Result.Result.Error
             "Username cannot contain a hyphen"
         else
-          let encoded = Builtin.String.base64Encode $"{username}:{password}"
+          let encoded =
+            PACKAGE.Darklang.Stdlib.String.base64Encode $"{username}:{password}"
 
           PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-            "authorization",
-            $"basic {encoded}"
+            ("authorization", $"basic {encoded}")
           )
 
       /// Returns a header <type (String*String))> with {{'authorization'}} set to <param token>

@@ -189,7 +189,7 @@ module ParseTest =
 let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> =
   task {
     let! (canvasID, domain) = initializeTestCanvas' $"bwdserver-{testName}"
-    let resolver = resolverWithBuiltinsAndPackageManager
+    let resolver = nameResolver
 
     // Handlers
     let! oplists =
@@ -466,4 +466,4 @@ let init (token : System.Threading.CancellationToken) : Task =
   let port = TestConfig.bwdServerBackendPort
   let k8sPort = TestConfig.bwdServerKubernetesPort
   let logger = configureLogging "test-bwdserver"
-  (BwdServer.Server.webserver logger port k8sPort).RunAsync(token)
+  (BwdServer.Server.webserver (Some logger) port k8sPort).RunAsync(token)

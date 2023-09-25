@@ -8,6 +8,7 @@ reset="\033[0m"
 
 TEST=false
 PUBLISHED=false
+PUBLISHED_FLAG=
 
 for i in "$@"
 do
@@ -16,7 +17,10 @@ do
     TEST=true
     shift
     ;;
-    --published) PUBLISHED=true ;;
+    --published)
+    PUBLISHED=true
+    PUBLISHED_FLAG=$i
+    ;;
   esac
 done
 
@@ -31,7 +35,7 @@ fi
 
 # Note: doesn't support release/published
 if [[ "$PUBLISHED" == "true" ]]; then
-  LOCALEXEC_EXE="backend/Build/out/LocalExec/Release/net7.0/linux-x64/publish/LocalExec"
+  LOCALEXEC_EXE="backend/Build/out/LocalExec/Release/net7.0/linux-x64/LocalExec"
 else
   LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net7.0/LocalExec"
 fi
@@ -40,20 +44,20 @@ echo -e "Loading packages into DB ${grey}($LOG_DB)${reset}"
 "${LOCALEXEC_EXE}" load-packages > $LOG_DB 2>&1
 
 
-# todo: wait until the backend servers are running (ports is ready)
-# for name in "${@}"; do
-#   echo "Waiting for $name"
-#   until curl "localhost:${DARK_CONFIG_BWDSERVER_DANGER_KUBERNETES_PORT}" ; do
-#     printf '.'
-#     sleep 1
-#   done
-# done
-
-
 if [[ "$TEST" != "true" ]]; then
+
+  echo "Waiting for BwdDangerServer to be ready"
+  for i in {1..100}; do
+    if curl -s -o /dev/null "localhost:${DARK_CONFIG_BWDSERVER_DANGER_KUBERNETES_PORT}" ; then
+      break
+    fi
+    printf '.'
+    sleep 0.1
+  done
+
   # make sure the target canvas exists and is cleared
-  ./scripts/run-canvas-hack dark-packages
+  ./scripts/run-canvas-hack $PUBLISHED_FLAG dark-packages
 
   echo -e "Loading packages into Dark canvas ${grey}($LOG_CANVAS)${reset}"
-  ./scripts/run-local-exec load-packages-dark > $LOG_CANVAS 2>&1
+  ./scripts/run-local-exec $PUBLISHED_FLAG load-packages-dark > $LOG_CANVAS 2>&1
 fi

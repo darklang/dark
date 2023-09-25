@@ -5,7 +5,6 @@ module LibBinarySerialization.SerializedTypes
 type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
-type Password = Prelude.Password
 
 // The types in this files are serialized using MessagePack.
 //
@@ -135,7 +134,7 @@ module NameResolutionError =
   [<MessagePack.MessagePackObject>]
   type ErrorType =
     | NotFound
-    | MissingModuleName
+    | MissingEnumModuleName of caseName : string
     | InvalidPackageName
     | ExpectedEnumButNot
     | ExpectedRecordButNot
@@ -213,7 +212,6 @@ type TypeReference =
   | TDB of TypeReference
   | TDateTime
   | TChar
-  | TPassword
   | TUuid
   | TCustomType of
     typeName : NameResolution<TypeName.TypeName> *
@@ -440,6 +438,8 @@ type Const =
   | CUnit
   | CTuple of first : Const * second : Const * rest : List<Const>
   | CEnum of NameResolution<TypeName.TypeName> * caseName : string * List<Const>
+  | CList of List<Const>
+  | CDict of List<string * Const>
 
 module UserConstant =
   [<MessagePack.MessagePackObject>]

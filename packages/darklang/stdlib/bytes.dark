@@ -1,0 +1,21 @@
+module Darklang =
+  module Stdlib =
+    module Bytes =
+
+      /// Hex (Base16) encodes <param bytes> using an uppercase alphabet. Complies
+      /// with [RFC 4648 section 8](https://www.rfc-editor.org/rfc/rfc4648.html#section-8).
+      let hexEncode (bytes: Bytes) : String = Builtin.Bytes.hexEncode bytes
+
+
+      /// Returns the number of bytes in <param bytes>
+      let length (bytes: Bytes) : Int = Builtin.Bytes.length bytes
+
+
+      /// Returns the concatenation of <param bytes1> and <param bytes2>
+      let append (bytes1: Bytes) (bytes2: Bytes) : Bytes =
+        Builtin.Bytes.append bytes1 bytes2
+
+
+      /// Returns true if <param bytes> contains <param segment>
+      let contains (bytes: Bytes) (segment: Bytes) : Bool =
+        Builtin.Bytes.contains bytes segment

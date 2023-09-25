@@ -52,14 +52,17 @@ let executeExpr
   (state : RT.ExecutionState)
   (inputVars : RT.Symtable)
   (expr : RT.Expr)
-  : Task<RT.Dval> =
+  : Task<RT.ExecutionResult> =
   task {
-    let symtable = Interpreter.withGlobals state inputVars
-    let typeArgTable = Map.empty
-    let! result = Interpreter.eval state typeArgTable symtable expr
-    // Does nothing in non-tests
-    state.test.postTestExecutionHook state.test result
-    return result
+    try
+      let symtable = Interpreter.withGlobals state inputVars
+      let typeSymbolTable = Map.empty
+      let! result = Interpreter.eval state typeSymbolTable symtable expr
+      // Does nothing in non-tests
+      state.test.postTestExecutionHook state.test result
+      return Ok result
+    with RT.RuntimeErrorException(source, rte) ->
+      return Error(source, rte)
   }
 
 
@@ -69,19 +72,23 @@ let executeFunction
   (name : RT.FnName.FnName)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
-  : Task<RT.Dval> =
+  : Task<RT.ExecutionResult> =
   task {
-    let typeArgTable = Map.empty
-    let! result = Interpreter.callFn state typeArgTable callerID name typeArgs args
-    // Does nothing in non-tests
-    state.test.postTestExecutionHook state.test result
-    return result
+    try
+      let typeSymbolTable = Map.empty
+      let! result =
+        Interpreter.callFn state typeSymbolTable callerID name typeArgs args
+      // Does nothing in non-tests
+      state.test.postTestExecutionHook state.test result
+      return Ok result
+    with RT.RuntimeErrorException(source, rte) ->
+      return Error(source, rte)
   }
 
 let runtimeErrorToString
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError)
-  : Task<RT.Dval> =
+  : Task<Result<RT.Dval, RT.DvalSource * RT.RuntimeError>> =
   task {
     let fnName =
       RT.FnName.fqPackage

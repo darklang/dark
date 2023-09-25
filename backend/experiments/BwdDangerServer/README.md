@@ -1,3 +1,3 @@
 # BwdDangerServer
 
-This is a fork of BwdServer that includes some extra experimental stdlib functions.
+This is a fork of BwdServer that includes some extra experimental builtin functions.

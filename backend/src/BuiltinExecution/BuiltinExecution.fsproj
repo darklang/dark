@@ -10,16 +10,16 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="Libs/Base64.fs" />
     <Compile Include="Libs/Bytes.fs" />
+    <Compile Include="Libs/Bool.fs" />
     <Compile Include="Libs/Char.fs" />
     <Compile Include="Libs/Crypto.fs" />
-    <Compile Include="Libs/Password.fs" />
     <Compile Include="Libs/X509.fs" />
     <Compile Include="Libs/DateTime.fs" />
     <Compile Include="Libs/Dict.fs" />
     <Compile Include="Libs/Float.fs" />
     <Compile Include="Libs/HttpClient.fs" />
-    <Compile Include="Libs/HttpClientAuth.fs" />
     <Compile Include="Libs/Int.fs" />
     <Compile Include="Libs/Json.fs" />
     <Compile Include="Libs/List.fs" />

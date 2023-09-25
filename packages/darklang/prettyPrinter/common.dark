@@ -6,12 +6,12 @@ module Darklang =
   module PrettyPrinter =
     let indent (s: String) : String =
       s
-      |> Builtin.String.split "\n"
-      |> Builtin.List.map (fun line ->
+      |> PACKAGE.Darklang.Stdlib.String.split "\n"
+      |> PACKAGE.Darklang.Stdlib.List.map (fun line ->
         match line with
         | "" -> ""
         | line -> "  " ++ line)
-      |> Builtin.String.join "\n"
+      |> PACKAGE.Darklang.Stdlib.String.join "\n"
 
     let sign (s: PACKAGE.Darklang.LanguageTools.Sign) : String =
       match s with
@@ -20,14 +20,14 @@ module Darklang =
 
     let escapeSpecialCharacters (s: String) : String =
       s
-      |> Builtin.String.replaceAll "\n" "\\n"
-      |> Builtin.String.replaceAll "\t" "\\t"
-      |> Builtin.String.replaceAll "\r" "\\r"
+      |> PACKAGE.Darklang.Stdlib.String.replaceAll "\n" "\\n"
+      |> PACKAGE.Darklang.Stdlib.String.replaceAll "\t" "\\t"
+      |> PACKAGE.Darklang.Stdlib.String.replaceAll "\r" "\\r"
 
     let processRemainder (remainder: String) : String =
-      let rem = $".{remainder}" |> Builtin.Float.parse
+      let rem = $".{remainder}" |> PACKAGE.Darklang.Stdlib.Float.parse
 
       rem
       |> Builtin.unwrap
-      |> Builtin.Float.toString
+      |> PACKAGE.Darklang.Stdlib.Float.toString
       |> PACKAGE.Darklang.Stdlib.String.dropFirst 2

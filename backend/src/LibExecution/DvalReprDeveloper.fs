@@ -22,7 +22,6 @@ let rec typeName (t : TypeReference) : string =
   | TVariable varname -> $"'{varname}"
   | TDB _ -> "Datastore"
   | TDateTime -> "DateTime"
-  | TPassword -> "Password"
   | TUuid -> "Uuid"
   | TCustomType(Ok t, typeArgs) ->
     let typeArgsPortion =
@@ -38,37 +37,57 @@ let rec typeName (t : TypeReference) : string =
 
   | TBytes -> "Bytes"
 
-let rec dvalTypeName (dv : Dval) : string =
-  match dv with
-  | DError _ -> "Error"
-  | DInt _ -> "Int"
-  | DFloat _ -> "Float"
-  | DBool _ -> "Bool"
-  | DUnit -> "Unit"
-  | DChar _ -> "Char"
-  | DString _ -> "String"
-  | DList [] -> "List<'a>"
-  | DList(v :: _) -> "List<" + dvalTypeName v + ">"
-  | DDict _ -> "Dict"
-  | DFnVal(Lambda _) -> "Lambda"
-  | DFnVal(NamedFn n) -> FnName.toString n
-  | DDB _ -> "Datastore"
-  | DDateTime _ -> "DateTime"
-  | DPassword _ -> "Password"
-  | DUuid _ -> "Uuid"
-  | DTuple(t1, t2, trest) ->
+let rec knownTypeName (vt : KnownType) : string =
+  match vt with
+  | KTInt -> "Int"
+  | KTFloat -> "Float"
+  | KTBool -> "Bool"
+  | KTUnit -> "Unit"
+  | KTChar -> "Char"
+  | KTString -> "String"
+  | KTDateTime -> "DateTime"
+  | KTUuid -> "Uuid"
+  | KTBytes -> "Bytes"
+
+  | KTList typ -> $"List<{valueTypeName typ}>"
+  | KTDict typ -> $"Dict<{valueTypeName typ}>"
+  | KTDB typ -> $"Datastore<{valueTypeName typ}>"
+
+  | KTFn(argTypes, retType) ->
+    (NEList.toList argTypes) @ [ retType ]
+    |> List.map valueTypeName
+    |> String.concat " -> "
+
+  | KTTuple(t1, t2, trest) ->
     t1 :: t2 :: trest
-    |> List.map dvalTypeName
+    |> List.map valueTypeName
     |> String.concat ", "
     |> fun s -> $"({s})"
-  | DBytes _ -> "Bytes"
-  | DRecord(typeName, _, _) -> TypeName.toString typeName
-  | DEnum(typeName, _, _, _) -> TypeName.toString typeName
+
+  | KTCustomType(name, typeArgs) ->
+    let typeArgsPortion =
+      match typeArgs with
+      | [] -> ""
+      | args ->
+        args
+        |> List.map (fun t -> valueTypeName t)
+        |> String.concat ", "
+        |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+
+    TypeName.toString name + typeArgsPortion
+
+and valueTypeName (typ : ValueType) : string =
+  match typ with
+  | ValueType.Known typ -> knownTypeName typ
+  | ValueType.Unknown -> "_"
+
+
+let toTypeName (dv : Dval) : string = dv |> Dval.toValueType |> valueTypeName
 
 
 // SERIALIZER_DEF Custom DvalReprDeveloper.toRepr
 /// For printing something for the developer to read, as a live-value, error
-/// message, etc. Redacts passwords.
+/// message, etc.
 ///
 /// Customers should not come to rely on this format. Do not use in stdlib fns
 /// or other places a developer could rely on it (i.e. telemetry and error
@@ -79,12 +98,11 @@ let toRepr (dv : Dval) : string =
     let nl = "\n" + makeSpaces indent
     let inl = "\n" + makeSpaces (indent + 2)
     let indent = indent + 2
-    let typename = dvalTypeName dv
+    let typename = toTypeName dv
     let wrap str = $"<{typename}: {str}>"
     let justType = $"<{typename}>"
 
     match dv with
-    | DPassword _ -> "<password>"
     | DString s -> $"\"{s}\""
     | DChar c -> $"'{c}'"
     | DInt i -> string i
@@ -100,18 +118,17 @@ let toRepr (dv : Dval) : string =
       else
         let result = sprintf "%.12g" f
         if result.Contains "." then result else $"{result}.0"
-    | DUnit -> "unit"
+    | DUnit -> "()"
     | DFnVal _ ->
       // TODO: we should print this, as this use case is safe
       // See docs/dblock-serialization.md
       justType
-    | DError(_, msg) -> $"<error: {msg}>"
     | DDateTime d -> wrap (DarkDateTime.toIsoString d)
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)
-    | DList l ->
+    | DList(_, l) ->
       if List.isEmpty l then
-        "[]"
+        wrap "[]"
       else
         let elems = String.concat ", " (List.map (toRepr_ indent) l)
         $"[{inl}{elems}{nl}]"
@@ -125,7 +142,7 @@ let toRepr (dv : Dval) : string =
         let long = String.concat $"{inl}, " (List.map (toRepr_ indent) l)
         $"({inl}{long}{nl})"
 
-    | DRecord(_, typeName, o) ->
+    | DRecord(_, typeName, _typeArgsTODO, o) ->
       let strs =
         o
         |> Map.toList
@@ -134,7 +151,8 @@ let toRepr (dv : Dval) : string =
       let elems = String.concat $",{inl}" strs
       let typeStr = TypeName.toString typeName
       $"{typeStr} {{" + $"{inl}{elems}{nl}" + "}"
-    | DDict o ->
+
+    | DDict(_valueTypeTODO, o) ->
       if Map.isEmpty o then
         "{}"
       else
@@ -146,7 +164,16 @@ let toRepr (dv : Dval) : string =
         let elems = String.concat $",{inl}" strs
         "{" + $"{inl}{elems}{nl}" + "}"
     | DBytes bytes -> Base64.defaultEncodeToString bytes
-    | DEnum(_, typeName, caseName, fields) ->
+    | DEnum(_, typeName, typeArgs, caseName, fields) ->
+      let typeArgsPart =
+        match typeArgs with
+        | [] -> ""
+        | typeArgs ->
+          typeArgs
+          |> List.map ValueType.toString
+          |> String.concat ", "
+          |> fun parts -> $"<{parts}>"
+
       let short =
         let fieldStr =
           fields
@@ -156,7 +183,7 @@ let toRepr (dv : Dval) : string =
         let fieldStr = if fieldStr = "" then "" else $"({fieldStr})"
 
         let typeStr = TypeName.toString typeName
-        $"{typeStr}.{caseName}{fieldStr}"
+        $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
       if String.length short <= 80 then
         short
@@ -169,7 +196,7 @@ let toRepr (dv : Dval) : string =
         let fieldStr = if fieldStr = "" then "" else $"({inl}{fieldStr}{nl})"
 
         let typeStr = TypeName.toString typeName
-        $"{typeStr}.{caseName}{fieldStr}"
+        $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
 
   toRepr_ 0 dv

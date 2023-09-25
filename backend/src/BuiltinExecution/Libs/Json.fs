@@ -7,7 +7,8 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module DarkDateTime = LibExecution.DarkDateTime
-
+module VT = ValueType
+module Dval = LibExecution.Dval
 
 
 // parsing
@@ -84,7 +85,7 @@ let rec serialize
       else if System.Double.IsPositiveInfinity f then
         w.WriteStringValue "Infinity"
       else
-        let result = sprintf "%.12g" f
+        let result = sprintf "%.16g" f
         let result = if result.Contains "." then result else $"{result}.0"
         w.WriteRawValue result
 
@@ -98,15 +99,12 @@ let rec serialize
     | TBytes, DBytes bytes ->
       bytes |> Base64.defaultEncodeToString |> w.WriteStringValue
 
-    | TPassword, DPassword(Password hashed) ->
-      hashed |> Base64.defaultEncodeToString |> w.WriteStringValue
-
 
     // Nested types
-    | TList ltype, DList l ->
+    | TList ltype, DList(_, l) ->
       do! w.writeArray (fun () -> Ply.List.iterSequentially (r ltype) l)
 
-    | TDict objType, DDict fields ->
+    | TDict objType, DDict(_vtTODO, fields) ->
       do!
         w.writeObject (fun () ->
           fields
@@ -122,9 +120,7 @@ let rec serialize
       let ds = d1 :: d2 :: rest
 
       if List.length ts <> List.length ds then
-        Exception.raiseInternal
-          $"Not sure what to do with mismatched tuple ({ds} doesn't match {ts})"
-          []
+        Exception.raiseInternal $"with mismatched tuple ({ds} doesn't match {ts})" []
 
       let zipped = List.zip (t1 :: t2 :: trest) (d1 :: d2 :: rest)
       do!
@@ -144,7 +140,7 @@ let rec serialize
 
         | TypeDeclaration.Enum cases ->
           match dval with
-          | DEnum(dTypeName, _, caseName, fields) ->
+          | DEnum(dTypeName, _, _typeArgsDEnumTODO, caseName, fields) ->
             let matchingCase = cases |> NEList.filter (fun c -> c.name = caseName)
 
             match matchingCase with
@@ -179,7 +175,9 @@ let rec serialize
 
         | TypeDeclaration.Record fields ->
           match dval with
-          | DRecord(actualTypeName, _, dvalMap) when actualTypeName = typeName ->
+          | DRecord(actualTypeName, _, _typeArgsTODO, dvalMap) when
+            actualTypeName = typeName
+            ->
             do!
               w.writeObject (fun () ->
                 dvalMap
@@ -198,14 +196,17 @@ let rec serialize
                     Types.substitute decl.typeParams typeArgs matchingFieldDef.typ
                   r typ dval))
 
-          | DRecord(actualTypeName, _, _) ->
+          | DRecord(actualTypeName, _, _typeArgsTODO, _) ->
             Exception.raiseInternal
               "Incorrect record type"
               [ "actual", actualTypeName; "expected", typeName ]
           | _ ->
             Exception.raiseInternal
               "Expected a DRecord but got something else"
-              [ "type", LibExecution.DvalReprDeveloper.dvalTypeName dval ]
+              [ "actualDval", dval
+                "actualType", LibExecution.DvalReprDeveloper.toTypeName dval
+                "expectedType", typeName
+                "expectedFields", fields ]
 
 
     | TCustomType(Error errTypeName, _typeArgs), dval ->
@@ -215,6 +216,7 @@ let rec serialize
 
 
     // Not supported
+    // TODO these should be runtime errors
     | TVariable name, dv ->
       Exception.raiseInternal
         "Variable types (i.e. 'a in List<'a>) cannot not be used as arguments"
@@ -235,7 +237,6 @@ let rec serialize
     | TUuid, _
     | TBytes, _
     | TDateTime, _
-    | TPassword, _
     | TList _, _
     | TTuple _, _
     | TFn _, _
@@ -243,6 +244,7 @@ let rec serialize
     | TVariable _, _
     | TCustomType _, _
     | TDict _, _ ->
+      // Internal error as this shouldn't get past the typechecker
       Exception.raiseInternal
         "Can't currently serialize this type/value combination"
         [ "value", dv; "type", DString(LibExecution.DvalReprDeveloper.typeName typ) ]
@@ -321,6 +323,14 @@ module JsonParseError =
     | CantMatchWithType(typ, json, errorPath) ->
       $"Can't parse JSON `{json}` as type `{LibExecution.DvalReprDeveloper.typeName typ}` at path: `{JsonPath.toString errorPath}`"
 
+let raiseCantMatchWithType
+  (typ : TypeReference)
+  (j : JsonElement)
+  (pathSoFar : JsonPath.JsonPath)
+  =
+  JsonParseError.CantMatchWithType(typ, j.GetRawText(), pathSoFar)
+  |> JsonParseError.JsonParseException
+  |> raise
 
 
 let parse
@@ -349,10 +359,15 @@ let parse
       | "NaN" -> DFloat System.Double.NaN
       | "Infinity" -> DFloat System.Double.PositiveInfinity
       | "-Infinity" -> DFloat System.Double.NegativeInfinity
-      | v -> Exception.raiseInternal "Invalid float" [ "value", v ]
+      | _ -> raiseCantMatchWithType TFloat j pathSoFar
       |> Ply
 
-    | TChar, JsonValueKind.String -> DChar(j.GetString()) |> Ply
+    | TChar, JsonValueKind.String ->
+      match String.toEgcChar (j.GetString()) with
+      | Some c -> Ply(DChar c)
+      | None -> raiseCantMatchWithType TChar j pathSoFar
+
+
     | TString, JsonValueKind.String -> DString(j.GetString()) |> Ply
 
     | TBytes, JsonValueKind.String ->
@@ -362,9 +377,7 @@ let parse
       try
         DUuid(System.Guid(j.GetString())) |> Ply
       with _ ->
-        JsonParseError.CantMatchWithType(TUuid, j.GetRawText(), pathSoFar)
-        |> JsonParseError.JsonParseException
-        |> raise
+        raiseCantMatchWithType TUuid j pathSoFar
 
     | TDateTime, JsonValueKind.String ->
       try
@@ -374,12 +387,7 @@ let parse
         |> DDateTime
         |> Ply
       with _ ->
-        JsonParseError.CantMatchWithType(TDateTime, j.GetRawText(), pathSoFar)
-        |> JsonParseError.JsonParseException
-        |> raise
-
-    | TPassword, JsonValueKind.String ->
-      j.GetString() |> Base64.decodeFromString |> Password |> DPassword |> Ply
+        raiseCantMatchWithType TDateTime j pathSoFar
 
 
     // Nested types
@@ -389,7 +397,7 @@ let parse
       |> Seq.mapi (fun i v -> convert nested (JsonPath.Index i :: pathSoFar) v)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map DList
+      |> Ply.map (Dval.list VT.unknownTODO)
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let values = j.EnumerateArray() |> Seq.toList
@@ -401,10 +409,7 @@ let parse
       |> Ply.map (fun mapped ->
         match mapped with
         | (d1 :: d2 :: rest) -> DTuple(d1, d2, rest)
-        | _ ->
-          Exception.raiseInternal
-            "Invalid tuple - really shouldn't be possible to hit this"
-            [])
+        | _ -> Exception.raiseInternal "Invalid tuple" [])
 
     | TDict tDict, JsonValueKind.Object ->
       j.EnumerateObject()
@@ -416,7 +421,7 @@ let parse
         })
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (fun fields -> Map fields |> DDict)
+      |> Ply.map (Dval.dict VT.unknownTODO)
 
     | TCustomType(Ok typeName, typeArgs), jsonValueKind ->
       uply {
@@ -460,15 +465,14 @@ let parse
                   $"Couldn't parse Enum as incorrect # of fields provided"
                   []
 
-              let! mapped =
+              let! fields =
                 List.zip matchingCase.fields j
                 |> List.map (fun (typ, j) ->
                   let typ = Types.substitute decl.typeParams typeArgs typ
                   convert typ pathSoFar j) // TODO revisit if we need to do anything with path
                 |> Ply.List.flatten
 
-              // TYPESCLEANUP: we should have the original type here as well as the alias-resolved type
-              return DEnum(typeName, typeName, caseName, mapped)
+              return! Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
 
             | _ -> return Exception.raiseInternal "TODO" []
 
@@ -507,9 +511,8 @@ let parse
                   return (def.name, converted)
                 })
               |> Ply.List.flatten
-              |> Ply.map Map.ofList
 
-            return DRecord(typeName, typeName, fields)
+            return! Dval.record typeName VT.typeArgsTODO' fields
       }
 
 
@@ -532,7 +535,6 @@ let parse
     | TUuid, _
     | TBytes, _
     | TDateTime, _
-    | TPassword, _
     | TList _, _
     | TTuple _, _
     | TCustomType _, _
@@ -585,7 +587,7 @@ let fns : List<BuiltInFn> =
             let types = ExecutionState.availableTypes state
             let! response =
               writeJson (fun w -> serialize types w typeToSerializeAs arg)
-            return Dval.resultOk (DString response)
+            return Dval.resultOk VT.string VT.string (DString response)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -600,13 +602,15 @@ let fns : List<BuiltInFn> =
       description =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =
+        let resultOk = Dval.resultOk VT.unknownTODO VT.string
+        let resultError = Dval.resultError VT.unknownTODO VT.string
         (function
         | state, [ typeArg ], [ DString arg ] ->
           let types = ExecutionState.availableTypes state
           uply {
             match! parse types typeArg arg with
-            | Ok v -> return Dval.resultOk v
-            | Error e -> return Dval.resultError (DString e)
+            | Ok v -> return resultOk v
+            | Error e -> return resultError (DString e)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

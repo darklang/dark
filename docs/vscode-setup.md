@@ -15,12 +15,11 @@ Open the Dark directory, and when prompted to open it in a container, do so.
 The container will build, hopefully without problem.
 
 When asked, install the suggested extensions as they are used to build Dark. We
-plan to automatically install the right extensions to build Dark, however right
-now we are missing the extensions for ReScript and OCaml.
+plan to automatically install the right extensions to build Dark.
 
 ## Build output
 
-You should see build output in the terminal, under the heading "Configuring".
+You should see build output in the VS Code terminal, under the heading "Configuring".
 This is also logged to `rundir/logs/build-server.log`
 
 ## Extensions
@@ -29,25 +28,8 @@ VSCode extensions are installed on a docker volume in the container, which cache
 
 - `docker volume rm darklang-dark-extension-volume darklang-dark-extension-volume-insiders`
 
-#### Troubleshooting
-
-Often, the F# plugin (Ionide) will fail to work. This can sometimes be solved
-by doing a full build of dotnet from the VSCode terminal and then restarting
-VSCode:
-
-- open the terminal from within VSCode
-- cd to `backend`
-- run `dotnet tool restore`
-- run `dotnet paket restore`
-- run `dotnet build`
-- if this doesn't work, comment out the failing code until the build fully works, and repeat `dotnet build`
-- from VSCode, run the command "Developer: Reload Window"
-
-If that doesn't work, look in the "Output" tabs marked "msbuild" or "F#" for
-clues.
-
 ## Issues
 
-We are very interested in any issues you might have. First class support for
-VSCode is relatively new, but we probably use it more than any other editor.
-Please report any issues in Discord.
+We are very interested in any issues you might have. Everyone uses VS Code, so we'd
+like to make sure the experience is super smooth for everyone. Please report any
+issues in Discord.

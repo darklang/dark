@@ -7,6 +7,7 @@ module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+module Dval = LibExecution.Dval
 
 
 let rec equals (a : Dval) (b : Dval) : bool =
@@ -17,24 +18,25 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DUnit, DUnit -> true
   | DString a, DString b -> a = b
   | DChar a, DChar b -> a = b
-  | DList a, DList b -> a.Length = b.Length && List.forall2 equals a b
+  | DList(typA, a), DList(typB, b) ->
+    Result.isOk (Dval.mergeValueTypes typA typB)
+    && a.Length = b.Length
+    && List.forall2 equals a b
   | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->
     if a3.Length <> b3.Length then // special case - this is a type error
-      Exception.raiseCode "tuples must be the same length"
+      raiseString "tuples must be the same length"
     else
       equals a1 b1 && equals a2 b2 && List.forall2 equals a3 b3
-  | DDict a, DDict b ->
+  | DDict(_vtTODO1, a), DDict(_vtTODO2, b) ->
     Map.count a = Map.count b
     && Map.forall
-      (fun k v ->
-        Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
+      (fun k v -> Map.find k b |> Option.map (equals v) |> Option.defaultValue false)
       a
-  | DRecord(tn1, _, a), DRecord(tn2, _, b) ->
+  | DRecord(tn1, _, _typeArgsTODO1, a), DRecord(tn2, _, _typeArgsTODO2, b) ->
     tn1 = tn2 // these should be the fully resolved type
     && Map.count a = Map.count b
     && Map.forall
-      (fun k v ->
-        Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
+      (fun k v -> Map.find k b |> Option.map (equals v) |> Option.defaultValue false)
       a
   | DFnVal a, DFnVal b ->
     match a, b with
@@ -43,12 +45,12 @@ let rec equals (a : Dval) (b : Dval) : bool =
     | Lambda _, _
     | NamedFn _, _ -> false
   | DDateTime a, DDateTime b -> a = b
-  | DPassword _, DPassword _ -> false
   | DUuid a, DUuid b -> a = b
   | DBytes a, DBytes b -> a = b
   | DDB a, DDB b -> a = b
-  | DEnum(a1, _, a2, a3), DEnum(b1, _, b2, b3) -> // these should be the fully resolved type
+  | DEnum(a1, _, _typeArgsTODO1, a2, a3), DEnum(b1, _, _typeArgsTODO2, b2, b3) -> // these should be the fully resolved type
     a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 equals a3 b3
+
   // exhaustiveness check
   | DInt _, _
   | DFloat _, _
@@ -62,12 +64,10 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DRecord _, _
   | DFnVal _, _
   | DDateTime _, _
-  | DPassword _, _
   | DUuid _, _
   | DBytes _, _
   | DDB _, _
-  | DEnum _, _
-  | DError _, _ -> Exception.raiseCode "Both values must be the same type"
+  | DEnum _, _ -> raiseString "Both values must be the same type"
 
 and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
   NEList.length impl1.parameters = NEList.length impl2.parameters
@@ -81,8 +81,7 @@ and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
 and equalsSymtable (a : Symtable) (b : Symtable) : bool =
   Map.count a = Map.count b
   && Map.forall
-    (fun k v ->
-      Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
+    (fun k v -> Map.find k b |> Option.map (equals v) |> Option.defaultValue false)
     a
 
 and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
@@ -305,7 +304,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "value" (TVariable "optOrRes") "" ]
       returnType = TVariable "a"
       description =
-        "Unwrap an Option or Result, returning the value or a DError if None"
+        "Unwrap an Option or Result, returning the value or raising a RuntimeError if None"
       fn =
         (function
         | _,
@@ -315,6 +314,7 @@ let fns : List<BuiltInFn> =
                                    name = TypeName.TypeName "Option"
                                    version = 0 }),
                   _,
+                  _typeArgsDEnumTODO,
                   caseName,
                   [ value ]) ] ->
           uply {
@@ -322,11 +322,9 @@ let fns : List<BuiltInFn> =
             | "Some" -> return value
             | "None" ->
               return
-                DError(
-                  SourceNone,
-                  RuntimeError.oldError (DvalReprDeveloper.toRepr value)
-                )
-            | _ -> return DError(SourceNone, RuntimeError.oldError "Invalid Result")
+                RuntimeError.oldError (DvalReprDeveloper.toRepr value)
+                |> raiseUntargetedRTE
+            | _ -> return raiseUntargetedRTE (RuntimeError.oldError "Invalid Option")
           }
         | _,
           _,
@@ -335,97 +333,22 @@ let fns : List<BuiltInFn> =
                                    name = TypeName.TypeName "Result"
                                    version = 0 }),
                   _,
+                  _typeArgsDEnumTODO,
                   caseName,
                   [ value ]) ] ->
           uply {
             match caseName with
             | "Ok" -> return value
             | "Error" ->
-              // CLEANUP should we raiseRTE here instead?
               return
-                DError(
-                  SourceNone,
-                  RuntimeError.oldError (DvalReprDeveloper.toRepr value)
-                )
-            | _ -> return DError(SourceNone, RuntimeError.oldError "Invalid Result")
+                RuntimeError.oldError (DvalReprDeveloper.toRepr value)
+                |> raiseUntargetedRTE
+            | _ -> return raiseUntargetedRTE (RuntimeError.oldError "Invalid Option")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated } ]
 
-
-    // { name = fn "AWS" "urlencode" 0
-    //   typeParams = []
-    //   parameters = [ Param.make "str" TString "" ]
-    //   returnType = TString
-    //   description = "Url encode a string per AWS' requirements"
-    //   fn =
-    //     (function
-    //     | _, _, [ DString s ] ->
-    //       // Based on the original OCaml implementation which was slightly modified from
-    //       // https://github.com/mirage/ocaml-cohttp/pull/294/files (to use
-    //       // Buffer.add_string instead of add_bytes); see also
-    //       // https://github.com/mirage/ocaml-uri/issues/65. It's pretty much a straight
-    //       // up port from the Java example at
-    //       // https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html,
-    //       // which calls it UriEncode
-    //       let sb = new Text.StringBuilder()
-
-    //       // Percent encode the path as s3 wants it. Uri doesn't
-    //       // encode $, or the other sep characters in a path.
-    //       // If upstream allows that we can nix this function
-    //       let bytes = UTF8.toBytes s
-    //       let n = Array.length bytes
-
-    //       let is_hex (ch : byte) =
-    //         (ch >= byte 'A' && ch <= byte 'Z')
-    //         || (ch >= byte 'a' && ch <= byte 'z')
-    //         || (ch >= byte '0' && ch <= byte '9')
-
-    //       let is_special (ch : byte) =
-    //         ch = byte '_'
-    //         || ch = byte '-'
-    //         || ch = byte '~'
-    //         || ch = byte '.'
-    //         || ch = byte '/'
-
-
-    //       for i = 0 to n - 1 do
-    //         let (c : byte) = bytes[i]
-
-    //         if ((is_hex c) || (is_special c)) then
-    //           sb.Append(char c) |> ignore<Text.StringBuilder>
-    //         elif (bytes[i] = byte '%') then
-    //           // We're expecting already escaped strings so ignore the escapes
-    //           if i + 2 < n then
-    //             if is_hex bytes[i + 1] && is_hex bytes[i + 2] then
-    //               sb.Append(char c) |> ignore<Text.StringBuilder>
-    //             else
-    //               sb.Append "%25" |> ignore<Text.StringBuilder>
-    //         else
-    //           sb.Append(c |> char |> int |> sprintf "%%%X")
-    //           |> ignore<Text.StringBuilder>
-
-    //       sb |> string |> DString |> Ply
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = NotYetImplemented
-    //   previewable = Pure
-    //   deprecated = NotDeprecated }
-
-
-    // { name = fn "Twitter" "urlencode" 0
-    //   typeParams = []
-    //   parameters = [ Param.make "s" TString "" ]
-    //   returnType = TString
-    //   description = "Url encode a string per Twitter's requirements"
-    //   fn =
-    //     (function
-    //     | _, _, [ DString s ] -> s |> Uri.EscapeDataString |> DString |> Ply
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = NotYetImplemented
-    //   previewable = Pure
-    //   deprecated = NotDeprecated }
-    ]
 
 let contents = (fns, types, constants)

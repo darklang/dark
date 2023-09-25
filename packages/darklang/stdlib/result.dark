@@ -19,6 +19,7 @@ module Darklang =
         | Ok value -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn value)
         | Error msg -> PACKAGE.Darklang.Stdlib.Result.Result.Error msg
 
+
       /// If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var
       /// v2>}}, returns {{Ok (fn <var v1> <var v2>)}} -- the lambda <param fn> is
       /// applied to <var v1> and <var v2>, and the result is wrapped in {{Ok}}.
@@ -35,6 +36,86 @@ module Darklang =
         | (_, Error e2) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e2
 
 
+      /// If all three of <param result1>, <param result2>, and <param result3> are
+      /// {{Ok <var v1>}}, {{Ok <var v2>}}, and {{Ok <var v3>}}, returns
+      /// {{Ok (fn <var v1> <var v2> <var v3>)}} -- the lambda <param fn> is applied
+      /// to <var v1>, <var v2>, and <var v3>, and the result is wrapped in {{Ok}}.
+      /// Otherwise, returns the first of <param result1>, <param result2>, and
+      /// <param result3> that is an error.
+      let map3
+        (result1: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'e>)
+        (result2: PACKAGE.Darklang.Stdlib.Result.Result<'b, 'e>)
+        (result3: PACKAGE.Darklang.Stdlib.Result.Result<'c, 'e>)
+        (fn: 'a -> 'b -> 'c -> 'd)
+        : PACKAGE.Darklang.Stdlib.Result.Result<'d, 'e> =
+        match (result1, result2, result3) with
+        | (Ok v1, Ok v2, Ok v3) ->
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn v1 v2 v3)
+        | (Error e1, _, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e1
+        | (_, Error e2, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e2
+        | (_, _, Error e3) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e3
+
+
+      /// If all four of <param result1>, <param result2>, <param result3>, and
+      /// <param result4> are {{Ok <var v1>}}, {{Ok <var v2>}}, {{Ok <var v3>}}, and
+      /// {{Ok <var v4>}}, returns {{Ok (fn <var v1> <var v2> <var v3> <var v4>)}}
+      /// the lambda <param fn> is applied to <var v1>, <var v2>, <var v3>, and <var v4>,
+      /// and the result is wrapped in {{Ok}}. Otherwise, returns the first of <param
+      /// result1>, <param result2>, <param result3>, and <param result4> that is an
+      /// error.
+      let map4
+        (result1: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'e>)
+        (result2: PACKAGE.Darklang.Stdlib.Result.Result<'b, 'e>)
+        (result3: PACKAGE.Darklang.Stdlib.Result.Result<'c, 'e>)
+        (result4: PACKAGE.Darklang.Stdlib.Result.Result<'d, 'e>)
+        (fn: 'a -> 'b -> 'c -> 'd -> 'f)
+        : PACKAGE.Darklang.Stdlib.Result.Result<'f, 'e> =
+        match (result1, result2, result3, result4) with
+        | (Ok v1, Ok v2, Ok v3, Ok v4) ->
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn v1 v2 v3 v4)
+        | (Error e1, _, _, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e1
+        | (_, Error e2, _, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e2
+        | (_, _, Error e3, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e3
+        | (_, _, _, Error e4) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e4
+
+
+      /// If all five of <param result1>, <param result2>, <param result3>, <param
+      /// result4>, and <param result5> are {{Ok <var v1>}}, {{Ok <var v2>}}, {{Ok
+      /// <var v3>}}, {{Ok <var v4>}}, and {{Ok <var v5>}}, returns {{Ok (fn <var v1>
+      /// <var v2> <var v3> <var v4> <var v5>)}} the lambda <param fn> is applied to
+      /// <var v1>, <var v2>, <var v3>, <var v4>, and <var v5>, and the result is
+      /// wrapped in {{Ok}}. Otherwise, returns the first of <param result1>, <param
+      /// result2>, <param result3>, <param result4>, and <param result5> that is an error.
+      let map5
+        (result1: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'e>)
+        (result2: PACKAGE.Darklang.Stdlib.Result.Result<'b, 'e>)
+        (result3: PACKAGE.Darklang.Stdlib.Result.Result<'c, 'e>)
+        (result4: PACKAGE.Darklang.Stdlib.Result.Result<'d, 'e>)
+        (result5: PACKAGE.Darklang.Stdlib.Result.Result<'f, 'e>)
+        (fn: 'a -> 'b -> 'c -> 'd -> 'f -> 'g)
+        : PACKAGE.Darklang.Stdlib.Result.Result<'g, 'e> =
+        match (result1, result2, result3, result4, result5) with
+        | (Ok v1, Ok v2, Ok v3, Ok v4, Ok v5) ->
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn v1 v2 v3 v4 v5)
+        | (Error e1, _, _, _, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e1
+        | (_, Error e2, _, _, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e2
+        | (_, _, Error e3, _, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e3
+        | (_, _, _, Error e4, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e4
+        | (_, _, _, _, Error e5) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e5
+
+
+      /// Applies the function <param fn> to the value inside the {{Ok <var value>}} variant of <param result>
+      /// if it exists. If <param result> is an {{Error _}}, returns the provided <param default_>.
+      let mapWithDefault
+        (result: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>)
+        (default_: 'u)
+        (fn: 't -> 'u)
+        : 'u =
+        match result with
+        | Ok value -> fn value
+        | Error _ -> default_
+
+
       /// If <param result> is {{Error <var msg>}}, returns {{Error (fn <var msg>)}}.
       /// The lambda <param fn> is applied to <var msg> and the result is wrapped in
       /// {{Error}}. If <param result> is {{Ok <var value>}}, returns <param result>
@@ -46,23 +127,6 @@ module Darklang =
         match result with
         | Ok value -> PACKAGE.Darklang.Stdlib.Result.Result.Ok value
         | Error value -> PACKAGE.Darklang.Stdlib.Result.Result.Error(fn value)
-
-
-      /// If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var
-      /// v2>}}, returns {{Ok (fn <var v1> <var v2>)}} -- the lambda <param fn> is
-      /// applied to <var v1> and <var v2>, and the result is wrapped in {{Ok}}.
-      /// Otherwise, returns the first of <param result1> and <param result2> that is
-      /// an error.
-      /// TODO: not supported as we don't yet support applying against variables with arguments
-      // let map2
-      //   (result1: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'e>)
-      //   (result2: PACKAGE.Darklang.Stdlib.Result.Result<'b, 'e>)
-      //   (fn: 'a -> 'b -> 'c)
-      //   : PACKAGE.Darklang.Stdlib.Result.Result<'c, 'e> =
-      //   match (result1, result2) with
-      //   | (Ok v1, Ok v2) -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn v1 v2)
-      //   | (Error e1, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e1
-      //   | (_, Error e2) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e2
 
 
       /// If <param result> is {{Ok <var value>}}, returns {{fn <var value>}}. The
@@ -98,6 +162,7 @@ module Darklang =
         | Some value -> PACKAGE.Darklang.Stdlib.Result.Result.Ok value
         | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error error
 
+
       /// Turn a <type Result> into an <type Option>
       let toOption
         (result: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>)
@@ -114,7 +179,7 @@ module Darklang =
         (results: List<PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>>)
         : PACKAGE.Darklang.Stdlib.Result.Result<List<'t>, 'e> =
         results
-        |> Builtin.List.fold
+        |> PACKAGE.Darklang.Stdlib.List.fold
           (PACKAGE.Darklang.Stdlib.Result.Result.Ok [])
           (fun acc result ->
             match (acc, result) with
@@ -124,3 +189,99 @@ module Darklang =
               )
             | (Ok _, Error err) -> PACKAGE.Darklang.Stdlib.Result.Result.Error err
             | (Error err, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error err)
+
+
+      /// If <param result> is {{Ok <var value>}}, returns true. Otherwise, returns false.
+      let isOk (result: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>) : Bool =
+        match result with
+        | Ok _ -> true
+        | Error _ -> false
+
+
+      /// If <param result> is {{Error <var msg>}}, returns true. Otherwise, returns false.
+      let isError (result: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>) : Bool =
+        match result with
+        | Ok _ -> false
+        | Error _ -> true
+
+      /// Returns <param result2> if <param result1> is {{Ok <var value>}}. Otherwise, returns <param result1>.
+      let ``and``
+        (result1: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>)
+        (result2: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>)
+        : PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e> =
+        match result1 with
+        | Ok _ -> result2
+        | Error _ -> result1
+
+
+      /// Returns <param result1> if it is {{Ok _}}. Otherwise, returns <param result2>.
+      let ``or``
+        (result1: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>)
+        (result2: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>)
+        : PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e> =
+        match result1 with
+        | Ok _ -> result1
+        | Error _ -> result2
+
+
+      /// Returns a list containing <param value> if <param result> is {{Ok <var value>}}. Otherwise, returns an empty list.
+      let toList (result: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>) : List<'t> =
+        match result with
+        | Ok value -> [ value ]
+        | Error _ -> []
+
+
+      /// Flattens a nested result. If <param result> is {{Ok (Ok <var value>)}},
+      /// returns {{Ok <var value>}}. If <param result> is {{Ok (Error <var msg>)}}, returns {{Error <var msg>}}.
+      /// If <param result> is {{Error <var msg>}}, returns {{Error <var msg>}}.
+      let join
+        (result:
+          PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>, 'e>)
+        : PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e> =
+        match result with
+        | Ok value -> value
+        | Error _ -> result
+
+
+      /// Combines a list of results into a single list of unwrapped values.
+      /// If all of the results are {{Ok <var value>}}, returns {{Ok <list of unwrapped values>}}.
+      /// If any of the results are {{Error <var msg>}}, returns {{Error <var msg>}}.
+      let combine
+        (results: List<PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>>)
+        : PACKAGE.Darklang.Stdlib.Result.Result<List<'t>, 'e> =
+        results
+        |> PACKAGE.Darklang.Stdlib.List.fold
+          (PACKAGE.Darklang.Stdlib.Result.Result.Ok [])
+          (fun acc result ->
+            match (acc, result) with
+            | (Ok acc, Ok result) ->
+              PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+                PACKAGE.Darklang.Stdlib.List.pushBack acc result
+              )
+            | (Ok _, Error err) -> PACKAGE.Darklang.Stdlib.Result.Result.Error err
+            | (Error err, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error err)
+
+
+      /// Returns a list of all the values that are {{Ok <var value>}}, and ignores any values that are {{Error <var msg>}}.
+      let values
+        (results: List<PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>>)
+        : PACKAGE.Darklang.Stdlib.Result.Result<List<'t>, 'e> =
+        let folded =
+          results
+          |> PACKAGE.Darklang.Stdlib.List.fold
+            (PACKAGE.Darklang.Stdlib.Result.Result.Ok [])
+            (fun acc result ->
+              match (acc, result) with
+              | (Ok acc, Ok result) ->
+                PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+                  PACKAGE.Darklang.Stdlib.List.push acc result
+                )
+              | (Ok _, Error _) -> acc
+              | (Error err, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error err)
+
+        match folded with
+        | Ok list ->
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+            PACKAGE.Darklang.Stdlib.List.reverse list
+          )
+        | Error err -> PACKAGE.Darklang.Stdlib.Result.Result.Error err

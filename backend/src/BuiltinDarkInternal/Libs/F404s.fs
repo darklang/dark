@@ -1,4 +1,4 @@
-/// StdLib functions for building Dark functionality via Dark canvases
+/// Builtin functions for building Dark functionality via Dark canvases
 module BuiltinDarkInternal.Libs.F404
 
 open System.Threading.Tasks
@@ -76,7 +76,7 @@ let fns : List<BuiltInFn> = []
 //                 "traceID",
 //                 DUuid(LibExecution.AnalysisTypes.TraceID.toUUID traceID) ]
 //               |> Dval.record typeName)
-//             |> DList
+//             |> Dval.list VT.unknownTODO
 //         }
 //       | _ -> incorrectArgs ())
 //     sqlSpec = NotQueryable

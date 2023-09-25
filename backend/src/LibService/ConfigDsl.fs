@@ -69,7 +69,7 @@ let stringChoice name (options : (string * 'a) list) : 'a =
   let v = getEnvExn name |> lowercase name
 
   options
-  |> List.tryFind (fun (k, _) -> k = v)
+  |> List.find (fun (k, _) -> k = v)
   |> Option.map Tuple2.second
   |> Option.defaultWith (fun () ->
     let options = options |> List.map Tuple2.first |> String.concat ", "

@@ -6,8 +6,9 @@ open FSharp.Control.Tasks
 
 open Prelude
 
-module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module Dval = LibExecution.Dval
+module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module BuiltinCli = BuiltinCli.Builtin
@@ -19,7 +20,7 @@ let builtIns : RT.BuiltIns =
       [ BuiltinExecution.Builtin.contents
           BuiltinExecution.Libs.HttpClient.defaultConfig
         BuiltinCli.Builtin.contents
-        StdLib.contents
+        Builtin.contents
         BuiltinCliHost.Builtin.contents
         BuiltinCloudExecution.Builtin.contents
         TestUtils.LibTest.contents ]
@@ -74,28 +75,33 @@ let state () =
 let execute
   (mod' : LibParser.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
-  : Task<RT.Dval> =
-  task {
+  : Ply<RT.ExecutionResult> =
+  uply {
+    let! fns =
+      mod'.fns
+      |> Ply.List.mapSequentially PT2RT.UserFunction.toRT
+      |> Ply.map (Map.fromListBy (fun fn -> fn.name))
+    let! types =
+      mod'.types
+      |> Ply.List.mapSequentially PT2RT.UserType.toRT
+      |> Ply.map (Map.fromListBy (fun typ -> typ.name))
+    let! constants =
+      mod'.constants
+      |> Ply.List.mapSequentially PT2RT.UserConstant.toRT
+      |> Ply.map (Map.fromListBy (fun c -> c.name))
+
     let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
-        fns =
-          mod'.fns
-          |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
-          |> Map.fromListBy (fun fn -> fn.name)
-        types =
-          mod'.types
-          |> List.map (fun typ -> PT2RT.UserType.toRT typ)
-          |> Map.fromListBy (fun typ -> typ.name)
-        constants =
-          mod'.constants
-          |> List.map (fun c -> PT2RT.UserConstant.toRT c)
-          |> Map.fromListBy (fun c -> c.name)
+        fns = fns
+        types = types
+        constants = constants
         dbs = Map.empty
         secrets = [] }
 
     let state = { state () with program = program }
-    return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
+    let! expr = PT2RT.Expr.toRT mod'.exprs[0]
+    return! Exe.executeExpr state symtable expr
   }
 
 
@@ -228,17 +234,25 @@ module PackageBootstrapping =
       // (any package references that may have been unresolved a second ago should now be OK)
       let (fns, types, consts) = packagesParsedWithUnresolvedNamesAllowed
 
-      let inMemPackageManager : RT.PackageManager =
-        let types = List.map PT2RT.PackageType.toRT types
-        let fns = List.map PT2RT.PackageFn.toRT fns
-        let consts = List.map PT2RT.PackageConstant.toRT consts
+      let! (inMemPackageManager : RT.PackageManager) =
+        uply {
+          let! types = types |> Ply.List.mapSequentially PT2RT.PackageType.toRT
+          let! fns = fns |> Ply.List.mapSequentially PT2RT.PackageFn.toRT
+          let! consts = consts |> Ply.List.mapSequentially PT2RT.PackageConstant.toRT
 
-        { getType = fun name -> types |> List.find (fun t -> t.name = name) |> Ply
-          getFn = fun name -> fns |> List.find (fun f -> f.name = name) |> Ply
-          getConstant =
-            fun name -> consts |> List.find (fun c -> c.name = name) |> Ply
+          let pm : RT.PackageManager =
+            { getType =
+                fun name -> types |> List.find (fun t -> t.name = name) |> Ply
+              getFn = fun name -> fns |> List.find (fun f -> f.name = name) |> Ply
+              getFnByTLID =
+                fun tlid -> fns |> List.find (fun f -> f.tlid = tlid) |> Ply
+              getConstant =
+                fun name -> consts |> List.find (fun c -> c.name = name) |> Ply
 
-          init = uply { return () } }
+              init = uply { return () } }
+
+          return pm
+        }
 
       let nameResolver =
         { nameResolver with
@@ -275,32 +289,40 @@ let runLocalExecScript (args : string[]) : Ply<int> =
           packageManager = Some LibCloud.PackageManager.packageManager }
     let! modul = LibParser.Canvas.parseFromFile nameResolver mainFile
 
-    let args = args |> Array.toList |> List.map RT.DString |> RT.DList
+    let args =
+      args
+      |> Array.toList
+      |> List.map RT.DString
+      |> Dval.list (RT.ValueType.Known RT.KTString)
 
     let result = execute modul (Map [ "args", args ])
 
     NonBlockingConsole.wait ()
 
     match result.Result with
-    | RT.DError(source, rte) ->
+    | Error(source, rte) ->
       let state = state ()
       let source =
         match source with
         | RT.SourceID(tlid, id) -> sourceOf mainFile tlid id modul
         | RT.SourceNone -> "unknown"
       match! LibExecution.Execution.runtimeErrorToString state rte with
-      | RT.DString s ->
+      | Ok(RT.DString s) ->
         System.Console.WriteLine $"Error: {s}"
         System.Console.WriteLine source
-      | newErr ->
+      | Ok unexpected ->
+        System.Console.WriteLine $"Unexpected value while stringifying error\n"
+        System.Console.WriteLine $"Original Error: {rte}"
+        System.Console.WriteLine $"New Error is:\n{unexpected}"
+      | Error(_, newErr) ->
         System.Console.WriteLine $"Error while stringifying error\n"
         System.Console.WriteLine $"Original Error: {rte}"
         System.Console.WriteLine $"New Error is:\n{newErr}"
       System.Console.WriteLine source
       // System.Console.WriteLine $"module is: {modul}"
       return 1
-    | RT.DInt i -> return (int i)
-    | dval ->
+    | Ok(RT.DInt i) -> return (int i)
+    | Ok dval ->
       let output = LibExecution.DvalReprDeveloper.toRepr dval
       System.Console.WriteLine
         $"Error: main function must return an int, not {output}"

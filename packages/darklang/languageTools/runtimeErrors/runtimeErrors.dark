@@ -12,6 +12,7 @@ module Darklang =
           | Int of Int
           | Ordinal of Int // 1st, 2nd, etc
           | IndefiniteArticle // "a" or "an" (chosen based on the next segment)
+          | Count of Int * singular: ErrorSegment * plural: ErrorSegment // 2 errors, 1 error, etc
 
           // -- Functions
           | FunctionName of PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.FnName
@@ -27,9 +28,13 @@ module Darklang =
             PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName
           | TypeReference of
             PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
-          | TypeOfValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval
+          | TypeOfValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
           | FieldName of String // records and enums
           | InlineFieldName of String // records and enums
+
+          // -- Constants
+          | ConstantName of
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.ConstantName.ConstantName
 
           // -- Variables
           | DBName of String
@@ -37,65 +42,73 @@ module Darklang =
           | InlineVarName of String
 
           // -- Dvals
-          | InlineValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval // possibly shortened to be shown inline
-          | FullValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval
+          | InlineValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval // possibly shortened to be shown inline
+          | FullValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
 
         let toString (list: List<ErrorSegment>) : String =
           let reversed = PACKAGE.Darklang.Stdlib.List.reverse list
 
           let parts =
-            Builtin.List.fold reversed [] (fun prevSegments segment ->
-              let newSegment =
-                match segment with
-                | String s -> s
-                | Int i -> Builtin.Int.toString i
-                | Ordinal i -> Stdlib.String.toOrdinal i
+            PACKAGE.Darklang.Stdlib.List.fold
+              reversed
+              []
+              (fun prevSegments segment ->
+                let newSegment =
+                  match segment with
+                  | String s -> s
+                  | Int i -> PACKAGE.Darklang.Stdlib.Int.toString i
+                  | Ordinal i -> Stdlib.String.toOrdinal i
+                  | Count(i, singular, plural) ->
+                    let count = PACKAGE.Darklang.Stdlib.Int.toString i
 
-                | IndefiniteArticle ->
-                  match Stdlib.List.head prevSegments with
-                  | None -> ""
-                  | Some prev -> Stdlib.String.articleFor prev ++ " "
+                    if i == 1 then
+                      let segment = toString [ singular ]
+                      $"{count} {segment}"
+                    else
+                      let segment = toString [ plural ]
+                      $"{count} {segment}"
 
-                | FunctionName fn ->
-                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.fnName fn
+                  | IndefiniteArticle ->
+                    match Stdlib.List.head prevSegments with
+                    | None -> ""
+                    | Some prev -> Stdlib.String.articleFor prev ++ " "
 
-                | Description d -> d
-                | ParamName p -> $"`{p}`"
-                | InlineParamName p -> p // Inline versions don't have quotes
-                | TypeName t ->
-                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeName t
-                | ShortTypeName t ->
-                  // TODO: make it short
-                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeName t
-                | TypeReference t ->
-                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference t
-                | TypeOfValue dv ->
-                  // once we have "KnownTypes" implemented, we can follow up here
-                  // with something like below:
-                  // dv
-                  // |> PACKAGE.Darklang.LanguageTools.Dval.toTypeRef
-                  // |> PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference t
+                  | FunctionName fn ->
+                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.fnName fn
 
-                  // for now, just want to get something out...
-                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.Dval.dvalTypeName dv
-                | FieldName f -> $"`{f}`"
-                | InlineFieldName f -> f
-                | DBName db -> db
-                | VarName v -> $"`{v}`"
-                | InlineVarName v -> v
-                | InlineValue dv ->
-                  (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv)
-                  |> Stdlib.String.ellipsis 10
-                  |> Stdlib.String.splitOnNewline
-                  |> Builtin.String.join ""
-                | FullValue dv ->
-                  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv
-                | segment ->
-                  $"(RTETODO toString parts {(Builtin.Json.serialize<ErrorSegment> segment) |> Builtin.unwrap})"
+                  | Description d -> d
+                  | ParamName p -> $"`{p}`"
+                  | InlineParamName p -> p // Inline versions don't have quotes
+                  | TypeName t ->
+                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeName t
+                  | ConstantName c ->
+                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.constantName c
+                  | ShortTypeName t ->
+                    // TODO: make it short
+                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeName t
+                  | TypeReference t ->
+                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference t
+                  | TypeOfValue dv ->
+                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.Dval.valueTypeName
+                      dv
+                  | FieldName f -> $"`{f}`"
+                  | InlineFieldName f -> f
+                  | DBName db -> db
+                  | VarName v -> $"`{v}`"
+                  | InlineVarName v -> v
+                  | InlineValue dv ->
+                    (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv)
+                    |> Stdlib.String.ellipsis 10
+                    |> Stdlib.String.splitOnNewline
+                    |> PACKAGE.Darklang.Stdlib.String.join ""
+                  | FullValue dv ->
+                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv
+                  | segment ->
+                    $"(RTETODO toString parts {(Builtin.Json.serialize<ErrorSegment> segment) |> Builtin.unwrap})"
 
-              PACKAGE.Darklang.Stdlib.List.push prevSegments newSegment)
+                PACKAGE.Darklang.Stdlib.List.push prevSegments newSegment)
 
-          Builtin.String.join parts ""
+          PACKAGE.Darklang.Stdlib.String.join parts ""
 
 
 
@@ -143,7 +156,8 @@ module Darklang =
         | NameResolutionError of
           PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error
         | SqlCompilerRuntimeError of Error
-        | Incomplete
+        | ExecutionError of
+          PACKAGE.Darklang.LanguageTools.RuntimeErrors.Execution.Error
         | OldStringErrorTODO of String
       //| ExceptionThrown of ExceptionThrown.ExceptionThrown
 
@@ -169,12 +183,14 @@ module Darklang =
 
           | NameResolutionError err -> NameResolution.toSegments err
 
+          | ExecutionError err -> Execution.toSegments err
+
           | SqlCompilerRuntimeError err ->
             let innerOutput = toSegments err
 
             { innerOutput with
                 summary =
-                  Builtin.List.append
+                  PACKAGE.Darklang.Stdlib.List.append
                     [ (ErrorSegment.ErrorSegment.String sqlErrorTemplate) ]
                     innerOutput.summary }
 
@@ -196,7 +212,9 @@ module Darklang =
           let s = toSegments e
 
           let explanation =
-            ErrorSegment.toString (Builtin.List.append s.summary s.extraExplanation)
+            ErrorSegment.toString (
+              PACKAGE.Darklang.Stdlib.List.append s.summary s.extraExplanation
+            )
 
           let actual = ErrorSegment.toString s.actual
           let actual = if actual == "" then "" else $"\nActual: {actual}"

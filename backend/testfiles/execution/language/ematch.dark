@@ -1,365 +1,648 @@
-// TODO - check for incomplete pattern matches
+// One module for each type of pattern.
+// In each module, there should be at least 2 error tests, one checking the incorrect
+// dval for that pattern, and one checking the incorrect pattern for that dval. (The
+// error checking in the interpreter tests is at the pattern side, not the dval side)
 
-(match 6 with
- | 5 -> "fail"
- | 6 -> "pass"
- | var -> "fail") = "pass"
+module Int =
+  (match 6 with
+   | 5 -> "fail"
+   | -6 -> "fail"
+   | 6 -> "pass"
+   | var -> "fail") = "pass"
 
-(match "x" with
- | "y" -> "fail"
- | "x" -> "pass"
- | var -> "fail") = "pass"
+  (match 6 with
+   | 6 -> "pass"
+   | 5 -> "fail"
+   | var -> "fail") = "pass"
 
-(match true with
- | false -> "fail"
- | true -> "pass"
- | var -> "fail") = "pass"
+  (match 6 with
+   | var -> "pass"
+   | 6 -> "fail"
+   | 5 -> "fail") = "pass"
 
-(match 2.0 with
- | 1.0 -> "fail"
- | 2.0 -> "pass"
- | var -> "fail") = "pass"
-
-(match () with
- | () -> "pass"
- | var -> "fail") = "pass"
-
-(match 999999999999999L with
- | 0 -> "fail"
- | 999999999999999L -> "pass") = "pass"
-
-(match [] with
- | [ i ] -> "fail"
- | [] -> "pass"
- | [ i; j ] -> "fail") = "pass"
-
-(match [ 1 ] with
- | [] -> "fail"
- | [ i ] -> "pass"
- | [ i; j ] -> "fail") = "pass"
-
-(match [ 1; 2 ] with
- | [] -> "fail"
- | [ i; j ] -> "pass"
- | [ i ] -> "fail") = "pass"
-
-// Errors
-(match "nothing matches" with
- | "not this" -> "fail") = Builtin.Test.derrorMessage "No match"
-
-(match Builtin.Test.runtimeError "cond is error" with
- | 5 -> "fail"
- | 6 -> "pass"
- | var -> "fail") = Builtin.Test.derrorMessage "cond is error"
-
-(match Builtin.Test.runtimeError "cond is error, wildcard" with
- | 5 -> 5
- | _ -> 6) = Builtin.Test.derrorMessage "cond is error, wildcard"
-
-(match 1 with
- | 1 -> Builtin.Test.runtimeError "a"
- | 6 -> "pass"
- | var -> "fail") = Builtin.Test.derrorMessage "a"
-
-(match 1 with
- | 2 -> Builtin.Test.runtimeError "a"
- | 1 -> "pass"
- | var -> "fail") = "pass"
-
-(match 1 with
- | 1 -> "pass"
- | 6 -> Builtin.Test.runtimeError "a"
- | var -> "fail") = "pass"
-
-(match 1 with
- | 2 -> "pass"
- | 1 -> Builtin.Test.runtimeError "a"
- | var -> "fail") = Builtin.Test.derrorMessage "a"
-
-(match 3 with
- | 2 -> "pass"
- | 1 -> Builtin.Test.runtimeError "a"
- | var -> "pass") = "pass"
-
-// int
-(match 5 with
- | 5.6 -> "float"
- | false -> "bool"
- | "myStr" -> "string"
- | () -> "()"
- | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
- | None -> "constructor nothing"
- | 5 -> "int"
- | (1, 2) -> "1 and 2"
- | [ i ] -> "list:" ++ i
- | name -> name ++ "var") = "int"
-
-// float
-(match 5.6 with
- | 5 -> "int"
- | false -> "bool"
- | "myStr" -> "string"
- | () -> "()"
- | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
- | None -> "constructor nothing"
- | 5.6 -> "float"
- | (1, 2) -> "1 and 2"
- | [ i ] -> "list:" ++ i
- | name -> name ++ "var") = "float"
-
-// float 2
-(match 1.1 with
- | 5 -> "int"
- | false -> "bool"
- | "myStr" -> "string"
- | () -> "()"
- | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
- | None -> "constructor nothing"
- | 1.1 -> "float"
- | (1, 2) -> "1 and 2"
- | [ i ] -> "list:" ++ i
- | name -> name ++ "var") = "float"
-
-// bool
-(match false with
- | 5 -> "int"
- | 5.6 -> "float"
- | "myStr" -> "string"
- | () -> "()"
- | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
- | None -> "constructor nothing"
- | false -> "bool"
- | (1, 2) -> "1 and 2"
- | [ i ] -> "list:" ++ i
- | name -> name ++ "var") = "bool"
-
-// string
-(match "myStr" with
- | 5 -> "int"
- | 5.6 -> "float"
- | false -> "bool"
- | () -> "()"
- | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
- | None -> "constructor nothing"
- | "myStr" -> "string"
- | (1, 2) -> "1 and 2"
- | [ i ] -> "list:" ++ i
- | name -> name ++ "var") = "string"
-
-// string 2string 2string 2string 2
-(match "otherStr" with
- | 5 -> "int"
- | 5.6 -> "float"
- | false -> "bool"
- | "myStr" -> "string"
- | () -> "()"
- | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
- | None -> "constructor nothing"
- | (1, 2) -> "1 and 2"
- | [ i ] -> "list:" ++ i
- | name -> name ++ "var") = "otherStrvar"
-
-// ()
-(match () with
- | 5 -> "int"
- | 5.6 -> "float"
- | false -> "bool"
- | "myStr" -> "string"
- | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
- | None -> "constructor nothing"
- | () -> "()"
- | (1, 2) -> "1 and 2"
- | [ i ] -> "list:" ++ i
- | name -> name ++ "var") = "()"
-
-// constructor with arg
-(match PACKAGE.Darklang.Stdlib.Result.Result.Ok "x" with
- | 5 -> "int"
- | 5.6 -> "float"
- | false -> "bool"
- | "myStr" -> "string"
- | () -> "()"
- | None -> "constructor nothing"
- | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
- | (1, 2) -> "1 and 2"
- | [ i ] -> "list:" ++ i
- | name -> name ++ "var") = "PACKAGE.Darklang.Stdlib.Result.Result.Ok: x"
-
-// simple tuple
-(let tpl = (1, 2) in
-
- match tpl with
- | 5 -> "int"
- | 5.6 -> "float"
- | false -> "bool"
- | "myStr" -> "string"
- | () -> "()"
- | None -> "constructor nothing"
- | [ i ] -> "list:" ++ i
- | (1, 1) -> "1 and 1"
- | (1, 2) -> "1 and 2"
- | (2, 2) -> "2 and 2"
- | name -> name ++ "var") = "1 and 2"
-
-// nested tuple
-(let tpl = (1, 2, (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1, "four"), 5) in
-
- match tpl with
- | 5 -> "int"
- | 5.6 -> "float"
- | false -> "bool"
- | "myStr" -> "string"
- | () -> "()"
- | None -> "constructor nothing"
- | [ i ] -> "list:" ++ i
- | (1, 1) -> "1 and 1"
- | (1, 2, (Ok "one", "four"), 5) -> "non-matching pattern chosen"
- | (1, 2, (Ok 1, "four"), 5) -> "correct pattern matched"
- | (1, 2, (Ok 1, x), 5) -> "wrong matching pattern chosen"
- | (2, 2) -> "2 and 2"
- | name -> name ++ "var") = "correct pattern matched"
-
-// nested list
-(let lst = [ [ 1; 2 ]; [ 3; 4 ]; [ 5 ] ] in
-
- match lst with
- | 5 -> "int"
- | 5.6 -> "float"
- | false -> "bool"
- | "myStr" -> "string"
- | () -> "()"
- | None -> "constructor nothing"
- | [ i ] -> "list:" ++ i
- | [ [ 1; 2 ]; [ 3; 4 ]; [ 5 ] ] -> "correct pattern matched"
- | [ [ 1; 2 ]; [ 3; 4 ]; [ 5; 6 ] ] -> "wrong matching pattern chosen"
- | name -> name ++ "var") = "correct pattern matched"
+  (match 999999999999999L with
+   | 0 -> "fail"
+   | 999999999999999L -> "pass") = "pass"
 
 
-// duplicate tuple variables
-(let tpl = (1, 2, (3, 4), 5) in
+  (match 6 with
+   | 6.0 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Int value 6 with a Float pattern"
 
- match tpl with
- | (a, b, (a, b), a) -> (a, b)
- | name -> name ++ "var") = (5, 4)
+  (match 6.0 with
+   | 6 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Float value 6.0 with an Int pattern"
 
-// duplicate list variables
-(match [ 1; 2; 5 ] with
- | [ a; a; a ] -> a
- | name -> name ++ "var") = 5
 
-// empty constructor
-(match PACKAGE.Darklang.Stdlib.Option.Option.None with
- | 5 -> "int"
- | 5.6 -> "float"
- | false -> "bool"
- | "myStr" -> "string"
- | () -> "()"
- | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
- | None -> "constructor nothing"
- | [ i ] -> "list:" ++ i
- | (1, 2) -> "1 and 2"
- | name -> name ++ "var") = "constructor nothing"
+module String =
+  (match "x" with
+   | "y" -> "fail"
+   | "" -> "pass"
+   | "xx" -> "pass"
+   | "x" -> "pass"
+   | var -> "fail") = "pass"
 
-// wildcard match
-(match "not matched: " with
- | 5 -> "int"
- | 5.6 -> "float"
- | false -> "bool"
- | "myStr" -> "string"
- | () -> "()"
- | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
- | None -> "constructor nothing"
- | [ i ] -> "list:" ++ i
- | (1, 2) -> "1 and 2"
- | name -> name ++ "var") = "not matched: var"
+  (match "x" with
+   | "x" -> "pass"
+   | "y" -> "fail"
+   | var -> "fail") = "pass"
 
-(match "not matched: " with
- | 5 -> "int"
- | 5.6 -> "float"
- | false -> "bool"
- | "myStr" -> "string"
- | () -> "()"
- | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
- | [ i ] -> "list:" ++ i
- | (1, 2) -> "1 and 2"
- | None -> "constructor nothing") = Builtin.Test.derrorMessage "No match"
+  (match "x" with
+   | var -> $"pass: {var}"
+   | "x" -> "fail"
+   | "y" -> "fail") = "pass: x"
 
-module ListCons =
-  (match [ 1; 2; 3 ] with
-   | 1 :: 2 :: [ 3 ] -> 42) = 42
+  (match "x" with
+   | 6 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match String value \"x\" with an Int pattern"
+
+  (match 6 with
+   | "x" -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Int value 6 with a String pattern"
+
+
+module Bool =
+
+  (match true with
+   | false -> "fail"
+   | true -> "pass"
+   | var -> "fail") = "pass"
+
+  (match true with
+   | true -> "pass"
+   | false -> "fail"
+   | var -> "fail") = "pass"
+
+  (match true with
+   | var -> if var then "pass" else "fail"
+   | true -> "fail"
+   | false -> "fail") = "pass"
+
+  (match false with
+   | true -> "fail"
+   | false -> "pass"
+   | var -> "fail") = "pass"
+
+  (match false with
+   | var -> if var then "fail" else "pass"
+   | false -> "fail"
+   | true -> "fail") = "pass"
+
+  (match false with
+   | "false" -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Bool value false with a String pattern"
+
+  (match "false" with
+   | false -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match String value \"false\" with a Bool pattern"
+
+
+module Float =
+
+  (match 6.5 with
+   | 5.5 -> "fail"
+   | -6.5 -> "fail"
+   | 6.5 -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6.5 with
+   | 6.5 -> "pass"
+   | 5.5 -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6.5 with
+   | var -> $"pass: {PACKAGE.Darklang.Stdlib.Float.toString var}"
+   | 6.5 -> "fail"
+   | 5.5 -> "fail") = "pass: 6.5"
+
+  // (match 0.0 with
+  //  | -0.0 -> "fail1"
+  //  | 0.0 -> "pass"
+  //  | var -> "fail2") = "pass"
+
+  (match -4.7 with
+   | 4.7 -> "fail"
+   | -4.7 -> "pass"
+   | var -> "fail") = "pass"
+
+  (match -4.7 with
+   | var -> $"pass: {PACKAGE.Darklang.Stdlib.Float.toString var}"
+   | -4.7 -> "fail"
+   | 4.7 -> "fail") = "pass: -4.7"
+
+  (match -4.7 with
+   | true -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Float value -4.7 with a Bool pattern"
+
+  (match true with
+   | -4.7 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Bool value true with a Float pattern"
+
+
+module Unit =
+
+  (match () with
+   | () -> "pass"
+   | var -> "fail") = "pass"
+
+  (match () with
+   | var -> "pass"
+   | () -> "fail") = "pass"
+
+  (match () with
+   | 0 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Unit value () with an Int pattern"
+
+  (match 0 with
+   | () -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Int value 0 with an Unit pattern"
+
+
+module Char =
+
+  (match 'a' with
+   | 'b' -> "fail"
+   | 'a' -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 'a' with
+   | 'a' -> "pass"
+   | 'b' -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 'a' with
+   | var -> $"pass: {PACKAGE.Darklang.Stdlib.Char.toString var}"
+   | 'a' -> "fail"
+   | 'b' -> "fail") = "pass: a"
+
+  (match 'c' with
+   | 'd' -> "fail"
+   | 'c' -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 'c' with
+   | var -> $"pass"
+   | 'c' -> "fail"
+   | 'd' -> "fail") = "pass"
+
+  (match 'c' with
+   | true -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Char value 'c' with a Bool pattern"
+
+  (match true with
+   | 'c' -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Bool value true with a Char pattern"
+
+
+module List =
 
   (match [ 1; 2; 3 ] with
-   | 1 :: 2 :: [ 3 ] -> 42
-   | [] -> 4
-   | _ -> 2) = 42
+   | [] -> "fail"
+   | [ 1; 2; 3 ] -> "pass"
+   | var -> "fail") = "pass"
 
   (match [ 1; 2; 3 ] with
-   | [] -> 4
-   | 1 :: 2 :: [ 3 ] -> 42
-   | _ -> 2) = 42
+   | [ 1; 2; 3 ] -> "pass"
+   | [] -> "fail"
+   | var -> "fail") = "pass"
 
   (match [ 1; 2; 3 ] with
-   | _ -> 2
-   | 1 :: 2 :: [ 3 ] -> 42
-   | [] -> 4) = 2
+   | var ->
+     let length =
+       (PACKAGE.Darklang.Stdlib.List.length var)
+       |> PACKAGE.Darklang.Stdlib.Int.toString
+
+     $"pass with length: {length}"
+   | [ 1; 2; 3 ] -> "fail"
+   | [] -> "fail") = "pass with length: 3"
+
+  (match [] with
+   | [] -> "pass"
+   | [ 1; 2; 3 ] -> "fail"
+   | var -> "fail") = "pass"
 
   (match [ 1; 2; 3 ] with
-   | head :: rest ->
-     head + (rest |> PACKAGE.Darklang.Stdlib.List.head |> Builtin.unwrap)) = 3
+   | [ 1; 2 ] -> "fail"
+   | [ 1; 2; 3; 4 ] -> "fail"
+   | [ 1; 2; 3 ] -> "pass"
+   | var -> "fail") = "pass"
 
-  // head tail
-  let headTail (list: List<Int>) : (Int * List<Int>) =
-    match list with
-    | head :: tail -> (head, tail)
-    | [] -> (0, [])
+  (match [ 1; 2; 3 ] with
+   | head :: tail -> $"pass"
+   | [] -> "fail") = "pass"
 
-  (headTail []) = (0, [])
-  (headTail [ 1 ]) = (1, [])
-  (headTail [ 1; 2 ]) = (1, [ 2 ])
-  (headTail [ 1; 2; 3 ]) = (1, [ 2; 3 ])
+  (match [] with
+   | head :: tail -> "fail"
+   | [] -> "pass") = "pass"
 
-  (match [ "dd"; "aa"; "fff"; "gg" ] with
-   | head :: tail -> (head, tail)) = ("dd", [ "aa"; "fff"; "gg" ])
+  // duplicate variable name
+  (match [ 1; 2; 5 ] with
+   | [ a; a; a ] -> a
+   | name -> name ++ "var") = 5
 
-  // heads tail
-  let sequence (list: List<Int>) : Int =
-    match list with
-    | a :: b :: c :: rest -> a + b + c
-    | a :: b :: rest -> a + b - 1
-    | [] -> 0
-    | _ -> -1
+  (match [ 1; 2; 3 ] with
+   | "1,2,3" -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match List<Int> value [  1, 2, ... with a String pattern"
 
-  (sequence []) = 0
-  (sequence [ 1 ]) = -1
-  (sequence [ 1; 2 ]) = 2
-  (sequence [ 1; 2; 3 ]) = 6
-  (sequence [ 1; 2; 3; 0 ]) = 6
+  (match [ 1; 2; 3 ] with
+   | [ 1.0; 2.0; 3.0 ] -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Int value 1 with a Float pattern"
 
-  // nested
-  let complexSum (list: List<List<Int>>) : Int =
-    match list with
-    | (a1 :: a2 :: ar) :: (b1 :: b2 :: br) :: (c1 :: cr) :: rest ->
-      a1 + a2 + b1 + b2 + c1
-    | (a :: ar) :: (b :: brest) :: rest -> a + b
-    | _ -> 0
+  (match "" with
+   | [ 1; 2; 3 ] -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match String value \"\" with a List pattern"
 
-  (complexSum []) = 0
-  (complexSum [ [ 1; 2 ]; [ 3; 4 ] ]) = 4
-  (complexSum [ [ 1; 2; 3 ]; [ 3; 4; 5 ]; [ 4; 5; 6 ] ]) = 14
 
-  // wildcard
-  (match [ 1; 2; 3; 4 ] with
-   | 1 :: a :: [ 4; 3 ] -> a + 1
-   | _ :: a :: _ -> a + 2
-   | 1 :: a :: rest -> a + 3) = 4
 
-  // misc
-  (match [ 1; 2; 3; 4 ] with
-   | 2 :: a :: [ 3; 4 ] -> a + 1
-   | 1 :: a :: [ 4; 3 ] -> a + 2
-   | 1 :: a :: [ 3; 4 ] -> a + 3
-   | 1 :: a :: rest -> a + 4) = 5
+  module NestedList =
 
-  (match [ 1; 2; 3; 4 ] with
-   | 2 :: a :: rest -> a - 1
-   | 1 :: a :: rest -> a * 2) = 4
+    (match [ [ 1; 2 ]; [ 3; 4 ] ] with
+     | [] -> "fail"
+     | [ [ 1; 2 ]; [ 3; 4 ] ] -> "pass"
+     | var -> "fail") = "pass"
+
+    (match [ [ 1; 2 ]; [ 3; 4 ] ] with
+     | [ [ 1; 2 ]; [ 3; 4 ] ] -> "pass"
+     | [] -> "fail"
+     | var -> "fail") = "pass"
+
+    (match [ [ 1; 2 ]; [ 3; 4 ] ] with
+     | [ a; b ] -> $"pass"
+     | [] -> "fail") = "pass"
+
+    (match [ [ 1; 2 ]; [] ] with
+     | [ []; _ ] -> "fail"
+     | [ [ 1; 2 ]; _ ] -> "pass"
+     | _ -> "fail") = "pass"
+
+    (match [ [ 1; 2 ]; [ 3; 4; 5 ] ] with
+     | [ [ 1; 2 ]; [ _ ] ] -> "fail"
+     | [ [ 1; 2 ]; [ _; _ ] ] -> "fail"
+     | [ [ 1; 2 ]; [ _; _; _ ] ] -> "pass") = "pass"
+
+    (match [ [ 1; 2 ]; [ 3; 4 ] ] with
+     | [ [ 1; 2; 3 ]; [ 4; 5; 6 ] ] -> "fail"
+     | [ _; [ 3; _ ] ] -> "pass"
+     | _ -> "fail") = "pass"
+
+    (match [ [ 1; 2 ]; [ 3; 4 ] ] with
+     | "1,2,3,4" -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match List<List<Int>> value [  [    ... with a String pattern"
+
+    (match [ "" ] with
+     // Different lengths
+     | [ 1; 2; 3 ] -> "fail") = Builtin.Test.derrorMessage "No match for [  \"\"]"
+
+    (match [ "" ] with
+     | [ 1 ] -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match String value \"\" with an Int pattern"
+
+    (match [ [ 1.0 ] ] with
+     | [ [ 1 ] ] -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match Float value 1.0 with an Int pattern"
+
+    (match [ [ 1; 2 ]; [ 3; 4 ] ] with
+     | [ [ 1.0; 2.0 ]; [ 3; 4 ] ] -> "fail"
+     | [ [ 1; 2 ]; [ 3; 4 ] ] -> "fail"
+     | _ -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match Int value 1 with a Float pattern"
+
+
+  module ListCons =
+    (match [ 1; 2; 3 ] with
+     | 1 :: 2 :: [ 3 ] -> 42) = 42
+
+    (match [ 1; 2; 3 ] with
+     | 1 :: 2 :: [ 3 ] -> 42
+     | [] -> 4
+     | _ -> 2) = 42
+
+    (match [ 1; 2; 3 ] with
+     | [] -> 4
+     | 1 :: 2 :: [ 3 ] -> 42
+     | _ -> 2) = 42
+
+    (match [ 1; 2; 3 ] with
+     | _ -> 2
+     | 1 :: 2 :: [ 3 ] -> 42
+     | [] -> 4) = 2
+
+    (match [ 1; 2; 3 ] with
+     | head :: rest ->
+       head + (rest |> PACKAGE.Darklang.Stdlib.List.head |> Builtin.unwrap)) = 3
+
+    (match "" with
+     | head :: rest -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match String value \"\" with a List pattern"
+
+    // head tail
+    let headTail (list: List<Int>) : (Int * List<Int>) =
+      match list with
+      | head :: tail -> (head, tail)
+      | [] -> (0, [])
+
+    (headTail []) = (0, [])
+    (headTail [ 1 ]) = (1, [])
+    (headTail [ 1; 2 ]) = (1, [ 2 ])
+    (headTail [ 1; 2; 3 ]) = (1, [ 2; 3 ])
+
+    (match [ "dd"; "aa"; "fff"; "gg" ] with
+     | head :: tail -> (head, tail)) = ("dd", [ "aa"; "fff"; "gg" ])
+
+    // heads tail
+    let sequence (list: List<Int>) : Int =
+      match list with
+      | a :: b :: c :: rest -> a + b + c
+      | a :: b :: rest -> a + b - 1
+      | [] -> 0
+      | _ -> -1
+
+    (sequence []) = 0
+    (sequence [ 1 ]) = -1
+    (sequence [ 1; 2 ]) = 2
+    (sequence [ 1; 2; 3 ]) = 6
+    (sequence [ 1; 2; 3; 0 ]) = 6
+
+    // nested
+    let complexSum (list: List<List<Int>>) : Int =
+      match list with
+      | (a1 :: a2 :: ar) :: (b1 :: b2 :: br) :: (c1 :: cr) :: rest ->
+        a1 + a2 + b1 + b2 + c1
+      | (a :: ar) :: (b :: brest) :: rest -> a + b
+      | _ -> 0
+
+    (complexSum []) = 0
+    (complexSum [ [ 1; 2 ]; [ 3; 4 ] ]) = 4
+    (complexSum [ [ 1; 2; 3 ]; [ 3; 4; 5 ]; [ 4; 5; 6 ] ]) = 14
+
+    // wildcard
+    (match [ 1; 2; 3; 4 ] with
+     | 1 :: a :: [ 4; 3 ] -> a + 1
+     | _ :: a :: _ -> a + 2
+     | 1 :: a :: rest -> a + 3) = 4
+
+    // misc
+    (match [ 1; 2; 3; 4 ] with
+     | 2 :: a :: [ 3; 4 ] -> a + 1
+     | 1 :: a :: [ 4; 3 ] -> a + 2
+     | 1 :: a :: [ 3; 4 ] -> a + 3
+     | 1 :: a :: rest -> a + 4) = 5
+
+    (match [ 1; 2; 3; 4 ] with
+     | 2 :: a :: rest -> a - 1
+     | 1 :: a :: rest -> a * 2) = 4
+
+
+module Tuple =
+
+  (match (1, 'a') with
+   | (2, 'b') -> "fail"
+   | (1, 'a') -> "pass"
+   | var -> "fail") = "pass"
+
+  (match (1, 'a') with
+   | (1, 'a') -> "pass"
+   | (2, 'b') -> "fail"
+   | var -> "fail") = "pass"
+
+  (match (1, 'a') with
+   | (x, y) -> $"pass"
+   | (2, 'b') -> "fail") = "pass"
+
+  (match (1, 'a', true) with
+   | (1, _, true) -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match (1, 'a') with
+   | "1,a" -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match (Int, Char) value (1, 'a') with a String pattern"
+
+  (match "1,a" with
+   | (1, 'a') -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match String value \"1,a\" with a Tuple pattern"
+
+  (match (1, 'a') with
+   | (1.0, 'a') -> "fail"
+   | (1, 'a') -> "fail"
+   | (2, 'b') -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Int value 1 with a Float pattern"
+
+  (match (1, 'a') with
+   | (1, 'a', true) -> "fail"
+   | (1, 'a') -> "pass") = "pass"
+
+  (match (true, [ 1; 2 ]) with
+   | (true, [ 1; 2; 3 ]) -> "fail"
+   | (false, _) -> "fail"
+   | (true, [ 1; 2 ]) -> "pass") = "pass"
+
+  // duplicate tuple variables
+  (let tpl = (1, 2, (3, 4), 5) in
+
+   match tpl with
+   | (a, b, (a, b), a) -> (a, b)
+   | name -> name ++ "var") = (5, 4)
+
+
+
+  module NestedTuple =
+
+    (match ((1, 'a'), (true, 2.0)) with
+     | ((2, 'b'), (false, 3.0)) -> "fail"
+     | ((1, 'a'), (true, 2.0)) -> "pass"
+     | var -> "fail") = "pass"
+
+    (match ((1, 'a'), (true, 2.0)) with
+     | ((1, 'a'), _) -> "pass"
+     | ((2, 'b'), _) -> "fail"
+     | _ -> "fail") = "pass"
+
+    (match ((1, 'a'), (true, 2.0)) with
+     | (_, (true, _)) -> "pass"
+     | _ -> "fail") = "pass"
+
+    (match ((1, 'a'), (true, 2.0)) with
+     | ((_, 'a'), (true, _)) -> "pass"
+     | _ -> "fail") = "pass"
+
+    (match ((1, 'a'), (true, 2.0)) with
+     | ((1, _), (_, 3.0)) -> "fail"
+     | ((1, _), (_, 2.0)) -> "pass"
+     | _ -> "fail") = "pass"
+
+    (match ((1, 'a'), (true, 2.0)) with
+     | "1,a,true,2.0" -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match ((Int, Char), (Bool, Float)) value ((1, 'a'),... with a String pattern"
+
+    (match "" with
+     | ((1.0, 'a'), (true, 2.0)) -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match String value \"\" with a Tuple pattern"
+
+    (match ((1, 'a'), (true, 2.0)) with
+     | ((1.0, 'a'), (true, 2.0)) -> "fail"
+     | ((1, 'a'), (true, 2.0)) -> "fail"
+     | _ -> "fail") = Builtin.Test.derrorMessage
+      "Cannot match Int value 1 with a Float pattern"
+
+    (match ((1, 'a'), (true, 2.0)) with
+     | ((_, _), (_, _)) -> "pass"
+     | _ -> "fail") = "pass"
+
+    (match ((1, 'a'), (true, 2.0)) with
+     | ((_, _), _) -> "pass"
+     | _ -> "fail") = "pass"
+
+
+module Result =
+
+  (match PACKAGE.Darklang.Stdlib.Result.Result.Ok 5 with
+   | Ok 6 -> "fail"
+   | Error _ -> "fail"
+   | Ok 5 -> "pass"
+   | var -> "fail") = "pass"
+
+  (match PACKAGE.Darklang.Stdlib.Result.Result.Ok 5 with
+   | Ok 5 -> "pass"
+   | Error _ -> "fail"
+   | var -> "fail") = "pass"
+
+  (match PACKAGE.Darklang.Stdlib.Result.Result.Error "failure" with
+   | Ok _ -> "fail"
+   | Error "success" -> "fail"
+   | Error "failure" -> "pass") = "pass"
+
+  (match PACKAGE.Darklang.Stdlib.Result.Result.Error "failure" with
+   | Ok var -> $"unexpected: {var}"
+   | Error msg -> $"pass: {msg}") = "pass: failure"
+
+  (match PACKAGE.Darklang.Stdlib.Result.Result.Ok [ 1; 2; 3 ] with
+   | Ok [ 1; 2; 3; 4 ] -> "fail"
+   | Error _ -> "fail"
+   | Ok [ 1; 2; 3 ] -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match PACKAGE.Darklang.Stdlib.Result.Result.Ok((1, 'a')) with
+   | Ok((2, 'b')) -> "fail"
+   | Ok((1, 'a')) -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match PACKAGE.Darklang.Stdlib.Result.Result.Error "failure" with
+   | "failure" -> "fail"
+   | Error "failure" -> "fail"
+   | _ -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match PACKAGE.Darklang.Stdlib.Result.Result value PACKAGE.Da... with a String pattern"
+
+  (match PACKAGE.Darklang.Stdlib.Result.Result.Ok 5.0 with
+   | Ok 6.0 -> "fail"
+   | Error _ -> "fail"
+   | Ok 5.0 -> "pass"
+   | _ -> "fail") = "pass"
+
+
+
+module Option =
+
+  (match PACKAGE.Darklang.Stdlib.Option.Option.Some 5 with
+   | Some 6 -> "fail"
+   | None -> "fail"
+   | Some 5 -> "pass"
+   | var -> "fail") = "pass"
+
+  (match PACKAGE.Darklang.Stdlib.Option.Option.Some 5 with
+   | Some 5 -> "pass"
+   | None -> "fail"
+   | var -> "fail") = "pass"
+
+  (match PACKAGE.Darklang.Stdlib.Option.Option.None with
+   | Some _ -> "fail"
+   | None -> "pass") = "pass"
+
+  (match PACKAGE.Darklang.Stdlib.Option.Option.Some "hello" with
+   | Some "world" -> "fail"
+   | None -> "fail"
+   | Some msg -> $"pass: {msg}") = "pass: hello"
+
+  (match PACKAGE.Darklang.Stdlib.Option.Option.Some [ 1; 2; 3 ] with
+   | Some [ 1; 2; 3; 4 ] -> "fail"
+   | None -> "fail"
+   | Some [ 1; 2; 3 ] -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match PACKAGE.Darklang.Stdlib.Option.Option.Some((1, 'a')) with
+   | Some((2, 'b')) -> "fail"
+   | Some((1, 'a')) -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match PACKAGE.Darklang.Stdlib.Option.Option.Some "hello" with
+   | "hello" -> "fail"
+   | Some "hello" -> "fail"
+   | _ -> "fail") = Builtin.Test.derrorMessage
+    // TODO bad error message
+    "Cannot match PACKAGE.Darklang.Stdlib.Option.Option value PACKAGE.Da... with a String pattern"
+
+  (match PACKAGE.Darklang.Stdlib.Option.Option.Some 5.0 with
+   | Some 6.0 -> "fail"
+   | None -> "fail"
+   | Some 5.0 -> "pass"
+   | _ -> "fail") = "pass"
+
+
+module Errors =
+  (match "nothing matches" with
+   | "not this" -> "fail") = Builtin.Test.derrorMessage "No match for \"nothing m..."
+
+  (match Builtin.Test.runtimeError "cond is error" with
+   | 5 -> "fail"
+   | 6 -> "pass"
+   | var -> "fail") = Builtin.Test.derrorMessage "cond is error"
+
+  (match Builtin.Test.runtimeError "cond is error, wildcard" with
+   | 5 -> 5
+   | _ -> 6) = Builtin.Test.derrorMessage "cond is error, wildcard"
+
+  (match 1 with
+   | 1 -> Builtin.Test.runtimeError "a"
+   | 6 -> "pass"
+   | var -> "fail") = Builtin.Test.derrorMessage "a"
+
+  (match 1 with
+   | 2 -> Builtin.Test.runtimeError "a"
+   | 1 -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 1 with
+   | 1 -> "pass"
+   | 6 -> Builtin.Test.runtimeError "a"
+   | var -> "fail") = "pass"
+
+  (match 1 with
+   | 2 -> "pass"
+   | 1 -> Builtin.Test.runtimeError "a"
+   | var -> "fail") = Builtin.Test.derrorMessage "a"
+
+  (match 3 with
+   | 2 -> "pass"
+   | 1 -> Builtin.Test.runtimeError "a"
+   | var -> "pass") = "pass"
+
+
+
+module TypeErrors =
+  type TestType =
+    | NoArgs
+    | OneArg of Int
+    | TwoArgs of Int * Int
+
+  // enum with more pattern params than actual args
+  (match TestType.NoArgs with
+   | NoArgs _ -> "wrong number") = Builtin.Test.derrorMessage
+    "NoArgs pattern is expecting 1 field, but NoArgs has 0 fields"
+
+  // enum with fewer pattern params than actual args
+  (match TestType.OneArg 1 with
+   | OneArg -> "wrong number") = Builtin.Test.derrorMessage
+    "OneArg pattern is expecting 0 fields, but OneArg has 1 field"
+
+  // enum with a single wildcard
+  (match TestType.TwoArgs(1, 2) with
+   | TwoArgs _ -> "wildcards allowed") = "wildcards allowed"

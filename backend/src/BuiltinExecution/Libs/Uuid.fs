@@ -7,6 +7,8 @@ open FSharp.Control.Tasks
 open LibExecution.RuntimeTypes
 open Prelude
 open LibExecution.Builtin.Shortcuts
+module VT = ValueType
+module Dval = LibExecution.Dval
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
@@ -37,14 +39,16 @@ let fns : List<BuiltInFn> =
       description =
         "Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
+        let resultOk = Dval.resultOk VT.uuid VT.string
+        let resultError = Dval.resultError VT.uuid VT.string
         (function
         | _, _, [ DString s ] ->
           match System.Guid.TryParse s with
-          | true, x -> x |> DUuid |> Dval.resultOk |> Ply
+          | true, x -> x |> DUuid |> resultOk |> Ply
           | _ ->
             "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
             |> DString
-            |> Dval.resultError
+            |> resultError
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

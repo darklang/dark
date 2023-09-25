@@ -8,6 +8,9 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
+module Dval = LibExecution.Dval
+
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
@@ -45,54 +48,25 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "isDigit" 0
+    { name = fn "toAsciiCode" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
-      returnType = TBool
-      description = "Return whether <param c> is a digit (that is, the digits 0-9)"
+      returnType = TypeReference.option TInt
+      description =
+        "Return {{Some <var code>}} if <param c> is a valid ASCII character, otherwise {{None}}"
       fn =
         function
         | _, _, [ DChar c ] ->
-          (if c.Length = 1 then System.Char.IsDigit(c[0]) else false) |> DBool |> Ply
+          let charValue = int c.[0]
+          if charValue >= 0 && charValue < 256 then
+            Dval.optionSome VT.int (DInt charValue) |> Ply
+          else
+            Dval.optionNone VT.int |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
-
-    { name = fn "isASCIILetter" 0
-      typeParams = []
-      parameters = [ Param.make "c" TChar "" ]
-      returnType = TBool
-      description = "Return whether <param c> is an ASCII letter"
-      fn =
-        function
-        | _, _, [ DChar c ] ->
-          (if c.Length = 1 then
-             System.Char.IsAscii c[0] && System.Char.IsLetter c[0]
-           else
-             false)
-          |> DBool
-          |> Ply
-        | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "isASCII" 0
-      typeParams = []
-      parameters = [ Param.make "c" TChar "" ]
-      returnType = TBool
-      description = "Return whether <param c> is a valid ASCII character"
-      fn =
-        function
-        | _, _, [ DChar c ] ->
-          (if c.Length = 1 then System.Char.IsAscii c[0] else false) |> DBool |> Ply
-        | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
 
     { name = fn "isLessThan" 0
       typeParams = []
@@ -107,6 +81,21 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+
+    { name = fn "isLessThanOrEqualTo" 0
+      typeParams = []
+      parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
+      returnType = TBool
+      description = "Return whether <param c1> is less than <param c2>"
+      fn =
+        function
+        | _, _, [ DChar c1; DChar c2 ] -> (c1 <= c2) |> DBool |> Ply
+        | _ -> incorrectArgs ()
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "isGreaterThan" 0
       typeParams = []
       parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
@@ -115,6 +104,20 @@ let fns : List<BuiltInFn> =
       fn =
         function
         | _, _, [ DChar c1; DChar c2 ] -> (c1 > c2) |> DBool |> Ply
+        | _ -> incorrectArgs ()
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "isGreaterThanOrEqualTo" 0
+      typeParams = []
+      parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
+      returnType = TBool
+      description = "Return whether <param c1> is greater than <param c2>"
+      fn =
+        function
+        | _, _, [ DChar c1; DChar c2 ] -> (c1 >= c2) |> DBool |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure

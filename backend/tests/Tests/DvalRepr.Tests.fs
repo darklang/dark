@@ -7,14 +7,15 @@ open Expecto
 open Prelude
 open TestUtils.TestUtils
 
-module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module VT = RT.ValueType
+module Dval = LibExecution.Dval
+module PT = LibExecution.ProgramTypes
 
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 module DvalReprInternalHash = LibExecution.DvalReprInternalHash
-module Errors = LibExecution.Errors
 module S = TestUtils.RTShortcuts
 
 
@@ -38,6 +39,7 @@ let queryableRoundtripsSuccessfullyInRecord
       RT.DRecord(
         RT.FQName.UserProgram typeName,
         RT.FQName.UserProgram typeName,
+        VT.typeArgsTODO,
         Map.ofList [ "field", dv ]
       )
     let typeRef = S.userTypeReference [] "MyType" 0
@@ -78,7 +80,9 @@ let testDvalRoundtrippableRoundtrips =
   testMany
     "special roundtrippable dvals roundtrip"
     roundtrippableRoundtripsSuccessfully
-    [ RT.DDict(Map.ofList [ ("", RT.DFloat 1.797693135e+308); ("a", RT.DFloat nan) ]),
+    [ Dval.dict
+        VT.unknownTODO
+        [ ("", RT.DFloat 1.797693135e+308); ("a", RT.DFloat nan) ],
       true ]
 
 
@@ -91,8 +95,8 @@ let testToDeveloperRepr =
         [ RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(1, 2, 3)"
-          RT.DDict(Map.ofList [ "", RT.DUnit ]), "{\n  : unit\n}"
-          RT.DList [ RT.DUnit ], "[\n  unit\n]" ] ]
+          Dval.dict VT.unknownTODO [ "", RT.DUnit ], "{\n  : ()\n}"
+          RT.DList(VT.unit, [ RT.DUnit ]), "[\n  ()\n]" ] ]
 
 module ToHashableRepr =
   open LibExecution.RuntimeTypes
@@ -112,8 +116,8 @@ module ToHashableRepr =
 
     testList
       "hashv2"
-      [ t (NEList.singleton (DBytes [||])) "Bu4AH9NVqA0"
-        t (NEList.singleton (DBytes [| 128uy |])) "ARIiVvuJZTo" ]
+      [ t (NEList.singleton (DBytes [||])) "X1YnxJLFsVg"
+        t (NEList.singleton (DBytes [| 128uy |])) "Hj0nqyrvXis" ]
 
   let tests = testList "hashing" [ testHashV2 ]
 
@@ -154,113 +158,6 @@ let testInternalRoundtrippableNew =
         Expect.equal actual expected ""
       } ]
 
-module Password =
-  let testJsonRoundtripForwards =
-    test "json roundtrips forward" {
-      let password = RT.DPassword(Password(UTF8.toBytes "x"))
-
-      Expect.equalDval
-        password
-        (password
-         |> DvalReprInternalRoundtrippable.toJsonV0
-         |> DvalReprInternalRoundtrippable.parseJsonV0
-         |> DvalReprInternalRoundtrippable.toJsonV0
-         |> DvalReprInternalRoundtrippable.parseJsonV0)
-        "Passwords serialize and deserialize if there's no redaction."
-    }
-
-  let testSerialization =
-    test "password serialization" {
-      let testSerialize shouldRedact name f =
-        let bytes = UTF8.toBytes "encryptedbytes"
-        let password = RT.DPassword(Password bytes)
-        let allowed =
-          if shouldRedact then
-            "should redact password but doesn't"
-          else
-            "shouldn't redact password but does"
-
-        Expect.equal
-          shouldRedact
-          (String.contains
-            ("encryptedbytes" |> UTF8.toBytes |> Base64.urlEncodeToString)
-            (f password)
-           |> not)
-          $"{name} {allowed}"
-
-      let doesntRedact = testSerialize false
-      let doesRedact = testSerialize true
-
-      let roundtrips name serialize deserialize =
-        let bytes = UTF8.toBytes "encryptedbytes"
-        let password = RT.DPassword(Password bytes)
-        Expect.equalDval
-          password
-          (password |> serialize |> deserialize |> serialize |> deserialize)
-          $"Passwords serialize in non-redaction function: {name}"
-
-      // doesn't redact
-      doesntRedact
-        "toInternalRoundtrippableV0"
-        DvalReprInternalRoundtrippable.toJsonV0
-
-      // roundtrips
-      roundtrips
-        "toInternalRoundtrippableV0 roundtrips"
-        DvalReprInternalRoundtrippable.toJsonV0
-        DvalReprInternalRoundtrippable.parseJsonV0
-
-      // redacting
-      doesRedact "toDeveloperReprV0" DvalReprDeveloper.toRepr
-    }
-
-  let testSerialization2 =
-    testTask "serialization in object" {
-      let bytes = UTF8.toBytes "encryptedbytes"
-      let typeName = S.userTypeName [] "MyType" 0
-      let password =
-        RT.DRecord(
-          RT.FQName.UserProgram typeName,
-          RT.FQName.UserProgram typeName,
-          Map.ofList [ "x", RT.DPassword(Password bytes) ]
-        )
-
-      let typeRef = S.userTypeReference [] "MyType" 0
-
-      let availableTypes =
-        { RT.Types.empty with
-            userProgram =
-              Map
-                [ typeName,
-                  { tlid = 8UL
-                    name = typeName
-                    declaration = S.customTypeRecord [ "x", RT.TPassword ] } ] }
-
-
-      let serialize = DvalReprInternalQueryable.toJsonStringV0 availableTypes typeRef
-      let deserialize = DvalReprInternalQueryable.parseJsonV0 availableTypes typeRef
-      let! roundtripped =
-        task {
-          let! serialized1 = serialize password
-          let! deserialized1 = deserialize serialized1
-          let! serialized2 = serialize deserialized1
-          let! deserialized2 = deserialize serialized2
-          return deserialized2
-        }
-
-      Expect.equalDval
-        password
-        roundtripped
-        "Passwords serialize in non-redaction function: toInternalQueryableV1"
-    }
-
-
-
-  let tests =
-    testList
-      "password"
-      [ testJsonRoundtripForwards; testSerialization; testSerialization2 ]
-
 let tests =
   testList
     "dvalRepr"
@@ -268,5 +165,4 @@ let tests =
       testToDeveloperRepr
       ToHashableRepr.tests
       testInternalRoundtrippableNew
-      Password.tests
       allRoundtrips ]

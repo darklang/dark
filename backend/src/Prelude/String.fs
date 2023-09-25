@@ -11,6 +11,16 @@ let toEgcSeq (s : string) : seq<string> =
       yield tee.GetTextElement()
   }
 
+/// Return Some(c) if the string is a single EGC character, otherwise None
+let toEgcChar (str : string) : Option<string> =
+  let egcs = str |> toEgcSeq
+  match Seq.truncate 2 egcs |> Seq.toList with
+  | [] -> None
+  | [ char ] -> Some char
+  | _ -> None
+
+
+
 let splitOnNewline (str : string) : List<string> =
   if str = "" then
     []

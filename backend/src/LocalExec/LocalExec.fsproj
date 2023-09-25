@@ -34,7 +34,7 @@
     <Compile Include="Libs/Packages2.fs" />
     <Compile Include="Libs/List.fs" />
     <Compile Include="Libs/String.fs" />
-    <Compile Include="StdLib.fs" />
+    <Compile Include="Builtin.fs" />
     <Compile Include="LocalExec.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

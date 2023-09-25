@@ -1,0 +1,8 @@
+module Darklang =
+  module Stdlib =
+    /// Returns true if the two value are equal
+    let equals (a: 'a) (b: 'a) : Bool = Builtin.equals a b
+
+
+    /// Returns true if the two value are not equal
+    let notEquals (a: 'a) (b: 'a) : Bool = Builtin.notEquals a b

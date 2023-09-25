@@ -5,6 +5,8 @@ type Instant = NodaTime.Instant
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+module VT = ValueType
+module Dval = LibExecution.Dval
 module DarkDateTime = LibExecution.DarkDateTime
 
 let ISO8601Format = "yyyy-MM-ddTHH:mm:ssZ"
@@ -43,7 +45,7 @@ let fns : List<BuiltInFn> =
           ISO8601DateParser s
           |> Result.map DDateTime
           |> Result.mapError (fun () -> DString "Invalid date format")
-          |> Dval.result
+          |> Dval.result VT.dateTime VT.string
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

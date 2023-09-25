@@ -1,7 +1,7 @@
 5 + 3 = 8
 "xx" ++ "yy" = "xxyy"
 (5 + (3)) = 8
-Builtin.Int.add_v0 5 3 = 8
+PACKAGE.Darklang.Stdlib.Int.add_v0 5 3 = 8
 
 5 + true = Builtin.Test.derrorMessage
   "Int.add's 2nd argument (`b`) should be an Int. However, a Bool (true) was passed instead.\n\nExpected: (b: Int)\nActual: a Bool: true"

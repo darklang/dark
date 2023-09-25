@@ -9,9 +9,11 @@ If you're using VSCode, see instead [docs/vscode-setup.md](docs/vscode-setup.md)
 ### Formatting
 
 You will also want to support formatting in your client. Dark uses Prettier for
-JS/HTML/CSS and Fantomas for F#. The script
+JS/HTML/CSS and Fantomas for F# and Darklang code. The script
 `script/formatting/format` can be used to format or check formatting, and there is a
-pre-commit hook you can use to run it automatically.
+pre-commit hook you can use to run it automatically. Formatting is checked in CI.
+
+We use yapf for python formatting, though it's not checked in CI.
 
 ### Pre-commit hook
 

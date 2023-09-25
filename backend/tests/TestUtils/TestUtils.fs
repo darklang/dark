@@ -13,6 +13,8 @@ open Prelude
 
 module DarkDateTime = LibExecution.DarkDateTime
 module RT = LibExecution.RuntimeTypes
+module VT = RT.ValueType
+module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
@@ -145,19 +147,17 @@ let localBuiltIns =
     { BuiltinExecution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
   builtIns httpConfig
 
-// A resolver that only knows about builtins. If you need user code in the parser,
-// you need to add in the names of the fns/types/etc
-let builtinResolver =
-  LibParser.NameResolver.fromBuiltins (
-    Map.values localBuiltIns.fns,
-    Map.values localBuiltIns.types,
-    Map.values localBuiltIns.constants
-  )
-
 let packageManager = LibCloud.PackageManager.packageManager
 
-let resolverWithBuiltinsAndPackageManager =
-  { builtinResolver with packageManager = Some packageManager }
+// This resolves both builtins and package functions
+let nameResolver =
+  { LibParser.NameResolver.fromBuiltins (
+      Map.values localBuiltIns.fns,
+      Map.values localBuiltIns.types,
+      Map.values localBuiltIns.constants
+    ) with
+      packageManager = Some packageManager }
+
 
 let executionStateFor
   (canvasID : CanvasID)
@@ -188,9 +188,9 @@ let executionStateFor
           fun tc _ ->
             // In an effort to find errors in the test suite, we track exceptions
             // that we report in the runtime and check for them after the test
-            // completes.  There are a lot of places where exceptions are allowed,
+            // completes. There are a lot of places where exceptions are allowed,
             // possibly too many to annotate, so we assume that errors are intended
-            // to be reported anytime the result is a DError.
+            // to be reported anytime the result is a RTE.
             let exceptionCountMatches =
               tc.exceptionReports.Length = tc.expectedExceptionCount
 
@@ -279,6 +279,10 @@ let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) 
         })
       values)
 
+let testManyPly (name : string) (fn : 'a -> Ply<'b>) (values : List<'a * 'b>) =
+  testManyTask name (fn >> Ply.toTask) values
+
+
 let testMany2Task
   (name : string)
   (fn : 'a -> 'b -> Task<'c>)
@@ -330,31 +334,50 @@ let testListUsingPropertyAsync
 
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
+  // Nothing interesting right now
   match dv with
-  | RT.DError(_, rte) -> RT.DError(RT.SourceNone, rte)
   | dv -> dv
 
 open LibExecution.RuntimeTypes
 
 let rec debugDval (v : Dval) : string =
   match v with
+  // most Dvals print out reasonably nice-looking values automatically,
+  // but in these cases we'd like to print something a bit prettier
+
   | DString s ->
     $"DString '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
+
   | DDateTime d ->
     $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
-  | DRecord(tn, _, o) ->
+
+  | DRecord(tn, _, typeArgs, o) ->
     let typeStr = TypeName.toString tn
-    o
-    |> Map.toList
-    |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
-    |> String.concat ",\n  "
-    |> fun contents -> $"DRecord {typeStr} {{\n  {contents}}}"
-  | DDict obj ->
+
+    let typeArgsPart =
+      match typeArgs with
+      | [] -> ""
+      | _ ->
+        typeArgs
+        |> List.map ValueType.toString
+        |> String.concat ", "
+        |> fun s -> $"<{s}>"
+
+    let fieldsPart =
+      o
+      |> Map.toList
+      |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
+      |> String.concat ",\n  "
+
+    $"DRecord {typeStr}{typeArgsPart} {{\n  {fieldsPart}}}"
+
+  | DDict(_vtTODO, obj) ->
     obj
     |> Map.toList
     |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
     |> String.concat ",\n  "
     |> fun contents -> $"DDict {{\n  {contents}}}"
+
   | DBytes b ->
     b
     |> Array.toList
@@ -381,20 +404,20 @@ module Expect =
     | DBool _
     | DFloat _
     | DUnit
-    | DPassword _
     | DFnVal _
-    | DError _
     | DDB _
     | DUuid _
     | DBytes _
     | DFloat _ -> true
-    | DList vs -> List.all check vs
-    | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
-    | DDict vs -> vs |> Map.values |> List.all check
-    | DRecord(_, _, vs) -> vs |> Map.values |> List.all check
-    | DString str -> str.IsNormalized()
+
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
-    | DEnum(_typeName, _, _caseName, fields) -> fields |> List.all check
+    | DString str -> str.IsNormalized()
+
+    | DList(_, items) -> List.all check items
+    | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
+    | DDict(_, entries) -> entries |> Map.values |> List.all check
+    | DRecord(_, _, _, fields) -> fields |> Map.values |> List.all check
+    | DEnum(_, _, _, _, fields) -> fields |> List.all check
 
   type Path = string list
 
@@ -470,7 +493,7 @@ module Expect =
       if a <> e then errorFn path (string actual) (string expected)
 
     let eqList path (l1 : List<RT.MatchPattern>) (l2 : List<RT.MatchPattern>) =
-      List.iteri2 (fun i l r -> eq (string i :: path) l r) l1 l2
+      List.iteri2 (fun i -> eq (string i :: path)) l1 l2
       check path (List.length l1) (List.length l2)
 
     if checkIDs then
@@ -527,7 +550,6 @@ module Expect =
     | TDB(_), _
     | TDateTime, _
     | TChar, _
-    | TPassword, _
     | TUuid, _
     | TBytes, _
     | TVariable(_), _
@@ -550,11 +572,11 @@ module Expect =
       if a <> e then errorFn path (string actual) (string expected)
 
     let eqList path (l1 : List<RT.Expr>) (l2 : List<RT.Expr>) =
-      List.iteri2 (fun i l r -> eq (string i :: path) l r) l1 l2
+      List.iteri2 (fun i -> eq (string i :: path)) l1 l2
       check path (List.length l1) (List.length l2)
 
     let eqNEList path (l1 : NEList<RT.Expr>) (l2 : NEList<RT.Expr>) =
-      NEList.iteri2 (fun i l r -> eq (string i :: path) l r) l1 l2
+      NEList.iteri2 (fun i -> eq (string i :: path)) l1 l2
       check path (NEList.length l1) (NEList.length l2)
 
     if checkIDs then check path (Expr.toID actual) (Expr.toID expected)
@@ -711,6 +733,11 @@ module Expect =
     let check (path : Path) (a : 'a) (e : 'a) : unit =
       if a <> e then errorFn path (debugDval actual) (debugDval expected)
 
+    let checkValueType (path : Path) (a : ValueType) (e : ValueType) : unit =
+      match Dval.mergeValueTypes a e with
+      | Ok _merged -> ()
+      | Error() -> errorFn path (debugDval actual) (debugDval expected)
+
     match actual, expected with
     | DFloat l, DFloat r ->
       if System.Double.IsNaN l && System.Double.IsNaN r then
@@ -731,9 +758,12 @@ module Expect =
       // have the same number of ticks. For testing, we shall consider them
       // equal if they print the same string.
       check path (string l) (string r)
-    | DList ls, DList rs ->
+
+    | DList(lType, ls), DList(rType, rs) ->
+      checkValueType ("Type" :: path) lType rType
+
       check ("Length" :: path) (List.length ls) (List.length rs)
-      List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) ls rs
+      List.iteri2 (fun i -> de ($"[{i}]" :: path)) ls rs
 
     | DTuple(firstL, secondL, theRestL), DTuple(firstR, secondR, theRestR) ->
       de path firstL firstR
@@ -741,60 +771,81 @@ module Expect =
       de path secondL secondR
 
       check ("Length" :: path) (List.length theRestL) (List.length theRestR)
-      List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) theRestL theRestR
+      List.iteri2 (fun i -> de ($"[{i}]" :: path)) theRestL theRestR
 
-    | DDict ls, DDict rs ->
+    | DDict(lType, ls), DDict(rType, rs) ->
+      check ("Length" :: path) (Map.count ls) (Map.count rs)
+
+      checkValueType ("Type" :: path) lType rType
+
       // check keys from ls are in both, check matching values
       Map.iterWithIndex
         (fun key v1 ->
-          match Map.tryFind key rs with
+          match Map.find key rs with
           | Some v2 -> de (key :: path) v1 v2
           | None -> check (key :: path) ls rs)
         ls
+
       // check keys from rs are in both
       Map.iterWithIndex
         (fun key _ ->
-          match Map.tryFind key rs with
+          match Map.find key rs with
           | Some _ -> () // already checked
           | None -> check (key :: path) ls rs)
         rs
-      check ("Length" :: path) (Map.count ls) (Map.count rs)
 
-    | DRecord(ltn, _, ls), DRecord(rtn, _, rs) ->
+
+    | DRecord(ltn, _, ltypeArgs, ls), DRecord(rtn, _, rtypeArgs, rs) ->
+      // check type name
       userTypeNameEqualityBaseFn path ltn rtn errorFn
-      // check keys from ls are in both, check matching values
+
+      // check type args
+      check
+        ("TypeArgsLength" :: path)
+        (List.length ltypeArgs)
+        (List.length rtypeArgs)
+      List.iteri2 (fun i -> checkValueType (string i :: path)) ltypeArgs rtypeArgs
+
+      check ("Length" :: path) (Map.count ls) (Map.count rs)
+
+      // check keys
+      // -- keys from ls are in both, check matching values
       Map.iterWithIndex
         (fun key v1 ->
-          match Map.tryFind key rs with
+          match Map.find key rs with
           | Some v2 -> de (key :: path) v1 v2
           | None -> check (key :: path) ls rs)
         ls
-      // check keys from rs are in both
+
+      // -- keys from rs are in both
       Map.iterWithIndex
         (fun key _ ->
-          match Map.tryFind key rs with
+          match Map.find key rs with
           | Some _ -> () // already checked
           | None -> check (key :: path) ls rs)
         rs
-      check ("Length" :: path) (Map.count ls) (Map.count rs)
 
 
-    | DEnum(typeName, _, caseName, fields), DEnum(typeName', _, caseName', fields') ->
+    | DEnum(typeName, _, typeArgs, caseName, fields),
+      DEnum(typeName', _, typeArgs', caseName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
       check ("caseName" :: path) caseName caseName'
 
+      check ("TypeArgsLength" :: path) (List.length typeArgs) (List.length typeArgs')
+      List.iteri2 (fun i -> checkValueType (string i :: path)) typeArgs typeArgs'
+
       check ("fields.Length" :: path) (List.length fields) (List.length fields)
-      List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) fields fields'
+      List.iteri2 (fun i -> de ($"[{i}]" :: path)) fields fields'
       ()
 
-    | DError(_, err1), DError(_, err2) ->
-      check path (RuntimeError.toDT err1) (RuntimeError.toDT err2)
     | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
       let vals l = NEList.map Tuple2.second l
       check ("lambdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
       check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
       exprEqualityBaseFn false path l1.body l2.body errorFn
+
     | DString _, DString _ -> check path (debugDval actual) (debugDval expected)
+
     // Keep for exhaustiveness checking
     | DDict _, _
     | DRecord _, _
@@ -808,16 +859,14 @@ module Expect =
     | DFloat _, _
     | DUnit, _
     | DChar _, _
-    | DPassword _, _
     | DFnVal _, _
-    | DError _, _
     | DDB _, _
     | DUuid _, _
     | DBytes _, _ -> check path actual expected
 
   let formatMsg (initialMsg : string) (path : Path) (actual : 'a) : string =
     let initial = if initialMsg = "" then "" else $"{initialMsg}\n\n"
-    $"{initial}Error was found in{pathToString path}:\n{actual})\n\n"
+    $"{initial}Error was found in{pathToString path}:\nError was:\n{actual})\n\n"
 
   let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
     dvalEqualityBaseFn [] actual expected (fun path a e ->
@@ -852,12 +901,9 @@ module Expect =
       Expect.equal a e (formatMsg "" path actual))
 
   let dvalEquality (left : Dval) (right : Dval) : bool =
-    let success = ref true
-    dvalEqualityBaseFn [] left right (fun _ _ _ -> success.Value <- false)
-    success.Value
-
-  let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) =
-    dvalEquality (DDict m1) (DDict m2)
+    let mutable success = true
+    dvalEqualityBaseFn [] left right (fun _ _ _ -> success <- false)
+    success
 
 let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let mutable state = []
@@ -865,40 +911,28 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let rec visit dv : unit =
     match dv with
     // Keep for exhaustiveness checking
-    | DDict map -> Map.values map |> List.map visit |> ignore<List<unit>>
-    | DRecord(_, _, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
-    | DEnum(_typeName, _, _caseName, fields) ->
-      fields |> List.map visit |> ignore<List<unit>>
-    | DList dvs -> List.map visit dvs |> ignore<List<unit>>
+    | DDict(_, entries) -> Map.values entries |> List.map visit |> ignore<List<unit>>
+    | DRecord(_, _, _, fields) ->
+      Map.values fields |> List.map visit |> ignore<List<unit>>
+    | DEnum(_, _, _, _, fields) -> fields |> List.map visit |> ignore<List<unit>>
+    | DList(_, items) -> List.map visit items |> ignore<List<unit>>
     | DTuple(first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
-    | DString _
-    | DInt _
-    | DDateTime _
-    | DBool _
-    | DFloat _
+
     | DUnit
-    | DChar _
-    | DPassword _
+    | DBool _
+    | DInt _
+    | DFloat _
     | DFnVal _
-    | DError _
-    | DDB _
     | DUuid _
+    | DDateTime _
     | DBytes _
+    | DDB _
+    | DChar _
     | DString _ -> f dv
     f dv
   visit dv
   state
-
-let containsPassword (dv : Dval) : bool =
-  let isPassword dval =
-    match dval with
-    | RT.DPassword _ -> true
-    | _ -> false
-  dv |> visitDval isPassword |> List.any identity
-
-let containsFakeDval (dv : Dval) : bool =
-  dv |> visitDval RT.Dval.isFake |> List.any identity
 
 
 let interestingStrings : List<string * string> =
@@ -919,7 +953,7 @@ let interestingStrings : List<string * string> =
 
 let interestingFloats : List<string * float> =
   let initial =
-    // interesting cause OCaml uses 31 bit ints
+    // interesting cause we used to use 31 bit ints
     [ "min 31 bit", System.Math.Pow(2.0, 30.0) - 1.0
       "max 31 bit", - System.Math.Pow(2.0, 30.0)
       // interesting cause boundary of 32 bit ints
@@ -928,7 +962,7 @@ let interestingFloats : List<string * float> =
       // interesting cause doubles support up to 53-bit ints
       "min 53 bit", System.Math.Pow(2.0, 52.0) - 1.0
       "max 53 bit", - System.Math.Pow(2.0, 52.0)
-      // interesting cause OCaml uses 63 bit ints
+      // interesting cause we used to have 63 bit ints
       "min 63 bit", System.Math.Pow(2.0, 62.0) - 1.0
       "max 63 bit", - System.Math.Pow(2.0, 62.0)
       // interesting cause boundary of 64 bit ints
@@ -996,17 +1030,12 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("int string2", DString "-1039485", TString)
     ("int string3", DString "0", TString)
     ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6", TString)
-    ("list", DList [ Dval.int 4 ], TList TInt)
-    ("list with derror",
-     DList
-       [ Dval.int 3
-         DError(SourceNone, RuntimeError.oldError "some error string")
-         Dval.int 4 ],
-     TList TInt)
+    ("list", DList(ValueType.Known KTInt, [ Dval.int 4 ]), TList TInt)
     ("record",
      DRecord(
        S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0,
        S.fqUserTypeName [ "Two"; "Modules" ] "FooAlias" 0,
+       [],
        Map.ofList [ "foo", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0), []))
@@ -1014,6 +1043,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "FooAlias" 0,
+       [ VT.unknown; VT.bool ],
        Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1021,6 +1051,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
+       VT.typeArgsTODO,
        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1029,6 +1060,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
+       VT.typeArgsTODO,
        Map.ofList [ "foo\\\\bar", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1036,36 +1068,22 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
+       VT.typeArgsTODO,
        Map.ofList [ "$type", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    ("record with error",
-     DRecord(
-       S.fqUserTypeName [] "Foo" 0,
-       S.fqUserTypeName [] "Foo" 0,
-       Map.ofList
-         [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ]
-     ),
-     TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    ("dict", DDict(Map.ofList [ "foo", Dval.int 5 ]), TDict TInt)
+    ("dict", Dval.dict VT.unknownTODO [ "foo", Dval.int 5 ], TDict TInt)
     ("dict3",
-     DDict(Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]),
+     Dval.dict VT.unknownTODO [ ("type", DString "weird"); ("value", DString "x") ],
      TDict TString)
     // More Json.NET tests
-    ("dict4", DDict(Map.ofList [ "foo\\\\bar", Dval.int 5 ]), TDict TInt)
-    ("dict5", DDict(Map.ofList [ "$type", Dval.int 5 ]), TDict TInt)
-    ("dict with error",
-     DDict(
-       Map.ofList
-         [ "v", DError(SourceNone, RuntimeError.oldError "some error string") ]
-     ),
-     TDict TInt)
-    ("error", DError(SourceNone, RuntimeError.oldError "some error string"), TString)
+    ("dict4", Dval.dict VT.unknownTODO [ "foo\\\\bar", Dval.int 5 ], TDict TInt)
+    ("dict5", Dval.dict VT.unknownTODO [ "$type", Dval.int 5 ], TDict TInt)
     ("lambda",
      DFnVal(
        Lambda
          { body = RT.EUnit(id 1234)
-           typeArgTable = Map.empty
+           typeSymbolTable = Map.empty
            symtable = Map.empty
            parameters = NEList.singleton (id 5678, "a") }
      ),
@@ -1122,7 +1140,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                )
              )
            symtable = Map.empty
-           typeArgTable = Map.empty
+           typeSymbolTable = Map.empty
            parameters = NEList.singleton ((id 5678, "a")) }
      ),
      TFn(NEList.singleton TInt, TInt))
@@ -1132,12 +1150,13 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        DarkDateTime.fromInstant (NodaTime.Instant.ofIsoString "2018-09-14T00:31:41Z")
      ),
      TDateTime)
-    ("password", DPassword(Password(UTF8.toBytes "somebytes")), TPassword)
     ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"), TUuid)
     ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"), TUuid)
-    ("option", Dval.optionNone, TypeReference.option TInt)
-    ("option2", Dval.optionSome (Dval.int 15), TypeReference.option TInt)
-    ("option3", Dval.optionSome (DString "a string"), TypeReference.option TString)
+    ("option", Dval.optionNone VT.int, TypeReference.option TInt)
+    ("option2", Dval.optionSome VT.int (Dval.int 15), TypeReference.option TInt)
+    ("option3",
+     Dval.optionSome VT.string (DString "a string"),
+     TypeReference.option TString)
     ("character", DChar "s", TChar)
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
     // use image bytes here to test for any weird bytes forms
@@ -1156,7 +1175,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DTuple(Dval.int 1, Dval.int 2, [ DUnit ]),
      TTuple(TInt, TInt, [ TUnit ]))
     ("tupleWithError",
-     DTuple(Dval.int 1, Dval.resultError (DString "error"), []),
+     DTuple(Dval.int 1, Dval.resultError VT.unknown VT.string (DString "error"), []),
      TTuple(TInt, TypeReference.result TInt TString, [])) ]
 
 let sampleDvals : List<string * (Dval * TypeReference)> =

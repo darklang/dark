@@ -7,6 +7,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 
+module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
@@ -53,10 +54,10 @@ let fns : List<BuiltInFn> =
 
           Dval.record
             (TypeName.fqBuiltIn [ "Process" ] "Error" 0)
+            (Some [])
             [ ("exitCode", DInt(p.ExitCode))
               ("stdout", DString(stdout))
               ("stderr", DString(stderr)) ]
-          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

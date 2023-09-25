@@ -453,8 +453,17 @@ let requeueSavedEvents (canvasID : CanvasID) (handlerName : string) : Task<unit>
 
 let init () : Task<unit> =
   task {
-    let! (_ : PublisherServiceApiClient) = publisher.Force()
-    let! (_ : SubscriberServiceApiClient) = subscriber.Force()
+    printTime "Initing Queue"
+    let publisherTask =
+      task {
+        return! publisher.Force() |> Task.map (ignore<PublisherServiceApiClient>)
+      }
+    let subscriberTask =
+      task {
+        return! subscriber.Force() |> Task.map (ignore<SubscriberServiceApiClient>)
+      }
+    let! (_ : List<unit>) = Task.flatten [ publisherTask; subscriberTask ]
+    printTime " Inited Queue"
     return ()
   }
 

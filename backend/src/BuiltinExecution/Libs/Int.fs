@@ -9,10 +9,18 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module Errors = LibExecution.Errors
+module VT = ValueType
+module Dval = LibExecution.Dval
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
+
+/// Used for values which are outside the range of expected values for some
+/// reason. Really, any function using this should have a Result type instead.
+let argumentWasntPositive (paramName : string) (dv : Dval) : string =
+  let actual = LibExecution.DvalReprDeveloper.toRepr dv
+  $"Expected `{paramName}` to be positive, but it was `{actual}`"
+
 
 let fn = fn [ "Int" ]
 
@@ -32,7 +40,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DInt v; DInt m as mdv ] ->
           if m <= 0L then
-            Ply(Dval.errStr (Errors.argumentWasnt "positive" "b" mdv))
+            raiseString (argumentWasntPositive "b" mdv)
           else
             let result = v % m
             let result = if result < 0L then m + result else result
@@ -41,7 +49,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "%"
       previewable = Pure
       // TODO: Deprecate this when we can version infix operators and when infix operators support Result return types (https://github.com/darklang/dark/issues/4267)
-      // The current function returns DError (it used to rollbar) on negative `b`.
+      // The current function returns an RTE (it used to rollbar) on negative `b`.
       deprecated = NotDeprecated }
 
 
@@ -95,13 +103,15 @@ let fns : List<BuiltInFn> =
 
          Returns an {{Error}} if <param divisor> is {{0}}."
       fn =
+        let resultOk = Dval.resultOk VT.int VT.string
+        let resultError = Dval.resultError VT.int VT.string
         (function
         | _, _, [ DInt v; DInt d ] ->
           (try
-            v % d |> DInt |> Dval.resultOk |> Ply
+            v % d |> DInt |> resultOk |> Ply
            with e ->
              if d = 0L then
-               Ply(Dval.resultError (DString($"`divisor` must be non-zero")))
+               Ply(resultError (DString($"`divisor` must be non-zero")))
              else
                Exception.raiseInternal
                  "unexpected failure case in Int.remainder"
@@ -164,25 +174,23 @@ let fns : List<BuiltInFn> =
         <param exponent> must to be positive.
         Return value wrapped in a {{Result}} "
       fn =
+        let resultOk = Dval.resultOk VT.int VT.string
+        let resultError = Dval.resultError VT.int VT.string
         (function
         | _, _, [ DInt number; DInt exp as expdv ] ->
-          let errPipe e = e |> DString |> Dval.resultError |> Ply
-          let okPipe r = r |> DInt |> Dval.resultOk |> Ply
+          let okPipe r = r |> DInt |> resultOk |> Ply
+          let errPipe e = e |> DString |> resultError |> Ply
           (try
-            if exp < 0L then
-              Errors.argumentWasnt "positive" "exponent" expdv |> errPipe
+            if exp < 0L then argumentWasntPositive "exponent" expdv |> errPipe
+            // TODO: do this in a package, and keep it simple here
             // Handle some edge cases around 1. We want to make this match
             // OCaml, so we have to support an exponent above int32, but
             // below int63. This only matters for 1 or -1, and otherwise a
             // number raised to an int63 exponent wouldn't fit in an int63
-            else if number = 1L then
-              1L |> okPipe
-            else if number = -1L && exp % 2L = 0L then
-              1L |> okPipe
-            else if number = -1L then
-              -1L |> okPipe
-            else
-              (bigint number) ** (int exp) |> int64 |> okPipe
+            else if number = 1L then 1L |> okPipe
+            else if number = -1L && exp % 2L = 0L then 1L |> okPipe
+            else if number = -1L then -1L |> okPipe
+            else (bigint number) ** (int exp) |> int64 |> okPipe
            with _ ->
              "Error raising to exponent" |> errPipe)
         | _ -> incorrectArgs ())
@@ -199,7 +207,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DInt a; DInt b ] ->
-          if b = 0L then Ply(Dval.errStr "Division by zero") else Ply(DInt(a / b))
+          if b = 0L then Ply(raiseString "Division by zero") else Ply(DInt(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "/"
       previewable = Pure
@@ -334,14 +342,16 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.result TInt TString
       description = "Returns the <type Int> value of a <type String>"
       fn =
+        let resultOk = Dval.resultOk VT.int VT.string
+        let resultError = Dval.resultError VT.int VT.string
         (function
         | _, _, [ DString s ] ->
           (try
-            s |> System.Convert.ToInt64 |> DInt |> Dval.resultOk |> Ply
+            s |> System.Convert.ToInt64 |> DInt |> resultOk |> Ply
            with _e ->
              $"Expected to parse String with only numbers, instead got \"{s}\""
              |> DString
-             |> Dval.resultError
+             |> resultError
              |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

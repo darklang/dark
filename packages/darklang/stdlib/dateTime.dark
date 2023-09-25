@@ -1,0 +1,108 @@
+module Darklang =
+  module Stdlib =
+    module DateTime =
+      /// Parses a string representing a date and time in the ISO 8601 format exactly {{" + ISO8601Format+ "}}
+      /// (for example: 2019-09-07T22:44:25Z) and returns the {{Date}} wrapped in a {{Result}}.
+      let parse
+        (s: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<DateTime, String> =
+        Builtin.DateTime.parse s
+
+
+      /// Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}}
+      let toString (date: DateTime) : String = Builtin.DateTime.toString date
+
+
+      /// Stringify <param date> to the ISO 8601 basic format {{YYYYMMDD'T'hhmmss'Z'}}
+      let toStringISO8601BasicDateTime (date: DateTime) : String =
+        Builtin.DateTime.toStringISO8601BasicDateTime date
+
+
+      /// Stringify <param date> to the ISO 8601 basic format YYYYMMDD
+      let toStringISO8601BasicDate (date: DateTime) : String =
+        Builtin.DateTime.toStringISO8601BasicDate date
+
+
+      /// Returns the current time
+      let now () : DateTime = Builtin.DateTime.now ()
+
+
+      /// Returns the <type Date> with the time set to midnight
+      let today () : DateTime = Builtin.DateTime.today ()
+
+
+      /// Returns a <type Date> <param seconds> seconds after <param d>
+      let addSeconds (d: DateTime) (seconds: Int) : DateTime =
+        Builtin.DateTime.addSeconds d seconds
+
+
+      /// Returns a <type Date> <param seconds> seconds before <param d>
+      let subtractSeconds (d: DateTime) (seconds: Int) : DateTime =
+        Builtin.DateTime.subtractSeconds d seconds
+
+
+      /// Returns whether {{<param d1> > <param d2>}}
+      let greaterThan (d1: DateTime) (d2: DateTime) : Bool =
+        Builtin.DateTime.greaterThan d1 d2
+
+
+      /// Returns whether {{<param d1> < <param d2>}}
+      let lessThan (d1: DateTime) (d2: DateTime) : Bool =
+        Builtin.DateTime.lessThan d1 d2
+
+
+      /// Returns whether {{<param d1> >= <param d2>}}
+      let greaterThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
+        Builtin.DateTime.greaterThanOrEqualTo d1 d2
+
+
+      /// Returns whether {{<param d1> <= <param d2>}}
+      let lessThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
+        Builtin.DateTime.lessThanOrEqualTo d1 d2
+
+
+      /// Converts <param date> to an <type Int> representing seconds since the Unix epoch
+      let toSeconds (date: DateTime) : Int = Builtin.DateTime.toSeconds date
+
+
+      /// Converts an <type Int> representing seconds since the Unix epoch into a <type Date>
+      let fromSeconds (seconds: Int) : DateTime =
+        Builtin.DateTime.fromSeconds seconds
+
+
+      /// Returns the year portion of <param date> as an <type Int>
+      let year (date: DateTime) : Int = Builtin.DateTime.year date
+
+
+      /// Returns the month portion of <param date> as an <type Int> between {{1}} and {{12}}
+      let month (date: DateTime) : Int = Builtin.DateTime.month date
+
+
+      /// Returns the day portion of <param date> as an <type Int>
+      let day (date: DateTime) : Int = Builtin.DateTime.day date
+
+
+      /// Returns the weekday of <param date> as an <type Int>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601
+      let weekday (date: DateTime) : Int = Builtin.DateTime.weekday date
+
+
+      /// Returns the hour portion of <param date> as an <type Int>
+      let hour (date: DateTime) : Int = Builtin.DateTime.hour date
+
+
+      /// Returns the minute portion of <param date> as an <type Int>
+      let minute (date: DateTime) : Int = Builtin.DateTime.minute date
+
+
+      /// Returns the second portion of <param date> as an <type Int>
+      let second (date: DateTime) : Int = Builtin.DateTime.second date
+
+
+      /// Returns <type date> with the time set to midnight
+      let atStartOfDay (date: DateTime) : DateTime =
+        Builtin.DateTime.atStartOfDay date
+
+
+      /// Returns the difference of the two dates, in seconds
+      let subtract (d1: DateTime) (d2: DateTime) : Int =
+        Builtin.DateTime.subtract d1 d2

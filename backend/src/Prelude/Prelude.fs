@@ -41,14 +41,6 @@ let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 // ----------------------
 // Some fundamental types that we want to use everywhere.
 
-// DO NOT define any serialization on these types. If you want to serialize
-// them, you should move these to the files with specific formats and serialize
-// them there.
-// ----------------------
-// This is important to prevent auto-serialization accidentally leaking this,
-// though it never should anyway
-type Password = Password of byte array
-
 type NEList<'a> = NEList.NEList<'a>
 type Metadata = Exception.Metadata
 
@@ -159,6 +151,9 @@ let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
 
 let print (string : string) : unit = NonBlockingConsole.writeLine string
 
+let printTime (string : string) : unit =
+  let now = System.DateTime.UtcNow.ToString("mm:ss.ff")
+  print $"{now} {string}"
 
 // Print the value of `a`. Note that since this is wrapped in a task, it must
 // resolve the task before it can print, which could lead to different ordering
@@ -384,13 +379,7 @@ let randomSeeded () : System.Random =
 
 let gid () : uint64 =
   try
-    let rand64 = RNG.GetBytes(8) |> System.BitConverter.ToUInt64
-    // CLEANUP To be compabible to OCAML, keep this at 32 bit for now.
-    // This currently keeps us at 30 bits - we'd like to instead use 64, or
-    // settle on 63. Current blocker is client (needs research)
-    // 0b0000_0000_0000_0000_0000_0000_0000_0000_0011_1111_1111_1111_1111_1111_1111_1111L
-    let mask : uint64 = 1073741823UL
-    rand64 &&& mask
+    RNG.GetBytes(8) |> System.BitConverter.ToUInt64
   with e ->
     Exception.raiseInternal $"gid failed" [ "message", e.Message; "inner", e ]
 

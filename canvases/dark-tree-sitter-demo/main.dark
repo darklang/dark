@@ -6,7 +6,7 @@ let _handler _req =
 
   let contentType =
     match
-      (Builtin.String.split path ".")
+      (PACKAGE.Darklang.Stdlib.String.split path ".")
       |> PACKAGE.Darklang.Stdlib.List.last
       |> PACKAGE.Darklang.Stdlib.Option.withDefault ""
     with
@@ -20,7 +20,7 @@ let _handler _req =
 
   let incomingHost =
     request.headers
-    |> Builtin.List.findFirst (fun t ->
+    |> PACKAGE.Darklang.Stdlib.List.findFirst (fun t ->
       (PACKAGE.Darklang.Stdlib.Tuple2.first t) == "origin")
     |> PACKAGE.Darklang.Stdlib.Option.map (fun t ->
       PACKAGE.Darklang.Stdlib.Tuple2.second t)
@@ -150,13 +150,13 @@ let _indexHandler _req =
   """
 
   PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-    (Builtin.String.toBytes body)
+    (PACKAGE.Darklang.Stdlib.String.toBytes body)
     [ ("Content-Type", "text/html") ]
     200
 
 
 let gid () : Int =
-  Builtin.Int.random 0 9223372036854775807I
+  PACKAGE.Darklang.Stdlib.Int.random 0 9223372036854775807I
 
 
 let err (msg: String) : Unit =
@@ -212,7 +212,7 @@ let getField (node: SyntaxTreeNode) (fieldName: String) : SyntaxTreeNode =
   // (right now this won't error if 2 of the same fieldName exist)
   let found =
     children
-    |> Builtin.List.findFirst (fun c ->
+    |> PACKAGE.Darklang.Stdlib.List.findFirst (fun c ->
       match c.fieldName with
       | Some fName -> fName == fieldName
       | None -> false)
@@ -229,7 +229,7 @@ let parseExprCase (node: SyntaxTreeNode) : PTExpr =
   | "identifier" -> PTExpr.EVariable(gid (), getText node)
 
   | "integer" ->
-    let i = Builtin.Int.parse (getText node)
+    let i = PACKAGE.Darklang.Stdlib.Int.parse (getText node)
     PTExpr.EInt(gid (), i)
 
   | "let_expression" ->
@@ -242,7 +242,9 @@ let parseExprCase (node: SyntaxTreeNode) : PTExpr =
     let fnName = (getField node "fn") |> getText
 
     let args = getField node "args"
-    let args = args.children |> Builtin.List.map (fun c -> parseExpr c)
+
+    let args =
+      args.children |> PACKAGE.Darklang.Stdlib.List.map (fun c -> parseExpr c)
 
     PTExpr.EFnCall(gid (), fnName, args)
 
@@ -255,8 +257,9 @@ let parseExprCase (node: SyntaxTreeNode) : PTExpr =
     let right = parseExpr (getField node "right")
 
     match op with
-    | "+" -> PTExpr.EFnCall(id, "Builtin.Int.add", [ left; right ])
-    | "-" -> PTExpr.EFnCall(id, "Builtin.Int.subtract", [ left; right ])
+    | "+" -> PTExpr.EFnCall(id, "PACKAGE.Darklang.Stdlib.Int.add", [ left; right ])
+    | "-" ->
+      PTExpr.EFnCall(id, "PACKAGE.Darklang.Stdlib.Int.subtract", [ left; right ])
 
 
 // TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTExpr, String>
@@ -298,7 +301,8 @@ let parseUserFunctionParams (node: SyntaxTreeNode) : List<PTUserFunctionParamete
   let first = getField node "first"
   let additional = getField node "additional"
 
-  [ first; additional ] |> Builtin.List.map (fun p -> parseUserFunctionParam p)
+  [ first; additional ]
+  |> PACKAGE.Darklang.Stdlib.List.map (fun p -> parseUserFunctionParam p)
 
 
 // TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTUserFunction, String>
@@ -326,7 +330,7 @@ let _handler _req =
   // TODO: theoretically, we could even pass in the source code
   // instead of the serialized syntax tree, and then parse it
   // somehow in Dark?
-  let reqBody = Builtin.String.fromBytes_v0 request.body
+  let reqBody = PACKAGE.Darklang.Stdlib.String.fromBytes_v0 request.body
   let synTree = Builtin.Json.parse<SyntaxTreeNode> reqBody
 
   match synTree with
@@ -343,12 +347,16 @@ let _handler _req =
       let respHeaders = [ ("content-type", "application/json") ]
 
       PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-        (Builtin.String.toBytes serialized)
+        (PACKAGE.Darklang.Stdlib.String.toBytes serialized)
         respHeaders
         200
 
     | Error e ->
-      PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes_v0 e) 500
+      PACKAGE.Darklang.Stdlib.Http.response
+        (PACKAGE.Darklang.Stdlib.String.toBytes_v0 e)
+        500
 
   | Error e ->
-    PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes_v0 e) 400
+    PACKAGE.Darklang.Stdlib.Http.response
+      (PACKAGE.Darklang.Stdlib.String.toBytes_v0 e)
+      400

@@ -1,6 +1,14 @@
 module Darklang =
   module Stdlib =
     module Char =
+      /// Return the uppercase value of <param c>. If <param c> does not have an uppercase value, returns <param c>
+      let toUppercase (c: Char) : Char = Builtin.Char.toUppercase c
+
+
+      /// Return the lowercase value of <param c>. If <param c> does not have a lowercase value, returns <param c>
+      let toLowercase (c: Char) : Char = Builtin.Char.toLowercase c
+
+
       /// Return whether <param c> is a lowercase character.
       let isLowercase (c: Char) : Bool =
         Builtin.Char.toLowercase c == c && Builtin.Char.toUppercase c != c
@@ -9,3 +17,54 @@ module Darklang =
       /// Return whether <param c> is an uppercase character.
       let isUppercase (c: Char) : Bool =
         Builtin.Char.toLowercase c != c && Builtin.Char.toUppercase c == c
+
+
+      /// Return whether <param c> is a digit (that is, the digits 0-9)
+      let isDigit (c: Char) : Bool =
+        (Builtin.Char.isGreaterThanOrEqualTo c '0')
+        && (Builtin.Char.isLessThanOrEqualTo c '9')
+
+
+      /// Return whether <param c> is an ASCII letter
+      let isASCIILetter (c: Char) : Bool =
+        (Builtin.Char.isGreaterThanOrEqualTo c 'a')
+        && (Builtin.Char.isLessThanOrEqualTo c 'z')
+        || (Builtin.Char.isGreaterThanOrEqualTo c 'A')
+           && (Builtin.Char.isLessThanOrEqualTo c 'Z')
+
+
+      /// Return whether <param c> is a valid ASCII character
+      let isASCII (c: Char) : Bool =
+        let asciiCode = Builtin.Char.toAsciiCode c
+
+        match asciiCode with
+        | Some ascii -> (ascii >= 0) && (ascii <= 127)
+        | None -> false
+
+
+      /// Return {{Some <var code>}} if <param c> is a valid ASCII character, otherwise {{None}}"
+      let toAsciiCode (c: Char) : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
+        Builtin.Char.toAsciiCode c
+
+
+      /// Return whether <param c1> is less than <param c2>
+      let isLessThan (c1: Char) (c2: Char) : Bool = Builtin.Char.isLessThan c1 c2
+
+
+      /// Return whether <param c1> is less than or equal to <param c2>
+      let isLessThanOrEqualTo (c1: Char) (c2: Char) : Bool =
+        Builtin.Char.isLessThanOrEqualTo c1 c2
+
+
+      /// Return whether <param c1> is greater than <param c2>
+      let isGreaterThan (c1: Char) (c2: Char) : Bool =
+        Builtin.Char.isGreaterThan c1 c2
+
+
+      /// Return whether <param c1> is greater than or equal to <param c2>
+      let isGreaterThanOrEqualTo (c1: Char) (c2: Char) : Bool =
+        Builtin.Char.isGreaterThanOrEqualTo c1 c2
+
+
+      /// Stringify <param c>
+      let toString (c: Char) : String = Builtin.Char.toString c

@@ -49,7 +49,7 @@ let main (args : string array) : int =
         Tests.VanillaSerialization.tests
         Tests.DarkTypesSerialization.tests
         Tests.SqlCompiler.tests
-        Tests.StdLib.tests
+        Tests.Builtin.tests
         Tests.StorageTraces.tests ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()

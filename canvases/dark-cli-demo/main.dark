@@ -7,7 +7,7 @@ let _indexHandler _req =
 
   let respBody =
     match files with
-    | Ok files -> Builtin.String.toBytes files
+    | Ok files -> PACKAGE.Darklang.Stdlib.String.toBytes files
     | Error _ -> "failed :("
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200

@@ -24,7 +24,7 @@ module NameResolutionError =
     | NotFound
     | ExpectedEnumButNot
     | ExpectedRecordButNot
-    | MissingModuleName
+    | MissingEnumModuleName of caseName : string
     | InvalidPackageName
 
   type NameType =
@@ -79,7 +79,6 @@ module ProgramTypes =
     | TDateTime
     | TUuid
     | TBytes
-    | TPassword
     | TList of TypeReference
     | TTuple of TypeReference * TypeReference * List<TypeReference>
     | TDict of TypeReference
@@ -240,6 +239,9 @@ module ProgramTypes =
     | CUnit
     | CTuple of first : Const * second : Const * rest : List<Const>
     | CEnum of NameResolution<TypeName.TypeName> * caseName : string * List<Const>
+    | CList of List<Const>
+    | CDict of List<String * Const>
+
 
   type PackageConstant =
     { tlid : TLID
@@ -269,8 +271,8 @@ module ExternalTypesToProgramTypes =
         match err with
         | NameResolutionError.ErrorType.NotFound ->
           LibExecution.NameResolutionError.NotFound
-        | NameResolutionError.MissingModuleName ->
-          LibExecution.NameResolutionError.MissingModuleName
+        | NameResolutionError.MissingEnumModuleName caseName ->
+          LibExecution.NameResolutionError.MissingEnumModuleName caseName
         | NameResolutionError.InvalidPackageName ->
           LibExecution.NameResolutionError.InvalidPackageName
         | NameResolutionError.ExpectedEnumButNot ->
@@ -408,7 +410,6 @@ module ExternalTypesToProgramTypes =
       | EPT.TDB typ -> PT.TDB(toPT typ)
       | EPT.TDateTime -> PT.TDateTime
       | EPT.TChar -> PT.TChar
-      | EPT.TPassword -> PT.TPassword
       | EPT.TUuid -> PT.TUuid
       | EPT.TCustomType(t, typeArgs) ->
         PT.TCustomType(NameResolution.toPT TypeName.toPT t, List.map toPT typeArgs)
@@ -633,6 +634,9 @@ module ExternalTypesToProgramTypes =
           caseName,
           List.map toPT fields
         )
+      | EPT.CList l -> PT.CList(List.map toPT l)
+      | EPT.CDict pairs -> PT.CDict(List.map (Tuple2.mapSecond toPT) pairs)
+
 
   module PackageConstant =
     let toPT (c : EPT.PackageConstant) : PT.PackageConstant.T =
@@ -650,77 +654,85 @@ module ET2PT = ExternalTypesToProgramTypes
 
 // TODO: copy back to LibCloud/LibCloudExecution, or relocate somewhere central
 // TODO: what should we do when the shape of types at the corresponding endpoints change?
+
 let packageManager : RT.PackageManager =
   let httpClient = new System.Net.Http.HttpClient() // CLEANUP pass this in as param? or mutate it externally?
 
-  // TODO: bring back caching of some sort
+  let withCache (f : 'name -> Ply<Option<'value>>) =
+    let cache = System.Collections.Concurrent.ConcurrentDictionary<'name, 'value>()
+    fun (name : 'name) ->
+      uply {
+        let mutable cached = Unchecked.defaultof<'value>
+        let inCache = cache.TryGetValue(name, &cached)
+        if inCache then
+          return Some cached
+        else
+          let! result = f name
+          match result with
+          | Some v -> cache.TryAdd(name, v) |> ignore<bool>
+          | None -> ()
+          return result
+      }
+
+  let fetch
+    (kind : string)
+    (owner : string)
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    (f : 'serverType -> Ply<'cachedType>)
+    : Ply<Option<'cachedType>> =
+    uply {
+      let modules = modules |> String.concat "."
+      let nameString = $"{owner}.{modules}.{name}_v{version}"
+      let! response =
+        $"http://dark-packages.dlio.localhost:11003/{kind}/by-name/{nameString}"
+        |> httpClient.GetAsync
+
+      let! responseStr = response.Content.ReadAsStringAsync()
+      try
+        if response.StatusCode = System.Net.HttpStatusCode.OK then
+          let deserialized = responseStr |> Json.Vanilla.deserialize<'serverType>
+          let! cached = f deserialized
+          return Some cached
+        else if response.StatusCode = System.Net.HttpStatusCode.NotFound then
+          return None
+        else
+          return
+            Exception.raiseInternal
+              "Failed to fetch package"
+              [ "responseStr", responseStr ]
+              null
+      with e ->
+        return
+          Exception.raiseInternal
+            "Failed to deserialize package"
+            [ "responseStr", responseStr ]
+            e
+    }
 
   { getType =
-      fun name ->
-        uply {
-          let name =
-            let modulesPart = String.concat "." name.modules
-            let namePart =
-              match name.name with
-              | RT.TypeName.TypeName name -> name
-            $"{name.owner}.{modulesPart}.{namePart}"
-          let! response =
-            $"http://dark-packages.dlio.localhost:11003/type/by-name/{name}"
-            |> httpClient.GetAsync
-
-          let! responseStr = response.Content.ReadAsStringAsync()
-
-          return
-            responseStr
-            |> Json.Vanilla.deserialize<Option<ProgramTypes.PackageType>>
-            |> Option.map (fun parsed ->
-              parsed |> ET2PT.PackageType.toPT |> PT2RT.PackageType.toRT)
-        }
+      withCache (fun ({ name = RT.TypeName.TypeName typeName } as name) ->
+        let conversionFn (parsed : EPT.PackageType) : Ply<RT.PackageType.T> =
+          parsed |> ET2PT.PackageType.toPT |> PT2RT.PackageType.toRT
+        fetch "type" name.owner name.modules typeName name.version conversionFn)
 
     getFn =
-      fun name ->
-        uply {
-          let name =
-            let modulesPart = String.concat "." name.modules
-            let namePart =
-              match name.name with
-              | RT.FnName.FnName name -> name
-            $"{name.owner}.{modulesPart}.{namePart}"
+      withCache (fun ({ name = RT.FnName.FnName fnName } as name) ->
+        let conversionFn (parsed : EPT.PackageFn.PackageFn) : Ply<RT.PackageFn.T> =
+          parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT
+        fetch "function" name.owner name.modules fnName name.version conversionFn)
 
-          let! response =
-            $"http://dark-packages.dlio.localhost:11003/function/by-name/{name}"
-            |> httpClient.GetAsync
-
-          let! responseStr = response.Content.ReadAsStringAsync()
-
-          return
-            responseStr
-            |> Json.Vanilla.deserialize<Option<ProgramTypes.PackageFn.PackageFn>>
-            |> Option.map (fun parsed ->
-              parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT)
-        }
+    getFnByTLID =
+      withCache (fun tlid ->
+        uply { return Exception.raiseInternal "TODO getFnByTLID" [] })
 
     getConstant =
-      fun name ->
-        uply {
-          let name =
-            let modulesPart = String.concat "." name.modules
-            let namePart =
-              match name.name with
-              | RT.ConstantName.ConstantName name -> name
-            $"{name.owner}.{modulesPart}.{namePart}"
-
-          let! response =
-            $"http://dark-packages.dlio.localhost:11003/constant/by-name/{name}"
-            |> httpClient.GetAsync
-
-          let! responseStr = response.Content.ReadAsStringAsync()
-
-          return
-            responseStr
-            |> Json.Vanilla.deserialize<Option<ProgramTypes.PackageConstant>>
-            |> Option.map (fun parsed ->
-              parsed |> ET2PT.PackageConstant.toPT |> PT2RT.PackageConstant.toRT)
-        }
+      withCache (fun ({ name = RT.ConstantName.ConstantName constName } as name) ->
+        let conversionFn
+          (parsed : EPT.PackageConstant)
+          : Ply<RT.PackageConstant.T> =
+          parsed |> ET2PT.PackageConstant.toPT |> PT2RT.PackageConstant.toRT
+        fetch "constant" name.owner name.modules constName name.version conversionFn)
 
     init = uply { return () } }

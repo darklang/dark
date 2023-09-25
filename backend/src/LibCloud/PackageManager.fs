@@ -9,7 +9,6 @@ open Npgsql
 open Prelude
 
 open Db
-open Ply
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PT = LibExecution.ProgramTypes
@@ -109,6 +108,23 @@ let getFn (name : PT.FnName.Package) : Ply<Option<PT.PackageFn.T>> =
         BinarySerialization.deserializePackageFn id def)
   }
 
+let getFnByTLID (tlid : tlid) : Ply<Option<PT.PackageFn.T>> =
+  uply {
+    let! fn =
+      "SELECT id, definition
+      FROM package_functions_v0
+      WHERE tlid = @tlid"
+      |> Sql.query
+      |> Sql.parameters [ "tlid", Sql.tlid tlid ]
+      |> Sql.executeRowOptionAsync (fun read ->
+        (read.uuid "id", read.bytea "definition"))
+
+    return
+      fn
+      |> Option.map (fun (id, def) ->
+        BinarySerialization.deserializePackageFn id def)
+  }
+
 let getType (name : PT.TypeName.Package) : Ply<Option<PT.PackageType.T>> =
   uply {
     let! fn =
@@ -171,21 +187,28 @@ let packageManager : RT.PackageManager =
       fun name ->
         uply {
           let! typ = name |> PT2RT.TypeName.Package.fromRT |> getType
-          return Option.map PT2RT.PackageType.toRT typ
+          return! Ply.Option.map PT2RT.PackageType.toRT typ
         }
 
     getFn =
       fun name ->
         uply {
           let! typ = name |> PT2RT.FnName.Package.fromRT |> getFn
-          return Option.map PT2RT.PackageFn.toRT typ
+          return! Ply.Option.map PT2RT.PackageFn.toRT typ
+        }
+
+    getFnByTLID =
+      fun tlid ->
+        uply {
+          let! typ = tlid |> getFnByTLID
+          return! Ply.Option.map PT2RT.PackageFn.toRT typ
         }
 
     getConstant =
       fun name ->
         uply {
           let! typ = name |> PT2RT.ConstantName.Package.fromRT |> getConstant
-          return Option.map PT2RT.PackageConstant.toRT typ
+          return! Ply.Option.map PT2RT.PackageConstant.toRT typ
         }
 
     init = uply { return () } }

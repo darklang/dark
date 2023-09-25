@@ -13,7 +13,9 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
 module PT = LibExecution.ProgramTypes
+module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 open LibCloud.Db
@@ -56,18 +58,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString error ] ->
-          Dval.enum
-            (RuntimeError.name [ "Error" ] "ErrorMessage" 0)
-            "ErrorString"
-            [ DString error ]
-          |> Ply
+          let typeName = RuntimeError.name [ "Error" ] "ErrorMessage" 0
+          Dval.enum typeName typeName (Some []) "ErrorString" [ DString error ]
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
     // CLEANUP consider renaming to `oldError` or something more clear
-    // TODO remove this in favor of derror
     { name = fn "runtimeError" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
@@ -76,7 +74,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString errorString ] ->
-          Ply(DError(SourceNone, RuntimeError.oldError errorString))
+          raiseUntargetedRTE (RuntimeError.oldError errorString)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -92,11 +90,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString errorString ] ->
           let msg = LibCloud.SqlCompiler.errorTemplate + errorString
-          Dval.enum
-            (RuntimeError.name [ "Error" ] "ErrorMessage" 0)
-            "ErrorString"
-            [ DString msg ]
-          |> Ply
+          let typeName = RuntimeError.name [ "Error" ] "ErrorMessage" 0
+          Dval.enum typeName typeName (Some []) "ErrorString" [ DString msg ]
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -113,9 +108,11 @@ let fns : List<BuiltInFn> =
           let chars = String.toEgcSeq s
 
           if Seq.length chars = 1 then
-            chars |> Seq.toList |> (fun l -> l[0] |> DChar |> Dval.optionSome |> Ply)
+            chars
+            |> Seq.toList
+            |> (fun l -> l[0] |> DChar |> Dval.optionSome VT.char |> Ply)
           else
-            Ply(Dval.optionNone)
+            Ply(Dval.optionNone VT.char)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -170,51 +167,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "justWithTypeError" 0
-      typeParams = []
-      parameters = [ Param.make "msg" TString "" ]
-      returnType = TypeReference.option varA
-      description = "Returns a DError in a Some"
-      fn =
-        (function
-        | _, _, [ DString msg ] ->
-          Ply(Dval.optionSome (DError(SourceNone, RuntimeError.oldError msg)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "okWithTypeError" 0
-      typeParams = []
-      parameters = [ Param.make "msg" TString "" ]
-      returnType = TypeReference.result varA varB
-      description = "Returns a DError in an OK"
-      fn =
-        (function
-        | _, _, [ DString msg ] ->
-          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "errorWithTypeError" 0
-      typeParams = []
-      parameters = [ Param.make "msg" TString "" ]
-      returnType = TypeReference.result varA varB
-      description = "Returns a DError in a Result.Error"
-      fn =
-        (function
-        | _, _, [ DString msg ] ->
-          Ply(Dval.resultOk (DError(SourceNone, RuntimeError.oldError msg)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "deleteUser" 0
       typeParams = []
       parameters = [ Param.make "username" TString "" ]
@@ -253,7 +205,7 @@ let fns : List<BuiltInFn> =
             let results =
               results
               |> List.map (fun x -> DString(LibExecution.DvalReprDeveloper.toRepr x))
-            return DList results
+            return Dval.list (ValueType.Known KTString) results
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -268,7 +220,7 @@ let fns : List<BuiltInFn> =
       description = "Turns a list of ints into bytes"
       fn =
         (function
-        | _, _, [ DList l ] ->
+        | _, _, [ DList(_, l) ] ->
           l
           |> List.map (fun x ->
             match x with
@@ -304,13 +256,13 @@ let fns : List<BuiltInFn> =
       description = "Create a bytes structure from an array of ints"
       fn =
         (function
-        | _, _, [ DList bytes ] ->
+        | _, _, [ DList(_, bytes) ] ->
           bytes
           |> List.toArray
           |> Array.map (fun dval ->
             match dval with
             | DInt i -> byte i
-            | other -> Exception.raiseCode "Expected int" [ "actual", other ])
+            | other -> raiseString $"Expected int, got {other}")
           |> DBytes
           |> Ply
 

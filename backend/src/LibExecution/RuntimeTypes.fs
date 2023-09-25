@@ -332,6 +332,145 @@ module ConstantName =
     FQName.toString name (fun (ConstantName name) -> name)
 
 
+/// A KnownType represents the type of a dval.
+///
+/// Many KnownTypes (such as lists and records) have nested types. Often, these
+/// nested types are unknown (such as the contents of an empty list, or the
+/// `Result.Error` type for `Ok 5`). As such, KnownTypes always nest ValueTypes
+/// (an optional form of KnownType).
+type KnownType =
+  | KTUnit
+  | KTBool
+  | KTInt
+  | KTFloat
+  | KTChar
+  | KTString
+  | KTUuid
+  | KTBytes
+  | KTDateTime
+
+  // let empty =    [] // KTList Unknown
+  // let intList = [1] // KTList (ValueType.Known KTInt)
+  | KTList of ValueType
+
+  // Intuitively, since Dvals generate KnownTypes, you would think that we can
+  // use KnownTypes in a KTTuple.
+  //
+  // However, we sometimes construct a KTTuple to repesent the type of a Tuple
+  // which doesn't exist. For example, in `List.zip [] []`, we create the result
+  // from the types of the two lists, which themselves might be (and likely are)
+  // `Unknown`.
+  | KTTuple of ValueType * ValueType * List<ValueType>
+
+  // let f = (fun x -> x)        // KTFn([Unknown], Unknown)
+  // let intF = (fun (x: Int) -> x) // KTFn([Known KTInt], Unknown)
+  //
+  // Note that we could theoretically know some return types by analyzing the
+  // code or type signatures of functions. We don't do this yet as it's
+  // complicated. When we do decide to do this, some incorrect programs may stop
+  // functioning (see example). Our goal is for correctly typed functions to
+  // stay working so this might be ok.
+  //
+  // For example:
+  //   let z1 = (fun x -> 5)
+  //   let z2 = (fun x -> "str")
+  // `[z1, z2]` is allowed now but might not be allowed later
+  | KTFn of args : NEList<ValueType> * ret : ValueType
+
+  // At time of writing, all DBs are of a specific type, and DBs may only be
+  // referenced directly, but we expect to eventually allow references to DBs
+  // where the type may be unknown
+  // List.head ([]: List<DB<'a>>) // KTDB (Unknown)
+  | KTDB of ValueType
+
+  /// let n = None          // type args: [Unknown]
+  /// let s = Some(5)       // type args: [Known KTInt]
+  /// let o = Ok (5)        // type args: [Known KTInt, Unknown]
+  /// let e = Error ("str") // type args: [Unknown, Known KTString]
+  | KTCustomType of TypeName.TypeName * typeArgs : List<ValueType>
+
+  // let myDict = {} // KTDict Unknown
+  | KTDict of ValueType
+
+/// Represents the actual type of a Dval
+///
+/// "Unknown" represents the concept of "bottom" in
+///   type system / data flow analysis / lattices
+and [<RequireQualifiedAccess>] ValueType =
+  | Unknown
+  | Known of KnownType
+
+[<RequireQualifiedAccess>]
+module ValueType =
+  // some helpers to reduce typing elsewhere
+  let unknown = ValueType.Unknown
+  let unknownTODO = ValueType.Unknown
+  let unknownDbTODO = ValueType.Unknown
+  let typeArgsTODO = []
+  let typeArgsTODO' = None
+
+  let known inner = ValueType.Known inner
+
+  let unit = known KTUnit
+  let bool = known KTBool
+  let int = known KTInt
+  let float = known KTFloat
+  let char = known KTChar
+  let string = known KTString
+  let dateTime = known KTDateTime
+  let uuid = known KTUuid
+  let bytes = known KTBytes
+
+  let list (inner : ValueType) : ValueType = known (KTList inner)
+  let dict (inner : ValueType) : ValueType = known (KTDict inner)
+  let tuple
+    (first : ValueType)
+    (second : ValueType)
+    (theRest : List<ValueType>)
+    : ValueType =
+    KTTuple(first, second, theRest) |> known
+
+  let rec toString (vt : ValueType) : string =
+    match vt with
+    | ValueType.Unknown -> "_"
+    | ValueType.Known kt ->
+      match kt with
+      | KTUnit -> "Unit"
+      | KTBool -> "Bool"
+      | KTInt -> "Int"
+      | KTFloat -> "Float"
+      | KTChar -> "Char"
+      | KTString -> "String"
+      | KTUuid -> "Uuid"
+      | KTBytes -> "Bytes"
+      | KTDateTime -> "DateTime"
+
+      | KTList inner -> $"List<{toString inner}>"
+      | KTDict inner -> $"Dict<{toString inner}>"
+      | KTTuple(first, second, theRest) ->
+        first :: second :: theRest
+        |> List.map toString
+        |> String.concat " * "
+        |> fun inner -> $"({inner})"
+      | KTCustomType(typeName, typeArgs) ->
+        let typeArgsPart =
+          match typeArgs with
+          | [] -> ""
+          | _ ->
+            typeArgs
+            |> List.map toString
+            |> String.concat ", "
+            |> fun inner -> $"<{inner}>"
+
+        $"{TypeName.toString typeName}{typeArgsPart}"
+
+      | KTFn(args, ret) ->
+        NEList.toList args @ [ ret ] |> List.map toString |> String.concat " -> "
+
+      | KTDB inner -> $"DB<{toString inner}>"
+
+
+
 type NameResolution<'a> = Result<'a, RuntimeError>
 
 // Dark runtime type
@@ -345,7 +484,6 @@ and TypeReference =
   | TUuid
   | TBytes
   | TDateTime
-  | TPassword
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TFn of NEList<TypeReference> * TypeReference
@@ -379,8 +517,7 @@ and TypeReference =
       | TString
       | TUuid
       | TBytes
-      | TDateTime
-      | TPassword -> true
+      | TDateTime -> true
     isConcrete this
 
 
@@ -413,8 +550,7 @@ and Expr =
 
   // A runtime error. This is included so that we can allow the program to run in the
   // presence of compile-time errors (which are converted to this error). We may
-  // adapt this to include more information as we go, possibly using a standard Error
-  // type (the same as used in DErrors and Results). This list of exprs is the
+  // adapt this to include more information as we go. This list of exprs is the
   // subexpressions to evaluate before evaluating the error.
   | EError of id * RuntimeError * List<Expr>
 
@@ -447,7 +583,7 @@ and MatchPattern =
 and DvalMap = Map<string, Dval>
 
 and LambdaImpl =
-  { typeArgTable : TypeArgTable
+  { typeSymbolTable : TypeSymbolTable
     symtable : Symtable
     parameters : NEList<id * string>
     body : Expr }
@@ -458,45 +594,57 @@ and FnValImpl =
 
 and DDateTime = NodaTime.LocalDate
 
+/// RuntimeError is the major way of representing errors in the runtime. These are
+/// primarily used for things where the user made an error, such as a type error, as
+/// opposed to a place where the runtime is flawed (use Exception.raiseInternal for those).
+/// See docs/errors.md for detailed discussion.
 and RuntimeError = private RuntimeError of Dval
 
 // We use NoComparison here to avoid accidentally using structural comparison
 and [<NoComparison>] Dval =
+  | DUnit
+
+  // Simple types
+  | DBool of bool
   | DInt of int64
   | DFloat of double
-  | DBool of bool
-  | DUnit
-  | DString of string
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
-
-  // compound types
-  | DList of List<Dval>
-  | DTuple of Dval * Dval * List<Dval>
-
-  | DFnVal of FnValImpl
-
-  /// Represents something that shouldn't have happened in the engine,
-  /// that should have been reported elsewhere. It's usually a type error of
-  /// some kind, but occasionally we'll paint ourselves into a corner and need
-  /// to represent a runtime error using this.
-  | DError of DvalSource * RuntimeError
-
-  | DDB of string
+  | DString of string
   | DDateTime of DarkDateTime.T
-  | DPassword of Password
   | DUuid of System.Guid
   | DBytes of byte array
 
-  | DDict of DvalMap
+  // Compound types
+  | DList of ValueType * List<Dval>
+  | DTuple of first : Dval * second : Dval * theRest : List<Dval>
+  | DDict of
+    // This is the type of the _values_, not the keys. Once users can specify the
+    // key type, we likely will need to add a `keyType: ValueType` field here.
+    valueType : ValueType *
+    entries : DvalMap
+
   | DRecord of
+    // CLEANUP nitpick: maybe move sourceTypeName before runtimeTypeName?
+    // CLEANUP we may need a sourceTypeArgs here as well
     runtimeTypeName : TypeName.TypeName *
     sourceTypeName : TypeName.TypeName *
-    DvalMap
+    typeArgs : List<ValueType> *
+    fields : DvalMap
+
   | DEnum of
+    // CLEANUP nitpick: maybe move sourceTypeName before runtimeTypeName?
+    // CLEANUP we may need a sourceTypeArgs here as well
     runtimeTypeName : TypeName.TypeName *
     sourceTypeName : TypeName.TypeName *
+    typeArgs : List<ValueType> *
     caseName : string *
-    List<Dval>
+    fields : List<Dval>
+
+  // Functions
+  | DFnVal of FnValImpl // VTTODO I'm not sure how ValueType fits in here
+
+  // References
+  | DDB of name : string
 
 
 and DvalTask = Ply<Dval>
@@ -515,9 +663,9 @@ and Symtable = Map<string, Dval>
 ///   `let serialize<'a> (x : 'a) : string = ...`,
 /// called with inputs
 ///   `serialize<int> 1`,
-/// we would have a TypeArgTable of
+/// we would have a TypeSymbolTable of
 ///  { "a" => TInt }
-and TypeArgTable = Map<string, TypeReference>
+and TypeSymbolTable = Map<string, TypeReference>
 
 
 // Record the source of an incomplete or error. Would be useful to add more
@@ -556,9 +704,6 @@ and BuiltInParam =
 and Param = { name : string; typ : TypeReference }
 
 
-exception UncaughtRuntimeError of RuntimeError
-let raiseRTE (rte : RuntimeError) = raise (UncaughtRuntimeError rte)
-
 
 
 module TypeReference =
@@ -587,7 +732,12 @@ module RuntimeError =
       version
 
   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
-    DEnum(name [] "Error" 0, name [] "Error" 0, caseName, fields) |> RuntimeError
+    let typeName = name [] "Error" 0
+
+    // VTTODO This should be created via Dval.enum, but we have an F# cyclical dependency issue:
+    // - we want to create a RuntimeError via Dval.enum
+    // - when Dval.enum fails, it creates a RuntimeError
+    DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError
 
 
   let cliError field = case "CliError" [ field ]
@@ -599,7 +749,8 @@ module RuntimeError =
   let sqlCompilerRuntimeError (internalError : RuntimeError) =
     case "SqlCompilerRuntimeError" [ toDT internalError ]
 
-  let incomplete = case "Incomplete" []
+  let executionError field = case "ExecutionError" [ field ]
+
 
   // let exceptionThrown (ex : System.Exception) : RuntimeError =
   //   case
@@ -617,6 +768,27 @@ module RuntimeError =
   let oldError (msg : string) : RuntimeError =
     case "OldStringErrorTODO" [ DString msg ]
 
+exception RuntimeErrorException of DvalSource * RuntimeError
+
+let raiseRTE (source : DvalSource) (rte : RuntimeError) =
+  raise (RuntimeErrorException(source, rte))
+
+// TODO add sources to all RTEs
+let raiseUntargetedRTE (rte : RuntimeError) =
+  raise (RuntimeErrorException(SourceNone, rte))
+
+// TODO remove all usages of this in favor of better error cases
+let raiseString (s : string) : 'a = raiseUntargetedRTE (RuntimeError.oldError s)
+
+/// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
+/// boundary, typically in Execution.fs, we will catch the exception, and return this
+/// type.
+type ExecutionResult = Result<Dval, DvalSource * RuntimeError>
+
+/// IncorrectArgs should never happen, as all functions are type-checked before
+/// calling. If it does happen, it means that the type parameters in the Fn structure
+/// do not match the args expected in the F# function definition.
+let incorrectArgs () = Exception.raiseInternal "IncorrectArgs" []
 
 
 
@@ -702,23 +874,6 @@ module MatchPattern =
 
 // Functions for working with Dark runtime values
 module Dval =
-  // A Fake Dval is some control-flow that's modelled in the interpreter as a
-  // Dval. This is sort of like an Exception. Anytime we see a FakeDval we return
-  // it instead of operating on it, including when they're put in a list, in a
-  // value, in a record, as a parameter to a function, etc.
-  // There used to be multiple types of FakeVal but now there's only DError - which
-  // will be removed as well soon.
-  let isFake (dv : Dval) : bool =
-    match dv with
-    | DError _ -> true
-    | _ -> false
-
-
-  let toPairs (dv : Dval) : Result<List<string * Dval>, string> =
-    match dv with
-    | DDict obj -> Ok(Map.toList obj)
-    | _ -> Error "expecting str"
-
 
   // <summary>
   // Checks if a runtime's value matches a given type
@@ -731,6 +886,8 @@ module Dval =
   // accuracy is better, as the runtime is perfectly accurate.
   // </summary>
   let rec typeMatches (typ : TypeReference) (dv : Dval) : bool =
+    let r = typeMatches
+
     match (dv, typ) with
     | _, TVariable _ -> true
     | DInt _, TInt
@@ -739,7 +896,6 @@ module Dval =
     | DUnit, TUnit
     | DString _, TString
     | DDateTime _, TDateTime
-    | DPassword _, TPassword
     | DUuid _, TUuid
     | DChar _, TChar
     | DDB _, TDB _
@@ -748,26 +904,25 @@ module Dval =
       let pairs =
         [ (first, firstType); (second, secondType) ] @ List.zip theRest otherTypes
 
-      pairs |> List.all (fun (v, subtype) -> typeMatches subtype v)
-    | DList l, TList t -> List.all (typeMatches t) l
-    | DDict m, TDict t -> Map.all (typeMatches t) m
+      pairs |> List.all (fun (v, subtype) -> r subtype v)
+    | DList(_vtTODO, l), TList t -> List.all (r t) l
+    | DDict(_vtTODO, m), TDict t -> Map.all (r t) m
     | DFnVal(Lambda l), TFn(parameters, _) ->
       NEList.length parameters = NEList.length l.parameters
 
-    | DRecord(typeName, _, fields), TCustomType(Ok typeName', typeArgs) ->
+    | DRecord(typeName, _, _typeArgsTODO, fields),
+      TCustomType(Ok typeName', _typeArgs) ->
       // TYPESCLEANUP: should load type by name
       // TYPESCLEANUP: are we handling type arguments here?
       // TYPESCLEANUP: do we need to check fields?
       typeName = typeName'
 
-    | DEnum(typeName, _, casename, fields), TCustomType(Ok typeName', typeArgs) ->
+    | DEnum(typeName, _, _typeArgsDEnumTODO, _casename, _fields),
+      TCustomType(Ok typeName', _typeArgsExpected) ->
       // TYPESCLEANUP: should load type by name
-      // TYPESCLEANUP: are we handling type arguments here?
-      // TYPESCLEANUP: do we need to check fields?
+      // TYPESCLEANUP: convert TCustomType's typeArgs to valueTypes, and compare
+      // against the typeArgs in the DEnum - their zipped values should merge OK
       typeName = typeName'
-
-    // Dont match these fakevals, functions do not have these types
-    | DError _, _ -> false
 
     // exhaustiveness checking
     | DInt _, _
@@ -776,7 +931,6 @@ module Dval =
     | DUnit, _
     | DString _, _
     | DDateTime _, _
-    | DPassword _, _
     | DUuid _, _
     | DChar _, _
     | DDB _, _
@@ -789,26 +943,16 @@ module Dval =
     | DEnum _, _ -> false
 
 
-  let int (i : int) = DInt(int64 i)
 
-
-  // Dvals should never be constructed that contain fakevals - the fakeval
-  // should always propagate (though, there are specific cases in the
-  // interpreter where they are discarded instead of propagated; still they are
-  // never put into other dvals). These static members check before creating the values
-
-  let list (list : List<Dval>) : Dval =
-    List.find (fun (dv : Dval) -> isFake dv) list
-    |> Option.defaultValue (DList list)
 
   let asList (dv : Dval) : Option<List<Dval>> =
     match dv with
-    | DList l -> Some l
+    | DList(_, l) -> Some l
     | _ -> None
 
   let asDict (dv : Dval) : Option<Map<string, Dval>> =
     match dv with
-    | DDict d -> Some d
+    | DDict(_, d) -> Some d
     | _ -> None
 
   let asTuple2 (dv : Dval) : Option<Dval * Dval> =
@@ -846,93 +990,6 @@ module Dval =
     | DUuid u -> Some u
     | _ -> None
 
-  let record (typeName : TypeName.TypeName) (fields : List<string * Dval>) : Dval =
-    // Give a warning for duplicate keys
-    List.fold
-      (fun m (k, v) ->
-        match m, k, v with
-        // TYPESCLEANUP: remove hacks
-        // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
-        | m, _k, _v when isFake m -> m
-        // Errors should propagate (but only if we're not already propagating an error)
-        | DRecord _, _, v when isFake v -> v
-        // Skip empty rows
-        | _, "", _ -> DError(SourceNone, RuntimeError.oldError $"Empty key {k}")
-        // Error if the key appears twice
-        | DRecord(_, _, m), k, _v when Map.containsKey k m ->
-          DError(SourceNone, RuntimeError.oldError $"Duplicate key: {k}")
-        // Otherwise add it
-        | DRecord(tn, o, m), k, v -> DRecord(tn, o, Map.add k v m)
-        // If we haven't got a DDict we're propagating an error so let it go
-        | m, _, _ -> m)
-      (DRecord(typeName, typeName, Map.empty))
-      fields
-
-  let enum
-    (typeName : TypeName.TypeName)
-    (caseName : string)
-    (fields : List<Dval>)
-    : Dval =
-    match List.find isFake fields with
-    | Some v -> v
-    | None -> DEnum(typeName, typeName, caseName, fields)
-
-  // CLEANUP - this fn was unused so I commented it out
-  // emove? or will it be handy?
-  // let dict (fields : List<string * Dval>) : Dval =
-  //   // Give a warning for duplicate keys
-  //   List.fold
-  //     (DDict(Map.empty))
-  //     (fun m (k, v) ->
-  //       match m, k, v with
-  //       // TYPESCLEANUP: remove hacks
-  //       // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
-  //       | m, _k, _v when isFake m -> m
-  //       // Errors should propagate (but only if we're not already propagating an error)
-  //       | DDict _, _, v when isFake v -> v
-  //       // Skip empty rows
-  //       | _, "", _ -> DError(SourceNone, $"Empty key: {k}")
-  //       // Error if the key appears twice
-  //       | DDict m, k, _v when Map.containsKey k m ->
-  //         DError(SourceNone, $"Duplicate key: {k}")
-  //       // Otherwise add it
-  //       | DDict m, k, v -> DDict(Map.add k v m)
-  //       // If we haven't got a DDict we're propagating an error so let it go
-  //       | m, _, _ -> m)
-  //     fields
-
-
-  let resultType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0
-
-  let optionType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0
-
-  let resultOk (dv : Dval) : Dval =
-    if isFake dv then dv else DEnum(resultType, resultType, "Ok", [ dv ])
-  let resultError (dv : Dval) : Dval =
-    if isFake dv then dv else DEnum(resultType, resultType, "Error", [ dv ])
-
-  // Wraps in a Result after checking that the value is not a fakeval
-  let result (dv : Result<Dval, Dval>) : Dval =
-    match dv with
-    | Ok dv -> resultOk dv
-    | Error dv -> resultError dv
-
-
-  let optionSome (dv : Dval) : Dval =
-    if isFake dv then dv else DEnum(optionType, optionType, "Some", [ dv ])
-
-  let optionNone : Dval = DEnum(optionType, optionType, "None", [])
-
-  // Wraps in an Option after checking that the value is not a fakeval
-  let option (dv : Option<Dval>) : Dval =
-    match dv with
-    | Some dv -> optionSome dv // checks isFake
-    | None -> optionNone
-
-  let errStr (s : string) : Dval = DError(SourceNone, RuntimeError.oldError s)
-
-  let errSStr (source : DvalSource) (s : string) : Dval =
-    DError(source, RuntimeError.oldError s)
 
 module Handler =
   type CronInterval =
@@ -958,8 +1015,21 @@ module UserType =
   type T =
     { tlid : tlid; name : TypeName.UserProgram; declaration : TypeDeclaration.T }
 
+type Const =
+  | CInt of int64
+  | CBool of bool
+  | CString of string
+  | CChar of string
+  | CFloat of Sign * string * string
+  | CUnit
+  | CTuple of first : Const * second : Const * rest : List<Const>
+  | CEnum of NameResolution<TypeName.TypeName> * caseName : string * List<Const>
+  | CList of List<Const>
+  | CDict of List<string * Const>
+
+
 module UserConstant =
-  type T = { tlid : tlid; name : ConstantName.UserProgram; body : Dval }
+  type T = { tlid : tlid; name : ConstantName.UserProgram; body : Const }
 
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference }
@@ -1011,7 +1081,7 @@ module PackageType =
   type T = { name : TypeName.Package; declaration : TypeDeclaration.T }
 
 module PackageConstant =
-  type T = { name : ConstantName.Package; body : Dval }
+  type T = { name : ConstantName.Package; body : Const }
 
 // <summary>
 // Used to mark whether a function can be run on the client rather than backend.
@@ -1198,6 +1268,7 @@ and BuiltIns =
 and PackageManager =
   { getType : TypeName.Package -> Ply<Option<PackageType.T>>
     getFn : FnName.Package -> Ply<Option<PackageFn.T>>
+    getFnByTLID : tlid -> Ply<Option<PackageFn.T>>
     getConstant : ConstantName.Package -> Ply<Option<PackageConstant.T>>
 
     init : Ply<unit> }
@@ -1205,6 +1276,7 @@ and PackageManager =
   static member Empty =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
+      getFnByTLID = (fun _ -> Ply None)
       getConstant = (fun _ -> Ply None)
 
       init = uply { return () } }
@@ -1294,12 +1366,10 @@ module Types =
     : Ply<Option<TypeDeclaration.T>> =
     match name with
     | FQName.BuiltIn b ->
-      Map.tryFind b types.builtIn |> Option.map (fun t -> t.declaration) |> Ply
+      Map.find b types.builtIn |> Option.map (fun t -> t.declaration) |> Ply
 
     | FQName.UserProgram user ->
-      Map.tryFind user types.userProgram
-      |> Option.map (fun t -> t.declaration)
-      |> Ply
+      Map.find user types.userProgram |> Option.map (fun t -> t.declaration) |> Ply
 
     | FQName.Package pkg ->
       types.package pkg |> Ply.map (Option.map (fun t -> t.declaration))
@@ -1334,8 +1404,7 @@ module Types =
     | TString
     | TUuid
     | TBytes
-    | TDateTime
-    | TPassword -> typ
+    | TDateTime -> typ
 
     | TList t -> TList(substitute t)
     | TTuple(t1, t2, rest) ->
@@ -1353,12 +1422,12 @@ let rec getTypeReferenceFromAlias
   (typ : TypeReference)
   : Ply<Result<TypeReference, RuntimeError>> =
   match typ with
-  | TCustomType(Ok typeName, typeArgs) ->
+  | TCustomType(Ok outerTypeName, outerTypeArgs) ->
     uply {
-      match! Types.find typeName types with
-      | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
-        return!
-          getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
+      match! Types.find outerTypeName types with
+      | Some { definition = TypeDeclaration.Alias typ; typeParams = typeParams } as decl ->
+        let typ = Types.substitute typeParams outerTypeArgs typ
+        return! getTypeReferenceFromAlias types typ
       | _ -> return Ok typ
     }
 

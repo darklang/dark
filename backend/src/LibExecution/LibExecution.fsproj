@@ -11,9 +11,9 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <!-- actual execution -->
     <Compile Include="DarkDateTime.fs" />
     <Compile Include="RuntimeTypes.fs" />
+    <Compile Include="Dval.fs" />
     <Compile Include="DvalDecoder.fs" />
     <Compile Include="NameResolutionError.fs" />
     <Compile Include="RuntimeTypesAst.fs" />
@@ -23,7 +23,6 @@
     <Compile Include="DvalReprDeveloper.fs" />
     <Compile Include="RuntimeTypesToDarkTypes.fs" />
     <Compile Include="TypeChecker.fs" />
-    <Compile Include="Errors.fs" />
     <Compile Include="Interpreter.fs" />
     <Compile Include="AnalysisTypes.fs" />
     <Compile Include="Execution.fs" />

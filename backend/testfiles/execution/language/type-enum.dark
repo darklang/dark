@@ -63,8 +63,8 @@ module Simple =
   (AorB.A == AorB.A) = true
   (AorB.A == AorB.B) = false
 
-  Builtin.List.unique_v0 [ AorB.A; AorB.B; AorB.A; AorB.A; AorB.B ] = [ AorB.A
-                                                                        AorB.B ]
+  PACKAGE.Darklang.Stdlib.List.unique_v0 [ AorB.A; AorB.B; AorB.A; AorB.A; AorB.B ] = [ AorB.A
+                                                                                        AorB.B ]
 
   module EnumReference =
     type CorD =
@@ -115,11 +115,11 @@ module MixedCases =
      EnumOfMixedCases.X "testX"
      EnumOfMixedCases.Y(5)
      EnumOfMixedCases.Z("testZ", 2) ]
-   |> Builtin.List.map_v0 (fun v ->
+   |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun v ->
      match v with
      | X s -> "X " ++ s
      | Z(s, _i) -> "Z " ++ s
-     | Y y -> "Y " ++ (Builtin.Int.toString_v0 y)
+     | Y y -> "Y " ++ (PACKAGE.Darklang.Stdlib.Int.toString_v0 y)
      | W -> "a simple W")) = [ "a simple W"; "X testX"; "Y 5"; "Z testZ" ]
 
 module TuplesVsNonTuples =
@@ -182,7 +182,7 @@ module Polymorphism =
     insert' tree value cmp
 
   let ofList (values: List<'a>) (cmp: ('a * 'a) -> Int) : RBTree<'a> =
-    Builtin.List.fold_v0 values RBTree.Empty (fun tree value ->
+    PACKAGE.Darklang.Stdlib.List.fold_v0 values RBTree.Empty (fun tree value ->
       insert tree value cmp)
 
   let toList' (tree: RBTree<'a>) (acc: List<'a>) : List<'a> =

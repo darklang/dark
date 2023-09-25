@@ -77,7 +77,7 @@ let processNotification
         [ "event.handler.name", event.name
           "event.handler.modifier", event.modifier
           "event.handler.module", event.module'
-          "event.value.type", (event.value |> DvalReprDeveloper.dvalTypeName :> obj)
+          "event.value.type", (event.value |> DvalReprDeveloper.toTypeName :> obj)
           "event.locked_at", event.lockedAt
           "event.enqueued_at", event.enqueuedAt ]
 
@@ -200,11 +200,12 @@ let processNotification
 
                   // CLEANUP Set a time limit of 3m
                   try
-                    let program = Canvas.toProgram c
+                    let! handler = PT2RT.Handler.toRT h
+                    let! program = Canvas.toProgram c
                     let! (result, traceResults) =
                       CloudExecution.executeHandler
                         LibClientTypesToCloudTypes.Pusher.eventSerializer
-                        (PT2RT.Handler.toRT h)
+                        handler
                         program
                         traceID
                         (Map [ "event", event.value ])
@@ -215,7 +216,7 @@ let processNotification
                         ))
 
                     Telemetry.addTags
-                      [ "result_type", DvalReprDeveloper.dvalTypeName result
+                      [ "result_type", DvalReprDeveloper.toTypeName result
                         "queue.success", true
                         "executed_tlids", HashSet.toList traceResults.tlids
                         "queue.completion_reason", "completed" ]
@@ -322,7 +323,7 @@ let initSerializers () =
 let main _ : int =
   try
     let name = "QueueWorker"
-    print "Starting QueueWorker"
+    printTime "Starting QueueWorker"
     initSerializers ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries

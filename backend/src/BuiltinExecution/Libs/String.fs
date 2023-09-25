@@ -13,7 +13,10 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module Errors = LibExecution.Errors
+module VT = ValueType
+module Dval = LibExecution.Dval
+module TypeChecker = LibExecution.TypeChecker
+module Interpreter = LibExecution.Interpreter
 
 
 let modules = [ "String" ]
@@ -45,28 +48,15 @@ let fns : List<BuiltInFn> =
            |> Seq.toList
            |> Ply.List.mapSequentially (fun te ->
              let args = NEList.singleton (DChar te)
-             LibExecution.Interpreter.applyFnVal state 0UL b [] args)
-           |> (fun dvals ->
-             (uply {
-               let! (dvals : List<Dval>) = dvals
-
-               match List.tryFind (fun dv -> Dval.isFake dv) dvals with
-               | Some i -> return i
-               | None ->
-                 let chars =
-                   List.map
-                     (function
-                     | DChar c -> c
-                     | dv ->
-                       Exception.raiseInternal
-                         (Errors.expectedLambdaType "fn" TChar dv)
-                         [])
-                     dvals
-
-                 let str = String.concat "" chars
-                 return DString str
-             })))
-
+             Interpreter.applyFnVal state 0UL b [] args)
+           |> Ply.bind (fun dvals ->
+             dvals
+             |> Ply.List.mapSequentially (function
+               | DChar c -> Ply c
+               | dv ->
+                 TypeChecker.raiseFnValResultNotExpectedType SourceNone dv TChar)
+             |> Ply.map (fun parts ->
+               parts |> String.concat "" |> String.normalize |> DString)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -84,7 +74,7 @@ let fns : List<BuiltInFn> =
            |> String.toEgcSeq
            |> Seq.map (fun c -> DChar c)
            |> Seq.toList
-           |> DList
+           |> Dval.list (ValueType.Known KTChar)
            |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -262,15 +252,15 @@ let fns : List<BuiltInFn> =
 
             result |> ResizeArray.toList
 
-          if sep = "" then
-            s |> String.toEgcSeq |> Seq.toList |> List.map DString |> DList |> Ply
-          else
-            ecgStringSplit
-              (s |> String.toEgcSeq |> Seq.toList)
-              (sep |> String.toEgcSeq |> Seq.toList)
-            |> List.map DString
-            |> DList
-            |> Ply
+          let parts =
+            if sep = "" then
+              s |> String.toEgcSeq |> Seq.toList
+            else
+              ecgStringSplit
+                (s |> String.toEgcSeq |> Seq.toList)
+                (sep |> String.toEgcSeq |> Seq.toList)
+
+          parts |> List.map DString |> Dval.list (ValueType.Known KTString) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -285,203 +275,18 @@ let fns : List<BuiltInFn> =
       description = "Combines a list of strings with the provided separator"
       fn =
         (function
-        | _, _, [ DList l; DString sep ] ->
-          let strs =
-            List.map
-              (fun s ->
-                match s with
-                | DString st -> st
-                | dv ->
-                  Exception.raiseInternal
-                    (Errors.argumentWasntType (TList TString) "l" dv)
-                    [])
-              l
-
-          Ply(DString((String.concat sep strs).Normalize()))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "base64Encode" 0
-      typeParams = []
-      parameters = [ Param.make "s" TString "" ]
-      returnType = TString
-      description =
-        "URLBase64 encodes a string without padding. Uses URL-safe encoding with
-        {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
-        [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)"
-      fn =
-        (function
-        | _, _, [ DString s ] ->
-          let defaultEncoded = s |> UTF8.toBytes |> Convert.ToBase64String
-          // Inlined version of Base64.urlEncodeToString, except
-          defaultEncoded.Replace('+', '-').Replace('/', '_').Replace("=", "")
+        | _, _, [ DList(_, l); DString sep ] ->
+          l
+          |> List.map (fun s ->
+            match s with
+            | DString st -> st
+            | dv -> Exception.raiseInternal "expected string in join" [ "dval", dv ])
+          |> String.concat sep
+          |> String.normalize
           |> DString
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "base64Decode" 0
-      typeParams = []
-      parameters = [ Param.make "s" TString "" ]
-      returnType = TypeReference.result TString TString
-      description =
-        "Base64 decodes a string. The returned value is wrapped in {{Result}}.
-         Works with both the URL-safe and standard Base64
-         alphabets defined in [RFC 4648
-         sections](https://www.rfc-editor.org/rfc/rfc4648.html)
-         [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
-         [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
-      fn =
-        (function
-        | _, _, [ DString s ] ->
-          let errPipe e = e |> DString |> Dval.resultError |> Ply
-          let okPipe r = r |> DString |> Dval.resultOk |> Ply
-          let base64FromUrlEncoded (str : string) : string =
-            let initial = str.Replace('-', '+').Replace('_', '/')
-            let length = initial.Length
-
-            if length % 4 = 2 then $"{initial}=="
-            else if length % 4 = 3 then $"{initial}="
-            else initial
-
-          if s = "" then
-            // This seems like we should allow it
-            "" |> okPipe
-          elif Regex.IsMatch(s, @"\s") then
-            // dotnet ignores whitespace but we don't allow it
-            "Not a valid base64 string" |> errPipe
-          else
-            try
-              s
-              |> base64FromUrlEncoded
-              |> Convert.FromBase64String
-              |> System.Text.Encoding.UTF8.GetString
-              |> String.normalize
-              |> okPipe
-            with e ->
-              "Not a valid base64 string" |> errPipe
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      // CLEANUP: this shouldnt return a string and should be deprecated
-      deprecated = NotDeprecated }
-
-
-    { name = fn "digest" 0
-      typeParams = []
-      parameters = [ Param.make "s" TString "" ]
-      returnType = TString
-      description =
-        "Take a string and hash it to a cryptographically-secure digest.
-         Don't rely on either the size or the algorithm."
-      fn =
-        (function
-        | _, _, [ DString s ] ->
-          let sha384Hash = SHA384.Create()
-          let data = System.Text.Encoding.UTF8.GetBytes(s)
-
-          let bytes = sha384Hash.ComputeHash(data)
-
-          // Deliberately keep padding
-          System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
-          |> DString
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "random" 0
-      typeParams = []
-      parameters = [ Param.make "length" TInt "" ]
-      returnType = TypeReference.result TString TString
-      description =
-        "Generate a <type String> of length <param length> from random characters"
-      fn =
-        (function
-        | _, _, [ DInt l as dv ] ->
-          if l < 0L then
-            dv
-            |> Errors.argumentWasnt "positive" "length"
-            |> DString
-            |> Dval.resultError
-            |> Ply
-          else
-            let randomString length =
-              let gen () =
-                match RNG.GetInt32(26 + 26 + 10) with
-                | n when n < 26 -> ('a' |> int) + n
-                | n when n < 26 + 26 -> ('A' |> int) + n - 26
-                | n -> ('0' |> int) + n - 26 - 26
-
-              let gen _ = char (gen ()) in
-
-              (Array.toList (Array.init length gen))
-              |> List.map string
-              |> String.concat ""
-
-            randomString (int l) |> DString |> Dval.resultOk |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "htmlEscape" 0
-      typeParams = []
-      parameters = [ Param.make "html" TString "" ]
-      returnType = TString
-      description =
-        "Escape an untrusted string in order to include it safely in HTML output"
-      fn =
-        (function
-        | _, _, [ DString s ] ->
-          let htmlEscape (html : string) : string =
-            List.map
-              (fun c ->
-                match c with
-                | '<' -> "&lt;"
-                | '>' -> "&gt;"
-                | '&' -> "&amp;"
-                // include these for html-attribute-escaping
-                // even though they're not strictly necessary
-                // for html-escaping proper.
-                | '"' -> "&quot;"
-                // &apos; doesn't work in IE....
-                | ''' -> "&#x27;"
-                | _ -> string c)
-              (Seq.toList html)
-            |> String.concat ""
-
-          Ply(DString(htmlEscape s))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "contains" 0
-      typeParams = []
-      parameters =
-        [ Param.make "lookingIn" TString ""; Param.make "searchingFor" TString "" ]
-      returnType = TBool
-      description = "Checks if <param lookingIn> contains <param searchingFor>"
-      fn =
-        (function
-        | _, _, [ DString haystack; DString needle ] ->
-          Ply(DBool(haystack.Contains needle))
-        | _ -> incorrectArgs ())
-      sqlSpec =
-        SqlCallback2(fun lookingIn searchingFor ->
-          // strpos returns indexed from 1; 0 means missing
-          $"strpos({lookingIn}, {searchingFor}) > 0")
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -501,25 +306,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString s; DInt first; DInt last ] ->
-
-          let chars = String.toEgcSeq s
-          let length = Seq.length chars |> int64
-
-          let normalize (i : int64) =
-            i
-            |> fun i -> if i < 0L then length + i else i // account for - values
-            |> min length
-            |> max 0L
-
-
-          let f = normalize first |> int
-          let l = normalize last |> int
-          let l = if f > l then f else l // return empty string when start is less than end
-
-          chars
+          String.toEgcSeq s
           |> Seq.toList
-          |> FSharpPlus.List.drop f
-          |> List.truncate (l - f)
+          |> FSharpPlus.List.drop (int first)
+          |> List.truncate (int (last - first))
           |> String.concat ""
           |> DString
           |> Ply
@@ -598,7 +388,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromBytes" 0
+    { name = fn "fromBytesWithReplacement" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TString
@@ -615,6 +405,26 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "fromBytes" 0
+      typeParams = []
+      parameters = [ Param.make "bytes" TBytes "" ]
+      returnType = TypeReference.option TString
+      description =
+        "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"
+      fn =
+        (function
+        | _, _, [ DBytes bytes ] ->
+          try
+            let str = System.Text.UTF8Encoding(false, true).GetString bytes
+            Ply(Dval.optionSome VT.string (DString str))
+          with e ->
+            Ply(Dval.optionNone VT.string)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "indexOf" 0
       typeParams = []
       parameters =
@@ -623,21 +433,19 @@ let fns : List<BuiltInFn> =
             "searchFor"
             TString
             "The string to search for within <param str>" ]
-      returnType = TypeReference.option TInt
+      returnType = TInt
       description =
-        "Returns {{Some index}} of the first occurrence of <param searchFor> in <param str>, or returns {{None}} if <param searchFor> does not occur."
+        "Returns the index of the first occurrence of <param searchFor> in <param str>, or returns -1 if <param searchFor> does not occur."
       fn =
         (function
         | _, _, [ DString str; DString search ] ->
           let index = str.IndexOf(search)
-          if index = -1 then
-            Ply(Dval.optionNone)
-          else
-            Ply(Dval.optionSome (DInt index))
+          Ply(DInt index)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
+      sqlSpec = SqlCallback2(fun str search -> $"strpos({str}, {search}) - 1")
       previewable = Pure
       deprecated = NotDeprecated }
+
 
     { name = fn "head" 0
       typeParams = []
@@ -649,10 +457,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString str ] ->
           if str = "" then
-            Ply(Dval.optionNone)
+            Ply(Dval.optionNone VT.char)
           else
             let head = String.toEgcSeq str |> Seq.head
-            Ply(Dval.optionSome (DChar head))
+            Ply(Dval.optionSome VT.char (DChar head))
         | _ -> incorrectArgs ())
 
       sqlSpec = NotYetImplemented

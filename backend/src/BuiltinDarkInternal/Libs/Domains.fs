@@ -1,4 +1,4 @@
-/// StdLib functions for building Dark functionality via Dark canvases
+/// Builtin functions for building Dark functionality via Dark canvases
 module BuiltinDarkInternal.Libs.Domains
 
 open System.Threading.Tasks
@@ -7,6 +7,8 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
+module Dval = LibExecution.Dval
 module Canvas = LibCloud.Canvas
 
 let modules = [ "DarkInternal"; "Canvas"; "Domain" ]
@@ -29,7 +31,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! name = Canvas.domainsForCanvasID canvasID
-            return name |> List.map DString |> DList
+            return name |> List.map DString |> Dval.list (ValueType.Known KTString)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -43,13 +45,15 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.result TUuid TString
       description = "Returns the canvasID for a domain if it exists"
       fn =
+        let resultOk = Dval.resultOk VT.uuid VT.string
+        let resultError = Dval.resultError VT.uuid VT.string
         (function
         | _, _, [ DString domain ] ->
           uply {
             let! name = Canvas.canvasIDForDomain domain
             match name with
-            | Some name -> return Dval.resultOk (DUuid name)
-            | None -> return Dval.resultError (DString "Canvas not found")
+            | Some name -> return resultOk (DUuid name)
+            | None -> return resultError (DString "Canvas not found")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

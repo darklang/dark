@@ -1,5 +1,5 @@
 module Error =
-  Builtin.List.map_v0 [ 1; 2; 3; 4; 5 ] (fun x y -> x) = Builtin.Test.derrorMessage
+  PACKAGE.Darklang.Stdlib.List.map_v0 [ 1; 2; 3; 4; 5 ] (fun x y -> x) = Builtin.Test.derrorMessage
     "Expected 2 arguments, got 1"
 
   PACKAGE.Darklang.Stdlib.Option.map2_v0
@@ -13,8 +13,9 @@ Actual: a String: \"not an option\"")
 
 
 // Check we get previous errors before later ones
-(Builtin.List.map_v0 [ 1; 2; 3; 4; 5 ] (fun x -> Builtin.Test.runtimeError "X"))
-|> Builtin.List.fakeFunction = Builtin.Test.derrorMessage "X"
+(PACKAGE.Darklang.Stdlib.List.map_v0 [ 1; 2; 3; 4; 5 ] (fun x ->
+  Builtin.Test.runtimeError "X"))
+|> PACKAGE.Darklang.Stdlib.List.fakeFunction = Builtin.Test.derrorMessage "X"
 
 
 

@@ -9,6 +9,7 @@ open Prelude
 open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
+module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
@@ -210,23 +211,48 @@ module RuntimeTypes =
         [ RT.EUnit(81264012UL) ]
       ) ]
 
+
+  let valueTypes : List<RT.ValueType> =
+    let known kt = RT.ValueType.Known kt
+    let ktUnit = known RT.KnownType.KTUnit
+
+    [ RT.ValueType.Unknown
+      ktUnit
+      known RT.KnownType.KTBool
+      known RT.KnownType.KTInt
+      known RT.KnownType.KTFloat
+      known RT.KnownType.KTChar
+      known RT.KnownType.KTString
+      known RT.KnownType.KTUuid
+      known RT.KnownType.KTBytes
+      known RT.KnownType.KTDateTime
+      known (RT.KnownType.KTList ktUnit)
+      known (RT.KnownType.KTTuple(ktUnit, ktUnit, []))
+      known (RT.KnownType.KTFn(NEList.singleton ktUnit, ktUnit))
+      known (RT.KnownType.KTDB ktUnit)
+      known (
+        RT.KnownType.KTCustomType(
+          RT.FQName.BuiltIn
+            { modules = [ "A" ]; name = RT.TypeName.TypeName "b"; version = 1 },
+          []
+        )
+      )
+      known (RT.KnownType.KTDict ktUnit) ]
+
   let dvalSources : List<RT.DvalSource> =
     [ RT.SourceNone; RT.SourceID(123UL, 91293UL) ]
 
   let dvals : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.
-    sampleDvals
-    |> List.filter (fun (name, _dv) -> name <> "password")
-    |> List.map (fun (name, (dv, t)) -> dv)
+    sampleDvals |> List.map (fun (name, (dv, t)) -> dv)
 
   let dval : RT.Dval =
     let typeName =
       RT.FQName.UserProgram
         { modules = []; name = RT.TypeName.TypeName "MyType"; version = 0 }
     sampleDvals
-    |> List.filter (fun (name, _dv) -> name <> "password")
     |> List.map (fun (name, (dv, t)) -> name, dv)
-    |> RT.Dval.record typeName
+    |> fun fields -> RT.DRecord(typeName, typeName, [], Map fields)
 
 
 module ProgramTypes =

@@ -128,8 +128,8 @@ module NameResolutionError =
       : ST.NameResolutionError.ErrorType =
       match err with
       | LibExecution.NameResolutionError.NotFound -> ST.NameResolutionError.NotFound
-      | LibExecution.NameResolutionError.MissingModuleName ->
-        ST.NameResolutionError.MissingModuleName
+      | LibExecution.NameResolutionError.MissingEnumModuleName caseName ->
+        ST.NameResolutionError.MissingEnumModuleName caseName
       | LibExecution.NameResolutionError.InvalidPackageName ->
         ST.NameResolutionError.InvalidPackageName
       | LibExecution.NameResolutionError.ExpectedEnumButNot ->
@@ -144,8 +144,8 @@ module NameResolutionError =
       match err with
       | ST.NameResolutionError.ErrorType.NotFound ->
         LibExecution.NameResolutionError.NotFound
-      | ST.NameResolutionError.MissingModuleName ->
-        LibExecution.NameResolutionError.MissingModuleName
+      | ST.NameResolutionError.MissingEnumModuleName caseName ->
+        LibExecution.NameResolutionError.MissingEnumModuleName caseName
       | ST.NameResolutionError.InvalidPackageName ->
         LibExecution.NameResolutionError.InvalidPackageName
       | ST.NameResolutionError.ExpectedEnumButNot ->
@@ -279,7 +279,6 @@ module TypeReference =
     | PT.TDB typ -> ST.TDB(toST typ)
     | PT.TDateTime -> ST.TDateTime
     | PT.TChar -> ST.TChar
-    | PT.TPassword -> ST.TPassword
     | PT.TUuid -> ST.TUuid
     | PT.TCustomType(t, typeArgs) ->
       ST.TCustomType(NameResolution.toST TypeName.toST t, List.map toST typeArgs)
@@ -302,7 +301,6 @@ module TypeReference =
     | ST.TDB typ -> PT.TDB(toPT typ)
     | ST.TDateTime -> PT.TDateTime
     | ST.TChar -> PT.TChar
-    | ST.TPassword -> PT.TPassword
     | ST.TUuid -> PT.TUuid
     | ST.TCustomType(t, typeArgs) ->
       PT.TCustomType(NameResolution.toPT TypeName.toPT t, List.map toPT typeArgs)
@@ -577,6 +575,8 @@ module Const =
         caseName,
         List.map toST fields
       )
+    | PT.Const.CList items -> ST.Const.CList(List.map toST items)
+    | PT.Const.CDict items -> ST.Const.CDict(List.map (Tuple2.mapSecond toST) items)
 
   let rec toPT (c : ST.Const) : PT.Const =
     match c with
@@ -594,6 +594,8 @@ module Const =
         caseName,
         List.map toPT fields
       )
+    | ST.Const.CList items -> PT.Const.CList(List.map toPT items)
+    | ST.Const.CDict items -> PT.Const.CDict(List.map (Tuple2.mapSecond toPT) items)
 
 
 module Deprecation =

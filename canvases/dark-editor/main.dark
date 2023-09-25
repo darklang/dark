@@ -8,7 +8,9 @@ let rUnwrap (result: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'b>) : 'a =
 
 [<HttpHandler("GET", "/openai-apikey-yikes")>]
 let _handler _req =
-  PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes OPENAI_API_KEY) 200
+  PACKAGE.Darklang.Stdlib.Http.response
+    (PACKAGE.Darklang.Stdlib.String.toBytes OPENAI_API_KEY)
+    200
 
 [<HttpHandler("GET", "/")>]
 let _handler _req =
@@ -19,7 +21,9 @@ let _handler _req =
     match file with
     | Ok f -> f
 
-  PACKAGE.Darklang.Stdlib.Http.responseWithHtml (Builtin.String.fromBytes body) 200
+  PACKAGE.Darklang.Stdlib.Http.responseWithHtml
+    (PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement body)
+    200
 
 [<HttpHandler("GET", "/assets/:path")>]
 let _handler _req =
@@ -27,7 +31,7 @@ let _handler _req =
   | Ok fileContents ->
     let contentType =
       match
-        (Builtin.String.split path ".")
+        (PACKAGE.Darklang.Stdlib.String.split path ".")
         |> PACKAGE.Darklang.Stdlib.List.last
         |> PACKAGE.Darklang.Stdlib.Option.withDefault ""
       with
@@ -42,7 +46,7 @@ let _handler _req =
 
   | Error _e ->
     PACKAGE.Darklang.Stdlib.Http.response
-      (Builtin.String.toBytes "Couldn't load asset")
+      (PACKAGE.Darklang.Stdlib.String.toBytes "Couldn't load asset")
       400
 
 // We're sharing the Worker script between this canvas and
@@ -65,7 +69,7 @@ let _handler _req =
   | Ok sourceInBytes -> PACKAGE.Darklang.Stdlib.Http.response sourceInBytes 200
   | Error _err ->
     PACKAGE.Darklang.Stdlib.Http.response
-      (Builtin.String.toBytes "Couldn't load client.dark from disk")
+      (PACKAGE.Darklang.Stdlib.String.toBytes "Couldn't load client.dark from disk")
       500
 
 
@@ -76,24 +80,24 @@ let _handler _req =
 
   let program =
     Experiments.parseAndSerializeProgram
-      (Builtin.String.fromBytes sourceInBytes)
+      (PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement sourceInBytes)
       "user-code.dark"
 
   match program with
   | Ok program ->
     let types =
       PACKAGE.Darklang.Stdlib.Option.withDefault
-        (Builtin.Dict.get program "types")
+        (PACKAGE.Darklang.Stdlib.Dict.get program "types")
         "[]"
 
     let fns =
       PACKAGE.Darklang.Stdlib.Option.withDefault
-        (Builtin.Dict.get program "fns")
+        (PACKAGE.Darklang.Stdlib.Dict.get program "fns")
         "[]"
 
     let exprs =
       PACKAGE.Darklang.Stdlib.Option.withDefault
-        (Builtin.Dict.get program "exprs")
+        (PACKAGE.Darklang.Stdlib.Dict.get program "exprs")
         "[]"
 
     let json =
@@ -106,13 +110,15 @@ let _handler _req =
       ++ "}"
 
     PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-      (Builtin.String.toBytes json)
+      (PACKAGE.Darklang.Stdlib.String.toBytes json)
       [ ("content-type", "application-json") ]
       200
 
   | Error err ->
     PACKAGE.Darklang.Stdlib.Http.response
-      (Builtin.String.toBytes ("Couldn't parse the program \n" ++ err))
+      (PACKAGE.Darklang.Stdlib.String.toBytes (
+        "Couldn't parse the program \n" ++ err
+      ))
       400
 
 
@@ -122,7 +128,7 @@ let _handler _req =
   | Ok prompt -> PACKAGE.Darklang.Stdlib.Http.response prompt 200
   | Error _e ->
     PACKAGE.Darklang.Stdlib.Http.response
-      (Builtin.String.toBytes "Couldn't load prompt from disk")
+      (PACKAGE.Darklang.Stdlib.String.toBytes "Couldn't load prompt from disk")
       500
 
 
@@ -132,7 +138,7 @@ let _handler _req =
   | Ok prompt -> PACKAGE.Darklang.Stdlib.Http.response prompt 200
   | Error e ->
     PACKAGE.Darklang.Stdlib.Http.response
-      (Builtin.String.toBytes ("Couldn't load prompt from disk" ++ e))
+      (PACKAGE.Darklang.Stdlib.String.toBytes ("Couldn't load prompt from disk" ++ e))
       500
 
 // below, some import/export stuff
@@ -146,12 +152,12 @@ let _handler _req =
   let take =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
     | None -> 100
-    | Some take -> take |> Builtin.Int.parse |> rUnwrap
+    | Some take -> take |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
 
   let drop =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
     | None -> 0
-    | Some drop -> drop |> Builtin.Int.parse |> rUnwrap
+    | Some drop -> drop |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
 
   match DarkInternal.Canvas.fullProgram canvasId with
   | Ok program ->
@@ -159,20 +165,20 @@ let _handler _req =
       program.types
       |> PACKAGE.Darklang.Stdlib.List.drop drop
       |> PACKAGE.Darklang.Stdlib.List.take take
-      |> Builtin.List.map (fun t ->
+      |> PACKAGE.Darklang.Stdlib.List.map (fun t ->
         PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType t)
-      |> Builtin.String.join "\n\n"
+      |> PACKAGE.Darklang.Stdlib.String.join "\n\n"
 
     let prettyFns =
       program.fns
-      |> Builtin.List.map (fun fn ->
+      |> PACKAGE.Darklang.Stdlib.List.map (fun fn ->
         PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userFunction fn)
-      |> Builtin.String.join "\n\n"
+      |> PACKAGE.Darklang.Stdlib.String.join "\n\n"
 
     let response = prettyTypes ++ "\n------------------\n" ++ prettyFns
 
     PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-      (response |> Builtin.String.toBytes)
+      (response |> PACKAGE.Darklang.Stdlib.String.toBytes)
       [ ("Content-Type", "text/plain") ]
       200
 
@@ -183,26 +189,26 @@ let _handler _req =
   let take =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
     | None -> 100
-    | Some take -> take |> Builtin.Int.parse |> rUnwrap
+    | Some take -> take |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
 
   let drop =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
     | None -> 0
-    | Some drop -> drop |> Builtin.Int.parse |> rUnwrap
+    | Some drop -> drop |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
 
   match DarkInternal.Canvas.fullProgram canvasId with
   | Ok program ->
 
     let prettyFns =
       program.fns
-      |> Builtin.List.map (fun fn ->
+      |> PACKAGE.Darklang.Stdlib.List.map (fun fn ->
         PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userFunction fn)
-      |> Builtin.String.join "\n\n"
+      |> PACKAGE.Darklang.Stdlib.String.join "\n\n"
 
     let response = prettyFns
 
     PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-      (response |> Builtin.String.toBytes)
+      (response |> PACKAGE.Darklang.Stdlib.String.toBytes)
       [ ("Content-Type", "text/plain") ]
       200
 
@@ -214,12 +220,12 @@ let _handler _req =
   let take =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
     | None -> 100
-    | Some take -> take |> Builtin.Int.parse |> rUnwrap
+    | Some take -> take |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
 
   let drop =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
     | None -> 0
-    | Some drop -> drop |> Builtin.Int.parse |> rUnwrap
+    | Some drop -> drop |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
 
 
   match DarkInternal.Canvas.fullProgram canvasId with
@@ -228,31 +234,33 @@ let _handler _req =
       program.types
       |> PACKAGE.Darklang.Stdlib.List.drop drop
       |> PACKAGE.Darklang.Stdlib.List.take take
-      |> Builtin.List.map (fun t ->
+      |> PACKAGE.Darklang.Stdlib.List.map (fun t ->
         PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType t)
-      |> Builtin.String.join "\n\n"
+      |> PACKAGE.Darklang.Stdlib.String.join "\n\n"
 
     let response = prettyTypes
 
     PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-      (response |> Builtin.String.toBytes)
+      (response |> PACKAGE.Darklang.Stdlib.String.toBytes)
       [ ("Content-Type", "text/plain") ]
       200
 
 
 [<HttpHandler("GET", "/export-canvas/:canvasId")>]
 let _handler _req =
-  let canvasId = canvasId |> Builtin.Uuid.parse |> rUnwrap
+  let canvasId = canvasId |> PACKAGE.Darklang.Stdlib.Uuid.parse |> rUnwrap
 
   match DarkInternal.Canvas.fullProgram canvasId with
   | Ok program ->
     let prettyTypes =
       program.types
-      |> Builtin.List.map (fun t ->
+      |> PACKAGE.Darklang.Stdlib.List.map (fun t ->
         PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType t)
 
     PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-      (prettyTypes |> Builtin.String.join "\n\n" |> Builtin.String.toBytes)
+      (prettyTypes
+       |> PACKAGE.Darklang.Stdlib.String.join "\n\n"
+       |> PACKAGE.Darklang.Stdlib.String.toBytes)
       [ ("Content-Type", "text/plain") ]
       200
 
@@ -267,4 +275,6 @@ let _handler _req =
 
   let result = prettyPackages
 
-  PACKAGE.Darklang.Stdlib.Http.response (Builtin.String.toBytes result) 200
+  PACKAGE.Darklang.Stdlib.Http.response
+    (PACKAGE.Darklang.Stdlib.String.toBytes result)
+    200

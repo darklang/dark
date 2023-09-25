@@ -31,20 +31,20 @@ module Equals =
   ([ 1; 2; 3 ] == [ 1; 2; 3 ]) = true
   ([ 1; 2; 3 ] != [ 3; 2; 1 ]) = true
 
-  ((Builtin.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")
-   == (Builtin.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
+  ((PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")
+   == (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
 
-  ((Builtin.DateTime.parse "2019-07-28T22:42:36Z")
-   == (Builtin.DateTime.parse "2019-07-28T22:42:36Z")) = true
+  ((PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z")
+   == (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z")) = true
 
-  ((Builtin.DateTime.parse "2019-07-28T22:42:37Z")
-   != (Builtin.DateTime.parse "2019-07-28T22:42:36Z")) = true
+  ((PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:37Z")
+   != (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z")) = true
 
-  (Builtin.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
-   == Builtin.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+  (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
+   == PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
 
-  (Builtin.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e"
-   != Builtin.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+  (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e"
+   != PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
 
   (fun x -> y) = (fun x -> y)
   ((fun x -> let y = 1 in y) == (fun x -> let y = 1 in y)) = true
@@ -123,40 +123,40 @@ module Equals =
     (MyDB != 5) = Builtin.Test.derrorMessage "Both values must be the same type"
 
   // Other ways to call it
-  Builtin.equals_v0 1 1 = true
+  PACKAGE.Darklang.Stdlib.equals_v0 1 1 = true
   (==) 1 1 = true
   1 == 1 = true
 
 
 module NotEquals =
-  Builtin.notEquals_v0 1 1 = false
-  Builtin.notEquals_v0 "abc" "abc" = false
-  Builtin.notEquals_v0 "abd" "abc" = true
+  PACKAGE.Darklang.Stdlib.notEquals_v0 1 1 = false
+  PACKAGE.Darklang.Stdlib.notEquals_v0 "abc" "abc" = false
+  PACKAGE.Darklang.Stdlib.notEquals_v0 "abd" "abc" = true
 
-  Builtin.notEquals_v0
-    (Builtin.DateTime.parse "2021-07-28T22:42:36Z")
-    (Builtin.DateTime.parse "2019-07-28T22:42:36Z") = true
+  PACKAGE.Darklang.Stdlib.notEquals_v0
+    (PACKAGE.Darklang.Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
+    (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
 
   (!=) 1 1 = false
   (!=) "abc" "abc" = false
   (!=) "abd" "abc" = true
 
   (!=)
-    (Builtin.DateTime.parse "2021-07-28T22:42:36Z")
-    (Builtin.DateTime.parse "2019-07-28T22:42:36Z") = true
+    (PACKAGE.Darklang.Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
+    (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
 
   1 != 1 = false
   "abc" != "abc" = false
   "abd" != "abc" = true
 
-  (Builtin.DateTime.parse "2021-07-28T22:42:36Z")
-  != (Builtin.DateTime.parse "2019-07-28T22:42:36Z") = true
+  (PACKAGE.Darklang.Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
+  != (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
 
 
 // Moving to packages
-// AWS.urlencode_v0 "%" = "" // Edge case bug(?) in OCaml implementation that F# needs to replicate
-// AWS.urlencode_v0 "%%" = "" // Edge case bug(?) in OCaml implementation that F# needs to replicate
-// AWS.urlencode_v0 "%A" = "A" // Edge case bug(?) in OCaml implementation that F# needs to replicate
+// AWS.urlencode_v0 "%" = ""
+// AWS.urlencode_v0 "%%" = ""
+// AWS.urlencode_v0 "%A" = "A"
 // AWS.urlencode_v0 "%AA" = "%AA"
 // AWS.urlencode_v0 "" = ""
 // AWS.urlencode_v0 "殢" = "%E6%AE%A2"

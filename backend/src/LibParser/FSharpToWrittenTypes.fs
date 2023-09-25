@@ -63,14 +63,10 @@ module TypeReference =
     | [], "DateTime", [] -> WT.TDateTime
     | [], "Uuid", [] -> WT.TUuid
     | [], "Unit", [] -> WT.TUnit
-    | [], "Password", [] -> WT.TPassword
 
     // with type args
     | [], "List", [ arg ] -> WT.TList(fromSynType arg)
     | [], "Dict", [ valArg ] -> WT.TDict(fromSynType valArg)
-    // TYPESCLEANUP - don't use word Tuple here
-    | [], "Tuple", first :: second :: theRest ->
-      WT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
     | _ -> WT.TCustomType(WT.Unresolved(names), List.map fromSynType typeArgs)
 
   and fromSynType (typ : SynType) : WT.TypeReference =
@@ -194,7 +190,8 @@ module MatchPattern =
     | SynPat.Const(SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
       WT.MPFloat(id, sign, whole, fraction)
-    | SynPat.Const(SynConst.String(s, _, _), _) -> WT.MPString(id, s)
+    | SynPat.Const(SynConst.String(s, _, _), _) ->
+      WT.MPString(id, String.normalize s)
     | SynPat.LongIdent(SynLongIdent(names, _, _), _, _, SynArgPats.Pats args, _, _) ->
       let enumName =
         List.last names |> Exception.unwrapOptionInternal "missing enum name" []
@@ -320,13 +317,14 @@ module Expr =
 
     // Strings
     | SynExpr.Const(SynConst.String(s, _, _), _) ->
-      WT.EString(id, [ WT.StringText s ])
+      WT.EString(id, [ WT.StringText(String.normalize s) ])
     | SynExpr.InterpolatedString(parts, _, _) ->
       let parts =
         parts
         |> List.filterMap (function
           | SynInterpolatedStringPart.String("", _) -> None
-          | SynInterpolatedStringPart.String(s, _) -> Some(WT.StringText s)
+          | SynInterpolatedStringPart.String(s, _) ->
+            Some(WT.StringText(String.normalize s))
           | SynInterpolatedStringPart.FillExpr(e, _) ->
             Some(WT.StringInterpolation(c e)))
       WT.EString(id, parts)
@@ -761,6 +759,8 @@ module Constant =
         WT.CTuple(c first, c second, List.map c rest)
       | WT.EEnum(_, typeName, caseName, fields) ->
         WT.CEnum(typeName, caseName, List.map c fields)
+      | WT.EList(_, items) -> WT.CList(List.map c items)
+      | WT.EDict(_, fields) -> WT.CDict(List.map (fun (k, v) -> (k, c v)) fields)
       | _ -> Exception.raiseInternal "Unsupported constant" [ "expr", expr ]
     expr |> Expr.fromSynExpr |> c
 

@@ -16,8 +16,8 @@ Hello back
 [test]
 // This is to test whether the cookie ends up in entering the HttpClient "cookie
 // jar", as presumably all other tests will fail if it does.
-(let response = (Builtin.HttpClient.request "get" "http://URL" [] Builtin.Bytes.empty) |> Builtin.unwrap
- let respHeaders = response.headers |> Builtin.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
+(let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL" [] Builtin.Bytes.empty) |> Builtin.unwrap
+ let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    Builtin.HttpClient.Response
     { statusCode = 200
@@ -28,4 +28,4 @@ Hello back
           ("content-length", "LENGTH")
           ("content-type", "text/plain; charset=utf-8")
         ]
-      body = "Hello back" |> Builtin.String.toBytes_v0 }
+      body = "Hello back" |> PACKAGE.Darklang.Stdlib.String.toBytes_v0 }

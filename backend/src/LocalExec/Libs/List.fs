@@ -8,9 +8,10 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-
-module Errors = LibExecution.Errors
+module VT = ValueType
+module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
+module TypeChecker = LibExecution.TypeChecker
 
 let varA = TVariable "a"
 
@@ -33,7 +34,7 @@ let fns : List<BuiltInFn> =
         "Applies the given function <param fn> to each element of the <param list>."
       fn =
         (function
-        | state, _, [ DList l; DFnVal b ] ->
+        | state, _, [ DList(_vtTODO, l); DFnVal b ] ->
           uply {
             do!
               l
@@ -42,9 +43,14 @@ let fns : List<BuiltInFn> =
                   let args = NEList.singleton e
                   match! Interpreter.applyFnVal state 0UL b [] args with
                   | DUnit -> return ()
-                  | DError _ as dv -> return Errors.foundFakeDval dv
                   | v ->
-                    Exception.raiseCode (Errors.expectedLambdaValue "fn" "unit" v)
+                    let context = TypeChecker.Context.FnValResult(TUnit, None)
+                    return!
+                      TypeChecker.raiseValueNotExpectedType
+                        SourceNone
+                        v
+                        TUnit
+                        context
                 })
             return DUnit
           }
@@ -63,13 +69,13 @@ let fns : List<BuiltInFn> =
          list> (does not recursively flatten nested lists)"
       fn =
         (function
-        | _, _, [ DList l ] ->
+        | _, _, [ DList(_vtTODO, l) ] ->
           let f acc i =
             match i with
-            | DList l -> List.append acc l
-            | _ -> Exception.raiseCode "Flattening non-lists"
+            | DList(_vtTODO, l) -> List.append acc l
+            | _ -> Exception.raiseInternal "flatten: expected list of lists" []
 
-          List.fold f [] l |> DList |> Ply
+          List.fold f [] l |> Dval.list VT.unknownTODO |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

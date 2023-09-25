@@ -18,7 +18,7 @@ module CTPusher = LibClientTypes.Pusher
 
 
 let runMigrations () : unit =
-  print $"Running migrations"
+  printTime $"Running migrations"
   LibCloud.Migrations.run ()
 
 let listMigrations () : unit =
@@ -179,6 +179,7 @@ let initSerializers () =
 let main (args : string[]) : int =
   let name = "ProdExec"
   try
+    printTime "Starting ProdExec"
     initSerializers ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
@@ -186,6 +187,7 @@ let main (args : string[]) : int =
     if usesDB options then (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result
     let result = (run options).Result
     LibService.Init.shutdown name
+    printTime "Finished ProdExec"
     result
   with e ->
     // Don't reraise or report as ProdExec is only run interactively

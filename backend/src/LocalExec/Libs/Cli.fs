@@ -1,5 +1,5 @@
-/// StdLib functions for building the CLI
-/// (as opposed to functions needed by CLI programs, which are in StdLibCli)
+/// Builtin functions for building the CLI
+/// (as opposed to functions needed by CLI programs, which are in BuiltinCli)
 module LocalExec.Libs.Cli
 
 open System.Threading.Tasks
@@ -34,25 +34,28 @@ let execute
   (parentState : RT.ExecutionState)
   (mod' : LibParser.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
-  : Task<RT.Dval> =
+  : Ply<RT.ExecutionResult> =
 
-  task {
+  uply {
+    let! fns =
+      mod'.fns
+      |> Ply.List.mapSequentially (fun fn -> PT2RT.UserFunction.toRT fn)
+      |> Ply.map (Map.fromListBy (fun fn -> fn.name))
+    let! types =
+      mod'.types
+      |> Ply.List.mapSequentially (fun typ -> PT2RT.UserType.toRT typ)
+      |> Ply.map (Map.fromListBy (fun typ -> typ.name))
+    let! constants =
+      mod'.constants
+      |> Ply.List.mapSequentially (fun c -> PT2RT.UserConstant.toRT c)
+      |> Ply.map (Map.fromListBy (fun c -> c.name))
+
     let program : Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = true
-        fns =
-          mod'.fns
-          |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
-          |> Map.fromListBy (fun fn -> fn.name)
-        types =
-          mod'.types
-          |> List.map (fun typ -> PT2RT.UserType.toRT typ)
-          |> Map.fromListBy (fun typ -> typ.name)
-        constants =
-          mod'.constants
-          |> List.map (fun c -> PT2RT.UserConstant.toRT c)
-          |> Map.fromListBy (fun c -> c.name)
-
+        fns = fns
+        types = types
+        constants = constants
         dbs = Map.empty
         secrets = [] }
 
@@ -70,12 +73,13 @@ let execute
         program
 
     if mod'.exprs.Length = 1 then
-      return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
+      let! expr = PT2RT.Expr.toRT mod'.exprs[0]
+      return! Exe.executeExpr state symtable expr
     else if mod'.exprs.Length = 0 then
-      return DError(SourceNone, RuntimeError.oldError "No expressions to execute")
+      return Error(SourceNone, RuntimeError.oldError "No expressions to execute")
     else // mod'.exprs.Length > 1
       return
-        DError(SourceNone, RuntimeError.oldError "Multiple expressions to execute")
+        Error(SourceNone, RuntimeError.oldError "Multiple expressions to execute")
   }
 
 let constants : List<BuiltInConstant> = []
@@ -99,8 +103,7 @@ let fns : List<BuiltInFn> =
               return DBytes contents
             with e ->
               return
-                DError(
-                  SourceNone,
+                raiseUntargetedRTE (
                   RuntimeError.oldError $"Error reading file: {e.Message}"
                 )
           }

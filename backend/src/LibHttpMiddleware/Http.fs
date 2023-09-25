@@ -7,6 +7,7 @@ module LibHttpMiddleware.Http
 open Prelude
 open LibExecution.Builtin.Shortcuts
 
+module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
 module Telemetry = LibService.Telemetry
 
@@ -21,15 +22,23 @@ module Request =
     (uri : string)
     (headers : List<string * string>)
     (body : byte array)
-    : RT.Dval =
+    : Ply<RT.Dval> =
     let headers =
       headers
       |> lowercaseHeaderKeys
       |> List.map (fun (k, v) -> RT.DTuple(RT.DString(k), RT.DString(v), []))
-      |> RT.DList
+      |> Dval.list (
+        RT.ValueType.Known(
+          RT.KTTuple(
+            RT.ValueType.Known RT.KTString,
+            RT.ValueType.Known RT.KTString,
+            []
+          )
+        )
+      )
 
     [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]
-    |> RT.Dval.record typ
+    |> Dval.record typ (Some [])
 
 
 module Response =
@@ -44,13 +53,16 @@ module Response =
                                      name = RT.TypeName.TypeName "Response"
                                      version = 0 },
                  _,
+                 [],
                  fields) ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
+
       let code = Map.get "statusCode" fields
       let headers = Map.get "headers" fields
       let body = Map.get "body" fields
+
       match code, headers, body with
-      | Some(RT.DInt code), Some(RT.DList headers), Some(RT.DBytes body) ->
+      | Some(RT.DInt code), Some(RT.DList(_, headers)), Some(RT.DBytes body) ->
         let headers =
           headers
           |> List.fold
@@ -62,15 +74,17 @@ module Response =
               | Ok _, _ -> Error $"Header must be a string"
               | Error _, _ -> acc)
             (Ok [])
+
         match headers with
         | Ok headers ->
           { statusCode = int code
-            headers = headers |> lowercaseHeaderKeys
+            headers = lowercaseHeaderKeys headers
             body = body }
         | Error msg ->
           { statusCode = 500
             headers = [ "Content-Type", "text/plain; charset=utf-8" ]
             body = UTF8.toBytes msg }
+
       // Error responses
       | _incorrectFieldTypes ->
         { statusCode = 500
@@ -82,10 +96,11 @@ module Response =
     // Error responses
     | uncaughtResult ->
       Telemetry.addTags [ "response-type", "error"; "result", uncaughtResult ]
+
       { statusCode = 500
         headers = [ "Content-Type", "text/plain; charset=utf-8" ]
         body =
-          let typeName = LibExecution.DvalReprDeveloper.dvalTypeName result
+          let typeName = LibExecution.DvalReprDeveloper.toTypeName result
           let message =
             [ $"Application error: expected a HTTP response, got:"
               $"type {typeName}:"

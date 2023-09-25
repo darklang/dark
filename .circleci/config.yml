@@ -201,6 +201,14 @@ jobs:
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsdark.sln /p:DebugType=None /p:DebugSymbols=false
       - run: scripts/run-backend-tests --published
+
+      ## TODO: too many race conditions. Bring back later
+      # Test package manager/cli integration works
+      # - run: scripts/run-backend-server --published
+      # - run: sleep 5 # let migrations run
+      # - run: scripts/build/reload-packages --published
+      # - run: scripts/run-cli @Darklang.Stdlib.Float.add 1.9 2.0
+
       - assert-clean-worktree
       - persist_to_workspace:
           root: "."

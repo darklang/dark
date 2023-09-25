@@ -37,12 +37,13 @@ module Pusher = LibCloud.Pusher
 
 module LibHttpMiddleware = LibHttpMiddleware.Http
 
-module RealExe = LibCloudExecution.CloudExecution
+module CloudExe = LibCloudExecution.CloudExecution
 
 module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
 module Rollbar = LibService.Rollbar
 module Telemetry = LibService.Telemetry
+module Logging = LibService.Logging
 
 module CTPusher = LibClientTypes.Pusher
 
@@ -80,14 +81,10 @@ let getQuery (ctx : HttpContext) : string = ctx.Request.QueryString.ToString()
 let getBody (ctx : HttpContext) : Task<byte array> =
   task {
     try
-      // CLEANUP: this was to match ocaml - we certainly should provide a body if one is provided
-      if ctx.Request.Method = "GET" then
-        return [||]
-      else
-        // TODO: apparently it's faster to use a PipeReader, but that broke for us
-        let ms = new IO.MemoryStream()
-        do! ctx.Request.Body.CopyToAsync(ms)
-        return ms.ToArray()
+      // TODO: apparently it's faster to use a PipeReader, but that broke for us
+      let ms = new IO.MemoryStream()
+      do! ctx.Request.Body.CopyToAsync(ms)
+      return ms.ToArray()
     with e ->
       // Let's try to get a good error message to the user, but don't include .NET specific hints
       let tooSlowlyMessage =
@@ -322,16 +319,19 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           // Do request
           use _ = Telemetry.child "executeHandler" []
 
-          let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
+          let! request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
           let inputVars = routeVars |> Map |> Map.add "request" request
+
+          let! handler = PT2RT.Handler.toRT handler
+          let! canvas = Canvas.toProgram canvas
           let! (result, _) =
-            RealExe.executeHandler
+            CloudExe.executeHandler
               LibClientTypesToCloudTypes.Pusher.eventSerializer
-              (PT2RT.Handler.toRT handler)
-              (Canvas.toProgram canvas)
+              handler
+              canvas
               traceID
               inputVars
-              (RealExe.InitialExecution(desc, "request", request))
+              (CloudExe.InitialExecution(desc, "request", request))
 
           let result = LibHttpMiddleware.Response.toHttpResponse result
 
@@ -428,6 +428,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> Kubernetes.configureApp healthCheckPort
+  |> Logging.addHttpLogging
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
@@ -439,7 +440,7 @@ let configureServices (services : IServiceCollection) : unit =
 
 
 let webserver
-  (loggerSetup : ILoggingBuilder -> unit)
+  (providedLogger : Option<ILoggingBuilder -> unit>)
   (httpPort : int)
   (healthCheckPort : int)
   : WebApplication =
@@ -450,7 +451,7 @@ let webserver
   Kubernetes.registerServerTimeout builder.WebHost
 
   builder.WebHost
-  |> fun wh -> wh.ConfigureLogging(loggerSetup)
+  |> fun wh -> wh.ConfigureLogging(Logging.defaultLogger providedLogger)
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
   |> fun wh -> wh.UseUrls(hcUrl, $"http://*:{httpPort}")
   |> ignore<IWebHostBuilder>
@@ -462,7 +463,7 @@ let webserver
 let run () : unit =
   let port = LibService.Config.bwdServerPort
   let k8sPort = LibService.Config.bwdServerKubernetesPort
-  (webserver LibService.Logging.noLogger port k8sPort).Run()
+  (webserver None port k8sPort).Run()
 
 
 // Generally speaking, this should be the same list as QueueWorker's
@@ -493,7 +494,7 @@ let initSerializers () =
 let main _ =
   try
     let name = "BwdServer"
-    print "Starting BwdServer"
+    printTime "Starting BwdServer"
     initSerializers ()
     LibService.Init.init name
     (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result

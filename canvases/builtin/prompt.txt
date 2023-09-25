@@ -62,7 +62,7 @@ some examples:
           (uply {
             let! (dvals : List<Dval>) = dvals
 
-            match List.tryFind (fun dv -> Dval.isIncomplete dv) dvals with
+            match List.find (fun dv -> Dval.isIncomplete dv) dvals with
             | Some i -> return i
             | None ->
               let chars =
@@ -131,7 +131,6 @@ type DType =
   | TUuid
   | TBytes
   | TDateTime
-  | TPassword
 
   // nested types
   | TList of DType
@@ -170,7 +169,7 @@ and [<NoComparison>] Dval =
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
 
   // compound types
-  | DList of List<Dval>
+  | DList of ValueType * List<Dval>
   | DTuple of Dval * Dval * List<Dval>
 
   | DFnVal of FnValImpl
@@ -183,7 +182,6 @@ and [<NoComparison>] Dval =
 
   | DDB of string
   | DDateTime of DarkDateTime.T
-  | DPassword of Password
   | DUuid of System.Guid
   | DBytes of byte array
 

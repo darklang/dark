@@ -9,9 +9,10 @@ open LibCloud.Db
 
 open Prelude
 open LibExecution.RuntimeTypes
-
 open LibExecution.Builtin.Shortcuts
 
+module VT = ValueType
+module Dval = LibExecution.Dval
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 let types : List<BuiltInType> =
@@ -132,7 +133,7 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DUnit ] ->
           uply {
-            let! packages =
+            let! fns =
               Sql.query
                 "SELECT owner, modules, fnname, version FROM package_functions_v0"
               |> Sql.executeAsync (fun read ->
@@ -140,18 +141,23 @@ let fns : List<BuiltInFn> =
                  read.string "fnname",
                  read.string "modules",
                  read.int "version"))
-            return
-              (DList(
-                packages
-                |> List.map (fun (owner, fnname, modules, version) ->
-                  Dval.record
-                    (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0))
-                    [ ("owner", DString owner)
-                      ("modules",
-                       modules |> String.split "." |> List.map DString |> DList)
-                      ("name", DString fnname)
-                      ("version", DInt version) ])
-              ))
+
+            let! fns =
+              fns
+              |> Ply.List.mapSequentially (fun (owner, fnname, modules, version) ->
+                Dval.record
+                  (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0))
+                  (Some [])
+                  [ ("owner", DString owner)
+                    ("modules",
+                     modules
+                     |> String.split "."
+                     |> List.map DString
+                     |> Dval.list VT.string)
+                    ("name", DString fnname)
+                    ("version", DInt version) ])
+
+            return Dval.list VT.unknownTODO fns
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -174,7 +180,7 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DUnit ] ->
           uply {
-            let! packages =
+            let! types =
               Sql.query
                 "SELECT owner, modules, typename, version FROM package_types_v0"
               |> Sql.executeAsync (fun read ->
@@ -182,18 +188,24 @@ let fns : List<BuiltInFn> =
                  read.string "typename",
                  read.string "modules",
                  read.int "version"))
-            return
-              (DList(
-                packages
-                |> List.map (fun (owner, typename, modules, version) ->
+
+            let! types =
+              types
+              |> Ply.List.mapSequentially
+                (fun (owner, typename, modules, version) ->
                   Dval.record
                     (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0))
+                    (Some [])
                     [ ("owner", DString owner)
                       ("modules",
-                       modules |> String.split "." |> List.map DString |> DList)
+                       modules
+                       |> String.split "."
+                       |> List.map DString
+                       |> Dval.list VT.unknownTODO)
                       ("name", DString typename)
                       ("version", DInt version) ])
-              ))
+
+            return Dval.list VT.unknownTODO types
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -216,7 +228,7 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DUnit ] ->
           uply {
-            let! packages =
+            let! consts =
               Sql.query
                 "SELECT owner, modules, name, version FROM package_constants_v0"
               |> Sql.executeAsync (fun read ->
@@ -224,18 +236,23 @@ let fns : List<BuiltInFn> =
                  read.string "name",
                  read.string "modules",
                  read.int "version"))
-            return
-              (DList(
-                packages
-                |> List.map (fun (owner, fnname, modules, version) ->
-                  Dval.record
-                    (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0))
-                    [ ("owner", DString owner)
-                      ("modules",
-                       modules |> String.split "." |> List.map DString |> DList)
-                      ("name", DString fnname)
-                      ("version", DInt version) ])
-              ))
+
+            let! consts =
+              consts
+              |> Ply.List.mapSequentially (fun (owner, fnname, modules, version) ->
+                Dval.record
+                  (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0))
+                  (Some [])
+                  [ ("owner", DString owner)
+                    ("modules",
+                     modules
+                     |> String.split "."
+                     |> List.map DString
+                     |> Dval.list VT.unknownTODO)
+                    ("name", DString fnname)
+                    ("version", DInt version) ])
+
+            return Dval.list VT.unknownTODO consts
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

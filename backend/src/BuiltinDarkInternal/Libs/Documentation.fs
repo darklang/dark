@@ -1,4 +1,4 @@
-/// StdLib functions for documentation
+/// Builtin functions for documentation
 module BuiltinDarkInternal.Libs.Documentation
 
 open System.Threading.Tasks
@@ -7,6 +7,9 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+
+module VT = ValueType
+module Dval = LibExecution.Dval
 
 let modules = [ "DarkInternal"; "Documentation" ]
 
@@ -30,7 +33,7 @@ let types : List<BuiltInType> =
                   { name = "returnType"; typ = TString } ]
             ) }
       deprecated = NotDeprecated
-      description = "A Darklang stdlib function" }
+      description = "A Darklang builtin function" }
     { name = typ "Parameter" 0
       declaration =
         { typeParams = []
@@ -55,30 +58,41 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ DUnit ] ->
-          let typeNameToStr = LibExecution.DvalReprDeveloper.typeName
-          state.builtIns.fns
-          |> Map.toList
-          |> List.filter (fun (key, data) ->
-            (not (FnName.isInternalFn key)) && data.deprecated = NotDeprecated)
-          |> List.map (fun (key, data) ->
-            let typeName = TypeName.fqBuiltIn modules "Function" 0
-            let alist =
-              let returnType = typeNameToStr data.returnType
-              let paramTypeName = TypeName.fqBuiltIn modules "Parameter" 0
-              let parameters =
-                data.parameters
-                |> List.map (fun p ->
-                  Dval.record
-                    paramTypeName
-                    [ ("name", DString p.name)
-                      ("type", DString(typeNameToStr p.typ)) ])
-              [ ("name", DString(FnName.builtinToString key))
-                ("description", DString data.description)
-                ("parameters", DList parameters)
-                ("returnType", DString returnType) ]
-            Dval.record typeName alist)
-          |> DList
-          |> Ply
+          uply {
+            let typeNameToStr = LibExecution.DvalReprDeveloper.typeName
+
+            let fnParamTypeName = TypeName.fqBuiltIn modules "Parameter" 0
+            let fnTypeName = TypeName.fqBuiltIn modules "Function" 0
+
+            let! fns =
+              state.builtIns.fns
+              |> Map.toList
+              |> List.filter (fun (key, data) ->
+                (not (FnName.isInternalFn key)) && data.deprecated = NotDeprecated)
+              |> Ply.List.mapSequentially (fun (key, data) ->
+                uply {
+                  let! parameters =
+                    data.parameters
+                    |> Ply.List.mapSequentially (fun p ->
+                      Dval.record
+                        fnParamTypeName
+                        (Some [])
+                        [ ("name", DString p.name)
+                          ("type", DString(typeNameToStr p.typ)) ])
+                    |> Ply.map (Dval.list VT.unknownTODO)
+
+                  return!
+                    Dval.record
+                      fnTypeName
+                      (Some [])
+                      [ ("name", DString(FnName.builtinToString key))
+                        ("description", DString data.description)
+                        ("parameters", parameters)
+                        ("returnType", DString(typeNameToStr data.returnType)) ]
+                })
+
+            return Dval.list VT.unknownTODO fns
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

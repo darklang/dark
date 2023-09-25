@@ -69,28 +69,45 @@ let t
         else
           System.Guid.NewGuid() |> Task.FromResult
 
-      let rtTypes =
+      let! rtTypes =
         types
-        |> List.map (fun typ ->
-          PT2RT.TypeName.UserProgram.toRT typ.name, PT2RT.UserType.toRT typ)
-        |> Map.ofList
+        |> Ply.List.mapSequentially (fun typ ->
+          uply {
+            let! typRT = PT2RT.UserType.toRT typ
+            return (PT2RT.TypeName.UserProgram.toRT typ.name, typRT)
+          })
+        |> Ply.map Map.ofList
+        |> Ply.toTask
 
-      let rtDBs =
-        (dbs |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map.ofList)
+      let! rtDBs =
+        dbs
+        |> Ply.List.mapSequentially (fun db ->
+          uply {
+            let! dbRT = PT2RT.DB.toRT db
+            return (db.name, dbRT)
+          })
+        |> Ply.map Map.ofList
+        |> Ply.toTask
 
-      let rtFunctions =
-        (functions
-         |> List.map (fun fn ->
-           let fn = PT2RT.UserFunction.toRT fn
-           (fn.name, fn))
-         |> Map.ofList)
+      let! rtFunctions =
+        functions
+        |> Ply.List.mapSequentially (fun fn ->
+          uply {
+            let! fn = PT2RT.UserFunction.toRT fn
+            return (fn.name, fn)
+          })
+        |> Ply.map Map.ofList
+        |> Ply.toTask
 
-      let rtConstants =
-        (constants
-         |> List.map (fun c ->
-           let c = PT2RT.UserConstant.toRT c
-           (c.name, c))
-         |> Map.ofList)
+      let! rtConstants =
+        constants
+        |> Ply.List.mapSequentially (fun c ->
+          uply {
+            let! c = PT2RT.UserConstant.toRT c
+            return (c.name, c)
+          })
+        |> Ply.map Map.ofList
+        |> Ply.toTask
 
       let! (state : RT.ExecutionState) =
         executionStateFor
@@ -116,7 +133,8 @@ let t
       let msg =
         $"\n\n{rhsMsg}\n\n{lhsMsg}\n\nTest location: {bold}{underline}{filename}:{lineNumber}{reset}"
 
-      let! expected = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedExpr)
+      let! expectedExpr = PT2RT.Expr.toRT expectedExpr |> Ply.toTask
+      let! expected = Exe.executeExpr state Map.empty expectedExpr
 
       // Initialize
       if workers <> [] then do! setupWorkers canvasID workers
@@ -130,27 +148,39 @@ let t
           state
 
       // Run the actual program (left-hand-side of the =)
-      let! actual = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT actualExpr)
+      let! actualExpr = PT2RT.Expr.toRT actualExpr |> Ply.toTask
+      let! actual = Exe.executeExpr state Map.empty actualExpr
 
       if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
         debuGList "results" (Dictionary.toList results |> List.sortBy fst)
 
-      let actual = normalizeDvalResult actual
-      let expected = normalizeDvalResult expected
+      let actual = Result.map normalizeDvalResult actual
+      let expected = Result.map normalizeDvalResult expected
 
-      let canonical = Expect.isCanonical actual
-      if not canonical then
-        debugDval actual |> debuG "not canonicalized"
-        Expect.isTrue canonical "expected is canonicalized"
+      match actual with
+      | Error _ -> ()
+      | Ok actual ->
+        let canonical = Expect.isCanonical actual
+        if not canonical then
+          debugDval actual |> debuG "not canonicalized"
+          Expect.isTrue canonical "expected is canonicalized"
 
       // CLEANUP consider not doing the toErrorMessage call
       // just test the actual RuntimeError Dval,
       // and have separate tests around pretty-printing the error
       let! actual =
-        task {
+        uply {
           match actual with
-          | RT.DError(_, actual) ->
-            let actual = RT.RuntimeError.toDT actual
+          | Ok _ -> return actual
+          | Error(_, actualRTE) ->
+            let actual = RT.RuntimeError.toDT actualRTE
+            let errorMessageFn =
+              RT.FnName.fqPackage
+                "Darklang"
+                [ "LanguageTools"; "RuntimeErrors"; "Error" ]
+                "toErrorMessage"
+                0
+
             let! typeChecked =
               let expected =
                 RT.TCustomType(
@@ -163,58 +193,57 @@ let t
                   ),
                   []
                 )
+
               let context =
                 LibExecution.TypeChecker.Context.FunctionCallParameter(
-                  (RT.FnName.fqPackage
-                    "Darklang"
-                    [ "LanguageTools"; "RuntimeErrors"; "Error" ]
-                    "toErrorMessage"
-                    0),
+                  errorMessageFn,
                   { name = ""; typ = expected },
                   0,
                   None
                 )
               let types = RT.ExecutionState.availableTypes state
-              let typeArgSymbolTable = Map.empty
-              LibExecution.TypeChecker.unify
-                context
-                types
-                typeArgSymbolTable
-                expected
-                actual
-
-            let errorMessageFn =
-              (RT.FnName.fqPackage
-                "Darklang"
-                [ "LanguageTools"; "RuntimeErrors"; "Error" ]
-                "toErrorMessage"
-                0)
+              LibExecution.TypeChecker.unify context types Map.empty expected actual
 
             match typeChecked with
             | Ok _ ->
-              return!
-                LibExecution.Interpreter.callFn
+              // The result was correctly a RuntimeError, try to stringify it
+              let! result =
+                LibExecution.Execution.executeFunction
                   state
-                  Map.empty
                   0UL
                   errorMessageFn
                   []
                   (NEList.ofList actual [])
 
+              match result with
+              | Error _ ->
+                return
+                  Exception.raiseInternal
+                    ("We received an RTE, and when trying to stringify it, there was another RTE error. There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
+                    [ "originalError", actual; "stringifyError", result ]
+              | Ok(RT.DEnum(_, _, [], "ErrorString", [ RT.DString _ ])) ->
+                return result
+              | Ok _ ->
+                return
+                  Exception.raiseInternal
+                    "We received an RTE, and when trying to stringify it, got a non-ErrorString response. Instead we got"
+                    [ "result", result ]
+
             | Error e ->
+              // The result was not a RuntimeError, try to stringify the typechecker error
               return!
-                LibExecution.Interpreter.callFn
+                LibExecution.Execution.executeFunction
                   state
-                  Map.empty
                   0UL
                   errorMessageFn
                   []
                   (NEList.ofList (RT.RuntimeError.toDT e) [])
-
-          | _ -> return actual
         }
+        |> Ply.toTask
 
-      return Expect.equalDval actual expected msg
+      match actual, expected with
+      | Ok actual, Ok expected -> return Expect.equalDval actual expected msg
+      | _ -> return Expect.equal actual expected msg
     with
     | :? Expecto.AssertException as e -> Exception.reraise e
     | e ->
@@ -249,8 +278,7 @@ let fileTests () : Test =
         try
           let modules =
             $"{dir}/{filename}"
-            |> LibParser.TestModule.parseTestFile
-              resolverWithBuiltinsAndPackageManager
+            |> LibParser.TestModule.parseTestFile nameResolver
             |> fun ply -> ply.Result
 
           // Within a module, tests have access to

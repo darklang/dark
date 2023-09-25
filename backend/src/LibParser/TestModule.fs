@@ -270,11 +270,13 @@ let parseSingleTestFromFile
       |> singleExprFromImplFile
       |> parseTest
 
-    let! actual = wtTest.actual |> WT2PT.Expr.toPT resolver []
-    let! expected = wtTest.expected |> WT2PT.Expr.toPT resolver []
+    let! actual =
+      wtTest.actual |> WT2PT.Expr.toPT resolver [] |> Ply.bind PT2RT.Expr.toRT
+    let! expected =
+      wtTest.expected |> WT2PT.Expr.toPT resolver [] |> Ply.bind PT2RT.Expr.toRT
     return
-      { actual = actual |> PT2RT.Expr.toRT
-        expected = expected |> PT2RT.Expr.toRT
+      { actual = actual
+        expected = expected
         lineNumber = wtTest.lineNumber
         name = wtTest.name }
   }
