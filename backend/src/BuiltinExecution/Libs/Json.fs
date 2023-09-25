@@ -567,7 +567,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "serialize" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "arg" (TVariable "a") "" ]
-      returnType = TypeReference.result TString TString
+      returnType = TString
       description = "Serializes a Dark value to a JSON string."
       fn =
         (function
@@ -577,9 +577,6 @@ let fns : List<BuiltInFn> =
             // "'b = Int",
             // so we can Json.serialize<'b>, if 'b is in the surrounding context
 
-            // CLEANUP this should not return a Result
-            // if anything fails due to types, it should result as an InternalException
-            // naturally
             let types = ExecutionState.availableTypes state
             let! response =
               writeJson (fun w -> serialize types w typeToSerializeAs arg)
