@@ -194,6 +194,7 @@ let rec serialize
 
 
     | TCustomType(Error errTypeName, _typeArgs), dval ->
+      // TODO should be an RTE
       Exception.raiseInternal
         "Couldn't resolve type name"
         [ "typeName", errTypeName; "dval", dval ]

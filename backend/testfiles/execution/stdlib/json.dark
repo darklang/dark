@@ -437,6 +437,12 @@ module Bytes =
 
   Builtin.Json.parse<Bytes> "\"\"" = Result.Ok Builtin.Bytes.empty
 
+module BadTypes =
+  // these cause an error in the type checker
+  // Builtin.Json.parse<'a> "5" = Result.Ok Builtin.Bytes.empty
+  // Builtin.Json.serialize<'a> 5 = Result.Error "dunno what happens"
+
+  1 = 1 // just here to avoid parser errors
 
 
 module List =
