@@ -316,7 +316,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "isNan" 0
+    { name = fn "isNaN" 0
       typeParams = []
       parameters = [ Param.make "f" TFloat "" ]
       returnType = TBool

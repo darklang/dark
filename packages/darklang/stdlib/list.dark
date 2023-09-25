@@ -26,12 +26,12 @@ module Darklang =
 
       /// Add element <param val> to front of <type list> <param list>
       let push (list: List<'a>) (value: 'a) : List<'a> =
-        Builtin.List.append_v0 [ value ] list
+        PACKAGE.Darklang.Stdlib.List.append_v0 [ value ] list
 
 
       /// Add element <param val> to back of <type list> <param list>
       let pushBack (list: List<'a>) (value: 'a) : List<'a> =
-        Builtin.List.append_v0 list [ value ]
+        PACKAGE.Darklang.Stdlib.List.append_v0 list [ value ]
 
 
       /// Returns the last value in <param list>, wrapped in an option (<paramNone> if the list is empty)
@@ -131,7 +131,9 @@ module Darklang =
         match list with
         | [] -> []
         | head :: tail ->
-          Builtin.List.append_v0 head (PACKAGE.Darklang.Stdlib.List.flatten tail)
+          PACKAGE.Darklang.Stdlib.List.append_v0
+            head
+            (PACKAGE.Darklang.Stdlib.List.flatten tail)
 
 
       /// Returns a single list containing the values of <param list> separated by <param sep>
