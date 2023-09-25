@@ -292,79 +292,33 @@ let enum
 
 
 
-
 let optionType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0
 
-// TODO use Dval.enum rather than re-implementing this algorithm here
 let optionSome (innerType : ValueType) (dv : Dval) : Ply<Dval> =
-  let dvalType = toValueType dv
-  match mergeValueTypes innerType dvalType with
-  | Ok typ ->
-    DEnum(optionType, optionType, ignoreAndUseEmpty [ typ ], "Some", [ dv ]) |> Ply
-  | Error() ->
-    mergeFailureRte
-      SourceNone
-      (ValueType.Known(KTCustomType(optionType, [ innerType ])))
-      (ValueType.Known(KTCustomType(optionType, [ dvalType ])))
+  enum optionType optionType (Some [ innerType ]) "Some" [ dv ]
 
-// TODO use Dval.enum rather than re-implementing this algorithm here
 let optionNone (innerType : ValueType) : Ply<Dval> =
-  DEnum(optionType, optionType, ignoreAndUseEmpty [ innerType ], "None", [])
-  |> Ply
+  enum optionType optionType (Some [ innerType ]) "None" []
 
-// Wraps in an Option after checking that the value is not a fakeval
 let option (innerType : ValueType) (dv : Option<Dval>) : Ply<Dval> =
   match dv with
-  | Some dv -> optionSome innerType dv // checks isFake
+  | Some dv -> optionSome innerType dv
   | None -> optionNone innerType
 
 
 
 let resultType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0
 
-// TODO use Dval.enum rather than re-implementing this algorithm here
-let resultOk (okType : ValueType) (errorType : ValueType) (dvOk : Dval) : Ply<Dval> =
-  let dvalType = toValueType dvOk
-  match mergeValueTypes okType dvalType with
-  | Ok typ ->
-    DEnum(
-      resultType,
-      resultType,
-      ignoreAndUseEmpty [ typ; errorType ],
-      "Ok",
-      [ dvOk ]
-    )
-    |> Ply
-  | Error() ->
-    mergeFailureRte
-      SourceNone
-      (ValueType.Known(KTCustomType(resultType, [ okType; errorType ])))
-      (ValueType.Known(KTCustomType(resultType, [ dvalType; errorType ])))
+let resultOk (okType : ValueType) (errorType : ValueType) (dv : Dval) : Ply<Dval> =
+  enum resultType resultType (Some [ okType; errorType ]) "Ok" [ dv ]
 
-// TODO use Dval.enum rather than re-implementing this algorithm here
 let resultError
   (okType : ValueType)
   (errorType : ValueType)
-  (dvError : Dval)
+  (dv : Dval)
   : Ply<Dval> =
-  let dvalType = toValueType dvError
-  match mergeValueTypes errorType dvalType with
-  | Ok typ ->
-    DEnum(
-      resultType,
-      resultType,
-      ignoreAndUseEmpty [ okType; typ ],
-      "Error",
-      [ dvError ]
-    )
-    |> Ply
-  | Error() ->
-    mergeFailureRte
-      SourceNone
-      (ValueType.Known(KTCustomType(resultType, [ okType; errorType ])))
-      (ValueType.Known(KTCustomType(resultType, [ okType; dvalType ])))
+  enum resultType resultType (Some [ okType; errorType ]) "Error" [ dv ]
 
-// Wraps in a Result after checking that the value is not a fakeval
 let result
   (okType : ValueType)
   (errorType : ValueType)
