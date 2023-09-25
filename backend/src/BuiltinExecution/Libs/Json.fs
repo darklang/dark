@@ -182,11 +182,7 @@ let rec serialize
                 "expectedFields", fields ]
 
 
-    | TCustomType(Error errTypeName, _typeArgs), dval ->
-      // TODO should be an RTE
-      Exception.raiseInternal
-        "Couldn't resolve type name"
-        [ "typeName", errTypeName; "dval", dval ]
+    | TCustomType(Error err, _typeArgs), dval -> raiseUntargetedRTE err
 
 
     // Not supported
