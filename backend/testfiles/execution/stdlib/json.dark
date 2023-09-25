@@ -493,11 +493,22 @@ module List =
 
 module Tuples =
   Builtin.Json.serialize<Int * String * Int> (1, "two", 3) = "[1,\"two\",3]"
+  Builtin.Json.parse<Int * String * Int> "[1,\"two\",3]" = Result.Ok((1, "two", 3))
+
+  Builtin.Json.parse<Int * String * Int> "[1,3]" = Result.Error
+    "Can't parse JSON `[1,3]` as type `(Int, String, Int)` at path: `root`"
+
 
   Builtin.Json.serialize<List<Int> * List<Person>> (
     [ 1; 2; 3 ],
     [ Person { Name = "Alice"; Age = 42 } ]
   ) = "[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]"
+
+  Builtin.Json.parse<List<Int> * List<Person>>
+    "[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]" = Result.Ok(
+    ([ 1; 2; 3 ], [ Person { Name = "Alice"; Age = 42 } ])
+  )
+
 
   Builtin.Json.serialize<(Int * String) * (Person * Dict<String>)> (
     (1, "two"),
@@ -505,42 +516,19 @@ module Tuples =
      PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b")
   ) = "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
 
-  Builtin.Json.serialize<(List<Int * String> * Bytes) * (Person * Dict<String>)> (
-    ([ (1, "two"); (3, "four") ], Builtin.Bytes.empty),
-    (Person { Name = "Alice"; Age = 42 },
-     PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b")
-  ) = "[[[[1,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
-
-  Builtin.Json.serialize<Person * Option<Int>> (
-    Person { Name = "Alice"; Age = 42 },
-    Option.Some 1
-  ) = "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[1]}]"
-
-  Builtin.Json.serialize<Option<Int> * Result<Int, String>> (
-    Option.Some 1,
-    Result.Ok 2
-  ) = "[{\"Some\":[1]},{\"Ok\":[2]}]"
-
-  Builtin.Json.serialize<Char * Bool> ('a', true) = "[\"a\",true]"
-
-  Builtin.Json.serialize<DateTime * Uuid> (
-    DateTime.d "2023-07-28T22:42:36Z",
-    Uuid.uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
-  ) = "[\"2023-07-28T22:42:36Z\",\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"]"
-
-  Builtin.Json.parse<Int * String * Int> "[1,\"two\",3]" = Result.Ok((1, "two", 3))
-
-  Builtin.Json.parse<List<Int> * List<Person>>
-    "[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]" = Result.Ok(
-    ([ 1; 2; 3 ], [ Person { Name = "Alice"; Age = 42 } ])
-  )
-
   Builtin.Json.parse<(Int * String) * (Person * Dict<String>)>
     "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]" = Result.Ok(
     ((1, "two"),
      (Person { Name = "Alice"; Age = 42 },
       PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b"))
   )
+
+
+  Builtin.Json.serialize<(List<Int * String> * Bytes) * (Person * Dict<String>)> (
+    ([ (1, "two"); (3, "four") ], Builtin.Bytes.empty),
+    (Person { Name = "Alice"; Age = 42 },
+     PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b")
+  ) = "[[[[1,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
 
   Builtin.Json.parse<(List<Int * String> * Bytes) * (Person * Dict<String>)>
     "[[[[1,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]" = Result
@@ -550,15 +538,35 @@ module Tuples =
         PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b"))
     )
 
+
+  Builtin.Json.serialize<Person * Option<Int>> (
+    Person { Name = "Alice"; Age = 42 },
+    Option.Some 1
+  ) = "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[1]}]"
+
   Builtin.Json.parse<Person * Option<Int>>
     "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[1]}]" = Result.Ok(
     (Person { Name = "Alice"; Age = 42 }, Option.Some 1)
   )
 
+
+  Builtin.Json.serialize<Option<Int> * Result<Int, String>> (
+    Option.Some 1,
+    Result.Ok 2
+  ) = "[{\"Some\":[1]},{\"Ok\":[2]}]"
+
   Builtin.Json.parse<Option<Int> * Result<Int, String>>
     "[{\"Some\":[1]},{\"Ok\":[2]}]" = Result.Ok((Option.Some 1, Result.Ok 2))
 
+
+  Builtin.Json.serialize<Char * Bool> ('a', true) = "[\"a\",true]"
   Builtin.Json.parse<Char * Bool> "[\"a\",true]" = Result.Ok(('a', true))
+
+
+  Builtin.Json.serialize<DateTime * Uuid> (
+    DateTime.d "2023-07-28T22:42:36Z",
+    Uuid.uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
+  ) = "[\"2023-07-28T22:42:36Z\",\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"]"
 
   Builtin.Json.parse<DateTime * Uuid>
     "[\"2023-07-28T22:42:36Z\",\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"]" = Result.Ok(
