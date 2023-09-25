@@ -28,14 +28,17 @@ type Response = { statusCode : int; headers : Headers.T; body : Body }
 module HeaderError =
   type HeaderError = | EmptyKey
 
-  let toDT (err : HeaderError) : Dval =
-    let caseName, fields =
-      match err with
-      | EmptyKey -> "EmptyKey", []
-
-    let typeName =
-      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "HeaderError" 0
-    Dval.enum typeName typeName (Some []) caseName fields
+  let toDT (err : HeaderError) : Ply<Dval> =
+    uply {
+      let! (caseName, fields) =
+        uply {
+          match err with
+          | EmptyKey -> return "EmptyKey", []
+        }
+      let typeName =
+        TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "HeaderError" 0
+      return! Dval.enum typeName typeName (Some []) caseName fields
+    }
 
 module BadUrl =
   type BadUrlDetails =
@@ -44,17 +47,21 @@ module BadUrl =
     | InvalidUri
     | InvalidRequest
 
-  let toDT (err : BadUrlDetails) : Dval =
-    let caseName, fields =
-      match err with
-      | UnsupportedProtocol -> "UnsupportedProtocol", []
-      | InvalidHost -> "InvalidHost", []
-      | InvalidUri -> "InvalidUri", []
-      | InvalidRequest -> "InvalidRequest", []
+  let toDT (err : BadUrlDetails) : Ply<Dval> =
+    uply {
+      let! (caseName, fields) =
+        uply {
+          match err with
+          | UnsupportedProtocol -> return "UnsupportedProtocol", []
+          | InvalidHost -> return "InvalidHost", []
+          | InvalidUri -> return "InvalidUri", []
+          | InvalidRequest -> return "InvalidRequest", []
+        }
 
-    let typeName =
-      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "BadUrlDetails" 0
-    Dval.enum typeName typeName (Some []) caseName fields
+      let typeName =
+        TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "BadUrlDetails" 0
+      return! Dval.enum typeName typeName (Some []) caseName fields
+    }
 
 module RequestError =
   // forked from Elm's HttpError type
@@ -68,20 +75,28 @@ module RequestError =
     | IOException of string
     | HttpRequestException of string
 
-  let toDT (err : RequestError) : Dval =
-    let caseName, fields =
-      match err with
-      | BadUrl details -> "BadUrl", [ BadUrl.toDT details ]
-      | Timeout -> "Timeout", []
-      | NetworkError -> "NetworkError", []
-      | HeaderError err -> "HeaderError", [ HeaderError.toDT err ]
-      | ArgumentException e -> "ArgumentException", [ DString e ]
-      | IOException e -> "IOException", [ DString e ]
-      | HttpRequestException e -> "HttpRequestException", [ DString e ]
+  let toDT (err : RequestError) : Ply<Dval> =
+    uply {
+      let! (caseName, fields) =
+        uply {
+          match err with
+          | BadUrl details ->
+            let! details = BadUrl.toDT details
+            return "BadUrl", [ details ]
+          | Timeout -> return "Timeout", []
+          | NetworkError -> return "NetworkError", []
+          | HeaderError err ->
+            let! err = HeaderError.toDT err
+            return "HeaderError", [ err ]
+          | ArgumentException e -> return "ArgumentException", [ DString e ]
+          | IOException e -> return "IOException", [ DString e ]
+          | HttpRequestException e -> return "HttpRequestException", [ DString e ]
+        }
 
-    let typeName =
-      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "RequestError" 0
-    Dval.enum typeName typeName (Some []) caseName fields
+      let typeName =
+        TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "RequestError" 0
+      return! Dval.enum typeName typeName (Some []) caseName fields
+    }
 
 
 type RequestResult = Result<Response, RequestError.RequestError>
@@ -512,12 +527,17 @@ let fns (config : Configuration) : List<BuiltInFn> =
 
               // TODO: include a DvalSource rather than SourceNone
 
-              | Error(err) -> return (err |> RequestError.toDT |> resultError)
+              | Error(err) ->
+                let! err = err |> RequestError.toDT
+                return! (err |> resultError)
 
             }
 
           | Error reqHeadersErr, _ ->
-            uply { return reqHeadersErr |> HeaderError.toDT |> resultError }
+            uply {
+              let! reqHeadersErr = reqHeadersErr |> HeaderError.toDT
+              return! reqHeadersErr |> resultError
+            }
 
           | _, None ->
             let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
