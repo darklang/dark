@@ -141,43 +141,32 @@ let rec serialize
         | TypeDeclaration.Enum cases ->
           match dval with
           | DEnum(dTypeName, _, _typeArgsDEnumTODO, caseName, fields) ->
-            let matchingCase = cases |> NEList.filter (fun c -> c.name = caseName)
-
-            match matchingCase with
-            | [] ->
-              Exception.raiseInternal
-                $"Couldn't find matching case for {caseName}"
+            let matchingCase =
+              cases
+              |> NEList.find (fun c -> c.name = caseName)
+              |> Exception.unwrapOptionInternal
+                "Couldn't find matching case"
                 [ "typeName", dTypeName ]
 
-            | [ matchingCase ] ->
-              if List.length matchingCase.fields <> List.length fields then
-                Exception.raiseInternal
-                  $"Couldn't serialize Enum as incorrect # of fields provided"
-                  [ "defs", matchingCase.fields
-                    "fields", fields
-                    "typeName", typeName
-                    "caseName", caseName ]
+            if List.length matchingCase.fields <> List.length fields then
+              Exception.raiseInternal
+                $"Incorrect # of enum fields provided"
+                [ "typeName", typeName; "caseName", caseName ]
 
-              do!
-                w.writeObject (fun () ->
-                  w.WritePropertyName caseName
-                  w.writeArray (fun () ->
-                    List.zip matchingCase.fields fields
-                    |> Ply.List.iterSequentially (fun (fieldType, fieldVal) ->
-                      let typ =
-                        Types.substitute decl.typeParams typeArgs fieldType
-                      r typ fieldVal)))
-
-            | _ -> Exception.raiseInternal "Too many matching cases" []
-
+            do!
+              w.writeObject (fun () ->
+                w.WritePropertyName caseName
+                w.writeArray (fun () ->
+                  List.zip matchingCase.fields fields
+                  |> Ply.List.iterSequentially (fun (fieldType, fieldVal) ->
+                    let typ = Types.substitute decl.typeParams typeArgs fieldType
+                    r typ fieldVal)))
 
           | _ -> Exception.raiseInternal "Expected a DEnum but got something else" []
 
         | TypeDeclaration.Record fields ->
           match dval with
-          | DRecord(actualTypeName, _, _typeArgsTODO, dvalMap) when
-            actualTypeName = typeName
-            ->
+          | DRecord(actualTypeName, _, _typeArgsTODO, dvalMap) ->
             do!
               w.writeObject (fun () ->
                 dvalMap
@@ -190,16 +179,11 @@ let rec serialize
                     |> NEList.find (fun def -> def.name = fieldName)
                     |> Exception.unwrapOptionInternal
                       "Couldn't find matching field"
-                      []
+                      [ "fieldName", fieldName ]
 
                   let typ =
                     Types.substitute decl.typeParams typeArgs matchingFieldDef.typ
                   r typ dval))
-
-          | DRecord(actualTypeName, _, _typeArgsTODO, _) ->
-            Exception.raiseInternal
-              "Incorrect record type"
-              [ "actual", actualTypeName; "expected", typeName ]
           | _ ->
             Exception.raiseInternal
               "Expected a DRecord but got something else"
@@ -210,6 +194,7 @@ let rec serialize
 
 
     | TCustomType(Error errTypeName, _typeArgs), dval ->
+      // TODO should be an RTE
       Exception.raiseInternal
         "Couldn't resolve type name"
         [ "typeName", errTypeName; "dval", dval ]
@@ -351,7 +336,32 @@ let parse
     | TBool, JsonValueKind.True -> DBool true |> Ply
     | TBool, JsonValueKind.False -> DBool false |> Ply
 
-    | TInt, JsonValueKind.Number -> j.GetInt64() |> DInt |> Ply
+    | TInt, JsonValueKind.Number ->
+      let mutable i64 = 0L
+      let mutable ui64 = 0UL
+      let mutable d = 0.0
+      // dotnet will wrap 9223372036854775808 to be -9223372036854775808 instead, we
+      // don't want that and will error instead
+      if j.TryGetUInt64(&ui64) then
+        if ui64 <= uint64 System.Int64.MaxValue then
+          DInt(int64 ui64) |> Ply
+        else
+          raiseCantMatchWithType TInt j pathSoFar |> Ply
+      else if j.TryGetInt64(&i64) then
+        DInt i64 |> Ply
+      // We allow the user to specify numbers in int or float format (e.g. 1 or 1.0
+      // or even 1E+0) -- JSON uses floating point numbers, and the person/API
+      // client/server that is creating a field we understand to be an int may choose
+      // to print an int in a floating point format.
+      else if
+        j.TryGetDouble(&d)
+        && d <= (float System.Int64.MaxValue)
+        && d >= (float System.Int64.MinValue)
+        && System.Double.IsInteger d
+      then
+        int64 d |> DInt |> Ply
+      else
+        raiseCantMatchWithType TInt j pathSoFar |> Ply
 
     | TFloat, JsonValueKind.Number -> j.GetDouble() |> DFloat |> Ply
     | TFloat, JsonValueKind.String ->
@@ -402,6 +412,7 @@ let parse
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let values = j.EnumerateArray() |> Seq.toList
       let types = t1 :: t2 :: rest
+      if values.Length <> types.Length then raiseCantMatchWithType typ j pathSoFar
 
       List.zip types values
       |> List.mapi (fun i (t, v) -> convert t (JsonPath.Index i :: pathSoFar) v)
@@ -427,6 +438,7 @@ let parse
       uply {
         match! Types.find typeName types with
         | None ->
+          // TODO should be an RTE
           return
             JsonParseError.TypeNotFound typ
             |> JsonParseError.JsonParseException
@@ -440,9 +452,7 @@ let parse
 
           | TypeDeclaration.Enum cases ->
             if jsonValueKind <> JsonValueKind.Object then
-              JsonParseError.CantMatchWithType(typ, j.GetRawText(), pathSoFar)
-              |> JsonParseError.JsonParseException
-              |> raise
+              raiseCantMatchWithType typ j pathSoFar
 
             let enumerated =
               j.EnumerateObject()
@@ -474,10 +484,12 @@ let parse
 
               return! Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
 
+            // TODO shouldn't be an internal error
             | _ -> return Exception.raiseInternal "TODO" []
 
           | TypeDeclaration.Record fields ->
             if jsonValueKind <> JsonValueKind.Object then
+              // TODO should be user facing
               Exception.raiseInternal
                 "Expected an object for a record"
                 [ "type", typeName; "value", j ]
@@ -498,8 +510,10 @@ let parse
 
                     match matchingFieldDef with
                     | [] ->
+                      // TODO should be user-facing error
                       Exception.raiseInternal "Couldn't find matching field" []
                     | [ matchingFieldDef ] -> matchingFieldDef.Value
+                    // TODO should be a user-facing error
                     | _ -> Exception.raiseInternal "Too many matching fields" []
 
                   let typ = Types.substitute decl.typeParams typeArgs def.typ
@@ -538,10 +552,7 @@ let parse
     | TList _, _
     | TTuple _, _
     | TCustomType _, _
-    | TDict _, _ ->
-      JsonParseError.CantMatchWithType(typ, j.GetRawText(), pathSoFar)
-      |> JsonParseError.JsonParseException
-      |> raise
+    | TDict _, _ -> raiseCantMatchWithType typ j pathSoFar
 
   let parsed =
     try
