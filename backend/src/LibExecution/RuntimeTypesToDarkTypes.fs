@@ -297,10 +297,10 @@ module NameResolution =
       match result with
       | Ok name ->
         let! name = f name
-        return Dval.resultOk nameValueType errType name
+        return! Dval.resultOk nameValueType errType name
       | Error err ->
         return!
-          RuntimeError.toDT err |> Ply.map (Dval.resultError nameValueType errType)
+          RuntimeError.toDT err |> Ply.bind (Dval.resultError nameValueType errType)
     }
 
   let fromDT (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
@@ -638,7 +638,7 @@ module Expr =
             let! cond = toDT cond
             let! thenExpr = toDT thenExpr
             let! elseExpr =
-              elseExpr |> Ply.Option.map toDT |> Ply.map (Dval.option valueType)
+              elseExpr |> Ply.Option.map toDT |> Ply.bind (Dval.option valueType)
             return "EIf", [ DInt(int64 id); cond; thenExpr; elseExpr ]
 
           | EMatch(id, arg, cases) ->

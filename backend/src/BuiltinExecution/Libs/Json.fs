@@ -587,7 +587,7 @@ let fns : List<BuiltInFn> =
             let types = ExecutionState.availableTypes state
             let! response =
               writeJson (fun w -> serialize types w typeToSerializeAs arg)
-            return Dval.resultOk VT.string VT.string (DString response)
+            return! Dval.resultOk VT.string VT.string (DString response)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -609,8 +609,8 @@ let fns : List<BuiltInFn> =
           let types = ExecutionState.availableTypes state
           uply {
             match! parse types typeArg arg with
-            | Ok v -> return resultOk v
-            | Error e -> return resultError (DString e)
+            | Ok v -> return! resultOk v
+            | Error e -> return! resultError (DString e)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

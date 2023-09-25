@@ -103,7 +103,7 @@ let fns : List<BuiltInFn> =
               let fns = List.map PT2RT.UserFunction.toRT canvas.fns
               let exprs = List.map PT2RT.Expr.toRT canvas.exprs
 
-              return
+              return!
                 [ "types", DString(Json.Vanilla.serialize types)
                   "fns", DString(Json.Vanilla.serialize fns)
                   "exprs", DString(Json.Vanilla.serialize exprs) ]
@@ -113,7 +113,7 @@ let fns : List<BuiltInFn> =
               let error = Exception.getMessages e |> String.concat " "
               let metadata = Exception.nestedMetadata e
               let metadataDval = metadata |> Map.ofList
-              return
+              return!
                 DString($"Error parsing code: {error} {metadataDval}") |> resultError
           }
         | _ -> incorrectArgs ()
@@ -139,9 +139,9 @@ let fns : List<BuiltInFn> =
                 RestrictedFileIO.readfileBytes
                   RestrictedFileIO.Config.BackendStatic
                   path
-              return DBytes contents |> resultOk
+              return! DBytes contents |> resultOk
             with e ->
-              return DString($"Error reading file: {e.Message}") |> resultError
+              return! DString($"Error reading file: {e.Message}") |> resultError
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -166,9 +166,9 @@ let fns : List<BuiltInFn> =
                 RestrictedFileIO.readfileBytes
                   RestrictedFileIO.Config.CanvasesFiles
                   path
-              return resultOk (DBytes contents)
+              return! resultOk (DBytes contents)
             with e ->
-              return resultError (DString($"Error reading file: {e.Message}"))
+              return! resultError (DString($"Error reading file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

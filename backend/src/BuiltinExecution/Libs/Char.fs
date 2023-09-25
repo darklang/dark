@@ -59,9 +59,9 @@ let fns : List<BuiltInFn> =
         | _, _, [ DChar c ] ->
           let charValue = int c.[0]
           if charValue >= 0 && charValue < 256 then
-            Dval.optionSome VT.int (DInt charValue) |> Ply
+            Dval.optionSome VT.int (DInt charValue)
           else
-            Dval.optionNone VT.int |> Ply
+            Dval.optionNone VT.int
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure

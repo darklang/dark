@@ -218,7 +218,7 @@ let fns : List<BuiltInFn> =
                 (FQName.BuiltIn(typ "Program" 0))
                 (Some [])
                 [ "types", types; "fns", fns ]
-              |> Ply.map (Dval.resultOk VT.unknownTODO VT.string)
+              |> Ply.bind (Dval.resultOk VT.unknownTODO VT.string)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

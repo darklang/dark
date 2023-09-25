@@ -54,9 +54,9 @@ let fns : List<BuiltInFn> =
             try
               let state = editor.CurrentState
               // TODO: assert that the type matches the given typeParam
-              return resultOk state
+              return! resultOk state
             with e ->
-              return $"Error getting state: {e.Message}" |> DString |> resultError
+              return! $"Error getting state: {e.Message}" |> DString |> resultError
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -76,7 +76,7 @@ let fns : List<BuiltInFn> =
           uply {
             // TODO: verify that the type matches the given typeParam
             editor <- { editor with CurrentState = v }
-            return Dval.resultOk VT.unknownTODO VT.string v
+            return! Dval.resultOk VT.unknownTODO VT.string v
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -117,14 +117,14 @@ let fns : List<BuiltInFn> =
             uply {
               try
                 do Wasm.WasmHelpers.callJSFunction functionName args
-                return resultOk DUnit
+                return! resultOk DUnit
               with e ->
-                return
+                return!
                   $"Error calling {functionName} with provided args: {e.Message}"
                   |> DString
                   |> resultError
             }
-          | Error err -> Ply(resultError (DString err))
+          | Error err -> resultError (DString err)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -168,9 +168,9 @@ let fns : List<BuiltInFn> =
             match result with
             | Error(_source, rte) ->
               // TODO probably need to call `toString` on the RTE, or raise it
-              return resultError (DString(string rte))
+              return! resultError (DString(string rte))
             | Ok result ->
-              return
+              return!
                 LibExecution.DvalReprDeveloper.toRepr result |> DString |> resultOk
           }
         | _ -> incorrectArgs ())

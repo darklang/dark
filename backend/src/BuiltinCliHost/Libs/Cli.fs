@@ -188,16 +188,16 @@ let fns : List<BuiltInFn> =
               match parsedScript with
               | Ok mod' ->
                 match! execute state mod' symtable with
-                | Ok(DInt i) -> return resultOk (DInt i)
+                | Ok(DInt i) -> return! resultOk (DInt i)
                 | Ok result ->
                   return!
                     CliRuntimeError.NonIntReturned result
                     |> CliRuntimeError.RTE.toRuntimeError
-                    |> Ply.map (RuntimeError.toDT >> resultError)
-                | Error(_, e) -> return e |> RuntimeError.toDT |> resultError
-              | Error e -> return e |> RuntimeError.toDT |> resultError
+                    |> Ply.bind (RuntimeError.toDT >> resultError)
+                | Error(_, e) -> return! e |> RuntimeError.toDT |> resultError
+              | Error e -> return! e |> RuntimeError.toDT |> resultError
             with e ->
-              return! exnError e |> Ply.map (RuntimeError.toDT >> resultError)
+              return! exnError e |> Ply.bind (RuntimeError.toDT >> resultError)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -229,7 +229,7 @@ let fns : List<BuiltInFn> =
                 (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
                 (Some [])
                 [ "msg", DString msg; "metadata", Dval.dict VT.unknownTODO metadata ]
-              |> Ply.map resultError
+              |> Ply.bind resultError
 
             let exnError (e : exn) : Ply<Dval> =
               let msg = Exception.getMessages e |> String.concat "\n"
@@ -308,7 +308,7 @@ let fns : List<BuiltInFn> =
                   | Error(_, e) ->
                     // TODO we should probably return the error here as-is, and handle by calling the
                     // toSegments on the error within the CLI
-                    return
+                    return!
                       e
                       |> RuntimeError.toDT
                       |> LibExecution.DvalReprDeveloper.toRepr
@@ -316,7 +316,7 @@ let fns : List<BuiltInFn> =
                       |> resultError
                   | Ok value ->
                     let asString = LibExecution.DvalReprDeveloper.toRepr value
-                    return resultOk (DString asString)
+                    return! resultOk (DString asString)
               | _ -> return incorrectArgs ()
             with e ->
               return! exnError e

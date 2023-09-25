@@ -46,7 +46,6 @@ let fns : List<BuiltInFn> =
           |> Result.map DDateTime
           |> Result.mapError (fun () -> DString "Invalid date format")
           |> Dval.result VT.dateTime VT.string
-          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -44,12 +44,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString s ] ->
           match System.Guid.TryParse s with
-          | true, x -> x |> DUuid |> resultOk |> Ply
+          | true, x -> x |> DUuid |> resultOk
           | _ ->
             "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
             |> DString
             |> resultError
-            |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
