@@ -104,7 +104,7 @@ let rec serialize
     | TList ltype, DList(_, l) ->
       do! w.writeArray (fun () -> Ply.List.iterSequentially (r ltype) l)
 
-    | TDict objType, DDict(_vtTODO, fields) ->
+    | TDict dictType, DDict(_vtTODO, fields) ->
       do!
         w.writeObject (fun () ->
           fields
@@ -112,16 +112,10 @@ let rec serialize
           |> Ply.List.iterSequentially (fun (k, v) ->
             uply {
               w.WritePropertyName k
-              do! r objType v
+              do! r dictType v
             }))
 
     | TTuple(t1, t2, trest), DTuple(d1, d2, rest) ->
-      let ts = t1 :: t2 :: trest
-      let ds = d1 :: d2 :: rest
-
-      if List.length ts <> List.length ds then
-        Exception.raiseInternal $"with mismatched tuple ({ds} doesn't match {ts})" []
-
       let zipped = List.zip (t1 :: t2 :: trest) (d1 :: d2 :: rest)
       do!
         w.writeArray (fun () ->
@@ -148,11 +142,6 @@ let rec serialize
                 "Couldn't find matching case"
                 [ "typeName", dTypeName ]
 
-            if List.length matchingCase.fields <> List.length fields then
-              Exception.raiseInternal
-                $"Incorrect # of enum fields provided"
-                [ "typeName", typeName; "caseName", caseName ]
-
             do!
               w.writeObject (fun () ->
                 w.WritePropertyName caseName
@@ -166,7 +155,7 @@ let rec serialize
 
         | TypeDeclaration.Record fields ->
           match dval with
-          | DRecord(actualTypeName, _, _typeArgsTODO, dvalMap) ->
+          | DRecord(_, _, _typeArgsTODO, dvalMap) ->
             do!
               w.writeObject (fun () ->
                 dvalMap
