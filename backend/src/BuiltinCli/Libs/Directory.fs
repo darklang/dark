@@ -50,9 +50,9 @@ let fns : List<BuiltInFn> =
             try
               System.IO.Directory.CreateDirectory(path)
               |> ignore<System.IO.DirectoryInfo>
-              return resultOk DUnit
+              return! resultOk DUnit
             with e ->
-              return resultError (DString e.Message)
+              return! resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -74,9 +74,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               System.IO.Directory.Delete(path, false)
-              return resultOk DUnit
+              return! resultOk DUnit
             with e ->
-              return resultError (DString e.Message)
+              return! resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

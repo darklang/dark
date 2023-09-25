@@ -416,9 +416,9 @@ let fns : List<BuiltInFn> =
         | _, _, [ DBytes bytes ] ->
           try
             let str = System.Text.UTF8Encoding(false, true).GetString bytes
-            Ply(Dval.optionSome VT.string (DString str))
+            Dval.optionSome VT.string (DString str)
           with e ->
-            Ply(Dval.optionNone VT.string)
+            Dval.optionNone VT.string
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -457,10 +457,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString str ] ->
           if str = "" then
-            Ply(Dval.optionNone VT.char)
+            Dval.optionNone VT.char
           else
             let head = String.toEgcSeq str |> Seq.head
-            Ply(Dval.optionSome VT.char (DChar head))
+            Dval.optionSome VT.char (DChar head)
         | _ -> incorrectArgs ())
 
       sqlSpec = NotYetImplemented

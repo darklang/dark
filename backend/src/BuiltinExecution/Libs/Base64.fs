@@ -43,10 +43,10 @@ let fns : List<BuiltInFn> =
 
           if s = "" then
             // This seems like we should allow it
-            [||] |> DBytes |> resultOk |> Ply
+            [||] |> DBytes |> resultOk
           elif Regex.IsMatch(s, @"\s") then
             // dotnet ignores whitespace but we don't allow it
-            "Not a valid base64 string" |> DString |> resultError |> Ply
+            "Not a valid base64 string" |> DString |> resultError
           else
             try
               s
@@ -54,9 +54,8 @@ let fns : List<BuiltInFn> =
               |> Convert.FromBase64String
               |> DBytes
               |> resultOk
-              |> Ply
             with e ->
-              Ply(resultError (DString("Not a valid base64 string")))
+              resultError (DString("Not a valid base64 string"))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

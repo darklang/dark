@@ -215,6 +215,17 @@ let dictFromMap (valueType : ValueType) (entries : Map<string, Dval>) : Dval =
 
 
 
+/// VTTODO
+/// the interpreter "throws away" any valueTypes currently,
+/// so while these .option and .result functions are great in that they
+/// return the correct typeArgs, they conflict with what the interpreter will do
+///
+/// So, to make some tests happy, let's ignore these for now.
+///
+/// (might need better explanation^)
+let ignoreAndUseEmpty (_ignoredForNow : List<ValueType>) = []
+
+
 /// Constructs a Dval.DRecord
 ///
 /// note: if provided, the typeArgs must match the # of typeArgs expected by the type
@@ -252,7 +263,7 @@ let record
   //   - this process should also effect the type args of the resultant Dval
   let typeArgs =
     match sourceTypeArgs with
-    | Some _typeArgs -> [] //typeArgs // VTTODO uncomment when Interpreter respects this
+    | Some typeArgs -> ignoreAndUseEmpty typeArgs
     | None -> VT.typeArgsTODO
 
   DRecord(resolvedTypeName, sourceTypeName, typeArgs, fields) |> Ply
@@ -274,47 +285,55 @@ let enum
   //   - this process should also effect the type args of the resultant Dval
   let typeArgs =
     match typeArgs with
-    | Some _typeArgs -> [] //typeArgs VTTODO uncomment when Interpreter respects this
+    | Some typeArgs -> ignoreAndUseEmpty typeArgs
     | None -> VT.typeArgsTODO
 
   DEnum(resolvedTypeName, sourceTypeName, typeArgs, caseName, fields) |> Ply
 
 
-/// VTTODO
-/// the interpreter "throws away" any valueTypes currently,
-/// so while these .option and .result functions are great in that they
-/// return the correct typeArgs, they conflict with what the interpreter will do
-///
-/// So, to make some tests happy, let's ignore these for now.
-///
-/// (might need better explanation^)
-let ignoreAndUseEmpty (_ignoredForNow : List<ValueType>) = []
-
 
 let optionType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0
 
-let optionSome (innerType : ValueType) (dv : Dval) : Dval =
-  let dvalType = toValueType dv
-  match mergeValueTypes innerType dvalType with
-  | Ok typ ->
-    DEnum(optionType, optionType, ignoreAndUseEmpty [ typ ], "Some", [ dv ])
-  | Error() ->
-    mergeFailureRte
-      SourceNone
-      (ValueType.Known(KTCustomType(optionType, [ innerType ])))
-      (ValueType.Known(KTCustomType(optionType, [ dvalType ])))
+let optionSome (innerType : ValueType) (dv : Dval) : Ply<Dval> =
+  enum optionType optionType (Some [ innerType ]) "Some" [ dv ]
 
-let optionNone (innerType : ValueType) : Dval =
-  DEnum(optionType, optionType, ignoreAndUseEmpty [ innerType ], "None", [])
+let optionNone (innerType : ValueType) : Ply<Dval> =
+  enum optionType optionType (Some [ innerType ]) "None" []
 
-// Wraps in an Option after checking that the value is not a fakeval
-let option (innerType : ValueType) (dv : Option<Dval>) : Dval =
+let option (innerType : ValueType) (dv : Option<Dval>) : Ply<Dval> =
   match dv with
-  | Some dv -> optionSome innerType dv // checks isFake
+  | Some dv -> optionSome innerType dv
   | None -> optionNone innerType
 
-// CLEANUP consider extracting a partial active pattern to match against the Option type defined in Dark
-// Something like:
+
+
+let resultType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0
+
+let resultOk (okType : ValueType) (errorType : ValueType) (dv : Dval) : Ply<Dval> =
+  enum resultType resultType (Some [ okType; errorType ]) "Ok" [ dv ]
+
+let resultError
+  (okType : ValueType)
+  (errorType : ValueType)
+  (dv : Dval)
+  : Ply<Dval> =
+  enum resultType resultType (Some [ okType; errorType ]) "Error" [ dv ]
+
+let result
+  (okType : ValueType)
+  (errorType : ValueType)
+  (dv : Result<Dval, Dval>)
+  : Ply<Dval> =
+  match dv with
+  | Ok dv -> resultOk okType errorType dv
+  | Error dv -> resultError okType errorType dv
+
+
+
+// CLEANUP consider extracting a partial active pattern to match against common
+// Dark-defined types
+// e.g.
+//
 // let (|DOptionNone|_|) result =
 //   match result with
 //   | DEnum(FQName.Package { owner = "Darklang"
@@ -339,57 +358,3 @@ let option (innerType : ValueType) (dv : Option<Dval>) : Dval =
 //           [ o ]) -> Some o
 
 //   | _ -> None
-
-
-
-let resultType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0
-
-
-let resultOk (okType : ValueType) (errorType : ValueType) (dvOk : Dval) : Dval =
-  let dvalType = toValueType dvOk
-  match mergeValueTypes okType dvalType with
-  | Ok typ ->
-    DEnum(
-      resultType,
-      resultType,
-      ignoreAndUseEmpty [ typ; errorType ],
-      "Ok",
-      [ dvOk ]
-    )
-  | Error() ->
-    mergeFailureRte
-      SourceNone
-      (ValueType.Known(KTCustomType(resultType, [ okType; errorType ])))
-      (ValueType.Known(KTCustomType(resultType, [ dvalType; errorType ])))
-
-
-let resultError
-  (okType : ValueType)
-  (errorType : ValueType)
-  (dvError : Dval)
-  : Dval =
-  let dvalType = toValueType dvError
-  match mergeValueTypes errorType dvalType with
-  | Ok typ ->
-    DEnum(
-      resultType,
-      resultType,
-      ignoreAndUseEmpty [ okType; typ ],
-      "Error",
-      [ dvError ]
-    )
-  | Error() ->
-    mergeFailureRte
-      SourceNone
-      (ValueType.Known(KTCustomType(resultType, [ okType; errorType ])))
-      (ValueType.Known(KTCustomType(resultType, [ okType; dvalType ])))
-
-// Wraps in a Result after checking that the value is not a fakeval
-let result
-  (okType : ValueType)
-  (errorType : ValueType)
-  (dv : Result<Dval, Dval>)
-  : Dval =
-  match dv with
-  | Ok dv -> resultOk okType errorType dv
-  | Error dv -> resultError okType errorType dv

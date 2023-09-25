@@ -100,9 +100,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               do! Secret.insert canvasID name value (int version)
-              return resultOk DUnit
+              return! resultOk DUnit
             with _ ->
-              return resultError (DString "Error inserting secret")
+              return! resultError (DString "Error inserting secret")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

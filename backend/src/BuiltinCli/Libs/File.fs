@@ -31,9 +31,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               let! contents = System.IO.File.ReadAllBytesAsync path
-              return resultOk (DBytes contents)
+              return! resultOk (DBytes contents)
             with e ->
-              return resultError (DString($"Error reading file: {e.Message}"))
+              return! resultError (DString($"Error reading file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -55,9 +55,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               do! System.IO.File.WriteAllBytesAsync(path, contents)
-              return resultOk DUnit
+              return! resultOk DUnit
             with e ->
-              return resultError (DString($"Error writing file: {e.Message}"))
+              return! resultError (DString($"Error writing file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -79,9 +79,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               do! System.IO.File.WriteAllBytesAsync(path, content)
-              return resultOk DUnit
+              return! resultOk DUnit
             with e ->
-              return resultError (DString e.Message)
+              return! resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -103,9 +103,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               let tempPath = System.IO.Path.GetTempFileName()
-              return resultOk (DString tempPath)
+              return! resultOk (DString tempPath)
             with e ->
-              return resultError (DString e.Message)
+              return! resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -198,9 +198,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               let fileInfo = System.IO.FileInfo(path)
-              return resultOk (DInt fileInfo.Length)
+              return! resultOk (DInt fileInfo.Length)
             with e ->
-              return resultError (DString e.Message)
+              return! resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

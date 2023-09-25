@@ -108,10 +108,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DInt v; DInt d ] ->
           (try
-            v % d |> DInt |> resultOk |> Ply
+            v % d |> DInt |> resultOk
            with e ->
              if d = 0L then
-               Ply(resultError (DString($"`divisor` must be non-zero")))
+               resultError (DString($"`divisor` must be non-zero"))
              else
                Exception.raiseInternal
                  "unexpected failure case in Int.remainder"
@@ -178,8 +178,8 @@ let fns : List<BuiltInFn> =
         let resultError = Dval.resultError VT.int VT.string
         (function
         | _, _, [ DInt number; DInt exp as expdv ] ->
-          let okPipe r = r |> DInt |> resultOk |> Ply
-          let errPipe e = e |> DString |> resultError |> Ply
+          let okPipe r = r |> DInt |> resultOk
+          let errPipe e = e |> DString |> resultError
           (try
             if exp < 0L then argumentWasntPositive "exponent" expdv |> errPipe
             // TODO: do this in a package, and keep it simple here
@@ -347,12 +347,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString s ] ->
           (try
-            s |> System.Convert.ToInt64 |> DInt |> resultOk |> Ply
+            s |> System.Convert.ToInt64 |> DInt |> resultOk
            with _e ->
              $"Expected to parse String with only numbers, instead got \"{s}\""
              |> DString
-             |> resultError
-             |> Ply)
+             |> resultError)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

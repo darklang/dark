@@ -1152,10 +1152,32 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      TDateTime)
     ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"), TUuid)
     ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"), TUuid)
-    ("option", Dval.optionNone VT.int, TypeReference.option TInt)
-    ("option2", Dval.optionSome VT.int (Dval.int 15), TypeReference.option TInt)
+    ("option",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       Dval.ignoreAndUseEmpty [ VT.int ],
+       "None",
+       []
+     ),
+     TypeReference.option TInt)
+    ("option2",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       Dval.ignoreAndUseEmpty [ VT.int ],
+       "Some",
+       [ Dval.int 15 ]
+     ),
+     TypeReference.option TInt)
     ("option3",
-     Dval.optionSome VT.string (DString "a string"),
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       Dval.ignoreAndUseEmpty [ VT.string ],
+       "Some",
+       [ DString "a string" ]
+     ),
      TypeReference.option TString)
     ("character", DChar "s", TChar)
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
@@ -1175,7 +1197,17 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DTuple(Dval.int 1, Dval.int 2, [ DUnit ]),
      TTuple(TInt, TInt, [ TUnit ]))
     ("tupleWithError",
-     DTuple(Dval.int 1, Dval.resultError VT.unknown VT.string (DString "error"), []),
+     DTuple(
+       Dval.int 1,
+       DEnum(
+         Dval.resultType,
+         Dval.resultType,
+         Dval.ignoreAndUseEmpty [ VT.unknown; VT.string ],
+         "Error",
+         [ DString "error" ]
+       ),
+       []
+     ),
      TTuple(TInt, TypeReference.result TInt TString, [])) ]
 
 let sampleDvals : List<string * (Dval * TypeReference)> =

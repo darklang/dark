@@ -87,7 +87,7 @@ let fns : List<BuiltInFn> =
                 [ ("fns", Dval.list VT.unknownTODO packagesFns)
                   ("types", Dval.list VT.unknownTODO packagesTypes)
                   ("constants", Dval.list VT.unknownTODO packagesConstants) ]
-              |> Ply.map (Dval.resultOk VT.unknownTODO VT.string)
+              |> Ply.bind (Dval.resultOk VT.unknownTODO VT.string)
 
           }
         | _ -> incorrectArgs ()

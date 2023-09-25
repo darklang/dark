@@ -278,12 +278,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString s ] ->
           (try
-            float (s) |> DFloat |> resultOk |> Ply
+            float (s) |> DFloat |> resultOk
            with e ->
              "Expected a String representation of an IEEE float"
              |> DString
-             |> resultError
-             |> Ply)
+             |> resultError)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

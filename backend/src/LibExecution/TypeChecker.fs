@@ -80,7 +80,7 @@ module Error =
   module RT2DT = RuntimeTypesToDarkTypes
 
   module Location =
-    let toDT (location : Location) : Dval =
+    let toDT (location : Location) : Ply<Dval> =
       let optType = VT.unknownTODO
       match location with
       | None -> Dval.optionNone optType
@@ -99,26 +99,27 @@ module Error =
             | FunctionCallParameter(fnName, param, paramIndex, location) ->
               let! fnName = RT2DT.FnName.toDT fnName
               let! param = RT2DT.Param.toDT param
+              let! location = Location.toDT location
               return
-                "FunctionCallParameter",
-                [ fnName; param; DInt paramIndex; Location.toDT location ]
+                "FunctionCallParameter", [ fnName; param; DInt paramIndex; location ]
 
             | FunctionCallResult(fnName, returnType, location) ->
               let! fnName = RT2DT.FnName.toDT fnName
               let! returnType = RT2DT.TypeReference.toDT returnType
-              return
-                "FunctionCallResult", [ fnName; returnType; Location.toDT location ]
+              let! location = Location.toDT location
+              return "FunctionCallResult", [ fnName; returnType; location ]
 
             | RecordField(recordTypeName, fieldName, fieldType, location) ->
               let! typeName = RT2DT.TypeName.toDT recordTypeName
               let! fieldType = RT2DT.TypeReference.toDT fieldType
+              let! location = Location.toDT location
               return
-                "RecordField",
-                [ typeName; DString fieldName; fieldType; Location.toDT location ]
+                "RecordField", [ typeName; DString fieldName; fieldType; location ]
 
             | DictKey(key, typ, location) ->
               let! typ = RT2DT.TypeReference.toDT typ
-              return "DictKey", [ DString key; typ; Location.toDT location ]
+              let! location = Location.toDT location
+              return "DictKey", [ DString key; typ; location ]
 
             | EnumField(enumTypeName,
                         caseName,
@@ -128,6 +129,7 @@ module Error =
                         location) ->
               let! typeName = RT2DT.TypeName.toDT enumTypeName
               let! fieldType = RT2DT.TypeReference.toDT fieldType
+              let! location = Location.toDT location
               return
                 "EnumField",
                 [ typeName
@@ -135,19 +137,17 @@ module Error =
                   DInt fieldIndex
                   DInt fieldCount
                   fieldType
-                  Location.toDT location ]
+                  location ]
 
             | DBQueryVariable(varName, expected, location) ->
               let! expected = RT2DT.TypeReference.toDT expected
-              return
-                "DBQueryVariable",
-                [ DString varName; expected; Location.toDT location ]
+              let! location = Location.toDT location
+              return "DBQueryVariable", [ DString varName; expected; location ]
 
             | DBSchemaType(name, expectedType, location) ->
               let! expectedType = RT2DT.TypeReference.toDT expectedType
-              return
-                "DBSchemaType",
-                [ DString name; expectedType; Location.toDT location ]
+              let! location = Location.toDT location
+              return "DBSchemaType", [ DString name; expectedType; location ]
 
             | ListIndex(index, listTyp, parent) ->
               let! listType = RT2DT.TypeReference.toDT listTyp
@@ -161,7 +161,8 @@ module Error =
 
             | FnValResult(returnType, location) ->
               let! returnType = RT2DT.TypeReference.toDT returnType
-              return "FnValResult", [ returnType; Location.toDT location ]
+              let! location = Location.toDT location
+              return "FnValResult", [ returnType; location ]
           }
 
         let typeName = RuntimeError.name [ "TypeChecker" ] "Context" 0

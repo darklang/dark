@@ -323,12 +323,12 @@ module NameResolution =
       match result with
       | Ok name ->
         let! name = f name
-        return Dval.resultOk nameValueType errType name
+        return! Dval.resultOk nameValueType errType name
       | Error err ->
         return!
           err
           |> NRE.RTE.Error.toDT
-          |> Ply.map (Dval.resultError nameValueType errType)
+          |> Ply.bind (Dval.resultError nameValueType errType)
     }
 
   let fromDT (f : Dval -> 'a) (d : Dval) : PT.NameResolution<'a> =
@@ -860,7 +860,9 @@ module Expr =
             let! cond = toDT cond
             let! thenExpr = toDT thenExpr
             let! elseExpr =
-              elseExpr |> Ply.Option.map toDT |> Ply.map (Dval.option VT.unknownTODO)
+              elseExpr
+              |> Ply.Option.map toDT
+              |> Ply.bind (Dval.option VT.unknownTODO)
             return "EIf", [ DInt(int64 id); cond; thenExpr; elseExpr ]
 
           | PT.EMatch(id, arg, cases) ->
@@ -1239,14 +1241,13 @@ module TypeDeclaration =
   module EnumField =
     let toDT (ef : PT.TypeDeclaration.EnumField) : Ply<Dval> =
       uply {
+        let! label = ef.label |> Option.map DString |> Dval.option VT.string
         let! typ = TypeReference.toDT ef.typ
         return!
           Dval.record
             (ptTyp [ "TypeDeclaration" ] "EnumField" 0)
             (Some [])
-            [ "typ", typ
-              "label", ef.label |> Option.map DString |> Dval.option VT.string
-              "description", DString ef.description ]
+            [ "typ", typ; "label", label; "description", DString ef.description ]
       }
 
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumField =
