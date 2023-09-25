@@ -1,0 +1,29 @@
+// TODO:
+//alias PT = PACKAGE.Darklang.LanguageTools.ProgramTypes
+//alias RT = PACKAGE.Darklang.Stdlib.RuntimeTypes
+
+module Darklang =
+  module PrettyPrinter =
+    let indent (s: String) : String =
+      s
+      |> String.split "\n"
+      |> List.map (fun line ->
+        match line with
+        | "" -> ""
+        | line -> "  " ++ line)
+      |> String.join "\n"
+
+    let sign (s: PACKAGE.Darklang.LanguageTools.Sign) : String =
+      match s with
+      | Positive -> ""
+      | Negative -> "-"
+
+    let escapeSpecialCharacters (s: String) : String =
+      s
+      |> String.replaceAll "\n" "\\n"
+      |> String.replaceAll "\t" "\\t"
+      |> String.replaceAll "\r" "\\r"
+
+    let processRemainder (remainder: String) : String =
+      let rem = $".{remainder}" |> Float.parse
+      rem |> unwrap |> Float.toString |> PACKAGE.Darklang.Stdlib.String.dropFirst 2

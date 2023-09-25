@@ -1,0 +1,101 @@
+######################################
+# XXX: Changes won't take effect until you restart script/builder
+# or rebuild the vscode dev container
+######################################
+
+# Root directories
+DARK_CONFIG_RUNDIR=/home/dark/app/rundir
+DARK_CONFIG_ROOT_DIR=/home/dark/app
+
+# Important dirs
+DARK_CONFIG_WEBROOT_DIR=/home/dark/app/backend/static
+DARK_CONFIG_MIGRATIONS_DIR=/home/dark/app/backend/migrations
+
+# Ports
+
+## BwdServer
+DARK_CONFIG_BWDSERVER_BACKEND_PORT=11001
+DARK_CONFIG_BWDSERVER_KUBERNETES_PORT=11002
+# BwdDangerServer - used for testing of experimental stdlib
+DARK_CONFIG_BWDSERVER_DANGER_BACKEND_PORT=11003
+DARK_CONFIG_BWDSERVER_DANGER_KUBERNETES_PORT=11004
+
+## CronChecker
+DARK_CONFIG_CRONCHECKER_KUBERNETES_PORT=12002
+
+## QueueWorker
+DARK_CONFIG_QUEUEWORKER_KUBERNETES_PORT=13002
+
+## Tests
+DARK_CONFIG_TEST_BWDSERVER_BACKEND_PORT=10011
+DARK_CONFIG_TEST_BWDSERVER_KUBERNETES_PORT=10012
+DARK_CONFIG_TEST_HTTPCLIENT_SERVER_PORT=10030
+
+DARK_CONFIG_TRIGGER_QUEUE_WORKERS=y
+DARK_CONFIG_TRIGGER_CRONS=y
+DARK_CONFIG_PAUSE_BETWEEN_CRONS=1000
+DARK_CONFIG_ALLOWED_DARK_INTERNAL_CANVAS_IDS=11111111-1111-1111-1111-111111111111,11111111-1111-1111-1111-111111111112
+
+# Http
+DARK_CONFIG_HTTPCLIENT_TIMEOUT_IN_MS=10000
+
+# Serialization
+DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA=y
+
+# Logging
+DARK_CONFIG_ENV_DISPLAY_NAME=dev
+
+# Rollbar
+## Rollbar is disabled in dev because it hits rate limits
+DARK_CONFIG_ROLLBAR_ENABLED=n
+DARK_CONFIG_ROLLBAR_ENVIRONMENT=development
+DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM=c7af77e991aa4edd80cf6a576c1e42f5
+DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM=e2777a52d9a24c00a7e8e8aedaa61017
+
+# Honeycomb
+DARK_CONFIG_TELEMETRY_EXPORTER=honeycomb
+DARK_CONFIG_HONEYCOMB_API_KEY=none
+DARK_CONFIG_HONEYCOMB_DATASET_NAME=dev
+DARK_CONFIG_HONEYCOMB_API_ENDPOINT=https://api.honeycomb.io:443
+
+# Launchdarkly - https://app.launchdarkly.com/settings/projects/default/environments
+DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none
+
+# Feature flag defaults
+DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT=sample-all
+
+# DB
+DARK_CONFIG_DB_HOST=localhost
+DARK_CONFIG_DB_DBNAME=devdb
+DARK_CONFIG_DB_USER=dark
+DARK_CONFIG_DB_PASSWORD=darklang
+DARK_CONFIG_DB_POOL_SIZE=20
+
+# Queue / pubsub
+DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-dev-123456
+DARK_CONFIG_QUEUE_PUBSUB_TOPIC_NAME=queueworker-topic
+DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_NAME=topic-queueworker-subscription
+DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC=y
+DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS=none
+
+# Traces / cloud storage
+DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-dev
+DARK_CONFIG_TRACE_STORAGE_CREATE_BUCKET=y
+DARK_CONFIG_TRACE_STORAGE_CREDENTIALS=none
+DARK_CONFIG_TRACE_STORAGE_BASE_URI=http://localhost:4444/storage/v1/
+
+# Pusher
+## This account is the dark-dev-account pusher account, username
+## ops@darklang.com, whose password is in the 1pw admin vault.
+DARK_CONFIG_PUSHER_APP_ID=1006124
+DARK_CONFIG_PUSHER_KEY=acd42e5073f0bad7e604
+DARK_CONFIG_PUSHER_SECRET=fcd318b907f67bbedb4f
+DARK_CONFIG_PUSHER_CLUSTER=us2
+
+# Heap analytics
+DARK_CONFIG_HEAPIO_ID=2080145903
+
+######################################
+# XXX: Changes won't take effect until you restart script/builder
+# or rebuild the vscode dev container
+######################################

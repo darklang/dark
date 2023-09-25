@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+echo 127.0.0.1 dlio.localhost | sudo tee -a /etc/hosts
+echo 127.0.0.1 test.dlio.localhost | sudo tee -a /etc/hosts
+echo 127.0.0.1 dark-editor.dlio.localhost | sudo tee -a /etc/hosts
+echo 127.0.0.1 dark-repl.dlio.localhost | sudo tee -a /etc/hosts
+echo 127.0.0.1 dark-packages.dlio.localhost | sudo tee -a /etc/hosts

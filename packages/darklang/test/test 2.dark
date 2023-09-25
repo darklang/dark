@@ -1,0 +1,48 @@
+// Should match testfiles/execution/languages.tests -> UserDefined
+module Darklang =
+  module Test =
+    let stringFn (key: String) : String = key ++ " appended string"
+
+    let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a = Json.parse<'a> arg
+
+    let twoStringFn (str1: String) (str2: String) : String =
+      str1 ++ " appended " ++ str2
+
+    let returnsInt () : Int = 5
+
+    let returnsString () : String = "string"
+
+    let returnsOptionSome () : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
+      PACKAGE.Darklang.Stdlib.Option.Option.Some 5
+
+    let returnsOptionNone () : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+      PACKAGE.Darklang.Stdlib.Option.Option.None
+
+    let returnsResultOk () : PACKAGE.Darklang.Stdlib.Result.Result<Int, String> =
+      PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
+
+    let returnsResultError () : PACKAGE.Darklang.Stdlib.Result.Result<Char, Bool> =
+      PACKAGE.Darklang.Stdlib.Result.Result.Error false
+
+    let throwsException () : DateTime =
+      Test.raiseException "throwsException message"
+
+    let derrorFn (msg: String) : String = msg ++ Test.runtimeError msg
+
+    type X<'a> =
+      | A of Int
+      | B of 'a
+
+    let polyFn (a: X<'a>) : X<'a> = a
+    let strFn (a: X<String>) : X<String> = a
+    let definedPolyFn<'a> (a: X<'a>) : X<'a> = a
+
+    module Constants =
+      let stringConst = "test"
+      let intConst = 5
+      let floatConst = 5.6
+      let boolConst = true
+      let tupleConst = (1, 2, 3)
+      let charConst = 'c'
+      let unitConst = ()
+      let enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5

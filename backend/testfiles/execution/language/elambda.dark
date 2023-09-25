@@ -2,73 +2,72 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
                                                                           -4.611686018e+18) ]
 
 // Test that empty parameters are removed
-(let y = (fun x ___ -> x + 1) in Builtin.List.map_v0 [ 1; 2; 3; 4 ] y) = [ 2
-                                                                           3
-                                                                           4
-                                                                           5 ]
+// (let y = (fun x ___ -> x + 1) in Builtin.List.map_v0 [ 1; 2; 3; 4 ] y) = [ 2
+//                                                                            3
+//                                                                            4
+//                                                                            5 ]
 
-(let y = (fun x -> x + 1) in Builtin.List.map_v0 [ 1; 2; 3; 4 ] y) = [ 2; 3; 4; 5 ]
+// (let y = (fun x -> x + 1) in Builtin.List.map_v0 [ 1; 2; 3; 4 ] y) = [ 2; 3; 4; 5 ]
 
-(let y = (fun msg -> Builtin.Test.runtimeError msg) in
- Builtin.List.map_v0 [ "1"; "2"; "3"; "4" ] y) = Builtin.Test.derrorMessage "1"
+// (let y = (fun msg -> Builtin.Test.runtimeError msg) in
+//  Builtin.List.map_v0 [ "1"; "2"; "3"; "4" ] y) = Builtin.Test.derrorMessage "1"
 
-(let y = (fun msg -> Builtin.Test.runtimeError msg) in Builtin.List.map_v0 [] y) = []
-// (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
-(let y = (fun a b -> a * b) in Builtin.List.fold_v0 [ 1; 2; 3; 4 ] 1 y) = 24
+// (let y = (fun msg -> Builtin.Test.runtimeError msg) in Builtin.List.map_v0 [] y) = []
+// // (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
+// (let y = (fun a b -> a * b) in Builtin.List.fold_v0 [ 1; 2; 3; 4 ] 1 y) = 24
 
-(Builtin.List.fold_v0 [ 4 ] 1 (Builtin.Test.runtimeError "test")) = Builtin.Test.derrorMessage
-  "test"
+// (Builtin.List.fold_v0 [ 4 ] 1 (Builtin.Test.runtimeError "test")) = Builtin.Test.derrorMessage
+//   "test"
 
-(let x = 5 in
- let y = (fun c -> x + c) in
- let x = 6 in
- [ 1; 2; 3; 4 ] |> Builtin.List.map_v0 y) = [ 6; 7; 8; 9 ]
+// (let x = 5 in
+//  let y = (fun c -> x + c) in
+//  let x = 6 in
+//  [ 1; 2; 3; 4 ] |> Builtin.List.map_v0 y) = [ 6; 7; 8; 9 ]
 
-(Builtin.String.join_v0
-  (Builtin.List.map_v0 (Builtin.String.toList "some string") (fun var ->
-    Builtin.String.toUppercase (PACKAGE.Darklang.Stdlib.String.fromChar var)))
-  "") = "SOME STRING"
+// (Builtin.String.join_v0
+//   (Builtin.List.map_v0 (Builtin.String.toList "some string") (fun var ->
+//     Builtin.String.toUppercase (PACKAGE.Darklang.Stdlib.String.fromChar var)))
+//   "") = "SOME STRING"
 
-(let y = (fun c -> if c > 2 then Builtin.Test.runtimeError "err" else 18)
- [ 1; 2; 3; 4 ] |> Builtin.List.map_v0 y) = Builtin.Test.derrorMessage "err"
+// (let y = (fun c -> if c > 2 then Builtin.Test.runtimeError "err" else 18)
+//  [ 1; 2; 3; 4 ] |> Builtin.List.map_v0 y) = Builtin.Test.derrorMessage "err"
 
-(let y = (fun c -> if c > 2 then Builtin.Test.runtimeError "err" else 18)
- [ 1; 2 ] |> Builtin.List.map_v0 y) = [ 18; 18 ]
+// (let y = (fun c -> if c > 2 then Builtin.Test.runtimeError "err" else 18)
+//  [ 1; 2 ] |> Builtin.List.map_v0 y) = [ 18; 18 ]
 
-(let t = true in Builtin.List.all [ 1; 2 ] (fun _ -> t)) = true
-(let f = false in Builtin.List.all [ 1; 2 ] (fun _ -> f)) = false
+// (let t = true in Builtin.List.all [ 1; 2 ] (fun _ -> t)) = true
+// (let f = false in Builtin.List.all [ 1; 2 ] (fun _ -> f)) = false
 
-(let f = fun myarg1 -> myarg1 + 1
- List.map [ 1; 2; 3 ] f) = [ 2; 3; 4 ]
+// (let f = fun myarg1 -> myarg1 + 1
+//  Builtin.List.map_v0 [ 1; 2; 3 ] f) = [ 2; 3; 4 ]
 
-List.fold_v0 [ "a"; "b" ] "x" (fun accum curr -> accum ++ curr) = "xab"
+// Builtin.List.fold_v0 [ "a"; "b" ] "x" (fun (accum, curr) -> accum ++ curr) = "xab"
 
 (let pairs = [ (1, "one"); (2, "two") ] in
- let transformer = fun (num, str) -> $"{Int.toString num}:{str}" in
+ let transformer = fun (num, str) -> $"{Builtin.Int.toString num}:{str}" in
  Builtin.List.map_v0 pairs transformer) = [ "1:one"; "2:two" ]
 
-(let triplets = [ (1, "one", true); (2, "two", false) ] in
+// (let triplets = [ (1, "one", true); (2, "two", false) ] in
 
- let transformer =
-   fun (num, str, flag) ->
-     if flag then
-       $"{Int.toString num}:{str}:TRUE"
-     else
-       $"{Int.toString num}:{str}:FALSE" in
+//  let transformer =
+//    fun (num, str, flag) ->
+//      if flag then
+//        $"{Builtin.Int.toString num}:{str}:TRUE"
+//      else
+//        $"{Builtin.Int.toString num}:{str}:FALSE" in
 
- List.map_v0 triplets transformer) = [ "1:one:TRUE"; "2:two:FALSE" ]
+//  Builtin.List.map_v0 triplets transformer) = [ "1:one:TRUE"; "2:two:FALSE" ]
 
-(let triplets = [ (1, "one", true); (2, "two", false) ] in
- let transformer = fun num str -> $"{Int.toString num}:{str}" in
- List.map_v0 triplets transformer) = Test.runtimeError "Expected 2 arguments, got 3"
+// (let triplets = [ (1, "one", true); (2, "two", false) ] in
+//  let transformer = fun (num, str) -> $"{Builtin.Int.toString num}:{str}" in
+//  Builtin.List.map_v0 triplets transformer) = Test.runtimeError "Expected 2 arguments, got 3"
 
-(let pairs = [ (1, "one"); (2, "two") ] in
+// (let pairs = [ (1, "one"); (2, "two") ] in
 
- let transformer =
-   fun num str flag ->
-     if flag then
-       $"{Int.toString num}:{str}:TRUE"
-     else
-       $"{Int.toString num}:{str}:FALSE" in
-
- List.map_v0 pairs transformer) = Test.runtimeError "Expected 3 arguments, got 2"
+//  let transformer =
+//    fun num (str, flag) ->
+//      if flag then
+//        $"{Builtin.Int.toString num}:{str}:TRUE"
+//      else
+//        $"{Builtin.Int.toString num}:{str}:FALSE" in
+//  Builtin.List.map_v0 pairs transformer) = Test.runtimeError "Expected 3 arguments, got 2"

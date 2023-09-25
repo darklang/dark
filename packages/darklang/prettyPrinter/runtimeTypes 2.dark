@@ -1,0 +1,381 @@
+module Darklang =
+  module PrettyPrinter =
+    module RuntimeTypes =
+      let nameResolutionError
+        (nr: PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error)
+        : String =
+        String.join nr.names "."
+
+
+      module FQName =
+        let builtIn
+          (namePart: String)
+          (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.BuiltIn)
+          : String =
+          let modulesPart =
+            match t.modules with
+            | [] -> ""
+            | modules -> modules |> String.join "." |> (fun parts -> $"{parts}.")
+
+          let versionPart =
+            if t.version == 0 then "" else $"_v{Int.toString t.version}"
+
+          $"{modulesPart}{namePart}{versionPart}"
+
+
+        let userProgram
+          (namePart: String)
+          (u: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.UserProgram)
+          : String =
+          let modulesPart =
+            match u.modules with
+            | [] -> ""
+            | modules -> modules |> String.join "." |> (fun parts -> $"{parts}.")
+
+          let versionPart =
+            if u.version == 0 then "" else $"_v{Int.toString u.version}"
+
+          $"{modulesPart}{namePart}{versionPart}"
+
+
+        let package
+          (namePart: String)
+          (p: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.Package)
+          : String =
+          let modulesPart = String.join p.modules "."
+
+          let versionPart =
+            if p.version == 0 then "" else $"_v{Int.toString p.version}"
+
+          $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
+
+
+      module TypeName =
+        let name
+          (name: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.Name)
+          : String =
+          match name with
+          | TypeName name -> name
+
+        let builtIn
+          (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.BuiltIn)
+          : String =
+          FQName.builtIn (name t.name) t
+
+        let userProgram
+          (u: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.UserProgram)
+          : String =
+          FQName.userProgram (name u.name) u
+
+        let package
+          (p: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.Package)
+          : String =
+          FQName.package (name p.name) p
+
+
+      let typeName
+        (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName)
+        : String =
+        match t with
+        | BuiltIn b -> TypeName.builtIn b
+        | UserProgram u -> TypeName.userProgram u
+        | Package p -> TypeName.package p
+
+      // module ConstantName =
+      //   let name
+      //     (name: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Name)
+      //     : String =
+      //     match name with
+      //     | ConstantName name -> name
+
+      //   module BuiltIn =
+      //     let fullForReference
+      //       (c: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.BuiltIn)
+      //       : String =
+      //       PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.BuiltIn.fullForReference
+      //         (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name c.name)
+      //         c
+
+      //   module UserProgram =
+
+      //     let fullForReference
+      //       (u: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.UserProgram)
+      //       : String =
+      //       PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.UserProgram.fullForReference
+      //         (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name u.name)
+      //         u
+
+      //   module Package =
+      //     let fullForReference
+      //       (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Package)
+      //       : String =
+      //       PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.Package.fullForReference
+      //         (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name p.name)
+      //         p
+
+      // let constantName
+      //   (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.ConstantName)
+      //   : String =
+      //   match t with
+      //   | BuiltIn b ->
+      //     PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.BuiltIn.fullForReference
+      //       b
+      //   | UserProgram u ->
+      //     PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.UserProgram.fullForReference
+      //       u
+      //   | Package p ->
+      //     PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.Package.fullForReference
+      //       p
+
+
+      module FnName =
+        let name
+          (name: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.Name)
+          : String =
+          match name with
+          | FnName name -> name
+
+        let builtIn
+          (f: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.BuiltIn)
+          : String =
+          FQName.builtIn (name f.name) f
+
+        let userProgram
+          (u: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.UserProgram)
+          : String =
+          FQName.userProgram (name u.name) u
+
+        let package
+          (p: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.Package)
+          : String =
+          FQName.package (name p.name) p
+
+      let fnName
+        (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.FnName)
+        : String =
+        match t with
+        | BuiltIn b -> FnName.builtIn b
+        | UserProgram u -> FnName.userProgram u
+        | Package p -> FnName.package p
+
+      let typeReference
+        (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference)
+        : String =
+        match t with
+        | TUnit -> "Unit"
+        | TBool -> "Bool"
+        | TInt -> "Int"
+        | TFloat -> "Float"
+        | TChar -> "Character"
+        | TString -> "String"
+        | TUuid -> "Uuid"
+        | TBytes -> "Bytes"
+        | TDateTime -> "DateTime"
+        | TPassword -> "Password"
+
+        | TList inner -> $"List<{typeReference inner}>"
+        | TTuple(first, second, theRest) ->
+          (List.append [ first; second ] theRest)
+          |> List.map (fun item -> typeReference item)
+          |> String.join " * "
+          |> fun parts -> "(" ++ parts ++ ")"
+
+        | TDict inner -> $"Dict<{typeReference inner}>"
+
+        | TDB inner -> $"DB<{typeReference inner}>"
+
+        | TVariable varName -> "'" ++ varName
+
+        | TCustomType(typ, args) ->
+          let argsPart =
+            match args with
+            | [] -> ""
+            | args ->
+              args
+              |> List.map (fun arg -> typeReference arg)
+              |> String.join ", "
+              |> fun parts -> $"<{parts}>"
+
+          let typeNamePart =
+            match typ with
+            | Ok name -> typeName name
+            | Error e -> nameResolutionError e
+
+          $"{typeNamePart}{argsPart}"
+
+
+        | TFn(args, ret) ->
+          let argPart =
+            args
+            |> List.map (fun arg -> typeReference arg)
+            |> String.join ", "
+            |> fun parts -> "(" ++ parts ++ ")"
+
+          $"{argPart} -> {typeReference ret}"
+
+
+      module Dval =
+        // RTETODO remove this - someone should instead
+        // dv |> Dval.ToValueType |> PrettyPrinter.valueType
+        let dvalTypeName
+          (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval)
+          : String =
+          match dv with
+          | DUnit -> "Unit"
+          | DInt _ -> "Int"
+          | DFloat _ -> "Float"
+          | DBool _ -> "Bool"
+          | DChar _ -> "Char"
+          | DString _ -> "String"
+          | DBytes _ -> "Bytes"
+          | DUuid _ -> "Uuid"
+          | DDateTime _ -> "DateTime"
+
+          | DList [] -> "List<'a>"
+          | DList(v :: _) -> "List<" ++ (dvalTypeName v) ++ ">"
+          | DDict _ -> "Dict"
+          | DTuple(t1, t2, trest) ->
+            (List.append [ t1; t2 ] trest)
+            |> List.map (fun dv -> dvalTypeName dv)
+            |> String.join ", "
+            |> fun s -> $"({s})"
+
+          | DRecord(typeName, _, _) -> PrettyPrinter.RuntimeTypes.typeName typeName
+          // | DEnum(typeName, _, _, _) -> TypeName.toString typeName
+
+          // | DFnVal(Lambda _) -> "Lambda"
+          // | DFnVal(NamedFn n) -> FnName.toString n
+          | DDB _ -> "Datastore"
+          | DPassword _ -> "Password"
+
+          | DError _ -> "Error"
+
+          | _ -> "TODO dvalTypeName"
+
+        let makeSpaces (len: Int) : String =
+          (List.repeat len " ") |> unwrap |> String.join ""
+
+        let withIndent
+          (indent: Int)
+          (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval)
+          : String =
+          let nl = "\n" ++ (makeSpaces indent)
+          let inl = "\n" ++ (makeSpaces (indent + 2))
+          let indent = indent + 2
+
+          // let typename = dvalTypeName dv
+          // let wrap str = $"<{typename}: {str}>"
+          // let justType = $"<{typename}>"
+
+          match dv with
+          | DUnit -> "unit"
+
+          | DBool true -> "true"
+          | DBool false -> "false"
+
+          | DChar c -> $"'{c}'"
+          | DString s -> $"\"{s}\""
+
+          | DInt i -> Int.toString i
+
+          // CLEANUP: deal with Infinity, NegativeInfinity, and NaN
+          | DFloat f -> Float.toString f
+
+
+          // | DDateTime d -> wrap (DarkDateTime.toIsoString d)
+
+          // | DBytes bytes -> Base64.defaultEncodeToString bytes
+
+          // | DUuid uuid -> wrap (string uuid)
+
+          // | DPassword _ -> "<password>"
+
+
+          // | DList l ->
+          //   if List.isEmpty l then
+          //     "[]"
+          //   else
+          //     let elems = String.concat ", " (List.map (withIndent indent) l)
+          //     $"[{inl}{elems}{nl}]"
+
+          | DTuple(first, second, theRest) ->
+            let l = List.append [ first; second ] theRest
+
+            let parts = List.map l (fun item -> withIndent indent item)
+
+            let short = String.join parts ", "
+
+            if String.length short <= 80 then
+              $"({short})"
+            else
+              let long = String.join parts $"{inl}, "
+
+              $"({inl}{long}{nl})"
+
+          | DRecord(_, typeName, o) ->
+            let strs =
+              o
+              |> Dict.toList
+              |> List.map (fun pair ->
+                let (key, value) = pair
+                $"{key}: {withIndent indent value}")
+
+            let elems = String.join strs $",{inl}"
+            let typeStr = typeName typeName
+            typeStr ++ " {" ++ inl ++ elems ++ nl ++ "}"
+
+          // | DDict o ->
+          //   if Map.isEmpty o then
+          //     "{}"
+          //   else
+          //     let strs =
+          //       o
+          //       |> Map.toList
+          //       |> List.map (fun (key, value) -> ($"{key}: {withIndent indent value}"))
+
+          //     let elems = String.concat $",{inl}" strs
+          //     "{" + $"{inl}{elems}{nl}" + "}"
+
+          // | DEnum(_, typeName, caseName, fields) ->
+          //   let short =
+          //     let fieldStr =
+          //       fields
+          //       |> List.map (fun value -> withIndent indent value)
+          //       |> String.concat ", "
+
+          //     let fieldStr = if fieldStr = "" then "" else $"({fieldStr})"
+
+          //     let typeStr = TypeName.toString typeName
+          //     $"{typeStr}.{caseName}{fieldStr}"
+
+          //   if String.length short <= 80 then
+          //     short
+          //   else
+          //     let fieldStr =
+          //       fields
+          //       |> List.map (fun value -> withIndent indent value)
+          //       |> String.concat $",{inl}"
+
+          //     let fieldStr = if fieldStr = "" then "" else $"({inl}{fieldStr}{nl})"
+
+          //     let typeStr = TypeName.toString typeName
+          //     $"{typeStr}.{caseName}{fieldStr}"
+
+
+          // | DDB name -> wrap name
+
+          // | DFnVal _ ->
+          //   // TODO: we should print this, as this use case is safe
+          //   // See docs/dblock-serialization.md
+          //   justType
+
+          // | DIncomplete _ -> justType
+
+          // | DError(_, msg) -> $"<error: {msg}>"
+
+          | _ ->
+            $"(PP.RT.Dval TODO {(Json.serialize<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval> dv) |> unwrap})"
+
+
+      let dval (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval) : String =
+        Dval.withIndent 0 dv

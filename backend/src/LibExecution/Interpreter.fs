@@ -859,11 +859,11 @@ and executeLambda
         (fun ((id, _), dv) -> state.tracing.traceDval state.onExecutionPath id dv)
         (NEList.zip l.parameters args)
 
-        let paramSyms = NEList.zip parameters args |> NEList.toList |> Map
+      let paramSyms = NEList.zip parameters args |> NEList.toList |> Map
         // paramSyms is higher priority
 
-        let newSymtable = Map.mergeFavoringRight l.symtable paramSyms
-        eval state l.typeArgTable newSymtable l.body
+      let newSymtable = Map.mergeFavoringRight l.symtable paramSyms
+      eval state l.typeArgTable newSymtable l.body
 
 and callFn
   (state : ExecutionState)

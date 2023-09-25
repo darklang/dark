@@ -1,0 +1,27 @@
+[expected-request]
+GET /v0/uri-with-path-dots/2path/hyphen-ated/under_scored/ HTTP/1.1
+Host: HOST
+Content-Length: 0
+
+
+[response]
+HTTP/1.1 200 OK
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Content-type: text/plain; charset=utf-8
+Content-Length: LENGTH
+
+Hello back
+
+[test]
+(let response = (HttpClient.request "get" "http://URL/some/../2path/hyphen-ated/under_scored/" [] Bytes.empty) |> unwrap
+ let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
+ {response with headers = respHeaders}) =
+   HttpClient.Response
+    { statusCode = 200
+      headers =
+        [
+          ("server", "kestrel")
+          ("content-length", "LENGTH")
+          ("content-type", "text/plain; charset=utf-8")
+        ]
+      body = "Hello back" |> String.toBytes_v0 }

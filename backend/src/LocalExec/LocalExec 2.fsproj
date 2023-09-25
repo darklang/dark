@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net7.0</TargetFramework>
+    <LangVersion>7.0</LangVersion>
+    <OtherFlags>--warnaserror</OtherFlags>
+    <!-- Publishing configuration -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+  <!-- dependencies and code -->
+  <ItemGroup>
+    <None Include="paket.references" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
+    <ProjectReference Include="../LibParser/LibParser.fsproj" />
+    <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
+    <ProjectReference Include="../StdLibCloudExecution/StdLibCloudExecution.fsproj" />
+    <ProjectReference Include="../StdLibCli/StdLibCli.fsproj" />
+    <ProjectReference Include="../StdLibCliHost/StdLibCliHost.fsproj" />
+    <ProjectReference Include="../StdLibDarkInternal/StdLibDarkInternal.fsproj" />
+    <!-- only really needed for parsing -->
+    <ProjectReference Include="../StdLibCloudExecution/StdLibCloudExecution.fsproj" />
+    <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Libs/Cli.fs" />
+    <Compile Include="Libs/Packages.fs" />
+    <Compile Include="Libs/Packages2.fs" />
+    <Compile Include="Libs/List.fs" />
+    <Compile Include="Libs/String.fs" />
+    <Compile Include="StdLib.fs" />
+    <Compile Include="LocalExec.fs" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>

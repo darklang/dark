@@ -17,5 +17,6 @@
  },
  "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
- },
+},
+"dotnet.defaultSolution": "backend/fsdark.sln",
 }
