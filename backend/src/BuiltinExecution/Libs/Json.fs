@@ -216,7 +216,7 @@ let rec serialize
     | TDict _, _ ->
       // Internal error as this shouldn't get past the typechecker
       Exception.raiseInternal
-        "Can't currently serialize this type/value combination"
+        "Can't serialize this type/value combination"
         [ "value", dv; "type", DString(LibExecution.DvalReprDeveloper.typeName typ) ]
   }
 
