@@ -6,7 +6,7 @@ module Darklang =
 
       /// Returns a dictionary with a single entry {{<param key>: <param value>}}
       let singleton (key: String) (value: 'a) : Dict<'a> =
-        Builtin.Dict.set (Dict { }) key value
+        PACKAGE.Darklang.Stdlib.Dict.set (Dict { }) key value
 
 
       /// Returns the number of entries in <param dict>

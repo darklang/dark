@@ -9,7 +9,7 @@ module Darklang =
       /// Truncates the string <param s> to the specified <param length> and appends an ellipsis ("...")
       /// to it if the original string exceeds the given length. Otherwise, returns the original string.
       let ellipsis (s: String) (length: Int) : String =
-        if Builtin.String.length s > length then
+        if PACKAGE.Darklang.Stdlib.String.length s > length then
           (PACKAGE.Darklang.Stdlib.String.slice_v0 s 0 length) ++ "..."
         else
           s
@@ -20,11 +20,11 @@ module Darklang =
       let articleFor (nextWord: String) : String =
         let vowels = [ 'A'; 'E'; 'I'; 'O'; 'U'; 'a'; 'e'; 'i'; 'o'; 'u' ]
 
-        match Builtin.String.head nextWord with
+        match PACKAGE.Darklang.Stdlib.String.head nextWord with
         | None -> ""
         | Some c ->
           if
-            Builtin.String.length nextWord > 1
+            PACKAGE.Darklang.Stdlib.String.length nextWord > 1
             && (PACKAGE.Darklang.Stdlib.Bool.not (
               PACKAGE.Darklang.Stdlib.Char.isASCIILetter c
             ))
@@ -112,13 +112,19 @@ module Darklang =
       /// {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
       /// [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)
       let base64UrlEncode (s: String) : String =
-        let encoded = s |> Builtin.String.toBytes |> Builtin.Base64.urlEncode
+        let encoded =
+          s
+          |> PACKAGE.Darklang.Stdlib.String.toBytes
+          |> PACKAGE.Darklang.Stdlib.Base64.urlEncode
+
         PACKAGE.Darklang.Stdlib.String.replaceAll encoded "=" ""
 
       /// Base64 encodes a string. Uses {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
       /// [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) with padding.
       let base64Encode (s: String) : String =
-        s |> Builtin.String.toBytes |> Builtin.Base64.encode
+        s
+        |> PACKAGE.Darklang.Stdlib.String.toBytes
+        |> PACKAGE.Darklang.Stdlib.Base64.encode
 
 
       /// Base64 decodes a string. The returned value is wrapped in {{Result}}.
@@ -130,9 +136,9 @@ module Darklang =
       let base64Decode
         (s: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
-        match Builtin.Base64.decode s with
+        match PACKAGE.Darklang.Stdlib.Base64.decode s with
         | Ok bytes ->
-          match Builtin.String.fromBytes bytes with
+          match PACKAGE.Darklang.Stdlib.String.fromBytes bytes with
           | Some str -> PACKAGE.Darklang.Stdlib.Result.Result.Ok str
           | None ->
             PACKAGE.Darklang.Stdlib.Result.Result.Error "Invalid UTF-8 string"
@@ -143,7 +149,9 @@ module Darklang =
       /// Don't rely on either the size or the algorithm.
       let digest (s: String) : String =
         let sha384Hash =
-          Builtin.Crypto.sha384_v0 (PACKAGE.Darklang.Stdlib.String.toBytes_v0 s)
+          PACKAGE.Darklang.Stdlib.Crypto.sha384_v0 (
+            PACKAGE.Darklang.Stdlib.String.toBytes_v0 s
+          )
 
         sha384Hash |> PACKAGE.Darklang.Stdlib.Base64.urlEncode
 
@@ -162,7 +170,9 @@ module Darklang =
           let randomChar =
             fun _ ->
               (let index =
-                Builtin.Int.random 0 ((Builtin.String.length characters) - 1)
+                PACKAGE.Darklang.Stdlib.Int.random
+                  0
+                  ((PACKAGE.Darklang.Stdlib.String.length characters) - 1)
 
                PACKAGE.Darklang.Stdlib.String.slice_v0 characters index (index + 1))
 
@@ -177,7 +187,7 @@ module Darklang =
       /// Escape an untrusted string in order to include it safely in HTML output
       let htmlEscape (html: String) : String =
         html
-        |> Builtin.String.toList
+        |> PACKAGE.Darklang.Stdlib.String.toList
         |> PACKAGE.Darklang.Stdlib.List.map (fun c ->
           match c with
           | '<' -> "&lt;"
@@ -190,7 +200,7 @@ module Darklang =
           // &apos; doesn't work in IE....
           | ''' -> "&#x27;"
           | _ -> PACKAGE.Darklang.Stdlib.String.fromChar c)
-        |> Builtin.String.join ""
+        |> PACKAGE.Darklang.Stdlib.String.join ""
 
 
       /// Checks if <param lookingIn> contains <param searchingFor>
@@ -201,7 +211,7 @@ module Darklang =
       /// Returns the substring of <param string> between the <param from> and <param to> indices.
       /// Negative indices start counting from the end of <param string>.
       let slice (string: String) (from: Int) (``to``: Int) : String =
-        let len = Builtin.String.length string
+        let len = PACKAGE.Darklang.Stdlib.String.length string
 
         let normalize =
           (fun i ->
@@ -222,7 +232,7 @@ module Darklang =
       let first (string: String) (characterCount: Int) : String =
         if characterCount < 0 then
           ""
-        else if characterCount > Builtin.String.length string then
+        else if characterCount > PACKAGE.Darklang.Stdlib.String.length string then
           string
         else
           PACKAGE.Darklang.Stdlib.String.slice_v0 string 0 characterCount
@@ -234,13 +244,13 @@ module Darklang =
       let last (string: String) (characterCount: Int) : String =
         if characterCount < 0 then
           ""
-        else if characterCount > Builtin.String.length string then
+        else if characterCount > PACKAGE.Darklang.Stdlib.String.length string then
           string
         else
           PACKAGE.Darklang.Stdlib.String.slice_v0
             string
-            (Builtin.String.length string - characterCount)
-            (Builtin.String.length string)
+            (PACKAGE.Darklang.Stdlib.String.length string - characterCount)
+            (PACKAGE.Darklang.Stdlib.String.length string)
 
 
       /// Returns all but the last <param characterCount> characters of <param string>, as a Builtin.String.
@@ -249,13 +259,13 @@ module Darklang =
       let dropLast (string: String) (characterCount: Int) : String =
         if characterCount < 0 then
           string
-        else if characterCount > Builtin.String.length string then
+        else if characterCount > PACKAGE.Darklang.Stdlib.String.length string then
           ""
         else
           PACKAGE.Darklang.Stdlib.String.slice_v0
             string
             0
-            (Builtin.String.length string - characterCount)
+            (PACKAGE.Darklang.Stdlib.String.length string - characterCount)
 
 
       /// Returns all but the first <param characterCount> characters of <param string>, as a <type String>.
@@ -264,13 +274,13 @@ module Darklang =
       let dropFirst (string: String) (characterCount: Int) : String =
         if characterCount < 0 then
           string
-        else if characterCount > Builtin.String.length string then
+        else if characterCount > PACKAGE.Darklang.Stdlib.String.length string then
           ""
         else
           PACKAGE.Darklang.Stdlib.String.slice_v0
             string
             characterCount
-            (Builtin.String.length string)
+            (PACKAGE.Darklang.Stdlib.String.length string)
 
 
       /// If <param string> is shorter than <param goalLength> characters, returns a
@@ -282,13 +292,13 @@ module Darklang =
         (padWith: String)
         (goalLength: Int)
         : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
-        if Builtin.String.length padWith != 1 then
+        if PACKAGE.Darklang.Stdlib.String.length padWith != 1 then
           PACKAGE.Darklang.Stdlib.Result.Result.Error
             $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
-        else if Builtin.String.length string >= goalLength then
+        else if PACKAGE.Darklang.Stdlib.String.length string >= goalLength then
           PACKAGE.Darklang.Stdlib.Result.Result.Ok string
         else
-          let padCount = goalLength - Builtin.String.length string
+          let padCount = goalLength - PACKAGE.Darklang.Stdlib.String.length string
           let pad = PACKAGE.Darklang.Stdlib.String.repeat padWith padCount
           PACKAGE.Darklang.Stdlib.Result.Result.Ok(pad ++ string)
 
@@ -302,13 +312,13 @@ module Darklang =
         (padWith: String)
         (goalLength: Int)
         : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
-        if Builtin.String.length padWith != 1 then
+        if PACKAGE.Darklang.Stdlib.String.length padWith != 1 then
           PACKAGE.Darklang.Stdlib.Result.Result.Error
             $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
-        else if Builtin.String.length string >= goalLength then
+        else if PACKAGE.Darklang.Stdlib.String.length string >= goalLength then
           PACKAGE.Darklang.Stdlib.Result.Result.Ok string
         else
-          let padCount = goalLength - Builtin.String.length string
+          let padCount = goalLength - PACKAGE.Darklang.Stdlib.String.length string
           let pad = PACKAGE.Darklang.Stdlib.String.repeat padWith padCount
           PACKAGE.Darklang.Stdlib.Result.Result.Ok(string ++ pad)
 
@@ -354,7 +364,7 @@ module Darklang =
         PACKAGE.Darklang.Stdlib.String.slice_v0
           subject
           0
-          (Builtin.String.length prefix)
+          (PACKAGE.Darklang.Stdlib.String.length prefix)
         == prefix
 
 
@@ -362,8 +372,9 @@ module Darklang =
       let endsWith (subject: String) (suffix: String) : Bool =
         PACKAGE.Darklang.Stdlib.String.slice_v0
           subject
-          (Builtin.String.length subject - Builtin.String.length suffix)
-          (Builtin.String.length subject)
+          (PACKAGE.Darklang.Stdlib.String.length subject
+           - PACKAGE.Darklang.Stdlib.String.length suffix)
+          (PACKAGE.Darklang.Stdlib.String.length subject)
         == suffix
 
 
@@ -387,7 +398,7 @@ module Darklang =
         if count <= 0 then
           ""
         else
-          Builtin.String.join
+          PACKAGE.Darklang.Stdlib.String.join
             ((PACKAGE.Darklang.Stdlib.List.repeat count string) |> Builtin.unwrap)
             ""
 
@@ -407,7 +418,10 @@ module Darklang =
       /// Splits the given <param str> at each newline character and returns a list of substrings.
       /// If the <param str> is empty, it returns an empty list.
       let splitOnNewline (str: String) : List<String> =
-        if str == "" then [] else Builtin.String.split str "\n"
+        if str == "" then
+          []
+        else
+          PACKAGE.Darklang.Stdlib.String.split str "\n"
 
 
       /// Returns {{Some char}} of the first character of <param str>, or returns {{None}} if <param str> is empty.
