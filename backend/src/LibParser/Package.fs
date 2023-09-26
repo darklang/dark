@@ -25,19 +25,17 @@ type PTPackageModule =
 let emptyPTModule = { fns = []; types = []; constants = [] }
 
 
-/// Update a CanvasModule by parsing a single F# let binding
-/// Depending on the attribute present, this may add a user function, a handler, or a DB
+/// Update a Package by parsing a single F# let binding
 let parseLetBinding
   (modules : List<string>)
   (letBinding : SynBinding)
   : List<WT.PackageFn.T> * List<WT.PackageConstant.T> =
   match modules with
   | owner :: modules ->
-    try
+    if FS2WT.Function.hasArguments letBinding then
       [ FS2WT.PackageFn.fromSynBinding owner modules letBinding ], []
-    with _ ->
+    else
       [], [ FS2WT.PackageConstant.fromSynBinding owner modules letBinding ]
-
   | _ ->
     Exception.raiseInternal
       "Expected owner, and at least 1 other modules"

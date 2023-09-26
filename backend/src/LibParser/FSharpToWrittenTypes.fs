@@ -711,6 +711,26 @@ module Function =
 
     | _ -> Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
 
+  let hasArguments (binding : SynBinding) : bool =
+    match binding with
+    | SynBinding(_,
+                 _,
+                 _,
+                 _,
+                 _,
+                 _,
+                 _,
+                 SynPat.LongIdent(_, _, _, argPats, _, _),
+                 _,
+                 _,
+                 _,
+                 _,
+                 _) ->
+      match argPats with
+      | SynArgPats.Pats l -> not (List.isEmpty l)
+      | SynArgPats.NamePatPairs(l, _, _) -> not (List.isEmpty l)
+    | _ -> false
+
 
   let fromSynBinding (binding : SynBinding) : T =
     match binding with
