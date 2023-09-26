@@ -197,11 +197,14 @@ let t
                   (NEList.ofList actual [])
 
               match result with
-              | Error _ ->
+              | Error(_, result) ->
+                let result = RT.RuntimeError.toDT result
+                print $"{state.test.exceptionReports}"
                 return
                   Exception.raiseInternal
                     ("We received an RTE, and when trying to stringify it, there was another RTE error. There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
-                    [ "originalError", actual; "stringifyError", result ]
+                    [ "originalError", LibExecution.DvalReprDeveloper.toRepr actual
+                      "stringified", LibExecution.DvalReprDeveloper.toRepr result ]
               | Ok(RT.DEnum(_, _, [], "ErrorString", [ RT.DString _ ])) ->
                 return result
               | Ok _ ->
