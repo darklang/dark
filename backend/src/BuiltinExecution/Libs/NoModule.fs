@@ -345,7 +345,9 @@ let fns : List<BuiltInFn> =
                 |> raiseUntargetedRTE
             | _ -> return raiseUntargetedRTE (RuntimeError.oldError "Invalid Option")
           }
-        | _ -> incorrectArgs ())
+        | _ ->
+          RuntimeError.oldError "Unwrap called with non-Option/non-Result"
+          |> raiseUntargetedRTE)
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]
