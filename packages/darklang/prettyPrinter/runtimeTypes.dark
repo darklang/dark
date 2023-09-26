@@ -249,9 +249,9 @@ module Darklang =
           |> fun s -> $"({s})"
 
         | KTFn(argTypes, retType) ->
-          (Stdlib.List.push retType argTypes)
+          (Stdlib.List.push argTypes retType)
           |> PACKAGE.Darklang.Stdlib.List.map (fun vt -> valueType vt)
-          |> PACKAGE.Darklang.Stdlib.String.join parts " -> "
+          |> PACKAGE.Darklang.Stdlib.String.join " -> "
 
         | KTCustomType(name, typeArgs) ->
           let typeArgsPortion =
@@ -424,18 +424,23 @@ module Darklang =
               $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
 
-          // | DFnVal _ ->
-          //   // TODO: we should Builtin.print this, as this use case is safe
-          //   // See docs/dblock-serialization.md
-          //   justType
+          | DFnVal(NamedFn fnName) ->
+            PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.FnName.fnName fnName
+
+          | DFnVal(Lambda impl) ->
+            // Note: this use case is safe (RE docs/dblock-serialization.md)
+            let ps =
+              impl.parameters
+              |> Stdlib.List.map Stdlib.Tuple2.second
+              |> Stdlib.String.join ", "
+
+            // TODO
+            // let body = impl.body |> RuntimeTypes.Expr.toString
+            $"\\ {ps} {{ ... }}"
+
 
           | DDB name -> $"<{valueTypeName}: {name}>"
 
-          // | DError(_, msg) -> $"<error: {msg}>"
-
-          | _ ->
-            $"(PP.RT.Dval TODO {(Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval> dv)
-                                |> Builtin.unwrap})"
 
 
       let dval (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval) : String =
