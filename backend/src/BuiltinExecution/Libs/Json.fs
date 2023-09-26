@@ -58,6 +58,33 @@ type Utf8JsonWriter with
       this.WriteEndArray()
     }
 
+module Error =
+  module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+
+  /// In the future, we will add a trait to indicate types which can be serialized. For
+  /// now, we'll raise a RuntimeError instead if any of those types are present.
+  /// Helpfully, this allows us keep `serialize` from having to return an Error.
+  type Error = UnsupportedType of TypeReference
+
+  let toRuntimeError (e : Error) : Ply<RuntimeError> =
+    uply {
+      let! (caseName, fields) =
+        uply {
+          match e with
+          | UnsupportedType typ ->
+            let! typ = RT2DT.TypeReference.toDT typ
+            return "UnsupportedType", [ typ ]
+        }
+      let typeName = RuntimeError.name [ "Json" ] "Error" 0
+      return!
+        Dval.enum typeName typeName (Some []) caseName fields
+        |> Ply.map RuntimeError.jsonError
+    }
+
+  let raiseUnsupportedType (typ : TypeReference) : Ply<'a> =
+    UnsupportedType(typ) |> toRuntimeError |> Ply.map raiseUntargetedRTE
+
+
 
 let rec serialize
   (types : Types)
@@ -186,15 +213,9 @@ let rec serialize
 
 
     // Not supported
-    // TODO these should be runtime errors
-    | TVariable name, dv ->
-      Exception.raiseInternal
-        "Variable types (i.e. 'a in List<'a>) cannot not be used as arguments"
-        [ "variable", name; "dval", dv ]
-
-    | TFn _, DFnVal _ -> Exception.raiseInternal "Cannot serialize functions" []
-
-    | TDB _, DDB _ -> Exception.raiseInternal "Cannot serialize DB references" []
+    | TVariable _, _
+    | TFn _, _
+    | TDB _, _ -> return! Error.raiseUnsupportedType typ
 
 
     // Exhaust the types
@@ -209,9 +230,7 @@ let rec serialize
     | TDateTime, _
     | TList _, _
     | TTuple _, _
-    | TFn _, _
     | TDB _, _
-    | TVariable _, _
     | TCustomType _, _
     | TDict _, _ ->
       // Internal error as this shouldn't get past the typechecker
@@ -272,24 +291,16 @@ module JsonPath =
 module JsonParseError =
   type T =
     | NotJson
-    | TypeUnsupported of TypeReference
-    | TypeNotYetSupported of TypeReference
-    | TypeNotFound of TypeReference
     | CantMatchWithType of
       typ : TypeReference *
       json : string *
       path : JsonPath.JsonPath
-    | Uncaught of System.Exception
 
   exception JsonParseException of T
 
   let toString (err : T) : string =
     match err with
-    | Uncaught ex -> "Uncaught error: " + ex.Message
-    | NotJson -> "Not JSON"
-    | TypeNotFound typ -> $"Type not found: {typ}"
-    | TypeUnsupported typ -> $"Type not supported (intentionally): {typ}"
-    | TypeNotYetSupported typ -> $"Type not yet supported: {typ}"
+    | NotJson -> "not JSON"
     | CantMatchWithType(typ, json, errorPath) ->
       $"Can't parse JSON `{json}` as type `{LibExecution.DvalReprDeveloper.typeName typ}` at path: `{JsonPath.toString errorPath}`"
 
@@ -423,11 +434,8 @@ let parse
       uply {
         match! Types.find typeName types with
         | None ->
-          // TODO should be an RTE
           return
-            JsonParseError.TypeNotFound typ
-            |> JsonParseError.JsonParseException
-            |> raise
+            Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
 
         | Some decl ->
           match decl.definition with
@@ -517,12 +525,9 @@ let parse
 
     // Explicitly not supported
     | TVariable _, _
-    | TFn _, _ ->
-      JsonParseError.TypeUnsupported typ
-      |> JsonParseError.JsonParseException
-      |> raise
+    | TFn _, _
+    | TDB _, _ -> Error.raiseUnsupportedType typ
 
-    | TDB _, _ -> Exception.raiseInternal "Cannot serialize DB references" []
 
     // exhaust TypeReferences
     | TUnit, _
@@ -543,10 +548,10 @@ let parse
     try
       Ok(parseJson str)
     with _ex ->
-      Error "not JSON"
+      Error JsonParseError.NotJson
 
   match parsed with
-  | Error err -> Error err |> Ply
+  | Error err -> Error(JsonParseError.toString err) |> Ply
   | Ok parsed ->
     uply {
       try

@@ -425,7 +425,17 @@ module BadTypes =
   // Builtin.Json.parse<'a> "5" = Result.Ok Builtin.Bytes.empty
   // Builtin.Json.serialize<'a> 5 = Result.Error "dunno what happens"
 
-  1 = 1 // just here to avoid parser errors
+  Builtin.Json.parse<Int -> Int> "{}" = Builtin.Test.derrorMessage
+    "Unsupported type in JSON: (Int) -> Int. Some types are not supported in Json serialization, and cannot be used as arguments to Json.parse or Json.serialize
+
+Expected: A supported type (Int, String, etc)
+Actual: (Int) -> Int"
+
+  Builtin.Json.serialize<Int -> Int> (fun i -> 5) = Builtin.Test.derrorMessage
+    "Unsupported type in JSON: (Int) -> Int. Some types are not supported in Json serialization, and cannot be used as arguments to Json.parse or Json.serialize
+
+Expected: A supported type (Int, String, etc)
+Actual: (Int) -> Int"
 
 
 module List =
