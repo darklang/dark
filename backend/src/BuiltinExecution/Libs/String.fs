@@ -303,14 +303,28 @@ let fns : List<BuiltInFn> =
          Negative indices start counting from the end of <param string>."
       fn =
         (function
-        | _, _, [ DString s; DInt fisrt; DInt last ] ->
-          let charSeq = String.toEgcSeq s
-          charSeq
-          |> Seq.skip (int fisrt)
-          |> Seq.take (int (last - fisrt))
-          |> String.concat ""
-          |> DString
-          |> Ply
+        | _, _, [ DString s; DInt first; DInt last ] ->
+          let strLength = String.length s
+          let first = if first < 0 then strLength + int first else int first
+          let last = if last < 0 then strLength + int last else int last
+
+          if first >= strLength || first >= last then
+            "" |> DString |> Ply
+          else
+            let textElemEnumerator =
+              System.Globalization.StringInfo.GetTextElementEnumerator(s)
+            let mutable startIndex = 0
+            let mutable endIndex = 0
+            let mutable index = 0
+
+            while textElemEnumerator.MoveNext() do
+              if index = first then startIndex <- textElemEnumerator.ElementIndex
+              if index = last then endIndex <- textElemEnumerator.ElementIndex
+              index <- index + 1
+
+            if endIndex = 0 then endIndex <- s.Length
+            let length = endIndex - startIndex
+            s.Substring(startIndex, length) |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
