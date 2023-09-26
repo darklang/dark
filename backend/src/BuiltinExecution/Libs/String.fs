@@ -299,22 +299,16 @@ let fns : List<BuiltInFn> =
           Param.make "to" TInt "" ]
       returnType = TString
       description =
-        "Returns the substring of <param string> between the <param from> and <param
-         to> indices.
-
+        "Returns the substring of <param string> between the <param from> and <param to> indices.
          Negative indices start counting from the end of <param string>."
       fn =
         (function
-        | _, _, [ DString s; DInt first; DInt last ] ->
-
-          let sliceSeq start stop seq =
-            seq |> Seq.skip start |> Seq.take (stop - start)
-
-          let chars = String.toEgcSeq s
-
-          chars
-          |> sliceSeq (int first) (int last)
-          |> Seq.fold (fun acc char -> acc + char) ""
+        | _, _, [ DString s; DInt fisrt; DInt last ] ->
+          let charSeq = String.toEgcSeq s
+          charSeq
+          |> Seq.skip (int fisrt)
+          |> Seq.take (int (last - fisrt))
+          |> String.concat ""
           |> DString
           |> Ply
         | _ -> incorrectArgs ())
