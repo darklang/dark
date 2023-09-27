@@ -46,13 +46,13 @@ let fns : List<BuiltInFn> =
             let label = System.ReadOnlySpan<char>("PUBLIC KEY".ToCharArray())
             let chars = PemEncoding.Write(label, data)
             let str = new System.String(chars) + "\n"
-            str |> DString |> resultOk
+            str |> DString |> resultOk |> Ply
           with e ->
             // If it doesn't find BEGIN CERTIFICATE that, it errors with No
             // certificates. If it does find that, it tries to parse it, returning
             // X509: failed to parse certificate if it fails (either data is bullshit
             // or it's not an RSA cert).
-            resultError (DString "No certificates")
+            resultError (DString "No certificates") |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

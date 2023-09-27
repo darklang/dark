@@ -540,45 +540,32 @@ let healthCheck : LibService.Kubernetes.HealthCheck =
 
 let toProgram (c : T) : Ply<RT.Program> =
   uply {
-    let! dbs =
+    let dbs =
       c.dbs
       |> Map.values
-      |> Ply.List.mapSequentially (fun db ->
-        uply {
-          let! dbRT = PT2RT.DB.toRT db
-          return (db.name, dbRT)
-        })
-      |> Ply.map Map.ofList
+      |> List.map (fun db -> (db.name, PT2RT.DB.toRT db))
+      |> Map.ofList
 
-    let! userFns =
+    let userFns =
       c.userFunctions
       |> Map.values
-      |> Ply.List.mapSequentially (fun f ->
-        uply {
-          let! fn = PT2RT.UserFunction.toRT f
-          return (PT2RT.FnName.UserProgram.toRT f.name, fn)
-        })
-      |> Ply.map Map.ofList
+      |> List.map (fun f ->
+        (PT2RT.FnName.UserProgram.toRT f.name, PT2RT.UserFunction.toRT f))
+      |> Map.ofList
 
-    let! userTypes =
+    let userTypes =
       c.userTypes
       |> Map.values
-      |> Ply.List.mapSequentially (fun t ->
-        uply {
-          let! typ = PT2RT.UserType.toRT t
-          return (PT2RT.TypeName.UserProgram.toRT t.name, typ)
-        })
-      |> Ply.map Map.ofList
+      |> List.map (fun t ->
+        (PT2RT.TypeName.UserProgram.toRT t.name, PT2RT.UserType.toRT t))
+      |> Map.ofList
 
-    let! userConstants =
+    let userConstants =
       c.userConstants
       |> Map.values
-      |> Ply.List.mapSequentially (fun c ->
-        uply {
-          let! constant = PT2RT.UserConstant.toRT c
-          return (PT2RT.ConstantName.UserProgram.toRT c.name, constant)
-        })
-      |> Ply.map Map.ofList
+      |> List.map (fun c ->
+        (PT2RT.ConstantName.UserProgram.toRT c.name, PT2RT.UserConstant.toRT c))
+      |> Map.ofList
 
     let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
 

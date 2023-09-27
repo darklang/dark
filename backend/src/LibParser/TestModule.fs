@@ -271,9 +271,9 @@ let parseSingleTestFromFile
       |> parseTest
 
     let! actual =
-      wtTest.actual |> WT2PT.Expr.toPT resolver [] |> Ply.bind PT2RT.Expr.toRT
+      wtTest.actual |> WT2PT.Expr.toPT resolver [] |> Ply.map PT2RT.Expr.toRT
     let! expected =
-      wtTest.expected |> WT2PT.Expr.toPT resolver [] |> Ply.bind PT2RT.Expr.toRT
+      wtTest.expected |> WT2PT.Expr.toPT resolver [] |> Ply.map PT2RT.Expr.toRT
     return
       { actual = actual
         expected = expected

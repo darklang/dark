@@ -430,26 +430,26 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     ("headers", responseHeaders)
                     ("body", DBytes response.body) ]
                   |> Dval.record typ (Some [])
-                  |> Ply.bind resultOk
+                  |> Ply.map resultOk
 
               // TODO: include a DvalSource rather than SourceNone
-              | Error(BadUrl details) -> return! resultErrorStr $"Bad URL: {details}"
-              | Error(Timeout) -> return! resultErrorStr $"Request timed out"
-              | Error(NetworkError) -> return! resultErrorStr $"Network error"
-              | Error(Other details) -> return! resultErrorStr details
+              | Error(BadUrl details) -> return resultErrorStr $"Bad URL: {details}"
+              | Error(Timeout) -> return resultErrorStr $"Request timed out"
+              | Error(NetworkError) -> return resultErrorStr $"Network error"
+              | Error(Other details) -> return resultErrorStr details
             }
 
           | Error reqHeadersErr, _ ->
             uply {
               match reqHeadersErr with
-              | BadInput details -> return! resultErrorStr details
+              | BadInput details -> return resultErrorStr details
               | TypeMismatch details ->
                 return raiseUntargetedRTE (RuntimeError.oldError details)
             }
 
           | _, None ->
             let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
-            uply { return! resultErrorStr error }
+            uply { return resultErrorStr error }
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

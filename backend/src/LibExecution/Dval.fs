@@ -294,13 +294,21 @@ let enum
 
 let optionType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0
 
-let optionSome (innerType : ValueType) (dv : Dval) : Ply<Dval> =
-  enum optionType optionType (Some [ innerType ]) "Some" [ dv ]
+let optionSome (innerType : ValueType) (dv : Dval) : Dval =
+  let dvalType = toValueType dv
+  match mergeValueTypes innerType dvalType with
+  | Ok typ ->
+    DEnum(optionType, optionType, ignoreAndUseEmpty [ typ ], "Some", [ dv ])
+  | Error() ->
+    mergeFailureRte
+      SourceNone
+      (ValueType.Known(KTCustomType(optionType, [ innerType ])))
+      (ValueType.Known(KTCustomType(optionType, [ dvalType ])))
 
-let optionNone (innerType : ValueType) : Ply<Dval> =
-  enum optionType optionType (Some [ innerType ]) "None" []
+let optionNone (innerType : ValueType) : Dval =
+  DEnum(optionType, optionType, ignoreAndUseEmpty [ innerType ], "None", [])
 
-let option (innerType : ValueType) (dv : Option<Dval>) : Ply<Dval> =
+let option (innerType : ValueType) (dv : Option<Dval>) : Dval =
   match dv with
   | Some dv -> optionSome innerType dv
   | None -> optionNone innerType
@@ -309,21 +317,49 @@ let option (innerType : ValueType) (dv : Option<Dval>) : Ply<Dval> =
 
 let resultType = TypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0
 
-let resultOk (okType : ValueType) (errorType : ValueType) (dv : Dval) : Ply<Dval> =
-  enum resultType resultType (Some [ okType; errorType ]) "Ok" [ dv ]
+let resultOk (okType : ValueType) (errorType : ValueType) (dvOk : Dval) : Dval =
+  let dvalType = toValueType dvOk
+  match mergeValueTypes okType dvalType with
+  | Ok typ ->
+    DEnum(
+      resultType,
+      resultType,
+      ignoreAndUseEmpty [ typ; errorType ],
+      "Ok",
+      [ dvOk ]
+    )
+  | Error() ->
+    mergeFailureRte
+      SourceNone
+      (ValueType.Known(KTCustomType(resultType, [ okType; errorType ])))
+      (ValueType.Known(KTCustomType(resultType, [ dvalType; errorType ])))
 
 let resultError
   (okType : ValueType)
   (errorType : ValueType)
-  (dv : Dval)
-  : Ply<Dval> =
-  enum resultType resultType (Some [ okType; errorType ]) "Error" [ dv ]
+  (dvError : Dval)
+  : Dval =
+  let dvalType = toValueType dvError
+  match mergeValueTypes errorType dvalType with
+  | Ok typ ->
+    DEnum(
+      resultType,
+      resultType,
+      ignoreAndUseEmpty [ okType; typ ],
+      "Error",
+      [ dvError ]
+    )
+  | Error() ->
+    mergeFailureRte
+      SourceNone
+      (ValueType.Known(KTCustomType(resultType, [ okType; errorType ])))
+      (ValueType.Known(KTCustomType(resultType, [ okType; dvalType ])))
 
 let result
   (okType : ValueType)
   (errorType : ValueType)
   (dv : Result<Dval, Dval>)
-  : Ply<Dval> =
+  : Dval =
   match dv with
   | Ok dv -> resultOk okType errorType dv
   | Error dv -> resultError okType errorType dv

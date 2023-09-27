@@ -42,18 +42,16 @@ let fns : List<BuiltInFn> =
       description =
         "Creates a new directory at the specified <param path>. If the directory already exists, no action is taken. Returns a Result type indicating success or failure."
       fn =
-        let resultOk = Dval.resultOk VT.unit VT.string
-        let resultError = Dval.resultError VT.unit VT.string
+        let resultOk r = Dval.resultOk VT.unit VT.string r |> Ply
+        let resultError r = Dval.resultError VT.unit VT.string r |> Ply
         (function
         | _, _, [ DString path ] ->
-          uply {
-            try
-              System.IO.Directory.CreateDirectory(path)
-              |> ignore<System.IO.DirectoryInfo>
-              return! resultOk DUnit
-            with e ->
-              return! resultError (DString e.Message)
-          }
+          try
+            System.IO.Directory.CreateDirectory(path)
+            |> ignore<System.IO.DirectoryInfo>
+            resultOk DUnit
+          with e ->
+            resultError (DString e.Message)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -67,17 +65,15 @@ let fns : List<BuiltInFn> =
       description =
         "Deletes the directory at the specified <param path>. If <param recursive> is set to true, it will delete the directory and its contents. If set to false (default), it will only delete an empty directory. Returns a Result type indicating success or failure."
       fn =
-        let resultOk = Dval.resultOk VT.unit VT.string
-        let resultError = Dval.resultError VT.unit VT.string
+        let resultOk r = Dval.resultOk VT.unit VT.string r |> Ply
+        let resultError r = Dval.resultError VT.unit VT.string r |> Ply
         (function
         | _, _, [ DString path ] ->
-          uply {
-            try
-              System.IO.Directory.Delete(path, false)
-              return! resultOk DUnit
-            with e ->
-              return! resultError (DString e.Message)
-          }
+          try
+            System.IO.Directory.Delete(path, false)
+            resultOk DUnit
+          with e ->
+            resultError (DString e.Message)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

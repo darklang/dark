@@ -162,8 +162,8 @@ let fns : List<BuiltInFn> =
 
           match result with
           | Some map ->
-            map |> Map.toList |> Dval.dict dictType |> Dval.optionSome optType
-          | None -> Dval.optionNone optType
+            map |> Map.toList |> Dval.dict dictType |> Dval.optionSome optType |> Ply
+          | None -> Dval.optionNone optType |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -180,7 +180,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict(_vtTODO, o); DString s ] ->
-          Map.find s o |> Dval.option VT.unknownTODO
+          Map.find s o |> Dval.option VT.unknownTODO |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
