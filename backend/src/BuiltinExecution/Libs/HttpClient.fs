@@ -70,7 +70,7 @@ module RequestError =
     | BadUrl of BadUrl.BadUrlDetails
     | Timeout
     | HeaderError of HeaderError.HeaderError
-    | IOException of string
+    | IOError of string
     | ConnectionError of string
 
   let toDT (err : RequestError) : Ply<Dval> =
@@ -85,7 +85,7 @@ module RequestError =
           | HeaderError err ->
             let! err = HeaderError.toDT err
             return "HeaderError", [ err ]
-          | IOException e -> return "IOException", [ DString e ]
+          | IOError e -> return "IOError", [ DString e ]
           | ConnectionError e -> return "ConnectionError", [ DString e ]
         }
 
@@ -377,7 +377,7 @@ let makeRequest
         return
           Error(RequestError.RequestError.BadUrl BadUrl.BadUrlDetails.InvalidUri)
       | :? IOException as e ->
-        return Error(RequestError.RequestError.IOException e.Message)
+        return Error(RequestError.RequestError.IOError e.Message)
 
       | :? HttpRequestException as e ->
         // This is a bit of an awkward case. I'm unsure how it fits into our model.

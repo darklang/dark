@@ -14,7 +14,7 @@ module Darklang =
         | BadUrl of BadUrlDetails
         | Timeout
         | HeaderError of HeaderError
-        | IOException of String
+        | IOError of String
         | ConnectionError of String
 
       let toString (e: RequestError) : String =
@@ -29,7 +29,7 @@ module Darklang =
         | HeaderError details ->
           match details with
           | EmptyKey -> "Empty key"
-        | IOException details -> $"URI format exception: {details}"
+        | IOError details -> $"URI format exception: {details}"
         | ConnectionError details -> $"HTTP request exception: {details}"
 
 
