@@ -626,7 +626,6 @@ module Errors =
    | var -> "pass") = "pass"
 
 
-
 module TypeErrors =
   type TestType =
     | NoArgs
@@ -646,3 +645,13 @@ module TypeErrors =
   // enum with a single wildcard
   (match TestType.TwoArgs(1, 2) with
    | TwoArgs _ -> "wildcards allowed") = "wildcards allowed"
+
+
+module GuardClause =
+  (match 5 with
+   | x when x > 0 -> true
+   | _ -> false) = true
+
+  (match -5 with
+   | x when x > 0 -> true
+   | _ -> false) = false
