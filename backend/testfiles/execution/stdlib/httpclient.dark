@@ -248,7 +248,7 @@ module Disallowed =
     "http://[0:0:0:0:0:0:0:0]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::]:80) Could not connect"
   )
 
@@ -288,7 +288,7 @@ module Disallowed =
     "http://[::1]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::1]:80) Could not connect"
   )
 
@@ -297,7 +297,7 @@ module Disallowed =
     "http://[0:0:0:0:0:0:0:1]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::1]:80) Could not connect"
   )
 
@@ -306,7 +306,7 @@ module Disallowed =
     "http://[0000:0000:0000:0000:0000:0000:0000:0001]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::1]:80) Could not connect"
   )
 
@@ -325,7 +325,7 @@ module Disallowed =
     "http://[::ffff:7f00:11]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::ffff:127.0.0.17]:80) Could not connect"
   )
 
@@ -334,7 +334,7 @@ module Disallowed =
     "http://[0:0:0:0:0:ffff:7f00:0011]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::ffff:127.0.0.17]:80) Could not connect"
   )
 
@@ -343,7 +343,7 @@ module Disallowed =
     "http://[0000:0000:0000:0000:0000:ffff:7f00:0011]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::ffff:127.0.0.17]:80) Could not connect"
   )
 
@@ -393,7 +393,7 @@ module Disallowed =
     "http://[::ffff:a9fe:a9fe]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::ffff:169.254.169.254]:80) Could not connect"
   )
 
@@ -402,7 +402,7 @@ module Disallowed =
     "http://[0:0:0:0:0:ffff:a9fe:a9fe]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::ffff:169.254.169.254]:80) Could not connect"
   )
 
@@ -411,7 +411,7 @@ module Disallowed =
     "http://[0000:0000:0000:0000:0000:ffff:a9fe:a9fe]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::ffff:169.254.169.254]:80) Could not connect"
   )
 
@@ -440,7 +440,7 @@ module Disallowed =
     "http://[::ffff:ac10:1]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::ffff:172.16.0.1]:80) Could not connect"
   )
 
@@ -449,7 +449,7 @@ module Disallowed =
     "http://[0:0:0:0:0:ffff:ac10:0001]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::ffff:172.16.0.1]:80) Could not connect"
   )
 
@@ -458,7 +458,7 @@ module Disallowed =
     "http://[0000:0000:0000:0000:0000:ffff:ac10:0001]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::ffff:172.16.0.1]:80) Could not connect"
   )
 
@@ -477,7 +477,7 @@ module Disallowed =
     "http://[::ffff:c0a8:101]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::ffff:192.168.1.1]:80) Could not connect"
   )
 
@@ -486,7 +486,7 @@ module Disallowed =
     "http://[0:0:0:0:0:ffff:c0a8:0101]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::ffff:192.168.1.1]:80) Could not connect"
   )
 
@@ -495,7 +495,7 @@ module Disallowed =
     "http://[0000:0000:0000:0000:0000:ffff:c0a8:0101]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect ([::ffff:192.168.1.1]:80) Could not connect"
   )
 
@@ -506,7 +506,7 @@ module Disallowed =
     "http://localtest.me"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect (localtest.me:80) Could not connect"
   )
   // 0.0.0.0
@@ -515,7 +515,7 @@ module Disallowed =
     "http://c.cx"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Could not connect (c.cx:80) Could not connect"
   )
 
@@ -586,7 +586,7 @@ module BadSSL =
     "http://thenonexistingurlforsure.com"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "Name or service not known (thenonexistingurlforsure.com:80) Name or service not known"
   )
 
@@ -595,7 +595,7 @@ module BadSSL =
     "https://self-signed.badssl.com"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.HttpRequestException
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
       "The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot"
   )
 

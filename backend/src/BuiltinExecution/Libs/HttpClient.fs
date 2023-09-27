@@ -69,11 +69,9 @@ module RequestError =
   type RequestError =
     | BadUrl of BadUrl.BadUrlDetails
     | Timeout
-    | NetworkError
     | HeaderError of HeaderError.HeaderError
-    | ArgumentException of string
     | IOException of string
-    | HttpRequestException of string
+    | ConnectionError of string
 
   let toDT (err : RequestError) : Ply<Dval> =
     uply {
@@ -84,13 +82,11 @@ module RequestError =
             let! details = BadUrl.toDT details
             return "BadUrl", [ details ]
           | Timeout -> return "Timeout", []
-          | NetworkError -> return "NetworkError", []
           | HeaderError err ->
             let! err = HeaderError.toDT err
             return "HeaderError", [ err ]
-          | ArgumentException e -> return "ArgumentException", [ DString e ]
           | IOException e -> return "IOException", [ DString e ]
-          | HttpRequestException e -> return "HttpRequestException", [ DString e ]
+          | ConnectionError e -> return "ConnectionError", [ DString e ]
         }
 
       let typeName =
@@ -362,26 +358,18 @@ let makeRequest
         config.telemetryAddTag "error.msg" "Timeout"
         return Error RequestError.RequestError.Timeout
 
-      | :? System.ArgumentException as e ->
+      | :? System.ArgumentException as e when
+        e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')"
+        ->
         // We know of one specific case indicating Unsupported Protocol
         // If we get this otherwise, return generic error
-        //
-        // TODO: would this be better as a guard (i.e. `when e.Message = ...`),
-        //   leaving other cases un-caught?
-        if
-          e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')"
-        then
-          config.telemetryAddTag "error" true
-          config.telemetryAddTag "error.msg" "Unsupported Protocol"
-          return
-            Error(
-              RequestError.RequestError.BadUrl
-                BadUrl.BadUrlDetails.UnsupportedProtocol
-            )
-        else
-          config.telemetryAddTag "error" true
-          config.telemetryAddTag "error.msg" e.Message
-          return Error(RequestError.RequestError.ArgumentException e.Message)
+        config.telemetryAddTag "error" true
+        config.telemetryAddTag "error.msg" "Unsupported Protocol"
+        return
+          Error(
+            RequestError.RequestError.BadUrl
+              BadUrl.BadUrlDetails.UnsupportedProtocol
+          )
 
       | :? System.UriFormatException ->
         config.telemetryAddTag "error" true
@@ -403,7 +391,7 @@ let makeRequest
 
         return
           Error(
-            RequestError.RequestError.HttpRequestException(
+            RequestError.RequestError.ConnectionError(
               Exception.getMessages e |> String.concat " "
             )
           )

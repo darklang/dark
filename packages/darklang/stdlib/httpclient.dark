@@ -13,11 +13,9 @@ module Darklang =
       type RequestError =
         | BadUrl of BadUrlDetails
         | Timeout
-        | NetworkError
         | HeaderError of HeaderError
-        | ArgumentException of String
         | IOException of String
-        | HttpRequestException of String
+        | ConnectionError of String
 
       let toString (e: RequestError) : String =
         match e with
@@ -31,10 +29,8 @@ module Darklang =
         | HeaderError details ->
           match details with
           | EmptyKey -> "Empty key"
-        | ArgumentException details -> $"Argument exception: {details}"
         | IOException details -> $"URI format exception: {details}"
-        | HttpRequestException details -> $"HTTP request exception: {details}"
-        | NetworkError -> "Network error"
+        | ConnectionError details -> $"HTTP request exception: {details}"
 
 
       /// The response from a HTTP request
