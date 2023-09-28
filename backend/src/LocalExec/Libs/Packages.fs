@@ -142,12 +142,13 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let! fns =
+            let fns =
+              let typeName =
+                FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0)
+
               fns
-              |> Ply.List.mapSequentially (fun (owner, fnname, modules, version) ->
-                Dval.record
-                  (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0))
-                  (Some [])
+              |> List.map (fun (owner, fnname, modules, version) ->
+                let fields =
                   [ ("owner", DString owner)
                     ("modules",
                      modules
@@ -155,7 +156,9 @@ let fns : List<BuiltInFn> =
                      |> List.map DString
                      |> Dval.list VT.string)
                     ("name", DString fnname)
-                    ("version", DInt version) ])
+                    ("version", DInt version) ]
+
+                DRecord(typeName, typeName, [], Map fields))
 
             return Dval.list VT.unknownTODO fns
           }
@@ -189,21 +192,20 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let! types =
+            let types =
+              let typeName = FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0)
               types
-              |> Ply.List.mapSequentially
-                (fun (owner, typename, modules, version) ->
-                  Dval.record
-                    (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0))
-                    (Some [])
-                    [ ("owner", DString owner)
-                      ("modules",
-                       modules
-                       |> String.split "."
-                       |> List.map DString
-                       |> Dval.list VT.unknownTODO)
-                      ("name", DString typename)
-                      ("version", DInt version) ])
+              |> List.map (fun (owner, typename, modules, version) ->
+                let fields =
+                  [ ("owner", DString owner)
+                    ("modules",
+                     modules
+                     |> String.split "."
+                     |> List.map DString
+                     |> Dval.list VT.unknownTODO)
+                    ("name", DString typename)
+                    ("version", DInt version) ]
+                DRecord(typeName, typeName, [], Map fields))
 
             return Dval.list VT.unknownTODO types
           }
@@ -237,12 +239,12 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let! consts =
+            let consts =
+              let typeName =
+                FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0)
               consts
-              |> Ply.List.mapSequentially (fun (owner, fnname, modules, version) ->
-                Dval.record
-                  (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0))
-                  (Some [])
+              |> List.map (fun (owner, fnname, modules, version) ->
+                let fields =
                   [ ("owner", DString owner)
                     ("modules",
                      modules
@@ -250,7 +252,8 @@ let fns : List<BuiltInFn> =
                      |> List.map DString
                      |> Dval.list VT.unknownTODO)
                     ("name", DString fnname)
-                    ("version", DInt version) ])
+                    ("version", DInt version) ]
+                DRecord(typeName, typeName, [], Map fields))
 
             return Dval.list VT.unknownTODO consts
           }

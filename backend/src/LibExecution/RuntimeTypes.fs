@@ -728,10 +728,6 @@ module RuntimeError =
 
   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
     let typeName = name [] "Error" 0
-
-    // VTTODO This should be created via Dval.enum, but we have an F# cyclical dependency issue:
-    // - we want to create a RuntimeError via Dval.enum
-    // - when Dval.enum fails, it creates a RuntimeError
     DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError
 
 
@@ -1274,25 +1270,35 @@ and Notifier = ExecutionState -> string -> Metadata -> unit
 
 // All state used while running a program
 and ExecutionState =
-  { builtIns : BuiltIns
-    packageManager : PackageManager
+  { // -- Set consistently across a runtime --
+    builtIns : BuiltIns
     tracing : Tracing
-    program : Program
     test : TestContext
 
-    // Called to report exceptions
+    /// Called to report exceptions
     reportException : ExceptionReporter
 
-    // Called to notify that something of interest (that isn't an exception)
-    // has happened.
-    //
-    // Useful for tracking behaviour we want to deprecate, understanding what
-    // users are doing, etc.
+    /// Called to notify that something of interest (that isn't an exception)
+    /// has happened.
+    ///
+    /// Useful for tracking behaviour we want to deprecate, understanding what
+    /// users are doing, etc.
     notify : Notifier
+
+    // -- Set at the start of an execution --
+    program : Program // TODO: rename to UserCode?
+
+
+    // -- Can change over time during execution --
 
     // tlid/id of the caller - used to find the source of an error. It's not the end
     // of the world if this is wrong or missing, but it will give worse errors.
-    caller : Source }
+    caller : Source
+
+    packageManager : PackageManager // TODO update to availableTypes?
+
+    typeSymbolTable : TypeSymbolTable
+  }
 
 and Functions =
   { builtIn : Map<FnName.BuiltIn, BuiltInFn>
@@ -1305,14 +1311,18 @@ and Constants =
     userProgram : Map<ConstantName.UserProgram, UserConstant.T> }
 
 and Types =
-  { builtIn : Map<TypeName.BuiltIn, BuiltInType>
+  { typeSymbolTable : TypeSymbolTable
+
+    builtIn : Map<TypeName.BuiltIn, BuiltInType>
     package : TypeName.Package -> Ply<Option<PackageType.T>>
     userProgram : Map<TypeName.UserProgram, UserType.T> }
 
 
 module ExecutionState =
   let availableTypes (state : ExecutionState) : Types =
-    { builtIn = state.builtIns.types
+    { typeSymbolTable = state.typeSymbolTable
+
+      builtIn = state.builtIns.types
       package = state.packageManager.getType
       userProgram = state.program.types }
 
@@ -1329,7 +1339,11 @@ module ExecutionState =
 
 module Types =
   let empty =
-    { builtIn = Map.empty; package = (fun _ -> Ply None); userProgram = Map.empty }
+    { typeSymbolTable = Map.empty
+
+      builtIn = Map.empty
+      package = (fun _ -> Ply None)
+      userProgram = Map.empty }
 
   let find
     (name : TypeName.TypeName)

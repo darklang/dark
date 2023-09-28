@@ -821,13 +821,16 @@ and callFn
           + $"but here was called with {actualTypeArgs} type arguments and {actualArgs} arguments."
         raiseRTE caller (RuntimeError.oldError msg)
 
-      let newlyBoundTypeArgs = List.zip fn.typeParams typeArgs |> Map
-      let updatedTypeSymbolTable = Map.mergeFavoringRight tst newlyBoundTypeArgs
-      return! execFn state updatedTypeSymbolTable desc caller fn typeArgs args
+      let state =
+        let newlyBoundTypeArgs = List.zip fn.typeParams typeArgs |> Map
+        { state with
+            typeSymbolTable = Map.mergeFavoringRight tst newlyBoundTypeArgs }
+      return! execFn state desc caller fn typeArgs args
     | None ->
       // Functions which aren't implemented in the client may have results
       // available, otherwise they error.
       let fnResult = state.tracing.loadFnResult (caller, desc) args
+
 
       // TODO: in an old version, we executed the lambda with a fake value to
       // give enough livevalues for the editor to autocomplete. It may be worth
@@ -844,7 +847,6 @@ and callFn
 
 and execFn
   (state : ExecutionState)
-  (tst : TypeSymbolTable)
   (fnDesc : FnName.FnName)
   (caller : Source)
   (fn : Fn)
@@ -855,12 +857,12 @@ and execFn
     let types = ExecutionState.availableTypes state
 
     let typeArgsResolvedInFn = List.zip fn.typeParams typeArgs |> Map
-    let typeSymbolTable = Map.mergeFavoringRight tst typeArgsResolvedInFn
+    let typeSymbolTable =
+      Map.mergeFavoringRight state.typeSymbolTable typeArgsResolvedInFn
 
     match! TypeChecker.checkFunctionCall types typeSymbolTable fn args with
     | Error rte -> return raiseRTE caller rte
     | Ok() ->
-
       let! result =
         match fn.fn with
         | BuiltInFunction f ->

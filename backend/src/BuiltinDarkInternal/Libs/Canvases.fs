@@ -213,12 +213,11 @@ let fns : List<BuiltInFn> =
             //       |> Some)
             //   |> Dval.list VT.unknownTODO
 
-            return!
-              Dval.record
-                (FQName.BuiltIn(typ "Program" 0))
-                (Some [])
-                [ "types", types; "fns", fns ]
-              |> Ply.map (Dval.resultOk VT.unknownTODO VT.string)
+
+            let typeName = FQName.BuiltIn(typ "Program" 0)
+            return
+              DRecord(typeName, typeName, [], Map [ "types", types; "fns", fns ])
+              |> Dval.resultOk VT.unknownTODO VT.string
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

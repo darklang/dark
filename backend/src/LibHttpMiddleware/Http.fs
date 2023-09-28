@@ -22,7 +22,7 @@ module Request =
     (uri : string)
     (headers : List<string * string>)
     (body : byte array)
-    : Ply<RT.Dval> =
+    : RT.Dval =
     let headers =
       headers
       |> lowercaseHeaderKeys
@@ -37,8 +37,9 @@ module Request =
         )
       )
 
-    [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]
-    |> Dval.record typ (Some [])
+    let fields =
+      [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]
+    RT.DRecord(typ, typ, [], Map fields)
 
 
 module Response =

@@ -71,24 +71,22 @@ let fns : List<BuiltInFn> =
                 (not (FnName.isInternalFn key)) && data.deprecated = NotDeprecated)
               |> Ply.List.mapSequentially (fun (key, data) ->
                 uply {
-                  let! parameters =
+                  let parameters =
                     data.parameters
-                    |> Ply.List.mapSequentially (fun p ->
-                      Dval.record
-                        fnParamTypeName
-                        (Some [])
-                        [ ("name", DString p.name)
-                          ("type", DString(typeNameToStr p.typ)) ])
-                    |> Ply.map (Dval.list VT.unknownTODO)
+                    |> List.map (fun p ->
+                      let fields =
+                        [ "name", DString p.name
+                          "type", DString(typeNameToStr p.typ) ]
+                      DRecord(fnParamTypeName, fnParamTypeName, [], Map fields))
+                    |> Dval.list VT.unknownTODO
 
-                  return!
-                    Dval.record
-                      fnTypeName
-                      (Some [])
-                      [ ("name", DString(FnName.builtinToString key))
-                        ("description", DString data.description)
-                        ("parameters", parameters)
-                        ("returnType", DString(typeNameToStr data.returnType)) ]
+                  let fields =
+                    [ "name", DString(FnName.builtinToString key)
+                      "description", DString data.description
+                      "parameters", parameters
+                      "returnType", DString(typeNameToStr data.returnType) ]
+
+                  return DRecord(fnTypeName, fnTypeName, [], Map fields)
                 })
 
             return Dval.list VT.unknownTODO fns

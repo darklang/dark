@@ -106,14 +106,13 @@ human-readable data."
               tableStats
               |> Ply.List.mapSequentially (fun ts ->
                 uply {
-                  let! v =
-                    [ ("disk", DInt(ts.diskBytes))
-                      ("rows", DInt(ts.rows))
-                      ("diskHuman", DString ts.diskHuman)
-                      ("rowsHuman", DString ts.rowsHuman) ]
-                    |> Dval.record typeName (Some [])
+                  let fields =
+                    [ "disk", DInt(ts.diskBytes)
+                      "rows", DInt(ts.rows)
+                      "diskHuman", DString ts.diskHuman
+                      "rowsHuman", DString ts.rowsHuman ]
 
-                  return (ts.relation, v)
+                  return (ts.relation, DRecord(typeName, typeName, [], Map fields))
                 })
               |> Ply.map (Dval.dict VT.unknownTODO)
 

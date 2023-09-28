@@ -28,7 +28,9 @@ module RoundtripTests =
   // if there are known exceptions, break down individual mappings as separate tests
 
   let types : RT.Types =
-    { builtIn = localBuiltIns.types
+    { typeSymbolTable = Map.empty
+
+      builtIn = localBuiltIns.types
       package = packageManager.getType
       userProgram = Map.empty }
 

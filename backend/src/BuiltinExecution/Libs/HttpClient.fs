@@ -425,12 +425,12 @@ let fns (config : Configuration) : List<BuiltInFn> =
                 let typ =
                   FQName.BuiltIn(TypeName.builtIn [ "HttpClient" ] "Response" 0)
 
-                return!
+                let fields =
                   [ ("statusCode", DInt(int64 response.statusCode))
                     ("headers", responseHeaders)
                     ("body", DBytes response.body) ]
-                  |> Dval.record typ (Some [])
-                  |> Ply.map resultOk
+
+                return DRecord(typ, typ, [], Map fields) |> resultOk
 
               | Error(BadUrl details) -> return resultErrorStr $"Bad URL: {details}"
               | Error(Timeout) -> return resultErrorStr $"Request timed out"

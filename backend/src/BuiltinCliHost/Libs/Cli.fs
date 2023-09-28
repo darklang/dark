@@ -31,7 +31,7 @@ module CliRuntimeError =
   /// to RuntimeError
   module RTE =
     module Error =
-      let toDT (et : Error) : Ply<RT.Dval> =
+      let toDT (et : Error) : RT.Dval =
         let (caseName, fields) =
           match et with
           | NoExpressionsToExecute -> "NoExpressionsToExecute", []
@@ -56,11 +56,11 @@ module CliRuntimeError =
             "NonIntReturned", [ RT2DT.Dval.toDT actuallyReturned ]
 
         let typeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
-        Dval.enum typeName typeName (Some []) caseName fields
+        DEnum(typeName, typeName, [], caseName, fields)
 
 
-    let toRuntimeError (e : Error) : Ply<RT.RuntimeError> =
-      Error.toDT e |> Ply.map RT.RuntimeError.fromDT
+    let toRuntimeError (e : Error) : RT.RuntimeError =
+      Error.toDT e |> RT.RuntimeError.fromDT
 
 let libExecutionContents =
   BuiltinExecution.Builtin.contents BuiltinExecution.Libs.HttpClient.defaultConfig
@@ -117,11 +117,11 @@ let execute
       let expr = PT2RT.Expr.toRT mod'.exprs[0]
       return! Exe.executeExpr state 7777779489234UL symtable expr
     else if mod'.exprs.Length = 0 then
-      let! rte =
+      let rte =
         CliRuntimeError.NoExpressionsToExecute |> CliRuntimeError.RTE.toRuntimeError
       return Error((None, rte))
     else // mod'.exprs.Length > 1
-      let! rte =
+      let rte =
         CliRuntimeError.MultipleExpressionsToExecute(mod'.exprs |> List.map string)
         |> CliRuntimeError.RTE.toRuntimeError
       return Error((None, rte))
@@ -148,7 +148,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [], [ DString filename; DString code; DDict(_vtTODO, symtable) ] ->
           uply {
-            let exnError (e : exn) : Ply<RuntimeError> =
+            let exnError (e : exn) : RuntimeError =
               let msg = Exception.getMessages e |> String.concat "\n"
               let metadata =
                 Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
@@ -163,8 +163,7 @@ let fns : List<BuiltInFn> =
                   return!
                     LibParser.Canvas.parse nameResolver filename code |> Ply.map Ok
                 with e ->
-                  let! err = exnError e
-                  return Error err
+                  return Error(exnError e)
               }
 
             try
@@ -173,14 +172,15 @@ let fns : List<BuiltInFn> =
                 match! execute state mod' symtable with
                 | Ok(DInt i) -> return resultOk (DInt i)
                 | Ok result ->
-                  return!
+                  return
                     CliRuntimeError.NonIntReturned result
                     |> CliRuntimeError.RTE.toRuntimeError
-                    |> Ply.map (RuntimeError.toDT >> resultError)
+                    |> RuntimeError.toDT
+                    |> resultError
                 | Error(_, e) -> return e |> RuntimeError.toDT |> resultError
               | Error e -> return e |> RuntimeError.toDT |> resultError
             with e ->
-              return! exnError e |> Ply.map (RuntimeError.toDT >> resultError)
+              return exnError e |> RuntimeError.toDT |> resultError
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -206,15 +206,15 @@ let fns : List<BuiltInFn> =
         function
         | state, [], [ DString functionName; DList(_vtTODO, args) ] ->
           uply {
-            let err (msg : string) (metadata : List<string * string>) : Ply<Dval> =
-              let metadata = metadata |> List.map (fun (k, v) -> k, DString v)
-              Dval.record
-                (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))
-                (Some [])
+            let err (msg : string) (metadata : List<string * string>) : Dval =
+              let metadata = metadata |> List.map (Tuple2.mapSecond DString)
+              let typeName = FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)
+              let fields =
                 [ "msg", DString msg; "metadata", Dval.dict VT.unknownTODO metadata ]
-              |> Ply.map resultError
 
-            let exnError (e : exn) : Ply<Dval> =
+              DRecord(typeName, typeName, [], Map fields) |> resultError
+
+            let exnError (e : exn) : Dval =
               let msg = Exception.getMessages e |> String.concat "\n"
               let metadata =
                 Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
@@ -301,7 +301,7 @@ let fns : List<BuiltInFn> =
                     return resultOk (DString asString)
               | _ -> return incorrectArgs ()
             with e ->
-              return! exnError e
+              return exnError e
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
