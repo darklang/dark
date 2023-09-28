@@ -405,11 +405,11 @@ let fns : List<BuiltInFn> =
             try
               let array = List.toArray list
               do! Sort.sort fn array
-              return! array |> Array.toList |> Dval.list vt |> resultOk
+              return array |> Array.toList |> Dval.list vt |> resultOk
             with Sort.InvalidSortComparatorInt i ->
               let message =
                 $"Expected comparator function to return -1, 0, or 1, but it returned {i}"
-              return! resultError (DString message)
+              return resultError (DString message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -650,7 +650,7 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList(_vtTODO1, l1); DList(_vtTODO2, l2); DFnVal b ] ->
           uply {
             if List.length l1 <> List.length l2 then
-              return! Dval.optionNone optType
+              return Dval.optionNone optType
             else
               let list = List.zip l1 l2
 
@@ -661,7 +661,7 @@ let fns : List<BuiltInFn> =
                     Interpreter.applyFnVal state 0UL b [] args)
                   list
 
-              return! Dval.optionSome optType (Dval.list VT.unknownTODO result)
+              return Dval.optionSome optType (Dval.list VT.unknownTODO result)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -680,14 +680,14 @@ let fns : List<BuiltInFn> =
       fn =
         let optType = VT.unknownTODO
         (function
-        | _, _, [ DList(_, []) ] -> Dval.optionNone optType
+        | _, _, [ DList(_, []) ] -> Dval.optionNone optType |> Ply
         | _, _, [ DList(_, l) ] ->
           // Will return <= (length - 1)
           // Maximum value is Int64.MaxValue which is half of UInt64.MaxValue, but
           // that won't affect this as we won't have a list that big for a long long
           // long time.
           let index = RNG.GetInt32(l.Length)
-          (List.tryItem index l) |> Dval.option optType
+          (List.tryItem index l) |> Dval.option optType |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure

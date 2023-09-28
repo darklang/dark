@@ -80,7 +80,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getOption state db key
-            return! Dval.option VT.unknownDbTODO result
+            return Dval.option VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -110,9 +110,9 @@ let fns : List<BuiltInFn> =
               |> UserDB.getMany state db
 
             if List.length items = List.length keys then
-              return! items |> Dval.list valueType |> Dval.optionSome optType
+              return items |> Dval.list valueType |> Dval.optionSome optType
             else
-              return! Dval.optionNone optType
+              return Dval.optionNone optType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -368,8 +368,8 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.query state db b
 
               match results with
-              | Ok [ (_, v) ] -> return! Dval.optionSome optType v
-              | Ok _ -> return! Dval.optionNone optType
+              | Ok [ (_, v) ] -> return Dval.optionSome optType v
+              | Ok _ -> return Dval.optionNone optType
               | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
@@ -397,8 +397,8 @@ let fns : List<BuiltInFn> =
 
               match results with
               | Ok [ (key, dv) ] ->
-                return! Dval.optionSome optType (DTuple(DString key, dv, []))
-              | Ok _ -> return! Dval.optionNone optType
+                return Dval.optionSome optType (DTuple(DString key, dv, []))
+              | Ok _ -> return Dval.optionNone optType
               | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e

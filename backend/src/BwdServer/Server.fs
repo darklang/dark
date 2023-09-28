@@ -322,12 +322,11 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let! request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
           let inputVars = routeVars |> Map |> Map.add "request" request
 
-          let! handler = PT2RT.Handler.toRT handler
           let! canvas = Canvas.toProgram canvas
           let! (result, _) =
             CloudExe.executeHandler
               LibClientTypesToCloudTypes.Pusher.eventSerializer
-              handler
+              (PT2RT.Handler.toRT handler)
               canvas
               traceID
               inputVars

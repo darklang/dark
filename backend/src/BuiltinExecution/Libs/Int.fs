@@ -103,8 +103,8 @@ let fns : List<BuiltInFn> =
 
          Returns an {{Error}} if <param divisor> is {{0}}."
       fn =
-        let resultOk = Dval.resultOk VT.int VT.string
-        let resultError = Dval.resultError VT.int VT.string
+        let resultOk r = Dval.resultOk VT.int VT.string r |> Ply
+        let resultError r = Dval.resultError VT.int VT.string r |> Ply
         (function
         | _, _, [ DInt v; DInt d ] ->
           (try
@@ -178,8 +178,8 @@ let fns : List<BuiltInFn> =
         let resultError = Dval.resultError VT.int VT.string
         (function
         | _, _, [ DInt number; DInt exp as expdv ] ->
-          let okPipe r = r |> DInt |> resultOk
-          let errPipe e = e |> DString |> resultError
+          let okPipe r = r |> DInt |> resultOk |> Ply
+          let errPipe e = e |> DString |> resultError |> Ply
           (try
             if exp < 0L then argumentWasntPositive "exponent" expdv |> errPipe
             // TODO: do this in a package, and keep it simple here
@@ -346,12 +346,13 @@ let fns : List<BuiltInFn> =
         let resultError = Dval.resultError VT.int VT.string
         (function
         | _, _, [ DString s ] ->
-          (try
-            s |> System.Convert.ToInt64 |> DInt |> resultOk
-           with _e ->
-             $"Expected to parse String with only numbers, instead got \"{s}\""
-             |> DString
-             |> resultError)
+          try
+            s |> System.Convert.ToInt64 |> DInt |> resultOk |> Ply
+          with _e ->
+            $"Expected to parse String with only numbers, instead got \"{s}\""
+            |> DString
+            |> resultError
+            |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

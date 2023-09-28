@@ -69,45 +69,26 @@ let t
         else
           System.Guid.NewGuid() |> Task.FromResult
 
-      let! rtTypes =
+      let rtTypes =
         types
-        |> Ply.List.mapSequentially (fun typ ->
-          uply {
-            let! typRT = PT2RT.UserType.toRT typ
-            return (PT2RT.TypeName.UserProgram.toRT typ.name, typRT)
-          })
-        |> Ply.map Map.ofList
-        |> Ply.toTask
+        |> List.map (fun typ ->
+          (PT2RT.TypeName.UserProgram.toRT typ.name, PT2RT.UserType.toRT typ))
+        |> Map.ofList
 
-      let! rtDBs =
-        dbs
-        |> Ply.List.mapSequentially (fun db ->
-          uply {
-            let! dbRT = PT2RT.DB.toRT db
-            return (db.name, dbRT)
-          })
-        |> Ply.map Map.ofList
-        |> Ply.toTask
+      let rtDBs =
+        dbs |> List.map (fun db -> (db.name, PT2RT.DB.toRT db)) |> Map.ofList
 
-      let! rtFunctions =
+      let rtFunctions =
         functions
-        |> Ply.List.mapSequentially (fun fn ->
-          uply {
-            let! fn = PT2RT.UserFunction.toRT fn
-            return (fn.name, fn)
-          })
-        |> Ply.map Map.ofList
-        |> Ply.toTask
+        |> List.map (fun fn ->
+          (PT2RT.FnName.UserProgram.toRT fn.name, PT2RT.UserFunction.toRT fn))
+        |> Map.ofList
 
-      let! rtConstants =
+      let rtConstants =
         constants
-        |> Ply.List.mapSequentially (fun c ->
-          uply {
-            let! c = PT2RT.UserConstant.toRT c
-            return (c.name, c)
-          })
-        |> Ply.map Map.ofList
-        |> Ply.toTask
+        |> List.map (fun c ->
+          (PT2RT.ConstantName.UserProgram.toRT c.name, PT2RT.UserConstant.toRT c))
+        |> Map.ofList
 
       let! (state : RT.ExecutionState) =
         executionStateFor
@@ -133,7 +114,7 @@ let t
       let msg =
         $"\n\n{rhsMsg}\n\n{lhsMsg}\n\nTest location: {bold}{underline}{filename}:{lineNumber}{reset}"
 
-      let! expectedExpr = PT2RT.Expr.toRT expectedExpr |> Ply.toTask
+      let expectedExpr = PT2RT.Expr.toRT expectedExpr
       let! expected = Exe.executeExpr state Map.empty expectedExpr
 
       // Initialize
@@ -148,7 +129,7 @@ let t
           state
 
       // Run the actual program (left-hand-side of the =)
-      let! actualExpr = PT2RT.Expr.toRT actualExpr |> Ply.toTask
+      let actualExpr = PT2RT.Expr.toRT actualExpr
       let! actual = Exe.executeExpr state Map.empty actualExpr
 
       if System.Environment.GetEnvironmentVariable "DEBUG" <> null then

@@ -52,8 +52,8 @@ let fns : List<BuiltInFn> =
           uply {
             let! name = Canvas.canvasIDForDomain domain
             match name with
-            | Some name -> return! resultOk (DUuid name)
-            | None -> return! resultError (DString "Canvas not found")
+            | Some name -> return resultOk (DUuid name)
+            | None -> return resultError (DString "Canvas not found")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

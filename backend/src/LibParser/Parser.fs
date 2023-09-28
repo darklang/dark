@@ -34,7 +34,7 @@ let parseRTExpr
   : Ply<LibExecution.RuntimeTypes.Expr> =
   code
   |> parsePTExpr resolver filename
-  |> Ply.bind LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
+  |> Ply.map LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
 
 type Packages =
   List<PT.PackageFn.T> * List<PT.PackageType.T> * List<PT.PackageConstant.T>

@@ -31,9 +31,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               let! contents = System.IO.File.ReadAllBytesAsync path
-              return! resultOk (DBytes contents)
+              return resultOk (DBytes contents)
             with e ->
-              return! resultError (DString($"Error reading file: {e.Message}"))
+              return resultError (DString($"Error reading file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -55,9 +55,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               do! System.IO.File.WriteAllBytesAsync(path, contents)
-              return! resultOk DUnit
+              return resultOk DUnit
             with e ->
-              return! resultError (DString($"Error writing file: {e.Message}"))
+              return resultError (DString($"Error writing file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -79,9 +79,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               do! System.IO.File.WriteAllBytesAsync(path, content)
-              return! resultOk DUnit
+              return resultOk DUnit
             with e ->
-              return! resultError (DString e.Message)
+              return resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -96,17 +96,15 @@ let fns : List<BuiltInFn> =
       description =
         "Creates a new temporary file with a unique name in the system's temporary directory. Returns a Result type containing the temporary file path or an error if the creation fails."
       fn =
-        let resultOk = Dval.resultOk VT.string VT.string
-        let resultError = Dval.resultError VT.string VT.string
+        let resultOk r = Dval.resultOk VT.string VT.string r |> Ply
+        let resultError r = Dval.resultError VT.string VT.string r |> Ply
         (function
         | _, _, [ DUnit ] ->
-          uply {
-            try
-              let tempPath = System.IO.Path.GetTempFileName()
-              return! resultOk (DString tempPath)
-            with e ->
-              return! resultError (DString e.Message)
-          }
+          try
+            let tempPath = System.IO.Path.GetTempFileName()
+            resultOk (DString tempPath)
+          with e ->
+            resultError (DString e.Message)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -191,17 +189,15 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the size of the file at the specified <param path> in bytes, or an error if the file does not exist or an error occurs"
       fn =
-        let resultOk = Dval.resultOk VT.int VT.string
-        let resultError = Dval.resultError VT.int VT.string
+        let resultOk r = Dval.resultOk VT.int VT.string r |> Ply
+        let resultError r = Dval.resultError VT.int VT.string r |> Ply
         (function
         | _, _, [ DString path ] ->
-          uply {
-            try
-              let fileInfo = System.IO.FileInfo(path)
-              return! resultOk (DInt fileInfo.Length)
-            with e ->
-              return! resultError (DString e.Message)
-          }
+          try
+            let fileInfo = System.IO.FileInfo(path)
+            resultOk (DInt fileInfo.Length)
+          with e ->
+            resultError (DString e.Message)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

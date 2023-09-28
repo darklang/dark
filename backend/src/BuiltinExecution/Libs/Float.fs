@@ -273,16 +273,16 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the <type Float> value wrapped in a {{Result}} of the <type String>"
       fn =
-        let resultOk = Dval.resultOk VT.float VT.string
-        let resultError = Dval.resultError VT.float VT.string
+        let resultOk r = Dval.resultOk VT.float VT.string r |> Ply
+        let resultError r = Dval.resultError VT.float VT.string r |> Ply
         (function
         | _, _, [ DString s ] ->
-          (try
+          try
             float (s) |> DFloat |> resultOk
-           with e ->
-             "Expected a String representation of an IEEE float"
-             |> DString
-             |> resultError)
+          with e ->
+            "Expected a String representation of an IEEE float"
+            |> DString
+            |> resultError
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
