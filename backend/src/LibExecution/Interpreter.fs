@@ -36,42 +36,37 @@ module ExecutionError =
     | NonStringInStringInterpolation of Dval
     | ConstDoesntExist of ConstantName.ConstantName
 
-  let toDT (e : Error) : Ply<RuntimeError> =
-    uply {
-      let typeName =
-        TypeName.fqPackage
-          "Darklang"
-          [ "LanguageTools"; "RuntimeErrors"; "Execution" ]
-          "Error"
-          0
+  let toDT (e : Error) : RuntimeError =
+    let typeName =
+      TypeName.fqPackage
+        "Darklang"
+        [ "LanguageTools"; "RuntimeErrors"; "Execution" ]
+        "Error"
+        0
 
-      let case (caseName : string) (fields : List<Dval>) : Ply<RuntimeError> =
-        Dval.enum typeName typeName (Some []) caseName fields
-        |> Ply.map RuntimeError.executionError
+    let case (caseName : string) (fields : List<Dval>) : RuntimeError =
+      DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.executionError
 
-      let (caseName, fields) =
-        match e with
-        | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
+    let (caseName, fields) =
+      match e with
+      | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
 
-          "MatchExprEnumPatternWrongCount",
-          [ DString caseName; DInt expected; DInt actual ]
-        | MatchExprPatternWrongType(expected, actual) ->
+        "MatchExprEnumPatternWrongCount",
+        [ DString caseName; DInt expected; DInt actual ]
+      | MatchExprPatternWrongType(expected, actual) ->
 
-          "MatchExprPatternWrongType", [ DString expected; RT2DT.Dval.toDT actual ]
-        | MatchExprUnmatched dv ->
+        "MatchExprPatternWrongType", [ DString expected; RT2DT.Dval.toDT actual ]
+      | MatchExprUnmatched dv ->
 
-          "MatchExprUnmatched", [ RT2DT.Dval.toDT dv ]
-        | NonStringInStringInterpolation dv ->
+        "MatchExprUnmatched", [ RT2DT.Dval.toDT dv ]
+      | NonStringInStringInterpolation dv ->
 
-          "NonStringInStringInterpolation", [ RT2DT.Dval.toDT dv ]
-        | ConstDoesntExist name ->
-          "ConstDoesntExist", [ RT2DT.ConstantName.toDT name ]
+        "NonStringInStringInterpolation", [ RT2DT.Dval.toDT dv ]
+      | ConstDoesntExist name -> "ConstDoesntExist", [ RT2DT.ConstantName.toDT name ]
 
-      return! case caseName fields
-    }
+    case caseName fields
 
-  let raise (source : Source) (e : Error) : Ply<'a> =
-    toDT e |> Ply.map (raiseRTE source)
+  let raise (source : Source) (e : Error) : 'a = toDT e |> raiseRTE source
 
 
 let rec evalConst (source : Source) (c : Const) : Dval =
@@ -731,12 +726,7 @@ let rec eval
               (List.zip case.fields fields)
 
           return!
-            Dval.enum
-              resolvedTypeName
-              sourceTypeName
-              VT.typeArgsTODO'
-              caseName
-              fields
+            TypeChecker.Dval.enum resolvedTypeName sourceTypeName caseName fields
 
     | EError(id, rte, exprs) ->
       let! (_ : List<Dval>) = Ply.List.mapSequentially (eval state tlid tst st) exprs

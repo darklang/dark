@@ -274,7 +274,7 @@ let fns : List<BuiltInFn> =
 
                           match! Json.parse types typ str with
                           | Ok v -> return v
-                          | Error e -> return! (Json.ParseError.toDT e)
+                          | Error e -> return Json.ParseError.toDT e
                         })
                       (List.zip expectedTypes stringArgs)
 

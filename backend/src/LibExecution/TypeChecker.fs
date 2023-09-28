@@ -509,3 +509,52 @@ let checkFunctionReturnType
   : Ply<Result<unit, RuntimeError>> =
   let context = FunctionCallResult(fn.name, fn.returnType, None)
   unify context types tst fn.returnType result
+
+
+module Dval =
+  /// Constructs a Dval.DRecord, ensuring that the fields match the expected shape
+  ///
+  /// note: if provided, the typeArgs must match the # of typeArgs expected by the type
+  let record
+    (typeName : TypeName.TypeName)
+    (fields : List<string * Dval>)
+    : Ply<Dval> =
+    let resolvedTypeName = typeName // TODO: alias lookup, etc.
+
+    let fields =
+      List.fold
+        (fun fields (k, v) ->
+          match fields, k, v with
+          // skip empty rows
+          | _, "", _ -> raiseUntargetedRTE (RuntimeError.oldError "Empty key")
+
+          // error if the key appears twice
+          | fields, k, _v when Map.containsKey k fields ->
+            raiseUntargetedRTE (RuntimeError.oldError $"Duplicate key: {k}")
+
+          // otherwise add it
+          | fields, k, v -> Map.add k v fields)
+        Map.empty
+        fields
+
+    // TODO:
+    // - pass in a (types: Types) arg
+    // - use it to determine type args of resultant Dval
+    // - ensure fields match the expected shape (defined by type args and field defs)
+    //   - this process should also effect the type args of the resultant Dval
+    DRecord(resolvedTypeName, typeName, VT.typeArgsTODO, fields) |> Ply
+
+
+  let enum
+    (resolvedTypeName : TypeName.TypeName) // todo: remove
+    (sourceTypeName : TypeName.TypeName)
+    (caseName : string)
+    (fields : List<Dval>)
+    : Ply<Dval> =
+    // TODO:
+    // - use passed-in Types to determine type args of resultant Dval
+    // - ensure fields match the expected shape (defined by type args and field defs)
+    //   - this process should also effect the type args of the resultant Dval
+
+    DEnum(resolvedTypeName, sourceTypeName, VT.typeArgsTODO, caseName, fields)
+    |> Ply

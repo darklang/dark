@@ -16,12 +16,12 @@
     <Compile Include="DvalDecoder.fs" />
     <Compile Include="NameResolutionError.fs" />
     <Compile Include="RuntimeTypesAst.fs" />
-    <Compile Include="DvalReprInternalQueryable.fs" />
     <Compile Include="DvalReprInternalRoundtrippable.fs" />
     <Compile Include="DvalReprInternalHash.fs" />
     <Compile Include="DvalReprDeveloper.fs" />
     <Compile Include="RuntimeTypesToDarkTypes.fs" />
     <Compile Include="TypeChecker.fs" />
+    <Compile Include="DvalReprInternalQueryable.fs" />
     <Compile Include="Interpreter.fs" />
     <Compile Include="AnalysisTypes.fs" />
     <Compile Include="Execution.fs" />

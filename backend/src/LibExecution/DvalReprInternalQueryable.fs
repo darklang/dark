@@ -351,8 +351,8 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 |> Seq.toList
                 |> Ply.List.flatten
 
-              // TYPESCLEANUP: I don't think the original is name right here?
-              return! Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
+              // TYPESCLEANUP: I don't think the sourceTypeName is right here?
+              return! TypeChecker.Dval.enum typeName typeName caseName fields
           | _, _ ->
             return
               Exception.raiseInternal
