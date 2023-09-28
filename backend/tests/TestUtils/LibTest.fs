@@ -110,9 +110,12 @@ let fns : List<BuiltInFn> =
           if Seq.length chars = 1 then
             chars
             |> Seq.toList
-            |> (fun l -> l[0] |> DChar |> Dval.optionSome VT.char |> Ply)
+            |> (fun l -> l[0])
+            |> DChar
+            |> Dval.optionSome VT.char
+            |> Ply
           else
-            Ply(Dval.optionNone VT.char)
+            Dval.optionNone VT.char |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

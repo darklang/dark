@@ -32,37 +32,31 @@ module CliRuntimeError =
   module RTE =
     module Error =
       let toDT (et : Error) : Ply<RT.Dval> =
-        uply {
-          let! caseName, fields =
-            uply {
-              match et with
-              | NoExpressionsToExecute -> return "NoExpressionsToExecute", []
+        let (caseName, fields) =
+          match et with
+          | NoExpressionsToExecute -> "NoExpressionsToExecute", []
 
-              | UncaughtException(msg, metadata) ->
-                let metadata =
-                  metadata
-                  |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
-                  |> Dval.list (
-                    ValueType.Known(
-                      KTTuple(ValueType.Known KTString, ValueType.Known KTString, [])
-                    )
-                  )
+          | UncaughtException(msg, metadata) ->
+            let metadata =
+              metadata
+              |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
+              |> Dval.list (
+                ValueType.Known(
+                  KTTuple(ValueType.Known KTString, ValueType.Known KTString, [])
+                )
+              )
 
-                return "UncaughtException", [ DString msg; metadata ]
+            "UncaughtException", [ DString msg; metadata ]
 
-              | MultipleExpressionsToExecute exprs ->
-                return
-                  "MultipleExpressionsToExecute",
-                  [ Dval.list VT.unknownTODO (List.map DString exprs) ]
+          | MultipleExpressionsToExecute exprs ->
+            "MultipleExpressionsToExecute",
+            [ Dval.list VT.unknownTODO (List.map DString exprs) ]
 
-              | NonIntReturned actuallyReturned ->
-                let! actuallyReturned = RT2DT.Dval.toDT actuallyReturned
-                return "NonIntReturned", [ actuallyReturned ]
-            }
+          | NonIntReturned actuallyReturned ->
+            "NonIntReturned", [ RT2DT.Dval.toDT actuallyReturned ]
 
-          let typeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
-          return! Dval.enum typeName typeName (Some []) caseName fields
-        }
+        let typeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
+        Dval.enum typeName typeName (Some []) caseName fields
 
 
     let toRuntimeError (e : Error) : Ply<RT.RuntimeError> =
@@ -90,32 +84,23 @@ let execute
   : Ply<Result<RT.Dval, DvalSource * RuntimeError>> =
 
   uply {
-    let! (program : Program) =
-      uply {
-        let! fns =
+    let (program : Program) =
+      { canvasID = System.Guid.NewGuid()
+        internalFnsAllowed = false
+        fns =
           mod'.fns
-          |> Ply.List.mapSequentially PT2RT.UserFunction.toRT
-          |> Ply.map (Map.fromListBy (fun fn -> fn.name))
-
-        let! types =
+          |> List.map PT2RT.UserFunction.toRT
+          |> Map.fromListBy (fun fn -> fn.name)
+        types =
           mod'.types
-          |> Ply.List.mapSequentially PT2RT.UserType.toRT
-          |> Ply.map (Map.fromListBy (fun typ -> typ.name))
-
-        let! constants =
+          |> List.map PT2RT.UserType.toRT
+          |> Map.fromListBy (fun typ -> typ.name)
+        constants =
           mod'.constants
-          |> Ply.List.mapSequentially PT2RT.UserConstant.toRT
-          |> Ply.map (Map.fromListBy (fun c -> c.name))
-
-        return
-          { canvasID = System.Guid.NewGuid()
-            internalFnsAllowed = false
-            fns = fns
-            types = types
-            constants = constants
-            dbs = Map.empty
-            secrets = [] }
-      }
+          |> List.map PT2RT.UserConstant.toRT
+          |> Map.fromListBy (fun c -> c.name)
+        dbs = Map.empty
+        secrets = [] }
 
     let tracing = Exe.noTracing RT.Real
     let notify = parentState.notify
@@ -131,7 +116,7 @@ let execute
         program
 
     if mod'.exprs.Length = 1 then
-      let! expr = PT2RT.Expr.toRT mod'.exprs[0]
+      let expr = PT2RT.Expr.toRT mod'.exprs[0]
       return! Exe.executeExpr state symtable expr
     else if mod'.exprs.Length = 0 then
       let! rte =
@@ -223,7 +208,7 @@ let fns : List<BuiltInFn> =
         function
         | state, [], [ DString functionName; DList(_vtTODO, args) ] ->
           uply {
-            let err (msg : string) (metadata : List<string * string>) =
+            let err (msg : string) (metadata : List<string * string>) : Ply<Dval> =
               let metadata = metadata |> List.map (fun (k, v) -> k, DString v)
               Dval.record
                 (FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0))

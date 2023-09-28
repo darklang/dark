@@ -175,19 +175,19 @@ let fns : List<BuiltInFn> =
           uply {
             let! canvas = Canvas.loadAll canvasID
 
-            let! types =
+            let types =
               canvas.userTypes
               |> Map.values
               |> Seq.toList
-              |> Ply.List.mapSequentially PT2DT.UserType.toDT
-              |> Ply.map (Dval.list VT.unknownTODO)
+              |> List.map PT2DT.UserType.toDT
+              |> Dval.list VT.unknownTODO
 
-            let! fns =
+            let fns =
               canvas.userFunctions
               |> Map.values
               |> Seq.toList
-              |> Ply.List.mapSequentially PT2DT.UserFunction.toDT
-              |> Ply.map (Dval.list VT.unknownTODO)
+              |> List.map PT2DT.UserFunction.toDT
+              |> Dval.list VT.unknownTODO
 
             // let dbs =
             //   Map.values canvas.dbs

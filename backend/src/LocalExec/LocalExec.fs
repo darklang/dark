@@ -77,30 +77,26 @@ let execute
   (symtable : Map<string, RT.Dval>)
   : Ply<RT.ExecutionResult> =
   uply {
-    let! fns =
-      mod'.fns
-      |> Ply.List.mapSequentially PT2RT.UserFunction.toRT
-      |> Ply.map (Map.fromListBy (fun fn -> fn.name))
-    let! types =
-      mod'.types
-      |> Ply.List.mapSequentially PT2RT.UserType.toRT
-      |> Ply.map (Map.fromListBy (fun typ -> typ.name))
-    let! constants =
-      mod'.constants
-      |> Ply.List.mapSequentially PT2RT.UserConstant.toRT
-      |> Ply.map (Map.fromListBy (fun c -> c.name))
-
     let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
-        fns = fns
-        types = types
-        constants = constants
+        fns =
+          mod'.fns
+          |> List.map PT2RT.UserFunction.toRT
+          |> Map.fromListBy (fun fn -> fn.name)
+        types =
+          mod'.types
+          |> List.map PT2RT.UserType.toRT
+          |> Map.fromListBy (fun typ -> typ.name)
+        constants =
+          mod'.constants
+          |> List.map PT2RT.UserConstant.toRT
+          |> Map.fromListBy (fun c -> c.name)
         dbs = Map.empty
         secrets = [] }
 
     let state = { state () with program = program }
-    let! expr = PT2RT.Expr.toRT mod'.exprs[0]
+    let expr = PT2RT.Expr.toRT mod'.exprs[0]
     return! Exe.executeExpr state symtable expr
   }
 
@@ -236,9 +232,9 @@ module PackageBootstrapping =
 
       let! (inMemPackageManager : RT.PackageManager) =
         uply {
-          let! types = types |> Ply.List.mapSequentially PT2RT.PackageType.toRT
-          let! fns = fns |> Ply.List.mapSequentially PT2RT.PackageFn.toRT
-          let! consts = consts |> Ply.List.mapSequentially PT2RT.PackageConstant.toRT
+          let types = types |> List.map PT2RT.PackageType.toRT
+          let fns = fns |> List.map PT2RT.PackageFn.toRT
+          let consts = consts |> List.map PT2RT.PackageConstant.toRT
 
           let pm : RT.PackageManager =
             { getType =

@@ -187,28 +187,28 @@ let packageManager : RT.PackageManager =
       fun name ->
         uply {
           let! typ = name |> PT2RT.TypeName.Package.fromRT |> getType
-          return! Ply.Option.map PT2RT.PackageType.toRT typ
+          return Option.map PT2RT.PackageType.toRT typ
         }
 
     getFn =
       fun name ->
         uply {
           let! typ = name |> PT2RT.FnName.Package.fromRT |> getFn
-          return! Ply.Option.map PT2RT.PackageFn.toRT typ
+          return Option.map PT2RT.PackageFn.toRT typ
         }
 
     getFnByTLID =
       fun tlid ->
         uply {
           let! typ = tlid |> getFnByTLID
-          return! Ply.Option.map PT2RT.PackageFn.toRT typ
+          return Option.map PT2RT.PackageFn.toRT typ
         }
 
     getConstant =
       fun name ->
         uply {
           let! typ = name |> PT2RT.ConstantName.Package.fromRT |> getConstant
-          return! Ply.Option.map PT2RT.PackageConstant.toRT typ
+          return Option.map PT2RT.PackageConstant.toRT typ
         }
 
     init = uply { return () } }

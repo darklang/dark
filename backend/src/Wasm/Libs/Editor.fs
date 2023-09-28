@@ -50,14 +50,12 @@ let fns : List<BuiltInFn> =
         let resultError = Dval.resultError okType VT.string
         (function
         | _, [ _typeParam ], [ DUnit ] ->
-          uply {
-            try
-              let state = editor.CurrentState
-              // TODO: assert that the type matches the given typeParam
-              return resultOk state
-            with e ->
-              return $"Error getting state: {e.Message}" |> DString |> resultError
-          }
+          try
+            let state = editor.CurrentState
+            // TODO: assert that the type matches the given typeParam
+            resultOk state |> Ply
+          with e ->
+            $"Error getting state: {e.Message}" |> DString |> resultError |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -73,11 +71,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ _typeParam ], [ v ] ->
-          uply {
-            // TODO: verify that the type matches the given typeParam
-            editor <- { editor with CurrentState = v }
-            return Dval.resultOk VT.unknownTODO VT.string v
-          }
+          // TODO: verify that the type matches the given typeParam
+          editor <- { editor with CurrentState = v }
+          Dval.resultOk VT.unknownTODO VT.string v |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -114,17 +110,15 @@ let fns : List<BuiltInFn> =
 
           match args with
           | Ok args ->
-            uply {
-              try
-                do Wasm.WasmHelpers.callJSFunction functionName args
-                return resultOk DUnit
-              with e ->
-                return
-                  $"Error calling {functionName} with provided args: {e.Message}"
-                  |> DString
-                  |> resultError
-            }
-          | Error err -> Ply(resultError (DString err))
+            try
+              do Wasm.WasmHelpers.callJSFunction functionName args
+              resultOk DUnit |> Ply
+            with e ->
+              $"Error calling {functionName} with provided args: {e.Message}"
+              |> DString
+              |> resultError
+              |> Ply
+          | Error err -> resultError (DString err) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

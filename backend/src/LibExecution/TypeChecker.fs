@@ -97,28 +97,32 @@ module Error =
           uply {
             match context with
             | FunctionCallParameter(fnName, param, paramIndex, location) ->
-              let! fnName = RT2DT.FnName.toDT fnName
-              let! param = RT2DT.Param.toDT param
               return
                 "FunctionCallParameter",
-                [ fnName; param; DInt paramIndex; Location.toDT location ]
+                [ RT2DT.FnName.toDT fnName
+                  RT2DT.Param.toDT param
+                  DInt paramIndex
+                  Location.toDT location ]
 
             | FunctionCallResult(fnName, returnType, location) ->
-              let! fnName = RT2DT.FnName.toDT fnName
-              let! returnType = RT2DT.TypeReference.toDT returnType
               return
-                "FunctionCallResult", [ fnName; returnType; Location.toDT location ]
+                "FunctionCallResult",
+                [ RT2DT.FnName.toDT fnName
+                  RT2DT.TypeReference.toDT returnType
+                  Location.toDT location ]
 
             | RecordField(recordTypeName, fieldName, fieldType, location) ->
-              let! typeName = RT2DT.TypeName.toDT recordTypeName
-              let! fieldType = RT2DT.TypeReference.toDT fieldType
               return
                 "RecordField",
-                [ typeName; DString fieldName; fieldType; Location.toDT location ]
+                [ RT2DT.TypeName.toDT recordTypeName
+                  DString fieldName
+                  RT2DT.TypeReference.toDT fieldType
+                  Location.toDT location ]
 
             | DictKey(key, typ, location) ->
-              let! typ = RT2DT.TypeReference.toDT typ
-              return "DictKey", [ DString key; typ; Location.toDT location ]
+              return
+                "DictKey",
+                [ DString key; RT2DT.TypeReference.toDT typ; Location.toDT location ]
 
             | EnumField(enumTypeName,
                         caseName,
@@ -126,42 +130,44 @@ module Error =
                         fieldCount,
                         fieldType,
                         location) ->
-              let! typeName = RT2DT.TypeName.toDT enumTypeName
-              let! fieldType = RT2DT.TypeReference.toDT fieldType
               return
                 "EnumField",
-                [ typeName
+                [ RT2DT.TypeName.toDT enumTypeName
                   DString caseName
                   DInt fieldIndex
                   DInt fieldCount
-                  fieldType
+                  RT2DT.TypeReference.toDT fieldType
                   Location.toDT location ]
 
             | DBQueryVariable(varName, expected, location) ->
-              let! expected = RT2DT.TypeReference.toDT expected
               return
                 "DBQueryVariable",
-                [ DString varName; expected; Location.toDT location ]
+                [ DString varName
+                  RT2DT.TypeReference.toDT expected
+                  Location.toDT location ]
 
             | DBSchemaType(name, expectedType, location) ->
-              let! expectedType = RT2DT.TypeReference.toDT expectedType
               return
                 "DBSchemaType",
-                [ DString name; expectedType; Location.toDT location ]
+                [ DString name
+                  RT2DT.TypeReference.toDT expectedType
+                  Location.toDT location ]
 
             | ListIndex(index, listTyp, parent) ->
-              let! listType = RT2DT.TypeReference.toDT listTyp
               let! parent = toDT parent
-              return "ListIndex", [ DInt index; listType; parent ]
+              return
+                "ListIndex", [ DInt index; RT2DT.TypeReference.toDT listTyp; parent ]
 
             | TupleIndex(index, elementType, parent) ->
-              let! elType = RT2DT.TypeReference.toDT elementType
               let! parent = toDT parent
-              return "TupleIndex", [ DInt index; elType; parent ]
+              return
+                "TupleIndex",
+                [ DInt index; RT2DT.TypeReference.toDT elementType; parent ]
 
             | FnValResult(returnType, location) ->
-              let! returnType = RT2DT.TypeReference.toDT returnType
-              return "FnValResult", [ returnType; Location.toDT location ]
+              return
+                "FnValResult",
+                [ RT2DT.TypeReference.toDT returnType; Location.toDT location ]
           }
 
         let typeName = RuntimeError.name [ "TypeChecker" ] "Context" 0
@@ -175,15 +181,16 @@ module Error =
         uply {
           match e with
           | ValueNotExpectedType(actualValue, expectedType, context) ->
-            let! actualValue = actualValue |> RT2DT.Dval.toDT
-            let! expectedType = expectedType |> RT2DT.TypeReference.toDT
             let! context = Context.toDT context
-            return "ValueNotExpectedType", [ actualValue; expectedType; context ]
+            return
+              "ValueNotExpectedType",
+              [ actualValue |> RT2DT.Dval.toDT
+                expectedType |> RT2DT.TypeReference.toDT
+                context ]
 
           | TypeDoesntExist(typeName, context) ->
-            let! typeName = RT2DT.TypeName.toDT typeName
             let! context = Context.toDT context
-            return "TypeDoesntExist", [ typeName; context ]
+            return "TypeDoesntExist", [ RT2DT.TypeName.toDT typeName; context ]
         }
 
       let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0

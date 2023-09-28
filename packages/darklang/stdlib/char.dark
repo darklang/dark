@@ -11,31 +11,33 @@ module Darklang =
 
       /// Return whether <param c> is a lowercase character.
       let isLowercase (c: Char) : Bool =
-        Builtin.Char.toLowercase c == c && Builtin.Char.toUppercase c != c
+        PACKAGE.Darklang.Stdlib.Char.toLowercase c == c
+        && PACKAGE.Darklang.Stdlib.Char.toUppercase c != c
 
 
       /// Return whether <param c> is an uppercase character.
       let isUppercase (c: Char) : Bool =
-        Builtin.Char.toLowercase c != c && Builtin.Char.toUppercase c == c
+        PACKAGE.Darklang.Stdlib.Char.toLowercase c != c
+        && PACKAGE.Darklang.Stdlib.Char.toUppercase c == c
 
 
       /// Return whether <param c> is a digit (that is, the digits 0-9)
       let isDigit (c: Char) : Bool =
-        (Builtin.Char.isGreaterThanOrEqualTo c '0')
-        && (Builtin.Char.isLessThanOrEqualTo c '9')
+        (PACKAGE.Darklang.Stdlib.Char.isGreaterThanOrEqualTo c '0')
+        && (PACKAGE.Darklang.Stdlib.Char.isLessThanOrEqualTo c '9')
 
 
       /// Return whether <param c> is an ASCII letter
       let isASCIILetter (c: Char) : Bool =
-        (Builtin.Char.isGreaterThanOrEqualTo c 'a')
-        && (Builtin.Char.isLessThanOrEqualTo c 'z')
-        || (Builtin.Char.isGreaterThanOrEqualTo c 'A')
-           && (Builtin.Char.isLessThanOrEqualTo c 'Z')
+        (PACKAGE.Darklang.Stdlib.Char.isGreaterThanOrEqualTo c 'a')
+        && (PACKAGE.Darklang.Stdlib.Char.isLessThanOrEqualTo c 'z')
+        || (PACKAGE.Darklang.Stdlib.Char.isGreaterThanOrEqualTo c 'A')
+           && (PACKAGE.Darklang.Stdlib.Char.isLessThanOrEqualTo c 'Z')
 
 
       /// Return whether <param c> is a valid ASCII character
       let isASCII (c: Char) : Bool =
-        let asciiCode = Builtin.Char.toAsciiCode c
+        let asciiCode = PACKAGE.Darklang.Stdlib.Char.toAsciiCode c
 
         match asciiCode with
         | Some ascii -> (ascii >= 0) && (ascii <= 127)

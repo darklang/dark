@@ -28,8 +28,8 @@ type Error =
 /// to RuntimeError
 module RTE =
   module ErrorType =
-    let toDT (et : ErrorType) : Ply<RT.Dval> =
-      let caseName, fields =
+    let toDT (et : ErrorType) : RT.Dval =
+      let (caseName, fields) =
         match et with
         | NotFound -> "NotFound", []
         | ExpectedEnumButNot -> "ExpectedEnumButNot", []
@@ -39,7 +39,7 @@ module RTE =
         | InvalidPackageName -> "InvalidPackageName", []
 
       let typeName = RT.RuntimeError.name [ "NameResolution" ] "ErrorType" 0
-      Dval.enum typeName typeName (Some []) caseName fields
+      RT.DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (dv : RT.Dval) : ErrorType =
       match dv with
@@ -52,15 +52,15 @@ module RTE =
       | _ -> Exception.raiseInternal "Invalid ErrorType" []
 
   module NameType =
-    let toDT (nt : NameType) : Ply<RT.Dval> =
-      let caseName, fields =
+    let toDT (nt : NameType) : RT.Dval =
+      let (caseName, fields) =
         match nt with
         | Function -> "Function", []
         | Type -> "Type", []
         | Constant -> "Constant", []
 
       let typeName = RT.RuntimeError.name [ "NameResolution" ] "NameType" 0
-      Dval.enum typeName typeName (Some []) caseName fields
+      RT.DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (dv : RT.Dval) : NameType =
       match dv with
@@ -70,21 +70,16 @@ module RTE =
       | _ -> Exception.raiseInternal "Invalid NameType" []
 
   module Error =
-    let toDT (e : Error) : Ply<RT.Dval> =
-      uply {
-        let! errorType = ErrorType.toDT e.errorType
-        let! nameType = NameType.toDT e.nameType
-        return!
-          Dval.record
-            (RT.RuntimeError.name [ "NameResolution" ] "Error" 0)
-            (Some [])
-            [ "errorType", errorType
-              "nameType", nameType
-              "names",
-              (e.names
-               |> List.map RT.DString
-               |> Dval.list (RT.ValueType.Known RT.KTString)) ]
-      }
+    let toDT (e : Error) : RT.Dval =
+      let typeName = RT.RuntimeError.name [ "NameResolution" ] "Error" 0
+      let fields =
+        [ "errorType", ErrorType.toDT e.errorType
+          "nameType", NameType.toDT e.nameType
+          "names",
+          (e.names
+           |> List.map RT.DString
+           |> Dval.list (RT.ValueType.Known RT.KTString)) ]
+      RT.DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (dv : RT.Dval) : Error =
       match dv with
@@ -97,8 +92,8 @@ module RTE =
 
       | _ -> Exception.raiseInternal "Expected DRecord" []
 
-  let toRuntimeError (e : Error) : Ply<RT.RuntimeError> =
-    Error.toDT e |> Ply.map RT.RuntimeError.nameResolutionError
+  let toRuntimeError (e : Error) : RT.RuntimeError =
+    Error.toDT e |> RT.RuntimeError.nameResolutionError
 
   let fromRuntimeError (re : RT.RuntimeError) : Error =
     // TODO: this probably doesn't unwrap the type

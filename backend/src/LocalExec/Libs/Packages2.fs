@@ -73,12 +73,9 @@ let fns : List<BuiltInFn> =
             let! (fns, types, constants) =
               LibParser.Parser.parsePackageFile resolver path contents
 
-            let! packagesFns =
-              fns |> Ply.List.mapSequentially (fun fn -> PT2DT.PackageFn.toDT fn)
-            let! packagesTypes =
-              types |> Ply.List.mapSequentially PT2DT.PackageType.toDT
-            let! packagesConstants =
-              constants |> Ply.List.mapSequentially PT2DT.PackageConstant.toDT
+            let packagesFns = fns |> List.map PT2DT.PackageFn.toDT
+            let packagesTypes = types |> List.map PT2DT.PackageType.toDT
+            let packagesConstants = constants |> List.map PT2DT.PackageConstant.toDT
 
             return!
               Dval.record

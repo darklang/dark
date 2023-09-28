@@ -103,15 +103,15 @@ let fns : List<BuiltInFn> =
 
          Returns an {{Error}} if <param divisor> is {{0}}."
       fn =
-        let resultOk = Dval.resultOk VT.int VT.string
-        let resultError = Dval.resultError VT.int VT.string
+        let resultOk r = Dval.resultOk VT.int VT.string r |> Ply
+        let resultError r = Dval.resultError VT.int VT.string r |> Ply
         (function
         | _, _, [ DInt v; DInt d ] ->
           (try
-            v % d |> DInt |> resultOk |> Ply
+            v % d |> DInt |> resultOk
            with e ->
              if d = 0L then
-               Ply(resultError (DString($"`divisor` must be non-zero")))
+               resultError (DString($"`divisor` must be non-zero"))
              else
                Exception.raiseInternal
                  "unexpected failure case in Int.remainder"
@@ -346,13 +346,13 @@ let fns : List<BuiltInFn> =
         let resultError = Dval.resultError VT.int VT.string
         (function
         | _, _, [ DString s ] ->
-          (try
+          try
             s |> System.Convert.ToInt64 |> DInt |> resultOk |> Ply
-           with _e ->
-             $"Expected to parse String with only numbers, instead got \"{s}\""
-             |> DString
-             |> resultError
-             |> Ply)
+          with _e ->
+            $"Expected to parse String with only numbers, instead got \"{s}\""
+            |> DString
+            |> resultError
+            |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -370,9 +370,6 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    ]
+      deprecated = NotDeprecated } ]
 
 let contents = (fns, types, constants)

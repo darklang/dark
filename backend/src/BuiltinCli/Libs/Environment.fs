@@ -30,9 +30,9 @@ let fns : List<BuiltInFn> =
           let envValue = System.Environment.GetEnvironmentVariable(varName)
 
           if isNull envValue then
-            Ply(Dval.optionNone VT.string)
+            Dval.optionNone VT.string |> Ply
           else
-            Ply(Dval.optionSome VT.string (DString envValue))
+            Dval.optionSome VT.string (DString envValue) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

@@ -163,7 +163,7 @@ let fns : List<BuiltInFn> =
           match result with
           | Some map ->
             map |> Map.toList |> Dval.dict dictType |> Dval.optionSome optType |> Ply
-          | None -> Ply(Dval.optionNone optType)
+          | None -> Dval.optionNone optType |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

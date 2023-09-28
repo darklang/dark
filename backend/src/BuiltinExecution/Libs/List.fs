@@ -680,7 +680,7 @@ let fns : List<BuiltInFn> =
       fn =
         let optType = VT.unknownTODO
         (function
-        | _, _, [ DList(_, []) ] -> Ply(Dval.optionNone optType)
+        | _, _, [ DList(_, []) ] -> Dval.optionNone optType |> Ply
         | _, _, [ DList(_, l) ] ->
           // Will return <= (length - 1)
           // Maximum value is Int64.MaxValue which is half of UInt64.MaxValue, but

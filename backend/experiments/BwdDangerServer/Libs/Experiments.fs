@@ -160,16 +160,14 @@ let fns : List<BuiltInFn> =
         let resultError = Dval.resultError VT.bytes VT.string
         (function
         | _, _, [ DString path ] ->
-          uply {
-            try
-              let contents =
-                RestrictedFileIO.readfileBytes
-                  RestrictedFileIO.Config.CanvasesFiles
-                  path
-              return resultOk (DBytes contents)
-            with e ->
-              return resultError (DString($"Error reading file: {e.Message}"))
-          }
+          try
+            let contents =
+              RestrictedFileIO.readfileBytes
+                RestrictedFileIO.Config.CanvasesFiles
+                path
+            resultOk (DBytes contents) |> Ply
+          with e ->
+            resultError (DString($"Error reading file: {e.Message}")) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

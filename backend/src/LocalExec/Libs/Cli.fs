@@ -37,25 +37,21 @@ let execute
   : Ply<RT.ExecutionResult> =
 
   uply {
-    let! fns =
-      mod'.fns
-      |> Ply.List.mapSequentially (fun fn -> PT2RT.UserFunction.toRT fn)
-      |> Ply.map (Map.fromListBy (fun fn -> fn.name))
-    let! types =
-      mod'.types
-      |> Ply.List.mapSequentially (fun typ -> PT2RT.UserType.toRT typ)
-      |> Ply.map (Map.fromListBy (fun typ -> typ.name))
-    let! constants =
-      mod'.constants
-      |> Ply.List.mapSequentially (fun c -> PT2RT.UserConstant.toRT c)
-      |> Ply.map (Map.fromListBy (fun c -> c.name))
-
     let program : Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = true
-        fns = fns
-        types = types
-        constants = constants
+        fns =
+          mod'.fns
+          |> List.map PT2RT.UserFunction.toRT
+          |> Map.fromListBy (fun fn -> fn.name)
+        types =
+          mod'.types
+          |> List.map PT2RT.UserType.toRT
+          |> Map.fromListBy (fun typ -> typ.name)
+        constants =
+          mod'.constants
+          |> List.map PT2RT.UserConstant.toRT
+          |> Map.fromListBy (fun c -> c.name)
         dbs = Map.empty
         secrets = [] }
 
@@ -73,7 +69,7 @@ let execute
         program
 
     if mod'.exprs.Length = 1 then
-      let! expr = PT2RT.Expr.toRT mod'.exprs[0]
+      let expr = PT2RT.Expr.toRT mod'.exprs[0]
       return! Exe.executeExpr state symtable expr
     else if mod'.exprs.Length = 0 then
       return Error(SourceNone, RuntimeError.oldError "No expressions to execute")

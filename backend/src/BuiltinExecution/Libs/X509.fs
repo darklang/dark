@@ -52,7 +52,7 @@ let fns : List<BuiltInFn> =
             // certificates. If it does find that, it tries to parse it, returning
             // X509: failed to parse certificate if it fails (either data is bullshit
             // or it's not an RSA cert).
-            Ply(resultError (DString "No certificates"))
+            resultError (DString "No certificates") |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

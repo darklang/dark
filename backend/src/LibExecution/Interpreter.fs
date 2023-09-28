@@ -51,26 +51,23 @@ module ExecutionError =
         Dval.enum typeName typeName (Some []) caseName fields
         |> Ply.map RuntimeError.executionError
 
-      let! (caseName, fields) =
-        uply {
-          match e with
-          | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
-            return
-              "MatchExprEnumPatternWrongCount",
-              [ DString caseName; DInt expected; DInt actual ]
-          | MatchExprPatternWrongType(expected, actual) ->
-            let! actual = RT2DT.Dval.toDT actual
-            return "MatchExprPatternWrongType", [ DString expected; actual ]
-          | MatchExprUnmatched dv ->
-            let! dv = RT2DT.Dval.toDT dv
-            return "MatchExprUnmatched", [ dv ]
-          | NonStringInStringInterpolation dv ->
-            let! dv = RT2DT.Dval.toDT dv
-            return "NonStringInStringInterpolation", [ dv ]
-          | ConstDoesntExist name ->
-            let! name = RT2DT.ConstantName.toDT name
-            return "ConstDoesntExist", [ name ]
-        }
+      let (caseName, fields) =
+        match e with
+        | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
+
+          "MatchExprEnumPatternWrongCount",
+          [ DString caseName; DInt expected; DInt actual ]
+        | MatchExprPatternWrongType(expected, actual) ->
+
+          "MatchExprPatternWrongType", [ DString expected; RT2DT.Dval.toDT actual ]
+        | MatchExprUnmatched dv ->
+
+          "MatchExprUnmatched", [ RT2DT.Dval.toDT dv ]
+        | NonStringInStringInterpolation dv ->
+
+          "NonStringInStringInterpolation", [ RT2DT.Dval.toDT dv ]
+        | ConstDoesntExist name ->
+          "ConstDoesntExist", [ RT2DT.ConstantName.toDT name ]
 
       return! case caseName fields
     }
@@ -124,7 +121,7 @@ let rec eval
       { errorType = errorType
         nameType = NameResolutionError.Type
         names = [ TypeName.toString typeName ] }
-    error |> NameResolutionError.RTE.toRuntimeError |> Ply.map (raiseRTE SourceNone)
+    error |> NameResolutionError.RTE.toRuntimeError |> raiseRTE SourceNone
 
   let recordMaybe
     (types : Types)

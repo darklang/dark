@@ -32,7 +32,6 @@ let errorsTyp
 
 
 
-
 module FQName =
   let ownerField m = m |> D.stringField "owner"
   let modulesField m = m |> D.stringListField "modules"
@@ -43,118 +42,85 @@ module FQName =
   module BuiltIn =
     let toDT
       (nameValueType : ValueType)
-      (nameMapper : 'name -> Ply<Dval>)
+      (nameMapper : 'name -> Dval)
       (u : FQName.BuiltIn<'name>)
-      : Ply<Dval> =
-      uply {
-        let! name = nameMapper u.name
-        return!
-          Dval.record
-            (rtTyp [ "FQName" ] "BuiltIn" 0)
-            (Some [ nameValueType ])
-            [ "modules", Dval.list VT.unknownTODO (List.map DString u.modules)
-              "name", name
-              "version", DInt u.version ]
-      }
+      : Dval =
+      let fields =
+        [ "modules", Dval.list VT.unknownTODO (List.map DString u.modules)
+          "name", nameMapper u.name
+          "version", DInt u.version ]
+      let typeName = rtTyp [ "FQName" ] "BuiltIn" 0
+      DRecord(typeName, typeName, [ nameValueType ], Map fields)
 
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : FQName.BuiltIn<'name> =
       match d with
-      | DRecord(_, _, _, m) ->
-        let modules = modulesField m
-        let name = nameField m |> nameMapper
-        let version = versionField m
-
-        { modules = modules; name = name; version = version }
-
+      | DRecord(_, _, _, fields) ->
+        { modules = modulesField fields
+          name = nameField fields |> nameMapper
+          version = versionField fields }
       | _ -> Exception.raiseInternal "Unexpected value" []
 
   module UserProgram =
     let toDT
       (nameValueType : ValueType)
-      (nameMapper : 'name -> Ply<Dval>)
+      (nameMapper : 'name -> Dval)
       (u : FQName.UserProgram<'name>)
-      : Ply<Dval> =
-      uply {
-        let! name = nameMapper u.name
-        return!
-          Dval.record
-            (rtTyp [ "FQName" ] "UserProgram" 0)
-            (Some [ nameValueType ])
-            [ "modules", Dval.list VT.unknownTODO (List.map DString u.modules)
-              "name", name
-              "version", DInt u.version ]
-      }
+      : Dval =
+      let fields =
+        [ "modules", Dval.list VT.unknownTODO (List.map DString u.modules)
+          "name", nameMapper u.name
+          "version", DInt u.version ]
+      let typeName = rtTyp [ "FQName" ] "UserProgram" 0
+      DRecord(typeName, typeName, [ nameValueType ], Map fields)
 
     let fromDT (nameMapper : Dval -> 'name) (v : Dval) : FQName.UserProgram<'name> =
       match v with
-      | DRecord(_, _, _, m) ->
-        let modules = modulesField m
-        let name = nameField m |> nameMapper
-        let version = versionField m
-
-        { modules = modules; name = name; version = version }
-
+      | DRecord(_, _, _, fields) ->
+        { modules = modulesField fields
+          name = nameField fields |> nameMapper
+          version = versionField fields }
       | _ -> Exception.raiseInternal "Unexpected value" []
 
   module Package =
     let toDT
       (nameValueType : ValueType)
-      (nameMapper : 'name -> Ply<Dval>)
+      (nameMapper : 'name -> Dval)
       (u : FQName.Package<'name>)
-      : Ply<Dval> =
-      uply {
-        let! name = nameMapper u.name
-        return!
-          Dval.record
-            (rtTyp [ "FQName" ] "Package" 0)
-            (Some [ nameValueType ])
-            [ "owner", DString u.owner
-              "modules", Dval.list VT.unknownTODO (List.map DString u.modules)
-              "name", name
-              "version", DInt u.version ]
-      }
+      : Dval =
+      let fields =
+        [ "owner", DString u.owner
+          "modules", Dval.list VT.unknownTODO (List.map DString u.modules)
+          "name", nameMapper u.name
+          "version", DInt u.version ]
+      let typeName = rtTyp [ "FQName" ] "Package" 0
+      DRecord(typeName, typeName, [ nameValueType ], Map fields)
 
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : FQName.Package<'name> =
       match d with
-      | DRecord(_, _, _, m) ->
-        let owner = ownerField m
-        let modules =
-          modulesField m
-          |> NEList.ofListUnsafe "Expected modules to be a non-empty list" []
-        let name = nameField m |> nameMapper
-        let version = versionField m
-
-        { owner = owner
-          modules = NEList.toList modules
-          name = name
-          version = version }
-
+      | DRecord(_, _, _, fields) ->
+        { owner = ownerField fields
+          modules =
+            modulesField fields
+            |> NEList.ofListUnsafe "Expected modules to be a non-empty list" []
+            |> NEList.toList
+          name = nameField fields |> nameMapper
+          version = versionField fields }
       | _ -> Exception.raiseInternal "Unexpected value" []
 
 
   let toDT
     (nameValueType : ValueType)
-    (nameMapper : 'name -> Ply<Dval>)
+    (nameMapper : 'name -> Dval)
     (u : FQName.FQName<'name>)
-    : Ply<Dval> =
-    uply {
-      let! (caseName, fields) =
-        uply {
-          match u with
-          | FQName.UserProgram u ->
-            let! name = UserProgram.toDT nameValueType nameMapper u
-            return "UserProgram", [ name ]
-          | FQName.Package u ->
-            let! name = Package.toDT nameValueType nameMapper u
-            return "Package", [ name ]
-          | FQName.BuiltIn u ->
-            let! name = BuiltIn.toDT nameValueType nameMapper u
-            return "BuiltIn", [ name ]
-        }
-
-      let typeName = rtTyp [ "FQName" ] "FQName" 0
-      return! Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
-    }
+    : Dval =
+    let (caseName, fields) =
+      match u with
+      | FQName.UserProgram u ->
+        "UserProgram", [ UserProgram.toDT nameValueType nameMapper u ]
+      | FQName.Package u -> "Package", [ Package.toDT nameValueType nameMapper u ]
+      | FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameValueType nameMapper u ]
+    let typeName = rtTyp [ "FQName" ] "FQName" 0
+    DEnum(typeName, typeName, VT.typeArgsTODO, caseName, fields)
 
   let fromDT (nameMapper : Dval -> 'name) (d : Dval) : FQName.FQName<'name> =
     match d with
@@ -171,13 +137,12 @@ module TypeName =
   module Name =
     let valueType = VT.unknownTODO // @Darklang.LanguageTools.RuntimeTypes.TypeName.Name
 
-    let toDT (u : TypeName.Name) : Ply<Dval> =
-      let caseName, fields =
+    let toDT (u : TypeName.Name) : Dval =
+      let (caseName, fields) =
         match u with
         | TypeName.TypeName name -> "TypeName", [ DString name ]
-
       let typeName = rtTyp [ "TypeName" ] "Name" 0
-      Dval.enum typeName typeName (Some []) caseName fields
+      DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : TypeName.Name =
       match d with
@@ -185,24 +150,23 @@ module TypeName =
       | _ -> Exception.raiseInternal "Invalid TypeName" []
 
   module BuiltIn =
-    let toDT (u : TypeName.BuiltIn) : Ply<Dval> =
+    let toDT (u : TypeName.BuiltIn) : Dval =
       FQName.BuiltIn.toDT Name.valueType Name.toDT u
     let fromDT (d : Dval) : TypeName.BuiltIn = FQName.BuiltIn.fromDT Name.fromDT d
 
   module UserProgram =
-    let toDT (u : TypeName.UserProgram) : Ply<Dval> =
+    let toDT (u : TypeName.UserProgram) : Dval =
       FQName.UserProgram.toDT Name.valueType Name.toDT u
 
     let fromDT (d : Dval) : TypeName.UserProgram =
       FQName.UserProgram.fromDT Name.fromDT d
 
   module Package =
-    let toDT (u : TypeName.Package) : Ply<Dval> =
+    let toDT (u : TypeName.Package) : Dval =
       FQName.Package.toDT Name.valueType Name.toDT u
     let fromDT (d : Dval) : TypeName.Package = FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : TypeName.TypeName) : Ply<Dval> =
-    FQName.toDT Name.valueType Name.toDT u
+  let toDT (u : TypeName.TypeName) : Dval = FQName.toDT Name.valueType Name.toDT u
   let fromDT (d : Dval) : TypeName.TypeName = FQName.fromDT Name.fromDT d
 
 
@@ -210,13 +174,12 @@ module FnName =
   module Name =
     let valueType = VT.unknownTODO // @Darklang.LanguageTools.RuntimeTypes.FnName.Name
 
-    let toDT (u : FnName.Name) : Ply<Dval> =
-      let caseName, fields =
+    let toDT (u : FnName.Name) : Dval =
+      let (caseName, fields) =
         match u with
         | FnName.FnName name -> "FnName", [ DString name ]
-
       let typeName = rtTyp [ "FnName" ] "Name" 0
-      Dval.enum typeName typeName (Some []) caseName fields
+      DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : FnName.Name =
       match d with
@@ -224,22 +187,22 @@ module FnName =
       | _ -> Exception.raiseInternal "Invalid FnName" []
 
   module BuiltIn =
-    let toDT (u : FnName.BuiltIn) : Ply<Dval> =
+    let toDT (u : FnName.BuiltIn) : Dval =
       FQName.BuiltIn.toDT Name.valueType Name.toDT u
     let fromDT (d : Dval) : FnName.BuiltIn = FQName.BuiltIn.fromDT Name.fromDT d
 
   module UserProgram =
-    let toDT (u : FnName.UserProgram) : Ply<Dval> =
+    let toDT (u : FnName.UserProgram) : Dval =
       FQName.UserProgram.toDT Name.valueType Name.toDT u
     let fromDT (d : Dval) : FnName.UserProgram =
       FQName.UserProgram.fromDT Name.fromDT d
 
   module Package =
-    let toDT (u : FnName.Package) : Ply<Dval> =
+    let toDT (u : FnName.Package) : Dval =
       FQName.Package.toDT Name.valueType Name.toDT u
     let fromDT (d : Dval) : FnName.Package = FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : FnName.FnName) : Ply<Dval> = FQName.toDT Name.valueType Name.toDT u
+  let toDT (u : FnName.FnName) : Dval = FQName.toDT Name.valueType Name.toDT u
   let fromDT (d : Dval) : FnName.FnName = FQName.fromDT Name.fromDT d
 
 
@@ -247,13 +210,12 @@ module ConstantName =
   module Name =
     let valueType = VT.unknownTODO // @Darklang.LanguageTools.RuntimeTypes.ConstantName.Name
 
-    let toDT (u : ConstantName.Name) : Ply<Dval> =
-      let caseName, fields =
+    let toDT (u : ConstantName.Name) : Dval =
+      let (caseName, fields) =
         match u with
         | ConstantName.ConstantName name -> "ConstantName", [ DString name ]
-
       let typeName = rtTyp [ "ConstantName" ] "Name" 0
-      Dval.enum typeName typeName (Some []) caseName fields
+      DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : ConstantName.Name =
       match d with
@@ -262,25 +224,25 @@ module ConstantName =
       | _ -> Exception.raiseInternal "Invalid ConstantName" []
 
   module BuiltIn =
-    let toDT (u : ConstantName.BuiltIn) : Ply<Dval> =
+    let toDT (u : ConstantName.BuiltIn) : Dval =
       FQName.BuiltIn.toDT Name.valueType Name.toDT u
     let fromDT (d : Dval) : ConstantName.BuiltIn =
       FQName.BuiltIn.fromDT Name.fromDT d
 
   module UserProgram =
-    let toDT (u : ConstantName.UserProgram) : Ply<Dval> =
+    let toDT (u : ConstantName.UserProgram) : Dval =
       FQName.UserProgram.toDT Name.valueType Name.toDT u
 
     let fromDT (d : Dval) : ConstantName.UserProgram =
       FQName.UserProgram.fromDT Name.fromDT d
 
   module Package =
-    let toDT (u : ConstantName.Package) : Ply<Dval> =
+    let toDT (u : ConstantName.Package) : Dval =
       FQName.Package.toDT Name.valueType Name.toDT u
     let fromDT (d : Dval) : ConstantName.Package =
       FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : ConstantName.ConstantName) : Ply<Dval> =
+  let toDT (u : ConstantName.ConstantName) : Dval =
     FQName.toDT Name.valueType Name.toDT u
   let fromDT (d : Dval) : ConstantName.ConstantName = FQName.fromDT Name.fromDT d
 
@@ -288,20 +250,14 @@ module ConstantName =
 module NameResolution =
   let toDT
     (nameValueType : ValueType)
-    (f : 'p -> Ply<Dval>)
+    (f : 'p -> Dval)
     (result : NameResolution<'p>)
-    : Ply<Dval> =
-    uply {
-      let errType = VT.unknownTODO // NameResolutionError
+    : Dval =
+    let errType = VT.unknownTODO // NameResolutionError
 
-      match result with
-      | Ok name ->
-        let! name = f name
-        return Dval.resultOk nameValueType errType name
-      | Error err ->
-        return!
-          RuntimeError.toDT err |> Ply.map (Dval.resultError nameValueType errType)
-    }
+    match result with
+    | Ok name -> Dval.resultOk nameValueType errType (f name)
+    | Error err -> RuntimeError.toDT err |> Dval.resultError nameValueType errType
 
   let fromDT (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
     match d with
@@ -314,65 +270,46 @@ module NameResolution =
 module TypeReference =
   let valueType = ValueType.unknownTODO // @Darklang.LanguageTools.RuntimeTypes.TypeReference
 
-  let rec toDT (t : TypeReference) : Ply<Dval> =
-    uply {
-      let! (caseName, fields) =
-        uply {
-          match t with
-          | TVariable name -> return "TVariable", [ DString name ]
+  let rec toDT (t : TypeReference) : Dval =
+    let (caseName, fields) =
+      match t with
+      | TVariable name -> "TVariable", [ DString name ]
 
-          | TUnit -> return "TUnit", []
-          | TBool -> return "TBool", []
-          | TInt -> return "TInt", []
-          | TFloat -> return "TFloat", []
-          | TChar -> return "TChar", []
-          | TString -> return "TString", []
-          | TDateTime -> return "TDateTime", []
-          | TUuid -> return "TUuid", []
-          | TBytes -> return "TBytes", []
+      | TUnit -> "TUnit", []
+      | TBool -> "TBool", []
+      | TInt -> "TInt", []
+      | TFloat -> "TFloat", []
+      | TChar -> "TChar", []
+      | TString -> "TString", []
+      | TDateTime -> "TDateTime", []
+      | TUuid -> "TUuid", []
+      | TBytes -> "TBytes", []
 
-          | TList inner ->
-            let! inner = toDT inner
-            return "TList", [ inner ]
+      | TList inner -> "TList", [ toDT inner ]
 
-          | TTuple(first, second, theRest) ->
-            let! first = toDT first
-            let! second = toDT second
-            let! theRest =
-              theRest
-              |> Ply.List.mapSequentially toDT
-              |> Ply.map (Dval.list VT.unknownTODO)
-            return "TTuple", [ first; second; theRest ]
+      | TTuple(first, second, theRest) ->
+        "TTuple",
+        [ toDT first
+          toDT second
+          theRest |> List.map toDT |> Dval.list VT.unknownTODO ]
 
-          | TDict inner ->
-            let! inner = toDT inner
-            return "TDict", [ inner ]
+      | TDict inner -> "TDict", [ toDT inner ]
 
-          | TCustomType(typeName, typeArgs) ->
-            let! typeName =
-              NameResolution.toDT ValueType.unknownTODO TypeName.toDT typeName
-            let! typeArgs =
-              typeArgs
-              |> Ply.List.mapSequentially toDT
-              |> Ply.map (Dval.list VT.unknownTODO)
-            return "TCustomType", [ typeName; typeArgs ]
+      | TCustomType(typeName, typeArgs) ->
+        "TCustomType",
+        [ NameResolution.toDT ValueType.unknownTODO TypeName.toDT typeName
+          typeArgs |> List.map toDT |> Dval.list VT.unknownTODO ]
 
-          | TDB inner ->
-            let! inner = toDT inner
-            return "TDB", [ inner ]
-          | TFn(args, ret) ->
-            let! args =
-              args
-              |> NEList.toList
-              |> Ply.List.mapSequentially toDT
-              |> Ply.map (Dval.list VT.unknownTODO)
-            let! ret = toDT ret
-            return "TFn", [ args; ret ]
-        }
+      | TDB inner ->
+        let inner = toDT inner
+        "TDB", [ inner ]
+      | TFn(args, ret) ->
+        "TFn",
+        [ args |> NEList.toList |> List.map toDT |> Dval.list VT.unknownTODO
+          toDT ret ]
 
-      let typeName = rtTyp [] "TypeReference" 0
-      return! Dval.enum typeName typeName (Some []) caseName fields
-    }
+    let typeName = rtTyp [] "TypeReference" 0
+    DEnum(typeName, typeName, [], caseName, fields)
 
   let rec fromDT (d : Dval) : TypeReference =
     match d with
@@ -407,39 +344,26 @@ module TypeReference =
     | _ -> Exception.raiseInternal "Invalid TypeReference" [ "typeRef", d ]
 
 module Param =
-  let toDT (p : Param) : Ply<Dval> =
-    uply {
-      let! typ = TypeReference.toDT p.typ
-      return!
-        Dval.record
-          (rtTyp [] "Param" 0)
-          (Some [])
-          [ ("name", DString p.name); ("typ", typ) ]
-    }
+  let toDT (p : Param) : Dval =
+    let fields = [ ("name", DString p.name); ("typ", TypeReference.toDT p.typ) ]
+    let typeName = rtTyp [] "Param" 0
+    DRecord(typeName, typeName, [], Map fields)
 
 
 module LetPattern =
-  let rec toDT (p : LetPattern) : Ply<Dval> =
-    uply {
-      let! (caseName, fields) =
-        uply {
-          match p with
-          | LPVariable(id, name) ->
-            return "LPVariable", [ DInt(int64 id); DString name ]
-          | LPUnit id -> return "LPUnit", [ DInt(int64 id) ]
-          | LPTuple(id, first, second, theRest) ->
-            let! first = toDT first
-            let! second = toDT second
-            let! theRest =
-              theRest
-              |> Ply.List.mapSequentially toDT
-              |> Ply.map (Dval.list VT.unknownTODO)
-            return "LPTuple", [ DInt(int64 id); first; second; theRest ]
-        }
+  let rec toDT (p : LetPattern) : Dval =
+    let (caseName, fields) =
+      match p with
+      | LPVariable(id, name) -> "LPVariable", [ DInt(int64 id); DString name ]
+      | LPUnit id -> "LPUnit", [ DInt(int64 id) ]
+      | LPTuple(id, first, second, theRest) ->
+        let first = toDT first
+        let second = toDT second
+        let theRest = theRest |> List.map toDT |> Dval.list VT.unknownTODO
+        "LPTuple", [ DInt(int64 id); first; second; theRest ]
 
-      let typeName = rtTyp [] "LetPattern" 0
-      return! Dval.enum typeName typeName (Some []) caseName fields
-    }
+    let typeName = rtTyp [] "LetPattern" 0
+    DEnum(typeName, typeName, [], caseName, fields)
 
   let rec fromDT (d : Dval) : LetPattern =
     match d with
@@ -452,50 +376,37 @@ module LetPattern =
 
 
 module MatchPattern =
-  let rec toDT (p : MatchPattern) : Ply<Dval> =
-    uply {
-      let! (caseName, fields) =
-        uply {
-          match p with
-          | MPVariable(id, name) ->
-            return "MPVariable", [ DInt(int64 id); DString name ]
+  let rec toDT (p : MatchPattern) : Dval =
+    let (caseName, fields) =
+      match p with
+      | MPVariable(id, name) -> "MPVariable", [ DInt(int64 id); DString name ]
 
-          | MPUnit id -> return "MPUnit", [ DInt(int64 id) ]
-          | MPBool(id, b) -> return "MPBool", [ DInt(int64 id); DBool b ]
-          | MPInt(id, i) -> return "MPInt", [ DInt(int64 id); DInt i ]
-          | MPFloat(id, f) -> return "MPFloat", [ DInt(int64 id); DFloat f ]
-          | MPChar(id, c) -> return "MPChar", [ DInt(int64 id); DString c ]
-          | MPString(id, s) -> return "MPString", [ DInt(int64 id); DString s ]
+      | MPUnit id -> "MPUnit", [ DInt(int64 id) ]
+      | MPBool(id, b) -> "MPBool", [ DInt(int64 id); DBool b ]
+      | MPInt(id, i) -> "MPInt", [ DInt(int64 id); DInt i ]
+      | MPFloat(id, f) -> "MPFloat", [ DInt(int64 id); DFloat f ]
+      | MPChar(id, c) -> "MPChar", [ DInt(int64 id); DString c ]
+      | MPString(id, s) -> "MPString", [ DInt(int64 id); DString s ]
 
-          | MPList(id, inner) ->
-            let! inner =
-              inner
-              |> Ply.List.mapSequentially toDT
-              |> Ply.map (Dval.list VT.unknownTODO)
-            return "MPList", [ DInt(int64 id); inner ]
-          | MPListCons(id, head, tail) ->
-            let! head = toDT head
-            let! tail = toDT tail
-            return "MPListCons", [ DInt(int64 id); head; tail ]
-          | MPTuple(id, first, second, theRest) ->
-            let! first = toDT first
-            let! second = toDT second
-            let! theRest =
-              theRest
-              |> Ply.List.mapSequentially toDT
-              |> Ply.map (Dval.list VT.unknownTODO)
-            return "MPTuple", [ DInt(int64 id); first; second; theRest ]
-          | MPEnum(id, caseName, fieldPats) ->
-            let! fieldPats =
-              fieldPats
-              |> Ply.List.mapSequentially toDT
-              |> Ply.map (Dval.list VT.unknownTODO)
-            return "MPEnum", [ DInt(int64 id); DString caseName; fieldPats ]
-        }
+      | MPList(id, inner) ->
+        "MPList",
+        [ DInt(int64 id); inner |> List.map toDT |> Dval.list VT.unknownTODO ]
+      | MPListCons(id, head, tail) ->
+        "MPListCons", [ DInt(int64 id); toDT head; toDT tail ]
 
-      let typeName = rtTyp [] "MatchPattern" 0
-      return! Dval.enum typeName typeName (Some []) caseName fields
-    }
+      | MPTuple(id, first, second, theRest) ->
+        "MPTuple",
+        [ DInt(int64 id)
+          toDT first
+          toDT second
+          theRest |> List.map toDT |> Dval.list VT.unknownTODO ]
+
+      | MPEnum(id, caseName, fieldPats) ->
+        let fieldPats = fieldPats |> List.map toDT |> Dval.list VT.unknownTODO
+        "MPEnum", [ DInt(int64 id); DString caseName; fieldPats ]
+
+    let typeName = rtTyp [] "MatchPattern" 0
+    DEnum(typeName, typeName, [], caseName, fields)
 
   let rec fromDT (d : Dval) : MatchPattern =
     match d with
@@ -513,32 +424,28 @@ module MatchPattern =
       MPList(uint64 id, List.map fromDT inner)
     | DEnum(_, _, [], "MPListCons", [ DInt id; head; tail ]) ->
       MPListCons(uint64 id, fromDT head, fromDT tail)
+
     | DEnum(_, _, [], "MPTuple", [ DInt id; first; second; DList(_vtTODO, theRest) ]) ->
       MPTuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
+
     | DEnum(_,
             _,
             [],
             "MPEnum",
             [ DInt id; DString caseName; DList(_vtTODO, fieldPats) ]) ->
       MPEnum(uint64 id, caseName, List.map fromDT fieldPats)
+
     | _ -> Exception.raiseInternal "Invalid MatchPattern" []
 
 
 module StringSegment =
-  let toDT (exprToDT : Expr -> Ply<Dval>) (s : StringSegment) : Ply<Dval> =
-    uply {
-      let! (caseName, fields) =
-        uply {
-          match s with
-          | StringText text -> return "StringText", [ DString text ]
-          | StringInterpolation expr ->
-            let! expr = exprToDT expr
-            return "StringInterpolation", [ expr ]
-        }
-
-      let typeName = rtTyp [] "StringSegment" 0
-      return! Dval.enum typeName typeName (Some []) caseName fields
-    }
+  let toDT (exprToDT : Expr -> Dval) (s : StringSegment) : Dval =
+    let (caseName, fields) =
+      match s with
+      | StringText text -> "StringText", [ DString text ]
+      | StringInterpolation expr -> "StringInterpolation", [ exprToDT expr ]
+    let typeName = rtTyp [] "StringSegment" 0
+    DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (exprFromDT : Dval -> Expr) (d : Dval) : StringSegment =
     match d with
@@ -551,182 +458,127 @@ module StringSegment =
 module Expr =
   let valueType = VT.unknownTODO // @Darklang.LanguageTools.RuntimeTypes.Expr
 
-  let rec toDT (e : Expr) : Ply<Dval> =
-    uply {
-      let! (caseName, fields) =
-        uply {
-          match e with
-          | EUnit id -> return "EUnit", [ DInt(int64 id) ]
+  let rec toDT (e : Expr) : Dval =
+    let (caseName, fields) =
+      match e with
+      | EUnit id -> "EUnit", [ DInt(int64 id) ]
 
-          // simple data
-          | EBool(id, b) -> return "EBool", [ DInt(int64 id); DBool b ]
-          | EInt(id, i) -> return "EInt", [ DInt(int64 id); DInt i ]
-          | EFloat(id, f) -> return "EFloat", [ DInt(int64 id); DFloat f ]
-          | EChar(id, c) -> return "EChar", [ DInt(int64 id); DString c ]
-          | EString(id, segments) ->
-            let! segments =
-              segments
-              |> Ply.List.mapSequentially (StringSegment.toDT toDT)
-              |> Ply.map (Dval.list VT.unknownTODO)
-            return "EString", [ DInt(int64 id); segments ]
+      | EBool(id, b) -> "EBool", [ DInt(int64 id); DBool b ]
+      | EInt(id, i) -> "EInt", [ DInt(int64 id); DInt i ]
+      | EFloat(id, f) -> "EFloat", [ DInt(int64 id); DFloat f ]
+      | EChar(id, c) -> "EChar", [ DInt(int64 id); DString c ]
+      | EString(id, segments) ->
+        "EString",
+        [ DInt(int64 id)
+          segments |> List.map (StringSegment.toDT toDT) |> Dval.list VT.unknownTODO ]
 
-          // structures of data
-          | EList(id, exprs) ->
-            let! exprs =
-              exprs |> Ply.List.mapSequentially toDT |> Ply.map (Dval.list valueType)
-            return "EList", [ DInt(int64 id); exprs ]
+      | EList(id, exprs) ->
+        "EList", [ DInt(int64 id); exprs |> List.map toDT |> Dval.list valueType ]
 
-          | EDict(id, entries) ->
-            let! entries =
-              entries
-              |> Ply.List.mapSequentially (fun (k, v) ->
-                uply {
-                  let! v = toDT v
-                  return DTuple(DString k, v, [])
-                })
-              |> Ply.map (Dval.list VT.unknownTODO)
-            return "EDict", [ DInt(int64 id); entries ]
+      | EDict(id, entries) ->
+        let entries =
+          entries
+          |> List.map (fun (k, v) ->
+            let v = toDT v
+            DTuple(DString k, v, []))
+          |> Dval.list VT.unknownTODO
+        "EDict", [ DInt(int64 id); entries ]
 
-          | ETuple(id, first, second, theRest) ->
-            let! first = toDT first
-            let! second = toDT second
-            let! theRest =
-              theRest
-              |> Ply.List.mapSequentially toDT
-              |> Ply.map (Dval.list VT.unknownTODO)
-            return "ETuple", [ DInt(int64 id); first; second; theRest ]
+      | ETuple(id, first, second, theRest) ->
+        "ETuple",
+        [ DInt(int64 id)
+          toDT first
+          toDT second
+          theRest |> List.map toDT |> Dval.list VT.unknownTODO ]
 
-          | ERecord(id, typeName, fields) ->
-            let! typeName = TypeName.toDT typeName
-            let! fields =
-              fields
-              |> NEList.toList
-              |> Ply.List.mapSequentially (fun (name, expr) ->
-                uply {
-                  let! expr = toDT expr
-                  return DTuple(DString name, expr, [])
-                })
-            return
-              "ERecord",
-              [ DInt(int64 id); typeName; Dval.list VT.unknownTODO fields ]
+      | ERecord(id, typeName, fields) ->
+        let fields =
+          fields
+          |> NEList.toList
+          |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
+          |> Dval.list VT.unknownTODO
+        "ERecord", [ DInt(int64 id); TypeName.toDT typeName; fields ]
 
-          | EEnum(id, typeName, caseName, fields) ->
-            let! typeName = TypeName.toDT typeName
-            let! fields =
-              fields
-              |> Ply.List.mapSequentially toDT
-              |> Ply.map (Dval.list valueType)
-            return "EEnum", [ DInt(int64 id); typeName; DString caseName; fields ]
+      | EEnum(id, typeName, caseName, fields) ->
+        "EEnum",
+        [ DInt(int64 id)
+          TypeName.toDT typeName
+          DString caseName
+          fields |> List.map toDT |> Dval.list valueType ]
 
-          // declaring and accessing variables
-          | ELet(id, lp, expr, body) ->
-            let! lp = LetPattern.toDT lp
-            let! expr = toDT expr
-            let! body = toDT body
-            return "ELet", [ DInt(int64 id); lp; expr; body ]
+      // declaring and accessing variables
+      | ELet(id, lp, expr, body) ->
+        "ELet", [ DInt(int64 id); LetPattern.toDT lp; toDT expr; toDT body ]
 
-          | EFieldAccess(id, expr, fieldName) ->
-            let! expr = toDT expr
-            return "EFieldAccess", [ DInt(int64 id); expr; DString fieldName ]
+      | EFieldAccess(id, expr, fieldName) ->
+        "EFieldAccess", [ DInt(int64 id); toDT expr; DString fieldName ]
 
-          | EVariable(id, varName) ->
-            return "EVariable", [ DInt(int64 id); DString varName ]
+      | EVariable(id, varName) -> "EVariable", [ DInt(int64 id); DString varName ]
 
 
-          // control flow
-          | EIf(id, cond, thenExpr, elseExpr) ->
-            let! cond = toDT cond
-            let! thenExpr = toDT thenExpr
-            let! elseExpr =
-              elseExpr |> Ply.Option.map toDT |> Ply.map (Dval.option valueType)
-            return "EIf", [ DInt(int64 id); cond; thenExpr; elseExpr ]
+      // control flow
+      | EIf(id, cond, thenExpr, elseExpr) ->
+        let cond = toDT cond
+        let thenExpr = toDT thenExpr
+        let elseExpr = elseExpr |> Option.map toDT |> Dval.option valueType
+        "EIf", [ DInt(int64 id); cond; thenExpr; elseExpr ]
 
-          | EMatch(id, arg, cases) ->
-            let! arg = toDT arg
-            let! cases =
-              cases
-              |> NEList.toList
-              |> Ply.List.mapSequentially (fun (pattern, expr) ->
-                uply {
-                  let! pattern = MatchPattern.toDT pattern
-                  let! expr = toDT expr
-                  return DTuple(pattern, expr, [])
-                })
-              |> Ply.map (Dval.list VT.unknownTODO)
-            return "EMatch", [ DInt(int64 id); arg; cases ]
+      | EMatch(id, arg, cases) ->
+        let cases =
+          cases
+          |> NEList.toList
+          |> List.map (fun (pattern, expr) ->
+            DTuple(MatchPattern.toDT pattern, toDT expr, []))
+          |> Dval.list VT.unknownTODO
+        "EMatch", [ DInt(int64 id); toDT arg; cases ]
 
 
-          | ELambda(id, args, body) ->
-            let variables =
-              (NEList.toList args)
-              |> List.map (fun (id, varName) ->
-                DTuple(DInt(int64 id), DString varName, []))
-              |> Dval.list VT.unknownTODO
-            let! body = toDT body
-            return "ELambda", [ DInt(int64 id); variables; body ]
+      | ELambda(id, args, body) ->
+        let variables =
+          (NEList.toList args)
+          |> List.map (fun (id, varName) ->
+            DTuple(DInt(int64 id), DString varName, []))
+          |> Dval.list VT.unknownTODO
+        "ELambda", [ DInt(int64 id); variables; toDT body ]
 
-          | EConstant(id, name) ->
-            let! name = ConstantName.toDT name
-            return "EConstant", [ DInt(int64 id); name ]
+      | EConstant(id, name) ->
+        "EConstant", [ DInt(int64 id); ConstantName.toDT name ]
 
-          | EApply(id, expr, typeArgs, args) ->
-            let! expr = toDT expr
-            let! typeArgs =
-              typeArgs
-              |> Ply.List.mapSequentially TypeReference.toDT
-              |> Ply.map (Dval.list TypeReference.valueType)
-            let! args =
-              args
-              |> NEList.toList
-              |> Ply.List.mapSequentially toDT
-              |> Ply.map (Dval.list TypeReference.valueType)
-            return "EApply", [ DInt(int64 id); expr; typeArgs; args ]
+      | EApply(id, expr, typeArgs, args) ->
+        let typeArgs =
+          typeArgs
+          |> List.map TypeReference.toDT
+          |> Dval.list TypeReference.valueType
+        let args =
+          args |> NEList.toList |> List.map toDT |> Dval.list TypeReference.valueType
+        "EApply", [ DInt(int64 id); toDT expr; typeArgs; args ]
 
-          | EFnName(id, name) ->
-            let! name = FnName.toDT name
-            return "EFnName", [ DInt(int64 id); name ]
+      | EFnName(id, name) -> "EFnName", [ DInt(int64 id); FnName.toDT name ]
 
-          | ERecordUpdate(id, record, updates) ->
-            let! record = toDT record
-            let! updates =
-              NEList.toList updates
-              |> Ply.List.mapSequentially (fun (name, expr) ->
-                uply {
-                  let! expr = toDT expr
-                  return DTuple(DString name, expr, [])
-                })
-              |> Ply.map (Dval.list VT.unknownTODO)
-            return "ERecordUpdate", [ DInt(int64 id); record; updates ]
+      | ERecordUpdate(id, record, updates) ->
+        let updates =
+          NEList.toList updates
+          |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
+          |> Dval.list VT.unknownTODO
+        "ERecordUpdate", [ DInt(int64 id); toDT record; updates ]
 
-          | EAnd(id, left, right) ->
-            let! left = toDT left
-            let! right = toDT right
-            return "EAnd", [ DInt(int64 id); left; right ]
+      | EAnd(id, left, right) -> "EAnd", [ DInt(int64 id); toDT left; toDT right ]
 
-          | EOr(id, left, right) ->
-            let! left = toDT left
-            let! right = toDT right
-            return "EOr", [ DInt(int64 id); left; right ]
+      | EOr(id, left, right) -> "EOr", [ DInt(int64 id); toDT left; toDT right ]
 
-          // Let the error straight through
-          | EError(id, rtError, exprs) ->
-            let! exprs =
-              exprs |> Ply.List.mapSequentially toDT |> Ply.map (Dval.list valueType)
-            return
-              "EError",
-              [ DInt(int64 id); RuntimeTypes.RuntimeError.toDT rtError; exprs ]
-        }
+      // Let the error straight through
+      | EError(id, rtError, exprs) ->
+        let exprs = exprs |> List.map toDT |> Dval.list valueType
+        "EError", [ DInt(int64 id); RuntimeTypes.RuntimeError.toDT rtError; exprs ]
 
 
-      let typeName = rtTyp [] "Expr" 0
-      return! Dval.enum typeName typeName (Some []) caseName fields
-    }
+    let typeName = rtTyp [] "Expr" 0
+    DEnum(typeName, typeName, [], caseName, fields)
 
   let rec fromDT (d : Dval) : Expr =
     match d with
     | DEnum(_, _, [], "EUnit", [ DInt id ]) -> EUnit(uint64 id)
 
-    // simple data
     | DEnum(_, _, [], "EBool", [ DInt id; DBool b ]) -> EBool(uint64 id, b)
     | DEnum(_, _, [], "EInt", [ DInt id; DInt i ]) -> EInt(uint64 id, i)
     | DEnum(_, _, [], "EFloat", [ DInt id; DFloat f ]) -> EFloat(uint64 id, f)
@@ -735,9 +587,9 @@ module Expr =
       EString(uint64 id, List.map (StringSegment.fromDT fromDT) segments)
 
 
-    // structures of data
     | DEnum(_, _, [], "EList", [ DInt id; DList(_vtTODO, inner) ]) ->
       EList(uint64 id, List.map fromDT inner)
+
     | DEnum(_, _, [], "EDict", [ DInt id; DList(_vtTODO, pairsList) ]) ->
       let pairs =
         pairsList
@@ -767,7 +619,6 @@ module Expr =
           fields
       )
 
-
     | DEnum(_,
             _,
             [],
@@ -775,7 +626,6 @@ module Expr =
             [ DInt id; typeName; DString caseName; DList(_vtTODO, fields) ]) ->
       EEnum(uint64 id, TypeName.fromDT typeName, caseName, List.map fromDT fields)
 
-    // declaring and accessing variables
     | DEnum(_, _, [], "ELet", [ DInt id; lp; expr; body ]) ->
       ELet(uint64 id, LetPattern.fromDT lp, fromDT expr, fromDT body)
 
@@ -785,7 +635,6 @@ module Expr =
     | DEnum(_, _, [], "EVariable", [ DInt id; DString varName ]) ->
       EVariable(uint64 id, varName)
 
-    // control flow
     | DEnum(_, _, [], "EIf", [ DInt id; cond; thenExpr; elseExpr ]) ->
       let elseExpr =
         match elseExpr with
@@ -803,32 +652,22 @@ module Expr =
           | DTuple(pattern, expr, _) ->
             [ (MatchPattern.fromDT pattern, fromDT expr) ]
           | _ -> [])
-      EMatch(
-        uint64 id,
-        fromDT arg,
-        NEList.ofListUnsafe
+        |> NEList.ofListUnsafe
           "RT2DT.Expr.fromDT expected at least one case in EMatch"
           []
-          cases
-      )
+      EMatch(uint64 id, fromDT arg, cases)
 
-
-    | DEnum(_, _, [], "ELambda", [ DInt id; DList(_vtTODO, variables); body ]) ->
+    | DEnum(_, _, [], "ELambda", [ DInt id; DList(_vtTODO, args); body ]) ->
       let args =
-        variables
+        args
         |> List.collect (fun arg ->
           match arg with
           | DTuple(DInt argId, DString varName, _) -> [ (uint64 argId, varName) ]
           | _ -> [])
-
-      ELambda(
-        uint64 id,
-        NEList.ofListUnsafe
+        |> NEList.ofListUnsafe
           "RT2DT.Expr.fromDT expected at least one bound variable in ELambda"
           []
-          args,
-        fromDT body
-      )
+      ELambda(uint64 id, args, fromDT body)
 
 
     | DEnum(_,
@@ -883,7 +722,7 @@ module Expr =
 
 
 module RuntimeError =
-  let toDT (e : RuntimeError) : Ply<Dval> =
+  let toDT (e : RuntimeError) : Dval =
     e |> RuntimeTypes.RuntimeError.toDT |> Dval.toDT
 
   let fromDT (d : Dval) : RuntimeError =
@@ -894,61 +733,46 @@ module Dval =
   let valueType = VT.unknownTODO // @Darklang.LanguageTools.RuntimeTypes.Dval.Dval
 
   module KnownType =
-    let toDT (kt : KnownType) : Ply<Dval> =
-      uply {
-        let! (caseName, fields) =
-          uply {
-            match kt with
-            | KTUnit -> return "KTUnit", []
-            | KTBool -> return "KTBool", []
-            | KTInt -> return "KTInt", []
-            | KTFloat -> return "KTFloat", []
-            | KTChar -> return "KTChar", []
-            | KTString -> return "KTString", []
-            | KTUuid -> return "KTUuid", []
-            | KTDateTime -> return "KTDateTime", []
-            | KTBytes -> return "KTBytes", []
+    let toDT (kt : KnownType) : Dval =
+      let vtToDT = ValueType.toDT
 
-            | KTList inner ->
-              let! inner = ValueType.toDT inner
-              return "KTList", [ inner ]
-            | KTTuple(first, second, theRest) ->
-              let! first = ValueType.toDT first
-              let! second = ValueType.toDT second
-              let! theRest =
-                theRest
-                |> Ply.List.mapSequentially ValueType.toDT
-                |> Ply.map (Dval.list ValueType.valueType)
-              return "KTTuple", [ first; second; theRest ]
-            | KTDict inner ->
-              let! inner = ValueType.toDT inner
-              return "KTDict", [ inner ]
+      let (caseName, fields) =
+        match kt with
+        | KTUnit -> "KTUnit", []
+        | KTBool -> "KTBool", []
+        | KTInt -> "KTInt", []
+        | KTFloat -> "KTFloat", []
+        | KTChar -> "KTChar", []
+        | KTString -> "KTString", []
+        | KTUuid -> "KTUuid", []
+        | KTDateTime -> "KTDateTime", []
+        | KTBytes -> "KTBytes", []
 
-            | KTCustomType(typeName, typeArgs) ->
-              let! typeName = TypeName.toDT typeName
-              let! typeArgs =
-                typeArgs
-                |> Ply.List.mapSequentially ValueType.toDT
-                |> Ply.map (Dval.list ValueType.valueType)
-              return "KTCustomType", [ typeName; typeArgs ]
+        | KTList inner -> "KTList", [ ValueType.toDT inner ]
+        | KTTuple(first, second, theRest) ->
+          "KTTuple",
+          [ ValueType.toDT first
+            ValueType.toDT second
+            theRest |> List.map ValueType.toDT |> Dval.list ValueType.valueType ]
+        | KTDict inner -> "KTDict", [ ValueType.toDT inner ]
 
-            | KTFn(args, ret) ->
-              let! args =
-                args
-                |> NEList.toList
-                |> Ply.List.mapSequentially ValueType.toDT
-                |> Ply.map (Dval.list ValueType.valueType)
-              let! ret = ValueType.toDT ret
-              return "KTFn", [ args; ret ]
+        | KTCustomType(typeName, typeArgs) ->
+          "KTCustomType",
+          [ TypeName.toDT typeName
+            typeArgs |> List.map ValueType.toDT |> Dval.list ValueType.valueType ]
 
-            | KTDB d ->
-              let! d = ValueType.toDT d
-              return "KTDB", [ d ]
-          }
+        | KTFn(args, ret) ->
+          let args =
+            args
+            |> NEList.toList
+            |> List.map ValueType.toDT
+            |> Dval.list ValueType.valueType
+          "KTFn", [ args; ValueType.toDT ret ]
 
-        let typeName = rtTyp [] "KnownType" 0
-        return! Dval.enum typeName typeName (Some []) caseName fields
-      }
+        | KTDB d -> "KTDB", [ ValueType.toDT d ]
+
+      let typeName = rtTyp [] "KnownType" 0
+      DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : KnownType =
       match d with
@@ -988,37 +812,30 @@ module Dval =
   module ValueType =
     let valueType = VT.unknownTODO
 
-    let toDT (vt : ValueType) : Ply<Dval> =
-      uply {
-        let! (caseName, fields) =
-          uply {
-            match vt with
-            | ValueType.Unknown -> return "Unknown", []
-            | ValueType.Known kt ->
-              let! kt = KnownType.toDT kt
-              return "Known", [ kt ]
-          }
-
-        let typeName = rtTyp [] "ValueType" 0
-        return! Dval.enum typeName typeName (Some []) caseName fields
-      }
+    let toDT (vt : ValueType) : Dval =
+      let (caseName, fields) =
+        match vt with
+        | ValueType.Unknown -> "Unknown", []
+        | ValueType.Known kt ->
+          let kt = KnownType.toDT kt
+          "Known", [ kt ]
+      let typeName = rtTyp [] "ValueType" 0
+      DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : ValueType =
       match d with
       | DEnum(_, _, [], "Unknown", []) -> ValueType.Unknown
       | DEnum(_, _, [], "Known", [ kt ]) -> ValueType.Known(KnownType.fromDT kt)
-
       | _ -> Exception.raiseInternal "Invalid ValueType" []
 
   module DvalSource =
-    let toDT (s : DvalSource) : Ply<Dval> =
-      let caseName, fields =
+    let toDT (s : DvalSource) : Dval =
+      let (caseName, fields) =
         match s with
         | SourceNone -> "SourceNone", []
         | SourceID(tlid, id) -> "SourceID", [ DInt(int64 tlid); DInt(int64 id) ]
-
       let typeName = rtTyp [] "DvalSource" 0
-      Dval.enum typeName typeName (Some []) caseName fields
+      DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : DvalSource =
       match d with
@@ -1029,76 +846,59 @@ module Dval =
 
 
   module LambdaImpl =
-    let toDT (l : LambdaImpl) : Ply<Dval> =
-      uply {
-        let! tst =
-          l.typeSymbolTable
-          |> Ply.Map.mapSequentially TypeReference.toDT
-          |> Ply.map (Dval.dictFromMap VT.unknownTODO)
-        let! symtable =
-          l.symtable
-          |> Ply.Map.mapSequentially Dval.toDT
-          |> Ply.map (Dval.dictFromMap VT.unknownTODO)
-        let parameters =
-          l.parameters
-          |> NEList.toList
-          |> List.map (fun (id, name) -> DTuple(DInt(int64 id), DString name, []))
-          |> Dval.list VT.unknownTODO
-        let! body = Expr.toDT l.body
-        return!
-          Dval.record
-            (rtTyp [] "LambdaImpl" 0)
-            (Some [])
-            [ "typeSymbolTable", tst
-              "symtable", symtable
-              "parameters", parameters
-              "body", body ]
-      }
+    let toDT (l : LambdaImpl) : Dval =
+      let tst =
+        l.typeSymbolTable
+        |> Map.map TypeReference.toDT
+        |> Dval.dictFromMap VT.unknownTODO
+      let symtable =
+        l.symtable |> Map.map Dval.toDT |> Dval.dictFromMap VT.unknownTODO
+      let parameters =
+        l.parameters
+        |> NEList.toList
+        |> List.map (fun (id, name) -> DTuple(DInt(int64 id), DString name, []))
+        |> Dval.list VT.unknownTODO
+      let body = Expr.toDT l.body
+      let fields =
+        [ "typeSymbolTable", tst
+          "symtable", symtable
+          "parameters", parameters
+          "body", body ]
+
+      let typeName = rtTyp [] "LambdaImpl" 0
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : LambdaImpl =
       match d with
       | DRecord(_, _, _, fields) ->
-        let typeSymbolTable =
-          fields |> D.mapField "typeSymbolTable" |> Map.map TypeReference.fromDT
+        { typeSymbolTable =
+            fields |> D.mapField "typeSymbolTable" |> Map.map TypeReference.fromDT
 
-        let symtable = fields |> D.mapField "symtable" |> Map.map Dval.fromDT
+          symtable = fields |> D.mapField "symtable" |> Map.map Dval.fromDT
 
-        let parameters =
-          fields
-          |> D.listField "parameters"
-          |> List.map (fun d ->
-            match d with
-            | DTuple(DInt id, DString name, _) -> (uint64 id, name)
-            | _ -> Exception.raiseInternal "Invalid LambdaImpl" [])
-          |> NEList.ofListUnsafe
-            "RT2DT.Dval.fromDT expected at least one parameter in LambdaImpl"
-            []
-        let body = fields |> D.field "body" |> Expr.fromDT
+          parameters =
+            fields
+            |> D.listField "parameters"
+            |> List.map (fun d ->
+              match d with
+              | DTuple(DInt id, DString name, _) -> (uint64 id, name)
+              | _ -> Exception.raiseInternal "Invalid LambdaImpl" [])
+            |> NEList.ofListUnsafe
+              "RT2DT.Dval.fromDT expected at least one parameter in LambdaImpl"
+              []
 
-        { typeSymbolTable = typeSymbolTable
-          symtable = symtable
-          parameters = parameters
-          body = body }
+          body = fields |> D.field "body" |> Expr.fromDT }
 
       | _ -> Exception.raiseInternal "Invalid LambdaImpl" []
 
   module FnValImpl =
-    let toDT (fnValImpl : FnValImpl) : Ply<Dval> =
-      uply {
-        let! (caseName, fields) =
-          uply {
-            match fnValImpl with
-            | Lambda lambda ->
-              let! lambda = LambdaImpl.toDT lambda
-              return "Lambda", [ lambda ]
-            | NamedFn fnName ->
-              let! fnName = FnName.toDT fnName
-              return "NamedFn", [ fnName ]
-          }
-
-        let typeName = rtTyp [] "FnValImpl" 0
-        return! Dval.enum typeName typeName (Some []) caseName fields
-      }
+    let toDT (fnValImpl : FnValImpl) : Dval =
+      let (caseName, fields) =
+        match fnValImpl with
+        | Lambda lambda -> "Lambda", [ LambdaImpl.toDT lambda ]
+        | NamedFn fnName -> "NamedFn", [ FnName.toDT fnName ]
+      let typeName = rtTyp [] "FnValImpl" 0
+      DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : FnValImpl =
       match d with
@@ -1106,85 +906,57 @@ module Dval =
       | DEnum(_, _, [], "NamedFn", [ fnName ]) -> NamedFn(FnName.fromDT fnName)
       | _ -> Exception.raiseInternal "Invalid FnValImpl" []
 
-  let rec toDT (dv : Dval) : Ply<Dval> =
-    uply {
-      let! (caseName, fields) =
-        uply {
-          match dv with
-          | DUnit -> return "DUnit", []
-          | DBool b -> return "DBool", [ DBool b ]
-          | DInt i -> return "DInt", [ DInt i ]
-          | DFloat f -> return "DFloat", [ DFloat f ]
-          | DChar c -> return "DChar", [ DChar c ]
-          | DString s -> return "DString", [ DString s ]
-          | DUuid u -> return "DUuid", [ DUuid u ]
-          | DDateTime d -> return "DDateTime", [ DDateTime d ]
-          | DBytes b -> return "DBytes", [ DBytes b ]
+  let rec toDT (dv : Dval) : Dval =
+    let (caseName, fields) =
+      match dv with
+      | DUnit -> "DUnit", []
+      | DBool b -> "DBool", [ DBool b ]
+      | DInt i -> "DInt", [ DInt i ]
+      | DFloat f -> "DFloat", [ DFloat f ]
+      | DChar c -> "DChar", [ DChar c ]
+      | DString s -> "DString", [ DString s ]
+      | DUuid u -> "DUuid", [ DUuid u ]
+      | DDateTime d -> "DDateTime", [ DDateTime d ]
+      | DBytes b -> "DBytes", [ DBytes b ]
 
+      | DList(vt, items) ->
+        "DList",
+        [ ValueType.toDT vt; items |> List.map toDT |> Dval.list VT.unknownTODO ]
 
-          | DList(vt, items) ->
-            let! vt = ValueType.toDT vt
-            let! items =
-              items
-              |> Ply.List.mapSequentially toDT
-              |> Ply.map (Dval.list VT.unknownTODO)
-            return "DList", [ vt; items ]
+      | DTuple(first, second, theRest) ->
+        "DTuple",
+        [ toDT first
+          toDT second
+          theRest |> List.map toDT |> Dval.list VT.unknownTODO ]
 
-          | DTuple(first, second, theRest) ->
-            let! first = toDT first
-            let! second = toDT second
-            let! theRest =
-              theRest
-              |> Ply.List.mapSequentially toDT
-              |> Ply.map (Dval.list VT.unknownTODO)
-            return "DTuple", [ first; second; theRest ]
+      | DFnVal fnImpl -> "DFnVal", [ FnValImpl.toDT fnImpl ]
 
-          | DFnVal fnImpl ->
-            let! fnImpl = FnValImpl.toDT fnImpl
-            return "DFnVal", [ fnImpl ]
+      | DDB name -> "DDB", [ DString name ]
 
-          | DDB name -> return "DDB", [ DString name ]
+      | DDict(vt, entries) ->
+        let vt = ValueType.toDT vt
+        let entries = entries |> Map.map toDT |> Dval.dictFromMap VT.unknownTODO
+        "DDict", [ vt; entries ]
 
-          | DDict(vt, entries) ->
-            let! vt = ValueType.toDT vt
-            let! entries =
-              entries
-              |> Ply.Map.mapSequentially toDT
-              |> Ply.map (Dval.dictFromMap VT.unknownTODO)
-            return "DDict", [ vt; entries ]
+      | DRecord(runtimeTypeName, sourceTypeName, typeArgs, fields) ->
+        let runtimeTypeName = TypeName.toDT runtimeTypeName
+        let sourceTypeName = TypeName.toDT sourceTypeName
+        let typeArgs =
+          typeArgs |> List.map ValueType.toDT |> Dval.list ValueType.valueType
+        let fields = fields |> Map.map toDT |> Dval.dictFromMap VT.unknownTODO
+        "DRecord", [ runtimeTypeName; sourceTypeName; typeArgs; fields ]
 
-          | DRecord(runtimeTypeName, sourceTypeName, typeArgs, fields) ->
-            let! runtimeTypeName = TypeName.toDT runtimeTypeName
-            let! sourceTypeName = TypeName.toDT sourceTypeName
-            let! typeArgs =
-              typeArgs
-              |> Ply.List.mapSequentially ValueType.toDT
-              |> Ply.map (Dval.list ValueType.valueType)
-            let! fields =
-              fields
-              |> Ply.Map.mapSequentially toDT
-              |> Ply.map (Dval.dictFromMap VT.unknownTODO)
-            return "DRecord", [ runtimeTypeName; sourceTypeName; typeArgs; fields ]
+      | DEnum(runtimeTypeName, sourceTypeName, typeArgs, caseName, fields) ->
+        let runtimeTypeName = TypeName.toDT runtimeTypeName
+        let sourceTypeName = TypeName.toDT sourceTypeName
+        let typeArgs =
+          typeArgs |> List.map ValueType.toDT |> Dval.list ValueType.valueType
+        let fields = fields |> List.map toDT |> Dval.list VT.unknownTODO
+        "DEnum",
+        [ runtimeTypeName; sourceTypeName; typeArgs; DString caseName; fields ]
 
-          | DEnum(runtimeTypeName, sourceTypeName, typeArgs, caseName, fields) ->
-            let! runtimeTypeName = TypeName.toDT runtimeTypeName
-            let! sourceTypeName = TypeName.toDT sourceTypeName
-            let! typeArgs =
-              typeArgs
-              |> Ply.List.mapSequentially ValueType.toDT
-              |> Ply.map (Dval.list ValueType.valueType)
-            let! fields =
-              fields
-              |> Ply.List.mapSequentially toDT
-              |> Ply.map (Dval.list VT.unknownTODO)
-            return
-              "DEnum",
-              [ runtimeTypeName; sourceTypeName; typeArgs; DString caseName; fields ]
-        }
-
-      let typeName = rtTyp [ "Dval" ] "Dval" 0
-      return! Dval.enum typeName typeName (Some []) caseName fields
-    }
+    let typeName = rtTyp [ "Dval" ] "Dval" 0
+    DEnum(typeName, typeName, [], caseName, fields)
 
 
   let fromDT (d : Dval) : Dval =
@@ -1232,7 +1004,6 @@ module Dval =
               DList(_vtTODO1, typeArgs)
               DString caseName
               DList(_vtTODO2, fields) ]) ->
-      // CLEANUP should this be Dval.enum instead?
       DEnum(
         TypeName.fromDT runtimeTypeName,
         TypeName.fromDT sourceTypeName,
