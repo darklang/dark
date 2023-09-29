@@ -257,10 +257,7 @@ let rec inline'
       match expr with
       | EApply(_, EFnName(_, (fnName)), [], args) ->
         uply {
-          let! arguments =
-            Ply.List.mapSequentially
-              (inline' fns paramName symtable)
-              (args |> NEList.toList)
+          let arguments = args |> NEList.toList
           let nameStr = FnName.toString fnName
           match fnName with
           | FQName.Package p ->
@@ -399,8 +396,8 @@ let rec lambdaToSql
                 | Some fn ->
                   let parameters = fn.parameters |> List.map (fun p -> p.name, p.typ)
                   return fn.returnType, parameters, fn.sqlSpec
-                | None -> return error $"Builtin functions {nameStr} not found"
-              | _ -> return error $"Functions {nameStr} not found"
+                | None -> return error $"Builtin function {nameStr} not found"
+              | _ -> return error $"Function {nameStr} not found"
             }
 
           typecheck nameStr returnType expectedType

@@ -12,8 +12,16 @@ open LibExecution.RuntimeTypes
 
 module C = LibCloud.SqlCompiler
 module S = TestUtils.RTShortcuts
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 let p (code : string) : Task<Expr> =
+  LibParser.Parser.parseRTExpr nameResolver "sqlcompiler.tests.fs" code
+  |> Ply.toTask
+
+let parse
+  (nameResolver : LibParser.NameResolver.NameResolver)
+  (code : string)
+  : Task<Expr> =
   LibParser.Parser.parseRTExpr nameResolver "sqlcompiler.tests.fs" code
   |> Ply.toTask
 
@@ -183,6 +191,201 @@ let inlineWorksWithNested =
     return! result |> Ply.toTask
   }
 
+let inlineWorksWithPackageFunctionsSqlBinOp =
+  testTask "inlineWorksWithPackageFunctionsSqlBinOp" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+    let fns = ExecutionState.availableFunctions state
+    let! expr =
+      p
+        "let x = true in (let y = false in (PACKAGE.Darklang.Stdlib.Bool.and_v0 x y))"
+
+    let! expected = p "true && false"
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
+  }
+
+let inlineWorksWithPackageFunctionsSqlFunction =
+  testTask "inlineWorksWithPackageFunctionsSqlFunction" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+    let fns = ExecutionState.availableFunctions state
+    let! expr =
+      p
+        """let x = "package" in (let y = "e" in (PACKAGE.Darklang.Stdlib.String.replaceAll_v0 x y "es"))"""
+
+    let! expected = p """Builtin.String.replaceAll_v0 "package" "e" "es" """
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
+  }
+
+
+let inlineWorksWithUserFunctions =
+  testTask "inlineWorksWithUserFunctions" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+
+    let userAddBody =
+      PT.EInfix(
+        0UL,
+        PT.InfixFnCall(PT.ArithmeticPlus),
+        PT.EVariable(0UL, "a"),
+        PT.EVariable(0UL, "b")
+      )
+
+    let! (userAdd : UserFunction.T) =
+      testUserFn "userAdd" [] (NEList.doubleton "a" "b") PT.TInt userAddBody
+      |> PT2RT.UserFunction.toRT
+      |> Ply.toTask
+
+    let existingFunctions = ExecutionState.availableFunctions state
+    let updatedUserProgram =
+      Map.add userAdd.name userAdd existingFunctions.userProgram
+    let fns = { existingFunctions with userProgram = updatedUserProgram }
+
+    let nr =
+      { nameResolver with
+          userFns = Set.singleton (PT.FnName.userProgram [] "userAdd" 0) }
+
+    let! expr =
+      parse
+        nr
+        "let a = 1 in let b = 9 in let c = userAdd 6 4 in (p.height == c) && (p.age == b)"
+
+    let! expected = p "p.height == (6 + 4) && p.age == 9"
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
+  }
+
+let inlineWorksWithPackageAndUserFunctions =
+  testTask "inlineWorksWithPackageAndUserFunctions" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+
+    let! (userAnd : UserFunction.T) =
+      testUserFn
+        "userAnd"
+        []
+        (NEList.doubleton "a" "b")
+        PT.TBool
+        (PT.EInfix(
+          0UL,
+          PT.BinOp(PT.BinOpAnd),
+          PT.EVariable(0UL, "a"),
+          PT.EVariable(0UL, "b")
+        ))
+      |> PT2RT.UserFunction.toRT
+      |> Ply.toTask
+
+    let existingFunctions = ExecutionState.availableFunctions state
+    let updatedUserProgram =
+      Map.add userAnd.name userAnd existingFunctions.userProgram
+    let fns = { existingFunctions with userProgram = updatedUserProgram }
+
+    let nr =
+      { nameResolver with
+          userFns = Set.singleton (PT.FnName.userProgram [] "userAnd" 0) }
+
+    let! expr =
+      parse
+        nr
+        "userAnd user.human (PACKAGE.Darklang.Stdlib.Int.lessThan_v0 user.height (PACKAGE.Darklang.Stdlib.Int.add height 1))"
+
+    let! expected = p "user.human && (user.height < (height + 1))"
+
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
+  }
+let inlineFunctionArguments =
+  testTask "inlineWorksArguments" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+
+    let userAddBody =
+      PT.EInfix(
+        0UL,
+        PT.InfixFnCall(PT.ArithmeticPlus),
+        PT.EVariable(0UL, "a"),
+        PT.EVariable(0UL, "b")
+      )
+
+    let! (userAdd : UserFunction.T) =
+      testUserFn "userAdd" [] (NEList.doubleton "a" "b") PT.TInt userAddBody
+      |> PT2RT.UserFunction.toRT
+      |> Ply.toTask
+
+    let existingFunctions = ExecutionState.availableFunctions state
+    let updatedUserProgram =
+      Map.add userAdd.name userAdd existingFunctions.userProgram
+    let fns = { existingFunctions with userProgram = updatedUserProgram }
+
+    let nr =
+      { nameResolver with
+          userFns = Set.singleton (PT.FnName.userProgram [] "userAdd" 0) }
+
+    let! expr = parse nr "let a = 1 in let b = 9 in (p.height == userAdd 6 (b - 4))"
+
+    let! expected = parse nr "p.height == 6 + (9 - 4)"
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
+  }
+
+
 let partialEvaluation =
   testManyTask
     "partialEvaluate"
@@ -255,4 +458,12 @@ let partialEvaluation =
 let tests =
   testList
     "SqlCompiler"
-    [ inlineWorksAtRoot; inlineWorksWithNested; partialEvaluation; compileTests ]
+    [ inlineWorksAtRoot
+      inlineWorksWithNested
+      inlineWorksWithPackageFunctionsSqlBinOp
+      inlineWorksWithPackageFunctionsSqlFunction
+      inlineWorksWithUserFunctions
+      inlineWorksWithPackageAndUserFunctions
+      inlineFunctionArguments
+      partialEvaluation
+      compileTests ]
