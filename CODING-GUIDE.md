@@ -21,7 +21,7 @@
   - String (not Str)
   - Float
   - Bool (not Boolean)
-  - Char (not Character)
+  - Char (not Char)
   - Uuid (not UUID)
   - Dict (not Dictionary)
 

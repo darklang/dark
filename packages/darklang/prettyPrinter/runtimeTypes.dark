@@ -181,7 +181,7 @@ module Darklang =
         | TBool -> "Bool"
         | TInt -> "Int"
         | TFloat -> "Float"
-        | TChar -> "Character"
+        | TChar -> "Char"
         | TString -> "String"
         | TUuid -> "Uuid"
         | TBytes -> "Bytes"

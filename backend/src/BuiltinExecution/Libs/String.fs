@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
             [ "character" ] ]
       returnType = TString
       description =
-        "Iterate over each Character (EGC, not byte) in the string, performing the
+        "Iterate over each Char (EGC, not byte) in the string, performing the
          operation in <param fn> on each one."
       fn =
         (function
