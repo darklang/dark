@@ -305,26 +305,38 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString s; DInt first; DInt last ] ->
           let strLength = String.length s
+          // Adjust first and last indices if they are negative (to start counting from the end)
           let first = if first < 0 then strLength + int first else int first
           let last = if last < 0 then strLength + int last else int last
 
+          // Return empty string if first index is out of bounds or greate than or equal to the last index
           if first >= strLength || first >= last then
-            "" |> DString |> Ply
+            Ply(DString "")
           else
+            // Create a TextElementEnumerator to iterate through the string elements
+            // This is used to handle EGCs correctly
             let textElemEnumerator =
               System.Globalization.StringInfo.GetTextElementEnumerator(s)
             let mutable startIndex = 0
             let mutable endIndex = 0
             let mutable index = 0
 
+            // Iterate through the string elements using the enumerator
+            // When the enumerator reaches `first`
+            // set the startIndex to the starting position of the current text element in the original string
+            // similarly, when the enumerator reaches `last`
             while textElemEnumerator.MoveNext() do
               if index = first then startIndex <- textElemEnumerator.ElementIndex
               if index = last then endIndex <- textElemEnumerator.ElementIndex
               index <- index + 1
 
+            // Set endIndex to the length of the original string.
+            // If it is still 0 after the loop (the last index is out of bounds)
             if endIndex = 0 then endIndex <- s.Length
-            let length = endIndex - startIndex
-            s.Substring(startIndex, length) |> DString |> Ply
+
+            // Calculate the length of the substring
+            let substringLength = endIndex - startIndex
+            s.Substring(startIndex, substringLength) |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
