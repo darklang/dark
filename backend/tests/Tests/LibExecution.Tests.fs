@@ -61,8 +61,8 @@ let t
   : Test =
   testTask $"line{lineNumber}" {
     try
+      // Little optimization to skip the DB sometimes
       let! canvasID =
-        // Little optimization to skip the DB sometimes
         let initializeCanvas = internalFnsAllowed || dbs <> [] || workers <> []
         if initializeCanvas then
           initializeTestCanvas canvasName

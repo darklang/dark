@@ -181,6 +181,7 @@ module OpenAI =
 
       let reqBody =
         Builtin.Json.serialize<PACKAGE.OpenAI.ChatCompletion.Request> openAIRequest
+
       let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
       let openAIResponse =
@@ -231,6 +232,7 @@ module OpenAI =
 
       let reqBody =
         Builtin.Json.serialize<PACKAGE.OpenAI.ImageGeneration.Request> openAIRequest
+
       let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
       let openAIResponse =
