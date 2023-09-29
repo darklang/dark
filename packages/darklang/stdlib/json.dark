@@ -1,0 +1,42 @@
+module Darklang =
+  module Stdlib =
+    module Json =
+      module Error =
+        module JsonPath =
+          module Part =
+            type Part =
+              | Root
+              | Index of Int
+              | Field of String
+
+            let toString (part: Part) : String =
+              match part with
+              | Root -> "root"
+              | Field(name) -> "." ++ name
+              | Index(index) -> "[" ++ Int.toString index ++ "]"
+
+          type JsonPath = List<Part.Part>
+
+          let toString (path: JsonPath) : String =
+            path |> List.reverse |> List.map Part.toString |> String.join ""
+
+
+        type Error =
+          /// The json string can't be parsed as the given type.
+          | CantMatchWithType of
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
+            String *
+            JsonPath.JsonPath
+          | NotJson
+
+        let toString (e: Error) : String =
+          match e with
+          | CantMatchWithType(typ, json, path) ->
+            "Can't parse JSON `"
+            ++ json
+            ++ "` as type `"
+            ++ PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference typ
+            ++ "` at path: `"
+            ++ JsonPath.toString path
+            ++ "`"
+          | NotJson -> "Not JSON"

@@ -10,21 +10,29 @@ type Person = { Name: String; Age: Int }
 type Result<'ok, 'err> = PACKAGE.Darklang.Stdlib.Result.Result<'ok, 'err>
 type Option<'t> = PACKAGE.Darklang.Stdlib.Option.Option<'t>
 
+let err
+  (v:
+    PACKAGE.Darklang.Stdlib.Result.Result<'a, PACKAGE.Darklang.Stdlib.Json.Error.Error>)
+  : Result<'a, String> =
+  v
+  |> PACKAGE.Darklang.Stdlib.Result.mapError
+    PACKAGE.Darklang.Stdlib.Json.Error.toString
+
 
 module Unit =
   Builtin.Json.serialize<Unit> () = "null"
   Builtin.Json.parse<Unit> "null" = Result.Ok()
 
   module Errors =
-    Builtin.Json.parse<Int> "()" = Result.Error "not JSON"
+    (Builtin.Json.parse<Int> "()") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Unit> "0" = Result.Error
+    (Builtin.Json.parse<Unit> "0") |> err = Result.Error
       "Can't parse JSON `0` as type `Unit` at path: `root`"
 
-    Builtin.Json.parse<Unit> "\"\"" = Result.Error
+    (Builtin.Json.parse<Unit> "\"\"") |> err = Result.Error
       "Can't parse JSON `\"\"` as type `Unit` at path: `root`"
 
-    Builtin.Json.parse<Unit> "\"null\"" = Result.Error
+    (Builtin.Json.parse<Unit> "\"null\"") |> err = Result.Error
       "Can't parse JSON `\"null\"` as type `Unit` at path: `root`"
 
 
@@ -41,25 +49,25 @@ module Bool =
     [ true; true; false; true ]
 
   module Errors =
-    Builtin.Json.parse<Bool> "tru" = Result.Error "not JSON"
+    (Builtin.Json.parse<Bool> "tru") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Bool> "null" = Result.Error
+    (Builtin.Json.parse<Bool> "null") |> err = Result.Error
       "Can't parse JSON `null` as type `Bool` at path: `root`"
 
-    Builtin.Json.parse<Bool> "" = Result.Error "not JSON"
+    (Builtin.Json.parse<Bool> "") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Bool> "\"true\"" = Result.Error
+    (Builtin.Json.parse<Bool> "\"true\"") |> err = Result.Error
       "Can't parse JSON `\"true\"` as type `Bool` at path: `root`"
 
-    Builtin.Json.parse<Bool> "0" = Result.Error
+    (Builtin.Json.parse<Bool> "0") |> err = Result.Error
       "Can't parse JSON `0` as type `Bool` at path: `root`"
 
-    Builtin.Json.parse<Bool> "1" = Result.Error
+    (Builtin.Json.parse<Bool> "1") |> err = Result.Error
       "Can't parse JSON `1` as type `Bool` at path: `root`"
 
-    Builtin.Json.parse<Bool> "False" = Result.Error "not JSON"
+    (Builtin.Json.parse<Bool> "False") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Bool> "tRUE" = Result.Error "not JSON"
+    (Builtin.Json.parse<Bool> "tRUE") |> err = Result.Error "Not JSON"
 
 
 module Int =
@@ -93,14 +101,14 @@ module Int =
     // be certain
 
     // First number that doesn't fit in an int64
-    Builtin.Json.parse<Int> "9223372036854775808" = Result.Error
+    (Builtin.Json.parse<Int> "9223372036854775808") |> err = Result.Error
       "Can't parse JSON `9223372036854775808` as type `Int` at path: `root`"
 
     // This is a float that is a valid int64
     Builtin.Json.parse<Int> "9.2E18" = Result.Ok 9200000000000000000L
 
     // This is a float that is slightly above the int64 max
-    Builtin.Json.parse<Int> "9.3E18" = Result.Error
+    (Builtin.Json.parse<Int> "9.3E18") |> err = Result.Error
       "Can't parse JSON `9.3E18` as type `Int` at path: `root`"
 
     Builtin.Json.serialize<Int> 9223372036854775807L = "9223372036854775807"
@@ -117,33 +125,33 @@ module Int =
     // TODO: review Float.tests for more values to test against
 
     // not ints
-    Builtin.Json.parse<Int> " " = Result.Error "not JSON"
-    Builtin.Json.parse<Int> "4a" = Result.Error "not JSON"
+    (Builtin.Json.parse<Int> " ") |> err = Result.Error "Not JSON"
+    (Builtin.Json.parse<Int> "4a") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Int> "- 42" = Result.Error "not JSON"
+    (Builtin.Json.parse<Int> "- 42") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Int> "null" = Result.Error
+    (Builtin.Json.parse<Int> "null") |> err = Result.Error
       "Can't parse JSON `null` as type `Int` at path: `root`"
 
-    Builtin.Json.parse<Int> "true" = Result.Error
+    (Builtin.Json.parse<Int> "true") |> err = Result.Error
       "Can't parse JSON `true` as type `Int` at path: `root`"
 
-    Builtin.Json.parse<Int> "false" = Result.Error
+    (Builtin.Json.parse<Int> "false") |> err = Result.Error
       "Can't parse JSON `false` as type `Int` at path: `root`"
 
-    Builtin.Json.parse<Int> "\"42\"" = Result.Error
+    (Builtin.Json.parse<Int> "\"42\"") |> err = Result.Error
       "Can't parse JSON `\"42\"` as type `Int` at path: `root`"
 
-    Builtin.Json.parse<Int> "[42]" = Result.Error
+    (Builtin.Json.parse<Int> "[42]") |> err = Result.Error
       "Can't parse JSON `[42]` as type `Int` at path: `root`"
 
-    Builtin.Json.parse<Int> "{ \"key\": 42 }" = Result.Error
+    (Builtin.Json.parse<Int> "{ \"key\": 42 }") |> err = Result.Error
       "Can't parse JSON `{ \"key\": 42 }` as type `Int` at path: `root`"
 
-    Builtin.Json.parse<Int> "42.5" = Result.Error
+    (Builtin.Json.parse<Int> "42.5") |> err = Result.Error
       "Can't parse JSON `42.5` as type `Int` at path: `root`"
 
-    Builtin.Json.parse<Int> "\"42\n\"" = Result.Error "not JSON"
+    (Builtin.Json.parse<Int> "\"42\n\"") |> err = Result.Error "Not JSON"
 
 
 module Float =
@@ -160,7 +168,10 @@ module Float =
   Builtin.Json.serialize<Float> 12345.67890 = "12345.6789"
   Builtin.Json.serialize<Float> -12345.67890 = "-12345.6789"
 
+  // ints as floats
   Builtin.Json.parse<Float> "0.0" = Result.Ok 0.0
+  Builtin.Json.parse<Float> "0" = Result.Ok 0.0
+  Builtin.Json.parse<Float> "123" = Result.Ok 123.0
 
 
   Builtin.Json.parse<Float> "12345.67890" = Result.Ok 12345.67890
@@ -212,53 +223,53 @@ module Float =
 
   module Errors =
 
-    Builtin.Json.parse<Float> "e" = Result.Error "not JSON"
+    (Builtin.Json.parse<Float> "e") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Float> "pi" = Result.Error "not JSON"
+    (Builtin.Json.parse<Float> "pi") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Float> " -42 . 0 " = Result.Error "not JSON"
+    (Builtin.Json.parse<Float> " -42 . 0 ") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Float> "0" = Result.Ok 0.0
+    (Builtin.Json.parse<Float> "0") |> err = Result.Ok 0.0
 
-    Builtin.Json.parse<Float> " " = Result.Error "not JSON"
+    (Builtin.Json.parse<Float> " ") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Float> "4a" = Result.Error "not JSON"
+    (Builtin.Json.parse<Float> "4a") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Float> "- 42.0" = Result.Error "not JSON"
+    (Builtin.Json.parse<Float> "- 42.0") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Float> "-141s" = Result.Error "not JSON"
+    (Builtin.Json.parse<Float> "-141s") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Float> "null" = Result.Error
+    (Builtin.Json.parse<Float> "null") |> err = Result.Error
       "Can't parse JSON `null` as type `Float` at path: `root`"
 
-    Builtin.Json.parse<Float> "true" = Result.Error
+    (Builtin.Json.parse<Float> "true") |> err = Result.Error
       "Can't parse JSON `true` as type `Float` at path: `root`"
 
-    Builtin.Json.parse<Float> "false" = Result.Error
+    (Builtin.Json.parse<Float> "false") |> err = Result.Error
       "Can't parse JSON `false` as type `Float` at path: `root`"
 
-    Builtin.Json.parse<Float> "\"42\"" = Result.Error
+    (Builtin.Json.parse<Float> "\"42\"") |> err = Result.Error
       "Can't parse JSON `\"42\"` as type `Float` at path: `root`"
 
-    Builtin.Json.parse<Float> "[42]" = Result.Error
+    (Builtin.Json.parse<Float> "[42]") |> err = Result.Error
       "Can't parse JSON `[42]` as type `Float` at path: `root`"
 
-    Builtin.Json.parse<Float> "{ \"key\": 42 }" = Result.Error
+    (Builtin.Json.parse<Float> "{ \"key\": 42 }") |> err = Result.Error
       "Can't parse JSON `{ \"key\": 42 }` as type `Float` at path: `root`"
 
-    Builtin.Json.parse<Float> "\"42\n\"" = Result.Error "not JSON"
+    (Builtin.Json.parse<Float> "\"42\n\"") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Float> "000000.9" = Result.Error "not JSON"
+    (Builtin.Json.parse<Float> "000000.9") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Float> "-000000.9" = Result.Error "not JSON"
+    (Builtin.Json.parse<Float> "-000000.9") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Float> "-00000000.000" = Result.Error "not JSON"
+    (Builtin.Json.parse<Float> "-00000000.000") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<Float> "00000000.000" = Result.Error "not JSON"
+    (Builtin.Json.parse<Float> "00000000.000") |> err = Result.Error "Not JSON"
 
     // This tests that we get a Result.Error when trying to parse a string, not an
     // internal exception
-    Builtin.Json.parse<Float> "\"65.0\"" = Result.Error
+    (Builtin.Json.parse<Float> "\"65.0\"") |> err = Result.Error
       "Can't parse JSON `\"65.0\"` as type `Float` at path: `root`"
 
 
@@ -292,13 +303,13 @@ module Char =
   Builtin.Json.parse<Char> "\"Ł\"" = Result.Ok 'Ł'
 
   module Errors =
-    Builtin.Json.parse<Char> "\"test\"" = Result.Error
+    (Builtin.Json.parse<Char> "\"test\"") |> err = Result.Error
       "Can't parse JSON `\"test\"` as type `Char` at path: `root`"
 
-    Builtin.Json.parse<Char> "\"\"" = Result.Error
+    (Builtin.Json.parse<Char> "\"\"") |> err = Result.Error
       "Can't parse JSON `\"\"` as type `Char` at path: `root`"
 
-    Builtin.Json.parse<Char> "62" = Result.Error
+    (Builtin.Json.parse<Char> "62") |> err = Result.Error
       "Can't parse JSON `62` as type `Char` at path: `root`"
 
 
@@ -374,13 +385,13 @@ module DateTime =
   )
 
   module Errors =
-    Builtin.Json.parse<DateTime> "\"3023-07-28T22:42:36\"" = Result.Error
+    (Builtin.Json.parse<DateTime> "\"3023-07-28T22:42:36\"") |> err = Result.Error
       "Can't parse JSON `\"3023-07-28T22:42:36\"` as type `DateTime` at path: `root`"
 
-    Builtin.Json.parse<DateTime> "\"2023-07-28\"" = Result.Error
+    (Builtin.Json.parse<DateTime> "\"2023-07-28\"") |> err = Result.Error
       "Can't parse JSON `\"2023-07-28\"` as type `DateTime` at path: `root`"
 
-    Builtin.Json.parse<DateTime> "1" = Result.Error
+    (Builtin.Json.parse<DateTime> "1") |> err = Result.Error
       "Can't parse JSON `1` as type `DateTime` at path: `root`"
 
 
@@ -391,26 +402,26 @@ module Uuid =
   // empty
   Builtin.Json.serialize<Uuid> (uuid "00000000-0000-0000-0000-000000000000") = "\"00000000-0000-0000-0000-000000000000\""
 
-  Builtin.Json.parse<Uuid> ("\"00000000-0000-0000-0000-000000000000\"") = Result.Ok(
+  Builtin.Json.parse<Uuid> "\"00000000-0000-0000-0000-000000000000\"" = Result.Ok(
     uuid "00000000-0000-0000-0000-000000000000"
   )
 
   // normal
   Builtin.Json.serialize<Uuid> (uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = "\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\""
 
-  Builtin.Json.parse<Uuid> ("\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"") = Result.Ok(
+  Builtin.Json.parse<Uuid> "\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"" = Result.Ok(
     uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
   )
 
   Builtin.Json.serialize<Uuid> (uuid "11111111-2222-3333-4444-555555555555") = "\"11111111-2222-3333-4444-555555555555\""
 
-  Builtin.Json.parse<Uuid> ("\"11111111-2222-3333-4444-555555555555\"") = Result.Ok(
+  Builtin.Json.parse<Uuid> "\"11111111-2222-3333-4444-555555555555\"" = Result.Ok(
     uuid "11111111-2222-3333-4444-555555555555"
   )
 
   module Errors =
     // needs one more 0 at the end
-    Builtin.Json.parse<Uuid> "\"00000000-0000-0000-0000-00000000000\"" = Result.Error
+    (Builtin.Json.parse<Uuid> "\"00000000-0000-0000-0000-00000000000\"") |> err = Result.Error
       "Can't parse JSON `\"00000000-0000-0000-0000-00000000000\"` as type `Uuid` at path: `root`"
 
 
@@ -448,7 +459,7 @@ module List =
 
   Builtin.Json.parse<List<Int>> "[1,2,3]" = Result.Ok [ 1; 2; 3 ]
 
-  Builtin.Json.parse<List<Int>> "[1,2,3,]" = Result.Error "not JSON"
+  (Builtin.Json.parse<List<Int>> "[1,2,3,]") |> err = Result.Error "Not JSON"
 
   Builtin.Json.serialize<List<List<List<Int>>>>
     [ [ [ 1; 2; 3 ]; [ 4; 5; 6 ] ]; [ [ 7; 8 ]; [ 9; 0 ] ] ] = "[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]"
@@ -486,18 +497,23 @@ module List =
 
   module Errors =
     Builtin.Json.serialize<List<Int>> [ 1, 2, "three" ] = Builtin.Test.derrorMessage
-      "Json.serialize's 1st argument (`arg`) should be a List<Int>. However, an (Int, Int, String) ((1, 2, \"th...) was passed instead.\n\nExpected: (arg: 'a)\nActual: an (Int, Int, String): (1, 2, \"three\")"
+      "Json.serialize's 1st argument (`arg`) should be a List<Int>. However, an (Int, Int, String) ((1, 2, \"th...) was passed instead.
 
-    Builtin.Json.parse<List<Int>> "[1, 2, \"three\"]" = Result.Error
+Expected: (arg: 'a)
+Actual: an (Int, Int, String): (1, 2, \"three\")"
+
+    (Builtin.Json.parse<List<Int>> "[1, 2, \"three\"]") |> err = Result.Error
       "Can't parse JSON `\"three\"` as type `Int` at path: `root[2]`"
 
-    Builtin.Json.parse<List<Int>> "[1, 2, ]" = Result.Error "not JSON"
+    (Builtin.Json.parse<List<Int>> "[1, 2, ]") |> err = Result.Error "Not JSON"
 
-    Builtin.Json.parse<List<List<List<Int>>>> "[[[1,2,3],[4,5.5,6]],[[7,8],[9,0]]]" = Result.Error
+    (Builtin.Json.parse<List<List<List<Int>>>> "[[[1,2,3],[4,5.5,6]],[[7,8],[9,0]]]")
+    |> err = Result.Error
       "Can't parse JSON `5.5` as type `Int` at path: `root[0][1][1]`"
 
-    Builtin.Json.parse<List<Dict<Int>>>
-      """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""" = Result.Error
+    (Builtin.Json.parse<List<Dict<Int>>>
+      """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""")
+    |> err = Result.Error
       "Can't parse JSON `\"Alice\"` as type `Int` at path: `root[0].name`"
 
 
@@ -505,8 +521,8 @@ module Tuples =
   Builtin.Json.serialize<Int * String * Int> (1, "two", 3) = "[1,\"two\",3]"
   Builtin.Json.parse<Int * String * Int> "[1,\"two\",3]" = Result.Ok((1, "two", 3))
 
-  Builtin.Json.parse<Int * String * Int> "[1,3]" = Result.Error
-    "Can't parse JSON `[1,3]` as type `(Int, String, Int)` at path: `root`"
+  (Builtin.Json.parse<Int * String * Int> "[1,3]") |> err = Result.Error
+    "Can't parse JSON `[1,3]` as type `(Int * String * Int)` at path: `root`"
 
 
   Builtin.Json.serialize<List<Int> * List<Person>> (
@@ -586,25 +602,28 @@ module Tuples =
 
 
   module Errors =
-    Builtin.Json.parse<String * String * Int> """[1, "two", 3]""" = Result.Error
+    (Builtin.Json.parse<String * String * Int> """[1, "two", 3]""") |> err = Result.Error
       "Can't parse JSON `1` as type `String` at path: `root[0]`"
 
-    Builtin.Json.parse<String> """[1, "two", 3]""" = Result.Error
+    (Builtin.Json.parse<String> """[1, "two", 3]""") |> err = Result.Error
       "Can't parse JSON `[1, \"two\", 3]` as type `String` at path: `root`"
 
-    Builtin.Json.parse<Int * String> """[1, "two", 3]""" = Result.Error
-      "Can't parse JSON `[1, \"two\", 3]` as type `(Int, String)` at path: `root`"
+    (Builtin.Json.parse<Int * String> """[1, "two", 3]""") |> err = Result.Error
+      "Can't parse JSON `[1, \"two\", 3]` as type `(Int * String)` at path: `root`"
 
-    Builtin.Json.parse<((List<String * String>) * Bytes) * (Person * Dict<String>)>
-      "[[[[2,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":1}]]" = Result.Error
+    (Builtin.Json.parse<((List<String * String>) * Bytes) * (Person * Dict<String>)>
+      "[[[[2,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":1}]]")
+    |> err = Result.Error
       "Can't parse JSON `2` as type `String` at path: `root[0][0][0][0]`"
 
-    Builtin.Json.parse<(List<Int * List<String>>) * String>
-      "[[[1,\"two\"],[3,\"four\"]],\"\"]" = Result.Error
+    (Builtin.Json.parse<(List<Int * List<String>>) * String>
+      "[[[1,\"two\"],[3,\"four\"]],\"\"]")
+    |> err = Result.Error
       "Can't parse JSON `\"two\"` as type `List<String>` at path: `root[0][0][1]`"
 
-    Builtin.Json.parse<Person * Option<Int>>
-      "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[\"one\"]}]" = Result.Error
+    (Builtin.Json.parse<Person * Option<Int>>
+      "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[\"one\"]}]")
+    |> err = Result.Error
       "Can't parse JSON `\"one\"` as type `Int` at path: `root[1]`"
 
 
@@ -620,13 +639,13 @@ module Option =
 
   module Errors =
     // TODO: these might make good candidates for more ergonmic parsing
-    Builtin.Json.parse<Option<Int>> "null" = Result.Error
+    (Builtin.Json.parse<Option<Int>> "null") |> err = Result.Error
       "Can't parse JSON `null` as type `PACKAGE.Darklang.Stdlib.Option.Option<Int>` at path: `root`"
 
-    Builtin.Json.parse<Option<Int>> "1" = Result.Error
+    (Builtin.Json.parse<Option<Int>> "1") |> err = Result.Error
       "Can't parse JSON `1` as type `PACKAGE.Darklang.Stdlib.Option.Option<Int>` at path: `root`"
 
-    Builtin.Json.parse<Option<List<String>>> "[1,2,3]" = Result.Error
+    (Builtin.Json.parse<Option<List<String>>> "[1,2,3]") |> err = Result.Error
       "Can't parse JSON `[1,2,3]` as type `PACKAGE.Darklang.Stdlib.Option.Option<List<String>>` at path: `root`"
 
 
@@ -696,7 +715,9 @@ module Dict =
     Dict { a = "b"; c = "d" }
   )
 
-  Builtin.Json.parse<Dict<Int>> """{1:"b",2:"d"}""" = Result.Error "not JSON"
+  module Errors =
+    (Builtin.Json.parse<Dict<Int>> """{1:"b",2:"d"}""") |> err = Result.Error
+      "Not JSON"
 
 
 module UserDefinedEnums =
@@ -878,7 +899,7 @@ Actual: an UserDefinedAliases.Person1: UserDefinedAliases.Person1 {\n  Age: 42,\
 
   Builtin.Json.serialize<StringResult<Int>> (Result.Error "err") = "{\"Error\":[\"err\"]}"
 
-// This test current gets by the typechecker, and so we get an internal exception
+// This test currently slips by the typechecker, and so we get an internal exception
 // Builtin.Json.serialize<StringResult<Int>> (Result.Error 1) = Result.Error
 //   "Can't currently serialize this type/value combination"
 

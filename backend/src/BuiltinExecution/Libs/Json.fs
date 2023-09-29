@@ -58,14 +58,41 @@ type Utf8JsonWriter with
       this.WriteEndArray()
     }
 
-module Error =
+
+module JsonPath =
+  module Part =
+    type Part =
+      | Root
+      | Index of int
+      | Field of string
+
+    let toDT (part : Part) : Ply<Dval> =
+      let (caseName, fields) =
+        match part with
+        | Root -> "Root", []
+        | Index i -> "Index", [ DInt(int64 i) ]
+        | Field s -> "Field", [ DString s ]
+      let typeName =
+        TypeName.fqPackage
+          "Darklang"
+          [ "Stdlib"; "Json"; "Error"; "JsonPath"; "Part" ]
+          "Part"
+          0
+      Dval.enum typeName typeName (Some []) caseName fields
+
+
+  type JsonPath = List<Part.Part>
+
+  let toDT (path : JsonPath) : Ply<Dval> =
+    path |> Ply.List.mapSequentially Part.toDT |> Ply.map (Dval.list VT.unknownTODO)
+
+module RuntimeError =
   module RT2DT = LibExecution.RuntimeTypesToDarkTypes
-
-  /// In the future, we will add a trait to indicate types which can be serialized. For
-  /// now, we'll raise a RuntimeError instead if any of those types are present.
-  /// Helpfully, this allows us keep `serialize` from having to return an Error.
-  type Error = UnsupportedType of TypeReference
-
+  type Error =
+    /// In the future, we will add a trait to indicate types which can be serialized. For
+    /// now, we'll raise a RuntimeError instead if any of those types are present.
+    /// Helpfully, this allows us keep `serialize` from having to return an Error.
+    | UnsupportedType of TypeReference
   let toRuntimeError (e : Error) : Ply<RuntimeError> =
     uply {
       let! (caseName, fields) =
@@ -83,6 +110,44 @@ module Error =
 
   let raiseUnsupportedType (typ : TypeReference) : Ply<'a> =
     UnsupportedType(typ) |> toRuntimeError |> Ply.map raiseUntargetedRTE
+
+
+
+module Error =
+  module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+  type Error =
+    /// The json string can't be parsed as the given type.
+    | CantMatchWithType of TypeReference * string * JsonPath.JsonPath
+    | NotJson
+
+  exception JsonException of Error
+
+  let toDT (e : Error) : Ply<Dval> =
+    uply {
+      let! (caseName, fields) =
+        uply {
+          match e with
+          | NotJson -> return "NotJson", []
+          | CantMatchWithType(typ, json, errorPath) ->
+            let! typ = RT2DT.TypeReference.toDT typ
+            let! errorPath = JsonPath.toDT errorPath
+            return "CantMatchWithType", [ typ; DString json; errorPath ]
+        }
+      let typeName =
+        TypeName.fqPackage "Darklang" [ "Stdlib"; "Json"; "Error" ] "Error" 0
+
+      return! Dval.enum typeName typeName (Some []) caseName fields
+    }
+
+
+let raiseCantMatchWithType
+  (typ : TypeReference)
+  (j : JsonElement)
+  (pathSoFar : JsonPath.JsonPath)
+  =
+  Error.CantMatchWithType(typ, j.GetRawText(), pathSoFar)
+  |> Error.JsonException
+  |> raise
 
 
 
@@ -215,7 +280,7 @@ let rec serialize
     // Not supported
     | TVariable _, _
     | TFn _, _
-    | TDB _, _ -> return! Error.raiseUnsupportedType typ
+    | TDB _, _ -> return! RuntimeError.raiseUnsupportedType typ
 
 
     // Exhaust the types
@@ -240,85 +305,11 @@ let rec serialize
   }
 
 
-module JsonPath =
-  type JsonPathPart =
-    | Root
-    | Index of int
-    | Field of string
-
-  type JsonPath = List<JsonPathPart>
-
-  let toString (path : JsonPath) : string =
-    path
-    |> List.rev
-    |> List.map (function
-      | Root -> "root"
-      | Index i -> $"[{i}]"
-      | Field f -> $".{f}")
-    |> String.concat ""
-
-/// Let's imagine we have these types:
-///
-///   ```fsharp
-///   type User = { name: string; age: int }
-///   type Data = { users: User[] }
-///   ```
-///
-/// and we have a json string like this, with 2 users,
-///   one of which doesn't fully match the user type:
-///
-///   ```fsharp
-///   { "users": [ { "name": "Alice", "age": 20 }, { "name": "Bob" } ] }
-///   ```
-///
-/// When we run `parse<Data> json`, we'd like a structured error,
-///   indicating that the second user didn't match the type. something like:
-///
-/// ```fsharp
-/// CantMatchWithType
-///   { typ = "User"
-///     json = "{ \"name\": \"Bob\" }"
-///     location = [ Root; Field "users"; Index 1] }
-/// |> Error
-/// ```
-///
-/// simpler case: if we try to call `parse<bool> "1"` we should get:
-/// ```fsharp
-/// Error <| CantMatchWithType { typ = "bool"; json = "1"; location = [Root] }
-/// ```
-///
-/// TODO: eventually, expose this in the JSON module?
-module JsonParseError =
-  type T =
-    | NotJson
-    | CantMatchWithType of
-      typ : TypeReference *
-      json : string *
-      path : JsonPath.JsonPath
-
-  exception JsonParseException of T
-
-  let toString (err : T) : string =
-    match err with
-    | NotJson -> "not JSON"
-    | CantMatchWithType(typ, json, errorPath) ->
-      $"Can't parse JSON `{json}` as type `{LibExecution.DvalReprDeveloper.typeName typ}` at path: `{JsonPath.toString errorPath}`"
-
-let raiseCantMatchWithType
-  (typ : TypeReference)
-  (j : JsonElement)
-  (pathSoFar : JsonPath.JsonPath)
-  =
-  JsonParseError.CantMatchWithType(typ, j.GetRawText(), pathSoFar)
-  |> JsonParseError.JsonParseException
-  |> raise
-
-
 let parse
   (types : Types)
   (typ : TypeReference)
   (str : string)
-  : Ply<Result<Dval, string>> =
+  : Ply<Result<Dval, Error.Error>> =
 
   let rec convert
     (typ : TypeReference)
@@ -400,7 +391,7 @@ let parse
 
     | TList nested, JsonValueKind.Array ->
       j.EnumerateArray()
-      |> Seq.mapi (fun i v -> convert nested (JsonPath.Index i :: pathSoFar) v)
+      |> Seq.mapi (fun i v -> convert nested (JsonPath.Part.Index i :: pathSoFar) v)
       |> Seq.toList
       |> Ply.List.flatten
       |> Ply.map (Dval.list VT.unknownTODO)
@@ -411,7 +402,7 @@ let parse
       if values.Length <> types.Length then raiseCantMatchWithType typ j pathSoFar
 
       List.zip types values
-      |> List.mapi (fun i (t, v) -> convert t (JsonPath.Index i :: pathSoFar) v)
+      |> List.mapi (fun i (t, v) -> convert t (JsonPath.Part.Index i :: pathSoFar) v)
       |> Ply.List.flatten
       |> Ply.map (fun mapped ->
         match mapped with
@@ -423,7 +414,7 @@ let parse
       |> Seq.map (fun jp ->
         uply {
           let! converted =
-            convert tDict (JsonPath.Field jp.Name :: pathSoFar) jp.Value
+            convert tDict (JsonPath.Part.Field jp.Name :: pathSoFar) jp.Value
           return (jp.Name, converted)
         })
       |> Seq.toList
@@ -513,7 +504,7 @@ let parse
                   let! converted =
                     convert
                       typ
-                      (JsonPath.Field def.name :: pathSoFar)
+                      (JsonPath.Part.Field def.name :: pathSoFar)
                       correspondingValue
                   return (def.name, converted)
                 })
@@ -526,7 +517,7 @@ let parse
     // Explicitly not supported
     | TVariable _, _
     | TFn _, _
-    | TDB _, _ -> Error.raiseUnsupportedType typ
+    | TDB _, _ -> RuntimeError.raiseUnsupportedType typ
 
 
     // exhaust TypeReferences
@@ -548,18 +539,17 @@ let parse
     try
       Ok(parseJson str)
     with _ex ->
-      Error JsonParseError.NotJson
+      Error Error.NotJson
 
   match parsed with
-  | Error err -> Error(JsonParseError.toString err) |> Ply
+  | Error err -> Error err |> Ply
   | Ok parsed ->
     uply {
       try
-        let! converted = convert typ [ JsonPath.Root ] parsed
+        let! converted = convert typ [ JsonPath.Part.Root ] parsed
         return Ok converted
-      with JsonParseError.JsonParseException ex ->
-        // CLEANUP expose .NET error (converting to some Dark error type)
-        return JsonParseError.toString ex |> Error
+      with Error.JsonException ex ->
+        return Error ex
     }
 
 
@@ -608,7 +598,9 @@ let fns : List<BuiltInFn> =
           uply {
             match! parse types typeArg arg with
             | Ok v -> return resultOk v
-            | Error e -> return resultError (DString e)
+            | Error e ->
+              let! dval = Error.toDT e
+              return resultError dval
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
