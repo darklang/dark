@@ -59,6 +59,31 @@ type Utf8JsonWriter with
     }
 
 
+module RuntimeError =
+  module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+  type Error =
+    /// In the future, we will add a trait to indicate types which can be serialized. For
+    /// now, we'll raise a RuntimeError instead if any of those types are present.
+    /// Helpfully, this allows us keep `serialize` from having to return an Error.
+    | UnsupportedType of TypeReference
+  let toRuntimeError (e : Error) : Ply<RuntimeError> =
+    uply {
+      let (caseName, fields) =
+        match e with
+        | UnsupportedType typ ->
+          let typ = RT2DT.TypeReference.toDT typ
+          "UnsupportedType", [ typ ]
+
+      let typeName = RuntimeError.name [ "Json" ] "Error" 0
+      return!
+        Dval.enum typeName typeName (Some []) caseName fields
+        |> Ply.map RuntimeError.jsonError
+    }
+
+  let raiseUnsupportedType (typ : TypeReference) : Ply<'a> =
+    UnsupportedType(typ) |> toRuntimeError |> Ply.map raiseUntargetedRTE
+
+
 module JsonPath =
   module Part =
     type Part =
@@ -85,31 +110,6 @@ module JsonPath =
 
   let toDT (path : JsonPath) : Ply<Dval> =
     path |> Ply.List.mapSequentially Part.toDT |> Ply.map (Dval.list VT.unknownTODO)
-
-module RuntimeError =
-  module RT2DT = LibExecution.RuntimeTypesToDarkTypes
-  type Error =
-    /// In the future, we will add a trait to indicate types which can be serialized. For
-    /// now, we'll raise a RuntimeError instead if any of those types are present.
-    /// Helpfully, this allows us keep `serialize` from having to return an Error.
-    | UnsupportedType of TypeReference
-  let toRuntimeError (e : Error) : Ply<RuntimeError> =
-    uply {
-      let (caseName, fields) =
-        match e with
-        | UnsupportedType typ ->
-          let typ = RT2DT.TypeReference.toDT typ
-          "UnsupportedType", [ typ ]
-
-      let typeName = RuntimeError.name [ "Json" ] "Error" 0
-      return!
-        Dval.enum typeName typeName (Some []) caseName fields
-        |> Ply.map RuntimeError.jsonError
-    }
-
-  let raiseUnsupportedType (typ : TypeReference) : Ply<'a> =
-    UnsupportedType(typ) |> toRuntimeError |> Ply.map raiseUntargetedRTE
-
 
 
 module Error =
