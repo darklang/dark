@@ -517,14 +517,14 @@ let fns (config : Configuration) : List<BuiltInFn> =
 
               | Error(err) ->
                 let! err = err |> RequestError.toDT
-                return! (err |> resultError)
+                return (err |> resultError)
 
             }
 
           | Error reqHeadersErr, _ ->
             uply {
               let! reqHeadersErr = reqHeadersErr |> HeaderError.toDT
-              return! reqHeadersErr |> resultError
+              return reqHeadersErr |> resultError
             }
 
           | _, None ->
