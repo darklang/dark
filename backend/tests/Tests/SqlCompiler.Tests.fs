@@ -262,10 +262,9 @@ let inlineWorksWithUserFunctions =
         PT.EVariable(0UL, "b")
       )
 
-    let! (userAdd : UserFunction.T) =
+    let (userAdd : UserFunction.T) =
       testUserFn "userAdd" [] (NEList.doubleton "a" "b") PT.TInt userAddBody
       |> PT2RT.UserFunction.toRT
-      |> Ply.toTask
 
     let existingFunctions = ExecutionState.availableFunctions state
     let updatedUserProgram =
@@ -302,7 +301,7 @@ let inlineWorksWithPackageAndUserFunctions =
         Map.empty
         Map.empty
 
-    let! (userAnd : UserFunction.T) =
+    let (userAnd : UserFunction.T) =
       testUserFn
         "userAnd"
         []
@@ -315,7 +314,6 @@ let inlineWorksWithPackageAndUserFunctions =
           PT.EVariable(0UL, "b")
         ))
       |> PT2RT.UserFunction.toRT
-      |> Ply.toTask
 
     let existingFunctions = ExecutionState.availableFunctions state
     let updatedUserProgram =
@@ -360,10 +358,9 @@ let inlineFunctionArguments =
         PT.EVariable(0UL, "b")
       )
 
-    let! (userAdd : UserFunction.T) =
+    let (userAdd : UserFunction.T) =
       testUserFn "userAdd" [] (NEList.doubleton "a" "b") PT.TInt userAddBody
       |> PT2RT.UserFunction.toRT
-      |> Ply.toTask
 
     let existingFunctions = ExecutionState.availableFunctions state
     let updatedUserProgram =
