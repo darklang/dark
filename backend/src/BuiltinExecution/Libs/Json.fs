@@ -119,6 +119,8 @@ module Error =
   type Error =
     /// The json string can't be parsed as the given type.
     | CantMatchWithType of TypeReference * string * JsonPath.JsonPath
+    | ExtraEnumField of rawJson : string * JsonPath.JsonPath
+    | MissingEnumField of TypeReference * int * JsonPath.JsonPath
     | NotJson
 
   exception JsonException of Error
@@ -133,20 +135,38 @@ module Error =
             let typ = RT2DT.TypeReference.toDT typ
             let! errorPath = JsonPath.toDT errorPath
             return "CantMatchWithType", [ typ; DString json; errorPath ]
+          | ExtraEnumField(json, errorPath) ->
+            let! errorPath = JsonPath.toDT errorPath
+            return "ExtraEnumField", [ DString json; errorPath ]
+          | MissingEnumField(typ, fieldCount, errorPath) ->
+            let typ = RT2DT.TypeReference.toDT typ
+            let! errorPath = JsonPath.toDT errorPath
+            return "MissingEnumField", [ typ; DInt(int64 fieldCount); errorPath ]
         }
 
       return! Dval.enum typeName typeName (Some []) caseName fields
     }
 
+let raiseError (e : Error.Error) : 'a = raise (Error.JsonException e)
+
 
 let raiseCantMatchWithType
   (typ : TypeReference)
   (j : JsonElement)
-  (pathSoFar : JsonPath.JsonPath)
+  (path : JsonPath.JsonPath)
   =
-  Error.CantMatchWithType(typ, j.GetRawText(), pathSoFar)
-  |> Error.JsonException
-  |> raise
+  Error.CantMatchWithType(typ, j.GetRawText(), path) |> raiseError
+
+let raiseMissingEnumField
+  (typ : TypeReference)
+  (fieldCount : int)
+  (path : JsonPath.JsonPath)
+  =
+  Error.MissingEnumField(typ, fieldCount, path) |> raiseError
+
+let raiseExtraEnumField (j : JsonElement) (path : JsonPath.JsonPath) =
+  Error.ExtraEnumField(j.GetRawText(), path) |> raiseError
+
 
 
 
@@ -453,23 +473,49 @@ let parse
 
               let j = j.EnumerateArray() |> Seq.toList
 
-              if List.length matchingCase.fields <> List.length j then
-                Exception.raiseInternal
-                  $"Couldn't parse Enum as incorrect # of fields provided"
-                  []
+
+              let casePath = JsonPath.Part.Field caseName :: pathSoFar
+
+              // If the field count is off, process whatever fields make sense
+              // and then error afterwards
+              let expectedFieldCount = List.length matchingCase.fields
+              let actualFieldCount = List.length j
+              let maxFields = min expectedFieldCount actualFieldCount
+              let shortExpectedFields = List.take maxFields matchingCase.fields
+              let shortActualFields = List.take maxFields j
 
               let! fields =
-                List.zip matchingCase.fields j
+                List.zip shortExpectedFields shortActualFields
                 |> List.mapWithIndex (fun i (typ, j) ->
-                  let path =
-                    JsonPath.Part.Index i
-                    :: JsonPath.Part.Field caseName
-                    :: pathSoFar
+                  let path = JsonPath.Part.Index i :: casePath
                   let typ = Types.substitute decl.typeParams typeArgs typ
                   convert typ path j)
                 |> Ply.List.flatten
 
-              return! Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
+              if expectedFieldCount > actualFieldCount then
+                let index = actualFieldCount // one higher than greatest index
+                let expectedType =
+                  List.getAt index matchingCase.fields
+                  |> Exception.unwrapOptionInternal
+                    "Can't find expected field"
+                    [ "index", index
+                      "expectedFields", matchingCase.fields
+                      "actualFields", j ]
+                return
+                  raiseError (Error.MissingEnumField(expectedType, index, casePath))
+              else if expectedFieldCount < actualFieldCount then
+                let index = expectedFieldCount // one higher than greatest index
+                let fieldJson =
+                  List.getAt index j
+                  |> Exception.unwrapOptionInternal
+                    "Can't find actual field"
+                    [ "index", index
+                      "expectedFields", matchingCase.fields
+                      "actualFields", j ]
+                let path = JsonPath.Part.Index index :: casePath
+                return raiseExtraEnumField fieldJson path
+              else
+                return! Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
 
             // TODO shouldn't be an internal error
             | _ -> return Exception.raiseInternal "TODO" []
