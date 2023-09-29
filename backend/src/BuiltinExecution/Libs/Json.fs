@@ -119,8 +119,8 @@ module Error =
   type Error =
     /// The json string can't be parsed as the given type.
     | CantMatchWithType of TypeReference * string * JsonPath.JsonPath
-    | ExtraEnumField of rawJson : string * JsonPath.JsonPath
-    | MissingEnumField of TypeReference * int * JsonPath.JsonPath
+    | EnumExtraField of rawJson : string * JsonPath.JsonPath
+    | EnumMissingField of TypeReference * int * JsonPath.JsonPath
     | NotJson
 
   exception JsonException of Error
@@ -135,13 +135,13 @@ module Error =
             let typ = RT2DT.TypeReference.toDT typ
             let! errorPath = JsonPath.toDT errorPath
             return "CantMatchWithType", [ typ; DString json; errorPath ]
-          | ExtraEnumField(json, errorPath) ->
+          | EnumExtraField(json, errorPath) ->
             let! errorPath = JsonPath.toDT errorPath
-            return "ExtraEnumField", [ DString json; errorPath ]
-          | MissingEnumField(typ, fieldCount, errorPath) ->
+            return "EnumExtraField", [ DString json; errorPath ]
+          | EnumMissingField(typ, fieldCount, errorPath) ->
             let typ = RT2DT.TypeReference.toDT typ
             let! errorPath = JsonPath.toDT errorPath
-            return "MissingEnumField", [ typ; DInt(int64 fieldCount); errorPath ]
+            return "EnumMissingField", [ typ; DInt(int64 fieldCount); errorPath ]
         }
 
       return! Dval.enum typeName typeName (Some []) caseName fields
@@ -157,15 +157,15 @@ let raiseCantMatchWithType
   =
   Error.CantMatchWithType(typ, j.GetRawText(), path) |> raiseError
 
-let raiseMissingEnumField
+let raiseEnumMissingField
   (typ : TypeReference)
   (fieldCount : int)
   (path : JsonPath.JsonPath)
   =
-  Error.MissingEnumField(typ, fieldCount, path) |> raiseError
+  Error.EnumMissingField(typ, fieldCount, path) |> raiseError
 
-let raiseExtraEnumField (j : JsonElement) (path : JsonPath.JsonPath) =
-  Error.ExtraEnumField(j.GetRawText(), path) |> raiseError
+let raiseEnumExtraField (j : JsonElement) (path : JsonPath.JsonPath) =
+  Error.EnumExtraField(j.GetRawText(), path) |> raiseError
 
 
 
@@ -502,7 +502,7 @@ let parse
                       "expectedFields", matchingCase.fields
                       "actualFields", j ]
                 return
-                  raiseError (Error.MissingEnumField(expectedType, index, casePath))
+                  raiseError (Error.EnumMissingField(expectedType, index, casePath))
               else if expectedFieldCount < actualFieldCount then
                 let index = expectedFieldCount // one higher than greatest index
                 let fieldJson =
@@ -513,7 +513,7 @@ let parse
                       "expectedFields", matchingCase.fields
                       "actualFields", j ]
                 let path = JsonPath.Part.Index index :: casePath
-                return raiseExtraEnumField fieldJson path
+                return raiseEnumExtraField fieldJson path
               else
                 return! Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
 
