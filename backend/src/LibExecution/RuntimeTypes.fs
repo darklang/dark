@@ -1258,7 +1258,7 @@ and TestContext =
 
     mutable exceptionReports : List<string * string * Metadata>
     mutable expectedExceptionCount : int
-    postTestExecutionHook : TestContext -> Dval -> unit }
+    postTestExecutionHook : TestContext -> unit }
 
 // Functionally written in F# and shipped with the executable
 and BuiltIns =

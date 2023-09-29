@@ -25,7 +25,7 @@ let noTestContext : RT.TestContext =
 
     exceptionReports = []
     expectedExceptionCount = 0
-    postTestExecutionHook = fun _ _ -> () }
+    postTestExecutionHook = fun _ -> () }
 
 let createState
   (builtIns : RT.BuiltIns)

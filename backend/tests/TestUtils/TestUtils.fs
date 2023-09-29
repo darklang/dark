@@ -185,12 +185,7 @@ let executionStateFor
         exceptionReports = []
         expectedExceptionCount = 0
         postTestExecutionHook =
-          fun tc _ ->
-            // In an effort to find errors in the test suite, we track exceptions
-            // that we report in the runtime and check for them after the test
-            // completes. There are a lot of places where exceptions are allowed,
-            // possibly too many to annotate, so we assume that errors are intended
-            // to be reported anytime the result is a RTE.
+          fun tc ->
             let exceptionCountMatches =
               tc.exceptionReports.Length = tc.expectedExceptionCount
 
