@@ -624,7 +624,7 @@ module Tuples =
     (Builtin.Json.parse<Person * Option<Int>>
       "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[\"one\"]}]")
     |> err = Result.Error
-      "Can't parse JSON `\"one\"` as type `Int` at path: `root[1]`"
+      "Can't parse JSON `\"one\"` as type `Int` at path: `root[1].Some[0]`"
 
 
 module Option =
@@ -740,6 +740,10 @@ module UserDefinedEnums =
   Builtin.Json.parse<PrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = Result.Ok(
     PrettyLikely.Enh("printer broke", 7)
   )
+
+  (Builtin.Json.parse<PrettyLikely> "{\"Enh\":[\"printer broke\",\"not int\"]}")
+  |> err = Result.Error
+    "Can't parse JSON `\"not int\"` as type `Int` at path: `root.Enh[1]`"
 
   Builtin.Json.serialize<PrettyLikely2> (
     PrettyLikely2.PrettyLikely PrettyLikely.Yeah

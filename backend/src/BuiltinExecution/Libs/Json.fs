@@ -460,9 +460,13 @@ let parse
 
               let! fields =
                 List.zip matchingCase.fields j
-                |> List.map (fun (typ, j) ->
+                |> List.mapWithIndex (fun i (typ, j) ->
+                  let path =
+                    JsonPath.Part.Index i
+                    :: JsonPath.Part.Field caseName
+                    :: pathSoFar
                   let typ = Types.substitute decl.typeParams typeArgs typ
-                  convert typ pathSoFar j) // TODO revisit if we need to do anything with path
+                  convert typ path j)
                 |> Ply.List.flatten
 
               return! Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
