@@ -55,14 +55,16 @@ let executeExpr
   : Task<RT.ExecutionResult> =
   task {
     try
-      let symtable = Interpreter.withGlobals state inputVars
-      let typeSymbolTable = Map.empty
-      let! result = Interpreter.eval state typeSymbolTable symtable expr
+      try
+        let symtable = Interpreter.withGlobals state inputVars
+        let typeSymbolTable = Map.empty
+        let! result = Interpreter.eval state typeSymbolTable symtable expr
+        return Ok result
+      with RT.RuntimeErrorException(source, rte) ->
+        return Error(source, rte)
+    finally
       // Does nothing in non-tests
-      state.test.postTestExecutionHook state.test result
-      return Ok result
-    with RT.RuntimeErrorException(source, rte) ->
-      return Error(source, rte)
+      state.test.postTestExecutionHook state.test
   }
 
 
@@ -75,14 +77,16 @@ let executeFunction
   : Task<RT.ExecutionResult> =
   task {
     try
-      let typeSymbolTable = Map.empty
-      let! result =
-        Interpreter.callFn state typeSymbolTable callerID name typeArgs args
+      try
+        let typeSymbolTable = Map.empty
+        let! result =
+          Interpreter.callFn state typeSymbolTable callerID name typeArgs args
+        return Ok result
+      with RT.RuntimeErrorException(source, rte) ->
+        return Error(source, rte)
+    finally
       // Does nothing in non-tests
-      state.test.postTestExecutionHook state.test result
-      return Ok result
-    with RT.RuntimeErrorException(source, rte) ->
-      return Error(source, rte)
+      state.test.postTestExecutionHook state.test
   }
 
 let runtimeErrorToString
