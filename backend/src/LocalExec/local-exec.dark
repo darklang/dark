@@ -77,7 +77,6 @@ let loadPackageFileIntoDarkCanvas
     |> PACKAGE.Darklang.Stdlib.List.map (fun fn ->
       fn
       |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
-      |> Builtin.unwrap
       |> saveItemToCanvas "function")
 
   let typeResults =
@@ -85,7 +84,6 @@ let loadPackageFileIntoDarkCanvas
     |> PACKAGE.Darklang.Stdlib.List.map (fun t ->
       t
       |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
-      |> Builtin.unwrap
       |> saveItemToCanvas "type")
 
   let constantResults =
@@ -93,7 +91,6 @@ let loadPackageFileIntoDarkCanvas
     |> PACKAGE.Darklang.Stdlib.List.map (fun c ->
       c
       |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
-      |> Builtin.unwrap
       |> saveItemToCanvas "constant")
 
   // Flatten all the result lists into one list

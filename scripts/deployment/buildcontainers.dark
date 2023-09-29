@@ -30,7 +30,7 @@ let main () : Int =
       DockerImageID { imageID = parsedResponse.id })
 
   let jsonImageIds =
-    (Builtin.Json.serialize<List<DockerImageId>> imageIds) |> Builtin.unwrap
+    Builtin.Json.serialize<List<DockerImageId>> imageIds
 
   let _ =
     Builtin.File.write
