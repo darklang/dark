@@ -304,7 +304,6 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString s; DInt first; DInt last ] ->
-          // let strLength = String.length s
           let strLength = System.Globalization.StringInfo(s).LengthInTextElements
           // Handle negative indexes (which allow counting from the end)
           let first = if first < 0 then strLength + int first else int first
