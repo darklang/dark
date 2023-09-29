@@ -95,13 +95,12 @@ module RuntimeError =
     | UnsupportedType of TypeReference
   let toRuntimeError (e : Error) : Ply<RuntimeError> =
     uply {
-      let! (caseName, fields) =
-        uply {
-          match e with
-          | UnsupportedType typ ->
-            let! typ = RT2DT.TypeReference.toDT typ
-            return "UnsupportedType", [ typ ]
-        }
+      let (caseName, fields) =
+        match e with
+        | UnsupportedType typ ->
+          let typ = RT2DT.TypeReference.toDT typ
+          "UnsupportedType", [ typ ]
+
       let typeName = RuntimeError.name [ "Json" ] "Error" 0
       return!
         Dval.enum typeName typeName (Some []) caseName fields
@@ -129,7 +128,7 @@ module Error =
           match e with
           | NotJson -> return "NotJson", []
           | CantMatchWithType(typ, json, errorPath) ->
-            let! typ = RT2DT.TypeReference.toDT typ
+            let typ = RT2DT.TypeReference.toDT typ
             let! errorPath = JsonPath.toDT errorPath
             return "CantMatchWithType", [ typ; DString json; errorPath ]
         }
