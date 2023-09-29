@@ -114,6 +114,8 @@ module RuntimeError =
 
 module Error =
   module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+  let typeName =
+    TypeName.fqPackage "Darklang" [ "Stdlib"; "Json"; "Error" ] "Error" 0
   type Error =
     /// The json string can't be parsed as the given type.
     | CantMatchWithType of TypeReference * string * JsonPath.JsonPath
@@ -132,8 +134,6 @@ module Error =
             let! errorPath = JsonPath.toDT errorPath
             return "CantMatchWithType", [ typ; DString json; errorPath ]
         }
-      let typeName =
-        TypeName.fqPackage "Darklang" [ "Stdlib"; "Json"; "Error" ] "Error" 0
 
       return! Dval.enum typeName typeName (Some []) caseName fields
     }
@@ -574,7 +574,7 @@ let fns : List<BuiltInFn> =
             let types = ExecutionState.availableTypes state
             let! response =
               writeJson (fun w -> serialize types w typeToSerializeAs arg)
-            return Dval.resultOk VT.string VT.string (DString response)
+            return DString response
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -585,12 +585,16 @@ let fns : List<BuiltInFn> =
     { name = fn "parse" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "json" TString "" ]
-      returnType = TypeReference.result (TVariable "a") TString
+      returnType =
+        TypeReference.result (TVariable "a") (TCustomType(Ok Error.typeName, []))
       description =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =
         let resultOk = Dval.resultOk VT.unknownTODO VT.string
-        let resultError = Dval.resultError VT.unknownTODO VT.string
+        let resultError =
+          Dval.resultError
+            VT.unknownTODO
+            (VT.known (KTCustomType(Error.typeName, [])))
         (function
         | state, [ typeArg ], [ DString arg ] ->
           let types = ExecutionState.availableTypes state
