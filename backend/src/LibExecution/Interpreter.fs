@@ -848,10 +848,7 @@ and execFn
     let sourceID = SourceID(state.tlid, id) in
 
     // CLEANUP: optimization opportunity
-    let state =
-      { state with
-          executingFnName = Some fnDesc
-          callstack = Set.add fnDesc state.callstack }
+    let state = { state with executingFnName = Some fnDesc }
 
     let fnRecord = (state.tlid, fnDesc, id) in
 

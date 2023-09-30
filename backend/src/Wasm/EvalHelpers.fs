@@ -38,7 +38,6 @@ let getStateForEval
     reportException = consoleReporter
     notify = consoleNotifier
     tlid = gid ()
-    callstack = Set.empty
     onExecutionPath = true
     executingFnName = None }
 

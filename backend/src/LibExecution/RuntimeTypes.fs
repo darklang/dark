@@ -1310,17 +1310,6 @@ and ExecutionState =
 
     executingFnName : Option<FnName.FnName>
 
-    // <summary>
-    // Callstack of functions that have been called as part of execution
-    // </summary>
-    //
-    // <remarks>
-    // Used for recursion detection in the editor.
-    // In the editor, we call all paths to show live values,
-    // but with recursion that causes infinite recursion.
-    // </remarks>
-    callstack : Set<FnName.FnName>
-
     // Whether the currently executing code is really being executed
     // (as opposed to being previewed for traces)
     onExecutionPath : bool }

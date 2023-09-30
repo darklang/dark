@@ -44,7 +44,6 @@ let createState
     reportException = reportException
     notify = notify
     tlid = tlid
-    callstack = Set.empty
     onExecutionPath = true
     executingFnName = None }
 

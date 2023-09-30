@@ -46,7 +46,7 @@ let state () =
       secrets = [] }
 
   let extraMetadata (state : RT.ExecutionState) : Metadata =
-    [ "executing_fn_name", state.executingFnName; "callstack", state.callstack ]
+    [ "executing_fn_name", state.executingFnName ]
 
   let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
     let metadata = extraMetadata state @ metadata

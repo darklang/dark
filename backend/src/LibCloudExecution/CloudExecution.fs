@@ -44,7 +44,6 @@ let createState
       [ "tlid", tlid
         "trace_id", traceID
         "executing_fn_name", state.executingFnName
-        "callstack", state.callstack
         "canvasID", program.canvasID ]
 
     let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
