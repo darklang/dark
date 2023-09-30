@@ -776,6 +776,9 @@ module UserDefinedEnums =
     (Builtin.Json.parse<PrettyLikely> "{}") |> err = Result.Error
       "Can't parse JSON `{}` as type `UserDefinedEnums.PrettyLikely` at path: `root`"
 
+    (Builtin.Json.parse<PrettyLikely> "[]") |> err = Result.Error
+      "Can't parse JSON `[]` as type `UserDefinedEnums.PrettyLikely` at path: `root`"
+
     // EnumInvalidCasename
     (Builtin.Json.parse<PrettyLikely> "{\"Wrong\":[\"printer broke\", 1, 2.0]}")
     |> err = Result.Error
@@ -888,6 +891,10 @@ module UserDefinedRecords =
                     [ Person { Name = "George A"; Age = 27 }
                       Person { Name = "George B"; Age = 42 } ] }
             e2 = 5 } })
+
+  module Errors =
+    (Builtin.Json.parse<Person> "[]") |> err = Result.Error
+      "Can't parse JSON `[]` as type `Person` at path: `root`"
 
 module UserDefinedAliases =
 

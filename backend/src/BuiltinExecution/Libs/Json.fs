@@ -553,10 +553,7 @@ let parse
 
           | TypeDeclaration.Record fields ->
             if jsonValueKind <> JsonValueKind.Object then
-              // TODO should be user facing
-              Exception.raiseInternal
-                "Expected an object for a record"
-                [ "type", typeName; "value", j ]
+              do! raiseCantMatchWithType typ j pathSoFar
 
             let enumerated = j.EnumerateObject() |> Seq.toList
 
