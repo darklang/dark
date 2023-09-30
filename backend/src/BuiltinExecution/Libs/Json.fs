@@ -128,6 +128,8 @@ module Error =
       TypeReference *
       caseNames : List<string> *
       JsonPath.JsonPath
+    | RecordMissingField of fieldName : string * JsonPath.JsonPath
+    | RecordDuplicateField of fieldName : string * JsonPath.JsonPath
     | NotJson
 
   exception JsonException of Error
@@ -158,6 +160,12 @@ module Error =
             let cases = cases |> List.map (fun s -> DString s) |> Dval.list VT.string
             let! errorPath = JsonPath.toDT errorPath
             return "EnumTooManyCases", [ typ; cases; errorPath ]
+          | RecordMissingField(fieldName, errorPath) ->
+            let! errorPath = JsonPath.toDT errorPath
+            return "RecordMissingField", [ DString fieldName; errorPath ]
+          | RecordDuplicateField(fieldName, errorPath) ->
+            let! errorPath = JsonPath.toDT errorPath
+            return "RecordDuplicateField", [ DString fieldName; errorPath ]
         }
 
       return! Dval.enum typeName typeName (Some []) caseName fields
@@ -359,6 +367,7 @@ let parse
   (typ : TypeReference)
   (str : string)
   : Ply<Result<Dval, Error.Error>> =
+  let err = raiseError
 
   let rec convert
     (typ : TypeReference)
@@ -557,6 +566,9 @@ let parse
 
             let enumerated = j.EnumerateObject() |> Seq.toList
 
+            // We allow the user to add extra fields to a record, but we don't allow
+            // fields to be omitted, so use the definition to get the expected fields
+            // and then look at the json to match it
             let! fields =
               fields
               |> NEList.toList
@@ -564,18 +576,13 @@ let parse
                 uply {
                   let correspondingValue =
                     let matchingFieldDef =
-                      enumerated
-                      // TODO: handle case where value isn't found for
-                      // and maybe, if it's an Option<>al thing, don't complain
-                      |> List.filter (fun v -> v.Name = def.name)
+                      // TODO: allow Option<>al fields to be omitted
+                      enumerated |> List.filter (fun v -> v.Name = def.name)
 
                     match matchingFieldDef with
-                    | [] ->
-                      // TODO should be user-facing error
-                      Exception.raiseInternal "Couldn't find matching field" []
+                    | [] -> err (Error.RecordMissingField(def.name, pathSoFar))
                     | [ matchingFieldDef ] -> matchingFieldDef.Value
-                    // TODO should be a user-facing error
-                    | _ -> Exception.raiseInternal "Too many matching fields" []
+                    | _ -> err (Error.RecordDuplicateField(def.name, pathSoFar))
 
                   let typ = Types.substitute decl.typeParams typeArgs def.typ
                   let! converted =

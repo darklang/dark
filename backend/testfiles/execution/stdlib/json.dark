@@ -896,6 +896,16 @@ module UserDefinedRecords =
     (Builtin.Json.parse<Person> "[]") |> err = Result.Error
       "Can't parse JSON `[]` as type `Person` at path: `root`"
 
+    // Extra fields are allowed, but missing fields are not
+    (Builtin.Json.parse<Person> "{\"notAField\": 5}") |> err = Result.Error
+      "Can't parse JSON because `Name` field is not provided at path: `root`"
+
+    (Builtin.Json.parse<Person> "{\"Age\": 5, \"Age\": 6, \"Name\": \"\"}") |> err = Result.Error
+      "Can't parse JSON because `Age` is defined more than once at path: `root`"
+
+
+
+
 module UserDefinedAliases =
 
   type MyInt = Int

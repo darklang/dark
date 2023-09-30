@@ -40,6 +40,8 @@ module Darklang =
             PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
             cases: List<String> *
             JsonPath.JsonPath
+          | RecordDuplicateField of fieldName: String * JsonPath.JsonPath
+          | RecordMissingField of fieldName: String * JsonPath.JsonPath
           | NotJson
 
         let toString (e: Error) : String =
@@ -91,5 +93,21 @@ module Darklang =
             ++ JsonPath.toString path
             ++ "`"
 
+          // Can't parse JSON because `Name` field is not provided at path: `root`
+          | RecordMissingField(fieldName, path) ->
+            "Can't parse JSON because `"
+            ++ fieldName
+            ++ "` field is not provided at path: `"
+            ++ JsonPath.toString path
+            ++ "`"
+
+
+          // Can't parse JSON because `Age` is defined more than once at path: `root`
+          | RecordDuplicateField(fieldName, path) ->
+            "Can't parse JSON because `"
+            ++ fieldName
+            ++ "` is defined more than once at path: `"
+            ++ JsonPath.toString path
+            ++ "`"
 
           | NotJson -> "Not JSON"
