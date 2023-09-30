@@ -108,17 +108,17 @@ let testTraceRoundtrip =
     let! (c2 : CanvasID) = initializeTestCanvas "stored_events_can_be_roundtripped2"
 
     let t1 = AT.TraceID.create ()
-    do! Task.Delay(2) // make sure of ordering with t1 and t2
+    do! Task.Delay 2 // make sure of ordering with t1 and t2
     let t2 = AT.TraceID.create ()
     let t3 = AT.TraceID.create ()
     let t4 = AT.TraceID.create ()
     let t5 = AT.TraceID.create ()
     let t6 = AT.TraceID.create ()
 
-    let tlid1 = 6UL
-    let tlid2 = 7UL
-    let tlid3 = 8UL
-    let tlid4 = 9UL
+    let tlid1 = 77777720936UL
+    let tlid2 = 77777720935UL
+    let tlid3 = 77777720934UL
+    let tlid4 = 77777720933UL
     let functionResults = Dictionary.empty ()
     do!
       TCS.storeToCloudStorage

@@ -1295,10 +1295,14 @@ and ExecutionState =
     // users are doing, etc.
     notify : Notifier
 
-    // TLID of the currently executing handler/fn
-    tlid : tlid
-
-  }
+    // TLID of the source of the _currently_ executing expression (when initially
+    // created this is the TLID of either the handler or the function, or if there
+    // are neither of these, then the caller is expected to create a TLID for itself
+    // -- use a custom TLID starting with 777777 for each call-site so it's easier to
+    // notice and find the source by searching).
+    //
+    // During execution this is updated when a new function is entered.
+    tlid : tlid }
 
 and Functions =
   { builtIn : Map<FnName.BuiltIn, BuiltInFn>
