@@ -41,9 +41,7 @@ let createState
   : Task<RT.ExecutionState> =
   task {
     let extraMetadata (state : RT.ExecutionState) : Metadata =
-      [ "tlid", tlid
-        "trace_id", traceID
-        "canvasID", program.canvasID ]
+      [ "tlid", tlid; "trace_id", traceID; "canvasID", program.canvasID ]
 
     let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
       let metadata = extraMetadata state @ metadata
