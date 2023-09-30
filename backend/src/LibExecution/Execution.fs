@@ -111,13 +111,11 @@ let traceTLIDs () : HashSet.HashSet<tlid> * RT.TraceTLID =
 /// Return a function to trace Dvals (add it to state via
 /// state.tracing.traceDval), and a mutable dictionary which updates when the
 /// traceFn is used
-let traceDvals () : Dictionary.T<id, AT.ExecutionResult> * RT.TraceDval =
+let traceDvals () : Dictionary.T<id, RT.Dval> * RT.TraceDval =
   let results = Dictionary.empty ()
 
   let trace (id : id) (dval : RT.Dval) : unit =
-    let result = AT.ExecutedResult dval
-
     // Overwrites if present, which is what we want
-    results[id] <- result
+    results[id] <- dval
 
   (results, trace)
