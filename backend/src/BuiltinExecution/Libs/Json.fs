@@ -327,39 +327,12 @@ module ParseError =
 
 let raiseError (e : ParseError.ParseError) : 'a = raise (ParseError.JsonException e)
 
-
 let raiseCantMatchWithType
   (typ : TypeReference)
   (j : JsonElement)
   (path : JsonPath.JsonPath)
   : 'a =
   ParseError.CantMatchWithType(typ, j.GetRawText(), path) |> raiseError
-
-let raiseEnumMissingField
-  (typ : TypeReference)
-  (fieldCount : int)
-  (path : JsonPath.JsonPath)
-  : 'a =
-  ParseError.EnumMissingField(typ, fieldCount, path) |> raiseError
-
-let raiseEnumExtraField (j : JsonElement) (path : JsonPath.JsonPath) =
-  ParseError.EnumExtraField(j.GetRawText(), path) |> raiseError
-
-let raiseEnumInvalidCasename
-  (typ : TypeReference)
-  (caseName : string)
-  (path : JsonPath.JsonPath)
-  : 'a =
-  ParseError.EnumInvalidCasename(typ, caseName, path) |> raiseError
-
-let raiseEnumTooManyCases
-  (typ : TypeReference)
-  (caseNames : List<string>)
-  (path : JsonPath.JsonPath)
-  : 'a =
-  ParseError.EnumTooManyCases(typ, caseNames, path) |> raiseError
-
-
 
 
 
@@ -508,7 +481,8 @@ let parse
               let matchingCase =
                 match cases |> NEList.find (fun c -> c.name = caseName) with
                 | Some c -> c
-                | None -> raiseEnumInvalidCasename typ caseName pathSoFar
+                | None ->
+                  err (ParseError.EnumInvalidCasename(typ, caseName, pathSoFar))
 
               let j = j.EnumerateArray() |> Seq.toList
 
@@ -541,9 +515,7 @@ let parse
                       "expectedFields", matchingCase.fields
                       "actualFields", j ]
                 return
-                  raiseError (
-                    ParseError.EnumMissingField(expectedType, index, casePath)
-                  )
+                  err (ParseError.EnumMissingField(expectedType, index, casePath))
               else if expectedFieldCount < actualFieldCount then
                 let index = expectedFieldCount // one higher than greatest index
                 let fieldJson =
@@ -554,14 +526,14 @@ let parse
                       "expectedFields", matchingCase.fields
                       "actualFields", j ]
                 let path = JsonPath.Part.Index index :: casePath
-                return raiseEnumExtraField fieldJson path
+                return err (ParseError.EnumExtraField(fieldJson.GetRawText(), path))
               else
                 return! Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
 
             | [] -> return raiseCantMatchWithType typ j pathSoFar
             | cases ->
               let caseNames = List.map Tuple2.first cases
-              return raiseEnumTooManyCases typ caseNames pathSoFar
+              return err (ParseError.EnumTooManyCases(typ, caseNames, pathSoFar))
 
           | TypeDeclaration.Record fields ->
             if jsonValueKind <> JsonValueKind.Object then
