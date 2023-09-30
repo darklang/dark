@@ -29,8 +29,8 @@ module Darklang =
         | HeaderError details ->
           match details with
           | EmptyKey -> "Empty key"
-        | IOError details -> $"IOError: {details}"
-        | ConnectionError details -> $"Connection error: {details}"
+        | IOError details -> $"IOError"
+        | ConnectionError details -> $"Connection error"
 
 
       /// The response from a HTTP request
