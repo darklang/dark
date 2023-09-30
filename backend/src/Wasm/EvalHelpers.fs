@@ -38,7 +38,6 @@ let getStateForEval
     reportException = consoleReporter
     notify = consoleNotifier
     tlid = gid ()
-    onExecutionPath = true
     executingFnName = None }
 
 /// Any 'loose' exprs in the source are mapped without context of previous/later exprs

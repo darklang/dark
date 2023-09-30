@@ -1226,7 +1226,7 @@ and RealOrPreview =
 
 and FunctionRecord = tlid * FnName.FnName * id
 
-and TraceDval = bool -> id -> Dval -> unit
+and TraceDval = id -> Dval -> unit
 
 and TraceTLID = tlid -> unit
 
@@ -1308,11 +1308,7 @@ and ExecutionState =
     // TLID of the currently executing handler/fn
     tlid : tlid
 
-    executingFnName : Option<FnName.FnName>
-
-    // Whether the currently executing code is really being executed
-    // (as opposed to being previewed for traces)
-    onExecutionPath : bool }
+    executingFnName : Option<FnName.FnName> }
 
 and Functions =
   { builtIn : Map<FnName.BuiltIn, BuiltInFn>

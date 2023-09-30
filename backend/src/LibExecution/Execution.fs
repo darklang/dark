@@ -8,7 +8,7 @@ open Prelude
 module RT = RuntimeTypes
 module AT = AnalysisTypes
 
-let traceNoDvals : RT.TraceDval = fun _ _ _ -> ()
+let traceNoDvals : RT.TraceDval = fun _ _ -> ()
 let traceNoTLIDs : RT.TraceTLID = fun _ -> ()
 let loadNoFnResults : RT.LoadFnResult = fun _ _ -> None
 let storeNoFnResults : RT.StoreFnResult = fun _ _ _ -> ()
@@ -44,7 +44,6 @@ let createState
     reportException = reportException
     notify = notify
     tlid = tlid
-    onExecutionPath = true
     executingFnName = None }
 
 let executeExpr
@@ -117,9 +116,8 @@ let traceTLIDs () : HashSet.HashSet<tlid> * RT.TraceTLID =
 let traceDvals () : Dictionary.T<id, AT.ExecutionResult> * RT.TraceDval =
   let results = Dictionary.empty ()
 
-  let trace onExecutionPath (id : id) (dval : RT.Dval) : unit =
-    let result =
-      (if onExecutionPath then AT.ExecutedResult dval else AT.NonExecutedResult dval)
+  let trace (id : id) (dval : RT.Dval) : unit =
+    let result = AT.ExecutedResult dval
 
     // Overwrites if present, which is what we want
     results[id] <- result
