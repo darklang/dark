@@ -379,7 +379,12 @@ let randomSeeded () : System.Random =
 
 let gid () : uint64 =
   try
-    RNG.GetBytes(8) |> System.BitConverter.ToUInt64
+    let rand64 = RNG.GetBytes(8) |> System.BitConverter.ToUInt64
+    // Dark only has 63 bits of positive numbers, so to make it easier to convert IDs
+    // to dark, we keep IDs in that range.
+    let mask =
+      0b0111_1111_1111_1111_1111_1111_1111_1111_0011_1111_1111_1111_1111_1111_1111_1111UL
+    rand64 &&& mask
   with e ->
     Exception.raiseInternal $"gid failed" [ "message", e.Message; "inner", e ]
 

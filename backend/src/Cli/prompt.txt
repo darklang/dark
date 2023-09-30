@@ -33,7 +33,7 @@ Here are some functions available in Dark:
 
 These are the available standard library modules:
 - Int
-- Character
+- Char
 - String
 - Float
 - Bool

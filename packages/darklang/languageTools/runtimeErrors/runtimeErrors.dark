@@ -104,38 +104,11 @@ module Darklang =
                   | FullValue dv ->
                     PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv
                   | segment ->
-                    $"(RTETODO toString parts {(Builtin.Json.serialize<ErrorSegment> segment) |> Builtin.unwrap})"
+                    $"(RTETODO toString parts {(Builtin.Json.serialize<ErrorSegment> segment)})"
 
                 PACKAGE.Darklang.Stdlib.List.push prevSegments newSegment)
 
           PACKAGE.Darklang.Stdlib.String.join parts ""
-
-
-
-      // /// The result of Exception.raiseInternal
-      // module ExceptionThrown =
-      //   type ExceptionThrown =
-      //     { message: String
-      //       stackTrace: String
-      //       metadata: List<String * String> }
-
-      //   let toSegments (e: ExceptionThrown) : ErrorOutput =
-      //     let summary =
-      //       [ ErrorSegment.ErrorSegment.String "An internal error occurred" ]
-
-      //     let extraExplanation =
-      //       [ ErrorSegment.ErrorSegment.String "The error was: "
-      //         ErrorSegment.ErrorSegment.String e.message
-
-      //         ErrorSegment.ErrorSegment.String "\n"
-      //         ErrorSegment.ErrorSegment.String "The stack trace was: "
-      //         ErrorSegment.ErrorSegment.String e.stackTrace ]
-
-      //     ErrorOutput
-      //       { summary = summary
-      //         extraExplanation = extraExplanation
-      //         actual = []
-      //         expected = [] }
 
 
       type ErrorOutput =
@@ -158,8 +131,9 @@ module Darklang =
         | SqlCompilerRuntimeError of Error
         | ExecutionError of
           PACKAGE.Darklang.LanguageTools.RuntimeErrors.Execution.Error
+        | JsonError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Json.Error
+
         | OldStringErrorTODO of String
-      //| ExceptionThrown of ExceptionThrown.ExceptionThrown
 
       let sqlErrorTemplate =
         "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
@@ -194,19 +168,8 @@ module Darklang =
                     [ (ErrorSegment.ErrorSegment.String sqlErrorTemplate) ]
                     innerOutput.summary }
 
-          //| ExceptionThrown err -> ExceptionThrown.toSegments err
+          | JsonError err -> Json.toSegments err
 
-          | _ ->
-            ErrorOutput
-              { summary =
-                  [ ErrorSegment.ErrorSegment.String "RTETODO Error.toSegments" ]
-                extraExplanation =
-                  [ e
-                    |> Builtin.Json.serialize<Error>
-                    |> Builtin.unwrap
-                    |> ErrorSegment.ErrorSegment.String ]
-                actual = []
-                expected = [] }
 
         let toString (e: Error) : String =
           let s = toSegments e

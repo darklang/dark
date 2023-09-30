@@ -202,9 +202,9 @@ module Map =
 
   PACKAGE.Darklang.Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x ->
     5) = Builtin.Test.derrorMessage
-    """Function return value should be a Character. However, an Int (5) was returned instead.
+    """Function return value should be a Char. However, an Int (5) was returned instead.
 
-Expected: Character
+Expected: Char
 Actual: an Int: 5"""
 
   // Check that map executes the right number of times
@@ -517,9 +517,9 @@ module FromList =
     [ c "👩‍👩‍👧‍👦"; c "🏳️‍⚧️‍️"; c "👱🏾"; c "Z̤͔ͧ̑̓" ] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
 
   PACKAGE.Darklang.Stdlib.String.fromList [ "a" ] = Builtin.Test.derrorMessage
-    "PACKAGE.Darklang.Stdlib.String.fromList's 1st argument (`lst`) should be a List<Character>. However, a List<String> ([  \"a\"]) was passed instead.
+    "PACKAGE.Darklang.Stdlib.String.fromList's 1st argument (`lst`) should be a List<Char>. However, a List<String> ([  \"a\"]) was passed instead.
 
-Expected: (lst: List<Character>)
+Expected: (lst: List<Char>)
 Actual: a List<String>: [\n  \"a\"\n]"
 
 

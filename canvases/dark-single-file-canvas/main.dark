@@ -50,11 +50,7 @@ let _handler _req =
   let allRecords = Builtin.DB.getAll TestDB
   let respBody = allRecords |> Builtin.Json.serialize<List<Test>>
 
-  let respBody =
-    match respBody with
-    | Ok v -> v |> PACKAGE.Darklang.Stdlib.String.toBytes
-    | Err e -> "fail"
-
+  let respBody = respBody |> PACKAGE.Darklang.Stdlib.String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200
 

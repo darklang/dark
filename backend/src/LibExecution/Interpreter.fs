@@ -874,7 +874,11 @@ and execFn
                   return! f (state, typeArgs, NEList.toList args)
                 with e ->
                   match e with
-                  | RuntimeErrorException(source, rte) -> return Exception.reraise e
+                  | RuntimeErrorException(SourceNone _, rte) ->
+                    // Add the caller ID to the error if there isn't one already
+                    return raiseRTE sourceID rte
+                  | RuntimeErrorException _ -> return Exception.reraise e
+
                   | e ->
                     let context : Metadata =
                       [ "fn", fnDesc; "args", args; "typeArgs", typeArgs; "id", id ]

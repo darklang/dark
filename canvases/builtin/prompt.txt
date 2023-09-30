@@ -49,7 +49,7 @@ some examples:
       Param.makeWithArgs "fn" (TFn([ TChar ], TChar)) "" [ "character" ] ]
   returnType = TStr
   description =
-    "Iterate over each Character (EGC, not byte) in the string, performing the
+    "Iterate over each Char (EGC, not byte) in the string, performing the
       operation in <param fn> on each one."
   fn =
     (function

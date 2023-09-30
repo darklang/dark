@@ -746,6 +746,8 @@ module RuntimeError =
 
   let typeCheckerError field = case "TypeCheckerError" [ field ]
 
+  let jsonError field = case "JsonError" [ field ]
+
   let sqlCompilerRuntimeError (internalError : RuntimeError) =
     case "SqlCompilerRuntimeError" [ toDT internalError ]
 
@@ -770,11 +772,11 @@ module RuntimeError =
 
 exception RuntimeErrorException of DvalSource * RuntimeError
 
-let raiseRTE (source : DvalSource) (rte : RuntimeError) =
+let raiseRTE (source : DvalSource) (rte : RuntimeError) : 'a =
   raise (RuntimeErrorException(source, rte))
 
 // TODO add sources to all RTEs
-let raiseUntargetedRTE (rte : RuntimeError) =
+let raiseUntargetedRTE (rte : RuntimeError) : 'a =
   raise (RuntimeErrorException(SourceNone, rte))
 
 // TODO remove all usages of this in favor of better error cases
@@ -1256,7 +1258,7 @@ and TestContext =
 
     mutable exceptionReports : List<string * string * Metadata>
     mutable expectedExceptionCount : int
-    postTestExecutionHook : TestContext -> Dval -> unit }
+    postTestExecutionHook : TestContext -> unit }
 
 // Functionally written in F# and shipped with the executable
 and BuiltIns =
