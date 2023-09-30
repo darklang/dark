@@ -142,13 +142,8 @@ module Darklang =
         let packageSpecificConstant =
           (PACKAGE.Darklang.Stdlib.List.filter constants (fun c ->
             c.name.name
-            == PACKAGE
-              .Darklang
-              .LanguageTools
-              .ProgramTypes
-              .ConstantName
-              .Name
-              .ConstantName(name)
+            == PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Name.ConstantName
+              name
             && c.name.owner == owner
             && c.name.modules == modules))
           |> PACKAGE.Darklang.Stdlib.List.head
@@ -334,7 +329,7 @@ Options:
         0
 
 
-      | Show(name) ->
+      | Show name ->
 
         let fullName = name |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1
 

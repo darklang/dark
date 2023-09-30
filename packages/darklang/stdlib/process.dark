@@ -12,4 +12,4 @@ module Darklang =
         if result.exitCode == 0 then
           PACKAGE.Darklang.Stdlib.Result.Result.Ok(stdout ++ stderr)
         else
-          PACKAGE.Darklang.Stdlib.Result.Result.Error(result)
+          PACKAGE.Darklang.Stdlib.Result.Result.Error result
