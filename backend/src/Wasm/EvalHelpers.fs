@@ -32,7 +32,7 @@ let getStateForEval
 
   { builtIns = builtIns
     packageManager = packageManager
-    tracing = LibExecution.Execution.noTracing Real
+    tracing = LibExecution.Execution.noTracing
     program = program
     test = LibExecution.Execution.noTestContext
     reportException = consoleReporter

@@ -34,8 +34,6 @@ let builtIns : RT.BuiltIns =
 let defaultTLID = 7UL
 
 let state () =
-  let tracing = Exe.noTracing RT.Real
-
   let program : RT.Program =
     { canvasID = System.Guid.NewGuid()
       internalFnsAllowed = false
@@ -64,7 +62,7 @@ let state () =
   Exe.createState
     builtIns
     LibCloud.PackageManager.packageManager
-    tracing
+    Exe.noTracing
     reportException
     notify
     defaultTLID

@@ -13,12 +13,11 @@ let traceNoTLIDs : RT.TraceTLID = fun _ -> ()
 let loadNoFnResults : RT.LoadFnResult = fun _ _ -> None
 let storeNoFnResults : RT.StoreFnResult = fun _ _ _ -> ()
 
-let noTracing (realOrPreview : RT.RealOrPreview) : RT.Tracing =
+let noTracing : RT.Tracing =
   { traceDval = traceNoDvals
     traceTLID = traceNoTLIDs
     loadFnResult = loadNoFnResults
-    storeFnResult = storeNoFnResults
-    realOrPreview = realOrPreview }
+    storeFnResult = storeNoFnResults }
 
 let noTestContext : RT.TestContext =
   { sideEffectCount = 0

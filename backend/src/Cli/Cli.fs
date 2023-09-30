@@ -66,7 +66,7 @@ let state () =
       dbs = Map.empty
       secrets = [] }
 
-  let tracing = Exe.noTracing RT.Real
+  let tracing = Exe.noTracing
 
   let notify (_state : RT.ExecutionState) (_msg : string) (_metadata : Metadata) =
     // let metadata = extraMetadata state @ metadata

@@ -1215,15 +1215,6 @@ and FnImpl =
   | PackageFunction of tlid * Expr
 
 
-// CLEANUP consider renaming to `ExecutionType`, `EvaluationMode`, etc.
-// Represents the context in which we're evaluating some code
-and RealOrPreview =
-  // We are evaluating an expression normally
-  | Real
-
-  // We are previewing the evaluation of some expression within the editor.
-  | Preview
-
 and FunctionRecord = tlid * FnName.FnName * id
 
 and TraceDval = id -> Dval -> unit
@@ -1249,8 +1240,7 @@ and Tracing =
   { traceDval : TraceDval
     traceTLID : TraceTLID
     loadFnResult : LoadFnResult
-    storeFnResult : StoreFnResult
-    realOrPreview : RealOrPreview }
+    storeFnResult : StoreFnResult }
 
 // Used for testing
 and TestContext =

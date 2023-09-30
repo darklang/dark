@@ -132,7 +132,7 @@ let createCloudStorageTracer
   { enabled = true
     results = results
     executionTracing =
-      { Exe.noTracing RT.Real with
+      { Exe.noTracing with
           storeFnResult =
             (fun (tlid, name, id) args result ->
               let hash =
@@ -195,7 +195,7 @@ let createNonTracer (_canvasID : CanvasID) (_traceID : AT.TraceID.T) : T =
   let results = TraceResults.empty ()
   { enabled = false
     results = results
-    executionTracing = LibExecution.Execution.noTracing RT.Real
+    executionTracing = LibExecution.Execution.noTracing
     storeTraceResults = fun () -> ()
     storeTraceInput = fun _ _ _ -> () }
 
