@@ -27,10 +27,18 @@ module Darklang =
             PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
             String *
             JsonPath.JsonPath
-          | EnumExtraField of String * JsonPath.JsonPath
+          | EnumExtraField of rawJson: String * JsonPath.JsonPath
           | EnumMissingField of
             PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
-            Int *
+            index: Int *
+            JsonPath.JsonPath
+          | EnumInvalidCasename of
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
+            caseName: String *
+            JsonPath.JsonPath
+          | EnumTooManyCases of
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
+            cases: List<String> *
             JsonPath.JsonPath
           | NotJson
 
@@ -62,4 +70,26 @@ module Darklang =
             ++ "`) is missing at path: `"
             ++ JsonPath.toString path
             ++ "`"
+
+          // Can't parse JSON as `Wrong` is not a known case of type `PrettyLikely` at path: `root`
+          | EnumInvalidCasename(typ, caseName, path) ->
+            "Can't parse JSON as `"
+            ++ caseName
+            ++ "` is not a known case of type `"
+            ++ PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference typ
+            ++ "` at path: `"
+            ++ JsonPath.toString path
+            ++ "`"
+
+          // Can't parse JSON with multiple fields (`Enh` and `Extra`) as type `PrettyLikely` at path: `root`
+          | EnumTooManyCases(typ, cases, path) ->
+            let cases = cases |> List.map (fun c -> $"`{c}`") |> String.join ", "
+
+            $"Can't parse JSON with multiple fields ({cases}) as type `"
+            ++ PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference typ
+            ++ "` at path: `"
+            ++ JsonPath.toString path
+            ++ "`"
+
+
           | NotJson -> "Not JSON"

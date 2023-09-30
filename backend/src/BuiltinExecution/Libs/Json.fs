@@ -120,7 +120,14 @@ module Error =
     /// The json string can't be parsed as the given type.
     | CantMatchWithType of TypeReference * string * JsonPath.JsonPath
     | EnumExtraField of rawJson : string * JsonPath.JsonPath
-    | EnumMissingField of TypeReference * int * JsonPath.JsonPath
+    | EnumMissingField of TypeReference * index : int * JsonPath.JsonPath
+    /// Provided caseName doesn't match any caseName the enum has
+    | EnumInvalidCasename of TypeReference * caseName : string * JsonPath.JsonPath
+    /// More than one label in a record expecting one
+    | EnumTooManyCases of
+      TypeReference *
+      caseNames : List<string> *
+      JsonPath.JsonPath
     | NotJson
 
   exception JsonException of Error
@@ -142,6 +149,15 @@ module Error =
             let typ = RT2DT.TypeReference.toDT typ
             let! errorPath = JsonPath.toDT errorPath
             return "EnumMissingField", [ typ; DInt(int64 fieldCount); errorPath ]
+          | EnumInvalidCasename(typ, caseName, errorPath) ->
+            let typ = RT2DT.TypeReference.toDT typ
+            let! errorPath = JsonPath.toDT errorPath
+            return "EnumInvalidCasename", [ typ; DString caseName; errorPath ]
+          | EnumTooManyCases(typ, cases, errorPath) ->
+            let typ = RT2DT.TypeReference.toDT typ
+            let cases = cases |> List.map (fun s -> DString s) |> Dval.list VT.string
+            let! errorPath = JsonPath.toDT errorPath
+            return "EnumTooManyCases", [ typ; cases; errorPath ]
         }
 
       return! Dval.enum typeName typeName (Some []) caseName fields
@@ -154,18 +170,32 @@ let raiseCantMatchWithType
   (typ : TypeReference)
   (j : JsonElement)
   (path : JsonPath.JsonPath)
-  =
+  : 'a =
   Error.CantMatchWithType(typ, j.GetRawText(), path) |> raiseError
 
 let raiseEnumMissingField
   (typ : TypeReference)
   (fieldCount : int)
   (path : JsonPath.JsonPath)
-  =
+  : 'a =
   Error.EnumMissingField(typ, fieldCount, path) |> raiseError
 
 let raiseEnumExtraField (j : JsonElement) (path : JsonPath.JsonPath) =
   Error.EnumExtraField(j.GetRawText(), path) |> raiseError
+
+let raiseEnumInvalidCasename
+  (typ : TypeReference)
+  (caseName : string)
+  (path : JsonPath.JsonPath)
+  : 'a =
+  Error.EnumInvalidCasename(typ, caseName, path) |> raiseError
+
+let raiseEnumTooManyCases
+  (typ : TypeReference)
+  (caseNames : List<string>)
+  (path : JsonPath.JsonPath)
+  : 'a =
+  Error.EnumTooManyCases(typ, caseNames, path) |> raiseError
 
 
 
@@ -426,7 +456,8 @@ let parse
       |> Ply.map (fun mapped ->
         match mapped with
         | (d1 :: d2 :: rest) -> DTuple(d1, d2, rest)
-        | _ -> Exception.raiseInternal "Invalid tuple" [])
+        | _ ->
+          Exception.raiseInternal "Shouldn't be possible due to length check" [])
 
     | TDict tDict, JsonValueKind.Object ->
       j.EnumerateObject()
@@ -455,7 +486,7 @@ let parse
 
           | TypeDeclaration.Enum cases ->
             if jsonValueKind <> JsonValueKind.Object then
-              raiseCantMatchWithType typ j pathSoFar
+              do! raiseCantMatchWithType typ j pathSoFar
 
             let enumerated =
               j.EnumerateObject()
@@ -465,11 +496,9 @@ let parse
             match enumerated with
             | [ (caseName, j) ] ->
               let matchingCase =
-                cases
-                |> NEList.find (fun c -> c.name = caseName)
-                |> Exception.unwrapOptionInternal
-                  "Couldn't find matching case"
-                  [ "caseName ", caseName ]
+                match cases |> NEList.find (fun c -> c.name = caseName) with
+                | Some c -> c
+                | None -> raiseEnumInvalidCasename typ caseName pathSoFar
 
               let j = j.EnumerateArray() |> Seq.toList
 
@@ -517,8 +546,10 @@ let parse
               else
                 return! Dval.enum typeName typeName VT.typeArgsTODO' caseName fields
 
-            // TODO shouldn't be an internal error
-            | _ -> return Exception.raiseInternal "TODO" []
+            | [] -> return raiseCantMatchWithType typ j pathSoFar
+            | cases ->
+              let caseNames = List.map Tuple2.first cases
+              return raiseEnumTooManyCases typ caseNames pathSoFar
 
           | TypeDeclaration.Record fields ->
             if jsonValueKind <> JsonValueKind.Object then
