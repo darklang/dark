@@ -12,11 +12,11 @@ type Option<'t> = PACKAGE.Darklang.Stdlib.Option.Option<'t>
 
 let err
   (v:
-    PACKAGE.Darklang.Stdlib.Result.Result<'a, PACKAGE.Darklang.Stdlib.Json.Error.Error>)
+    PACKAGE.Darklang.Stdlib.Result.Result<'a, PACKAGE.Darklang.Stdlib.Json.ParseError.ParseError>)
   : Result<'a, String> =
   v
   |> PACKAGE.Darklang.Stdlib.Result.mapError
-    PACKAGE.Darklang.Stdlib.Json.Error.toString
+    PACKAGE.Darklang.Stdlib.Json.ParseError.toString
 
 
 module Unit =

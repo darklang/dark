@@ -90,6 +90,12 @@ module JsonPath =
       | Root
       | Index of int
       | Field of string
+    let typeName =
+      TypeName.fqPackage
+        "Darklang"
+        [ "Stdlib"; "Json"; "ParseError"; "JsonPath"; "Part" ]
+        "Part"
+        0
 
     let toDT (part : Part) : Ply<Dval> =
       let (caseName, fields) =
@@ -97,12 +103,6 @@ module JsonPath =
         | Root -> "Root", []
         | Index i -> "Index", [ DInt(int64 i) ]
         | Field s -> "Field", [ DString s ]
-      let typeName =
-        TypeName.fqPackage
-          "Darklang"
-          [ "Stdlib"; "Json"; "Error"; "JsonPath"; "Part" ]
-          "Part"
-          0
       Dval.enum typeName typeName (Some []) caseName fields
 
 
@@ -110,101 +110,6 @@ module JsonPath =
 
   let toDT (path : JsonPath) : Ply<Dval> =
     path |> Ply.List.mapSequentially Part.toDT |> Ply.map (Dval.list VT.unknownTODO)
-
-
-module Error =
-  module RT2DT = LibExecution.RuntimeTypesToDarkTypes
-  let typeName =
-    TypeName.fqPackage "Darklang" [ "Stdlib"; "Json"; "Error" ] "Error" 0
-  type Error =
-    /// The json string can't be parsed as the given type.
-    | CantMatchWithType of TypeReference * string * JsonPath.JsonPath
-    | EnumExtraField of rawJson : string * JsonPath.JsonPath
-    | EnumMissingField of TypeReference * index : int * JsonPath.JsonPath
-    /// Provided caseName doesn't match any caseName the enum has
-    | EnumInvalidCasename of TypeReference * caseName : string * JsonPath.JsonPath
-    /// More than one label in a record expecting one
-    | EnumTooManyCases of
-      TypeReference *
-      caseNames : List<string> *
-      JsonPath.JsonPath
-    | RecordMissingField of fieldName : string * JsonPath.JsonPath
-    | RecordDuplicateField of fieldName : string * JsonPath.JsonPath
-    | NotJson
-
-  exception JsonException of Error
-
-  let toDT (e : Error) : Ply<Dval> =
-    uply {
-      let! (caseName, fields) =
-        uply {
-          match e with
-          | NotJson -> return "NotJson", []
-          | CantMatchWithType(typ, json, errorPath) ->
-            let typ = RT2DT.TypeReference.toDT typ
-            let! errorPath = JsonPath.toDT errorPath
-            return "CantMatchWithType", [ typ; DString json; errorPath ]
-          | EnumExtraField(json, errorPath) ->
-            let! errorPath = JsonPath.toDT errorPath
-            return "EnumExtraField", [ DString json; errorPath ]
-          | EnumMissingField(typ, fieldCount, errorPath) ->
-            let typ = RT2DT.TypeReference.toDT typ
-            let! errorPath = JsonPath.toDT errorPath
-            return "EnumMissingField", [ typ; DInt(int64 fieldCount); errorPath ]
-          | EnumInvalidCasename(typ, caseName, errorPath) ->
-            let typ = RT2DT.TypeReference.toDT typ
-            let! errorPath = JsonPath.toDT errorPath
-            return "EnumInvalidCasename", [ typ; DString caseName; errorPath ]
-          | EnumTooManyCases(typ, cases, errorPath) ->
-            let typ = RT2DT.TypeReference.toDT typ
-            let cases = cases |> List.map (fun s -> DString s) |> Dval.list VT.string
-            let! errorPath = JsonPath.toDT errorPath
-            return "EnumTooManyCases", [ typ; cases; errorPath ]
-          | RecordMissingField(fieldName, errorPath) ->
-            let! errorPath = JsonPath.toDT errorPath
-            return "RecordMissingField", [ DString fieldName; errorPath ]
-          | RecordDuplicateField(fieldName, errorPath) ->
-            let! errorPath = JsonPath.toDT errorPath
-            return "RecordDuplicateField", [ DString fieldName; errorPath ]
-        }
-
-      return! Dval.enum typeName typeName (Some []) caseName fields
-    }
-
-let raiseError (e : Error.Error) : 'a = raise (Error.JsonException e)
-
-
-let raiseCantMatchWithType
-  (typ : TypeReference)
-  (j : JsonElement)
-  (path : JsonPath.JsonPath)
-  : 'a =
-  Error.CantMatchWithType(typ, j.GetRawText(), path) |> raiseError
-
-let raiseEnumMissingField
-  (typ : TypeReference)
-  (fieldCount : int)
-  (path : JsonPath.JsonPath)
-  : 'a =
-  Error.EnumMissingField(typ, fieldCount, path) |> raiseError
-
-let raiseEnumExtraField (j : JsonElement) (path : JsonPath.JsonPath) =
-  Error.EnumExtraField(j.GetRawText(), path) |> raiseError
-
-let raiseEnumInvalidCasename
-  (typ : TypeReference)
-  (caseName : string)
-  (path : JsonPath.JsonPath)
-  : 'a =
-  Error.EnumInvalidCasename(typ, caseName, path) |> raiseError
-
-let raiseEnumTooManyCases
-  (typ : TypeReference)
-  (caseNames : List<string>)
-  (path : JsonPath.JsonPath)
-  : 'a =
-  Error.EnumTooManyCases(typ, caseNames, path) |> raiseError
-
 
 
 
@@ -361,12 +266,108 @@ let rec serialize
         [ "value", dv; "type", DString(LibExecution.DvalReprDeveloper.typeName typ) ]
   }
 
+module ParseError =
+  module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+  let typeName =
+    TypeName.fqPackage "Darklang" [ "Stdlib"; "Json"; "ParseError" ] "ParseError" 0
+  type ParseError =
+    /// The json string can't be parsed as the given type.
+    | CantMatchWithType of TypeReference * string * JsonPath.JsonPath
+    | EnumExtraField of rawJson : string * JsonPath.JsonPath
+    | EnumMissingField of TypeReference * index : int * JsonPath.JsonPath
+    /// Provided caseName doesn't match any caseName the enum has
+    | EnumInvalidCasename of TypeReference * caseName : string * JsonPath.JsonPath
+    /// More than one label in a record expecting one
+    | EnumTooManyCases of
+      TypeReference *
+      caseNames : List<string> *
+      JsonPath.JsonPath
+    | RecordMissingField of fieldName : string * JsonPath.JsonPath
+    | RecordDuplicateField of fieldName : string * JsonPath.JsonPath
+    | NotJson
+
+  exception JsonException of ParseError
+
+  let toDT (e : ParseError) : Ply<Dval> =
+    uply {
+      let! (caseName, fields) =
+        uply {
+          match e with
+          | NotJson -> return "NotJson", []
+          | CantMatchWithType(typ, json, errorPath) ->
+            let typ = RT2DT.TypeReference.toDT typ
+            let! errorPath = JsonPath.toDT errorPath
+            return "CantMatchWithType", [ typ; DString json; errorPath ]
+          | EnumExtraField(json, errorPath) ->
+            let! errorPath = JsonPath.toDT errorPath
+            return "EnumExtraField", [ DString json; errorPath ]
+          | EnumMissingField(typ, fieldCount, errorPath) ->
+            let typ = RT2DT.TypeReference.toDT typ
+            let! errorPath = JsonPath.toDT errorPath
+            return "EnumMissingField", [ typ; DInt(int64 fieldCount); errorPath ]
+          | EnumInvalidCasename(typ, caseName, errorPath) ->
+            let typ = RT2DT.TypeReference.toDT typ
+            let! errorPath = JsonPath.toDT errorPath
+            return "EnumInvalidCasename", [ typ; DString caseName; errorPath ]
+          | EnumTooManyCases(typ, cases, errorPath) ->
+            let typ = RT2DT.TypeReference.toDT typ
+            let cases = cases |> List.map (fun s -> DString s) |> Dval.list VT.string
+            let! errorPath = JsonPath.toDT errorPath
+            return "EnumTooManyCases", [ typ; cases; errorPath ]
+          | RecordMissingField(fieldName, errorPath) ->
+            let! errorPath = JsonPath.toDT errorPath
+            return "RecordMissingField", [ DString fieldName; errorPath ]
+          | RecordDuplicateField(fieldName, errorPath) ->
+            let! errorPath = JsonPath.toDT errorPath
+            return "RecordDuplicateField", [ DString fieldName; errorPath ]
+        }
+
+      return! Dval.enum typeName typeName (Some []) caseName fields
+    }
+
+let raiseError (e : ParseError.ParseError) : 'a = raise (ParseError.JsonException e)
+
+
+let raiseCantMatchWithType
+  (typ : TypeReference)
+  (j : JsonElement)
+  (path : JsonPath.JsonPath)
+  : 'a =
+  ParseError.CantMatchWithType(typ, j.GetRawText(), path) |> raiseError
+
+let raiseEnumMissingField
+  (typ : TypeReference)
+  (fieldCount : int)
+  (path : JsonPath.JsonPath)
+  : 'a =
+  ParseError.EnumMissingField(typ, fieldCount, path) |> raiseError
+
+let raiseEnumExtraField (j : JsonElement) (path : JsonPath.JsonPath) =
+  ParseError.EnumExtraField(j.GetRawText(), path) |> raiseError
+
+let raiseEnumInvalidCasename
+  (typ : TypeReference)
+  (caseName : string)
+  (path : JsonPath.JsonPath)
+  : 'a =
+  ParseError.EnumInvalidCasename(typ, caseName, path) |> raiseError
+
+let raiseEnumTooManyCases
+  (typ : TypeReference)
+  (caseNames : List<string>)
+  (path : JsonPath.JsonPath)
+  : 'a =
+  ParseError.EnumTooManyCases(typ, caseNames, path) |> raiseError
+
+
+
+
 
 let parse
   (types : Types)
   (typ : TypeReference)
   (str : string)
-  : Ply<Result<Dval, Error.Error>> =
+  : Ply<Result<Dval, ParseError.ParseError>> =
   let err = raiseError
 
   let rec convert
@@ -540,7 +541,9 @@ let parse
                       "expectedFields", matchingCase.fields
                       "actualFields", j ]
                 return
-                  raiseError (Error.EnumMissingField(expectedType, index, casePath))
+                  raiseError (
+                    ParseError.EnumMissingField(expectedType, index, casePath)
+                  )
               else if expectedFieldCount < actualFieldCount then
                 let index = expectedFieldCount // one higher than greatest index
                 let fieldJson =
@@ -580,9 +583,10 @@ let parse
                       enumerated |> List.filter (fun v -> v.Name = def.name)
 
                     match matchingFieldDef with
-                    | [] -> err (Error.RecordMissingField(def.name, pathSoFar))
+                    | [] -> err (ParseError.RecordMissingField(def.name, pathSoFar))
                     | [ matchingFieldDef ] -> matchingFieldDef.Value
-                    | _ -> err (Error.RecordDuplicateField(def.name, pathSoFar))
+                    | _ ->
+                      err (ParseError.RecordDuplicateField(def.name, pathSoFar))
 
                   let typ = Types.substitute decl.typeParams typeArgs def.typ
                   let! converted =
@@ -623,7 +627,7 @@ let parse
     try
       Ok(parseJson str)
     with _ex ->
-      Error Error.NotJson
+      Error ParseError.NotJson
 
   match parsed with
   | Error err -> Error err |> Ply
@@ -632,7 +636,7 @@ let parse
       try
         let! converted = convert typ [ JsonPath.Part.Root ] parsed
         return Ok converted
-      with Error.JsonException ex ->
+      with ParseError.JsonException ex ->
         return Error ex
     }
 
@@ -671,7 +675,9 @@ let fns : List<BuiltInFn> =
       typeParams = [ "a" ]
       parameters = [ Param.make "json" TString "" ]
       returnType =
-        TypeReference.result (TVariable "a") (TCustomType(Ok Error.typeName, []))
+        TypeReference.result
+          (TVariable "a")
+          (TCustomType(Ok ParseError.typeName, []))
       description =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =
@@ -679,7 +685,7 @@ let fns : List<BuiltInFn> =
         let resultError =
           Dval.resultError
             VT.unknownTODO
-            (VT.known (KTCustomType(Error.typeName, [])))
+            (VT.known (KTCustomType(ParseError.typeName, [])))
         (function
         | state, [ typeArg ], [ DString arg ] ->
           let types = ExecutionState.availableTypes state
@@ -687,7 +693,7 @@ let fns : List<BuiltInFn> =
             match! parse types typeArg arg with
             | Ok v -> return resultOk v
             | Error e ->
-              let! dval = Error.toDT e
+              let! dval = ParseError.toDT e
               return resultError dval
           }
         | _ -> incorrectArgs ())

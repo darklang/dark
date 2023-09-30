@@ -1,7 +1,7 @@
 module Darklang =
   module Stdlib =
     module Json =
-      module Error =
+      module ParseError =
         module JsonPath =
           module Part =
             type Part =
@@ -21,7 +21,7 @@ module Darklang =
             path |> List.reverse |> List.map Part.toString |> String.join ""
 
 
-        type Error =
+        type ParseError =
           /// The json string can't be parsed as the given type.
           | CantMatchWithType of
             PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
@@ -44,7 +44,7 @@ module Darklang =
           | RecordMissingField of fieldName: String * JsonPath.JsonPath
           | NotJson
 
-        let toString (e: Error) : String =
+        let toString (e: ParseError) : String =
           match e with
           | CantMatchWithType(typ, json, path) ->
             "Can't parse JSON `"
