@@ -42,8 +42,7 @@ let createState
     test = noTestContext
     reportException = reportException
     notify = notify
-    tlid = tlid
-    executingFnName = None }
+    tlid = tlid }
 
 let executeExpr
   (state : RT.ExecutionState)

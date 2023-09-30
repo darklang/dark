@@ -1298,7 +1298,7 @@ and ExecutionState =
     // TLID of the currently executing handler/fn
     tlid : tlid
 
-    executingFnName : Option<FnName.FnName> }
+  }
 
 and Functions =
   { builtIn : Map<FnName.BuiltIn, BuiltInFn>

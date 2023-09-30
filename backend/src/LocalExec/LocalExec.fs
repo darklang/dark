@@ -43,8 +43,7 @@ let state () =
       dbs = Map.empty
       secrets = [] }
 
-  let extraMetadata (state : RT.ExecutionState) : Metadata =
-    [ "executing_fn_name", state.executingFnName ]
+  let extraMetadata (state : RT.ExecutionState) : Metadata = []
 
   let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
     let metadata = extraMetadata state @ metadata

@@ -847,9 +847,6 @@ and execFn
   uply {
     let sourceID = SourceID(state.tlid, id) in
 
-    // CLEANUP: optimization opportunity
-    let state = { state with executingFnName = Some fnDesc }
-
     let fnRecord = (state.tlid, fnDesc, id) in
 
     let types = ExecutionState.availableTypes state
