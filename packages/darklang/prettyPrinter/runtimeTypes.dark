@@ -259,7 +259,7 @@ module Darklang =
             | [] -> ""
             | args ->
               args
-              |> PACKAGE.Darklang.Stdlib.List.map (fun t -> valueTypeName t)
+              |> PACKAGE.Darklang.Stdlib.List.map (fun t -> valueType t)
               |> PACKAGE.Darklang.Stdlib.String.join ", "
               |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
