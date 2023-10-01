@@ -54,7 +54,7 @@ let fns : List<BuiltInFn> =
              |> Ply.List.mapSequentially (function
                | DChar c -> Ply c
                | dv ->
-                 TypeChecker.raiseFnValResultNotExpectedType SourceNone dv TChar)
+                 TypeChecker.raiseFnValResultNotExpectedType state.caller dv TChar)
              |> Ply.map (fun parts ->
                parts |> String.concat "" |> String.normalize |> DString)))
         | _ -> incorrectArgs ())

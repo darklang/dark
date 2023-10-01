@@ -70,11 +70,11 @@ module ExecutionError =
       return! case caseName fields
     }
 
-  let raise (source : DvalSource) (e : Error) : Ply<'a> =
+  let raise (source : Source) (e : Error) : Ply<'a> =
     toDT e |> Ply.map (raiseRTE source)
 
 
-let rec evalConst (source : DvalSource) (c : Const) : Dval =
+let rec evalConst (source : Source) (c : Const) : Dval =
   let r = evalConst source
   match c with
   | CInt i -> DInt i
@@ -105,13 +105,14 @@ let rec eval
   (st : Symtable)
   (e : Expr)
   : DvalTask =
-  let sourceID id = SourceID(state.tlid, id)
+  let sourceID id = Some(state.tlid, id)
   let errStr id msg : 'a = raiseRTE (sourceID id) (RuntimeError.oldError msg)
   let err id rte : 'a = raiseRTE (sourceID id) rte
   let raiseExeRTE id (e : ExecutionError.Error) : Ply<'a> =
     ExecutionError.raise (sourceID id) e
 
   let typeResolutionError
+    (source : Source)
     (errorType : NameResolutionError.ErrorType)
     (typeName : TypeName.TypeName)
     : Ply<'a> =
@@ -119,9 +120,10 @@ let rec eval
       { errorType = errorType
         nameType = NameResolutionError.Type
         names = [ TypeName.toString typeName ] }
-    error |> NameResolutionError.RTE.toRuntimeError |> raiseRTE SourceNone
+    error |> NameResolutionError.RTE.toRuntimeError |> raiseRTE source
 
   let recordMaybe
+    (source : Source)
     (types : Types)
     (typeName : TypeName.TypeName)
     // TypeName, typeParam list, fully-resolved (except for typeParam) field list
@@ -166,7 +168,7 @@ let rec eval
                (k, Types.substitute innerTypeParams outerTypeArgs v)))
 
         | Some({ definition = TypeDeclaration.Alias(TCustomType(Error e, _)) }) ->
-          return raiseRTE SourceNone e
+          return raiseRTE source e
 
         | Some({ typeParams = typeParams
                  definition = TypeDeclaration.Record fields }) ->
@@ -178,13 +180,18 @@ let rec eval
         | Some({ definition = TypeDeclaration.Alias(_) })
         | Some({ definition = TypeDeclaration.Enum _ }) ->
           return!
-            typeResolutionError NameResolutionError.ExpectedRecordButNot typeName
+            typeResolutionError
+              source
+              NameResolutionError.ExpectedRecordButNot
+              typeName
 
-        | None -> return! typeResolutionError NameResolutionError.NotFound typeName
+        | None ->
+          return! typeResolutionError source NameResolutionError.NotFound typeName
       }
     inner typeName
 
   let enumMaybe
+    (source : Source)
     (types : Types)
     (typeName : TypeName.TypeName)
     : Ply<TypeName.TypeName * List<string> * NEList<TypeDeclaration.EnumCase>> =
@@ -207,15 +214,20 @@ let rec eval
                        c.fields }))
 
         | Some({ definition = TypeDeclaration.Alias(TCustomType(Error e, _)) }) ->
-          return raiseRTE SourceNone e
+          return raiseRTE source e
 
         | Some({ typeParams = typeParams; definition = TypeDeclaration.Enum cases }) ->
           return (typeName, typeParams, cases)
 
         | Some({ definition = TypeDeclaration.Alias _ })
         | Some({ definition = TypeDeclaration.Record _ }) ->
-          return! typeResolutionError NameResolutionError.ExpectedEnumButNot typeName
-        | None -> return! typeResolutionError NameResolutionError.NotFound typeName
+          return!
+            typeResolutionError
+              source
+              NameResolutionError.ExpectedEnumButNot
+              typeName
+        | None ->
+          return! typeResolutionError source NameResolutionError.NotFound typeName
       }
     inner typeName
 
@@ -323,8 +335,10 @@ let rec eval
     | ERecord(id, typeName, fields) ->
       let typeStr = TypeName.toString typeName
       let types = ExecutionState.availableTypes state
+      let source = sourceID id
 
-      let! (aliasTypeName, _typeParams, expectedFields) = recordMaybe types typeName
+      let! (aliasTypeName, _typeParams, expectedFields) =
+        recordMaybe source types typeName
       let expectedFields = Map expectedFields
 
       let! fields =
@@ -357,6 +371,7 @@ let rec eval
         return errStr id $"Missing field `{key}` in {typeStr}"
 
     | ERecordUpdate(id, baseRecord, updates) ->
+      let source = sourceID id
       // CLEANUP refactor this impl
       // namely, focus more on the `fields` and don't pass around DRecord so much
 
@@ -366,7 +381,7 @@ let rec eval
         let typeStr = TypeName.toString typeName
         let types = ExecutionState.availableTypes state
 
-        let! (_, _, expected) = recordMaybe types typeName
+        let! (_, _, expected) = recordMaybe source types typeName
         let expectedFields = Map expected
         return!
           updates
@@ -389,7 +404,7 @@ let rec eval
 
                   match! TypeChecker.unify context types Map.empty fieldType v with
                   | Ok() -> return DRecord(typeName, original, typ, Map.add k v m)
-                  | Error rte -> return raiseRTE (SourceID(state.tlid, id)) rte
+                  | Error rte -> return raiseRTE source rte
 
                 | _ ->
                   return
@@ -669,10 +684,11 @@ let rec eval
 
 
     | EEnum(id, sourceTypeName, caseName, fields) ->
+      let source = sourceID id
       let typeStr = TypeName.toString sourceTypeName
       let types = ExecutionState.availableTypes state
 
-      let! (resolvedTypeName, _, cases) = enumMaybe types sourceTypeName
+      let! (resolvedTypeName, _, cases) = enumMaybe source types sourceTypeName
       let case = cases |> NEList.find (fun c -> c.name = caseName)
 
       match case with
@@ -707,7 +723,7 @@ let rec eval
                     TypeChecker.unify context types Map.empty enumFieldType v
                   with
                   | Ok() -> return (List.append fieldsSoFar [ v ])
-                  | Error rte -> return raiseRTE (SourceID(state.tlid, id)) rte
+                  | Error rte -> return raiseRTE source rte
                 })
               []
               (List.zip case.fields fields)
@@ -728,7 +744,7 @@ let rec eval
 
 and applyFnVal
   (state : ExecutionState)
-  (id : id)
+  (callerID : id)
   (fnVal : FnValImpl)
   (typeArgs : List<TypeReference>)
   (args : NEList<Dval>)
@@ -739,7 +755,7 @@ and applyFnVal
     // I think we'll end up having to pass the
     // `tst` in scope here at some point?
     let tst = Map.empty
-    callFn state tst id fn typeArgs args
+    callFn state tst callerID fn typeArgs args
 
 and executeLambda
   (state : ExecutionState)
@@ -756,7 +772,7 @@ and executeLambda
   let actualLength = NEList.length args
   if expectedLength <> actualLength then
     raiseRTE
-      SourceNone
+      state.caller
       (RuntimeError.oldError
         $"Expected {expectedLength} arguments, got {actualLength}")
 
@@ -777,41 +793,7 @@ and callFn
   (args : NEList<Dval>)
   : DvalTask =
   uply {
-    let sourceID = SourceID(state.tlid, callerID)
-    let handleMissingFunction () : Dval =
-      // Functions which aren't implemented in the client may have results
-      // available, otherwise they error.
-      let fnRecord = (state.tlid, desc, callerID)
-      let fnResult = state.tracing.loadFnResult fnRecord args
-
-      // TODO: in an old version, we executed the lambda with a fake value to
-      // give enough livevalues for the editor to autocomplete. It may be worth
-      // doing this again
-      match fnResult with
-      | Some(result, _ts) -> result
-      | None ->
-        raiseRTE
-          sourceID
-          (RuntimeError.oldError $"Function {FnName.toString desc} is not found")
-
-    let checkArgsLength fn : unit =
-      let expectedTypeParamLength = List.length fn.typeParams
-      let expectedArgLength = NEList.length fn.parameters
-
-      let actualTypeArgLength = List.length typeArgs
-      let actualArgLength = NEList.length args
-
-      if
-        expectedTypeParamLength = actualTypeArgLength
-        && expectedArgLength = actualArgLength
-      then
-        ()
-      else
-        let msg =
-          $"{FnName.toString desc} has {expectedTypeParamLength} type parameters and {expectedArgLength} parameters, "
-          + $"but here was called with {actualTypeArgLength} type arguments and {actualArgLength} arguments."
-        raiseRTE sourceID (RuntimeError.oldError msg)
-
+    let sourceID = Some(state.tlid, callerID)
     let! fn =
       match desc with
       | FQName.BuiltIn std ->
@@ -825,29 +807,53 @@ and callFn
         }
 
     match fn with
-    | None -> return handleMissingFunction ()
     | Some fn ->
-      checkArgsLength fn
+      let expectedTypeParams = List.length fn.typeParams
+      let expectedArgs = NEList.length fn.parameters
+
+      let actualTypeArgs = List.length typeArgs
+      let actualArgs = NEList.length args
+
+      if expectedTypeParams <> actualTypeArgs || expectedArgs <> actualArgs then
+        let msg =
+          $"{FnName.toString desc} has {expectedTypeParams} type parameters and {expectedArgs} parameters, "
+          + $"but here was called with {actualTypeArgs} type arguments and {actualArgs} arguments."
+        raiseRTE sourceID (RuntimeError.oldError msg)
+
       let newlyBoundTypeArgs = List.zip fn.typeParams typeArgs |> Map
       let updatedTypeSymbolTable = Map.mergeFavoringRight tst newlyBoundTypeArgs
       return! execFn state updatedTypeSymbolTable desc callerID fn typeArgs args
-  }
+    | None ->
+      // Functions which aren't implemented in the client may have results
+      // available, otherwise they error.
+      let fnRecord = (state.tlid, desc, callerID)
+      let fnResult = state.tracing.loadFnResult fnRecord args
 
+      // TODO: in an old version, we executed the lambda with a fake value to
+      // give enough livevalues for the editor to autocomplete. It may be worth
+      // doing this again
+      match fnResult with
+      | Some(result, _ts) -> return result
+      | None ->
+        return
+          raiseRTE
+            sourceID
+            (RuntimeError.oldError $"Function {FnName.toString desc} is not found")
+  }
 
 
 and execFn
   (state : ExecutionState)
   (tst : TypeSymbolTable)
   (fnDesc : FnName.FnName)
-  (id : id)
+  (callerID : id)
   (fn : Fn)
   (typeArgs : List<TypeReference>)
   (args : NEList<Dval>)
   : DvalTask =
   uply {
-    let sourceID = SourceID(state.tlid, id) in
-
-    let fnRecord = (state.tlid, fnDesc, id) in
+    let sourceID = Some(state.tlid, callerID) in
+    let fnRecord = (state.tlid, fnDesc, callerID) in
 
     let types = ExecutionState.availableTypes state
 
@@ -865,10 +871,11 @@ and execFn
             let! result =
               uply {
                 try
+                  let state = { state with caller = Some(state.tlid, callerID) }
                   return! f (state, typeArgs, NEList.toList args)
                 with e ->
                   match e with
-                  | RuntimeErrorException(SourceNone _, rte) ->
+                  | RuntimeErrorException(None _, rte) ->
                     // Add the caller ID to the error if there isn't one already
                     return raiseRTE sourceID rte
                   | RuntimeErrorException _ -> return Exception.reraise e
@@ -894,7 +901,7 @@ and execFn
         | PackageFunction(tlid, body)
         | UserProgramFunction(tlid, body) ->
           state.tracing.traceTLID tlid
-          let state = { state with tlid = tlid }
+          let state = { state with tlid = tlid; caller = Some(state.tlid, callerID) }
           let symTable =
             fn.parameters // Lengths are checked in checkFunctionCall
             |> NEList.map2 (fun dv p -> (p.name, dv)) args

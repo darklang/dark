@@ -398,7 +398,8 @@ let fns : List<BuiltInFn> =
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
               | DInt i -> return raise (Sort.InvalidSortComparatorInt i)
               | v ->
-                return! TypeChecker.raiseFnValResultNotExpectedType SourceNone v TInt
+                return!
+                  TypeChecker.raiseFnValResultNotExpectedType state.caller v TInt
             }
 
           uply {
@@ -462,7 +463,7 @@ let fns : List<BuiltInFn> =
                 | DBool b -> return b
                 | v ->
                   return!
-                    TypeChecker.raiseFnValResultNotExpectedType SourceNone v TBool
+                    TypeChecker.raiseFnValResultNotExpectedType state.caller v TBool
               }
 
             let! result = Ply.List.filterSequentially f l
@@ -524,7 +525,7 @@ let fns : List<BuiltInFn> =
                 | v ->
                   return!
                     TypeChecker.raiseFnValResultNotExpectedType
-                      SourceNone
+                      state.caller
                       v
                       (TypeReference.option varB)
               }

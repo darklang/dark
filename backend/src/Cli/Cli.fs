@@ -90,7 +90,7 @@ let state () =
 
 let execute
   (args : List<string>)
-  : Task<Result<RT.Dval, RT.DvalSource * RT.RuntimeError>> =
+  : Task<Result<RT.Dval, RT.Source * RT.RuntimeError>> =
   task {
     let state = state ()
     let fnName = RT.FnName.fqPackage "Darklang" [ "Cli" ] "executeCliCommand" 0
@@ -127,8 +127,8 @@ let main (args : string[]) =
       let state = state ()
       let source =
         match source with
-        | RT.SourceID(tlid, id) -> $"(source: {tlid}, {id})"
-        | RT.SourceNone -> "(source unknown)"
+        | Some(tlid, id) -> $"(source: {tlid}, {id})"
+        | None -> "(source unknown)"
       match (LibExecution.Execution.runtimeErrorToString state rte).Result with
       | Ok(RT.DString s) -> System.Console.WriteLine $"Error {source}:\n  {s}"
       | Ok otherVal ->

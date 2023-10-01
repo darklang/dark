@@ -136,10 +136,10 @@ let executeHandler
         return $"fn {fnName}\nexpr:\n{expr}\n"
       }
 
-    let sourceString (source : RT.DvalSource) : Ply<string> =
+    let sourceString (source : RT.Source) : Ply<string> =
       match source with
-      | RT.SourceNone -> Ply "No source"
-      | RT.SourceID(tlid, id) -> sourceOf tlid id
+      | None -> Ply "No source"
+      | Some(tlid, id) -> sourceOf tlid id
 
     let error (msg : string) =
       let typeName =
@@ -228,7 +228,7 @@ let reexecuteFunction
   (name : RT.FnName.FnName)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
-  : Task<(Result<RT.Dval, RT.DvalSource * RT.RuntimeError> * Tracing.TraceResults.T)> =
+  : Task<(Result<RT.Dval, RT.Source * RT.RuntimeError> * Tracing.TraceResults.T)> =
   task {
     // FIX - the TLID here is the tlid of the toplevel in which the call exists, not
     // the rootTLID of the trace.

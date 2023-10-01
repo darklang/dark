@@ -135,10 +135,10 @@ let executeHandler
         return $"fn {fnName}\nexpr:\n{expr}\n"
       }
 
-    let sourceString (source : RT.DvalSource) : Ply<string> =
+    let sourceString (source : RT.Source) : Ply<string> =
       match source with
-      | RT.SourceNone -> Ply "No source"
-      | RT.SourceID(tlid, id) -> sourceOf tlid id
+      | None -> Ply "No source"
+      | Some(tlid, id) -> sourceOf tlid id
 
     let error (msg : string) : Ply<RT.Dval> =
       let typeName =

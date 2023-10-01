@@ -297,8 +297,8 @@ let runLocalExecScript (args : string[]) : Ply<int> =
       let state = state ()
       let source =
         match source with
-        | RT.SourceID(tlid, id) -> sourceOf mainFile tlid id modul
-        | RT.SourceNone -> "unknown"
+        | Some(tlid, id) -> sourceOf mainFile tlid id modul
+        | None -> "unknown"
       match! LibExecution.Execution.runtimeErrorToString state rte with
       | Ok(RT.DString s) ->
         System.Console.WriteLine $"Error: {s}"

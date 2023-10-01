@@ -225,11 +225,9 @@ module FormatV0 =
 
 
   type DvalMap = Map<string, Dval>
-  and DvalSource =
-    | SourceNone
-    | SourceID of tlid * id
+  and Source = Option<tlid * id>
 
-  and RuntimeError = RuntimeError of DvalSource * Dval
+  and RuntimeError = RuntimeError of Source * Dval
 
   and Dval =
     | DInt of int64

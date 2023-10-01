@@ -828,22 +828,6 @@ module Dval =
       | DEnum(_, _, [], "Known", [ kt ]) -> ValueType.Known(KnownType.fromDT kt)
       | _ -> Exception.raiseInternal "Invalid ValueType" []
 
-  module DvalSource =
-    let toDT (s : DvalSource) : Dval =
-      let (caseName, fields) =
-        match s with
-        | SourceNone -> "SourceNone", []
-        | SourceID(tlid, id) -> "SourceID", [ DInt(int64 tlid); DInt(int64 id) ]
-      let typeName = rtTyp [] "DvalSource" 0
-      DEnum(typeName, typeName, [], caseName, fields)
-
-    let fromDT (d : Dval) : DvalSource =
-      match d with
-      | DEnum(_, _, [], "SourceNone", []) -> SourceNone
-      | DEnum(_, _, [], "SourceID", [ DInt tlid; DInt id ]) ->
-        SourceID(uint64 tlid, uint64 id)
-      | _ -> Exception.raiseInternal "Invalid DvalSource" []
-
 
   module LambdaImpl =
     let toDT (l : LambdaImpl) : Dval =

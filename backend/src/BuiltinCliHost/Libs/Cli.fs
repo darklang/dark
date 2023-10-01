@@ -81,7 +81,7 @@ let execute
   (parentState : RT.ExecutionState)
   (mod' : LibParser.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
-  : Ply<Result<RT.Dval, DvalSource * RuntimeError>> =
+  : Ply<Result<RT.Dval, Source * RuntimeError>> =
 
   uply {
     let (program : Program) =
@@ -120,12 +120,12 @@ let execute
     else if mod'.exprs.Length = 0 then
       let! rte =
         CliRuntimeError.NoExpressionsToExecute |> CliRuntimeError.RTE.toRuntimeError
-      return Error((SourceNone, rte))
+      return Error((None, rte))
     else // mod'.exprs.Length > 1
       let! rte =
         CliRuntimeError.MultipleExpressionsToExecute(mod'.exprs |> List.map string)
         |> CliRuntimeError.RTE.toRuntimeError
-      return Error((SourceNone, rte))
+      return Error((None, rte))
   }
 
 let types : List<BuiltInType> = []

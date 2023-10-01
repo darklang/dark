@@ -668,15 +668,9 @@ and Symtable = Map<string, Dval>
 and TypeSymbolTable = Map<string, TypeReference>
 
 
-// Record the source of an incomplete or error. Would be useful to add more
-// information later, such as the iteration count that led to this, or
-// something like a stack trace
-and DvalSource =
-  // We do not have context to supply an identifier
-  | SourceNone
-
-  // Caused by an expression of `id` within the given `tlid`
-  | SourceID of tlid * id
+// Record the source expression of an error. This is to show the code that was
+// responsible for it
+and Source = Option<tlid * id>
 
 and BuiltInParam =
   { name : string
@@ -770,14 +764,14 @@ module RuntimeError =
   let oldError (msg : string) : RuntimeError =
     case "OldStringErrorTODO" [ DString msg ]
 
-exception RuntimeErrorException of DvalSource * RuntimeError
+exception RuntimeErrorException of Source * RuntimeError
 
-let raiseRTE (source : DvalSource) (rte : RuntimeError) : 'a =
+let raiseRTE (source : Source) (rte : RuntimeError) : 'a =
   raise (RuntimeErrorException(source, rte))
 
 // TODO add sources to all RTEs
 let raiseUntargetedRTE (rte : RuntimeError) : 'a =
-  raise (RuntimeErrorException(SourceNone, rte))
+  raise (RuntimeErrorException(None, rte))
 
 // TODO remove all usages of this in favor of better error cases
 let raiseString (s : string) : 'a = raiseUntargetedRTE (RuntimeError.oldError s)
@@ -785,7 +779,7 @@ let raiseString (s : string) : 'a = raiseUntargetedRTE (RuntimeError.oldError s)
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
 /// boundary, typically in Execution.fs, we will catch the exception, and return this
 /// type.
-type ExecutionResult = Result<Dval, DvalSource * RuntimeError>
+type ExecutionResult = Result<Dval, Source * RuntimeError>
 
 /// IncorrectArgs should never happen, as all functions are type-checked before
 /// calling. If it does happen, it means that the type parameters in the Fn structure
@@ -1302,7 +1296,11 @@ and ExecutionState =
     // notice and find the source by searching).
     //
     // During execution this is updated when a new function is entered.
-    tlid : tlid }
+    tlid : tlid
+
+    // tlid/id of the caller. The tlid comes from state.tlid at that point, and id is
+    // the caller's ID (usually the ID of the EApply)
+    caller : Source }
 
 and Functions =
   { builtIn : Map<FnName.BuiltIn, BuiltInFn>

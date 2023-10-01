@@ -76,12 +76,13 @@ type Utf8JsonWriter with
 
 let rec private toJsonV0
   (w : Utf8JsonWriter)
+  (source : Source)
   (types : Types)
   (typ : TypeReference)
   (dv : Dval)
   : Ply<unit> =
   uply {
-    let writeDval = toJsonV0 w types
+    let writeDval = toJsonV0 w source types
 
     match typ, dv with
     // basic types
@@ -187,7 +188,7 @@ let rec private toJsonV0
             "Value to be stored does not match a declared type"
             [ "value", dv; "type", typ; "typeName", typeName ]
 
-    | TCustomType(Error err, _), _ -> raiseRTE SourceNone err
+    | TCustomType(Error err, _), _ -> raiseRTE source err
 
     // Not supported
     | TVariable _, _
@@ -220,11 +221,12 @@ let rec private toJsonV0
 
 
 let toJsonStringV0
+  (source : Source)
   (types : Types)
   (typ : TypeReference)
   (dval : Dval)
   : Ply<string> =
-  writeJson (fun w -> toJsonV0 w types typ dval)
+  writeJson (fun w -> toJsonV0 w source types typ dval)
 
 
 let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval> =

@@ -200,7 +200,7 @@ module Error =
     }
 
 let raiseValueNotExpectedType
-  (source : DvalSource)
+  (source : Source)
   (dv : Dval)
   (typ : TypeReference)
   (context : Context)
@@ -210,15 +210,11 @@ let raiseValueNotExpectedType
   |> Ply.map (raiseRTE source)
 
 let raiseFnValResultNotExpectedType
-  (source : DvalSource)
+  (source : Source)
   (dv : Dval)
   (typ : TypeReference)
   : Ply<'a> =
-  let location =
-    match source with
-    | SourceNone -> None
-    | SourceID(tlid, id) -> Some(tlid, id)
-  let context = FnValResult(typ, location)
+  let context = FnValResult(typ, source)
   ValueNotExpectedType(dv, typ, context)
   |> Error.toRuntimeError
   |> Ply.map (raiseRTE source)

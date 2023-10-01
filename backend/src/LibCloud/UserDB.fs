@@ -39,8 +39,13 @@ let rec dbToDval
   : Ply<RT.Dval> =
   DvalReprInternalQueryable.parseJsonV0 types db.typ dbValue
 
-let rec dvalToDB (types : RT.Types) (db : RT.DB.T) (dv : RT.Dval) : Ply<string> =
-  DvalReprInternalQueryable.toJsonStringV0 types db.typ dv
+let dvalToDB
+  (source : RT.Source)
+  (types : RT.Types)
+  (db : RT.DB.T)
+  (dv : RT.Dval)
+  : Ply<string> =
+  DvalReprInternalQueryable.toJsonStringV0 source types db.typ dv
 
 let rec set
   (state : RT.ExecutionState)
@@ -67,7 +72,7 @@ let rec set
         else
           ""
 
-      let! data = dvalToDB types db dv
+      let! data = dvalToDB state.caller types db dv
 
       do!
         Sql.query

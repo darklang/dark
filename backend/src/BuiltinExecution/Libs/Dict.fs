@@ -266,7 +266,7 @@ let fns : List<BuiltInFn> =
                   | dv ->
                     return!
                       TypeChecker.raiseFnValResultNotExpectedType
-                        SourceNone
+                        state.caller
                         dv
                         TUnit
                 })
@@ -303,7 +303,7 @@ let fns : List<BuiltInFn> =
                 | DBool v -> return v
                 | v ->
                   return!
-                    TypeChecker.raiseFnValResultNotExpectedType SourceNone v TBool
+                    TypeChecker.raiseFnValResultNotExpectedType state.caller v TBool
               }
             let! result = Ply.Map.filterSequentially f o
             return Dval.dictFromMap VT.unknownTODO result
@@ -359,7 +359,7 @@ let fns : List<BuiltInFn> =
                   let expectedType = TypeReference.option varB
                   return!
                     TypeChecker.raiseFnValResultNotExpectedType
-                      SourceNone
+                      state.caller
                       v
                       expectedType
               }

@@ -42,7 +42,8 @@ let createState
     test = noTestContext
     reportException = reportException
     notify = notify
-    tlid = tlid }
+    tlid = tlid
+    caller = None }
 
 let executeExpr
   (state : RT.ExecutionState)
@@ -88,7 +89,7 @@ let executeFunction
 let runtimeErrorToString
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError)
-  : Task<Result<RT.Dval, RT.DvalSource * RT.RuntimeError>> =
+  : Task<Result<RT.Dval, RT.Source * RT.RuntimeError>> =
   task {
     let fnName =
       RT.FnName.fqPackage
