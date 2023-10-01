@@ -48,6 +48,7 @@ let execSaveDvals
   (ast : Expr)
   : Task<AT.AnalysisResults> =
   task {
+    let tlid = 777777827493UL
     let types = userTypes |> List.map (fun typ -> typ.name, typ) |> Map.ofList
     let fns = userFns |> List.map (fun fn -> fn.name, fn) |> Map.ofList
     let dbs = dbs |> List.map (fun db -> db.name, db) |> Map.ofList
@@ -57,7 +58,7 @@ let execSaveDvals
       executionStateForPreview canvasName dbs types fns constants
 
     let inputVars = Map.empty
-    let! _result = Exe.executeExpr state inputVars ast
+    let! _result = Exe.executeExpr state tlid inputVars ast
 
     return results
   }

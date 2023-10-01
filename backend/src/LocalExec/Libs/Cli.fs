@@ -69,7 +69,7 @@ let execute
 
     if mod'.exprs.Length = 1 then
       let expr = PT2RT.Expr.toRT mod'.exprs[0]
-      return! Exe.executeExpr state symtable expr
+      return! Exe.executeExpr state 7777772347523UL symtable expr
     else if mod'.exprs.Length = 0 then
       return Error(None, RuntimeError.oldError "No expressions to execute")
     else // mod'.exprs.Length > 1

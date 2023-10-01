@@ -584,6 +584,7 @@ and DvalMap = Map<string, Dval>
 
 and LambdaImpl =
   { typeSymbolTable : TypeSymbolTable
+    tlid : tlid // The TLID of the expression where this was defined
     symtable : Symtable
     parameters : NEList<id * string>
     body : Expr }
@@ -1289,17 +1290,8 @@ and ExecutionState =
     // users are doing, etc.
     notify : Notifier
 
-    // TLID of the source of the _currently_ executing expression (when initially
-    // created this is the TLID of either the handler or the function, or if there
-    // are neither of these, then the caller is expected to create a TLID for itself
-    // -- use a custom TLID starting with 777777 for each call-site so it's easier to
-    // notice and find the source by searching).
-    //
-    // During execution this is updated when a new function is entered.
-    tlid : tlid
-
-    // tlid/id of the caller. The tlid comes from state.tlid at that point, and id is
-    // the caller's ID (usually the ID of the EApply)
+    // tlid/id of the caller - used to find the source of an error. It's not the end
+    // of the world if this is wrong or missing, but it will give worse errors.
     caller : Source }
 
 and Functions =

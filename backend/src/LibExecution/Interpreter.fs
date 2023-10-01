@@ -101,11 +101,12 @@ let rec evalConst (source : Source) (c : Const) : Dval =
 /// (or task that should result in such)
 let rec eval
   (state : ExecutionState)
+  (tlid : tlid)
   (tst : TypeSymbolTable)
   (st : Symtable)
   (e : Expr)
   : DvalTask =
-  let sourceID id = Some(state.tlid, id)
+  let sourceID id = Some(tlid, id)
   let errStr id msg : 'a = raiseRTE (sourceID id) (RuntimeError.oldError msg)
   let err id rte : 'a = raiseRTE (sourceID id) rte
   let raiseExeRTE id (e : ExecutionError.Error) : Ply<'a> =
@@ -245,7 +246,7 @@ let rec eval
             match seg with
             | StringText text -> return text
             | StringInterpolation expr ->
-              match! eval state tst st expr with
+              match! eval state tlid tst st expr with
               | DString s -> return s
               | dv ->
                 // TODO: maybe better with a type error here
@@ -307,22 +308,22 @@ let rec eval
               errStr id "Tuple pattern has wrong number of elements"
           | _ -> errStr id "Tuple pattern does not match"
 
-      let! rhs = eval state tst st rhs
+      let! rhs = eval state tlid tst st rhs
       let newDefs = checkPattern rhs pattern
       let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
 
-      return! eval state tst newSymtable body
+      return! eval state tlid tst newSymtable body
 
     | EList(_id, exprs) ->
-      let! results = Ply.List.mapSequentially (eval state tst st) exprs
+      let! results = Ply.List.mapSequentially (eval state tlid tst st) exprs
       return Dval.list VT.unknownTODO results
 
 
     | ETuple(_id, first, second, theRest) ->
 
-      let! firstResult = eval state tst st first
-      let! secondResult = eval state tst st second
-      let! otherResults = Ply.List.mapSequentially (eval state tst st) theRest
+      let! firstResult = eval state tlid tst st first
+      let! secondResult = eval state tlid tst st second
+      let! otherResults = Ply.List.mapSequentially (eval state tlid tst st) theRest
       return DTuple(firstResult, secondResult, otherResults)
 
 
@@ -350,7 +351,7 @@ let rec eval
               match Map.find k expectedFields with
               | None -> return errStr id $"Unexpected field `{k}` in {typeStr}"
               | Some fieldType ->
-                let! v = eval state tst st expr
+                let! v = eval state tlid tst st expr
                 if Map.containsKey k fields then
                   return errStr id $"Duplicate field `{k}` in {typeStr}"
                 else
@@ -375,7 +376,7 @@ let rec eval
       // CLEANUP refactor this impl
       // namely, focus more on the `fields` and don't pass around DRecord so much
 
-      let! baseRecord = eval state tst st baseRecord
+      let! baseRecord = eval state tlid tst st baseRecord
       match baseRecord with
       | DRecord(typeName, _, typ, _) ->
         let typeStr = TypeName.toString typeName
@@ -389,7 +390,7 @@ let rec eval
           |> Ply.List.foldSequentially
             (fun r (k, expr) ->
               uply {
-                let! v = eval state tst st expr
+                let! v = eval state tlid tst st expr
 
                 match r, k, v with
                 | _, "", _ -> return errStr id $"Empty key for value `{v}`"
@@ -418,7 +419,7 @@ let rec eval
         fields
         |> Ply.List.mapSequentially (fun (k, v) ->
           uply {
-            let! v = eval state tst st v
+            let! v = eval state tlid tst st v
             return (k, v)
           })
       return Dval.dict ValueType.Unknown fields
@@ -426,9 +427,9 @@ let rec eval
     | EFnName(_id, name) -> return DFnVal(NamedFn name)
 
     | EApply(id, fnTarget, typeArgs, exprs) ->
-      match! eval state tst st fnTarget with
+      match! eval state tlid tst st fnTarget with
       | DFnVal fnVal ->
-        let! args = Ply.NEList.mapSequentially (eval state tst st) exprs
+        let! args = Ply.NEList.mapSequentially (eval state tlid tst st) exprs
         return! applyFnVal state (sourceID id) fnVal typeArgs args
       | other ->
         return
@@ -438,7 +439,7 @@ let rec eval
 
 
     | EFieldAccess(id, e, fieldName) ->
-      let! obj = eval state tst st e
+      let! obj = eval state tlid tst st e
 
       if fieldName = "" then
         return errStr id "Field name is empty"
@@ -470,6 +471,7 @@ let rec eval
         DFnVal(
           Lambda
             { typeSymbolTable = tst
+              tlid = tlid
               symtable = st
               parameters = parameters
               body = body }
@@ -634,7 +636,7 @@ let rec eval
 
 
       // The value we're matching against
-      let! matchVal = eval state tst st matchExpr
+      let! matchVal = eval state tlid tst st matchExpr
 
       let mutable matchResult = None
 
@@ -645,7 +647,7 @@ let rec eval
           let! passes, newDefs = checkPattern matchVal pattern
           let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
           if matchResult = None && passes then
-            let! r = eval state tst newSymtable rhsExpr
+            let! r = eval state tlid tst newSymtable rhsExpr
             matchResult <- Some r
 
       match matchResult with
@@ -654,30 +656,30 @@ let rec eval
 
 
     | EIf(id, cond, thenBody, elseBody) ->
-      match! eval state tst st cond with
+      match! eval state tlid tst st cond with
       | DBool false ->
         match elseBody with
         | None -> return DUnit
-        | Some eb -> return! eval state tst st eb
-      | DBool true -> return! eval state tst st thenBody
+        | Some eb -> return! eval state tlid tst st eb
+      | DBool true -> return! eval state tlid tst st thenBody
       | _ -> return errStr id "If only supports Booleans"
 
 
     | EOr(id, left, right) ->
-      match! eval state tst st left with
+      match! eval state tlid tst st left with
       | DBool true -> return DBool true
       | DBool false ->
-        match! eval state tst st right with
+        match! eval state tlid tst st right with
         | DBool _ as b -> return b
         | _ -> return errStr id "|| only supports Booleans"
       | _ -> return errStr id "|| only supports Booleans"
 
 
     | EAnd(id, left, right) ->
-      match! eval state tst st left with
+      match! eval state tlid tst st left with
       | DBool false -> return DBool false
       | DBool true ->
-        match! eval state tst st right with
+        match! eval state tlid tst st right with
         | DBool _ as b -> return b
         | _ -> return errStr id "&& only supports Booleans"
       | _ -> return errStr id "&& only supports Booleans"
@@ -706,7 +708,7 @@ let rec eval
                    fieldsSoFar
                    ((enumFieldType : TypeReference), fieldExpr) ->
                 uply {
-                  let! v = eval state tst st fieldExpr
+                  let! v = eval state tlid tst st fieldExpr
 
                   let context =
                     TypeChecker.EnumField(
@@ -737,7 +739,7 @@ let rec eval
               fields
 
     | EError(id, rte, exprs) ->
-      let! (_ : List<Dval>) = Ply.List.mapSequentially (eval state tst st) exprs
+      let! (_ : List<Dval>) = Ply.List.mapSequentially (eval state tlid tst st) exprs
       return raiseRTE (sourceID id) rte
   }
 
@@ -782,7 +784,7 @@ and executeLambda
     // paramSyms is higher priority
     let newSymtable = Map.mergeFavoringRight l.symtable paramSyms
 
-    eval state l.typeSymbolTable newSymtable l.body
+    eval state l.tlid l.typeSymbolTable newSymtable l.body
 
 and callFn
   (state : ExecutionState)
@@ -896,13 +898,13 @@ and execFn
         | PackageFunction(tlid, body)
         | UserProgramFunction(tlid, body) ->
           state.tracing.traceTLID tlid
-          let state = { state with tlid = tlid; caller = caller }
+          let state = { state with caller = caller }
           let symTable =
             fn.parameters // Lengths are checked in checkFunctionCall
             |> NEList.map2 (fun dv p -> (p.name, dv)) args
             |> Map.ofNEList
             |> withGlobals state
-          eval state typeSymbolTable symTable body
+          eval state tlid typeSymbolTable symTable body
 
       match! TypeChecker.checkFunctionReturnType types typeSymbolTable fn result with
       | Error rte -> return raiseRTE caller rte

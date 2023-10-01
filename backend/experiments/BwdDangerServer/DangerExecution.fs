@@ -42,7 +42,11 @@ let createState
   : Task<RT.ExecutionState> =
   task {
     let extraMetadata (state : RT.ExecutionState) : Metadata =
-      [ "tlid", state.tlid; "trace_id", traceID; "canvasID", program.canvasID ]
+      let tlid, id = Option.defaultValue (0UL, 0UL) state.caller
+      [ "callerTLID", tlid
+        "id", id
+        "trace_id", traceID
+        "canvasID", program.canvasID ]
 
     let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
       let metadata = extraMetadata state @ metadata
@@ -92,7 +96,7 @@ let executeHandler
 
     let! state = createState traceID h.tlid program tracing.executionTracing
     HashSet.add h.tlid tracing.results.tlids
-    let! result = Exe.executeExpr state inputVars h.ast
+    let! result = Exe.executeExpr state h.tlid inputVars h.ast
 
     let findUserBody (tlid : tlid) : Option<string * RT.Expr> =
       program.fns

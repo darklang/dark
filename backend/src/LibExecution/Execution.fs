@@ -42,11 +42,11 @@ let createState
     test = noTestContext
     reportException = reportException
     notify = notify
-    tlid = tlid
     caller = None }
 
 let executeExpr
   (state : RT.ExecutionState)
+  (tlid : tlid)
   (inputVars : RT.Symtable)
   (expr : RT.Expr)
   : Task<RT.ExecutionResult> =
@@ -55,7 +55,7 @@ let executeExpr
       try
         let symtable = Interpreter.withGlobals state inputVars
         let typeSymbolTable = Map.empty
-        let! result = Interpreter.eval state typeSymbolTable symtable expr
+        let! result = Interpreter.eval state tlid typeSymbolTable symtable expr
         return Ok result
       with RT.RuntimeErrorException(source, rte) ->
         return Error(source, rte)

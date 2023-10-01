@@ -91,7 +91,7 @@ let executeHandler
 
     let! state = createState traceID h.tlid program tracing.executionTracing
     HashSet.add h.tlid tracing.results.tlids
-    let! result = Exe.executeExpr state inputVars h.ast
+    let! result = Exe.executeExpr state h.tlid inputVars h.ast
 
     let findUserBody (tlid : tlid) : Option<string * RT.Expr> =
       program.fns

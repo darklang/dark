@@ -116,7 +116,7 @@ let execute
 
     if mod'.exprs.Length = 1 then
       let expr = PT2RT.Expr.toRT mod'.exprs[0]
-      return! Exe.executeExpr state symtable expr
+      return! Exe.executeExpr state 7777779489234UL symtable expr
     else if mod'.exprs.Length = 0 then
       let! rte =
         CliRuntimeError.NoExpressionsToExecute |> CliRuntimeError.RTE.toRuntimeError

@@ -269,6 +269,7 @@ module FormatV0 =
       RT.DFnVal(
         RT.Lambda
           { typeSymbolTable = Map []
+            tlid = 0UL
             symtable = Map []
             parameters = NEList.singleton (gid (), "var")
             body = RT.Expr.EUnit 0UL }

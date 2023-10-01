@@ -860,6 +860,8 @@ module Dval =
 
           symtable = fields |> D.mapField "symtable" |> Map.map Dval.fromDT
 
+          tlid = 0UL
+
           parameters =
             fields
             |> D.listField "parameters"

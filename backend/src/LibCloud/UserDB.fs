@@ -233,6 +233,7 @@ let doQuery
     let! compiled =
       SqlCompiler.compileLambda
         state
+        b.tlid
         b.typeSymbolTable
         b.symtable
         paramName

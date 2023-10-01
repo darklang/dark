@@ -828,6 +828,7 @@ let rec lambdaToSql
 //  needs in the right place.
 let partiallyEvaluate
   (state : ExecutionState)
+  (tlid : tlid)
   (tst : TypeSymbolTable)
   (symtable : Symtable)
   (paramName : string)
@@ -842,7 +843,7 @@ let partiallyEvaluate
     let exec (expr : Expr) : Ply.Ply<Expr> =
       uply {
         let newName = "dark_generated_" + randomString 8
-        let! value = LibExecution.Interpreter.eval state tst symtable expr
+        let! value = LibExecution.Interpreter.eval state tlid tst symtable expr
         symtable <- Map.add newName value symtable
         return (EVariable(gid (), newName))
       }
@@ -1036,6 +1037,7 @@ type CompileLambdaResult = { sql : string; vars : List<string * SqlValue> }
 
 let compileLambda
   (state : ExecutionState)
+  (tlid : tlid)
   (tst : TypeSymbolTable)
   (symtable : DvalMap)
   (paramName : string)
@@ -1057,7 +1059,7 @@ let compileLambda
         |> inline' fns paramName Map.empty
         // Replace expressions which can be calculated now with their result. See
         // comment for more details.
-        |> Ply.bind (partiallyEvaluate state tst symtable paramName)
+        |> Ply.bind (partiallyEvaluate state tlid tst symtable paramName)
 
       // Resolve typeArgs/aliases in the definition
       let! dbType = getTypeReferenceFromAlias types dbType
@@ -1073,7 +1075,7 @@ let compileLambda
             paramName
             dbType
             TBool
-            state.tlid
+            tlid
             body
 
         return Ok { sql = compiled.sql; vars = compiled.vars }
