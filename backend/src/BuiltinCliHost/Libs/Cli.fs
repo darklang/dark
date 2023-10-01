@@ -283,8 +283,8 @@ let fns : List<BuiltInFn> =
                   let! result =
                     Exe.executeFunction
                       state
-                      (gid ())
-                      (f.name)
+                      None
+                      f.name
                       []
                       (NEList.ofList args.Head args.Tail)
 

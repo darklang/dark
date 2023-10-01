@@ -243,7 +243,7 @@ let fns : List<BuiltInFn> =
                 (fun dv ->
                   uply {
                     let args = NEList.singleton dv
-                    let! key = Interpreter.applyFnVal state 0UL b [] args
+                    let! key = Interpreter.applyFnVal state state.caller b [] args
 
                     // TODO: type check to ensure `varB` is "comparable"
                     return (dv, key)
@@ -340,7 +340,7 @@ let fns : List<BuiltInFn> =
           uply {
             let fn dv =
               let args = NEList.singleton dv
-              Interpreter.applyFnVal state 0UL b [] args
+              Interpreter.applyFnVal state state.caller b [] args
             let! withKeys =
               list
               |> Ply.List.mapSequentially (fun v ->
@@ -392,7 +392,7 @@ let fns : List<BuiltInFn> =
           let fn (dv1 : Dval) (dv2 : Dval) : Ply<int> =
             uply {
               let args = NEList.doubleton dv1 dv2
-              let! result = Interpreter.applyFnVal state 0UL f [] args
+              let! result = Interpreter.applyFnVal state state.caller f [] args
 
               match result with
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
@@ -457,7 +457,7 @@ let fns : List<BuiltInFn> =
             let f (dv : Dval) : Ply<bool> =
               uply {
                 let args = NEList.singleton dv
-                let! result = Interpreter.applyFnVal state 0UL fn [] args
+                let! result = Interpreter.applyFnVal state state.caller fn [] args
 
                 match result with
                 | DBool b -> return b
@@ -503,7 +503,7 @@ let fns : List<BuiltInFn> =
             let f (dv : Dval) : Ply<Option<Dval>> =
               uply {
                 let args = NEList.singleton dv
-                let! result = Interpreter.applyFnVal state 0UL b [] args
+                let! result = Interpreter.applyFnVal state state.caller b [] args
 
                 match result with
                 | DEnum(FQName.Package { owner = "Darklang"
@@ -564,7 +564,7 @@ let fns : List<BuiltInFn> =
               Ply.List.mapSequentially
                 (fun ((i, dv) : int * Dval) ->
                   let args = NEList.doubleton (DInt(int64 i)) dv
-                  Interpreter.applyFnVal state 0UL b [] args)
+                  Interpreter.applyFnVal state state.caller b [] args)
                 list
 
             return Dval.list VT.unknownTODO result
@@ -611,7 +611,7 @@ let fns : List<BuiltInFn> =
               Ply.List.mapSequentially
                 (fun ((dv1, dv2) : Dval * Dval) ->
                   let args = NEList.doubleton dv1 dv2
-                  Interpreter.applyFnVal state 0UL b [] args)
+                  Interpreter.applyFnVal state state.caller b [] args)
                 list
 
             return Dval.list VT.unknownTODO result
@@ -659,7 +659,7 @@ let fns : List<BuiltInFn> =
                 Ply.List.mapSequentially
                   (fun ((dv1, dv2) : Dval * Dval) ->
                     let args = NEList.doubleton dv1 dv2
-                    Interpreter.applyFnVal state 0UL b [] args)
+                    Interpreter.applyFnVal state state.caller b [] args)
                   list
 
               return Dval.optionSome optType (Dval.list VT.unknownTODO result)
@@ -715,7 +715,7 @@ let fns : List<BuiltInFn> =
           uply {
             let applyFn (dval : Dval) : DvalTask =
               let args = NEList.singleton dval
-              Interpreter.applyFnVal state 0UL fn [] args
+              Interpreter.applyFnVal state state.caller fn [] args
 
             // apply the function to each element in the list
             let! result =

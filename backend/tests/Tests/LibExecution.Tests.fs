@@ -191,7 +191,7 @@ let t
               let! result =
                 LibExecution.Execution.executeFunction
                   state
-                  0UL
+                  None
                   errorMessageFn
                   []
                   (NEList.ofList actual [])
@@ -218,7 +218,7 @@ let t
               return!
                 LibExecution.Execution.executeFunction
                   state
-                  0UL
+                  None
                   errorMessageFn
                   []
                   (NEList.ofList (RT.RuntimeError.toDT e) [])

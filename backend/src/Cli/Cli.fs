@@ -99,7 +99,7 @@ let execute
       |> List.map RT.DString
       |> Dval.list (RT.ValueType.Known RT.KTString)
       |> NEList.singleton
-    return! Exe.executeFunction state 7UL fnName [] args
+    return! Exe.executeFunction state None fnName [] args
   }
 
 let initSerializers () =

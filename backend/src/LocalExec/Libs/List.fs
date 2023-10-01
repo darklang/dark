@@ -41,7 +41,7 @@ let fns : List<BuiltInFn> =
               |> Ply.List.iterSequentially (fun e ->
                 uply {
                   let args = NEList.singleton e
-                  match! Interpreter.applyFnVal state 0UL b [] args with
+                  match! Interpreter.applyFnVal state state.caller b [] args with
                   | DUnit -> return ()
                   | v ->
                     let context = TypeChecker.Context.FnValResult(TUnit, None)

@@ -67,7 +67,7 @@ let executeExpr
 
 let executeFunction
   (state : RT.ExecutionState)
-  (callerID : id)
+  (caller : RT.Source)
   (name : RT.FnName.FnName)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
@@ -77,7 +77,7 @@ let executeFunction
       try
         let typeSymbolTable = Map.empty
         let! result =
-          Interpreter.callFn state typeSymbolTable callerID name typeArgs args
+          Interpreter.callFn state typeSymbolTable caller name typeArgs args
         return Ok result
       with RT.RuntimeErrorException(source, rte) ->
         return Error(source, rte)
@@ -98,7 +98,7 @@ let runtimeErrorToString
         "toString"
         0
     let args = NEList.singleton (RT.RuntimeError.toDT rte)
-    return! executeFunction state 8UL fnName [] args
+    return! executeFunction state None fnName [] args
   }
 
 /// Return a function to trace TLIDs (add it to state via

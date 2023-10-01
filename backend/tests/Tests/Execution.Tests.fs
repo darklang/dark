@@ -81,7 +81,7 @@ let testExecFunctionTLIDs : Test =
     let! value =
       Exe.executeFunction
         state
-        (gid ())
+        None
         (FQName.UserProgram fn.name)
         []
         (NEList.singleton DUnit)

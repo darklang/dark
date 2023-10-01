@@ -134,7 +134,8 @@ let createCloudStorageTracer
     executionTracing =
       { Exe.noTracing with
           storeFnResult =
-            (fun (tlid, name, id) args result ->
+            (fun (source, name) args result ->
+              let tlid, id = Option.defaultValue (0UL, 0UL) source
               let hash =
                 args
                 |> DvalReprInternalHash.hash DvalReprInternalHash.currentHashVersion
@@ -169,8 +170,9 @@ let createTelemetryTracer
       executionTracing =
         { standardTracing with
             storeFnResult =
-              (fun (tlid, name, id) args result ->
+              (fun (source, name) args result ->
                 let stringifiedName = LibExecution.RuntimeTypes.FnName.toString name
+                let tlid, id = Option.defaultValue (0UL, 0UL) source
                 let hash =
                   args
                   |> DvalReprInternalHash.hash
@@ -184,7 +186,7 @@ let createTelemetryTracer
                     "hash", hash
                     "resultType",
                     LibExecution.DvalReprDeveloper.toTypeName result :> obj ]
-                standardTracing.storeFnResult (tlid, name, id) args result)
+                standardTracing.storeFnResult (source, name) args result)
             traceTLID =
               fun tlid ->
                 Telemetry.addEvent $"called {tlid}" [ "tlid", tlid ]

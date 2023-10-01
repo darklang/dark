@@ -429,7 +429,7 @@ let rec eval
       match! eval state tst st fnTarget with
       | DFnVal fnVal ->
         let! args = Ply.NEList.mapSequentially (eval state tst st) exprs
-        return! applyFnVal state id fnVal typeArgs args
+        return! applyFnVal state (sourceID id) fnVal typeArgs args
       | other ->
         return
           errStr
@@ -744,7 +744,7 @@ let rec eval
 
 and applyFnVal
   (state : ExecutionState)
-  (callerID : id)
+  (source : Source)
   (fnVal : FnValImpl)
   (typeArgs : List<TypeReference>)
   (args : NEList<Dval>)
@@ -755,7 +755,7 @@ and applyFnVal
     // I think we'll end up having to pass the
     // `tst` in scope here at some point?
     let tst = Map.empty
-    callFn state tst callerID fn typeArgs args
+    callFn state tst source fn typeArgs args
 
 and executeLambda
   (state : ExecutionState)
@@ -787,13 +787,12 @@ and executeLambda
 and callFn
   (state : ExecutionState)
   (tst : TypeSymbolTable)
-  (callerID : id)
+  (caller : Source)
   (desc : FnName.FnName)
   (typeArgs : List<TypeReference>)
   (args : NEList<Dval>)
   : DvalTask =
   uply {
-    let sourceID = Some(state.tlid, callerID)
     let! fn =
       match desc with
       | FQName.BuiltIn std ->
@@ -818,16 +817,15 @@ and callFn
         let msg =
           $"{FnName.toString desc} has {expectedTypeParams} type parameters and {expectedArgs} parameters, "
           + $"but here was called with {actualTypeArgs} type arguments and {actualArgs} arguments."
-        raiseRTE sourceID (RuntimeError.oldError msg)
+        raiseRTE caller (RuntimeError.oldError msg)
 
       let newlyBoundTypeArgs = List.zip fn.typeParams typeArgs |> Map
       let updatedTypeSymbolTable = Map.mergeFavoringRight tst newlyBoundTypeArgs
-      return! execFn state updatedTypeSymbolTable desc callerID fn typeArgs args
+      return! execFn state updatedTypeSymbolTable desc caller fn typeArgs args
     | None ->
       // Functions which aren't implemented in the client may have results
       // available, otherwise they error.
-      let fnRecord = (state.tlid, desc, callerID)
-      let fnResult = state.tracing.loadFnResult fnRecord args
+      let fnResult = state.tracing.loadFnResult (caller, desc) args
 
       // TODO: in an old version, we executed the lambda with a fake value to
       // give enough livevalues for the editor to autocomplete. It may be worth
@@ -837,7 +835,7 @@ and callFn
       | None ->
         return
           raiseRTE
-            sourceID
+            caller
             (RuntimeError.oldError $"Function {FnName.toString desc} is not found")
   }
 
@@ -846,22 +844,19 @@ and execFn
   (state : ExecutionState)
   (tst : TypeSymbolTable)
   (fnDesc : FnName.FnName)
-  (callerID : id)
+  (caller : Source)
   (fn : Fn)
   (typeArgs : List<TypeReference>)
   (args : NEList<Dval>)
   : DvalTask =
   uply {
-    let sourceID = Some(state.tlid, callerID) in
-    let fnRecord = (state.tlid, fnDesc, callerID) in
-
     let types = ExecutionState.availableTypes state
 
     let typeArgsResolvedInFn = List.zip fn.typeParams typeArgs |> Map
     let typeSymbolTable = Map.mergeFavoringRight tst typeArgsResolvedInFn
 
     match! TypeChecker.checkFunctionCall types typeSymbolTable fn args with
-    | Error rte -> return raiseRTE sourceID rte
+    | Error rte -> return raiseRTE caller rte
     | Ok() ->
 
       let! result =
@@ -871,13 +866,13 @@ and execFn
             let! result =
               uply {
                 try
-                  let state = { state with caller = Some(state.tlid, callerID) }
+                  let state = { state with caller = caller }
                   return! f (state, typeArgs, NEList.toList args)
                 with e ->
                   match e with
                   | RuntimeErrorException(None _, rte) ->
                     // Add the caller ID to the error if there isn't one already
-                    return raiseRTE sourceID rte
+                    return raiseRTE caller rte
                   | RuntimeErrorException _ -> return Exception.reraise e
 
                   | e ->
@@ -888,12 +883,12 @@ and execFn
                     // information, so best not to show it to the user. If we'd
                     // like to show it to the user, we should catch it where it happens
                     // and give them a known safe error via a RuntimeError
-                    return raiseRTE sourceID (RuntimeError.oldError "Unknown error")
+                    return raiseRTE caller (RuntimeError.oldError "Unknown error")
               }
 
             // there's no point storing data we'll never ask for
             if fn.previewable <> Pure then
-              state.tracing.storeFnResult fnRecord args result
+              state.tracing.storeFnResult (caller, fnDesc) args result
 
             return result
           }
@@ -901,7 +896,7 @@ and execFn
         | PackageFunction(tlid, body)
         | UserProgramFunction(tlid, body) ->
           state.tracing.traceTLID tlid
-          let state = { state with tlid = tlid; caller = Some(state.tlid, callerID) }
+          let state = { state with tlid = tlid; caller = caller }
           let symTable =
             fn.parameters // Lengths are checked in checkFunctionCall
             |> NEList.map2 (fun dv p -> (p.name, dv)) args
@@ -910,6 +905,6 @@ and execFn
           eval state typeSymbolTable symTable body
 
       match! TypeChecker.checkFunctionReturnType types typeSymbolTable fn result with
-      | Error rte -> return raiseRTE sourceID rte
+      | Error rte -> return raiseRTE caller rte
       | Ok() -> return result
   }

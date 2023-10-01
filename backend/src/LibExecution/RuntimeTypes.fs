@@ -1209,7 +1209,7 @@ and FnImpl =
   | PackageFunction of tlid * Expr
 
 
-and FunctionRecord = tlid * FnName.FnName * id
+and FunctionRecord = Source * FnName.FnName
 
 and TraceDval = id -> Dval -> unit
 

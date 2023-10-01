@@ -232,7 +232,8 @@ let reexecuteFunction
     // the rootTLID of the trace.
     let tracing = Tracing.create canvasID rootTLID traceID
     let! state = createState traceID callerTLID program tracing.executionTracing
-    let! result = Exe.executeFunction state callerID name typeArgs args
+    let source = Some(callerTLID, callerID)
+    let! result = Exe.executeFunction state source name typeArgs args
     tracing.storeTraceResults ()
     return result, tracing.results
   }

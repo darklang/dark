@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
            |> Seq.toList
            |> Ply.List.mapSequentially (fun te ->
              let args = NEList.singleton (DChar te)
-             Interpreter.applyFnVal state 0UL b [] args)
+             Interpreter.applyFnVal state state.caller b [] args)
            |> Ply.bind (fun dvals ->
              dvals
              |> Ply.List.mapSequentially (function
