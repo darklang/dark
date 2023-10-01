@@ -227,7 +227,6 @@ let executionStateFor
         Exe.noTracing
         exceptionReporter
         notifier
-        (id 7)
         program
     let state = { state with test = testContext }
     return state

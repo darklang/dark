@@ -64,7 +64,6 @@ let execute
         Exe.noTracing
         sendException
         notify
-        7UL
         program
 
     if mod'.exprs.Length = 1 then

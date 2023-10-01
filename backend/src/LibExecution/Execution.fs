@@ -32,7 +32,6 @@ let createState
   (tracing : RT.Tracing)
   (reportException : RT.ExceptionReporter)
   (notify : RT.Notifier)
-  (tlid : tlid)
   (program : RT.Program)
   : RT.ExecutionState =
   { builtIns = builtIns

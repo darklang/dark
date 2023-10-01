@@ -76,14 +76,7 @@ let state () =
   let sendException (_ : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
     printException "Internal error" metadata exn
 
-  Exe.createState
-    builtIns
-    packageManager
-    tracing
-    sendException
-    notify
-    979275UL
-    program
+  Exe.createState builtIns packageManager tracing sendException notify program
 
 
 
