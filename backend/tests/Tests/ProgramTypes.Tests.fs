@@ -50,8 +50,8 @@ let testPipesToRuntimeTypes =
   }
 
 let testProgramTypesToRuntimeTypes =
-  let u = PT.EUnit(8UL)
-  let ru = RT.EUnit(8UL)
+  let u = PT.EUnit 8UL
+  let ru = RT.EUnit 8UL
 
   testMany
     "program types to runtime types"

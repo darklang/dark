@@ -12,8 +12,8 @@ module Darklang =
             let toString (part: Part) : String =
               match part with
               | Root -> "root"
-              | Field(name) -> "." ++ name
-              | Index(index) -> "[" ++ Int.toString index ++ "]"
+              | Field name -> "." ++ name
+              | Index index -> "[" ++ Int.toString index ++ "]"
 
           type JsonPath = List<Part.Part>
 

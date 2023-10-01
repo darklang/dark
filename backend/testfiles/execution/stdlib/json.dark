@@ -91,8 +91,8 @@ module Int =
     Builtin.Json.parse<Int> "2147483647" = Result.Ok 2147483647
     Builtin.Json.serialize<Int> -2147483649L = "-2147483649"
     Builtin.Json.serialize<Int> 2147483648L = "2147483648"
-    Builtin.Json.parse<Int> "-2147483649" = Result.Ok(-2147483649L)
-    Builtin.Json.parse<Int> "2147483648" = Result.Ok(2147483648L)
+    Builtin.Json.parse<Int> "-2147483649" = Result.Ok -2147483649L
+    Builtin.Json.parse<Int> "2147483648" = Result.Ok 2147483648L
 
   module Int64Limits =
     // test the limits of int64 (-9223372036854775808 to 9223372036854775807)

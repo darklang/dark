@@ -181,7 +181,7 @@ module Darklang =
             |> PACKAGE.Darklang.Stdlib.List.map (fun _ -> randomChar ())
             |> PACKAGE.Darklang.Stdlib.String.join ""
 
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok(result)
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok result
 
 
       /// Escape an untrusted string in order to include it safely in HTML output

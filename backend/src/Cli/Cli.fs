@@ -66,7 +66,7 @@ let state () =
       dbs = Map.empty
       secrets = [] }
 
-  let tracing = Exe.noTracing RT.Real
+  let tracing = Exe.noTracing
 
   let notify (_state : RT.ExecutionState) (_msg : string) (_metadata : Metadata) =
     // let metadata = extraMetadata state @ metadata
@@ -76,7 +76,14 @@ let state () =
   let sendException (_ : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
     printException "Internal error" metadata exn
 
-  Exe.createState builtIns packageManager tracing sendException notify 7UL program
+  Exe.createState
+    builtIns
+    packageManager
+    tracing
+    sendException
+    notify
+    979275UL
+    program
 
 
 

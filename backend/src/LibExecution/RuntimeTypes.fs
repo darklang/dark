@@ -1215,18 +1215,9 @@ and FnImpl =
   | PackageFunction of tlid * Expr
 
 
-// CLEANUP consider renaming to `ExecutionType`, `EvaluationMode`, etc.
-// Represents the context in which we're evaluating some code
-and RealOrPreview =
-  // We are evaluating an expression normally
-  | Real
-
-  // We are previewing the evaluation of some expression within the editor.
-  | Preview
-
 and FunctionRecord = tlid * FnName.FnName * id
 
-and TraceDval = bool -> id -> Dval -> unit
+and TraceDval = id -> Dval -> unit
 
 and TraceTLID = tlid -> unit
 
@@ -1249,8 +1240,7 @@ and Tracing =
   { traceDval : TraceDval
     traceTLID : TraceTLID
     loadFnResult : LoadFnResult
-    storeFnResult : StoreFnResult
-    realOrPreview : RealOrPreview }
+    storeFnResult : StoreFnResult }
 
 // Used for testing
 and TestContext =
@@ -1305,25 +1295,14 @@ and ExecutionState =
     // users are doing, etc.
     notify : Notifier
 
-    // TLID of the currently executing handler/fn
-    tlid : tlid
-
-    executingFnName : Option<FnName.FnName>
-
-    // <summary>
-    // Callstack of functions that have been called as part of execution
-    // </summary>
+    // TLID of the source of the _currently_ executing expression (when initially
+    // created this is the TLID of either the handler or the function, or if there
+    // are neither of these, then the caller is expected to create a TLID for itself
+    // -- use a custom TLID starting with 777777 for each call-site so it's easier to
+    // notice and find the source by searching).
     //
-    // <remarks>
-    // Used for recursion detection in the editor.
-    // In the editor, we call all paths to show live values,
-    // but with recursion that causes infinite recursion.
-    // </remarks>
-    callstack : Set<FnName.FnName>
-
-    // Whether the currently executing code is really being executed
-    // (as opposed to being previewed for traces)
-    onExecutionPath : bool }
+    // During execution this is updated when a new function is entered.
+    tlid : tlid }
 
 and Functions =
   { builtIn : Map<FnName.BuiltIn, BuiltInFn>

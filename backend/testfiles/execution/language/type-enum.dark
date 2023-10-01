@@ -71,8 +71,8 @@ module Simple =
       | C of Int
       | D of AorB
 
-    (CorD.C 5 != CorD.D(AorB.B)) = true
-    (CorD.D(AorB.A) == CorD.D(AorB.A)) = true
+    (CorD.C 5 != CorD.D AorB.B) = true
+    (CorD.D AorB.A == CorD.D AorB.A) = true
 
 module MixedCases =
   type EnumOfMixedCases =

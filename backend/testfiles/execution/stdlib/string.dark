@@ -115,11 +115,11 @@ module FromBytesWithReplacement =
 module FromBytes =
   PACKAGE.Darklang.Stdlib.String.fromBytes_v0 (
     (PACKAGE.Darklang.Stdlib.Base64.decode_v0 "w6I") |> Builtin.unwrap
-  ) = PACKAGE.Darklang.Stdlib.Option.Option.Some("â")
+  ) = PACKAGE.Darklang.Stdlib.Option.Option.Some "â"
 
   PACKAGE.Darklang.Stdlib.String.fromBytes_v0 (
     (PACKAGE.Darklang.Stdlib.Base64.decode_v0 "aGVsbG8g8J+YgA==") |> Builtin.unwrap
-  ) = PACKAGE.Darklang.Stdlib.Option.Option.Some("hello 😀")
+  ) = PACKAGE.Darklang.Stdlib.Option.Option.Some "hello 😀"
 
   PACKAGE.Darklang.Stdlib.String.fromBytes_v0 (
     (PACKAGE.Darklang.Stdlib.Base64.decode_v0 "ww==") |> Builtin.unwrap

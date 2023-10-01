@@ -102,17 +102,16 @@ let execute
         dbs = Map.empty
         secrets = [] }
 
-    let tracing = Exe.noTracing RT.Real
     let notify = parentState.notify
     let sendException = parentState.reportException
     let state =
       Exe.createState
         builtIns
         packageManager
-        tracing
+        Exe.noTracing
         sendException
         notify
-        7UL
+        7777778402656UL
         program
 
     if mod'.exprs.Length = 1 then

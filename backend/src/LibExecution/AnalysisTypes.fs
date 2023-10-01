@@ -6,13 +6,6 @@ open Prelude
 module RT = RuntimeTypes
 
 // --------------------
-// Dval store - save per-tl analysis results
-// --------------------
-type ExecutionResult =
-  | ExecutedResult of RT.Dval
-  | NonExecutedResult of RT.Dval
-
-// --------------------
 // Analysis result
 // --------------------
 type InputVars = List<string * RT.Dval>
@@ -117,4 +110,4 @@ type AnalysisRequest =
     packageConstants : List<RT.PackageConstant.T>
     secrets : List<RT.Secret.T> }
 
-type AnalysisResults = System.Collections.Generic.Dictionary<id, ExecutionResult>
+type AnalysisResults = System.Collections.Generic.Dictionary<id, RT.Dval>
