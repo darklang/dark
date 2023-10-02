@@ -432,7 +432,6 @@ let fns (config : Configuration) : List<BuiltInFn> =
                   |> Dval.record typ (Some [])
                   |> Ply.map resultOk
 
-              // TODO: include a DvalSource rather than SourceNone
               | Error(BadUrl details) -> return resultErrorStr $"Bad URL: {details}"
               | Error(Timeout) -> return resultErrorStr $"Request timed out"
               | Error(NetworkError) -> return resultErrorStr $"Network error"

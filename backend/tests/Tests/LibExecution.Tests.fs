@@ -69,6 +69,8 @@ let t
         else
           System.Guid.NewGuid() |> Task.FromResult
 
+      let tlid = 777777297845223UL
+
       let rtTypes =
         types
         |> List.map (fun typ ->
@@ -115,7 +117,7 @@ let t
         $"\n\n{rhsMsg}\n\n{lhsMsg}\n\nTest location: {bold}{underline}{filename}:{lineNumber}{reset}"
 
       let expectedExpr = PT2RT.Expr.toRT expectedExpr
-      let! expected = Exe.executeExpr state Map.empty expectedExpr
+      let! expected = Exe.executeExpr state tlid Map.empty expectedExpr
 
       // Initialize
       if workers <> [] then do! setupWorkers canvasID workers
@@ -130,7 +132,7 @@ let t
 
       // Run the actual program (left-hand-side of the =)
       let actualExpr = PT2RT.Expr.toRT actualExpr
-      let! actual = Exe.executeExpr state Map.empty actualExpr
+      let! actual = Exe.executeExpr state tlid Map.empty actualExpr
 
       if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
         debuGList "results" (Dictionary.toList results |> List.sortBy fst)
@@ -191,7 +193,7 @@ let t
               let! result =
                 LibExecution.Execution.executeFunction
                   state
-                  0UL
+                  None
                   errorMessageFn
                   []
                   (NEList.ofList actual [])
@@ -218,7 +220,7 @@ let t
               return!
                 LibExecution.Execution.executeFunction
                   state
-                  0UL
+                  None
                   errorMessageFn
                   []
                   (NEList.ofList (RT.RuntimeError.toDT e) [])

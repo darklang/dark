@@ -70,7 +70,7 @@ let LoadClient (canvasName : string) : Task<string> =
           clientSource.constants
       LibExecution.Execution.executeFunction
         state
-        (gid ())
+        None
         (FnName.fqUserProgram [] "init" 0)
         []
         (NEList.singleton DUnit)
@@ -108,7 +108,7 @@ let HandleEvent (serializedEvent : string) : Task<string> =
     let! result =
       LibExecution.Execution.executeFunction
         state
-        (gid ())
+        None
         (FnName.fqUserProgram [] "handleEvent" 0)
         []
         (NEList.singleton (DString serializedEvent))

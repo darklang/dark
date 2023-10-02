@@ -48,13 +48,13 @@ let fns : List<BuiltInFn> =
            |> Seq.toList
            |> Ply.List.mapSequentially (fun te ->
              let args = NEList.singleton (DChar te)
-             Interpreter.applyFnVal state 0UL b [] args)
+             Interpreter.applyFnVal state state.caller b [] args)
            |> Ply.bind (fun dvals ->
              dvals
              |> Ply.List.mapSequentially (function
                | DChar c -> Ply c
                | dv ->
-                 TypeChecker.raiseFnValResultNotExpectedType SourceNone dv TChar)
+                 TypeChecker.raiseFnValResultNotExpectedType state.caller dv TChar)
              |> Ply.map (fun parts ->
                parts |> String.concat "" |> String.normalize |> DString)))
         | _ -> incorrectArgs ())

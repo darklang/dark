@@ -56,7 +56,7 @@ let queryableRoundtripsSuccessfullyInRecord
 
     let! roundtripped =
       record
-      |> DvalReprInternalQueryable.toJsonStringV0 types typeRef
+      |> DvalReprInternalQueryable.toJsonStringV0 None types typeRef
       |> Ply.bind (DvalReprInternalQueryable.parseJsonV0 types typeRef)
 
     return Expect.dvalEquality record roundtripped
@@ -69,7 +69,7 @@ let queryableRoundtripsSuccessfully
   ) : Task<bool> =
   task {
     let! serialized =
-      DvalReprInternalQueryable.toJsonStringV0 (defaultTypes ()) typ dv
+      DvalReprInternalQueryable.toJsonStringV0 None (defaultTypes ()) typ dv
     let! roundtripped =
       DvalReprInternalQueryable.parseJsonV0 (defaultTypes ()) typ serialized
     return Expect.dvalEquality dv roundtripped

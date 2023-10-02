@@ -26,6 +26,7 @@ let parse
   |> Ply.toTask
 
 let compile
+  (tlid : tlid)
   (symtable : DvalMap)
   (paramName : string)
   ((rowName, rowType) : string * TypeReference)
@@ -51,7 +52,7 @@ let compile
 
     try
       let! compiled =
-        C.compileLambda state Map.empty symtable paramName typeReference expr
+        C.compileLambda state tlid Map.empty symtable paramName typeReference expr
 
       match compiled with
       | Ok compiled ->
@@ -83,17 +84,18 @@ let matchSql
     "compare sql"
 
 let compileTests =
+  let tlid = 777777234983UL
 
   testList
     "compile tests"
     [ testTask "compile true" {
         let! e = p "true"
-        let! sql, args = compile Map.empty "value" ("myfield", TBool) e
+        let! sql, args = compile tlid Map.empty "value" ("myfield", TBool) e
         matchSql sql @"\(@([A-Z]+)\)" args [ Sql.bool true ]
       }
       testTask "compile field" {
         let! e = p "value.myfield"
-        let! sql, args = compile Map.empty "value" ("myfield", TBool) e
+        let! sql, args = compile tlid Map.empty "value" ("myfield", TBool) e
 
         matchSql sql @"\(CAST\(data::jsonb->>'myfield' as bool\)\)" args []
       }
@@ -108,7 +110,7 @@ let compileTests =
             []
             [ S.eFieldAccess (S.eVar "value") injection; (S.eStr "x") ]
 
-        let! sql, args = compile Map.empty "value" (injection, TString) expr
+        let! sql, args = compile tlid Map.empty "value" (injection, TString) expr
 
         matchSql
           sql
@@ -120,7 +122,7 @@ let compileTests =
         let! expr = p "var == value.name"
         let symtable = Map.ofList [ "var", DString "';select * from user_data_v0;'" ]
 
-        let! sql, args = compile symtable "value" ("name", TString) expr
+        let! sql, args = compile tlid symtable "value" ("name", TString) expr
 
         matchSql
           sql
@@ -130,7 +132,7 @@ let compileTests =
       }
       testTask "pipes expand correctly into nested functions" {
         let! expr = p "value.age |> (-) 2 |> (+) value.age |> (<) 3"
-        let! sql, args = compile Map.empty "value" ("age", TInt) expr
+        let! sql, args = compile tlid Map.empty "value" ("age", TInt) expr
 
         matchSql
           sql
@@ -389,6 +391,7 @@ let partialEvaluation =
     (fun (expr, vars) ->
       task {
         let canvasID = System.Guid.NewGuid()
+        let tlid = 777777982742UL
         let! state =
           executionStateFor
             canvasID
@@ -399,7 +402,7 @@ let partialEvaluation =
             Map.empty
             Map.empty
         let! expr = p expr
-        let result = C.partiallyEvaluate state Map.empty (Map vars) "x" expr
+        let result = C.partiallyEvaluate state tlid Map.empty (Map vars) "x" expr
         let! (dvals, result) = Ply.TplPrimitives.runPlyAsTask result
         match result with
         | EVariable(_, name) -> return (Map.findUnsafe name dvals)

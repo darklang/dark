@@ -239,9 +239,6 @@ module RuntimeTypes =
       )
       known (RT.KnownType.KTDict ktUnit) ]
 
-  let dvalSources : List<RT.DvalSource> =
-    [ RT.SourceNone; RT.SourceID(123UL, 91293UL) ]
-
   let dvals : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.
     sampleDvals |> List.map (fun (name, (dv, t)) -> dv)

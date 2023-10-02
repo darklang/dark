@@ -36,13 +36,16 @@ let packageManager = PackageManager.packageManager
 
 let createState
   (traceID : AT.TraceID.T)
-  (tlid : tlid)
   (program : RT.Program)
   (tracing : RT.Tracing)
   : Task<RT.ExecutionState> =
   task {
     let extraMetadata (state : RT.ExecutionState) : Metadata =
-      [ "tlid", state.tlid; "trace_id", traceID; "canvasID", program.canvasID ]
+      let tlid, id = Option.defaultValue (0UL, 0UL) state.caller
+      [ "callerTLID", tlid
+        "callerID", id
+        "traceID", traceID
+        "canvasID", program.canvasID ]
 
     let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
       let metadata = extraMetadata state @ metadata
@@ -53,14 +56,7 @@ let createState
       LibService.Rollbar.sendException None metadata exn
 
     return
-      Exe.createState
-        builtIns
-        packageManager
-        tracing
-        sendException
-        notify
-        tlid
-        program
+      Exe.createState builtIns packageManager tracing sendException notify program
   }
 
 type ExecutionReason =
@@ -90,9 +86,9 @@ let executeHandler
       tracing.storeTraceInput desc varname inputVar
     | ReExecution -> ()
 
-    let! state = createState traceID h.tlid program tracing.executionTracing
+    let! state = createState traceID program tracing.executionTracing
     HashSet.add h.tlid tracing.results.tlids
-    let! result = Exe.executeExpr state inputVars h.ast
+    let! result = Exe.executeExpr state h.tlid inputVars h.ast
 
     let findUserBody (tlid : tlid) : Option<string * RT.Expr> =
       program.fns
@@ -136,10 +132,10 @@ let executeHandler
         return $"fn {fnName}\nexpr:\n{expr}\n"
       }
 
-    let sourceString (source : RT.DvalSource) : Ply<string> =
+    let sourceString (source : RT.Source) : Ply<string> =
       match source with
-      | RT.SourceNone -> Ply "No source"
-      | RT.SourceID(tlid, id) -> sourceOf tlid id
+      | None -> Ply "No source"
+      | Some(tlid, id) -> sourceOf tlid id
 
     let error (msg : string) =
       let typeName =
@@ -228,13 +224,14 @@ let reexecuteFunction
   (name : RT.FnName.FnName)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
-  : Task<(Result<RT.Dval, RT.DvalSource * RT.RuntimeError> * Tracing.TraceResults.T)> =
+  : Task<(Result<RT.Dval, RT.Source * RT.RuntimeError> * Tracing.TraceResults.T)> =
   task {
     // FIX - the TLID here is the tlid of the toplevel in which the call exists, not
     // the rootTLID of the trace.
     let tracing = Tracing.create program.canvasID rootTLID traceID
-    let! state = createState traceID callerTLID program tracing.executionTracing
-    let! result = Exe.executeFunction state callerID name typeArgs args
+    let! state = createState traceID program tracing.executionTracing
+    let! result =
+      Exe.executeFunction state (Some(callerTLID, callerID)) name typeArgs args
     tracing.storeTraceResults ()
     return result, tracing.results
   }

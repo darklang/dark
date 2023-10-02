@@ -81,7 +81,7 @@ let execute
   (parentState : RT.ExecutionState)
   (mod' : LibParser.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
-  : Ply<Result<RT.Dval, DvalSource * RuntimeError>> =
+  : Ply<Result<RT.Dval, Source * RuntimeError>> =
 
   uply {
     let (program : Program) =
@@ -111,21 +111,20 @@ let execute
         Exe.noTracing
         sendException
         notify
-        7777778402656UL
         program
 
     if mod'.exprs.Length = 1 then
       let expr = PT2RT.Expr.toRT mod'.exprs[0]
-      return! Exe.executeExpr state symtable expr
+      return! Exe.executeExpr state 7777779489234UL symtable expr
     else if mod'.exprs.Length = 0 then
       let! rte =
         CliRuntimeError.NoExpressionsToExecute |> CliRuntimeError.RTE.toRuntimeError
-      return Error((SourceNone, rte))
+      return Error((None, rte))
     else // mod'.exprs.Length > 1
       let! rte =
         CliRuntimeError.MultipleExpressionsToExecute(mod'.exprs |> List.map string)
         |> CliRuntimeError.RTE.toRuntimeError
-      return Error((SourceNone, rte))
+      return Error((None, rte))
   }
 
 let types : List<BuiltInType> = []
@@ -283,8 +282,8 @@ let fns : List<BuiltInFn> =
                   let! result =
                     Exe.executeFunction
                       state
-                      (gid ())
-                      (f.name)
+                      None
+                      f.name
                       []
                       (NEList.ofList args.Head args.Tail)
 
