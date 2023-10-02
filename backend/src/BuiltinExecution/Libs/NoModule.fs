@@ -70,6 +70,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DEnum _, _ -> raiseString "Both values must be the same type"
 
 and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
+  // TODO what to do for TypeSymbolTable
   NEList.length impl1.parameters = NEList.length impl2.parameters
   && NEList.forall2
     (fun (_, str1) (_, str2) -> str1 = str2)
