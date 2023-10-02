@@ -3,8 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net7.0</TargetFramework>
     <LangVersion>7.0</LangVersion>
-    <OtherFlags>--warnaserror</OtherFlags>
-    <!-- We make this publishable so that we can run tests on the published version -->
+        <!-- We make this publishable so that we can run tests on the published version -->
     <PublishReadyToRun>true</PublishReadyToRun>
     <SelfContained>false</SelfContained>
     <PublishSingleFile>false</PublishSingleFile>

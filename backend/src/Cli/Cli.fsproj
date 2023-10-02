@@ -4,7 +4,6 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net7.0</TargetFramework>
     <LangVersion>7.0</LangVersion>
-    <OtherFlags>--warnaserror</OtherFlags>
     <!-- Publishing configuration -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <!-- We publish these for lots of different runtimes, so leave these empty and

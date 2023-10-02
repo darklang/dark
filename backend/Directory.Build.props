@@ -16,5 +16,7 @@
     <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
     <!-- Run some parts of compilation in parallel: https://blog.nojaf.com/2023/08/22/unleashing-parallel-processing-in-your-fsharp-compiler/ -->
     <OtherFlags>$(OtherFlags) --test:GraphBasedChecking --test:ParallelOptimization --test:ParallelIlxGen</OtherFlags>
+    <!-- warnings - https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-options#opt-in-warnings -->
+    <OtherFlags>$(OtherFlags) --warnaserror --warnon:1182,3387,3366</OtherFlags>
   </PropertyGroup>
 </Project>

@@ -3,8 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
-    <OtherFlags>--warnaserror</OtherFlags>
-    <PublishTrimmed>true</PublishTrimmed>
+        <PublishTrimmed>true</PublishTrimmed>
     <!-- Things that were uncommented in classic-dark -->
     <!-- <RunAOTCompilation>true</RunAOTCompilation> -->
     <!-- <BlazorEnableCompression>false</BlazorEnableCompression> -->
