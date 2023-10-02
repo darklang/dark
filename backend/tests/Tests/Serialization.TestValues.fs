@@ -241,14 +241,14 @@ module RuntimeTypes =
 
   let dvals : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.
-    sampleDvals |> List.map (fun (name, (dv, t)) -> dv)
+    sampleDvals |> List.map (fun (_, (dv, _)) -> dv)
 
   let dval : RT.Dval =
     let typeName =
       RT.FQName.UserProgram
         { modules = []; name = RT.TypeName.TypeName "MyType"; version = 0 }
     sampleDvals
-    |> List.map (fun (name, (dv, t)) -> name, dv)
+    |> List.map (fun (name, (dv, _)) -> name, dv)
     |> fun fields -> RT.DRecord(typeName, typeName, [], Map fields)
 
 

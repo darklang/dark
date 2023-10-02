@@ -33,5 +33,5 @@ let getJsRuntimeThis () : IJSInProcessRuntime =
 let callJSFunction (functionToCall : string) (args : List<string>) : unit =
   let jsRuntimeThis = getJsRuntimeThis ()
   let args = args |> List.toArray |> Array.map box
-  let response = jsRuntimeThis.Invoke(functionToCall, args)
+  let _response : obj = jsRuntimeThis.Invoke(functionToCall, args)
   ()

@@ -230,8 +230,8 @@ let fns : List<BuiltInFn> =
                   []
                   (WT.Unresolved name)
 
-              match fnName, args with
-              | Ok fnName, firstArg :: additionalArgs ->
+              match fnName with
+              | Ok fnName ->
 
                 let desc = fnName |> PT2RT.FnName.toRT
                 let! fn =
@@ -241,7 +241,6 @@ let fns : List<BuiltInFn> =
                       let! fn = state.packageManager.getFn pkg
                       return Option.map packageFnToFn fn
                     }
-
                   | _ ->
                     Exception.raiseInternal
                       "Error constructing package function name"

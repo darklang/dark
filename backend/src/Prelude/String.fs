@@ -45,7 +45,7 @@ let isCapitalized (s : string) : bool =
   if s.Length = 0 then
     false
   else
-    let firstChar = s.[0]
+    let firstChar = s[0]
     firstChar >= 'A' && firstChar <= 'Z'
 
 let toLowercase (s : string) : string = s.ToLower()

@@ -66,7 +66,7 @@ let renameTypes
     |> Map.values
   existing @ newTypes
 
-let checkFn (fn : BuiltInFn) : unit =
+let checkFn (_fn : BuiltInFn) : unit =
   // We can't do this until constants (eg Math.pi) are no longer implemented as functions
   // if fn.parameters = [] then
   //   Exception.raiseInternal $"function {fn.name} has no parameters" [ "fn", fn.name ]

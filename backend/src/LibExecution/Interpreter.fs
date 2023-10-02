@@ -87,7 +87,7 @@ let rec evalConst (source : Source) (c : Const) : Dval =
   | CEnum(Ok typeName, caseName, fields) ->
     // TYPESTODO: this uses the original type name, so if it's an alias, it won't be equal to the
     DEnum(typeName, typeName, VT.typeArgsTODO, caseName, List.map r fields)
-  | CEnum(Error msg, caseName, fields) ->
+  | CEnum(Error msg, _caseName, _fields) ->
     raiseRTE source (RuntimeError.oldError $"Invalid const name: {msg}")
   | CList items -> DList(ValueType.Unknown, (List.map r items))
   | CDict items ->
@@ -279,7 +279,7 @@ let rec eval
         | Some constant -> return evalConst source constant.body
 
 
-    | ELet(id, pattern, rhs, body) ->
+    | ELet(_id, pattern, rhs, body) ->
       /// Does the dval 'match' the given pattern?
       ///
       /// Returns:
@@ -288,7 +288,7 @@ let rec eval
       let rec checkPattern (dv : Dval) (pattern : LetPattern) : List<string * Dval> =
         match pattern with
 
-        | LPVariable(id, varName) -> [ (varName, dv) ]
+        | LPVariable(_id, varName) -> [ (varName, dv) ]
 
         | LPUnit id ->
           if dv <> DUnit then errStr id "Unit pattern does not match" else []
@@ -532,7 +532,7 @@ let rec eval
               return!
                 raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Unit", dv))
 
-          | MPVariable(id, varName) -> return true, [ (varName, dv) ]
+          | MPVariable(_id, varName) -> return true, [ (varName, dv) ]
 
 
           | MPEnum(id, caseName, fieldPats) ->

@@ -24,7 +24,6 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
 
 let executionStateForPreview
-  (name : string)
   (dbs : Map<string, DB.T>)
   (types : Map<TypeName.UserProgram, UserType.T>)
   (fns : Map<FnName.UserProgram, UserFunction.T>)
@@ -40,7 +39,6 @@ let executionStateForPreview
   }
 
 let execSaveDvals
-  (canvasName : string)
   (dbs : List<DB.T>)
   (userTypes : List<UserType.T>)
   (userFns : List<UserFunction.T>)
@@ -54,8 +52,7 @@ let execSaveDvals
     let dbs = dbs |> List.map (fun db -> db.name, db) |> Map.ofList
     let constants = userConstants |> List.map (fun c -> c.name, c) |> Map.ofList
 
-    let! (results, state) =
-      executionStateForPreview canvasName dbs types fns constants
+    let! (results, state) = executionStateForPreview dbs types fns constants
 
     let inputVars = Map.empty
     let! _result = Exe.executeExpr state tlid inputVars ast

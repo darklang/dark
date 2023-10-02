@@ -264,7 +264,7 @@ let configureAspNetCore
     =
     let ipAddress =
       try
-        httpRequest.Headers.["x-forwarded-for"].[0]
+        httpRequest.Headers["x-forwarded-for"][0]
         |> String.split ","
         |> List.head
         |> Option.unwrap (string httpRequest.HttpContext.Connection.RemoteIpAddress)
@@ -272,7 +272,7 @@ let configureAspNetCore
         ""
     let proto =
       try
-        httpRequest.Headers.["x-forwarded-proto"].[0]
+        httpRequest.Headers["x-forwarded-proto"][0]
       with _ ->
         ""
 

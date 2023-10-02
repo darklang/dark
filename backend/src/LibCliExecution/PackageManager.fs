@@ -724,7 +724,7 @@ let packageManager : RT.PackageManager =
         fetch "function" name.owner name.modules fnName name.version conversionFn)
 
     getFnByTLID =
-      withCache (fun tlid ->
+      withCache (fun _tlid ->
         uply { return Exception.raiseInternal "TODO getFnByTLID" [] })
 
     getConstant =

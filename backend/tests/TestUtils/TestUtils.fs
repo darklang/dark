@@ -56,7 +56,7 @@ let initializeTestCanvas' (name : string) : Task<CanvasID * string> =
 
 let initializeTestCanvas (name : string) : Task<CanvasID> =
   task {
-    let! (canvasID, domain) = initializeTestCanvas' name
+    let! (canvasID, _domain) = initializeTestCanvas' name
     return canvasID
   }
 
@@ -596,7 +596,7 @@ module Expect =
       letPatternEqualityBaseFn checkIDs path pat pat' errorFn
       eq ("rhs" :: path) rhs rhs'
       eq ("body" :: path) body body'
-    | EIf(id, con, thn, els), EIf(_, con', thn', els') ->
+    | EIf(_, con, thn, els), EIf(_, con', thn', els') ->
       eq ("cond" :: path) con con'
       eq ("then" :: path) thn thn'
       match els, els' with
@@ -881,12 +881,7 @@ module Expect =
     matchPatternEqualityBaseFn false [] actual expected (fun path a e ->
       Expect.equal a e (formatMsg "" path actual))
 
-  let rec equalExpr
-    (types : Types)
-    (actual : Expr)
-    (expected : Expr)
-    (msg : string)
-    : unit =
+  let rec equalExpr (actual : Expr) (expected : Expr) (msg : string) : unit =
     exprEqualityBaseFn true [] actual expected (fun path a e ->
       Expect.equal a e (formatMsg msg path actual))
 

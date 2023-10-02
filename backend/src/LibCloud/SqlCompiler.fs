@@ -259,7 +259,6 @@ let rec inline'
       | EApply(_, EFnName(_, (fnName)), [], args) ->
         uply {
           let arguments = args |> NEList.toList
-          let nameStr = FnName.toString fnName
           match fnName with
           | FQName.Package p ->
             match! fns.package p with
@@ -770,7 +769,7 @@ let rec lambdaToSql
 
             return (sql, [], dbFieldType)
 
-          | TCustomType(Ok(t), []) ->
+          | TCustomType(Ok(_t), []) ->
             let jsonAccessPath =
               fieldAccessPath
               |> NEList.toList
