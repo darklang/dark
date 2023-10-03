@@ -447,43 +447,54 @@ let fns (config : Configuration) : List<BuiltInFn> =
         | state,
           _,
           [ DString method; DString uri; DList(_, reqHeaders); DBytes reqBody ] ->
-          let reqHeaders : Result<List<string * string>, HeaderError.HeaderError> =
-            reqHeaders
-            |> List.fold
-              (fun agg item ->
-                match agg, item with
-                | (Error err, _) -> Error err
-                | (Ok pairs, DTuple(DString k, DString v, [])) ->
-                  // TODO: what about whitespace? What else can break?
-                  if k = "" then
-                    Error HeaderError.HeaderError.EmptyKey
-                  else
-                    Ok((k, v) :: pairs)
+          uply {
+            let! (reqHeaders : Result<List<string * string>, HeaderError.HeaderError>) =
+              reqHeaders
+              |> Ply.List.foldSequentially
+                (fun agg item ->
+                  uply {
+                    match agg, item with
+                    | (Error err, _) -> return (Error err)
+                    | (Ok pairs, DTuple(DString k, DString v, [])) ->
+                      // TODO: what about whitespace? What else can break?
+                      if k = "" then
+                        return Error HeaderError.HeaderError.EmptyKey
+                      else
+                        return Ok((k, v) :: pairs)
 
-                | (_, notAPair) ->
-                  let context = TypeChecker.Context.FnValResult(TUnit, None)
-                  TypeChecker.raiseValueNotExpectedType
-                    state.caller
-                    notAPair
-                    (TList(TTuple(TString, TString, [])))
-                    context
-                  |> Ply.toTask
-                  |> Async.AwaitTask
-                  |> Async.RunSynchronously
+                    | (_, notAPair) ->
+                      let context =
+                        TypeChecker.Context.FunctionCallParameter(
+                          (FnName.fqPackage
+                            "Darklang"
+                            [ "Stdlib"; "HttpClient" ]
+                            "request"
+                            0),
+                          ({ name = "headers"; typ = headersType }),
+                          2,
+                          None
+                        )
+                      return!
+                        TypeChecker.raiseValueNotExpectedType
+                          state.caller
+                          notAPair
+                          (TList(TTuple(TString, TString, [])))
+                          context
 
-              )
-              (Ok [])
-            |> Result.map (fun pairs -> List.rev pairs)
+                  }
 
-          let method =
-            try
-              Some(HttpMethod method)
-            with _ ->
-              None
+                )
+                (Ok [])
+              |> Ply.map (Result.map (List.rev))
 
-          match reqHeaders, method with
-          | Ok reqHeaders, Some method ->
-            uply {
+            let method =
+              try
+                Some(HttpMethod method)
+              with _ ->
+                None
+
+            match reqHeaders, method with
+            | Ok reqHeaders, Some method ->
               let request =
                 { url = uri; method = method; headers = reqHeaders; body = reqBody }
 
@@ -519,18 +530,14 @@ let fns (config : Configuration) : List<BuiltInFn> =
                 let! err = err |> RequestError.toDT
                 return (err |> resultError)
 
-            }
-
-          | Error reqHeadersErr, _ ->
-            uply {
+            | Error reqHeadersErr, _ ->
               let! reqHeadersErr = reqHeadersErr |> HeaderError.toDT
               return reqHeadersErr |> resultError
-            }
 
-          | _, None ->
-            let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
-            uply { return resultErrorStr error }
-
+            | _, None ->
+              let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
+              return resultErrorStr error
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
