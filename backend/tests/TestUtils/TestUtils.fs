@@ -1040,7 +1040,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       VT.typeArgsTODO,
+       [],
        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1049,7 +1049,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       VT.typeArgsTODO,
+       [ VT.bool; VT.char; (VT.customType (S.fqUserTypeName [] "Foo" 0)) [] ],
        Map.ofList [ "foo\\\\bar", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1057,17 +1057,17 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       VT.typeArgsTODO,
+       [],
        Map.ofList [ "$type", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    ("dict", DDict(VT.unknownTODO, Map [ "foo", Dval.int 5 ]), TDict TInt)
+    ("dict", DDict(VT.unknown, Map [ "foo", Dval.int 5 ]), TDict TInt)
     ("dict3",
-     DDict(VT.unknownTODO, Map [ ("type", DString "weird"); ("value", DString "x") ]),
+     DDict(VT.unknown, Map [ ("type", DString "weird"); ("value", DString "x") ]),
      TDict TString)
     // More Json.NET tests
-    ("dict4", DDict(VT.unknownTODO, Map [ "foo\\\\bar", Dval.int 5 ]), TDict TInt)
-    ("dict5", DDict(VT.unknownTODO, Map [ "$type", Dval.int 5 ]), TDict TInt)
+    ("dict4", DDict(VT.unknown, Map [ "foo\\\\bar", Dval.int 5 ]), TDict TInt)
+    ("dict5", DDict(VT.unknown, Map [ "$type", Dval.int 5 ]), TDict TInt)
     ("lambda",
      DFnVal(
        Lambda

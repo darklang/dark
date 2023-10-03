@@ -81,7 +81,7 @@ let testDvalRoundtrippableRoundtrips =
     "special roundtrippable dvals roundtrip"
     roundtrippableRoundtripsSuccessfully
     [ RT.DDict(
-        VT.unknownTODO,
+        VT.float,
         Map [ ("", RT.DFloat 1.797693135e+308); ("a", RT.DFloat nan) ]
       ),
       true ]
@@ -96,7 +96,7 @@ let testToDeveloperRepr =
         [ RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(1, 2, 3)"
-          RT.DDict(VT.unknownTODO, Map [ "", RT.DUnit ]), "{\n  : ()\n}"
+          RT.DDict(VT.unit, Map [ "", RT.DUnit ]), "{\n  : ()\n}"
           RT.DList(VT.unit, [ RT.DUnit ]), "[\n  ()\n]" ] ]
 
 module ToHashableRepr =

@@ -395,7 +395,7 @@ let fns : List<BuiltInFn> =
       description =
         "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Some {key: value} and if there is none or more than 1 found, it returns None. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
-        let optType = VT.tuple VT.string VT.unknownTODO []
+        let optType = VT.tuple VT.string VT.unknownDbTODO []
         (function
         | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
           uply {

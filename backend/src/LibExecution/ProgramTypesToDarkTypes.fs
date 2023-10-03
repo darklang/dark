@@ -146,7 +146,13 @@ module FQName =
       | PT.FQName.Package u -> "Package", [ Package.toDT nameType nameMapper u ]
       | PT.FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameType nameMapper u ]
 
-    DEnum(typeName, typeName, VT.typeArgsTODO, caseName, fields)
+    DEnum(
+      typeName,
+      typeName,
+      Dval.ignoreAndUseEmpty [ VT.known nameType ],
+      caseName,
+      fields
+    )
 
   let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.FQName<'name> =
     match d with
@@ -1037,8 +1043,13 @@ module Const =
 
 module Deprecation =
   let typeName = ptTyp [] "Deprecation" 0
+  let knownType = KTCustomType(typeName, [])
 
-  let toDT (inner : 'a -> Dval) (d : PT.Deprecation<'a>) : Dval =
+  let toDT
+    (innerType : KnownType)
+    (inner : 'a -> Dval)
+    (d : PT.Deprecation<'a>)
+    : Dval =
     let (caseName, fields) =
       match d with
       | PT.Deprecation.NotDeprecated -> "NotDeprecated", []
@@ -1046,7 +1057,13 @@ module Deprecation =
       | PT.Deprecation.ReplacedBy replacement -> "ReplacedBy", [ inner replacement ]
       | PT.Deprecation.DeprecatedBecause reason ->
         "DeprecatedBecause", [ DString reason ]
-    DEnum(typeName, typeName, VT.typeArgsTODO, caseName, fields)
+    DEnum(
+      typeName,
+      typeName,
+      Dval.ignoreAndUseEmpty [ VT.known innerType ],
+      caseName,
+      fields
+    )
 
   let fromDT (inner : Dval -> 'a) (d : Dval) : PT.Deprecation<'a> =
     match d with
@@ -1286,7 +1303,8 @@ module UserType =
         "name", ut.name |> TypeName.UserProgram.toDT
         "description", ut.description |> DString
         "declaration", ut.declaration |> TypeDeclaration.toDT
-        "deprecated", ut.deprecated |> Deprecation.toDT TypeName.toDT ]
+        "deprecated",
+        ut.deprecated |> Deprecation.toDT Deprecation.knownType TypeName.toDT ]
     DRecord(typeName, typeName, [], Map fields)
 
   let fromDT (d : Dval) : PT.UserType.T =
@@ -1337,7 +1355,8 @@ module UserFunction =
         ("returnType", TypeReference.toDT userFn.returnType)
         ("body", Expr.toDT userFn.body)
         ("description", DString userFn.description)
-        ("deprecated", Deprecation.toDT FnName.toDT userFn.deprecated) ]
+        ("deprecated",
+         Deprecation.toDT FnName.knownType FnName.toDT userFn.deprecated) ]
     DRecord(typeName, typeName, [], Map fields)
 
   let fromDT (d : Dval) : PT.UserFunction.T =
@@ -1366,7 +1385,11 @@ module UserConstant =
         "name", ConstantName.UserProgram.toDT userConstant.name
         "body", Const.toDT userConstant.body
         "description", DString userConstant.description
-        "deprecated", Deprecation.toDT ConstantName.toDT userConstant.deprecated ]
+        "deprecated",
+        Deprecation.toDT
+          ConstantName.knownType
+          ConstantName.toDT
+          userConstant.deprecated ]
     DRecord(typeName, typeName, [], Map fields)
 
 
@@ -1407,7 +1430,7 @@ module PackageType =
         "name", TypeName.Package.toDT p.name
         "declaration", TypeDeclaration.toDT p.declaration
         "description", DString p.description
-        "deprecated", Deprecation.toDT TypeName.toDT p.deprecated ]
+        "deprecated", Deprecation.toDT TypeName.knownType TypeName.toDT p.deprecated ]
     DRecord(typeName, typeName, [], Map fields)
 
 
@@ -1461,7 +1484,7 @@ module PackageFn =
          ))
         ("returnType", TypeReference.toDT p.returnType)
         ("description", DString p.description)
-        ("deprecated", Deprecation.toDT FnName.toDT p.deprecated) ]
+        ("deprecated", Deprecation.toDT FnName.knownType FnName.toDT p.deprecated) ]
 
     DRecord(typeName, typeName, [], Map fields)
 
@@ -1495,7 +1518,8 @@ module PackageConstant =
         "name", ConstantName.Package.toDT p.name
         "body", Const.toDT p.body
         "description", DString p.description
-        "deprecated", Deprecation.toDT ConstantName.toDT p.deprecated ]
+        "deprecated",
+        Deprecation.toDT ConstantName.knownType ConstantName.toDT p.deprecated ]
     DRecord(typeName, typeName, [], Map fields)
 
 

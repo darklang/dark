@@ -648,7 +648,7 @@ let fns : List<BuiltInFn> =
       description =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =
-        let okType = VT.unknownTODO
+        let okType = VT.unknownTODO // "a"
         let errType = KTCustomType(ParseError.typeName, []) |> VT.known
         let resultOk = TypeChecker.DvalCreator.resultOk okType errType
         let resultError = TypeChecker.DvalCreator.resultError okType errType

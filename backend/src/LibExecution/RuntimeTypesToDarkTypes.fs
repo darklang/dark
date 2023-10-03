@@ -120,7 +120,13 @@ module FQName =
       | FQName.Package u -> "Package", [ Package.toDT nameType nameMapper u ]
       | FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameType nameMapper u ]
     let typeName = rtTyp [ "FQName" ] "FQName" 0
-    DEnum(typeName, typeName, VT.typeArgsTODO, caseName, fields)
+    DEnum(
+      typeName,
+      typeName,
+      Dval.ignoreAndUseEmpty [ VT.known nameType ],
+      caseName,
+      fields
+    )
 
   let fromDT (nameMapper : Dval -> 'name) (d : Dval) : FQName.FQName<'name> =
     match d with
