@@ -101,7 +101,11 @@ let rec evalConst (source : Source) (c : Const) : Dval =
 /// Returns:
 /// - whether or not the expr 'matches' the pattern
 /// - new vars (name * value)
-let rec checkPattern (source : Source) (dv : Dval) (pattern : LetPattern) : List<string * Dval> =
+let rec checkPattern
+  (source : Source)
+  (dv : Dval)
+  (pattern : LetPattern)
+  : List<string * Dval> =
   let errStr msg : 'a = raiseRTE source (RuntimeError.oldError msg)
   let chPat = checkPattern source
 

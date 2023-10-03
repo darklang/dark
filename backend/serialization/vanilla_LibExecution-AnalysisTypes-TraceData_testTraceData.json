@@ -547,10 +547,12 @@
                       "tlid": 77777723098234,
                       "symtable": {},
                       "parameters": [
-                        [
-                          5678,
-                          "a"
-                        ]
+                        {
+                          "LPVariable": [
+                            5678,
+                            "a"
+                          ]
+                        }
                       ],
                       "body": {
                         "EUnit": [
@@ -571,10 +573,12 @@
                       "tlid": 7777772349823445,
                       "symtable": {},
                       "parameters": [
-                        [
-                          5678,
-                          "a"
-                        ]
+                        {
+                          "LPVariable": [
+                            5678,
+                            "a"
+                          ]
+                        }
                       ],
                       "body": {
                         "EApply": [
@@ -4890,10 +4894,12 @@
                       "tlid": 77777723098234,
                       "symtable": {},
                       "parameters": [
-                        [
-                          5678,
-                          "a"
-                        ]
+                        {
+                          "LPVariable": [
+                            5678,
+                            "a"
+                          ]
+                        }
                       ],
                       "body": {
                         "EUnit": [
@@ -4914,10 +4920,12 @@
                       "tlid": 7777772349823445,
                       "symtable": {},
                       "parameters": [
-                        [
-                          5678,
-                          "a"
-                        ]
+                        {
+                          "LPVariable": [
+                            5678,
+                            "a"
+                          ]
+                        }
                       ],
                       "body": {
                         "EApply": [

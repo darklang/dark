@@ -270,12 +270,6 @@ module Expr =
       | SynExpr.Tuple(_, args, _, _) -> List.map c args
       | e -> [ c e ]
 
-
-    let convertLambdaVar (var : SynSimplePat) : string =
-      match var with
-      | SynSimplePat.Id(name, _, _, _, _, _) -> nameOrBlank name.idText
-      | _ -> Exception.raiseInternal "unsupported lambdaVar" [ "var", var ]
-
     let synToPipeExpr (e : SynExpr) : WT.PipeExpr =
       match c e with
       | WT.EApply(id,
