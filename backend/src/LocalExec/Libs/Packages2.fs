@@ -80,9 +80,14 @@ let fns : List<BuiltInFn> =
             let typeName =
               FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0)
             let fields =
-              [ "fns", DList(VT.unknownTODO, packagesFns)
-                "types", DList(VT.unknownTODO, packagesTypes)
-                "constants", DList(VT.unknownTODO, packagesConstants) ]
+              [ "fns", DList(VT.customType PT2DT.PackageFn.typeName [], packagesFns)
+                "types",
+                DList(VT.customType PT2DT.PackageType.typeName [], packagesTypes)
+                "constants",
+                DList(
+                  VT.customType PT2DT.PackageConstant.typeName [],
+                  packagesConstants
+                ) ]
             return
               DRecord(typeName, typeName, [], Map fields)
               |> Dval.resultOk (KTCustomType(typeName, [])) KTString

@@ -63,7 +63,7 @@ module FQName =
 
   module BuiltIn =
     let toDT
-      (nameValueType : ValueType)
+      (nameType : KnownType)
       (nameMapper : 'name -> Dval)
       (u : PT.FQName.BuiltIn<'name>)
       : Dval =
@@ -72,7 +72,7 @@ module FQName =
         [ "modules", DList(VT.string, List.map DString u.modules)
           "name", nameMapper u.name
           "version", DInt u.version ]
-      DRecord(typeName, typeName, [ nameValueType ], Map fields)
+      DRecord(typeName, typeName, [ VT.known nameType ], Map fields)
 
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.BuiltIn<'name> =
       match d with
@@ -85,7 +85,7 @@ module FQName =
 
   module UserProgram =
     let toDT
-      (nameValueType : ValueType)
+      (nameType : KnownType)
       (nameMapper : 'name -> Dval)
       (u : PT.FQName.UserProgram<'name>)
       : Dval =
@@ -94,7 +94,7 @@ module FQName =
         [ "modules", DList(VT.string, List.map DString u.modules)
           "name", nameMapper u.name
           "version", DInt u.version ]
-      DRecord(typeName, typeName, [ nameValueType ], Map fields)
+      DRecord(typeName, typeName, [ VT.known nameType ], Map fields)
 
     let fromDT
       (nameMapper : Dval -> 'name)
@@ -110,7 +110,7 @@ module FQName =
 
   module Package =
     let toDT
-      (nameValueType : ValueType)
+      (nameType : KnownType)
       (nameMapper : 'name -> Dval)
       (u : PT.FQName.Package<'name>)
       : Dval =
@@ -120,7 +120,7 @@ module FQName =
           "modules", DList(VT.string, List.map DString u.modules)
           "name", nameMapper u.name
           "version", DInt u.version ]
-      DRecord(typeName, typeName, [ nameValueType ], Map fields)
+      DRecord(typeName, typeName, [ VT.known nameType ], Map fields)
 
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.Package<'name> =
       match d with
@@ -133,7 +133,7 @@ module FQName =
 
 
   let toDT
-    (nameValueType : ValueType)
+    (nameType : KnownType)
     (nameMapper : 'name -> Dval)
     (u : PT.FQName.FQName<'name>)
     : Dval =
@@ -142,9 +142,9 @@ module FQName =
     let (caseName, fields) =
       match u with
       | PT.FQName.UserProgram u ->
-        "UserProgram", [ UserProgram.toDT nameValueType nameMapper u ]
-      | PT.FQName.Package u -> "Package", [ Package.toDT nameValueType nameMapper u ]
-      | PT.FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameValueType nameMapper u ]
+        "UserProgram", [ UserProgram.toDT nameType nameMapper u ]
+      | PT.FQName.Package u -> "Package", [ Package.toDT nameType nameMapper u ]
+      | PT.FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameType nameMapper u ]
 
     DEnum(typeName, typeName, VT.typeArgsTODO, caseName, fields)
 
@@ -160,10 +160,9 @@ module FQName =
 
 
 module TypeName =
-  let knownType = KTCustomType(ptTyp [] "TypeName" 0, [])
 
   module Name =
-    let valueType = VT.unknownTODO
+    let knownType = KTCustomType(ptTyp [ "TypeName" ] "Name" 0, [])
 
     let toDT (u : PT.TypeName.Name) : Dval =
       let typeName = ptTyp [ "TypeName" ] "Name" 0
@@ -181,29 +180,29 @@ module TypeName =
 
   module BuiltIn =
     let toDT (u : PT.TypeName.BuiltIn) : Dval =
-      FQName.BuiltIn.toDT Name.valueType Name.toDT u
+      FQName.BuiltIn.toDT Name.knownType Name.toDT u
     let fromDT (d : Dval) : PT.TypeName.BuiltIn = FQName.BuiltIn.fromDT Name.fromDT d
 
   module UserProgram =
     let toDT (u : PT.TypeName.UserProgram) : Dval =
-      FQName.UserProgram.toDT Name.valueType Name.toDT u
+      FQName.UserProgram.toDT Name.knownType Name.toDT u
     let fromDT (d : Dval) : PT.TypeName.UserProgram =
       FQName.UserProgram.fromDT Name.fromDT d
 
   module Package =
     let toDT (u : PT.TypeName.Package) : Dval =
-      FQName.Package.toDT Name.valueType Name.toDT u
+      FQName.Package.toDT Name.knownType Name.toDT u
     let fromDT (d : Dval) : PT.TypeName.Package = FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : PT.TypeName.TypeName) : Dval = FQName.toDT Name.valueType Name.toDT u
+  let knownType = KTCustomType(ptTyp [ "TypeName" ] "TypeName" 0, [])
+  let toDT (u : PT.TypeName.TypeName) : Dval = FQName.toDT Name.knownType Name.toDT u
   let fromDT (d : Dval) : PT.TypeName.TypeName = FQName.fromDT Name.fromDT d
 
 
 module FnName =
-  let knownType = KTCustomType(ptTyp [ "FnName" ] "FnName" 0, [])
 
   module Name =
-    let valueType = VT.unknownTODO
+    let knownType = KTCustomType(ptTyp [ "FnName" ] "Name" 0, [])
 
     let toDT (u : PT.FnName.Name) : Dval =
       let typeName = ptTyp [ "FnName" ] "Name" 0
@@ -221,29 +220,28 @@ module FnName =
 
   module BuiltIn =
     let toDT (u : PT.FnName.BuiltIn) : Dval =
-      FQName.BuiltIn.toDT Name.valueType Name.toDT u
+      FQName.BuiltIn.toDT Name.knownType Name.toDT u
 
     let fromDT (d : Dval) : PT.FnName.BuiltIn = FQName.BuiltIn.fromDT Name.fromDT d
 
   module UserProgram =
     let toDT (u : PT.FnName.UserProgram) : Dval =
-      FQName.UserProgram.toDT Name.valueType Name.toDT u
+      FQName.UserProgram.toDT Name.knownType Name.toDT u
     let fromDT (d : Dval) : PT.FnName.UserProgram =
       FQName.UserProgram.fromDT Name.fromDT d
 
   module Package =
     let toDT (u : PT.FnName.Package) : Dval =
-      FQName.Package.toDT Name.valueType Name.toDT u
+      FQName.Package.toDT Name.knownType Name.toDT u
     let fromDT (d : Dval) : PT.FnName.Package = FQName.Package.fromDT Name.fromDT d
 
-  let toDT (u : PT.FnName.FnName) : Dval = FQName.toDT Name.valueType Name.toDT u
+  let knownType = KTCustomType(ptTyp [ "FnName" ] "FnName" 0, [])
+  let toDT (u : PT.FnName.FnName) : Dval = FQName.toDT Name.knownType Name.toDT u
   let fromDT (d : Dval) : PT.FnName.FnName = FQName.fromDT Name.fromDT d
 
 module ConstantName =
-  let knownType = KTCustomType(ptTyp [ "ConstantName" ] "ConstantName" 0, [])
-
   module Name =
-    let valueType = VT.unknownTODO
+    let knownType = KTCustomType(ptTyp [ "ConstantName" ] "Name" 0, [])
 
     let toDT (u : PT.ConstantName.Name) : Dval =
       let typeName = ptTyp [ "ConstantName" ] "Name" 0
@@ -260,27 +258,29 @@ module ConstantName =
 
   module BuiltIn =
     let toDT (u : PT.ConstantName.BuiltIn) : Dval =
-      FQName.BuiltIn.toDT Name.valueType Name.toDT u
+      FQName.BuiltIn.toDT Name.knownType Name.toDT u
 
     let fromDT (d : Dval) : PT.ConstantName.BuiltIn =
       FQName.BuiltIn.fromDT Name.fromDT d
 
   module UserProgram =
     let toDT (u : PT.ConstantName.UserProgram) : Dval =
-      FQName.UserProgram.toDT Name.valueType Name.toDT u
+      FQName.UserProgram.toDT Name.knownType Name.toDT u
 
     let fromDT (d : Dval) : PT.ConstantName.UserProgram =
       FQName.UserProgram.fromDT Name.fromDT d
 
   module Package =
     let toDT (u : PT.ConstantName.Package) : Dval =
-      FQName.Package.toDT Name.valueType Name.toDT u
+      FQName.Package.toDT Name.knownType Name.toDT u
 
     let fromDT (d : Dval) : PT.ConstantName.Package =
       FQName.Package.fromDT Name.fromDT d
 
+  let knownType = KTCustomType(ptTyp [ "ConstantName" ] "ConstantName" 0, [])
+
   let toDT (u : PT.ConstantName.ConstantName) : Dval =
-    FQName.toDT Name.valueType Name.toDT u
+    FQName.toDT Name.knownType Name.toDT u
 
   let fromDT (d : Dval) : PT.ConstantName.ConstantName = FQName.fromDT Name.fromDT d
 
@@ -410,6 +410,8 @@ module LetPattern =
 
 
 module MatchPattern =
+  let knownType = KTCustomType(ptTyp [] "MatchPattern" 0, [])
+
   let rec toDT (p : PT.MatchPattern) : Dval =
     let (caseName, fields) =
       match p with
@@ -426,7 +428,7 @@ module MatchPattern =
       | PT.MPString(id, s) -> "MPString", [ DInt(int64 id); DString s ]
 
       | PT.MPList(id, inner) ->
-        "MPList", [ DInt(int64 id); DList(VT.unknownTODO, List.map toDT inner) ]
+        "MPList", [ DInt(int64 id); DList(VT.known knownType, List.map toDT inner) ]
       | PT.MPListCons(id, head, tail) ->
         "MPListCons", [ DInt(int64 id); toDT head; toDT tail ]
       | PT.MPTuple(id, first, second, theRest) ->
@@ -434,12 +436,12 @@ module MatchPattern =
         [ DInt(int64 id)
           toDT first
           toDT second
-          DList(VT.unknownTODO, List.map toDT theRest) ]
+          DList(VT.known knownType, List.map toDT theRest) ]
       | PT.MPEnum(id, caseName, fieldPats) ->
         "MPEnum",
         [ DInt(int64 id)
           DString caseName
-          DList(VT.unknownTODO, List.map toDT fieldPats) ]
+          DList(VT.known knownType, List.map toDT fieldPats) ]
 
     let typeName = ptTyp [] "MatchPattern" 0
     DEnum(typeName, typeName, [], caseName, fields)
@@ -550,6 +552,8 @@ module Infix =
 
 
 module StringSegment =
+  let knownType = KTCustomType(ptTyp [] "StringSegment" 0, [])
+
   let toDT (exprToDT : PT.Expr -> Dval) (s : PT.StringSegment) : Dval =
     let (caseName, fields) =
       match s with
@@ -568,19 +572,25 @@ module StringSegment =
 
 
 module PipeExpr =
-  let toDT (exprToDT : PT.Expr -> Dval) (s : PT.PipeExpr) : Dval =
+  let knownType = KTCustomType(ptTyp [] "PipeExpr" 0, [])
+
+  let toDT
+    (exprKT : KnownType)
+    (exprToDT : PT.Expr -> Dval)
+    (s : PT.PipeExpr)
+    : Dval =
     let (caseName, fields) =
       match s with
       | PT.EPipeVariable(id, varName, exprs) ->
         "EPipeVariable",
         [ DInt(int64 id)
           DString varName
-          DList(VT.unknownTODO, List.map exprToDT exprs) ]
+          DList(VT.known exprKT, List.map exprToDT exprs) ]
 
       | PT.EPipeLambda(id, args, body) ->
         let variables =
           DList(
-            VT.unknownTODO,
+            VT.tuple VT.int VT.string [],
             args
             |> NEList.toList
             |> List.map (fun (id, varName) ->
@@ -595,15 +605,18 @@ module PipeExpr =
         "EPipeFnCall",
         [ DInt(int64 id)
           NameResolution.toDT FnName.knownType FnName.toDT fnName
-          DList(VT.unknownTODO, List.map TypeReference.toDT typeArgs)
-          DList(VT.unknownTODO, List.map exprToDT args) ]
+          DList(
+            VT.known TypeReference.knownType,
+            List.map TypeReference.toDT typeArgs
+          )
+          DList(VT.known exprKT, List.map exprToDT args) ]
 
       | PT.EPipeEnum(id, typeName, caseName, fields) ->
         "EPipeEnum",
         [ DInt(int64 id)
           NameResolution.toDT TypeName.knownType TypeName.toDT typeName
           DString caseName
-          DList(VT.unknownTODO, List.map exprToDT fields) ]
+          DList(VT.known exprKT, List.map exprToDT fields) ]
 
 
     let typeName = ptTyp [] "PipeExpr" 0
@@ -680,17 +693,20 @@ module Expr =
       | PT.EString(id, segments) ->
         "EString",
         [ DInt(int64 id)
-          DList(VT.unknownTODO, List.map (StringSegment.toDT toDT) segments) ]
+          DList(
+            VT.known StringSegment.knownType,
+            List.map (StringSegment.toDT toDT) segments
+          ) ]
 
       // structures of data
       | PT.EList(id, items) ->
-        "EList", [ DInt(int64 id); DList(VT.unknownTODO, List.map toDT items) ]
+        "EList", [ DInt(int64 id); DList(VT.known knownType, List.map toDT items) ]
 
       | PT.EDict(id, pairs) ->
         "EDict",
         [ DInt(int64 id)
           DList(
-            VT.unknownTODO,
+            VT.tuple VT.string (VT.known knownType) [],
             pairs |> List.map (fun (k, v) -> DTuple(DString k, toDT v, []))
           ) ]
 
@@ -699,12 +715,12 @@ module Expr =
         [ DInt(int64 id)
           toDT first
           toDT second
-          DList(VT.unknownTODO, List.map toDT theRest) ]
+          DList(VT.known knownType, List.map toDT theRest) ]
 
       | PT.ERecord(id, typeName, fields) ->
         let fields =
           DList(
-            VT.unknownTODO,
+            VT.tuple VT.string (VT.known knownType) [],
             fields
             |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
           )
@@ -719,7 +735,7 @@ module Expr =
         [ DInt(int64 id)
           NameResolution.toDT TypeName.knownType TypeName.toDT typeName
           DString caseName
-          DList(VT.unknownTODO, List.map toDT fields) ]
+          DList(VT.known knownType, List.map toDT fields) ]
 
       // declaring and accessing variables
       | PT.ELet(id, lp, expr, body) ->
@@ -742,7 +758,7 @@ module Expr =
       | PT.EMatch(id, arg, cases) ->
         let cases =
           DList(
-            VT.unknownTODO,
+            VT.tuple (VT.known MatchPattern.knownType) (VT.known knownType) [],
             cases
             |> List.map (fun (pattern, expr) ->
               DTuple(MatchPattern.toDT pattern, toDT expr, []))
@@ -754,7 +770,10 @@ module Expr =
         "EPipe",
         [ DInt(int64 id)
           toDT expr
-          DList(VT.unknownTODO, List.map (PipeExpr.toDT toDT) pipeExprs) ]
+          DList(
+            VT.known PipeExpr.knownType,
+            List.map (PipeExpr.toDT knownType toDT) pipeExprs
+          ) ]
 
 
       // function calls
@@ -764,7 +783,7 @@ module Expr =
       | PT.ELambda(id, args, body) ->
         let variables =
           DList(
-            VT.unknownTODO,
+            VT.tuple VT.int VT.string [],
             args
             |> NEList.toList
             |> List.map (fun (id, varName) ->
@@ -781,8 +800,11 @@ module Expr =
         "EApply",
         [ DInt(int64 id)
           toDT name
-          DList(VT.unknownTODO, List.map TypeReference.toDT typeArgs)
-          DList(VT.unknownTODO, args |> NEList.toList |> List.map toDT) ]
+          DList(
+            VT.known TypeReference.knownType,
+            List.map TypeReference.toDT typeArgs
+          )
+          DList(VT.known knownType, args |> NEList.toList |> List.map toDT) ]
 
       | PT.EFnName(id, name) ->
         "EFnName",
@@ -790,12 +812,14 @@ module Expr =
 
       | PT.ERecordUpdate(id, record, updates) ->
         let updates =
-          updates
-          |> NEList.toList
-          |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
+          DList(
+            VT.tuple VT.string (VT.known knownType) [],
+            updates
+            |> NEList.toList
+            |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
+          )
 
-        "ERecordUpdate",
-        [ DInt(int64 id); toDT record; DList(VT.unknownTODO, updates) ]
+        "ERecordUpdate", [ DInt(int64 id); toDT record; updates ]
 
 
     let typeName = ptTyp [] "Expr" 0
@@ -949,7 +973,7 @@ module Const =
 
       | PT.Const.CTuple(first, second, theRest) ->
         "CTuple",
-        [ toDT first; toDT second; DList(VT.unknownTODO, List.map toDT theRest) ]
+        [ toDT first; toDT second; DList(VT.known knownType, List.map toDT theRest) ]
 
       | PT.Const.CEnum(typeName, caseName, fields) ->
         "CEnum",
@@ -958,7 +982,7 @@ module Const =
           Dval.list knownType (List.map toDT fields) ]
 
       | PT.Const.CList inner ->
-        "CList", [ DList(VT.unknownTODO, List.map toDT inner) ]
+        "CList", [ DList(VT.known knownType, List.map toDT inner) ]
 
       | PT.Const.CDict pairs ->
         "CDict",
@@ -1012,6 +1036,8 @@ module Const =
     | _ -> Exception.raiseInternal "Invalid Const" []
 
 module Deprecation =
+  let typeName = ptTyp [] "Deprecation" 0
+
   let toDT (inner : 'a -> Dval) (d : PT.Deprecation<'a>) : Dval =
     let (caseName, fields) =
       match d with
@@ -1020,10 +1046,7 @@ module Deprecation =
       | PT.Deprecation.ReplacedBy replacement -> "ReplacedBy", [ inner replacement ]
       | PT.Deprecation.DeprecatedBecause reason ->
         "DeprecatedBecause", [ DString reason ]
-
-    let typeName = ptTyp [] "Deprecation" 0
     DEnum(typeName, typeName, VT.typeArgsTODO, caseName, fields)
-
 
   let fromDT (inner : Dval -> 'a) (d : Dval) : PT.Deprecation<'a> =
     match d with
@@ -1040,14 +1063,15 @@ module Deprecation =
 
 module TypeDeclaration =
   module RecordField =
+    let typeName = ptTyp [ "TypeDeclaration" ] "RecordField" 0
+    let knownType = KTCustomType(typeName, [])
+
     let toDT (rf : PT.TypeDeclaration.RecordField) : Dval =
-      let typeName = ptTyp [ "TypeDeclaration" ] "RecordField" 0
       let fields =
         [ "name", DString rf.name
           "typ", TypeReference.toDT rf.typ
           "description", DString rf.description ]
       DRecord(typeName, typeName, [], Map fields)
-
 
     let fromDT (d : Dval) : PT.TypeDeclaration.RecordField =
       match d with
@@ -1058,6 +1082,8 @@ module TypeDeclaration =
       | _ -> Exception.raiseInternal "Invalid RecordField" []
 
   module EnumField =
+    let knownType = KTCustomType(ptTyp [ "TypeDeclaration" ] "EnumField" 0, [])
+
     let toDT (ef : PT.TypeDeclaration.EnumField) : Dval =
       let typeName = ptTyp [ "TypeDeclaration" ] "EnumField" 0
       let fields =
@@ -1065,8 +1091,6 @@ module TypeDeclaration =
           "label", ef.label |> Option.map DString |> Dval.option KTString
           "description", DString ef.description ]
       DRecord(typeName, typeName, [], Map fields)
-
-
 
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumField =
       match d with
@@ -1080,20 +1104,20 @@ module TypeDeclaration =
             | _ ->
               Exception.raiseInternal "Expected label to be an option of string" []
           description = fields |> D.stringField "description" }
-
       | _ -> Exception.raiseInternal "Invalid EnumField" []
 
 
   module EnumCase =
+    let typeName = ptTyp [ "TypeDeclaration" ] "EnumCase" 0
+    let knownType = KTCustomType(typeName, [])
+
     let toDT (ec : PT.TypeDeclaration.EnumCase) : Dval =
-      let typeName = ptTyp [ "TypeDeclaration" ] "EnumCase" 0
       let fields =
         [ "name", DString ec.name
-          "fields", DList(VT.unknownTODO, List.map EnumField.toDT ec.fields)
+          "fields",
+          DList(VT.known EnumField.knownType, List.map EnumField.toDT ec.fields)
           "description", DString ec.description ]
       DRecord(typeName, typeName, [], Map fields)
-
-
 
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumCase =
       match d with
@@ -1106,6 +1130,8 @@ module TypeDeclaration =
 
 
   module Definition =
+    let typeName = ptTyp [ "TypeDeclaration" ] "Definition" 0
+
     let toDT (d : PT.TypeDeclaration.Definition) : Dval =
       let (caseName, fields) =
         match d with
@@ -1114,17 +1140,17 @@ module TypeDeclaration =
         | PT.TypeDeclaration.Record fields ->
           "Record",
           [ DList(
-              VT.unknownTODO,
+              VT.known RecordField.knownType,
               fields |> NEList.toList |> List.map RecordField.toDT
             ) ]
 
         | PT.TypeDeclaration.Enum cases ->
           "Enum",
-          [ DList(VT.unknownTODO, cases |> NEList.toList |> List.map EnumCase.toDT) ]
-
-      let typeName = ptTyp [ "TypeDeclaration" ] "Definition" 0
+          [ DList(
+              VT.known EnumCase.knownType,
+              cases |> NEList.toList |> List.map EnumCase.toDT
+            ) ]
       DEnum(typeName, typeName, [], caseName, fields)
-
 
     let fromDT (d : Dval) : PT.TypeDeclaration.Definition =
       match d with
@@ -1252,8 +1278,9 @@ module DB =
 
 
 module UserType =
+  let typeName = ptTyp [] "UserType" 0
+
   let toDT (ut : PT.UserType.T) : Dval =
-    let typeName = ptTyp [] "UserType" 0
     let fields =
       [ "tlid", DInt(int64 ut.tlid)
         "name", ut.name |> TypeName.UserProgram.toDT
@@ -1261,7 +1288,6 @@ module UserType =
         "declaration", ut.declaration |> TypeDeclaration.toDT
         "deprecated", ut.deprecated |> Deprecation.toDT TypeName.toDT ]
     DRecord(typeName, typeName, [], Map fields)
-
 
   let fromDT (d : Dval) : PT.UserType.T =
     match d with
@@ -1296,13 +1322,13 @@ module UserFunction =
       | _ -> Exception.raiseInternal "Invalid UserFunction.Parameter" []
 
 
-  let toDT (userFn : PT.UserFunction.T) : Dval =
-    let typeName = ptTyp [ "UserFunction" ] "UserFunction" 0
+  let typeName = ptTyp [ "UserFunction" ] "UserFunction" 0
 
+  let toDT (userFn : PT.UserFunction.T) : Dval =
     let fields =
       [ ("tlid", DInt(int64 userFn.tlid))
         ("name", FnName.UserProgram.toDT userFn.name)
-        ("typeParams", DList(VT.unknownTODO, List.map DString userFn.typeParams))
+        ("typeParams", DList(VT.string, List.map DString userFn.typeParams))
         ("parameters",
          DList(
            VT.known Parameter.knownType,
@@ -1312,10 +1338,7 @@ module UserFunction =
         ("body", Expr.toDT userFn.body)
         ("description", DString userFn.description)
         ("deprecated", Deprecation.toDT FnName.toDT userFn.deprecated) ]
-
     DRecord(typeName, typeName, [], Map fields)
-
-
 
   let fromDT (d : Dval) : PT.UserFunction.T =
     match d with
@@ -1375,8 +1398,9 @@ module Secret =
 
 
 module PackageType =
+  let typeName = ptTyp [] "PackageType" 0
+
   let toDT (p : PT.PackageType.T) : Dval =
-    let typeName = ptTyp [] "PackageType" 0
     let fields =
       [ "tlid", DInt(int64 p.tlid)
         "id", DUuid p.id
@@ -1421,9 +1445,9 @@ module PackageFn =
           description = fields |> D.stringField "description" }
       | _ -> Exception.raiseInternal "Invalid PackageFn.Parameter" []
 
-  let toDT (p : PT.PackageFn.T) : Dval =
-    let typeName = ptTyp [ "PackageFn" ] "PackageFn" 0
+  let typeName = ptTyp [ "PackageFn" ] "PackageFn" 0
 
+  let toDT (p : PT.PackageFn.T) : Dval =
     let fields =
       [ ("tlid", DInt(int64 p.tlid))
         ("id", DUuid p.id)
@@ -1462,8 +1486,9 @@ module PackageFn =
     | _ -> Exception.raiseInternal "Invalid PackageFn" []
 
 module PackageConstant =
+  let typeName = ptTyp [] "PackageConstant" 0
+
   let toDT (p : PT.PackageConstant.T) : Dval =
-    let typeName = ptTyp [] "PackageConstant" 0
     let fields =
       [ "tlid", DInt(int64 p.tlid)
         "id", DUuid p.id

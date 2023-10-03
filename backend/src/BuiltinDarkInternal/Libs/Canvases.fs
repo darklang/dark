@@ -180,22 +180,14 @@ let fns : List<BuiltInFn> =
               |> Map.values
               |> Seq.toList
               |> List.map PT2DT.UserType.toDT
-            let types =
-              DList(
-                VT.unknownTODO, // @darklang.LanguageTools.ProgramTypes.UserType
-                types
-              )
+            let types = DList(VT.customType PT2DT.UserType.typeName [], types)
 
             let fns =
               canvas.userFunctions
               |> Map.values
               |> Seq.toList
               |> List.map PT2DT.UserFunction.toDT
-            let fns =
-              DList(
-                VT.unknownTODO, // @darklang.LanguageTools.ProgramTypes.UserFunction.UserFunction
-                fns
-              )
+            let fns = DList(VT.customType PT2DT.UserFunction.typeName [], fns)
 
             // let dbs =
             //   Map.values canvas.dbs

@@ -142,25 +142,25 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let fns =
-              let typeName =
-                FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0)
+            let typeName =
+              FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0)
 
+            let fns =
               fns
               |> List.map (fun (owner, fnname, modules, version) ->
                 let fields =
-                  [ "owner", DString owner
-                    "modules",
-                    DList(
-                      VT.string,
-                      modules |> String.split "." |> List.map DString
-                    )
-                    "name", DString fnname
-                    "version", DInt version ]
+                  [ ("owner", DString owner)
+                    ("modules",
+                     DList(
+                       VT.string,
+                       modules |> String.split "." |> List.map DString
+                     ))
+                    ("name", DString fnname)
+                    ("version", DInt version) ]
 
                 DRecord(typeName, typeName, [], Map fields))
 
-            return DList(VT.unknownTODO, fns)
+            return DList(VT.customType typeName [], fns)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -192,8 +192,9 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
+            let typeName = FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0)
+
             let types =
-              let typeName = FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0)
               types
               |> List.map (fun (owner, typename, modules, version) ->
                 let fields =
@@ -207,7 +208,7 @@ let fns : List<BuiltInFn> =
                     ("version", DInt version) ]
                 DRecord(typeName, typeName, [], Map fields))
 
-            return DList(VT.unknownTODO, types)
+            return DList(VT.customType typeName [], types)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -239,9 +240,10 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
+            let typeName =
+              FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0)
+
             let consts =
-              let typeName =
-                FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0)
               consts
               |> List.map (fun (owner, fnname, modules, version) ->
                 let fields =
@@ -255,7 +257,7 @@ let fns : List<BuiltInFn> =
                     ("version", DInt version) ]
                 DRecord(typeName, typeName, [], Map fields))
 
-            return DList(VT.unknownTODO, consts)
+            return DList(VT.customType typeName [], consts)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

@@ -102,19 +102,17 @@ human-readable data."
 
             let typeName = FQName.BuiltIn(typ "TableSize" 0)
 
-            let! dict =
+            let dict =
               tableStats
-              |> Ply.List.mapSequentially (fun ts ->
-                uply {
-                  let fields =
-                    [ "disk", DInt(ts.diskBytes)
-                      "rows", DInt(ts.rows)
-                      "diskHuman", DString ts.diskHuman
-                      "rowsHuman", DString ts.rowsHuman ]
+              |> List.map (fun ts ->
+                let fields =
+                  [ ("disk", DInt(ts.diskBytes))
+                    ("rows", DInt(ts.rows))
+                    ("diskHuman", DString ts.diskHuman)
+                    ("rowsHuman", DString ts.rowsHuman) ]
 
-                  return (ts.relation, DRecord(typeName, typeName, [], Map fields))
-                })
-              |> Ply.map (Dval.dict (KTCustomType(typeName, [])))
+                (ts.relation, DRecord(typeName, typeName, [], Map fields)))
+              |> Dval.dict (KTCustomType(typeName, []))
 
             return dict
           }
