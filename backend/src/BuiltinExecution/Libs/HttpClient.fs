@@ -70,8 +70,8 @@ module RequestError =
     | BadUrl of BadUrl.BadUrlDetails
     | Timeout
     | HeaderError of HeaderError.HeaderError
-    | IOError of string
-    | ConnectionError of string
+    | IOError
+    | ConnectionError
 
   let toDT (err : RequestError) : Ply<Dval> =
     uply {
@@ -85,8 +85,8 @@ module RequestError =
           | HeaderError err ->
             let! err = HeaderError.toDT err
             return "HeaderError", [ err ]
-          | IOError e -> return "IOError", [ DString e ]
-          | ConnectionError e -> return "ConnectionError", [ DString e ]
+          | IOError -> return "IOError", []
+          | ConnectionError -> return "ConnectionError", []
         }
 
       let typeName =
@@ -376,9 +376,7 @@ let makeRequest
         config.telemetryAddTag "error.msg" "Invalid URI"
         return
           Error(RequestError.RequestError.BadUrl BadUrl.BadUrlDetails.InvalidUri)
-      | :? IOException as e ->
-        return Error(RequestError.RequestError.IOError e.Message)
-
+      | :? IOException -> return Error(RequestError.RequestError.IOError)
       | :? HttpRequestException as e ->
         // This is a bit of an awkward case. I'm unsure how it fits into our model.
         // We've made a request, and _potentially_ (according to .NET) have a status
@@ -389,12 +387,7 @@ let makeRequest
 
         config.telemetryAddException [ "error.status_code", statusCode ] e
 
-        return
-          Error(
-            RequestError.RequestError.ConnectionError(
-              Exception.getMessages e |> String.concat " "
-            )
-          )
+        return Error(RequestError.RequestError.ConnectionError)
     })
 
 
@@ -451,7 +444,9 @@ let fns (config : Configuration) : List<BuiltInFn> =
         let resultErrorStr str =
           Dval.resultError VT.unknownTODO VT.string (DString str)
         (function
-        | _, _, [ DString method; DString uri; DList(_, reqHeaders); DBytes reqBody ] ->
+        | state,
+          _,
+          [ DString method; DString uri; DList(_, reqHeaders); DBytes reqBody ] ->
           let reqHeaders : Result<List<string * string>, HeaderError.HeaderError> =
             reqHeaders
             |> List.fold
@@ -466,10 +461,17 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     Ok((k, v) :: pairs)
 
                 | (_, notAPair) ->
-                  raiseUntargetedRTE (
-                    RuntimeError.oldError
-                      $"Expected request headers to be a `List<String*String>`, but got: {DvalReprDeveloper.toRepr notAPair}"
-                  ))
+                  let context = TypeChecker.Context.FnValResult(TUnit, None)
+                  TypeChecker.raiseValueNotExpectedType
+                    state.caller
+                    notAPair
+                    (TList(TTuple(TString, TString, [])))
+                    context
+                  |> Ply.toTask
+                  |> Async.AwaitTask
+                  |> Async.RunSynchronously
+
+              )
               (Ok [])
             |> Result.map (fun pairs -> List.rev pairs)
 
@@ -512,8 +514,6 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     ("body", DBytes response.body) ]
 
                 return DRecord(typ, typ, [], Map fields) |> resultOk
-
-              // TODO: include a DvalSource rather than SourceNone
 
               | Error(err) ->
                 let! err = err |> RequestError.toDT

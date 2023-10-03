@@ -2,20 +2,29 @@ module Darklang =
   module Stdlib =
     module HttpClient =
 
-      type HeaderError = | EmptyKey
+      type HeaderError =
+        // Occurs whrn a header key is empty. eg. [ ("", "") ]
+        | EmptyKey
 
       type BadUrlDetails =
+        // Occurs when the URI scheme is not allowed. eg. "ftp://darklang.com"
         | UnsupportedProtocol
+        // Occurs when the host is not allowed. eg. "http://0"
         | InvalidHost
+        // Occurs when the URI does not conform to the format specified by RFC 2396. eg. "{ ] nonsense ^#( :"
         | InvalidUri
+        // Occurs when the request contains invalid headers. eg.A request to "http://google.com" with [("Metadata-Flavor", "Google")] header
         | InvalidRequest
 
       type RequestError =
         | BadUrl of BadUrlDetails
+        // Occurs when the request is cancelled due to a timeout
         | Timeout
         | HeaderError of HeaderError
-        | IOError of String
-        | ConnectionError of String
+        // Occurs when an I/O error occurs while making the request
+        | IOError
+        // Occurs when there's an issue connecting to the endpoint. eg. network error, DNS failure, certifivate validation error, etc.
+        | ConnectionError
 
       let toString (e: RequestError) : String =
         match e with
@@ -29,8 +38,8 @@ module Darklang =
         | HeaderError details ->
           match details with
           | EmptyKey -> "Empty key"
-        | IOError details -> $"IOError"
-        | ConnectionError details -> $"Connection error"
+        | IOError -> "IOError"
+        | ConnectionError -> "Connection error"
 
 
       /// The response from a HTTP request
