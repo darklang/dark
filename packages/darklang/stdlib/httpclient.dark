@@ -42,23 +42,15 @@ module Darklang =
         ("authorization", ("bearer " ++ token))
 
 
-      // TODOs:
-      // - maybe the below should be in another ContentType module,
-      //   accessible by e.g. `HttpClient.ContentType.form`?
-      // - these should likely be Constants (rather than fns)
+      module ContentType =
+        /// A header <type (String*String))> with {{content-type}} set for HTML form requests or responses
+        let form = ("content-type", "application/x-www-form-urlencoded")
 
-      /// Returns a header <type (String*String))> with {{content-type}} set for HTML form requests or responses
-      let formContentType () : (String * String) =
-        ("content-type", "application/x-www-form-urlencoded")
+        /// A header <type (String*String))> with {{content-type}} set for JSON requests or responses
+        let json = ("content-type", "application/json")
 
-      /// Returns a header <type (String*String))> with {{content-type}} set for JSON requests or responses
-      let jsonContentType () : (String * String) =
-        ("content-type", "application/json; charset=utf-8")
+        /// A header <type (String*String))> with {{'content-type'}} set for plain text requests or responses
+        let plainText = ("content-type", "text/plain; charset=utf-8")
 
-      /// Returns a header <type (String*String))> with {{'content-type'}} set for plain text requests or responses
-      let plainTextContentType () : (String * String) =
-        ("content-type", "text/plain; charset=utf-8")
-
-      /// Returns a header <type (String*String))> with {{'content-type'}} set for html requests
-      let htmlContentType () : (String * String) =
-        ("content-type", "text/html; charset=utf-8")
+        /// A header <type (String*String))> with {{'content-type'}} set for html requests
+        let html = ("content-type", "text/html; charset=utf-8")
