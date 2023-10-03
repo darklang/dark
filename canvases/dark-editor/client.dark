@@ -44,34 +44,32 @@ let openAIcompletion
         messages =
           [ OpenAIChatCompletionRequestMessage { role = "user"; content = prompt } ] }
 
-  match Builtin.Json.serialize<OpenAIChatCompletionRequest> openAIRequest with
-  | Ok reqBody ->
-    let headers =
-      [ ("authorization", "Bearer " ++ apiKey)
-        ("content-type", "application/json") ]
+  let reqBody = Builtin.Json.serialize<OpenAIChatCompletionRequest> openAIRequest
 
-    let openAIResponse =
-      PACKAGE.Darklang.Stdlib.HttpClient.request
-        "POST"
-        "https://api.openai.com/v1/chat/completions"
-        headers
-        (PACKAGE.Darklang.Stdlib.String.toBytes reqBody)
+  let headers =
+    [ ("authorization", "Bearer " ++ apiKey); ("content-type", "application/json") ]
 
-    match openAIResponse with
+  let openAIResponse =
+    PACKAGE.Darklang.Stdlib.HttpClient.request
+      "POST"
+      "https://api.openai.com/v1/chat/completions"
+      headers
+      (PACKAGE.Darklang.Stdlib.String.toBytes reqBody)
+
+  match openAIResponse with
+  | Ok r ->
+    match
+      Builtin.Json.parse<OpenAIChatCompletionResponse> (
+        PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement r.body
+      )
+    with
     | Ok r ->
-      match
-        Builtin.Json.parse<OpenAIChatCompletionResponse> (
-          PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement r.body
-        )
-      with
-      | Ok r ->
-        match PACKAGE.Darklang.Stdlib.List.head r.choices with
-        | Some c -> Ok c.message.content
+      match PACKAGE.Darklang.Stdlib.List.head r.choices with
+      | Some c -> Ok c.message.content
 
-        | None -> Error("No choices returned")
-      | Error err -> Error("Couldn't parse open ai completino response - " ++ err)
-    | Error e -> Error("OpenAI API request failed\n" ++ e)
-  | Error e -> Error("Couldn't serialize request" ++ e)
+      | None -> Error("No choices returned")
+    | Error err -> Error("Couldn't parse open ai completino response - " ++ err)
+  | Error e -> Error("OpenAI API request failed\n" ++ e)
 
 
 let parseAndSerializeProgram
@@ -379,15 +377,9 @@ let update (model: Model) (msg: Msg) : Model =
 let updateStateInJS
   (newState: Model)
   : PACKAGE.Darklang.Stdlib.Result.Result<Unit, String> =
-  match Builtin.Json.serialize<Model> newState with
-  | Ok serialized ->
-    let _ = WASM.Editor.callJSFunction "self.receiveEvalResult" [ serialized ]
-    Ok()
-  | Error err ->
-    let _ =
-      WASM.Editor.callJSFunction "console.warn" [ "Couldn't serialize - " ++ err ]
-
-    Error "Couldn't serialize updated state"
+  let serialized = Builtin.Json.serialize<Model> newState
+  let _ = WASM.Editor.callJSFunction "self.receiveEvalResult" [ serialized ]
+  Ok()
 
 
 /// Single point of communication from JS host

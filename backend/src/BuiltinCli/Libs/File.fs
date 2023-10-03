@@ -125,7 +125,7 @@ let fns : List<BuiltInFn> =
               let attrs = System.IO.File.GetAttributes(path)
               let isDir = attrs.HasFlag(System.IO.FileAttributes.Directory)
               return DBool isDir
-            with e ->
+            with _ ->
               return DBool false
           }
         | _ -> incorrectArgs ())
@@ -150,7 +150,7 @@ let fns : List<BuiltInFn> =
               let exists =
                 System.IO.File.Exists(path) || System.IO.Directory.Exists(path)
               return DBool(exists && not isDir)
-            with e ->
+            with _ ->
               return DBool false
           }
         | _ -> incorrectArgs ())

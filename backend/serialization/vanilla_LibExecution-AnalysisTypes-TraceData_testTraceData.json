@@ -544,14 +544,13 @@
                   "Lambda": [
                     {
                       "typeSymbolTable": {},
+                      "tlid": 77777723098234,
                       "symtable": {},
                       "parameters": [
-                        {
-                          "LPVariable": [
-                            5678,
-                            "a"
-                          ]
-                        }
+                        [
+                          5678,
+                          "a"
+                        ]
                       ],
                       "body": {
                         "EUnit": [
@@ -569,14 +568,13 @@
                   "Lambda": [
                     {
                       "typeSymbolTable": {},
+                      "tlid": 7777772349823445,
                       "symtable": {},
                       "parameters": [
-                        {
-                          "LPVariable": [
-                            5678,
-                            "a"
-                          ]
-                        }
+                        [
+                          5678,
+                          "a"
+                        ]
                       ],
                       "body": {
                         "EApply": [
@@ -4344,7 +4342,7 @@
   "functionResults": [
     [
       "fnName",
-      7,
+      777777837205,
       "hash",
       0,
       {
@@ -4889,14 +4887,13 @@
                   "Lambda": [
                     {
                       "typeSymbolTable": {},
+                      "tlid": 77777723098234,
                       "symtable": {},
                       "parameters": [
-                        {
-                          "LPVariable": [
-                            5678,
-                            "a"
-                          ]
-                        }
+                        [
+                          5678,
+                          "a"
+                        ]
                       ],
                       "body": {
                         "EUnit": [
@@ -4914,14 +4911,13 @@
                   "Lambda": [
                     {
                       "typeSymbolTable": {},
+                      "tlid": 7777772349823445,
                       "symtable": {},
                       "parameters": [
-                        {
-                          "LPVariable": [
-                            5678,
-                            "a"
-                          ]
-                        }
+                        [
+                          5678,
+                          "a"
+                        ]
                       ],
                       "body": {
                         "EApply": [

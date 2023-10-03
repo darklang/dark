@@ -81,7 +81,7 @@ let execute
   (parentState : RT.ExecutionState)
   (mod' : LibParser.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
-  : Ply<Result<RT.Dval, DvalSource * RuntimeError>> =
+  : Ply<Result<RT.Dval, Source * RuntimeError>> =
 
   uply {
     let (program : Program) =
@@ -102,31 +102,29 @@ let execute
         dbs = Map.empty
         secrets = [] }
 
-    let tracing = Exe.noTracing RT.Real
     let notify = parentState.notify
     let sendException = parentState.reportException
     let state =
       Exe.createState
         builtIns
         packageManager
-        tracing
+        Exe.noTracing
         sendException
         notify
-        7UL
         program
 
     if mod'.exprs.Length = 1 then
       let expr = PT2RT.Expr.toRT mod'.exprs[0]
-      return! Exe.executeExpr state symtable expr
+      return! Exe.executeExpr state 7777779489234UL symtable expr
     else if mod'.exprs.Length = 0 then
       let! rte =
         CliRuntimeError.NoExpressionsToExecute |> CliRuntimeError.RTE.toRuntimeError
-      return Error((SourceNone, rte))
+      return Error((None, rte))
     else // mod'.exprs.Length > 1
       let! rte =
         CliRuntimeError.MultipleExpressionsToExecute(mod'.exprs |> List.map string)
         |> CliRuntimeError.RTE.toRuntimeError
-      return Error((SourceNone, rte))
+      return Error((None, rte))
   }
 
 let types : List<BuiltInType> = []
@@ -232,8 +230,8 @@ let fns : List<BuiltInFn> =
                   []
                   (WT.Unresolved name)
 
-              match fnName, args with
-              | Ok fnName, firstArg :: additionalArgs ->
+              match fnName with
+              | Ok fnName ->
 
                 let desc = fnName |> PT2RT.FnName.toRT
                 let! fn =
@@ -243,7 +241,6 @@ let fns : List<BuiltInFn> =
                       let! fn = state.packageManager.getFn pkg
                       return Option.map packageFnToFn fn
                     }
-
                   | _ ->
                     Exception.raiseInternal
                       "Error constructing package function name"
@@ -277,15 +274,15 @@ let fns : List<BuiltInFn> =
 
                           match! Json.parse types typ str with
                           | Ok v -> return v
-                          | Error e -> return (DString e)
+                          | Error e -> return! (Json.ParseError.toDT e)
                         })
                       (List.zip expectedTypes stringArgs)
 
                   let! result =
                     Exe.executeFunction
                       state
-                      (gid ())
-                      (f.name)
+                      None
+                      f.name
                       []
                       (NEList.ofList args.Head args.Tail)
 

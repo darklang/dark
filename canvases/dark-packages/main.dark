@@ -188,7 +188,7 @@ let fetchByName
         Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
           typ
 
-    let respBody = json |> Builtin.unwrap |> PACKAGE.Darklang.Stdlib.String.toBytes
+    let respBody = json |> PACKAGE.Darklang.Stdlib.String.toBytes
 
     PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
@@ -261,7 +261,6 @@ let _handler _req =
         fns = fns
         constants = constants })
     |> Builtin.Json.serialize<PACKAGE.Darklang.Stdlib.Packages>
-    |> Builtin.unwrap
     |> PACKAGE.Darklang.Stdlib.String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200

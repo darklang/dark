@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
 
             match id with
             | Ok _id -> return value
-            | Error rte -> return raiseRTE SourceNone rte
+            | Error rte -> return raiseRTE None rte
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

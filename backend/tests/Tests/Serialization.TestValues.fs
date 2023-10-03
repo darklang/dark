@@ -18,7 +18,7 @@ let instant = NodaTime.Instant.parse "2022-07-04T17:46:57Z"
 
 let uuid = System.Guid.Parse "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
 
-let tlid : tlid = 7UL
+let tlid : tlid = 777777928475UL
 let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
 module RuntimeTypes =
@@ -243,19 +243,16 @@ module RuntimeTypes =
       )
       known (RT.KnownType.KTDict ktUnit) ]
 
-  let dvalSources : List<RT.DvalSource> =
-    [ RT.SourceNone; RT.SourceID(123UL, 91293UL) ]
-
   let dvals : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.
-    sampleDvals |> List.map (fun (name, (dv, t)) -> dv)
+    sampleDvals |> List.map (fun (_, (dv, _)) -> dv)
 
   let dval : RT.Dval =
     let typeName =
       RT.FQName.UserProgram
         { modules = []; name = RT.TypeName.TypeName "MyType"; version = 0 }
     sampleDvals
-    |> List.map (fun (name, (dv, t)) -> name, dv)
+    |> List.map (fun (name, (dv, _)) -> name, dv)
     |> fun fields -> RT.DRecord(typeName, typeName, [], Map fields)
 
 

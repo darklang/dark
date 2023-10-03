@@ -12,12 +12,21 @@ open LibExecution.RuntimeTypes
 
 module C = LibCloud.SqlCompiler
 module S = TestUtils.RTShortcuts
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 let p (code : string) : Task<Expr> =
   LibParser.Parser.parseRTExpr nameResolver "sqlcompiler.tests.fs" code
   |> Ply.toTask
 
+let parse
+  (nameResolver : LibParser.NameResolver.NameResolver)
+  (code : string)
+  : Task<Expr> =
+  LibParser.Parser.parseRTExpr nameResolver "sqlcompiler.tests.fs" code
+  |> Ply.toTask
+
 let compile
+  (tlid : tlid)
   (symtable : DvalMap)
   (paramName : string)
   ((rowName, rowType) : string * TypeReference)
@@ -43,7 +52,7 @@ let compile
 
     try
       let! compiled =
-        C.compileLambda state Map.empty symtable paramName typeReference expr
+        C.compileLambda state tlid Map.empty symtable paramName typeReference expr
 
       match compiled with
       | Ok compiled ->
@@ -75,17 +84,18 @@ let matchSql
     "compare sql"
 
 let compileTests =
+  let tlid = 777777234983UL
 
   testList
     "compile tests"
     [ testTask "compile true" {
         let! e = p "true"
-        let! sql, args = compile Map.empty "value" ("myfield", TBool) e
+        let! sql, args = compile tlid Map.empty "value" ("myfield", TBool) e
         matchSql sql @"\(@([A-Z]+)\)" args [ Sql.bool true ]
       }
       testTask "compile field" {
         let! e = p "value.myfield"
-        let! sql, args = compile Map.empty "value" ("myfield", TBool) e
+        let! sql, args = compile tlid Map.empty "value" ("myfield", TBool) e
 
         matchSql sql @"\(CAST\(data::jsonb->>'myfield' as bool\)\)" args []
       }
@@ -100,7 +110,7 @@ let compileTests =
             []
             [ S.eFieldAccess (S.eVar "value") injection; (S.eStr "x") ]
 
-        let! sql, args = compile Map.empty "value" (injection, TString) expr
+        let! sql, args = compile tlid Map.empty "value" (injection, TString) expr
 
         matchSql
           sql
@@ -112,7 +122,7 @@ let compileTests =
         let! expr = p "var == value.name"
         let symtable = Map.ofList [ "var", DString "';select * from user_data_v0;'" ]
 
-        let! sql, args = compile symtable "value" ("name", TString) expr
+        let! sql, args = compile tlid symtable "value" ("name", TString) expr
 
         matchSql
           sql
@@ -122,7 +132,7 @@ let compileTests =
       }
       testTask "pipes expand correctly into nested functions" {
         let! expr = p "value.age |> (-) 2 |> (+) value.age |> (<) 3"
-        let! sql, args = compile Map.empty "value" ("age", TInt) expr
+        let! sql, args = compile tlid Map.empty "value" ("age", TInt) expr
 
         matchSql
           sql
@@ -183,12 +193,205 @@ let inlineWorksWithNested =
     return! result |> Ply.toTask
   }
 
+let inlineWorksWithPackageFunctionsSqlBinOp =
+  testTask "inlineWorksWithPackageFunctionsSqlBinOp" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+    let fns = ExecutionState.availableFunctions state
+    let! expr =
+      p
+        "let x = true in (let y = false in (PACKAGE.Darklang.Stdlib.Bool.and_v0 x y))"
+
+    let! expected = p "true && false"
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
+  }
+
+let inlineWorksWithPackageFunctionsSqlFunction =
+  testTask "inlineWorksWithPackageFunctionsSqlFunction" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+    let fns = ExecutionState.availableFunctions state
+    let! expr =
+      p
+        """let x = "package" in (let y = "e" in (PACKAGE.Darklang.Stdlib.String.replaceAll_v0 x y "es"))"""
+
+    let! expected = p """Builtin.String.replaceAll_v0 "package" "e" "es" """
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
+  }
+
+
+let inlineWorksWithUserFunctions =
+  testTask "inlineWorksWithUserFunctions" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+
+    let userAddBody =
+      PT.EInfix(
+        0UL,
+        PT.InfixFnCall(PT.ArithmeticPlus),
+        PT.EVariable(0UL, "a"),
+        PT.EVariable(0UL, "b")
+      )
+
+    let (userAdd : UserFunction.T) =
+      testUserFn "userAdd" [] (NEList.doubleton "a" "b") PT.TInt userAddBody
+      |> PT2RT.UserFunction.toRT
+
+    let existingFunctions = ExecutionState.availableFunctions state
+    let updatedUserProgram =
+      Map.add userAdd.name userAdd existingFunctions.userProgram
+    let fns = { existingFunctions with userProgram = updatedUserProgram }
+
+    let nr =
+      { nameResolver with
+          userFns = Set.singleton (PT.FnName.userProgram [] "userAdd" 0) }
+
+    let! expr =
+      parse
+        nr
+        "let a = 1 in let b = 9 in let c = userAdd 6 4 in (p.height == c) && (p.age == b)"
+
+    let! expected = p "p.height == (6 + 4) && p.age == 9"
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
+  }
+
+let inlineWorksWithPackageAndUserFunctions =
+  testTask "inlineWorksWithPackageAndUserFunctions" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+
+    let (userAnd : UserFunction.T) =
+      testUserFn
+        "userAnd"
+        []
+        (NEList.doubleton "a" "b")
+        PT.TBool
+        (PT.EInfix(
+          0UL,
+          PT.BinOp(PT.BinOpAnd),
+          PT.EVariable(0UL, "a"),
+          PT.EVariable(0UL, "b")
+        ))
+      |> PT2RT.UserFunction.toRT
+
+    let existingFunctions = ExecutionState.availableFunctions state
+    let updatedUserProgram =
+      Map.add userAnd.name userAnd existingFunctions.userProgram
+    let fns = { existingFunctions with userProgram = updatedUserProgram }
+
+    let nr =
+      { nameResolver with
+          userFns = Set.singleton (PT.FnName.userProgram [] "userAnd" 0) }
+
+    let! expr =
+      parse
+        nr
+        "userAnd user.human (PACKAGE.Darklang.Stdlib.Int.lessThan_v0 user.height (PACKAGE.Darklang.Stdlib.Int.add height 1))"
+
+    let! expected = p "user.human && (user.height < (height + 1))"
+
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
+  }
+let inlineFunctionArguments =
+  testTask "inlineWorksArguments" {
+    let! state =
+      executionStateFor
+        (System.Guid.NewGuid())
+        false
+        false
+        Map.empty
+        Map.empty
+        Map.empty
+        Map.empty
+
+    let userAddBody =
+      PT.EInfix(
+        0UL,
+        PT.InfixFnCall(PT.ArithmeticPlus),
+        PT.EVariable(0UL, "a"),
+        PT.EVariable(0UL, "b")
+      )
+
+    let (userAdd : UserFunction.T) =
+      testUserFn "userAdd" [] (NEList.doubleton "a" "b") PT.TInt userAddBody
+      |> PT2RT.UserFunction.toRT
+
+    let existingFunctions = ExecutionState.availableFunctions state
+    let updatedUserProgram =
+      Map.add userAdd.name userAdd existingFunctions.userProgram
+    let fns = { existingFunctions with userProgram = updatedUserProgram }
+
+    let nr =
+      { nameResolver with
+          userFns = Set.singleton (PT.FnName.userProgram [] "userAdd" 0) }
+
+    let! expr = parse nr "let a = 1 in let b = 9 in (p.height == userAdd 6 (b - 4))"
+
+    let! expected = parse nr "p.height == 6 + (9 - 4)"
+    let result =
+      uply {
+        let! result = C.inline' fns "value" Map.empty expr
+        return Expect.equalExprIgnoringIDs result expected
+      }
+    return! result |> Ply.toTask
+  }
+
+
 let partialEvaluation =
   testManyTask
     "partialEvaluate"
     (fun (expr, vars) ->
       task {
         let canvasID = System.Guid.NewGuid()
+        let tlid = 777777982742UL
         let! state =
           executionStateFor
             canvasID
@@ -199,7 +402,7 @@ let partialEvaluation =
             Map.empty
             Map.empty
         let! expr = p expr
-        let result = C.partiallyEvaluate state Map.empty (Map vars) "x" expr
+        let result = C.partiallyEvaluate state tlid Map.empty (Map vars) "x" expr
         let! (dvals, result) = Ply.TplPrimitives.runPlyAsTask result
         match result with
         | EVariable(_, name) -> return (Map.findUnsafe name dvals)
@@ -255,4 +458,12 @@ let partialEvaluation =
 let tests =
   testList
     "SqlCompiler"
-    [ inlineWorksAtRoot; inlineWorksWithNested; partialEvaluation; compileTests ]
+    [ inlineWorksAtRoot
+      inlineWorksWithNested
+      inlineWorksWithPackageFunctionsSqlBinOp
+      inlineWorksWithPackageFunctionsSqlFunction
+      inlineWorksWithUserFunctions
+      inlineWorksWithPackageAndUserFunctions
+      inlineFunctionArguments
+      partialEvaluation
+      compileTests ]

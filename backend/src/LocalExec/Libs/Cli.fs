@@ -55,27 +55,24 @@ let execute
         dbs = Map.empty
         secrets = [] }
 
-    let tracing = Exe.noTracing RT.Real
     let notify = parentState.notify
     let sendException = parentState.reportException
     let state =
       Exe.createState
         builtIns
         packageManager
-        tracing
+        Exe.noTracing
         sendException
         notify
-        7UL
         program
 
     if mod'.exprs.Length = 1 then
       let expr = PT2RT.Expr.toRT mod'.exprs[0]
-      return! Exe.executeExpr state symtable expr
+      return! Exe.executeExpr state 7777772347523UL symtable expr
     else if mod'.exprs.Length = 0 then
-      return Error(SourceNone, RuntimeError.oldError "No expressions to execute")
+      return Error(None, RuntimeError.oldError "No expressions to execute")
     else // mod'.exprs.Length > 1
-      return
-        Error(SourceNone, RuntimeError.oldError "Multiple expressions to execute")
+      return Error(None, RuntimeError.oldError "Multiple expressions to execute")
   }
 
 let constants : List<BuiltInConstant> = []

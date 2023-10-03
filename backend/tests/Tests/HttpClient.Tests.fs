@@ -144,6 +144,7 @@ let makeTest versionName filename =
     else
       // Set up the canvas
       let canvasID = System.Guid.NewGuid()
+      let tlid = 7777772398743UL
       let! state =
         executionStateFor canvasID false true Map.empty Map.empty Map.empty Map.empty
 
@@ -162,7 +163,7 @@ let makeTest versionName filename =
       // Run the handler (call the HTTP client)
       // Note: this will update the corresponding value in `testCases` with the
       // actual request received
-      let! actual = Exe.executeExpr state Map.empty test.actual
+      let! actual = Exe.executeExpr state tlid Map.empty test.actual
 
       // First check: expected HTTP request matches actual HTTP request
       let tc = testCases[dictKey]
@@ -177,7 +178,7 @@ let makeTest versionName filename =
       // Second check: expected result (Dval) matches actual result (Dval)
       let actual = Result.map normalizeDvalResult actual
 
-      let! expected = Exe.executeExpr state Map.empty test.expected
+      let! expected = Exe.executeExpr state tlid Map.empty test.expected
       match actual, expected with
       | Ok actual, Ok expected ->
         return Expect.equalDval actual expected $"Responses don't match"
@@ -207,14 +208,14 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
       let versionName, testName =
         let segments = System.Uri(ctx.Request.Path.Value).Segments
 
-        let versionName = segments.[1]
+        let versionName = segments[1]
         let versionName =
           if String.endsWith "/" versionName then
             String.dropRight 1 versionName
           else
             versionName
 
-        let testName = segments.[2]
+        let testName = segments[2]
         let testName =
           if String.endsWith "/" testName then
             String.dropRight 1 testName

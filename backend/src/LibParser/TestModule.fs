@@ -115,7 +115,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
     (binding : SynBinding)
     : List<WT.UserFunction.T> * List<WT.UserConstant.T> =
     match binding with
-    | SynBinding(_, _, _, _, _, _, _, signature, _, expr, _, _, _) ->
+    | SynBinding(_, _, _, _, _, _, _, signature, _, _, _, _, _) ->
       match signature with
       | SynPat.LongIdent(SynLongIdent _, _, _, _, _, _) ->
         [ FS2WT.UserFunction.fromSynBinding moduleName binding ], []

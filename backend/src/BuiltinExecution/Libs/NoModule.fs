@@ -70,6 +70,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DEnum _, _ -> raiseString "Both values must be the same type"
 
 and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
+  // TODO what to do for TypeSymbolTable
   NEList.length impl1.parameters = NEList.length impl2.parameters
   && NEList.forall2
     (fun p1 p2 -> equalsLetPattern p1 p2)
@@ -275,7 +276,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if the two value are equal"
       fn =
         (function
-        | state, _, [ a; b ] -> equals a b |> DBool |> Ply
+        | _, _, [ a; b ] -> equals a b |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
       previewable = Pure
@@ -289,7 +290,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if the two value are not equal"
       fn =
         (function
-        | state, _, [ a; b ] -> equals a b |> not |> DBool |> Ply
+        | _, _, [ a; b ] -> equals a b |> not |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<>"
       previewable = Pure
@@ -342,7 +343,9 @@ let fns : List<BuiltInFn> =
                 |> raiseUntargetedRTE
             | _ -> return raiseUntargetedRTE (RuntimeError.oldError "Invalid Option")
           }
-        | _ -> incorrectArgs ())
+        | _ ->
+          RuntimeError.oldError "Unwrap called with non-Option/non-Result"
+          |> raiseUntargetedRTE)
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]

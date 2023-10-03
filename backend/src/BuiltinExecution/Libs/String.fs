@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
             [ "character" ] ]
       returnType = TString
       description =
-        "Iterate over each Character (EGC, not byte) in the string, performing the
+        "Iterate over each Char (EGC, not byte) in the string, performing the
          operation in <param fn> on each one."
       fn =
         (function
@@ -48,13 +48,13 @@ let fns : List<BuiltInFn> =
            |> Seq.toList
            |> Ply.List.mapSequentially (fun te ->
              let args = NEList.singleton (DChar te)
-             Interpreter.applyFnVal state 0UL b [] args)
+             Interpreter.applyFnVal state state.caller b [] args)
            |> Ply.bind (fun dvals ->
              dvals
              |> Ply.List.mapSequentially (function
                | DChar c -> Ply c
                | dv ->
-                 TypeChecker.raiseFnValResultNotExpectedType SourceNone dv TChar)
+                 TypeChecker.raiseFnValResultNotExpectedType state.caller dv TChar)
              |> Ply.map (fun parts ->
                parts |> String.concat "" |> String.normalize |> DString)))
         | _ -> incorrectArgs ())

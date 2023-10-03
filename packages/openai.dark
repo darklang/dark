@@ -35,45 +35,35 @@ module OpenAI =
             max_tokens = 700
             temperature = 0.7 }
 
-      match
+      let reqBody =
         Builtin.Json.serialize<PACKAGE.OpenAI.Completion.Request> openAIRequest
-      with
-      | Ok reqBody ->
-        let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
-        let openAIResponse =
-          PACKAGE.Darklang.Stdlib.HttpClient.request
-            "POST"
-            "https://api.openai.com/v1/completions"
-            headers
-            (PACKAGE.Darklang.Stdlib.String.toBytes reqBody)
+      let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
-        match openAIResponse with
+      let openAIResponse =
+        PACKAGE.Darklang.Stdlib.HttpClient.request
+          "POST"
+          "https://api.openai.com/v1/completions"
+          headers
+          (PACKAGE.Darklang.Stdlib.String.toBytes reqBody)
+
+      match openAIResponse with
+      | Ok r ->
+        match
+          Builtin.Json.parse<PACKAGE.OpenAI.Completion.Response> (
+            PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement r.body
+          )
+        with
         | Ok r ->
-          match
-            Builtin.Json.parse<PACKAGE.OpenAI.Completion.Response> (
-              PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement r.body
-            )
-          with
-          | Ok r ->
-            match PACKAGE.Darklang.Stdlib.List.head r.choices with
-            | Some c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.text
+          match PACKAGE.Darklang.Stdlib.List.head r.choices with
+          | Some c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.text
 
-            | None ->
-              PACKAGE.Darklang.Stdlib.Result.Result.Error("No choices returned")
-        | Error err ->
-          PACKAGE.Darklang.Stdlib.Result.Result.Error(
-            "Couldn't parse OpenAI completion response - " ++ err
-          )
-        | Error e ->
-          PACKAGE.Darklang.Stdlib.Result.Result.Error(
-            "OpenAI API request failed\n" ++ e
-          )
-      | Error e ->
+          | None ->
+            PACKAGE.Darklang.Stdlib.Result.Result.Error("No choices returned")
+      | Error err ->
         PACKAGE.Darklang.Stdlib.Result.Result.Error(
-          "Couldn't serialize request" ++ e
+          "Couldn't parse OpenAI completion response - " ++ err
         )
-
 
 
   module ChatCompletion =
@@ -139,44 +129,39 @@ module OpenAI =
 
       let openAIRequest = options
 
-      match
+      let reqBody =
         Builtin.Json.serialize<PACKAGE.OpenAI.ChatCompletion.CompletionOptions>
           openAIRequest
-      with
-      | Ok reqBody ->
-        let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
-        let openAIResponse =
-          PACKAGE.Darklang.Stdlib.HttpClient.request
-            "POST"
-            "https://api.openai.com/v1/chat/completions"
-            headers
-            (PACKAGE.Darklang.Stdlib.String.toBytes reqBody)
+      let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
-        match openAIResponse with
+      let openAIResponse =
+        PACKAGE.Darklang.Stdlib.HttpClient.request
+          "POST"
+          "https://api.openai.com/v1/chat/completions"
+          headers
+          (PACKAGE.Darklang.Stdlib.String.toBytes reqBody)
+
+      match openAIResponse with
+      | Ok r ->
+        match
+          Builtin.Json.parse<PACKAGE.OpenAI.ChatCompletion.Response> (
+            PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement r.body
+          )
+        with
         | Ok r ->
-          match
-            Builtin.Json.parse<PACKAGE.OpenAI.ChatCompletion.Response> (
-              PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement r.body
-            )
-          with
-          | Ok r ->
-            match PACKAGE.Darklang.Stdlib.List.head r.choices with
-            | Some c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.message.content
+          match PACKAGE.Darklang.Stdlib.List.head r.choices with
+          | Some c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.message.content
 
-            | None ->
-              PACKAGE.Darklang.Stdlib.Result.Result.Error("No choices returned")
-          | Error err ->
-            PACKAGE.Darklang.Stdlib.Result.Result.Error(
-              "Couldn't parse OpenAI completion response - " ++ err
-            )
-        | Error e ->
+          | None ->
+            PACKAGE.Darklang.Stdlib.Result.Result.Error("No choices returned")
+        | Error err ->
           PACKAGE.Darklang.Stdlib.Result.Result.Error(
-            "OpenAI API request failed\n" ++ e
+            "Couldn't parse OpenAI completion response - " ++ err
           )
       | Error e ->
         PACKAGE.Darklang.Stdlib.Result.Result.Error(
-          "Couldn't serialize request" ++ e
+          "OpenAI API request failed\n" ++ e
         )
 
 
@@ -194,43 +179,38 @@ module OpenAI =
               [ PACKAGE.OpenAI.ChatCompletion.RequestMessage
                   { role = "user"; content = prompt } ] }
 
-      match
+      let reqBody =
         Builtin.Json.serialize<PACKAGE.OpenAI.ChatCompletion.Request> openAIRequest
-      with
-      | Ok reqBody ->
-        let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
-        let openAIResponse =
-          PACKAGE.Darklang.Stdlib.HttpClient.request
-            "POST"
-            "https://api.openai.com/v1/chat/completions"
-            headers
-            (PACKAGE.Darklang.Stdlib.String.toBytes reqBody)
+      let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
-        match openAIResponse with
+      let openAIResponse =
+        PACKAGE.Darklang.Stdlib.HttpClient.request
+          "POST"
+          "https://api.openai.com/v1/chat/completions"
+          headers
+          (PACKAGE.Darklang.Stdlib.String.toBytes reqBody)
+
+      match openAIResponse with
+      | Ok r ->
+        match
+          Builtin.Json.parse<PACKAGE.OpenAI.ChatCompletion.Response> (
+            PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement r.body
+          )
+        with
         | Ok r ->
-          match
-            Builtin.Json.parse<PACKAGE.OpenAI.ChatCompletion.Response> (
-              PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement r.body
-            )
-          with
-          | Ok r ->
-            match PACKAGE.Darklang.Stdlib.List.head r.choices with
-            | Some c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.message.content
+          match PACKAGE.Darklang.Stdlib.List.head r.choices with
+          | Some c -> PACKAGE.Darklang.Stdlib.Result.Result.Ok c.message.content
 
-            | None ->
-              PACKAGE.Darklang.Stdlib.Result.Result.Error("No choices returned")
-          | Error err ->
-            PACKAGE.Darklang.Stdlib.Result.Result.Error(
-              "Couldn't parse OpenAI completion response - " ++ err
-            )
-        | Error e ->
+          | None ->
+            PACKAGE.Darklang.Stdlib.Result.Result.Error("No choices returned")
+        | Error err ->
           PACKAGE.Darklang.Stdlib.Result.Result.Error(
-            "OpenAI API request failed\n" ++ e
+            "Couldn't parse OpenAI completion response - " ++ err
           )
       | Error e ->
         PACKAGE.Darklang.Stdlib.Result.Result.Error(
-          "Couldn't serialize request" ++ e
+          "OpenAI API request failed\n" ++ e
         )
 
 
@@ -250,41 +230,36 @@ module OpenAI =
       let openAIRequest =
         PACKAGE.OpenAI.ImageGeneration.Request { prompt = prompt; size = "256x256" }
 
-      match
+      let reqBody =
         Builtin.Json.serialize<PACKAGE.OpenAI.ImageGeneration.Request> openAIRequest
-      with
-      | Ok reqBody ->
-        let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
-        let openAIResponse =
-          PACKAGE.Darklang.Stdlib.HttpClient.request
-            "POST"
-            "https://api.openai.com/v1/images/generations"
-            headers
-            (PACKAGE.Darklang.Stdlib.String.toBytes reqBody)
+      let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
-        match openAIResponse with
+      let openAIResponse =
+        PACKAGE.Darklang.Stdlib.HttpClient.request
+          "POST"
+          "https://api.openai.com/v1/images/generations"
+          headers
+          (PACKAGE.Darklang.Stdlib.String.toBytes reqBody)
+
+      match openAIResponse with
+      | Ok r ->
+        match
+          Builtin.Json.parse<PACKAGE.OpenAI.ImageGeneration.Response> (
+            PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement r.body
+          )
+        with
         | Ok r ->
-          match
-            Builtin.Json.parse<PACKAGE.OpenAI.ImageGeneration.Response> (
-              PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement r.body
-            )
-          with
-          | Ok r ->
-            match PACKAGE.Darklang.Stdlib.List.head r.data with
-            | Some d -> PACKAGE.Darklang.Stdlib.Result.Result.Ok d.url
-            | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error("No data returned")
+          match PACKAGE.Darklang.Stdlib.List.head r.data with
+          | Some d -> PACKAGE.Darklang.Stdlib.Result.Result.Ok d.url
+          | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error("No data returned")
         | Error err ->
           PACKAGE.Darklang.Stdlib.Result.Result.Error(
             "Couldn't parse open ai image generation response - " ++ err
           )
-        | Error e ->
-          PACKAGE.Darklang.Stdlib.Result.Result.Error(
-            "OpenAI API request failed\n" ++ e
-          )
       | Error e ->
         PACKAGE.Darklang.Stdlib.Result.Result.Error(
-          "Couldn't serialize request" ++ e
+          "OpenAI API request failed\n" ++ e
         )
 
 

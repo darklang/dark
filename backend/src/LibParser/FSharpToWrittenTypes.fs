@@ -102,7 +102,7 @@ module TypeReference =
     // - built-in F# types like `bool`
     // - Stdlib-defined types
     // - User-defined types
-    | SynType.App(name, _, typeArgs, _, _, _, range) ->
+    | SynType.App(name, _, typeArgs, _, _, _, _) ->
       let name = parseTypeName name
       fromNamesAndTypeArgs name typeArgs
 
@@ -124,8 +124,6 @@ module SimpleTypeArgs =
         | [] ->
           decls
           |> List.map (fun decl ->
-            let SynTyparDecl (_, decl) = decl
-
             match decl with
             | SynTyparDecl(_, SynTypar(name, TyparStaticReq.None, _)) -> name.idText
             | _ ->
@@ -522,7 +520,7 @@ module Expr =
         WT.EPipe(id, arg1, [ synToPipeExpr arg ])
       | WT.EPipe(id, arg1, rest) -> WT.EPipe(id, arg1, rest @ [ synToPipeExpr arg ])
       // Exception.raiseInternal $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
-      | other ->
+      | _ ->
         Exception.raiseInternal
           $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
           [ "arg", arg ]
@@ -540,7 +538,7 @@ module Expr =
     // e.g. MyMod.MyRecord
     | SynExpr.App(_,
                   _,
-                  SynExpr.TypeApp(name, _, typeArgs, _, _, _, _),
+                  SynExpr.TypeApp(_, _, typeArgs, _, _, _, _),
                   (SynExpr.Record _ as expr),
                   _) ->
       if List.length typeArgs <> 0 then
@@ -557,9 +555,6 @@ module Expr =
       NEList.forall (fun n -> String.isCapitalized n) (parseExprName name)
       ->
       let names = parseExprName name
-      let typename = NEList.last names
-      let modules = NEList.initial names
-
       let fields =
         fields
         |> List.map (fun field ->
@@ -705,6 +700,26 @@ module Function =
       (name.idText, typeParams, parameters)
 
     | _ -> Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
+
+  let hasArguments (binding : SynBinding) : bool =
+    match binding with
+    | SynBinding(_,
+                 _,
+                 _,
+                 _,
+                 _,
+                 _,
+                 _,
+                 SynPat.LongIdent(_, _, _, argPats, _, _),
+                 _,
+                 _,
+                 _,
+                 _,
+                 _) ->
+      match argPats with
+      | SynArgPats.Pats l -> not (List.isEmpty l)
+      | SynArgPats.NamePatPairs(l, _, _) -> not (List.isEmpty l)
+    | _ -> false
 
 
   let fromSynBinding (binding : SynBinding) : T =

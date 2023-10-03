@@ -8,24 +8,23 @@ open Prelude
 module RT = RuntimeTypes
 module AT = AnalysisTypes
 
-let traceNoDvals : RT.TraceDval = fun _ _ _ -> ()
+let traceNoDvals : RT.TraceDval = fun _ _ -> ()
 let traceNoTLIDs : RT.TraceTLID = fun _ -> ()
 let loadNoFnResults : RT.LoadFnResult = fun _ _ -> None
 let storeNoFnResults : RT.StoreFnResult = fun _ _ _ -> ()
 
-let noTracing (realOrPreview : RT.RealOrPreview) : RT.Tracing =
+let noTracing : RT.Tracing =
   { traceDval = traceNoDvals
     traceTLID = traceNoTLIDs
     loadFnResult = loadNoFnResults
-    storeFnResult = storeNoFnResults
-    realOrPreview = realOrPreview }
+    storeFnResult = storeNoFnResults }
 
 let noTestContext : RT.TestContext =
   { sideEffectCount = 0
 
     exceptionReports = []
     expectedExceptionCount = 0
-    postTestExecutionHook = fun _ _ -> () }
+    postTestExecutionHook = fun _ -> () }
 
 let createState
   (builtIns : RT.BuiltIns)
@@ -33,7 +32,6 @@ let createState
   (tracing : RT.Tracing)
   (reportException : RT.ExceptionReporter)
   (notify : RT.Notifier)
-  (tlid : tlid)
   (program : RT.Program)
   : RT.ExecutionState =
   { builtIns = builtIns
@@ -43,52 +41,54 @@ let createState
     test = noTestContext
     reportException = reportException
     notify = notify
-    tlid = tlid
-    callstack = Set.empty
-    onExecutionPath = true
-    executingFnName = None }
+    caller = None }
 
 let executeExpr
   (state : RT.ExecutionState)
+  (tlid : tlid)
   (inputVars : RT.Symtable)
   (expr : RT.Expr)
   : Task<RT.ExecutionResult> =
   task {
     try
-      let symtable = Interpreter.withGlobals state inputVars
-      let typeSymbolTable = Map.empty
-      let! result = Interpreter.eval state typeSymbolTable symtable expr
+      try
+        let symtable = Interpreter.withGlobals state inputVars
+        let typeSymbolTable = Map.empty
+        let! result = Interpreter.eval state tlid typeSymbolTable symtable expr
+        return Ok result
+      with RT.RuntimeErrorException(source, rte) ->
+        return Error(source, rte)
+    finally
       // Does nothing in non-tests
-      state.test.postTestExecutionHook state.test result
-      return Ok result
-    with RT.RuntimeErrorException(source, rte) ->
-      return Error(source, rte)
+      state.test.postTestExecutionHook state.test
   }
 
 
 let executeFunction
   (state : RT.ExecutionState)
-  (callerID : id)
+  (caller : RT.Source)
   (name : RT.FnName.FnName)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
   : Task<RT.ExecutionResult> =
   task {
     try
-      let typeSymbolTable = Map.empty
-      let! result =
-        Interpreter.callFn state typeSymbolTable callerID name typeArgs args
+      try
+        let typeSymbolTable = Map.empty
+        let! result =
+          Interpreter.callFn state typeSymbolTable caller name typeArgs args
+        return Ok result
+      with RT.RuntimeErrorException(source, rte) ->
+        return Error(source, rte)
+    finally
       // Does nothing in non-tests
-      state.test.postTestExecutionHook state.test result
-      return Ok result
-    with RT.RuntimeErrorException(source, rte) ->
-      return Error(source, rte)
+      state.test.postTestExecutionHook state.test
   }
 
 let runtimeErrorToString
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError)
-  : Task<Result<RT.Dval, RT.DvalSource * RT.RuntimeError>> =
+  : Task<Result<RT.Dval, RT.Source * RT.RuntimeError>> =
   task {
     let fnName =
       RT.FnName.fqPackage
@@ -97,7 +97,7 @@ let runtimeErrorToString
         "toString"
         0
     let args = NEList.singleton (RT.RuntimeError.toDT rte)
-    return! executeFunction state 8UL fnName [] args
+    return! executeFunction state None fnName [] args
   }
 
 /// Return a function to trace TLIDs (add it to state via
@@ -111,14 +111,11 @@ let traceTLIDs () : HashSet.HashSet<tlid> * RT.TraceTLID =
 /// Return a function to trace Dvals (add it to state via
 /// state.tracing.traceDval), and a mutable dictionary which updates when the
 /// traceFn is used
-let traceDvals () : Dictionary.T<id, AT.ExecutionResult> * RT.TraceDval =
+let traceDvals () : Dictionary.T<id, RT.Dval> * RT.TraceDval =
   let results = Dictionary.empty ()
 
-  let trace onExecutionPath (id : id) (dval : RT.Dval) : unit =
-    let result =
-      (if onExecutionPath then AT.ExecutedResult dval else AT.NonExecutedResult dval)
-
+  let trace (id : id) (dval : RT.Dval) : unit =
     // Overwrites if present, which is what we want
-    results[id] <- result
+    results[id] <- dval
 
   (results, trace)

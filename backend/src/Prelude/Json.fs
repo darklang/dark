@@ -73,7 +73,7 @@ module Vanilla =
     override this.Read
       (
         reader : byref<Utf8JsonReader>,
-        typeToConvert : System.Type,
+        _typeToConvert : System.Type,
         options : JsonSerializerOptions
       ) =
       let list =
@@ -115,7 +115,7 @@ module Vanilla =
   type LocalDateTimeConverter() =
     inherit JsonConverter<NodaTime.LocalDateTime>()
 
-    override _.Read(reader : byref<Utf8JsonReader>, tipe, options) =
+    override _.Read(reader : byref<Utf8JsonReader>, _typ, _options) =
       let rawToken = reader.GetString()
       (NodaTime.Instant.ofIsoString rawToken).toUtcLocalTimeZone ()
 

@@ -200,7 +200,7 @@ module Error =
     }
 
 let raiseValueNotExpectedType
-  (source : DvalSource)
+  (source : Source)
   (dv : Dval)
   (typ : TypeReference)
   (context : Context)
@@ -210,15 +210,11 @@ let raiseValueNotExpectedType
   |> Ply.map (raiseRTE source)
 
 let raiseFnValResultNotExpectedType
-  (source : DvalSource)
+  (source : Source)
   (dv : Dval)
   (typ : TypeReference)
   : Ply<'a> =
-  let location =
-    match source with
-    | SourceNone -> None
-    | SourceID(tlid, id) -> Some(tlid, id)
-  let context = FnValResult(typ, location)
+  let context = FnValResult(typ, source)
   ValueNotExpectedType(dv, typ, context)
   |> Error.toRuntimeError
   |> Ply.map (raiseRTE source)
@@ -284,7 +280,7 @@ let rec valueTypeUnifies
       //return! rMult typeArgsT typeArgsV
       return true
 
-    | TFn(argTypes, returnType), ValueType.Known(KTFn(vArgs, vRet)) ->
+    | TFn(_argTypes, _returnType), ValueType.Known(KTFn(_vArgs, _vRet)) ->
       // TODO: follow up here when type args are properly passed around and handled
 
       // let expected = returnType :: (NEList.toList argTypes)
@@ -358,7 +354,7 @@ let rec unify
         // | true -> return! Ply()
         return Ok()
 
-      | TFn(argTypes, returnType), DFnVal fnVal -> return Ok() // TYPESTODO check lambdas and fnVals
+      | TFn(_argTypes, _returnType), DFnVal _fnVal -> return Ok() // TYPESTODO check lambdas and fnVals
       | TTuple(t1, t2, tRest), DTuple(v1, v2, vRest) ->
         let ts = t1 :: t2 :: tRest
         let vs = v1 :: v2 :: vRest
@@ -414,7 +410,7 @@ let rec unify
                 getTypeReferenceFromAlias types (TCustomType(Ok tn, []))
               match aliasedType with
               | Ok(TCustomType(Error rte, _)) -> return Error rte
-              | Ok(TCustomType(Ok concreteTn, typeArgs)) ->
+              | Ok(TCustomType(Ok concreteTn, _typeArgs)) ->
                 if concreteTn <> typeName then
                   return!
                     ValueNotExpectedType(value, expected, context)

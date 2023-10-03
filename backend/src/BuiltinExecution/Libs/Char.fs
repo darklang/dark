@@ -57,7 +57,7 @@ let fns : List<BuiltInFn> =
       fn =
         function
         | _, _, [ DChar c ] ->
-          let charValue = int c.[0]
+          let charValue = int c[0]
           if charValue >= 0 && charValue < 256 then
             Dval.optionSome VT.int (DInt charValue) |> Ply
           else

@@ -66,7 +66,7 @@ let state () =
       dbs = Map.empty
       secrets = [] }
 
-  let tracing = Exe.noTracing RT.Real
+  let tracing = Exe.noTracing
 
   let notify (_state : RT.ExecutionState) (_msg : string) (_metadata : Metadata) =
     // let metadata = extraMetadata state @ metadata
@@ -76,14 +76,14 @@ let state () =
   let sendException (_ : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
     printException "Internal error" metadata exn
 
-  Exe.createState builtIns packageManager tracing sendException notify 7UL program
+  Exe.createState builtIns packageManager tracing sendException notify program
 
 
 
 
 let execute
   (args : List<string>)
-  : Task<Result<RT.Dval, RT.DvalSource * RT.RuntimeError>> =
+  : Task<Result<RT.Dval, RT.Source * RT.RuntimeError>> =
   task {
     let state = state ()
     let fnName = RT.FnName.fqPackage "Darklang" [ "Cli" ] "executeCliCommand" 0
@@ -92,7 +92,7 @@ let execute
       |> List.map RT.DString
       |> Dval.list (RT.ValueType.Known RT.KTString)
       |> NEList.singleton
-    return! Exe.executeFunction state 7UL fnName [] args
+    return! Exe.executeFunction state None fnName [] args
   }
 
 let initSerializers () =
@@ -120,8 +120,8 @@ let main (args : string[]) =
       let state = state ()
       let source =
         match source with
-        | RT.SourceID(tlid, id) -> $"(source: {tlid}, {id})"
-        | RT.SourceNone -> "(source unknown)"
+        | Some(tlid, id) -> $"(source: {tlid}, {id})"
+        | None -> "(source unknown)"
       match (LibExecution.Execution.runtimeErrorToString state rte).Result with
       | Ok(RT.DString s) -> System.Console.WriteLine $"Error {source}:\n  {s}"
       | Ok otherVal ->

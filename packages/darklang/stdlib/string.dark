@@ -40,7 +40,7 @@ module Darklang =
       let isEmpty (s: String) : Bool = s == ""
 
 
-      /// Iterate over each Character (EGC, not byte) in the string, performing the
+      /// Iterate over each Char (EGC, not byte) in the string, performing the
       /// operation in <param fn> on each one.
       let map (s: String) (fn: Char -> Char) : String = Builtin.String.map s fn
 
@@ -181,7 +181,7 @@ module Darklang =
             |> PACKAGE.Darklang.Stdlib.List.map (fun _ -> randomChar ())
             |> PACKAGE.Darklang.Stdlib.String.join ""
 
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok(result)
+          PACKAGE.Darklang.Stdlib.Result.Result.Ok result
 
 
       /// Escape an untrusted string in order to include it safely in HTML output

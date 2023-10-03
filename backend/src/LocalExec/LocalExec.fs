@@ -31,11 +31,9 @@ let builtIns : RT.BuiltIns =
     constants = constants |> Map.fromListBy (fun c -> c.name) }
 
 
-let defaultTLID = 7UL
+let defaultTLID = 4989026UL
 
 let state () =
-  let tracing = Exe.noTracing RT.Real
-
   let program : RT.Program =
     { canvasID = System.Guid.NewGuid()
       internalFnsAllowed = false
@@ -45,8 +43,7 @@ let state () =
       dbs = Map.empty
       secrets = [] }
 
-  let extraMetadata (state : RT.ExecutionState) : Metadata =
-    [ "executing_fn_name", state.executingFnName; "callstack", state.callstack ]
+  let extraMetadata (_state : RT.ExecutionState) : Metadata = []
 
   let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
     let metadata = extraMetadata state @ metadata
@@ -64,10 +61,9 @@ let state () =
   Exe.createState
     builtIns
     LibCloud.PackageManager.packageManager
-    tracing
+    Exe.noTracing
     reportException
     notify
-    defaultTLID
     program
 
 
@@ -97,7 +93,7 @@ let execute
 
     let state = { state () with program = program }
     let expr = PT2RT.Expr.toRT mod'.exprs[0]
-    return! Exe.executeExpr state symtable expr
+    return! Exe.executeExpr state 77777723478932UL symtable expr
   }
 
 
@@ -300,8 +296,8 @@ let runLocalExecScript (args : string[]) : Ply<int> =
       let state = state ()
       let source =
         match source with
-        | RT.SourceID(tlid, id) -> sourceOf mainFile tlid id modul
-        | RT.SourceNone -> "unknown"
+        | Some(tlid, id) -> sourceOf mainFile tlid id modul
+        | None -> "unknown"
       match! LibExecution.Execution.runtimeErrorToString state rte with
       | Ok(RT.DString s) ->
         System.Console.WriteLine $"Error: {s}"

@@ -56,7 +56,7 @@ let initializeTestCanvas' (name : string) : Task<CanvasID * string> =
 
 let initializeTestCanvas (name : string) : Task<CanvasID> =
   task {
-    let! (canvasID, domain) = initializeTestCanvas' name
+    let! (canvasID, _domain) = initializeTestCanvas' name
     return canvasID
   }
 
@@ -185,12 +185,7 @@ let executionStateFor
         exceptionReports = []
         expectedExceptionCount = 0
         postTestExecutionHook =
-          fun tc _ ->
-            // In an effort to find errors in the test suite, we track exceptions
-            // that we report in the runtime and check for them after the test
-            // completes. There are a lot of places where exceptions are allowed,
-            // possibly too many to annotate, so we assume that errors are intended
-            // to be reported anytime the result is a RTE.
+          fun tc ->
             let exceptionCountMatches =
               tc.exceptionReports.Length = tc.expectedExceptionCount
 
@@ -229,10 +224,9 @@ let executionStateFor
       Exe.createState
         builtIns
         packageManager
-        (Exe.noTracing RT.Real)
+        Exe.noTracing
         exceptionReporter
         notifier
-        (id 7)
         program
     let state = { state with test = testContext }
     return state
@@ -602,7 +596,7 @@ module Expect =
       letPatternEqualityBaseFn checkIDs path pat pat' errorFn
       eq ("rhs" :: path) rhs rhs'
       eq ("body" :: path) body body'
-    | EIf(id, con, thn, els), EIf(_, con', thn', els') ->
+    | EIf(_, con, thn, els), EIf(_, con', thn', els') ->
       eq ("cond" :: path) con con'
       eq ("then" :: path) thn thn'
       match els, els' with
@@ -890,12 +884,7 @@ module Expect =
     matchPatternEqualityBaseFn false [] actual expected (fun path a e ->
       Expect.equal a e (formatMsg "" path actual))
 
-  let rec equalExpr
-    (types : Types)
-    (actual : Expr)
-    (expected : Expr)
-    (msg : string)
-    : unit =
+  let rec equalExpr (actual : Expr) (expected : Expr) (msg : string) : unit =
     exprEqualityBaseFn true [] actual expected (fun path a e ->
       Expect.equal a e (formatMsg msg path actual))
 
@@ -1086,6 +1075,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DFnVal(
        Lambda
          { body = RT.EUnit(id 1234)
+           tlid = 77777723098234UL
            typeSymbolTable = Map.empty
            symtable = Map.empty
            parameters = NEList.singleton (RT.LPVariable(id 5678, "a")) }
@@ -1142,6 +1132,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                  )
                )
              )
+           tlid = 7777772349823445UL
            symtable = Map.empty
            typeSymbolTable = Map.empty
            parameters = NEList.singleton (RT.LPVariable(id 5678, "a")) }

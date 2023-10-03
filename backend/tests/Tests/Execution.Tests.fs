@@ -24,7 +24,6 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
 
 let executionStateForPreview
-  (name : string)
   (dbs : Map<string, DB.T>)
   (types : Map<TypeName.UserProgram, UserType.T>)
   (fns : Map<FnName.UserProgram, UserFunction.T>)
@@ -35,15 +34,11 @@ let executionStateForPreview
     let! state = executionStateFor canvasID false false dbs types fns constants
     let results, traceFn = Exe.traceDvals ()
 
-    let state =
-      { state with
-          tracing =
-            { state.tracing with traceDval = traceFn; realOrPreview = Preview } }
+    let state = { state with tracing = { state.tracing with traceDval = traceFn } }
     return (results, state)
   }
 
 let execSaveDvals
-  (canvasName : string)
   (dbs : List<DB.T>)
   (userTypes : List<UserType.T>)
   (userFns : List<UserFunction.T>)
@@ -51,16 +46,16 @@ let execSaveDvals
   (ast : Expr)
   : Task<AT.AnalysisResults> =
   task {
+    let tlid = 777777827493UL
     let types = userTypes |> List.map (fun typ -> typ.name, typ) |> Map.ofList
     let fns = userFns |> List.map (fun fn -> fn.name, fn) |> Map.ofList
     let dbs = dbs |> List.map (fun db -> db.name, db) |> Map.ofList
     let constants = userConstants |> List.map (fun c -> c.name, c) |> Map.ofList
 
-    let! (results, state) =
-      executionStateForPreview canvasName dbs types fns constants
+    let! (results, state) = executionStateForPreview dbs types fns constants
 
     let inputVars = Map.empty
-    let! _result = Exe.executeExpr state inputVars ast
+    let! _result = Exe.executeExpr state tlid inputVars ast
 
     return results
   }
@@ -79,15 +74,12 @@ let testExecFunctionTLIDs : Test =
 
     let tlids, traceFn = Exe.traceTLIDs ()
 
-    let state =
-      { state with
-          tracing =
-            { state.tracing with traceTLID = traceFn; realOrPreview = Preview } }
+    let state = { state with tracing = { state.tracing with traceTLID = traceFn } }
 
     let! value =
       Exe.executeFunction
         state
-        (gid ())
+        None
         (FQName.UserProgram fn.name)
         []
         (NEList.singleton DUnit)

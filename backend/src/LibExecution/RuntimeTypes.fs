@@ -499,7 +499,7 @@ and TypeReference =
 
   member this.isConcrete() : bool =
     let rec isConcrete (t : TypeReference) : bool =
-      match this with
+      match t with
       | TVariable _ -> false
       | TList t -> isConcrete t
       | TTuple(t1, t2, ts) ->
@@ -584,6 +584,7 @@ and DvalMap = Map<string, Dval>
 
 and LambdaImpl =
   { typeSymbolTable : TypeSymbolTable
+    tlid : tlid // The TLID of the expression where this was defined
     symtable : Symtable
     parameters : NEList<LetPattern>
     body : Expr }
@@ -668,15 +669,9 @@ and Symtable = Map<string, Dval>
 and TypeSymbolTable = Map<string, TypeReference>
 
 
-// Record the source of an incomplete or error. Would be useful to add more
-// information later, such as the iteration count that led to this, or
-// something like a stack trace
-and DvalSource =
-  // We do not have context to supply an identifier
-  | SourceNone
-
-  // Caused by an expression of `id` within the given `tlid`
-  | SourceID of tlid * id
+// Record the source expression of an error. This is to show the code that was
+// responsible for it
+and Source = Option<tlid * id>
 
 and BuiltInParam =
   { name : string
@@ -746,6 +741,8 @@ module RuntimeError =
 
   let typeCheckerError field = case "TypeCheckerError" [ field ]
 
+  let jsonError field = case "JsonError" [ field ]
+
   let sqlCompilerRuntimeError (internalError : RuntimeError) =
     case "SqlCompilerRuntimeError" [ toDT internalError ]
 
@@ -768,14 +765,14 @@ module RuntimeError =
   let oldError (msg : string) : RuntimeError =
     case "OldStringErrorTODO" [ DString msg ]
 
-exception RuntimeErrorException of DvalSource * RuntimeError
+exception RuntimeErrorException of Source * RuntimeError
 
-let raiseRTE (source : DvalSource) (rte : RuntimeError) =
+let raiseRTE (source : Source) (rte : RuntimeError) : 'a =
   raise (RuntimeErrorException(source, rte))
 
 // TODO add sources to all RTEs
-let raiseUntargetedRTE (rte : RuntimeError) =
-  raise (RuntimeErrorException(SourceNone, rte))
+let raiseUntargetedRTE (rte : RuntimeError) : 'a =
+  raise (RuntimeErrorException(None, rte))
 
 // TODO remove all usages of this in favor of better error cases
 let raiseString (s : string) : 'a = raiseUntargetedRTE (RuntimeError.oldError s)
@@ -783,7 +780,7 @@ let raiseString (s : string) : 'a = raiseUntargetedRTE (RuntimeError.oldError s)
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
 /// boundary, typically in Execution.fs, we will catch the exception, and return this
 /// type.
-type ExecutionResult = Result<Dval, DvalSource * RuntimeError>
+type ExecutionResult = Result<Dval, Source * RuntimeError>
 
 /// IncorrectArgs should never happen, as all functions are type-checked before
 /// calling. If it does happen, it means that the type parameters in the Fn structure
@@ -910,7 +907,7 @@ module Dval =
     | DFnVal(Lambda l), TFn(parameters, _) ->
       NEList.length parameters = NEList.length l.parameters
 
-    | DRecord(typeName, _, _typeArgsTODO, fields),
+    | DRecord(typeName, _, _typeArgsTODO, _fields),
       TCustomType(Ok typeName', _typeArgs) ->
       // TYPESCLEANUP: should load type by name
       // TYPESCLEANUP: are we handling type arguments here?
@@ -1213,18 +1210,9 @@ and FnImpl =
   | PackageFunction of tlid * Expr
 
 
-// CLEANUP consider renaming to `ExecutionType`, `EvaluationMode`, etc.
-// Represents the context in which we're evaluating some code
-and RealOrPreview =
-  // We are evaluating an expression normally
-  | Real
+and FunctionRecord = Source * FnName.FnName
 
-  // We are previewing the evaluation of some expression within the editor.
-  | Preview
-
-and FunctionRecord = tlid * FnName.FnName * id
-
-and TraceDval = bool -> id -> Dval -> unit
+and TraceDval = id -> Dval -> unit
 
 and TraceTLID = tlid -> unit
 
@@ -1247,8 +1235,7 @@ and Tracing =
   { traceDval : TraceDval
     traceTLID : TraceTLID
     loadFnResult : LoadFnResult
-    storeFnResult : StoreFnResult
-    realOrPreview : RealOrPreview }
+    storeFnResult : StoreFnResult }
 
 // Used for testing
 and TestContext =
@@ -1256,7 +1243,7 @@ and TestContext =
 
     mutable exceptionReports : List<string * string * Metadata>
     mutable expectedExceptionCount : int
-    postTestExecutionHook : TestContext -> Dval -> unit }
+    postTestExecutionHook : TestContext -> unit }
 
 // Functionally written in F# and shipped with the executable
 and BuiltIns =
@@ -1303,25 +1290,9 @@ and ExecutionState =
     // users are doing, etc.
     notify : Notifier
 
-    // TLID of the currently executing handler/fn
-    tlid : tlid
-
-    executingFnName : Option<FnName.FnName>
-
-    // <summary>
-    // Callstack of functions that have been called as part of execution
-    // </summary>
-    //
-    // <remarks>
-    // Used for recursion detection in the editor.
-    // In the editor, we call all paths to show live values,
-    // but with recursion that causes infinite recursion.
-    // </remarks>
-    callstack : Set<FnName.FnName>
-
-    // Whether the currently executing code is really being executed
-    // (as opposed to being previewed for traces)
-    onExecutionPath : bool }
+    // tlid/id of the caller - used to find the source of an error. It's not the end
+    // of the world if this is wrong or missing, but it will give worse errors.
+    caller : Source }
 
 and Functions =
   { builtIn : Map<FnName.BuiltIn, BuiltInFn>
@@ -1425,7 +1396,7 @@ let rec getTypeReferenceFromAlias
   | TCustomType(Ok outerTypeName, outerTypeArgs) ->
     uply {
       match! Types.find outerTypeName types with
-      | Some { definition = TypeDeclaration.Alias typ; typeParams = typeParams } as decl ->
+      | Some { definition = TypeDeclaration.Alias typ; typeParams = typeParams } ->
         let typ = Types.substitute typeParams outerTypeArgs typ
         return! getTypeReferenceFromAlias types typ
       | _ -> return Ok typ

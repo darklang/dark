@@ -1,8 +1,7 @@
 {
-  "storageFormatVersion": 0,
   "input": [
     [
-      "request",
+      "var",
       {
         "DRecord": [
           {
@@ -540,10 +539,181 @@
               ]
             },
             "lambda": {
-              "DLambda": []
+              "DFnVal": [
+                {
+                  "Lambda": [
+                    {
+                      "typeSymbolTable": {},
+                      "tlid": 77777723098234,
+                      "symtable": {},
+                      "parameters": [
+                        {
+                          "LPVariable": [
+                            5678,
+                            "a"
+                          ]
+                        }
+                      ],
+                      "body": {
+                        "EUnit": [
+                          1234
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
             },
             "lambda with pipe": {
-              "DLambda": []
+              "DFnVal": [
+                {
+                  "Lambda": [
+                    {
+                      "typeSymbolTable": {},
+                      "tlid": 7777772349823445,
+                      "symtable": {},
+                      "parameters": [
+                        {
+                          "LPVariable": [
+                            5678,
+                            "a"
+                          ]
+                        }
+                      ],
+                      "body": {
+                        "EApply": [
+                          92356985,
+                          {
+                            "EFnName": [
+                              957274,
+                              {
+                                "BuiltIn": [
+                                  {
+                                    "modules": [
+                                      "List"
+                                    ],
+                                    "name": {
+                                      "FnName": [
+                                        "push"
+                                      ]
+                                    },
+                                    "version": 0
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          [],
+                          [
+                            {
+                              "EApply": [
+                                93459985,
+                                {
+                                  "EFnName": [
+                                    123123,
+                                    {
+                                      "BuiltIn": [
+                                        {
+                                          "modules": [],
+                                          "name": {
+                                            "FnName": [
+                                              "\u002B"
+                                            ]
+                                          },
+                                          "version": 0
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                [],
+                                [
+                                  {
+                                    "EApply": [
+                                      394567785,
+                                      {
+                                        "EFnName": [
+                                          95723,
+                                          {
+                                            "BuiltIn": [
+                                              {
+                                                "modules": [],
+                                                "name": {
+                                                  "FnName": [
+                                                    "\u002B"
+                                                  ]
+                                                },
+                                                "version": 0
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      [],
+                                      [
+                                        {
+                                          "EApply": [
+                                            44444485,
+                                            {
+                                              "EFnName": [
+                                                9473,
+                                                {
+                                                  "BuiltIn": [
+                                                    {
+                                                      "modules": [],
+                                                      "name": {
+                                                        "FnName": [
+                                                          "\u002B"
+                                                        ]
+                                                      },
+                                                      "version": 0
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            },
+                                            [],
+                                            [
+                                              {
+                                                "EInt": [
+                                                  234213618,
+                                                  5
+                                                ]
+                                              },
+                                              {
+                                                "EInt": [
+                                                  923423468,
+                                                  6
+                                                ]
+                                              }
+                                            ]
+                                          ]
+                                        },
+                                        {
+                                          "EInt": [
+                                            648327618,
+                                            7
+                                          ]
+                                        }
+                                      ]
+                                    ]
+                                  },
+                                  {
+                                    "EInt": [
+                                      325843618,
+                                      8
+                                    ]
+                                  }
+                                ]
+                              ]
+                            }
+                          ]
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
             },
             "list": {
               "DList": [
@@ -4175,11 +4345,10 @@
   ],
   "functionResults": [
     [
-      777777928475,
-      7777772986753,
-      "testFn",
-      2,
-      "u7FtjJt_dI4",
+      "fnName",
+      777777837205,
+      "hash",
+      0,
       {
         "DRecord": [
           {
@@ -4717,10 +4886,181 @@
               ]
             },
             "lambda": {
-              "DLambda": []
+              "DFnVal": [
+                {
+                  "Lambda": [
+                    {
+                      "typeSymbolTable": {},
+                      "tlid": 77777723098234,
+                      "symtable": {},
+                      "parameters": [
+                        {
+                          "LPVariable": [
+                            5678,
+                            "a"
+                          ]
+                        }
+                      ],
+                      "body": {
+                        "EUnit": [
+                          1234
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
             },
             "lambda with pipe": {
-              "DLambda": []
+              "DFnVal": [
+                {
+                  "Lambda": [
+                    {
+                      "typeSymbolTable": {},
+                      "tlid": 7777772349823445,
+                      "symtable": {},
+                      "parameters": [
+                        {
+                          "LPVariable": [
+                            5678,
+                            "a"
+                          ]
+                        }
+                      ],
+                      "body": {
+                        "EApply": [
+                          92356985,
+                          {
+                            "EFnName": [
+                              957274,
+                              {
+                                "BuiltIn": [
+                                  {
+                                    "modules": [
+                                      "List"
+                                    ],
+                                    "name": {
+                                      "FnName": [
+                                        "push"
+                                      ]
+                                    },
+                                    "version": 0
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          [],
+                          [
+                            {
+                              "EApply": [
+                                93459985,
+                                {
+                                  "EFnName": [
+                                    123123,
+                                    {
+                                      "BuiltIn": [
+                                        {
+                                          "modules": [],
+                                          "name": {
+                                            "FnName": [
+                                              "\u002B"
+                                            ]
+                                          },
+                                          "version": 0
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                [],
+                                [
+                                  {
+                                    "EApply": [
+                                      394567785,
+                                      {
+                                        "EFnName": [
+                                          95723,
+                                          {
+                                            "BuiltIn": [
+                                              {
+                                                "modules": [],
+                                                "name": {
+                                                  "FnName": [
+                                                    "\u002B"
+                                                  ]
+                                                },
+                                                "version": 0
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      [],
+                                      [
+                                        {
+                                          "EApply": [
+                                            44444485,
+                                            {
+                                              "EFnName": [
+                                                9473,
+                                                {
+                                                  "BuiltIn": [
+                                                    {
+                                                      "modules": [],
+                                                      "name": {
+                                                        "FnName": [
+                                                          "\u002B"
+                                                        ]
+                                                      },
+                                                      "version": 0
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            },
+                                            [],
+                                            [
+                                              {
+                                                "EInt": [
+                                                  234213618,
+                                                  5
+                                                ]
+                                              },
+                                              {
+                                                "EInt": [
+                                                  923423468,
+                                                  6
+                                                ]
+                                              }
+                                            ]
+                                          ]
+                                        },
+                                        {
+                                          "EInt": [
+                                            648327618,
+                                            7
+                                          ]
+                                        }
+                                      ]
+                                    ]
+                                  },
+                                  {
+                                    "EInt": [
+                                      325843618,
+                                      8
+                                    ]
+                                  }
+                                ]
+                              ]
+                            }
+                          ]
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
             },
             "list": {
               "DList": [

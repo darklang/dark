@@ -139,11 +139,7 @@ let rec toValueType (dv : Dval) : ValueType =
 
 
 
-let mergeFailureRte
-  (sourceId : DvalSource)
-  (vt1 : ValueType)
-  (vt2 : ValueType)
-  : 'a =
+let mergeFailureRte (sourceId : Source) (vt1 : ValueType) (vt2 : ValueType) : 'a =
   RuntimeError.oldError
     $"Could not merge types {ValueType.toString vt1} and {ValueType.toString vt2}"
   |> fun e -> raiseRTE sourceId e
@@ -162,7 +158,7 @@ let private listPush
   | Ok newType -> newType, dv :: list
   | Error() ->
     mergeFailureRte
-      SourceNone
+      None
       (ValueType.Known(KTList listType))
       (ValueType.Known(KTList dvalType))
 
@@ -301,7 +297,7 @@ let optionSome (innerType : ValueType) (dv : Dval) : Dval =
     DEnum(optionType, optionType, ignoreAndUseEmpty [ typ ], "Some", [ dv ])
   | Error() ->
     mergeFailureRte
-      SourceNone
+      None
       (ValueType.Known(KTCustomType(optionType, [ innerType ])))
       (ValueType.Known(KTCustomType(optionType, [ dvalType ])))
 
@@ -330,7 +326,7 @@ let resultOk (okType : ValueType) (errorType : ValueType) (dvOk : Dval) : Dval =
     )
   | Error() ->
     mergeFailureRte
-      SourceNone
+      None
       (ValueType.Known(KTCustomType(resultType, [ okType; errorType ])))
       (ValueType.Known(KTCustomType(resultType, [ dvalType; errorType ])))
 
@@ -351,7 +347,7 @@ let resultError
     )
   | Error() ->
     mergeFailureRte
-      SourceNone
+      None
       (ValueType.Known(KTCustomType(resultType, [ okType; errorType ])))
       (ValueType.Known(KTCustomType(resultType, [ okType; dvalType ])))
 
