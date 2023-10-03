@@ -42,13 +42,12 @@ module Darklang =
         ("authorization", ("bearer " ++ token))
 
 
-
       module ContentType =
         /// A header <type (String*String))> with {{content-type}} set for HTML form requests or responses
         let form = ("content-type", "application/x-www-form-urlencoded")
 
         /// A header <type (String*String))> with {{content-type}} set for JSON requests or responses
-        let json = ("content-type", "application/json; charset=utf-8")
+        let json = ("content-type", "application/json")
 
         /// A header <type (String*String))> with {{'content-type'}} set for plain text requests or responses
         let plainText = ("content-type", "text/plain; charset=utf-8")

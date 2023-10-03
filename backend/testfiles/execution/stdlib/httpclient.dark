@@ -7,7 +7,7 @@ module NoInternal =
                                                             "application/x-www-form-urlencoded")
 
   PACKAGE.Darklang.Stdlib.HttpClient.ContentType.json_v0 = ("content-type",
-                                                            "application/json; charset=utf-8")
+                                                            "application/json")
 
   PACKAGE.Darklang.Stdlib.HttpClient.ContentType.plainText_v0 = ("content-type",
                                                                  "text/plain; charset=utf-8")
