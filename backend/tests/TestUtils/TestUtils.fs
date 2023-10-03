@@ -728,7 +728,7 @@ module Expect =
       if a <> e then errorFn path (debugDval actual) (debugDval expected)
 
     let checkValueType (path : Path) (a : ValueType) (e : ValueType) : unit =
-      match Dval.mergeValueTypes a e with
+      match LibExecution.TypeChecker.DvalCreator.mergeValueTypes a e with
       | Ok _merged -> ()
       | Error() -> errorFn path (debugDval actual) (debugDval expected)
 
@@ -1061,13 +1061,13 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        Map.ofList [ "$type", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    ("dict", Dval.dict VT.unknownTODO [ "foo", Dval.int 5 ], TDict TInt)
+    ("dict", DDict(VT.unknownTODO, Map [ "foo", Dval.int 5 ]), TDict TInt)
     ("dict3",
-     Dval.dict VT.unknownTODO [ ("type", DString "weird"); ("value", DString "x") ],
+     DDict(VT.unknownTODO, Map [ ("type", DString "weird"); ("value", DString "x") ]),
      TDict TString)
     // More Json.NET tests
-    ("dict4", Dval.dict VT.unknownTODO [ "foo\\\\bar", Dval.int 5 ], TDict TInt)
-    ("dict5", Dval.dict VT.unknownTODO [ "$type", Dval.int 5 ], TDict TInt)
+    ("dict4", DDict(VT.unknownTODO, Map [ "foo\\\\bar", Dval.int 5 ]), TDict TInt)
+    ("dict5", DDict(VT.unknownTODO, Map [ "$type", Dval.int 5 ]), TDict TInt)
     ("lambda",
      DFnVal(
        Lambda

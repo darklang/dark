@@ -430,6 +430,12 @@ module ValueType =
     : ValueType =
     KTTuple(first, second, theRest) |> known
 
+  let customType
+    (typeName : TypeName.TypeName)
+    (typeArgs : List<ValueType>)
+    : ValueType =
+    KTCustomType(typeName, typeArgs) |> known
+
   let rec toString (vt : ValueType) : string =
     match vt with
     | ValueType.Unknown -> "_"
@@ -936,6 +942,46 @@ module Dval =
     | DEnum _, _ -> false
 
 
+  let rec toValueType (dv : Dval) : ValueType =
+    match dv with
+    | DUnit -> ValueType.Known KTUnit
+
+    | DBool _ -> ValueType.Known KTBool
+    | DInt _ -> ValueType.Known KTInt
+    | DFloat _ -> ValueType.Known KTFloat
+    | DChar _ -> ValueType.Known KTChar
+    | DString _ -> ValueType.Known KTString
+    | DDateTime _ -> ValueType.Known KTDateTime
+    | DUuid _ -> ValueType.Known KTUuid
+    | DBytes _ -> ValueType.Known KTBytes
+
+    | DList(t, _) -> ValueType.Known(KTList t)
+    | DDict(t, _) -> ValueType.Known(KTDict t)
+    | DTuple(first, second, theRest) ->
+      ValueType.Known(
+        KTTuple(toValueType first, toValueType second, List.map toValueType theRest)
+      )
+
+    | DRecord(typeName, _, typeArgs, _) ->
+      KTCustomType(typeName, typeArgs) |> ValueType.Known
+
+    | DEnum(typeName, _, typeArgs, _, _) ->
+      KTCustomType(typeName, typeArgs) |> ValueType.Known
+
+    | DFnVal fnImpl ->
+      match fnImpl with
+      | Lambda lambda ->
+        KTFn(
+          NEList.map (fun _ -> ValueType.Unknown) lambda.parameters,
+          ValueType.Unknown
+        )
+        |> ValueType.Known
+
+      // VTTODO look up type, etc
+      | NamedFn _named -> ValueType.Unknown
+
+    // CLEANUP follow up when DDB has a typeReference
+    | DDB _ -> ValueType.Unknown
 
 
   let asList (dv : Dval) : Option<List<Dval>> =

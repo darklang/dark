@@ -600,7 +600,11 @@ let rec lambdaToSql
         | EEnum(id, sourceTypeName, sourceCaseName, []) ->
           let source = Some(tlid, id)
           let! dv =
-            TypeChecker.Dval.enum sourceTypeName sourceTypeName sourceCaseName []
+            TypeChecker.DvalCreator.enum
+              sourceTypeName
+              sourceTypeName
+              sourceCaseName
+              []
 
           let typeArgs = [] // TODO - get from the dval above? maybe typeName too...
           let typ = TCustomType(Ok sourceTypeName, typeArgs)

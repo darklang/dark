@@ -23,19 +23,13 @@ module Request =
     (headers : List<string * string>)
     (body : byte array)
     : RT.Dval =
+    let headerType = RT.KTTuple(RT.ValueType.string, RT.ValueType.string, [])
+
     let headers =
       headers
       |> lowercaseHeaderKeys
       |> List.map (fun (k, v) -> RT.DTuple(RT.DString(k), RT.DString(v), []))
-      |> Dval.list (
-        RT.ValueType.Known(
-          RT.KTTuple(
-            RT.ValueType.Known RT.KTString,
-            RT.ValueType.Known RT.KTString,
-            []
-          )
-        )
-      )
+      |> Dval.list headerType
 
     let fields =
       [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]

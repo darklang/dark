@@ -29,8 +29,8 @@ let fns : List<BuiltInFn> =
          sections [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
          [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
-        let resultOk r = Dval.resultOk VT.bytes VT.string r |> Ply
-        let resultError r = Dval.resultError VT.bytes VT.string r |> Ply
+        let resultOk r = Dval.resultOk KTBytes KTString r |> Ply
+        let resultError r = Dval.resultError KTBytes KTString r |> Ply
         (function
         | _, _, [ DString s ] ->
           let base64FromUrlEncoded (str : string) : string =

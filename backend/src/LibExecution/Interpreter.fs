@@ -50,18 +50,17 @@ module ExecutionError =
     let (caseName, fields) =
       match e with
       | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
-
         "MatchExprEnumPatternWrongCount",
         [ DString caseName; DInt expected; DInt actual ]
+
       | MatchExprPatternWrongType(expected, actual) ->
-
         "MatchExprPatternWrongType", [ DString expected; RT2DT.Dval.toDT actual ]
-      | MatchExprUnmatched dv ->
 
-        "MatchExprUnmatched", [ RT2DT.Dval.toDT dv ]
+      | MatchExprUnmatched dv -> "MatchExprUnmatched", [ RT2DT.Dval.toDT dv ]
+
       | NonStringInStringInterpolation dv ->
-
         "NonStringInStringInterpolation", [ RT2DT.Dval.toDT dv ]
+
       | ConstDoesntExist name -> "ConstDoesntExist", [ RT2DT.ConstantName.toDT name ]
 
     case caseName fields
@@ -311,8 +310,7 @@ let rec eval
 
     | EList(_id, exprs) ->
       let! results = Ply.List.mapSequentially (eval state tlid tst st) exprs
-      return Dval.list VT.unknownTODO results
-
+      return TypeChecker.DvalCreator.list VT.unknown results
 
     | ETuple(_id, first, second, theRest) ->
 
@@ -417,7 +415,7 @@ let rec eval
             let! v = eval state tlid tst st v
             return (k, v)
           })
-      return Dval.dict ValueType.Unknown fields
+      return TypeChecker.DvalCreator.dict ValueType.Unknown fields
 
     | EFnName(_id, name) -> return DFnVal(NamedFn name)
 
@@ -600,7 +598,7 @@ let rec eval
             | DList(vt, headVal :: tailVals) ->
               let! (headPass, headVars) = checkPattern headVal headPat
               let! (tailPass, tailVars) =
-                checkPattern (Dval.list vt tailVals) tailPat
+                checkPattern (TypeChecker.DvalCreator.list vt tailVals) tailPat
 
               let allSubVars = headVars @ tailVars
               let pass = headPass && tailPass
@@ -726,7 +724,11 @@ let rec eval
               (List.zip case.fields fields)
 
           return!
-            TypeChecker.Dval.enum resolvedTypeName sourceTypeName caseName fields
+            TypeChecker.DvalCreator.enum
+              resolvedTypeName
+              sourceTypeName
+              caseName
+              fields
 
     | EError(id, rte, exprs) ->
       let! (_ : List<Dval>) = Ply.List.mapSequentially (eval state tlid tst st) exprs

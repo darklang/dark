@@ -80,12 +80,12 @@ let fns : List<BuiltInFn> =
             let typeName =
               FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0)
             let fields =
-              [ ("fns", Dval.list VT.unknownTODO packagesFns)
-                ("types", Dval.list VT.unknownTODO packagesTypes)
-                ("constants", Dval.list VT.unknownTODO packagesConstants) ]
+              [ "fns", DList(VT.unknownTODO, packagesFns)
+                "types", DList(VT.unknownTODO, packagesTypes)
+                "constants", DList(VT.unknownTODO, packagesConstants) ]
             return
               DRecord(typeName, typeName, [], Map fields)
-              |> Dval.resultOk VT.unknownTODO VT.string
+              |> Dval.resultOk (KTCustomType(typeName, [])) KTString
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

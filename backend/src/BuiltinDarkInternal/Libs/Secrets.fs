@@ -53,7 +53,7 @@ let fns : List<BuiltInFn> =
                     "value", DString s.value
                     "version", DInt s.version ]
                 DRecord(typeName, typeName, [], Map fields))
-              |> Dval.list (ValueType.Known(KTCustomType(typeName, [])))
+              |> Dval.list (KTCustomType(typeName, []))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -92,8 +92,8 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.result TUnit TString
       description = "Add a secret"
       fn =
-        let resultOk = Dval.resultOk VT.unit VT.string
-        let resultError = Dval.resultError VT.unit VT.string
+        let resultOk = Dval.resultOk KTUnit KTString
+        let resultError = Dval.resultError KTUnit KTString
         (function
         | _, _, [ DUuid canvasID; DString name; DString value; DInt version ] ->
           uply {

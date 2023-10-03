@@ -281,11 +281,7 @@ let runLocalExecScript (args : string[]) : Ply<int> =
           packageManager = Some LibCloud.PackageManager.packageManager }
     let! modul = LibParser.Canvas.parseFromFile nameResolver mainFile
 
-    let args =
-      args
-      |> Array.toList
-      |> List.map RT.DString
-      |> Dval.list (RT.ValueType.Known RT.KTString)
+    let args = args |> Array.toList |> List.map RT.DString |> Dval.list RT.KTString
 
     let result = execute modul (Map [ "args", args ])
 

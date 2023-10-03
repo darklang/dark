@@ -145,18 +145,10 @@ let executeHandler
             version = 0 }
 
       let fields =
-        [ "statusCode", RT.DInt 500
-          "headers",
-          Dval.list
-            (RT.ValueType.Known(
-              RT.KTTuple(
-                RT.ValueType.Known RT.KTString,
-                RT.ValueType.Known RT.KTString,
-                []
-              )
-            ))
-            []
-          "body", RT.DBytes(msg |> UTF8.toBytes) ]
+        [ ("statusCode", RT.DInt 500)
+          ("headers",
+           [] |> Dval.list (RT.KTTuple(RT.ValueType.string, RT.ValueType.string, [])))
+          ("body", RT.DBytes(msg |> UTF8.toBytes)) ]
 
       RT.DRecord(typeName, typeName, [], Map fields)
 

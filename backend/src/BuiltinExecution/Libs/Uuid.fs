@@ -39,8 +39,8 @@ let fns : List<BuiltInFn> =
       description =
         "Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
-        let resultOk = Dval.resultOk VT.uuid VT.string
-        let resultError = Dval.resultError VT.uuid VT.string
+        let resultOk = Dval.resultOk KTUuid KTString
+        let resultError = Dval.resultError KTUuid KTString
         (function
         | _, _, [ DString s ] ->
           match System.Guid.TryParse s with

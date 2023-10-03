@@ -43,7 +43,7 @@ module RoundtripTests =
     (customExpect : Option<'a -> 'a -> string -> unit>)
     =
     testTask testName {
-      let firstDT = original |> toDT
+      let firstDT = toDT original
 
       let context =
         LibExecution.TypeChecker.Context.FunctionCallResult(

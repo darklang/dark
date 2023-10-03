@@ -9,6 +9,7 @@ open LibExecution.Builtin.Shortcuts
 module DarkDateTime = LibExecution.DarkDateTime
 module VT = ValueType
 module Dval = LibExecution.Dval
+module TypeChecker = LibExecution.TypeChecker
 
 
 // parsing
@@ -308,7 +309,7 @@ module ParseError =
       | EnumTooManyCases(typ, cases, errorPath) ->
         "EnumTooManyCases",
         [ RT2DT.TypeReference.toDT typ
-          cases |> List.map DString |> Dval.list VT.string
+          cases |> List.map DString |> Dval.list KTString
           JsonPath.toDT errorPath ]
 
       | RecordMissingField(fieldName, errorPath) ->
@@ -420,7 +421,7 @@ let parse
       |> Seq.mapi (fun i v -> convert nested (JsonPath.Part.Index i :: pathSoFar) v)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (Dval.list VT.unknownTODO)
+      |> Ply.map (TypeChecker.DvalCreator.list VT.unknownTODO)
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let values = j.EnumerateArray() |> Seq.toList
@@ -446,7 +447,7 @@ let parse
         })
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (Dval.dict VT.unknownTODO)
+      |> Ply.map (TypeChecker.DvalCreator.dict VT.unknownTODO)
 
     | TCustomType(Ok typeName, typeArgs), jsonValueKind ->
       uply {
@@ -523,11 +524,7 @@ let parse
                 return err (ParseError.EnumExtraField(fieldJson.GetRawText(), path))
               else
                 return!
-                  LibExecution.TypeChecker.Dval.enum
-                    typeName
-                    typeName
-                    caseName
-                    fields
+                  TypeChecker.DvalCreator.enum typeName typeName caseName fields
 
             | [] -> return raiseCantMatchWithType typ j pathSoFar
             | cases ->
@@ -569,7 +566,7 @@ let parse
                 })
               |> Ply.List.flatten
 
-            return! LibExecution.TypeChecker.Dval.record typeName fields
+            return! TypeChecker.DvalCreator.record typeName fields
       }
 
 
@@ -630,7 +627,6 @@ let fns : List<BuiltInFn> =
             // TODO: somehow collect list of TVariable -> TypeReference
             // "'b = Int",
             // so we can Json.serialize<'b>, if 'b is in the surrounding context
-
             let types = ExecutionState.availableTypes state
             let! response =
               writeJson (fun w -> serialize types w typeToSerializeAs arg)
@@ -652,11 +648,10 @@ let fns : List<BuiltInFn> =
       description =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =
-        let resultOk = Dval.resultOk VT.unknownTODO VT.string
-        let resultError =
-          Dval.resultError
-            VT.unknownTODO
-            (VT.known (KTCustomType(ParseError.typeName, [])))
+        let okType = VT.unknownTODO
+        let errType = KTCustomType(ParseError.typeName, []) |> VT.known
+        let resultOk = TypeChecker.DvalCreator.resultOk okType errType
+        let resultError = TypeChecker.DvalCreator.resultError okType errType
         (function
         | state, [ typeArg ], [ DString arg ] ->
           let types = ExecutionState.availableTypes state

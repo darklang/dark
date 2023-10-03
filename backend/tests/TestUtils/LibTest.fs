@@ -112,10 +112,10 @@ let fns : List<BuiltInFn> =
             |> Seq.toList
             |> (fun l -> l[0])
             |> DChar
-            |> Dval.optionSome VT.char
+            |> Dval.optionSome KTChar
             |> Ply
           else
-            Dval.optionNone VT.char |> Ply
+            Dval.optionNone KTChar |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -207,8 +207,9 @@ let fns : List<BuiltInFn> =
               LibCloud.Queue.Test.loadEvents canvasID ("WORKER", eventName, "_")
             let results =
               results
-              |> List.map (fun x -> DString(LibExecution.DvalReprDeveloper.toRepr x))
-            return Dval.list (ValueType.Known KTString) results
+              |> List.map LibExecution.DvalReprDeveloper.toRepr
+              |> List.map DString
+            return DList(VT.string, results)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -114,7 +114,7 @@ human-readable data."
 
                   return (ts.relation, DRecord(typeName, typeName, [], Map fields))
                 })
-              |> Ply.map (Dval.dict VT.unknownTODO)
+              |> Ply.map (Dval.dict (KTCustomType(typeName, [])))
 
             return dict
           }

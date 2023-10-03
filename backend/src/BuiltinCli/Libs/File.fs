@@ -24,8 +24,8 @@ let fns : List<BuiltInFn> =
       description =
         "Reads the contents of a file specified by <param path> asynchronously and returns its contents as Bytes wrapped in a Result"
       fn =
-        let resultOk = Dval.resultOk VT.bytes VT.string
-        let resultError = Dval.resultError VT.bytes VT.string
+        let resultOk = Dval.resultOk KTBytes KTString
+        let resultError = Dval.resultError KTBytes KTString
         (function
         | _, _, [ DString path ] ->
           uply {
@@ -48,8 +48,8 @@ let fns : List<BuiltInFn> =
       description =
         "Writes the specified byte array <param contents> to the file specified by <param path> asynchronously"
       fn =
-        let resultOk = Dval.resultOk VT.unit VT.string
-        let resultError = Dval.resultError VT.unit VT.string
+        let resultOk = Dval.resultOk KTUnit KTString
+        let resultError = Dval.resultError KTUnit KTString
         (function
         | _, _, [ DBytes contents; DString path ] ->
           uply {
@@ -72,8 +72,8 @@ let fns : List<BuiltInFn> =
       description =
         "Appends the given <param content> to the file at the specified <param path>. If the file does not exist, a new file is created with the content. Returns a Result type indicating success or failure."
       fn =
-        let resultOk = Dval.resultOk VT.unit VT.string
-        let resultError = Dval.resultError VT.unit VT.string
+        let resultOk = Dval.resultOk KTUnit KTString
+        let resultError = Dval.resultError KTUnit KTString
         (function
         | _, _, [ DBytes content; DString path ] ->
           uply {
@@ -96,8 +96,8 @@ let fns : List<BuiltInFn> =
       description =
         "Creates a new temporary file with a unique name in the system's temporary directory. Returns a Result type containing the temporary file path or an error if the creation fails."
       fn =
-        let resultOk r = Dval.resultOk VT.string VT.string r |> Ply
-        let resultError r = Dval.resultError VT.string VT.string r |> Ply
+        let resultOk r = Dval.resultOk KTString KTString r |> Ply
+        let resultError r = Dval.resultError KTString KTString r |> Ply
         (function
         | _, _, [ DUnit ] ->
           try
@@ -189,8 +189,8 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the size of the file at the specified <param path> in bytes, or an error if the file does not exist or an error occurs"
       fn =
-        let resultOk r = Dval.resultOk VT.int VT.string r |> Ply
-        let resultError r = Dval.resultError VT.int VT.string r |> Ply
+        let resultOk r = Dval.resultOk KTInt KTString r |> Ply
+        let resultError r = Dval.resultError KTInt KTString r |> Ply
         (function
         | _, _, [ DString path ] ->
           try

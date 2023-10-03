@@ -78,7 +78,7 @@ let fns : List<BuiltInFn> =
                         [ "name", DString p.name
                           "type", DString(typeNameToStr p.typ) ]
                       DRecord(fnParamTypeName, fnParamTypeName, [], Map fields))
-                    |> Dval.list VT.unknownTODO
+                    |> Dval.list (KTCustomType(fnParamTypeName, []))
 
                   let fields =
                     [ "name", DString(FnName.builtinToString key)
@@ -89,7 +89,7 @@ let fns : List<BuiltInFn> =
                   return DRecord(fnTypeName, fnTypeName, [], Map fields)
                 })
 
-            return Dval.list VT.unknownTODO fns
+            return DList(VT.customType fnTypeName [], fns)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

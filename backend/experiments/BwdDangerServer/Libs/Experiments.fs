@@ -88,9 +88,9 @@ let fns : List<BuiltInFn> =
       description =
         "Parses Dark code and serializes the result to JSON. Expects only types, fns, and exprs."
       fn =
-        let okType = VT.dict VT.string
-        let resultOk = Dval.resultOk okType VT.string
-        let resultError = Dval.resultError okType VT.string
+        let okType = KTDict VT.string
+        let resultOk = Dval.resultOk okType KTString
+        let resultError = Dval.resultError okType KTString
         function
         | _, _, [ DString code; DString filename ] ->
           uply {
@@ -107,7 +107,7 @@ let fns : List<BuiltInFn> =
                 [ "types", DString(Json.Vanilla.serialize types)
                   "fns", DString(Json.Vanilla.serialize fns)
                   "exprs", DString(Json.Vanilla.serialize exprs) ]
-                |> Dval.dict VT.unknownTODO
+                |> Dval.dict KTString
                 |> resultOk
             with e ->
               let error = Exception.getMessages e |> String.concat " "
@@ -129,8 +129,8 @@ let fns : List<BuiltInFn> =
       description =
         "Reads a file at backend/static/<param path>, and returns its contents as Bytes wrapped in a Result"
       fn =
-        let resultOk = Dval.resultOk VT.bytes VT.string
-        let resultError = Dval.resultError VT.bytes VT.string
+        let resultOk = Dval.resultOk KTBytes KTString
+        let resultError = Dval.resultError KTBytes KTString
         (function
         | _, _, [ DString path ] ->
           uply {
@@ -156,8 +156,8 @@ let fns : List<BuiltInFn> =
       description =
         "Reads a file at canvases/<param path>, and returns its contents as Bytes wrapped in a Result"
       fn =
-        let resultOk = Dval.resultOk VT.bytes VT.string
-        let resultError = Dval.resultError VT.bytes VT.string
+        let resultOk = Dval.resultOk KTBytes KTString
+        let resultError = Dval.resultError KTBytes KTString
         (function
         | _, _, [ DString path ] ->
           try

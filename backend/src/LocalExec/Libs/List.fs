@@ -75,7 +75,7 @@ let fns : List<BuiltInFn> =
             | DList(_vtTODO, l) -> List.append acc l
             | _ -> Exception.raiseInternal "flatten: expected list of lists" []
 
-          List.fold f [] l |> Dval.list VT.unknownTODO |> Ply
+          List.fold f [] l |> TypeChecker.DvalCreator.list VT.unknownTODO |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

@@ -149,18 +149,18 @@ let fns : List<BuiltInFn> =
               fns
               |> List.map (fun (owner, fnname, modules, version) ->
                 let fields =
-                  [ ("owner", DString owner)
-                    ("modules",
-                     modules
-                     |> String.split "."
-                     |> List.map DString
-                     |> Dval.list VT.string)
-                    ("name", DString fnname)
-                    ("version", DInt version) ]
+                  [ "owner", DString owner
+                    "modules",
+                    DList(
+                      VT.string,
+                      modules |> String.split "." |> List.map DString
+                    )
+                    "name", DString fnname
+                    "version", DInt version ]
 
                 DRecord(typeName, typeName, [], Map fields))
 
-            return Dval.list VT.unknownTODO fns
+            return DList(VT.unknownTODO, fns)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -199,15 +199,15 @@ let fns : List<BuiltInFn> =
                 let fields =
                   [ ("owner", DString owner)
                     ("modules",
-                     modules
-                     |> String.split "."
-                     |> List.map DString
-                     |> Dval.list VT.unknownTODO)
+                     DList(
+                       VT.string,
+                       modules |> String.split "." |> List.map DString
+                     ))
                     ("name", DString typename)
                     ("version", DInt version) ]
                 DRecord(typeName, typeName, [], Map fields))
 
-            return Dval.list VT.unknownTODO types
+            return DList(VT.unknownTODO, types)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -247,15 +247,15 @@ let fns : List<BuiltInFn> =
                 let fields =
                   [ ("owner", DString owner)
                     ("modules",
-                     modules
-                     |> String.split "."
-                     |> List.map DString
-                     |> Dval.list VT.unknownTODO)
+                     DList(
+                       VT.string,
+                       modules |> String.split "." |> List.map DString
+                     ))
                     ("name", DString fnname)
                     ("version", DInt version) ]
                 DRecord(typeName, typeName, [], Map fields))
 
-            return Dval.list VT.unknownTODO consts
+            return DList(VT.unknownTODO, consts)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

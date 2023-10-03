@@ -49,7 +49,7 @@ let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Dval =
         ("event_space", DString r.eventSpace)
         ("created_at", DDateTime(DarkDateTime.fromInstant r.createdAt)) ]
     DRecord(typeName, typeName, [], Map fields))
-  |> Dval.list (ValueType.Known(KTCustomType(typeName, [])))
+  |> Dval.list (KTCustomType(typeName, []))
 
 let types : List<BuiltInType> =
   [ { name = schedulingRuleTypeName

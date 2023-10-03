@@ -40,17 +40,13 @@ module CliRuntimeError =
             let metadata =
               metadata
               |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
-              |> Dval.list (
-                ValueType.Known(
-                  KTTuple(ValueType.Known KTString, ValueType.Known KTString, [])
-                )
-              )
+              |> Dval.list (KTTuple(VT.string, VT.string, []))
 
             "UncaughtException", [ DString msg; metadata ]
 
           | MultipleExpressionsToExecute exprs ->
             "MultipleExpressionsToExecute",
-            [ Dval.list VT.unknownTODO (List.map DString exprs) ]
+            [ DList(VT.string, List.map DString exprs) ]
 
           | NonIntReturned actuallyReturned ->
             "NonIntReturned", [ RT2DT.Dval.toDT actuallyReturned ]
@@ -142,9 +138,10 @@ let fns : List<BuiltInFn> =
           (TCustomType(Ok(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)), []))
       description = "Parses and executes arbitrary Dark code"
       fn =
-        let errType = VT.unknownTODO
-        let resultOk = Dval.resultOk VT.int errType
-        let resultError = Dval.resultError VT.int errType
+        let errType =
+          KTCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), [])
+        let resultOk = Dval.resultOk KTInt errType
+        let resultError = Dval.resultError KTInt errType
         (function
         | state, [], [ DString filename; DString code; DDict(_vtTODO, symtable) ] ->
           uply {
@@ -199,19 +196,24 @@ let fns : List<BuiltInFn> =
           (TCustomType(Ok(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)), []))
       description = "Executes an arbitrary Dark function"
       fn =
-        let errType = VT.unknownTODO
-        let resultOk = Dval.resultOk VT.string errType
-        let resultError = Dval.resultError VT.string errType
+        let errType =
+          KTCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), [])
+        let resultOk = Dval.resultOk KTString errType
+        let resultError = Dval.resultError KTString errType
 
         function
         | state, [], [ DString functionName; DList(_vtTODO, args) ] ->
           uply {
             let err (msg : string) (metadata : List<string * string>) : Dval =
-              let metadata = metadata |> List.map (Tuple2.mapSecond DString)
-              let typeName = FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)
               let fields =
-                [ "msg", DString msg; "metadata", Dval.dict VT.unknownTODO metadata ]
+                [ ("msg", DString msg)
+                  ("metadata",
+                   DDict(
+                     VT.string,
+                     metadata |> List.map (Tuple2.mapSecond DString) |> Map
+                   )) ]
 
+              let typeName = FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)
               DRecord(typeName, typeName, [], Map fields) |> resultError
 
             let exnError (e : exn) : Dval =
