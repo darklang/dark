@@ -528,36 +528,22 @@ let checkFunctionReturnType
 ///
 /// TODO: review _all_ usages of these functions
 module DvalCreator =
-  let private mergeFailureRte
-    (source : Source)
-    (vt1 : ValueType)
-    (vt2 : ValueType)
-    : 'a =
-    RuntimeError.oldError
-      $"Could not merge types {ValueType.toString vt1} and {ValueType.toString vt2}"
-    |> fun e -> raiseRTE source e
-
-
-  let private listPush
-    (list : List<Dval>)
-    (listType : ValueType)
-    (dv : Dval)
-    : ValueType * List<Dval> =
-    let dvalType = Dval.toValueType dv
-
-    match VT.merge listType dvalType with
-    | Ok newType -> newType, dv :: list
-    | Error() -> mergeFailureRte None (VT.list listType) (VT.list dvalType)
-
   let list (initialType : ValueType) (list : List<Dval>) : Dval =
     let (typ, dvs) =
       List.fold
-        (fun (typ, dvs) dv -> listPush dvs typ dv)
+        (fun (typ, list) dv ->
+          let dvalType = Dval.toValueType dv
+
+          match VT.merge typ dvalType with
+          | Ok newType -> newType, dv :: list
+          | Error() ->
+            RuntimeError.oldError
+              $"Could not merge types {ValueType.toString (VT.list typ)} and {ValueType.toString (VT.list dvalType)}"
+            |> raiseRTE None)
         (initialType, [])
         (List.rev list)
 
     DList(typ, dvs)
-
 
 
   let dict (typ : ValueType) (entries : List<string * Dval>) : Dval =
@@ -595,21 +581,17 @@ module DvalCreator =
 
 
   let optionSome (innerType : ValueType) (dv : Dval) : Dval =
+    let typeName = Dval.optionType
+
     let dvalType = Dval.toValueType dv
+
     match VT.merge innerType dvalType with
     | Ok typ ->
-      DEnum(
-        Dval.optionType,
-        Dval.optionType,
-        Dval.ignoreAndUseEmpty [ typ ],
-        "Some",
-        [ dv ]
-      )
+      DEnum(typeName, typeName, Dval.ignoreAndUseEmpty [ typ ], "Some", [ dv ])
     | Error() ->
-      mergeFailureRte
-        None
-        (ValueType.Known(KTCustomType(Dval.optionType, [ innerType ])))
-        (ValueType.Known(KTCustomType(Dval.optionType, [ dvalType ])))
+      RuntimeError.oldError
+        $"Could not merge types {ValueType.toString (VT.customType typeName [ innerType ])} and {ValueType.toString (VT.customType typeName [ dvalType ])}"
+      |> raiseRTE None
 
   let optionNone (innerType : ValueType) : Dval =
     DEnum(
@@ -639,10 +621,9 @@ module DvalCreator =
         [ dvOk ]
       )
     | Error() ->
-      mergeFailureRte
-        None
-        (ValueType.Known(KTCustomType(Dval.resultType, [ okType; errorType ])))
-        (ValueType.Known(KTCustomType(Dval.resultType, [ dvalType; errorType ])))
+      RuntimeError.oldError
+        $"Could not merge types {ValueType.toString (VT.customType Dval.resultType [ okType; errorType ])} and {ValueType.toString (VT.customType Dval.resultType [ dvalType; errorType ])}"
+      |> raiseRTE None
 
   let resultError
     (okType : ValueType)
@@ -660,10 +641,9 @@ module DvalCreator =
         [ dvError ]
       )
     | Error() ->
-      mergeFailureRte
-        None
-        (ValueType.Known(KTCustomType(Dval.resultType, [ okType; errorType ])))
-        (ValueType.Known(KTCustomType(Dval.resultType, [ okType; dvalType ])))
+      RuntimeError.oldError
+        $"Could not merge types {ValueType.toString (VT.customType Dval.resultType [ okType; errorType ])} and {ValueType.toString (VT.customType Dval.resultType [ okType; dvalType ])}"
+      |> raiseRTE None
 
   let result
     (okType : ValueType)
