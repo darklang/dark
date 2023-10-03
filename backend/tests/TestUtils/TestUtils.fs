@@ -728,7 +728,7 @@ module Expect =
       if a <> e then errorFn path (debugDval actual) (debugDval expected)
 
     let checkValueType (path : Path) (a : ValueType) (e : ValueType) : unit =
-      match LibExecution.TypeChecker.DvalCreator.mergeValueTypes a e with
+      match VT.merge a e with
       | Ok _merged -> ()
       | Error() -> errorFn path (debugDval actual) (debugDval expected)
 

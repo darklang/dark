@@ -476,6 +476,62 @@ module ValueType =
       | KTDB inner -> $"DB<{toString inner}>"
 
 
+  let rec private mergeKnownTypes
+    (left : KnownType)
+    (right : KnownType)
+    : Result<KnownType, unit> =
+    let r = merge
+    match left, right with
+    | KTUnit, KTUnit -> KTUnit |> Ok
+    | KTBool, KTBool -> KTBool |> Ok
+    | KTInt, KTInt -> KTInt |> Ok
+    | KTFloat, KTFloat -> KTFloat |> Ok
+    | KTChar, KTChar -> KTChar |> Ok
+    | KTString, KTString -> KTString |> Ok
+    | KTUuid, KTUuid -> KTUuid |> Ok
+    | KTBytes, KTBytes -> KTBytes |> Ok
+    | KTDateTime, KTDateTime -> KTDateTime |> Ok
+
+    | KTList left, KTList right -> r left right |> Result.map KTList
+    | KTDict left, KTDict right -> r left right |> Result.map KTDict
+    | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
+      let firstMerged = r l1 r1
+      let secondMerged = r l2 r2
+      let restMerged = List.map2 r ls rs |> Result.collect
+
+      match firstMerged, secondMerged, restMerged with
+      | Ok first, Ok second, Ok rest -> Ok(KTTuple(first, second, rest))
+      | _ -> Error()
+
+    | KTCustomType(lName, lArgs), KTCustomType(rName, rArgs) ->
+      if lName <> rName then
+        Error()
+      else if List.length lArgs <> List.length rArgs then
+        Error()
+      else
+        List.map2 r lArgs rArgs
+        |> Result.collect
+        |> Result.map (fun args -> KTCustomType(lName, args))
+
+    | KTFn(lArgs, lRet), KTFn(rArgs, rRet) ->
+      let argsMerged = NEList.map2 r lArgs rArgs |> Result.collectNE
+      let retMerged = r lRet rRet
+
+      match argsMerged, retMerged with
+      | Ok args, Ok ret -> Ok(KTFn(args, ret))
+      | _ -> Error()
+
+    | _ -> Error()
+
+  and merge (left : ValueType) (right : ValueType) : Result<ValueType, unit> =
+    match left, right with
+    | ValueType.Unknown, v
+    | v, ValueType.Unknown -> Ok v
+
+    | ValueType.Known left, ValueType.Known right ->
+      mergeKnownTypes left right |> Result.map ValueType.Known
+
+
 
 type NameResolution<'a> = Result<'a, RuntimeError>
 
