@@ -734,7 +734,6 @@ module Dval =
 
   module KnownType =
     let toDT (kt : KnownType) : Dval =
-      let vtToDT = ValueType.toDT
 
       let (caseName, fields) =
         match kt with

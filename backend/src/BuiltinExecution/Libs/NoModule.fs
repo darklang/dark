@@ -279,7 +279,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if the two value are equal"
       fn =
         (function
-        | state, _, [ a; b ] -> equals a b |> DBool |> Ply
+        | _, _, [ a; b ] -> equals a b |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
       previewable = Pure
@@ -293,7 +293,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if the two value are not equal"
       fn =
         (function
-        | state, _, [ a; b ] -> equals a b |> not |> DBool |> Ply
+        | _, _, [ a; b ] -> equals a b |> not |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<>"
       previewable = Pure

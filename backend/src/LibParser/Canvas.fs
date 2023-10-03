@@ -102,21 +102,21 @@ let parseLetBinding (m : WTCanvasModule) (letBinding : SynBinding) : WTCanvasMod
         let newHttpHanlder = WT.Handler.Spec.HTTP(route, method)
         { m with handlers = (newHttpHanlder, expr) :: m.handlers }
 
-      | SimpleAttribute("REPL", [ name ]) ->
+      | SimpleAttribute("REPL", [ _name ]) ->
         //let newHandler = PT.Handler.Spec.REPL(name, randomIds ())
         //{ m with handlers = (newHandler, expr) :: m.handlers }
         Exception.raiseInternal
           $"Not currently supporting REPLs, as we can't test them well yet"
           [ "attr", attr ]
 
-      | SimpleAttribute("Worker", [ name ]) ->
+      | SimpleAttribute("Worker", [ _name ]) ->
         //let newWorker = PT.Handler.Spec.Worker(name, randomIds ())
         //{ m with handlers = (newWorker, expr) :: m.handlers }
         Exception.raiseInternal
           $"Not currently supporting Workers, as we can't test them well yet"
           [ "attr", attr ]
 
-      | SimpleAttribute("Cron", [ name; interval ]) ->
+      | SimpleAttribute("Cron", [ _name; _interval ]) ->
         //let newCron = PT.Handler.Spec.Cron(name, interval, randomIds ())
         //{ m with handlers = (newCron, expr) :: m.handlers }
         Exception.raiseInternal

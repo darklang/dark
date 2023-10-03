@@ -236,7 +236,7 @@ let rec serialize
                 "expectedFields", fields ]
 
 
-    | TCustomType(Error err, _typeArgs), dval -> raiseUntargetedRTE err
+    | TCustomType(Error err, _typeArgs), _dval -> raiseUntargetedRTE err
 
 
     // Not supported

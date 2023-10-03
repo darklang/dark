@@ -279,7 +279,7 @@ module Expr =
       RT.EOr(id, toRT left, toRT right)
 
     | PT.ELambda(id, vars, body) ->
-      let vars = vars |> NEList.filter (fun (name, v) -> v <> "")
+      let vars = vars |> NEList.filter (fun (_, v) -> v <> "")
       match vars with
       | [] ->
         RT.EError(

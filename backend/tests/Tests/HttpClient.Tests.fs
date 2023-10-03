@@ -208,14 +208,14 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
       let versionName, testName =
         let segments = System.Uri(ctx.Request.Path.Value).Segments
 
-        let versionName = segments.[1]
+        let versionName = segments[1]
         let versionName =
           if String.endsWith "/" versionName then
             String.dropRight 1 versionName
           else
             versionName
 
-        let testName = segments.[2]
+        let testName = segments[2]
         let testName =
           if String.endsWith "/" testName then
             String.dropRight 1 testName

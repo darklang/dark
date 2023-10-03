@@ -20,7 +20,8 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   | _, _, [ DUuid canvasID; DString handlerName ] ->
     uply {
       do! fn canvasID handlerName
-      let! s = SchedulingRules.getWorkerSchedules canvasID
+      // TODO reenable
+      let! _s = SchedulingRules.getWorkerSchedules canvasID
       // Pusher.push
       //   LibClientTypesToCloudTypes.Pusher.eventSerializer
       //   canvasID

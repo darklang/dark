@@ -97,7 +97,7 @@ module DvalComparator =
       else
         c
 
-  and compareExprs (e1 : Expr) (e2 : Expr) : int = 0 // CLEANUP
+  and compareExprs (_e1 : Expr) (_e2 : Expr) : int = 0 // CLEANUP
 
 
 
@@ -270,7 +270,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the number of values in <param list>"
       fn =
         (function
-        | _, _, [ DList(vt, l) ] -> Ply(Dval.int (l.Length))
+        | _, _, [ DList(_, l) ] -> Ply(Dval.int (l.Length))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -428,7 +428,7 @@ let fns : List<BuiltInFn> =
          preserving the order."
       fn =
         (function
-        | _, _, [ DList(vt1, l1); DList(vt2, l2) ] ->
+        | _, _, [ DList(vt1, l1); DList(_vt2, l2) ] ->
           // VTTODO should fail here in the case of vt1 conflicting with vt2?
           // (or is this handled by the interpreter?)
           Ply(Dval.list vt1 (List.append l1 l2))

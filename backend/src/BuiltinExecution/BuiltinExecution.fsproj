@@ -3,8 +3,7 @@
     <OutputType>Library</OutputType>
     <TargetFramework>net7.0</TargetFramework>
     <LangVersion>7.0</LangVersion>
-    <OtherFlags>--warnaserror</OtherFlags>
-    <!-- Publishing configuration -->
+<!-- Publishing configuration -->
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>

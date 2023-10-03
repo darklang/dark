@@ -499,7 +499,7 @@ and TypeReference =
 
   member this.isConcrete() : bool =
     let rec isConcrete (t : TypeReference) : bool =
-      match this with
+      match t with
       | TVariable _ -> false
       | TList t -> isConcrete t
       | TTuple(t1, t2, ts) ->
@@ -907,7 +907,7 @@ module Dval =
     | DFnVal(Lambda l), TFn(parameters, _) ->
       NEList.length parameters = NEList.length l.parameters
 
-    | DRecord(typeName, _, _typeArgsTODO, fields),
+    | DRecord(typeName, _, _typeArgsTODO, _fields),
       TCustomType(Ok typeName', _typeArgs) ->
       // TYPESCLEANUP: should load type by name
       // TYPESCLEANUP: are we handling type arguments here?
@@ -1396,7 +1396,7 @@ let rec getTypeReferenceFromAlias
   | TCustomType(Ok outerTypeName, outerTypeArgs) ->
     uply {
       match! Types.find outerTypeName types with
-      | Some { definition = TypeDeclaration.Alias typ; typeParams = typeParams } as decl ->
+      | Some { definition = TypeDeclaration.Alias typ; typeParams = typeParams } ->
         let typ = Types.substitute typeParams outerTypeArgs typ
         return! getTypeReferenceFromAlias types typ
       | _ -> return Ok typ
