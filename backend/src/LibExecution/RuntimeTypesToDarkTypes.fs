@@ -533,11 +533,10 @@ module Expr =
         "EMatch", [ DInt(int64 id); toDT arg; cases ]
 
 
-      | ELambda(id, args, body) ->
+      | ELambda(id, pats, body) ->
         let variables =
-          (NEList.toList args)
-          |> List.map (fun (id, varName) ->
-            DTuple(DInt(int64 id), DString varName, []))
+          (NEList.toList pats)
+          |> List.map LetPattern.toDT
           |> Dval.list VT.unknownTODO
         "ELambda", [ DInt(int64 id); variables; toDT body ]
 
@@ -657,17 +656,14 @@ module Expr =
           []
       EMatch(uint64 id, fromDT arg, cases)
 
-    | DEnum(_, _, [], "ELambda", [ DInt id; DList(_vtTODO, args); body ]) ->
-      let args =
-        args
-        |> List.collect (fun arg ->
-          match arg with
-          | DTuple(DInt argId, DString varName, _) -> [ (uint64 argId, varName) ]
-          | _ -> [])
+    | DEnum(_, _, [], "ELambda", [ DInt id; DList(_vtTODO, pats); body ]) ->
+      let pats =
+        pats
+        |> List.map LetPattern.fromDT
         |> NEList.ofListUnsafe
           "RT2DT.Expr.fromDT expected at least one bound variable in ELambda"
           []
-      ELambda(uint64 id, args, fromDT body)
+      ELambda(uint64 id, pats, fromDT body)
 
 
     | DEnum(_,
@@ -856,7 +852,7 @@ module Dval =
       let parameters =
         l.parameters
         |> NEList.toList
-        |> List.map (fun (id, name) -> DTuple(DInt(int64 id), DString name, []))
+        |> List.map LetPattern.toDT
         |> Dval.list VT.unknownTODO
       let body = Expr.toDT l.body
       let fields =
@@ -879,10 +875,7 @@ module Dval =
           parameters =
             fields
             |> D.listField "parameters"
-            |> List.map (fun d ->
-              match d with
-              | DTuple(DInt id, DString name, _) -> (uint64 id, name)
-              | _ -> Exception.raiseInternal "Invalid LambdaImpl" [])
+            |> List.map LetPattern.fromDT
             |> NEList.ofListUnsafe
               "RT2DT.Dval.fromDT expected at least one parameter in LambdaImpl"
               []

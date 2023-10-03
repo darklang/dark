@@ -183,9 +183,9 @@ module Expr =
           // it's not a variable, the "missing-varname" error will still be appropriate.
           return PT.EVariable(id, varName)
         | _, _ -> return PT.EFnName(id, fnName)
-      | WT.ELambda(id, vars, body) ->
+      | WT.ELambda(id, pats, body) ->
         let! body = toPT body
-        return PT.ELambda(id, vars, body)
+        return PT.ELambda(id, NEList.map LetPattern.toPT pats, body)
       | WT.ELet(id, pat, rhs, body) ->
         let! rhs = toPT rhs
         let! body = toPT body
@@ -302,9 +302,9 @@ module Expr =
           | Ok name -> PT.EPipeFnCall(id, Ok name, [], [])
           | Error _ -> PT.EPipeVariable(id, name, [])
 
-      | WT.EPipeLambda(id, args, body) ->
+      | WT.EPipeLambda(id, pats, body) ->
         let! body = toPT body
-        return PT.EPipeLambda(id, args, body)
+        return PT.EPipeLambda(id, NEList.map LetPattern.toPT pats, body)
 
       | WT.EPipeInfix(id, infix, first) ->
         let! first = toPT first

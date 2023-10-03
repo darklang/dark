@@ -665,13 +665,13 @@ module Expect =
       eqList path fields fields'
       ()
 
-    | ELambda(_, vars, e), ELambda(_, vars', e') ->
+    | ELambda(_, pats, e), ELambda(_, pats', e') ->
       let path = ("lambda" :: path)
       eq path e e'
-      NEList.iteri2
-        (fun i (_, v) (_, v') -> check (string i :: path) v v')
-        vars
-        vars'
+      NEList.iter2
+        (fun pat pat' -> letPatternEqualityBaseFn false path pat pat' errorFn)
+        pats
+        pats'
     | EMatch(_, e, branches), EMatch(_, e', branches') ->
       eq ("matchCond" :: path) e e'
 
@@ -839,8 +839,11 @@ module Expect =
       ()
 
     | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
-      let vals l = NEList.map Tuple2.second l
-      check ("lambdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
+      NEList.iter2
+        (fun pat pat' -> letPatternEqualityBaseFn false path pat pat' errorFn)
+        l1.parameters
+        l2.parameters
+      //check ("lambdaVars" :: path) l1.parameters l2.parameters
       check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
       exprEqualityBaseFn false path l1.body l2.body errorFn
 
@@ -1085,7 +1088,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
          { body = RT.EUnit(id 1234)
            typeSymbolTable = Map.empty
            symtable = Map.empty
-           parameters = NEList.singleton (id 5678, "a") }
+           parameters = NEList.singleton (RT.LPVariable(id 5678, "a")) }
      ),
      TFn(NEList.singleton TInt, TUnit))
     ("lambda with pipe",
@@ -1141,7 +1144,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
              )
            symtable = Map.empty
            typeSymbolTable = Map.empty
-           parameters = NEList.singleton ((id 5678, "a")) }
+           parameters = NEList.singleton (RT.LPVariable(id 5678, "a")) }
      ),
      TFn(NEList.singleton TInt, TInt))
     ("db", DDB "Visitors", TDB TInt)

@@ -577,8 +577,7 @@ module PipeExpr =
         let variables =
           args
           |> NEList.toList
-          |> List.map (fun (id, varName) ->
-            DTuple(DInt(int64 id), DString varName, []))
+          |> List.map LetPattern.toDT
           |> Dval.list VT.unknownTODO
         "EPipeLambda", [ DInt(int64 id); variables; exprToDT body ]
 
@@ -616,11 +615,12 @@ module PipeExpr =
     | DEnum(_, _, [], "EPipeLambda", [ DInt id; variables; body ]) ->
       let variables =
         match variables with
-        | DList(_vtTODO, head :: tail) ->
-          NEList.ofList head tail
-          |> NEList.map (function
-            | DTuple(DInt id, DString varName, []) -> (uint64 id, varName)
-            | _ -> Exception.raiseInternal "Invalid variable" [])
+        | DList(_vtTODO, pats) ->
+          pats
+          |> List.map LetPattern.fromDT
+          |> NEList.ofListUnsafe
+            "PT2DT.PipeExpr.fromDT expected at least one bound variable in EPipeLambda"
+            []
         | _ -> Exception.raiseInternal "Invalid variables" []
 
       PT.EPipeLambda(uint64 id, variables, exprFromDT body)
@@ -750,12 +750,11 @@ module Expr =
       | PT.EInfix(id, infix, lhs, rhs) ->
         "EInfix", [ DInt(int64 id); Infix.toDT infix; toDT lhs; toDT rhs ]
 
-      | PT.ELambda(id, args, body) ->
+      | PT.ELambda(id, pats, body) ->
         let variables =
-          args
+          pats
           |> NEList.toList
-          |> List.map (fun (id, varName) ->
-            DTuple(DInt(int64 id), DString varName, []))
+          |> List.map LetPattern.toDT
           |> Dval.list VT.unknownTODO
 
         "ELambda", [ DInt(int64 id); variables; toDT body ]
@@ -878,14 +877,14 @@ module Expr =
     | DEnum(_, _, [], "EInfix", [ DInt id; infix; lhs; rhs ]) ->
       PT.EInfix(uint64 id, Infix.fromDT infix, fromDT lhs, fromDT rhs)
 
-    | DEnum(_, _, [], "ELambda", [ DInt id; DList(_vtTODO, head :: tail); body ]) ->
-      let args =
-        NEList.ofList head tail
-        |> NEList.map (fun arg ->
-          match arg with
-          | DTuple(DInt argId, DString varName, _) -> (uint64 argId, varName)
-          | _ -> Exception.raiseInternal "Invalid lambda arg" [ "arg", arg ])
-      PT.ELambda(uint64 id, args, fromDT body)
+    | DEnum(_, _, [], "ELambda", [ DInt id; DList(_vtTODO, pats); body ]) ->
+      let pats =
+        pats
+        |> List.map LetPattern.fromDT
+        |> NEList.ofListUnsafe
+          "PT2DT.Expr.fromDT expected at least one bound variable in ELambda"
+          []
+      PT.ELambda(uint64 id, pats, fromDT body)
 
 
     | DEnum(_,

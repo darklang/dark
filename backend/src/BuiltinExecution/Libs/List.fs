@@ -9,6 +9,7 @@ module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 module TypeChecker = LibExecution.TypeChecker
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
+module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 
 
 // CLEANUP something like type ComparatorResult = Higher | Lower | Same
@@ -27,7 +28,7 @@ module DvalComparator =
     | DTuple(a1, b1, l1), DTuple(a2, b2, l2) ->
       compareLists (a1 :: b1 :: l1) (a2 :: b2 :: l2)
     | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
-      let c = compare (NEList.map snd l1.parameters) (NEList.map snd l2.parameters)
+      let c = compareLetPatternsLists l1.parameters l2.parameters
       if c = 0 then
         let c = compareExprs l1.body l2.body
         if c = 0 then
@@ -74,6 +75,13 @@ module DvalComparator =
     | DEnum _, _ ->
       // TODO: Feels like this should hook into typechecker and ValueTypes somehow
       raiseString "Comparing different types" [ "dv1", dv1; "dv2", dv2 ]
+  and compareLetPatternsLists
+    (l1 : NEList<LetPattern>)
+    (l2 : NEList<LetPattern>)
+    : int =
+    let l1 = NEList.map RT2DT.LetPattern.toDT l1 |> NEList.toList
+    let l2 = NEList.map RT2DT.LetPattern.toDT l2 |> NEList.toList
+    compareLists l1 l2
 
   and compareLists (l1 : List<Dval>) (l2 : List<Dval>) : int =
     match l1, l2 with

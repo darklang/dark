@@ -428,7 +428,7 @@ type Expr =
   // Composed of a parameters * the expression itself
   // The id in the varname list is the analysis id, used to get a livevalue
   // from the analysis engine
-  | ELambda of id * NEList<id * string> * Expr
+  | ELambda of id * pats : NEList<LetPattern> * body : Expr
 
 
   // Access a field of some expression (e.g. `someExpr.fieldName`)
@@ -488,7 +488,7 @@ and StringSegment =
 
 and PipeExpr =
   | EPipeVariable of id * string * List<Expr> // value is an fn taking one or more arguments
-  | EPipeLambda of id * NEList<id * string> * Expr
+  | EPipeLambda of id * pats : NEList<LetPattern> * body : Expr
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of
     id *

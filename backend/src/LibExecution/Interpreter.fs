@@ -95,6 +95,35 @@ let rec evalConst (source : DvalSource) (c : Const) : Dval =
 
 
 
+/// Used in the ELet and ELamba evals
+/// Does the dval 'match' the given pattern?
+///
+/// Returns:
+/// - whether or not the expr 'matches' the pattern
+/// - new vars (name * value)
+let rec checkPattern (dv : Dval) (pattern : LetPattern) : List<string * Dval> =
+  let errStr msg : 'a = raiseRTE SourceNone (RuntimeError.oldError msg)
+  match pattern with
+
+  | LPVariable(id, varName) -> [ (varName, dv) ]
+
+  | LPUnit id -> if dv <> DUnit then errStr "Unit pattern does not match" else []
+
+  | LPTuple(id, firstPat, secondPat, theRestPat) ->
+    let allPatterns = firstPat :: secondPat :: theRestPat
+
+    match dv with
+    | DTuple(first, second, theRest) ->
+      let allVals = first :: second :: theRest
+
+      if List.length allVals = List.length allPatterns then
+        List.zip allVals allPatterns
+        |> List.map (fun (dv, pat) -> checkPattern dv pat)
+        |> List.concat
+      else
+        errStr "Tuple pattern has wrong number of elements"
+    | _ -> errStr "Tuple pattern does not match"
+
 // fsharplint:disable FL0039
 
 /// Interprets an expression and reduces to a Dark value
@@ -267,33 +296,6 @@ let rec eval
 
 
     | ELet(id, pattern, rhs, body) ->
-      /// Does the dval 'match' the given pattern?
-      ///
-      /// Returns:
-      /// - whether or not the expr 'matches' the pattern
-      /// - new vars (name * value)
-      let rec checkPattern (dv : Dval) (pattern : LetPattern) : List<string * Dval> =
-        match pattern with
-
-        | LPVariable(id, varName) -> [ (varName, dv) ]
-
-        | LPUnit id ->
-          if dv <> DUnit then errStr id "Unit pattern does not match" else []
-
-        | LPTuple(id, firstPat, secondPat, theRestPat) ->
-          let allPatterns = firstPat :: secondPat :: theRestPat
-
-          match dv with
-          | DTuple(first, second, theRest) ->
-            let allVals = first :: second :: theRest
-
-            if List.length allVals = List.length allPatterns then
-              List.zip allVals allPatterns
-              |> List.map (fun (dv, pat) -> checkPattern dv pat)
-              |> List.concat
-            else
-              errStr id "Tuple pattern has wrong number of elements"
-          | _ -> errStr id "Tuple pattern does not match"
 
       let! rhs = eval state tst st rhs
       let newDefs = checkPattern rhs pattern
@@ -747,7 +749,6 @@ and executeLambda
   (args : NEList<Dval>)
   : DvalTask =
 
-  let parameters = NEList.map snd l.parameters
   // One of the reasons to take a separate list of params and args is to
   // provide this error message here. We don't have this information in
   // other places, and the alternative is just to provide incompletes
@@ -761,11 +762,12 @@ and executeLambda
         $"Expected {expectedLength} arguments, got {actualLength}")
 
   else
-    let paramSyms = NEList.zip parameters args |> NEList.toList |> Map
-
-    // paramSyms is higher priority
+    let paramSyms =
+      NEList.map2 checkPattern args l.parameters
+      |> NEList.toList
+      |> List.flatten
+      |> Map
     let newSymtable = Map.mergeFavoringRight l.symtable paramSyms
-
     eval state l.typeSymbolTable newSymtable l.body
 
 and callFn

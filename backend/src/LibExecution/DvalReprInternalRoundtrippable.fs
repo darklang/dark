@@ -272,7 +272,7 @@ module FormatV0 =
         RT.Lambda
           { typeSymbolTable = Map []
             symtable = Map []
-            parameters = NEList.singleton (gid (), "var")
+            parameters = NEList.singleton (RT.LPVariable(gid (), "var"))
             body = RT.Expr.EUnit 0UL }
       )
     | DDateTime d -> RT.DDateTime d

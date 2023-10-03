@@ -72,7 +72,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
 and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
   NEList.length impl1.parameters = NEList.length impl2.parameters
   && NEList.forall2
-    (fun (_, str1) (_, str2) -> str1 = str2)
+    (fun p1 p2 -> equalsLetPattern p1 p2)
     impl1.parameters
     impl2.parameters
   && equalsSymtable impl1.symtable impl2.symtable
@@ -106,12 +106,9 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
        | None, None -> true
        | _, _ -> false
 
-  | ELambda(_, parameters1, body1), ELambda(_, parameters2, body2) ->
-    NEList.length parameters1 = NEList.length parameters2
-    && NEList.forall2
-      (fun (_, str1) (_, str2) -> str1 = str2)
-      parameters1
-      parameters2
+  | ELambda(_, pats1, body1), ELambda(_, pats2, body2) ->
+    NEList.length pats1 = NEList.length pats2
+    && NEList.forall2 (fun p1 p2 -> equalsLetPattern p1 p2) pats1 pats2
     && equalsExpr body1 body2
   | EFieldAccess(_, target1, fieldName1), EFieldAccess(_, target2, fieldName2) ->
     equalsExpr target1 target2 && fieldName1 = fieldName2
