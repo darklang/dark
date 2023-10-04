@@ -28,17 +28,13 @@ type Response = { statusCode : int; headers : Headers.T; body : Body }
 module HeaderError =
   type HeaderError = | EmptyKey
 
-  let toDT (err : HeaderError) : Ply<Dval> =
-    uply {
-      let! (caseName, fields) =
-        uply {
-          match err with
-          | EmptyKey -> return "EmptyKey", []
-        }
-      let typeName =
-        TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "HeaderError" 0
-      return! Dval.enum typeName typeName (Some []) caseName fields
-    }
+  let toDT (err : HeaderError) : Dval =
+    let (caseName, fields) =
+      match err with
+      | EmptyKey -> "EmptyKey", []
+    let typeName =
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "HeaderError" 0
+    DEnum(typeName, typeName, [], caseName, fields)
 
 module BadUrl =
   type BadUrlDetails =
@@ -47,21 +43,17 @@ module BadUrl =
     | InvalidUri
     | InvalidRequest
 
-  let toDT (err : BadUrlDetails) : Ply<Dval> =
-    uply {
-      let! (caseName, fields) =
-        uply {
-          match err with
-          | UnsupportedProtocol -> return "UnsupportedProtocol", []
-          | InvalidHost -> return "InvalidHost", []
-          | InvalidUri -> return "InvalidUri", []
-          | InvalidRequest -> return "InvalidRequest", []
-        }
+  let toDT (err : BadUrlDetails) : Dval =
+    let (caseName, fields) =
+      match err with
+      | UnsupportedProtocol -> "UnsupportedProtocol", []
+      | InvalidHost -> "InvalidHost", []
+      | InvalidUri -> "InvalidUri", []
+      | InvalidRequest -> "InvalidRequest", []
 
-      let typeName =
-        TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "BadUrlDetails" 0
-      return! Dval.enum typeName typeName (Some []) caseName fields
-    }
+    let typeName =
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "BadUrlDetails" 0
+    Dval.DEnum(typeName, typeName, [], caseName, fields)
 
 module RequestError =
   // forked from Elm's HttpError type
@@ -73,26 +65,22 @@ module RequestError =
     | IOError
     | ConnectionError
 
-  let toDT (err : RequestError) : Ply<Dval> =
-    uply {
-      let! (caseName, fields) =
-        uply {
-          match err with
-          | BadUrl details ->
-            let! details = BadUrl.toDT details
-            return "BadUrl", [ details ]
-          | Timeout -> return "Timeout", []
-          | HeaderError err ->
-            let! err = HeaderError.toDT err
-            return "HeaderError", [ err ]
-          | IOError -> return "IOError", []
-          | ConnectionError -> return "ConnectionError", []
-        }
+  let toDT (err : RequestError) : Dval =
+    let (caseName, fields) =
+      match err with
+      | BadUrl details ->
+        let details = BadUrl.toDT details
+        "BadUrl", [ details ]
+      | Timeout -> "Timeout", []
+      | HeaderError err ->
+        let err = HeaderError.toDT err
+        "HeaderError", [ err ]
+      | IOError -> "IOError", []
+      | ConnectionError -> "ConnectionError", []
 
-      let typeName =
-        TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "RequestError" 0
-      return! Dval.enum typeName typeName (Some []) caseName fields
-    }
+    let typeName =
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "RequestError" 0
+    DEnum(typeName, typeName, [], caseName, fields)
 
 
 type RequestResult = Result<Response, RequestError.RequestError>
@@ -439,10 +427,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
         let resultOk = Dval.resultOk responseType KTString
         let resultErrorStr str = Dval.resultError responseType KTString (DString str)
         let typeName = RuntimeError.name [ "HttpClient" ] "RequestError" 0
-        let resultError =
-          Dval.resultError VT.unknownTODO VT.unknownTODO
-        let resultErrorStr str =
-          Dval.resultError VT.unknownTODO VT.string (DString str)
+        let resultError = Dval.resultError responseType (KTCustomType(typeName, []))
         (function
         | state,
           _,
@@ -527,11 +512,11 @@ let fns (config : Configuration) : List<BuiltInFn> =
                 return DRecord(typ, typ, [], Map fields) |> resultOk
 
               | Error(err) ->
-                let! err = err |> RequestError.toDT
+                let err = err |> RequestError.toDT
                 return (err |> resultError)
 
             | Error reqHeadersErr, _ ->
-              let! reqHeadersErr = reqHeadersErr |> HeaderError.toDT
+              let reqHeadersErr = reqHeadersErr |> HeaderError.toDT
               return reqHeadersErr |> resultError
 
             | _, None ->
