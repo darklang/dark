@@ -973,19 +973,19 @@ let partiallyEvaluate
               let! second = r second
               let! theRest = Ply.List.mapSequentially r theRest
               return ETuple(id, first, second, theRest)
-            | EMatch(id, mexpr, pairs) ->
+            | EMatch(id, mexpr, cases) ->
               let! mexpr = r mexpr
 
-              let! pairs =
+              let! cases =
                 Ply.NEList.mapSequentially
-                  (fun (pat, expr) ->
+                  (fun case ->
                     uply {
-                      let! expr = r expr
-                      return (pat, expr)
+                      let! expr = r case.rhs
+                      return { pat = case.pat; rhs = expr }
                     })
-                  pairs
+                  cases
 
-              return EMatch(id, mexpr, pairs)
+              return EMatch(id, mexpr, cases)
             | ERecord(id, typeName, fields) ->
               let! fields =
                 Ply.NEList.mapSequentially

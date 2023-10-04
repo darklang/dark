@@ -633,14 +633,14 @@ let rec eval
 
       let mutable matchResult = None
 
-      for (pattern, rhsExpr) in NEList.toList cases do
+      for case in NEList.toList cases do
         if Option.isSome matchResult then
           ()
         else
-          let! passes, newDefs = checkPattern matchVal pattern
+          let! passes, newDefs = checkPattern matchVal case.pat
           let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
           if matchResult = None && passes then
-            let! r = eval state tlid tst newSymtable rhsExpr
+            let! r = eval state tlid tst newSymtable case.rhs
             matchResult <- Some r
 
       match matchResult with

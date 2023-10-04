@@ -200,6 +200,9 @@ module Darklang =
           caseName: String *
           fields: List<Expr>
 
+
+      type MatchCase = { pat: MatchPattern; rhs: Expr }
+
       // module PipeExpr =
       //   let toID (expr : PipeExpr) : id =
       //     match expr with
@@ -260,7 +263,7 @@ module Darklang =
           thenExpr: Expr *
           elseExpr: Stdlib.Option.Option<Expr>
 
-        | EMatch of ID * arg: Expr * cases: List<MatchPattern * Expr>
+        | EMatch of ID * arg: Expr * cases: List<MatchCase>
 
         | EPipe of ID * Expr * List<PipeExpr>
 

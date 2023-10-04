@@ -670,9 +670,9 @@ module Expect =
       eq ("matchCond" :: path) e e'
 
       NEList.iter2
-        (fun ((p, v) : MatchPattern * Expr) (p', v') ->
-          matchPatternEqualityBaseFn checkIDs path p p' errorFn
-          eq (string p :: path) v v')
+        (fun branch branch' ->
+          matchPatternEqualityBaseFn checkIDs path branch.pat branch'.pat errorFn
+          eq (string branch.pat :: path) branch.rhs branch'.rhs)
         branches
         branches'
     | EAnd(_, l, r), EAnd(_, l', r') ->

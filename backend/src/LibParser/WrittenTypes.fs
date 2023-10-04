@@ -148,9 +148,11 @@ type Expr =
     typeName : UnresolvedEnumTypeName *
     caseName : string *
     fields : List<Expr>
-  | EMatch of id * arg : Expr * cases : List<MatchPattern * Expr>
+  | EMatch of id * arg : Expr * cases : List<MatchCase>
   | EFnName of id * Name
   | EPlaceHolder // Used to start exprs that aren't filled in yet, not in ProgramTypes
+
+and MatchCase = { pat : MatchPattern; rhs : Expr }
 
 and StringSegment =
   | StringText of string

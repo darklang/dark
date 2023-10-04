@@ -96,13 +96,13 @@ let rec preTraversal
     ETuple(id, f first, f second, List.map f theRest)
   | EEnum(id, typeName, caseName, fields) ->
     EEnum(id, fqtnFn typeName, caseName, List.map f fields)
-  | EMatch(id, mexpr, pairs) ->
+  | EMatch(id, mexpr, cases) ->
     EMatch(
       id,
       f mexpr,
       NEList.map
-        (fun (pattern, expr) -> (preTraverseMatchPattern pattern, f expr))
-        pairs
+        (fun case -> { pat = preTraverseMatchPattern case.pat; rhs = f case.rhs })
+        cases
     )
   | ERecord(id, typeName, fields) ->
     ERecord(
@@ -207,13 +207,14 @@ let rec postTraversal
    | EEnum(id, typeName, caseName, fields) ->
 
      EEnum(id, fqtnFn typeName, caseName, List.map f fields)
-   | EMatch(id, mexpr, pairs) ->
+   | EMatch(id, mexpr, cases) ->
      EMatch(
        id,
        f mexpr,
        NEList.map
-         (fun (pattern, expr) -> (postTraverseMatchPattern pattern, f expr))
-         pairs
+         (fun case ->
+           ({ pat = postTraverseMatchPattern case.pat; rhs = f case.rhs }))
+         cases
      )
    | ERecord(id, typeName, fields) ->
      ERecord(
@@ -388,19 +389,19 @@ let rec postTraversalAsync
           let! elseexpr = Ply.Option.map r elseexpr
           return EIf(id, cond, ifexpr, elseexpr)
         }
-      | EMatch(id, mexpr, pairs) ->
+      | EMatch(id, mexpr, cases) ->
         uply {
           let! mexpr = r mexpr
-          let! pairs =
+          let! cases =
             Ply.NEList.mapSequentially
-              (fun (pattern, expr) ->
+              (fun case ->
                 uply {
-                  let! pattern = postTraverseMatchPattern pattern
-                  let! expr = r expr
-                  return (pattern, expr)
+                  let! pattern = postTraverseMatchPattern case.pat
+                  let! expr = r case.rhs
+                  return { pat = pattern; rhs = expr }
                 })
-              pairs
-          return EMatch(id, mexpr, pairs)
+              cases
+          return EMatch(id, mexpr, cases)
         }
 
       | ERecord(id, typeName, fields) ->

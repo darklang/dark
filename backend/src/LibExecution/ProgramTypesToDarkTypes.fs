@@ -763,12 +763,21 @@ module Expr =
 
       | PT.EMatch(id, arg, cases) ->
         let cases =
-          DList(
-            VT.tuple (VT.known MatchPattern.knownType) (VT.known knownType) [],
-            cases
-            |> List.map (fun (pattern, expr) ->
-              DTuple(MatchPattern.toDT pattern, toDT expr, []))
-          )
+          // DList(
+          //   VT.tuple (VT.known MatchPattern.knownType) (VT.known knownType) [],
+          //   cases
+          //   |> List.map (fun (pattern, expr) ->
+          //     DTuple(MatchPattern.toDT pattern, toDT expr, []))
+          // )
+
+          cases
+          |> List.map (fun case ->
+
+            let pattern = MatchPattern.toDT case.pat
+            let expr = toDT case.rhs
+            let typeName = (ptTyp [] "MatchCase" 0)
+            DRecord(typeName, typeName, [], Map [ ("pat", pattern); ("rhs", expr) ]))
+          |> Dval.list (KTCustomType(typeName, []))
 
         "EMatch", [ DInt(int64 id); toDT arg; cases ]
 
@@ -905,12 +914,15 @@ module Expr =
       PT.EIf(uint64 id, fromDT cond, fromDT thenExpr, elseExpr)
 
     | DEnum(_, _, [], "EMatch", [ DInt id; arg; DList(_vtTODO, cases) ]) ->
-      let cases =
+      let (cases : List<PT.MatchCase>) =
         cases
         |> List.collect (fun case ->
           match case with
-          | DTuple(pattern, expr, _) ->
-            [ (MatchPattern.fromDT pattern, fromDT expr) ]
+          | DRecord(_, _, _, fields) ->
+            match Map.tryFind "pat" fields, Map.tryFind "rhs" fields with
+            | Some pat, Some rhs ->
+              [ { pat = MatchPattern.fromDT pat; rhs = fromDT rhs } ]
+            | _ -> []
           | _ -> [])
       PT.EMatch(uint64 id, fromDT arg, cases)
 

@@ -480,7 +480,10 @@ type Expr =
   /// | ...
   /// ```
   // cases is a list to represent when a user starts typing but doesn't complete it
-  | EMatch of id * arg : Expr * cases : List<MatchPattern * Expr>
+  | EMatch of id * arg : Expr * cases : List<MatchCase>
+
+// and type MatchCase = { pat: MatchPattern; whenCondition: Option<Expr>; rhs: Expr }
+and MatchCase = { pat : MatchPattern; rhs : Expr }
 
 and StringSegment =
   | StringText of string

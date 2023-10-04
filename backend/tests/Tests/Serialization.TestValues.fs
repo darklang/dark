@@ -199,7 +199,8 @@ module RuntimeTypes =
       RT.EMatch(
         712743UL,
         RT.EInt(712373UL, 123),
-        NEList.singleton (RT.MPVariable(12738UL, "i"), RT.EVariable(1482374UL, "i"))
+        NEList.singleton
+          { pat = RT.MPVariable(12738UL, "i"); rhs = RT.EVariable(1482374UL, "i") }
       )
       RT.EAnd(9375723UL, RT.EBool(83645924UL, true), RT.EBool(385812673UL, false))
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
@@ -636,67 +637,76 @@ module ProgramTypes =
                                 [],
                                 (NEList.singleton (PT.EInt(1015986188UL, 5L)))
                               ),
-                              [ (PT.MPEnum(
-                                  1015986188UL,
-                                  "Ok",
-                                  [ PT.MPVariable(334386852UL, "x") ]
-                                 ),
-                                 PT.EVariable(863810169UL, "v"))
-                                (PT.MPInt(928253813UL, 5L),
-                                 PT.EInt(342670561UL, -9223372036854775808L))
-                                (PT.MPBool(435227293UL, true),
-                                 PT.EInt(232748650UL, 7L))
-                                (PT.MPChar(387662539UL, "c"),
-                                 PT.EChar(657848009UL, "c"))
-                                (PT.MPList(
-                                  387662539UL,
-                                  [ PT.MPBool(435227293UL, true) ]
-                                 ),
-                                 PT.EList(
-                                   657848009UL,
-                                   [ PT.EBool(435227293UL, true) ]
-                                 ))
-                                (PT.MPListCons(
-                                  596996239UL,
-                                  PT.MPString(949735651UL, "val1"),
-                                  PT.MPListCons(
-                                    580612639UL,
-                                    PT.MPString(191110189UL, "val2"),
-                                    PT.MPList(
-                                      448252771UL,
-                                      [ PT.MPString(98945887UL, "val3") ]
+                              [ { pat =
+                                    PT.MPEnum(
+                                      1015986188UL,
+                                      "Ok",
+                                      [ PT.MPVariable(334386852UL, "x") ]
                                     )
-                                  )
-                                 ),
-                                 PT.EList(
-                                   657848009UL,
-                                   [ PT.EBool(435227293UL, true) ]
-                                 ))
-                                (PT.MPString(491115870UL, "string"),
-                                 PT.EString(
-                                   820329949UL,
-                                   [ PT.StringText "string"
-                                     PT.StringInterpolation(
-                                       PT.EVariable(1002893266UL, "var")
-                                     ) ]
-                                 ))
-                                (PT.MPUnit 701616052UL, PT.EUnit 731162955UL)
-                                (PT.MPVariable(722099983UL, "var"),
-                                 PT.EInfix(
-                                   275666765UL,
-                                   PT.InfixFnCall(PT.ArithmeticPlus),
-                                   PT.EInt(739193732UL, 6L),
-                                   PT.EVariable(880556562UL, "var")
-                                 ))
-                                (PT.MPFloat(409097457UL, Positive, "5", "6"),
-                                 PT.EFloat(131187958UL, Positive, "5", "6"))
-                                (PT.MPTuple(
-                                  1285610UL,
-                                  PT.MPVariable(17823641UL, "a"),
-                                  PT.MPVariable(58123641UL, "b"),
-                                  [ PT.MPVariable(95723641UL, "c") ]
-                                 ),
-                                 PT.EBool(123716747UL, true)) ]
+                                  rhs = PT.EVariable(863810169UL, "v") }
+                                { pat = PT.MPInt(928253813UL, 5L)
+                                  rhs = PT.EInt(342670561UL, -9223372036854775808L) }
+                                { pat = PT.MPBool(435227293UL, true)
+                                  rhs = PT.EInt(232748650UL, 7L) }
+                                { pat = PT.MPChar(387662539UL, "c")
+                                  rhs = PT.EChar(657848009UL, "c") }
+                                { pat =
+                                    PT.MPList(
+                                      387662539UL,
+                                      [ PT.MPBool(435227293UL, true) ]
+                                    )
+                                  rhs =
+                                    PT.EList(
+                                      657848009UL,
+                                      [ PT.EBool(435227293UL, true) ]
+                                    ) }
+                                { pat =
+                                    PT.MPListCons(
+                                      596996239UL,
+                                      PT.MPString(949735651UL, "val1"),
+                                      PT.MPListCons(
+                                        580612639UL,
+                                        PT.MPString(191110189UL, "val2"),
+                                        PT.MPList(
+                                          448252771UL,
+                                          [ PT.MPString(98945887UL, "val3") ]
+                                        )
+                                      )
+                                    )
+                                  rhs =
+                                    PT.EList(
+                                      657848009UL,
+                                      [ PT.EBool(435227293UL, true) ]
+                                    ) }
+                                { pat = PT.MPString(491115870UL, "string")
+                                  rhs =
+                                    PT.EString(
+                                      820329949UL,
+                                      [ PT.StringText "string"
+                                        PT.StringInterpolation(
+                                          PT.EVariable(1002893266UL, "var")
+                                        ) ]
+                                    ) }
+                                { pat = PT.MPUnit 701616052UL
+                                  rhs = PT.EUnit 731162955UL }
+                                { pat = PT.MPVariable(722099983UL, "var")
+                                  rhs =
+                                    PT.EInfix(
+                                      275666765UL,
+                                      PT.InfixFnCall(PT.ArithmeticPlus),
+                                      PT.EInt(739193732UL, 6L),
+                                      PT.EVariable(880556562UL, "var")
+                                    ) }
+                                { pat = PT.MPFloat(409097457UL, Positive, "5", "6")
+                                  rhs = PT.EFloat(131187958UL, Positive, "5", "6") }
+                                { pat =
+                                    PT.MPTuple(
+                                      1285610UL,
+                                      PT.MPVariable(17823641UL, "a"),
+                                      PT.MPVariable(58123641UL, "b"),
+                                      [ PT.MPVariable(95723641UL, "c") ]
+                                    )
+                                  rhs = PT.EBool(123716747UL, true) } ]
                             ),
                             PT.ELet(
                               927055617UL,

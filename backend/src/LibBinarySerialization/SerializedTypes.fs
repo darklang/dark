@@ -298,13 +298,19 @@ type Expr =
     typeName : NameResolution<TypeName.TypeName> *
     caseName : string *
     fields : List<Expr>
-  | EMatch of id * Expr * List<MatchPattern * Expr>
+  | EMatch of id * Expr * List<MatchCase>
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
   | EDict of id * List<string * Expr>
   | EFnName of id * NameResolution<FnName.FnName>
 
-and StringSegment =
+and [<MessagePack.MessagePackObject>] MatchCase =
+  { [<MessagePack.Key 0>]
+    pat : MatchPattern
+    [<MessagePack.Key 1>]
+    rhs : Expr }
+
+and [<MessagePack.MessagePackObject>] StringSegment =
   | StringText of string
   | StringInterpolation of Expr
 

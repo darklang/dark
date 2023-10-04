@@ -430,11 +430,9 @@ module Expr =
         List.map toST fields
       )
     | PT.EMatch(id, mexpr, cases) ->
-      ST.EMatch(
-        id,
-        toST mexpr,
-        List.map (Tuple2.mapFirst MatchPattern.toST << Tuple2.mapSecond toST) cases
-      )
+      let convertCase (case : PT.MatchCase) : ST.MatchCase =
+        { pat = MatchPattern.toST case.pat; rhs = toST case.rhs }
+      ST.EMatch(id, toST mexpr, List.map convertCase cases)
     | PT.EDict(id, fields) -> ST.EDict(id, List.map (Tuple2.mapSecond toST) fields)
     | PT.EFnName(id, fnName) ->
       ST.EFnName(id, NameResolution.toST FnName.toST fnName)
@@ -517,12 +515,8 @@ module Expr =
         caseName,
         List.map toPT exprs
       )
-    | ST.EMatch(id, mexpr, pairs) ->
-      PT.EMatch(
-        id,
-        toPT mexpr,
-        List.map (Tuple2.mapFirst MatchPattern.toPT << Tuple2.mapSecond toPT) pairs
-      )
+    | ST.EMatch(id, mexpr, cases) ->
+      PT.EMatch(id, toPT mexpr, List.map matchCaseToPT cases)
     | ST.EInfix(id, infix, arg1, arg2) ->
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
     | ST.EDict(id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
@@ -556,6 +550,9 @@ module Expr =
         caseName,
         List.map toPT fields
       )
+
+  and matchCaseToPT (case : ST.MatchCase) : PT.MatchCase =
+    { pat = MatchPattern.toPT case.pat; rhs = toPT case.rhs }
 
 
 module Const =

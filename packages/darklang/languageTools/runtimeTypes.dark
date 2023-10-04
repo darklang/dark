@@ -107,10 +107,12 @@ module Darklang =
         | ERecordUpdate of ID * record: Expr * updates: List<String * Expr>
         | EDict of ID * List<String * Expr>
         | EEnum of ID * TypeName.TypeName * caseName: String * fields: List<Expr>
-        | EMatch of ID * Expr * List<MatchPattern * Expr>
+        | EMatch of ID * Expr * List<MatchCase>
         | EAnd of ID * Expr * Expr
         | EOr of ID * Expr * Expr
         | EError of ID * RuntimeError * List<Expr>
+
+      type MatchCase = { pat: MatchPattern; rhs: Expr }
 
       type LetPattern =
         | LPVariable of ID * name: String

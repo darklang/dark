@@ -558,11 +558,17 @@ module Expr =
         let cases =
           cases
           |> NEList.toList
-          |> List.map (fun (pattern, expr) ->
-            DTuple(MatchPattern.toDT pattern, toDT expr, []))
-          |> Dval.list (
-            KTTuple(VT.known MatchPattern.knownType, (VT.known knownType), [])
-          )
+          // |> List.map (fun (pattern, expr) ->
+          //   DTuple(MatchPattern.toDT pattern, toDT expr, []))
+          // |> Dval.list (
+          //   KTTuple(VT.known MatchPattern.knownType, (VT.known knownType), [])
+          // )
+          |> List.map (fun case ->
+            let pattern = MatchPattern.toDT case.pat
+            let expr = toDT case.rhs
+            let typeName = (rtTyp [] "MatchCase" 0)
+            DRecord(typeName, typeName, [], Map [ ("pat", pattern); ("rhs", expr) ]))
+          |> Dval.list (KTCustomType(typeName, []))
         "EMatch", [ DInt(int64 id); toDT arg; cases ]
 
 
@@ -685,13 +691,20 @@ module Expr =
         cases
         |> List.collect (fun case ->
           match case with
-          | DTuple(pattern, expr, _) ->
-            [ (MatchPattern.fromDT pattern, fromDT expr) ]
+          | DRecord(_, _, _, fields) ->
+            match Map.get "pat" fields, Map.get "rhs" fields with
+            | Some pat, Some rhs ->
+              [ { pat = MatchPattern.fromDT pat; rhs = fromDT rhs } ]
+            | _ -> []
           | _ -> [])
-        |> NEList.ofListUnsafe
+      EMatch(
+        uint64 id,
+        fromDT arg,
+        NEList.ofListUnsafe
           "RT2DT.Expr.fromDT expected at least one case in EMatch"
           []
-      EMatch(uint64 id, fromDT arg, cases)
+          cases
+      )
 
     | DEnum(_, _, [], "ELambda", [ DInt id; DList(_vtTODO, args); body ]) ->
       let args =
