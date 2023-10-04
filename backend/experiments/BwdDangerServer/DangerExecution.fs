@@ -9,6 +9,7 @@ open System.Threading.Tasks
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
+module VT = RT.ValueType
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
@@ -137,7 +138,7 @@ let executeHandler
       | None -> Ply "No source"
       | Some(tlid, id) -> sourceOf tlid id
 
-    let error (msg : string) =
+    let error (msg : string) : RT.Dval =
       let typeName =
         RT.FQName.Package
           { owner = "Darklang"
@@ -145,21 +146,13 @@ let executeHandler
             name = RT.TypeName.TypeName "Response"
             version = 0 }
 
-      Dval.record
-        typeName
-        (Some [])
+      let fields : List<string * RT.Dval> =
         [ "statusCode", RT.DInt 500
-          "headers",
-          Dval.list
-            (RT.ValueType.Known(
-              RT.KTTuple(
-                RT.ValueType.Known RT.KTString,
-                RT.ValueType.Known RT.KTString,
-                []
-              )
-            ))
-            []
-          "body", RT.DBytes(msg |> UTF8.toBytes) ]
+          "headers", Dval.list (RT.KTTuple(VT.string, VT.string, [])) []
+          "body", RT.DBytes(UTF8.toBytes msg) ]
+
+      RT.DRecord(typeName, typeName, [], Map fields)
+
 
 
     // CLEANUP This is a temporary hack to make it easier to work on local dev
@@ -173,13 +166,13 @@ let executeHandler
           match! Exe.runtimeErrorToString state originalRTE with
           | Ok(RT.DString msg) ->
             let msg = $"Error: {msg}\n\nSource: {originalSource}"
-            return! error msg
+            return error msg
           | Ok result -> return result
           | Error(firstErrorSource, firstErrorRTE) ->
             let! firstErrorSource = sourceString firstErrorSource
             match! Exe.runtimeErrorToString state firstErrorRTE with
             | Ok(RT.DString msg) ->
-              return!
+              return
                 error (
                   $"An error occured trying to print a runtime error."
                   + $"\n\nThe formatting error occurred in {firstErrorSource}. The error was:\n{msg}"
@@ -189,7 +182,7 @@ let executeHandler
 
             | Error(secondErrorSource, secondErrorRTE) ->
               let! secondErrorSource = sourceString secondErrorSource
-              return!
+              return
                 error (
                   $"Two errors occured trying to print a runtime error."
                   + $"\n\nThe 2nd formatting error occurred in {secondErrorSource}. The error was:\n{secondErrorRTE}"

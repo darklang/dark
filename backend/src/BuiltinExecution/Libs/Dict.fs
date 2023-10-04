@@ -41,18 +41,14 @@ let fns : List<BuiltInFn> =
     { name = fn "keys" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
-      returnType = (TList TString)
+      returnType = TList TString
       description =
         "Returns <param dict>'s keys in a <type List>, in an arbitrary order"
       fn =
         (function
-        | _, _, [ DDict(_vtTODO, o) ] ->
-          o
-          |> Map.keys
-          |> Seq.map (fun k -> DString k)
-          |> Seq.toList
-          |> fun l -> Dval.list (ValueType.Known KTString) l
-          |> Ply
+        | _, _, [ DDict(_, o) ] ->
+          // CLEANUP follow up here if/when `key` type is dynamic (not just String)
+          o |> Map.keys |> Seq.map DString |> Seq.toList |> Dval.list KTString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -67,11 +63,8 @@ let fns : List<BuiltInFn> =
         "Returns <param dict>'s values in a <type List>, in an arbitrary order"
       fn =
         (function
-        | _, _, [ DDict(_vtTODO, o) ] ->
-          o
-          |> Map.values
-          |> Seq.toList
-          |> (fun l -> Dval.list VT.unknownTODO l |> Ply)
+        | _, _, [ DDict(valueType, o) ] ->
+          o |> Map.values |> Seq.toList |> (fun vs -> DList(valueType, vs) |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -86,12 +79,10 @@ let fns : List<BuiltInFn> =
         "Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in an arbitrary order. This function is the opposite of <fn Dict.fromList>"
       fn =
         (function
-        | _, _, [ DDict(_vtTODO, o) ] ->
+        | _, _, [ DDict(valueType, o) ] ->
           Map.toList o
           |> List.map (fun (k, v) -> DTuple(DString k, v, []))
-          |> Dval.list (
-            ValueType.Known(KTTuple(ValueType.Known KTString, VT.unknownTODO, []))
-          )
+          |> fun pairs -> DList(VT.tuple VT.string valueType [], pairs)
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -123,8 +114,10 @@ let fns : List<BuiltInFn> =
               Exception.raiseInternal
                 "Not string tuples in fromListOverwritingDuplicates"
                 [ "dval", dv ]
-          let result = l |> List.fold f Map.empty |> Map.toList
-          Ply(Dval.dict VT.unknownTODO result)
+
+          List.fold f Map.empty l
+          |> TypeChecker.DvalCreator.dictFromMap VT.unknownTODO
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -161,9 +154,11 @@ let fns : List<BuiltInFn> =
           let result = List.fold f (Some Map.empty) l
 
           match result with
-          | Some map ->
-            map |> Map.toList |> Dval.dict dictType |> Dval.optionSome optType |> Ply
-          | None -> Dval.optionNone optType |> Ply
+          | Some entries ->
+            DDict(dictType, entries)
+            |> TypeChecker.DvalCreator.optionSome optType
+            |> Ply
+          | None -> TypeChecker.DvalCreator.optionNone optType |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -180,7 +175,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict(_vtTODO, o); DString s ] ->
-          Map.find s o |> Dval.option VT.unknownTODO |> Ply
+          Map.find s o |> TypeChecker.DvalCreator.option VT.unknownTODO |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -232,7 +227,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state state.caller b [] args)
                 mapped
 
-            return Dval.dict VT.unknownTODO (Map.toList result)
+            return TypeChecker.DvalCreator.dictFromMap VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -306,7 +301,7 @@ let fns : List<BuiltInFn> =
                     TypeChecker.raiseFnValResultNotExpectedType state.caller v TBool
               }
             let! result = Ply.Map.filterSequentially f o
-            return Dval.dictFromMap VT.unknownTODO result
+            return TypeChecker.DvalCreator.dictFromMap VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -365,7 +360,7 @@ let fns : List<BuiltInFn> =
               }
 
             let! result = Ply.Map.filterMapSequentially f o
-            return Dval.dictFromMap VT.unknownTODO result
+            return TypeChecker.DvalCreator.dictFromMap VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -396,7 +391,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict(_vtTODO1, l); DDict(_vtTODO2, r) ] ->
-          Map.mergeFavoringRight l r |> Map.toList |> Dval.dict VT.unknownTODO |> Ply
+          Map.mergeFavoringRight l r
+          |> TypeChecker.DvalCreator.dictFromMap VT.unknownTODO
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -414,8 +411,7 @@ let fns : List<BuiltInFn> =
         "Returns a copy of <param dict> with the <param key> set to <param val>"
       fn =
         (function
-        | _, _, [ DDict(vt, o); DString k; v ] ->
-          Map.add k v o |> Dval.dictFromMap vt |> Ply
+        | _, _, [ DDict(vt, o); DString k; v ] -> DDict(vt, Map.add k v o) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -430,8 +426,7 @@ let fns : List<BuiltInFn> =
         "If the <param dict> contains <param key>, returns a copy of <param dict> with <param key> and its associated value removed. Otherwise, returns <param dict> unchanged."
       fn =
         (function
-        | _, _, [ DDict(vt, o); DString k ] ->
-          Map.remove k o |> Dval.dictFromMap vt |> Ply
+        | _, _, [ DDict(vt, o); DString k ] -> DDict(vt, Map.remove k o) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

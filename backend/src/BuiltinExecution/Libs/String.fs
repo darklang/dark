@@ -70,12 +70,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString s ] ->
-          (s
-           |> String.toEgcSeq
-           |> Seq.map (fun c -> DChar c)
-           |> Seq.toList
-           |> Dval.list (ValueType.Known KTChar)
-           |> Ply)
+          s
+          |> String.toEgcSeq
+          |> Seq.map (fun c -> DChar c)
+          |> Seq.toList
+          |> Dval.list KTChar
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -260,7 +260,7 @@ let fns : List<BuiltInFn> =
                 (s |> String.toEgcSeq |> Seq.toList)
                 (sep |> String.toEgcSeq |> Seq.toList)
 
-          parts |> List.map DString |> Dval.list (ValueType.Known KTString) |> Ply
+          parts |> List.map DString |> Dval.list KTString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -416,9 +416,9 @@ let fns : List<BuiltInFn> =
         | _, _, [ DBytes bytes ] ->
           try
             let str = System.Text.UTF8Encoding(false, true).GetString bytes
-            Dval.optionSome VT.string (DString str) |> Ply
+            Dval.optionSome KTString (DString str) |> Ply
           with e ->
-            Dval.optionNone VT.string |> Ply
+            Dval.optionNone KTString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -457,10 +457,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString str ] ->
           if str = "" then
-            Dval.optionNone VT.char |> Ply
+            Dval.optionNone KTChar |> Ply
           else
             let head = String.toEgcSeq str |> Seq.head
-            Dval.optionSome VT.char (DChar head) |> Ply
+            Dval.optionSome KTChar (DChar head) |> Ply
         | _ -> incorrectArgs ())
 
       sqlSpec = NotYetImplemented

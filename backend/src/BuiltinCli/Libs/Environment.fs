@@ -30,9 +30,9 @@ let fns : List<BuiltInFn> =
           let envValue = System.Environment.GetEnvironmentVariable(varName)
 
           if isNull envValue then
-            Dval.optionNone VT.string |> Ply
+            Dval.optionNone KTString |> Ply
           else
-            Dval.optionSome VT.string (DString envValue) |> Ply
+            Dval.optionSome KTString (DString envValue) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -55,7 +55,7 @@ let fns : List<BuiltInFn> =
             |> Seq.cast<System.Collections.DictionaryEntry>
             |> Seq.map (fun kv -> (string kv.Key, DString(string kv.Value)))
             |> Seq.toList
-            |> Dval.dict VT.unknownTODO
+            |> Dval.dict KTString
 
           Ply(envMap)
         | _ -> incorrectArgs ())

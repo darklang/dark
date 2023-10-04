@@ -142,22 +142,25 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let! fns =
+            let typeName =
+              FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0)
+
+            let fns =
               fns
-              |> Ply.List.mapSequentially (fun (owner, fnname, modules, version) ->
-                Dval.record
-                  (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0))
-                  (Some [])
+              |> List.map (fun (owner, fnname, modules, version) ->
+                let fields =
                   [ ("owner", DString owner)
                     ("modules",
-                     modules
-                     |> String.split "."
-                     |> List.map DString
-                     |> Dval.list VT.string)
+                     DList(
+                       VT.string,
+                       modules |> String.split "." |> List.map DString
+                     ))
                     ("name", DString fnname)
-                    ("version", DInt version) ])
+                    ("version", DInt version) ]
 
-            return Dval.list VT.unknownTODO fns
+                DRecord(typeName, typeName, [], Map fields))
+
+            return DList(VT.customType typeName [], fns)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -189,23 +192,23 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let! types =
-              types
-              |> Ply.List.mapSequentially
-                (fun (owner, typename, modules, version) ->
-                  Dval.record
-                    (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0))
-                    (Some [])
-                    [ ("owner", DString owner)
-                      ("modules",
-                       modules
-                       |> String.split "."
-                       |> List.map DString
-                       |> Dval.list VT.unknownTODO)
-                      ("name", DString typename)
-                      ("version", DInt version) ])
+            let typeName = FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0)
 
-            return Dval.list VT.unknownTODO types
+            let types =
+              types
+              |> List.map (fun (owner, typename, modules, version) ->
+                let fields =
+                  [ ("owner", DString owner)
+                    ("modules",
+                     DList(
+                       VT.string,
+                       modules |> String.split "." |> List.map DString
+                     ))
+                    ("name", DString typename)
+                    ("version", DInt version) ]
+                DRecord(typeName, typeName, [], Map fields))
+
+            return DList(VT.customType typeName [], types)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -237,22 +240,24 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let! consts =
+            let typeName =
+              FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0)
+
+            let consts =
               consts
-              |> Ply.List.mapSequentially (fun (owner, fnname, modules, version) ->
-                Dval.record
-                  (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0))
-                  (Some [])
+              |> List.map (fun (owner, fnname, modules, version) ->
+                let fields =
                   [ ("owner", DString owner)
                     ("modules",
-                     modules
-                     |> String.split "."
-                     |> List.map DString
-                     |> Dval.list VT.unknownTODO)
+                     DList(
+                       VT.string,
+                       modules |> String.split "." |> List.map DString
+                     ))
                     ("name", DString fnname)
-                    ("version", DInt version) ])
+                    ("version", DInt version) ]
+                DRecord(typeName, typeName, [], Map fields))
 
-            return Dval.list VT.unknownTODO consts
+            return DList(VT.customType typeName [], consts)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

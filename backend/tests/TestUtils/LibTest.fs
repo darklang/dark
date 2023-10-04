@@ -59,7 +59,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString error ] ->
           let typeName = RuntimeError.name [ "Error" ] "ErrorMessage" 0
-          Dval.enum typeName typeName (Some []) "ErrorString" [ DString error ]
+          DEnum(typeName, typeName, [], "ErrorString", [ DString error ]) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -91,7 +91,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString errorString ] ->
           let msg = LibCloud.SqlCompiler.errorTemplate + errorString
           let typeName = RuntimeError.name [ "Error" ] "ErrorMessage" 0
-          Dval.enum typeName typeName (Some []) "ErrorString" [ DString msg ]
+          DEnum(typeName, typeName, [], "ErrorString", [ DString msg ]) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -112,10 +112,10 @@ let fns : List<BuiltInFn> =
             |> Seq.toList
             |> (fun l -> l[0])
             |> DChar
-            |> Dval.optionSome VT.char
+            |> Dval.optionSome KTChar
             |> Ply
           else
-            Dval.optionNone VT.char |> Ply
+            Dval.optionNone KTChar |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -207,8 +207,9 @@ let fns : List<BuiltInFn> =
               LibCloud.Queue.Test.loadEvents canvasID ("WORKER", eventName, "_")
             let results =
               results
-              |> List.map (fun x -> DString(LibExecution.DvalReprDeveloper.toRepr x))
-            return Dval.list (ValueType.Known KTString) results
+              |> List.map LibExecution.DvalReprDeveloper.toRepr
+              |> List.map DString
+            return DList(VT.string, results)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

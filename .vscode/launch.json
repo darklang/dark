@@ -22,7 +22,7 @@
       "preLaunchTask": "build-tests",
       "program": "/home/dark/app/backend/Build/out/Tests/Debug/net7.0/Tests",
       //"args": ["--filter-test-list", "HttpClient"],
-      "args": ["--filter-test-case", "response-string-text"],
+      "args": ["--filter-test-list", "ematch"],
       "cwd": "${workspaceFolder}/backend",
       "stopAtEntry": false,
       "console": "internalConsole",

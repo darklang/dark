@@ -42,8 +42,8 @@ let fns : List<BuiltInFn> =
       description =
         "Creates a new directory at the specified <param path>. If the directory already exists, no action is taken. Returns a Result type indicating success or failure."
       fn =
-        let resultOk r = Dval.resultOk VT.unit VT.string r |> Ply
-        let resultError r = Dval.resultError VT.unit VT.string r |> Ply
+        let resultOk r = Dval.resultOk KTUnit KTString r |> Ply
+        let resultError r = Dval.resultError KTUnit KTString r |> Ply
         (function
         | _, _, [ DString path ] ->
           try
@@ -65,8 +65,8 @@ let fns : List<BuiltInFn> =
       description =
         "Deletes the directory at the specified <param path>. If <param recursive> is set to true, it will delete the directory and its contents. If set to false (default), it will only delete an empty directory. Returns a Result type indicating success or failure."
       fn =
-        let resultOk r = Dval.resultOk VT.unit VT.string r |> Ply
-        let resultError r = Dval.resultError VT.unit VT.string r |> Ply
+        let resultOk r = Dval.resultOk KTUnit KTString r |> Ply
+        let resultError r = Dval.resultError KTUnit KTString r |> Ply
         (function
         | _, _, [ DString path ] ->
           try
@@ -95,7 +95,8 @@ let fns : List<BuiltInFn> =
                 System.IO.Directory.EnumerateFileSystemEntries path |> Seq.toList
               with _ ->
                 []
-            return List.map DString contents |> Dval.list (ValueType.Known KTString)
+
+            return DList(VT.string, List.map DString contents)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

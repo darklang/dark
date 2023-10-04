@@ -210,9 +210,10 @@ module Darklang =
 
           | DError of DvalSource * RuntimeError
 
-        let dvalValueTypeTODO = ValueType.Unknown
 
         let toValueType (dv: Dval) : ValueType =
+          let dvalValueTypeTODO = ValueType.Unknown
+
           match dv with
           | DUnit -> ValueType.Known KnownType.KTUnit
           | DBool _ -> ValueType.Known KnownType.KTBool

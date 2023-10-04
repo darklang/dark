@@ -36,42 +36,36 @@ module ExecutionError =
     | NonStringInStringInterpolation of Dval
     | ConstDoesntExist of ConstantName.ConstantName
 
-  let toDT (e : Error) : Ply<RuntimeError> =
-    uply {
-      let typeName =
-        TypeName.fqPackage
-          "Darklang"
-          [ "LanguageTools"; "RuntimeErrors"; "Execution" ]
-          "Error"
-          0
+  let toDT (e : Error) : RuntimeError =
+    let typeName =
+      TypeName.fqPackage
+        "Darklang"
+        [ "LanguageTools"; "RuntimeErrors"; "Execution" ]
+        "Error"
+        0
 
-      let case (caseName : string) (fields : List<Dval>) : Ply<RuntimeError> =
-        Dval.enum typeName typeName (Some []) caseName fields
-        |> Ply.map RuntimeError.executionError
+    let case (caseName : string) (fields : List<Dval>) : RuntimeError =
+      DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.executionError
 
-      let (caseName, fields) =
-        match e with
-        | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
+    let (caseName, fields) =
+      match e with
+      | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
+        "MatchExprEnumPatternWrongCount",
+        [ DString caseName; DInt expected; DInt actual ]
 
-          "MatchExprEnumPatternWrongCount",
-          [ DString caseName; DInt expected; DInt actual ]
-        | MatchExprPatternWrongType(expected, actual) ->
+      | MatchExprPatternWrongType(expected, actual) ->
+        "MatchExprPatternWrongType", [ DString expected; RT2DT.Dval.toDT actual ]
 
-          "MatchExprPatternWrongType", [ DString expected; RT2DT.Dval.toDT actual ]
-        | MatchExprUnmatched dv ->
+      | MatchExprUnmatched dv -> "MatchExprUnmatched", [ RT2DT.Dval.toDT dv ]
 
-          "MatchExprUnmatched", [ RT2DT.Dval.toDT dv ]
-        | NonStringInStringInterpolation dv ->
+      | NonStringInStringInterpolation dv ->
+        "NonStringInStringInterpolation", [ RT2DT.Dval.toDT dv ]
 
-          "NonStringInStringInterpolation", [ RT2DT.Dval.toDT dv ]
-        | ConstDoesntExist name ->
-          "ConstDoesntExist", [ RT2DT.ConstantName.toDT name ]
+      | ConstDoesntExist name -> "ConstDoesntExist", [ RT2DT.ConstantName.toDT name ]
 
-      return! case caseName fields
-    }
+    case caseName fields
 
-  let raise (source : Source) (e : Error) : Ply<'a> =
-    toDT e |> Ply.map (raiseRTE source)
+  let raise (source : Source) (e : Error) : 'a = toDT e |> raiseRTE source
 
 
 let rec evalConst (source : Source) (c : Const) : Dval =
@@ -316,8 +310,7 @@ let rec eval
 
     | EList(_id, exprs) ->
       let! results = Ply.List.mapSequentially (eval state tlid tst st) exprs
-      return Dval.list VT.unknownTODO results
-
+      return TypeChecker.DvalCreator.list VT.unknown results
 
     | ETuple(_id, first, second, theRest) ->
 
@@ -422,7 +415,7 @@ let rec eval
             let! v = eval state tlid tst st v
             return (k, v)
           })
-      return Dval.dict ValueType.Unknown fields
+      return TypeChecker.DvalCreator.dict ValueType.Unknown fields
 
     | EFnName(_id, name) -> return DFnVal(NamedFn name)
 
@@ -605,7 +598,7 @@ let rec eval
             | DList(vt, headVal :: tailVals) ->
               let! (headPass, headVars) = checkPattern headVal headPat
               let! (tailPass, tailVars) =
-                checkPattern (Dval.list vt tailVals) tailPat
+                checkPattern (TypeChecker.DvalCreator.list vt tailVals) tailPat
 
               let allSubVars = headVars @ tailVars
               let pass = headPass && tailPass
@@ -731,10 +724,9 @@ let rec eval
               (List.zip case.fields fields)
 
           return!
-            Dval.enum
+            TypeChecker.DvalCreator.enum
               resolvedTypeName
               sourceTypeName
-              VT.typeArgsTODO'
               caseName
               fields
 
@@ -821,13 +813,16 @@ and callFn
           + $"but here was called with {actualTypeArgs} type arguments and {actualArgs} arguments."
         raiseRTE caller (RuntimeError.oldError msg)
 
-      let newlyBoundTypeArgs = List.zip fn.typeParams typeArgs |> Map
-      let updatedTypeSymbolTable = Map.mergeFavoringRight tst newlyBoundTypeArgs
-      return! execFn state updatedTypeSymbolTable desc caller fn typeArgs args
+      let state =
+        let newlyBoundTypeArgs = List.zip fn.typeParams typeArgs |> Map
+        { state with
+            typeSymbolTable = Map.mergeFavoringRight tst newlyBoundTypeArgs }
+      return! execFn state desc caller fn typeArgs args
     | None ->
       // Functions which aren't implemented in the client may have results
       // available, otherwise they error.
       let fnResult = state.tracing.loadFnResult (caller, desc) args
+
 
       // TODO: in an old version, we executed the lambda with a fake value to
       // give enough livevalues for the editor to autocomplete. It may be worth
@@ -844,7 +839,6 @@ and callFn
 
 and execFn
   (state : ExecutionState)
-  (tst : TypeSymbolTable)
   (fnDesc : FnName.FnName)
   (caller : Source)
   (fn : Fn)
@@ -855,12 +849,12 @@ and execFn
     let types = ExecutionState.availableTypes state
 
     let typeArgsResolvedInFn = List.zip fn.typeParams typeArgs |> Map
-    let typeSymbolTable = Map.mergeFavoringRight tst typeArgsResolvedInFn
+    let typeSymbolTable =
+      Map.mergeFavoringRight state.typeSymbolTable typeArgsResolvedInFn
 
     match! TypeChecker.checkFunctionCall types typeSymbolTable fn args with
     | Error rte -> return raiseRTE caller rte
     | Ok() ->
-
       let! result =
         match fn.fn with
         | BuiltInFunction f ->

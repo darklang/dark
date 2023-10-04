@@ -31,7 +31,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! name = Canvas.domainsForCanvasID canvasID
-            return name |> List.map DString |> Dval.list (ValueType.Known KTString)
+            return name |> List.map DString |> Dval.list KTString
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -45,8 +45,8 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.result TUuid TString
       description = "Returns the canvasID for a domain if it exists"
       fn =
-        let resultOk = Dval.resultOk VT.uuid VT.string
-        let resultError = Dval.resultError VT.uuid VT.string
+        let resultOk = Dval.resultOk KTUuid KTString
+        let resultError = Dval.resultError KTUuid KTString
         (function
         | _, _, [ DString domain ] ->
           uply {

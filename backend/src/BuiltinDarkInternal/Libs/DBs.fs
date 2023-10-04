@@ -30,11 +30,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! tlids = UserDB.all canvasID
-            return
-              tlids
-              |> List.map int64
-              |> List.map DInt
-              |> Dval.list (ValueType.Known KTInt)
+            return tlids |> List.map int64 |> List.map DInt |> Dval.list KTInt
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -52,11 +48,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! unlocked = UserDB.unlocked canvasID
-            return
-              unlocked
-              |> List.map int64
-              |> List.map DInt
-              |> Dval.list (ValueType.Known KTInt)
+            return unlocked |> List.map int64 |> List.map DInt |> Dval.list KTInt
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

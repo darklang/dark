@@ -68,7 +68,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUnit ] ->
           uply {
             let! hosts = Canvas.allCanvasIDs ()
-            return hosts |> List.map DUuid |> Dval.list (ValueType.Known KTUuid)
+            return DList(VT.uuid, List.map DUuid hosts)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -180,14 +180,14 @@ let fns : List<BuiltInFn> =
               |> Map.values
               |> Seq.toList
               |> List.map PT2DT.UserType.toDT
-              |> Dval.list VT.unknownTODO
+            let types = DList(VT.customType PT2DT.UserType.typeName [], types)
 
             let fns =
               canvas.userFunctions
               |> Map.values
               |> Seq.toList
               |> List.map PT2DT.UserFunction.toDT
-              |> Dval.list VT.unknownTODO
+            let fns = DList(VT.customType PT2DT.UserFunction.typeName [], fns)
 
             // let dbs =
             //   Map.values canvas.dbs
@@ -213,12 +213,11 @@ let fns : List<BuiltInFn> =
             //       |> Some)
             //   |> Dval.list VT.unknownTODO
 
-            return!
-              Dval.record
-                (FQName.BuiltIn(typ "Program" 0))
-                (Some [])
-                [ "types", types; "fns", fns ]
-              |> Ply.map (Dval.resultOk VT.unknownTODO VT.string)
+
+            let typeName = FQName.BuiltIn(typ "Program" 0)
+            return
+              DRecord(typeName, typeName, [], Map [ "types", types; "fns", fns ])
+              |> Dval.resultOk (KTCustomType(typeName, [])) KTString
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

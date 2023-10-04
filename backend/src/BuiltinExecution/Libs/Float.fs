@@ -273,8 +273,8 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the <type Float> value wrapped in a {{Result}} of the <type String>"
       fn =
-        let resultOk r = Dval.resultOk VT.float VT.string r |> Ply
-        let resultError r = Dval.resultError VT.float VT.string r |> Ply
+        let resultOk r = Dval.resultOk KTFloat KTString r |> Ply
+        let resultError r = Dval.resultError KTFloat KTString r |> Ply
         (function
         | _, _, [ DString s ] ->
           try

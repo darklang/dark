@@ -596,14 +596,23 @@ let rec lambdaToSql
             return (sql, vars, TList actualType)
           | _ -> return error "Expected a List"
 
-        | EEnum(id, typeName, caseName, []) ->
+        // TODO: handle cases where `fields` is non-empty
+        | EEnum(id, sourceTypeName, sourceCaseName, []) ->
           let source = Some(tlid, id)
           let! dv =
-            LibExecution.Dval.enum typeName typeName VT.typeArgsTODO' caseName []
-          let typ = (TCustomType(Ok typeName, []))
+            TypeChecker.DvalCreator.enum
+              sourceTypeName
+              sourceTypeName
+              sourceCaseName
+              []
+
+          let typeArgs = [] // TODO - get from the dval above? maybe typeName too...
+          let typ = TCustomType(Ok sourceTypeName, typeArgs)
+
           typecheck $"Enum '{dv}'" typ expectedType
           let! v = DvalReprInternalQueryable.toJsonStringV0 source types typ dv
           let name = randomString 10
+
           return $"(@{name})", [ name, Sql.jsonb v ], typ
 
 

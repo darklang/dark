@@ -77,15 +77,20 @@ let fns : List<BuiltInFn> =
             let packagesTypes = types |> List.map PT2DT.PackageType.toDT
             let packagesConstants = constants |> List.map PT2DT.PackageConstant.toDT
 
-            return!
-              Dval.record
-                (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0))
-                (Some [])
-                [ ("fns", Dval.list VT.unknownTODO packagesFns)
-                  ("types", Dval.list VT.unknownTODO packagesTypes)
-                  ("constants", Dval.list VT.unknownTODO packagesConstants) ]
-              |> Ply.map (Dval.resultOk VT.unknownTODO VT.string)
-
+            let typeName =
+              FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0)
+            let fields =
+              [ "fns", DList(VT.customType PT2DT.PackageFn.typeName [], packagesFns)
+                "types",
+                DList(VT.customType PT2DT.PackageType.typeName [], packagesTypes)
+                "constants",
+                DList(
+                  VT.customType PT2DT.PackageConstant.typeName [],
+                  packagesConstants
+                ) ]
+            return
+              DRecord(typeName, typeName, [], Map fields)
+              |> Dval.resultOk (KTCustomType(typeName, [])) KTString
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

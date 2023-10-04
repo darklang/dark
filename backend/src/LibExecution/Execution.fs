@@ -34,14 +34,17 @@ let createState
   (notify : RT.Notifier)
   (program : RT.Program)
   : RT.ExecutionState =
-  { builtIns = builtIns
-    packageManager = packageManager
-    tracing = tracing
-    program = program
+  { tracing = tracing
     test = noTestContext
     reportException = reportException
     notify = notify
-    caller = None }
+    caller = None
+    builtIns = builtIns
+
+    program = program
+
+    packageManager = packageManager
+    typeSymbolTable = Map.empty }
 
 let executeExpr
   (state : RT.ExecutionState)

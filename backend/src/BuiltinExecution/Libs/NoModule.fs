@@ -19,7 +19,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DString a, DString b -> a = b
   | DChar a, DChar b -> a = b
   | DList(typA, a), DList(typB, b) ->
-    Result.isOk (Dval.mergeValueTypes typA typB)
+    Result.isOk (ValueType.merge typA typB)
     && a.Length = b.Length
     && List.forall2 equals a b
   | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->

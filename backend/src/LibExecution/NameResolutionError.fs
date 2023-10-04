@@ -3,6 +3,7 @@ module LibExecution.NameResolutionError
 open Prelude
 
 module RT = RuntimeTypes
+module VT = RT.ValueType
 module D = DvalDecoder
 
 
@@ -28,6 +29,8 @@ type Error =
 /// to RuntimeError
 module RTE =
   module ErrorType =
+    let typeName = RT.RuntimeError.name [ "NameResolution" ] "ErrorType" 0
+
     let toDT (et : ErrorType) : RT.Dval =
       let (caseName, fields) =
         match et with
@@ -38,7 +41,6 @@ module RTE =
           "MissingEnumModuleName", [ RT.DString caseName ]
         | InvalidPackageName -> "InvalidPackageName", []
 
-      let typeName = RT.RuntimeError.name [ "NameResolution" ] "ErrorType" 0
       RT.DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (dv : RT.Dval) : ErrorType =
@@ -52,6 +54,7 @@ module RTE =
       | _ -> Exception.raiseInternal "Invalid ErrorType" []
 
   module NameType =
+    let typeName = RT.RuntimeError.name [ "NameResolution" ] "NameType" 0
     let toDT (nt : NameType) : RT.Dval =
       let (caseName, fields) =
         match nt with
@@ -59,7 +62,6 @@ module RTE =
         | Type -> "Type", []
         | Constant -> "Constant", []
 
-      let typeName = RT.RuntimeError.name [ "NameResolution" ] "NameType" 0
       RT.DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (dv : RT.Dval) : NameType =
@@ -70,15 +72,12 @@ module RTE =
       | _ -> Exception.raiseInternal "Invalid NameType" []
 
   module Error =
+    let typeName = RT.RuntimeError.name [ "NameResolution" ] "Error" 0
     let toDT (e : Error) : RT.Dval =
-      let typeName = RT.RuntimeError.name [ "NameResolution" ] "Error" 0
       let fields =
-        [ "errorType", ErrorType.toDT e.errorType
-          "nameType", NameType.toDT e.nameType
-          "names",
-          (e.names
-           |> List.map RT.DString
-           |> Dval.list (RT.ValueType.Known RT.KTString)) ]
+        [ ("errorType", ErrorType.toDT e.errorType)
+          ("nameType", NameType.toDT e.nameType)
+          ("names", RT.DList(VT.string, List.map RT.DString e.names)) ]
       RT.DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (dv : RT.Dval) : Error =
