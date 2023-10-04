@@ -33,3 +33,18 @@ module Darklang =
           //dbs: List<LanguageTools.ProgramTypes.DB>
           //httpHandlers: List<LanguageTools.ProgramTypes.Handler.Handler>
           }
+
+    module Infra =
+      /// Size info for Postgres tables
+      type TableSize =
+        { /// Number of bytes on disk
+          disk: Int
+
+          /// Number of rows
+          rows: Int
+
+          /// Disk space, in human-readable form
+          diskHuman: String
+
+          /// Number of rows, in human-readable form
+          rowsHuman: String }
