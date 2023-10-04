@@ -83,3 +83,19 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
 
  PACKAGE.Darklang.Stdlib.List.map_v0 triplets transformer) = Builtin.Test.derrorMessage
   "Tuple pattern has wrong number of elements"
+
+PACKAGE.Darklang.Stdlib.Dict.map_v0
+  (Dict
+    { key1 = ("val11", "val12")
+      key2 = ("val21", "val22") })
+  (fun x (y, z) -> x ++ y ++ z) = (Dict
+  { key2 = "key2val21val22"
+    key1 = "key1val11val12" })
+
+PACKAGE.Darklang.Stdlib.Dict.map_v0
+  (Dict
+    { key1 = ("val11", "val12")
+      key2 = ("val21", "val22") })
+  (fun x (_, z) -> x ++ z) = (Dict
+  { key2 = "key2val22"
+    key1 = "key1val12" })
