@@ -25,15 +25,15 @@ type Request = { url : string; method : Method; headers : Headers.T; body : Body
 type Response = { statusCode : int; headers : Headers.T; body : Body }
 
 
-module HeaderError =
-  type HeaderError = | EmptyKey
+module BadHeader =
+  type BadHeader = | EmptyKey
 
-  let toDT (err : HeaderError) : Dval =
+  let toDT (err : BadHeader) : Dval =
     let (caseName, fields) =
       match err with
       | EmptyKey -> "EmptyKey", []
     let typeName =
-      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "HeaderError" 0
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "BadHeader" 0
     DEnum(typeName, typeName, [], caseName, fields)
 
 module BadUrl =
@@ -56,14 +56,14 @@ module BadUrl =
     Dval.DEnum(typeName, typeName, [], caseName, fields)
 
 module RequestError =
-  // forked from Elm's HttpError type
+  // inspired by Elm's HttpError type
   // https://package.elm-lang.org/packages/elm/http/latest/Http#Error
   type RequestError =
     | BadUrl of BadUrl.BadUrlDetails
     | Timeout
-    | HeaderError of HeaderError.HeaderError
-    | IOError
-    | ConnectionError
+    | BadHeader of BadHeader.BadHeader
+    | NetworkError
+    | BadMethod
 
   let toDT (err : RequestError) : Dval =
     let (caseName, fields) =
@@ -72,11 +72,11 @@ module RequestError =
         let details = BadUrl.toDT details
         "BadUrl", [ details ]
       | Timeout -> "Timeout", []
-      | HeaderError err ->
-        let err = HeaderError.toDT err
-        "HeaderError", [ err ]
-      | IOError -> "IOError", []
-      | ConnectionError -> "ConnectionError", []
+      | BadHeader err ->
+        let err = BadHeader.toDT err
+        "BadHeader", [ err ]
+      | NetworkError -> "NetworkError", []
+      | BadMethod -> "BadMethod", []
 
     let typeName =
       TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "RequestError" 0
@@ -364,7 +364,7 @@ let makeRequest
         config.telemetryAddTag "error.msg" "Invalid URI"
         return
           Error(RequestError.RequestError.BadUrl BadUrl.BadUrlDetails.InvalidUri)
-      | :? IOException -> return Error(RequestError.RequestError.IOError)
+      | :? IOException -> return Error(RequestError.RequestError.NetworkError)
       | :? HttpRequestException as e ->
         // This is a bit of an awkward case. I'm unsure how it fits into our model.
         // We've made a request, and _potentially_ (according to .NET) have a status
@@ -375,7 +375,7 @@ let makeRequest
 
         config.telemetryAddException [ "error.status_code", statusCode ] e
 
-        return Error(RequestError.RequestError.ConnectionError)
+        return Error(RequestError.RequestError.NetworkError)
     })
 
 
@@ -425,7 +425,6 @@ let fns (config : Configuration) : List<BuiltInFn> =
         let responseType =
           KTCustomType(FQName.BuiltIn(typ [ "HttpClient" ] "Response" 0), [])
         let resultOk = Dval.resultOk responseType KTString
-        let resultErrorStr str = Dval.resultError responseType KTString (DString str)
         let typeName = RuntimeError.name [ "HttpClient" ] "RequestError" 0
         let resultError = Dval.resultError responseType (KTCustomType(typeName, []))
         (function
@@ -433,7 +432,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
           _,
           [ DString method; DString uri; DList(_, reqHeaders); DBytes reqBody ] ->
           uply {
-            let! (reqHeaders : Result<List<string * string>, HeaderError.HeaderError>) =
+            let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
               reqHeaders
               |> Ply.List.foldSequentially
                 (fun agg item ->
@@ -441,9 +440,9 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     match agg, item with
                     | (Error err, _) -> return (Error err)
                     | (Ok pairs, DTuple(DString k, DString v, [])) ->
-                      // TODO: what about whitespace? What else can break?
+                      let k = String.trim k
                       if k = "" then
-                        return Error HeaderError.HeaderError.EmptyKey
+                        return Error BadHeader.BadHeader.EmptyKey
                       else
                         return Ok((k, v) :: pairs)
 
@@ -511,17 +510,17 @@ let fns (config : Configuration) : List<BuiltInFn> =
 
                 return DRecord(typ, typ, [], Map fields) |> resultOk
 
-              | Error(err) ->
+              | Error err ->
                 let err = err |> RequestError.toDT
                 return (err |> resultError)
 
             | Error reqHeadersErr, _ ->
-              let reqHeadersErr = reqHeadersErr |> HeaderError.toDT
+              let reqHeadersErr = reqHeadersErr |> BadHeader.toDT
               return reqHeadersErr |> resultError
 
             | _, None ->
-              let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
-              return resultErrorStr error
+              let error = RequestError.RequestError.BadMethod |> RequestError.toDT
+              return resultError error
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

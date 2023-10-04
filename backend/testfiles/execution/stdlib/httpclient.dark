@@ -106,7 +106,7 @@ PACKAGE.Darklang.Stdlib.HttpClient.request
   "https://darklang.com"
   [ ("", "") ]
   Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-  PACKAGE.Darklang.Stdlib.HttpClient.HeaderError.EmptyKey
+  PACKAGE.Darklang.Stdlib.HttpClient.BadHeader.EmptyKey
 )
 
 
@@ -115,22 +115,25 @@ PACKAGE.Darklang.Stdlib.HttpClient.request
   ""
   "https://darklang.com"
   []
-  Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Expected valid HTTP method (e.g. 'get' or 'POST')"
+  Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+  PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadMethod
+)
 
 PACKAGE.Darklang.Stdlib.HttpClient.request
   " get "
   "https://darklang.com"
   []
-  Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Expected valid HTTP method (e.g. 'get' or 'POST')"
+  Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+  PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadMethod
+)
 
 PACKAGE.Darklang.Stdlib.HttpClient.request
   "🇵🇷"
   "https://darklang.com"
   []
-  Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Expected valid HTTP method (e.g. 'get' or 'POST')"
+  Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+  PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadMethod
+)
 
 // unsupported protocols
 PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -248,7 +251,7 @@ module Disallowed =
     "http://[0:0:0:0:0:0:0:0]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request "get" "localhost" [] Builtin.Bytes.empty = PACKAGE
@@ -287,7 +290,7 @@ module Disallowed =
     "http://[::1]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -295,7 +298,7 @@ module Disallowed =
     "http://[0:0:0:0:0:0:0:1]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -303,7 +306,7 @@ module Disallowed =
     "http://[0000:0000:0000:0000:0000:0000:0000:0001]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -321,7 +324,7 @@ module Disallowed =
     "http://[::ffff:7f00:11]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -329,7 +332,7 @@ module Disallowed =
     "http://[0:0:0:0:0:ffff:7f00:0011]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -337,7 +340,7 @@ module Disallowed =
     "http://[0000:0000:0000:0000:0000:ffff:7f00:0011]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -386,7 +389,7 @@ module Disallowed =
     "http://[::ffff:a9fe:a9fe]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -394,7 +397,7 @@ module Disallowed =
     "http://[0:0:0:0:0:ffff:a9fe:a9fe]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -402,7 +405,7 @@ module Disallowed =
     "http://[0000:0000:0000:0000:0000:ffff:a9fe:a9fe]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -430,7 +433,7 @@ module Disallowed =
     "http://[::ffff:ac10:1]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -438,7 +441,7 @@ module Disallowed =
     "http://[0:0:0:0:0:ffff:ac10:0001]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -446,7 +449,7 @@ module Disallowed =
     "http://[0000:0000:0000:0000:0000:ffff:ac10:0001]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -464,7 +467,7 @@ module Disallowed =
     "http://[::ffff:c0a8:101]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -472,7 +475,7 @@ module Disallowed =
     "http://[0:0:0:0:0:ffff:c0a8:0101]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -480,7 +483,7 @@ module Disallowed =
     "http://[0000:0000:0000:0000:0000:ffff:c0a8:0101]"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   // Check for sneaky banned urls - blocked via connection callback
@@ -490,7 +493,7 @@ module Disallowed =
     "http://localtest.me"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
   // 0.0.0.0
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -498,7 +501,7 @@ module Disallowed =
     "http://c.cx"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   // invalid headers
@@ -568,7 +571,7 @@ module BadSSL =
     "http://thenonexistingurlforsure.com"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -576,7 +579,7 @@ module BadSSL =
     "https://self-signed.badssl.com"
     []
     Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.ConnectionError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
 

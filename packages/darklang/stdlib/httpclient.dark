@@ -2,7 +2,7 @@ module Darklang =
   module Stdlib =
     module HttpClient =
 
-      type HeaderError =
+      type BadHeader =
         // Occurs whrn a header key is empty. eg. [ ("", "") ]
         | EmptyKey
 
@@ -20,11 +20,11 @@ module Darklang =
         | BadUrl of BadUrlDetails
         // Occurs when the request is cancelled due to a timeout
         | Timeout
-        | HeaderError of HeaderError
-        // Occurs when an I/O error occurs while making the request
-        | IOError
-        // Occurs when there's an issue connecting to the endpoint. eg. network error, DNS failure, certifivate validation error, etc.
-        | ConnectionError
+        | BadHeader of BadHeader
+        // Occurs when there's an issue connecting to the endpoint or an I/O error. eg. network error, DNS failure, certifivate validation error, etc.
+        | NetworkError
+        // Occurs when the request method is not invalid.
+        | BadMethod
 
       let toString (e: RequestError) : String =
         match e with
@@ -35,11 +35,11 @@ module Darklang =
           | InvalidUri -> "Invalid URI"
           | InvalidRequest -> "Invalid request"
         | Timeout -> "Timeout"
-        | HeaderError details ->
+        | BadHeader details ->
           match details with
           | EmptyKey -> "Empty key"
-        | IOError -> "IOError"
-        | ConnectionError -> "Connection error"
+        | NetworkError -> "NetworkError"
+        | BadMethod -> "BadMethod"
 
 
       /// The response from a HTTP request
