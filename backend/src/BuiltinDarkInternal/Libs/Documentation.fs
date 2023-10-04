@@ -11,40 +11,15 @@ open LibExecution.Builtin.Shortcuts
 module VT = ValueType
 module Dval = LibExecution.Dval
 
-let modules = [ "DarkInternal"; "Documentation" ]
+let fn = fn [ "DarkInternal"; "Documentation" ]
+let packageType (addlModules : List<string>) (name : string) =
+  TypeName.fqPackage
+    "Darklang"
+    ([ "Internal"; "Documentation" ] @ addlModules)
+    name
+    0
 
-let typ = typ modules
-let fn = fn modules
-
-
-
-let types : List<BuiltInType> =
-  [ { name = typ "Function" 0
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "name"; typ = TString }
-                [ { name = "description"; typ = TString }
-                  { name = "parameters"
-                    typ =
-                      TList(TCustomType(Ok(FQName.BuiltIn(typ "Parameter" 0)), [])) }
-                  { name = "returnType"; typ = TString } ]
-            ) }
-      deprecated = NotDeprecated
-      description = "A Darklang builtin function" }
-    { name = typ "Parameter" 0
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "name"; typ = TString }
-                [ { name = "type"; typ = TString } ]
-            ) }
-      deprecated = NotDeprecated
-      description = "A function parameter" } ]
+let types : List<BuiltInType> = []
 
 let constants : List<BuiltInConstant> = []
 
@@ -52,7 +27,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "list" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TCustomType(Ok(FQName.BuiltIn(typ "Function" 0)), []))
+      returnType = TList(TCustomType(Ok(packageType [] "BuiltinFunction"), []))
       description =
         "Returns a list of Function records, representing the functions available in the standard library. Does not return DarkInternal functions"
       fn =
@@ -61,8 +36,8 @@ let fns : List<BuiltInFn> =
           uply {
             let typeNameToStr = LibExecution.DvalReprDeveloper.typeName
 
-            let fnParamTypeName = TypeName.fqBuiltIn modules "Parameter" 0
-            let fnTypeName = TypeName.fqBuiltIn modules "Function" 0
+            let fnParamTypeName = packageType [] "BuiltinFunctionParameter"
+            let fnTypeName = packageType [] "BuiltinFunction"
 
             let! fns =
               state.builtIns.fns

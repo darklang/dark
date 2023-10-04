@@ -1,0 +1,14 @@
+module Darklang =
+  /// Only for internal Darklang use, to keep everything running
+  module Internal =
+    module Documentation =
+      type BuiltinFunctionParameter =
+        { name: String
+          type: String }
+
+      /// A Darklang builtin function
+      type BuiltinFunction =
+        { name: String
+          description: String
+          parameters: List<BuiltinFunctionParameter>
+          returnType: String }
