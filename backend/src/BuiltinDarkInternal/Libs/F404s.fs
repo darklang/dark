@@ -11,24 +11,9 @@ module Telemetry = LibService.Telemetry
 
 let modules = [ "DarkInternal"; "Canvas"; "F404" ]
 
-let typ = typ modules
 let fn = fn modules
 
-let types : List<BuiltInType> =
-  [ { name = typ "F404" 0
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "space"; typ = TString }
-                [ { name = "path"; typ = TString }
-                  { name = "modifier"; typ = TString }
-                  { name = "timestamp"; typ = TDateTime }
-                  { name = "traceID"; typ = TUuid } ]
-            ) }
-      deprecated = NotDeprecated
-      description = "404 record" } ]
+let types : List<BuiltInType> = []
 
 let constants : List<BuiltInConstant> = []
 let fns : List<BuiltInFn> = []

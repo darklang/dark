@@ -14,6 +14,14 @@ module Darklang =
           returnType: String }
 
     module Canvas =
+      /// 404 record
+      type F404 =
+        { space: String
+          path: String
+          modifier: String
+          timestamp: DateTime
+          traceID: Uuid }
+
       // A program on a canvas
       type Program =
         { id: Uuid
