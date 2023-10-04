@@ -12,3 +12,16 @@ module Darklang =
           description: String
           parameters: List<BuiltinFunctionParameter>
           returnType: String }
+
+    module Canvas =
+      // A program on a canvas
+      type Program =
+        { id: Uuid
+          types: List<LanguageTools.ProgramTypes.UserType>
+          fns: List<LanguageTools.ProgramTypes.UserFunction.UserFunction>
+
+          // TODO:
+          //constants: List<LanguageTools.ProgramTypes.UserConstant>
+          //dbs: List<LanguageTools.ProgramTypes.DB>
+          //httpHandlers: List<LanguageTools.ProgramTypes.Handler.Handler>
+          }

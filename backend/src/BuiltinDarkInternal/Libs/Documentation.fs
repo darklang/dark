@@ -12,12 +12,12 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 
 let fn = fn [ "DarkInternal"; "Documentation" ]
-let packageType (addlModules : List<string>) (name : string) =
+let packageDocType (addlModules : List<string>) (name : string) (version : int) =
   TypeName.fqPackage
     "Darklang"
-    ([ "Internal"; "Documentation" ] @ addlModules)
+    ("Internal" :: "Documentation" :: addlModules)
     name
-    0
+    version
 
 let types : List<BuiltInType> = []
 
@@ -27,7 +27,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "list" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TCustomType(Ok(packageType [] "BuiltinFunction"), []))
+      returnType = TList(TCustomType(Ok(packageDocType [] "BuiltinFunction" 0), []))
       description =
         "Returns a list of Function records, representing the functions available in the standard library. Does not return DarkInternal functions"
       fn =
@@ -36,8 +36,8 @@ let fns : List<BuiltInFn> =
           uply {
             let typeNameToStr = LibExecution.DvalReprDeveloper.typeName
 
-            let fnParamTypeName = packageType [] "BuiltinFunctionParameter"
-            let fnTypeName = packageType [] "BuiltinFunction"
+            let fnParamTypeName = packageDocType [] "BuiltinFunctionParameter" 0
+            let fnTypeName = packageDocType [] "BuiltinFunction" 0
 
             let! fns =
               state.builtIns.fns
