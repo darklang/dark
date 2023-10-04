@@ -1,19 +1,12 @@
 module Darklang =
   /// Only for internal Darklang use, to keep everything running
   module Internal =
-    module Documentation =
-      type BuiltinFunctionParameter =
-        { name: String
-          type: String }
-
-      /// A Darklang builtin function
-      type BuiltinFunction =
-        { name: String
-          description: String
-          parameters: List<BuiltinFunctionParameter>
-          returnType: String }
-
     module Canvas =
+      type Secret =
+        { name: String
+          value: String
+          version: Int }
+
       /// 404 record
       type F404 =
         { space: String
@@ -22,22 +15,23 @@ module Darklang =
           timestamp: DateTime
           traceID: Uuid }
 
-      // A program on a canvas
+      /// A program on a canvas
       type Program =
         { id: Uuid
           types: List<LanguageTools.ProgramTypes.UserType>
           fns: List<LanguageTools.ProgramTypes.UserFunction.UserFunction>
 
-          // TODO:
-          //constants: List<LanguageTools.ProgramTypes.UserConstant>
-          //dbs: List<LanguageTools.ProgramTypes.DB>
-          //httpHandlers: List<LanguageTools.ProgramTypes.Handler.Handler>
-          }
+        // TODO:
+        //constants: List<LanguageTools.ProgramTypes.UserConstant>
+        //dbs: List<LanguageTools.ProgramTypes.DB>
+        //httpHandlers: List<LanguageTools.ProgramTypes.Handler.Handler>
+        }
 
     module Infra =
       /// Size info for Postgres tables
       type TableSize =
-        { /// Number of bytes on disk
+        {
+          /// Number of bytes on disk
           disk: Int
 
           /// Number of rows
@@ -47,4 +41,5 @@ module Darklang =
           diskHuman: String
 
           /// Number of rows, in human-readable form
-          rowsHuman: String }
+          rowsHuman: String
+        }

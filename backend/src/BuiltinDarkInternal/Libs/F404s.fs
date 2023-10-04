@@ -9,9 +9,7 @@ open LibExecution.Builtin.Shortcuts
 
 module Telemetry = LibService.Telemetry
 
-let modules = [ "DarkInternal"; "Canvas"; "F404" ]
-
-let fn = fn modules
+let fn = fn [ "DarkInternal"; "Canvas"; "F404" ]
 
 let types : List<BuiltInType> = []
 

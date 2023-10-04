@@ -12,9 +12,9 @@ module Documentation =
    |> Builtin.unwrap
    |> PACKAGE.Darklang.Stdlib.Dict.get "Int.add"
    |> Builtin.unwrap
-   |> (fun f -> f.parameters)) = [ Builtin.DarkInternal.Documentation.Parameter
+   |> (fun f -> f.parameters)) = [ PACKAGE.Darklang.Documentation.BuiltinFunctionParameter
                                      { name = "a"; ``type`` = "Int" }
-                                   Builtin.DarkInternal.Documentation.Parameter
+                                   PACKAGE.Darklang.Documentation.BuiltinFunctionParameter
                                      { name = "b"; ``type`` = "Int" } ]
 
 
@@ -72,7 +72,7 @@ module Secrets =
     (Builtin.Test.getCanvasID ())
     |> Builtin.DarkInternal.Canvas.Secret.insert "SECRET" "VALUE" 0
 
-   (Builtin.Test.getCanvasID ()) |> Builtin.DarkInternal.Canvas.Secret.getAll) = [ Builtin.DarkInternal.Canvas.Secret.Secret
+   (Builtin.Test.getCanvasID ()) |> Builtin.DarkInternal.Canvas.Secret.getAll) = [ PACKAGE.Darklang.Internal.Canvas.Secret
                                                                                      { name =
                                                                                          "SECRET"
                                                                                        value =

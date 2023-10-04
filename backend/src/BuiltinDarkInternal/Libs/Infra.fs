@@ -12,8 +12,7 @@ module Dval = LibExecution.Dval
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Telemetry = LibService.Telemetry
 
-let modules = [ "DarkInternal"; "Infra" ]
-let fn = fn modules
+let fn = fn [ "DarkInternal"; "Infra" ]
 
 let packageInfraType (addlModules : List<string>) (name : string) (version : int) =
   TypeName.fqPackage "Darklang" ("Internal" :: "Infra" :: addlModules) name version

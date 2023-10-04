@@ -11,10 +11,7 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 module Canvas = LibCloud.Canvas
 
-let modules = [ "DarkInternal"; "Canvas"; "Domain" ]
-
-let typ = typ modules
-let fn = fn modules
+let fn = fn [ "DarkInternal"; "Canvas"; "Domain" ]
 
 
 let types : List<BuiltInType> = []

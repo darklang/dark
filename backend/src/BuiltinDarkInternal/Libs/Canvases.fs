@@ -15,9 +15,8 @@ module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
-let modules = [ "DarkInternal"; "Canvas" ]
+let fn = fn [ "DarkInternal"; "Canvas" ]
 
-let fn = fn modules
 
 let ptTyp
   (submodules : List<string>)
@@ -33,8 +32,8 @@ let ptTyp
 let packageCanvasType (addlModules : List<string>) (name : string) (version : int) =
   TypeName.fqPackage "Darklang" ("Internal" :: "Canvas" :: addlModules) name version
 
-let types : List<BuiltInType> = []
 
+let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
