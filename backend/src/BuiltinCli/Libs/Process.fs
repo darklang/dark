@@ -11,19 +11,7 @@ module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
-let types : List<BuiltInType> =
-  [ { name = typ [ "Process" ] "Result" 0
-      description = "An error that occurred while running a process."
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "exitCode"; typ = TInt }
-                [ { name = "stdout"; typ = TBytes }
-                  { name = "stderr"; typ = TBytes } ]
-            ) }
-      deprecated = NotDeprecated } ]
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn [ "Process" ] "run" 0
@@ -32,7 +20,17 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "command" TString "The command to run"
           Param.make "input" TString "The input to the command" ]
-      returnType = stdlibTypeRef [ "Process" ] "Result" 0
+      returnType =
+        TCustomType(
+          Ok(
+            FQName.Package
+              { owner = "Darklang"
+                modules = [ "Process" ]
+                name = TypeName.TypeName "Result"
+                version = 0 }
+          ),
+          []
+        )
       fn =
         (function
         | _, _, [ DString command ] ->
@@ -52,7 +50,7 @@ let fns : List<BuiltInFn> =
 
           p.WaitForExit()
 
-          let typeName = TypeName.fqBuiltIn [ "Process" ] "Error" 0
+          let typeName = TypeName.fqPackage "Darklang" [ "Process" ] "Result" 0
           let fields =
             [ "exitCode", DInt p.ExitCode
               "stdout", DString stdout
