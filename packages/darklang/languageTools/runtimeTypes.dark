@@ -112,7 +112,10 @@ module Darklang =
         | EOr of ID * Expr * Expr
         | EError of ID * RuntimeError * List<Expr>
 
-      type MatchCase = { pat: MatchPattern; rhs: Expr }
+      type MatchCase =
+        { pat: MatchPattern
+          whenCondition: PACKAGE.Darklang.Stdlib.Option.Option<Expr>
+          rhs: Expr }
 
       type LetPattern =
         | LPVariable of ID * name: String

@@ -566,8 +566,20 @@ module Expr =
           |> List.map (fun case ->
             let pattern = MatchPattern.toDT case.pat
             let expr = toDT case.rhs
+            let whenCondition =
+              case.whenCondition |> Option.map toDT |> Dval.option knownType
             let typeName = (rtTyp [] "MatchCase" 0)
-            DRecord(typeName, typeName, [], Map [ ("pat", pattern); ("rhs", expr) ]))
+            //   DRecord(typeName, typeName, [], Map [ ("pat", pattern); ("rhs", expr) ]))
+            // |> Dval.list (KTCustomType(typeName, []))
+            DRecord(
+              typeName,
+              typeName,
+              [],
+              Map
+                [ ("pat", pattern)
+                  ("whenCondition", whenCondition)
+                  ("rhs", expr) ]
+            ))
           |> Dval.list (KTCustomType(typeName, []))
         "EMatch", [ DInt(int64 id); toDT arg; cases ]
 
@@ -692,9 +704,16 @@ module Expr =
         |> List.collect (fun case ->
           match case with
           | DRecord(_, _, _, fields) ->
+            let whenCondition =
+              match Map.get "whenCondition" fields with
+              | Some(DEnum(_, _, _, "Some", [ value ])) -> Some(fromDT value)
+              | Some(DEnum(_, _, _, "None", [])) -> None
+              | _ -> None
             match Map.get "pat" fields, Map.get "rhs" fields with
             | Some pat, Some rhs ->
-              [ { pat = MatchPattern.fromDT pat; rhs = fromDT rhs } ]
+              [ { pat = MatchPattern.fromDT pat
+                  whenCondition = whenCondition
+                  rhs = fromDT rhs } ]
             | _ -> []
           | _ -> [])
       EMatch(

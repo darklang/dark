@@ -200,7 +200,9 @@ module RuntimeTypes =
         712743UL,
         RT.EInt(712373UL, 123),
         NEList.singleton
-          { pat = RT.MPVariable(12738UL, "i"); rhs = RT.EVariable(1482374UL, "i") }
+          { pat = RT.MPVariable(12738UL, "i")
+            whenCondition = None
+            rhs = RT.EVariable(1482374UL, "i") }
       )
       RT.EAnd(9375723UL, RT.EBool(83645924UL, true), RT.EBool(385812673UL, false))
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
@@ -643,18 +645,23 @@ module ProgramTypes =
                                       "Ok",
                                       [ PT.MPVariable(334386852UL, "x") ]
                                     )
+                                  whenCondition = None
                                   rhs = PT.EVariable(863810169UL, "v") }
                                 { pat = PT.MPInt(928253813UL, 5L)
+                                  whenCondition = None
                                   rhs = PT.EInt(342670561UL, -9223372036854775808L) }
                                 { pat = PT.MPBool(435227293UL, true)
+                                  whenCondition = None
                                   rhs = PT.EInt(232748650UL, 7L) }
                                 { pat = PT.MPChar(387662539UL, "c")
+                                  whenCondition = None
                                   rhs = PT.EChar(657848009UL, "c") }
                                 { pat =
                                     PT.MPList(
                                       387662539UL,
                                       [ PT.MPBool(435227293UL, true) ]
                                     )
+                                  whenCondition = None
                                   rhs =
                                     PT.EList(
                                       657848009UL,
@@ -673,12 +680,14 @@ module ProgramTypes =
                                         )
                                       )
                                     )
+                                  whenCondition = None
                                   rhs =
                                     PT.EList(
                                       657848009UL,
                                       [ PT.EBool(435227293UL, true) ]
                                     ) }
                                 { pat = PT.MPString(491115870UL, "string")
+                                  whenCondition = None
                                   rhs =
                                     PT.EString(
                                       820329949UL,
@@ -688,8 +697,10 @@ module ProgramTypes =
                                         ) ]
                                     ) }
                                 { pat = PT.MPUnit 701616052UL
+                                  whenCondition = None
                                   rhs = PT.EUnit 731162955UL }
                                 { pat = PT.MPVariable(722099983UL, "var")
+                                  whenCondition = None
                                   rhs =
                                     PT.EInfix(
                                       275666765UL,
@@ -698,6 +709,7 @@ module ProgramTypes =
                                       PT.EVariable(880556562UL, "var")
                                     ) }
                                 { pat = PT.MPFloat(409097457UL, Positive, "5", "6")
+                                  whenCondition = None
                                   rhs = PT.EFloat(131187958UL, Positive, "5", "6") }
                                 { pat =
                                     PT.MPTuple(
@@ -706,6 +718,7 @@ module ProgramTypes =
                                       PT.MPVariable(58123641UL, "b"),
                                       [ PT.MPVariable(95723641UL, "c") ]
                                     )
+                                  whenCondition = None
                                   rhs = PT.EBool(123716747UL, true) } ]
                             ),
                             PT.ELet(

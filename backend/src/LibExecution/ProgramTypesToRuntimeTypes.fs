@@ -399,8 +399,10 @@ module Expr =
           NEList.ofList head tail
           |> NEList.map (fun case ->
             let pattern = MatchPattern.toRT case.pat
+            let whenCondition = Option.map toRT case.whenCondition
             let expr = toRT case.rhs
-            let result : RT.MatchCase = { pat = pattern; rhs = expr }
+            let result : RT.MatchCase =
+              { pat = pattern; whenCondition = whenCondition; rhs = expr }
             result)
 
         RT.EMatch(id, toRT mexpr, cases)

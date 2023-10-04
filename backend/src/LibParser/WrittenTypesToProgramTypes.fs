@@ -248,7 +248,16 @@ module Expr =
               uply {
                 let mp = MatchPattern.toPT case.pat
                 let! expr = toPT case.rhs
-                let result : PT.MatchCase = { pat = mp; rhs = expr }
+                let! whenCondition =
+                  uply {
+                    match case.whenCondition with
+                    | Some whenExpr ->
+                      let! whenExpr = toPT whenExpr
+                      return Some whenExpr
+                    | None -> return None
+                  }
+                let result : PT.MatchCase =
+                  { pat = mp; whenCondition = whenCondition; rhs = expr }
                 return result
               })
             cases

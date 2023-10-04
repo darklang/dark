@@ -173,7 +173,7 @@ module ProgramTypes =
     | EFieldAccess of ID * Expr * String
     | EVariable of ID * String
 
-    | EIf of ID * cond : Expr * thenExpr : Expr * elseExpr : option<Expr>
+    | EIf of ID * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
     | EMatch of ID * arg : Expr * cases : List<MatchCase>
     | EPipe of ID * Expr * List<PipeExpr>
 
@@ -183,7 +183,7 @@ module ProgramTypes =
     | EFnName of ID * NameResolution<FnName.FnName>
     | ERecordUpdate of ID * record : Expr * updates : NEList<String * Expr>
 
-  and MatchCase = { pat : MatchPattern; rhs : Expr }
+  and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
 
   type Deprecation<'name> =
@@ -544,7 +544,9 @@ module ExternalTypesToProgramTypes =
         )
 
     and matchCaseToPT (case : EPT.MatchCase) : PT.MatchCase =
-      { pat = MatchPattern.toPT case.pat; rhs = toPT case.rhs }
+      { pat = MatchPattern.toPT case.pat
+        whenCondition = Option.map toPT case.whenCondition
+        rhs = toPT case.rhs }
 
   module Deprecation =
     let toPT

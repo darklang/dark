@@ -101,7 +101,10 @@ let rec preTraversal
       id,
       f mexpr,
       NEList.map
-        (fun case -> { pat = preTraverseMatchPattern case.pat; rhs = f case.rhs })
+        (fun case ->
+          { pat = preTraverseMatchPattern case.pat
+            whenCondition = Option.map f case.whenCondition
+            rhs = f case.rhs })
         cases
     )
   | ERecord(id, typeName, fields) ->
@@ -213,7 +216,9 @@ let rec postTraversal
        f mexpr,
        NEList.map
          (fun case ->
-           ({ pat = postTraverseMatchPattern case.pat; rhs = f case.rhs }))
+           ({ pat = postTraverseMatchPattern case.pat
+              whenCondition = Option.map f case.whenCondition
+              rhs = f case.rhs }))
          cases
      )
    | ERecord(id, typeName, fields) ->
@@ -398,7 +403,9 @@ let rec postTraversalAsync
                 uply {
                   let! pattern = postTraverseMatchPattern case.pat
                   let! expr = r case.rhs
-                  return { pat = pattern; rhs = expr }
+                  let! whenCondition = Ply.Option.map r case.whenCondition
+                  return
+                    { pat = pattern; whenCondition = whenCondition; rhs = expr }
                 })
               cases
           return EMatch(id, mexpr, cases)

@@ -655,3 +655,9 @@ module GuardClause =
   (match -5 with
    | x when x > 0 -> true
    | _ -> false) = false
+
+  (match 6 with
+   | x when x == 5 -> "fail"
+   | -6 -> "fail"
+   | 6 -> "pass"
+   | var -> "fail") = "pass"

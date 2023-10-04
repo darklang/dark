@@ -201,7 +201,10 @@ module Darklang =
           fields: List<Expr>
 
 
-      type MatchCase = { pat: MatchPattern; rhs: Expr }
+      type MatchCase =
+        { pat: MatchPattern
+          whenCondition: PACKAGE.Darklang.Stdlib.Option.Option<Expr>
+          rhs: Expr }
 
       // module PipeExpr =
       //   let toID (expr : PipeExpr) : id =

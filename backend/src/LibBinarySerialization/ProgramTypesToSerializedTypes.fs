@@ -431,7 +431,9 @@ module Expr =
       )
     | PT.EMatch(id, mexpr, cases) ->
       let convertCase (case : PT.MatchCase) : ST.MatchCase =
-        { pat = MatchPattern.toST case.pat; rhs = toST case.rhs }
+        { pat = MatchPattern.toST case.pat
+          whenCondition = Option.map toST case.whenCondition
+          rhs = toST case.rhs }
       ST.EMatch(id, toST mexpr, List.map convertCase cases)
     | PT.EDict(id, fields) -> ST.EDict(id, List.map (Tuple2.mapSecond toST) fields)
     | PT.EFnName(id, fnName) ->
@@ -552,7 +554,9 @@ module Expr =
       )
 
   and matchCaseToPT (case : ST.MatchCase) : PT.MatchCase =
-    { pat = MatchPattern.toPT case.pat; rhs = toPT case.rhs }
+    { pat = MatchPattern.toPT case.pat
+      whenCondition = Option.map toPT case.whenCondition
+      rhs = toPT case.rhs }
 
 
 module Const =

@@ -52,7 +52,12 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     EMatch(
       id,
       f mexpr,
-      List.map (fun case -> { pat = case.pat; rhs = f case.rhs }) cases
+      List.map
+        (fun case ->
+          { pat = case.pat
+            whenCondition = Option.map f case.whenCondition
+            rhs = f case.rhs })
+        cases
     )
   | ERecord(id, typeName, fields) ->
     ERecord(id, typeName, List.map (fun (name, expr) -> (name, f expr)) fields)
@@ -179,13 +184,16 @@ let rec preTraversal
     ETuple(id, f first, f second, List.map f theRest)
   | EEnum(id, typeName, caseName, fields) ->
     EEnum(id, Result.map fqtnFn typeName, caseName, List.map f fields)
-  | EMatch(id, mexpr, pairs) ->
+  | EMatch(id, mexpr, cases) ->
     EMatch(
       id,
       f mexpr,
       List.map
-        (fun case -> { pat = preTraverseMatchPattern case.pat; rhs = f case.rhs })
-        pairs
+        (fun case ->
+          { pat = preTraverseMatchPattern case.pat
+            whenCondition = Option.map f case.whenCondition
+            rhs = f case.rhs })
+        cases
     )
   | ERecord(id, typeName, fields) ->
     ERecord(

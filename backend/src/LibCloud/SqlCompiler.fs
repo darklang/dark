@@ -981,7 +981,18 @@ let partiallyEvaluate
                   (fun case ->
                     uply {
                       let! expr = r case.rhs
-                      return { pat = case.pat; rhs = expr }
+                      let! whenCondition =
+                        uply {
+                          match case.whenCondition with
+                          | Some whenCondition ->
+                            let! whenCondition = r whenCondition
+                            return Some whenCondition
+                          | None -> return None
+                        }
+                      return
+                        { pat = case.pat
+                          whenCondition = whenCondition
+                          rhs = expr }
                     })
                   cases
 

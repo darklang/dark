@@ -639,7 +639,16 @@ let rec eval
         else
           let! passes, newDefs = checkPattern matchVal case.pat
           let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
-          if matchResult = None && passes then
+          let! whenCondition =
+            uply {
+              match case.whenCondition with
+              | Some whenCondition ->
+                match! eval state tlid tst newSymtable whenCondition with
+                | DBool b -> return b
+                | _ -> return false
+              | None -> return true
+            }
+          if matchResult = None && passes && whenCondition then
             let! r = eval state tlid tst newSymtable case.rhs
             matchResult <- Some r
 

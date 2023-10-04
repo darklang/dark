@@ -130,7 +130,7 @@ type Expr =
   | EFloat of id * Sign * string * string
   | EUnit of id
   | ELet of id * LetPattern * Expr * Expr
-  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : option<Expr>
+  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
   | EInfix of id * Infix * Expr * Expr
   | ELambda of id * NEList<id * string> * Expr
   | EFieldAccess of id * Expr * string
@@ -152,7 +152,7 @@ type Expr =
   | EFnName of id * Name
   | EPlaceHolder // Used to start exprs that aren't filled in yet, not in ProgramTypes
 
-and MatchCase = { pat : MatchPattern; rhs : Expr }
+and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
 and StringSegment =
   | StringText of string
