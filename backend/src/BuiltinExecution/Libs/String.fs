@@ -313,7 +313,7 @@ let fns : List<BuiltInFn> =
           let last =
             if last < 0 then getLengthInTextElements (s) + int last else int last
 
-          if first >= getLengthInTextElements (s) || first >= last then
+          if first >= last then
             Ply(DString "")
           else
             // Create a TextElementEnumerator to handle EGCs
