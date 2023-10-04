@@ -43,3 +43,12 @@ module Darklang =
           /// Number of rows, in human-readable form
           rowsHuman: String
         }
+
+    module Worker =
+      /// A scheduling rule for a worker
+      type SchedulingRule =
+        { id: Uuid
+          ruleType: String
+          canvasID: Uuid
+          handlerName: String
+          createdAt: DateTime }
