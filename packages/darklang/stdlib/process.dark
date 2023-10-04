@@ -2,11 +2,17 @@
 module Darklang =
   module Stdlib =
     module Process =
+      /// The result of running a process, typically with `Process.run`
+      type Result =
+        { exitCode: Int
+          stdout: Bytes
+          stderr: Bytes }
+
       // Return Ok stdout+stderr, or Error exitCode+stdout+stderr
       let runCommand
         (command: String)
         (input: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<String, Builtin.Process.Result> =
+        : PACKAGE.Darklang.Stdlib.Result.Result<String, Result> =
         let result = Builtin.Process.run command input
 
         if result.exitCode == 0 then

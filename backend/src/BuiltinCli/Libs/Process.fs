@@ -22,13 +22,7 @@ let fns : List<BuiltInFn> =
           Param.make "input" TString "The input to the command" ]
       returnType =
         TCustomType(
-          Ok(
-            FQName.Package
-              { owner = "Darklang"
-                modules = [ "Process" ]
-                name = TypeName.TypeName "Result"
-                version = 0 }
-          ),
+          Ok(TypeName.fqPackage "Darklang" [ "Stdlib"; "Process" ] "Result" 0),
           []
         )
       fn =
@@ -50,7 +44,8 @@ let fns : List<BuiltInFn> =
 
           p.WaitForExit()
 
-          let typeName = TypeName.fqPackage "Darklang" [ "Process" ] "Result" 0
+          let typeName =
+            TypeName.fqPackage "Darklang" [ "Stdlib"; "Process" ] "Result" 0
           let fields =
             [ "exitCode", DInt p.ExitCode
               "stdout", DString stdout
