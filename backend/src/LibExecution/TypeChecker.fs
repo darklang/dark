@@ -14,23 +14,46 @@ let combineErrorsUnit (l : NEList<Result<unit, 'err>>) : Result<unit, 'err> =
 
 type Location = Option<tlid * id>
 type Context =
+  /// An argument used in a function call did not match
+  /// the type expected for the function's corresponding parameter
   | FunctionCallParameter of
     fnName : FnName.FnName *
     parameter : Param *
     paramIndex : int *
     // caller : Option<tlid * id> * // TODO add caller
     location : Location
+
+  /// The result of calling function did match the function signature's expected return type
   | FunctionCallResult of
     fnName : FnName.FnName *
     returnType : TypeReference *
     // caller : Option<tlid * id> * // TODO add caller
     location : Location
+
+  | DBQueryVariable of
+    varName : string *
+    expected : TypeReference *
+    location : Location
+
+  | DBSchemaType of
+    name : string *
+    expectedType : TypeReference *
+    location : Location
+
+  /// We calld a passed-in fn value (lambda or named function),
+  /// and its result was of the wrong type
+  ///
+  /// TODO should we include the dval here?
+  /// TODO rename `returnType` to `expectedType` everywhere relevant
+  | FnValResult of returnType : TypeReference * location : Location
+
+
   | RecordField of
     recordTypeName : TypeName.TypeName *
     fieldName : string *
     fieldType : TypeReference *
     location : Location
-  | DictKey of key : string * typ : TypeReference * Location
+
   | EnumField of
     enumTypeName : TypeName.TypeName *
     caseName : string *
@@ -38,45 +61,26 @@ type Context =
     fieldCount : int *
     fieldType : TypeReference *
     location : Location
-  | DBQueryVariable of
-    varName : string *
-    expected : TypeReference *
-    location : Location
-  | DBSchemaType of
-    name : string *
-    expectedType : TypeReference *
-    location : Location
-  | ListIndex of index : int * listTyp : TypeReference * parent : Context
-  | TupleIndex of index : int * elementType : TypeReference * parent : Context
-  | FnValResult of returnType : TypeReference * location : Location
 
 
-module Context =
-  let rec toLocation (c : Context) : Location =
-    match c with
-    | FunctionCallParameter(_, _, _, location) -> location
-    | FunctionCallResult(_, _, location) -> location
-    | RecordField(_, _, _, location) -> location
-    | DictKey(_, _, location) -> location
-    | EnumField(_, _, _, _, _, location) -> location
-    | DBQueryVariable(_, _, location) -> location
-    | DBSchemaType(_, _, location) -> location
-    | ListIndex(_, _, parent) -> toLocation parent
-    | TupleIndex(_, _, parent) -> toLocation parent
-    | FnValResult(_, location) -> location
-
+// elsewhere known as `TypeCheckerError`
 type Error =
+  /// We tried to look up a type, but couldn't find it
+  | TypeDoesntExist of TypeName.TypeName * Context
+
+
+  /// There was an expectation that some value would be of a particular TypeReference,
+  /// but it was not
   | ValueNotExpectedType of
     // CLEANUP consider reordering fields to (context * expectedType * actualValue)
     actualValue : Dval *
     expectedType : TypeReference *
     Context
-  | TypeDoesntExist of TypeName.TypeName * Context
+
 
 
 
 module Error =
-
   module RT2DT = RuntimeTypesToDarkTypes
 
   module Location =
@@ -85,12 +89,13 @@ module Error =
       match location with
       | None -> Dval.optionNone optType
       | Some(tlid, id) ->
-        let tlid = DInt(int64 tlid)
-        let id = DInt(int64 id)
-        Dval.optionSome optType (DTuple(tlid, id, []))
+        DTuple(DInt(int64 tlid), DInt(int64 id), []) |> Dval.optionSome optType
+
 
 
   module Context =
+    let typeName = RuntimeError.name [ "TypeChecker" ] "Context" 0
+
     let rec toDT (context : Context) : Dval =
       let (caseName, fields) =
         match context with
@@ -113,10 +118,6 @@ module Error =
             DString fieldName
             RT2DT.TypeReference.toDT fieldType
             Location.toDT location ]
-
-        | DictKey(key, typ, location) ->
-          "DictKey",
-          [ DString key; RT2DT.TypeReference.toDT typ; Location.toDT location ]
 
         | EnumField(enumTypeName,
                     caseName,
@@ -144,20 +145,14 @@ module Error =
             RT2DT.TypeReference.toDT expectedType
             Location.toDT location ]
 
-        | ListIndex(index, listTyp, parent) ->
-          "ListIndex", [ DInt index; RT2DT.TypeReference.toDT listTyp; toDT parent ]
-
-        | TupleIndex(index, elementType, parent) ->
-          "TupleIndex",
-          [ DInt index; RT2DT.TypeReference.toDT elementType; toDT parent ]
-
         | FnValResult(returnType, location) ->
           "FnValResult",
           [ RT2DT.TypeReference.toDT returnType; Location.toDT location ]
 
-      let typeName = RuntimeError.name [ "TypeChecker" ] "Context" 0
       DEnum(typeName, typeName, [], caseName, fields)
 
+
+  let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
 
   let toRuntimeError (e : Error) : RuntimeError =
     let (caseName, fields) =
@@ -174,6 +169,7 @@ module Error =
     let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
 
     DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.typeCheckerError
+
 
 let raiseValueNotExpectedType
   (source : Source)

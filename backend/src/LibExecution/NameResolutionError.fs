@@ -11,7 +11,15 @@ type ErrorType =
   | NotFound
   | ExpectedEnumButNot
   | ExpectedRecordButNot
+
+  // User tried to create enum like `Some(1)`, without specifying type like `Option.Some(1)`
   | MissingEnumModuleName of caseName : string
+
+  /// TODO rephrase this to UnparseablePackageName
+  ///
+  /// Roughly, the name should match these rules:
+  /// - types should look like `List` or `List_v1`
+  /// - functions and constants should look like `List.fakeFunction` or `List.fakeFunction_v1`
   | InvalidPackageName
 
 type NameType =
