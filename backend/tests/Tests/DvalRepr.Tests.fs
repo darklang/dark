@@ -39,7 +39,7 @@ let queryableRoundtripsSuccessfullyInRecord
       RT.DRecord(
         RT.FQName.UserProgram typeName,
         RT.FQName.UserProgram typeName,
-        VT.typeArgsTODO,
+        [],
         Map.ofList [ "field", dv ]
       )
     let typeRef = S.userTypeReference [] "MyType" 0

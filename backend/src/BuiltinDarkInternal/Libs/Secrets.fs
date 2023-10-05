@@ -11,39 +11,28 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 module Secret = LibCloud.Secret
 
+let fn = fn [ "DarkInternal"; "Canvas"; "Secret" ]
 
-let modules = [ "DarkInternal"; "Canvas"; "Secret" ]
 
-let typ = typ modules
-let fn = fn modules
+let packageSecretType (addlModules : List<string>) (name : string) (version : int) =
+  TypeName.fqPackage "Darklang" ("Internal" :: "Canvas" :: addlModules) name version
 
-let types : List<BuiltInType> =
-  [ { name = typ "Secret" 0
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "name"; typ = TString }
-                [ { name = "value"; typ = TString }
-                  { name = "version"; typ = TInt } ]
-            ) }
-      description = "A secret"
-      deprecated = NotDeprecated } ]
 
+let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "getAll" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TList(TCustomType(Ok(FQName.BuiltIn(typ "Secret" 0)), []))
+      returnType = TList(TCustomType(Ok(packageSecretType [] "Secret" 0), []))
       description = "Get all secrets in the canvas"
       fn =
         (function
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! secrets = Secret.getCanvasSecrets canvasID
-            let typeName = FQName.BuiltIn(typ "Secret" 0)
+            let typeName = packageSecretType [] "Secret" 0
 
             return
               secrets
@@ -107,7 +96,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
-
-let constants : List<BuiltInConstant> = []
 
 let contents = (fns, types, constants)

@@ -12,122 +12,27 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
-module Dval = LibExecution.Dval
-module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
-let types : List<BuiltInType> =
-  [ { name = typ [ "LocalExec"; "Packages" ] "Function" 0
-      description = "The name of a package function"
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "owner"; typ = TString }
-                [ { name = "modules"; typ = TList TString }
-                  { name = "name"; typ = TString }
-                  { name = "version"; typ = TInt } ]
-            ) }
-      deprecated = NotDeprecated }
+let packagePackagesType
+  (addlModules : List<string>)
+  (name : string)
+  (version : int)
+  : TypeName.TypeName =
+  TypeName.fqPackage
+    "Darklang"
+    ("LocalExec" :: "Packages" :: addlModules)
+    name
+    version
 
 
-    { name = typ [ "LocalExec"; "Packages" ] "Type" 0
-      description = "The name of a package type"
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "owner"; typ = TString }
-                [ { name = "modules"; typ = TList TString }
-                  { name = "name"; typ = TString }
-                  { name = "version"; typ = TInt } ]
-            ) }
-      deprecated = NotDeprecated }
-
-
-    { name = typ [ "LocalExec"; "Packages" ] "Constant" 0
-      description = "The name of a package constant"
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "owner"; typ = TString }
-                [ { name = "modules"; typ = TList TString }
-                  { name = "name"; typ = TString }
-                  { name = "version"; typ = TInt } ]
-            ) }
-      deprecated = NotDeprecated }
-
-
-    { name = typ [ "LocalExec"; "Packages" ] "Package" 0
-      description = "A package, with types, constants, and functions"
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "types"
-                  typ =
-                    TList(
-                      TCustomType(
-                        Ok(
-                          TypeName.fqPackage
-                            "Darklang"
-                            [ "LanguageTools"; "Stdlib"; "ProgramTypes" ]
-                            "PackageType"
-                            0
-                        ),
-                        []
-                      )
-                    ) }
-                [ { name = "constants"
-                    typ =
-                      TList(
-                        TCustomType(
-                          Ok(
-                            TypeName.fqPackage
-                              "Darklang"
-                              [ "LanguageTools"; "Stdlib"; "ProgramTypes" ]
-                              "PackageConstant"
-                              0
-                          ),
-                          []
-                        )
-                      ) }
-                  { name = "fns"
-                    typ =
-                      TList(
-                        TCustomType(
-                          Ok(
-                            TypeName.fqPackage
-                              "Darklang"
-                              [ "LanguageTools"
-                                "Stdlib"
-                                "ProgramTypes"
-                                "PackageFn" ]
-                              "PackageFn"
-                              0
-                          ),
-                          []
-                        )
-                      ) } ]
-            ) }
-      deprecated = NotDeprecated } ]
-
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn [ "LocalExec"; "Packages" ] "listFunctions" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
-        TList(
-          TCustomType(
-            Ok(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0)),
-            []
-          )
-        )
+        TList(TCustomType(Ok(packagePackagesType [] "FunctionName" 0), []))
       description = "List all package functions"
       fn =
         function
@@ -142,8 +47,7 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let typeName =
-              FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0)
+            let typeName = packagePackagesType [] "FunctionName" 0
 
             let fns =
               fns
@@ -171,13 +75,7 @@ let fns : List<BuiltInFn> =
     { name = fn [ "LocalExec"; "Packages" ] "listTypes" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType =
-        TList(
-          TCustomType(
-            Ok(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0)),
-            []
-          )
-        )
+      returnType = TList(TCustomType(Ok(packagePackagesType [] "TypeName" 0), []))
       description = "List all package types"
       fn =
         function
@@ -192,7 +90,7 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let typeName = FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0)
+            let typeName = packagePackagesType [] "TypeName" 0
 
             let types =
               types
@@ -220,12 +118,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
-        TList(
-          TCustomType(
-            Ok(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0)),
-            []
-          )
-        )
+        TList(TCustomType(Ok(packagePackagesType [] "ConstantName" 0), []))
       description = "List all package constants"
       fn =
         function
@@ -240,8 +133,7 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let typeName =
-              FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0)
+            let typeName = packagePackagesType [] "ConstantName" 0
 
             let consts =
               consts

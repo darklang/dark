@@ -15,10 +15,8 @@ module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
-let modules = [ "DarkInternal"; "Canvas" ]
+let fn = fn [ "DarkInternal"; "Canvas" ]
 
-let typ = typ modules
-let fn = fn modules
 
 let ptTyp
   (submodules : List<string>)
@@ -31,30 +29,11 @@ let ptTyp
     name
     version
 
+let packageCanvasType (addlModules : List<string>) (name : string) (version : int) =
+  TypeName.fqPackage "Darklang" ("Internal" :: "Canvas" :: addlModules) name version
 
-let types : List<BuiltInType> =
-  [ { name = typ "Program" 0
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "id"; typ = TUuid }
-                [ { name = "types"
-                    typ = TList(TCustomType(Ok(ptTyp [] "UserType" 0), [])) }
 
-                  // { name = "dbs"
-                  //   typ = TList(TCustomType(FQName.BuiltIn(typ "DB" 0), []))
-                  //   description = "" }
-
-                  // { name = "httpHandlers"
-                  //   typ = TList(TCustomType(FQName.BuiltIn(typ "HttpHandler" 0), []))
-                  //   description = "" }
-                  ]
-            ) }
-      deprecated = NotDeprecated
-      description = "A program on a canvas" } ]
-
+let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
@@ -153,7 +132,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the ID of the special dark-editor canvas"
       fn =
         (function
-        | state, _, [ DUnit ] -> uply { return DUuid state.program.canvasID }
+        | state, _, [ DUnit ] -> state.program.canvasID |> DUuid |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -165,7 +144,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType =
         TypeReference.result
-          (TCustomType(Ok(FQName.BuiltIn(typ "Program" 0)), []))
+          (TCustomType(Ok(packageCanvasType [] "Program" 0), []))
           TString
       description =
         "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"
@@ -214,7 +193,7 @@ let fns : List<BuiltInFn> =
             //   |> Dval.list VT.unknownTODO
 
 
-            let typeName = FQName.BuiltIn(typ "Program" 0)
+            let typeName = packageCanvasType [] "Program" 0
             return
               DRecord(typeName, typeName, [], Map [ "types", types; "fns", fns ])
               |> Dval.resultOk (KTCustomType(typeName, [])) KTString

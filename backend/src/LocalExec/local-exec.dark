@@ -110,19 +110,23 @@ let loadPackageFileIntoDarkCanvas
   | _ -> PACKAGE.Darklang.Stdlib.Result.Result.Ok()
 
 
-let printPackageFunction (p: Builtin.LocalExec.Packages.Function) : Unit =
+let printPackageFunction
+  (p: PACKAGE.Darklang.LocalExec.Packages.FunctionName)
+  : Unit =
   let modules = p.modules |> PACKAGE.Darklang.Stdlib.String.join "."
 
   Builtin.print
     $"Package Function {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
 
-let printPackageType (p: Builtin.LocalExec.Packages.Type) : Unit =
+let printPackageType (p: PACKAGE.Darklang.LocalExec.Packages.TypeName) : Unit =
   let modules = p.modules |> PACKAGE.Darklang.Stdlib.String.join "."
 
   Builtin.print
     $"Package Type {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
 
-let printPackageConstant (p: Builtin.LocalExec.Packages.Constant) : Unit =
+let printPackageConstant
+  (p: PACKAGE.Darklang.LocalExec.Packages.ConstantName)
+  : Unit =
   let modules = p.modules |> PACKAGE.Darklang.Stdlib.String.join "."
 
   Builtin.print

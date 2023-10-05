@@ -1,0 +1,29 @@
+module Darklang =
+  module LocalExec =
+    module Packages =
+      // The name of a package function
+      type FunctionName =
+        { owner: String
+          modules: List<String>
+          name: String
+          version: Int }
+
+      /// The name of a package type
+      type TypeName =
+        { owner: String
+          modules: List<String>
+          name: String
+          version: Int }
+
+      /// The name of a package constant
+      type ConstantName =
+        { owner: String
+          modules: List<String>
+          name: String
+          version: Int }
+
+      /// A package, with types, constants, and functions
+      type Package =
+        { types: List<TypeName>
+          constants: List<ConstantName>
+          fns: List<FunctionName> }

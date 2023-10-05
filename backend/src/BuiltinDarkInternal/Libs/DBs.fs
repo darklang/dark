@@ -10,10 +10,7 @@ open LibExecution.Builtin.Shortcuts
 module Dval = LibExecution.Dval
 module UserDB = LibCloud.UserDB
 
-let modules = [ "DarkInternal"; "Canvas"; "DB" ]
-
-let typ = typ modules
-let fn = fn modules
+let fn = fn [ "DarkInternal"; "Canvas"; "DB" ]
 
 
 let types : List<BuiltInType> = []

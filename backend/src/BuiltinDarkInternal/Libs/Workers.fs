@@ -14,6 +14,13 @@ module SchedulingRules = LibCloud.QueueSchedulingRules
 module Pusher = LibCloud.Pusher
 module Queue = LibCloud.Queue
 
+let packageInternalType
+  (addlModules : List<string>)
+  (name : string)
+  (version : int)
+  : TypeName.TypeName =
+  TypeName.fqPackage "Darklang" ("Internal" :: addlModules) name version
+
 
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   (function
@@ -31,13 +38,13 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
     }
   | _ -> incorrectArgs ())
 
-let schedulingRuleTypeName = typ [ "DarkInternal"; "SchedulingRule" ] "Rule" 0
 
-let schedulingRuleTypeRef =
-  TCustomType(Ok(FQName.BuiltIn(schedulingRuleTypeName)), [])
+let schedulingRuleTypeName = packageInternalType [ "Worker" ] "SchedulingRule" 0
+
+let schedulingRuleTypeRef = TCustomType(Ok schedulingRuleTypeName, [])
 
 let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Dval =
-  let typeName = FQName.BuiltIn schedulingRuleTypeName
+  let typeName = schedulingRuleTypeName
 
   rules
   |> List.map (fun r ->
@@ -51,22 +58,8 @@ let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Dval =
     DRecord(typeName, typeName, [], Map fields))
   |> Dval.list (KTCustomType(typeName, []))
 
-let types : List<BuiltInType> =
-  [ { name = schedulingRuleTypeName
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "id"; typ = TInt }
-                [ { name = "ruleType"; typ = TString }
-                  { name = "canvasID"; typ = TUuid }
-                  { name = "handlerName"; typ = TString }
-                  { name = "createdAt"; typ = TDateTime } ]
-            ) }
-      deprecated = NotDeprecated
-      description = "A scheduling rule for a worker" } ]
 
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn [ "DarkInternal"; "Canvas"; "Queue" ] "count" 0
