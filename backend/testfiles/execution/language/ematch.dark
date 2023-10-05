@@ -683,3 +683,11 @@ module GuardClause =
   (match (5, "hello") with
    | (x, y) when x > 0 && PACKAGE.Darklang.Stdlib.String.length y == 5 -> "pass"
    | _ -> "fail") = "pass"
+
+  (match -5 with
+   | x when y > 0 -> true
+   | _ -> false) = Builtin.Test.derrorMessage "There is no variable named: y"
+
+  (match 5 with
+   | 5 -> false
+   | x when y > 0 -> true) = false
