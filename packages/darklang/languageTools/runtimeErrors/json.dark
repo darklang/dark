@@ -1,6 +1,11 @@
 module Darklang =
   module LanguageTools =
     module RuntimeErrors =
+      // <aliases>
+      type ES =
+        PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorSegment.ErrorSegment
+      // </aliases>
+
       module Json =
         type Error = UnsupportedType of RuntimeTypes.TypeReference
 
@@ -8,8 +13,7 @@ module Darklang =
           match e with
           | UnsupportedType typ ->
             let summary =
-              [ ErrorSegment.ErrorSegment.String "Unsupported type in JSON: "
-                ErrorSegment.ErrorSegment.TypeReference typ ]
+              [ ES.String "Unsupported type in JSON: "; ES.TypeReference typ ]
 
             let extraExplanation =
               let parse =
@@ -29,16 +33,14 @@ module Darklang =
                 )
 
 
-              [ ErrorSegment.ErrorSegment.String
+              [ ES.String
                   ". Some types are not supported in Json serialization, and cannot be used as arguments to "
-                ErrorSegment.ErrorSegment.FunctionName parse
-                ErrorSegment.ErrorSegment.String " or "
-                ErrorSegment.ErrorSegment.FunctionName serialize ]
+                ES.FunctionName parse
+                ES.String " or "
+                ES.FunctionName serialize ]
 
             ErrorOutput
               { summary = summary
                 extraExplanation = extraExplanation
-                actual = [ ErrorSegment.ErrorSegment.TypeReference typ ]
-                expected =
-                  [ ErrorSegment.ErrorSegment.String
-                      "A supported type (Int, String, etc)" ] }
+                actual = [ ES.TypeReference typ ]
+                expected = [ ES.String "A supported type (Int, String, etc)" ] }

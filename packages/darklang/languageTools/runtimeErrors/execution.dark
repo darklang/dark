@@ -1,6 +1,11 @@
 module Darklang =
   module LanguageTools =
     module RuntimeErrors =
+      // <aliases>
+      type ES =
+        PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorSegment.ErrorSegment
+      // </aliases>
+
       module Execution =
         type Error =
           | MatchExprUnmatched of RuntimeTypes.Dval.Dval
@@ -12,9 +17,7 @@ module Darklang =
         let toSegments (e: Error) : ErrorOutput =
           match e with
           | MatchExprUnmatched dv ->
-            let summary =
-              [ ErrorSegment.ErrorSegment.String "No match for "
-                ErrorSegment.ErrorSegment.InlineValue dv ]
+            let summary = [ ES.String "No match for "; ES.InlineValue dv ]
 
             // TODO include patterns in error message
             let extraExplanation = []
@@ -28,21 +31,13 @@ module Darklang =
 
           | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
             let summary =
-              [ ErrorSegment.ErrorSegment.String caseName
-                ErrorSegment.ErrorSegment.String " pattern is expecting "
-                ErrorSegment.ErrorSegment.Count(
-                  expected,
-                  ErrorSegment.ErrorSegment.String "field",
-                  ErrorSegment.ErrorSegment.String "fields"
-                )
-                ErrorSegment.ErrorSegment.String ", but "
-                ErrorSegment.ErrorSegment.String caseName
-                ErrorSegment.ErrorSegment.String " has "
-                ErrorSegment.ErrorSegment.Count(
-                  actual,
-                  ErrorSegment.ErrorSegment.String "field",
-                  ErrorSegment.ErrorSegment.String "fields"
-                ) ]
+              [ ES.String caseName
+                ES.String " pattern is expecting "
+                ES.Count(expected, ES.String "field", ES.String "fields")
+                ES.String ", but "
+                ES.String caseName
+                ES.String " has "
+                ES.Count(actual, ES.String "field", ES.String "fields") ]
 
             let extraExplanation = []
 
@@ -56,14 +51,14 @@ module Darklang =
           | MatchExprPatternWrongType(patternType, dv) ->
             let summary =
               // "Cannot match Int value 6 with a Float pattern"
-              [ ErrorSegment.ErrorSegment.String "Cannot match "
-                ErrorSegment.ErrorSegment.TypeOfValue dv
-                ErrorSegment.ErrorSegment.String " value "
-                ErrorSegment.ErrorSegment.InlineValue dv
-                ErrorSegment.ErrorSegment.String " with "
-                ErrorSegment.ErrorSegment.IndefiniteArticle
-                ErrorSegment.ErrorSegment.String patternType
-                ErrorSegment.ErrorSegment.String " pattern" ]
+              [ ES.String "Cannot match "
+                ES.TypeOfValue dv
+                ES.String " value "
+                ES.InlineValue dv
+                ES.String " with "
+                ES.IndefiniteArticle
+                ES.String patternType
+                ES.String " pattern" ]
 
             let extraExplanation = []
 
@@ -76,9 +71,8 @@ module Darklang =
           // Expected String in string interpolation, got 1.0
           | NonStringInStringInterpolation dv ->
             let summary =
-              [ ErrorSegment.ErrorSegment.String
-                  "Expected String in string interpolation, got "
-                ErrorSegment.ErrorSegment.InlineValue dv ]
+              [ ES.String "Expected String in string interpolation, got "
+                ES.InlineValue dv ]
 
             let extraExplanation = []
 
@@ -90,9 +84,9 @@ module Darklang =
 
           | ConstDoesntExist name ->
             let summary =
-              [ ErrorSegment.ErrorSegment.String "Constant "
-                ErrorSegment.ErrorSegment.ConstantName name
-                ErrorSegment.ErrorSegment.String " doesn't exist" ]
+              [ ES.String "Constant "
+                ES.ConstantName name
+                ES.String " doesn't exist" ]
 
             let extraExplanation = []
 

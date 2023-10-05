@@ -1,6 +1,11 @@
 module Darklang =
   module LanguageTools =
     module RuntimeErrors =
+      // <aliases>
+      type ES =
+        PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorSegment.ErrorSegment
+      // </aliases>
+
       module NameResolution =
         type ErrorType =
           | NotFound
@@ -36,10 +41,8 @@ module Darklang =
 
             ErrorOutput
               { summary =
-                  [ ErrorSegment.ErrorSegment.String $"There is no {nameType} named "
-                    ErrorSegment.ErrorSegment.InlineVarName(
-                      PACKAGE.Darklang.Stdlib.String.join e.names "."
-                    ) ]
+                  [ ES.String $"There is no {nameType} named "
+                    ES.InlineVarName(Stdlib.String.join e.names ".") ]
                 extraExplanation = []
                 actual = []
                 expected = [] }
@@ -47,12 +50,12 @@ module Darklang =
           | MissingEnumModuleName caseName ->
             let name =
               let names = Builtin.List.append e.names [ caseName ]
-              ErrorSegment.ErrorSegment.VarName(Builtin.String.join names ".")
+              ES.VarName(Builtin.String.join names ".")
 
             let summary =
-              [ ErrorSegment.ErrorSegment.String "Missing type name for enum case"
-                ErrorSegment.ErrorSegment.String ": "
-                ErrorSegment.ErrorSegment.String caseName ]
+              [ ES.String "Missing type name for enum case"
+                ES.String ": "
+                ES.String caseName ]
 
             ErrorOutput
               { summary = summary
@@ -62,10 +65,8 @@ module Darklang =
 
           | InvalidPackageName ->
             let summary =
-              [ ErrorSegment.ErrorSegment.String "Invalid package name "
-                ErrorSegment.ErrorSegment.InlineVarName(
-                  PACKAGE.Darklang.Stdlib.String.join e.names "."
-                ) ]
+              [ ES.String "Invalid package name "
+                ES.InlineVarName(Stdlib.String.join e.names ".") ]
 
             ErrorOutput
               { summary = summary
@@ -75,11 +76,9 @@ module Darklang =
 
           | ExpectedRecordButNot ->
             let summary =
-              [ ErrorSegment.ErrorSegment.String "Expected a record but "
-                ErrorSegment.ErrorSegment.InlineVarName(
-                  PACKAGE.Darklang.Stdlib.String.join e.names "."
-                )
-                ErrorSegment.ErrorSegment.String " is an enum" ]
+              [ ES.String "Expected a record but "
+                ES.InlineVarName(Stdlib.String.join e.names ".")
+                ES.String " is an enum" ]
 
             ErrorOutput
               { summary = summary
@@ -91,9 +90,7 @@ module Darklang =
             // RTETODO:
             // | ExpectedEnumButNot
             ErrorOutput
-              { summary =
-                  [ ErrorSegment.ErrorSegment.String
-                      "RTETODO NameResolution.toSegments" ]
+              { summary = [ ES.String "RTETODO NameResolution.toSegments" ]
                 extraExplanation = []
                 actual = []
                 expected = [] }

@@ -123,28 +123,25 @@ module Darklang =
       // maybe as cases of that (e.g. TypeCheckerError, NameResolutionError)
 
       type Error =
-
-        | TypeCheckerError of
-          PACKAGE.Darklang.LanguageTools.RuntimeErrors.TypeChecker.Error
+        | TypeCheckerError of RuntimeErrors.TypeChecker.Error
 
         /// Errors specific to resolving names
-        | NameResolutionError of
-          PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error
+        | NameResolutionError of RuntimeErrors.NameResolution.Error
 
         /// Errors specific to the SqlCompiler (used to compile DB.query lambdas)
         | SqlCompilerRuntimeError of Error
 
         /// Errors that happen somewhere in the Darklang interpreter
-        | ExecutionError of
-          PACKAGE.Darklang.LanguageTools.RuntimeErrors.Execution.Error
+        | ExecutionError of RuntimeErrors.Execution.Error
 
         /// Json.parse<'a> or Json.serialize<'a> failed in a surprising way
-        | JsonError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Json.Error
+        | JsonError of RuntimeErrors.Json.Error
 
         /// Errors specific to running darklang-cli (or LocalExec, for internal use)
-        | CliError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Cli.Error
+        | CliError of RuntimeErrors.Cli.Error
 
         | OldStringErrorTODO of String
+
 
       let sqlErrorTemplate =
         "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
