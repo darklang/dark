@@ -762,6 +762,7 @@ module Expr =
           elseExpr |> Option.map toDT |> Dval.option knownType ]
 
       | PT.EMatch(id, arg, cases) ->
+        let typeName = (ptTyp [] "MatchCase" 0)
         let cases =
           cases
           |> List.map (fun case ->
@@ -770,7 +771,6 @@ module Expr =
             let whenCondition =
               case.whenCondition |> Option.map toDT |> Dval.option knownType
             let expr = toDT case.rhs
-            let typeName = (ptTyp [] "MatchCase" 0)
             DRecord(
               typeName,
               typeName,
@@ -780,7 +780,7 @@ module Expr =
                   ("whenCondition", whenCondition)
                   ("rhs", expr) ]
             ))
-          |> Dval.list (KTCustomType((ptTyp [] "MatchCase" 0), []))
+          |> Dval.list (KTCustomType(typeName, []))
 
         "EMatch", [ DInt(int64 id); toDT arg; cases ]
 
