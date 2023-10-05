@@ -402,8 +402,8 @@ let rec postTraversalAsync
               (fun case ->
                 uply {
                   let! pattern = postTraverseMatchPattern case.pat
-                  let! expr = r case.rhs
                   let! whenCondition = Ply.Option.map r case.whenCondition
+                  let! expr = r case.rhs
                   return
                     { pat = pattern; whenCondition = whenCondition; rhs = expr }
                 })

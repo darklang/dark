@@ -247,7 +247,6 @@ module Expr =
             (fun (case : WT.MatchCase) ->
               uply {
                 let mp = MatchPattern.toPT case.pat
-                let! expr = toPT case.rhs
                 let! whenCondition =
                   uply {
                     match case.whenCondition with
@@ -256,6 +255,7 @@ module Expr =
                       return Some whenExpr
                     | None -> return None
                   }
+                let! expr = toPT case.rhs
                 let result : PT.MatchCase =
                   { pat = mp; whenCondition = whenCondition; rhs = expr }
                 return result

@@ -430,11 +430,7 @@ module Expr =
         List.map toST fields
       )
     | PT.EMatch(id, mexpr, cases) ->
-      let convertCase (case : PT.MatchCase) : ST.MatchCase =
-        { pat = MatchPattern.toST case.pat
-          whenCondition = Option.map toST case.whenCondition
-          rhs = toST case.rhs }
-      ST.EMatch(id, toST mexpr, List.map convertCase cases)
+      ST.EMatch(id, toST mexpr, List.map matchCaseToST cases)
     | PT.EDict(id, fields) -> ST.EDict(id, List.map (Tuple2.mapSecond toST) fields)
     | PT.EFnName(id, fnName) ->
       ST.EFnName(id, NameResolution.toST FnName.toST fnName)
@@ -468,6 +464,10 @@ module Expr =
         caseName,
         List.map toST fields
       )
+  and matchCaseToST (case : PT.MatchCase) : ST.MatchCase =
+    { pat = MatchPattern.toST case.pat
+      whenCondition = Option.map toST case.whenCondition
+      rhs = toST case.rhs }
 
   let rec toPT (e : ST.Expr) : PT.Expr =
     match e with

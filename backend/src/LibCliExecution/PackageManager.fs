@@ -509,8 +509,8 @@ module ExternalTypesToProgramTypes =
           caseName,
           List.map toPT exprs
         )
-      | EPT.EMatch(id, mexpr, pairs) ->
-        PT.EMatch(id, toPT mexpr, List.map matchCaseToPT pairs)
+      | EPT.EMatch(id, mexpr, cases) ->
+        PT.EMatch(id, toPT mexpr, List.map matchCaseToPT cases)
       | EPT.EInfix(id, infix, arg1, arg2) ->
         PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
       | EPT.EDict(id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)

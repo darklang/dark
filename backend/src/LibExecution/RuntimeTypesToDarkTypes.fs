@@ -698,11 +698,11 @@ module Expr =
           match case with
           | DRecord(_, _, _, fields) ->
             let whenCondition =
-              match Map.get "whenCondition" fields with
+              match Map.tryFind "whenCondition" fields with
               | Some(DEnum(_, _, _, "Some", [ value ])) -> Some(fromDT value)
               | Some(DEnum(_, _, _, "None", [])) -> None
               | _ -> None
-            match Map.get "pat" fields, Map.get "rhs" fields with
+            match Map.tryFind "pat" fields, Map.tryFind "rhs" fields with
             | Some pat, Some rhs ->
               [ { pat = MatchPattern.fromDT pat
                   whenCondition = whenCondition
