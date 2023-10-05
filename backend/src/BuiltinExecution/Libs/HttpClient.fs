@@ -434,42 +434,36 @@ let fns (config : Configuration) : List<BuiltInFn> =
           uply {
             let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
               reqHeaders
-              |> Ply.List.foldSequentially
-                (fun agg item ->
-                  uply {
-                    match agg, item with
-                    | (Error err, _) -> return (Error err)
-                    | (Ok pairs, DTuple(DString k, DString v, [])) ->
-                      let k = String.trim k
-                      if k = "" then
-                        return Error BadHeader.BadHeader.EmptyKey
-                      else
-                        return Ok((k, v) :: pairs)
+              |> Ply.List.mapSequentially (fun item ->
+                uply {
+                  match item with
+                  | DTuple(DString k, DString v, []) ->
+                    let k = String.trim k
+                    if k = "" then
+                      return Error BadHeader.BadHeader.EmptyKey
+                    else
+                      return Ok((k, v))
 
-                    | (_, notAPair) ->
-                      let context =
-                        TypeChecker.Context.FunctionCallParameter(
-                          (FnName.fqPackage
-                            "Darklang"
-                            [ "Stdlib"; "HttpClient" ]
-                            "request"
-                            0),
-                          ({ name = "headers"; typ = headersType }),
-                          2,
-                          None
-                        )
-                      return!
-                        TypeChecker.raiseValueNotExpectedType
-                          state.caller
-                          notAPair
-                          (TList(TTuple(TString, TString, [])))
-                          context
-
-                  }
-
-                )
-                (Ok [])
-              |> Ply.map (Result.map (List.rev))
+                  | notAPair ->
+                    let context =
+                      TypeChecker.Context.FunctionCallParameter(
+                        (FnName.fqPackage
+                          "Darklang"
+                          [ "Stdlib"; "HttpClient" ]
+                          "request"
+                          0),
+                        ({ name = "headers"; typ = headersType }),
+                        2,
+                        None
+                      )
+                    return!
+                      TypeChecker.raiseValueNotExpectedType
+                        state.caller
+                        notAPair
+                        (TList(TTuple(TString, TString, [])))
+                        context
+                })
+              |> Ply.map (Result.collect)
 
             let method =
               try
@@ -510,13 +504,11 @@ let fns (config : Configuration) : List<BuiltInFn> =
 
                 return DRecord(typ, typ, [], Map fields) |> resultOk
 
-              | Error err ->
-                let err = err |> RequestError.toDT
-                return (err |> resultError)
+              | Error err -> return resultError (err |> RequestError.toDT)
 
             | Error reqHeadersErr, _ ->
               let reqHeadersErr = reqHeadersErr |> BadHeader.toDT
-              return reqHeadersErr |> resultError
+              return resultError reqHeadersErr
 
             | _, None ->
               let error = RequestError.RequestError.BadMethod |> RequestError.toDT
