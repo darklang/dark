@@ -106,7 +106,9 @@ PACKAGE.Darklang.Stdlib.HttpClient.request
   "https://darklang.com"
   [ ("", "") ]
   Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-  PACKAGE.Darklang.Stdlib.HttpClient.BadHeader.EmptyKey
+  PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadHeader(
+    PACKAGE.Darklang.Stdlib.HttpClient.BadHeader.EmptyKey
+  )
 )
 
 

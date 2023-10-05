@@ -471,48 +471,59 @@ let fns (config : Configuration) : List<BuiltInFn> =
               with _ ->
                 None
 
-            match reqHeaders, method with
-            | Ok reqHeaders, Some method ->
-              let request =
-                { url = uri; method = method; headers = reqHeaders; body = reqBody }
+            let! (result : Result<Dval, RequestError.RequestError>) =
+              uply {
+                match reqHeaders, method with
+                | Ok reqHeaders, Some method ->
+                  let request =
+                    { url = uri
+                      method = method
+                      headers = reqHeaders
+                      body = reqBody }
 
-              let! response = makeRequest config httpClient request
+                  let! response = makeRequest config httpClient request
 
-              match response with
-              | Ok response ->
-                let responseHeaders =
-                  response.headers
-                  |> List.map (fun (k, v) ->
-                    DTuple(
-                      DString(String.toLowercase k),
-                      DString(String.toLowercase v),
-                      []
-                    ))
-                  |> Dval.list (KTTuple(VT.string, VT.string, []))
+                  match response with
+                  | Ok response ->
+                    let responseHeaders =
+                      response.headers
+                      |> List.map (fun (k, v) ->
+                        DTuple(
+                          DString(String.toLowercase k),
+                          DString(String.toLowercase v),
+                          []
+                        ))
+                      |> Dval.list (KTTuple(VT.string, VT.string, []))
 
-                let typ =
-                  FQName.Package
-                    { owner = "Darklang"
-                      modules = [ "Stdlib"; "HttpClient" ]
-                      name = TypeName.TypeName "Response"
-                      version = 0 }
+                    let typ =
+                      FQName.Package
+                        { owner = "Darklang"
+                          modules = [ "Stdlib"; "HttpClient" ]
+                          name = TypeName.TypeName "Response"
+                          version = 0 }
 
-                let fields =
-                  [ ("statusCode", DInt(int64 response.statusCode))
-                    ("headers", responseHeaders)
-                    ("body", DBytes response.body) ]
+                    let fields =
+                      [ ("statusCode", DInt(int64 response.statusCode))
+                        ("headers", responseHeaders)
+                        ("body", DBytes response.body) ]
 
-                return DRecord(typ, typ, [], Map fields) |> resultOk
+                    return Ok(DRecord(typ, typ, [], Map fields) |> resultOk)
 
-              | Error err -> return resultError (err |> RequestError.toDT)
+                  | Error err -> return Error err
 
-            | Error reqHeadersErr, _ ->
-              let reqHeadersErr = reqHeadersErr |> BadHeader.toDT
-              return resultError reqHeadersErr
+                | Error reqHeadersErr, _ ->
+                  let reqHeadersErr = reqHeadersErr
+                  return Error(RequestError.RequestError.BadHeader reqHeadersErr)
 
-            | _, None ->
-              let error = RequestError.RequestError.BadMethod |> RequestError.toDT
-              return resultError error
+                | _, None ->
+                  let error = RequestError.RequestError.BadMethod
+                  return Error error
+              }
+            match result with
+            | Ok result -> return result
+            | Error err ->
+              let err = RequestError.toDT err
+              return resultError err
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
