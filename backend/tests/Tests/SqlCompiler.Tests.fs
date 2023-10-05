@@ -210,12 +210,8 @@ let inlineWorksWithPackageFunctionsSqlBinOp =
         "let x = true in (let y = false in (PACKAGE.Darklang.Stdlib.Bool.and_v0 x y))"
 
     let! expected = p "true && false"
-    let result =
-      uply {
-        let! result = C.inline' fns "value" Map.empty expr
-        return Expect.equalExprIgnoringIDs result expected
-      }
-    return! result |> Ply.toTask
+    let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
+    return Expect.equalExprIgnoringIDs result expected
   }
 
 let inlineWorksWithPackageFunctionsSqlFunction =
