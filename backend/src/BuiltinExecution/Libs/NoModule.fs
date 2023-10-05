@@ -153,7 +153,12 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     && NEList.length cases1 = NEList.length cases2
     && NEList.forall2
       (fun case1 case2 ->
-        equalsMatchPattern case1.pat case2.pat && equalsExpr case1.rhs case2.rhs)
+        equalsMatchPattern case1.pat case2.pat
+        && match case1.whenCondition, case2.whenCondition with
+           | Some when1, Some when2 -> equalsExpr when1 when2
+           | None, None -> true
+           | _, _ -> false
+        && equalsExpr case1.rhs case2.rhs)
       cases1
       cases2
   | EAnd(_, lhs1, rhs1), EAnd(_, lhs2, rhs2) ->
