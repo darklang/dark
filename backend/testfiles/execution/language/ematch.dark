@@ -661,3 +661,25 @@ module GuardClause =
    | -6 -> "fail"
    | 6 -> "pass"
    | var -> "fail") = "pass"
+
+  (match 5 with
+   | x when x > 0 -> "positive"
+   | x when x < 0 -> "negative"
+   | _ -> false) = "positive"
+
+  (match (5, "hello") with
+   | (x, y) when x > 0 && y == "hello" -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match (5, "hello") with
+   | (x, y) when x > 0 && y == "hello" -> "first matching branch"
+   | (x, y) when x == 5 && y == "hello" -> "second matching branch"
+   | _ -> "fail") = "first matching branch"
+
+  (match (-5, "hello") with
+   | (x, y) when x > 0 && y == "hello" -> "pass"
+   | _ -> "fail") = "fail"
+
+  (match (5, "hello") with
+   | (x, y) when x > 0 && PACKAGE.Darklang.Stdlib.String.length y == 5 -> "pass"
+   | _ -> "fail") = "pass"

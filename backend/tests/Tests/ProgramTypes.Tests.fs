@@ -91,6 +91,19 @@ let testProgramTypesToRuntimeTypes =
          ru,
          NEList.singleton
            { pat = RT.MPFloat(5UL, 0.0); whenCondition = None; rhs = ru }
+       ))
+      (PT.EMatch(
+        9UL,
+        u,
+        [ { pat = PT.MPFloat(5UL, Positive, "0", "0")
+            whenCondition = Some u
+            rhs = u } ]
+       ),
+       RT.EMatch(
+         9UL,
+         ru,
+         NEList.singleton
+           { pat = RT.MPFloat(5UL, 0.0); whenCondition = Some ru; rhs = ru }
        )) ]
 
 let testInfixProgramTypesToSerializedTypes =

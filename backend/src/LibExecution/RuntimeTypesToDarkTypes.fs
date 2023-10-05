@@ -560,9 +560,9 @@ module Expr =
           |> NEList.toList
           |> List.map (fun case ->
             let pattern = MatchPattern.toDT case.pat
-            let expr = toDT case.rhs
             let whenCondition =
               case.whenCondition |> Option.map toDT |> Dval.option knownType
+            let expr = toDT case.rhs
             let typeName = (rtTyp [] "MatchCase" 0)
             DRecord(
               typeName,

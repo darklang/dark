@@ -1617,6 +1617,49 @@
                                                                   true
                                                                 ]
                                                               }
+                                                            },
+                                                            {
+                                                              "pat": {
+                                                                "MPTuple": [
+                                                                  1285610,
+                                                                  {
+                                                                    "MPVariable": [
+                                                                      17823641,
+                                                                      "a"
+                                                                    ]
+                                                                  },
+                                                                  {
+                                                                    "MPVariable": [
+                                                                      58123641,
+                                                                      "b"
+                                                                    ]
+                                                                  },
+                                                                  [
+                                                                    {
+                                                                      "MPVariable": [
+                                                                        95723641,
+                                                                        "c"
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                ]
+                                                              },
+                                                              "whenCondition": {
+                                                                "Some": [
+                                                                  {
+                                                                    "EBool": [
+                                                                      123716747,
+                                                                      true
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              },
+                                                              "rhs": {
+                                                                "EBool": [
+                                                                  123716747,
+                                                                  true
+                                                                ]
+                                                              }
                                                             }
                                                           ]
                                                         ]

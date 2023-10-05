@@ -719,6 +719,15 @@ module ProgramTypes =
                                       [ PT.MPVariable(95723641UL, "c") ]
                                     )
                                   whenCondition = None
+                                  rhs = PT.EBool(123716747UL, true) }
+                                { pat =
+                                    PT.MPTuple(
+                                      1285610UL,
+                                      PT.MPVariable(17823641UL, "a"),
+                                      PT.MPVariable(58123641UL, "b"),
+                                      [ PT.MPVariable(95723641UL, "c") ]
+                                    )
+                                  whenCondition = Some(PT.EBool(123716747UL, true))
                                   rhs = PT.EBool(123716747UL, true) } ]
                             ),
                             PT.ELet(
