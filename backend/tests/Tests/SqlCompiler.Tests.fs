@@ -162,12 +162,8 @@ let inlineWorksAtRoot =
       |> Ply.toTask
 
     let! expected = p "3 + 5"
-    let result =
-      uply {
-        let! result = C.inline' fns "value" Map.empty expr
-        return Expect.equalExprIgnoringIDs result expected
-      }
-    return! result |> Ply.toTask
+    let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
+    return Expect.equalExprIgnoringIDs result expected
   }
 
 let inlineWorksWithNested =
@@ -185,12 +181,8 @@ let inlineWorksWithNested =
     let! expr = p "let x = 5 in (let x = 6 in (3 + (let x = 7 in x)))"
 
     let! expected = p "3 + 7"
-    let result =
-      uply {
-        let! result = C.inline' fns "value" Map.empty expr
-        return Expect.equalExprIgnoringIDs result expected
-      }
-    return! result |> Ply.toTask
+    let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
+    return Expect.equalExprIgnoringIDs result expected
   }
 
 let inlineWorksWithPackageFunctionsSqlBinOp =
@@ -231,12 +223,8 @@ let inlineWorksWithPackageFunctionsSqlFunction =
         """let x = "package" in (let y = "e" in (PACKAGE.Darklang.Stdlib.String.replaceAll_v0 x y "es"))"""
 
     let! expected = p """Builtin.String.replaceAll_v0 "package" "e" "es" """
-    let result =
-      uply {
-        let! result = C.inline' fns "value" Map.empty expr
-        return Expect.equalExprIgnoringIDs result expected
-      }
-    return! result |> Ply.toTask
+    let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
+    return Expect.equalExprIgnoringIDs result expected
   }
 
 
@@ -279,12 +267,8 @@ let inlineWorksWithUserFunctions =
         "let a = 1 in let b = 9 in let c = userAdd 6 4 in (p.height == c) && (p.age == b)"
 
     let! expected = p "p.height == (6 + 4) && p.age == 9"
-    let result =
-      uply {
-        let! result = C.inline' fns "value" Map.empty expr
-        return Expect.equalExprIgnoringIDs result expected
-      }
-    return! result |> Ply.toTask
+    let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
+    return Expect.equalExprIgnoringIDs result expected
   }
 
 let inlineWorksWithPackageAndUserFunctions =
@@ -328,14 +312,10 @@ let inlineWorksWithPackageAndUserFunctions =
         "userAnd user.human (PACKAGE.Darklang.Stdlib.Int.lessThan_v0 user.height (PACKAGE.Darklang.Stdlib.Int.add height 1))"
 
     let! expected = p "user.human && (user.height < (height + 1))"
-
-    let result =
-      uply {
-        let! result = C.inline' fns "value" Map.empty expr
-        return Expect.equalExprIgnoringIDs result expected
-      }
-    return! result |> Ply.toTask
+    let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
+    return Expect.equalExprIgnoringIDs result expected
   }
+
 let inlineFunctionArguments =
   testTask "inlineWorksArguments" {
     let! state =
@@ -372,12 +352,8 @@ let inlineFunctionArguments =
     let! expr = parse nr "let a = 1 in let b = 9 in (p.height == userAdd 6 (b - 4))"
 
     let! expected = parse nr "p.height == 6 + (9 - 4)"
-    let result =
-      uply {
-        let! result = C.inline' fns "value" Map.empty expr
-        return Expect.equalExprIgnoringIDs result expected
-      }
-    return! result |> Ply.toTask
+    let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
+    return Expect.equalExprIgnoringIDs result expected
   }
 
 
