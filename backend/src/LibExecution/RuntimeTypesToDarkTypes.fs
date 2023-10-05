@@ -558,19 +558,12 @@ module Expr =
         let cases =
           cases
           |> NEList.toList
-          // |> List.map (fun (pattern, expr) ->
-          //   DTuple(MatchPattern.toDT pattern, toDT expr, []))
-          // |> Dval.list (
-          //   KTTuple(VT.known MatchPattern.knownType, (VT.known knownType), [])
-          // )
           |> List.map (fun case ->
             let pattern = MatchPattern.toDT case.pat
             let expr = toDT case.rhs
             let whenCondition =
               case.whenCondition |> Option.map toDT |> Dval.option knownType
             let typeName = (rtTyp [] "MatchCase" 0)
-            //   DRecord(typeName, typeName, [], Map [ ("pat", pattern); ("rhs", expr) ]))
-            // |> Dval.list (KTCustomType(typeName, []))
             DRecord(
               typeName,
               typeName,
@@ -580,7 +573,7 @@ module Expr =
                   ("whenCondition", whenCondition)
                   ("rhs", expr) ]
             ))
-          |> Dval.list (KTCustomType(typeName, []))
+          |> Dval.list (KTCustomType((rtTyp [] "MatchCase" 0), []))
         "EMatch", [ DInt(int64 id); toDT arg; cases ]
 
 

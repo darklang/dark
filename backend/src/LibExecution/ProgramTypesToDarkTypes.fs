@@ -763,13 +763,6 @@ module Expr =
 
       | PT.EMatch(id, arg, cases) ->
         let cases =
-          // DList(
-          //   VT.tuple (VT.known MatchPattern.knownType) (VT.known knownType) [],
-          //   cases
-          //   |> List.map (fun (pattern, expr) ->
-          //     DTuple(MatchPattern.toDT pattern, toDT expr, []))
-          // )
-
           cases
           |> List.map (fun case ->
 
@@ -778,8 +771,6 @@ module Expr =
               case.whenCondition |> Option.map toDT |> Dval.option knownType
             let expr = toDT case.rhs
             let typeName = (ptTyp [] "MatchCase" 0)
-          //   DRecord(typeName, typeName, [], Map [ ("pat", pattern); ("rhs", expr) ]))
-          // |> Dval.list (KTCustomType(typeName, []))
             DRecord(
               typeName,
               typeName,
@@ -789,7 +780,7 @@ module Expr =
                   ("whenCondition", whenCondition)
                   ("rhs", expr) ]
             ))
-          |> Dval.list (KTCustomType(typeName, []))
+          |> Dval.list (KTCustomType((ptTyp [] "MatchCase" 0), []))
 
         "EMatch", [ DInt(int64 id); toDT arg; cases ]
 
