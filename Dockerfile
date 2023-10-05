@@ -299,21 +299,11 @@ RUN chmod +x /home/dark/install-exe-file
 # Terraform
 ############################
 RUN /home/dark/install-targz-file \
-  --arm64-sha256=b38f5db944ac4942f11ceea465a91e365b0636febd9998c110fbbe95d61c3b26 \
-  --amd64-sha256=e079db1a8945e39b1f8ba4e513946b3ab9f32bd5a2bdf19b9b186d22c5a3d53b \
-  --url=https://releases.hashicorp.com/terraform/1.4.6/terraform_1.4.6_linux_${TARGETARCH}.zip \
+  --arm64-sha256=413006af67285f158df9e7e2ce1faf4460fd68aa7de612f550aa0e8d70d62e60 \
+  --amd64-sha256=0ddc3f21786026e1f8522ba0f5c6ed27a3c8cc56bfac91e342c1f578f8af44a8 \
+  --url=https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_${TARGETARCH}.zip \
   --extract-file=terraform \
   --target=/usr/bin/terraform
-
-############################
-# Google cloud
-############################
-# Cloud SQL proxy
-RUN /home/dark/install-exe-file \
-  --arm64-sha256=834ecd08f54960ee88121ab70b05002bcfb99cd08a63bcd7a1a952c53e30a3ca \
-  --amd64-sha256=fb66afb1cb8ee730314088eb7b299398bda6c0434b9b383b27a26b8951e775c5 \
-  --url=https://storage.googleapis.com/cloudsql-proxy/v1.33.1/cloud_sql_proxy.linux.${TARGETARCH} \
-  --target=/usr/bin/cloud_sql_proxy
 
 # PubSub
 ENV PUBSUB_EMULATOR_HOST=localhost:8085
