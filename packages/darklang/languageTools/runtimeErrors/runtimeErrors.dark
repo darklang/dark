@@ -123,15 +123,26 @@ module Darklang =
       // maybe as cases of that (e.g. TypeCheckerError, NameResolutionError)
 
       type Error =
-        | CliError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Cli.Error
+
         | TypeCheckerError of
           PACKAGE.Darklang.LanguageTools.RuntimeErrors.TypeChecker.Error
+
+        /// Errors specific to resolving names
         | NameResolutionError of
           PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error
+
+        /// Errors specific to the SqlCompiler (used to compile DB.query lambdas)
         | SqlCompilerRuntimeError of Error
+
+        /// Errors that happen somewhere in the Darklang interpreter
         | ExecutionError of
           PACKAGE.Darklang.LanguageTools.RuntimeErrors.Execution.Error
+
+        /// Json.parse<'a> or Json.serialize<'a> failed in a surprising way
         | JsonError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Json.Error
+
+        /// Errors specific to running darklang-cli (or LocalExec, for internal use)
+        | CliError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Cli.Error
 
         | OldStringErrorTODO of String
 

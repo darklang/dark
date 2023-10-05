@@ -844,7 +844,8 @@ module Dval =
       | _ -> Exception.raiseInternal "Invalid KnownType" []
 
   module ValueType =
-    let knownType = KTCustomType(rtTyp [] "ValueType" 0, [])
+    let typeName = rtTyp [] "ValueType" 0
+    let knownType = KTCustomType(typeName, [])
 
     let toDT (vt : ValueType) : Dval =
       let (caseName, fields) =
@@ -853,7 +854,6 @@ module Dval =
         | ValueType.Known kt ->
           let kt = KnownType.toDT kt
           "Known", [ kt ]
-      let typeName = rtTyp [] "ValueType" 0
       DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : ValueType =

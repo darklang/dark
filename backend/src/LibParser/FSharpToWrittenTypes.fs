@@ -216,7 +216,9 @@ module Expr =
     match fnName with
     | Regex.Regex "^([a-z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
       Ok(name, (int version))
+
     | Regex.Regex "^([a-z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
+
     | _ -> Error "Bad format in fn name"
 
   let parseEnum (enumName : string) : Option<string> =
