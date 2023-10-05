@@ -1,8 +1,8 @@
 terraform {
-  required_version = ">= 1.4.6"
+  required_version = ">= 1.6.0"
 
   required_providers {
-    google = "4.67.0"
+    google = "4.84.0"
   }
 }
 

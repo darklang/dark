@@ -36,7 +36,7 @@ resource "google_iam_workload_identity_pool_provider" "circleci-ai" {
   attribute_condition = <<-EOT
     attribute.project=="1f60315c-0228-42dd-9205-ed25beb24371"
     && attribute.vcs_origin=="github.com/darklang/dark"
-    && attribute.vcs_ref=="refs/head/main"
+    && attribute.vcs_ref=="refs/heads/main"
     EOT
 
   timeouts {}
@@ -64,7 +64,7 @@ resource "google_iam_workload_identity_pool" "circleci" {
   workload_identity_pool_id = "circleci"
   display_name              = "CircleCI"
   description               = "Access for CircleCI deployments"
-  disabled                  = true
+  disabled                  = false
 }
 
 resource "google_iam_workload_identity_pool_provider" "circleci" {
@@ -74,16 +74,16 @@ resource "google_iam_workload_identity_pool_provider" "circleci" {
 
   # In order to deploy to classic-dark or dark-ocaml, need to manually reenable both
   # this and the pool above for the deploy
-  disabled = true
+  disabled = false
 
   attribute_condition = <<-EOT
     (attribute.project=="7bc34e71-a1cd-4e3e-9144-741acb7b5bf1"
      && attribute.vcs_origin=="github.com/darklang/classic-dark"
-     && attribute.vcs_ref=="refs/head/main")
+     && attribute.vcs_ref=="refs/heads/main")
     ||
     (attribute.project=="438d6e6e-095c-4857-bd17-f88b31d7892a"
      && attribute.vcs_origin=="github.com/darklang/dark-ocaml"
-     && attribute.vcs_ref=="refs/head/main")
+     && attribute.vcs_ref=="refs/heads/main")
     EOT
 
   timeouts {}
@@ -112,7 +112,7 @@ resource "google_iam_workload_identity_pool_provider" "circleci" {
 #   attribute_condition = <<-EOT
 #     attribute.project=="1f60315c-0228-42dd-9205-ed25beb24371"
 #     && attribute.vcs_origin=="github.com/darklang/dark"
-#     && attribute.vcs_ref=="refs/head/main"
+#     && attribute.vcs_ref=="refs/heads/main"
 #     EOT
 
 #   timeouts {}

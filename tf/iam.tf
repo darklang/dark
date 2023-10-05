@@ -58,11 +58,11 @@ resource "google_pubsub_topic_iam_member" "queue_pubsub_access_ai_member_pubsub_
 }
 
 
-resource "google_pubsub_subscription_iam_member" "queue_pubsub_access_ai_member_pubsub_subscriber" {
-  subscription = google_pubsub_subscription.topic_queue_ai_sub.id
-  role         = "roles/pubsub.subscriber"
-  member       = "serviceAccount:${google_service_account.queue_pubsub_access_ai.email}"
-}
+# resource "google_pubsub_subscription_iam_member" "queue_pubsub_access_ai_member_pubsub_subscriber" {
+#   subscription = google_pubsub_subscription.topic_queue_ai_sub.id
+#   role         = "roles/pubsub.subscriber"
+#   member       = "serviceAccount:${google_service_account.queue_pubsub_access_ai.email}"
+# }
 
 
 ##########
