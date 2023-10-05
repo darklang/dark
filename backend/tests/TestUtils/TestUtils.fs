@@ -668,6 +668,8 @@ module Expect =
         vars'
     | EMatch(_, e, branches), EMatch(_, e', branches') ->
       eq ("matchCond" :: path) e e'
+
+      check path (NEList.length branches) (NEList.length branches')
       NEList.iteri2
         (fun i branch branch' ->
           let path = $"Case {i} - {branch.pat}" :: path
