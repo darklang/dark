@@ -12,9 +12,9 @@ module Documentation =
    |> Builtin.unwrap
    |> PACKAGE.Darklang.Stdlib.Dict.get "Int.add"
    |> Builtin.unwrap
-   |> (fun f -> f.parameters)) = [ PACKAGE.Darklang.Documentation.BuiltinFunctionParameter
+   |> (fun f -> f.parameters)) = [ PACKAGE.Darklang.Internal.Documentation.BuiltinFunctionParameter
                                      { name = "a"; ``type`` = "Int" }
-                                   PACKAGE.Darklang.Documentation.BuiltinFunctionParameter
+                                   PACKAGE.Darklang.Internal.Documentation.BuiltinFunctionParameter
                                      { name = "b"; ``type`` = "Int" } ]
 
 

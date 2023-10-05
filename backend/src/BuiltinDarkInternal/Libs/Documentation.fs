@@ -1,6 +1,4 @@
 /// Builtin functions for documentation
-///
-/// TODO: consider moving this from DarkInternal to a publicly-accessible space
 module BuiltinDarkInternal.Libs.Documentation
 
 open System.Threading.Tasks
@@ -16,7 +14,11 @@ module Dval = LibExecution.Dval
 let fn = fn [ "DarkInternal"; "Documentation" ]
 
 let packageDocType (addlModules : List<string>) (name : string) (version : int) =
-  TypeName.fqPackage "Darklang" ("Documentation" :: addlModules) name version
+  TypeName.fqPackage
+    "Darklang"
+    ("Internal" :: "Documentation" :: addlModules)
+    name
+    version
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []

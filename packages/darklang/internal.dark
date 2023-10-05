@@ -1,6 +1,18 @@
 module Darklang =
   /// Only for internal Darklang use, to keep everything running
   module Internal =
+
+    module Documentation =
+      type BuiltinFunctionParameter = { name: String; ``type``: String }
+
+      /// A Darklang builtin function
+      type BuiltinFunction =
+        { name: String
+          description: String
+          parameters: List<BuiltinFunctionParameter>
+          returnType: String }
+
+
     module Canvas =
       type Secret =
         { name: String
@@ -27,6 +39,7 @@ module Darklang =
         //httpHandlers: List<LanguageTools.ProgramTypes.Handler.Handler>
         }
 
+
     module Infra =
       /// Size info for Postgres tables
       type TableSize =
@@ -43,6 +56,7 @@ module Darklang =
           /// Number of rows, in human-readable form
           rowsHuman: String
         }
+
 
     module Worker =
       /// A scheduling rule for a worker
