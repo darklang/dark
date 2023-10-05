@@ -670,7 +670,7 @@ module Expect =
       eq ("matchCond" :: path) e e'
       NEList.iteri2
         (fun i branch branch' ->
-          let path = $"Case {i}" :: path
+          let path = $"Case {i} - {branch.pat}" :: path
           matchPatternEqualityBaseFn
             checkIDs
             ("pat" :: path)
