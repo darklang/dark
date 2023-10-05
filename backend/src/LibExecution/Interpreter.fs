@@ -637,9 +637,9 @@ let rec eval
         if Option.isSome matchResult then
           ()
         else
-          let! passes, newDefs = checkPattern matchVal case.pat
+          let! passesPattern, newDefs = checkPattern matchVal case.pat
           let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
-          let! whenCondition =
+          let! passesWhenCondition =
             uply {
               match case.whenCondition with
               | Some whenCondition ->
@@ -648,7 +648,7 @@ let rec eval
                 | _ -> return false
               | None -> return true
             }
-          if matchResult = None && passes && whenCondition then
+          if matchResult = None && passesPattern && passesWhenCondition then
             let! r = eval state tlid tst newSymtable case.rhs
             matchResult <- Some r
 

@@ -672,6 +672,12 @@ module Expect =
       NEList.iter2
         (fun branch branch' ->
           matchPatternEqualityBaseFn checkIDs path branch.pat branch'.pat errorFn
+          match branch.whenCondition, branch'.whenCondition with
+          | Some cond, Some cond' -> eq ("whenCondition" :: path) cond cond'
+          | None, None -> ()
+          | _ ->
+            errorFn ("whenCondition" :: path) (string actual) (string expected)
+            ()
           eq (string branch.pat :: path) branch.rhs branch'.rhs)
         branches
         branches'
