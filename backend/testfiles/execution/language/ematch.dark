@@ -700,3 +700,11 @@ module GuardClause =
    | (x, y) when x > 0 -> true
    | _ -> false) = Builtin.Test.derrorMessage
     "Cannot match Int value 5 with a Tuple pattern"
+
+  (match 5 with
+   | 2 when x > 2 -> false
+   | 3 -> true) = Builtin.Test.derrorMessage "No match for 5"
+
+  (match PACKAGE.Darklang.Stdlib.Result.Result.Error 5 with
+   | Ok x when x > 2 -> false
+   | Error _ -> true) = true
