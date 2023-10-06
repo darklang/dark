@@ -691,3 +691,12 @@ module GuardClause =
   (match 5 with
    | 5 -> false
    | x when y > 0 -> true) = false
+
+  (match 5 with
+   | x when x + 1 -> true
+   | 5 -> false) = Builtin.Test.derrorMessage "When condition should be a boolean"
+
+  (match 5 with
+   | (x, y) when x > 0 -> true
+   | _ -> false) = Builtin.Test.derrorMessage
+    "Cannot match Int value 5 with a Tuple pattern"

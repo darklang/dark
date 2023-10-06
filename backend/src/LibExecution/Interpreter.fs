@@ -645,10 +645,10 @@ let rec eval
               | Some whenCondition ->
                 match! eval state tlid tst newSymtable whenCondition with
                 | DBool b -> return b
-                | _ -> return false
+                | _ -> return errStr id "When condition should be a boolean"
               | None -> return true
             }
-          if matchResult = None && passesPattern && passesWhenCondition then
+          if passesPattern && passesWhenCondition then
             let! r = eval state tlid tst newSymtable case.rhs
             matchResult <- Some r
 

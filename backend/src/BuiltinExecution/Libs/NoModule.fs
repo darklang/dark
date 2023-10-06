@@ -100,12 +100,12 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     && equalsExpr expr1 expr2
     && equalsExpr body1 body2
   | EIf(_, cond1, then1, else1), EIf(_, cond2, then2, else2) ->
-    equalsExpr cond1 cond2
-    && equalsExpr then1 then2
-    && match else1, else2 with
-       | Some el1, Some el2 -> equalsExpr el1 el2
-       | None, None -> true
-       | _, _ -> false
+    let equalsElseExpr else1 else2 =
+      match else1, else2 with
+      | Some else1, Some else2 -> equalsExpr else1 else2
+      | None, None -> true
+      | _, _ -> false
+    equalsExpr cond1 cond2 && equalsExpr then1 then2 && equalsElseExpr else1 else2
 
   | ELambda(_, parameters1, body1), ELambda(_, parameters2, body2) ->
     NEList.length parameters1 = NEList.length parameters2
@@ -153,11 +153,13 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     && NEList.length cases1 = NEList.length cases2
     && NEList.forall2
       (fun case1 case2 ->
+        let equalsWhenCondition when1 when2 =
+          match when1, when2 with
+          | Some when1, Some when2 -> equalsExpr when1 when2
+          | None, None -> true
+          | _, _ -> false
         equalsMatchPattern case1.pat case2.pat
-        && match case1.whenCondition, case2.whenCondition with
-           | Some when1, Some when2 -> equalsExpr when1 when2
-           | None, None -> true
-           | _, _ -> false
+        && equalsWhenCondition case1.whenCondition case2.whenCondition
         && equalsExpr case1.rhs case2.rhs)
       cases1
       cases2
