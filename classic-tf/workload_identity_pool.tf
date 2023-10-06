@@ -1,6 +1,3 @@
-
-
-
 ###################
 // CircleCI ids:
 // darklang org: a5d9bde7-7922-4277-90ff-dbec5d9c200e
@@ -14,47 +11,6 @@
 // dockerfile:   9573c70d-4695-4135-b913-4bde88847f75
 // docs:         a7f703ca-2adb-406f-b4c1-faa2b80c8468
 ###################
-
-
-###################
-# Darklang AI
-###################
-resource "google_iam_workload_identity_pool" "circleci-ai" {
-  workload_identity_pool_id = "circleci-ai"
-  display_name              = "CircleCI AI"
-  description               = "Access for CircleCI deployments"
-  disabled                  = false
-}
-
-resource "google_iam_workload_identity_pool_provider" "circleci-ai" {
-  workload_identity_pool_id          = "circleci-ai"
-  workload_identity_pool_provider_id = "circleci-ai"
-  display_name                       = "CircleCI AI"
-
-  disabled = false
-
-  attribute_condition = <<-EOT
-    attribute.project=="1f60315c-0228-42dd-9205-ed25beb24371"
-    && attribute.vcs_origin=="github.com/darklang/dark"
-    && attribute.vcs_ref=="refs/heads/main"
-    EOT
-
-  timeouts {}
-
-  attribute_mapping = {
-    "attribute.project"    = "assertion['oidc.circleci.com/project-id']"
-    "attribute.vcs_origin" = "assertion['oidc.circleci.com/vcs-origin']"
-    "attribute.vcs_ref"    = "assertion['oidc.circleci.com/vcs-ref']"
-    "attribute.org_id"     = "assertion.aud"
-    "google.subject"       = "assertion.sub"
-  }
-
-  oidc {
-    // https://app.circleci.com/settings/organization/github/darklang/overview
-    issuer_uri        = "https://oidc.circleci.com/org/a5d9bde7-7922-4277-90ff-dbec5d9c200e"
-    allowed_audiences = ["a5d9bde7-7922-4277-90ff-dbec5d9c200e"]
-  }
-}
 
 
 ###################
@@ -102,32 +58,3 @@ resource "google_iam_workload_identity_pool_provider" "circleci" {
     allowed_audiences = ["a5d9bde7-7922-4277-90ff-dbec5d9c200e"]
   }
 }
-
-# resource "google_iam_workload_identity_pool_provider" "circleci-darklang-ai" {
-#   workload_identity_pool_id          = "circleci-darklang-ai"
-#   workload_identity_pool_provider_id = "circleci"
-#   display_name                       = "CircleCI"
-#   disabled                           = true
-
-#   attribute_condition = <<-EOT
-#     attribute.project=="1f60315c-0228-42dd-9205-ed25beb24371"
-#     && attribute.vcs_origin=="github.com/darklang/dark"
-#     && attribute.vcs_ref=="refs/heads/main"
-#     EOT
-
-#   timeouts {}
-
-#   attribute_mapping = {
-#     "attribute.project"    = "assertion['oidc.circleci.com/project-id']"
-#     "attribute.vcs_origin" = "assertion['oidc.circleci.com/vcs-origin']"
-#     "attribute.vcs_ref"    = "assertion['oidc.circleci.com/vcs-ref']"
-#     "attribute.org_id"     = "assertion.aud"
-#     "google.subject"       = "assertion.sub"
-#   }
-
-#   oidc {
-#     // https://app.circleci.com/settings/organization/github/darklang/overview
-#     issuer_uri        = "https://oidc.circleci.com/org/a5d9bde7-7922-4277-90ff-dbec5d9c200e"
-#     allowed_audiences = ["a5d9bde7-7922-4277-90ff-dbec5d9c200e"]
-#   }
-# }
