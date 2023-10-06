@@ -9,11 +9,11 @@
 # General admin
 ###################
 
-# resource "google_service_account" "circleci_deployer" {
-#   account_id   = "circleci-deployer"
-#   display_name = "CircleCI deployer"
-#   project      = local.project_name
-# }
+resource "google_service_account" "circleci_deployer" {
+  account_id   = "circleci-deployer"
+  display_name = "CircleCI deployer"
+  project      = local.project_name
+}
 
 # resource "google_project_iam_member" "circleci_deployer_member_object_viewer" {
 #   role    = "roles/storage.objectViewer"
@@ -35,12 +35,13 @@
 #   project      = local.project_name
 # }
 
-# resource "google_service_account" "queue_pubsub_access" {
-#   account_id   = "queue-pubsub-access"
-#   description  = "Access to pubsub for running queues"
-#   display_name = "queue-pubsub-access"
-#   project      = local.project_name
-# }
+resource "google_service_account" "queue_pubsub_access" {
+  account_id   = "queue-pubsub-access"
+  description  = "Access to pubsub for running queues"
+  display_name = "queue-pubsub-access"
+  project      = local.project_name
+}
+
 
 # ##########
 # # PubSub
@@ -63,12 +64,14 @@
 # ##########
 # # Cloud Storage
 # ##########
-# resource "google_service_account" "traces_storage" {
-#   account_id   = "traces-storage"
-#   description  = "Access to traces storage buckets"
-#   display_name = "traces-storage"
-#   project      = local.project_name
-# }
+
+resource "google_service_account" "traces_storage" {
+  account_id   = "traces-storage"
+  description  = "Access to traces storage buckets"
+  display_name = "traces-storage"
+  project      = local.project_name
+}
+
 # resource "google_project_iam_member" "traces_storage_member_object_creator" {
 #   role    = "roles/storage.objectCreator"
 #   member  = "serviceAccount:${google_service_account.traces_storage.email}"
