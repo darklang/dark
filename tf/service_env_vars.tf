@@ -54,8 +54,8 @@ variable "service_env_vars" {
     "DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT" = "sample-none"
 
     # DB
-    "DARK_CONFIG_DB_DBNAME" = "postgres"
-    "DARK_CONFIG_DB_HOST"   = "/cloudsql/balmy-ground-195100:us-west1:dark-west"
+    "DARK_CONFIG_DB_DBNAME" = "defaultdb"
+    "DARK_CONFIG_DB_HOST"   = "slim-elk-13135.5xj.cockroachlabs.cloud:26257"
     # DARK_CONFIG_DB_USER
     # DARK_CONFIG_DB_PASSWORD
     "DARK_CONFIG_DB_POOL_SIZE" = "20"
@@ -100,8 +100,8 @@ variable "service_secrets" {
     "DARK_CONFIG_PUSHER_CLUSTER" = "pusher-cluster"
 
     # database
-    "DARK_CONFIG_DB_USER"     = "cloudsql-username"
-    "DARK_CONFIG_DB_PASSWORD" = "cloudsql-password"
+    "DARK_CONFIG_DB_USER"     = "db-username"
+    "DARK_CONFIG_DB_PASSWORD" = "db-password"
 
     # honeycomb
     "DARK_CONFIG_HONEYCOMB_API_KEY" = "honeycomb-api-key"
