@@ -8,7 +8,7 @@ terraform {
 
 provider "google" {
   project = local.project_name
-  region  = "us-central1"
+  region  = "us-west1"
 }
 
 terraform {
@@ -16,7 +16,7 @@ terraform {
     organization = "darklang"
 
     workspaces {
-      name = "darklang"
+      name = "darklang-classic"
     }
   }
 }

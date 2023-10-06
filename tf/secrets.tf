@@ -1,8 +1,3 @@
-#################
-# Darklang AI
-# (Darklang classic secrets are in kubernetes)
-#################
-
 resource "google_secret_manager_secret" "db_password" {
   project = local.project_id
   replication {

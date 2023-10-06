@@ -1,8 +1,6 @@
 # Terraform config
 
-This is our production terraform. We have only started using it recently, and
-so we are slowly migrating it over, as we make changes to config.
+This is our production terraform. The intent is that this matches the configuration
+of everything in our production deployment.
 
-I made a deliberate choice not to just migrate everything over to reduce the
-risk of breaking something. Fortunately, if it's not imported into the state
-then terraform won't try to manage it (and hence won't try to delete it).
+Note that darklang-classic is in a different project, see classic-tf directory.
