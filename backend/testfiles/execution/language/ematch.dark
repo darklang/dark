@@ -626,7 +626,6 @@ module Errors =
    | var -> "pass") = "pass"
 
 
-
 module TypeErrors =
   type TestType =
     | NoArgs
@@ -646,3 +645,66 @@ module TypeErrors =
   // enum with a single wildcard
   (match TestType.TwoArgs(1, 2) with
    | TwoArgs _ -> "wildcards allowed") = "wildcards allowed"
+
+
+module GuardClause =
+  (match 5 with
+   | x when x > 0 -> true
+   | _ -> false) = true
+
+  (match -5 with
+   | x when x > 0 -> true
+   | _ -> false) = false
+
+  (match 6 with
+   | x when x == 5 -> "fail"
+   | -6 -> "fail"
+   | 6 -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 5 with
+   | x when x > 0 -> "positive"
+   | x when x < 0 -> "negative"
+   | _ -> false) = "positive"
+
+  (match (5, "hello") with
+   | (x, y) when x > 0 && y == "hello" -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match (5, "hello") with
+   | (x, y) when x > 0 && y == "hello" -> "first matching branch"
+   | (x, y) when x == 5 && y == "hello" -> "second matching branch"
+   | _ -> "fail") = "first matching branch"
+
+  (match (-5, "hello") with
+   | (x, y) when x > 0 && y == "hello" -> "pass"
+   | _ -> "fail") = "fail"
+
+  (match (5, "hello") with
+   | (x, y) when x > 0 && PACKAGE.Darklang.Stdlib.String.length y == 5 -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match -5 with
+   | x when y > 0 -> true
+   | _ -> false) = Builtin.Test.derrorMessage "There is no variable named: y"
+
+  (match 5 with
+   | 5 -> false
+   | x when y > 0 -> true) = false
+
+  (match 5 with
+   | x when x + 1 -> true
+   | 5 -> false) = Builtin.Test.derrorMessage "When condition should be a boolean"
+
+  (match 5 with
+   | (x, y) when x > 0 -> true
+   | _ -> false) = Builtin.Test.derrorMessage
+    "Cannot match Int value 5 with a Tuple pattern"
+
+  (match 5 with
+   | 2 when x > 2 -> false
+   | 3 -> true) = Builtin.Test.derrorMessage "No match for 5"
+
+  (match PACKAGE.Darklang.Stdlib.Result.Result.Error 5 with
+   | Ok x when x > 2 -> false
+   | Error _ -> true) = true

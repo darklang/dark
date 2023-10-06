@@ -633,14 +633,23 @@ let rec eval
 
       let mutable matchResult = None
 
-      for (pattern, rhsExpr) in NEList.toList cases do
+      for case in NEList.toList cases do
         if Option.isSome matchResult then
           ()
         else
-          let! passes, newDefs = checkPattern matchVal pattern
+          let! passesPattern, newDefs = checkPattern matchVal case.pat
           let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
-          if matchResult = None && passes then
-            let! r = eval state tlid tst newSymtable rhsExpr
+          let! passesWhenCondition =
+            uply {
+              match case.whenCondition with
+              | Some whenCondition when passesPattern ->
+                match! eval state tlid tst newSymtable whenCondition with
+                | DBool b -> return b
+                | _ -> return errStr id "When condition should be a boolean"
+              | _ -> return true
+            }
+          if passesPattern && passesWhenCondition then
+            let! r = eval state tlid tst newSymtable case.rhs
             matchResult <- Some r
 
       match matchResult with

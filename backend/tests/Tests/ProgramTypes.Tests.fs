@@ -59,12 +59,52 @@ let testProgramTypesToRuntimeTypes =
     [ PT.EFloat(7UL, Positive, "", "0"), RT.EFloat(7UL, 0.0)
       PT.EFloat(7UL, Positive, "0", ""), RT.EFloat(7UL, 0.0)
       PT.EFloat(7UL, Positive, "", ""), RT.EFloat(7UL, 0.0)
-      (PT.EMatch(9UL, u, [ PT.MPFloat(5UL, Positive, "", ""), u ]),
-       RT.EMatch(9UL, ru, NEList.singleton (RT.MPFloat(5UL, 0.0), ru)))
-      (PT.EMatch(9UL, u, [ PT.MPFloat(5UL, Positive, "0", ""), u ]),
-       RT.EMatch(9UL, ru, NEList.singleton (RT.MPFloat(5UL, 0.0), ru)))
-      (PT.EMatch(9UL, u, [ PT.MPFloat(5UL, Positive, "", "0"), u ]),
-       RT.EMatch(9UL, ru, NEList.singleton (RT.MPFloat(5UL, 0.0), ru))) ]
+      (PT.EMatch(
+        9UL,
+        u,
+        [ { pat = PT.MPFloat(5UL, Positive, "", ""); whenCondition = None; rhs = u } ]
+       ),
+       RT.EMatch(
+         9UL,
+         ru,
+         NEList.singleton
+           { pat = RT.MPFloat(5UL, 0.0); whenCondition = None; rhs = ru }
+       ))
+      (PT.EMatch(
+        9UL,
+        u,
+        [ { pat = PT.MPFloat(5UL, Positive, "0", ""); whenCondition = None; rhs = u } ]
+       ),
+       RT.EMatch(
+         9UL,
+         ru,
+         NEList.singleton
+           { pat = RT.MPFloat(5UL, 0.0); whenCondition = None; rhs = ru }
+       ))
+      (PT.EMatch(
+        9UL,
+        u,
+        [ { pat = PT.MPFloat(5UL, Positive, "", "0"); whenCondition = None; rhs = u } ]
+       ),
+       RT.EMatch(
+         9UL,
+         ru,
+         NEList.singleton
+           { pat = RT.MPFloat(5UL, 0.0); whenCondition = None; rhs = ru }
+       ))
+      (PT.EMatch(
+        9UL,
+        u,
+        [ { pat = PT.MPFloat(5UL, Positive, "0", "0")
+            whenCondition = Some u
+            rhs = u } ]
+       ),
+       RT.EMatch(
+         9UL,
+         ru,
+         NEList.singleton
+           { pat = RT.MPFloat(5UL, 0.0); whenCondition = Some ru; rhs = ru }
+       )) ]
 
 let testInfixProgramTypesToSerializedTypes =
   testMany

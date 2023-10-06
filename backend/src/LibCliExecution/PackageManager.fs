@@ -173,8 +173,8 @@ module ProgramTypes =
     | EFieldAccess of ID * Expr * String
     | EVariable of ID * String
 
-    | EIf of ID * cond : Expr * thenExpr : Expr * elseExpr : option<Expr>
-    | EMatch of ID * arg : Expr * cases : List<MatchPattern * Expr>
+    | EIf of ID * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
+    | EMatch of ID * arg : Expr * cases : List<MatchCase>
     | EPipe of ID * Expr * List<PipeExpr>
 
     | EInfix of ID * Infix * Expr * Expr
@@ -182,6 +182,8 @@ module ProgramTypes =
     | EApply of ID * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
     | EFnName of ID * NameResolution<FnName.FnName>
     | ERecordUpdate of ID * record : Expr * updates : NEList<String * Expr>
+
+  and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
 
   type Deprecation<'name> =
@@ -507,12 +509,8 @@ module ExternalTypesToProgramTypes =
           caseName,
           List.map toPT exprs
         )
-      | EPT.EMatch(id, mexpr, pairs) ->
-        PT.EMatch(
-          id,
-          toPT mexpr,
-          List.map (Tuple2.mapFirst MatchPattern.toPT << Tuple2.mapSecond toPT) pairs
-        )
+      | EPT.EMatch(id, mexpr, cases) ->
+        PT.EMatch(id, toPT mexpr, List.map matchCaseToPT cases)
       | EPT.EInfix(id, infix, arg1, arg2) ->
         PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
       | EPT.EDict(id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
@@ -544,6 +542,11 @@ module ExternalTypesToProgramTypes =
           caseName,
           List.map toPT fields
         )
+
+    and matchCaseToPT (case : EPT.MatchCase) : PT.MatchCase =
+      { pat = MatchPattern.toPT case.pat
+        whenCondition = Option.map toPT case.whenCondition
+        rhs = toPT case.rhs }
 
   module Deprecation =
     let toPT

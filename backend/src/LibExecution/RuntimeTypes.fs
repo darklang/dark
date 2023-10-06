@@ -593,7 +593,7 @@ and Expr =
   | EFloat of id * double
   | EConstant of id * ConstantName.ConstantName
   | ELet of id * LetPattern * Expr * Expr
-  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : option<Expr>
+  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
   | ELambda of id * NEList<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
@@ -605,7 +605,7 @@ and Expr =
   | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
   | EDict of id * List<string * Expr>
   | EEnum of id * TypeName.TypeName * caseName : string * fields : List<Expr>
-  | EMatch of id * Expr * NEList<MatchPattern * Expr>
+  | EMatch of id * Expr * NEList<MatchCase>
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
 
@@ -614,6 +614,8 @@ and Expr =
   // adapt this to include more information as we go. This list of exprs is the
   // subexpressions to evaluate before evaluating the error.
   | EError of id * RuntimeError * List<Expr>
+
+and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
 and LetPattern =
   | LPVariable of id * name : string

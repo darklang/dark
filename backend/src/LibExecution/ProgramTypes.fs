@@ -423,7 +423,7 @@ type Expr =
   | ELet of id * LetPattern * Expr * Expr
 
   // Composed of condition, expr if true, and expr if false
-  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : option<Expr>
+  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
 
   // Composed of a parameters * the expression itself
   // The id in the varname list is the analysis id, used to get a livevalue
@@ -480,7 +480,9 @@ type Expr =
   /// | ...
   /// ```
   // cases is a list to represent when a user starts typing but doesn't complete it
-  | EMatch of id * arg : Expr * cases : List<MatchPattern * Expr>
+  | EMatch of id * arg : Expr * cases : List<MatchCase>
+
+and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
 and StringSegment =
   | StringText of string

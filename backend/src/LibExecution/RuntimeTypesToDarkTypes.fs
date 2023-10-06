@@ -558,11 +558,22 @@ module Expr =
         let cases =
           cases
           |> NEList.toList
-          |> List.map (fun (pattern, expr) ->
-            DTuple(MatchPattern.toDT pattern, toDT expr, []))
-          |> Dval.list (
-            KTTuple(VT.known MatchPattern.knownType, (VT.known knownType), [])
-          )
+          |> List.map (fun case ->
+            let pattern = MatchPattern.toDT case.pat
+            let whenCondition =
+              case.whenCondition |> Option.map toDT |> Dval.option knownType
+            let expr = toDT case.rhs
+            let typeName = (rtTyp [] "MatchCase" 0)
+            DRecord(
+              typeName,
+              typeName,
+              [],
+              Map
+                [ ("pat", pattern)
+                  ("whenCondition", whenCondition)
+                  ("rhs", expr) ]
+            ))
+          |> Dval.list (KTCustomType((rtTyp [] "MatchCase" 0), []))
         "EMatch", [ DInt(int64 id); toDT arg; cases ]
 
 
@@ -685,13 +696,27 @@ module Expr =
         cases
         |> List.collect (fun case ->
           match case with
-          | DTuple(pattern, expr, _) ->
-            [ (MatchPattern.fromDT pattern, fromDT expr) ]
+          | DRecord(_, _, _, fields) ->
+            let whenCondition =
+              match Map.tryFind "whenCondition" fields with
+              | Some(DEnum(_, _, _, "Some", [ value ])) -> Some(fromDT value)
+              | Some(DEnum(_, _, _, "None", [])) -> None
+              | _ -> None
+            match Map.tryFind "pat" fields, Map.tryFind "rhs" fields with
+            | Some pat, Some rhs ->
+              [ { pat = MatchPattern.fromDT pat
+                  whenCondition = whenCondition
+                  rhs = fromDT rhs } ]
+            | _ -> []
           | _ -> [])
-        |> NEList.ofListUnsafe
+      EMatch(
+        uint64 id,
+        fromDT arg,
+        NEList.ofListUnsafe
           "RT2DT.Expr.fromDT expected at least one case in EMatch"
           []
-      EMatch(uint64 id, fromDT arg, cases)
+          cases
+      )
 
     | DEnum(_, _, [], "ELambda", [ DInt id; DList(_vtTODO, args); body ]) ->
       let args =

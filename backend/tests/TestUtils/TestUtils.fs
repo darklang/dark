@@ -669,10 +669,23 @@ module Expect =
     | EMatch(_, e, branches), EMatch(_, e', branches') ->
       eq ("matchCond" :: path) e e'
 
-      NEList.iter2
-        (fun ((p, v) : MatchPattern * Expr) (p', v') ->
-          matchPatternEqualityBaseFn checkIDs path p p' errorFn
-          eq (string p :: path) v v')
+      check path (NEList.length branches) (NEList.length branches')
+      NEList.iteri2
+        (fun i branch branch' ->
+          let path = $"Case {i} - {branch.pat}" :: path
+          matchPatternEqualityBaseFn
+            checkIDs
+            ("pat" :: path)
+            branch.pat
+            branch'.pat
+            errorFn
+          match branch.whenCondition, branch'.whenCondition with
+          | Some cond, Some cond' -> eq ("whenCondition" :: path) cond cond'
+          | None, None -> ()
+          | _ ->
+            errorFn ("whenCondition" :: path) (string actual) (string expected)
+            ()
+          eq ("rhs" :: path) branch.rhs branch'.rhs)
         branches
         branches'
     | EAnd(_, l, r), EAnd(_, l', r') ->
