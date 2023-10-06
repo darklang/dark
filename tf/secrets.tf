@@ -3,20 +3,20 @@
 # (Darklang classic secrets are in kubernetes)
 #################
 
-resource "google_secret_manager_secret" "cloudsql_password" {
+resource "google_secret_manager_secret" "db_password" {
   project = local.project_id
   replication {
     auto {}
   }
-  secret_id = "cloudsql-password"
+  secret_id = "db-password"
 }
 
-resource "google_secret_manager_secret" "cloudsql_username" {
+resource "google_secret_manager_secret" "db_username" {
   project = local.project_id
   replication {
     auto {}
   }
-  secret_id = "cloudsql-username"
+  secret_id = "db-username"
 }
 
 resource "google_secret_manager_secret" "honeycomb_api_key" {
