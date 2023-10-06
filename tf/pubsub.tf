@@ -1,14 +1,14 @@
 # PubSub Topics
 
-resource "google_pubsub_topic" "topic_queue" {
-  name    = "topic-queue"
-  project = local.project_name
-}
+# resource "google_pubsub_topic" "topic_queue" {
+#   name    = "topic-queue"
+#   project = local.project_name
+# }
 
-resource "google_pubsub_topic" "topic_queue_deadletter" {
-  name    = "topic-queue-deadletter"
-  project = local.project_name
-}
+# resource "google_pubsub_topic" "topic_queue_deadletter" {
+#   name    = "topic-queue-deadletter"
+#   project = local.project_name
+# }
 
 # PubSub Subscriptions
 
