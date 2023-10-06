@@ -29,7 +29,7 @@ resource "google_project_iam_member" "circleci_deployer-ai_member_object_viewer"
     title       = "Limit to bucket"
     description = "Only allow access to darklang downloads bucket"
     # This expression was hard to find, you can't use '=='
-    expression = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.darklang_downloads.id}\")"
+    expression = "resource.name.startsWith(\"projects/_/buckets/darklang-downloads\")"
   }
 }
 
@@ -83,7 +83,7 @@ resource "google_project_iam_member" "traces_storage_ai_member_object_creator" {
     title       = "Limit to bucket"
     description = "Only allow access to ai traces bucket"
     # This expression was hard to find, you can't use '=='
-    expression = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.dark_traces_ai.id}\")"
+    expression = "resource.name.startsWith(\"projects/_/buckets/dark-traces-ai\")"
   }
 }
 
@@ -96,7 +96,7 @@ resource "google_project_iam_member" "traces_storage_ai_member_object_viewer" {
     title       = "Limit to bucket"
     description = "Only allow access to ai traces bucket"
     # This expression was hard to find, you can't use '=='
-    expression = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.dark_traces_ai.id}\")"
+    expression = "resource.name.startsWith(\"projects/_/buckets/dark-traces-ai\")"
   }
 }
 
