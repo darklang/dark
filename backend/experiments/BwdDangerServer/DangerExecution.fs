@@ -28,7 +28,6 @@ let builtIns : RT.BuiltIns =
         BwdDangerServer.Builtin.contents
         BuiltinDarkInternal.Builtin.contents ]
       []
-      []
   { types = types |> Map.fromListBy (fun typ -> typ.name)
     fns = fns |> Map.fromListBy (fun fn -> fn.name)
     constants = constants |> Map.fromListBy (fun c -> c.name) }

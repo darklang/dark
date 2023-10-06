@@ -66,7 +66,6 @@ let builtIns : RT.BuiltIns =
     LibExecution.Builtin.combine
       [ libExecutionContents; BuiltinCli.Builtin.contents ]
       []
-      []
   { types = types |> Map.fromListBy (fun typ -> typ.name)
     fns = fns |> Map.fromListBy (fun fn -> fn.name)
     constants = constants |> Map.fromListBy (fun c -> c.name) }
