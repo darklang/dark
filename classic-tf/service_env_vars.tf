@@ -61,14 +61,14 @@ variable "service_env_vars" {
     "DARK_CONFIG_DB_POOL_SIZE" = "20"
 
     # Queue / pubsub
-    "DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID"        = "darklang-next"
-    "DARK_CONFIG_QUEUE_PUBSUB_TOPIC_NAME"        = "topic-queue"
-    "DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_NAME" = "topic-queue-sub"
+    "DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID"        = "balmy-ground-195100"
+    "DARK_CONFIG_QUEUE_PUBSUB_TOPIC_NAME"        = "topic-queue-ai"
+    "DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_NAME" = "topic-queue-ai-sub"
     "DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC"      = "n"
     # DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS
 
     # Traces / cloud storage
-    "DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME"   = "darklang-traces"
+    "DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME"   = "dark-traces-ai"
     "DARK_CONFIG_TRACE_STORAGE_CREATE_BUCKET" = "n"
     # DARK_CONFIG_TRACE_STORAGE_CREDENTIALS
     "DARK_CONFIG_TRACE_STORAGE_BASE_URI" = "not-used"
