@@ -296,6 +296,16 @@ RUN sudo chown dark:dark /home/dark/install-exe-file
 RUN chmod +x /home/dark/install-exe-file
 
 ############################
+# Cockroach
+############################
+RUN /home/dark/install-targz-file \
+  --arm64-sha256=e64f7dc6c404e01a36c96e6da9ed96d84e3ff8ed66cf02216dcaaec1d192a55b \
+  --amd64-sha256=b233763c48dd97d4c7c76d25054a7cd98edf700aa64466ee40c3909758281045 \
+  --url=https://binaries.cockroachdb.com/cockroach-v23.2.0-alpha.2.linux-${TARGETARCH}.tgz \
+  --extract-file=cockroach-v23.2.0-alpha.2.linux-${TARGETARCH}/cockroach \
+  --target=/usr/bin/cockroach
+
+############################
 # Terraform
 ############################
 RUN /home/dark/install-targz-file \
