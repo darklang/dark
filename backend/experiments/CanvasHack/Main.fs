@@ -60,7 +60,6 @@ let seedCanvas (canvasName : string) =
             BwdDangerServer.Builtin.contents
             BuiltinDarkInternal.Builtin.contents ]
           []
-          []
       LibParser.NameResolver.fromBuiltins builtIns
       |> fun nr -> { nr with packageManager = Some packageManager }
 

@@ -25,7 +25,6 @@ let builtIns : RT.BuiltIns =
         BuiltinCloudExecution.Builtin.contents
         TestUtils.LibTest.contents ]
       []
-      []
   { types = types |> Map.fromListBy (fun typ -> typ.name)
     fns = fns |> Map.fromListBy (fun fn -> fn.name)
     constants = constants |> Map.fromListBy (fun c -> c.name) }

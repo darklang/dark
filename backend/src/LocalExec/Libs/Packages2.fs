@@ -30,7 +30,6 @@ let resolver : LibParser.NameResolver.NameResolver =
         BuiltinCloudExecution.Builtin.contents
         BuiltinCliHost.Builtin.contents ]
       []
-      []
     |> LibParser.NameResolver.fromBuiltins
 
   let thisResolver =

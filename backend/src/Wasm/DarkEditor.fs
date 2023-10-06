@@ -33,7 +33,6 @@ let builtin =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.contents httpConfig; Builtin.contents ]
     []
-    []
 
 
 /// Load the Darklang program that manages the state of and interactions with

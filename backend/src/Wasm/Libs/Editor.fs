@@ -152,7 +152,6 @@ let fns : List<BuiltInFn> =
               LibExecution.Builtin.combine
                 [ BuiltinExecution.Builtin.contents httpConfig ]
                 []
-                []
 
             let! result =
               let expr = exprsCollapsedIntoOne source.exprs

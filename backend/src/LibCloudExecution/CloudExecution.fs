@@ -24,7 +24,6 @@ let builtins : LibExecution.Builtin.Contents =
       BuiltinCloudExecution.Builtin.contents
       BuiltinDarkInternal.Builtin.contents ]
     []
-    []
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) = builtins
   { types = types |> Map.fromListBy (fun typ -> typ.name)

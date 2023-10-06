@@ -10,11 +10,6 @@ let fnRenames =
   // eg: fn "Http" "respond" 0, fn "Http" "response" 0
   []
 
-let typeRenames =
-  // old names, new names
-  // eg: typ "Http" "Response" 0, typ "Http" "Response" 1
-  []
-
 let contents (httpConfig : Libs.HttpClient.Configuration) : Builtin.Contents =
   Builtin.combine
     [ Libs.Bool.contents
@@ -35,4 +30,3 @@ let contents (httpConfig : Libs.HttpClient.Configuration) : Builtin.Contents =
       Libs.String.contents
       Libs.X509.contents ]
     fnRenames
-    typeRenames
