@@ -15,6 +15,7 @@ resource "google_service_account" "circleci_deployer" {
   project      = local.project_name
 }
 
+
 # resource "google_project_iam_member" "circleci_deployer_member_object_viewer" {
 #   role    = "roles/storage.objectViewer"
 #   member  = "serviceAccount:${google_service_account.circleci_deployer.email}"
@@ -28,12 +29,24 @@ resource "google_service_account" "circleci_deployer" {
 #   }
 # }
 
+##########
+# Cloud Run
+##########
 # resource "google_service_account" "cloud_run_runner" {
 #   account_id   = "cloud-run-runner"
 #   description  = "For running darklang apps in cloud run"
 #   display_name = "cloud-run-runner"
 #   project      = local.project_name
 # }
+
+
+##########
+# PubSub
+#
+# PubSub have service-specific roles, instead of project-wide roles. That means the
+# role is connected to the topic and subscription, and is not visible in the IAM page
+# in the console.
+##########
 
 resource "google_service_account" "queue_pubsub_access" {
   account_id   = "queue-pubsub-access"
@@ -42,28 +55,32 @@ resource "google_service_account" "queue_pubsub_access" {
   project      = local.project_name
 }
 
+resource "google_project_iam_custom_role" "worker-queue-access" {
+  description = "Access to queues via LibCloud, reading/writing events from pubsub"
+  permissions = ["pubsub.subscriptions.consume", "pubsub.topics.publish"]
+  project     = "darklang-next"
+  role_id     = "worker_queue_access"
+  title       = "Worker Queue access"
+}
 
-# ##########
-# # PubSub
-# # PubSub have service-specific roles, instead of project-wide roles
-# ##########
-# resource "google_pubsub_topic_iam_member" "queue_pubsub_access_member_pubsub_publisher" {
-#   topic  = google_pubsub_topic.topic_queue.id
-#   member = "serviceAccount:${google_service_account.queue_pubsub_access.email}"
-#   role   = "roles/pubsub.publisher"
-# }
+// Role access, restricted to the specific topic
+resource "google_pubsub_topic_iam_member" "queue_pubsub_access_member_pubsub_publisher" {
+  topic  = google_pubsub_topic.topic_queue.id
+  role   = google_project_iam_custom_role.worker-queue-access.id
+  member = "serviceAccount:${google_service_account.queue_pubsub_access.email}"
+}
+
+// Role access, restricted to the specific subscription
+resource "google_pubsub_subscription_iam_member" "queue_pubsub_access_member_worker_queue_access" {
+  subscription = google_pubsub_subscription.topic_queue_sub.id
+  role         = google_project_iam_custom_role.worker-queue-access.id
+  member       = "serviceAccount:${google_service_account.queue_pubsub_access.email}"
+}
 
 
-# # resource "google_pubsub_subscription_iam_member" "queue_pubsub_access_member_pubsub_subscriber" {
-# #   subscription = google_pubsub_subscription.topic_queue_sub.id
-# #   role         = "roles/pubsub.subscriber"
-# #   member       = "serviceAccount:${google_service_account.queue_pubsub_access.email}"
-# # }
-
-
-# ##########
-# # Cloud Storage
-# ##########
+##########
+# Cloud Storage
+##########
 
 resource "google_service_account" "traces_storage" {
   account_id   = "traces-storage"
