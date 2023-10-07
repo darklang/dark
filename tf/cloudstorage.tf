@@ -2,7 +2,7 @@
 # Darklang AI deployment
 ##########################
 
-# Downloads for the new cli(s)
+# Downloads for the cli(s)
 resource "google_storage_bucket" "downloads" {
   force_destroy               = false
   location                    = "US"
