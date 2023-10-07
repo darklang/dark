@@ -16,6 +16,12 @@ resource "google_storage_bucket" "downloads" {
   }
 }
 
+resource "google_storage_bucket_iam_binding" "public_access" {
+  bucket  = google_storage_bucket.downloads.name
+  role    = "roles/storage.objectViewer"
+  members = ["allUsers"]
+}
+
 # Bucket for storing customer traces
 resource "google_storage_bucket" "traces" {
   force_destroy               = false
