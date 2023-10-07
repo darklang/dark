@@ -276,8 +276,7 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
-      # LIGHTTODO
-      # - auth-with-gcp: { background: false }
+      - auth-with-gcp: { background: false }
       # LIGHTTODO
       # - run: gcloud storage objects list gs://darklang-downloads/*
       - attach_workspace: { at: "." }
@@ -306,7 +305,7 @@ jobs:
       # LIGHTTODO
       - darkcheckout
       - setup-app
-      # - auth-with-gcp: { background: false }
+      - auth-with-gcp: { background: false }
       # - attach_workspace: { at: "." }
       - show-large-files-and-directories
       # LIGHTTODO
