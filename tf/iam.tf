@@ -89,28 +89,28 @@ resource "google_service_account" "traces_storage" {
   project      = local.project_name
 }
 
-# resource "google_project_iam_member" "traces_storage_member_object_creator" {
-#   role    = "roles/storage.objectCreator"
-#   member  = "serviceAccount:${google_service_account.traces_storage.email}"
-#   project = local.project_id
+resource "google_project_iam_member" "traces_storage_member_object_creator" {
+  role    = "roles/storage.objectCreator"
+  member  = "serviceAccount:${google_service_account.traces_storage.email}"
+  project = local.project_id
 
-#   condition {
-#     title       = "Limit to bucket"
-#     description = "Only allow access to traces bucket"
-#     # This expression was hard to find, you can't use '=='
-#     expression = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.traces.id}\")"
-#   }
-# }
+  condition {
+    title       = "Limit to bucket"
+    description = "Only allow access to traces bucket"
+    # This expression was hard to find, you can't use '=='
+    expression = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.traces.id}\")"
+  }
+}
 
-# resource "google_project_iam_member" "traces_storage_member_object_viewer" {
-#   role    = "roles/storage.objectViewer"
-#   member  = "serviceAccount:${google_service_account.traces_storage.email}"
-#   project = local.project_id
+resource "google_project_iam_member" "traces_storage_member_object_viewer" {
+  role    = "roles/storage.objectViewer"
+  member  = "serviceAccount:${google_service_account.traces_storage.email}"
+  project = local.project_id
 
-#   condition {
-#     title       = "Limit to bucket"
-#     description = "Only allow access to traces bucket"
-#     # This expression was hard to find, you can't use '=='
-#     expression = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.traces.id}\")"
-#   }
-# }
+  condition {
+    title       = "Limit to bucket"
+    description = "Only allow access to traces bucket"
+    # This expression was hard to find, you can't use '=='
+    expression = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.traces.id}\")"
+  }
+}
