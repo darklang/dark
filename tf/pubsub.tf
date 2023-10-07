@@ -14,6 +14,9 @@ resource "google_pubsub_topic" "topic_queue_deadletter" {
 
 resource "google_pubsub_subscription" "topic_queue_sub" {
   ack_deadline_seconds = 60
+  expiration_policy {
+    ttl = ""
+  }
   dead_letter_policy {
     dead_letter_topic     = google_pubsub_topic.topic_queue_deadletter.id
     max_delivery_attempts = 5
