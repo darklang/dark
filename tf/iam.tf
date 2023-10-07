@@ -15,6 +15,13 @@ resource "google_service_account" "circleci_deployer" {
   project      = local.project_name
 }
 
+resource "google_project_iam_custom_role" "circleci-deployment-role" {
+  description = "CircleCI deployment role"
+  permissions = ["resourcemanager.projects.get"] // Just give it a very small permission
+  project     = "darklang-next"
+  role_id     = "circleciDeploymentRole"
+  title       = "CircleCI deployment role"
+}
 
 # resource "google_project_iam_member" "circleci_deployer_member_object_viewer" {
 #   role    = "roles/storage.objectViewer"
@@ -28,6 +35,7 @@ resource "google_service_account" "circleci_deployer" {
 #     expression = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.downloads.id}\")"
 #   }
 # }
+
 
 ##########
 # Cloud Run
