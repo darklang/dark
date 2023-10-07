@@ -9,7 +9,6 @@ module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 module TypeChecker = LibExecution.TypeChecker
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
-module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 
 
 // CLEANUP something like type ComparatorResult = Higher | Lower | Same
@@ -28,7 +27,9 @@ module DvalComparator =
     | DTuple(a1, b1, l1), DTuple(a2, b2, l2) ->
       compareLists (a1 :: b1 :: l1) (a2 :: b2 :: l2)
     | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
-      let c = compareLetPatternsLists l1.parameters l2.parameters
+      let l1' = NEList.toList l1.parameters
+      let l2' = NEList.toList l2.parameters
+      let c = compareLetPatternsLists l1' l2'
       if c = 0 then
         let c = compareExprs l1.body l2.body
         if c = 0 then
@@ -75,13 +76,42 @@ module DvalComparator =
     | DEnum _, _ ->
       // TODO: Feels like this should hook into typechecker and ValueTypes somehow
       raiseString "Comparing different types" [ "dv1", dv1; "dv2", dv2 ]
-  and compareLetPatternsLists
-    (l1 : NEList<LetPattern>)
-    (l2 : NEList<LetPattern>)
-    : int =
-    let l1 = NEList.map RT2DT.LetPattern.toDT l1 |> NEList.toList
-    let l2 = NEList.map RT2DT.LetPattern.toDT l2 |> NEList.toList
-    compareLists l1 l2
+  and compareLetPatternsLists (l1 : List<LetPattern>) (l2 : List<LetPattern>) : int =
+
+    let rec equalsLetPattern (pattern1 : LetPattern) (pattern2 : LetPattern) : int =
+      match pattern1, pattern2 with
+      | LPVariable(_, name1), LPVariable(_, name2) -> compare name1 name2
+      | LPUnit _, LPUnit _ -> 0
+
+      | LPTuple(_, first, second, theRest), LPTuple(_, first', second', theRest') ->
+        let all = first :: second :: theRest
+        let all' = first' :: second' :: theRest'
+        if all.Length <> all'.Length then
+          compare all.Length all'.Length
+        else
+          let c = equalsLetPattern first first'
+          if c = 0 then
+            let c = equalsLetPattern second second'
+            if c = 0 then compareLetPatternsLists theRest theRest' else c
+          else
+            c
+
+      | LPTuple _, LPVariable _ -> 1
+      | LPTuple _, LPUnit _ -> 1
+      | LPUnit _, LPVariable _ -> -1
+      | LPVariable _, LPUnit _ -> 1
+      | LPVariable _, LPTuple _ -> -1
+      | _, _ -> -1
+
+    match l1, l2 with
+    | [], [] -> 0
+    | [], _ -> -1
+    | _, [] -> 1
+    | h1 :: t1, h2 :: t2 ->
+      let c = equalsLetPattern h1 h2
+      if c = 0 then compareLetPatternsLists t1 t2 else c
+
+
 
   and compareLists (l1 : List<Dval>) (l2 : List<Dval>) : int =
     match l1, l2 with

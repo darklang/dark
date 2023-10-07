@@ -95,7 +95,7 @@ let rec evalConst (source : Source) (c : Const) : Dval =
 
 
 
-/// Used in the ELet and ELamba evals
+/// Used in the ELet and ELambda evals
 /// Does the dval 'match' the given pattern?
 ///
 /// Returns:

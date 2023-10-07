@@ -153,6 +153,18 @@ module RuntimeTypes =
         NEList.singleton (RT.LPVariable(758123UL, "var3")),
         RT.EUnit(17384UL)
       )
+      RT.ELambda(
+        7587124UL,
+        NEList.singleton (
+          RT.LPTuple(
+            758123UL,
+            RT.LPVariable(758133UL, "var11"),
+            RT.LPVariable(758433UL, "var12"),
+            []
+          )
+        ),
+        RT.EUnit(17384UL)
+      )
       RT.EFieldAccess(74875UL, RT.EUnit(737463UL), "field")
       RT.EVariable(8737583UL, "var4")
       RT.EApply(
