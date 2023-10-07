@@ -10,6 +10,7 @@
 ###################
 
 
+// This pool has a "connected service account" which can't be set via terraform
 resource "google_iam_workload_identity_pool" "circleci" {
   workload_identity_pool_id = "circleci"
   display_name              = "CircleCI"
