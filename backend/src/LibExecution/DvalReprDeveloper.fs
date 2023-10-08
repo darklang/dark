@@ -142,13 +142,13 @@ let toRepr (dv : Dval) : string =
         let long = String.concat $"{inl}, " (List.map (toRepr_ indent) l)
         $"({inl}{long}{nl})"
 
-    | DRecord(_, typeName, _typeArgsTODO, o) ->
-      let strs =
-        o
+    | DRecord(_, typeName, _typeArgsTODO, fields) ->
+      let fields =
+        fields
         |> Map.toList
         |> List.map (fun (key, value) -> ($"{key}: {toRepr_ indent value}"))
 
-      let elems = String.concat $",{inl}" strs
+      let elems = String.concat $",{inl}" fields
       let typeStr = TypeName.toString typeName
       $"{typeStr} {{" + $"{inl}{elems}{nl}" + "}"
 

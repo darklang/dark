@@ -132,7 +132,6 @@ let builtIns
         BuiltinDarkInternal.Builtin.contents
         BuiltinCli.Builtin.contents ]
       []
-      []
   { types = types |> Map.fromListBy (fun typ -> typ.name)
     fns = fns |> Map.fromListBy (fun fn -> fn.name)
     constants = constants |> Map.fromListBy (fun c -> c.name) }
@@ -669,10 +668,23 @@ module Expect =
     | EMatch(_, e, branches), EMatch(_, e', branches') ->
       eq ("matchCond" :: path) e e'
 
-      NEList.iter2
-        (fun ((p, v) : MatchPattern * Expr) (p', v') ->
-          matchPatternEqualityBaseFn checkIDs path p p' errorFn
-          eq (string p :: path) v v')
+      check path (NEList.length branches) (NEList.length branches')
+      NEList.iteri2
+        (fun i branch branch' ->
+          let path = $"Case {i} - {branch.pat}" :: path
+          matchPatternEqualityBaseFn
+            checkIDs
+            ("pat" :: path)
+            branch.pat
+            branch'.pat
+            errorFn
+          match branch.whenCondition, branch'.whenCondition with
+          | Some cond, Some cond' -> eq ("whenCondition" :: path) cond cond'
+          | None, None -> ()
+          | _ ->
+            errorFn ("whenCondition" :: path) (string actual) (string expected)
+            ()
+          eq ("rhs" :: path) branch.rhs branch'.rhs)
         branches
         branches'
     | EAnd(_, l, r), EAnd(_, l', r') ->
@@ -728,7 +740,7 @@ module Expect =
       if a <> e then errorFn path (debugDval actual) (debugDval expected)
 
     let checkValueType (path : Path) (a : ValueType) (e : ValueType) : unit =
-      match Dval.mergeValueTypes a e with
+      match VT.merge a e with
       | Ok _merged -> ()
       | Error() -> errorFn path (debugDval actual) (debugDval expected)
 
@@ -1042,7 +1054,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       VT.typeArgsTODO,
+       [],
        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1051,7 +1063,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       VT.typeArgsTODO,
+       [ VT.bool; VT.char; (VT.customType (S.fqUserTypeName [] "Foo" 0)) [] ],
        Map.ofList [ "foo\\\\bar", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
@@ -1059,17 +1071,17 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DRecord(
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
-       VT.typeArgsTODO,
+       [],
        Map.ofList [ "$type", Dval.int 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    ("dict", Dval.dict VT.unknownTODO [ "foo", Dval.int 5 ], TDict TInt)
+    ("dict", DDict(VT.unknown, Map [ "foo", Dval.int 5 ]), TDict TInt)
     ("dict3",
-     Dval.dict VT.unknownTODO [ ("type", DString "weird"); ("value", DString "x") ],
+     DDict(VT.unknown, Map [ ("type", DString "weird"); ("value", DString "x") ]),
      TDict TString)
     // More Json.NET tests
-    ("dict4", Dval.dict VT.unknownTODO [ "foo\\\\bar", Dval.int 5 ], TDict TInt)
-    ("dict5", Dval.dict VT.unknownTODO [ "$type", Dval.int 5 ], TDict TInt)
+    ("dict4", DDict(VT.unknown, Map [ "foo\\\\bar", Dval.int 5 ]), TDict TInt)
+    ("dict5", DDict(VT.unknown, Map [ "$type", Dval.int 5 ]), TDict TInt)
     ("lambda",
      DFnVal(
        Lambda

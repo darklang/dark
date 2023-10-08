@@ -476,10 +476,12 @@ module Expr =
     // | Some 1 -> ...
     // | ...
     | SynExpr.Match(_, cond, cases, _, _) ->
-      let convertCase
-        (SynMatchClause(pat, _, expr, _, _, _) : SynMatchClause)
-        : WT.MatchPattern * WT.Expr =
-        (MatchPattern.fromSynPat pat, c expr)
+      let convertCase (clause : SynMatchClause) : WT.MatchCase =
+        match clause with
+        | SynMatchClause(pat, whenExpr, expr, _, _, _) ->
+          { pat = MatchPattern.fromSynPat pat
+            whenCondition = Option.map c whenExpr
+            rhs = c expr }
       WT.EMatch(id, c cond, List.map convertCase cases)
 
 

@@ -49,7 +49,6 @@ let builtIns : RT.BuiltIns =
         BuiltinCli.Builtin.contents
         BuiltinCliHost.Builtin.contents ]
       []
-      []
   { types = types |> Map.fromListBy (fun typ -> typ.name)
     fns = fns |> Map.fromListBy (fun fn -> fn.name)
     constants = constants |> Map.fromListBy (fun c -> c.name) }
@@ -88,10 +87,7 @@ let execute
     let state = state ()
     let fnName = RT.FnName.fqPackage "Darklang" [ "Cli" ] "executeCliCommand" 0
     let args =
-      args
-      |> List.map RT.DString
-      |> Dval.list (RT.ValueType.Known RT.KTString)
-      |> NEList.singleton
+      args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
     return! Exe.executeFunction state None fnName [] args
   }
 

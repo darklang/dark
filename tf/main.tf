@@ -1,14 +1,14 @@
 terraform {
-  required_version = ">= 1.4.6"
+  required_version = ">= 1.6.0"
 
   required_providers {
-    google = "4.67.0"
+    google = "4.84.0"
   }
 }
 
 provider "google" {
   project = local.project_name
-  region  = "us-west1"
+  region  = "us-central1"
 }
 
 terraform {
@@ -16,7 +16,7 @@ terraform {
     organization = "darklang"
 
     workspaces {
-      name = "darklang-main"
+      name = "darklang"
     }
   }
 }

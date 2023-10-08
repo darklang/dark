@@ -14,6 +14,13 @@ module SchedulingRules = LibCloud.QueueSchedulingRules
 module Pusher = LibCloud.Pusher
 module Queue = LibCloud.Queue
 
+let packageInternalType
+  (addlModules : List<string>)
+  (name : string)
+  (version : int)
+  : TypeName.TypeName =
+  TypeName.fqPackage "Darklang" ("Internal" :: addlModules) name version
+
 
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   (function
@@ -31,43 +38,28 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
     }
   | _ -> incorrectArgs ())
 
-let schedulingRuleTypeName = typ [ "DarkInternal"; "SchedulingRule" ] "Rule" 0
 
-let schedulingRuleTypeRef =
-  TCustomType(Ok(FQName.BuiltIn(schedulingRuleTypeName)), [])
+let schedulingRuleTypeName = packageInternalType [ "Worker" ] "SchedulingRule" 0
 
-let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Ply<Dval> =
-  let typeName = FQName.BuiltIn schedulingRuleTypeName
+let schedulingRuleTypeRef = TCustomType(Ok schedulingRuleTypeName, [])
+
+let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Dval =
+  let typeName = schedulingRuleTypeName
 
   rules
-  |> Ply.List.mapSequentially (fun r ->
-    Dval.record
-      typeName
-      (Some [])
+  |> List.map (fun r ->
+    let fields =
       [ ("id", Dval.int r.id)
         ("rule_type", r.ruleType.ToString() |> DString)
         ("canvas_id", DUuid r.canvasID)
         ("handler_name", DString r.handlerName)
         ("event_space", DString r.eventSpace)
-        ("created_at", DDateTime(DarkDateTime.fromInstant r.createdAt)) ])
-  |> Ply.map (Dval.list (ValueType.Known(KTCustomType(typeName, []))))
+        ("created_at", DDateTime(DarkDateTime.fromInstant r.createdAt)) ]
+    DRecord(typeName, typeName, [], Map fields))
+  |> Dval.list (KTCustomType(typeName, []))
 
-let types : List<BuiltInType> =
-  [ { name = schedulingRuleTypeName
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "id"; typ = TInt }
-                [ { name = "ruleType"; typ = TString }
-                  { name = "canvasID"; typ = TUuid }
-                  { name = "handlerName"; typ = TString }
-                  { name = "createdAt"; typ = TDateTime } ]
-            ) }
-      deprecated = NotDeprecated
-      description = "A scheduling rule for a worker" } ]
 
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn [ "DarkInternal"; "Canvas"; "Queue" ] "count" 0
@@ -100,7 +92,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! rules = SchedulingRules.getSchedulingRules canvasID
-            return! rulesToDval rules
+            return rulesToDval rules
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -144,7 +136,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUnit ] ->
           uply {
             let! rules = SchedulingRules.getAllSchedulingRules ()
-            return! rulesToDval rules
+            return rulesToDval rules
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

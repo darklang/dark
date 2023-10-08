@@ -16,12 +16,6 @@ module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 
 
-/// folds over the list [l] with function [f], summing the
-/// values of the returned (int * int) tuple from each call
-let sumPairs (l : (int * int) list) : int * int =
-  List.fold (fun (a', b') (a, b) -> (a + a', b + b')) (0, 0) l
-
-
 type CronScheduleData = Serialize.CronScheduleData
 
 // TODO: this is a query per cron handler. Might be worth seeing (later) if a we

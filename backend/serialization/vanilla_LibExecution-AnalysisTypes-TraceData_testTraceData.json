@@ -4115,7 +4115,44 @@
                     }
                   ]
                 },
-                [],
+                [
+                  {
+                    "Known": [
+                      {
+                        "KTBool": []
+                      }
+                    ]
+                  },
+                  {
+                    "Known": [
+                      {
+                        "KTChar": []
+                      }
+                    ]
+                  },
+                  {
+                    "Known": [
+                      {
+                        "KTCustomType": [
+                          {
+                            "UserProgram": [
+                              {
+                                "modules": [],
+                                "name": {
+                                  "TypeName": [
+                                    "Foo"
+                                  ]
+                                },
+                                "version": 0
+                              }
+                            ]
+                          },
+                          []
+                        ]
+                      }
+                    ]
+                  }
+                ],
                 {
                   "foo\\\\bar": {
                     "DInt": [
@@ -8462,7 +8499,44 @@
                     }
                   ]
                 },
-                [],
+                [
+                  {
+                    "Known": [
+                      {
+                        "KTBool": []
+                      }
+                    ]
+                  },
+                  {
+                    "Known": [
+                      {
+                        "KTChar": []
+                      }
+                    ]
+                  },
+                  {
+                    "Known": [
+                      {
+                        "KTCustomType": [
+                          {
+                            "UserProgram": [
+                              {
+                                "modules": [],
+                                "name": {
+                                  "TypeName": [
+                                    "Foo"
+                                  ]
+                                },
+                                "version": 0
+                              }
+                            ]
+                          },
+                          []
+                        ]
+                      }
+                    ]
+                  }
+                ],
                 {
                   "foo\\\\bar": {
                     "DInt": [

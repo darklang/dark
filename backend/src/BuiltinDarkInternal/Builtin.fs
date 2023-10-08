@@ -16,11 +16,6 @@ let fnRenames : Builtin.FnRenames =
   // eg: fn "Http" "respond" 0, fn "Http" "response" 0
   []
 
-let typeRenames : Builtin.TypeRenames =
-  // old names, new names
-  // eg: typ "Http" "Response" 0, typ "Http" "Response" 1
-  []
-
 // only accessible to the LibCloud.Config.allowedDarkInternalCanvasID canvas
 let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
   (fun (state, typeArgs, args) ->
@@ -47,6 +42,5 @@ let contents =
       Libs.Users.contents
       Libs.Workers.contents ]
     fnRenames
-    typeRenames
   |> (fun (fns, types, constants) ->
     (fns |> List.map (fun f -> { f with fn = internalFn f.fn }), types, constants))

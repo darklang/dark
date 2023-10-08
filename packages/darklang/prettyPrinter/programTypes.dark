@@ -785,17 +785,25 @@ module Darklang =
         | EMatch(_id, arg, cases) ->
           let cases =
             cases
-            |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
-              let (pattern, body) = pair
+            |> PACKAGE.Darklang.Stdlib.List.map (fun case ->
 
               let patternPart =
-                PACKAGE.Darklang.PrettyPrinter.ProgramTypes.matchPattern pattern
+                PACKAGE.Darklang.PrettyPrinter.ProgramTypes.matchPattern case.pat
 
-              let bodyPart =
-                (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr body)
+              let whenPart =
+                match case.whenCondition with
+                | Some cond ->
+                  let whenCondition =
+                    PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr cond
+
+                  $" when {whenCondition}"
+                | None -> ""
+
+              let rhsPart =
+                (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr case.rhs)
                 |> PACKAGE.Darklang.PrettyPrinter.indent
 
-              $"| {patternPart} ->\n{bodyPart}")
+              $"| {patternPart}{whenPart} ->\n{bodyPart}")
 
           let casesPart = PACKAGE.Darklang.Stdlib.String.join cases "\n"
 

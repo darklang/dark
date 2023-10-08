@@ -407,7 +407,6 @@ module ValueType =
   let unknownTODO = ValueType.Unknown
   let unknownDbTODO = ValueType.Unknown
   let typeArgsTODO = []
-  let typeArgsTODO' = None
 
   let known inner = ValueType.Known inner
 
@@ -429,6 +428,12 @@ module ValueType =
     (theRest : List<ValueType>)
     : ValueType =
     KTTuple(first, second, theRest) |> known
+
+  let customType
+    (typeName : TypeName.TypeName)
+    (typeArgs : List<ValueType>)
+    : ValueType =
+    KTCustomType(typeName, typeArgs) |> known
 
   let rec toString (vt : ValueType) : string =
     match vt with
@@ -468,6 +473,62 @@ module ValueType =
         NEList.toList args @ [ ret ] |> List.map toString |> String.concat " -> "
 
       | KTDB inner -> $"DB<{toString inner}>"
+
+
+  let rec private mergeKnownTypes
+    (left : KnownType)
+    (right : KnownType)
+    : Result<KnownType, unit> =
+    let r = merge
+    match left, right with
+    | KTUnit, KTUnit -> KTUnit |> Ok
+    | KTBool, KTBool -> KTBool |> Ok
+    | KTInt, KTInt -> KTInt |> Ok
+    | KTFloat, KTFloat -> KTFloat |> Ok
+    | KTChar, KTChar -> KTChar |> Ok
+    | KTString, KTString -> KTString |> Ok
+    | KTUuid, KTUuid -> KTUuid |> Ok
+    | KTBytes, KTBytes -> KTBytes |> Ok
+    | KTDateTime, KTDateTime -> KTDateTime |> Ok
+
+    | KTList left, KTList right -> r left right |> Result.map KTList
+    | KTDict left, KTDict right -> r left right |> Result.map KTDict
+    | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
+      let firstMerged = r l1 r1
+      let secondMerged = r l2 r2
+      let restMerged = List.map2 r ls rs |> Result.collect
+
+      match firstMerged, secondMerged, restMerged with
+      | Ok first, Ok second, Ok rest -> Ok(KTTuple(first, second, rest))
+      | _ -> Error()
+
+    | KTCustomType(lName, lArgs), KTCustomType(rName, rArgs) ->
+      if lName <> rName then
+        Error()
+      else if List.length lArgs <> List.length rArgs then
+        Error()
+      else
+        List.map2 r lArgs rArgs
+        |> Result.collect
+        |> Result.map (fun args -> KTCustomType(lName, args))
+
+    | KTFn(lArgs, lRet), KTFn(rArgs, rRet) ->
+      let argsMerged = NEList.map2 r lArgs rArgs |> Result.collectNE
+      let retMerged = r lRet rRet
+
+      match argsMerged, retMerged with
+      | Ok args, Ok ret -> Ok(KTFn(args, ret))
+      | _ -> Error()
+
+    | _ -> Error()
+
+  and merge (left : ValueType) (right : ValueType) : Result<ValueType, unit> =
+    match left, right with
+    | ValueType.Unknown, v
+    | v, ValueType.Unknown -> Ok v
+
+    | ValueType.Known left, ValueType.Known right ->
+      mergeKnownTypes left right |> Result.map ValueType.Known
 
 
 
@@ -532,7 +593,7 @@ and Expr =
   | EFloat of id * double
   | EConstant of id * ConstantName.ConstantName
   | ELet of id * LetPattern * Expr * Expr
-  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : option<Expr>
+  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
   | ELambda of id * pats : NEList<LetPattern> * body : Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
@@ -544,7 +605,7 @@ and Expr =
   | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
   | EDict of id * List<string * Expr>
   | EEnum of id * TypeName.TypeName * caseName : string * fields : List<Expr>
-  | EMatch of id * Expr * NEList<MatchPattern * Expr>
+  | EMatch of id * Expr * NEList<MatchCase>
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
 
@@ -553,6 +614,8 @@ and Expr =
   // adapt this to include more information as we go. This list of exprs is the
   // subexpressions to evaluate before evaluating the error.
   | EError of id * RuntimeError * List<Expr>
+
+and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
 and LetPattern =
   | LPVariable of id * name : string
@@ -728,10 +791,6 @@ module RuntimeError =
 
   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
     let typeName = name [] "Error" 0
-
-    // VTTODO This should be created via Dval.enum, but we have an F# cyclical dependency issue:
-    // - we want to create a RuntimeError via Dval.enum
-    // - when Dval.enum fails, it creates a RuntimeError
     DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError
 
 
@@ -940,6 +999,46 @@ module Dval =
     | DEnum _, _ -> false
 
 
+  let rec toValueType (dv : Dval) : ValueType =
+    match dv with
+    | DUnit -> ValueType.Known KTUnit
+
+    | DBool _ -> ValueType.Known KTBool
+    | DInt _ -> ValueType.Known KTInt
+    | DFloat _ -> ValueType.Known KTFloat
+    | DChar _ -> ValueType.Known KTChar
+    | DString _ -> ValueType.Known KTString
+    | DDateTime _ -> ValueType.Known KTDateTime
+    | DUuid _ -> ValueType.Known KTUuid
+    | DBytes _ -> ValueType.Known KTBytes
+
+    | DList(t, _) -> ValueType.Known(KTList t)
+    | DDict(t, _) -> ValueType.Known(KTDict t)
+    | DTuple(first, second, theRest) ->
+      ValueType.Known(
+        KTTuple(toValueType first, toValueType second, List.map toValueType theRest)
+      )
+
+    | DRecord(typeName, _, typeArgs, _) ->
+      KTCustomType(typeName, typeArgs) |> ValueType.Known
+
+    | DEnum(typeName, _, typeArgs, _, _) ->
+      KTCustomType(typeName, typeArgs) |> ValueType.Known
+
+    | DFnVal fnImpl ->
+      match fnImpl with
+      | Lambda lambda ->
+        KTFn(
+          NEList.map (fun _ -> ValueType.Unknown) lambda.parameters,
+          ValueType.Unknown
+        )
+        |> ValueType.Known
+
+      // VTTODO look up type, etc
+      | NamedFn _named -> ValueType.Unknown
+
+    // CLEANUP follow up when DDB has a typeReference
+    | DDB _ -> ValueType.Unknown
 
 
   let asList (dv : Dval) : Option<List<Dval>> =
@@ -1274,25 +1373,35 @@ and Notifier = ExecutionState -> string -> Metadata -> unit
 
 // All state used while running a program
 and ExecutionState =
-  { builtIns : BuiltIns
-    packageManager : PackageManager
+  { // -- Set consistently across a runtime --
+    builtIns : BuiltIns
     tracing : Tracing
-    program : Program
     test : TestContext
 
-    // Called to report exceptions
+    /// Called to report exceptions
     reportException : ExceptionReporter
 
-    // Called to notify that something of interest (that isn't an exception)
-    // has happened.
-    //
-    // Useful for tracking behaviour we want to deprecate, understanding what
-    // users are doing, etc.
+    /// Called to notify that something of interest (that isn't an exception)
+    /// has happened.
+    ///
+    /// Useful for tracking behaviour we want to deprecate, understanding what
+    /// users are doing, etc.
     notify : Notifier
+
+    // -- Set at the start of an execution --
+    program : Program // TODO: rename to UserCode?
+
+
+    // -- Can change over time during execution --
 
     // tlid/id of the caller - used to find the source of an error. It's not the end
     // of the world if this is wrong or missing, but it will give worse errors.
-    caller : Source }
+    caller : Source
+
+    packageManager : PackageManager // TODO update to availableTypes?
+
+    typeSymbolTable : TypeSymbolTable
+  }
 
 and Functions =
   { builtIn : Map<FnName.BuiltIn, BuiltInFn>
@@ -1305,14 +1414,18 @@ and Constants =
     userProgram : Map<ConstantName.UserProgram, UserConstant.T> }
 
 and Types =
-  { builtIn : Map<TypeName.BuiltIn, BuiltInType>
+  { typeSymbolTable : TypeSymbolTable
+
+    builtIn : Map<TypeName.BuiltIn, BuiltInType>
     package : TypeName.Package -> Ply<Option<PackageType.T>>
     userProgram : Map<TypeName.UserProgram, UserType.T> }
 
 
 module ExecutionState =
   let availableTypes (state : ExecutionState) : Types =
-    { builtIn = state.builtIns.types
+    { typeSymbolTable = state.typeSymbolTable
+
+      builtIn = state.builtIns.types
       package = state.packageManager.getType
       userProgram = state.program.types }
 
@@ -1329,7 +1442,11 @@ module ExecutionState =
 
 module Types =
   let empty =
-    { builtIn = Map.empty; package = (fun _ -> Ply None); userProgram = Map.empty }
+    { typeSymbolTable = Map.empty
+
+      builtIn = Map.empty
+      package = (fun _ -> Ply None)
+      userProgram = Map.empty }
 
   let find
     (name : TypeName.TypeName)

@@ -378,8 +378,8 @@ module Expr =
       let init = toRT expr1
       List.fold folder init rest
 
-    | PT.EMatch(id, mexpr, pairs) ->
-      match pairs with
+    | PT.EMatch(id, mexpr, cases) ->
+      match cases with
       | [] ->
         RT.EError(
           id,
@@ -389,9 +389,14 @@ module Expr =
       | head :: tail ->
         let cases =
           NEList.ofList head tail
-          |> NEList.map (fun (mp, expr) ->
-            let expr = toRT expr
-            (MatchPattern.toRT mp, expr))
+          |> NEList.map (fun case ->
+            let pattern = MatchPattern.toRT case.pat
+            let whenCondition = Option.map toRT case.whenCondition
+            let expr = toRT case.rhs
+            let result : RT.MatchCase =
+              { pat = pattern; whenCondition = whenCondition; rhs = expr }
+            result)
+
         RT.EMatch(id, toRT mexpr, cases)
 
     | PT.EEnum(id, Ok typeName, caseName, fields) ->

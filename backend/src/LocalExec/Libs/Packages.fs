@@ -12,122 +12,27 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
-module Dval = LibExecution.Dval
-module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
-let types : List<BuiltInType> =
-  [ { name = typ [ "LocalExec"; "Packages" ] "Function" 0
-      description = "The name of a package function"
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "owner"; typ = TString }
-                [ { name = "modules"; typ = TList TString }
-                  { name = "name"; typ = TString }
-                  { name = "version"; typ = TInt } ]
-            ) }
-      deprecated = NotDeprecated }
+let packagePackagesType
+  (addlModules : List<string>)
+  (name : string)
+  (version : int)
+  : TypeName.TypeName =
+  TypeName.fqPackage
+    "Darklang"
+    ("LocalExec" :: "Packages" :: addlModules)
+    name
+    version
 
 
-    { name = typ [ "LocalExec"; "Packages" ] "Type" 0
-      description = "The name of a package type"
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "owner"; typ = TString }
-                [ { name = "modules"; typ = TList TString }
-                  { name = "name"; typ = TString }
-                  { name = "version"; typ = TInt } ]
-            ) }
-      deprecated = NotDeprecated }
-
-
-    { name = typ [ "LocalExec"; "Packages" ] "Constant" 0
-      description = "The name of a package constant"
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "owner"; typ = TString }
-                [ { name = "modules"; typ = TList TString }
-                  { name = "name"; typ = TString }
-                  { name = "version"; typ = TInt } ]
-            ) }
-      deprecated = NotDeprecated }
-
-
-    { name = typ [ "LocalExec"; "Packages" ] "Package" 0
-      description = "A package, with types, constants, and functions"
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "types"
-                  typ =
-                    TList(
-                      TCustomType(
-                        Ok(
-                          TypeName.fqPackage
-                            "Darklang"
-                            [ "LanguageTools"; "Stdlib"; "ProgramTypes" ]
-                            "PackageType"
-                            0
-                        ),
-                        []
-                      )
-                    ) }
-                [ { name = "constants"
-                    typ =
-                      TList(
-                        TCustomType(
-                          Ok(
-                            TypeName.fqPackage
-                              "Darklang"
-                              [ "LanguageTools"; "Stdlib"; "ProgramTypes" ]
-                              "PackageConstant"
-                              0
-                          ),
-                          []
-                        )
-                      ) }
-                  { name = "fns"
-                    typ =
-                      TList(
-                        TCustomType(
-                          Ok(
-                            TypeName.fqPackage
-                              "Darklang"
-                              [ "LanguageTools"
-                                "Stdlib"
-                                "ProgramTypes"
-                                "PackageFn" ]
-                              "PackageFn"
-                              0
-                          ),
-                          []
-                        )
-                      ) } ]
-            ) }
-      deprecated = NotDeprecated } ]
-
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn [ "LocalExec"; "Packages" ] "listFunctions" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
-        TList(
-          TCustomType(
-            Ok(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0)),
-            []
-          )
-        )
+        TList(TCustomType(Ok(packagePackagesType [] "FunctionName" 0), []))
       description = "List all package functions"
       fn =
         function
@@ -142,22 +47,24 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let! fns =
+            let typeName = packagePackagesType [] "FunctionName" 0
+
+            let fns =
               fns
-              |> Ply.List.mapSequentially (fun (owner, fnname, modules, version) ->
-                Dval.record
-                  (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0))
-                  (Some [])
+              |> List.map (fun (owner, fnname, modules, version) ->
+                let fields =
                   [ ("owner", DString owner)
                     ("modules",
-                     modules
-                     |> String.split "."
-                     |> List.map DString
-                     |> Dval.list VT.string)
+                     DList(
+                       VT.string,
+                       modules |> String.split "." |> List.map DString
+                     ))
                     ("name", DString fnname)
-                    ("version", DInt version) ])
+                    ("version", DInt version) ]
 
-            return Dval.list VT.unknownTODO fns
+                DRecord(typeName, typeName, [], Map fields))
+
+            return DList(VT.customType typeName [], fns)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -168,13 +75,7 @@ let fns : List<BuiltInFn> =
     { name = fn [ "LocalExec"; "Packages" ] "listTypes" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType =
-        TList(
-          TCustomType(
-            Ok(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0)),
-            []
-          )
-        )
+      returnType = TList(TCustomType(Ok(packagePackagesType [] "TypeName" 0), []))
       description = "List all package types"
       fn =
         function
@@ -189,23 +90,23 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let! types =
-              types
-              |> Ply.List.mapSequentially
-                (fun (owner, typename, modules, version) ->
-                  Dval.record
-                    (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0))
-                    (Some [])
-                    [ ("owner", DString owner)
-                      ("modules",
-                       modules
-                       |> String.split "."
-                       |> List.map DString
-                       |> Dval.list VT.unknownTODO)
-                      ("name", DString typename)
-                      ("version", DInt version) ])
+            let typeName = packagePackagesType [] "TypeName" 0
 
-            return Dval.list VT.unknownTODO types
+            let types =
+              types
+              |> List.map (fun (owner, typename, modules, version) ->
+                let fields =
+                  [ ("owner", DString owner)
+                    ("modules",
+                     DList(
+                       VT.string,
+                       modules |> String.split "." |> List.map DString
+                     ))
+                    ("name", DString typename)
+                    ("version", DInt version) ]
+                DRecord(typeName, typeName, [], Map fields))
+
+            return DList(VT.customType typeName [], types)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -217,12 +118,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
-        TList(
-          TCustomType(
-            Ok(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0)),
-            []
-          )
-        )
+        TList(TCustomType(Ok(packagePackagesType [] "ConstantName" 0), []))
       description = "List all package constants"
       fn =
         function
@@ -237,22 +133,23 @@ let fns : List<BuiltInFn> =
                  read.string "modules",
                  read.int "version"))
 
-            let! consts =
+            let typeName = packagePackagesType [] "ConstantName" 0
+
+            let consts =
               consts
-              |> Ply.List.mapSequentially (fun (owner, fnname, modules, version) ->
-                Dval.record
-                  (FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0))
-                  (Some [])
+              |> List.map (fun (owner, fnname, modules, version) ->
+                let fields =
                   [ ("owner", DString owner)
                     ("modules",
-                     modules
-                     |> String.split "."
-                     |> List.map DString
-                     |> Dval.list VT.unknownTODO)
+                     DList(
+                       VT.string,
+                       modules |> String.split "." |> List.map DString
+                     ))
                     ("name", DString fnname)
-                    ("version", DInt version) ])
+                    ("version", DInt version) ]
+                DRecord(typeName, typeName, [], Map fields))
 
-            return Dval.list VT.unknownTODO consts
+            return DList(VT.customType typeName [], consts)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

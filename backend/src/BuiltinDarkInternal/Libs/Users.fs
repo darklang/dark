@@ -8,11 +8,8 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-let modules = [ "DarkInternal"; "User" ]
-let typ = typ modules
-let fn = fn modules
+let fn = fn [ "DarkInternal"; "User" ]
 
-// only accessible to the LibCloud.Config.allowedDarkInternalCanvasID canvas
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 

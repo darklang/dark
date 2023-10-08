@@ -366,9 +366,10 @@ let fns (config : Configuration) : List<BuiltInFn> =
         the response is wrapped in {{ Ok }} if a response was successfully
         received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
-        let resultOk = Dval.resultOk VT.unknownTODO VT.string
-        let resultErrorStr str =
-          Dval.resultError VT.unknownTODO VT.string (DString str)
+        let responseType =
+          KTCustomType(FQName.BuiltIn(typ [ "HttpClient" ] "Response" 0), [])
+        let resultOk = Dval.resultOk responseType KTString
+        let resultErrorStr str = Dval.resultError responseType KTString (DString str)
         (function
         | _, _, [ DString method; DString uri; DList(_, reqHeaders); DBytes reqBody ] ->
           let reqHeaders : Result<List<string * string>, HeaderError> =
@@ -416,21 +417,17 @@ let fns (config : Configuration) : List<BuiltInFn> =
                       DString(String.toLowercase v),
                       []
                     ))
-                  |> Dval.list (
-                    ValueType.Known(
-                      KTTuple(ValueType.Known KTString, ValueType.Known KTString, [])
-                    )
-                  )
+                  |> Dval.list (KTTuple(VT.string, VT.string, []))
 
                 let typ =
                   FQName.BuiltIn(TypeName.builtIn [ "HttpClient" ] "Response" 0)
 
-                return!
+                let fields =
                   [ ("statusCode", DInt(int64 response.statusCode))
                     ("headers", responseHeaders)
                     ("body", DBytes response.body) ]
-                  |> Dval.record typ (Some [])
-                  |> Ply.map resultOk
+
+                return DRecord(typ, typ, [], Map fields) |> resultOk
 
               | Error(BadUrl details) -> return resultErrorStr $"Bad URL: {details}"
               | Error(Timeout) -> return resultErrorStr $"Request timed out"

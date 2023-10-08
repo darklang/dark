@@ -596,14 +596,23 @@ let rec lambdaToSql
             return (sql, vars, TList actualType)
           | _ -> return error "Expected a List"
 
-        | EEnum(id, typeName, caseName, []) ->
+        // TODO: handle cases where `fields` is non-empty
+        | EEnum(id, sourceTypeName, sourceCaseName, []) ->
           let source = Some(tlid, id)
           let! dv =
-            LibExecution.Dval.enum typeName typeName VT.typeArgsTODO' caseName []
-          let typ = (TCustomType(Ok typeName, []))
+            TypeChecker.DvalCreator.enum
+              sourceTypeName
+              sourceTypeName
+              sourceCaseName
+              []
+
+          let typeArgs = [] // TODO - get from the dval above? maybe typeName too...
+          let typ = TCustomType(Ok sourceTypeName, typeArgs)
+
           typecheck $"Enum '{dv}'" typ expectedType
           let! v = DvalReprInternalQueryable.toJsonStringV0 source types typ dv
           let name = randomString 10
+
           return $"(@{name})", [ name, Sql.jsonb v ], typ
 
 
@@ -964,19 +973,30 @@ let partiallyEvaluate
               let! second = r second
               let! theRest = Ply.List.mapSequentially r theRest
               return ETuple(id, first, second, theRest)
-            | EMatch(id, mexpr, pairs) ->
+            | EMatch(id, mexpr, cases) ->
               let! mexpr = r mexpr
 
-              let! pairs =
+              let! cases =
                 Ply.NEList.mapSequentially
-                  (fun (pat, expr) ->
+                  (fun case ->
                     uply {
-                      let! expr = r expr
-                      return (pat, expr)
+                      let! expr = r case.rhs
+                      let! whenCondition =
+                        uply {
+                          match case.whenCondition with
+                          | Some whenCondition ->
+                            let! whenCondition = r whenCondition
+                            return Some whenCondition
+                          | None -> return None
+                        }
+                      return
+                        { pat = case.pat
+                          whenCondition = whenCondition
+                          rhs = expr }
                     })
-                  pairs
+                  cases
 
-              return EMatch(id, mexpr, pairs)
+              return EMatch(id, mexpr, cases)
             | ERecord(id, typeName, fields) ->
               let! fields =
                 Ply.NEList.mapSequentially

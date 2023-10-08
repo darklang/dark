@@ -1,5 +1,5 @@
 locals {
-  project_name = "balmy-ground-195100"
-  project_id   = "118633020131"
+  project_name = "darklang-next"
+  project_id   = "234768451432"
 }
 

@@ -54,21 +54,21 @@ variable "service_env_vars" {
     "DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT" = "sample-none"
 
     # DB
-    "DARK_CONFIG_DB_DBNAME" = "postgres"
-    "DARK_CONFIG_DB_HOST"   = "/cloudsql/balmy-ground-195100:us-west1:dark-west"
+    "DARK_CONFIG_DB_DBNAME" = "defaultdb"
+    "DARK_CONFIG_DB_HOST"   = "slim-elk-13135.5xj.cockroachlabs.cloud:26257"
     # DARK_CONFIG_DB_USER
     # DARK_CONFIG_DB_PASSWORD
     "DARK_CONFIG_DB_POOL_SIZE" = "20"
 
     # Queue / pubsub
-    "DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID"        = "balmy-ground-195100"
-    "DARK_CONFIG_QUEUE_PUBSUB_TOPIC_NAME"        = "topic-queue-ai"
-    "DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_NAME" = "topic-queue-ai-sub"
+    "DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID"        = "darklang-next"
+    "DARK_CONFIG_QUEUE_PUBSUB_TOPIC_NAME"        = "topic-queue"
+    "DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_NAME" = "topic-queue-sub"
     "DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC"      = "n"
     # DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS
 
     # Traces / cloud storage
-    "DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME"   = "dark-traces-ai"
+    "DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME"   = "darklang-traces"
     "DARK_CONFIG_TRACE_STORAGE_CREATE_BUCKET" = "n"
     # DARK_CONFIG_TRACE_STORAGE_CREDENTIALS
     "DARK_CONFIG_TRACE_STORAGE_BASE_URI" = "not-used"
@@ -100,8 +100,8 @@ variable "service_secrets" {
     "DARK_CONFIG_PUSHER_CLUSTER" = "pusher-cluster"
 
     # database
-    "DARK_CONFIG_DB_USER"     = "cloudsql-username"
-    "DARK_CONFIG_DB_PASSWORD" = "cloudsql-password"
+    "DARK_CONFIG_DB_USER"     = "db-username"
+    "DARK_CONFIG_DB_PASSWORD" = "db-password"
 
     # honeycomb
     "DARK_CONFIG_HONEYCOMB_API_KEY" = "honeycomb-api-key"

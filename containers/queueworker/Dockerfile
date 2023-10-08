@@ -12,7 +12,7 @@ RUN mkdir app
 ENV DARK_CONFIG_RUNDIR=/home/dark/gcp-rundir
 RUN ./scripts/devcontainer/_create-app-directories
 
-COPY --chown=dark:dark backend/Build/out/QueueWorker/Release/net7.0/linux-x64/publish/* app/
+COPY --chown=dark:dark backend/Build/out/QueueWorker/Release/net7.0/linux-x64/publish/QueueWorker app/
 RUN ./scripts/linting/_check-linked-libs app/QueueWorker
 
 CMD ./app/QueueWorker

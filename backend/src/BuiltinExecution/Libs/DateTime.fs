@@ -45,7 +45,7 @@ let fns : List<BuiltInFn> =
           ISO8601DateParser s
           |> Result.map DDateTime
           |> Result.mapError (fun () -> DString "Invalid date format")
-          |> Dval.result VT.dateTime VT.string
+          |> Dval.result KTDateTime KTString
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

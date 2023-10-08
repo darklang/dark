@@ -3945,7 +3945,44 @@
                     }
                   ]
                 },
-                [],
+                [
+                  {
+                    "Known": [
+                      {
+                        "KTBool": []
+                      }
+                    ]
+                  },
+                  {
+                    "Known": [
+                      {
+                        "KTChar": []
+                      }
+                    ]
+                  },
+                  {
+                    "Known": [
+                      {
+                        "KTCustomType": [
+                          {
+                            "UserProgram": [
+                              {
+                                "modules": [],
+                                "name": {
+                                  "TypeName": [
+                                    "Foo"
+                                  ]
+                                },
+                                "version": 0
+                              }
+                            ]
+                          },
+                          []
+                        ]
+                      }
+                    ]
+                  }
+                ],
                 {
                   "foo\\\\bar": {
                     "DInt": [
@@ -4179,7 +4216,7 @@
       7777772986753,
       "testFn",
       2,
-      "u7FtjJt_dI4",
+      "YeeewK98sVo",
       {
         "DRecord": [
           {
@@ -8122,7 +8159,44 @@
                     }
                   ]
                 },
-                [],
+                [
+                  {
+                    "Known": [
+                      {
+                        "KTBool": []
+                      }
+                    ]
+                  },
+                  {
+                    "Known": [
+                      {
+                        "KTChar": []
+                      }
+                    ]
+                  },
+                  {
+                    "Known": [
+                      {
+                        "KTCustomType": [
+                          {
+                            "UserProgram": [
+                              {
+                                "modules": [],
+                                "name": {
+                                  "TypeName": [
+                                    "Foo"
+                                  ]
+                                },
+                                "version": 0
+                              }
+                            ]
+                          },
+                          []
+                        ]
+                      }
+                    ]
+                  }
+                ],
                 {
                   "foo\\\\bar": {
                     "DInt": [

@@ -81,7 +81,7 @@ module Error =
 
   module Location =
     let toDT (location : Location) : Dval =
-      let optType = VT.unknownTODO
+      let optType = KTTuple(VT.int, VT.int, [])
       match location with
       | None -> Dval.optionNone optType
       | Some(tlid, id) ->
@@ -91,133 +91,109 @@ module Error =
 
 
   module Context =
-    let rec toDT (context : Context) : Ply<Dval> =
-      uply {
-        let! (caseName, fields) =
-          uply {
-            match context with
-            | FunctionCallParameter(fnName, param, paramIndex, location) ->
-              return
-                "FunctionCallParameter",
-                [ RT2DT.FnName.toDT fnName
-                  RT2DT.Param.toDT param
-                  DInt paramIndex
-                  Location.toDT location ]
+    let rec toDT (context : Context) : Dval =
+      let (caseName, fields) =
+        match context with
+        | FunctionCallParameter(fnName, param, paramIndex, location) ->
+          "FunctionCallParameter",
+          [ RT2DT.FnName.toDT fnName
+            RT2DT.Param.toDT param
+            DInt paramIndex
+            Location.toDT location ]
 
-            | FunctionCallResult(fnName, returnType, location) ->
-              return
-                "FunctionCallResult",
-                [ RT2DT.FnName.toDT fnName
-                  RT2DT.TypeReference.toDT returnType
-                  Location.toDT location ]
+        | FunctionCallResult(fnName, returnType, location) ->
+          "FunctionCallResult",
+          [ RT2DT.FnName.toDT fnName
+            RT2DT.TypeReference.toDT returnType
+            Location.toDT location ]
 
-            | RecordField(recordTypeName, fieldName, fieldType, location) ->
-              return
-                "RecordField",
-                [ RT2DT.TypeName.toDT recordTypeName
-                  DString fieldName
-                  RT2DT.TypeReference.toDT fieldType
-                  Location.toDT location ]
+        | RecordField(recordTypeName, fieldName, fieldType, location) ->
+          "RecordField",
+          [ RT2DT.TypeName.toDT recordTypeName
+            DString fieldName
+            RT2DT.TypeReference.toDT fieldType
+            Location.toDT location ]
 
-            | DictKey(key, typ, location) ->
-              return
-                "DictKey",
-                [ DString key; RT2DT.TypeReference.toDT typ; Location.toDT location ]
+        | DictKey(key, typ, location) ->
+          "DictKey",
+          [ DString key; RT2DT.TypeReference.toDT typ; Location.toDT location ]
 
-            | EnumField(enumTypeName,
-                        caseName,
-                        fieldIndex,
-                        fieldCount,
-                        fieldType,
-                        location) ->
-              return
-                "EnumField",
-                [ RT2DT.TypeName.toDT enumTypeName
-                  DString caseName
-                  DInt fieldIndex
-                  DInt fieldCount
-                  RT2DT.TypeReference.toDT fieldType
-                  Location.toDT location ]
+        | EnumField(enumTypeName,
+                    caseName,
+                    fieldIndex,
+                    fieldCount,
+                    fieldType,
+                    location) ->
+          "EnumField",
+          [ RT2DT.TypeName.toDT enumTypeName
+            DString caseName
+            DInt fieldIndex
+            DInt fieldCount
+            RT2DT.TypeReference.toDT fieldType
+            Location.toDT location ]
 
-            | DBQueryVariable(varName, expected, location) ->
-              return
-                "DBQueryVariable",
-                [ DString varName
-                  RT2DT.TypeReference.toDT expected
-                  Location.toDT location ]
+        | DBQueryVariable(varName, expected, location) ->
+          "DBQueryVariable",
+          [ DString varName
+            RT2DT.TypeReference.toDT expected
+            Location.toDT location ]
 
-            | DBSchemaType(name, expectedType, location) ->
-              return
-                "DBSchemaType",
-                [ DString name
-                  RT2DT.TypeReference.toDT expectedType
-                  Location.toDT location ]
+        | DBSchemaType(name, expectedType, location) ->
+          "DBSchemaType",
+          [ DString name
+            RT2DT.TypeReference.toDT expectedType
+            Location.toDT location ]
 
-            | ListIndex(index, listTyp, parent) ->
-              let! parent = toDT parent
-              return
-                "ListIndex", [ DInt index; RT2DT.TypeReference.toDT listTyp; parent ]
+        | ListIndex(index, listTyp, parent) ->
+          "ListIndex", [ DInt index; RT2DT.TypeReference.toDT listTyp; toDT parent ]
 
-            | TupleIndex(index, elementType, parent) ->
-              let! parent = toDT parent
-              return
-                "TupleIndex",
-                [ DInt index; RT2DT.TypeReference.toDT elementType; parent ]
+        | TupleIndex(index, elementType, parent) ->
+          "TupleIndex",
+          [ DInt index; RT2DT.TypeReference.toDT elementType; toDT parent ]
 
-            | FnValResult(returnType, location) ->
-              return
-                "FnValResult",
-                [ RT2DT.TypeReference.toDT returnType; Location.toDT location ]
-          }
+        | FnValResult(returnType, location) ->
+          "FnValResult",
+          [ RT2DT.TypeReference.toDT returnType; Location.toDT location ]
 
-        let typeName = RuntimeError.name [ "TypeChecker" ] "Context" 0
-        return! Dval.enum typeName typeName (Some []) caseName fields
-      }
+      let typeName = RuntimeError.name [ "TypeChecker" ] "Context" 0
+      DEnum(typeName, typeName, [], caseName, fields)
 
 
-  let toRuntimeError (e : Error) : Ply<RuntimeError> =
-    uply {
-      let! (caseName, fields) =
-        uply {
-          match e with
-          | ValueNotExpectedType(actualValue, expectedType, context) ->
-            let! context = Context.toDT context
-            return
-              "ValueNotExpectedType",
-              [ actualValue |> RT2DT.Dval.toDT
-                expectedType |> RT2DT.TypeReference.toDT
-                context ]
+  let toRuntimeError (e : Error) : RuntimeError =
+    let (caseName, fields) =
+      match e with
+      | ValueNotExpectedType(actualValue, expectedType, context) ->
+        "ValueNotExpectedType",
+        [ actualValue |> RT2DT.Dval.toDT
+          expectedType |> RT2DT.TypeReference.toDT
+          Context.toDT context ]
 
-          | TypeDoesntExist(typeName, context) ->
-            let! context = Context.toDT context
-            return "TypeDoesntExist", [ RT2DT.TypeName.toDT typeName; context ]
-        }
+      | TypeDoesntExist(typeName, context) ->
+        "TypeDoesntExist", [ RT2DT.TypeName.toDT typeName; Context.toDT context ]
 
-      let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
-      return!
-        Dval.enum typeName typeName (Some []) caseName fields
-        |> Ply.map RuntimeError.typeCheckerError
-    }
+    let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
+
+    DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.typeCheckerError
 
 let raiseValueNotExpectedType
   (source : Source)
   (dv : Dval)
   (typ : TypeReference)
   (context : Context)
-  : Ply<'a> =
+  : 'a =
   ValueNotExpectedType(dv, typ, context)
   |> Error.toRuntimeError
-  |> Ply.map (raiseRTE source)
+  |> raiseRTE source
 
 let raiseFnValResultNotExpectedType
   (source : Source)
   (dv : Dval)
   (typ : TypeReference)
-  : Ply<'a> =
+  : 'a =
   let context = FnValResult(typ, source)
   ValueNotExpectedType(dv, typ, context)
   |> Error.toRuntimeError
-  |> Ply.map (raiseRTE source)
+  |> raiseRTE source
 
 
 
@@ -335,10 +311,10 @@ let rec unify
       | TList expected, DList(actual, _dvs) ->
         match! valueTypeUnifies tst expected actual with
         | false ->
-          return!
+          return
             ValueNotExpectedType(value, TList expected, context)
             |> Error.toRuntimeError
-            |> Ply.map Error
+            |> Error
 
         | true -> return! Ply()
 
@@ -359,10 +335,10 @@ let rec unify
         let ts = t1 :: t2 :: tRest
         let vs = v1 :: v2 :: vRest
         if List.length ts <> List.length vs then
-          return!
+          return
             ValueNotExpectedType(value, expected, context)
             |> Error.toRuntimeError
-            |> Ply.map Error
+            |> Error
         else
           // let! results =
           //   List.zip ts vs
@@ -384,15 +360,13 @@ let rec unify
         | Ok typeName ->
           match! Types.find typeName types with
           | None ->
-            return!
-              TypeDoesntExist(typeName, context)
-              |> Error.toRuntimeError
-              |> Ply.map Error
+            return
+              TypeDoesntExist(typeName, context) |> Error.toRuntimeError |> Error
           | Some ut ->
             let err =
               ValueNotExpectedType(value, expected, context)
               |> Error.toRuntimeError
-              |> Ply.map Error
+              |> Error
 
             match ut, value with
             | { definition = TypeDeclaration.Alias aliasType }, _ ->
@@ -412,32 +386,32 @@ let rec unify
               | Ok(TCustomType(Error rte, _)) -> return Error rte
               | Ok(TCustomType(Ok concreteTn, _typeArgs)) ->
                 if concreteTn <> typeName then
-                  return!
+                  return
                     ValueNotExpectedType(value, expected, context)
                     |> Error.toRuntimeError
-                    |> Ply.map Error
+                    |> Error
                 else
                   // CLEANUP DRecord should include a TypeReference, in which case
                   // the type-checking here would just be a `tField = dField` check.
                   // (the construction of that DRecord should have already checked
                   // that the fields match)
                   return Ok()
-              | _ -> return! err
+              | _ -> return err
 
             | { definition = TypeDeclaration.Enum cases },
               DEnum(tn, _, _typeArgsDEnumTODO, caseName, valFields) ->
               // TODO: deal with aliased type?
               if tn <> typeName then
-                return!
+                return
                   ValueNotExpectedType(value, expected, context)
                   |> Error.toRuntimeError
-                  |> Ply.map Error
+                  |> Error
               else
                 let matchingCase : Option<TypeDeclaration.EnumCase> =
                   cases |> NEList.find (fun c -> c.name = caseName)
 
                 match matchingCase with
-                | None -> return! err
+                | None -> return err
                 | Some case ->
                   if List.length case.fields = List.length valFields then
                     // let! unified =
@@ -461,8 +435,8 @@ let rec unify
                     // that the fields match)
                     return Ok()
                   else
-                    return! err
-            | _, _ -> return! err
+                    return err
+            | _, _ -> return err
 
       // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695
       // TODO: exhaustiveness check
@@ -482,10 +456,10 @@ let rec unify
       | TChar, _
       | TDB _, _
       | TBytes, _ ->
-        return!
+        return
           ValueNotExpectedType(value, expected, context)
           |> Error.toRuntimeError
-          |> Ply.map Error
+          |> Error
   }
 
 
@@ -535,3 +509,195 @@ let checkFunctionReturnType
   : Ply<Result<unit, RuntimeError>> =
   let context = FunctionCallResult(fn.name, fn.returnType, None)
   unify context types tst fn.returnType result
+
+
+/// Helpers for creating type-checked Dvals
+/// (lists, records, enums, etc.)
+///
+/// Dvals should be created carefully:
+/// - to have the correct valueTypes, where appropriate
+///  i.e. we should not have DList(Known KTInt, [ DString("hi") ])
+///
+/// - similarly, we should fail when trying to merge Dvals with conflicting valueTypes
+///   i.e. `List.append [1] ["hi"]` should fail
+///   because we can't merge `Known KTInt` and `Known KTString`
+///
+/// These functions are intended to help with both of these, in cases where
+/// the functions in Dval.fs are insufficient (i.e. we don't know the Dark sub-types
+/// of a Dval in some F# code).
+///
+/// TODO: review _all_ usages of these functions
+module DvalCreator =
+  let list (initialType : ValueType) (list : List<Dval>) : Dval =
+    let (typ, dvs) =
+      List.fold
+        (fun (typ, list) dv ->
+          let dvalType = Dval.toValueType dv
+
+          match VT.merge typ dvalType with
+          | Ok newType -> newType, dv :: list
+          | Error() ->
+            RuntimeError.oldError
+              $"Could not merge types {ValueType.toString (VT.list typ)} and {ValueType.toString (VT.list dvalType)}"
+            |> raiseRTE None)
+        (initialType, [])
+        (List.rev list)
+
+    DList(typ, dvs)
+
+
+  let dict (typ : ValueType) (entries : List<string * Dval>) : Dval =
+    // TODO: dictPush, etc.
+    DDict(typ, Map entries)
+
+  let dictFromMap (typ : ValueType) (entries : Map<string, Dval>) : Dval =
+    // TODO: dictPush, etc.
+    DDict(typ, entries)
+
+  // CLEANUP - this fn was unused so I commented it out
+  // remove? or will it be handy?
+  // let dict (fields : List<string * Dval>) : Dval =
+  //   // Give a warning for duplicate keys
+  //   List.fold
+  //     (DDict(Map.empty))
+  //     (fun m (k, v) ->
+  //       match m, k, v with
+  //       // TYPESCLEANUP: remove hacks
+  //       // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
+  //       | m, _k, _v when isFake m -> m
+  //       // Errors should propagate (but only if we're not already propagating an error)
+  //       | DDict _, _, v when isFake v -> v
+  //       // Skip empty rows
+  //       | _, "", _ -> DError(None, $"Empty key: {k}")
+  //       // Error if the key appears twice
+  //       | DDict m, k, _v when Map.containsKey k m ->
+  //         DError(None, $"Duplicate key: {k}")
+  //       // Otherwise add it
+  //       | DDict m, k, v -> DDict(Map.add k v m)
+  //       // If we haven't got a DDict we're propagating an error so let it go
+  //       | m, _, _ -> m)
+  //     fields
+
+
+
+  let optionSome (innerType : ValueType) (dv : Dval) : Dval =
+    let typeName = Dval.optionType
+
+    let dvalType = Dval.toValueType dv
+
+    match VT.merge innerType dvalType with
+    | Ok typ ->
+      DEnum(typeName, typeName, Dval.ignoreAndUseEmpty [ typ ], "Some", [ dv ])
+    | Error() ->
+      RuntimeError.oldError
+        $"Could not merge types {ValueType.toString (VT.customType typeName [ innerType ])} and {ValueType.toString (VT.customType typeName [ dvalType ])}"
+      |> raiseRTE None
+
+  let optionNone (innerType : ValueType) : Dval =
+    DEnum(
+      Dval.optionType,
+      Dval.optionType,
+      Dval.ignoreAndUseEmpty [ innerType ],
+      "None",
+      []
+    )
+
+  let option (innerType : ValueType) (dv : Option<Dval>) : Dval =
+    match dv with
+    | Some dv -> optionSome innerType dv
+    | None -> optionNone innerType
+
+
+
+  let resultOk (okType : ValueType) (errorType : ValueType) (dvOk : Dval) : Dval =
+    let dvalType = Dval.toValueType dvOk
+    match VT.merge okType dvalType with
+    | Ok typ ->
+      DEnum(
+        Dval.resultType,
+        Dval.resultType,
+        Dval.ignoreAndUseEmpty [ typ; errorType ],
+        "Ok",
+        [ dvOk ]
+      )
+    | Error() ->
+      RuntimeError.oldError
+        $"Could not merge types {ValueType.toString (VT.customType Dval.resultType [ okType; errorType ])} and {ValueType.toString (VT.customType Dval.resultType [ dvalType; errorType ])}"
+      |> raiseRTE None
+
+  let resultError
+    (okType : ValueType)
+    (errorType : ValueType)
+    (dvError : Dval)
+    : Dval =
+    let dvalType = Dval.toValueType dvError
+    match VT.merge errorType dvalType with
+    | Ok typ ->
+      DEnum(
+        Dval.resultType,
+        Dval.resultType,
+        Dval.ignoreAndUseEmpty [ okType; typ ],
+        "Error",
+        [ dvError ]
+      )
+    | Error() ->
+      RuntimeError.oldError
+        $"Could not merge types {ValueType.toString (VT.customType Dval.resultType [ okType; errorType ])} and {ValueType.toString (VT.customType Dval.resultType [ okType; dvalType ])}"
+      |> raiseRTE None
+
+  let result
+    (okType : ValueType)
+    (errorType : ValueType)
+    (dv : Result<Dval, Dval>)
+    : Dval =
+    match dv with
+    | Ok dv -> resultOk okType errorType dv
+    | Error dv -> resultError okType errorType dv
+
+
+  /// Constructs a Dval.DRecord, ensuring that the fields match the expected shape
+  ///
+  /// note: if provided, the typeArgs must match the # of typeArgs expected by the type
+  let record
+    (typeName : TypeName.TypeName)
+    (fields : List<string * Dval>)
+    : Ply<Dval> =
+    let resolvedTypeName = typeName // TODO: alias lookup, etc.
+
+    let fields =
+      List.fold
+        (fun fields (k, v) ->
+          match fields, k, v with
+          // skip empty rows
+          | _, "", _ -> raiseUntargetedRTE (RuntimeError.oldError "Empty key")
+
+          // error if the key appears twice
+          | fields, k, _v when Map.containsKey k fields ->
+            raiseUntargetedRTE (RuntimeError.oldError $"Duplicate key: {k}")
+
+          // otherwise add it
+          | fields, k, v -> Map.add k v fields)
+        Map.empty
+        fields
+
+    // TODO:
+    // - pass in a (types: Types) arg
+    // - use it to determine type args of resultant Dval
+    // - ensure fields match the expected shape (defined by type args and field defs)
+    //   - this process should also effect the type args of the resultant Dval
+    DRecord(resolvedTypeName, typeName, VT.typeArgsTODO, fields) |> Ply
+
+
+  let enum
+    (resolvedTypeName : TypeName.TypeName) // todo: remove
+    (sourceTypeName : TypeName.TypeName)
+    (caseName : string)
+    (fields : List<Dval>)
+    : Ply<Dval> =
+    // TODO:
+    // - use passed-in Types to determine type args of resultant Dval
+    // - ensure fields match the expected shape (defined by type args and field defs)
+    //   - this process should also effect the type args of the resultant Dval
+
+    DEnum(resolvedTypeName, sourceTypeName, VT.typeArgsTODO, caseName, fields)
+    |> Ply

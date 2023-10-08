@@ -293,7 +293,7 @@ let fns : List<BuiltInFn> =
               |> List.distinctBy snd
               |> List.map fst
               |> List.sortWith DvalComparator.compareDval
-              |> Dval.list vt
+              |> fun l -> DList(vt, l)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -328,7 +328,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DList(vt, l) ] ->
           List.distinct l
           |> List.sortWith DvalComparator.compareDval
-          |> Dval.list vt
+          |> fun l -> DList(vt, l)
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -350,7 +350,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DList(vt, list) ] ->
-          list |> List.sortWith DvalComparator.compareDval |> Dval.list vt |> Ply
+          list
+          |> List.sortWith DvalComparator.compareDval
+          |> (fun l -> DList(vt, l))
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -392,7 +395,7 @@ let fns : List<BuiltInFn> =
               |> List.sortWith (fun (k1, _) (k2, _) ->
                 DvalComparator.compareDval k1 k2)
               |> List.map snd
-              |> Dval.list vt
+              |> fun l -> DList(vt, l)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -422,8 +425,8 @@ let fns : List<BuiltInFn> =
          of control."
       fn =
         let okType = VT.unknownTODO
-        let resultOk = Dval.resultOk okType VT.string
-        let resultError = Dval.resultError okType VT.string
+        let resultOk = TypeChecker.DvalCreator.resultOk okType VT.string
+        let resultError = TypeChecker.DvalCreator.resultError okType VT.string
 
         (function
         | state, _, [ DList(vt, list); DFnVal f ] ->
@@ -444,7 +447,7 @@ let fns : List<BuiltInFn> =
             try
               let array = List.toArray list
               do! Sort.sort fn array
-              return array |> Array.toList |> Dval.list vt |> resultOk
+              return array |> Array.toList |> (fun l -> DList(vt, l)) |> resultOk
             with Sort.InvalidSortComparatorInt i ->
               let message =
                 $"Expected comparator function to return -1, 0, or 1, but it returned {i}"
@@ -469,7 +472,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DList(vt1, l1); DList(_vt2, l2) ] ->
           // VTTODO should fail here in the case of vt1 conflicting with vt2?
           // (or is this handled by the interpreter?)
-          Ply(Dval.list vt1 (List.append l1 l2))
+          Ply(TypeChecker.DvalCreator.list vt1 (List.append l1 l2))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -505,7 +508,7 @@ let fns : List<BuiltInFn> =
               }
 
             let! result = Ply.List.filterSequentially f l
-            return Dval.list vt result
+            return DList(vt, result)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -569,7 +572,7 @@ let fns : List<BuiltInFn> =
               }
 
             let! result = Ply.List.filterMapSequentially f l
-            return Dval.list VT.unknownTODO result
+            return TypeChecker.DvalCreator.list VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -605,7 +608,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state state.caller b [] args)
                 list
 
-            return Dval.list VT.unknownTODO result
+            return TypeChecker.DvalCreator.list VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -652,7 +655,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state state.caller b [] args)
                 list
 
-            return Dval.list VT.unknownTODO result
+            return TypeChecker.DvalCreator.list VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -689,7 +692,7 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList(_vtTODO1, l1); DList(_vtTODO2, l2); DFnVal b ] ->
           uply {
             if List.length l1 <> List.length l2 then
-              return Dval.optionNone optType
+              return TypeChecker.DvalCreator.optionNone optType
             else
               let list = List.zip l1 l2
 
@@ -700,7 +703,9 @@ let fns : List<BuiltInFn> =
                     Interpreter.applyFnVal state state.caller b [] args)
                   list
 
-              return Dval.optionSome optType (Dval.list VT.unknownTODO result)
+              return
+                TypeChecker.DvalCreator.list VT.unknownTODO result
+                |> TypeChecker.DvalCreator.optionSome optType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -719,14 +724,14 @@ let fns : List<BuiltInFn> =
       fn =
         let optType = VT.unknownTODO
         (function
-        | _, _, [ DList(_, []) ] -> Dval.optionNone optType |> Ply
+        | _, _, [ DList(_, []) ] -> TypeChecker.DvalCreator.optionNone optType |> Ply
         | _, _, [ DList(_, l) ] ->
           // Will return <= (length - 1)
           // Maximum value is Int64.MaxValue which is half of UInt64.MaxValue, but
           // that won't affect this as we won't have a list that big for a long long
           // long time.
           let index = RNG.GetInt32(l.Length)
-          (List.tryItem index l) |> Dval.option optType |> Ply
+          (List.tryItem index l) |> TypeChecker.DvalCreator.option optType |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
@@ -749,7 +754,7 @@ let fns : List<BuiltInFn> =
           Preserves the order of values and of the keys."
       fn =
         (function
-        | state, _, [ DList(_vtTODO, l); DFnVal fn ] ->
+        | state, _, [ DList(listType, l); DFnVal fn ] ->
           uply {
             let applyFn (dval : Dval) : DvalTask =
               let args = NEList.singleton dval
@@ -770,9 +775,13 @@ let fns : List<BuiltInFn> =
               |> Seq.groupBy fst
               |> Seq.toList
               |> List.map (fun (key, elementsWithKey) ->
-                let elements = Seq.map snd elementsWithKey |> Seq.toList
-                DTuple(key, Dval.list VT.unknownTODO elements, []))
-              |> Dval.list VT.unknownTODO
+                DTuple(
+                  key,
+                  DList(listType, Seq.map snd elementsWithKey |> Seq.toList),
+                  []
+                ))
+              |> fun pairs ->
+                  DList(VT.tuple VT.unknownTODO (VT.list listType) [], pairs)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

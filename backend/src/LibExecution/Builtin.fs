@@ -4,7 +4,6 @@ module LibExecution.Builtin
 open Prelude
 open RuntimeTypes
 
-type TypeRenames = List<TypeName.BuiltIn * TypeName.BuiltIn>
 type FnRenames = List<FnName.BuiltIn * FnName.BuiltIn>
 
 /// All Libs should expose `contents`, which is a list of all the types and functions it provides
@@ -42,29 +41,6 @@ let renameFunctions
     |> Map.values
   existing @ newFns
 
-let renameTypes
-  (renames : TypeRenames)
-  (existing : List<BuiltInType>)
-  : List<BuiltInType> =
-  let existingMap = existing |> List.map (fun typ -> typ.name, typ) |> Map
-  let newTypes =
-    renames
-    |> List.fold
-      (fun renamedTypes (oldName, newName) ->
-        let newType =
-          Map.find newName (Map.mergeFavoringLeft renamedTypes existingMap)
-          |> Exception.unwrapOptionInternal
-            $"all types should exist {oldName} -> {newName}"
-            [ "oldName", oldName; "newName", newName ]
-        Map.add
-          oldName
-          { newType with
-              name = oldName
-              deprecated = RenamedTo(FQName.BuiltIn newName) }
-          renamedTypes)
-      Map.empty
-    |> Map.values
-  existing @ newTypes
 
 let checkFn (_fn : BuiltInFn) : unit =
   // We can't do this until constants (eg Math.pi) are no longer implemented as functions
@@ -73,15 +49,11 @@ let checkFn (_fn : BuiltInFn) : unit =
   ()
 
 /// Provided a list of library contents, combine them (handling renames)
-let combine
-  (libs : List<Contents>)
-  (fnRenames : FnRenames)
-  (typeRenames : TypeRenames)
-  : Contents =
+let combine (libs : List<Contents>) (fnRenames : FnRenames) : Contents =
   let (fns, types, constants) = List.unzip3 libs
   fns |> List.concat |> List.iter checkFn
   (fns |> List.concat |> renameFunctions fnRenames,
-   types |> List.concat |> renameTypes typeRenames,
+   types |> List.concat,
    constants |> List.concat)
 
 

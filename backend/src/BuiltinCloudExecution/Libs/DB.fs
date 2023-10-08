@@ -7,6 +7,7 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
 module Dval = LibExecution.Dval
+module TypeChecker = LibExecution.TypeChecker
 
 module UserDB = LibCloud.UserDB
 module Db = LibCloud.Db
@@ -80,7 +81,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getOption state db key
-            return Dval.option VT.unknownDbTODO result
+            return TypeChecker.DvalCreator.option VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -96,7 +97,7 @@ let fns : List<BuiltInFn> =
         "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Some a list of [values], otherwise returns None (to ignore missing keys, use DB.etExisting)"
       fn =
         let valueType = VT.unknownDbTODO
-        let optType = VT.list valueType
+        let optType = KTList valueType
         (function
         | state, _, [ DList(_, keys); DDB dbname ] ->
           uply {
@@ -110,7 +111,10 @@ let fns : List<BuiltInFn> =
               |> UserDB.getMany state db
 
             if List.length items = List.length keys then
-              return items |> Dval.list valueType |> Dval.optionSome optType
+              return
+                items
+                |> TypeChecker.DvalCreator.list valueType
+                |> Dval.optionSome optType
             else
               return Dval.optionNone optType
           }
@@ -138,7 +142,7 @@ let fns : List<BuiltInFn> =
                 | DString s -> s
                 | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
               |> UserDB.getMany state db
-            return result |> Dval.list VT.unknownDbTODO
+            return result |> TypeChecker.DvalCreator.list VT.unknownDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -163,7 +167,7 @@ let fns : List<BuiltInFn> =
                 | DString s -> s
                 | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
               |> UserDB.getManyWithKeys state db
-            return Dval.dict VT.unknownDbTODO result
+            return TypeChecker.DvalCreator.dict VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -220,7 +224,10 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAll state db
-            return results |> List.map snd |> Dval.list VT.unknownDbTODO
+            return
+              results
+              |> List.map snd
+              |> TypeChecker.DvalCreator.list VT.unknownDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -240,7 +247,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getAll state db
-            return Dval.dict VT.unknownDbTODO result
+            return TypeChecker.DvalCreator.dict VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -293,8 +300,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAllKeys state db
-            return
-              results |> List.map DString |> Dval.list (ValueType.Known KTString)
+            return results |> List.map DString |> Dval.list KTString
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -316,7 +322,8 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! results = UserDB.queryValues state db b
               match results with
-              | Ok results -> return results |> Dval.list VT.unknownDbTODO
+              | Ok results ->
+                return results |> TypeChecker.DvalCreator.list VT.unknownDbTODO
               | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
@@ -341,7 +348,8 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! results = UserDB.query state db b
               match results with
-              | Ok results -> return Dval.dict VT.unknownDbTODO results
+              | Ok results ->
+                return TypeChecker.DvalCreator.dict VT.unknownDbTODO results
               | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
@@ -368,8 +376,8 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.query state db b
 
               match results with
-              | Ok [ (_, v) ] -> return Dval.optionSome optType v
-              | Ok _ -> return Dval.optionNone optType
+              | Ok [ (_, v) ] -> return TypeChecker.DvalCreator.optionSome optType v
+              | Ok _ -> return TypeChecker.DvalCreator.optionNone optType
               | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
@@ -387,7 +395,7 @@ let fns : List<BuiltInFn> =
       description =
         "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Some {key: value} and if there is none or more than 1 found, it returns None. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
-        let optType = VT.tuple VT.string VT.unknownTODO []
+        let optType = VT.tuple VT.string VT.unknownDbTODO []
         (function
         | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
           uply {
@@ -397,8 +405,11 @@ let fns : List<BuiltInFn> =
 
               match results with
               | Ok [ (key, dv) ] ->
-                return Dval.optionSome optType (DTuple(DString key, dv, []))
-              | Ok _ -> return Dval.optionNone optType
+                return
+                  TypeChecker.DvalCreator.optionSome
+                    optType
+                    (DTuple(DString key, dv, []))
+              | Ok _ -> return TypeChecker.DvalCreator.optionNone optType
               | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e

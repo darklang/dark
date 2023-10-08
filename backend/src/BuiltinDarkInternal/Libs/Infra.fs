@@ -12,30 +12,13 @@ module Dval = LibExecution.Dval
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Telemetry = LibService.Telemetry
 
-let modules = [ "DarkInternal"; "Infra" ]
-let typ = typ modules
-let fn = fn modules
+let fn = fn [ "DarkInternal"; "Infra" ]
+
+let packageInfraType (addlModules : List<string>) (name : string) (version : int) =
+  TypeName.fqPackage "Darklang" ("Internal" :: "Infra" :: addlModules) name version
 
 
-let types : List<BuiltInType> =
-  [ { name = typ "TableSize" 0
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                // Number of bytes on disk
-                { name = "disk"; typ = TInt }
-                // Number of rows
-                [ { name = "rows"; typ = TInt }
-                  // Disk space in human readable form
-                  { name = "diskHuman"; typ = TString }
-                  // Number of rows in human readable form
-                  { name = "rowsHuman"; typ = TString } ]
-            ) }
-      deprecated = NotDeprecated
-      description = "Size info for Postgres tables" } ]
-
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "log" 0
@@ -49,7 +32,7 @@ let fns : List<BuiltInFn> =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides. Returns its input"
       fn =
         (function
-        | _, _, [ DString level; DString name; DDict(_typeArgsTODO, log) as result ] ->
+        | _, _, [ DString level; DString name; DDict(_, log) as result ] ->
           let args =
             log
             |> Map.toList
@@ -68,7 +51,7 @@ let fns : List<BuiltInFn> =
     { name = fn "getAndLogTableSizes" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TDict(stdlibTypeRef [ "DarkInternal"; "Infra" ] "TableSize" 0)
+      returnType = TDict(TCustomType(Ok(packageInfraType [] "TableSize" 0), []))
       description =
         "Query the postgres database for the current size (disk + rowcount) of all
 tables. This uses pg_stat, so it is fast but imprecise. This function is logged
@@ -100,24 +83,19 @@ human-readable data."
                   ("disk_human", ts.diskHuman)
                   ("rows_human", ts.rowsHuman) ])
 
-            let typeName = FQName.BuiltIn(typ "TableSize" 0)
+            let typeName = packageInfraType [] "TableSize" 0
 
-            let! dict =
+            return
               tableStats
-              |> Ply.List.mapSequentially (fun ts ->
-                uply {
-                  let! v =
-                    [ ("disk", DInt(ts.diskBytes))
-                      ("rows", DInt(ts.rows))
-                      ("diskHuman", DString ts.diskHuman)
-                      ("rowsHuman", DString ts.rowsHuman) ]
-                    |> Dval.record typeName (Some [])
+              |> List.map (fun ts ->
+                let fields =
+                  [ ("disk", DInt(ts.diskBytes))
+                    ("rows", DInt(ts.rows))
+                    ("diskHuman", DString ts.diskHuman)
+                    ("rowsHuman", DString ts.rowsHuman) ]
 
-                  return (ts.relation, v)
-                })
-              |> Ply.map (Dval.dict VT.unknownTODO)
-
-            return dict
+                (ts.relation, DRecord(typeName, typeName, [], Map fields)))
+              |> Dval.dict (KTCustomType(typeName, []))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -151,7 +129,7 @@ human-readable data."
       description = "Returns the git hash of the server's current deploy"
       fn =
         (function
-        | _, _, [ DUnit ] -> uply { return DString LibService.Config.buildHash }
+        | _, _, [ DUnit ] -> LibService.Config.buildHash |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

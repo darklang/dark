@@ -98,9 +98,9 @@ let fns : List<BuiltInFn> =
           let res = System.Math.Acos r in
 
           if System.Double.IsNaN res then
-            Dval.optionNone VT.float |> Ply
+            Dval.optionNone KTFloat |> Ply
           else
-            Dval.optionSome VT.float (DFloat res) |> Ply
+            Dval.optionSome KTFloat (DFloat res) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -125,9 +125,9 @@ let fns : List<BuiltInFn> =
           let res = System.Math.Asin r in
 
           if System.Double.IsNaN res then
-            Dval.optionNone VT.float |> Ply
+            Dval.optionNone KTFloat |> Ply
           else
-            Dval.optionSome VT.float (DFloat res) |> Ply
+            Dval.optionSome KTFloat (DFloat res) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

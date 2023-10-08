@@ -24,8 +24,8 @@ let fns : List<BuiltInFn> =
       description =
         "Extract the public key from a PEM encoded certificate and return the key in PEM format."
       fn =
-        let resultOk = Dval.resultOk VT.string VT.string
-        let resultError = Dval.resultError VT.string VT.string
+        let resultOk = Dval.resultOk KTString KTString
+        let resultError = Dval.resultError KTString KTString
         (function
         | _, _, [ DString certString ] ->
           try

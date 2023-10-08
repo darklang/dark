@@ -25,7 +25,6 @@ let builtIns : RT.BuiltIns =
         BuiltinCloudExecution.Builtin.contents
         TestUtils.LibTest.contents ]
       []
-      []
   { types = types |> Map.fromListBy (fun typ -> typ.name)
     fns = fns |> Map.fromListBy (fun fn -> fn.name)
     constants = constants |> Map.fromListBy (fun c -> c.name) }
@@ -281,11 +280,7 @@ let runLocalExecScript (args : string[]) : Ply<int> =
           packageManager = Some LibCloud.PackageManager.packageManager }
     let! modul = LibParser.Canvas.parseFromFile nameResolver mainFile
 
-    let args =
-      args
-      |> Array.toList
-      |> List.map RT.DString
-      |> Dval.list (RT.ValueType.Known RT.KTString)
+    let args = args |> Array.toList |> List.map RT.DString |> Dval.list RT.KTString
 
     let result = execute modul (Map [ "args", args ])
 

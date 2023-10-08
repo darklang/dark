@@ -31,13 +31,16 @@ let getStateForEval
       secrets = List.empty }
 
   { builtIns = builtIns
-    packageManager = packageManager
     tracing = LibExecution.Execution.noTracing
-    program = program
     test = LibExecution.Execution.noTestContext
     reportException = consoleReporter
     notify = consoleNotifier
-    caller = None }
+
+    program = program
+
+    packageManager = packageManager
+    caller = None
+    typeSymbolTable = Map.empty }
 
 /// Any 'loose' exprs in the source are mapped without context of previous/later exprs
 /// so, a binding set in one 'let' will be unavailable in the next expr if evaluated one by one.

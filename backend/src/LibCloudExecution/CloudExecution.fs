@@ -24,7 +24,6 @@ let builtins : LibExecution.Builtin.Contents =
       BuiltinCloudExecution.Builtin.contents
       BuiltinDarkInternal.Builtin.contents ]
     []
-    []
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) = builtins
   { types = types |> Map.fromListBy (fun typ -> typ.name)
@@ -136,7 +135,7 @@ let executeHandler
       | None -> Ply "No source"
       | Some(tlid, id) -> sourceOf tlid id
 
-    let error (msg : string) : Ply<RT.Dval> =
+    let error (msg : string) : RT.Dval =
       let typeName =
         RT.FQName.Package
           { owner = "Darklang"
@@ -144,21 +143,13 @@ let executeHandler
             name = RT.TypeName.TypeName "Response"
             version = 0 }
 
-      Dval.record
-        typeName
-        (Some [])
-        [ "statusCode", RT.DInt 500
-          "headers",
-          Dval.list
-            (RT.ValueType.Known(
-              RT.KTTuple(
-                RT.ValueType.Known RT.KTString,
-                RT.ValueType.Known RT.KTString,
-                []
-              )
-            ))
-            []
-          "body", RT.DBytes(msg |> UTF8.toBytes) ]
+      let fields =
+        [ ("statusCode", RT.DInt 500)
+          ("headers",
+           [] |> Dval.list (RT.KTTuple(RT.ValueType.string, RT.ValueType.string, [])))
+          ("body", RT.DBytes(msg |> UTF8.toBytes)) ]
+
+      RT.DRecord(typeName, typeName, [], Map fields)
 
     // CLEANUP This is a temporary hack to make it easier to work on local dev
     // servers. We should restrict this to dev mode only
@@ -171,13 +162,13 @@ let executeHandler
           match! Exe.runtimeErrorToString state originalRTE with
           | Ok(RT.DString msg) ->
             let msg = $"Error: {msg}\n\nSource: {originalSource}"
-            return! error msg
+            return error msg
           | Ok result -> return result
           | Error(firstErrorSource, firstErrorRTE) ->
             let! firstErrorSource = sourceString firstErrorSource
             match! Exe.runtimeErrorToString state firstErrorRTE with
             | Ok(RT.DString msg) ->
-              return!
+              return
                 error (
                   $"An error occured trying to print a runtime error."
                   + $"\n\nThe formatting error occurred in {firstErrorSource}. The error was:\n{msg}"
@@ -186,7 +177,7 @@ let executeHandler
             | Ok result -> return result
             | Error(secondErrorSource, secondErrorRTE) ->
               let! secondErrorSource = sourceString secondErrorSource
-              return!
+              return
                 error (
                   $"Two errors occured trying to print a runtime error."
                   + $"\n\nThe 2nd formatting error occurred in {secondErrorSource}. The error was:\n{secondErrorRTE}"

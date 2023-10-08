@@ -240,18 +240,27 @@ module Expr =
         let! typeName = resolveTypeName resolver currentModule typeName caseName
         let! exprs = Ply.List.mapSequentially toPT exprs
         return PT.EEnum(id, typeName, caseName, exprs)
-      | WT.EMatch(id, mexpr, pairs) ->
+      | WT.EMatch(id, mexpr, cases) ->
         let! mexpr = toPT mexpr
         let! cases =
           Ply.List.mapSequentially
-            (fun (mp, expr) ->
+            (fun (case : WT.MatchCase) ->
               uply {
-                let mp = MatchPattern.toPT mp
-                let! expr = toPT expr
-                return (mp, expr)
+                let mp = MatchPattern.toPT case.pat
+                let! whenCondition =
+                  uply {
+                    match case.whenCondition with
+                    | Some whenExpr ->
+                      let! whenExpr = toPT whenExpr
+                      return Some whenExpr
+                    | None -> return None
+                  }
+                let! expr = toPT case.rhs
+                let result : PT.MatchCase =
+                  { pat = mp; whenCondition = whenCondition; rhs = expr }
+                return result
               })
-            pairs
-
+            cases
 
         return PT.EMatch(id, mexpr, cases)
       | WT.EInfix(id, infix, arg1, arg2) ->

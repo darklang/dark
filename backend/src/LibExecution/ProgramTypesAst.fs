@@ -48,8 +48,17 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EDict(id, pairs) -> EDict(id, List.map (fun (k, v) -> (k, f v)) pairs)
   | ETuple(id, first, second, theRest) ->
     ETuple(id, f first, f second, List.map f theRest)
-  | EMatch(id, mexpr, pairs) ->
-    EMatch(id, f mexpr, List.map (fun (name, expr) -> (name, f expr)) pairs)
+  | EMatch(id, mexpr, cases) ->
+    EMatch(
+      id,
+      f mexpr,
+      List.map
+        (fun case ->
+          { pat = case.pat
+            whenCondition = Option.map f case.whenCondition
+            rhs = f case.rhs })
+        cases
+    )
   | ERecord(id, typeName, fields) ->
     ERecord(id, typeName, List.map (fun (name, expr) -> (name, f expr)) fields)
   | ERecordUpdate(id, record, updates) ->
@@ -175,13 +184,16 @@ let rec preTraversal
     ETuple(id, f first, f second, List.map f theRest)
   | EEnum(id, typeName, caseName, fields) ->
     EEnum(id, Result.map fqtnFn typeName, caseName, List.map f fields)
-  | EMatch(id, mexpr, pairs) ->
+  | EMatch(id, mexpr, cases) ->
     EMatch(
       id,
       f mexpr,
       List.map
-        (fun (pattern, expr) -> (preTraverseMatchPattern pattern, f expr))
-        pairs
+        (fun case ->
+          { pat = preTraverseMatchPattern case.pat
+            whenCondition = Option.map f case.whenCondition
+            rhs = f case.rhs })
+        cases
     )
   | ERecord(id, typeName, fields) ->
     ERecord(

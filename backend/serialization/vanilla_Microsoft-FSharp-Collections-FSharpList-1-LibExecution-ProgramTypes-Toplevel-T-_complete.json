@@ -991,8 +991,8 @@
                                                               ]
                                                             },
                                                             [
-                                                              [
-                                                                {
+                                                              {
+                                                                "pat": {
                                                                   "MPEnum": [
                                                                     1015986188,
                                                                     "Ok",
@@ -1006,57 +1006,61 @@
                                                                     ]
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EVariable": [
                                                                     863810169,
                                                                     "v"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPInt": [
                                                                     928253813,
                                                                     5
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EInt": [
                                                                     342670561,
                                                                     "-9223372036854775808"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPBool": [
                                                                     435227293,
                                                                     true
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EInt": [
                                                                     232748650,
                                                                     7
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPChar": [
                                                                     387662539,
                                                                     "c"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EChar": [
                                                                     657848009,
                                                                     "c"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPList": [
                                                                     387662539,
                                                                     [
@@ -1069,7 +1073,8 @@
                                                                     ]
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EList": [
                                                                     657848009,
                                                                     [
@@ -1082,9 +1087,9 @@
                                                                     ]
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPListCons": [
                                                                     596996239,
                                                                     {
@@ -1119,7 +1124,8 @@
                                                                     }
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EList": [
                                                                     657848009,
                                                                     [
@@ -1132,15 +1138,16 @@
                                                                     ]
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPString": [
                                                                     491115870,
                                                                     "string"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EString": [
                                                                     820329949,
                                                                     [
@@ -1162,27 +1169,29 @@
                                                                     ]
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPUnit": [
                                                                     701616052
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EUnit": [
                                                                     731162955
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPVariable": [
                                                                     722099983,
                                                                     "var"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EInfix": [
                                                                     275666765,
                                                                     {
@@ -1206,9 +1215,9 @@
                                                                     }
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPFloat": [
                                                                     409097457,
                                                                     {
@@ -1218,7 +1227,8 @@
                                                                     "6"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EFloat": [
                                                                     131187958,
                                                                     {
@@ -1228,9 +1238,9 @@
                                                                     "6"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPTuple": [
                                                                     1285610,
                                                                     {
@@ -1255,13 +1265,57 @@
                                                                     ]
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EBool": [
                                                                     123716747,
                                                                     true
                                                                   ]
                                                                 }
-                                                              ]
+                                                              },
+                                                              {
+                                                                "pat": {
+                                                                  "MPTuple": [
+                                                                    1285610,
+                                                                    {
+                                                                      "MPVariable": [
+                                                                        17823641,
+                                                                        "a"
+                                                                      ]
+                                                                    },
+                                                                    {
+                                                                      "MPVariable": [
+                                                                        58123641,
+                                                                        "b"
+                                                                      ]
+                                                                    },
+                                                                    [
+                                                                      {
+                                                                        "MPVariable": [
+                                                                          95723641,
+                                                                          "c"
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  ]
+                                                                },
+                                                                "whenCondition": {
+                                                                  "Some": [
+                                                                    {
+                                                                      "EBool": [
+                                                                        123716747,
+                                                                        true
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                "rhs": {
+                                                                  "EBool": [
+                                                                    123716747,
+                                                                    true
+                                                                  ]
+                                                                }
+                                                              }
                                                             ]
                                                           ]
                                                         },
@@ -2448,8 +2502,8 @@
                                                               ]
                                                             },
                                                             [
-                                                              [
-                                                                {
+                                                              {
+                                                                "pat": {
                                                                   "MPEnum": [
                                                                     1015986188,
                                                                     "Ok",
@@ -2463,57 +2517,61 @@
                                                                     ]
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EVariable": [
                                                                     863810169,
                                                                     "v"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPInt": [
                                                                     928253813,
                                                                     5
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EInt": [
                                                                     342670561,
                                                                     "-9223372036854775808"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPBool": [
                                                                     435227293,
                                                                     true
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EInt": [
                                                                     232748650,
                                                                     7
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPChar": [
                                                                     387662539,
                                                                     "c"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EChar": [
                                                                     657848009,
                                                                     "c"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPList": [
                                                                     387662539,
                                                                     [
@@ -2526,7 +2584,8 @@
                                                                     ]
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EList": [
                                                                     657848009,
                                                                     [
@@ -2539,9 +2598,9 @@
                                                                     ]
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPListCons": [
                                                                     596996239,
                                                                     {
@@ -2576,7 +2635,8 @@
                                                                     }
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EList": [
                                                                     657848009,
                                                                     [
@@ -2589,15 +2649,16 @@
                                                                     ]
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPString": [
                                                                     491115870,
                                                                     "string"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EString": [
                                                                     820329949,
                                                                     [
@@ -2619,27 +2680,29 @@
                                                                     ]
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPUnit": [
                                                                     701616052
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EUnit": [
                                                                     731162955
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPVariable": [
                                                                     722099983,
                                                                     "var"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EInfix": [
                                                                     275666765,
                                                                     {
@@ -2663,9 +2726,9 @@
                                                                     }
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPFloat": [
                                                                     409097457,
                                                                     {
@@ -2675,7 +2738,8 @@
                                                                     "6"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EFloat": [
                                                                     131187958,
                                                                     {
@@ -2685,9 +2749,9 @@
                                                                     "6"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPTuple": [
                                                                     1285610,
                                                                     {
@@ -2712,13 +2776,57 @@
                                                                     ]
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EBool": [
                                                                     123716747,
                                                                     true
                                                                   ]
                                                                 }
-                                                              ]
+                                                              },
+                                                              {
+                                                                "pat": {
+                                                                  "MPTuple": [
+                                                                    1285610,
+                                                                    {
+                                                                      "MPVariable": [
+                                                                        17823641,
+                                                                        "a"
+                                                                      ]
+                                                                    },
+                                                                    {
+                                                                      "MPVariable": [
+                                                                        58123641,
+                                                                        "b"
+                                                                      ]
+                                                                    },
+                                                                    [
+                                                                      {
+                                                                        "MPVariable": [
+                                                                          95723641,
+                                                                          "c"
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  ]
+                                                                },
+                                                                "whenCondition": {
+                                                                  "Some": [
+                                                                    {
+                                                                      "EBool": [
+                                                                        123716747,
+                                                                        true
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                "rhs": {
+                                                                  "EBool": [
+                                                                    123716747,
+                                                                    true
+                                                                  ]
+                                                                }
+                                                              }
                                                             ]
                                                           ]
                                                         },
@@ -3908,8 +4016,8 @@
                                                               ]
                                                             },
                                                             [
-                                                              [
-                                                                {
+                                                              {
+                                                                "pat": {
                                                                   "MPEnum": [
                                                                     1015986188,
                                                                     "Ok",
@@ -3923,57 +4031,61 @@
                                                                     ]
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EVariable": [
                                                                     863810169,
                                                                     "v"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPInt": [
                                                                     928253813,
                                                                     5
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EInt": [
                                                                     342670561,
                                                                     "-9223372036854775808"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPBool": [
                                                                     435227293,
                                                                     true
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EInt": [
                                                                     232748650,
                                                                     7
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPChar": [
                                                                     387662539,
                                                                     "c"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EChar": [
                                                                     657848009,
                                                                     "c"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPList": [
                                                                     387662539,
                                                                     [
@@ -3986,7 +4098,8 @@
                                                                     ]
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EList": [
                                                                     657848009,
                                                                     [
@@ -3999,9 +4112,9 @@
                                                                     ]
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPListCons": [
                                                                     596996239,
                                                                     {
@@ -4036,7 +4149,8 @@
                                                                     }
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EList": [
                                                                     657848009,
                                                                     [
@@ -4049,15 +4163,16 @@
                                                                     ]
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPString": [
                                                                     491115870,
                                                                     "string"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EString": [
                                                                     820329949,
                                                                     [
@@ -4079,27 +4194,29 @@
                                                                     ]
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPUnit": [
                                                                     701616052
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EUnit": [
                                                                     731162955
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPVariable": [
                                                                     722099983,
                                                                     "var"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EInfix": [
                                                                     275666765,
                                                                     {
@@ -4123,9 +4240,9 @@
                                                                     }
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPFloat": [
                                                                     409097457,
                                                                     {
@@ -4135,7 +4252,8 @@
                                                                     "6"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EFloat": [
                                                                     131187958,
                                                                     {
@@ -4145,9 +4263,9 @@
                                                                     "6"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPTuple": [
                                                                     1285610,
                                                                     {
@@ -4172,13 +4290,57 @@
                                                                     ]
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EBool": [
                                                                     123716747,
                                                                     true
                                                                   ]
                                                                 }
-                                                              ]
+                                                              },
+                                                              {
+                                                                "pat": {
+                                                                  "MPTuple": [
+                                                                    1285610,
+                                                                    {
+                                                                      "MPVariable": [
+                                                                        17823641,
+                                                                        "a"
+                                                                      ]
+                                                                    },
+                                                                    {
+                                                                      "MPVariable": [
+                                                                        58123641,
+                                                                        "b"
+                                                                      ]
+                                                                    },
+                                                                    [
+                                                                      {
+                                                                        "MPVariable": [
+                                                                          95723641,
+                                                                          "c"
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  ]
+                                                                },
+                                                                "whenCondition": {
+                                                                  "Some": [
+                                                                    {
+                                                                      "EBool": [
+                                                                        123716747,
+                                                                        true
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                "rhs": {
+                                                                  "EBool": [
+                                                                    123716747,
+                                                                    true
+                                                                  ]
+                                                                }
+                                                              }
                                                             ]
                                                           ]
                                                         },
@@ -5365,8 +5527,8 @@
                                                               ]
                                                             },
                                                             [
-                                                              [
-                                                                {
+                                                              {
+                                                                "pat": {
                                                                   "MPEnum": [
                                                                     1015986188,
                                                                     "Ok",
@@ -5380,57 +5542,61 @@
                                                                     ]
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EVariable": [
                                                                     863810169,
                                                                     "v"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPInt": [
                                                                     928253813,
                                                                     5
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EInt": [
                                                                     342670561,
                                                                     "-9223372036854775808"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPBool": [
                                                                     435227293,
                                                                     true
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EInt": [
                                                                     232748650,
                                                                     7
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPChar": [
                                                                     387662539,
                                                                     "c"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EChar": [
                                                                     657848009,
                                                                     "c"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPList": [
                                                                     387662539,
                                                                     [
@@ -5443,7 +5609,8 @@
                                                                     ]
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EList": [
                                                                     657848009,
                                                                     [
@@ -5456,9 +5623,9 @@
                                                                     ]
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPListCons": [
                                                                     596996239,
                                                                     {
@@ -5493,7 +5660,8 @@
                                                                     }
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EList": [
                                                                     657848009,
                                                                     [
@@ -5506,15 +5674,16 @@
                                                                     ]
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPString": [
                                                                     491115870,
                                                                     "string"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EString": [
                                                                     820329949,
                                                                     [
@@ -5536,27 +5705,29 @@
                                                                     ]
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPUnit": [
                                                                     701616052
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EUnit": [
                                                                     731162955
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPVariable": [
                                                                     722099983,
                                                                     "var"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EInfix": [
                                                                     275666765,
                                                                     {
@@ -5580,9 +5751,9 @@
                                                                     }
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPFloat": [
                                                                     409097457,
                                                                     {
@@ -5592,7 +5763,8 @@
                                                                     "6"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EFloat": [
                                                                     131187958,
                                                                     {
@@ -5602,9 +5774,9 @@
                                                                     "6"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPTuple": [
                                                                     1285610,
                                                                     {
@@ -5629,13 +5801,57 @@
                                                                     ]
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EBool": [
                                                                     123716747,
                                                                     true
                                                                   ]
                                                                 }
-                                                              ]
+                                                              },
+                                                              {
+                                                                "pat": {
+                                                                  "MPTuple": [
+                                                                    1285610,
+                                                                    {
+                                                                      "MPVariable": [
+                                                                        17823641,
+                                                                        "a"
+                                                                      ]
+                                                                    },
+                                                                    {
+                                                                      "MPVariable": [
+                                                                        58123641,
+                                                                        "b"
+                                                                      ]
+                                                                    },
+                                                                    [
+                                                                      {
+                                                                        "MPVariable": [
+                                                                          95723641,
+                                                                          "c"
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  ]
+                                                                },
+                                                                "whenCondition": {
+                                                                  "Some": [
+                                                                    {
+                                                                      "EBool": [
+                                                                        123716747,
+                                                                        true
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                "rhs": {
+                                                                  "EBool": [
+                                                                    123716747,
+                                                                    true
+                                                                  ]
+                                                                }
+                                                              }
                                                             ]
                                                           ]
                                                         },
@@ -7345,8 +7561,8 @@
                                                               ]
                                                             },
                                                             [
-                                                              [
-                                                                {
+                                                              {
+                                                                "pat": {
                                                                   "MPEnum": [
                                                                     1015986188,
                                                                     "Ok",
@@ -7360,57 +7576,61 @@
                                                                     ]
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EVariable": [
                                                                     863810169,
                                                                     "v"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPInt": [
                                                                     928253813,
                                                                     5
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EInt": [
                                                                     342670561,
                                                                     "-9223372036854775808"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPBool": [
                                                                     435227293,
                                                                     true
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EInt": [
                                                                     232748650,
                                                                     7
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPChar": [
                                                                     387662539,
                                                                     "c"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EChar": [
                                                                     657848009,
                                                                     "c"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPList": [
                                                                     387662539,
                                                                     [
@@ -7423,7 +7643,8 @@
                                                                     ]
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EList": [
                                                                     657848009,
                                                                     [
@@ -7436,9 +7657,9 @@
                                                                     ]
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPListCons": [
                                                                     596996239,
                                                                     {
@@ -7473,7 +7694,8 @@
                                                                     }
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EList": [
                                                                     657848009,
                                                                     [
@@ -7486,15 +7708,16 @@
                                                                     ]
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPString": [
                                                                     491115870,
                                                                     "string"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EString": [
                                                                     820329949,
                                                                     [
@@ -7516,27 +7739,29 @@
                                                                     ]
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPUnit": [
                                                                     701616052
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EUnit": [
                                                                     731162955
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPVariable": [
                                                                     722099983,
                                                                     "var"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EInfix": [
                                                                     275666765,
                                                                     {
@@ -7560,9 +7785,9 @@
                                                                     }
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPFloat": [
                                                                     409097457,
                                                                     {
@@ -7572,7 +7797,8 @@
                                                                     "6"
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EFloat": [
                                                                     131187958,
                                                                     {
@@ -7582,9 +7808,9 @@
                                                                     "6"
                                                                   ]
                                                                 }
-                                                              ],
-                                                              [
-                                                                {
+                                                              },
+                                                              {
+                                                                "pat": {
                                                                   "MPTuple": [
                                                                     1285610,
                                                                     {
@@ -7609,13 +7835,57 @@
                                                                     ]
                                                                   ]
                                                                 },
-                                                                {
+                                                                "whenCondition": null,
+                                                                "rhs": {
                                                                   "EBool": [
                                                                     123716747,
                                                                     true
                                                                   ]
                                                                 }
-                                                              ]
+                                                              },
+                                                              {
+                                                                "pat": {
+                                                                  "MPTuple": [
+                                                                    1285610,
+                                                                    {
+                                                                      "MPVariable": [
+                                                                        17823641,
+                                                                        "a"
+                                                                      ]
+                                                                    },
+                                                                    {
+                                                                      "MPVariable": [
+                                                                        58123641,
+                                                                        "b"
+                                                                      ]
+                                                                    },
+                                                                    [
+                                                                      {
+                                                                        "MPVariable": [
+                                                                          95723641,
+                                                                          "c"
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  ]
+                                                                },
+                                                                "whenCondition": {
+                                                                  "Some": [
+                                                                    {
+                                                                      "EBool": [
+                                                                        123716747,
+                                                                        true
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                },
+                                                                "rhs": {
+                                                                  "EBool": [
+                                                                    123716747,
+                                                                    true
+                                                                  ]
+                                                                }
+                                                              }
                                                             ]
                                                           ]
                                                         },

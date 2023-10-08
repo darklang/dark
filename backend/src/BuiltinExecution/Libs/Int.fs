@@ -103,8 +103,8 @@ let fns : List<BuiltInFn> =
 
          Returns an {{Error}} if <param divisor> is {{0}}."
       fn =
-        let resultOk r = Dval.resultOk VT.int VT.string r |> Ply
-        let resultError r = Dval.resultError VT.int VT.string r |> Ply
+        let resultOk r = Dval.resultOk KTInt KTString r |> Ply
+        let resultError r = Dval.resultError KTInt KTString r |> Ply
         (function
         | _, _, [ DInt v; DInt d ] ->
           (try
@@ -174,8 +174,8 @@ let fns : List<BuiltInFn> =
         <param exponent> must to be positive.
         Return value wrapped in a {{Result}} "
       fn =
-        let resultOk = Dval.resultOk VT.int VT.string
-        let resultError = Dval.resultError VT.int VT.string
+        let resultOk = Dval.resultOk KTInt KTString
+        let resultError = Dval.resultError KTInt KTString
         (function
         | _, _, [ DInt number; DInt exp as expdv ] ->
           let okPipe r = r |> DInt |> resultOk |> Ply
@@ -342,8 +342,8 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.result TInt TString
       description = "Returns the <type Int> value of a <type String>"
       fn =
-        let resultOk = Dval.resultOk VT.int VT.string
-        let resultError = Dval.resultError VT.int VT.string
+        let resultOk = Dval.resultOk KTInt KTString
+        let resultError = Dval.resultError KTInt KTString
         (function
         | _, _, [ DString s ] ->
           try
