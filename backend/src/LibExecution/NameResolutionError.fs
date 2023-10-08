@@ -9,7 +9,11 @@ module D = DvalDecoder
 
 type ErrorType =
   | NotFound
+
+  // TODO: this should be a TypeCheckerError, not a NameResolutionError
   | ExpectedEnumButNot
+
+  // TODO: this should be a TypeCheckerError, not a NameResolutionError
   | ExpectedRecordButNot
 
   // User tried to create enum like `Some(1)`, without specifying type like `Option.Some(1)`

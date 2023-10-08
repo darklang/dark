@@ -9,7 +9,6 @@ open LibExecution.Builtin.Shortcuts
 module TypeChecker = LibExecution.TypeChecker
 
 module VT = ValueType
-module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 
 let varA = TVariable "a"

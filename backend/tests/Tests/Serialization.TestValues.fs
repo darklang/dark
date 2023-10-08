@@ -9,7 +9,6 @@ open Prelude
 open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
-module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization

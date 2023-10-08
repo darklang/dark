@@ -15,7 +15,6 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
 module PT = LibExecution.ProgramTypes
-module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 open LibCloud.Db

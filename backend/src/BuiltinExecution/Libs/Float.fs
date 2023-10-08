@@ -6,9 +6,6 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
-module Dval = LibExecution.Dval
-
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 

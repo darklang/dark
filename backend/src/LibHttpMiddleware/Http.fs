@@ -7,7 +7,6 @@ module LibHttpMiddleware.Http
 open Prelude
 open LibExecution.Builtin.Shortcuts
 
-module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
 module Telemetry = LibService.Telemetry
 
@@ -29,7 +28,7 @@ module Request =
       headers
       |> lowercaseHeaderKeys
       |> List.map (fun (k, v) -> RT.DTuple(RT.DString(k), RT.DString(v), []))
-      |> Dval.list headerType
+      |> RT.Dval.list headerType
 
     let fields =
       [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]

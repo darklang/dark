@@ -10,7 +10,6 @@ open LibExecution.Builtin.Shortcuts
 open Wasm.EvalHelpers
 
 module VT = ValueType
-module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
 
 let types : List<BuiltInType> = []

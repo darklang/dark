@@ -9,7 +9,6 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
-module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize

@@ -6,7 +6,6 @@ open FSharp.Control.Tasks
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
-module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
@@ -88,7 +87,7 @@ let execute
     let state = state ()
     let fnName = RT.FnName.fqPackage "Darklang" [ "Cli" ] "executeCliCommand" 0
     let args =
-      args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
+      args |> List.map RT.DString |> RT.Dval.list RT.KTString |> NEList.singleton
     return! Exe.executeFunction state None fnName [] args
   }
 

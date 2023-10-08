@@ -8,7 +8,6 @@ open LibExecution.Builtin.Shortcuts
 
 module DarkDateTime = LibExecution.DarkDateTime
 module VT = ValueType
-module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
 
 

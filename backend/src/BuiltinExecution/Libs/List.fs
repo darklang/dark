@@ -5,7 +5,6 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
-module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 module TypeChecker = LibExecution.TypeChecker
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper

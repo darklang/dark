@@ -11,8 +11,6 @@ open TestUtils.TestUtils
 open LibExecution.RuntimeTypes
 open TestUtils.RTShortcuts
 
-module VT = ValueType
-module Dval = LibExecution.Dval
 module Exe = LibExecution.Execution
 module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 

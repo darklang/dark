@@ -13,8 +13,6 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
-module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
 module Interpreter = LibExecution.Interpreter
 

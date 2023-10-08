@@ -8,7 +8,6 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module Dval = LibExecution.Dval
 module DarkDateTime = LibExecution.DarkDateTime
 module SchedulingRules = LibCloud.QueueSchedulingRules
 module Pusher = LibCloud.Pusher

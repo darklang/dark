@@ -14,7 +14,6 @@ open Prelude
 module DarkDateTime = LibExecution.DarkDateTime
 module RT = LibExecution.RuntimeTypes
 module VT = RT.ValueType
-module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes

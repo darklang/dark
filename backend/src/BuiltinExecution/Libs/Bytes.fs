@@ -8,8 +8,6 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module Dval = LibExecution.Dval
-
 let types : List<BuiltInType> = []
 
 let modules = [ "Bytes" ]

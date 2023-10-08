@@ -7,7 +7,6 @@ open FSharp.Control.Tasks
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
-module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
@@ -281,7 +280,8 @@ let runLocalExecScript (args : string[]) : Ply<int> =
           packageManager = Some LibCloud.PackageManager.packageManager }
     let! modul = LibParser.Canvas.parseFromFile nameResolver mainFile
 
-    let args = args |> Array.toList |> List.map RT.DString |> Dval.list RT.KTString
+    let args =
+      args |> Array.toList |> List.map RT.DString |> RT.Dval.list RT.KTString
 
     let result = execute modul (Map [ "args", args ])
 

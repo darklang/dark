@@ -11,7 +11,6 @@ open LibExecution.Builtin.Shortcuts
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module VT = RT.ValueType
-module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module Exe = LibExecution.Execution

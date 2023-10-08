@@ -9,7 +9,6 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
-module Dval = LibExecution.Dval
 
 let modules = [ "DarkInternal"; "Documentation" ]
 

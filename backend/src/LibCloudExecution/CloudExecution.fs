@@ -9,7 +9,6 @@ open System.Threading.Tasks
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
-module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
@@ -147,7 +146,8 @@ let executeHandler
       let fields =
         [ ("statusCode", RT.DInt 500)
           ("headers",
-           [] |> Dval.list (RT.KTTuple(RT.ValueType.string, RT.ValueType.string, [])))
+           []
+           |> RT.Dval.list (RT.KTTuple(RT.ValueType.string, RT.ValueType.string, [])))
           ("body", RT.DBytes(msg |> UTF8.toBytes)) ]
 
       RT.DRecord(typeName, typeName, [], Map fields)

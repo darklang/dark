@@ -9,7 +9,6 @@ open TestUtils.TestUtils
 
 module RT = LibExecution.RuntimeTypes
 module VT = RT.ValueType
-module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper

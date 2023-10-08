@@ -10,7 +10,6 @@ open Prelude
 
 module RT = LibExecution.RuntimeTypes
 module VT = RT.ValueType
-module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
@@ -148,7 +147,7 @@ let executeHandler
 
       let fields : List<string * RT.Dval> =
         [ "statusCode", RT.DInt 500
-          "headers", Dval.list (RT.KTTuple(VT.string, VT.string, [])) []
+          "headers", RT.Dval.list (RT.KTTuple(VT.string, VT.string, [])) []
           "body", RT.DBytes(UTF8.toBytes msg) ]
 
       RT.DRecord(typeName, typeName, [], Map fields)

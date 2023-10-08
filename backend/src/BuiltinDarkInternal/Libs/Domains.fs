@@ -7,8 +7,6 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
-module Dval = LibExecution.Dval
 module Canvas = LibCloud.Canvas
 
 let modules = [ "DarkInternal"; "Canvas"; "Domain" ]

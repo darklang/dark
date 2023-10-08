@@ -4,11 +4,9 @@ open System.Threading.Tasks
 open System.Numerics
 open FSharp.Control.Tasks
 
-open LibExecution.RuntimeTypes
 open Prelude
+open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
-module VT = ValueType
-module Dval = LibExecution.Dval
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
