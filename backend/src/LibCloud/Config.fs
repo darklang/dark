@@ -71,7 +71,7 @@ let httpclientTimeoutInMs = int "DARK_CONFIG_HTTPCLIENT_TIMEOUT_IN_MS"
 
 let rollbarClientAccessToken =
   (* This is what the rollbar UI calls it *)
-  match string "DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM" with
+  match credentials "DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM" with
   | "none" -> None
   | item -> Some item
 
@@ -111,9 +111,9 @@ let pusherID = string "DARK_CONFIG_PUSHER_APP_ID"
 
 let pusherKey = string "DARK_CONFIG_PUSHER_KEY"
 
-let pusherSecret = string "DARK_CONFIG_PUSHER_SECRET"
+let pusherSecret = credentials "DARK_CONFIG_PUSHER_SECRET"
 
-let pusherCluster = string "DARK_CONFIG_PUSHER_CLUSTER"
+let pusherCluster = credentials "DARK_CONFIG_PUSHER_CLUSTER"
 
 
 // -------------------------
