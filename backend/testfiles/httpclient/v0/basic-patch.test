@@ -17,7 +17,7 @@ Hello back
 (let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "patch" "http://URL" [("Content-Type", "application/json; charset=utf-8")] ("5" |> PACKAGE.Darklang.Stdlib.String.toBytes)) |> Builtin.unwrap
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
-   Builtin.HttpClient.Response
+   PACKAGE.Darklang.Stdlib.HttpClient.Response
     { statusCode = 200
       headers = [
           ("server", "kestrel")

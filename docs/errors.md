@@ -32,7 +32,6 @@ flowchart LR;
     a4{{raiseRTE a RuntimeError}}
 ```
 
-
 ## Runtime Errors & Type Errors
 
 The primary way of indicating an error in the runtime and during code execution is a
@@ -92,7 +91,6 @@ We're trying to get to a place where we always include a valid `DvalSource` with
 `RuntimeError`, but often it can be hard. We plan to ensure we pass around enough
 information so that `RuntimeError`s always have a `DvalSource`.
 
-
 ### Builtin functions
 
 When writing a builtin function, typically we handle errors by returning a
@@ -102,7 +100,7 @@ appropriate for that function or for general use in the module, defined in a pac
 This sort of error handling is appropriate where the user calls the function
 incorrectly, or something bad happens beyond our control.
 
-Example: `HttpClient.request "mywebsiteisdowntoday.com" = Error HttpClient.ConnectionError`
+Example: `HttpClient.request "mywebsiteisdowntoday.com" = Error HttpClient.NetworkError`
 
 Example: `Float.parse "not a float" = Error Float.Error.InvalidFloatString`
 
@@ -160,8 +158,6 @@ metadata for debugging the issue. We should debug and solve these.
 `Exception.raiseInternal`, in the cli runtime, will hopefully be connected to a wizard
 to allow users to report internal errors semi-automatically for us to debug and solve.
 
-
-
 ## RuntimeError implementation
 
 Unusually, a `RuntimeError` contains a `Dval`, which corresponds to a type in
@@ -197,7 +193,6 @@ Prefer to make a new user-facing `RuntimeError` for your module (or add an extra
 variant to the existing `RuntimeError` enum in a module if there is one and if that
 feels more appropriate).
 
-
 ### What to put in a RuntimeError
 
 `RuntimeError`s often have fields that can be used to provide errors to the user.
@@ -206,4 +201,3 @@ message you'd like the user to see, and to capture any values you need for it. N
 that `RuntimeError`s are raised alongside a `DvalSource` (tlid and id of the
 expression/etc it happens in), so you do not need to capture the Expression being
 executed.
-

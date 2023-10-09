@@ -24,15 +24,66 @@ type Request = { url : string; method : Method; headers : Headers.T; body : Body
 
 type Response = { statusCode : int; headers : Headers.T; body : Body }
 
-// forked from Elm's HttpError type
-// https://package.elm-lang.org/packages/elm/http/latest/Http#Error
-type RequestError =
-  | BadUrl of details : string
-  | Timeout
-  | NetworkError
-  | Other of details : string
 
-type RequestResult = Result<Response, RequestError>
+module BadHeader =
+  type BadHeader = | EmptyKey
+
+  let toDT (err : BadHeader) : Dval =
+    let (caseName, fields) =
+      match err with
+      | EmptyKey -> "EmptyKey", []
+    let typeName =
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "BadHeader" 0
+    DEnum(typeName, typeName, [], caseName, fields)
+
+module BadUrl =
+  type BadUrlDetails =
+    | UnsupportedProtocol
+    | InvalidHost
+    | InvalidUri
+    | InvalidRequest
+
+  let toDT (err : BadUrlDetails) : Dval =
+    let (caseName, fields) =
+      match err with
+      | UnsupportedProtocol -> "UnsupportedProtocol", []
+      | InvalidHost -> "InvalidHost", []
+      | InvalidUri -> "InvalidUri", []
+      | InvalidRequest -> "InvalidRequest", []
+
+    let typeName =
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "BadUrlDetails" 0
+    Dval.DEnum(typeName, typeName, [], caseName, fields)
+
+module RequestError =
+  // inspired by Elm's HttpError type
+  // https://package.elm-lang.org/packages/elm/http/latest/Http#Error
+  type RequestError =
+    | BadUrl of BadUrl.BadUrlDetails
+    | Timeout
+    | BadHeader of BadHeader.BadHeader
+    | NetworkError
+    | BadMethod
+
+  let toDT (err : RequestError) : Dval =
+    let (caseName, fields) =
+      match err with
+      | BadUrl details ->
+        let details = BadUrl.toDT details
+        "BadUrl", [ details ]
+      | Timeout -> "Timeout", []
+      | BadHeader err ->
+        let err = BadHeader.toDT err
+        "BadHeader", [ err ]
+      | NetworkError -> "NetworkError", []
+      | BadMethod -> "BadMethod", []
+
+    let typeName =
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "RequestError" 0
+    DEnum(typeName, typeName, [], caseName, fields)
+
+
+type RequestResult = Result<Response, RequestError.RequestError>
 
 type Configuration =
   { timeoutInMs : int
@@ -186,11 +237,19 @@ let makeRequest
 
         let host = uri.Host.Trim().ToLower()
         if not (config.allowedHost host) then
-          return Error(BadUrl "Invalid host")
+          return
+            Error(RequestError.RequestError.BadUrl BadUrl.BadUrlDetails.InvalidHost)
         else if not (config.allowedHeaders httpRequest.headers) then
-          return Error(BadUrl "Invalid request")
+          return
+            Error(
+              RequestError.RequestError.BadUrl BadUrl.BadUrlDetails.InvalidRequest
+            )
         else if not (config.allowedScheme uri.Scheme) then
-          return Error(BadUrl "Unsupported Protocol")
+          return
+            Error(
+              RequestError.RequestError.BadUrl
+                BadUrl.BadUrlDetails.UnsupportedProtocol
+            )
         else
           let reqUri =
             System.UriBuilder(
@@ -285,32 +344,27 @@ let makeRequest
       | :? TaskCanceledException ->
         config.telemetryAddTag "error" true
         config.telemetryAddTag "error.msg" "Timeout"
-        return Error Timeout
+        return Error RequestError.RequestError.Timeout
 
-      | :? System.ArgumentException as e ->
+      | :? System.ArgumentException as e when
+        e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')"
+        ->
         // We know of one specific case indicating Unsupported Protocol
         // If we get this otherwise, return generic error
-        //
-        // TODO: would this be better as a guard (i.e. `when e.Message = ...`),
-        //   leaving other cases un-caught?
-        if
-          e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')"
-        then
-          config.telemetryAddTag "error" true
-          config.telemetryAddTag "error.msg" "Unsupported Protocol"
-          return Error(BadUrl "Unsupported Protocol")
-        else
-          config.telemetryAddTag "error" true
-          config.telemetryAddTag "error.msg" e.Message
-          return Error(Other e.Message)
+        config.telemetryAddTag "error" true
+        config.telemetryAddTag "error.msg" "Unsupported Protocol"
+        return
+          Error(
+            RequestError.RequestError.BadUrl
+              BadUrl.BadUrlDetails.UnsupportedProtocol
+          )
 
       | :? System.UriFormatException ->
         config.telemetryAddTag "error" true
         config.telemetryAddTag "error.msg" "Invalid URI"
-        return Error(BadUrl "Invalid URI")
-
-      | :? IOException as e -> return Error(Other e.Message)
-
+        return
+          Error(RequestError.RequestError.BadUrl BadUrl.BadUrlDetails.InvalidUri)
+      | :? IOException -> return Error(RequestError.RequestError.NetworkError)
       | :? HttpRequestException as e ->
         // This is a bit of an awkward case. I'm unsure how it fits into our model.
         // We've made a request, and _potentially_ (according to .NET) have a status
@@ -321,32 +375,16 @@ let makeRequest
 
         config.telemetryAddException [ "error.status_code", statusCode ] e
 
-        return Error(Other(Exception.getMessages e |> String.concat " "))
+        return Error(RequestError.RequestError.NetworkError)
     })
 
 
 let headersType = TList(TTuple(TString, TString, []))
 
-type HeaderError =
-  | BadInput of string
-  | TypeMismatch of string
 
 open LibExecution.Builtin.Shortcuts
 
-let types : List<BuiltInType> =
-  [ { name = typ [ "HttpClient" ] "Response" 0
-      declaration =
-        { typeParams = []
-          definition =
-            TypeDeclaration.Record(
-              NEList.ofList
-                { name = "statusCode"; typ = TInt }
-                [ { name = "headers"; typ = headersType }
-                  { name = "body"; typ = TBytes } ]
-            ) }
-      description = "The response from a HTTP request"
-      deprecated = NotDeprecated } ]
-
+let types : List<BuiltInType> = []
 
 let fns (config : Configuration) : List<BuiltInFn> =
   let httpClient = BaseClient.create config
@@ -359,8 +397,26 @@ let fns (config : Configuration) : List<BuiltInFn> =
           Param.make "body" TBytes "" ]
       returnType =
         TypeReference.result
-          (TCustomType(Ok(FQName.BuiltIn(typ [ "HttpClient" ] "Response" 0)), []))
-          TString
+          (TCustomType(
+            Ok(
+              FQName.Package
+                { owner = "Darklang"
+                  modules = [ "Stdlib"; "HttpClient" ]
+                  name = TypeName.TypeName "Response"
+                  version = 0 }
+            ),
+            []
+          ))
+          (TCustomType(
+            Ok(
+              FQName.Package
+                { owner = "Darklang"
+                  modules = [ "Stdlib"; "HttpClient" ]
+                  name = TypeName.TypeName "RequestError"
+                  version = 0 }
+            ),
+            []
+          ))
       description =
         "Make blocking HTTP call to <param uri>. Returns a <type Result> where
         the response is wrapped in {{ Ok }} if a response was successfully
@@ -369,84 +425,106 @@ let fns (config : Configuration) : List<BuiltInFn> =
         let responseType =
           KTCustomType(FQName.BuiltIn(typ [ "HttpClient" ] "Response" 0), [])
         let resultOk = Dval.resultOk responseType KTString
-        let resultErrorStr str = Dval.resultError responseType KTString (DString str)
+        let typeName = RuntimeError.name [ "HttpClient" ] "RequestError" 0
+        let resultError = Dval.resultError responseType (KTCustomType(typeName, []))
         (function
-        | _, _, [ DString method; DString uri; DList(_, reqHeaders); DBytes reqBody ] ->
-          let reqHeaders : Result<List<string * string>, HeaderError> =
-            reqHeaders
-            |> List.fold
-              (fun agg item ->
-                match agg, item with
-                | (Error err, _) -> Error err
-                | (Ok pairs, DTuple(DString k, DString v, [])) ->
-                  // TODO: what about whitespace? What else can break?
-                  if k = "" then
-                    BadInput "Empty request header key provided" |> Error
-                  else
-                    Ok((k, v) :: pairs)
+        | state,
+          _,
+          [ DString method; DString uri; DList(_, reqHeaders); DBytes reqBody ] ->
+          uply {
+            let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
+              reqHeaders
+              |> Ply.List.mapSequentially (fun item ->
+                uply {
+                  match item with
+                  | DTuple(DString k, DString v, []) ->
+                    let k = String.trim k
+                    if k = "" then
+                      return Error BadHeader.BadHeader.EmptyKey
+                    else
+                      return Ok((k, v))
 
-                | (_, notAPair) ->
-                  // this should be an RTE, not a "normal" error
-                  TypeMismatch
-                    $"Expected request headers to be a `List<String*String>`, but got: {DvalReprDeveloper.toRepr notAPair}"
-                  |> Error)
-              (Ok [])
-            |> Result.map (fun pairs -> List.rev pairs)
+                  | notAPair ->
+                    let context =
+                      TypeChecker.Context.FunctionCallParameter(
+                        (FnName.fqPackage
+                          "Darklang"
+                          [ "Stdlib"; "HttpClient" ]
+                          "request"
+                          0),
+                        ({ name = "headers"; typ = headersType }),
+                        2,
+                        None
+                      )
+                    return!
+                      TypeChecker.raiseValueNotExpectedType
+                        state.caller
+                        notAPair
+                        (TList(TTuple(TString, TString, [])))
+                        context
+                })
+              |> Ply.map (Result.collect)
 
-          let method =
-            try
-              Some(HttpMethod method)
-            with _ ->
-              None
+            let method =
+              try
+                Some(HttpMethod method)
+              with _ ->
+                None
 
-          match reqHeaders, method with
-          | Ok reqHeaders, Some method ->
-            uply {
-              let request =
-                { url = uri; method = method; headers = reqHeaders; body = reqBody }
+            let! (result : Result<Dval, RequestError.RequestError>) =
+              uply {
+                match reqHeaders, method with
+                | Ok reqHeaders, Some method ->
+                  let request =
+                    { url = uri
+                      method = method
+                      headers = reqHeaders
+                      body = reqBody }
 
-              let! response = makeRequest config httpClient request
+                  let! response = makeRequest config httpClient request
 
-              match response with
-              | Ok response ->
-                let responseHeaders =
-                  response.headers
-                  |> List.map (fun (k, v) ->
-                    DTuple(
-                      DString(String.toLowercase k),
-                      DString(String.toLowercase v),
-                      []
-                    ))
-                  |> Dval.list (KTTuple(VT.string, VT.string, []))
+                  match response with
+                  | Ok response ->
+                    let responseHeaders =
+                      response.headers
+                      |> List.map (fun (k, v) ->
+                        DTuple(
+                          DString(String.toLowercase k),
+                          DString(String.toLowercase v),
+                          []
+                        ))
+                      |> Dval.list (KTTuple(VT.string, VT.string, []))
 
-                let typ =
-                  FQName.BuiltIn(TypeName.builtIn [ "HttpClient" ] "Response" 0)
+                    let typ =
+                      FQName.Package
+                        { owner = "Darklang"
+                          modules = [ "Stdlib"; "HttpClient" ]
+                          name = TypeName.TypeName "Response"
+                          version = 0 }
 
-                let fields =
-                  [ ("statusCode", DInt(int64 response.statusCode))
-                    ("headers", responseHeaders)
-                    ("body", DBytes response.body) ]
+                    let fields =
+                      [ ("statusCode", DInt(int64 response.statusCode))
+                        ("headers", responseHeaders)
+                        ("body", DBytes response.body) ]
 
-                return DRecord(typ, typ, [], Map fields) |> resultOk
+                    return Ok(DRecord(typ, typ, [], Map fields) |> resultOk)
 
-              | Error(BadUrl details) -> return resultErrorStr $"Bad URL: {details}"
-              | Error(Timeout) -> return resultErrorStr $"Request timed out"
-              | Error(NetworkError) -> return resultErrorStr $"Network error"
-              | Error(Other details) -> return resultErrorStr details
-            }
+                  | Error err -> return Error err
 
-          | Error reqHeadersErr, _ ->
-            uply {
-              match reqHeadersErr with
-              | BadInput details -> return resultErrorStr details
-              | TypeMismatch details ->
-                return raiseUntargetedRTE (RuntimeError.oldError details)
-            }
+                | Error reqHeadersErr, _ ->
+                  let reqHeadersErr = reqHeadersErr
+                  return Error(RequestError.RequestError.BadHeader reqHeadersErr)
 
-          | _, None ->
-            let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
-            uply { return resultErrorStr error }
-
+                | _, None ->
+                  let error = RequestError.RequestError.BadMethod
+                  return Error error
+              }
+            match result with
+            | Ok result -> return result
+            | Error err ->
+              let err = RequestError.toDT err
+              return resultError err
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

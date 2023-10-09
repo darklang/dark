@@ -16,7 +16,7 @@ Content-Length: 0
  let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL" reqHeaders Builtin.Bytes.empty) |> Builtin.unwrap
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
-   Builtin.HttpClient.Response
+   PACKAGE.Darklang.Stdlib.HttpClient.Response
     { statusCode = 200
       headers =
         [
