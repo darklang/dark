@@ -299,20 +299,41 @@ let fns : List<BuiltInFn> =
           Param.make "to" TInt "" ]
       returnType = TString
       description =
-        "Returns the substring of <param string> between the <param from> and <param
-         to> indices.
-
+        "Returns the substring of <param string> between the <param from> and <param to> indices.
          Negative indices start counting from the end of <param string>."
       fn =
         (function
         | _, _, [ DString s; DInt first; DInt last ] ->
-          String.toEgcSeq s
-          |> Seq.toList
-          |> FSharpPlus.List.drop (int first)
-          |> List.truncate (int (last - first))
-          |> String.concat ""
-          |> DString
-          |> Ply
+          let getLengthInTextElements s =
+            System.Globalization.StringInfo(s).LengthInTextElements
+
+          // Handle negative indexes (which allow counting from the end)
+          let first =
+            if first < 0 then getLengthInTextElements (s) + int first else int first
+          let last =
+            if last < 0 then getLengthInTextElements (s) + int last else int last
+
+          if first >= last then
+            Ply(DString "")
+          else
+            // Create a TextElementEnumerator to handle EGCs
+            let textElemEnumerator =
+              System.Globalization.StringInfo.GetTextElementEnumerator(s)
+            let mutable startIndex = 0
+            let mutable endIndex = 0
+            let mutable index = 0
+
+            // Iterate through EGCs and record the byte indexes of the start and end
+            while textElemEnumerator.MoveNext() do
+              if index = first then startIndex <- textElemEnumerator.ElementIndex
+              if index = last then endIndex <- textElemEnumerator.ElementIndex
+              index <- index + 1
+
+            // Check out of bounds
+            if endIndex = 0 then endIndex <- s.Length
+
+            let substringLength = endIndex - startIndex
+            s.Substring(startIndex, substringLength) |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
