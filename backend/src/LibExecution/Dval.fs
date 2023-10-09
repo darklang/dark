@@ -9,10 +9,7 @@
 /// These functions are intended to help with both of these, in cases where
 /// the functions in Dval.fs are insufficient (i.e. we don't know the Dark sub-types
 /// of a Dval in some F# code).
-///
-/// TODO needs a rename to indicate _safety_
-/// - SafeDvalCreator (SDC), TypecheckedDvalCreator (TDC), etc.
-module LibExecution.DvalCreator
+module LibExecution.Dval
 
 open Prelude
 
@@ -108,7 +105,7 @@ module RTE =
     DEnum(typeName, typeName, [], caseName, fields)
 
 
-let list (initialType : ValueType) (list : List<Dval>) : Dval =
+let checkedList (initialType : ValueType) (list : List<Dval>) : Dval =
   let (typ, dvs) =
     List.fold
       (fun (typ, list) dv ->
@@ -127,11 +124,11 @@ let list (initialType : ValueType) (list : List<Dval>) : Dval =
   DList(typ, List.rev dvs)
 
 
-let dict (typ : ValueType) (entries : List<string * Dval>) : Dval =
+let checkedDict (typ : ValueType) (entries : List<string * Dval>) : Dval =
   // TODO: dictPush, etc.
   DDict(typ, Map entries)
 
-let dictFromMap (typ : ValueType) (entries : Map<string, Dval>) : Dval =
+let checkedDictFromMap (typ : ValueType) (entries : Map<string, Dval>) : Dval =
   // TODO: dictPush, etc.
   DDict(typ, entries)
 
@@ -161,7 +158,7 @@ let dictFromMap (typ : ValueType) (entries : Map<string, Dval>) : Dval =
 
 
 
-let optionSome (innerType : ValueType) (dv : Dval) : Dval =
+let checkedOptionSome (innerType : ValueType) (dv : Dval) : Dval =
   let typeName = Dval.optionType
 
   let dvalType = Dval.toValueType dv
@@ -174,7 +171,7 @@ let optionSome (innerType : ValueType) (dv : Dval) : Dval =
       $"Could not merge types {ValueType.toString (VT.customType typeName [ innerType ])} and {ValueType.toString (VT.customType typeName [ dvalType ])}"
     |> raiseRTE None
 
-let optionNone (innerType : ValueType) : Dval =
+let checkedOptionNone (innerType : ValueType) : Dval =
   DEnum(
     Dval.optionType,
     Dval.optionType,
@@ -183,14 +180,18 @@ let optionNone (innerType : ValueType) : Dval =
     []
   )
 
-let option (innerType : ValueType) (dv : Option<Dval>) : Dval =
+let checkedOption (innerType : ValueType) (dv : Option<Dval>) : Dval =
   match dv with
-  | Some dv -> optionSome innerType dv
-  | None -> optionNone innerType
+  | Some dv -> checkedOptionSome innerType dv
+  | None -> checkedOptionNone innerType
 
 
 
-let resultOk (okType : ValueType) (errorType : ValueType) (dvOk : Dval) : Dval =
+let checkedResultOk
+  (okType : ValueType)
+  (errorType : ValueType)
+  (dvOk : Dval)
+  : Dval =
   let dvalType = Dval.toValueType dvOk
   match VT.merge okType dvalType with
   | Ok typ ->
@@ -206,7 +207,7 @@ let resultOk (okType : ValueType) (errorType : ValueType) (dvOk : Dval) : Dval =
       $"Could not merge types {ValueType.toString (VT.customType Dval.resultType [ okType; errorType ])} and {ValueType.toString (VT.customType Dval.resultType [ dvalType; errorType ])}"
     |> raiseRTE None
 
-let resultError
+let checkedResultError
   (okType : ValueType)
   (errorType : ValueType)
   (dvError : Dval)
@@ -226,20 +227,20 @@ let resultError
       $"Could not merge types {ValueType.toString (VT.customType Dval.resultType [ okType; errorType ])} and {ValueType.toString (VT.customType Dval.resultType [ okType; dvalType ])}"
     |> raiseRTE None
 
-let result
+let checkedResult
   (okType : ValueType)
   (errorType : ValueType)
   (dv : Result<Dval, Dval>)
   : Dval =
   match dv with
-  | Ok dv -> resultOk okType errorType dv
-  | Error dv -> resultError okType errorType dv
+  | Ok dv -> checkedResultOk okType errorType dv
+  | Error dv -> checkedResultError okType errorType dv
 
 
 /// Constructs a Dval.DRecord, ensuring that the fields match the expected shape
 ///
 /// note: if provided, the typeArgs must match the # of typeArgs expected by the type
-let record
+let checkedRecord
   (typeName : TypeName.TypeName)
   (fields : List<string * Dval>)
   : Ply<Dval> =
@@ -269,7 +270,7 @@ let record
   DRecord(resolvedTypeName, typeName, VT.typeArgsTODO, fields) |> Ply
 
 
-let enum
+let checkedEnum
   (resolvedTypeName : TypeName.TypeName) // todo: remove
   (sourceTypeName : TypeName.TypeName)
   (caseName : string)

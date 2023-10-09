@@ -262,7 +262,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
       |> Seq.map (convert nested)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (DvalCreator.list VT.unknownTODO)
+      |> Ply.map (Dval.checkedList VT.unknownTODO)
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let arr = j.EnumerateArray() |> Seq.toList
@@ -284,7 +284,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
       |> Map.toList
       |> List.map (fun (k, v) -> convert typ v |> Ply.map (fun v -> k, v))
       |> Ply.List.flatten
-      |> Ply.map (DvalCreator.dict VT.unknownTODO)
+      |> Ply.map (Dval.checkedDict VT.unknownTODO)
 
 
     | TCustomType(Ok typeName, typeArgs), valueKind ->
@@ -352,7 +352,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 |> Ply.List.flatten
 
               // TYPESCLEANUP: I don't think the sourceTypeName is right here?
-              return! DvalCreator.enum typeName typeName caseName fields
+              return! Dval.checkedEnum typeName typeName caseName fields
           | _, _ ->
             return
               Exception.raiseInternal

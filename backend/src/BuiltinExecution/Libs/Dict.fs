@@ -7,7 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 module TypeChecker = LibExecution.TypeChecker
-module DvalCreator = LibExecution.DvalCreator
+module Dval = LibExecution.Dval
 
 module VT = ValueType
 module Interpreter = LibExecution.Interpreter
@@ -115,7 +115,9 @@ let fns : List<BuiltInFn> =
                 "Not string tuples in fromListOverwritingDuplicates"
                 [ "dval", dv ]
 
-          List.fold f Map.empty l |> DvalCreator.dictFromMap VT.unknownTODO |> Ply
+          List.fold f Map.empty l
+          |> Dval.checkedDictFromMap VT.unknownTODO
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -153,8 +155,8 @@ let fns : List<BuiltInFn> =
 
           match result with
           | Some entries ->
-            DDict(dictType, entries) |> DvalCreator.optionSome optType |> Ply
-          | None -> DvalCreator.optionNone optType |> Ply
+            DDict(dictType, entries) |> Dval.checkedOptionSome optType |> Ply
+          | None -> Dval.checkedOptionNone optType |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -171,7 +173,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict(_vtTODO, o); DString s ] ->
-          Map.find s o |> DvalCreator.option VT.unknownTODO |> Ply
+          Map.find s o |> Dval.checkedOption VT.unknownTODO |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -223,7 +225,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state state.caller b [] args)
                 mapped
 
-            return DvalCreator.dictFromMap VT.unknownTODO result
+            return Dval.checkedDictFromMap VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -297,7 +299,7 @@ let fns : List<BuiltInFn> =
                     TypeChecker.raiseFnValResultNotExpectedType state.caller v TBool
               }
             let! result = Ply.Map.filterSequentially f o
-            return DvalCreator.dictFromMap VT.unknownTODO result
+            return Dval.checkedDictFromMap VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -356,7 +358,7 @@ let fns : List<BuiltInFn> =
               }
 
             let! result = Ply.Map.filterMapSequentially f o
-            return DvalCreator.dictFromMap VT.unknownTODO result
+            return Dval.checkedDictFromMap VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -387,7 +389,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDict(_vtTODO1, l); DDict(_vtTODO2, r) ] ->
-          Map.mergeFavoringRight l r |> DvalCreator.dictFromMap VT.unknownTODO |> Ply
+          Map.mergeFavoringRight l r
+          |> Dval.checkedDictFromMap VT.unknownTODO
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

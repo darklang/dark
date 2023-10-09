@@ -9,7 +9,7 @@ open LibExecution.Builtin.Shortcuts
 module DarkDateTime = LibExecution.DarkDateTime
 module VT = ValueType
 module TypeChecker = LibExecution.TypeChecker
-module DvalCreator = LibExecution.DvalCreator
+module Dval = LibExecution.Dval
 
 
 // parsing
@@ -421,7 +421,7 @@ let parse
       |> Seq.mapi (fun i v -> convert nested (JsonPath.Part.Index i :: pathSoFar) v)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (DvalCreator.list VT.unknownTODO)
+      |> Ply.map (Dval.checkedList VT.unknownTODO)
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let values = j.EnumerateArray() |> Seq.toList
@@ -447,7 +447,7 @@ let parse
         })
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (DvalCreator.dict VT.unknownTODO)
+      |> Ply.map (Dval.checkedDict VT.unknownTODO)
 
     | TCustomType(Ok typeName, typeArgs), jsonValueKind ->
       uply {
@@ -523,7 +523,7 @@ let parse
                 let path = JsonPath.Part.Index index :: casePath
                 return err (ParseError.EnumExtraField(fieldJson.GetRawText(), path))
               else
-                return! DvalCreator.enum typeName typeName caseName fields
+                return! Dval.checkedEnum typeName typeName caseName fields
 
             | [] -> return raiseCantMatchWithType typ j pathSoFar
             | cases ->
@@ -565,7 +565,7 @@ let parse
                 })
               |> Ply.List.flatten
 
-            return! DvalCreator.record typeName fields
+            return! Dval.checkedRecord typeName fields
       }
 
 
@@ -649,8 +649,8 @@ let fns : List<BuiltInFn> =
       fn =
         let okType = VT.unknownTODO // "a"
         let errType = KTCustomType(ParseError.typeName, []) |> VT.known
-        let resultOk = DvalCreator.resultOk okType errType
-        let resultError = DvalCreator.resultError okType errType
+        let resultOk = Dval.checkedResultOk okType errType
+        let resultError = Dval.checkedResultError okType errType
         (function
         | state, [ typeArg ], [ DString arg ] ->
           let types = ExecutionState.availableTypes state

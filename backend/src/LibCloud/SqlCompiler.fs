@@ -16,7 +16,7 @@ module VT = ValueType
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 module TypeChecker = LibExecution.TypeChecker
-module DvalCreator = LibExecution.DvalCreator
+module Dval = LibExecution.Dval
 
 module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 
@@ -600,7 +600,7 @@ let rec lambdaToSql
         // TODO: handle cases where `fields` is non-empty
         | EEnum(id, sourceTypeName, sourceCaseName, []) ->
           let source = Some(tlid, id)
-          let! dv = DvalCreator.enum sourceTypeName sourceTypeName sourceCaseName []
+          let! dv = Dval.checkedEnum sourceTypeName sourceTypeName sourceCaseName []
 
           let typeArgs = [] // TODO - get from the dval above? maybe typeName too...
           let typ = TCustomType(Ok sourceTypeName, typeArgs)

@@ -11,7 +11,7 @@ open Wasm.EvalHelpers
 
 module VT = ValueType
 module TypeChecker = LibExecution.TypeChecker
-module DvalCreator = LibExecution.DvalCreator
+module Dval = LibExecution.Dval
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
@@ -47,8 +47,8 @@ let fns : List<BuiltInFn> =
         "Get the editor's global current state (maintained in the WASM runtime)"
       fn =
         let okType = VT.unknownTODO
-        let resultOk = DvalCreator.resultOk okType VT.string
-        let resultError = DvalCreator.resultOk okType VT.string
+        let resultOk = Dval.checkedResultOk okType VT.string
+        let resultError = Dval.checkedResultOk okType VT.string
         (function
         | _, [ _typeParam ], [ DUnit ] ->
           try
@@ -74,7 +74,7 @@ let fns : List<BuiltInFn> =
         | _, [ _typeParam ], [ v ] ->
           // TODO: verify that the type matches the given typeParam
           editor <- { editor with CurrentState = v }
-          DvalCreator.resultOk VT.unknownTODO VT.string v |> Ply
+          Dval.checkedResultOk VT.unknownTODO VT.string v |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
