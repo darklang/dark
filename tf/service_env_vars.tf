@@ -12,8 +12,10 @@ variable "service_env_vars" {
     # Ports
 
     ## BwdServer
-    "DARK_CONFIG_BWDSERVER_BACKEND_PORT"    = "11001"
-    "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT" = "11002"
+    "DARK_CONFIG_BWDSERVER_BACKEND_PORT"           = "11001"
+    "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT"        = "11002"
+    "DARK_CONFIG_BWDSERVER_DANGER_BACKEND_PORT"    = "11001"
+    "DARK_CONFIG_BWDSERVER_DANGER_KUBERNETES_PORT" = "11002"
 
     ## CronChecker
     "DARK_CONFIG_CRONCHECKER_KUBERNETES_PORT" = "12002"
@@ -33,7 +35,7 @@ variable "service_env_vars" {
 
     # Logging
     "DARK_CONFIG_ENV_DISPLAY_NAME" = "production"
-    "DARK_CONFIG_DEFAULT_LOGGER"   = "none" # We use telemety instead
+    "DARK_CONFIG_DEFAULT_LOGGER"   = "none" # We use telemetry instead
 
     # Rollbar
     "DARK_CONFIG_ROLLBAR_ENABLED"          = "y"
