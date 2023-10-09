@@ -11,6 +11,7 @@ open LibExecution.Builtin.Shortcuts
 module VT = ValueType
 module Interpreter = LibExecution.Interpreter
 module TypeChecker = LibExecution.TypeChecker
+module DvalCreator = LibExecution.DvalCreator
 
 let varA = TVariable "a"
 
@@ -74,7 +75,7 @@ let fns : List<BuiltInFn> =
             | DList(_vtTODO, l) -> List.append acc l
             | _ -> Exception.raiseInternal "flatten: expected list of lists" []
 
-          List.fold f [] l |> TypeChecker.DvalCreator.list VT.unknownTODO |> Ply
+          List.fold f [] l |> DvalCreator.list VT.unknownTODO |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

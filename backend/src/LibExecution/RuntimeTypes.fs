@@ -798,6 +798,8 @@ module RuntimeError =
 
   let typeCheckerError field = case "TypeCheckerError" [ field ]
 
+  let dvalCreationError field = case "DvalCreationError" [ field ]
+
   let jsonError field = case "JsonError" [ field ]
 
   let sqlCompilerRuntimeError (internalError : RuntimeError) =

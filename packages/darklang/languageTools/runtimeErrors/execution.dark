@@ -1,12 +1,12 @@
 module Darklang =
   module LanguageTools =
     module RuntimeErrors =
-      // <aliases>
-      type ES =
-        PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorSegment.ErrorSegment
-      // </aliases>
-
       module Execution =
+        // <aliases>
+        type ES =
+          PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorSegment.ErrorSegment
+        // </aliases>
+
         type Error =
           | MatchExprUnmatched of RuntimeTypes.Dval.Dval
           | MatchExprPatternWrongType of String * RuntimeTypes.Dval.Dval

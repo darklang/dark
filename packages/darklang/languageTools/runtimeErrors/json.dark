@@ -1,12 +1,12 @@
 module Darklang =
   module LanguageTools =
     module RuntimeErrors =
-      // <aliases>
-      type ES =
-        PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorSegment.ErrorSegment
-      // </aliases>
-
       module Json =
+        // <aliases>
+        type ES =
+          PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorSegment.ErrorSegment
+        // </aliases>
+
         type Error = UnsupportedType of RuntimeTypes.TypeReference
 
         let toSegments (e: Error) : ErrorOutput =

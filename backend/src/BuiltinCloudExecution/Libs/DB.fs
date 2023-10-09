@@ -7,6 +7,7 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
 module TypeChecker = LibExecution.TypeChecker
+module DvalCreator = LibExecution.DvalCreator
 
 module UserDB = LibCloud.UserDB
 module Db = LibCloud.Db
@@ -80,7 +81,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getOption state db key
-            return TypeChecker.DvalCreator.option VT.unknownDbTODO result
+            return DvalCreator.option VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -110,10 +111,7 @@ let fns : List<BuiltInFn> =
               |> UserDB.getMany state db
 
             if List.length items = List.length keys then
-              return
-                items
-                |> TypeChecker.DvalCreator.list valueType
-                |> Dval.optionSome optType
+              return items |> DvalCreator.list valueType |> Dval.optionSome optType
             else
               return Dval.optionNone optType
           }
@@ -141,7 +139,7 @@ let fns : List<BuiltInFn> =
                 | DString s -> s
                 | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
               |> UserDB.getMany state db
-            return result |> TypeChecker.DvalCreator.list VT.unknownDbTODO
+            return result |> DvalCreator.list VT.unknownDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -166,7 +164,7 @@ let fns : List<BuiltInFn> =
                 | DString s -> s
                 | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
               |> UserDB.getManyWithKeys state db
-            return TypeChecker.DvalCreator.dict VT.unknownDbTODO result
+            return DvalCreator.dict VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -223,10 +221,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAll state db
-            return
-              results
-              |> List.map snd
-              |> TypeChecker.DvalCreator.list VT.unknownDbTODO
+            return results |> List.map snd |> DvalCreator.list VT.unknownDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -246,7 +241,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getAll state db
-            return TypeChecker.DvalCreator.dict VT.unknownDbTODO result
+            return DvalCreator.dict VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -321,8 +316,7 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! results = UserDB.queryValues state db b
               match results with
-              | Ok results ->
-                return results |> TypeChecker.DvalCreator.list VT.unknownDbTODO
+              | Ok results -> return results |> DvalCreator.list VT.unknownDbTODO
               | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
@@ -347,8 +341,7 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! results = UserDB.query state db b
               match results with
-              | Ok results ->
-                return TypeChecker.DvalCreator.dict VT.unknownDbTODO results
+              | Ok results -> return DvalCreator.dict VT.unknownDbTODO results
               | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
@@ -375,8 +368,8 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.query state db b
 
               match results with
-              | Ok [ (_, v) ] -> return TypeChecker.DvalCreator.optionSome optType v
-              | Ok _ -> return TypeChecker.DvalCreator.optionNone optType
+              | Ok [ (_, v) ] -> return DvalCreator.optionSome optType v
+              | Ok _ -> return DvalCreator.optionNone optType
               | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
@@ -404,11 +397,8 @@ let fns : List<BuiltInFn> =
 
               match results with
               | Ok [ (key, dv) ] ->
-                return
-                  TypeChecker.DvalCreator.optionSome
-                    optType
-                    (DTuple(DString key, dv, []))
-              | Ok _ -> return TypeChecker.DvalCreator.optionNone optType
+                return DvalCreator.optionSome optType (DTuple(DString key, dv, []))
+              | Ok _ -> return DvalCreator.optionNone optType
               | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e

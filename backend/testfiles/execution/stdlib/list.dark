@@ -1,7 +1,14 @@
-// CLEANUP the following tests should fail on having mixed types
-//[1; 2.3] = Builtin.Test.derrorMessage "Cannot form a list of mixed types - the 2nd element does not match the type of previous elements"
-//[(1,10);10;(3,30)] = Builtin.Test.derrorMessage "Cannot form a list of mixed types ..."
-//[(1,10);(2,20);(3,30,40)] = Builtin.Test.derrorMessage "Cannot form a list of mixed types"
+[ 1; 2.3 ] = Builtin.Test.derrorMessage
+  "Type Conflict: Mixing data types (Int and Float) in list creation.
+Cannot include item of type Float(2.3) in a list of type Int. Lists can only contain values of a single type."
+
+[ (1, 10); 10; (3, 30) ] = Builtin.Test.derrorMessage
+  "Type Conflict: Mixing data types ((Int, Int) and Int) in list creation.
+Cannot include item of type Int(10) in a list of type (Int, Int). Lists can only contain values of a single type."
+
+// CLEANUP the f# parse seems to be preventing us from including the following test
+//[ (1, 10); (2, 20); (3, 30, 40) ] = Builtin.Test.derrorMessage
+//  "Cannot form a list of mixed types"
 
 
 PACKAGE.Darklang.Stdlib.List.all_v0 [] (fun item -> item < 3) = true
@@ -120,13 +127,17 @@ PACKAGE.Darklang.Stdlib.List.findFirst [ 0; 5; -6; -10 ] (fun x -> x < 0) = PACK
 PACKAGE.Darklang.Stdlib.List.findFirst [ 1; -33; 3; -2; 12 ] (fun x ->
   (x < 0 && x % 2 == 0)) = PACKAGE.Darklang.Stdlib.Option.Option.Some -2
 
-// CLEANUP once DList contains typeRefs, this test may be uncommented and the error message updated:
-// PACKAGE.Darklang.Stdlib.List.flatten_v0 [1;2;3] =
-//   Builtin.Test.runtimeError "In List.flatten's 1st argument (`list`), the value should be a List<List<'a>>. However, a List<Int> ([1; 2; 3]) was passed instead.\n\nExpected: List<List<'a>>\nActual: List<Int>: [1; 2; 3]"
+PACKAGE.Darklang.Stdlib.List.flatten_v0 [ 1; 2; 3 ] = Builtin.Test.derrorMessage
+  "PACKAGE.Darklang.Stdlib.List.flatten's 1st argument (`list`) should be a List<List<'a>>. However, a List<Int> ([  1, 2, ...) was passed instead.
+
+Expected: (list: List<List<'a>>)
+Actual: a List<Int>: [\n  1, 2, 3\n]"
+
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1 ]; [ 2 ]; [ 3 ] ] = [ 1; 2; 3 ]
 
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1 ]; [ [ 2; 3 ] ] ] = Builtin.Test.derrorMessage
-  "Could not merge types List<List<List<Int>>> and List<List<Int>>"
+  "Type Conflict: Mixing data types (List<Int> and List<List<Int>>) in list creation.
+Cannot include item of type List<List<Int>>([  [    ...) in a list of type List<Int>. Lists can only contain values of a single type."
 
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ [] ] ] = [ [] ]
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [] ] = []
@@ -181,14 +192,16 @@ PACKAGE.Darklang.Stdlib.List.interleave_v0 [] [ 4; 5; 6 ] = [ 4; 5; 6 ]
 PACKAGE.Darklang.Stdlib.List.interleave_v0 [] [] = []
 
 PACKAGE.Darklang.Stdlib.List.interleave_v0 [ "a"; "b"; "c" ] [ 0 ] = Builtin.Test.derrorMessage
-  "Could not merge types List<Int> and List<String>"
+  "Type Conflict: Mixing data types (String and Int) in list creation.
+Cannot include item of type Int(0) in a list of type String. Lists can only contain values of a single type."
 
 PACKAGE.Darklang.Stdlib.List.interpose_v0 [ 1; 2; 3 ] 5 = [ 1; 5; 2; 5; 3 ]
 PACKAGE.Darklang.Stdlib.List.interpose_v0 [ 1 ] 5 = [ 1 ]
 PACKAGE.Darklang.Stdlib.List.interpose_v0 [] 5 = []
 
 PACKAGE.Darklang.Stdlib.List.interpose_v0 [ "a"; "b"; "c" ] 0 = Builtin.Test.derrorMessage
-  "Could not merge types List<Int> and List<String>"
+  "Type Conflict: Mixing data types (String and Int) in list creation.
+Cannot include item of type Int(0) in a list of type String. Lists can only contain values of a single type."
 
 
 PACKAGE.Darklang.Stdlib.List.isEmpty_v0 [ 1 ] = false
@@ -410,7 +423,8 @@ PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 7; 42; 7; 2; 10 ] (fun x -> x) = [ 2
 PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [] (fun x -> x) = []
 
 PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 6; 2.0 ] (fun x -> x) = Builtin.Test.derrorMessage
-  "Could not merge types List<Float> and List<Int>"
+  "Type Conflict: Mixing data types (Int and Float) in list creation.
+Cannot include item of type Float(2.0) in a list of type Int. Lists can only contain values of a single type."
 
 PACKAGE.Darklang.Stdlib.List.unique_v0 [ 1; 2; 3; 4 ] = [ 1; 2; 3; 4 ]
 PACKAGE.Darklang.Stdlib.List.unique_v0 [ 1; 1; 1; 1 ] = [ 1 ]

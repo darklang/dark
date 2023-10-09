@@ -1,32 +1,31 @@
 module Darklang =
   module LanguageTools =
     module RuntimeErrors =
-      // <aliases>
-      type Option = PACKAGE.Darklang.Stdlib.Option.Option
-      type ID = PACKAGE.Darklang.LanguageTools.ID
-      type TLID = PACKAGE.Darklang.LanguageTools.TLID
-
-      // language
-      type RTTypeReference =
-        PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
-
-      type RTDval = PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
-
-      type RTTypeName = PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName
-
-      type RTFnName = PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.FnName
-      type RTParam = PACKAGE.Darklang.LanguageTools.RuntimeTypes.Param
-
-      // RuntimeErrors
-      type REErrorOutput = PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorOutput
-
-      type ES =
-        PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorSegment.ErrorSegment
-      // </aliases>
-
-
       // CLEANUP consider renaming this module to RuntimeTypeChecker
       module TypeChecker =
+
+        // <aliases>
+        type Option = PACKAGE.Darklang.Stdlib.Option.Option
+        type ID = PACKAGE.Darklang.LanguageTools.ID
+        type TLID = PACKAGE.Darklang.LanguageTools.TLID
+
+        // language
+        type RTTypeReference =
+          PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
+
+        type RTDval = PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
+        type RTTypeName = PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName
+
+        type RTFnName = PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.FnName
+        type RTParam = PACKAGE.Darklang.LanguageTools.RuntimeTypes.Param
+
+        // RuntimeErrors
+        type REErrorOutput = PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorOutput
+
+        type ES =
+          PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorSegment.ErrorSegment
+        // </aliases>
+
         type Location = Option<TLID * ID>
 
         type Context =
@@ -66,7 +65,6 @@ module Darklang =
             location: Location
 
           | FnValResult of returnType: RTTypeReference * location: Location
-
 
 
         type Error =
@@ -267,8 +265,6 @@ module Darklang =
 
           let toSegments (e: Error) : REErrorOutput =
             match e with
-
-
             | TypeDoesntExist(typeName, context) ->
               ErrorOutput
                 { summary =

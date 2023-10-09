@@ -8,6 +8,7 @@ module VT = ValueType
 module Interpreter = LibExecution.Interpreter
 module TypeChecker = LibExecution.TypeChecker
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
+module DvalCreator = LibExecution.DvalCreator
 
 
 // CLEANUP something like type ComparatorResult = Higher | Lower | Same
@@ -386,8 +387,8 @@ let fns : List<BuiltInFn> =
          of control."
       fn =
         let okType = VT.unknownTODO
-        let resultOk = TypeChecker.DvalCreator.resultOk okType VT.string
-        let resultError = TypeChecker.DvalCreator.resultError okType VT.string
+        let resultOk = DvalCreator.resultOk okType VT.string
+        let resultError = DvalCreator.resultError okType VT.string
 
         (function
         | state, _, [ DList(vt, list); DFnVal f ] ->
@@ -433,7 +434,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DList(vt1, l1); DList(_vt2, l2) ] ->
           // VTTODO should fail here in the case of vt1 conflicting with vt2?
           // (or is this handled by the interpreter?)
-          Ply(TypeChecker.DvalCreator.list vt1 (List.append l1 l2))
+          Ply(DvalCreator.list vt1 (List.append l1 l2))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -533,7 +534,7 @@ let fns : List<BuiltInFn> =
               }
 
             let! result = Ply.List.filterMapSequentially f l
-            return TypeChecker.DvalCreator.list VT.unknownTODO result
+            return DvalCreator.list VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -569,7 +570,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state state.caller b [] args)
                 list
 
-            return TypeChecker.DvalCreator.list VT.unknownTODO result
+            return DvalCreator.list VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -616,7 +617,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state state.caller b [] args)
                 list
 
-            return TypeChecker.DvalCreator.list VT.unknownTODO result
+            return DvalCreator.list VT.unknownTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -653,7 +654,7 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList(_vtTODO1, l1); DList(_vtTODO2, l2); DFnVal b ] ->
           uply {
             if List.length l1 <> List.length l2 then
-              return TypeChecker.DvalCreator.optionNone optType
+              return DvalCreator.optionNone optType
             else
               let list = List.zip l1 l2
 
@@ -665,8 +666,8 @@ let fns : List<BuiltInFn> =
                   list
 
               return
-                TypeChecker.DvalCreator.list VT.unknownTODO result
-                |> TypeChecker.DvalCreator.optionSome optType
+                DvalCreator.list VT.unknownTODO result
+                |> DvalCreator.optionSome optType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -685,14 +686,14 @@ let fns : List<BuiltInFn> =
       fn =
         let optType = VT.unknownTODO
         (function
-        | _, _, [ DList(_, []) ] -> TypeChecker.DvalCreator.optionNone optType |> Ply
+        | _, _, [ DList(_, []) ] -> DvalCreator.optionNone optType |> Ply
         | _, _, [ DList(_, l) ] ->
           // Will return <= (length - 1)
           // Maximum value is Int64.MaxValue which is half of UInt64.MaxValue, but
           // that won't affect this as we won't have a list that big for a long long
           // long time.
           let index = RNG.GetInt32(l.Length)
-          (List.tryItem index l) |> TypeChecker.DvalCreator.option optType |> Ply
+          (List.tryItem index l) |> DvalCreator.option optType |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure

@@ -1,12 +1,12 @@
 module Darklang =
   module LanguageTools =
     module RuntimeErrors =
-      // <aliases>
-      type ES =
-        PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorSegment.ErrorSegment
-      // </aliases>
-
       module NameResolution =
+        // <aliases>
+        type ES =
+          PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorSegment.ErrorSegment
+        // </aliases>
+
         type ErrorType =
           | NotFound
           | ExpectedEnumButNot

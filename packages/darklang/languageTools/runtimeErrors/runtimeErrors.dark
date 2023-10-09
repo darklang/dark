@@ -42,6 +42,7 @@ module Darklang =
           | InlineVarName of String
 
           // -- Dvals
+          | ValueType of PACKAGE.Darklang.LanguageTools.RuntimeTypes.ValueType
           | InlineValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval // possibly shortened to be shown inline
           | FullValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
 
@@ -103,6 +104,8 @@ module Darklang =
                     |> PACKAGE.Darklang.Stdlib.String.join ""
                   | FullValue dv ->
                     PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv
+                  | ValueType vt ->
+                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.valueType vt
                   | segment ->
                     $"(RTETODO toString parts {(Builtin.Json.serialize<ErrorSegment> segment)})"
 
@@ -124,6 +127,8 @@ module Darklang =
 
       type Error =
         | TypeCheckerError of RuntimeErrors.TypeChecker.Error
+
+        | DvalCreationError of RuntimeErrors.DvalCreation.Error
 
         /// Errors specific to resolving names
         | NameResolutionError of RuntimeErrors.NameResolution.Error
@@ -162,9 +167,8 @@ module Darklang =
           // | CliError err -> Cli.Error.toSegments err
 
           | TypeCheckerError err -> TypeChecker.Error.toSegments err
-
+          | DvalCreationError err -> DvalCreation.toSegments err
           | NameResolutionError err -> NameResolution.toSegments err
-
           | ExecutionError err -> Execution.toSegments err
 
           | SqlCompilerRuntimeError err ->

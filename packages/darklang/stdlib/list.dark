@@ -141,25 +141,21 @@ module Darklang =
         match list with
         | [] -> []
         | [ single ] -> [ single ]
-        | head :: tail ->
-          (PACKAGE.Darklang.Stdlib.List.interpose tail sep)
-          |> PACKAGE.Darklang.Stdlib.List.push_v0 sep
-          |> PACKAGE.Darklang.Stdlib.List.push_v0 head
+        | head :: tail -> List.append [ head; sep ] (List.interpose tail sep)
 
 
-      /// Returns a list with the first value from <param l1> then the first value
-      /// from <param l2>, then the second value from <param l1> then the second value
-      /// other list.
+      /// Returns a list with
+      /// the first value from <param l1>, then
+      /// the first value from <param l2>, then
+      /// the second value from <param l1>, then
+      /// the second value ofrom <param l2>, etc.
       let interleave (l1: List<'a>) (l2: List<'a>) : List<'a> =
         match l1 with
-        | [] -> l2
         | aHead :: aTail ->
           match l2 with
+          | bHead :: bTail -> List.append [ aHead; bHead ] (interleave aTail bTail)
           | [] -> l1
-          | bHead :: bTail ->
-            (PACKAGE.Darklang.Stdlib.List.interleave aTail bTail)
-            |> PACKAGE.Darklang.Stdlib.List.push_v0 bHead
-            |> PACKAGE.Darklang.Stdlib.List.push_v0 aHead
+        | [] -> l2
 
 
       /// Returns the passed list, with only unique values, where uniqueness is based

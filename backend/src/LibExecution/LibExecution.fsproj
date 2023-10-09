@@ -20,6 +20,7 @@
     <Compile Include="DvalReprDeveloper.fs" />
     <Compile Include="RuntimeTypesToDarkTypes.fs" />
     <Compile Include="TypeChecker.fs" />
+    <Compile Include="DvalCreator.fs" />
     <Compile Include="DvalReprInternalQueryable.fs" />
     <Compile Include="Interpreter.fs" />
     <Compile Include="AnalysisTypes.fs" />

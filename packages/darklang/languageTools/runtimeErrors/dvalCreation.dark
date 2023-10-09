@@ -1,0 +1,123 @@
+module Darklang =
+  module LanguageTools =
+    module RuntimeErrors =
+      module DvalCreation =
+
+        // <aliases>
+        type Option = PACKAGE.Darklang.Stdlib.Option.Option
+        type ID = PACKAGE.Darklang.LanguageTools.ID
+        type TLID = PACKAGE.Darklang.LanguageTools.TLID
+
+        // language
+        type RTTypeReference =
+          PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
+
+        type RTDval = PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
+        type RTValueType = PACKAGE.Darklang.LanguageTools.RuntimeTypes.ValueType
+
+        type RTTypeName =
+          PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName
+
+        // RuntimeErrors
+        type REErrorOutput = PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorOutput
+
+        type ES =
+          PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorSegment.ErrorSegment
+        // </aliases>
+
+        // type Context =
+        //   | UserCode // (they wrote it)
+        //   | SqlCompiler
+        //   | Expr of TLID * ID
+        //   | BuiltinFnResult of fnName: String
+
+        type Error =
+          | ListAppend of vt: RTValueType * item: RTDval * vtOfDv: RTValueType
+
+          | RecordMissingField of
+            typeName: RTTypeName *
+            fieldName: String *
+            typ: RTTypeReference
+
+          | RecordDuplicateField of typeName: RTTypeName * fieldName: String
+
+          | Option of vt: RTValueType * item: RTDval * vtOfDv: RTValueType
+
+          | ResultOk of
+            okVt: RTValueType *
+            errVt: RTValueType *
+            okDv: RTDval *
+            vtOfDv: RTValueType
+
+          | ResultError of
+            okVt: RTValueType *
+            errVt: RTValueType *
+            errDv: RTDval *
+            vtOfDv: RTValueType
+
+        let toSegments (e: Error) : REErrorOutput =
+          match e with
+          | ListAppend(vt, item, vtOfDv) ->
+            ErrorOutput
+              { summary =
+                  [ ES.String "Type Conflict: Mixing data types ("
+                    ES.ValueType vt
+                    ES.String " and "
+                    ES.ValueType vtOfDv
+                    ES.String ") in list creation." ]
+                extraExplanation =
+                  [ ES.String "\nCannot include item of type "
+                    ES.ValueType vtOfDv
+                    ES.String "("
+                    ES.InlineValue item
+                    ES.String ") in a list of type "
+                    ES.ValueType vt
+                    ES.String ". Lists can only contain values of a single type." ]
+                actual = []
+                expected = [] }
+
+          | RecordMissingField(typeName, fieldName, typ) ->
+            ErrorOutput
+              { summary =
+                  [ ES.String "Missing field in record"; ES.TypeName typeName ]
+                extraExplanation =
+                  [ ES.String "\n"
+                    ES.TypeName typeName
+                    ES.String $"definition includes field {fieldName} of type "
+                    ES.TypeReference typ
+                    ES.String ", but no such field was provided" ]
+                actual = []
+                expected = [] }
+
+          | RecordDuplicateField(typeName, fieldName) ->
+            ErrorOutput
+              { summary =
+                  [ ES.String "Duplicate field in record"; ES.TypeName typeName ]
+                extraExplanation =
+                  [ ES.String "\n"
+                    ES.TypeName typeName
+                    ES.String
+                      $"value declaration includes field {fieldName} more than once" ]
+                actual = []
+                expected = [] }
+
+          | Option(vt, item, vtOfDv) ->
+            ErrorOutput
+              { summary = [ ES.String "Failed to create Option of expected type" ]
+                extraExplanation = []
+                actual = [ ES.Dval item; ES.ValueType vtOfDv ]
+                expected = [ ES.ValueType vt ] }
+
+          | ResultOk(okVt, errVt, okDv, vtOfDv) ->
+            ErrorOutput
+              { summary = [ ES.String "Failed to create Result of expected type" ]
+                extraExplanation = []
+                actual = [ ES.Dval okDv; ES.ValueType vtOfDv ]
+                expected = [ ES.ValueType okVt; ES.ValueType errVt ] }
+
+          | ResultError(okVt, errVt, errDv, vtOfDv) ->
+            ErrorOutput
+              { summary = [ ES.String "Failed to create Result of expected type" ]
+                extraExplanation = []
+                actual = [ ES.Dval errDv; ES.ValueType vtOfDv ]
+                expected = [ ES.ValueType okVt; ES.ValueType errVt ] }

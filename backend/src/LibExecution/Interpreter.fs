@@ -310,7 +310,7 @@ let rec eval
 
     | EList(_id, exprs) ->
       let! results = Ply.List.mapSequentially (eval state tlid tst st) exprs
-      return TypeChecker.DvalCreator.list VT.unknown results
+      return DvalCreator.list VT.unknown results
 
     | ETuple(_id, first, second, theRest) ->
 
@@ -415,7 +415,7 @@ let rec eval
             let! v = eval state tlid tst st v
             return (k, v)
           })
-      return TypeChecker.DvalCreator.dict ValueType.Unknown fields
+      return DvalCreator.dict ValueType.Unknown fields
 
     | EFnName(_id, name) -> return DFnVal(NamedFn name)
 
@@ -598,7 +598,7 @@ let rec eval
             | DList(vt, headVal :: tailVals) ->
               let! (headPass, headVars) = checkPattern headVal headPat
               let! (tailPass, tailVars) =
-                checkPattern (TypeChecker.DvalCreator.list vt tailVals) tailPat
+                checkPattern (DvalCreator.list vt tailVals) tailPat
 
               let allSubVars = headVars @ tailVars
               let pass = headPass && tailPass
@@ -723,12 +723,7 @@ let rec eval
               []
               (List.zip case.fields fields)
 
-          return!
-            TypeChecker.DvalCreator.enum
-              resolvedTypeName
-              sourceTypeName
-              caseName
-              fields
+          return! DvalCreator.enum resolvedTypeName sourceTypeName caseName fields
 
     | EError(id, rte, exprs) ->
       let! (_ : List<Dval>) = Ply.List.mapSequentially (eval state tlid tst st) exprs
