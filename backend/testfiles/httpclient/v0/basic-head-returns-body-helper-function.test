@@ -1,0 +1,28 @@
+[expected-request]
+HEAD PATH HTTP/1.1
+Host: HOST
+Content-Length: 0
+
+[response]
+HTTP/1.1 200 OK
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Content-type: text/plain; charset=utf-8
+Content-Length: LENGTH
+
+Here's a body!
+
+
+[test]
+// HEAD requests aren't supposed to actually return a body. But it seems like the
+// clients successfully ignore it.
+(let response = (PACKAGE.Darklang.Stdlib.HttpClient.head "http://URL") |> Builtin.unwrap
+ let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
+ {response with headers = respHeaders}) =
+   PACKAGE.Darklang.Stdlib.HttpClient.Response
+    { statusCode = 200
+      headers = [
+          ("server", "kestrel")
+          ("content-length", "15")
+          ("content-type", "text/plain; charset=utf-8")
+      ]
+      body = Builtin.Bytes.empty }

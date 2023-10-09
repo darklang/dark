@@ -61,6 +61,54 @@ module Darklang =
         Builtin.HttpClient.request method uri headers body
 
 
+      let get
+        (uri: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, PACKAGE.Darklang.Stdlib.HttpClient.RequestError> =
+        PACKAGE.Darklang.Stdlib.HttpClient.request "GET" uri [] Builtin.Bytes.empty
+
+
+      let post
+        (uri: String)
+        (headers: List<String * String>)
+        (body: Bytes)
+        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, PACKAGE.Darklang.Stdlib.HttpClient.RequestError> =
+        PACKAGE.Darklang.Stdlib.HttpClient.request "POST" uri headers body
+
+
+      let put
+        (uri: String)
+        (headers: List<String * String>)
+        (body: Bytes)
+        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, PACKAGE.Darklang.Stdlib.HttpClient.RequestError> =
+        PACKAGE.Darklang.Stdlib.HttpClient.request "PUT" uri headers body
+
+
+      let options
+        (uri: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, PACKAGE.Darklang.Stdlib.HttpClient.RequestError> =
+        PACKAGE.Darklang.Stdlib.HttpClient.request
+          "OPTIONS"
+          uri
+          []
+          Builtin.Bytes.empty
+
+
+      let delete
+        (uri: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, PACKAGE.Darklang.Stdlib.HttpClient.RequestError> =
+        PACKAGE.Darklang.Stdlib.HttpClient.request
+          "DELETE"
+          uri
+          []
+          Builtin.Bytes.empty
+
+
+      let head
+        (uri: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, PACKAGE.Darklang.Stdlib.HttpClient.RequestError> =
+        PACKAGE.Darklang.Stdlib.HttpClient.request "HEAD" uri [] Builtin.Bytes.empty
+
+
       /// Returns a header <type (String*String))> with {{'authorization'}} created using HTTP basic auth
       let basicAuth
         (username: String)
