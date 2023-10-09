@@ -31,7 +31,7 @@ let hostName = getEnv "HOSTNAME" |> Option.defaultValue "none"
 // --------------------
 let rollbarServerAccessToken =
   // This is what the rollbar UI calls it
-  string "DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM"
+  credentials "DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM"
 
 let rollbarEnabled = bool "DARK_CONFIG_ROLLBAR_ENABLED"
 
@@ -75,7 +75,7 @@ let telemetryExporters : List<TelemetryExporter> =
     | "none" -> None
     | name -> failwith $"Unexpected Telemetry exporter {name}")
 
-let honeycombApiKey = string "DARK_CONFIG_HONEYCOMB_API_KEY"
+let honeycombApiKey = credentials "DARK_CONFIG_HONEYCOMB_API_KEY"
 let honeycombDataset = string "DARK_CONFIG_HONEYCOMB_DATASET_NAME"
 let honeycombEndpoint = string "DARK_CONFIG_HONEYCOMB_API_ENDPOINT"
 
@@ -98,7 +98,7 @@ let queueWorkerKubernetesPort = int "DARK_CONFIG_QUEUEWORKER_KUBERNETES_PORT"
 // --------------------
 
 /// If none, use test values
-let launchDarklyApiKey = stringOption "DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY"
+let launchDarklyApiKey = credentialsOption "DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY"
 
 
 // --------------------
@@ -117,6 +117,6 @@ let pgDBName = string "DARK_CONFIG_DB_DBNAME"
 
 let pgUser = string "DARK_CONFIG_DB_USER"
 
-let pgPassword = password "DARK_CONFIG_DB_PASSWORD"
+let pgPassword = credentials "DARK_CONFIG_DB_PASSWORD"
 
 let pgPoolSize = int "DARK_CONFIG_DB_POOL_SIZE"

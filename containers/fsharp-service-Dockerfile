@@ -5,8 +5,8 @@
 FROM amd64/buildpack-deps:jammy-curl as installer
 
 # Retrieve .NET
-RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/7.0.201/dotnet-sdk-7.0.201-linux-x64.tar.gz \
-    && dotnet_sha512='fc9d224bf1d3600e878991fc1e8d3b1a0f21c7a8aac7b3cae0e4925ad33172cc12f56210eabfd66cfedd5f70f85918b889673401172b3999cecbeb8f2fe58863' \
+RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/7.0.400/dotnet-sdk-7.0.400-linux-x64.tar.gz \
+    && dotnet_sha512='4cfeedb8e99ffd423da7a99159ee3f31535fd142711941b8206542acb6be26638fbd9a184a5d904084ffdbd8362c83b6b2acf9d193b2cd38bf7f061443439e3c' \
     && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
     && mkdir -p /dotnet \
     && tar -ozxf dotnet.tar.gz -C /dotnet \
@@ -30,7 +30,7 @@ RUN sudo apt-get update \
     && sudo rm -rf /var/lib/apt/lists/*
 
 ENV \
-    DOTNET_SDK_VERSION=7.0.201 \
+    DOTNET_SDK_VERSION=7.0.400 \
     DOTNET_RUNNING_IN_CONTAINER=true \
     DOTNET_EnableDiagnostics=0
 
