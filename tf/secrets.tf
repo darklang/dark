@@ -10,7 +10,8 @@ variable "secret_names" {
     "pusher-secret",
     "queue-pubsub-credentials",
     "rollbar-post-token",
-    "traces-cloud-storage-credentials"
+    "traces-cloud-storage-credentials",
+    "allowed-dark-internal-canvas-ids"
   ]
 }
 
