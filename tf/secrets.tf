@@ -1,4 +1,5 @@
 variable "secret_names" {
+  type = list(string)
   default = [
     "db-password",
     "db-username",
@@ -24,11 +25,12 @@ resource "google_secret_manager_secret" "secrets" {
   secret_id = each.key
 }
 
-# resource "google_secret_manager_secret_iam_binding" "db_password_cloud_run_runner" {
-#   project   = local.project_id
-#   secret_id = google_secret_manager_secret.db_password.secret_id
-#   role      = "roles/secretmanager.secretAccessor"
-#   members = [
-#     "serviceAccount:${google_service_account.cloud_run_runner.email}",
-#   ]
-# }
+resource "google_secret_manager_secret_iam_binding" "secret_cloud_run_access" {
+  for_each  = toset(var.secret_names)
+  project   = local.project_id
+  secret_id = google_secret_manager_secret.secrets["${each.key}"].id
+  role      = "roles/secretmanager.secretAccessor"
+  members = [
+    "serviceAccount:${google_service_account.cloud_run_runner.email}",
+  ]
+}
