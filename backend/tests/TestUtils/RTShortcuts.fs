@@ -74,9 +74,9 @@ let eVar (name : string) : Expr = EVariable(gid (), name)
 let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
   EFieldAccess(gid (), expr, fieldName)
 
-let eLambda (varNames : List<string>) (body : Expr) : Expr =
-  let varNames = NEList.ofListUnsafe "eLambda" [] varNames
-  ELambda(gid (), NEList.map (fun name -> (gid (), name)) varNames, body)
+let eLambda (pats : List<LetPattern>) (body : Expr) : Expr =
+  let pats = NEList.ofListUnsafe "eLambda" [] pats
+  ELambda(gid (), pats, body)
 
 let eEnum (typeName : TypeName.TypeName) (name : string) (args : Expr list) : Expr =
   EEnum(gid (), typeName, name, args)

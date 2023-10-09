@@ -58,17 +58,31 @@ let parserTests =
       t
         "lambdas with 2 args"
         "fun x y -> 8"
-        (PT.ELambda(id, NEList.doubleton (id, "x") (id, "y"), PT.EInt(id, 8)))
+        (PT.ELambda(
+          id,
+          NEList.doubleton (PT.LPVariable(id, "x")) (PT.LPVariable(id, "y")),
+          PT.EInt(id, 8)
+        ))
       t
         "lambdas with 3 args"
         "fun x y z -> 8"
-        (PT.ELambda(id, NEList.ofList (id, "x") [ id, "y"; id, "z" ], PT.EInt(id, 8)))
+        (PT.ELambda(
+          id,
+          NEList.ofList
+            (PT.LPVariable(id, "x"))
+            [ PT.LPVariable(id, "y"); PT.LPVariable(id, "z") ],
+          PT.EInt(id, 8)
+        ))
       t
         "lambdas with 4 args"
         "fun a b c d -> 8"
         (PT.ELambda(
           id,
-          NEList.ofList (id, "a") [ id, "b"; id, "c"; id, "d" ],
+          NEList.ofList
+            (PT.LPVariable(id, "a"))
+            [ PT.LPVariable(id, "b")
+              PT.LPVariable(id, "c")
+              PT.LPVariable(id, "d") ],
           PT.EInt(id, 8)
         ))
       t "negative zero" "(-0.0)" (PT.EFloat(id, Negative, "0", "0"))

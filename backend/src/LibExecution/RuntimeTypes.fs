@@ -594,7 +594,7 @@ and Expr =
   | EConstant of id * ConstantName.ConstantName
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
-  | ELambda of id * NEList<id * string> * Expr
+  | ELambda of id * pats : NEList<LetPattern> * body : Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
   | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
@@ -649,7 +649,7 @@ and LambdaImpl =
   { typeSymbolTable : TypeSymbolTable
     tlid : tlid // The TLID of the expression where this was defined
     symtable : Symtable
-    parameters : NEList<id * string>
+    parameters : NEList<LetPattern>
     body : Expr }
 
 and FnValImpl =

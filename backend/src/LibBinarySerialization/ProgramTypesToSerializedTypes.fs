@@ -400,7 +400,8 @@ module Expr =
       ST.EInfix(id, ST.InfixFnCall(InfixFnName.toST name), toST arg1, toST arg2)
     | PT.EInfix(id, PT.BinOp(op), arg1, arg2) ->
       ST.EInfix(id, ST.BinOp(BinaryOperation.toST (op)), toST arg1, toST arg2)
-    | PT.ELambda(id, vars, body) -> ST.ELambda(id, NEList.toST vars, toST body)
+    | PT.ELambda(id, pats, body) ->
+      ST.ELambda(id, NEList.map LetPattern.toST pats |> NEList.toST, toST body)
     | PT.ELet(id, pat, rhs, body) ->
       ST.ELet(id, LetPattern.toST pat, toST rhs, toST body)
     | PT.EIf(id, cond, thenExpr, elseExpr) ->
@@ -444,8 +445,8 @@ module Expr =
     match pipeExpr with
     | PT.EPipeVariable(id, name, exprs) ->
       ST.EPipeVariable(id, name, List.map toST exprs)
-    | PT.EPipeLambda(id, args, body) ->
-      ST.EPipeLambda(id, NEList.toST args, toST body)
+    | PT.EPipeLambda(id, pats, body) ->
+      ST.EPipeLambda(id, NEList.map LetPattern.toST pats |> NEList.toST, toST body)
     | PT.EPipeInfix(id, PT.InfixFnCall name, first) ->
       ST.EPipeInfix(id, ST.InfixFnCall(InfixFnName.toST name), toST first)
     | PT.EPipeInfix(id, PT.BinOp(op), first) ->
@@ -488,7 +489,8 @@ module Expr =
         List.map TypeReference.toPT typeArgs,
         args |> NEList.toPT |> NEList.map toPT
       )
-    | ST.ELambda(id, vars, body) -> PT.ELambda(id, NEList.toPT vars, toPT body)
+    | ST.ELambda(id, pats, body) ->
+      PT.ELambda(id, NEList.toPT pats |> NEList.map LetPattern.toPT, toPT body)
     | ST.ELet(id, pat, rhs, body) ->
       PT.ELet(id, LetPattern.toPT pat, toPT rhs, toPT body)
     | ST.EIf(id, cond, thenExpr, elseExpr) ->
@@ -534,8 +536,8 @@ module Expr =
     match pipeExpr with
     | ST.EPipeVariable(id, name, exprs) ->
       PT.EPipeVariable(id, name, List.map toPT exprs)
-    | ST.EPipeLambda(id, args, body) ->
-      PT.EPipeLambda(id, NEList.toPT args, toPT body)
+    | ST.EPipeLambda(id, pats, body) ->
+      PT.EPipeLambda(id, NEList.toPT pats |> NEList.map LetPattern.toPT, toPT body)
     | ST.EPipeInfix(id, infix, first) ->
       PT.EPipeInfix(id, Infix.toPT infix, toPT first)
     | ST.EPipeFnCall(id, fnName, typeArgs, args) ->

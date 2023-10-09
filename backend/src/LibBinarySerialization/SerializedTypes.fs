@@ -282,7 +282,7 @@ type Expr =
   | EConstant of id * NameResolution<ConstantName.ConstantName>
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
-  | ELambda of id * NEList<id * string> * Expr
+  | ELambda of id * pats : NEList<LetPattern> * body : Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
   | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
@@ -318,7 +318,7 @@ and [<MessagePack.MessagePackObject>] StringSegment =
 
 and [<MessagePack.MessagePackObject>] PipeExpr =
   | EPipeVariable of id * string * List<Expr>
-  | EPipeLambda of id * NEList<id * string> * Expr
+  | EPipeLambda of id * pats : NEList<LetPattern> * body : Expr
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of
     id *

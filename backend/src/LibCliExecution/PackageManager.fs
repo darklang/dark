@@ -134,7 +134,7 @@ module ProgramTypes =
 
   and PipeExpr =
     | EPipeVariable of ID * string * List<Expr>
-    | EPipeLambda of ID * NEList<ID * string> * Expr
+    | EPipeLambda of ID * pats : NEList<LetPattern> * body : Expr
     | EPipeInfix of ID * Infix * Expr
     | EPipeFnCall of
       ID *
@@ -178,7 +178,7 @@ module ProgramTypes =
     | EPipe of ID * Expr * List<PipeExpr>
 
     | EInfix of ID * Infix * Expr * Expr
-    | ELambda of ID * NEList<ID * string> * Expr
+    | ELambda of ID * pats : NEList<LetPattern> * body : Expr
     | EApply of ID * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
     | EFnName of ID * NameResolution<FnName.FnName>
     | ERecordUpdate of ID * record : Expr * updates : NEList<String * Expr>
@@ -480,7 +480,8 @@ module ExternalTypesToProgramTypes =
           List.map TypeReference.toPT typeArgs,
           NEList.map toPT args
         )
-      | EPT.ELambda(id, vars, body) -> PT.ELambda(id, vars, toPT body)
+      | EPT.ELambda(id, pats, body) ->
+        PT.ELambda(id, NEList.map LetPattern.toPT pats, toPT body)
       | EPT.ELet(id, pat, rhs, body) ->
         PT.ELet(id, LetPattern.toPT pat, toPT rhs, toPT body)
       | EPT.EIf(id, cond, thenExpr, elseExpr) ->
@@ -525,7 +526,8 @@ module ExternalTypesToProgramTypes =
       match pipeExpr with
       | EPT.EPipeVariable(id, name, exprs) ->
         PT.EPipeVariable(id, name, List.map toPT exprs)
-      | EPT.EPipeLambda(id, args, body) -> PT.EPipeLambda(id, args, toPT body)
+      | EPT.EPipeLambda(id, pats, body) ->
+        PT.EPipeLambda(id, NEList.map LetPattern.toPT pats, toPT body)
       | EPT.EPipeInfix(id, infix, first) ->
         PT.EPipeInfix(id, Infix.toPT infix, toPT first)
       | EPT.EPipeFnCall(id, fnName, typeArgs, args) ->

@@ -43,7 +43,6 @@ let parseTypeName (t : SynType) : NEList<string> =
   | _ -> Exception.raiseInternal "Bad format in type name" [ "t", t ]
 
 
-
 module TypeReference =
 
   let rec fromNamesAndTypeArgs
@@ -210,7 +209,10 @@ module MatchPattern =
 
 module Expr =
   // CLEANUP - blanks here aren't allowed
-  let private nameOrBlank (v : string) : string = if v = "___" then "" else v
+
+  let emptyVar = "___"
+
+  let private nameOrBlank (v : string) : string = if v = emptyVar then "" else v
 
   let parseFn (fnName : string) : Result<string * int, string> =
     match fnName with
@@ -268,12 +270,6 @@ module Expr =
       | SynExpr.Tuple(_, args, _, _) -> List.map c args
       | e -> [ c e ]
 
-
-    let convertLambdaVar (var : SynSimplePat) : string =
-      match var with
-      | SynSimplePat.Id(name, _, _, _, _, _) -> nameOrBlank name.idText
-      | _ -> Exception.raiseInternal "unsupported lambdaVar" [ "var", var ]
-
     let synToPipeExpr (e : SynExpr) : WT.PipeExpr =
       match c e with
       | WT.EApply(id,
@@ -288,7 +284,7 @@ module Expr =
       | WT.EEnum(id, typeName, caseName, fields) ->
         WT.EPipeEnum(id, typeName, caseName, fields)
       | WT.EVariable(id, name) -> WT.EPipeVariableOrUserFunction(id, name)
-      | WT.ELambda(id, vars, body) -> WT.EPipeLambda(id, vars, body)
+      | WT.ELambda(id, pats, body) -> WT.EPipeLambda(id, pats, body)
       | other ->
         Exception.raiseInternal
           "Expected a function, got something else."
@@ -440,27 +436,20 @@ module Expr =
         fields
 
     // Lambdas
-    | SynExpr.Lambda(_, false, SynSimplePats.SimplePats(outerVars, _), body, _, _, _) ->
-      let rec extractVarsAndBody expr =
-        match expr with
-        // The 2nd param indicates this was part of a lambda
-        | SynExpr.Lambda(_, true, SynSimplePats.SimplePats(vars, _), body, _, _, _) ->
-          let nestedVars, body = extractVarsAndBody body
-          vars @ nestedVars, body
-        // The 2nd param indicates this was not nested
-        | SynExpr.Lambda(_, false, SynSimplePats.SimplePats(vars, _), body, _, _, _) ->
-          vars, body
-        | SynExpr.Lambda _ ->
-          Exception.raiseInternal "TODO: other types of lambda" [ "expr", expr ]
-        | _ -> [], expr
+    | SynExpr.Lambda(_, false, _, _, Some(pats, body), _, _) ->
+      let skipEmptyVars v =
+        match v with
+        | SynPat.Named(SynIdent(name, _), _, _, _) when name.idText = emptyVar ->
+          false
+        | _ -> true
 
-      let nestedVars, body = extractVarsAndBody body
-      let vars =
-        (outerVars @ nestedVars)
-        |> List.map convertLambdaVar
-        |> (List.map (fun name -> (gid (), name)))
-      let vars = NEList.ofListUnsafe "Empty lambda vars" [] vars
-      WT.ELambda(id, vars, c body)
+      let pats =
+        pats
+        |> List.filter skipEmptyVars
+        |> List.map LetPattern.fromSynPat
+        |> NEList.ofListUnsafe "Empty lambda args" []
+      WT.ELambda(id, pats, c body)
+
 
 
     // if/else expressions

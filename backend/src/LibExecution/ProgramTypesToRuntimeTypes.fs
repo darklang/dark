@@ -278,16 +278,8 @@ module Expr =
     | PT.EInfix(id, PT.BinOp PT.BinOpOr, left, right) ->
       RT.EOr(id, toRT left, toRT right)
 
-    | PT.ELambda(id, vars, body) ->
-      let vars = vars |> NEList.filter (fun (_, v) -> v <> "")
-      match vars with
-      | [] ->
-        RT.EError(
-          id,
-          RT.RuntimeError.oldError "Lambda must have at least one argument",
-          []
-        )
-      | head :: tail -> RT.ELambda(id, NEList.ofList head tail, toRT body)
+    | PT.ELambda(id, pats, body) ->
+      RT.ELambda(id, NEList.map LetPattern.toRT pats, toRT body)
 
     | PT.ELet(id, pattern, rhs, body) ->
       RT.ELet(id, LetPattern.toRT pattern, toRT rhs, toRT body)
@@ -380,8 +372,8 @@ module Expr =
           )
         | PT.EPipeVariable(id, name, exprs) ->
           applyFn (RT.EVariable(id, name)) (List.map toRT exprs)
-        | PT.EPipeLambda(id, vars, body) ->
-          applyFn (RT.ELambda(id, vars, toRT body)) []
+        | PT.EPipeLambda(id, pats, body) ->
+          applyFn (RT.ELambda(id, NEList.map LetPattern.toRT pats, toRT body)) []
 
       let init = toRT expr1
       List.fold folder init rest

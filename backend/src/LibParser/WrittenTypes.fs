@@ -132,7 +132,7 @@ type Expr =
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
   | EInfix of id * Infix * Expr * Expr
-  | ELambda of id * NEList<id * string> * Expr
+  | ELambda of id * pats : NEList<LetPattern> * body : Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
   | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
@@ -161,7 +161,7 @@ and StringSegment =
 and PipeExpr =
   | EPipeInfix of id * Infix * Expr
 
-  | EPipeLambda of id * NEList<id * string> * Expr
+  | EPipeLambda of id * pats : NEList<LetPattern> * body : Expr
 
   | EPipeEnum of
     id *

@@ -227,7 +227,7 @@ let doQuery
   uply {
     let paramName =
       match b.parameters with
-      | { head = (_, name); tail = [] } -> name
+      | { head = RT.LPVariable(_, name); tail = [] } -> name
       | _ -> Exception.raiseInternal "wrong number of args" [ "args", b.parameters ]
 
     let! compiled =

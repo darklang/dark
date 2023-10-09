@@ -3,12 +3,12 @@ module Empty =
 
 
 module FilterMap =
-  PACKAGE.Darklang.Stdlib.Dict.filterMap_v0 (Dict { }) (fun (key, value) -> 0) = (Dict
+  PACKAGE.Darklang.Stdlib.Dict.filterMap_v0 (Dict { }) (fun key value -> 0) = (Dict
     { })
 
   PACKAGE.Darklang.Stdlib.Dict.filterMap_v0
     (Dict { a = "x"; b = "y"; c = "z" })
-    (fun (key, value) ->
+    (fun key value ->
       if value == "y" then
         PACKAGE.Darklang.Stdlib.Option.Option.None
       else
@@ -17,7 +17,7 @@ module FilterMap =
 
   (PACKAGE.Darklang.Stdlib.Dict.filterMap_v0
     (Dict { a = "x"; b = "y"; c = "z" })
-    (fun (key, value) ->
+    (fun key value ->
       if value == "y" then
         false
       else
@@ -32,15 +32,14 @@ Actual: a Bool: false"""
 module Filter =
   PACKAGE.Darklang.Stdlib.Dict.filter
     (Dict { key1 = "val1"; key2 = "val2" })
-    (fun (k, v) -> k == "key1") = (Dict { key1 = "val1" })
+    (fun k v -> k == "key1") = (Dict { key1 = "val1" })
 
-  PACKAGE.Darklang.Stdlib.Dict.filter (Dict { key1 = 1; key2 = 3 }) (fun (k, v) ->
+  PACKAGE.Darklang.Stdlib.Dict.filter (Dict { key1 = 1; key2 = 3 }) (fun k v ->
     v < 2) = (Dict { key1 = 1 })
 
-  PACKAGE.Darklang.Stdlib.Dict.filter (Dict { }) (fun (k, v) -> 0) = (Dict { })
+  PACKAGE.Darklang.Stdlib.Dict.filter (Dict { }) (fun k v -> 0) = (Dict { })
 
-  PACKAGE.Darklang.Stdlib.Dict.filter (Dict { a = 1; b = 2; c = 3 }) (fun (k, v) ->
-    2) = Builtin.Test.derrorMessage
+  PACKAGE.Darklang.Stdlib.Dict.filter (Dict { a = 1; b = 2; c = 3 }) (fun k v -> 2) = Builtin.Test.derrorMessage
     """Function return value should be a Bool. However, an Int (2) was returned instead.
 
 Expected: Bool
@@ -136,11 +135,11 @@ module Keys =
 module Map =
   PACKAGE.Darklang.Stdlib.Dict.map_v0
     (Dict { key1 = "val1"; key2 = "val2" })
-    (fun (k, x) -> k ++ x) = (Dict { key2 = "key2val2"; key1 = "key1val1" })
+    (fun k x -> k ++ x) = (Dict { key2 = "key2val2"; key1 = "key1val1" })
 
   PACKAGE.Darklang.Stdlib.Dict.map_v0
     (Dict { key1 = 5; key2 = 3; key3 = 3 })
-    (fun (k, x) ->
+    (fun k x ->
       PACKAGE.Darklang.Stdlib.Bool.and_v0
         (PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 x 1)
         (PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 x 4)) = (Dict
@@ -148,10 +147,10 @@ module Map =
       key2 = true
       key1 = false })
 
-  PACKAGE.Darklang.Stdlib.Dict.map_v0 (Dict { a = 1; b = 2 }) (fun (k, x) -> x + 1) = (Dict
+  PACKAGE.Darklang.Stdlib.Dict.map_v0 (Dict { a = 1; b = 2 }) (fun k x -> x + 1) = (Dict
     { b = 3; a = 2 })
 
-  PACKAGE.Darklang.Stdlib.Dict.map_v0 (Dict { }) (fun (key, value) -> 0) = (Dict { })
+  PACKAGE.Darklang.Stdlib.Dict.map_v0 (Dict { }) (fun key value -> 0) = (Dict { })
 
 
 module Member =
