@@ -181,10 +181,7 @@ module Darklang =
       type PipeExpr =
         | EPipeVariable of PACKAGE.Darklang.LanguageTools.ID * String * List<Expr>
 
-        | EPipeLambda of
-          PACKAGE.Darklang.LanguageTools.ID *
-          List<PACKAGE.Darklang.LanguageTools.ID * String> *
-          Expr
+        | EPipeLambda of PACKAGE.Darklang.LanguageTools.ID * List<LetPattern> * Expr
 
         | EPipeInfix of PACKAGE.Darklang.LanguageTools.ID * Infix * Expr
 
@@ -275,7 +272,7 @@ module Darklang =
 
         | EInfix of ID * Infix * Expr * Expr
 
-        | ELambda of ID * List<ID * String> * Expr
+        | ELambda of ID * List<LetPattern> * Expr
 
         | EApply of ID * Expr * typeArgs: List<TypeReference> * args: List<Expr>
 
