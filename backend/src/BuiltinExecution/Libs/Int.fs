@@ -26,9 +26,9 @@ module IntParseError =
     | BadFormat
     | OutOfRange
 
-  let toDT (pe : IntParseError) : Dval =
+  let toDT (e : IntParseError) : Dval =
     let (caseName, fields) =
-      match pe with
+      match e with
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
@@ -372,7 +372,8 @@ let fns : List<BuiltInFn> =
       description = "Returns the <type Int> value of a <type String>"
       fn =
         let resultOk = Dval.resultOk KTInt KTString
-        let resultError = Dval.resultError KTInt KTString
+        let typeName = RuntimeError.name [ "Int" ] "IntParseError" 0
+        let resultError = Dval.resultError KTInt (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->
           try
