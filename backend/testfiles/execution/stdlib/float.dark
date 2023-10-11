@@ -95,6 +95,8 @@ PACKAGE.Darklang.Stdlib.Float.clamp_v0 3.0 0.0 2.0 = PACKAGE.Darklang.Stdlib.Res
   2.0
 
 PACKAGE.Darklang.Stdlib.Float.divide_v0 9.0 2.0 = 4.5
+PACKAGE.Darklang.Stdlib.Float.divide_v0 9.0 0.0 = Builtin.Test.infinity_v0
+PACKAGE.Darklang.Stdlib.Float.divide_v0 9.0 -0.0 = Builtin.Test.negativeInfinity_v0
 
 9.0 / 2.0 = 4.5
 17.0 / 3.3 = 5.151515152
