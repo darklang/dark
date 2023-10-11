@@ -227,7 +227,7 @@ let main (args: List<String>) : Int =
         PACKAGE.Darklang.Stdlib.List.fold
           files
           (PACKAGE.Darklang.Stdlib.Result.Result.Ok())
-          (fun (acc, f) ->
+          (fun acc f ->
             Builtin.print $"Loading {f}"
 
             match acc with

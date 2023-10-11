@@ -573,15 +573,13 @@ module Darklang =
 
           $"({varName} {exprs})"
 
-        | EPipeLambda(_id, args, body) ->
+        | EPipeLambda(_id, pats, body) ->
           let argsPart =
-            args
-            |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
-              PACKAGE.Darklang.Stdlib.Tuple2.second pair)
-            |> PACKAGE.Darklang.Stdlib.String.join " "
+            pats
+            |> Stdlib.List.map (fun lp -> letPattern lp)
+            |> Stdlib.String.join " "
 
-          let bodyPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr body
-          $"fun {argsPart} -> {bodyPart}"
+          $"fun {argsPart} -> {expr body}"
 
         | EPipeInfix(_id, infix, expr) ->
           let infixPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.infix infix
@@ -820,7 +818,7 @@ module Darklang =
 
           let pipeParts =
             pipeExprs
-            |> PACKAGE.Darklang.Stdlib.List.map (fun (pipeExpr) ->
+            |> PACKAGE.Darklang.Stdlib.List.map (fun pipeExpr ->
               PACKAGE.Darklang.PrettyPrinter.ProgramTypes.pipeExpr pipeExpr)
             |> PACKAGE.Darklang.Stdlib.String.join " \n|> "
 
@@ -840,11 +838,10 @@ module Darklang =
           // TODO: might need to wrap in parens
           $"({leftPart}) {infixPart} ({rightPart})"
 
-        | ELambda(_id, args, body) ->
-          let argsPart =
-            args
-            |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
-              PACKAGE.Darklang.Stdlib.Tuple2.second pair)
+        | ELambda(_id, pats, body) ->
+          let patsPart =
+            pats
+            |> PACKAGE.Darklang.Stdlib.List.map (fun pat -> letPattern pat)
             |> PACKAGE.Darklang.Stdlib.String.join " "
 
           let bodyPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr body

@@ -1,5 +1,0 @@
-let helloWorld () : Int =
-  print "Hello World"
-  0
-
-helloWorld()

@@ -65,6 +65,31 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "delete" 0
+      typeParams = []
+      parameters = [ Param.make "path" TString "" ]
+      returnType = TypeReference.result TUnit TString
+      description = "Deletes the file specified by <param path>"
+      fn =
+        (function
+        | _, _, [ DString path ] ->
+          uply {
+            try
+              System.IO.File.Delete path
+              return Dval.resultOk KTUnit KTString DUnit
+            with e ->
+              return
+                Dval.resultError
+                  KTUnit
+                  KTString
+                  (DString $"Error deleting file: {e.Message}")
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
     { name = fn "append" 0
       typeParams = []
       parameters = [ Param.make "path" TString ""; Param.make "content" TBytes "" ]
