@@ -375,21 +375,13 @@ let fns : List<BuiltInFn> =
         let resultError = Dval.resultError KTInt KTString
         (function
         | _, _, [ DString s ] ->
-          let trimmedString = s.Trim()
-          if
-            not (
-              System.Text.RegularExpressions.Regex.IsMatch(
-                trimmedString,
-                @"^[+-]?\d+$"
-              )
-            )
-          then
+          try
+            s |> System.Convert.ToInt64 |> DInt |> resultOk |> Ply
+          with
+          | :? System.FormatException ->
             IntParseError.BadFormat |> IntParseError.toDT |> resultError |> Ply
-          else
-            match System.Int64.TryParse(s) with
-            | true, value -> value |> DInt |> resultOk |> Ply
-            | false, _ ->
-              IntParseError.OutOfRange |> IntParseError.toDT |> resultError |> Ply
+          | :? System.OverflowException ->
+            IntParseError.OutOfRange |> IntParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
