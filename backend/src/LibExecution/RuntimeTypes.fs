@@ -807,6 +807,8 @@ module RuntimeError =
 
   let executionError field = case "ExecutionError" [ field ]
 
+  let DivideByZeroError = case "DivideByZeroError" []
+
 
   // let exceptionThrown (ex : System.Exception) : RuntimeError =
   //   case

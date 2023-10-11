@@ -220,7 +220,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DInt a; DInt b ] ->
-          if b = 0L then Ply(raiseString "Division by zero") else Ply(DInt(a / b))
+          if b = 0L then
+            RuntimeError.DivideByZeroError |> raiseUntargetedRTE |> Ply
+          else Ply(DInt(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "/"
       previewable = Pure
