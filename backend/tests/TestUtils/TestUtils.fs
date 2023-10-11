@@ -757,7 +757,14 @@ module Expect =
         System.Double.IsNegativeInfinity l && System.Double.IsNegativeInfinity r
       then
         ()
-      else if System.Double.IsNaN l || System.Double.IsNaN r || System.Double.IsPositiveInfinity l || System.Double.IsPositiveInfinity r || System.Double.IsNegativeInfinity l || System.Double.IsNegativeInfinity r then
+      else if
+        System.Double.IsNaN l
+        || System.Double.IsNaN r
+        || System.Double.IsPositiveInfinity l
+        || System.Double.IsPositiveInfinity r
+        || System.Double.IsNegativeInfinity l
+        || System.Double.IsNegativeInfinity r
+      then
         error path
       else if not (Accuracy.areClose Accuracy.veryHigh l r) then
         error path
