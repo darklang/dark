@@ -2,6 +2,10 @@ module Darklang =
   module Stdlib =
     module Int =
 
+      type IntParseError =
+        | BadFormat
+        | OutOfRange
+
       /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
       /// The modulus <param b> must be 0 or negative.
       /// Use <fn Int.remainder> if you want the remainder after division, which has

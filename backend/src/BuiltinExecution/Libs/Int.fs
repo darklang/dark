@@ -21,6 +21,19 @@ let argumentWasntPositive (paramName : string) (dv : Dval) : string =
   let actual = LibExecution.DvalReprDeveloper.toRepr dv
   $"Expected `{paramName}` to be positive, but it was `{actual}`"
 
+module IntParseError =
+  type IntParseError =
+    | BadFormat
+    | OutOfRange
+
+  let toDT (pe : IntParseError) : Dval =
+    let (caseName, fields) =
+      match pe with
+      | BadFormat -> "BadFormat", []
+      | OutOfRange -> "OutOfRange", []
+
+    let typeName = TypeName.fqPackage "Darklang" ["Stdlib"; "Int"] "IntParseError" 0
+    DEnum (typeName, typeName, [], caseName, fields)
 
 let fn = fn [ "Int" ]
 
@@ -339,20 +352,32 @@ let fns : List<BuiltInFn> =
     { name = fn "parse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TypeReference.result TInt TString
+      returnType =
+        TypeReference.result
+          TInt
+          (TCustomType(
+            Ok(
+              FQName.Package
+                { owner = "Darklang"
+                  modules = [ "Stdlib"; "Int" ]
+                  name = TypeName.TypeName "IntParseError"
+                  version = 0 }
+            ),
+            []
+          ))
       description = "Returns the <type Int> value of a <type String>"
       fn =
         let resultOk = Dval.resultOk KTInt KTString
         let resultError = Dval.resultError KTInt KTString
         (function
         | _, _, [ DString s ] ->
-          try
-            s |> System.Convert.ToInt64 |> DInt |> resultOk |> Ply
-          with _e ->
-            $"Expected to parse String with only numbers, instead got \"{s}\""
-            |> DString
-            |> resultError
-            |> Ply
+          let trimmedString = s.Trim()
+          if not (System.Text.RegularExpressions.Regex.IsMatch(trimmedString, @"^[+-]?\d+$")) then
+            IntParseError.BadFormat |> IntParseError.toDT |> resultError |> Ply
+          else
+            match System.Int64.TryParse(s) with
+            | true, value -> value |> DInt |> resultOk |> Ply
+            | false, _ -> IntParseError.OutOfRange |> IntParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
