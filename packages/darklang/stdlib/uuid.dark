@@ -1,6 +1,10 @@
 module Darklang =
   module Stdlib =
     module Uuid =
+
+      type UuidParseError =
+        | BadFormat
+
       /// Generate a new <type Uuid> v4 according to RFC 4122
       let generate () : Uuid = Builtin.Uuid.generate ()
 
@@ -8,7 +12,7 @@ module Darklang =
       /// Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}
       let parse
         (uuid: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Uuid, String> =
+        : PACKAGE.Darklang.Stdlib.Result.Result<Uuid, PACKAGE.Darklang.Stdlib.Uuid.UuidParseError> =
         Builtin.Uuid.parse uuid
 
 
