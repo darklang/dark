@@ -221,9 +221,8 @@ let fns : List<BuiltInFn> =
         | _, _, [ DInt number; DInt exp ] ->
           (try
             (bigint number) ** (int exp) |> int64 |> DInt |> resultOk |> Ply
-           with
-           | :? System.OverflowException ->
-              IntPowerError.OutOfRange |> IntPowerError.toDT |> resultError |> Ply)
+           with :? System.OverflowException ->
+             IntPowerError.OutOfRange |> IntPowerError.toDT |> resultError |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "^"
       previewable = Pure

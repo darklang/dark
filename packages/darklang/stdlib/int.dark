@@ -135,7 +135,9 @@ module Darklang =
 
 
       /// Returns the <type Int> value of a <type String>
-      let parse (s: String) : PACKAGE.Darklang.Stdlib.Result.Result<Int, PACKAGE.Darklang.Stdlib.Int.IntParseError> =
+      let parse
+        (s: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<Int, PACKAGE.Darklang.Stdlib.Int.IntParseError> =
         Builtin.Int.parse s
 
 
