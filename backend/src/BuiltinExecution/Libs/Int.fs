@@ -36,6 +36,21 @@ module IntParseError =
       TypeName.fqPackage "Darklang" [ "Stdlib"; "Int" ] "IntParseError" 0
     DEnum(typeName, typeName, [], caseName, fields)
 
+module IntPowerError =
+  type IntPowerError =
+    | OutOfRange
+    | NegativeExponent
+
+  let toDT (e : IntPowerError) : Dval =
+    let (caseName, fields) =
+      match e with
+      | OutOfRange -> "OutOfRange", []
+      | NegativeExponent -> "NegativeExponent", []
+
+    let typeName =
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "Int" ] "IntPowerError" 0
+    DEnum(typeName, typeName, [], caseName, fields)
+
 let fn = fn [ "Int" ]
 
 let fns : List<BuiltInFn> =
@@ -118,14 +133,13 @@ let fns : List<BuiltInFn> =
          Returns an {{Error}} if <param divisor> is {{0}}."
       fn =
         let resultOk r = Dval.resultOk KTInt KTString r |> Ply
-        let resultError r = Dval.resultError KTInt KTString r |> Ply
         (function
         | _, _, [ DInt v; DInt d ] ->
           (try
             v % d |> DInt |> resultOk
            with e ->
              if d = 0L then
-               resultError (DString($"`divisor` must be non-zero"))
+               RuntimeError.DivideByZeroError |> raiseUntargetedRTE |> Ply
              else
                Exception.raiseInternal
                  "unexpected failure case in Int.remainder"
@@ -182,31 +196,34 @@ let fns : List<BuiltInFn> =
     { name = fn "power" 0
       typeParams = []
       parameters = [ Param.make "base" TInt ""; Param.make "exponent" TInt "" ]
-      returnType = TypeReference.result TInt TString
+      returnType =
+        TypeReference.result
+          TInt
+          (TCustomType(
+            Ok(
+              FQName.Package
+                { owner = "Darklang"
+                  modules = [ "Stdlib"; "Int" ]
+                  name = TypeName.TypeName "IntPowerError"
+                  version = 0 }
+            ),
+            []
+          ))
       description =
         "Raise <param base> to the power of <param exponent>.
         <param exponent> must to be positive.
         Return value wrapped in a {{Result}} "
       fn =
         let resultOk = Dval.resultOk KTInt KTString
-        let resultError = Dval.resultError KTInt KTString
+        let typeName = RuntimeError.name [ "Int" ] "IntPowerError" 0
+        let resultError = Dval.resultError KTInt (KTCustomType(typeName, []))
         (function
-        | _, _, [ DInt number; DInt exp as expdv ] ->
-          let okPipe r = r |> DInt |> resultOk |> Ply
-          let errPipe e = e |> DString |> resultError |> Ply
+        | _, _, [ DInt number; DInt exp ] ->
           (try
-            if exp < 0L then argumentWasntPositive "exponent" expdv |> errPipe
-            // TODO: do this in a package, and keep it simple here
-            // Handle some edge cases around 1. We want to make this match
-            // OCaml, so we have to support an exponent above int32, but
-            // below int63. This only matters for 1 or -1, and otherwise a
-            // number raised to an int63 exponent wouldn't fit in an int63
-            else if number = 1L then 1L |> okPipe
-            else if number = -1L && exp % 2L = 0L then 1L |> okPipe
-            else if number = -1L then -1L |> okPipe
-            else (bigint number) ** (int exp) |> int64 |> okPipe
-           with _ ->
-             "Error raising to exponent" |> errPipe)
+            (bigint number) ** (int exp) |> int64 |> DInt |> resultOk |> Ply
+           with
+           | :? System.OverflowException ->
+              IntPowerError.OutOfRange |> IntPowerError.toDT |> resultError |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "^"
       previewable = Pure

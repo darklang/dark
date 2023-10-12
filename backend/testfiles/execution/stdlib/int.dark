@@ -50,8 +50,8 @@ PACKAGE.Darklang.Stdlib.Int.remainder_v0 -20 -8 = PACKAGE.Darklang.Stdlib.Result
 PACKAGE.Darklang.Stdlib.Int.remainder_v0 -15 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   -3
 
-PACKAGE.Darklang.Stdlib.Int.remainder_v0 5 0 = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "`divisor` must be non-zero"
+PACKAGE.Darklang.Stdlib.Int.remainder_v0 5 0 = Builtin.Test.derrorMessage
+  "Division by zero"
 
 PACKAGE.Darklang.Stdlib.List.map_v0
   (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5)
@@ -140,7 +140,7 @@ PACKAGE.Darklang.Stdlib.Int.power_v0 -8 5 = PACKAGE.Darklang.Stdlib.Result.Resul
   -32768
 
 PACKAGE.Darklang.Stdlib.Int.power_v0 200 20 = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Error raising to exponent"
+  PACKAGE.Darklang.Stdlib.Int.IntPowerError.OutOfRange
 
 PACKAGE.Darklang.Stdlib.Int.power_v0 200 7 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   12800000000000000L
@@ -152,7 +152,7 @@ PACKAGE.Darklang.Stdlib.Int.power_v0 -1 2147483649L = PACKAGE.Darklang.Stdlib.Re
   -1
 
 PACKAGE.Darklang.Stdlib.Int.power_v0 2 -3 = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Expected `exponent` to be positive, but it was `-3`"
+  PACKAGE.Darklang.Stdlib.Int.IntPowerError.NegativeExponent
 
 5 ^ 2 = PACKAGE.Darklang.Stdlib.Result.Result.Ok 25
 -8 ^ 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok -32768
