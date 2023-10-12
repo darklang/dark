@@ -16,16 +16,16 @@ let constants : List<BuiltInConstant> = []
 let fn = fn [ "Uuid" ]
 
 module UuidParseError =
-  type UuidParseError =
-    | BadFormat
+  type UuidParseError = | BadFormat
 
   let toDT (e : UuidParseError) : Dval =
     let (caseName, fields) =
       match e with
       | BadFormat -> "BadFormat", []
 
-    let typeName = TypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "UuidParseError" 0
-    DEnum (typeName, typeName, [], caseName, fields)
+    let typeName =
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "UuidParseError" 0
+    DEnum(typeName, typeName, [], caseName, fields)
 
 
 let fns : List<BuiltInFn> =
@@ -65,13 +65,15 @@ let fns : List<BuiltInFn> =
         "Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
         let resultOk = Dval.resultOk KTUuid KTString
-        let typeName = TypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "UuidParseError" 0
+        let typeName =
+          TypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "UuidParseError" 0
         let resultError = Dval.resultError KTUuid (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->
           match System.Guid.TryParse s with
           | true, x -> x |> DUuid |> resultOk |> Ply
-          | _ -> UuidParseError.BadFormat |> UuidParseError.toDT |> resultError |> Ply
+          | _ ->
+            UuidParseError.BadFormat |> UuidParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
