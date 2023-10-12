@@ -132,7 +132,7 @@ module Darklang =
         | ExecutionError of
           PACKAGE.Darklang.LanguageTools.RuntimeErrors.Execution.Error
         | JsonError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Json.Error
-        | DivideByZeroError
+        | IntError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Int.Error
 
         | OldStringErrorTODO of String
 
@@ -171,13 +171,7 @@ module Darklang =
 
           | JsonError err -> Json.toSegments err
 
-          | DivideByZeroError ->
-            ErrorOutput
-              { summary = [ ErrorSegment.ErrorSegment.String "Division by zero" ]
-                extraExplanation = []
-                actual = []
-                expected = [] }
-
+          | IntError err -> Int.toSegments err
 
         let toString (e: Error) : String =
           let s = toSegments e

@@ -21,6 +21,29 @@ let argumentWasntPositive (paramName : string) (dv : Dval) : string =
   let actual = LibExecution.DvalReprDeveloper.toRepr dv
   $"Expected `{paramName}` to be positive, but it was `{actual}`"
 
+module IntRuntimeError =
+  type Error =
+    | DivideByZeroError
+    | OutOfRange
+    | NegativeExponent
+    | NegativeModulus
+    | ZeroModulus
+
+  module RTE =
+    let toRuntimeError (e : Error) : RuntimeError =
+      let (caseName, fields) =
+        match e with
+        | DivideByZeroError -> "DivideByZeroError", []
+        | OutOfRange -> "OutOfRange", []
+        | NegativeExponent -> "NegativeExponent", []
+        | NegativeModulus -> "NegativeModulus", []
+        | ZeroModulus -> "ZeroModulus", []
+
+      let typeName = RuntimeError.name [ "Int" ] "Error" 0
+
+      DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.intError
+
+
 module IntParseError =
   type IntParseError =
     | BadFormat
@@ -61,7 +84,7 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
 
-         The modulus <param b> must be 0 or negative.
+         The modulus <param b> must be greater than 0.
 
          Use <fn Int.remainder> if you want the remainder after division, which has
          a different behavior for negative numbers."
@@ -134,12 +157,15 @@ let fns : List<BuiltInFn> =
       fn =
         let resultOk r = Dval.resultOk KTInt KTString r |> Ply
         (function
-        | _, _, [ DInt v; DInt d ] ->
+        | state, _, [ DInt v; DInt d ] ->
           (try
             v % d |> DInt |> resultOk
            with e ->
              if d = 0L then
-               RuntimeError.DivideByZeroError |> raiseUntargetedRTE |> Ply
+               IntRuntimeError.Error.DivideByZeroError
+               |> IntRuntimeError.RTE.toRuntimeError
+               |> raiseRTE state.caller
+               |> Ply
              else
                Exception.raiseInternal
                  "unexpected failure case in Int.remainder"
@@ -236,9 +262,12 @@ let fns : List<BuiltInFn> =
       description = "Divides two integers"
       fn =
         (function
-        | _, _, [ DInt a; DInt b ] ->
+        | state, _, [ DInt a; DInt b ] ->
           if b = 0L then
-            RuntimeError.DivideByZeroError |> raiseUntargetedRTE |> Ply
+            IntRuntimeError.Error.DivideByZeroError
+            |> IntRuntimeError.RTE.toRuntimeError
+            |> raiseRTE state.caller
+            |> Ply
           else
             Ply(DInt(a / b))
         | _ -> incorrectArgs ())
