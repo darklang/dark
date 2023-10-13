@@ -44,19 +44,18 @@ module IntRuntimeError =
       DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.intError
 
 
-module IntParseError =
-  type IntParseError =
+module ParseError =
+  type ParseError =
     | BadFormat
     | OutOfRange
 
-  let toDT (e : IntParseError) : Dval =
+  let toDT (e : ParseError) : Dval =
     let (caseName, fields) =
       match e with
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName =
-      TypeName.fqPackage "Darklang" [ "Stdlib"; "Int" ] "IntParseError" 0
+    let typeName = TypeName.fqPackage "Darklang" [ "Stdlib"; "Int" ] "ParseError" 0
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -397,7 +396,7 @@ let fns : List<BuiltInFn> =
               FQName.Package
                 { owner = "Darklang"
                   modules = [ "Stdlib"; "Int" ]
-                  name = TypeName.TypeName "IntParseError"
+                  name = TypeName.TypeName "ParseError"
                   version = 0 }
             ),
             []
@@ -405,7 +404,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the <type Int> value of a <type String>"
       fn =
         let resultOk = Dval.resultOk KTInt KTString
-        let typeName = RuntimeError.name [ "Int" ] "IntParseError" 0
+        let typeName = RuntimeError.name [ "Int" ] "ParseError" 0
         let resultError = Dval.resultError KTInt (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->
@@ -413,9 +412,9 @@ let fns : List<BuiltInFn> =
             s |> System.Convert.ToInt64 |> DInt |> resultOk |> Ply
           with
           | :? System.FormatException ->
-            IntParseError.BadFormat |> IntParseError.toDT |> resultError |> Ply
+            ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
           | :? System.OverflowException ->
-            IntParseError.OutOfRange |> IntParseError.toDT |> resultError |> Ply
+            ParseError.OutOfRange |> ParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

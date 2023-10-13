@@ -2,7 +2,7 @@ module Darklang =
   module Stdlib =
     module Int =
 
-      type IntParseError =
+      type ParseError =
         | BadFormat
         | OutOfRange
 
@@ -123,7 +123,7 @@ module Darklang =
       /// Returns the <type Int> value of a <type String>
       let parse
         (s: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Int, PACKAGE.Darklang.Stdlib.Int.IntParseError> =
+        : PACKAGE.Darklang.Stdlib.Result.Result<Int, PACKAGE.Darklang.Stdlib.Int.ParseError> =
         Builtin.Int.parse s
 
 

@@ -2,7 +2,7 @@ module Darklang =
   module Stdlib =
     module Float =
 
-      type FloatParseError = | BadFormat
+      type ParseError = | BadFormat
 
       /// Round up to an integer value
       let ceiling (a: Float) : Int = Builtin.Float.ceiling a

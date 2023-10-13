@@ -330,7 +330,7 @@ PACKAGE.Darklang.Stdlib.Int.parse_v0 "-9223372036854775808" = PACKAGE.Darklang.S
   -9223372036854775808L // .NET lower limit
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "-9223372036854775809" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.OutOfRange
+  PACKAGE.Darklang.Stdlib.Int.ParseError.OutOfRange
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "4611686018427387903" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   4611686018427387903L // int63 upper limit
@@ -342,49 +342,49 @@ PACKAGE.Darklang.Stdlib.Int.parse_v0 "9223372036854775807" = PACKAGE.Darklang.St
   9223372036854775807L // .NET upper limit
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "9223372036854775808" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.OutOfRange
+  PACKAGE.Darklang.Stdlib.Int.ParseError.OutOfRange
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "1 2 3" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.BadFormat
+  PACKAGE.Darklang.Stdlib.Int.ParseError.BadFormat
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "+ 1" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.BadFormat
+  PACKAGE.Darklang.Stdlib.Int.ParseError.BadFormat
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "- 1" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.BadFormat
+  PACKAGE.Darklang.Stdlib.Int.ParseError.BadFormat
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "0xA" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.BadFormat
+  PACKAGE.Darklang.Stdlib.Int.ParseError.BadFormat
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "0x123" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.BadFormat
+  PACKAGE.Darklang.Stdlib.Int.ParseError.BadFormat
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "0b0100" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.BadFormat
+  PACKAGE.Darklang.Stdlib.Int.ParseError.BadFormat
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "pi" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.BadFormat
+  PACKAGE.Darklang.Stdlib.Int.ParseError.BadFormat
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.BadFormat
+  PACKAGE.Darklang.Stdlib.Int.ParseError.BadFormat
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "1.23E+04" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.BadFormat
+  PACKAGE.Darklang.Stdlib.Int.ParseError.BadFormat
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "9223372036854775808" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.OutOfRange
+  PACKAGE.Darklang.Stdlib.Int.ParseError.OutOfRange
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.BadFormat
+  PACKAGE.Darklang.Stdlib.Int.ParseError.BadFormat
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "1I" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.BadFormat
+  PACKAGE.Darklang.Stdlib.Int.ParseError.BadFormat
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "one" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.BadFormat
+  PACKAGE.Darklang.Stdlib.Int.ParseError.BadFormat
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "XIV" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Int.IntParseError.BadFormat
+  PACKAGE.Darklang.Stdlib.Int.ParseError.BadFormat
 
 
 PACKAGE.Darklang.Stdlib.Int.toString 0 = "0"
