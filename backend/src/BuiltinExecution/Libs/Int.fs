@@ -59,20 +59,6 @@ module IntParseError =
       TypeName.fqPackage "Darklang" [ "Stdlib"; "Int" ] "IntParseError" 0
     DEnum(typeName, typeName, [], caseName, fields)
 
-module IntPowerError =
-  type IntPowerError =
-    | OutOfRange
-    | NegativeExponent
-
-  let toDT (e : IntPowerError) : Dval =
-    let (caseName, fields) =
-      match e with
-      | OutOfRange -> "OutOfRange", []
-      | NegativeExponent -> "NegativeExponent", []
-
-    let typeName =
-      TypeName.fqPackage "Darklang" [ "Stdlib"; "Int" ] "IntPowerError" 0
-    DEnum(typeName, typeName, [], caseName, fields)
 
 let fn = fn [ "Int" ]
 
@@ -90,9 +76,17 @@ let fns : List<BuiltInFn> =
          a different behavior for negative numbers."
       fn =
         (function
-        | _, _, [ DInt v; DInt m as mdv ] ->
-          if m <= 0L then
-            raiseString (argumentWasntPositive "b" mdv)
+        | state, _, [ DInt v; DInt m ] ->
+          if m = 0L then
+            IntRuntimeError.Error.ZeroModulus
+            |> IntRuntimeError.RTE.toRuntimeError
+            |> raiseRTE state.caller
+            |> Ply
+          else if m < 0L then
+            IntRuntimeError.Error.NegativeModulus
+            |> IntRuntimeError.RTE.toRuntimeError
+            |> raiseRTE state.caller
+            |> Ply
           else
             let result = v % m
             let result = if result < 0L then m + result else result
@@ -222,33 +216,27 @@ let fns : List<BuiltInFn> =
     { name = fn "power" 0
       typeParams = []
       parameters = [ Param.make "base" TInt ""; Param.make "exponent" TInt "" ]
-      returnType =
-        TypeReference.result
-          TInt
-          (TCustomType(
-            Ok(
-              FQName.Package
-                { owner = "Darklang"
-                  modules = [ "Stdlib"; "Int" ]
-                  name = TypeName.TypeName "IntPowerError"
-                  version = 0 }
-            ),
-            []
-          ))
+      returnType = TInt
       description =
         "Raise <param base> to the power of <param exponent>.
         <param exponent> must to be positive.
         Return value wrapped in a {{Result}} "
       fn =
-        let resultOk = Dval.resultOk KTInt KTString
-        let typeName = RuntimeError.name [ "Int" ] "IntPowerError" 0
-        let resultError = Dval.resultError KTInt (KTCustomType(typeName, []))
         (function
-        | _, _, [ DInt number; DInt exp ] ->
+        | state, _, [ DInt number; DInt exp ] ->
           (try
-            (bigint number) ** (int exp) |> int64 |> DInt |> resultOk |> Ply
+            if exp < 0L then
+              IntRuntimeError.Error.NegativeExponent
+              |> IntRuntimeError.RTE.toRuntimeError
+              |> raiseRTE state.caller
+              |> Ply
+            else
+              (bigint number) ** (int exp) |> int64 |> DInt |> Ply
            with :? System.OverflowException ->
-             IntPowerError.OutOfRange |> IntPowerError.toDT |> resultError |> Ply)
+             IntRuntimeError.Error.OutOfRange
+             |> IntRuntimeError.RTE.toRuntimeError
+             |> raiseRTE state.caller
+             |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "^"
       previewable = Pure

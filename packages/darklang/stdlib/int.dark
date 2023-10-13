@@ -6,9 +6,6 @@ module Darklang =
         | BadFormat
         | OutOfRange
 
-      type IntPowerError =
-        | OutOfRange
-        | NegativeExponent
 
       /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
       /// The modulus <param b> must be 0 or negative.
@@ -49,27 +46,16 @@ module Darklang =
       /// Raise <param base> to the power of <param exponent>.
       /// <param exponent> must to be positive.
       /// Return value wrapped in a {{Result}}
-      let power
-        (``base``: Int)
-        (exponent: Int)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Int, PACKAGE.Darklang.Stdlib.Int.IntPowerError> =
-        if exponent < 0 then
-          PACKAGE.Darklang.Stdlib.Result.Result.Error
-            PACKAGE.Darklang.Stdlib.Int.IntPowerError.NegativeExponent
+      let power (``base``: Int) (exponent: Int) : Int =
         // Handle some edge cases around 1. We want to make this match
         // OCaml, so we have to support an exponent above int32, but
         // below int63. This only matters for 1 or -1, and otherwise a
         // number raised to an int63 exponent wouldn't fit in an int63
-        else if ``base`` == 0 then
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
-        else if ``base`` == 1 then
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
-        else if ``base`` == -1 && exponent % 2 == 0 then
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
-        else if ``base`` == -1 then
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok -1
-        else
-          ``base`` ^ exponent
+        if ``base`` == 0 then 0
+        else if ``base`` == 1 then 1
+        else if ``base`` == -1 && exponent % 2 == 0 then 1
+        else if ``base`` == -1 then -1
+        else ``base`` ^ exponent
 
 
       /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
