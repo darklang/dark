@@ -132,6 +132,7 @@ module Darklang =
         | ExecutionError of
           PACKAGE.Darklang.LanguageTools.RuntimeErrors.Execution.Error
         | JsonError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Json.Error
+        | IntError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Int.Error
 
         | OldStringErrorTODO of String
 
@@ -170,6 +171,7 @@ module Darklang =
 
           | JsonError err -> Json.toSegments err
 
+          | IntError err -> Int.toSegments err
 
         let toString (e: Error) : String =
           let s = toSegments e

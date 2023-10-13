@@ -14,6 +14,17 @@ let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "Float" ]
 
+module ParseError =
+  type ParseError = | BadFormat
+
+  let toDT (e : ParseError) : Dval =
+    let (caseName, fields) =
+      match e with
+      | BadFormat -> "BadFormat", []
+
+    let typeName = TypeName.fqPackage "Darklang" [ "Stdlib"; "Float" ] "ParseError" 0
+    DEnum(typeName, typeName, [], caseName, fields)
+
 let fns : List<BuiltInFn> =
   [ { name = fn "ceiling" 0
       typeParams = []
@@ -269,20 +280,31 @@ let fns : List<BuiltInFn> =
     { name = fn "parse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TypeReference.result TFloat TString
+      returnType =
+        TypeReference.result
+          TFloat
+          (TCustomType(
+            Ok(
+              FQName.Package
+                { owner = "Darklang"
+                  modules = [ "Stdlib"; "Int" ]
+                  name = TypeName.TypeName "ParseError"
+                  version = 0 }
+            ),
+            []
+          ))
       description =
         "Returns the <type Float> value wrapped in a {{Result}} of the <type String>"
       fn =
         let resultOk r = Dval.resultOk KTFloat KTString r |> Ply
-        let resultError r = Dval.resultError KTFloat KTString r |> Ply
+        let typeName = RuntimeError.name [ "Float" ] "ParseError" 0
+        let resultError = Dval.resultError KTFloat (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->
           try
             float (s) |> DFloat |> resultOk
-          with e ->
-            "Expected a String representation of an IEEE float"
-            |> DString
-            |> resultError
+          with :? System.FormatException ->
+            ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

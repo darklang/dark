@@ -21,6 +21,43 @@ let argumentWasntPositive (paramName : string) (dv : Dval) : string =
   let actual = LibExecution.DvalReprDeveloper.toRepr dv
   $"Expected `{paramName}` to be positive, but it was `{actual}`"
 
+module IntRuntimeError =
+  type Error =
+    | DivideByZeroError
+    | OutOfRange
+    | NegativeExponent
+    | NegativeModulus
+    | ZeroModulus
+
+  module RTE =
+    let toRuntimeError (e : Error) : RuntimeError =
+      let (caseName, fields) =
+        match e with
+        | DivideByZeroError -> "DivideByZeroError", []
+        | OutOfRange -> "OutOfRange", []
+        | NegativeExponent -> "NegativeExponent", []
+        | NegativeModulus -> "NegativeModulus", []
+        | ZeroModulus -> "ZeroModulus", []
+
+      let typeName = RuntimeError.name [ "Int" ] "Error" 0
+
+      DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.intError
+
+
+module ParseError =
+  type ParseError =
+    | BadFormat
+    | OutOfRange
+
+  let toDT (e : ParseError) : Dval =
+    let (caseName, fields) =
+      match e with
+      | BadFormat -> "BadFormat", []
+      | OutOfRange -> "OutOfRange", []
+
+    let typeName = TypeName.fqPackage "Darklang" [ "Stdlib"; "Int" ] "ParseError" 0
+    DEnum(typeName, typeName, [], caseName, fields)
+
 
 let fn = fn [ "Int" ]
 
@@ -32,15 +69,23 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
 
-         The modulus <param b> must be 0 or negative.
+         The modulus <param b> must be greater than 0.
 
          Use <fn Int.remainder> if you want the remainder after division, which has
          a different behavior for negative numbers."
       fn =
         (function
-        | _, _, [ DInt v; DInt m as mdv ] ->
-          if m <= 0L then
-            raiseString (argumentWasntPositive "b" mdv)
+        | state, _, [ DInt v; DInt m ] ->
+          if m = 0L then
+            IntRuntimeError.Error.ZeroModulus
+            |> IntRuntimeError.RTE.toRuntimeError
+            |> raiseRTE state.caller
+            |> Ply
+          else if m < 0L then
+            IntRuntimeError.Error.NegativeModulus
+            |> IntRuntimeError.RTE.toRuntimeError
+            |> raiseRTE state.caller
+            |> Ply
           else
             let result = v % m
             let result = if result < 0L then m + result else result
@@ -104,14 +149,16 @@ let fns : List<BuiltInFn> =
          Returns an {{Error}} if <param divisor> is {{0}}."
       fn =
         let resultOk r = Dval.resultOk KTInt KTString r |> Ply
-        let resultError r = Dval.resultError KTInt KTString r |> Ply
         (function
-        | _, _, [ DInt v; DInt d ] ->
+        | state, _, [ DInt v; DInt d ] ->
           (try
             v % d |> DInt |> resultOk
            with e ->
              if d = 0L then
-               resultError (DString($"`divisor` must be non-zero"))
+               IntRuntimeError.Error.DivideByZeroError
+               |> IntRuntimeError.RTE.toRuntimeError
+               |> raiseRTE state.caller
+               |> Ply
              else
                Exception.raiseInternal
                  "unexpected failure case in Int.remainder"
@@ -168,31 +215,27 @@ let fns : List<BuiltInFn> =
     { name = fn "power" 0
       typeParams = []
       parameters = [ Param.make "base" TInt ""; Param.make "exponent" TInt "" ]
-      returnType = TypeReference.result TInt TString
+      returnType = TInt
       description =
         "Raise <param base> to the power of <param exponent>.
         <param exponent> must to be positive.
         Return value wrapped in a {{Result}} "
       fn =
-        let resultOk = Dval.resultOk KTInt KTString
-        let resultError = Dval.resultError KTInt KTString
         (function
-        | _, _, [ DInt number; DInt exp as expdv ] ->
-          let okPipe r = r |> DInt |> resultOk |> Ply
-          let errPipe e = e |> DString |> resultError |> Ply
+        | state, _, [ DInt number; DInt exp ] ->
           (try
-            if exp < 0L then argumentWasntPositive "exponent" expdv |> errPipe
-            // TODO: do this in a package, and keep it simple here
-            // Handle some edge cases around 1. We want to make this match
-            // OCaml, so we have to support an exponent above int32, but
-            // below int63. This only matters for 1 or -1, and otherwise a
-            // number raised to an int63 exponent wouldn't fit in an int63
-            else if number = 1L then 1L |> okPipe
-            else if number = -1L && exp % 2L = 0L then 1L |> okPipe
-            else if number = -1L then -1L |> okPipe
-            else (bigint number) ** (int exp) |> int64 |> okPipe
-           with _ ->
-             "Error raising to exponent" |> errPipe)
+            if exp < 0L then
+              IntRuntimeError.Error.NegativeExponent
+              |> IntRuntimeError.RTE.toRuntimeError
+              |> raiseRTE state.caller
+              |> Ply
+            else
+              (bigint number) ** (int exp) |> int64 |> DInt |> Ply
+           with :? System.OverflowException ->
+             IntRuntimeError.Error.OutOfRange
+             |> IntRuntimeError.RTE.toRuntimeError
+             |> raiseRTE state.caller
+             |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "^"
       previewable = Pure
@@ -206,8 +249,14 @@ let fns : List<BuiltInFn> =
       description = "Divides two integers"
       fn =
         (function
-        | _, _, [ DInt a; DInt b ] ->
-          if b = 0L then Ply(raiseString "Division by zero") else Ply(DInt(a / b))
+        | state, _, [ DInt a; DInt b ] ->
+          if b = 0L then
+            IntRuntimeError.Error.DivideByZeroError
+            |> IntRuntimeError.RTE.toRuntimeError
+            |> raiseRTE state.caller
+            |> Ply
+          else
+            Ply(DInt(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "/"
       previewable = Pure
@@ -339,20 +388,33 @@ let fns : List<BuiltInFn> =
     { name = fn "parse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TypeReference.result TInt TString
+      returnType =
+        TypeReference.result
+          TInt
+          (TCustomType(
+            Ok(
+              FQName.Package
+                { owner = "Darklang"
+                  modules = [ "Stdlib"; "Int" ]
+                  name = TypeName.TypeName "ParseError"
+                  version = 0 }
+            ),
+            []
+          ))
       description = "Returns the <type Int> value of a <type String>"
       fn =
         let resultOk = Dval.resultOk KTInt KTString
-        let resultError = Dval.resultError KTInt KTString
+        let typeName = RuntimeError.name [ "Int" ] "ParseError" 0
+        let resultError = Dval.resultError KTInt (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->
           try
             s |> System.Convert.ToInt64 |> DInt |> resultOk |> Ply
-          with _e ->
-            $"Expected to parse String with only numbers, instead got \"{s}\""
-            |> DString
-            |> resultError
-            |> Ply
+          with
+          | :? System.FormatException ->
+            ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
+          | :? System.OverflowException ->
+            ParseError.OutOfRange |> ParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

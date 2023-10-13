@@ -95,6 +95,8 @@ PACKAGE.Darklang.Stdlib.Float.clamp_v0 3.0 0.0 2.0 = PACKAGE.Darklang.Stdlib.Res
   2.0
 
 PACKAGE.Darklang.Stdlib.Float.divide_v0 9.0 2.0 = 4.5
+PACKAGE.Darklang.Stdlib.Float.divide_v0 9.0 0.0 = Builtin.Test.infinity_v0
+PACKAGE.Darklang.Stdlib.Float.divide_v0 9.0 -0.0 = Builtin.Test.negativeInfinity_v0
 
 9.0 / 2.0 = 4.5
 17.0 / 3.3 = 5.151515152
@@ -164,14 +166,20 @@ PACKAGE.Darklang.Stdlib.Float.parse_v0 "-55555555555555555555555555555.5" = PACK
   -55555555555555555555555555555.5
 
 PACKAGE.Darklang.Stdlib.Float.parse_v0 "-141s" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Expected a String representation of an IEEE float"
+  PACKAGE.Darklang.Stdlib.Float.ParseError.BadFormat
 
 PACKAGE.Darklang.Stdlib.Float.parse_v0 "" = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Expected a String representation of an IEEE float"
+  PACKAGE.Darklang.Stdlib.Float.ParseError.BadFormat
 
 PACKAGE.Darklang.Stdlib.Float.parse "-5.55555555556e+28" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   -55555555555555555555555555555.5
 //PACKAGE.Darklang.Stdlib.Float.parse_v0 "0xffffffffffffffff" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 1.844674407e+19
+
+PACKAGE.Darklang.Stdlib.Float.parse_v0 "-1.8E+308" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  Builtin.Test.negativeInfinity_v0
+
+PACKAGE.Darklang.Stdlib.Float.parse_v0 "1.8E+308" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  Builtin.Test.infinity_v0
 
 PACKAGE.Darklang.Stdlib.Float.power_v0 4.0 -0.5 = 0.5
 PACKAGE.Darklang.Stdlib.Float.power_v0 4.0 0.5 = 2.0
