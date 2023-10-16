@@ -70,7 +70,7 @@ let builtIns : RT.BuiltIns =
     fns = fns |> Map.fromListBy (fun fn -> fn.name)
     constants = constants |> Map.fromListBy (fun c -> c.name) }
 
-let packageManager = LibCliExecution.PackageManager.packageManager
+let packageManager = LibCloud.PackageManager.packageManager
 
 let execute
   (parentState : RT.ExecutionState)
@@ -135,7 +135,8 @@ let fns : List<BuiltInFn> =
         TypeReference.result
           TInt
           (TCustomType(Ok(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)), []))
-      description = "Parses and executes arbitrary Dark code"
+      description =
+        "Parses Dark code as a script, and and executes it, returning an exit code"
       fn =
         let errType =
           KTCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), [])
@@ -193,7 +194,7 @@ let fns : List<BuiltInFn> =
         TypeReference.result
           TString
           (TCustomType(Ok(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)), []))
-      description = "Executes an arbitrary Dark function"
+      description = "Executes an arbitrary Dark package function"
       fn =
         let errType =
           KTCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), [])
@@ -223,7 +224,12 @@ let fns : List<BuiltInFn> =
 
             try
               let parts = functionName.Split('.') |> List.ofArray
-              let name = NEList.ofList "PACKAGE" parts
+              let name =
+                NEList.ofListUnsafe
+                  "Can't call `Cli.executeFunction` with an empty function name"
+                  []
+                  parts
+
               let resolver = LibParser.NameResolver.fromExecutionState state
               let! fnName =
                 LibParser.NameResolver.FnName.resolve
@@ -233,10 +239,8 @@ let fns : List<BuiltInFn> =
 
               match fnName with
               | Ok fnName ->
-
-                let desc = fnName |> PT2RT.FnName.toRT
                 let! fn =
-                  match desc with
+                  match PT2RT.FnName.toRT fnName with
                   | FQName.Package pkg ->
                     uply {
                       let! fn = state.packageManager.getFn pkg
@@ -298,8 +302,11 @@ let fns : List<BuiltInFn> =
                       |> DString
                       |> resultError
                   | Ok value ->
-                    let asString = LibExecution.DvalReprDeveloper.toRepr value
-                    return resultOk (DString asString)
+                    match value with
+                    | DString s -> return resultOk (DString s)
+                    | _ ->
+                      let asString = LibExecution.DvalReprDeveloper.toRepr value
+                      return resultOk (DString asString)
               | _ -> return incorrectArgs ()
             with e ->
               return exnError e

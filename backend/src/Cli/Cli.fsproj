@@ -49,6 +49,7 @@
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibCliExecution/LibCliExecution.fsproj" />
+    <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
   </ItemGroup>
   <ItemGroup>

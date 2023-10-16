@@ -1,19 +1,19 @@
 module Darklang =
   module Cli =
     type Command =
-      | RunScript of String * List<String>
       | Help
+      | RunScript of String * List<String>
+      | RunFunction of fnName: String * args: List<String>
       | Show of String
       | Infer of String * String
       | Invalid of List<String>
-      | RunFunction of fnName: String * args: List<String>
 
 
     let showFn (name: String) (owner: String) (modules: List<String>) : Int =
       let fns =
         PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
-          ("http://dark-packages.dlio.localhost:11003/functions/")
+          "http://dark-packages.dlio.localhost:11003/functions/"
           []
           Builtin.Bytes.empty
 
@@ -62,7 +62,7 @@ module Darklang =
       let types =
         PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
-          ("http://dark-packages.dlio.localhost:11003/types/")
+          "http://dark-packages.dlio.localhost:11003/types/"
           []
           Builtin.Bytes.empty
 
@@ -90,10 +90,7 @@ module Darklang =
       | Some types ->
         let packageSpecificType =
           (PACKAGE.Darklang.Stdlib.List.filter types (fun t ->
-            t.name.name
-            == PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name.TypeName(
-              name
-            )
+            t.name.name == LanguageTools.ProgramTypes.TypeName.Name.TypeName(name)
             && t.name.owner == owner
             && t.name.modules == modules))
           |> PACKAGE.Darklang.Stdlib.List.head
@@ -113,7 +110,7 @@ module Darklang =
       let constants =
         PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
-          ("http://dark-packages.dlio.localhost:11003/constants/")
+          "http://dark-packages.dlio.localhost:11003/constants/"
           []
           Builtin.Bytes.empty
 
@@ -156,6 +153,7 @@ module Darklang =
             )
 
             0
+
           | None ->
             Builtin.print "Constant not found"
             1
@@ -209,7 +207,7 @@ module Darklang =
       let packages =
         PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
-          ("http://dark-packages.dlio.localhost:11003/owner/" ++ owner)
+          $"http://dark-packages.dlio.localhost:11003/owner/{owner}"
           []
           Builtin.Bytes.empty
 
@@ -268,28 +266,29 @@ module Darklang =
         0
 
 
-    let parseArguments (args: List<String>) : PACKAGE.Darklang.Cli.Command =
+    let parseArguments (args: List<String>) : Command =
       match args with
-      | [ "-h" ] -> PACKAGE.Darklang.Cli.Command.Help
-      | [ "--help" ] -> PACKAGE.Darklang.Cli.Command.Help
+      | [ "-h" ] -> Command.Help
+      | [ "--help" ] -> Command.Help
       | [ "--prompt"; prompt; "--script"; scriptPath ] ->
-        PACKAGE.Darklang.Cli.Command.Infer(prompt, scriptPath)
+        Command.Infer(prompt, scriptPath)
       | [ "show"; fnName ] ->
-        if PACKAGE.Darklang.Stdlib.String.startsWith fnName "@" then
-          PACKAGE.Darklang.Cli.Command.Show fnName
+        if Stdlib.String.startsWith fnName "@" then
+          Command.Show fnName
         else
-          PACKAGE.Darklang.Cli.Command.Invalid [ "Invalid package name" ]
+          Command.Invalid [ "Invalid package name" ]
 
       | opt :: args ->
         if PACKAGE.Darklang.Stdlib.String.startsWith opt "@" then
           let name = opt |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1
-          PACKAGE.Darklang.Cli.Command.RunFunction name args
+          Command.RunFunction name args
         else
-          PACKAGE.Darklang.Cli.Command.RunScript(opt, args)
-      | _ -> PACKAGE.Darklang.Cli.Command.Invalid [ "Invalid arguments" ]
+          Command.RunScript(opt, args)
+
+      | _ -> Command.Invalid [ "Invalid arguments" ]
 
 
-    let executeCommand (command: PACKAGE.Darklang.Cli.Command) : Int =
+    let executeCommand (command: Command) : Int =
       match command with
       | RunScript(scriptPath, args) ->
         match Builtin.File.read scriptPath with
@@ -352,7 +351,7 @@ Options:
         let categoryRequest =
           PACKAGE.Darklang.Stdlib.HttpClient.request
             "GET"
-            ("http://dark-packages.dlio.localhost:11003/category/" ++ fullName)
+            $"http://dark-packages.dlio.localhost:11003/category/{fullName}"
             []
             Builtin.Bytes.empty
 
