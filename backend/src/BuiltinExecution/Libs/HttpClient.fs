@@ -26,12 +26,15 @@ type Response = { statusCode : int; headers : Headers.T; body : Body }
 
 
 module BadHeader =
-  type BadHeader = | EmptyKey
+  type BadHeader =
+    | EmptyKey
+    | InvalidContentType
 
   let toDT (err : BadHeader) : Dval =
     let (caseName, fields) =
       match err with
       | EmptyKey -> "EmptyKey", []
+      | InvalidContentType -> "InvalidContentType", []
     let typeName =
       TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "BadHeader" 0
     DEnum(typeName, typeName, [], caseName, fields)
@@ -276,69 +279,76 @@ let makeRequest
             )
 
           // headers
-          httpRequest.headers
-          |> List.iter (fun (k, v) ->
-            // .NET handles "content headers" separately from other headers.
-            // They're put into `req.Content.Headers` rather than `req.Headers`
-            // https://docs.microsoft.com/en-us/dotnet/api/system.net.http.headers.httpcontentheaders?view=net-6.0
-            if String.equalsCaseInsensitive k "content-type" then
-              try
-                req.Content.Headers.ContentType <-
-                  Headers.MediaTypeHeaderValue.Parse(v)
-              with :? System.FormatException ->
-                raiseString "Invalid content-type header"
-            else
-              let added = req.Headers.TryAddWithoutValidation(k, v)
+          let headerResults =
+            httpRequest.headers
+            |> List.map (fun (k, v) ->
+              // .NET handles "content headers" separately from other headers.
+              // They're put into `req.Content.Headers` rather than `req.Headers`
+              // https://docs.microsoft.com/en-us/dotnet/api/system.net.http.headers.httpcontentheaders?view=net-6.0
+              if String.equalsCaseInsensitive k "content-type" then
+                try
+                  req.Content.Headers.ContentType <- Headers.MediaTypeHeaderValue.Parse(v)
+                  Ok()
+                with :? System.FormatException ->
+                  Error BadHeader.BadHeader.InvalidContentType
+              else
+                let added = req.Headers.TryAddWithoutValidation(k, v)
 
-              // Headers are split between req.Headers and req.Content.Headers so just try both
-              if not added then req.Content.Headers.Add(k, v))
+                // Headers are split between req.Headers and req.Content.Headers so just try both
+                if not added then req.Content.Headers.Add(k, v)
+                Ok()
+                )
 
-          // send request
-          config.telemetryAddTag
-            "request.content_type"
-            req.Content.Headers.ContentType
-          config.telemetryAddTag
-            "request.content_length"
-            req.Content.Headers.ContentLength
 
-          // Allow timeout
-          let source =
-            new System.Threading.CancellationTokenSource(config.timeoutInMs)
-          let cancellationToken = source.Token
+          match Result.collect headerResults with
+          | Ok _ ->
+            config.telemetryAddTag
+              "request.content_type"
+              req.Content.Headers.ContentType
+            config.telemetryAddTag
+              "request.content_length"
+              req.Content.Headers.ContentLength
 
-          use! response = httpClient.SendAsync(req, cancellationToken)
+            // Allow timeout
+            let source =
+              new System.Threading.CancellationTokenSource(config.timeoutInMs)
+            let cancellationToken = source.Token
 
-          config.telemetryAddTag "response.status_code" response.StatusCode
-          config.telemetryAddTag "response.version" response.Version
-          use! responseStream = response.Content.ReadAsStreamAsync()
-          use memoryStream = new MemoryStream()
-          do! responseStream.CopyToAsync(memoryStream)
-          let respBody = memoryStream.ToArray()
+            use! response = httpClient.SendAsync(req, cancellationToken)
 
-          let headersForAspNetResponse
-            (response : HttpResponseMessage)
-            : List<string * string> =
-            let fromAspNetHeaders
-              (headers : Headers.HttpHeaders)
+            config.telemetryAddTag "response.status_code" response.StatusCode
+            config.telemetryAddTag "response.version" response.Version
+            use! responseStream = response.Content.ReadAsStreamAsync()
+            use memoryStream = new MemoryStream()
+            do! responseStream.CopyToAsync(memoryStream)
+            let respBody = memoryStream.ToArray()
+
+            let headersForAspNetResponse
+              (response : HttpResponseMessage)
               : List<string * string> =
-              headers
-              |> Seq.map Tuple2.fromKeyValuePair
-              |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
-              |> Seq.toList
-            fromAspNetHeaders response.Headers
-            @ fromAspNetHeaders response.Content.Headers
+              let fromAspNetHeaders
+                (headers : Headers.HttpHeaders)
+                : List<string * string> =
+                headers
+                |> Seq.map Tuple2.fromKeyValuePair
+                |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
+                |> Seq.toList
+              fromAspNetHeaders response.Headers
+              @ fromAspNetHeaders response.Content.Headers
 
 
-          let headers =
-            response
-            |> headersForAspNetResponse
-            |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
+            let headers =
+              response
+              |> headersForAspNetResponse
+              |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
 
-          return
-            { statusCode = int response.StatusCode
-              headers = headers
-              body = respBody }
-            |> Ok
+            return
+              { statusCode = int response.StatusCode
+                headers = headers
+                body = respBody }
+              |> Ok
+
+          | Error e -> return Error (RequestError.RequestError.BadHeader e)
 
       with
       | :? TaskCanceledException ->
