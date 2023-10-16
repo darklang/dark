@@ -5,6 +5,7 @@ module Darklang =
       type BadHeader =
         // Occurs whrn a header key is empty. eg. [ ("", "") ]
         | EmptyKey
+        | InvalidContentType
 
       type BadUrlDetails =
         // Occurs when the URI scheme is not allowed. eg. "ftp://darklang.com"
@@ -38,6 +39,7 @@ module Darklang =
         | BadHeader details ->
           match details with
           | EmptyKey -> "Empty key"
+          | InvalidContentType -> "Invalid content-type header"
         | NetworkError -> "NetworkError"
         | BadMethod -> "BadMethod"
 
