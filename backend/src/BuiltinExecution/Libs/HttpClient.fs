@@ -287,7 +287,8 @@ let makeRequest
               // https://docs.microsoft.com/en-us/dotnet/api/system.net.http.headers.httpcontentheaders?view=net-6.0
               if String.equalsCaseInsensitive k "content-type" then
                 try
-                  req.Content.Headers.ContentType <- Headers.MediaTypeHeaderValue.Parse(v)
+                  req.Content.Headers.ContentType <-
+                    Headers.MediaTypeHeaderValue.Parse(v)
                   Ok()
                 with :? System.FormatException ->
                   Error BadHeader.BadHeader.InvalidContentType
@@ -296,8 +297,7 @@ let makeRequest
 
                 // Headers are split between req.Headers and req.Content.Headers so just try both
                 if not added then req.Content.Headers.Add(k, v)
-                Ok()
-                )
+                Ok())
 
 
           match Result.collect headerResults with
@@ -340,7 +340,8 @@ let makeRequest
             let headers =
               response
               |> headersForAspNetResponse
-              |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
+              |> List.map (fun (k, v) ->
+                (String.toLowercase k, String.toLowercase v))
 
             return
               { statusCode = int response.StatusCode
@@ -348,7 +349,7 @@ let makeRequest
                 body = respBody }
               |> Ok
 
-          | Error e -> return Error (RequestError.RequestError.BadHeader e)
+          | Error e -> return Error(RequestError.RequestError.BadHeader e)
 
       with
       | :? TaskCanceledException ->
