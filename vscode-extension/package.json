@@ -1,0 +1,94 @@
+{
+  "name": "darklang",
+  "description": "darklang VS Code Extension",
+  "author": "darklang",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/darklang/dark"
+  },
+  "publisher": "darklang",
+  "categories": [],
+  "keywords": [
+    ""
+  ],
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "main": "./client/out/extension",
+  "contributes": {
+    "languages": [
+      {
+        "id": "darklang",
+        "aliases": [
+          "darklang",
+          "dark"
+        ],
+        "extensions": [
+          ".dark"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./media/logo-light-transparent.svg",
+          "dark": "./media/logo-dark-transparent.svg"
+        }
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Darklang Extension Config",
+      "properties": {
+        "darklangLsp.maxNumberOfProblems": {
+          "scope": "resource",
+          "type": "number",
+          "default": 100,
+          "description": "Controls the maximum number of problems produced by the server."
+        },
+        "darklangLsp.trace.server": {
+          "TODO": "not sure what this is used for",
+          "scope": "window",
+          "type": "string",
+          "enum": [ "off", "messages", "verbose" ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the language server."
+        }
+      }
+    },
+    "commands": [{
+      "command": "evalCode",
+      "category": "Darklang",
+      "title": "Evaluate Dark Code"
+    }],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "canvas-explorer",
+          "title": "Dark Canvas: dark-editor",
+          "icon": "./media/logo-light-transparent.svg"
+        }
+      ]
+    },
+    "grammars": [{
+      "language": "darklang",
+      "scopeName": "source.darklang",
+      "path": "./syntaxes/grammar.json"
+    }]
+  },
+
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -b",
+    "watch": "tsc -b -w",
+    "lint": "eslint ./client/src ./server/src --ext .ts,.tsx",
+    "postinstall": "cd client && npm install && cd ../server && npm install && cd .."
+  },
+  "devDependencies": {
+    "@types/mocha": "^9.1.0",
+    "@types/node": "^16.11.7",
+    "@typescript-eslint/eslint-plugin": "^5.42.0",
+    "@typescript-eslint/parser": "^5.42.0",
+    "eslint": "^8.26.0",
+    "mocha": "^9.2.1",
+    "typescript": "^4.9.4"
+  }
+}

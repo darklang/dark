@@ -1,0 +1,20 @@
+{
+  "name": "darklang-lsp-client",
+  "description": "Client part of an LSP-powered VS Code extension for Darklang",
+  "author": "darklang",
+  "version": "0.0.1",
+  "publisher": "darklang",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/darklang/dark"
+  },
+  "engines": {
+    "vscode": "^1.63.0"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.63.0"
+  }
+}

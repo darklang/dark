@@ -18,5 +18,6 @@ let contents =
       Libs.File.contents
       Libs.Process.contents
       Libs.Output.contents
-      Libs.Time.contents ]
+      Libs.Time.contents
+      Libs.LanguageTools.contents ]
     fnRenames

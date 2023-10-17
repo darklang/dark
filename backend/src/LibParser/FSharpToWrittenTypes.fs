@@ -251,8 +251,8 @@ module Expr =
         ("op_BangEquals", WT.ComparisonNotEquals)
         ("op_PlusPlus", WT.StringConcat) ]
 
-  let rec fromSynExpr' (ast : SynExpr) : WT.Expr =
-    let c = fromSynExpr'
+  let rec fromSynExpr (ast : SynExpr) : WT.Expr =
+    let c = fromSynExpr
 
     let convertEnumArg (ast : SynExpr) : List<WT.Expr> =
       // if the arg is a tuple with one paren around it, it's just arguments to the
@@ -619,13 +619,6 @@ module Expr =
         "Unsupported expression in parser"
         [ "ast", ast; "expr", expr ]
 
-  let fromSynExpr (ast : SynExpr) : WT.Expr =
-    try
-      fromSynExpr' ast
-    with e ->
-      print e.Message
-      print (string ast)
-      reraise ()
 
 module Function =
   type Parameter = { name : string; typ : WT.TypeReference }

@@ -4,6 +4,25 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "type": "npm",
+      "script": "watch",
+      "isBackground": true,
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "never"
+      },
+      "problemMatcher": [
+        "$tsc-watch"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/vscode-extension"
+      }
+    },
+    {
       "label": "build",
       "command": "dotnet",
       "type": "process",

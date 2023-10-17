@@ -5,6 +5,17 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Launch Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}", // open another instance of vs code
+      "args": ["--extensionDevelopmentPath=${workspaceRoot}/vscode-extension"],
+      "outFiles": ["${workspaceRoot}/vscode-extension/client/out/**/*.js"],
+      "autoAttachChildProcesses": true,
+      "preLaunchTask": { "type": "npm", "script": "watch" },
+      "internalConsoleOptions": "openOnSessionStart",
+    },
+    {
       "name": "BwdServer",
       "type": "coreclr",
       "request": "launch",

@@ -19,6 +19,7 @@
     <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../BuiltinCli/BuiltinCli.fsproj" />
     <ProjectReference Include="../LibCliExecution/LibCliExecution.fsproj" />
+    <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
 
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
