@@ -1,3 +1,7 @@
+import * as child_process from "child_process";
+import * as util from "util";
+const exec = util.promisify(child_process.exec);
+
 import {
   createConnection,
   TextDocuments,
@@ -10,15 +14,10 @@ import {
   TextDocumentSyncKind,
   InitializeResult,
 } from "vscode-languageserver/node";
-
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import * as util from "util";
-import * as child_process from "child_process";
 import { ComputeDiagnosticsInput, ComputeDiagnosticsOutput } from "./darkTypes";
 import * as DT2LT from "./darkTypesToLspTypes";
-
-const exec = util.promisify(child_process.exec);
 
 const connection = createConnection(ProposedFeatures.all);
 
@@ -43,20 +42,20 @@ async function runDarkCli(...args: string[]) {
   return { stdout, stderr };
 }
 
-function getDocumentSettings(resource: string): Thenable<DarklangSettings> {
-  if (!hasConfigurationCapability) {
-    return Promise.resolve(globalSettings);
-  }
-  let result = documentSettings.get(resource);
-  if (!result) {
-    result = connection.workspace.getConfiguration({
-      scopeUri: resource,
-      section: "darklangLsp",
-    });
-    documentSettings.set(resource, result);
-  }
-  return result;
-}
+// function getDocumentSettings(resource: string): Thenable<DarklangSettings> {
+//   if (!hasConfigurationCapability) {
+//     return Promise.resolve(globalSettings);
+//   }
+//   let result = documentSettings.get(resource);
+//   if (!result) {
+//     result = connection.workspace.getConfiguration({
+//       scopeUri: resource,
+//       section: "darklangLsp",
+//     });
+//     documentSettings.set(resource, result);
+//   }
+//   return result;
+// }
 
 async function gatherAndReportDiagnostics(
   textDocument: TextDocument,
@@ -73,13 +72,15 @@ async function gatherAndReportDiagnostics(
   const diagnosticsFromDarkResponse = await runDarkCli(
     "@PACKAGE.Darklang.LanguageServerProtocol.getDiagnostics",
     JSON.stringify(textDocument.getText()),
-    //JSON.stringify(contextForDarkDiagnostics),
+    //JSON.stringify(congit statustextForDarkDiagnostics),
   );
 
   if (diagnosticsFromDarkResponse.stderr) {
     console.error("stderr", diagnosticsFromDarkResponse.stderr);
   } else {
-    const diagnosticsFromDark = JSON.parse(diagnosticsFromDarkResponse.stdout);
+    const diagnosticsFromDark: ComputeDiagnosticsOutput = JSON.parse(
+      diagnosticsFromDarkResponse.stdout,
+    );
     const diagnostics = diagnosticsFromDark.diagnostics.map(DT2LT.diagnostic);
     connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
   }
@@ -112,8 +113,6 @@ connection.onInitialize((params: InitializeParams) => {
     result.capabilities.workspace = { workspaceFolders: { supported: true } };
   }
 
-  //console.log("capabilities", JSON.stringify(result));
-
   return result;
 });
 
@@ -130,17 +129,11 @@ connection.onInitialized(async () => {
       undefined,
     );
   }
-  //const wsf = await connection.workspace.getWorkspaceFolders();
-  //console.log("wsf", wsf);
-
   if (hasWorkspaceFolderCapability) {
     connection.workspace.onDidChangeWorkspaceFolders(_event => {
       connection.console.log("Workspace folder change event received.");
     });
   }
-
-  // console.log("yolo from the server5");
-  // connection.console.error("yolo");
 });
 
 connection.onDidChangeConfiguration(change => {
@@ -158,36 +151,9 @@ connection.onDidChangeConfiguration(change => {
 
 documents.onDidClose(e => documentSettings.delete(e.document.uri));
 
-// documents.onDidOpen(asdf => {
-//   console.log("open");
-// });
-
-documents.onDidSave(async doc => {
-  //console.log("uri", doc.document.uri);
-  // try {
-  //   const result = await runDarkCli("--help");
-  //   console.log("stdout:", result.stdout);
-  //   console.log("stderr:", result.stderr);
-  // } catch (e) {
-  //   console.error("didn't handle save well", e);
-  // }
-  //console.log("here");
-  // runDarkCli("@PACKAGE.Darklang.Stdlib.Int.toString", "1")
-  //   .then(result => {
-  //     console.log("stdout:", result.stdout);
-  //     console.log("stderr:", result.stderr);
-  //   })
-  //   .catch(err => console.error(err));
-});
-
-documents.onDidChangeContent(change => {
+documents.onDidSave(async change => {
   gatherAndReportDiagnostics(change.document);
 });
-
-// // Not sure what this does - doesn't seem to be triggered in my normal use
-// connection.onDidChangeWatchedFiles(_change => {
-// 	connection.console.log('We received an file change event');
-// });
 
 // (how) should we autocomplete?
 // (currently this just provides 2 bogus autocompletes)
