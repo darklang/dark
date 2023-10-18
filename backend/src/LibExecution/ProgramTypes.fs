@@ -372,6 +372,7 @@ type Infix =
 /// - etc.
 type TypeReference =
   | TInt
+  | TInt8
   | TFloat
   | TBool
   | TUnit

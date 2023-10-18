@@ -239,6 +239,7 @@ module RuntimeTypes =
       ktUnit
       known RT.KnownType.KTBool
       known RT.KnownType.KTInt
+      known RT.KnownType.KTInt8
       known RT.KnownType.KTFloat
       known RT.KnownType.KTChar
       known RT.KnownType.KTString

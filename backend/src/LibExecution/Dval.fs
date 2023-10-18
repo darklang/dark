@@ -9,6 +9,8 @@ module VT = ValueType
 
 let int (i : int) = DInt(int64 i)
 
+let int8 (i : int) = DInt8(int8 i)
+
 let list (typ : KnownType) (list : List<Dval>) : Dval = DList(VT.known typ, list)
 
 let dict (typ : KnownType) (entries : List<string * Dval>) : Dval =

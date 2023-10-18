@@ -114,6 +114,7 @@ type TypeReference =
   | TUnit
   | TBool
   | TInt
+  | TInt8
   | TFloat
   | TChar
   | TString

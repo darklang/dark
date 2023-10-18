@@ -323,6 +323,7 @@ module TypeReference =
       | PT.TUnit -> "TUnit", []
       | PT.TBool -> "TBool", []
       | PT.TInt -> "TInt", []
+      | PT.TInt8 -> "TInt8", []
       | PT.TFloat -> "TFloat", []
       | PT.TChar -> "TChar", []
       | PT.TString -> "TString", []
@@ -360,6 +361,7 @@ module TypeReference =
     | DEnum(_, _, [], "TUnit", []) -> PT.TUnit
     | DEnum(_, _, [], "TBool", []) -> PT.TBool
     | DEnum(_, _, [], "TInt", []) -> PT.TInt
+    | DEnum(_, _, [], "TInt8", []) -> PT.TInt8
     | DEnum(_, _, [], "TFloat", []) -> PT.TFloat
     | DEnum(_, _, [], "TChar", []) -> PT.TChar
     | DEnum(_, _, [], "TString", []) -> PT.TString

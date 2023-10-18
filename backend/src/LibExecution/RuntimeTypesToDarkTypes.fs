@@ -302,6 +302,7 @@ module TypeReference =
       | TUnit -> "TUnit", []
       | TBool -> "TBool", []
       | TInt -> "TInt", []
+      | TInt8 -> "TInt8", []
       | TFloat -> "TFloat", []
       | TChar -> "TChar", []
       | TString -> "TString", []
@@ -337,6 +338,7 @@ module TypeReference =
     | DEnum(_, _, [], "TUnit", []) -> TUnit
     | DEnum(_, _, [], "TBool", []) -> TBool
     | DEnum(_, _, [], "TInt", []) -> TInt
+    | DEnum(_, _, [], "TInt8", []) -> TInt8
     | DEnum(_, _, [], "TFloat", []) -> TFloat
     | DEnum(_, _, [], "TChar", []) -> TChar
     | DEnum(_, _, [], "TString", []) -> TString
@@ -799,6 +801,7 @@ module Dval =
         | KTUnit -> "KTUnit", []
         | KTBool -> "KTBool", []
         | KTInt -> "KTInt", []
+        | KTInt8 -> "KTInt8", []
         | KTFloat -> "KTFloat", []
         | KTChar -> "KTChar", []
         | KTString -> "KTString", []
@@ -837,6 +840,7 @@ module Dval =
       | DEnum(_, _, [], "KTUnit", []) -> KTUnit
       | DEnum(_, _, [], "KTBool", []) -> KTBool
       | DEnum(_, _, [], "KTInt", []) -> KTInt
+      | DEnum(_, _, [], "KTInt8", []) -> KTInt8
       | DEnum(_, _, [], "KTFloat", []) -> KTFloat
       | DEnum(_, _, [], "KTChar", []) -> KTChar
       | DEnum(_, _, [], "KTString", []) -> KTString

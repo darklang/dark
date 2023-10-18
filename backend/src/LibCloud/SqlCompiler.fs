@@ -79,7 +79,7 @@ let rec dvalToSql
 
     | TVariable _, DInt i
     | TInt, DInt i -> return Sql.int64 i, TInt
-    | TInt, DInt8 i -> return Sql.int8 (int8 i), TInt
+    | TInt8, DInt8 i -> return Sql.int8 i, TInt8
 
     | TVariable _, DFloat v
     | TFloat, DFloat v -> return Sql.double v, TFloat
@@ -131,7 +131,7 @@ let rec dvalToSql
 
     // exhaustiveness check
     | _, DInt _
-    | _,DInt8 _
+    | _, DInt8 _
     | _, DFloat _
     | _, DBool _
     | _, DString _
@@ -529,9 +529,9 @@ let rec lambdaToSql
           return $"(@{name})", [ name, Sql.int64 v ], TInt
 
         | EInt8(_, v) ->
-          typecheck $"Int {v}" TInt expectedType
+          typecheck $"Int8 {v}" TInt8 expectedType
           let name = randomString 10
-          return $"(@{name})", [ name, Sql.int8 v ], TInt
+          return $"(@{name})", [ name, Sql.int8 v ], TInt8
 
         | EBool(_, v) ->
           typecheck $"Bool {v}" TBool expectedType
@@ -734,6 +734,7 @@ let rec lambdaToSql
             match t with
             | TString -> "text"
             | TInt -> "bigint"
+            | TInt8 -> "tinyint"
             | TFloat -> "double precision"
             | TBool -> "bool"
             | TDateTime -> "timestamp with time zone"
@@ -752,6 +753,7 @@ let rec lambdaToSql
           match dbFieldType with
           | TString
           | TInt
+          | TInt8
           | TFloat
           | TBool
           | TDateTime

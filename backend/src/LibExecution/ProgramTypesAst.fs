@@ -111,6 +111,7 @@ let rec preTraversal
     let f = preTraversalTypeRef
     match typeRefFn typeRef with
     | TInt
+    | TInt8
     | TBool
     | TUnit
     | TFloat

@@ -65,6 +65,7 @@ module TypeReference =
   let rec toRT (t : PT.TypeReference) : RT.TypeReference =
     match t with
     | PT.TInt -> RT.TInt
+    | PT.TInt8 -> RT.TInt8
     | PT.TFloat -> RT.TFloat
     | PT.TBool -> RT.TBool
     | PT.TUnit -> RT.TUnit

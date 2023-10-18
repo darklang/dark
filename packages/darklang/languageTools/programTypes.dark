@@ -70,6 +70,7 @@ module Darklang =
         | TUnit
         | TBool
         | TInt
+        | TInt8
         | TFloat
         | TChar
         | TString
@@ -92,7 +93,7 @@ module Darklang =
 
       type Const =
         | CInt of Int
-        | CInt8 of Int
+        | CInt8 of Int8
         | CFloat of PACKAGE.Darklang.LanguageTools.Sign * String * String
         | CBool of Bool
         | CChar of Char
@@ -123,7 +124,7 @@ module Darklang =
         | MPUnit of PACKAGE.Darklang.LanguageTools.ID
         | MPBool of PACKAGE.Darklang.LanguageTools.ID * Bool
         | MPInt of PACKAGE.Darklang.LanguageTools.ID * Int
-        | MPInt8 of PACKAGE.Darklang.LanguageTools.ID * Int
+        | MPInt8 of PACKAGE.Darklang.LanguageTools.ID * Int8
         | MPFloat of
           PACKAGE.Darklang.LanguageTools.ID *
           PACKAGE.Darklang.LanguageTools.Sign *
@@ -225,7 +226,7 @@ module Darklang =
 
         | EInt of ID * Int
 
-        | EInt8 of ID * Int
+        | EInt8 of ID * Int8
 
         // Allow the user to have arbitrarily big numbers, even if they don't make sense as
         // floats. The float is split as we want to preserve what the user entered.

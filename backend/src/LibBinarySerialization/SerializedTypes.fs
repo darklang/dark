@@ -203,6 +203,7 @@ module ConstantName =
 [<MessagePack.MessagePackObject>]
 type TypeReference =
   | TInt
+  | TInt8
   | TFloat
   | TBool
   | TUnit

@@ -268,6 +268,7 @@ module TypeReference =
   let rec toST (t : PT.TypeReference) : ST.TypeReference =
     match t with
     | PT.TInt -> ST.TInt
+    | PT.TInt8 -> ST.TInt8
     | PT.TFloat -> ST.TFloat
     | PT.TBool -> ST.TBool
     | PT.TUnit -> ST.TUnit
@@ -290,6 +291,7 @@ module TypeReference =
   let rec toPT (t : ST.TypeReference) : PT.TypeReference =
     match t with
     | ST.TInt -> PT.TInt
+    | ST.TInt8 -> PT.TInt8
     | ST.TFloat -> PT.TFloat
     | ST.TBool -> PT.TBool
     | ST.TUnit -> PT.TUnit

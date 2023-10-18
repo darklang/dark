@@ -8,6 +8,7 @@ open RuntimeTypes
 let rec typeName (t : TypeReference) : string =
   match t with
   | TInt -> "Int"
+  | TInt8 -> "Int8"
   | TFloat -> "Float"
   | TBool -> "Bool"
   | TUnit -> "Unit"
@@ -40,6 +41,7 @@ let rec typeName (t : TypeReference) : string =
 let rec knownTypeName (vt : KnownType) : string =
   match vt with
   | KTInt -> "Int"
+  | KTInt8 -> "Int8"
   | KTFloat -> "Float"
   | KTBool -> "Bool"
   | KTUnit -> "Unit"

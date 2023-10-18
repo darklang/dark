@@ -60,6 +60,7 @@ module TypeReference =
     | [], "Bool", [] -> WT.TBool
     | [], "Bytes", [] -> WT.TBytes
     | [], "Int", [] -> WT.TInt
+    | [], "Int8", [] -> WT.TInt8
     | [], "String", [] -> WT.TString
     | [], "Char", [] -> WT.TChar
     | [], "Float", [] -> WT.TFloat

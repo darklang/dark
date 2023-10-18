@@ -130,6 +130,7 @@ module FormatV0 =
         | KTUnit
         | KTBool
         | KTInt
+        | KTInt8
         | KTFloat
         | KTChar
         | KTString
@@ -152,6 +153,7 @@ module FormatV0 =
         | KTUnit -> RT.KTUnit
         | KTBool -> RT.KTBool
         | KTInt -> RT.KTInt
+        | KTInt8 -> RT.KTInt8
         | KTFloat -> RT.KTFloat
         | KTChar -> RT.KTChar
         | KTString -> RT.KTString
@@ -181,6 +183,7 @@ module FormatV0 =
         | RT.KTUnit -> KTUnit
         | RT.KTBool -> KTBool
         | RT.KTInt -> KTInt
+        | RT.KTInt8 -> KTInt8
         | RT.KTFloat -> KTFloat
         | RT.KTChar -> KTChar
         | RT.KTString -> KTString

@@ -342,6 +342,7 @@ type KnownType =
   | KTUnit
   | KTBool
   | KTInt
+  | KTInt8
   | KTFloat
   | KTChar
   | KTString
@@ -413,6 +414,7 @@ module ValueType =
   let unit = known KTUnit
   let bool = known KTBool
   let int = known KTInt
+  let int8 = known KTInt8
   let float = known KTFloat
   let char = known KTChar
   let string = known KTString
@@ -443,6 +445,7 @@ module ValueType =
       | KTUnit -> "Unit"
       | KTBool -> "Bool"
       | KTInt -> "Int"
+      | KTInt8 -> "Int8"
       | KTFloat -> "Float"
       | KTChar -> "Char"
       | KTString -> "String"
@@ -484,6 +487,7 @@ module ValueType =
     | KTUnit, KTUnit -> KTUnit |> Ok
     | KTBool, KTBool -> KTBool |> Ok
     | KTInt, KTInt -> KTInt |> Ok
+    | KTInt8, KTInt8 -> KTInt8 |> Ok
     | KTFloat, KTFloat -> KTFloat |> Ok
     | KTChar, KTChar -> KTChar |> Ok
     | KTString, KTString -> KTString |> Ok
@@ -539,6 +543,7 @@ and TypeReference =
   | TUnit
   | TBool
   | TInt
+  | TInt8
   | TFloat
   | TChar
   | TString
@@ -573,6 +578,7 @@ and TypeReference =
       | TUnit
       | TBool
       | TInt
+      | TInt8
       | TFloat
       | TChar
       | TString
@@ -954,7 +960,7 @@ module Dval =
     match (dv, typ) with
     | _, TVariable _ -> true
     | DInt _, TInt
-    | DInt8 _, TInt
+    | DInt8 _, TInt8
     | DFloat _, TFloat
     | DBool _, TBool
     | DUnit, TUnit
@@ -1014,7 +1020,7 @@ module Dval =
 
     | DBool _ -> ValueType.Known KTBool
     | DInt _ -> ValueType.Known KTInt
-    | DInt8 _ -> ValueType.Known KTInt
+    | DInt8 _ -> ValueType.Known KTInt8
     | DFloat _ -> ValueType.Known KTFloat
     | DChar _ -> ValueType.Known KTChar
     | DString _ -> ValueType.Known KTString
@@ -1498,6 +1504,7 @@ module Types =
     | TUnit
     | TBool
     | TInt
+    | TInt8
     | TFloat
     | TChar
     | TString

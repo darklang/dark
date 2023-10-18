@@ -38,6 +38,7 @@ module TypeReference =
       | WT.TUnit -> return PT.TUnit
       | WT.TBool -> return PT.TBool
       | WT.TInt -> return PT.TInt
+      | WT.TInt8 -> return PT.TInt8
       | WT.TFloat -> return PT.TFloat
       | WT.TChar -> return PT.TChar
       | WT.TString -> return PT.TString

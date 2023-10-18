@@ -73,6 +73,7 @@ module ProgramTypes =
     | TUnit
     | TBool
     | TInt
+    | TInt8
     | TFloat
     | TChar
     | TString
@@ -404,6 +405,7 @@ module ExternalTypesToProgramTypes =
     let rec toPT (t : EPT.TypeReference) : PT.TypeReference =
       match t with
       | EPT.TInt -> PT.TInt
+      | EPT.TInt8 -> PT.TInt8
       | EPT.TFloat -> PT.TFloat
       | EPT.TBool -> PT.TBool
       | EPT.TUnit -> PT.TUnit

@@ -45,6 +45,7 @@ let rec preTraversal
     let f = preTraversalTypeRef
     match typeRefFn typeRef with
     | TInt
+    | TInt8
     | TBool
     | TUnit
     | TFloat
@@ -161,6 +162,7 @@ let rec postTraversal
     let f = postTraversalTypeRef
     match typeRefFn typeRef with
     | TInt
+    | TInt8
     | TBool
     | TUnit
     | TFloat
@@ -181,7 +183,7 @@ let rec postTraversal
     postTraversal exprFn typeRefFn fqtnFn fqfnFn fqcnFn letPatternFn matchPatternFn
   (match expr with
    | EInt _
-    | EInt8 _
+   | EInt8 _
    | EBool _
    | EChar _
    | EUnit _
@@ -304,6 +306,7 @@ let rec postTraversalAsync
       let r = postTraversalTypeRef
       match typeRef with
       | TInt
+      | TInt8
       | TBool
       | TUnit
       | TFloat

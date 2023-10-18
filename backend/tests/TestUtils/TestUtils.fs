@@ -536,6 +536,7 @@ module Expect =
     // as long as TypeReferences don't get IDs, depending on structural equality is OK
     match actual, expected with
     | TInt, _
+    | TInt8, _
     | TFloat, _
     | TBool, _
     | TUnit, _
