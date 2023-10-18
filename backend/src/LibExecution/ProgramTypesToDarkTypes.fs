@@ -995,7 +995,7 @@ module Const =
       | PT.Const.CUnit -> "CUnit", []
       | PT.Const.CBool b -> "CBool", [ DBool b ]
       | PT.Const.CInt i -> "CInt", [ DInt i ]
-      | PT.Const.CInt8 i -> "CInt8", [DInt8 i]
+      | PT.Const.CInt8 i -> "CInt8", [ DInt8 i ]
       | PT.Const.CFloat(sign, w, f) ->
         "CFloat", [ Sign.toDT sign; DString w; DString f ]
       | PT.Const.CChar c -> "CChar", [ DChar c ]
