@@ -5,6 +5,7 @@ open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Syntax
 
 open Prelude
+open ParserException
 
 module WT = WrittenTypes
 module PT = LibExecution.ProgramTypes
@@ -29,18 +30,21 @@ let (|IdentExprPat|_|) (input : SynExpr) =
   | SynExpr.Ident name -> Some [ name.idText ]
   | _ -> None
 
-let parseExprName (e : SynExpr) : NEList<string> =
+let parseExprName (e : SynExpr) : Result<NEList<string>, string> =
   match e with
   | SynExpr.LongIdent(_, SynLongIdent(head :: tail, _, _), _, _) ->
-    NEList.ofList head tail |> NEList.map (fun i -> i.idText)
-  | SynExpr.Ident name -> NEList.singleton name.idText
-  | _ -> Exception.raiseInternal "Bad format in expr name" [ "e", e ]
+    NEList.ofList head tail |> NEList.map (fun i -> i.idText) |> Ok
 
-let parseTypeName (t : SynType) : NEList<string> =
+  | SynExpr.Ident name -> NEList.singleton name.idText |> Ok
+
+  | _ -> "Bad format in expr name" |> Error
+
+let parseTypeName (t : SynType) : Result<NEList<string>, string> =
   match t with
   | SynType.LongIdent(SynLongIdent(head :: tail, _, _)) ->
-    NEList.ofList head tail |> NEList.map (fun i -> i.idText)
-  | _ -> Exception.raiseInternal "Bad format in type name" [ "t", t ]
+    NEList.ofList head tail |> NEList.map (fun i -> i.idText) |> Ok
+
+  | _ -> Error "Bad format in type name"
 
 
 module TypeReference =
@@ -86,10 +90,15 @@ module TypeReference =
           | SynTupleTypeSegment.Type t -> Some t
           | SynTupleTypeSegment.Star _ -> None
           | SynTupleTypeSegment.Slash _ -> None)
+
       match args with
-      | [] -> Exception.raiseInternal "Tuple type with no args" [ "type", typ ]
+      | []
       | [ _ ] ->
-        Exception.raiseInternal "Tuple type with only one arg" [ "type", typ ]
+        raiseParserError
+          "Tuple type with only one arg"
+          [ "type", typ ]
+          (Some typ.Range)
+
       | first :: second :: theRest ->
         WT.TTuple(c first, c second, List.map c theRest)
 
@@ -103,14 +112,16 @@ module TypeReference =
     // - Stdlib-defined types
     // - User-defined types
     | SynType.App(name, _, typeArgs, _, _, _, _) ->
-      let name = parseTypeName name
-      fromNamesAndTypeArgs name typeArgs
+      match parseTypeName name with
+      | Ok name -> fromNamesAndTypeArgs name typeArgs
+      | Error errMsg -> raiseParserError errMsg [ "name", name ] (Some name.Range)
 
     | SynType.LongIdent _ as name ->
-      let name = parseTypeName name
-      fromNamesAndTypeArgs name []
+      match parseTypeName name with
+      | Ok name -> fromNamesAndTypeArgs name []
+      | Error errMsg -> raiseParserError errMsg [ "name", name ] (Some name.Range)
 
-    | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
+    | _ -> raiseParserError "Unsupported type" [ "type", typ ] (Some typ.Range)
 
 
 module SimpleTypeArgs =
@@ -127,17 +138,22 @@ module SimpleTypeArgs =
             match decl with
             | SynTyparDecl(_, SynTypar(name, TyparStaticReq.None, _)) -> name.idText
             | _ ->
-              Exception.raiseInternal "Unsupported type parameter" [ "decl", decl ])
+              raiseParserError
+                "Unsupported type parameter"
+                [ "decl", decl ]
+                (Some typeParams.Range))
         | _ ->
-          Exception.raiseInternal
+          raiseParserError
             "Unsupported constraints in function type arg declaration"
             [ "constraints", constraints ]
+            (Some typeParams.Range)
 
       | SynTyparDecls.PrefixList _
       | SynTyparDecls.SinglePrefix _ ->
-        Exception.raiseInternal
+        raiseParserError
           "Unsupported type params of function declaration"
           [ "typeParams", typeParams ]
+          (Some typeParams.Range)
 
 module LetPattern =
   let rec fromSynPat (pat : SynPat) : WT.LetPattern =
@@ -153,7 +169,10 @@ module LetPattern =
       WT.LPTuple(gid (), mapPat first, mapPat second, List.map mapPat theRest)
 
     | _ ->
-      Exception.raiseInternal "Unsupported let or use expr pat type" [ "pat", pat ]
+      raiseParserError
+        "Unsupported let or use expr pat type"
+        [ "pat", pat ]
+        (Some pat.Range)
 
 
 module MatchPattern =
@@ -173,22 +192,35 @@ module MatchPattern =
       | e -> [ r e ]
 
     match pat with
+    | SynPat.Paren(pat, _) -> r pat
+
     | SynPat.Named(SynIdent(name, _), _, _, _) -> WT.MPVariable(id, name.idText)
     | SynPat.Wild _ -> WT.MPVariable(gid (), "_") // wildcard, not blank
+
+    | SynPat.Const(SynConst.Unit, _) -> WT.MPUnit(id)
+    | SynPat.Const(SynConst.Bool b, _) -> WT.MPBool(id, b)
+
     | SynPat.Const(SynConst.Int32 n, _) -> WT.MPInt(id, n)
     | SynPat.Const(SynConst.Int64 n, _) -> WT.MPInt(id, int64 n)
     | SynPat.Const(SynConst.UInt64 n, _) -> WT.MPInt(id, int64 n)
-    | SynPat.Const(SynConst.Char c, _) -> WT.MPChar(id, string c)
-    | SynPat.Const(SynConst.Bool b, _) -> WT.MPBool(id, b)
-    | SynPat.Const(SynConst.Unit, _) -> WT.MPUnit(id)
-    | SynPat.Null _ ->
-      Exception.raiseInternal "null pattern not supported, use `()`" [ "pat", pat ]
-    | SynPat.Paren(pat, _) -> r pat
+
     | SynPat.Const(SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
       WT.MPFloat(id, sign, whole, fraction)
+
+    | SynPat.Const(SynConst.Char c, _) -> WT.MPChar(id, string c)
+
     | SynPat.Const(SynConst.String(s, _, _), _) ->
       WT.MPString(id, String.normalize s)
+
+    | SynPat.Null _ ->
+      raiseParserError
+        "null pattern not supported, use `()`"
+        [ "pat", pat ]
+        (Some pat.Range)
+
+
+    // parse enum pattern -- requires type name to be included
     | SynPat.LongIdent(SynLongIdent(names, _, _), _, _, SynArgPats.Pats args, _, _) ->
       let enumName =
         List.last names |> Exception.unwrapOptionInternal "missing enum name" []
@@ -199,12 +231,16 @@ module MatchPattern =
           [ "pat", pat ]
       let args = List.map convertEnumArg args |> List.concat
       WT.MPEnum(id, enumName.idText, args)
-    | SynPat.Tuple(_isStruct, (first :: second :: theRest), _range) ->
-      WT.MPTuple(id, r first, r second, List.map r theRest)
+
+    | SynPat.ArrayOrList(_, pats, _) -> WT.MPList(id, List.map r pats)
+
     | SynPat.ListCons(headPat, tailPat, _, _) ->
       WT.MPListCons(id, r headPat, r tailPat)
-    | SynPat.ArrayOrList(_, pats, _) -> WT.MPList(id, List.map r pats)
-    | _ -> Exception.raiseInternal "unhandled pattern" [ "pattern", pat ]
+
+    | SynPat.Tuple(_isStruct, (first :: second :: theRest), _range) ->
+      WT.MPTuple(id, r first, r second, List.map r theRest)
+
+    | _ -> raiseParserError "unhandled pattern" [ "pattern", pat ] (Some pat.Range)
 
 
 module Expr =
@@ -218,20 +254,18 @@ module Expr =
     match fnName with
     | Regex.Regex "^([a-z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
       Ok(name, (int version))
-    | Regex.Regex "^([a-z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
-    | _ -> Error "Bad format in fn name"
 
-  let parseEnum (enumName : string) : Option<string> =
-    // No version on the Enum case, that's on the type
-    match enumName with
-    | Regex.Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> Some name
-    | _ -> None
+    | Regex.Regex "^([a-z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
+
+    | _ -> Error "Bad format in fn name"
 
   let parseTypeName (typeName : string) : Result<string * int, string> =
     match typeName with
     | Regex.Regex "^([A-Z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
       Ok(name, (int version))
+
     | Regex.Regex "^([A-Z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
+
     | _ -> Error "Bad format in type name"
 
 
@@ -286,9 +320,10 @@ module Expr =
       | WT.EVariable(id, name) -> WT.EPipeVariableOrUserFunction(id, name)
       | WT.ELambda(id, pats, body) -> WT.EPipeLambda(id, pats, body)
       | other ->
-        Exception.raiseInternal
+        raiseParserError
           "Expected a function, got something else."
           [ "expr", other ]
+          (Some e.Range)
 
 
     let id = gid ()
@@ -297,7 +332,8 @@ module Expr =
 
     // Literals (ints, chars, bools, etc)
     | SynExpr.Null _ ->
-      Exception.raiseInternal "null not supported, use `()`" [ "ast", ast ]
+      raiseParserError "null not supported, use `()`" [ "ast", ast ] (Some ast.Range)
+
     | SynExpr.Const(SynConst.Unit _, _) -> WT.EUnit id
     | SynExpr.Const(SynConst.Int32 n, _) -> WT.EInt(id, n)
     | SynExpr.Const(SynConst.Int64 n, _) -> WT.EInt(id, int64 n)
@@ -330,9 +366,11 @@ module Expr =
       ->
       let op =
         Map.get ident.idText ops
-        |> Exception.unwrapOptionInternal
+        |> unwrapOptionInternalOrRaiseParserError
           "can't find operation"
           [ "name", ident.idText ]
+          (Some ident.idRange)
+
       WT.EInfix(id, WT.InfixFnCall op, WT.EPlaceHolder, WT.EPlaceHolder)
 
 
@@ -419,7 +457,7 @@ module Expr =
     // Field access: a.b.c.d
     | SynExpr.LongIdent(_, SynLongIdent(names, _, _), _, _) ->
       match names with
-      | [] -> Exception.raiseInternal "empty list in LongIdent" []
+      | [] -> raiseParserError "empty list in LongIdent" [] (Some ast.Range)
       | var :: fields ->
         List.fold
           (fun acc (field : Ident) ->
@@ -448,6 +486,7 @@ module Expr =
         |> List.filter skipEmptyVars
         |> List.map LetPattern.fromSynPat
         |> NEList.ofListUnsafe "Empty lambda args" []
+
       WT.ELambda(id, pats, c body)
 
 
@@ -482,6 +521,7 @@ module Expr =
           { pat = MatchPattern.fromSynPat pat
             whenCondition = Option.map c whenExpr
             rhs = c expr }
+
       WT.EMatch(id, c cond, List.map convertCase cases)
 
 
@@ -515,11 +555,13 @@ module Expr =
         // when we just built the lowest, the second one goes here
         WT.EPipe(id, arg1, [ synToPipeExpr arg ])
       | WT.EPipe(id, arg1, rest) -> WT.EPipe(id, arg1, rest @ [ synToPipeExpr arg ])
-      // Exception.raiseInternal $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
+
       | _ ->
-        Exception.raiseInternal
+        raiseParserError
           $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
           [ "arg", arg ]
+          // TODO: not sure this is the right thing to get the .range from
+          (Some arg.Range)
 
     // the very bottom on the pipe chain, this is the first and second expressions
     | SynExpr.App(_, _, SynExpr.Ident pipe, expr, _)
@@ -534,38 +576,53 @@ module Expr =
     // e.g. MyMod.MyRecord
     | SynExpr.App(_,
                   _,
-                  SynExpr.TypeApp(_, _, typeArgs, _, _, _, _),
+                  SynExpr.TypeApp(_, _, typeArgs, _, _, _, typeArgsRange),
                   (SynExpr.Record _ as expr),
                   _) ->
       if List.length typeArgs <> 0 then
-        Exception.raiseInternal "Record should not have type args" [ "expr", expr ]
+        raiseParserError
+          "Record should not have type args"
+          [ "expr", expr ]
+          (Some typeArgsRange)
 
       match c expr with
       | WT.ERecord(id, typeName, fields) -> WT.ERecord(id, typeName, fields)
       | WT.EDict(id, fields) -> WT.EDict(id, fields)
-      | _ -> Exception.raiseInternal "Not an expected record" [ "expr", expr ]
+      | _ ->
+        raiseParserError "Not an expected record" [ "expr", expr ] (Some expr.Range)
 
 
     // Records: MyRecord { x = 5 } or Dict { x = 5 }
-    | SynExpr.App(_, _, name, SynExpr.Record(_, _, fields, _), _) when
-      NEList.forall (fun n -> String.isCapitalized n) (parseExprName name)
+    | SynExpr.App(_, _, name, SynExpr.Record(_, _, fields, _), recordRange) when
+      match parseExprName name with
+      | Ok name -> NEList.forall String.isCapitalized name
+      | Error _ -> false
       ->
-      let names = parseExprName name
-      let fields =
-        fields
-        |> List.map (fun field ->
-          match field with
-          | SynExprRecordField((SynLongIdent([ name ], _, _), _), _, Some expr, _) ->
-            (nameOrBlank name.idText, c expr)
-          | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
+      match parseExprName name with
+      | Error errMsg ->
+        // unexpected - we literally just ruled this out above
+        raiseParserError errMsg [ "name", name ] (Some name.Range)
 
-      if names = NEList.singleton "Dict" then
-        WT.EDict(id, fields)
-      else
-        WT.ERecord(id, WT.Unresolved names, fields)
+      | Ok names ->
+        let fields =
+          fields
+          |> List.map (fun field ->
+            match field with
+            | SynExprRecordField((SynLongIdent([ name ], _, _), _), _, Some expr, _) ->
+              (nameOrBlank name.idText, c expr)
+            | f ->
+              raiseParserError
+                "Record field could not be parsed (either a name with more than 1 part, or no RHS expr)"
+                [ "field", f ]
+                (Some recordRange))
 
-    // Record update: {myRecord with x = 5 }
-    | SynExpr.Record(_, Some(baseRecord, _), updates, _) ->
+        if names = NEList.singleton "Dict" then
+          WT.EDict(id, fields)
+        else
+          WT.ERecord(id, WT.Unresolved names, fields)
+
+    // Record update: { myRecord with x = 5 }
+    | SynExpr.Record(_, Some(baseRecord, _), updates, recordRange) ->
       let updates =
         updates
         |> NEList.ofListUnsafe
@@ -576,11 +633,14 @@ module Expr =
           | SynExprRecordField((SynLongIdent([ name ], _, _), _), _, Some expr, _) ->
             (nameOrBlank name.idText, c expr)
           | f ->
-            Exception.raiseInternal "Not an expected updates field" [ "field", f ])
+            raiseParserError
+              "Not an expected updates field"
+              [ "field", f ]
+              (Some recordRange))
       WT.ERecordUpdate(id, c baseRecord, updates)
 
     // Callers with multiple args are encoded as apps wrapping other apps.
-    | SynExpr.App(_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
+    | SynExpr.App(_, _, funcExpr, arg, range) -> // function application (binops and fncalls)
       match c funcExpr with
       | WT.EApply(id, name, typeArgs, { head = WT.EPlaceHolder; tail = [] }) ->
         WT.EApply(id, name, typeArgs, NEList.singleton (c arg))
@@ -604,20 +664,25 @@ module Expr =
         WT.EEnum(id, names, caseName, fields @ convertEnumArg arg)
 
       | e ->
-        Exception.raiseInternal
+        raiseParserError
           "Unsupported expression in app"
           [ "fnCall expr", funcExpr
             "converted specific fncall exp", e
             "argument", arg ]
+          (Some range)
 
 
     // Error handling
     | SynExpr.FromParseError _ as expr ->
-      Exception.raiseInternal "There was a parser error parsing" [ "expr", expr ]
+      raiseParserError
+        "There was a parser error parsing"
+        [ "expr", expr ]
+        (Some expr.Range)
     | expr ->
-      Exception.raiseInternal
+      raiseParserError
         "Unsupported expression in parser"
         [ "ast", ast; "expr", expr ]
+        (Some expr.Range)
 
 
 module Function =
@@ -646,23 +711,16 @@ module Function =
     | SynPat.Typed(SynPat.Typed _ as nested,
                    SynType.App(name, _, args, _, _, _, _),
                    _) ->
-      let name = parseTypeName name
-      let nested = r nested
+      match parseTypeName name with
+      | Ok name ->
+        { name = (r nested).name
+          typ = TypeReference.fromNamesAndTypeArgs name args }
 
-      { name = nested.name; typ = TypeReference.fromNamesAndTypeArgs name args }
+      | Error errMsg -> raiseParserError errMsg [] (Some name.Range)
 
-    | _ -> Exception.raiseInternal "Unsupported paramPattern" [ "pat", pat ]
+    | _ ->
+      raiseParserError "Unsupported paramPattern" [ "pat", pat ] (Some pat.Range)
 
-  let parseReturnInfo
-    (returnInfo : Option<SynBindingReturnInfo>)
-    : WT.TypeReference =
-    match returnInfo with
-    | Some(SynBindingReturnInfo(typeName, _, _, _)) ->
-      TypeReference.fromSynType typeName
-    | None ->
-      Exception.raiseInternal
-        "Functions must have return types specified"
-        [ "returnInfo", returnInfo ]
 
 
   let private parseSignature
@@ -681,14 +739,14 @@ module Function =
           NEList.ofList head tail |> NEList.map parseParamPattern
 
         | SynArgPats.Pats [] ->
-          Exception.raiseInternal "No parameters found in function" []
+          raiseParserError "No parameters found in function" [] (Some pat.Range)
 
         | SynArgPats.NamePatPairs _ ->
-          Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
+          raiseParserError "Unsupported pattern" [ "pat", pat ] (Some pat.Range)
 
       (name.idText, typeParams, parameters)
 
-    | _ -> Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
+    | _ -> raiseParserError "Unsupported pattern" [ "pat", pat ] (Some pat.Range)
 
   let hasArguments (binding : SynBinding) : bool =
     match binding with
@@ -715,16 +773,26 @@ module Function =
     match binding with
     | SynBinding(_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) ->
       let (name, typeParams, parameters) = parseSignature pat
-      let returnType = parseReturnInfo returnInfo
-      let (name, version) =
-        Expr.parseFn name
-        |> Exception.unwrapResultInternal [ "name", name; "binding", binding ]
-      { name = name
-        version = version
-        typeParams = typeParams
-        parameters = parameters
-        returnType = returnType
-        body = Expr.fromSynExpr expr }
+
+      match returnInfo with
+      | None ->
+        raiseParserError
+          "Functions must have return types specified"
+          []
+          (Some binding.RangeOfBindingWithoutRhs)
+
+      | Some(SynBindingReturnInfo(typeName, _, _, _)) ->
+        let returnType = TypeReference.fromSynType typeName
+
+        let (name, version) =
+          Expr.parseFn name
+          |> Exception.unwrapResultInternal [ "name", name; "binding", binding ]
+        { name = name
+          version = version
+          typeParams = typeParams
+          parameters = parameters
+          returnType = returnType
+          body = Expr.fromSynExpr expr }
 
 module UserFunction =
   let fromSynBinding
@@ -760,7 +828,8 @@ module Constant =
         WT.CEnum(typeName, caseName, List.map c fields)
       | WT.EList(_, items) -> WT.CList(List.map c items)
       | WT.EDict(_, fields) -> WT.CDict(List.map (fun (k, v) -> (k, c v)) fields)
-      | _ -> Exception.raiseInternal "Unsupported constant" [ "expr", expr ]
+      | _ ->
+        raiseParserError "Unsupported constant" [ "expr", expr ] (Some expr.Range)
     expr |> Expr.fromSynExpr |> c
 
   let fromSynBinding (binding : SynBinding) : T =
@@ -781,9 +850,17 @@ module Constant =
       match Expr.parseFn name.idText with
       | Ok(name, version) ->
         { name = name; version = version; body = fromSynExpr expr }
-      | Error _ ->
-        Exception.raiseInternal "Unsupported constant" [ "binding", binding ]
-    | _ -> Exception.raiseInternal "Unsupported constant" [ "binding", binding ]
+      | Error errMsg ->
+        raiseParserError
+          $"Unsupported constant > {errMsg}"
+          [ "binding", binding ]
+          (Some binding.RangeOfBindingWithoutRhs)
+
+    | _ ->
+      raiseParserError
+        "Unsupported constant"
+        [ "binding", binding ]
+        (Some binding.RangeOfBindingWithRhs)
 
 
 module UserConstant =
@@ -828,24 +905,39 @@ module TypeDeclaration =
         match typ with
         | SynUnionCaseKind.Fields fields ->
           { name = id.idText; fields = List.map parseField fields; description = "" }
-        | _ -> Exception.raiseInternal $"Unsupported enum case" [ "case", case ]
+
+        | SynUnionCaseKind.FullType _ ->
+          raiseParserError
+            "Unexpected - enum case declaration somehow parsed as FullType"
+            [ "case", case ]
+            (Some case.Range)
 
 
   module RecordField =
     let parseField (field : SynField) : WT.TypeDeclaration.RecordField =
       match field with
-      | SynField(_, _, Some id, typ, _, _, _, _, _) ->
-        { name = id.idText; typ = TypeReference.fromSynType typ; description = "" }
-      | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
+      | SynField(_, _, idMaybe, typ, _, _, _, range, _) ->
+        match idMaybe with
+        | Some id ->
+          { name = id.idText; typ = TypeReference.fromSynType typ; description = "" }
+        | None ->
+          raiseParserError
+            "Unexpected - record field somehow has no name"
+            [ "field", field ]
+            (Some range)
 
-  let fromFields typeDef (fields : List<SynField>) : WT.TypeDeclaration.Definition =
+  let fromFields
+    (typeDef : SynTypeDefn)
+    (fields : List<SynField>)
+    : WT.TypeDeclaration.Definition =
     match fields with
     | [] ->
-      Exception.raiseInternal
-        $"Unsupported record type with no fields"
+      raiseParserError
+        "Unexpected - record declaration has no fields"
         [ "typeDef", typeDef ]
-    | firstField :: additionalFields ->
+        (Some typeDef.Range)
 
+    | firstField :: additionalFields ->
       WT.TypeDeclaration.Record(
         NEList.ofList firstField additionalFields
         |> NEList.map RecordField.parseField
@@ -853,14 +945,16 @@ module TypeDeclaration =
 
   module Definition =
     let fromCases
-      typeDef
+      (typeDef : SynTypeDefn)
       (cases : List<SynUnionCase>)
       : WT.TypeDeclaration.Definition =
       match cases with
       | [] ->
-        Exception.raiseInternal
-          $"Can't parse enum without any cases"
+        raiseParserError
+          "Can't parse enum without any cases"
           [ "typeDef", typeDef ]
+          (Some typeDef.Range)
+
       | firstCase :: additionalCases ->
         NEList.ofList firstCase additionalCases
         |> NEList.map EnumCase.parseCase
@@ -906,7 +1000,10 @@ module TypeDeclaration =
         ids |> List.map string,
         fromCases typeDef cases
       | _ ->
-        Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
+        raiseParserError
+          "Unsupported type definition"
+          [ "typeDef", typeDef ]
+          (Some typeDef.Range)
 
 
 module UserType =
@@ -958,10 +1055,3 @@ module PackageConstant =
     { name = PT.ConstantName.package owner modules c.name c.version
       description = ""
       body = c.body }
-
-
-let initialParse (filename : string) (code : string) : WT.Expr =
-  code
-  |> Utils.parseAsFSharpSourceFile filename
-  |> Utils.singleExprFromImplFile
-  |> Expr.fromSynExpr

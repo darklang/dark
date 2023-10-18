@@ -35,34 +35,39 @@ module TypeReference =
     let toPT = toPT resolver currentModule
     uply {
       match t with
+      | WT.TUnit -> return PT.TUnit
+      | WT.TBool -> return PT.TBool
       | WT.TInt -> return PT.TInt
       | WT.TFloat -> return PT.TFloat
-      | WT.TBool -> return PT.TBool
-      | WT.TUnit -> return PT.TUnit
+      | WT.TChar -> return PT.TChar
       | WT.TString -> return PT.TString
+      | WT.TDateTime -> return PT.TDateTime
+      | WT.TUuid -> return PT.TUuid
+      | WT.TBytes -> return PT.TBytes
+
       | WT.TList typ -> return! toPT typ |> Ply.map PT.TList
+
       | WT.TTuple(firstType, secondType, otherTypes) ->
         let! firstType = toPT firstType
         let! secondType = toPT secondType
         let! otherTypes = Ply.List.mapSequentially toPT otherTypes
-
         return PT.TTuple(firstType, secondType, otherTypes)
+
       | WT.TDict typ -> return! toPT typ |> Ply.map PT.TDict
-      | WT.TDB typ -> return! toPT typ |> Ply.map PT.TDB
-      | WT.TDateTime -> return PT.TDateTime
-      | WT.TChar -> return PT.TChar
-      | WT.TUuid -> return PT.TUuid
+
       | WT.TCustomType(t, typeArgs) ->
         let! t = NameResolver.TypeName.resolve resolver currentModule t
         let! typeArgs = Ply.List.mapSequentially toPT typeArgs
         return PT.TCustomType(t, typeArgs)
-      | WT.TBytes -> return PT.TBytes
-      | WT.TVariable(name) -> return PT.TVariable(name)
+
       | WT.TFn(paramTypes, returnType) ->
         let! paramTypes = Ply.NEList.mapSequentially toPT paramTypes
         let! returnType = toPT returnType
-
         return PT.TFn(paramTypes, returnType)
+
+      | WT.TDB typ -> return! toPT typ |> Ply.map PT.TDB
+
+      | WT.TVariable(name) -> return PT.TVariable(name)
     }
 
 module BinaryOperation =
@@ -355,23 +360,17 @@ module Const =
     let toPT = toPT resolver currentModule
     uply {
       match c with
-      | WT.CInt i -> return PT.CInt i
-      | WT.CChar c -> return PT.CChar c
-      | WT.CFloat(sign, w, f) -> return PT.CFloat(sign, w, f)
+      | WT.CUnit -> return PT.CUnit
       | WT.CBool b -> return PT.CBool b
+      | WT.CInt i -> return PT.CInt i
+      | WT.CFloat(sign, w, f) -> return PT.CFloat(sign, w, f)
+      | WT.CChar c -> return PT.CChar c
       | WT.CString s -> return PT.CString s
-      | WT.CTuple(first, second, theRest) ->
-        let! first = toPT first
-        let! second = toPT second
-        let! theRest = Ply.List.mapSequentially toPT theRest
-        return PT.CTuple(first, second, theRest)
-      | WT.CEnum(typeName, caseName, fields) ->
-        let! typeName = Expr.resolveTypeName resolver currentModule typeName caseName
-        let! fields = Ply.List.mapSequentially toPT fields
-        return PT.CEnum(typeName, caseName, fields)
+
       | WT.CList items ->
         let! items = Ply.List.mapSequentially toPT items
         return PT.CList items
+
       | WT.CDict items ->
         let! items =
           Ply.List.mapSequentially
@@ -382,7 +381,17 @@ module Const =
               })
             items
         return PT.CDict items
-      | WT.CUnit -> return PT.CUnit
+
+      | WT.CTuple(first, second, theRest) ->
+        let! first = toPT first
+        let! second = toPT second
+        let! theRest = Ply.List.mapSequentially toPT theRest
+        return PT.CTuple(first, second, theRest)
+
+      | WT.CEnum(typeName, caseName, fields) ->
+        let! typeName = Expr.resolveTypeName resolver currentModule typeName caseName
+        let! fields = Ply.List.mapSequentially toPT fields
+        return PT.CEnum(typeName, caseName, fields)
     }
 
 
@@ -400,7 +409,6 @@ module TypeDeclaration =
       }
 
   module EnumField =
-
     let toPT
       (resolver : NameResolver)
       (currentModule : List<string>)
@@ -412,7 +420,6 @@ module TypeDeclaration =
       }
 
   module EnumCase =
-
     let toPT
       (resolver : NameResolver)
       (currentModule : List<string>)
@@ -435,12 +442,14 @@ module TypeDeclaration =
         | WT.TypeDeclaration.Alias typ ->
           let! typ = TypeReference.toPT resolver currentModule typ
           return PT.TypeDeclaration.Alias typ
+
         | WT.TypeDeclaration.Record fields ->
           let! fields =
             Ply.NEList.mapSequentially
               (RecordField.toPT resolver currentModule)
               fields
           return PT.TypeDeclaration.Record fields
+
         | WT.TypeDeclaration.Enum cases ->
           let! cases =
             Ply.NEList.mapSequentially (EnumCase.toPT resolver currentModule) cases
@@ -541,6 +550,7 @@ module UserFunction =
           f.parameters
       let! returnType = TypeReference.toPT resolver currentModule f.returnType
       let! body = Expr.toPT resolver currentModule f.body
+
       return
         { tlid = gid ()
           name = f.name

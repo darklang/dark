@@ -273,9 +273,15 @@ let fns : List<BuiltInFn> =
                           // Quote the string only if it's of type String and isn't already quoted.
                           // Leave it unquoted for other types.
                           let str =
-                            if str.StartsWith("\"") && str.EndsWith("\"") then str
-                            else if typ = TString then $"\"{str}\""
-                            else str
+                            if
+                              (str.StartsWith("\"") && str.EndsWith("\""))
+                              || (str.StartsWith("\'") && str.EndsWith("\'"))
+                            then
+                              str
+                            else if typ = TString then
+                              $"\"{str}\""
+                            else
+                              str
 
                           match! Json.parse types typ str with
                           | Ok v -> return v

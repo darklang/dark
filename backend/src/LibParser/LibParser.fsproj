@@ -12,6 +12,7 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ParserException.fs" />
     <Compile Include="Utils.fs" />
     <Compile Include="WrittenTypes.fs" />
     <Compile Include="FSharpToWrittenTypes.fs" />
