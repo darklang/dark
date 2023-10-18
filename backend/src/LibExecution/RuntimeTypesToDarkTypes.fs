@@ -408,6 +408,7 @@ module MatchPattern =
       | MPUnit id -> "MPUnit", [ DInt(int64 id) ]
       | MPBool(id, b) -> "MPBool", [ DInt(int64 id); DBool b ]
       | MPInt(id, i) -> "MPInt", [ DInt(int64 id); DInt i ]
+      | MPInt8(id, i) -> "MPInt8", [ DInt(int64 id); DInt8 i ]
       | MPFloat(id, f) -> "MPFloat", [ DInt(int64 id); DFloat f ]
       | MPChar(id, c) -> "MPChar", [ DInt(int64 id); DString c ]
       | MPString(id, s) -> "MPString", [ DInt(int64 id); DString s ]
@@ -441,6 +442,7 @@ module MatchPattern =
     | DEnum(_, _, [], "MPUnit", [ DInt id ]) -> MPUnit(uint64 id)
     | DEnum(_, _, [], "MPBool", [ DInt id; DBool b ]) -> MPBool(uint64 id, b)
     | DEnum(_, _, [], "MPInt", [ DInt id; DInt i ]) -> MPInt(uint64 id, i)
+    | DEnum(_, _, [], "MPInt8", [ DInt id; DInt8 i ]) -> MPInt8(uint64 id, i)
     | DEnum(_, _, [], "MPFloat", [ DInt id; DFloat f ]) -> MPFloat(uint64 id, f)
     | DEnum(_, _, [], "MPChar", [ DInt id; DString c ]) -> MPChar(uint64 id, c)
     | DEnum(_, _, [], "MPString", [ DInt id; DString s ]) -> MPString(uint64 id, s)
@@ -492,6 +494,7 @@ module Expr =
 
       | EBool(id, b) -> "EBool", [ DInt(int64 id); DBool b ]
       | EInt(id, i) -> "EInt", [ DInt(int64 id); DInt i ]
+      | EInt8(id, i) -> "EInt8", [ DInt(int64 id); DInt8 i ]
       | EFloat(id, f) -> "EFloat", [ DInt(int64 id); DFloat f ]
       | EChar(id, c) -> "EChar", [ DInt(int64 id); DString c ]
       | EString(id, segments) ->
@@ -626,6 +629,7 @@ module Expr =
 
     | DEnum(_, _, [], "EBool", [ DInt id; DBool b ]) -> EBool(uint64 id, b)
     | DEnum(_, _, [], "EInt", [ DInt id; DInt i ]) -> EInt(uint64 id, i)
+    | DEnum(_, _, [], "EInt8", [ DInt id; DInt8 i ]) -> EInt8(uint64 id, i)
     | DEnum(_, _, [], "EFloat", [ DInt id; DFloat f ]) -> EFloat(uint64 id, f)
     | DEnum(_, _, [], "EChar", [ DInt id; DString c ]) -> EChar(uint64 id, c)
     | DEnum(_, _, [], "EString", [ DInt id; DList(_vtTODO, segments) ]) ->
@@ -946,6 +950,7 @@ module Dval =
       | DUnit -> "DUnit", []
       | DBool b -> "DBool", [ DBool b ]
       | DInt i -> "DInt", [ DInt i ]
+      | DInt8 i -> "DInt8", [ DInt8 i ]
       | DFloat f -> "DFloat", [ DFloat f ]
       | DChar c -> "DChar", [ DChar c ]
       | DString s -> "DString", [ DString s ]

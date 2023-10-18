@@ -390,6 +390,7 @@ module Test =
   let rec isQueryableDval (dval : Dval) : bool =
     match dval with
     | DInt _
+    | DInt8 _
     | DString _
     | DUnit _
     | DBool _

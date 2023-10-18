@@ -30,6 +30,7 @@ let rec preTraversal
     match matchPatternFn pat with
     | MPVariable _
     | MPInt _
+    | MPInt8 _
     | MPBool _
     | MPString _
     | MPChar _
@@ -65,6 +66,7 @@ let rec preTraversal
 
   match exprFn expr with
   | EInt _
+  | EInt8 _
   | EBool _
   | EChar _
   | EUnit _
@@ -144,6 +146,7 @@ let rec postTraversal
     match matchPatternFn pat with
     | MPVariable _
     | MPInt _
+    | MPInt8 _
     | MPBool _
     | MPString _
     | MPChar _
@@ -178,6 +181,7 @@ let rec postTraversal
     postTraversal exprFn typeRefFn fqtnFn fqfnFn fqcnFn letPatternFn matchPatternFn
   (match expr with
    | EInt _
+    | EInt8 _
    | EBool _
    | EChar _
    | EUnit _
@@ -271,6 +275,7 @@ let rec postTraversalAsync
       match pat with
       | MPVariable _
       | MPInt _
+      | MPInt8 _
       | MPBool _
       | MPString _
       | MPChar _
@@ -346,6 +351,7 @@ let rec postTraversalAsync
     let! expr =
       match expr with
       | EInt _
+      | EInt8 _
       | EBool _
       | EChar _
       | EUnit _

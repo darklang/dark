@@ -79,6 +79,7 @@ let rec dvalToSql
 
     | TVariable _, DInt i
     | TInt, DInt i -> return Sql.int64 i, TInt
+    | TInt, DInt8 i -> return Sql.int8 (int8 i), TInt
 
     | TVariable _, DFloat v
     | TFloat, DFloat v -> return Sql.double v, TFloat
@@ -130,6 +131,7 @@ let rec dvalToSql
 
     // exhaustiveness check
     | _, DInt _
+    | _,DInt8 _
     | _, DFloat _
     | _, DBool _
     | _, DString _
@@ -526,6 +528,11 @@ let rec lambdaToSql
           let name = randomString 10
           return $"(@{name})", [ name, Sql.int64 v ], TInt
 
+        | EInt8(_, v) ->
+          typecheck $"Int {v}" TInt expectedType
+          let name = randomString 10
+          return $"(@{name})", [ name, Sql.int8 v ], TInt
+
         | EBool(_, v) ->
           typecheck $"Bool {v}" TBool expectedType
           let name = randomString 10
@@ -883,6 +890,7 @@ let partiallyEvaluate
           let rec fullySpecified (expr : Expr) =
             match expr with
             | EInt _
+            | EInt8 _
             | EBool _
             | EUnit _
             | EFloat _
@@ -900,6 +908,7 @@ let partiallyEvaluate
             return expr
         | EString _
         | EInt _
+        | EInt8 _
         | EFloat _
         | EBool _
         | EUnit _
@@ -931,6 +940,7 @@ let partiallyEvaluate
           uply {
             match expr with
             | EInt _
+            | EInt8 _
             | EString _
             | EVariable _
             | EChar _

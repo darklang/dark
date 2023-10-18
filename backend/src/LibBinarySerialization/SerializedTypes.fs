@@ -252,6 +252,7 @@ type MatchPattern =
   | MPVariable of id * string
   | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
   | MPInt of id * int64
+  | MPInt8 of id * int8
   | MPBool of id * bool
   | MPChar of id * string
   | MPString of id * string
@@ -274,6 +275,7 @@ type Infix =
 [<MessagePack.MessagePackObject>]
 type Expr =
   | EInt of id * int64
+  | EInt8 of id * int8
   | EBool of id * bool
   | EString of id * List<StringSegment>
   | EChar of id * string
@@ -439,6 +441,7 @@ module UserType =
 [<MessagePack.MessagePackObject>]
 type Const =
   | CInt of int64
+  | CInt8 of int8
   | CBool of bool
   | CString of string
   | CChar of string

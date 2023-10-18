@@ -171,6 +171,7 @@ type PTTypeReference = | TInt
 // TODO: the types of the 'id' fields should be something more like `type id = Int`
 type PTExpr =
   | EInt of id: Int * Int
+  | EInt8 of id: Int * Int
   | ELet of id: Int * identifier: String * expr: PTExpr * body: PTExpr
   | EVariable of id: Int * String
   | EFnCall of id: Int * fnName: String * args: List<PTExpr>

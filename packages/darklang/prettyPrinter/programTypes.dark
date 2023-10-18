@@ -394,6 +394,7 @@ module Darklang =
       let constant (c: PACKAGE.Darklang.LanguageTools.ProgramTypes.Const) : String =
         match c with
         | CInt i -> PACKAGE.Darklang.Stdlib.Int.toString i
+        | CInt8 i -> PACKAGE.Darklang.Stdlib.Int.toString i
         | CFloat(sign, whole, remainder) ->
           let signPart = PACKAGE.Darklang.PrettyPrinter.sign sign
 
@@ -473,6 +474,7 @@ module Darklang =
         | MPUnit _id -> "()"
         | MPBool(_id, b) -> PACKAGE.Darklang.Stdlib.Bool.toString b
         | MPInt(_id, i) -> PACKAGE.Darklang.Stdlib.Int.toString i
+        | MPInt8(_id, i) -> PACKAGE.Darklang.Stdlib.Int.toString i
         | MPFloat(_id, sign, whole, remainder) ->
           let remainderPart =
             PACKAGE.Darklang.PrettyPrinter.processRemainder remainder

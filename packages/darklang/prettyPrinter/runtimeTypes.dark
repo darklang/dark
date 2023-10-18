@@ -309,6 +309,8 @@ module Darklang =
           | DString s -> $"\"{s}\""
 
           | DInt i -> Builtin.Int.toString i
+          | DInt8 i -> Builtin.Int.toString i
+
           | DFloat f -> PACKAGE.Darklang.Stdlib.Float.toString f // CLEANUP: deal with Infinity, NegativeInfinity, and NaN
 
           | DDateTime d ->

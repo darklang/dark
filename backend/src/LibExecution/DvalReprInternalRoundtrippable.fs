@@ -231,6 +231,7 @@ module FormatV0 =
 
   and Dval =
     | DInt of int64
+    | DInt8 of int8
     | DFloat of double
     | DBool of bool
     | DUnit
@@ -262,6 +263,7 @@ module FormatV0 =
     | DString s -> RT.DString s
     | DChar c -> RT.DChar c
     | DInt i -> RT.DInt i
+    | DInt8 i -> RT.DInt8 i
     | DBool b -> RT.DBool b
     | DFloat f -> RT.DFloat f
     | DUnit -> RT.DUnit
@@ -305,6 +307,7 @@ module FormatV0 =
     | RT.DString s -> DString s
     | RT.DChar c -> DChar c
     | RT.DInt i -> DInt i
+    | RT.DInt8 i -> DInt8 i
     | RT.DBool b -> DBool b
     | RT.DFloat f -> DFloat f
     | RT.DUnit -> DUnit
@@ -357,6 +360,7 @@ module Test =
     | RT.DFnVal _ -> false // not supported
     | RT.DString _
     | RT.DInt _
+    | RT.DInt8 _
     | RT.DFloat _
     | RT.DUnit _
     | RT.DBool _

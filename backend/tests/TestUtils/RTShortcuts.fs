@@ -60,6 +60,8 @@ let eChar (c : string) : Expr = EChar(gid (), c)
 
 let eInt (i : int) : Expr = EInt(gid (), int64 i)
 
+let eInt8 (i : int) : Expr = EInt8(gid (), int8 i)
+
 let eBool (b : bool) : Expr = EBool(gid (), b)
 
 let eFloat (sign : Sign) (whole : string) (fraction : string) : Expr =

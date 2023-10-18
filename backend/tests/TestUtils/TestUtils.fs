@@ -393,6 +393,7 @@ module Expect =
     match dv with
     | DDateTime _
     | DInt _
+    | DInt8 _
     | DDateTime _
     | DBool _
     | DFloat _
@@ -499,6 +500,7 @@ module Expect =
       eqList (caseName :: path) fieldPats fieldPats'
     | MPString(_, str), MPString(_, str') -> check path str str'
     | MPInt(_, l), MPInt(_, l') -> check path l l'
+    | MPInt8(_, l), MPInt8(_, l') -> check path l l'
     | MPFloat(_, d), MPFloat(_, d') -> check path d d'
     | MPBool(_, l), MPBool(_, l') -> check path l l'
     | MPChar(_, c), MPChar(_, c') -> check path c c'
@@ -514,6 +516,7 @@ module Expect =
     | MPEnum _, _
     | MPString _, _
     | MPInt _, _
+    | MPInt8 _, _
     | MPFloat _, _
     | MPBool _, _
     | MPChar _, _
@@ -589,6 +592,7 @@ module Expect =
     | EVariable(_, v), EVariable(_, v') -> check path v v'
     | EConstant(_, name), EConstant(_, name') -> check path name name'
     | EInt(_, v), EInt(_, v') -> check path v v'
+    | EInt8(_, v), EInt8(_, v') -> check path v v'
     | EFloat(_, v), EFloat(_, v') -> check path v v'
     | EBool(_, v), EBool(_, v') -> check path v v'
     | ELet(_, pat, rhs, body), ELet(_, pat', rhs', body') ->
@@ -700,6 +704,7 @@ module Expect =
     // exhaustiveness check
     | EUnit _, _
     | EInt _, _
+    | EInt8 _, _
     | EString _, _
     | EChar _, _
     | EVariable _, _
@@ -871,6 +876,7 @@ module Expect =
     | DTuple _, _
     | DString _, _
     | DInt _, _
+    | DInt8 _, _
     | DDateTime _, _
     | DBool _, _
     | DFloat _, _
@@ -934,6 +940,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DUnit
     | DBool _
     | DInt _
+    | DInt8 _
     | DFloat _
     | DFnVal _
     | DUuid _

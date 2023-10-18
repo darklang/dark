@@ -65,6 +65,10 @@ type LetPattern =
 
 type MatchPattern =
   | MPUnit of id
+  | MPVariable of id * string
+  | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
+  | MPInt of id * int64
+  | MPInt8 of id * int8
   | MPBool of id * bool
   | MPInt of id * int64
   | MPFloat of id * Sign * string * string
@@ -130,6 +134,12 @@ type TypeReference =
 
 
 type Expr =
+  | EInt of id * int64
+  | EInt8 of id * int8
+  | EBool of id * bool
+  | EString of id * List<StringSegment>
+  | EChar of id * string
+  | EFloat of id * Sign * string * string
   | EUnit of id
   | EBool of id * bool
   | EInt of id * int64
@@ -197,6 +207,12 @@ and PipeExpr =
 
 
 type Const =
+  | CInt of int64
+  | CInt8 of int8
+  | CBool of bool
+  | CString of string
+  | CChar of string
+  | CFloat of Sign * string * string
   | CUnit
   | CBool of bool
   | CInt of int64

@@ -586,6 +586,7 @@ and TypeReference =
 // superfluous information removed.
 and Expr =
   | EInt of id * int64
+  | EInt8 of id * int8
   | EBool of id * bool
   | EString of id * List<StringSegment>
   | EUnit of id
@@ -634,6 +635,7 @@ and MatchPattern =
   | MPVariable of id * string
   | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
   | MPInt of id * int64
+  | MPInt8 of id * int8
   | MPBool of id * bool
   | MPChar of id * string
   | MPString of id * string
@@ -671,6 +673,7 @@ and [<NoComparison>] Dval =
   // Simple types
   | DBool of bool
   | DInt of int64
+  | DInt8 of int8
   | DFloat of double
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
   | DString of string
@@ -882,6 +885,7 @@ module Expr =
   let toID (expr : Expr) : id =
     match expr with
     | EInt(id, _)
+    | EInt8(id, _)
     | EString(id, _)
     | EChar(id, _)
     | EBool(id, _)
@@ -919,6 +923,7 @@ module MatchPattern =
   let toID (pat : MatchPattern) : id =
     match pat with
     | MPInt(id, _)
+    | MPInt8(id, _)
     | MPString(id, _)
     | MPChar(id, _)
     | MPBool(id, _)
@@ -949,6 +954,7 @@ module Dval =
     match (dv, typ) with
     | _, TVariable _ -> true
     | DInt _, TInt
+    | DInt8 _, TInt
     | DFloat _, TFloat
     | DBool _, TBool
     | DUnit, TUnit
@@ -984,6 +990,7 @@ module Dval =
 
     // exhaustiveness checking
     | DInt _, _
+    | DInt8 _, _
     | DFloat _, _
     | DBool _, _
     | DUnit, _
@@ -1007,6 +1014,7 @@ module Dval =
 
     | DBool _ -> ValueType.Known KTBool
     | DInt _ -> ValueType.Known KTInt
+    | DInt8 _ -> ValueType.Known KTInt
     | DFloat _ -> ValueType.Known KTFloat
     | DChar _ -> ValueType.Known KTChar
     | DString _ -> ValueType.Known KTString
@@ -1115,6 +1123,7 @@ module UserType =
 
 type Const =
   | CInt of int64
+  | CInt8 of int8
   | CBool of bool
   | CString of string
   | CChar of string

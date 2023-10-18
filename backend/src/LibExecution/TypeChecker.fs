@@ -299,6 +299,7 @@ let rec unify
         | None -> return Ok()
         | Some t -> return! unify context types tst t value
       | TInt, DInt _ -> return Ok()
+      | TInt, DInt8 _ -> return Ok()
       | TFloat, DFloat _ -> return Ok()
       | TBool, DBool _ -> return Ok()
       | TUnit, DUnit -> return Ok()

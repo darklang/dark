@@ -426,6 +426,7 @@ module MatchPattern =
       | PT.MPUnit id -> "MPUnit", [ DInt(int64 id) ]
       | PT.MPBool(id, b) -> "MPBool", [ DInt(int64 id); DBool b ]
       | PT.MPInt(id, i) -> "MPInt", [ DInt(int64 id); DInt i ]
+      | PT.MPInt8(id, i) -> "MPInt8", [ DInt(int64 id); DInt8 i ]
       | PT.MPFloat(id, sign, whole, remainder) ->
 
         "MPFloat",
@@ -460,6 +461,7 @@ module MatchPattern =
     | DEnum(_, _, [], "MPUnit", [ DInt id ]) -> PT.MPUnit(uint64 id)
     | DEnum(_, _, [], "MPBool", [ DInt id; DBool b ]) -> PT.MPBool(uint64 id, b)
     | DEnum(_, _, [], "MPInt", [ DInt id; DInt i ]) -> PT.MPInt(uint64 id, i)
+    | DEnum(_, _, [], "MPInt8", [ DInt id; DInt8 i ]) -> PT.MPInt8(uint64 id, i)
     | DEnum(_, _, [], "MPFloat", [ DInt id; sign; DString whole; DString remainder ]) ->
       PT.MPFloat(uint64 id, Sign.fromDT sign, whole, remainder)
     | DEnum(_, _, [], "MPChar", [ DInt id; DString c ]) -> PT.MPChar(uint64 id, c)
@@ -689,6 +691,7 @@ module Expr =
       // simple data
       | PT.EBool(id, b) -> "EBool", [ DInt(int64 id); DBool b ]
       | PT.EInt(id, i) -> "EInt", [ DInt(int64 id); DInt i ]
+      | PT.EInt8(id, i) -> "EInt8", [ DInt(int64 id); DInt8 i ]
       | PT.EFloat(id, sign, whole, remainder) ->
         "EFloat",
         [ DInt(int64 id); Sign.toDT sign; DString whole; DString remainder ]
@@ -846,6 +849,7 @@ module Expr =
     // simple data
     | DEnum(_, _, [], "EBool", [ DInt id; DBool b ]) -> PT.EBool(uint64 id, b)
     | DEnum(_, _, [], "EInt", [ DInt id; DInt i ]) -> PT.EInt(uint64 id, i)
+    | DEnum(_, _, [], "EInt8", [ DInt id; DInt8 i ]) -> PT.EInt8(uint64 id, i)
     | DEnum(_, _, [], "EFloat", [ DInt id; sign; DString whole; DString remainder ]) ->
       PT.EFloat(uint64 id, Sign.fromDT sign, whole, remainder)
     | DEnum(_, _, [], "EChar", [ DInt id; DString c ]) -> PT.EChar(uint64 id, c)
@@ -989,6 +993,7 @@ module Const =
       | PT.Const.CUnit -> "CUnit", []
       | PT.Const.CBool b -> "CBool", [ DBool b ]
       | PT.Const.CInt i -> "CInt", [ DInt i ]
+      | PT.Const.CInt8 i -> "CInt8", [DInt8 i]
       | PT.Const.CFloat(sign, w, f) ->
         "CFloat", [ Sign.toDT sign; DString w; DString f ]
       | PT.Const.CChar c -> "CChar", [ DChar c ]
@@ -1022,6 +1027,7 @@ module Const =
   let rec fromDT (d : Dval) : PT.Const =
     match d with
     | DEnum(_, _, [], "CInt", [ DInt i ]) -> PT.Const.CInt i
+    | DEnum(_, _, [], "CInt8", [ DInt8 i ]) -> PT.Const.CInt8 i
     | DEnum(_, _, [], "CBool", [ DBool b ]) -> PT.Const.CBool b
     | DEnum(_, _, [], "CString", [ DString s ]) -> PT.Const.CString s
     | DEnum(_, _, [], "CChar", [ DChar c ]) -> PT.Const.CChar c

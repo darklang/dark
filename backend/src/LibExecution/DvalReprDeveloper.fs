@@ -106,6 +106,7 @@ let toRepr (dv : Dval) : string =
     | DString s -> $"\"{s}\""
     | DChar c -> $"'{c}'"
     | DInt i -> string i
+    | DInt8 i -> string i
     | DBool true -> "true"
     | DBool false -> "false"
     | DFloat f ->

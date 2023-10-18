@@ -97,6 +97,7 @@ module ProgramTypes =
     | MPUnit of ID
     | MPBool of ID * bool
     | MPInt of ID * int
+    | MPInt8 of ID * int8
     | MPFloat of ID * Sign * String * String
     | MPChar of ID * String
     | MPString of ID * String
@@ -153,6 +154,7 @@ module ProgramTypes =
 
     | EBool of ID * bool
     | EInt of ID * int
+    | EInt8 of ID * int8
     | EFloat of ID * Sign * string * string
     | EChar of ID * string
     | EString of ID * List<StringSegment>
@@ -234,6 +236,7 @@ module ProgramTypes =
 
   type Const =
     | CInt of int64
+    | CInt8 of int8
     | CBool of bool
     | CString of string
     | CChar of string
@@ -446,6 +449,7 @@ module ExternalTypesToProgramTypes =
       | EPT.MPEnum(id, caseName, fieldPats) ->
         PT.MPEnum(id, caseName, List.map toPT fieldPats)
       | EPT.MPInt(id, i) -> PT.MPInt(id, i)
+      | EPT.MPInt8(id, i) -> PT.MPInt8(id, i)
       | EPT.MPBool(id, b) -> PT.MPBool(id, b)
       | EPT.MPChar(id, c) -> PT.MPChar(id, c)
       | EPT.MPString(id, s) -> PT.MPString(id, s)
@@ -462,6 +466,7 @@ module ExternalTypesToProgramTypes =
       match e with
       | EPT.EChar(id, char) -> PT.EChar(id, char)
       | EPT.EInt(id, num) -> PT.EInt(id, num)
+      | EPT.EInt8(id, num) -> PT.EInt8(id, num)
       | EPT.EString(id, segment) ->
         PT.EString(id, List.map stringSegmentToPT segment)
       | EPT.EFloat(id, sign, whole, fraction) ->
@@ -626,6 +631,7 @@ module ExternalTypesToProgramTypes =
     let rec toPT (c : EPT.Const) : PT.Const =
       match c with
       | EPT.CInt i -> PT.CInt i
+      | EPT.CInt8 i -> PT.CInt8 i
       | EPT.CBool b -> PT.CBool b
       | EPT.CString s -> PT.CString s
       | EPT.CChar c -> PT.CChar c
