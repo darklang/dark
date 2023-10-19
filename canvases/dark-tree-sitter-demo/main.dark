@@ -173,6 +173,7 @@ type PTExpr =
   | EInt of id: Int * Int
   | EInt8 of id: Int * Int8
   | EUInt8 of id: Int * UInt8
+  | EInt16 of id: Int16 * Int16
   | ELet of id: Int * identifier: String * expr: PTExpr * body: PTExpr
   | EVariable of id: Int * String
   | EFnCall of id: Int * fnName: String * args: List<PTExpr>

@@ -64,6 +64,8 @@ let eInt8 (i : int) : Expr = EInt8(gid (), int8 i)
 
 let euInt8 (i : int) : Expr = EUInt8(gid (), uint8 i)
 
+let eInt16 (i : int) : Expr = EInt16(gid (), int16 i)
+
 let eBool (b : bool) : Expr = EBool(gid (), b)
 
 let eFloat (sign : Sign) (whole : string) (fraction : string) : Expr =

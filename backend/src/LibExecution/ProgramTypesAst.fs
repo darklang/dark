@@ -23,6 +23,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EInt _
   | EInt8 _
   | EUInt8 _
+  | EInt16 _
   | EBool _
   | EChar _
   | EUnit _
@@ -99,6 +100,7 @@ let rec preTraversal
     | MPInt _
     | MPInt8 _
     | MPUInt8 _
+    | MPInt16 _
     | MPBool _
     | MPString _
     | MPChar _
@@ -115,6 +117,7 @@ let rec preTraversal
     | TInt
     | TInt8
     | TUInt8
+    | TInt16
     | TBool
     | TUnit
     | TFloat
@@ -161,6 +164,7 @@ let rec preTraversal
   | EInt _
   | EInt8 _
   | EUInt8 _
+  | EInt16 _
   | EBool _
   | EChar _
   | EUnit _
@@ -234,6 +238,7 @@ let rec matchPatternPreTraversal
   | MPInt _
   | MPInt8 _
   | MPUInt8 _
+  | MPInt16 _
   | MPBool _
   | MPString _
   | MPUnit _
@@ -257,6 +262,7 @@ let rec matchPatternPostTraversal
     | MPInt _
     | MPInt8 _
     | MPUInt8 _
+    | MPInt16 _
     | MPBool _
     | MPString _
     | MPUnit _

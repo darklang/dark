@@ -13,6 +13,8 @@ let int8 (i : int) = DInt8(int8 i)
 
 let uint8 (i : int) = DUInt8(uint8 i)
 
+let int16 (i : int) = DInt16(int16 i)
+
 let list (typ : KnownType) (list : List<Dval>) : Dval = DList(VT.known typ, list)
 
 let dict (typ : KnownType) (entries : List<string * Dval>) : Dval =

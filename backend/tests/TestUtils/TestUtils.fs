@@ -395,6 +395,7 @@ module Expect =
     | DInt _
     | DInt8 _
     | DUInt8 _
+    | DInt16 _
     | DDateTime _
     | DBool _
     | DFloat _
@@ -503,6 +504,7 @@ module Expect =
     | MPInt(_, l), MPInt(_, l') -> check path l l'
     | MPInt8(_, l), MPInt8(_, l') -> check path l l'
     | MPUInt8(_, l), MPUInt8(_, l') -> check path l l'
+    | MPInt16(_, l), MPInt16(_, l') -> check path l l'
     | MPFloat(_, d), MPFloat(_, d') -> check path d d'
     | MPBool(_, l), MPBool(_, l') -> check path l l'
     | MPChar(_, c), MPChar(_, c') -> check path c c'
@@ -520,6 +522,7 @@ module Expect =
     | MPInt _, _
     | MPInt8 _, _
     | MPUInt8 _, _
+    | MPInt16 _, _
     | MPFloat _, _
     | MPBool _, _
     | MPChar _, _
@@ -541,6 +544,7 @@ module Expect =
     | TInt, _
     | TInt8, _
     | TUInt8, _
+    | TInt16, _
     | TFloat, _
     | TBool, _
     | TUnit, _
@@ -599,6 +603,7 @@ module Expect =
     | EInt(_, v), EInt(_, v') -> check path v v'
     | EInt8(_, v), EInt8(_, v') -> check path v v'
     | EUInt8(_, v), EUInt8(_, v') -> check path v v'
+    | EInt16(_, v), EInt16(_, v') -> check path v v'
     | EFloat(_, v), EFloat(_, v') -> check path v v'
     | EBool(_, v), EBool(_, v') -> check path v v'
     | ELet(_, pat, rhs, body), ELet(_, pat', rhs', body') ->
@@ -712,6 +717,7 @@ module Expect =
     | EInt _, _
     | EInt8 _, _
     | EUInt8 _, _
+    | EInt16 _, _
     | EString _, _
     | EChar _, _
     | EVariable _, _
@@ -885,6 +891,7 @@ module Expect =
     | DInt _, _
     | DInt8 _, _
     | DUInt8 _, _
+    | DInt16 _, _
     | DDateTime _, _
     | DBool _, _
     | DFloat _, _
@@ -950,6 +957,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DInt _
     | DInt8 _
     | DUInt8 _
+    | DInt16 _
     | DFloat _
     | DFnVal _
     | DUuid _

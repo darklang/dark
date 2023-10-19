@@ -333,6 +333,7 @@ module Darklang =
         | TInt -> "Int"
         | TInt8 -> "Int8"
         | TUInt8 -> "UInt8"
+        | TInt16 -> "Int16"
         | TFloat -> "Float"
         | TChar -> "Char"
         | TString -> "String"
@@ -398,6 +399,7 @@ module Darklang =
         | CInt i -> PACKAGE.Darklang.Stdlib.Int.toString i
         | CInt8 i -> PACKAGE.Darklang.Stdlib.Int8.toString i
         | CUInt8 i -> PACKAGE.Darklang.Stdlib.UInt8.toString i
+        | CInt16 i -> PACKAGE.Darklang.Stdlib.Int16.toString i
         | CFloat(sign, whole, remainder) ->
           let signPart = PACKAGE.Darklang.PrettyPrinter.sign sign
 
@@ -479,6 +481,7 @@ module Darklang =
         | MPInt(_id, i) -> PACKAGE.Darklang.Stdlib.Int.toString i
         | MPInt8(_id, i) -> PACKAGE.Darklang.Stdlib.Int8.toString i
         | MPUInt8(_id, i) -> PACKAGE.Darklang.Stdlib.UInt8.toString i
+        | MPInt16(_id, i) -> PACKAGE.Darklang.Stdlib.Int16.toString i
         | MPFloat(_id, sign, whole, remainder) ->
           let remainderPart =
             PACKAGE.Darklang.PrettyPrinter.processRemainder remainder

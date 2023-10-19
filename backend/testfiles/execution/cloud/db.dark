@@ -255,6 +255,7 @@ module Roundtrip =
       int: Int
       int8: Int8
       uint8: UInt8
+      int16: Int16
       float: Float
       negZero: Float
       nan: Float
@@ -284,6 +285,7 @@ module Roundtrip =
         int = 2
         int8 = 2y
         uint8 = 2uy
+        int16 = (Builtin.Int16.fromInt64 2)
         float = 3.0
         negZero = -0.0
         nan = Builtin.Test.nan
@@ -314,6 +316,7 @@ module Roundtrip =
         int = 3
         int8 = 3y
         uint8 = 3uy
+        int16 = (Builtin.Int16.fromInt64 4)
         float = 4.0
         negZero = -1.0
         nan = 0.0
@@ -398,6 +401,9 @@ module Roundtrip =
                                                                                       () ]
 
     fetch (fun p -> p.uint8 == ((Builtin.UInt8.fromInt64 100) |> Builtin.unwrap)) = []
+    fetch (fun p -> p.int16 == (Builtin.Int16.fromInt64 2)) = [ sample () ]
+    fetch (fun p -> p.int16 != (Builtin.Int16.fromInt64 2)) = [ otherSample () ]
+    fetch (fun p -> p.int16 == (Builtin.Int16.fromInt64 200)) = []
 
     fetch (fun p -> p.float == 3.0) = [ sample () ]
     fetch (fun p -> p.float != 3.0) = [ otherSample () ]

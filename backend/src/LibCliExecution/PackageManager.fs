@@ -75,6 +75,7 @@ module ProgramTypes =
     | TInt
     | TInt8
     | TUInt8
+    | TInt16
     | TFloat
     | TChar
     | TString
@@ -101,6 +102,7 @@ module ProgramTypes =
     | MPInt of ID * int
     | MPInt8 of ID * int8
     | MPUInt8 of ID * uint8
+    | MPInt16 of ID * int16
     | MPFloat of ID * Sign * String * String
     | MPChar of ID * String
     | MPString of ID * String
@@ -159,6 +161,7 @@ module ProgramTypes =
     | EInt of ID * int
     | EInt8 of ID * int8
     | EUInt8 of ID * uint8
+    | EInt16 of ID * int16
     | EFloat of ID * Sign * string * string
     | EChar of ID * string
     | EString of ID * List<StringSegment>
@@ -242,6 +245,7 @@ module ProgramTypes =
     | CInt of int64
     | CInt8 of int8
     | CUInt8 of uint8
+    | CInt16 of int16
     | CBool of bool
     | CString of string
     | CChar of string
@@ -411,6 +415,7 @@ module ExternalTypesToProgramTypes =
       | EPT.TInt -> PT.TInt
       | EPT.TInt8 -> PT.TInt8
       | EPT.TUInt8 -> PT.TUInt8
+      | EPT.TInt16 -> PT.TInt16
       | EPT.TFloat -> PT.TFloat
       | EPT.TBool -> PT.TBool
       | EPT.TUnit -> PT.TUnit
@@ -458,6 +463,7 @@ module ExternalTypesToProgramTypes =
       | EPT.MPInt(id, i) -> PT.MPInt(id, i)
       | EPT.MPInt8(id, i) -> PT.MPInt8(id, i)
       | EPT.MPUInt8(id, i) -> PT.MPUInt8(id, i)
+      | EPT.MPInt16(id, i) -> PT.MPInt16(id, i)
       | EPT.MPBool(id, b) -> PT.MPBool(id, b)
       | EPT.MPChar(id, c) -> PT.MPChar(id, c)
       | EPT.MPString(id, s) -> PT.MPString(id, s)
@@ -476,6 +482,7 @@ module ExternalTypesToProgramTypes =
       | EPT.EInt(id, num) -> PT.EInt(id, num)
       | EPT.EInt8(id, num) -> PT.EInt8(id, num)
       | EPT.EUInt8(id, num) -> PT.EUInt8(id, num)
+      | EPT.EInt16(id, num) -> PT.EInt16(id, num)
       | EPT.EString(id, segment) ->
         PT.EString(id, List.map stringSegmentToPT segment)
       | EPT.EFloat(id, sign, whole, fraction) ->
@@ -642,6 +649,7 @@ module ExternalTypesToProgramTypes =
       | EPT.CInt i -> PT.CInt i
       | EPT.CInt8 i -> PT.CInt8 i
       | EPT.CUInt8 i -> PT.CUInt8 i
+      | EPT.CInt16 i -> PT.CInt16 i
       | EPT.CBool b -> PT.CBool b
       | EPT.CString s -> PT.CString s
       | EPT.CChar c -> PT.CChar c
