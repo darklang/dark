@@ -27,7 +27,7 @@ type Name =
 // a ton of error handling of impossible states from using empty lists (which
 // the users shouldn't even be able to type).
 //
-// However, in addition to the TypeName, EEnums have Casenames casenames (while
+// However, in addition to the TypeName, EEnums have a case name required (while
 // EFnName and DRecord typenames don't). If we use an NEList for the typename
 // alone, that doesn't allow someone to type `Ok`, which is allowed. (It doesn't
 // resolve to anything but we want to allow them to type it all the same.
@@ -55,8 +55,8 @@ type UnresolvedEnumTypeName = List<string>
 
 
 type LetPattern =
-  | LPVariable of id * name : string
   | LPUnit of id
+  | LPVariable of id * name : string
   | LPTuple of
     id *
     first : LetPattern *
@@ -64,17 +64,20 @@ type LetPattern =
     theRest : List<LetPattern>
 
 type MatchPattern =
-  | MPVariable of id * string
-  | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
-  | MPInt of id * int64
+  | MPUnit of id
   | MPBool of id * bool
+  | MPInt of id * int64
+  | MPFloat of id * Sign * string * string
   | MPChar of id * string
   | MPString of id * string
-  | MPFloat of id * Sign * string * string
-  | MPUnit of id
-  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+
   | MPList of id * List<MatchPattern>
   | MPListCons of id * head : MatchPattern * tail : MatchPattern
+  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+
+  | MPVariable of id * string
+
+  | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
 
 type BinaryOperation =
   | BinOpAnd
@@ -104,52 +107,60 @@ type TypeReference =
   // | Named of Name * typeArgs : List<TypeReference>
   // | Fn of int // ...
   // | Variable of string
+  | TUnit
+  | TBool
   | TInt
   | TFloat
-  | TBool
-  | TUnit
+  | TChar
   | TString
+  | TDateTime
+  | TUuid
+  | TBytes
+
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference
-  | TDB of TypeReference
-  | TDateTime
-  | TChar
-  | TUuid
-  | TBytes
-  | TVariable of string
-  | TFn of NEList<TypeReference> * TypeReference
   | TCustomType of Name * typeArgs : List<TypeReference>
+
+  | TFn of NEList<TypeReference> * TypeReference
+
+  | TDB of TypeReference
+
+  | TVariable of string
 
 
 type Expr =
-  | EInt of id * int64
-  | EBool of id * bool
-  | EString of id * List<StringSegment>
-  | EChar of id * string
-  | EFloat of id * Sign * string * string
   | EUnit of id
-  | ELet of id * LetPattern * Expr * Expr
-  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
-  | EInfix of id * Infix * Expr * Expr
-  | ELambda of id * pats : NEList<LetPattern> * body : Expr
-  | EFieldAccess of id * Expr * string
-  | EVariable of id * string
-  | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
+  | EBool of id * bool
+  | EInt of id * int64
+  | EFloat of id * Sign * string * string
+  | EChar of id * string
+  | EString of id * List<StringSegment>
+
   | EList of id * List<Expr>
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | EPipe of id * Expr * List<PipeExpr>
   | ERecord of id * Name * List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
-
   | EEnum of
     id *
     typeName : UnresolvedEnumTypeName *
     caseName : string *
     fields : List<Expr>
+
+  | ELet of id * LetPattern * Expr * Expr
+  | EVariable of id * string
+  | EFieldAccess of id * Expr * string
+
+  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
+  | EPipe of id * Expr * List<PipeExpr>
   | EMatch of id * arg : Expr * cases : List<MatchCase>
+
   | EFnName of id * Name
+  | EInfix of id * Infix * Expr * Expr
+  | ELambda of id * pats : NEList<LetPattern> * body : Expr
+  | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
+
   | EPlaceHolder // Used to start exprs that aren't filled in yet, not in ProgramTypes
 
 and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
@@ -186,16 +197,16 @@ and PipeExpr =
 
 
 type Const =
-  | CInt of int64
-  | CBool of bool
-  | CString of string
-  | CChar of string
-  | CFloat of Sign * string * string
   | CUnit
-  | CTuple of first : Const * second : Const * rest : List<Const>
-  | CEnum of typeName : UnresolvedEnumTypeName * caseName : string * List<Const>
+  | CBool of bool
+  | CInt of int64
+  | CFloat of Sign * string * string
+  | CChar of string
+  | CString of string
   | CList of List<Const>
   | CDict of List<string * Const>
+  | CTuple of first : Const * second : Const * rest : List<Const>
+  | CEnum of typeName : UnresolvedEnumTypeName * caseName : string * List<Const>
 
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }
@@ -215,11 +226,11 @@ module TypeDeclaration =
 
 module Handler =
   type CronInterval =
-    | EveryDay
-    | EveryWeek
     | EveryFortnight
-    | EveryHour
+    | EveryWeek
+    | EveryDay
     | Every12Hours
+    | EveryHour
     | EveryMinute
 
   type Spec =

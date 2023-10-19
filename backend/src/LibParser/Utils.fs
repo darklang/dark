@@ -5,6 +5,7 @@ open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Syntax
 
 open Prelude
+open ParserException
 
 /// Takes a long identifier and returns a list of its components, stringified
 ///
@@ -25,16 +26,21 @@ let parseAsFSharpSourceFile
   let parsingOptions =
     { FSharpParsingOptions.Default with SourceFiles = [| filename |] }
 
-  let results =
-    checker.ParseFile(filename, Text.SourceText.ofString input, parsingOptions)
-    |> Async.RunSynchronously
+  try
+    let results =
+      checker.ParseFile(filename, Text.SourceText.ofString input, parsingOptions)
+      |> Async.RunSynchronously
 
-  match results.ParseTree with
-  | ParsedInput.ImplFile fsharpImplFile -> fsharpImplFile
-  | _ ->
-    Exception.raiseInternal
-      $"Coudln't parse input as F# source file"
-      [ "parseTree", results.ParseTree; "input", input ]
+    match results.ParseTree with
+    | ParsedInput.ImplFile fsharpImplFile -> fsharpImplFile
+    | ParsedInput.SigFile _ ->
+      raiseParserError
+        $"Very unexpected - input somehow parsed as F# signature file"
+        [ "parseTree", results.ParseTree; "input", input ]
+        None
+  with e ->
+    let range = None // TODO extract from the exception if possible
+    raiseParserError "Couldn't parse input as F# source file" [] range
 
 
 let singleExprFromImplFile (parsedAsFSharp : ParsedImplFileInput) : SynExpr =
@@ -57,9 +63,10 @@ let singleExprFromImplFile (parsedAsFSharp : ParsedImplFileInput) : SynExpr =
                         _,
                         _) -> expr
   | _ ->
-    Exception.raiseInternal
-      $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
+    raiseParserError
+      "wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
       [ "parseTree", parsedAsFSharp ]
+      None
 
 type AvailableTypes =
   Map<string, (LibExecution.ProgramTypes.TypeName.TypeName *

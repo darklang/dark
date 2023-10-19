@@ -13,6 +13,7 @@ import {
   TextDocumentPositionParams,
   TextDocumentSyncKind,
   InitializeResult,
+  TextDocumentChangeEvent,
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -35,49 +36,49 @@ let globalSettings: DarklangSettings = defaultSettings;
 // used to cache the settings of all open documents
 const documentSettings: Map<string, Thenable<DarklangSettings>> = new Map();
 
+function shellEscape(str: string): string {
+  return `'${str.replace(/'/g, "'\\''")}'`;
+}
+
 async function runDarkCli(...args: string[]) {
   const darkCliPath = "/home/dark/app/backend/Build/out/Cli/Debug/net7.0/Cli";
-  const cmd = `${darkCliPath} ${args.join(" ")}`;
+
+  const cmd = `${darkCliPath} ${args.map(shellEscape).join(" ")}`;
   const { stdout, stderr } = await exec(cmd);
   return { stdout, stderr };
 }
 
-// function getDocumentSettings(resource: string): Thenable<DarklangSettings> {
-//   if (!hasConfigurationCapability) {
-//     return Promise.resolve(globalSettings);
-//   }
-//   let result = documentSettings.get(resource);
-//   if (!result) {
-//     result = connection.workspace.getConfiguration({
-//       scopeUri: resource,
-//       section: "darklangLsp",
-//     });
-//     documentSettings.set(resource, result);
-//   }
-//   return result;
-// }
+function getDocumentSettings(resource: string): Thenable<DarklangSettings> {
+  if (!hasConfigurationCapability) {
+    return Promise.resolve(globalSettings);
+  }
+  let result = documentSettings.get(resource);
+  if (!result) {
+    result = connection.workspace.getConfiguration({
+      scopeUri: resource,
+      section: "darklangLsp",
+    });
+    documentSettings.set(resource, result);
+  }
+  return result;
+}
 
 async function gatherAndReportDiagnostics(
   textDocument: TextDocument,
 ): Promise<void> {
-  //const settings = await getDocumentSettings(textDocument.uri);
-
-  // const contextForDarkDiagnostics: ComputeDiagnosticsInput = {
-  //   uri: textDocument.uri,
-  //   text: textDocument.getText(),
-
-  //   maxNumberOfProblems: settings.maxNumberOfProblems,
-  // };
+  const settings = await getDocumentSettings(textDocument.uri);
 
   const diagnosticsFromDarkResponse = await runDarkCli(
-    "@PACKAGE.Darklang.LanguageServerProtocol.getDiagnostics",
+    "@PACKAGE.Darklang.LanguageTools.LanguageServerProtocol.getDiagnostics",
+    textDocument.uri,
     JSON.stringify(textDocument.getText()),
-    //JSON.stringify(congit statustextForDarkDiagnostics),
+    settings.maxNumberOfProblems.toString(),
   );
 
   if (diagnosticsFromDarkResponse.stderr) {
     console.error("stderr", diagnosticsFromDarkResponse.stderr);
   } else {
+    console.log("got diagnostics back", diagnosticsFromDarkResponse.stdout);
     const diagnosticsFromDark: ComputeDiagnosticsOutput = JSON.parse(
       diagnosticsFromDarkResponse.stdout,
     );
@@ -151,8 +152,30 @@ connection.onDidChangeConfiguration(change => {
 
 documents.onDidClose(e => documentSettings.delete(e.document.uri));
 
-documents.onDidSave(async change => {
-  gatherAndReportDiagnostics(change.document);
+// when a document is changed or saved, we want to re-run diagnostics
+let changeToProcessNext: null | TextDocumentChangeEvent<TextDocument> = null;
+let processing = false;
+const processChange = async () => {
+  if (processing || !changeToProcessNext) return;
+  processing = true;
+  try {
+    const doc = changeToProcessNext.document;
+    changeToProcessNext = null;
+    await gatherAndReportDiagnostics(doc);
+  } finally {
+    processing = false;
+    if (changeToProcessNext) {
+      processChange();
+    }
+  }
+};
+documents.onDidSave(change => {
+  changeToProcessNext = change;
+  processChange();
+});
+documents.onDidChangeContent(change => {
+  changeToProcessNext = change;
+  processChange();
 });
 
 // (how) should we autocomplete?

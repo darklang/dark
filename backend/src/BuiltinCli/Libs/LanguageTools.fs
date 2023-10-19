@@ -17,27 +17,52 @@ module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 
+let typ (addlModules : List<string>) (name : string) (version : int) =
+  TypeName.fqPackage
+    "Darklang"
+    ("LanguageTools" :: "LanguageServerProtocol" :: addlModules)
+    name
+    version
+
+type Pos = { line : int; character : int }
+type Range = { start : Pos; end_ : Pos }
+
+module Range =
+  let fromParserErrorRange (range : LibParser.ParserException.Range) : Range =
+    let posFromParserError (pos : LibParser.ParserException.Pos) : Pos =
+      { line = pos.line; character = pos.column }
+    { start = posFromParserError range.start; end_ = posFromParserError range.end_ }
+
+  let posToDT (pos : Pos) : Dval =
+    let fields = [ "line", DInt pos.line; "character", DInt pos.character ]
+    let typeName = typ [] "Position" 0
+    DRecord(typeName, typeName, [], Map fields)
+
+  let typeName = typ [] "Range" 0
+
+  let toDT (range : Range) : Dval =
+    let fields = [ "start", posToDT range.start; "end_", posToDT range.end_ ]
+    DRecord(typeName, typeName, [], Map fields)
+
+
+type ScriptParseError =
+  | FailedToParse of msg : string * range : Option<Range>
+  | Other of msg : string
+
 module ScriptParseError =
-  type ScriptParseError =
-    | FailedToParse of startPos : (int * int) * endPos : (int * int) * msg : string
-    | Other of msg : string * metadata : List<string * string>
+  let typeName = typ [] "ScriptParseError" 0
 
   let toDT (err : ScriptParseError) : Dval =
     let caseName, fields =
       match err with
-      | FailedToParse((startLine, startChar), (endLine, endChar), msg) ->
-        "FailedToParse",
-        [ DTuple(DInt startLine, DInt startChar, [])
-          DTuple(DInt endLine, DInt endChar, [])
-          DString msg ]
+      | FailedToParse(msg, range) ->
+        let range =
+          range
+          |> Option.map Range.toDT
+          |> Dval.option (KTCustomType(Range.typeName, []))
+        "FailedToParse", [ DString msg; range ]
 
-      | Other(msg, metadata) ->
-        "Other",
-        [ DString msg
-          metadata |> List.map (fun (k, v) -> k, DString v) |> Dval.dict KTString ]
-
-    let typeName =
-      TypeName.fqPackage "Darklang" [ "LanguageServerProtocol" ] "ScriptParseError" 0
+      | Other(msg) -> "Other", [ DString msg ]
 
     DEnum(typeName, typeName, [], caseName, fields)
 
@@ -48,11 +73,13 @@ let fns : List<BuiltInFn> =
   [ { name = fn [ "LanguageTools" ] "parseCliScript" 0
       typeParams = []
       parameters = [ Param.make "sourceCode" TString "" ]
-      returnType = TypeReference.result TString TString // TODO: custom types
+      returnType =
+        TypeReference.result TString (TCustomType(Ok ScriptParseError.typeName, []))
       description = "Tries to parse Darklang code as a script"
       fn =
-        let resultOk = Dval.resultOk KTUnit KTString
-        let resultError = Dval.resultError KTUnit KTString
+        let errType = KTCustomType(ScriptParseError.typeName, [])
+        let resultOk = Dval.resultOk KTUnit errType
+        let resultError = Dval.resultError KTUnit errType
         (function
         | state, [], [ DString sourceCode ] ->
           uply {
@@ -63,18 +90,17 @@ let fns : List<BuiltInFn> =
                 LibParser.Canvas.parse nameResolver "code.dark" sourceCode
 
               return resultOk DUnit
-            with e ->
-              let msg = Exception.getMessages e |> String.concat "\n"
-              // let _metadata =
-              //   Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
 
-              // TODO: lines of where it failed?
-              (*
-                type ScriptParseError =
-                  | Other of msg : string * metadata : List<string * string>
-
-              *)
-              return resultError (DString msg)
+            with
+            | :? LibParser.ParserException.ParserException as e ->
+              return
+                FailedToParse(
+                  e.Message,
+                  e.range |> Option.map Range.fromParserErrorRange
+                )
+                |> ScriptParseError.toDT
+                |> resultError
+            | e -> return Other(e.Message) |> ScriptParseError.toDT |> resultError
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -82,4 +108,5 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 let constants : List<BuiltInConstant> = []
+
 let contents = (fns, types, constants)

@@ -1,12 +1,13 @@
-import * as DT from "./darkTypes";
 import * as VSC from "vscode-languageserver";
+
+import * as DT from "./darkTypes";
 
 export function position(p: DT.Position): VSC.Position {
   return VSC.Position.create(p.line, p.character);
 }
 
 export function range(r: DT.Range): VSC.Range {
-  return VSC.Range.create(position(r.start), position(r.end));
+  return VSC.Range.create(position(r.start), position(r.end_));
 }
 
 export function diagnosticSeverify(

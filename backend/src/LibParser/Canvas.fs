@@ -10,6 +10,7 @@ module WT2PT = WrittenTypesToProgramTypes
 module PT = LibExecution.ProgramTypes
 
 open Utils
+open ParserException
 
 type WTCanvasModule =
   { name : List<string>
@@ -49,7 +50,7 @@ let (|SimpleAttribute|_|) (attr : SynAttribute) =
   let attrName =
     match longIdentToList attr.TypeName.LongIdent with
     | [ attrName ] -> attrName
-    | _ -> Exception.raiseInternal $"Unsupported attribute name" []
+    | _ -> raiseParserError "Unsupported attribute name" [] (Some attr.Range)
 
   let rec parseAttrArgs (attr : SynExpr) : List<string> =
     match attr with
@@ -63,12 +64,16 @@ let (|SimpleAttribute|_|) (attr : SynAttribute) =
         match arg with
         | SynExpr.Const(SynConst.String(s, _, _), _) -> s
         | _ ->
-          Exception.raiseInternal
+          raiseParserError
             $"Couldn't parse attribute argument"
-            [ "arg", arg ])
+            [ "arg", arg ]
+            (Some attr.Range))
 
     | _ ->
-      Exception.raiseInternal $"Couldn't parse attribute argument" [ "attr", attr ]
+      raiseParserError
+        "Couldn't parse attribute argument"
+        [ "attr", attr ]
+        (Some attr.Range)
 
   Some(attrName, parseAttrArgs attr.ArgExpr)
 
@@ -105,33 +110,38 @@ let parseLetBinding (m : WTCanvasModule) (letBinding : SynBinding) : WTCanvasMod
       | SimpleAttribute("REPL", [ _name ]) ->
         //let newHandler = PT.Handler.Spec.REPL(name, randomIds ())
         //{ m with handlers = (newHandler, expr) :: m.handlers }
-        Exception.raiseInternal
-          $"Not currently supporting REPLs, as we can't test them well yet"
+        raiseParserError
+          "Not currently supporting REPLs, as we can't test them well yet"
           [ "attr", attr ]
+          (Some attr.Range)
 
       | SimpleAttribute("Worker", [ _name ]) ->
         //let newWorker = PT.Handler.Spec.Worker(name, randomIds ())
         //{ m with handlers = (newWorker, expr) :: m.handlers }
-        Exception.raiseInternal
-          $"Not currently supporting Workers, as we can't test them well yet"
+        raiseParserError
+          "Not currently supporting Workers, as we can't test them well yet"
           [ "attr", attr ]
+          (Some attr.Range)
 
       | SimpleAttribute("Cron", [ _name; _interval ]) ->
         //let newCron = PT.Handler.Spec.Cron(name, interval, randomIds ())
         //{ m with handlers = (newCron, expr) :: m.handlers }
-        Exception.raiseInternal
-          $"Not currently supporting Crons, as we can't test them well yet"
+        raiseParserError
+          "Not currently supporting Crons, as we can't test them well yet"
           [ "attr", attr ]
+          (Some attr.Range)
 
       | _ ->
-        Exception.raiseInternal
+        raiseParserError
           $"Not sure how to handle this attribute"
           [ "attr", attr ]
+          (Some attr.Range)
 
     | _ ->
-      Exception.raiseInternal
-        $"Can only currently support 1 attribute [<...>] on a let binding"
+      raiseParserError
+        "Can only currently support 1 attribute [<...>] on a let binding"
         [ "attrs", attrs ]
+        (Some letBinding.RangeOfBindingWithoutRhs)
 
 
 
@@ -147,7 +157,10 @@ module UserDB =
                   _) ->
       { name = id.idText; version = 0; typ = FS2WT.TypeReference.fromSynType typ }
     | _ ->
-      Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
+      raiseParserError
+        "Unsupported db definition"
+        [ "typeDef", typeDef ]
+        (Some typeDef.Range)
 
 let parseTypeDefn (m : WTCanvasModule) (typeDefn : SynTypeDefn) : WTCanvasModule =
   match typeDefn with
@@ -194,7 +207,11 @@ let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
       | SynModuleDecl.Expr(expr, _) ->
         { m with exprs = m.exprs @ [ FS2WT.Expr.fromSynExpr expr ] }
 
-      | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
+      | _ ->
+        raiseParserError
+          "Unsupported declaration"
+          [ "decl", decl ]
+          (Some decl.Range))
     emptyWTModule
     decls
 
@@ -256,9 +273,11 @@ let parse
                           _,
                           _) -> decls
     | _ ->
-      Exception.raiseInternal
-        $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
+      raiseParserError
+        "Wrong shape tree - parseable canvas definitions must contain a single module with declarations inside"
         [ "parsedAsFsharp", parsedAsFSharp ]
+        None // whole file
+
   let module' = parseDecls decls
   let resolver =
     NameResolver.merge resolver (toResolver module') resolver.packageManager
