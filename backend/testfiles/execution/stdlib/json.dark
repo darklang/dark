@@ -154,6 +154,89 @@ module Int =
     (Builtin.Json.parse<Int> "\"42\n\"") |> err = Result.Error "Not JSON"
 
 
+module Int8 =
+  module Basic =
+    Builtin.Json.serialize<Int8> (PACKAGE.Darklang.Stdlib.Int8.fromInt64 0) = "0"
+    Builtin.Json.serialize<Int8> (PACKAGE.Darklang.Stdlib.Int8.fromInt64 123) = "123"
+    Builtin.Json.serialize<Int8> (PACKAGE.Darklang.Stdlib.Int8.fromInt64 -123) = "-123"
+
+    Builtin.Json.parse<Int8> "0" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int8.fromInt64 0
+    )
+
+    Builtin.Json.parse<Int8> "0.0" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int8.fromInt64 0
+    )
+
+    Builtin.Json.parse<Int8> "-0.0" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int8.fromInt64 0
+    )
+
+    Builtin.Json.parse<Int8> "-1.0" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int8.fromInt64 -1
+    )
+
+    Builtin.Json.parse<Int8> "1.2E2" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int8.fromInt64 120
+    )
+
+    Builtin.Json.parse<Int8> "1.2E+2" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int8.fromInt64 120
+    )
+
+    Builtin.Json.parse<Int8> "1200E-1" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int8.fromInt64 120
+    )
+
+  module Int8Limits =
+    Builtin.Json.serialize<Int8> (PACKAGE.Darklang.Stdlib.Int8.fromInt64 -128) = "-128"
+    Builtin.Json.serialize<Int8> (PACKAGE.Darklang.Stdlib.Int8.fromInt64 127) = "127"
+
+    Builtin.Json.parse<Int8> "-128" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int8.fromInt64 -128
+    )
+
+    Builtin.Json.parse<Int8> "127" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int8.fromInt64 127
+    )
+
+    (Builtin.Json.parse<Int8> "-129") |> err = Result.Error
+      "Can't parse JSON `-129` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "128") |> err = Result.Error
+      "Can't parse JSON `128` as type `Int8` at path: `root`"
+
+  module Errors =
+    (Builtin.Json.parse<Int8> " ") |> err = Result.Error "Not JSON"
+
+    (Builtin.Json.parse<Int8> "4a") |> err = Result.Error "Not JSON"
+
+    (Builtin.Json.parse<Int8> "- 42") |> err = Result.Error "Not JSON"
+
+    (Builtin.Json.parse<Int8> "null") |> err = Result.Error
+      "Can't parse JSON `null` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "true") |> err = Result.Error
+      "Can't parse JSON `true` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "false") |> err = Result.Error
+      "Can't parse JSON `false` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "\"42\"") |> err = Result.Error
+      "Can't parse JSON `\"42\"` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "[42]") |> err = Result.Error
+      "Can't parse JSON `[42]` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "{ \"key\": 42 }") |> err = Result.Error
+      "Can't parse JSON `{ \"key\": 42 }` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "42.5") |> err = Result.Error
+      "Can't parse JSON `42.5` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "\"42\n\"") |> err = Result.Error "Not JSON"
+
+
 module Float =
   // TODO: test the upper/lower bounds
   // TODO: test highly-precise numbers
