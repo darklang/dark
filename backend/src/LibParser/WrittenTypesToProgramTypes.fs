@@ -364,12 +364,9 @@ module Const =
     uply {
       match c with
       | WT.CUnit -> return PT.CUnit
-      | WT.CInt i -> return PT.CInt i
-      | WT.CInt8 i -> return PT.CInt8 i
-      | WT.CChar c -> return PT.CChar c
-      | WT.CFloat(sign, w, f) -> return PT.CFloat(sign, w, f)
       | WT.CBool b -> return PT.CBool b
       | WT.CInt i -> return PT.CInt i
+      | WT.CInt8 i -> return PT.CInt8 i
       | WT.CFloat(sign, w, f) -> return PT.CFloat(sign, w, f)
       | WT.CChar c -> return PT.CChar c
       | WT.CString s -> return PT.CString s

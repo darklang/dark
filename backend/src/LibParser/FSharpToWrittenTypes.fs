@@ -204,14 +204,8 @@ module MatchPattern =
     | SynPat.Const(SynConst.Int32 n, _) -> WT.MPInt(id, n)
     | SynPat.Const(SynConst.Int64 n, _) -> WT.MPInt(id, int64 n)
     | SynPat.Const(SynConst.UInt64 n, _) -> WT.MPInt(id, int64 n)
-
     | SynPat.Const(SynConst.Byte n, _) -> WT.MPInt8(id, int8 n)
-    | SynPat.Const(SynConst.Char c, _) -> WT.MPChar(id, string c)
-    | SynPat.Const(SynConst.Bool b, _) -> WT.MPBool(id, b)
-    | SynPat.Const(SynConst.Unit, _) -> WT.MPUnit(id)
-    | SynPat.Null _ ->
-      Exception.raiseInternal "null pattern not supported, use `()`" [ "pat", pat ]
-    | SynPat.Paren(pat, _) -> r pat
+
     | SynPat.Const(SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
       WT.MPFloat(id, sign, whole, fraction)
