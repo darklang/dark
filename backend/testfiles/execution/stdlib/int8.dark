@@ -1,34 +1,107 @@
-PACKAGE.Darklang.Stdlib.Int8.absoluteValue_v0 (Builtin.Int8.fromInt64 -5) = (Builtin.Int8.fromInt64 5)
-PACKAGE.Darklang.Stdlib.Int8.absoluteValue_v0 (Builtin.Int8.fromInt64 5) = (Builtin.Int8.fromInt64 5)
-PACKAGE.Darklang.Stdlib.Int8.absoluteValue_v0 (Builtin.Int8.fromInt64 -128) = Builtin.Test.derrorMessage "Out of range"
+PACKAGE.Darklang.Stdlib.Int8.absoluteValue_v0 (Builtin.Int8.fromInt64 -5) = (Builtin.Int8.fromInt64
+  5)
+
+PACKAGE.Darklang.Stdlib.Int8.absoluteValue_v0 (Builtin.Int8.fromInt64 5) = (Builtin.Int8.fromInt64
+  5)
+
+PACKAGE.Darklang.Stdlib.Int8.absoluteValue_v0 (Builtin.Int8.fromInt64 -128) = Builtin.Test.derrorMessage
+  "Out of range"
 
 
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0 (Builtin.Int8.fromInt64 -5) (Builtin.Int8.fromInt64 -2) (Builtin.Int8.fromInt64 5) = Builtin.Int8.fromInt64 -2
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0 (Builtin.Int8.fromInt64 -3) (Builtin.Int8.fromInt64 -2) (Builtin.Int8.fromInt64 1) = Builtin.Int8.fromInt64 -2
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0 (Builtin.Int8.fromInt64 -5) (Builtin.Int8.fromInt64 1) (Builtin.Int8.fromInt64 1) = Builtin.Int8.fromInt64 1
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0 (Builtin.Int8.fromInt64 1) (Builtin.Int8.fromInt64 2) (Builtin.Int8.fromInt64 1) = Builtin.Int8.fromInt64 1
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0 (Builtin.Int8.fromInt64 3) (Builtin.Int8.fromInt64 0) (Builtin.Int8.fromInt64 2) = Builtin.Int8.fromInt64 2
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (Builtin.Int8.fromInt64 -5)
+  (Builtin.Int8.fromInt64 -2)
+  (Builtin.Int8.fromInt64 5) = Builtin.Int8.fromInt64 -2
+
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (Builtin.Int8.fromInt64 -3)
+  (Builtin.Int8.fromInt64 -2)
+  (Builtin.Int8.fromInt64 1) = Builtin.Int8.fromInt64 -2
+
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (Builtin.Int8.fromInt64 -5)
+  (Builtin.Int8.fromInt64 1)
+  (Builtin.Int8.fromInt64 1) = Builtin.Int8.fromInt64 1
+
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (Builtin.Int8.fromInt64 1)
+  (Builtin.Int8.fromInt64 2)
+  (Builtin.Int8.fromInt64 1) = Builtin.Int8.fromInt64 1
+
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (Builtin.Int8.fromInt64 3)
+  (Builtin.Int8.fromInt64 0)
+  (Builtin.Int8.fromInt64 2) = Builtin.Int8.fromInt64 2
 
 
-PACKAGE.Darklang.Stdlib.Int8.max_v0 (Builtin.Int8.fromInt64 5) (Builtin.Int8.fromInt64 6) = Builtin.Int8.fromInt64 6
-PACKAGE.Darklang.Stdlib.Int8.max_v0 (Builtin.Int8.fromInt64 10) (Builtin.Int8.fromInt64 1) = Builtin.Int8.fromInt64 10
-PACKAGE.Darklang.Stdlib.Int8.max_v0 (Builtin.Int8.fromInt64 -5) (Builtin.Int8.fromInt64 6) = Builtin.Int8.fromInt64 6
-PACKAGE.Darklang.Stdlib.Int8.max_v0 (Builtin.Int8.fromInt64 127) (Builtin.Int8.fromInt64 -128) = Builtin.Int8.fromInt64 127
+PACKAGE.Darklang.Stdlib.Int8.max_v0
+  (Builtin.Int8.fromInt64 5)
+  (Builtin.Int8.fromInt64 6) = Builtin.Int8.fromInt64 6
+
+PACKAGE.Darklang.Stdlib.Int8.max_v0
+  (Builtin.Int8.fromInt64 10)
+  (Builtin.Int8.fromInt64 1) = Builtin.Int8.fromInt64 10
+
+PACKAGE.Darklang.Stdlib.Int8.max_v0
+  (Builtin.Int8.fromInt64 -5)
+  (Builtin.Int8.fromInt64 6) = Builtin.Int8.fromInt64 6
+
+PACKAGE.Darklang.Stdlib.Int8.max_v0
+  (Builtin.Int8.fromInt64 127)
+  (Builtin.Int8.fromInt64 -128) = Builtin.Int8.fromInt64 127
 
 
-PACKAGE.Darklang.Stdlib.Int8.min_v0 (Builtin.Int8.fromInt64 5) (Builtin.Int8.fromInt64 6) = Builtin.Int8.fromInt64 5
-PACKAGE.Darklang.Stdlib.Int8.min_v0 (Builtin.Int8.fromInt64 50) (Builtin.Int8.fromInt64 -10) = Builtin.Int8.fromInt64 -10
-PACKAGE.Darklang.Stdlib.Int8.min_v0 (Builtin.Int8.fromInt64 -5) (Builtin.Int8.fromInt64 6) = Builtin.Int8.fromInt64 -5
-PACKAGE.Darklang.Stdlib.Int8.min_v0 (Builtin.Int8.fromInt64 127) (Builtin.Int8.fromInt64 -128) = Builtin.Int8.fromInt64 -128
+PACKAGE.Darklang.Stdlib.Int8.min_v0
+  (Builtin.Int8.fromInt64 5)
+  (Builtin.Int8.fromInt64 6) = Builtin.Int8.fromInt64 5
+
+PACKAGE.Darklang.Stdlib.Int8.min_v0
+  (Builtin.Int8.fromInt64 50)
+  (Builtin.Int8.fromInt64 -10) = Builtin.Int8.fromInt64 -10
+
+PACKAGE.Darklang.Stdlib.Int8.min_v0
+  (Builtin.Int8.fromInt64 -5)
+  (Builtin.Int8.fromInt64 6) = Builtin.Int8.fromInt64 -5
+
+PACKAGE.Darklang.Stdlib.Int8.min_v0
+  (Builtin.Int8.fromInt64 127)
+  (Builtin.Int8.fromInt64 -128) = Builtin.Int8.fromInt64 -128
 
 
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0 (Builtin.Int8.fromInt64 -100) (Builtin.Int8.fromInt64 0) (Builtin.Int8.fromInt64 0) = Builtin.Int8.fromInt64 0
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0 (Builtin.Int8.fromInt64 100) (Builtin.Int8.fromInt64 0) (Builtin.Int8.fromInt64 0) = Builtin.Int8.fromInt64 0
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0 (Builtin.Int8.fromInt64 -100) (Builtin.Int8.fromInt64 0) (Builtin.Int8.fromInt64 -1) = Builtin.Int8.fromInt64 -1
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0 (Builtin.Int8.fromInt64 100) (Builtin.Int8.fromInt64 0) (Builtin.Int8.fromInt64 -1) = Builtin.Int8.fromInt64 0
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0 (Builtin.Int8.fromInt64 -100) (Builtin.Int8.fromInt64 -1) (Builtin.Int8.fromInt64 0) = Builtin.Int8.fromInt64 -1
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0 (Builtin.Int8.fromInt64 -100) (Builtin.Int8.fromInt64 1) (Builtin.Int8.fromInt64 0) = Builtin.Int8.fromInt64 0
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0 (Builtin.Int8.fromInt64 100) (Builtin.Int8.fromInt64 1) (Builtin.Int8.fromInt64 0) = Builtin.Int8.fromInt64 1
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (Builtin.Int8.fromInt64 -100)
+  (Builtin.Int8.fromInt64 0)
+  (Builtin.Int8.fromInt64 0) = Builtin.Int8.fromInt64 0
+
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (Builtin.Int8.fromInt64 100)
+  (Builtin.Int8.fromInt64 0)
+  (Builtin.Int8.fromInt64 0) = Builtin.Int8.fromInt64 0
+
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (Builtin.Int8.fromInt64 -100)
+  (Builtin.Int8.fromInt64 0)
+  (Builtin.Int8.fromInt64 -1) = Builtin.Int8.fromInt64 -1
+
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (Builtin.Int8.fromInt64 100)
+  (Builtin.Int8.fromInt64 0)
+  (Builtin.Int8.fromInt64 -1) = Builtin.Int8.fromInt64 0
+
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (Builtin.Int8.fromInt64 -100)
+  (Builtin.Int8.fromInt64 -1)
+  (Builtin.Int8.fromInt64 0) = Builtin.Int8.fromInt64 -1
+
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (Builtin.Int8.fromInt64 -100)
+  (Builtin.Int8.fromInt64 1)
+  (Builtin.Int8.fromInt64 0) = Builtin.Int8.fromInt64 0
+
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (Builtin.Int8.fromInt64 100)
+  (Builtin.Int8.fromInt64 1)
+  (Builtin.Int8.fromInt64 0) = Builtin.Int8.fromInt64 1
 
 
 PACKAGE.Darklang.Stdlib.Int8.add_v0
@@ -335,37 +408,67 @@ PACKAGE.Darklang.Stdlib.Int8.toFloat_v0 (Builtin.Int8.fromInt64 -10) = -10.0
                                                 (Builtin.Int8.fromInt64 2) ]
 
 
-PACKAGE.Darklang.Stdlib.Int8.parse_v0 "0" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (Builtin.Int8.fromInt64 0)
-PACKAGE.Darklang.Stdlib.Int8.parse_v0 "1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (Builtin.Int8.fromInt64 1)
+PACKAGE.Darklang.Stdlib.Int8.parse_v0 "0" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.Int8.fromInt64 0
+)
 
-PACKAGE.Darklang.Stdlib.Int8.parse_v0 " 1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  (Builtin.Int8.fromInt64 1)
+PACKAGE.Darklang.Stdlib.Int8.parse_v0 "1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.Int8.fromInt64 1
+)
 
-PACKAGE.Darklang.Stdlib.Int8.parse_v0 "1 " = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  (Builtin.Int8.fromInt64 1)
+PACKAGE.Darklang.Stdlib.Int8.parse_v0 " 1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.Int8.fromInt64 1
+)
 
-PACKAGE.Darklang.Stdlib.Int8.parse_v0 "+1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  (Builtin.Int8.fromInt64 1)
+PACKAGE.Darklang.Stdlib.Int8.parse_v0 "1 " = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.Int8.fromInt64 1
+)
 
-PACKAGE.Darklang.Stdlib.Int8.parse_v0 " +1 " = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  (Builtin.Int8.fromInt64 1)
+PACKAGE.Darklang.Stdlib.Int8.parse_v0 "+1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.Int8.fromInt64 1
+)
 
-PACKAGE.Darklang.Stdlib.Int8.parse_v0 "-1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  (Builtin.Int8.fromInt64 -1)
+PACKAGE.Darklang.Stdlib.Int8.parse_v0 " +1 " = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(Builtin.Int8.fromInt64 1)
 
-PACKAGE.Darklang.Stdlib.Int8.parse_v0 "078" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  (Builtin.Int8.fromInt64 78) // "octal" format ignored
+PACKAGE.Darklang.Stdlib.Int8.parse_v0 "-1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  Builtin.Int8.fromInt64 -1
+)
 
-PACKAGE.Darklang.Stdlib.Int8.parse_v0 "-00001" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  (Builtin.Int8.fromInt64 -1)
+PACKAGE.Darklang.Stdlib.Int8.parse_v0 "078" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(Builtin.Int8.fromInt64 78) // "octal" format ignored
 
-PACKAGE.Darklang.Stdlib.Int8.parse_v0 "-10001" = PACKAGE.Darklang.Stdlib.Result.Result.Error PACKAGE.Darklang.Stdlib.Int8.ParseError.OutOfRange
+PACKAGE.Darklang.Stdlib.Int8.parse_v0 "-00001" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(Builtin.Int8.fromInt64 -1)
 
-PACKAGE.Darklang.Stdlib.Int8.parse_v0 "127" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  (Builtin.Int8.fromInt64 127)
+PACKAGE.Darklang.Stdlib.Int8.parse_v0 "-10001" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.Int8.ParseError.OutOfRange
 
-PACKAGE.Darklang.Stdlib.Int8.parse_v0 "-128" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  (Builtin.Int8.fromInt64 -128)
+PACKAGE.Darklang.Stdlib.Int8.parse_v0 "127" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(Builtin.Int8.fromInt64 127)
+
+PACKAGE.Darklang.Stdlib.Int8.parse_v0 "-128" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(Builtin.Int8.fromInt64 -128)
 
 PACKAGE.Darklang.Stdlib.Int8.parse_v0 "128" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   PACKAGE.Darklang.Stdlib.Int8.ParseError.OutOfRange

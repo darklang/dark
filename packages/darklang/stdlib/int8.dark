@@ -24,7 +24,11 @@ module Darklang =
 
 
       /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
-      let absoluteValue (a: Int8) : Int8 = if (Builtin.Int8.lessThan a (Builtin.Int8.fromInt64 0)) then Builtin.Int8.negate a else a
+      let absoluteValue (a: Int8) : Int8 =
+        if (Builtin.Int8.lessThan a (Builtin.Int8.fromInt64 0)) then
+          Builtin.Int8.negate a
+        else
+          a
 
 
       /// Returns the negation of <param a>, {{-a}}
@@ -36,18 +40,21 @@ module Darklang =
 
 
       /// Returns {{true}} if <param a> is greater than or equal to <param b>
-      let greaterThanOrEqualTo (a: Int8) (b: Int8) : Bool = Builtin.Int8.greaterThanOrEqualTo a b
+      let greaterThanOrEqualTo (a: Int8) (b: Int8) : Bool =
+        Builtin.Int8.greaterThanOrEqualTo a b
 
 
       /// Returns {{true}} if <param a> is less than <param b>
       let lessThan (a: Int8) (b: Int8) : Bool = Builtin.Int8.lessThan a b
 
       /// Returns {{true}} if <param a> is less than or equal to <param b>
-      let lessThanOrEqualTo (a: Int8) (b: Int8) : Bool = Builtin.Int8.lessThanOrEqualTo a b
+      let lessThanOrEqualTo (a: Int8) (b: Int8) : Bool =
+        Builtin.Int8.lessThanOrEqualTo a b
 
 
       /// Returns a random integer8 between <param start> and <param end> (inclusive)
-      let random (start: Int8) (``end``: Int8) : Int8 = Builtin.Int8.random start ``end``
+      let random (start: Int8) (``end``: Int8) : Int8 =
+        Builtin.Int8.random start ``end``
 
       /// Converts an <type Int8> to a <type Float>
       let toFloat (a: Int8) : Float = Builtin.Int8.toFloat a
@@ -59,11 +66,16 @@ module Darklang =
 
 
       /// Returns the higher of <param a> and <param b>
-      let max (a: Int8) (b: Int8) : Int8 = if (PACKAGE.Darklang.Stdlib.Int8.greaterThan a b) then a else b
+      let max (a: Int8) (b: Int8) : Int8 =
+        if (PACKAGE.Darklang.Stdlib.Int8.greaterThan a b) then
+          a
+        else
+          b
 
 
       /// Returns the lower of <param a> and <param b>
-      let min (a: Int8) (b: Int8) : Int8 = if (PACKAGE.Darklang.Stdlib.Int8.lessThan a b) then a else b
+      let min (a: Int8) (b: Int8) : Int8 =
+        if (PACKAGE.Darklang.Stdlib.Int8.lessThan a b) then a else b
 
 
       /// If <param value> is within the range given by <param limitA> and <param
@@ -72,12 +84,24 @@ module Darklang =
       /// limitB>, whichever is closer to <param value>.
       /// <param limitA> and <param limitB> can be provided in any order.
       let clamp (value: Int8) (limitA: Int8) (limitB: Int8) : Int8 =
-        let min = if (PACKAGE.Darklang.Stdlib.Int8.lessThan limitA limitB) then limitA else limitB
-        let max = if (PACKAGE.Darklang.Stdlib.Int8.greaterThan limitA limitB) then limitA else limitB
+        let min =
+          if (PACKAGE.Darklang.Stdlib.Int8.lessThan limitA limitB) then
+            limitA
+          else
+            limitB
 
-        if (PACKAGE.Darklang.Stdlib.Int8.lessThan value min) then min
-        else if (PACKAGE.Darklang.Stdlib.Int8.greaterThan value max) then max
-        else value
+        let max =
+          if (PACKAGE.Darklang.Stdlib.Int8.greaterThan limitA limitB) then
+            limitA
+          else
+            limitB
+
+        if (PACKAGE.Darklang.Stdlib.Int8.lessThan value min) then
+          min
+        else if (PACKAGE.Darklang.Stdlib.Int8.greaterThan value max) then
+          max
+        else
+          value
 
 
       /// Returns the <type Int8> value of a <type String>
