@@ -346,6 +346,7 @@ module Expr =
     | SynExpr.Const(SynConst.Int32 n, _) -> WT.EInt(id, n)
     | SynExpr.Const(SynConst.Int64 n, _) -> WT.EInt(id, int64 n)
     | SynExpr.Const(SynConst.UInt64 n, _) -> WT.EInt(id, int64 n)
+    | SynExpr.Const(SynConst.SByte n, _) -> WT.EInt8(id, int8 n)
     | SynExpr.Const(SynConst.Byte n, _) -> WT.EInt8(id, int8 n)
     | SynExpr.Const(SynConst.Char c, _) -> WT.EChar(id, string c)
     | SynExpr.Const(SynConst.Bool b, _) -> WT.EBool(id, b)
