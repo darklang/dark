@@ -113,3 +113,7 @@ module Darklang =
 
       /// Stringify <param int8>
       let toString (int8: Int8) : String = Builtin.Int8.toString int8
+
+
+      /// Converts an <type Int8> to a <type Int64>
+      let fromInt64 (int8: Int) : Int8 = Builtin.Int8.fromInt64 int8
