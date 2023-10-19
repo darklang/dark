@@ -253,6 +253,7 @@ module Roundtrip =
     { iNsEnSiTiVe: String
       ``ALLCAPS``: Int
       int: Int
+      int8: Int8
       float: Float
       negZero: Float
       nan: Float
@@ -280,6 +281,7 @@ module Roundtrip =
       { iNsEnSiTiVe = "iNsEnSiTiVe"
         ``ALLCAPS`` = 1
         int = 2
+        int8 = (Builtin.Int8.fromInt64 2)
         float = 3.0
         negZero = -0.0
         nan = Builtin.Test.nan
@@ -308,6 +310,7 @@ module Roundtrip =
       { iNsEnSiTiVe = "normal"
         ``ALLCAPS`` = 2
         int = 3
+        int8 = (Builtin.Int8.fromInt64 3)
         float = 4.0
         negZero = -1.0
         nan = 0.0
@@ -376,6 +379,10 @@ module Roundtrip =
     fetch (fun p -> p.int == 2) = [ sample () ]
     fetch (fun p -> p.int != 2) = [ otherSample () ]
     fetch (fun p -> p.int == 200) = []
+
+    fetch (fun p -> p.int8 == (Builtin.Int8.fromInt64 2)) = [ sample () ]
+    fetch (fun p -> p.int8 != (Builtin.Int8.fromInt64 2)) = [ otherSample () ]
+    fetch (fun p -> p.int8 == (Builtin.Int8.fromInt64 100)) = []
 
     fetch (fun p -> p.float == 3.0) = [ sample () ]
     fetch (fun p -> p.float != 3.0) = [ otherSample () ]
@@ -485,7 +492,6 @@ module ValueMissingColumnGivesGoodError =
 
   (Builtin.DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.Test.derrorMessage
     "DB XDB's value should be a X. However, a XY (XY {  x: ...) was passed instead.\n\nExpected: X\nActual: a XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
-
 
 module SetDoesUpsert =
   (let old = Builtin.DB.set (X { x = "hello" }) "hello" XDB in
