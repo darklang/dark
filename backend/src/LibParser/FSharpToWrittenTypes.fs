@@ -205,6 +205,7 @@ module MatchPattern =
     | SynPat.Const(SynConst.Int64 n, _) -> WT.MPInt(id, int64 n)
     | SynPat.Const(SynConst.UInt64 n, _) -> WT.MPInt(id, int64 n)
     | SynPat.Const(SynConst.Byte n, _) -> WT.MPInt8(id, int8 n)
+    | SynPat.Const(SynConst.SByte n, _) -> WT.MPInt8(id, int8 n)
 
     | SynPat.Const(SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
