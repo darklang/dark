@@ -475,7 +475,7 @@ module Darklang =
         | MPUnit _id -> "()"
         | MPBool(_id, b) -> PACKAGE.Darklang.Stdlib.Bool.toString b
         | MPInt(_id, i) -> PACKAGE.Darklang.Stdlib.Int.toString i
-        // | MPInt8(_id, i) -> PACKAGE.Darklang.Stdlib.Int.toString i
+        | MPInt8(_id, i) -> PACKAGE.Darklang.Stdlib.Int8.toString i
         | MPFloat(_id, sign, whole, remainder) ->
           let remainderPart =
             PACKAGE.Darklang.PrettyPrinter.processRemainder remainder
