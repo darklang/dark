@@ -1,0 +1,122 @@
+module Darklang =
+  module Stdlib =
+    module Int16 =
+
+      type ParseError =
+        | BadFormat
+        | OutOfRange
+
+
+      /// Adds two integers together
+      let add (a: Int16) (b: Int16) : Int16 = Builtin.Int16.add a b
+
+
+      /// Subtracts two integers
+      let subtract (a: Int16) (b: Int16) : Int16 = Builtin.Int16.subtract a b
+
+
+      /// Multiplies two integers
+      let multiply (a: Int16) (b: Int16) : Int16 = Builtin.Int16.multiply a b
+
+
+      /// Divides two integers
+      let divide (a: Int16) (b: Int16) : Int16 = Builtin.Int16.divide a b
+
+
+      /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
+      let absoluteValue (a: Int16) : Int16 =
+        if (Builtin.Int16.lessThan a (Builtin.Int16.fromInt64 0)) then
+          Builtin.Int16.negate a
+        else
+          a
+
+
+      /// Returns the negation of <param a>, {{-a}}
+      let negate (a: Int16) : Int16 = Builtin.Int16.negate a
+
+
+      /// Returns {{true}} if <param a> is greater than <param b>
+      let greaterThan (a: Int16) (b: Int16) : Bool = Builtin.Int16.greaterThan a b
+
+
+      /// Returns {{true}} if <param a> is greater than or equal to <param b>
+      let greaterThanOrEqualTo (a: Int16) (b: Int16) : Bool =
+        Builtin.Int16.greaterThanOrEqualTo a b
+
+
+      /// Returns {{true}} if <param a> is less than <param b>
+      let lessThan (a: Int16) (b: Int16) : Bool = Builtin.Int16.lessThan a b
+
+      /// Returns {{true}} if <param a> is less than or equal to <param b>
+      let lessThanOrEqualTo (a: Int16) (b: Int16) : Bool =
+        Builtin.Int16.lessThanOrEqualTo a b
+
+
+      /// Returns a random integer8 between <param start> and <param end> (inclusive)
+      let random (start: Int16) (``end``: Int16) : Int16 =
+        Builtin.Int16.random start ``end``
+
+      /// Converts an <type Int16> to a <type Float>
+      let toFloat (a: Int16) : Float = Builtin.Int16.toFloat a
+
+
+      /// Returns the sum of all the ints in the list
+      let sum (lst: List<Int16>) : Int16 =
+        PACKAGE.Darklang.Stdlib.List.fold lst 0 (fun acc x -> acc + x)
+
+
+      /// Returns the higher of <param a> and <param b>
+      let max (a: Int16) (b: Int16) : Int16 =
+        if (PACKAGE.Darklang.Stdlib.Int16.greaterThan a b) then
+          a
+        else
+          b
+
+
+      /// Returns the lower of <param a> and <param b>
+      let min (a: Int16) (b: Int16) : Int16 =
+        if (PACKAGE.Darklang.Stdlib.Int16.lessThan a b) then
+          a
+        else
+          b
+
+
+      /// If <param value> is within the range given by <param limitA> and <param
+      /// limitB>, returns <param value>.
+      /// If <param value> is outside the range, returns <param limitA> or <param
+      /// limitB>, whichever is closer to <param value>.
+      /// <param limitA> and <param limitB> can be provided in any order.
+      let clamp (value: Int16) (limitA: Int16) (limitB: Int16) : Int16 =
+        let min =
+          if (PACKAGE.Darklang.Stdlib.Int16.lessThan limitA limitB) then
+            limitA
+          else
+            limitB
+
+        let max =
+          if (PACKAGE.Darklang.Stdlib.Int16.greaterThan limitA limitB) then
+            limitA
+          else
+            limitB
+
+        if (PACKAGE.Darklang.Stdlib.Int16.lessThan value min) then
+          min
+        else if (PACKAGE.Darklang.Stdlib.Int16.greaterThan value max) then
+          max
+        else
+          value
+
+
+      /// Returns the <type Int16> value of a <type String>
+      let parse
+        (s: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<Int, PACKAGE.Darklang.Stdlib.Int16.ParseError> =
+        Builtin.Int16.parse s
+
+
+      /// Stringify <param int16>
+      let toString (int16: Int16) : String = Builtin.Int16.toString int16
+
+
+      /// Converts an <type Int16> to a <type Int64>
+      let fromInt64 (int16: Int) : Int16 = Builtin.Int16.fromInt64 int16
