@@ -1,13 +1,8 @@
+########################
+# DNS setup for darklang.io
+# NOTE: darklang.com is in darklang-classic project
+########################
 
-resource "google_compute_global_address" "darklangio_ip_address" {
-  name         = "darklangio"
-  address      = "34.111.152.115"
-  address_type = "EXTERNAL"
-  ip_version   = "IPV4"
-}
-
-# dns
-# darklang.com is in darklang-classic project
 resource "google_dns_managed_zone" "darklangio" {
   name        = "darklang-io"
   dns_name    = "darklang.io."
@@ -16,7 +11,7 @@ resource "google_dns_managed_zone" "darklangio" {
   dnssec_config {
     kind          = "dns#managedZoneDnsSecConfig"
     non_existence = "nsec3"
-    state         = "on"
+    state         = "off"
 
     default_key_specs {
       algorithm  = "rsasha256"
@@ -33,6 +28,17 @@ resource "google_dns_managed_zone" "darklangio" {
   }
 }
 
+#########################
+# DNS setup for *.darklang.io
+#########################
+
+resource "google_compute_global_address" "darklangio_ip_address" {
+  name         = "darklangio"
+  address      = "34.111.152.115"
+  address_type = "EXTERNAL"
+  ip_version   = "IPV4"
+}
+
 resource "google_dns_record_set" "star_darklangio_a" {
   name         = "*.darklang.io."
   type         = "A"
@@ -41,6 +47,7 @@ resource "google_dns_record_set" "star_darklangio_a" {
   rrdatas      = [google_compute_global_address.darklangio_ip_address.address]
 }
 
+// add darklang.io to public suffix list
 resource "google_dns_record_set" "psl_darklangio" {
   name         = "_psl.darklang.io."
   type         = "TXT"
@@ -49,18 +56,26 @@ resource "google_dns_record_set" "psl_darklangio" {
   rrdatas      = ["https://github.com/publicsuffix/list/pull/1880"]
 }
 
+########################
+# Certificate Manager
+########################
 
-# resource "google_certificate_manager_dns_authorization" "star_darklangio" {
-#   name        = "star-darklang-io-dnsauth-ksu48h2"
-#   description = "The default dns auth"
-#   domain      = "*.darklang.io"
-# }
-# resource "google_dns_record_set" "star_darklangio_dns_authorization_cname" {
-#   name         = google_certificate_manager_dns_authorization.star_darklangio.dns_resource_record[0].name
-#   managed_zone = google_dns_managed_zone.darklangio.name
-#   type         = google_certificate_manager_dns_authorization.star_darklangio.dns_resource_record[0].type
-#   ttl          = 5
-#   rrdatas      = [google_certificate_manager_dns_authorization.star_darklangio.dns_resource_record[0].data]
-# }
+// Enable DNS authorization for Certificate Manager, which allows domains we control
+// have certs managed by Google
+// https://cloud.google.com/certificate-manager/docs/dns-authorizations#auth-create
+resource "google_certificate_manager_dns_authorization" "darklangio" {
+  name        = "star-darklang-io-dnsauth-ksu48h2"
+  description = "DNS auth for darklang.io"
+  domain      = "darklang.io"
+}
+
+// https://cloud.google.com/certificate-manager/docs/dns-authorizations#cname-record
+resource "google_dns_record_set" "darklangio_dns_authorization_cname" {
+  name         = google_certificate_manager_dns_authorization.darklangio.dns_resource_record[0].name
+  managed_zone = google_dns_managed_zone.darklangio.name
+  type         = google_certificate_manager_dns_authorization.darklangio.dns_resource_record[0].type
+  ttl          = 5
+  rrdatas      = [google_certificate_manager_dns_authorization.darklangio.dns_resource_record[0].data]
+}
 
 # TODO dnssec
