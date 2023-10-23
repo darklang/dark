@@ -43,17 +43,6 @@ export function activate(context: ExtensionContext) {
   );
   client.trace = Trace.Verbose;
   client.start();
-
-  // misc VS Code extensibility demos
-
-  // vscode.window.showInformationMessage("hello, darklang dev");
-
-  // var statusBarItem = vscode.window.createStatusBarItem(
-  //   vscode.StatusBarAlignment.Right,
-  //   100,
-  // );
-  // statusBarItem.text = "status: good!";
-  // statusBarItem.show();
 }
 
 export function deactivate(): Thenable<void> | undefined {

@@ -54,20 +54,6 @@
         }
       }
     },
-    "commands": [{
-      "command": "evalCode",
-      "category": "Darklang",
-      "title": "Evaluate Dark Code"
-    }],
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "canvas-explorer",
-          "title": "Dark Canvas: dark-editor",
-          "icon": "./static/logo-light-transparent.svg"
-        }
-      ]
-    },
     "grammars": [{
       "language": "darklang",
       "scopeName": "source.darklang",

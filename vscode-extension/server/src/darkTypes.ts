@@ -15,12 +15,6 @@ export type Diagnostic = {
   message: string;
 };
 
-export type ComputeDiagnosticsInput = {
-  uri: string;
-  text: string;
-  maxNumberOfProblems: number;
-};
-
 export type ComputeDiagnosticsOutput = {
   diagnostics: Diagnostic[];
 };

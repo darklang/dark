@@ -17,7 +17,7 @@ import {
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { ComputeDiagnosticsInput, ComputeDiagnosticsOutput } from "./darkTypes";
+import { ComputeDiagnosticsOutput } from "./darkTypes";
 import * as DT2LT from "./darkTypesToLspTypes";
 
 const connection = createConnection(ProposedFeatures.all);
@@ -26,7 +26,6 @@ const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
-let hasDiagnosticRelatedInformationCapability = false;
 
 interface DarklangSettings {
   maxNumberOfProblems: number;
@@ -98,11 +97,6 @@ connection.onInitialize((params: InitializeParams) => {
   hasWorkspaceFolderCapability = !!(
     capabilities.workspace && !!capabilities.workspace.workspaceFolders
   );
-  hasDiagnosticRelatedInformationCapability = !!(
-    capabilities.textDocument &&
-    capabilities.textDocument.publishDiagnostics &&
-    capabilities.textDocument.publishDiagnostics.relatedInformation
-  );
 
   const result: InitializeResult = {
     capabilities: {
@@ -116,11 +110,6 @@ connection.onInitialize((params: InitializeParams) => {
 
   return result;
 });
-
-// connection.onDocumentFormatting(_ => {
-//   console.log("format", stuff.textDocument.uri);
-//   return;
-// });
 
 connection.onInitialized(async () => {
   if (hasConfigurationCapability) {
@@ -202,13 +191,5 @@ connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
 });
 
 documents.listen(connection);
-
-// setInterval(async () => {
-//   const allDocs = documents.all();
-//   const allDocSettings = await Promise.all(
-//     allDocs.map(d => getDocumentSettings(d.uri)),
-//   );
-//   console.log("docs", allDocSettings);
-// }, 10000);
 
 connection.listen();
