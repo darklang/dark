@@ -2,6 +2,7 @@ import * as path from "path";
 import { workspace, ExtensionContext } from "vscode";
 
 import * as vscode from "vscode";
+import { SemanticTokensFeature } from "vscode-languageclient/lib/common/semanticTokens";
 import {
   LanguageClient,
   LanguageClientOptions,
@@ -41,19 +42,9 @@ export function activate(context: ExtensionContext) {
     serverOptions,
     clientOptions,
   );
+  client.registerFeature(new SemanticTokensFeature(client));
   client.trace = Trace.Verbose;
   client.start();
-
-  // misc VS Code extensibility demos
-
-  // vscode.window.showInformationMessage("hello, darklang dev");
-
-  // var statusBarItem = vscode.window.createStatusBarItem(
-  //   vscode.StatusBarAlignment.Right,
-  //   100,
-  // );
-  // statusBarItem.text = "status: good!";
-  // statusBarItem.show();
 }
 
 export function deactivate(): Thenable<void> | undefined {

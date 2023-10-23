@@ -13,7 +13,7 @@
     ""
   ],
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.83.0"
   },
   "main": "./client/out/extension",
   "contributes": {
@@ -29,8 +29,8 @@
         ],
         "configuration": "./language-configuration.json",
         "icon": {
-          "light": "./media/logo-light-transparent.svg",
-          "dark": "./media/logo-dark-transparent.svg"
+          "light": "./static/logo-light-transparent.svg",
+          "dark": "./static/logo-dark-transparent.svg"
         }
       }
     ],
@@ -54,25 +54,31 @@
         }
       }
     },
-    "commands": [{
-      "command": "evalCode",
-      "category": "Darklang",
-      "title": "Evaluate Dark Code"
-    }],
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "canvas-explorer",
-          "title": "Dark Canvas: dark-editor",
-          "icon": "./media/logo-light-transparent.svg"
-        }
-      ]
+    "_semanticTokenProvider": {
+        "legend": {
+            "tokenTypes": ["keyword", "function", "parameter", "type", "string", "operator", "variable"],
+            "tokenModifiers": []
+        },
+        "languages": ["darklang", "dark"]
     },
-    "grammars": [{
-      "language": "darklang",
-      "scopeName": "source.darklang",
-      "path": "./syntaxes/grammar.json"
-    }]
+    "semanticTokenTypes": [
+      {"id": "keyword","description": "Language keywords like 'let' and 'in'"},
+      {"id": "function","description": "Function names or identifiers"},
+      {"id": "parameter","description": "Function parameter identifiers"},
+      {"id": "type","description": "Type names like Int, Bool, etc."},
+      {"id": "string","description": "String literals"},
+      {"id": "operator","description": "Operators like +, -"},
+      {"id": "variable","description": "General variable identifiers"}
+    ],
+    "semanticTokenColors": {
+      "keyword": "#FF4500",
+      "function": "#4CAF50",
+      "parameter": "#FFD700",
+      "type": "#00CED1",
+      "string": "#DAA520",
+      "operator": "#FF6347",
+      "variable": "#20B2AA"
+    }
   },
 
   "scripts": {
