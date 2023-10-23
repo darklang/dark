@@ -276,6 +276,87 @@ module UInt8 =
 
     (Builtin.Json.parse<UInt8> "\"42\n\"") |> err = Result.Error "Not JSON"
 
+module Int16 =
+  module Basic =
+    Builtin.Json.serialize<Int16> (PACKAGE.Darklang.Stdlib.Int16.fromInt64 0) = "0"
+    Builtin.Json.serialize<Int16> (PACKAGE.Darklang.Stdlib.Int16.fromInt64 123) = "123"
+    Builtin.Json.serialize<Int16> (PACKAGE.Darklang.Stdlib.Int16.fromInt64 -123) = "-123"
+
+    Builtin.Json.parse<Int16> "0" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int16.fromInt64 0
+    )
+
+    Builtin.Json.parse<Int16> "0.0" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int16.fromInt64 0
+    )
+
+    Builtin.Json.parse<Int16> "-0.0" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int16.fromInt64 0
+    )
+
+    Builtin.Json.parse<Int16> "-1.0" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int16.fromInt64 -1
+    )
+
+    Builtin.Json.parse<Int16> "1.2E2" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int16.fromInt64 120
+    )
+
+    Builtin.Json.parse<Int16> "1.2E+2" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int16.fromInt64 120
+    )
+
+    Builtin.Json.parse<Int16> "1200E-1" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int16.fromInt64 120
+    )
+
+  module Int16Limits =
+    Builtin.Json.serialize<Int16> (PACKAGE.Darklang.Stdlib.Int16.fromInt64 -32768) = "-32768"
+    Builtin.Json.serialize<Int16> (PACKAGE.Darklang.Stdlib.Int16.fromInt64 32767) = "32767"
+
+    Builtin.Json.parse<Int16> "-32768" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int16.fromInt64 -32768
+    )
+
+    Builtin.Json.parse<Int16> "32767" = Result.Ok(
+      PACKAGE.Darklang.Stdlib.Int16.fromInt64 32767
+    )
+
+    (Builtin.Json.parse<Int16> "-32769") |> err = Result.Error
+      "Can't parse JSON `-32769` as type `Int16` at path: `root`"
+
+    (Builtin.Json.parse<Int16> "32768") |> err = Result.Error
+      "Can't parse JSON `32768` as type `Int16` at path: `root`"
+
+  module Errors =
+    (Builtin.Json.parse<Int16> " ") |> err = Result.Error "Not JSON"
+
+    (Builtin.Json.parse<Int16> "4a") |> err = Result.Error "Not JSON"
+
+    (Builtin.Json.parse<Int16> "- 42") |> err = Result.Error "Not JSON"
+
+    (Builtin.Json.parse<Int16> "null") |> err = Result.Error
+      "Can't parse JSON `null` as type `Int16` at path: `root`"
+
+    (Builtin.Json.parse<Int16> "true") |> err = Result.Error
+      "Can't parse JSON `true` as type `Int16` at path: `root`"
+
+    (Builtin.Json.parse<Int16> "false") |> err = Result.Error
+      "Can't parse JSON `false` as type `Int16` at path: `root`"
+
+    (Builtin.Json.parse<Int16> "\"42\"") |> err = Result.Error
+      "Can't parse JSON `\"42\"` as type `Int16` at path: `root`"
+
+    (Builtin.Json.parse<Int16> "[42]") |> err = Result.Error
+      "Can't parse JSON `[42]` as type `Int16` at path: `root`"
+
+    (Builtin.Json.parse<Int16> "{ \"key\": 42 }") |> err = Result.Error
+      "Can't parse JSON `{ \"key\": 42 }` as type `Int16` at path: `root`"
+
+    (Builtin.Json.parse<Int16> "42.5") |> err = Result.Error
+      "Can't parse JSON `42.5` as type `Int16` at path: `root`"
+
+    (Builtin.Json.parse<Int16> "\"42\n\"") |> err = Result.Error "Not JSON"
 
 
 module Float =

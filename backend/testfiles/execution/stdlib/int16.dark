@@ -58,9 +58,9 @@ PACKAGE.Darklang.Stdlib.Int16.max_v0
   6
 
 PACKAGE.Darklang.Stdlib.Int16.max_v0
-  (PACKAGE.Darklang.Stdlib.Int16.fromInt64 127)
-  (PACKAGE.Darklang.Stdlib.Int16.fromInt64 -128) = PACKAGE.Darklang.Stdlib.Int16.fromInt64
-  127
+  (PACKAGE.Darklang.Stdlib.Int16.fromInt64 32767)
+  (PACKAGE.Darklang.Stdlib.Int16.fromInt64 -32768) = PACKAGE.Darklang.Stdlib.Int16.fromInt64
+  32767
 
 
 PACKAGE.Darklang.Stdlib.Int16.min_v0
@@ -79,9 +79,9 @@ PACKAGE.Darklang.Stdlib.Int16.min_v0
   -5
 
 PACKAGE.Darklang.Stdlib.Int16.min_v0
-  (PACKAGE.Darklang.Stdlib.Int16.fromInt64 127)
-  (PACKAGE.Darklang.Stdlib.Int16.fromInt64 -128) = PACKAGE.Darklang.Stdlib.Int16.fromInt64
-  -128
+  (PACKAGE.Darklang.Stdlib.Int16.fromInt64 32767)
+  (PACKAGE.Darklang.Stdlib.Int16.fromInt64 -32768) = PACKAGE.Darklang.Stdlib.Int16.fromInt64
+  -32768
 
 
 PACKAGE.Darklang.Stdlib.Int16.clamp_v0
@@ -269,11 +269,13 @@ PACKAGE.Darklang.Stdlib.Int16.negate_v0 (PACKAGE.Darklang.Stdlib.Int16.fromInt64
 PACKAGE.Darklang.Stdlib.Int16.negate_v0 (PACKAGE.Darklang.Stdlib.Int16.fromInt64 -0) = (PACKAGE.Darklang.Stdlib.Int16.fromInt64
   0)
 
-PACKAGE.Darklang.Stdlib.Int16.negate_v0 (PACKAGE.Darklang.Stdlib.Int16.fromInt64 -32768) = Builtin.Test.derrorMessage
-  "Out of range"
+PACKAGE.Darklang.Stdlib.Int16.negate_v0 (
+  PACKAGE.Darklang.Stdlib.Int16.fromInt64 -32768
+) = Builtin.Test.derrorMessage "Out of range"
 
-PACKAGE.Darklang.Stdlib.Int16.negate_v0 (PACKAGE.Darklang.Stdlib.Int16.fromInt64 32768) = Builtin.Test.derrorMessage
-  "Out of range"
+PACKAGE.Darklang.Stdlib.Int16.negate_v0 (
+  PACKAGE.Darklang.Stdlib.Int16.fromInt64 32768
+) = Builtin.Test.derrorMessage "Out of range"
 
 
 PACKAGE.Darklang.Stdlib.Int16.greaterThan_v0
@@ -372,14 +374,20 @@ PACKAGE.Darklang.Stdlib.Int16.lessThan_v0
 
 PACKAGE.Darklang.Stdlib.Int16.lessThan_v0
   (PACKAGE.Darklang.Stdlib.Int16.fromInt64 -88888)
-  (PACKAGE.Darklang.Stdlib.Int16.fromInt64 -88888) =
+  (PACKAGE.Darklang.Stdlib.Int16.fromInt64 -88888) = false
 
 
 PACKAGE.Darklang.Stdlib.Int16.toString (PACKAGE.Darklang.Stdlib.Int16.fromInt64 0) = "0"
 PACKAGE.Darklang.Stdlib.Int16.toString (PACKAGE.Darklang.Stdlib.Int16.fromInt64 1) = "1"
 PACKAGE.Darklang.Stdlib.Int16.toString (PACKAGE.Darklang.Stdlib.Int16.fromInt64 -1) = "-1"
-PACKAGE.Darklang.Stdlib.Int16.toString (PACKAGE.Darklang.Stdlib.Int16.fromInt64 -128L) = "-128" // Int16 lower limit
-PACKAGE.Darklang.Stdlib.Int16.toString (PACKAGE.Darklang.Stdlib.Int16.fromInt64 127L) = "127" // Int16 upper limit
+
+PACKAGE.Darklang.Stdlib.Int16.toString (
+  PACKAGE.Darklang.Stdlib.Int16.fromInt64 -32768s
+) = "-32768" // Int16 lower limit
+
+PACKAGE.Darklang.Stdlib.Int16.toString (
+  PACKAGE.Darklang.Stdlib.Int16.fromInt64 32767s
+) = "32767" // Int16 upper limit
 
 
 PACKAGE.Darklang.Stdlib.Int16.toFloat_v0 (PACKAGE.Darklang.Stdlib.Int16.fromInt64 2) = 2.0
@@ -388,7 +396,9 @@ PACKAGE.Darklang.Stdlib.Int16.toFloat_v0 (
   PACKAGE.Darklang.Stdlib.Int16.fromInt64 955656
 ) = Builtin.Test.derrorMessage "Out of range"
 
-PACKAGE.Darklang.Stdlib.Int16.toFloat_v0 (PACKAGE.Darklang.Stdlib.Int16.fromInt64 -10) = -10.0
+PACKAGE.Darklang.Stdlib.Int16.toFloat_v0 (
+  PACKAGE.Darklang.Stdlib.Int16.fromInt64 -10
+) = -10.0
 
 
 (PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
@@ -474,17 +484,26 @@ PACKAGE.Darklang.Stdlib.Int16.parse_v0 "1" = PACKAGE.Darklang.Stdlib.Result.Resu
   PACKAGE.Darklang.Stdlib.Int16.fromInt64 1
 )
 
-PACKAGE.Darklang.Stdlib.Int16.parse_v0 " 1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  PACKAGE.Darklang.Stdlib.Int16.fromInt64 1
-)
+PACKAGE.Darklang.Stdlib.Int16.parse_v0 " 1" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(PACKAGE.Darklang.Stdlib.Int16.fromInt64 1)
 
-PACKAGE.Darklang.Stdlib.Int16.parse_v0 "1 " = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  PACKAGE.Darklang.Stdlib.Int16.fromInt64 1
-)
+PACKAGE.Darklang.Stdlib.Int16.parse_v0 "1 " = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(PACKAGE.Darklang.Stdlib.Int16.fromInt64 1)
 
-PACKAGE.Darklang.Stdlib.Int16.parse_v0 "+1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  PACKAGE.Darklang.Stdlib.Int16.fromInt64 1
-)
+PACKAGE.Darklang.Stdlib.Int16.parse_v0 "+1" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(PACKAGE.Darklang.Stdlib.Int16.fromInt64 1)
 
 PACKAGE.Darklang.Stdlib.Int16.parse_v0 " +1 " = PACKAGE
   .Darklang
@@ -493,9 +512,12 @@ PACKAGE.Darklang.Stdlib.Int16.parse_v0 " +1 " = PACKAGE
   .Result
   .Ok(PACKAGE.Darklang.Stdlib.Int16.fromInt64 1)
 
-PACKAGE.Darklang.Stdlib.Int16.parse_v0 "-1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  PACKAGE.Darklang.Stdlib.Int16.fromInt64 -1
-)
+PACKAGE.Darklang.Stdlib.Int16.parse_v0 "-1" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(PACKAGE.Darklang.Stdlib.Int16.fromInt64 -1)
 
 PACKAGE.Darklang.Stdlib.Int16.parse_v0 "078" = PACKAGE
   .Darklang
