@@ -13,7 +13,7 @@
     ""
   ],
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.83.0"
   },
   "main": "./client/out/extension",
   "contributes": {
@@ -54,11 +54,31 @@
         }
       }
     },
-    "grammars": [{
-      "language": "darklang",
-      "scopeName": "source.darklang",
-      "path": "./syntaxes/grammar.json"
-    }]
+    "_semanticTokenProvider": {
+        "legend": {
+            "tokenTypes": ["keyword", "function", "parameter", "type", "string", "operator", "variable"],
+            "tokenModifiers": []
+        },
+        "languages": ["darklang", "dark"]
+    },
+    "semanticTokenTypes": [
+      {"id": "keyword","description": "Language keywords like 'let' and 'in'"},
+      {"id": "function","description": "Function names or identifiers"},
+      {"id": "parameter","description": "Function parameter identifiers"},
+      {"id": "type","description": "Type names like Int, Bool, etc."},
+      {"id": "string","description": "String literals"},
+      {"id": "operator","description": "Operators like +, -"},
+      {"id": "variable","description": "General variable identifiers"}
+    ],
+    "semanticTokenColors": {
+      "keyword": "#FF4500",
+      "function": "#4CAF50",
+      "parameter": "#FFD700",
+      "type": "#00CED1",
+      "string": "#DAA520",
+      "operator": "#FF6347",
+      "variable": "#20B2AA"
+    }
   },
 
   "scripts": {

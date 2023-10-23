@@ -14,11 +14,30 @@ import {
   TextDocumentSyncKind,
   InitializeResult,
   TextDocumentChangeEvent,
+  SemanticTokensRequest,
+  SemanticTokens,
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
+const Parser = require("web-tree-sitter");
 
 import { ComputeDiagnosticsOutput } from "./darkTypes";
 import * as DT2LT from "./darkTypesToLspTypes";
+
+// TODO share across server/client, if relevant?
+// or generate these from Darklang code?
+//
+// note: these are referenced by their _index_!
+// i.e. 'keyword' is 0, 'string' is 4, etc.
+const tokenTypes = [
+  "keyword", // for words 'let' and 'in'
+  "function", // for function names/identifiers
+  "parameter", // for function parameter identifiers
+  "type", // for type names like Int, Bool, etc.
+  "string", // for string literals
+  "operator", // for operators like +, -
+  "variable", // for general identifiers
+];
+const tokenModifiers: string[] = [];
 
 const connection = createConnection(ProposedFeatures.all);
 
@@ -86,8 +105,19 @@ async function gatherAndReportDiagnostics(
   }
 }
 
-connection.onInitialize((params: InitializeParams) => {
+let parser: any;
+
+connection.onInitialize(async (params: InitializeParams) => {
   const capabilities = params.capabilities;
+
+  console.log("initializing parser");
+  await Parser.init();
+  parser = new Parser();
+  const DarklangParser = await Parser.Language.load(
+    "/home/dark/app/vscode-extension/static/tree-sitter/tree-sitter-darklang.wasm",
+  );
+  parser.setLanguage(DarklangParser);
+  console.log("parser initialized", DarklangParser);
 
   // Does the client support the `workspace/configuration` request?
   // If not, we fall back using global settings.
@@ -107,6 +137,17 @@ connection.onInitialize((params: InitializeParams) => {
   if (hasWorkspaceFolderCapability) {
     result.capabilities.workspace = { workspaceFolders: { supported: true } };
   }
+
+  result.capabilities.semanticTokensProvider = {
+    legend: {
+      tokenTypes: tokenTypes,
+      tokenModifiers: tokenModifiers,
+    },
+    range: false,
+    full: {
+      delta: false,
+    },
+  };
 
   return result;
 });
@@ -193,3 +234,176 @@ connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
 documents.listen(connection);
 
 connection.listen();
+
+// handle requests for semantic tokens, by way of our treesitter parser
+//
+// note: a lot of the implementation here was ChatGPT-generated,
+// and sort of bad - needs overhaul, but this gets _something_ out.
+// connection.onRequest(
+//   SemanticTokensRequest.type,
+//   ({ textDocument }): SemanticTokens => {
+//     const tokens: number[] = [];
+
+//     console.log("pocessing semantic tokens request");
+
+//     const content = documents.get(textDocument.uri)?.getText() || "";
+//     const tree = parser.parse(content);
+
+//     // A recursive function to explore the tree
+//     const processNode = (node: any) => {
+//       const { type, startPosition, endPosition } = node;
+//       const line = startPosition.row;
+//       const startChar = startPosition.column;
+
+//       //console.log(type, startPosition, endPosition);
+
+//       const length = endPosition.column - startPosition.column;
+
+//       switch (type) {
+//         case "let":
+//           tokens.push(line, startChar, length, 0);
+//           break;
+
+//         case "identifier":
+//           // Distinguishing between function name and other identifiers:
+//           if (
+//             node.parent &&
+//             node.parent.type === "fn_def" &&
+//             node.parent.name === node
+//           ) {
+//             tokens.push(line, startChar, length, 1);
+//           } else {
+//             tokens.push(line, startChar, length, 6);
+//           }
+//           break;
+
+//         case "fn_param_def":
+//           tokens.push(line, startChar, length, 2);
+//           break;
+
+//         case "Int":
+//         case "Bool":
+//         case "Float":
+//         case "String":
+//         case "Char":
+//           tokens.push(line, startChar, length, 3);
+//           break;
+
+//         case "string_literal":
+//           tokens.push(line, startChar, length, 4);
+//           break;
+
+//         case "+":
+//         case "-":
+//           tokens.push(line, startChar, length, 5);
+//           break;
+
+//         default:
+//           break;
+//       }
+
+//       // recurse against child nodes
+//       for (const child of node.children) {
+//         processNode(child);
+//       }
+//     };
+
+//     processNode(tree.rootNode);
+
+//     console.log("tokens", tokens);
+//     return {
+//       data: tokens,
+//     };
+//   },
+// );
+
+connection.onRequest(
+  SemanticTokensRequest.type,
+  ({ textDocument }): SemanticTokens => {
+    const tokens: number[] = [];
+    let lastLine = 0;
+    let lastStartChar = 0;
+
+    const encodeToken = (
+      line: number,
+      startChar: number,
+      length: number,
+      tokenType: number,
+    ) => {
+      const deltaLine = line - lastLine;
+      const deltaStart =
+        deltaLine === 0 ? startChar - lastStartChar : startChar;
+
+      tokens.push(deltaLine, deltaStart, length, tokenType, 0); // Assuming no tokenModifiers for simplicity
+
+      lastLine = line;
+      lastStartChar = startChar + length;
+    };
+
+    console.log("Processing semantic tokens request");
+
+    const content = documents.get(textDocument.uri)?.getText() || "";
+    const tree = parser.parse(content);
+
+    const processNode = (node: any) => {
+      const { type, startPosition, endPosition } = node;
+      const line = startPosition.row;
+      const startChar = startPosition.column;
+      const length = endPosition.column - startPosition.column;
+
+      switch (type) {
+        case "let":
+          encodeToken(line, startChar, length, 0);
+          break;
+
+        case "identifier":
+          if (
+            node.parent &&
+            node.parent.type === "fn_def" &&
+            node.parent.name === node
+          ) {
+            encodeToken(line, startChar, length, 1);
+          } else {
+            encodeToken(line, startChar, length, 6);
+          }
+          break;
+
+        case "fn_param_def":
+          encodeToken(line, startChar, length, 2);
+          break;
+
+        case "Int":
+        case "Bool":
+        case "Float":
+        case "String":
+        case "Char":
+          encodeToken(line, startChar, length, 3);
+          break;
+
+        case "string_literal":
+          encodeToken(line, startChar, length, 4);
+          break;
+
+        case "+":
+        case "-":
+          encodeToken(line, startChar, length, 5);
+          break;
+
+        default:
+          break;
+      }
+
+      // Recurse through child nodes
+      for (const child of node.children) {
+        processNode(child);
+      }
+    };
+
+    processNode(tree.rootNode);
+
+    console.log("Encoded tokens:", tokens);
+    return {
+      data: tokens,
+    };
+  },
+);
