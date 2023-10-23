@@ -11,8 +11,7 @@ resource "google_dns_managed_zone" "darklangio" {
   dnssec_config {
     kind          = "dns#managedZoneDnsSecConfig"
     non_existence = "nsec3"
-    # TODO dnssec
-    state = "off"
+    state         = "on"
 
     default_key_specs {
       algorithm  = "rsasha256"
