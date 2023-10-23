@@ -11,7 +11,8 @@ resource "google_dns_managed_zone" "darklangio" {
   dnssec_config {
     kind          = "dns#managedZoneDnsSecConfig"
     non_existence = "nsec3"
-    state         = "off"
+    # TODO dnssec
+    state = "off"
 
     default_key_specs {
       algorithm  = "rsasha256"
@@ -47,6 +48,15 @@ resource "google_dns_record_set" "star_darklangio_a" {
   rrdatas      = [google_compute_global_address.darklangio_ip_address.address]
 }
 
+resource "google_dns_record_set" "darklangio_a" {
+  name         = "darklang.io."
+  type         = "A"
+  ttl          = 300
+  managed_zone = google_dns_managed_zone.darklangio.name
+  rrdatas      = [google_compute_global_address.darklangio_ip_address.address]
+}
+
+
 // add darklang.io to public suffix list
 resource "google_dns_record_set" "psl_darklangio" {
   name         = "_psl.darklang.io."
@@ -69,6 +79,7 @@ resource "google_certificate_manager_dns_authorization" "darklangio" {
   domain      = "darklang.io"
 }
 
+// DNS entry for Certificate Manager to verify we control the domain
 // https://cloud.google.com/certificate-manager/docs/dns-authorizations#cname-record
 resource "google_dns_record_set" "darklangio_dns_authorization_cname" {
   name         = google_certificate_manager_dns_authorization.darklangio.dns_resource_record[0].name
@@ -78,4 +89,15 @@ resource "google_dns_record_set" "darklangio_dns_authorization_cname" {
   rrdatas      = [google_certificate_manager_dns_authorization.darklangio.dns_resource_record[0].data]
 }
 
-# TODO dnssec
+// Certificate Manager certificate request for darklang.io
+// https://cloud.google.com/certificate-manager/docs/certificates#cert-dns-auth
+resource "google_certificate_manager_certificate" "root_cert" {
+  name        = "darklangio-rootcert-jsd83hs"
+  description = "The wildcard cert"
+  managed {
+    domains = ["darklang.io", "*.darklang.io"]
+    dns_authorizations = [
+      google_certificate_manager_dns_authorization.darklangio.id
+    ]
+  }
+}
