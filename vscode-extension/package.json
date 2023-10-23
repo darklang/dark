@@ -29,8 +29,8 @@
         ],
         "configuration": "./language-configuration.json",
         "icon": {
-          "light": "./media/logo-light-transparent.svg",
-          "dark": "./media/logo-dark-transparent.svg"
+          "light": "./static/logo-light-transparent.svg",
+          "dark": "./static/logo-dark-transparent.svg"
         }
       }
     ],
@@ -64,7 +64,7 @@
         {
           "id": "canvas-explorer",
           "title": "Dark Canvas: dark-editor",
-          "icon": "./media/logo-light-transparent.svg"
+          "icon": "./static/logo-light-transparent.svg"
         }
       ]
     },
