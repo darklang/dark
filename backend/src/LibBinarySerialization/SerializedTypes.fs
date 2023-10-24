@@ -204,6 +204,7 @@ module ConstantName =
 type TypeReference =
   | TInt
   | TInt8
+  | TUInt8
   | TFloat
   | TBool
   | TUnit
@@ -254,6 +255,7 @@ type MatchPattern =
   | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
   | MPInt of id * int64
   | MPInt8 of id * int8
+  | MPUInt8 of id * uint8
   | MPBool of id * bool
   | MPChar of id * string
   | MPString of id * string
@@ -277,6 +279,7 @@ type Infix =
 type Expr =
   | EInt of id * int64
   | EInt8 of id * int8
+  | EUInt8 of id * uint8
   | EBool of id * bool
   | EString of id * List<StringSegment>
   | EChar of id * string
@@ -443,6 +446,7 @@ module UserType =
 type Const =
   | CInt of int64
   | CInt8 of int8
+  | CUInt8 of uint8
   | CBool of bool
   | CString of string
   | CChar of string

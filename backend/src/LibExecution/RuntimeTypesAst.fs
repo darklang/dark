@@ -31,6 +31,7 @@ let rec preTraversal
     | MPVariable _
     | MPInt _
     | MPInt8 _
+    | MPUInt8 _
     | MPBool _
     | MPString _
     | MPChar _
@@ -46,6 +47,7 @@ let rec preTraversal
     match typeRefFn typeRef with
     | TInt
     | TInt8
+    | TUInt8
     | TBool
     | TUnit
     | TFloat
@@ -68,6 +70,7 @@ let rec preTraversal
   match exprFn expr with
   | EInt _
   | EInt8 _
+  | EUInt8 _
   | EBool _
   | EChar _
   | EUnit _
@@ -148,6 +151,7 @@ let rec postTraversal
     | MPVariable _
     | MPInt _
     | MPInt8 _
+    | MPUInt8 _
     | MPBool _
     | MPString _
     | MPChar _
@@ -163,6 +167,7 @@ let rec postTraversal
     match typeRefFn typeRef with
     | TInt
     | TInt8
+    | TUInt8
     | TBool
     | TUnit
     | TFloat
@@ -184,6 +189,7 @@ let rec postTraversal
   (match expr with
    | EInt _
    | EInt8 _
+   | EUInt8 _
    | EBool _
    | EChar _
    | EUnit _
@@ -278,6 +284,7 @@ let rec postTraversalAsync
       | MPVariable _
       | MPInt _
       | MPInt8 _
+      | MPUInt8 _
       | MPBool _
       | MPString _
       | MPChar _
@@ -307,6 +314,7 @@ let rec postTraversalAsync
       match typeRef with
       | TInt
       | TInt8
+      | TUInt8
       | TBool
       | TUnit
       | TFloat
@@ -355,6 +363,7 @@ let rec postTraversalAsync
       match expr with
       | EInt _
       | EInt8 _
+      | EUInt8 _
       | EBool _
       | EChar _
       | EUnit _

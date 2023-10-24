@@ -67,6 +67,7 @@ module Darklang =
         | TBool
         | TInt
         | TInt8
+        | TUInt8
         | TFloat
         | TChar
         | TString
@@ -86,6 +87,7 @@ module Darklang =
       type Expr =
         | EInt of ID * Int
         | EInt8 of ID * Int8
+        | EUInt8 of ID * UInt8
         | EBool of ID * Bool
         | EString of ID * List<StringSegment>
         | EChar of ID * String
@@ -136,6 +138,7 @@ module Darklang =
         | MPEnum of ID * caseName: String * fieldPatterns: List<MatchPattern>
         | MPInt of ID * Int
         | MPInt8 of ID * Int8
+        | MPUInt8 of ID * UInt8
         | MPBool of ID * Bool
         | MPChar of ID * String
         | MPString of ID * String
@@ -164,6 +167,7 @@ module Darklang =
         | KTBool
         | KTInt
         | KTInt8
+        | KTUInt8
         | KTFloat
         | KTChar
         | KTString
@@ -190,6 +194,7 @@ module Darklang =
           | DBool of Bool
           | DInt of Int
           | DInt8 of Int8
+          | DUInt8 of UInt8
           | DFloat of Float
           | DChar of String
           | DString of String
@@ -229,6 +234,7 @@ module Darklang =
           | DBool _ -> ValueType.Known KnownType.KTBool
           | DInt _ -> ValueType.Known KnownType.KTInt
           | DInt8 _ -> ValueType.Known KnownType.KTInt8
+          | DUInt8 _ -> ValueType.Known KnownType.KTUInt8
           | DFloat _ -> ValueType.Known KnownType.KTFloat
           | DChar _ -> ValueType.Known KnownType.KTChar
           | DString _ -> ValueType.Known KnownType.KTString
