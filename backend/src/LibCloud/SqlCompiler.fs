@@ -79,6 +79,8 @@ let rec dvalToSql
 
     | TVariable _, DInt i
     | TInt, DInt i -> return Sql.int64 i, TInt
+
+    | TVariable _, DInt8 i
     | TInt8, DInt8 i -> return Sql.int64 (int i), TInt8
 
     | TVariable _, DFloat v

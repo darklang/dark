@@ -104,6 +104,7 @@ module RuntimeTypes =
     [ RT.MPVariable(123UL, "test")
       RT.MPEnum(1234UL, "Some", [ RT.MPVariable(746385UL, "var") ])
       RT.MPInt(756385UL, 7857395)
+      RT.MPInt8(756386UL, 127y)
       RT.MPBool(8759375UL, true)
       RT.MPChar(4875843UL, "8jgkdjsfg")
       RT.MPString(857395UL, "iklfijo13294")
@@ -128,6 +129,7 @@ module RuntimeTypes =
 
   let exprs : List<RT.Expr> =
     [ RT.EInt(124151234UL, 7)
+      RT.EInt(124151235UL, 7)
       RT.EBool(158584UL, false)
       RT.EString(
         86749UL,
@@ -312,6 +314,7 @@ module ProgramTypes =
     [ PT.MPVariable(1234123UL, "var8481")
       PT.MPEnum(7471263UL, "None", [])
       PT.MPInt(74816UL, 84871728)
+      PT.MPInt8(74817UL, 127y)
       PT.MPBool(66453UL, false)
       PT.MPChar(83749178UL, "w")
       PT.MPString(817201237UL, "testing testing 123")
@@ -403,7 +406,7 @@ module ProgramTypes =
             []
           ) ]
       ),
-      PT.EInt(929452387UL, 5L),
+      PT.EInt8(929452387UL, 5y),
       PT.ELet(
         620028536UL,
         PT.LPVariable(5812673123UL, "x2"),
