@@ -105,6 +105,7 @@ module RuntimeTypes =
       RT.MPEnum(1234UL, "Some", [ RT.MPVariable(746385UL, "var") ])
       RT.MPInt(756385UL, 7857395)
       RT.MPInt8(756386UL, 127y)
+      RT.MPUInt8(756386UL, 255uy)
       RT.MPBool(8759375UL, true)
       RT.MPChar(4875843UL, "8jgkdjsfg")
       RT.MPString(857395UL, "iklfijo13294")
@@ -242,6 +243,7 @@ module RuntimeTypes =
       known RT.KnownType.KTBool
       known RT.KnownType.KTInt
       known RT.KnownType.KTInt8
+      known RT.KnownType.KTUInt8
       known RT.KnownType.KTFloat
       known RT.KnownType.KTChar
       known RT.KnownType.KTString
@@ -315,6 +317,7 @@ module ProgramTypes =
       PT.MPEnum(7471263UL, "None", [])
       PT.MPInt(74816UL, 84871728)
       PT.MPInt8(74817UL, 127y)
+      PT.MPUInt8(74818UL, 255uy)
       PT.MPBool(66453UL, false)
       PT.MPChar(83749178UL, "w")
       PT.MPString(817201237UL, "testing testing 123")
@@ -783,7 +786,12 @@ module ProgramTypes =
                                         109539183UL,
                                         [ ("a string", PT.EInt(450951790UL, 2L)) ]
                                       ),
-                                      e
+                                      PT.ELet(
+                                        831830074UL,
+                                        PT.LPVariable(7567124UL, "uint8"),
+                                        PT.EUInt8(7567124UL, 255uy),
+                                        e
+                                      )
                                     )
                                   )
                                 )

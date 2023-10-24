@@ -7,19 +7,19 @@ module Darklang =
         | OutOfRange
 
 
-      /// Adds two integers together
+      /// Adds two 8 bit signed integers together
       let add (a: Int8) (b: Int8) : Int8 = Builtin.Int8.add a b
 
 
-      /// Subtracts two integers
+      /// Subtracts two 8 bit signed integers
       let subtract (a: Int8) (b: Int8) : Int8 = Builtin.Int8.subtract a b
 
 
-      /// Multiplies two integers
+      /// Multiplies two 8 bit signed integers
       let multiply (a: Int8) (b: Int8) : Int8 = Builtin.Int8.multiply a b
 
 
-      /// Divides two integers
+      /// Divides two 8 bit signed integers
       let divide (a: Int8) (b: Int8) : Int8 = Builtin.Int8.divide a b
 
 
@@ -52,7 +52,7 @@ module Darklang =
         Builtin.Int8.lessThanOrEqualTo a b
 
 
-      /// Returns a random integer8 between <param start> and <param end> (inclusive)
+      /// Returns a random 8 bit signed integer between <param start> and <param end> (inclusive)
       let random (start: Int8) (``end``: Int8) : Int8 =
         Builtin.Int8.random start ``end``
 

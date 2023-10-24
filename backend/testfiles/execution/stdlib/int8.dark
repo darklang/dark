@@ -11,37 +11,6 @@ PACKAGE.Darklang.Stdlib.Int8.absoluteValue_v0 (
 ) = Builtin.Test.derrorMessage "Out of range"
 
 
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0
-  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 -5)
-  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 -2)
-  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 5) = PACKAGE.Darklang.Stdlib.Int8.fromInt64
-  -2
-
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0
-  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 -3)
-  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 -2)
-  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 1) = PACKAGE.Darklang.Stdlib.Int8.fromInt64
-  -2
-
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0
-  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 -5)
-  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 1)
-  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 1) = PACKAGE.Darklang.Stdlib.Int8.fromInt64
-  1
-
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0
-  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 1)
-  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 2)
-  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 1) = PACKAGE.Darklang.Stdlib.Int8.fromInt64
-  1
-
-PACKAGE.Darklang.Stdlib.Int8.clamp_v0
-  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 3)
-  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 0)
-  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 2) = PACKAGE.Darklang.Stdlib.Int8.fromInt64
-  2
-
-
 PACKAGE.Darklang.Stdlib.Int8.max_v0
   (PACKAGE.Darklang.Stdlib.Int8.fromInt64 5)
   (PACKAGE.Darklang.Stdlib.Int8.fromInt64 6) = PACKAGE.Darklang.Stdlib.Int8.fromInt64
@@ -82,6 +51,37 @@ PACKAGE.Darklang.Stdlib.Int8.min_v0
   (PACKAGE.Darklang.Stdlib.Int8.fromInt64 127)
   (PACKAGE.Darklang.Stdlib.Int8.fromInt64 -128) = PACKAGE.Darklang.Stdlib.Int8.fromInt64
   -128
+
+
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 -5)
+  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 -2)
+  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 5) = PACKAGE.Darklang.Stdlib.Int8.fromInt64
+  -2
+
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 -3)
+  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 -2)
+  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 1) = PACKAGE.Darklang.Stdlib.Int8.fromInt64
+  -2
+
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 -5)
+  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 1)
+  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 1) = PACKAGE.Darklang.Stdlib.Int8.fromInt64
+  1
+
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 1)
+  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 2)
+  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 1) = PACKAGE.Darklang.Stdlib.Int8.fromInt64
+  1
+
+PACKAGE.Darklang.Stdlib.Int8.clamp_v0
+  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 3)
+  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 0)
+  (PACKAGE.Darklang.Stdlib.Int8.fromInt64 2) = PACKAGE.Darklang.Stdlib.Int8.fromInt64
+  2
 
 
 PACKAGE.Darklang.Stdlib.Int8.clamp_v0

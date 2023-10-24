@@ -413,7 +413,7 @@ let parse
       let mutable d = 0.0
       if j.TryGetUInt64(&ui64) then
         if ui64 <= uint64 System.Byte.MaxValue then
-          DUInt8( uint8 ui64) |> Ply
+          DUInt8(uint8 ui64) |> Ply
         else
           raiseCantMatchWithType TUInt8 j pathSoFar |> Ply
       else if j.TryGetInt64(&i64) then

@@ -1,12 +1,6 @@
 PACKAGE.Darklang.Stdlib.Int.absoluteValue_v0 -5 = 5
 PACKAGE.Darklang.Stdlib.Int.absoluteValue_v0 5 = 5
 
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 -5 -2 5 = -2 // in bounds
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 -3 -2 1 = -2 // below min
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 -5 1 1 = 1 // at limit
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 1 2 1 = 1 // above max
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 3 0 2 = 2 //  below in
-
 PACKAGE.Darklang.Stdlib.Int.max_v0 5 6 = 6
 PACKAGE.Darklang.Stdlib.Int.max_v0 10 1 = 10
 PACKAGE.Darklang.Stdlib.Int.max_v0 -5 6 = 6
@@ -19,6 +13,12 @@ PACKAGE.Darklang.Stdlib.Int.min_v0 -5 6 = -5
 PACKAGE.Darklang.Stdlib.Int.min_v0 -100 -20000 = -20000
 PACKAGE.Darklang.Stdlib.Int.min_v0 250 -26 = -26
 
+
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 -5 -2 5 = -2 // in bounds
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 -3 -2 1 = -2 // below min
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 -5 1 1 = 1 // at limit
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 1 2 1 = 1 // above max
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 3 0 2 = 2 //  below in
 PACKAGE.Darklang.Stdlib.Int.clamp_v0 -100 0 0 = 0
 PACKAGE.Darklang.Stdlib.Int.clamp_v0 100 0 0 = 0
 PACKAGE.Darklang.Stdlib.Int.clamp_v0 -100 0 -1 = -1

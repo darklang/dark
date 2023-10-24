@@ -514,7 +514,9 @@ let rec eval
             | DUInt8 di -> return (di = pi), []
             | _ ->
               return!
-                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("UInt8", dv))
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("UInt8", dv))
 
           | MPBool(id, pb) ->
             match dv with
