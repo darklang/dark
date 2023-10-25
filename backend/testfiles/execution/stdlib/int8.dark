@@ -36,6 +36,25 @@ PACKAGE.Darklang.Stdlib.Int8.negate_v0 -0y = 0y
 PACKAGE.Darklang.Stdlib.Int8.negate_v0 -128y = Builtin.Test.derrorMessage
   "Out of range"
 
+PACKAGE.Darklang.Stdlib.Int8.remainder_v0 15y 6y = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  3y
+
+PACKAGE.Darklang.Stdlib.Int8.remainder_v0 20y 8y = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  4y
+
+PACKAGE.Darklang.Stdlib.Int8.remainder_v0 -20y 8y = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -4y
+
+PACKAGE.Darklang.Stdlib.Int8.remainder_v0 -20y -8y = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -4y
+
+PACKAGE.Darklang.Stdlib.Int8.remainder_v0 -15y 6y = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -3y
+
+PACKAGE.Darklang.Stdlib.Int8.remainder_v0 5y 0y = Builtin.Test.derrorMessage
+  "Division by zero"
+
+
 PACKAGE.Darklang.Stdlib.Int8.add_v0 10y 9y = 19y
 PACKAGE.Darklang.Stdlib.Int8.add_v0 88y 9y = 97y
 PACKAGE.Darklang.Stdlib.Int8.add_v0 -1y 2y = 1y
@@ -106,6 +125,22 @@ PACKAGE.Darklang.Stdlib.Int8.toFloat_v0 (2y) = 2.0
 PACKAGE.Darklang.Stdlib.Int8.toFloat_v0 (127y) = 127.0
 PACKAGE.Darklang.Stdlib.Int8.toFloat_v0 (-128y) = -128.0
 PACKAGE.Darklang.Stdlib.Int8.toFloat_v0 (-10y) = -10.0
+
+PACKAGE.Darklang.Stdlib.Int8.sqrt_v0 4y = 2.0
+PACKAGE.Darklang.Stdlib.Int8.sqrt_v0 100y = 10.0
+PACKAGE.Darklang.Stdlib.Int8.sqrt_v0 86y = 9.273618495495704
+
+PACKAGE.Darklang.Stdlib.Int8.mod_v0 15y 5y = 0y
+PACKAGE.Darklang.Stdlib.Int8.mod_v0 15y 6y = 3y
+PACKAGE.Darklang.Stdlib.Int8.mod_v0 0y 15y = 0y
+PACKAGE.Darklang.Stdlib.Int8.mod_v0 (-1y) 2y = 1y
+PACKAGE.Darklang.Stdlib.Int8.mod_v0 (-128y) 53y = 31y
+PACKAGE.Darklang.Stdlib.Int8.mod_v0 127y 3y = 1y
+
+PACKAGE.Darklang.Stdlib.Int8.mod_v0 5y 0y = Builtin.Test.derrorMessage "Zero modulus"
+
+PACKAGE.Darklang.Stdlib.Int8.mod_v0 5y (-5y) = Builtin.Test.derrorMessage
+  "Negative modulus"
 
 (PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->

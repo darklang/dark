@@ -7,6 +7,26 @@ module Darklang =
         | OutOfRange
 
 
+      /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+      /// The modulus <param b> must be 0 or negative.
+      /// Use <fn Int8.remainder> if you want the remainder after division, which has
+      /// a different behavior for negative numbers.
+      let ``mod`` (a: Int8) (b: Int8) : Int8 = Builtin.Int8.``mod`` a b
+
+
+      /// Returns the integer remainder left over after dividing <param value> by
+      /// <param divisor>, as a <type Result>.
+      /// For example, {{Int.remainder 15 6 == Ok 3}}. The remainder will be
+      /// negative only if {{<var value> < 0}}.
+      /// The sign of <param divisor> doesn't influence the outcome.
+      /// Returns an {{Error}} if <param divisor> is {{0}}.
+      let remainder
+        (value: Int8)
+        (divisor: Int8)
+        : PACKAGE.Darklang.Stdlib.Result.Result<Int8, String> =
+        Builtin.Int8.remainder value divisor
+
+
       /// Adds two 8 bit signed integers together
       let add (a: Int8) (b: Int8) : Int8 = Builtin.Int8.add a b
 
@@ -55,6 +75,11 @@ module Darklang =
       /// Returns a random 8 bit signed integer between <param start> and <param end> (inclusive)
       let random (start: Int8) (``end``: Int8) : Int8 =
         Builtin.Int8.random start ``end``
+
+
+      /// Get the square root of an <type Int8>
+      let sqrt (a: Int8) : Float = Builtin.Int8.sqrt a
+
 
       /// Converts an <type Int8> to a <type Float>
       let toFloat (a: Int8) : Float = Builtin.Int8.toFloat a

@@ -33,7 +33,77 @@ module ParseError =
 let fn = fn [ "UInt8" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "add" 0
+  [ { name = fn "mod" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
+      returnType = TUInt8
+      description =
+        "Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+
+        The modulus <param b> must be greater than 0.
+
+        Use <fn UInt8.remainder> if you want the remainder after division, which has
+        a different behavior for negative numbers."
+      fn =
+        (function
+        | state, _, [ DUInt8 v; DUInt8 m ] ->
+          if m = 0uy then
+            Int.IntRuntimeError.Error.ZeroModulus
+            |> Int.IntRuntimeError.RTE.toRuntimeError
+            |> raiseRTE state.caller
+            |> Ply
+          else if m < 0uy then
+            Int.IntRuntimeError.Error.NegativeModulus
+            |> Int.IntRuntimeError.RTE.toRuntimeError
+            |> raiseRTE state.caller
+            |> Ply
+          else
+            let result = v % m
+            let result = if result < 0uy then m + result else result
+            Ply(DUInt8(result))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "remainder" 0
+      typeParams = []
+      parameters = [ Param.make "value" TUInt8 ""; Param.make "divisor" TUInt8 "" ]
+      returnType = TypeReference.result TUInt8 TString
+      description =
+        "Returns the integer remainder left over after dividing <param value> by
+        <param divisor>, as a <type Result>.
+
+        For example, {{UInt8.remainder 15 6 == Ok 3}}. The remainder will be
+        negative only if {{<var value> < 0}}.
+
+        The sign of <param divisor> doesn't influence the outcome.
+
+        Returns an {{Error}} if <param divisor> is {{0}}."
+      fn =
+        let resultOk r = Dval.resultOk KTUInt8 KTString r |> Ply
+        (function
+        | state, _, [ DUInt8 v; DUInt8 d ] ->
+          (try
+            v % d |> DUInt8 |> resultOk
+           with e ->
+             if d = 0uy then
+               Int.IntRuntimeError.Error.DivideByZeroError
+               |> Int.IntRuntimeError.RTE.toRuntimeError
+               |> raiseRTE state.caller
+               |> Ply
+             else
+               Exception.raiseInternal
+                 "unexpected failure case in UInt8.remainder"
+                 [ "v", v; "d", d ]
+                 e)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    { name = fn "add" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TUInt8
@@ -234,6 +304,20 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "sqrt" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 "" ]
+      returnType = TFloat
+      description = "Get the square root of an <type UInt8>"
+      fn =
+        (function
+        | _, _, [ DUInt8 a ] -> Ply(DFloat(sqrt (float a)))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated }
 
 
