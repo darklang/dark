@@ -41,14 +41,13 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ DInt8 a; DInt8 b ] ->
-          let result = int a + int b
-          if result < -128 || result > 127 then
+          try
+            DInt8(Checked.(+) a b) |> Ply
+          with :? System.OverflowException ->
             Int.IntRuntimeError.Error.OutOfRange
             |> Int.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
-          else
-            Ply(DInt8(int8 result))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -63,14 +62,13 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ DInt8 a; DInt8 b ] ->
-          let result = int a - int b
-          if result < -128 || result > 127 then
+          try
+            DInt8(Checked.(-) a b) |> Ply
+          with :? System.OverflowException ->
             Int.IntRuntimeError.Error.OutOfRange
             |> Int.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
-          else
-            Ply(DInt8(int8 result))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -85,14 +83,13 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ DInt8 a; DInt8 b ] ->
-          let result = int a * int b
-          if result < -128 || result > 127 then
+          try
+            DInt8(Checked.(*) a b) |> Ply
+          with :? System.OverflowException ->
             Int.IntRuntimeError.Error.OutOfRange
             |> Int.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
-          else
-            Ply(DInt8(int8 result))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -246,8 +243,8 @@ let fns : List<BuiltInFn> =
         | _, _, [ DInt8 a; DInt8 b ] ->
           let lower, upper = if a > b then (b, a) else (a, b)
 
-          let lowerBound = max lower (int8 -128)
-          let upperBound = min upper (int8 127)
+          let lowerBound = max lower -128y
+          let upperBound = min upper 127y
 
           let int8Range = (int) upperBound - (int) lowerBound + 1
 

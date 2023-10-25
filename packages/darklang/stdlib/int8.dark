@@ -25,7 +25,7 @@ module Darklang =
 
       /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
       let absoluteValue (a: Int8) : Int8 =
-        if (Builtin.Int8.lessThan a (Builtin.Int8.fromInt64 0)) then
+        if (Builtin.Int8.lessThan a 0y) then
           Builtin.Int8.negate a
         else
           a
@@ -107,7 +107,7 @@ module Darklang =
       /// Returns the <type Int8> value of a <type String>
       let parse
         (s: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Int, PACKAGE.Darklang.Stdlib.Int8.ParseError> =
+        : PACKAGE.Darklang.Stdlib.Result.Result<Int8, PACKAGE.Darklang.Stdlib.Int8.ParseError> =
         Builtin.Int8.parse s
 
 

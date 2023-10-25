@@ -156,49 +156,30 @@ module Int =
 
 module Int8 =
   module Basic =
-    Builtin.Json.serialize<Int8> (PACKAGE.Darklang.Stdlib.Int8.fromInt64 0) = "0"
-    Builtin.Json.serialize<Int8> (PACKAGE.Darklang.Stdlib.Int8.fromInt64 123) = "123"
-    Builtin.Json.serialize<Int8> (PACKAGE.Darklang.Stdlib.Int8.fromInt64 -123) = "-123"
+    Builtin.Json.serialize<Int8> 0y = "0"
+    Builtin.Json.serialize<Int8> 123y = "123"
+    Builtin.Json.serialize<Int8> -123y = "-123"
 
-    Builtin.Json.parse<Int8> "0" = Result.Ok(
-      PACKAGE.Darklang.Stdlib.Int8.fromInt64 0
-    )
+    Builtin.Json.parse<Int8> "0" = Result.Ok 0y
 
-    Builtin.Json.parse<Int8> "0.0" = Result.Ok(
-      PACKAGE.Darklang.Stdlib.Int8.fromInt64 0
-    )
+    Builtin.Json.parse<Int8> "0.0" = Result.Ok 0y
 
-    Builtin.Json.parse<Int8> "-0.0" = Result.Ok(
-      PACKAGE.Darklang.Stdlib.Int8.fromInt64 0
-    )
+    Builtin.Json.parse<Int8> "-0.0" = Result.Ok 0y
 
-    Builtin.Json.parse<Int8> "-1.0" = Result.Ok(
-      PACKAGE.Darklang.Stdlib.Int8.fromInt64 -1
-    )
+    Builtin.Json.parse<Int8> "-1.0" = Result.Ok -1y
 
-    Builtin.Json.parse<Int8> "1.2E2" = Result.Ok(
-      PACKAGE.Darklang.Stdlib.Int8.fromInt64 120
-    )
+    Builtin.Json.parse<Int8> "1.2E2" = Result.Ok 120y
 
-    Builtin.Json.parse<Int8> "1.2E+2" = Result.Ok(
-      PACKAGE.Darklang.Stdlib.Int8.fromInt64 120
-    )
+    Builtin.Json.parse<Int8> "1.2E+2" = Result.Ok 120y
 
-    Builtin.Json.parse<Int8> "1200E-1" = Result.Ok(
-      PACKAGE.Darklang.Stdlib.Int8.fromInt64 120
-    )
+    Builtin.Json.parse<Int8> "1200E-1" = Result.Ok 120y
 
   module Int8Limits =
-    Builtin.Json.serialize<Int8> (PACKAGE.Darklang.Stdlib.Int8.fromInt64 -128) = "-128"
-    Builtin.Json.serialize<Int8> (PACKAGE.Darklang.Stdlib.Int8.fromInt64 127) = "127"
+    Builtin.Json.serialize<Int8> -128y = "-128"
+    Builtin.Json.serialize<Int8> 127y = "127"
 
-    Builtin.Json.parse<Int8> "-128" = Result.Ok(
-      PACKAGE.Darklang.Stdlib.Int8.fromInt64 -128
-    )
-
-    Builtin.Json.parse<Int8> "127" = Result.Ok(
-      PACKAGE.Darklang.Stdlib.Int8.fromInt64 127
-    )
+    Builtin.Json.parse<Int8> "-128" = Result.Ok -128y
+    Builtin.Json.parse<Int8> "127" = Result.Ok 127y
 
     (Builtin.Json.parse<Int8> "-129") |> err = Result.Error
       "Can't parse JSON `-129` as type `Int8` at path: `root`"
