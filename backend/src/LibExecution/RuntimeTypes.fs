@@ -342,6 +342,8 @@ type KnownType =
   | KTUnit
   | KTBool
   | KTInt
+  | KTInt8
+  | KTUInt8
   | KTFloat
   | KTChar
   | KTString
@@ -413,6 +415,8 @@ module ValueType =
   let unit = known KTUnit
   let bool = known KTBool
   let int = known KTInt
+  let int8 = known KTInt8
+  let uint8 = known KTUInt8
   let float = known KTFloat
   let char = known KTChar
   let string = known KTString
@@ -443,6 +447,8 @@ module ValueType =
       | KTUnit -> "Unit"
       | KTBool -> "Bool"
       | KTInt -> "Int"
+      | KTInt8 -> "Int8"
+      | KTUInt8 -> "UInt8"
       | KTFloat -> "Float"
       | KTChar -> "Char"
       | KTString -> "String"
@@ -484,6 +490,8 @@ module ValueType =
     | KTUnit, KTUnit -> KTUnit |> Ok
     | KTBool, KTBool -> KTBool |> Ok
     | KTInt, KTInt -> KTInt |> Ok
+    | KTInt8, KTInt8 -> KTInt8 |> Ok
+    | KTUInt8, KTUInt8 -> KTUInt8 |> Ok
     | KTFloat, KTFloat -> KTFloat |> Ok
     | KTChar, KTChar -> KTChar |> Ok
     | KTString, KTString -> KTString |> Ok
@@ -539,6 +547,8 @@ and TypeReference =
   | TUnit
   | TBool
   | TInt
+  | TInt8
+  | TUInt8
   | TFloat
   | TChar
   | TString
@@ -573,6 +583,8 @@ and TypeReference =
       | TUnit
       | TBool
       | TInt
+      | TInt8
+      | TUInt8
       | TFloat
       | TChar
       | TString
@@ -586,6 +598,8 @@ and TypeReference =
 // superfluous information removed.
 and Expr =
   | EInt of id * int64
+  | EInt8 of id * int8
+  | EUInt8 of id * uint8
   | EBool of id * bool
   | EString of id * List<StringSegment>
   | EUnit of id
@@ -634,6 +648,8 @@ and MatchPattern =
   | MPVariable of id * string
   | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
   | MPInt of id * int64
+  | MPInt8 of id * int8
+  | MPUInt8 of id * uint8
   | MPBool of id * bool
   | MPChar of id * string
   | MPString of id * string
@@ -671,6 +687,8 @@ and [<NoComparison>] Dval =
   // Simple types
   | DBool of bool
   | DInt of int64
+  | DInt8 of int8
+  | DUInt8 of uint8
   | DFloat of double
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
   | DString of string
@@ -882,6 +900,8 @@ module Expr =
   let toID (expr : Expr) : id =
     match expr with
     | EInt(id, _)
+    | EInt8(id, _)
+    | EUInt8(id, _)
     | EString(id, _)
     | EChar(id, _)
     | EBool(id, _)
@@ -919,6 +939,8 @@ module MatchPattern =
   let toID (pat : MatchPattern) : id =
     match pat with
     | MPInt(id, _)
+    | MPInt8(id, _)
+    | MPUInt8(id, _)
     | MPString(id, _)
     | MPChar(id, _)
     | MPBool(id, _)
@@ -949,6 +971,8 @@ module Dval =
     match (dv, typ) with
     | _, TVariable _ -> true
     | DInt _, TInt
+    | DInt8 _, TInt8
+    | DUInt8 _, TUInt8
     | DFloat _, TFloat
     | DBool _, TBool
     | DUnit, TUnit
@@ -984,6 +1008,8 @@ module Dval =
 
     // exhaustiveness checking
     | DInt _, _
+    | DInt8 _, _
+    | DUInt8 _, _
     | DFloat _, _
     | DBool _, _
     | DUnit, _
@@ -1007,6 +1033,8 @@ module Dval =
 
     | DBool _ -> ValueType.Known KTBool
     | DInt _ -> ValueType.Known KTInt
+    | DInt8 _ -> ValueType.Known KTInt8
+    | DUInt8 _ -> ValueType.Known KTUInt8
     | DFloat _ -> ValueType.Known KTFloat
     | DChar _ -> ValueType.Known KTChar
     | DString _ -> ValueType.Known KTString
@@ -1115,6 +1143,8 @@ module UserType =
 
 type Const =
   | CInt of int64
+  | CInt8 of int8
+  | CUInt8 of uint8
   | CBool of bool
   | CString of string
   | CChar of string
@@ -1489,6 +1519,8 @@ module Types =
     | TUnit
     | TBool
     | TInt
+    | TInt8
+    | TUInt8
     | TFloat
     | TChar
     | TString

@@ -72,6 +72,8 @@ let rec evalConst (source : Source) (c : Const) : Dval =
   let r = evalConst source
   match c with
   | CInt i -> DInt i
+  | CInt8 i -> DInt8 i
+  | CUInt8 i -> DUInt8 i
   | CBool b -> DBool b
   | CString s -> DString s
   | CChar c -> DChar c
@@ -285,6 +287,8 @@ let rec eval
       return segments |> String.concat "" |> String.normalize |> DString
     | EBool(_id, b) -> return DBool b
     | EInt(_id, i) -> return DInt i
+    | EInt8(_id, i) -> return DInt8 i
+    | EUInt8(_id, i) -> return DUInt8 i
     | EFloat(_id, value) -> return DFloat value
     | EUnit _id -> return DUnit
     | EChar(_id, s) -> return DChar s
@@ -497,6 +501,22 @@ let rec eval
             | _ ->
               return!
                 raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Int", dv))
+
+          | MPInt8(id, pi) ->
+            match dv with
+            | DInt8 di -> return (di = pi), []
+            | _ ->
+              return!
+                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Int8", dv))
+
+          | MPUInt8(id, pi) ->
+            match dv with
+            | DUInt8 di -> return (di = pi), []
+            | _ ->
+              return!
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("UInt8", dv))
 
           | MPBool(id, pb) ->
             match dv with

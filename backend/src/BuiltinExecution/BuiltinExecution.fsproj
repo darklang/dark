@@ -20,6 +20,8 @@
     <Compile Include="Libs/Float.fs" />
     <Compile Include="Libs/HttpClient.fs" />
     <Compile Include="Libs/Int.fs" />
+    <Compile Include="Libs/Int8.fs" />
+    <Compile Include="Libs/UInt8.fs" />
     <Compile Include="Libs/Json.fs" />
     <Compile Include="Libs/List.fs" />
     <Compile Include="Libs/Math.fs" />

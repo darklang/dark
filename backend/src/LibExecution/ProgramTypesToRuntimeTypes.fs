@@ -65,6 +65,8 @@ module TypeReference =
   let rec toRT (t : PT.TypeReference) : RT.TypeReference =
     match t with
     | PT.TInt -> RT.TInt
+    | PT.TInt8 -> RT.TInt8
+    | PT.TUInt8 -> RT.TUInt8
     | PT.TFloat -> RT.TFloat
     | PT.TBool -> RT.TBool
     | PT.TUnit -> RT.TUnit
@@ -213,6 +215,8 @@ module MatchPattern =
     | PT.MPEnum(id, caseName, fieldPats) ->
       RT.MPEnum(id, caseName, List.map toRT fieldPats)
     | PT.MPInt(id, i) -> RT.MPInt(id, i)
+    | PT.MPInt8(id, i) -> RT.MPInt8(id, i)
+    | PT.MPUInt8(id, i) -> RT.MPUInt8(id, i)
     | PT.MPBool(id, b) -> RT.MPBool(id, b)
     | PT.MPChar(id, c) -> RT.MPChar(id, c)
     | PT.MPString(id, s) -> RT.MPString(id, s)
@@ -230,6 +234,8 @@ module Expr =
     match e with
     | PT.EChar(id, char) -> RT.EChar(id, char)
     | PT.EInt(id, num) -> RT.EInt(id, num)
+    | PT.EInt8(id, num) -> RT.EInt8(id, num)
+    | PT.EUInt8(id, num) -> RT.EUInt8(id, num)
 
     | PT.EString(id, segments) -> RT.EString(id, List.map stringSegmentToRT segments)
 
@@ -418,6 +424,8 @@ module Const =
   let rec toRT (c : PT.Const) : RT.Const =
     match c with
     | PT.Const.CInt i -> RT.CInt i
+    | PT.Const.CInt8 i -> RT.CInt8 i
+    | PT.Const.CUInt8 i -> RT.CUInt8 i
     | PT.Const.CBool b -> RT.CBool b
     | PT.Const.CString s -> RT.CString s
     | PT.Const.CChar c -> RT.CChar c

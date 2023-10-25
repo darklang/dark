@@ -34,6 +34,65 @@ module Int =
     "Cannot match Float value 6.0 with an Int pattern"
 
 
+module Int8 =
+  (match 6y with
+   | 5y -> "fail"
+   | -6y -> "fail"
+   | 6y -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6y with
+   | 6y -> "pass"
+   | 5y -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6y with
+   | var -> "pass"
+   | 6y -> "fail"
+   | 5y -> "fail") = "pass"
+
+  (match 127y with
+   | 0y -> "fail"
+   | 127y -> "pass") = "pass"
+
+  (match 6y with
+   | 6.0 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Int8 value 6 with a Float pattern"
+
+  (match 6.0 with
+   | 6y -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Float value 6.0 with an Int8 pattern"
+
+module UInt8 =
+  (match 6uy with
+   | 5uy -> "fail"
+   | 6uy -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6uy with
+   | 6uy -> "pass"
+   | 5uy -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6uy with
+   | var -> "pass"
+   | 6uy -> "fail"
+   | 5uy -> "fail") = "pass"
+
+  (match 255uy with
+   | 0uy -> "fail"
+   | 255uy -> "pass") = "pass"
+
+  (match 6uy with
+   | 6.0 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match UInt8 value 6 with a Float pattern"
+
+  (match 6.0 with
+   | 6uy -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Float value 6.0 with an UInt8 pattern"
+
+
+
 module String =
   (match "x" with
    | "y" -> "fail"

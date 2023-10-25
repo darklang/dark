@@ -180,6 +180,8 @@ module Darklang =
         | TUnit -> "Unit"
         | TBool -> "Bool"
         | TInt -> "Int"
+        | TInt8 -> "Int8"
+        | TUInt8 -> "UInt8"
         | TFloat -> "Float"
         | TChar -> "Char"
         | TString -> "String"
@@ -233,6 +235,8 @@ module Darklang =
         | KTUnit -> "Unit"
         | KTBool -> "Bool"
         | KTInt -> "Int"
+        | KTInt8 -> "Int8"
+        | KTUInt8 -> "UInt8"
         | KTFloat -> "Float"
         | KTChar -> "Char"
         | KTString -> "String"
@@ -309,6 +313,9 @@ module Darklang =
           | DString s -> $"\"{s}\""
 
           | DInt i -> Builtin.Int.toString i
+          | DInt8 i -> Builtin.Int8.toString i
+          | DUInt8 i -> Builtin.UInt8.toString i
+
           | DFloat f -> PACKAGE.Darklang.Stdlib.Float.toString f // CLEANUP: deal with Infinity, NegativeInfinity, and NaN
 
           | DDateTime d ->

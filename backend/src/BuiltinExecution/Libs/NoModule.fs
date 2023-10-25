@@ -13,6 +13,8 @@ module Dval = LibExecution.Dval
 let rec equals (a : Dval) (b : Dval) : bool =
   match a, b with
   | DInt a, DInt b -> a = b
+  | DInt8 a, DInt8 b -> a = b
+  | DUInt8 a, DUInt8 b -> a = b
   | DFloat a, DFloat b -> a = b
   | DBool a, DBool b -> a = b
   | DUnit, DUnit -> true
@@ -53,6 +55,8 @@ let rec equals (a : Dval) (b : Dval) : bool =
 
   // exhaustiveness check
   | DInt _, _
+  | DInt8 _, _
+  | DUInt8 _, _
   | DFloat _, _
   | DBool _, _
   | DUnit, _
@@ -88,6 +92,8 @@ and equalsSymtable (a : Symtable) (b : Symtable) : bool =
 and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   match expr1, expr2 with
   | EInt(_, int1), EInt(_, int2) -> int1 = int2
+  | EInt8(_, int1), EInt8(_, int2) -> int1 = int2
+  | EUInt8(_, int1), EUInt8(_, int2) -> int1 = int2
   | EBool(_, bool1), EBool(_, bool2) -> bool1 = bool2
   | EString(_, segments1), EString(_, segments2) ->
     equalsStringSegments segments1 segments2
@@ -175,6 +181,8 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
 
   // exhaustiveness check
   | EInt _, _
+  | EInt8 _, _
+  | EUInt8 _, _
   | EBool _, _
   | EString _, _
   | EChar _, _
@@ -241,6 +249,8 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
     && args1.Length = args2.Length
     && List.forall2 equalsMatchPattern args1 args2
   | MPInt(_, int1), MPInt(_, int2) -> int1 = int2
+  | MPInt8(_, int1), MPInt8(_, int2) -> int1 = int2
+  | MPUInt8(_, int1), MPUInt8(_, int2) -> int1 = int2
   | MPBool(_, bool1), MPBool(_, bool2) -> bool1 = bool2
   | MPChar(_, char1), MPChar(_, char2) -> char1 = char2
   | MPString(_, str1), MPString(_, str2) -> str1 = str2
@@ -259,6 +269,8 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
   | MPVariable _, _
   | MPEnum _, _
   | MPInt _, _
+  | MPInt8 _, _
+  | MPUInt8 _, _
   | MPBool _, _
   | MPChar _, _
   | MPString _, _

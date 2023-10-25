@@ -1,0 +1,138 @@
+module Darklang =
+  module Stdlib =
+    module UInt8 =
+
+      type ParseError =
+        | BadFormat
+        | OutOfRange
+
+
+      /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+      /// The modulus <param b> must be 0 or negative.
+      /// Use <fn UInt8.remainder> if you want the remainder after division, which has
+      /// a different behavior for negative numbers.
+      let ``mod`` (a: UInt8) (b: UInt8) : UInt8 = Builtin.UInt8.``mod`` a b
+
+
+      /// Returns the integer remainder left over after dividing <param value> by
+      /// <param divisor>, as a <type Result>.
+      /// For example, {{Int.remainder 15 6 == Ok 3}}. The remainder will be
+      /// negative only if {{<var value> < 0}}.
+      /// The sign of <param divisor> doesn't influence the outcome.
+      /// Returns an {{Error}} if <param divisor> is {{0}}.
+      let remainder
+        (value: UInt8)
+        (divisor: UInt8)
+        : PACKAGE.Darklang.Stdlib.Result.Result<UInt8, String> =
+        Builtin.UInt8.remainder value divisor
+
+
+
+      /// Adds two 8 bit unsigned integers together
+      let add (a: UInt8) (b: UInt8) : UInt8 = Builtin.UInt8.add a b
+
+
+      /// Subtracts two 8 bit unsigned  integers
+      let subtract (a: UInt8) (b: UInt8) : UInt8 = Builtin.UInt8.subtract a b
+
+
+      /// Multiplies two 8 bit unsigned  integers
+      let multiply (a: UInt8) (b: UInt8) : UInt8 = Builtin.UInt8.multiply a b
+
+
+      /// Divides two 8 bit unsigned  integers
+      let divide (a: UInt8) (b: UInt8) : UInt8 = Builtin.UInt8.divide a b
+
+
+      /// Returns {{true}} if <param a> is greater than <param b>
+      let greaterThan (a: UInt8) (b: UInt8) : Bool = Builtin.UInt8.greaterThan a b
+
+
+      /// Returns {{true}} if <param a> is greater than or equal to <param b>
+      let greaterThanOrEqualTo (a: UInt8) (b: UInt8) : Bool =
+        Builtin.UInt8.greaterThanOrEqualTo a b
+
+
+      /// Returns {{true}} if <param a> is less than <param b>
+      let lessThan (a: UInt8) (b: UInt8) : Bool = Builtin.UInt8.lessThan a b
+
+      /// Returns {{true}} if <param a> is less than or equal to <param b>
+      let lessThanOrEqualTo (a: UInt8) (b: UInt8) : Bool =
+        Builtin.UInt8.lessThanOrEqualTo a b
+
+
+      /// Returns a random 8 bit unsigned integer between <param start> and <param end> (inclusive)
+      let random (start: UInt8) (``end``: UInt8) : UInt8 =
+        Builtin.UInt8.random start ``end``
+
+
+      /// Get the square root of an <type UInt8>
+      let sqrt (a: UInt8) : Float = Builtin.UInt8.sqrt a
+
+
+      /// Converts an <type UInt8> to a <type Float>
+      let toFloat (a: UInt8) : Float = Builtin.UInt8.toFloat a
+
+
+      /// Returns the sum of all the ints in the list
+      let sum (lst: List<UInt8>) : UInt8 =
+        PACKAGE.Darklang.Stdlib.List.fold lst 0uy (fun acc x ->
+          PACKAGE.Darklang.Stdlib.UInt8.add acc x)
+
+
+      /// Returns the higher of <param a> and <param b>
+      let max (a: UInt8) (b: UInt8) : UInt8 =
+        if (PACKAGE.Darklang.Stdlib.UInt8.greaterThan a b) then
+          a
+        else
+          b
+
+
+      /// Returns the lower of <param a> and <param b>
+      let min (a: UInt8) (b: UInt8) : UInt8 =
+        if (PACKAGE.Darklang.Stdlib.UInt8.lessThan a b) then
+          a
+        else
+          b
+
+
+      /// If <param value> is within the range given by <param limitA> and <param
+      /// limitB>, returns <param value>.
+      /// If <param value> is outside the range, returns <param limitA> or <param
+      /// limitB>, whichever is closer to <param value>.
+      /// <param limitA> and <param limitB> can be provided in any order.
+      let clamp (value: UInt8) (limitA: UInt8) (limitB: UInt8) : UInt8 =
+        let min =
+          if (PACKAGE.Darklang.Stdlib.UInt8.lessThan limitA limitB) then
+            limitA
+          else
+            limitB
+
+        let max =
+          if (PACKAGE.Darklang.Stdlib.UInt8.greaterThan limitA limitB) then
+            limitA
+          else
+            limitB
+
+        if (PACKAGE.Darklang.Stdlib.UInt8.lessThan value min) then
+          min
+        else if (PACKAGE.Darklang.Stdlib.UInt8.greaterThan value max) then
+          max
+        else
+          value
+
+
+      /// Returns the <type UInt8> value of a <type String>
+      let parse
+        (s: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<UInt8, PACKAGE.Darklang.Stdlib.UInt8.ParseError> =
+        Builtin.UInt8.parse s
+
+
+      /// Stringify <param Uint8>
+      let toString (uint8: UInt8) : String = Builtin.UInt8.toString uint8
+
+
+      /// Converts an <type UInt8> to a <type Int64>. Returns {{None}} if the value is less than 0 or greater than 255.
+      let fromInt64 (uint8: Int) : PACKAGE.Darklang.Stdlib.Option.Option<UInt8> =
+        Builtin.UInt8.fromInt64 uint8

@@ -253,6 +253,8 @@ module Roundtrip =
     { iNsEnSiTiVe: String
       ``ALLCAPS``: Int
       int: Int
+      int8: Int8
+      uint8: UInt8
       float: Float
       negZero: Float
       nan: Float
@@ -280,6 +282,8 @@ module Roundtrip =
       { iNsEnSiTiVe = "iNsEnSiTiVe"
         ``ALLCAPS`` = 1
         int = 2
+        int8 = 2y
+        uint8 = 2uy
         float = 3.0
         negZero = -0.0
         nan = Builtin.Test.nan
@@ -308,6 +312,8 @@ module Roundtrip =
       { iNsEnSiTiVe = "normal"
         ``ALLCAPS`` = 2
         int = 3
+        int8 = 3y
+        uint8 = 3uy
         float = 4.0
         negZero = -1.0
         nan = 0.0
@@ -376,6 +382,22 @@ module Roundtrip =
     fetch (fun p -> p.int == 2) = [ sample () ]
     fetch (fun p -> p.int != 2) = [ otherSample () ]
     fetch (fun p -> p.int == 200) = []
+
+    fetch (fun p -> p.int8 == ((Builtin.Int8.fromInt64 2) |> Builtin.unwrap)) = [ sample
+                                                                                    () ]
+
+    fetch (fun p -> p.int8 != ((Builtin.Int8.fromInt64 2) |> Builtin.unwrap)) = [ otherSample
+                                                                                    () ]
+
+    fetch (fun p -> p.int8 == ((Builtin.Int8.fromInt64 100) |> Builtin.unwrap)) = []
+
+    fetch (fun p -> p.uint8 == ((Builtin.UInt8.fromInt64 2) |> Builtin.unwrap)) = [ sample
+                                                                                      () ]
+
+    fetch (fun p -> p.uint8 != ((Builtin.UInt8.fromInt64 2) |> Builtin.unwrap)) = [ otherSample
+                                                                                      () ]
+
+    fetch (fun p -> p.uint8 == ((Builtin.UInt8.fromInt64 100) |> Builtin.unwrap)) = []
 
     fetch (fun p -> p.float == 3.0) = [ sample () ]
     fetch (fun p -> p.float != 3.0) = [ otherSample () ]

@@ -38,6 +38,8 @@ module TypeReference =
       | WT.TUnit -> return PT.TUnit
       | WT.TBool -> return PT.TBool
       | WT.TInt -> return PT.TInt
+      | WT.TInt8 -> return PT.TInt8
+      | WT.TUInt8 -> return PT.TUInt8
       | WT.TFloat -> return PT.TFloat
       | WT.TChar -> return PT.TChar
       | WT.TString -> return PT.TString
@@ -97,6 +99,8 @@ module MatchPattern =
     | WT.MPEnum(id, caseName, fieldPats) ->
       PT.MPEnum(id, caseName, List.map toPT fieldPats)
     | WT.MPInt(id, i) -> PT.MPInt(id, i)
+    | WT.MPInt8(id, i) -> PT.MPInt8(id, i)
+    | WT.MPUInt8(id, i) -> PT.MPUInt8(id, i)
     | WT.MPBool(id, b) -> PT.MPBool(id, b)
     | WT.MPChar(id, c) -> PT.MPChar(id, c)
     | WT.MPString(id, s) -> PT.MPString(id, s)
@@ -138,6 +142,8 @@ module Expr =
       match e with
       | WT.EChar(id, char) -> return PT.EChar(id, char)
       | WT.EInt(id, num) -> return PT.EInt(id, num)
+      | WT.EInt8(id, num) -> return PT.EInt8(id, num)
+      | WT.EUInt8(id, num) -> return PT.EUInt8(id, num)
       | WT.EString(id, segments) ->
         let! segments =
           Ply.List.mapSequentially
@@ -363,6 +369,8 @@ module Const =
       | WT.CUnit -> return PT.CUnit
       | WT.CBool b -> return PT.CBool b
       | WT.CInt i -> return PT.CInt i
+      | WT.CInt8 i -> return PT.CInt8 i
+      | WT.CUInt8 i -> return PT.CUInt8 i
       | WT.CFloat(sign, w, f) -> return PT.CFloat(sign, w, f)
       | WT.CChar c -> return PT.CChar c
       | WT.CString s -> return PT.CString s

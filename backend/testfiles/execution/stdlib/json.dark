@@ -154,6 +154,130 @@ module Int =
     (Builtin.Json.parse<Int> "\"42\n\"") |> err = Result.Error "Not JSON"
 
 
+module Int8 =
+  module Basic =
+    Builtin.Json.serialize<Int8> 0y = "0"
+    Builtin.Json.serialize<Int8> 123y = "123"
+    Builtin.Json.serialize<Int8> -123y = "-123"
+
+    Builtin.Json.parse<Int8> "0" = Result.Ok 0y
+
+    Builtin.Json.parse<Int8> "0.0" = Result.Ok 0y
+
+    Builtin.Json.parse<Int8> "-0.0" = Result.Ok 0y
+
+    Builtin.Json.parse<Int8> "-1.0" = Result.Ok -1y
+
+    Builtin.Json.parse<Int8> "1.2E2" = Result.Ok 120y
+
+    Builtin.Json.parse<Int8> "1.2E+2" = Result.Ok 120y
+
+    Builtin.Json.parse<Int8> "1200E-1" = Result.Ok 120y
+
+  module Int8Limits =
+    Builtin.Json.serialize<Int8> -128y = "-128"
+    Builtin.Json.serialize<Int8> 127y = "127"
+
+    Builtin.Json.parse<Int8> "-128" = Result.Ok -128y
+    Builtin.Json.parse<Int8> "127" = Result.Ok 127y
+
+    (Builtin.Json.parse<Int8> "-129") |> err = Result.Error
+      "Can't parse JSON `-129` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "128") |> err = Result.Error
+      "Can't parse JSON `128` as type `Int8` at path: `root`"
+
+  module Errors =
+    (Builtin.Json.parse<Int8> " ") |> err = Result.Error "Not JSON"
+
+    (Builtin.Json.parse<Int8> "4a") |> err = Result.Error "Not JSON"
+
+    (Builtin.Json.parse<Int8> "- 42") |> err = Result.Error "Not JSON"
+
+    (Builtin.Json.parse<Int8> "null") |> err = Result.Error
+      "Can't parse JSON `null` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "true") |> err = Result.Error
+      "Can't parse JSON `true` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "false") |> err = Result.Error
+      "Can't parse JSON `false` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "\"42\"") |> err = Result.Error
+      "Can't parse JSON `\"42\"` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "[42]") |> err = Result.Error
+      "Can't parse JSON `[42]` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "{ \"key\": 42 }") |> err = Result.Error
+      "Can't parse JSON `{ \"key\": 42 }` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "42.5") |> err = Result.Error
+      "Can't parse JSON `42.5` as type `Int8` at path: `root`"
+
+    (Builtin.Json.parse<Int8> "\"42\n\"") |> err = Result.Error "Not JSON"
+
+
+module UInt8 =
+  module Basic =
+    Builtin.Json.serialize<UInt8> 1uy = "1"
+    Builtin.Json.serialize<UInt8> 123uy = "123"
+    Builtin.Json.serialize<UInt8> 254uy = "254"
+
+    Builtin.Json.parse<UInt8> "0" = Result.Ok 0uy
+    Builtin.Json.parse<UInt8> "0.0" = Result.Ok 0uy
+    // TODO: is it ok that this parses as 0?
+    Builtin.Json.parse<UInt8> "-0.0" = Result.Ok 0uy
+    Builtin.Json.parse<UInt8> "1.2E2" = Result.Ok 120uy
+    Builtin.Json.parse<UInt8> "1.2E+2" = Result.Ok 120uy
+    Builtin.Json.parse<UInt8> "1200E-1" = Result.Ok 120uy
+
+
+  module UInt8Limits =
+    Builtin.Json.serialize<UInt8> 0uy = "0"
+    Builtin.Json.serialize<UInt8> 255uy = "255"
+
+    Builtin.Json.parse<UInt8> "0" = Result.Ok 0uy
+    Builtin.Json.parse<UInt8> "255" = Result.Ok 255uy
+
+    (Builtin.Json.parse<UInt8> "-1") |> err = Result.Error
+      "Can't parse JSON `-1` as type `UInt8` at path: `root`"
+
+    (Builtin.Json.parse<UInt8> "256") |> err = Result.Error
+      "Can't parse JSON `256` as type `UInt8` at path: `root`"
+
+  module Errors =
+    (Builtin.Json.parse<UInt8> " ") |> err = Result.Error "Not JSON"
+
+    (Builtin.Json.parse<UInt8> "4a") |> err = Result.Error "Not JSON"
+
+    (Builtin.Json.parse<UInt8> "- 42") |> err = Result.Error "Not JSON"
+
+    (Builtin.Json.parse<UInt8> "null") |> err = Result.Error
+      "Can't parse JSON `null` as type `UInt8` at path: `root`"
+
+    (Builtin.Json.parse<UInt8> "true") |> err = Result.Error
+      "Can't parse JSON `true` as type `UInt8` at path: `root`"
+
+    (Builtin.Json.parse<UInt8> "false") |> err = Result.Error
+      "Can't parse JSON `false` as type `UInt8` at path: `root`"
+
+    (Builtin.Json.parse<UInt8> "\"42\"") |> err = Result.Error
+      "Can't parse JSON `\"42\"` as type `UInt8` at path: `root`"
+
+    (Builtin.Json.parse<UInt8> "[42]") |> err = Result.Error
+      "Can't parse JSON `[42]` as type `UInt8` at path: `root`"
+
+    (Builtin.Json.parse<UInt8> "{ \"key\": 42 }") |> err = Result.Error
+      "Can't parse JSON `{ \"key\": 42 }` as type `UInt8` at path: `root`"
+
+    (Builtin.Json.parse<UInt8> "42.5") |> err = Result.Error
+      "Can't parse JSON `42.5` as type `UInt8` at path: `root`"
+
+    (Builtin.Json.parse<UInt8> "\"42\n\"") |> err = Result.Error "Not JSON"
+
+
+
 module Float =
   // TODO: test the upper/lower bounds
   // TODO: test highly-precise numbers

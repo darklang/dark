@@ -1,0 +1,145 @@
+module Darklang =
+  module Stdlib =
+    module Int8 =
+
+      type ParseError =
+        | BadFormat
+        | OutOfRange
+
+
+      /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+      /// The modulus <param b> must be 0 or negative.
+      /// Use <fn Int8.remainder> if you want the remainder after division, which has
+      /// a different behavior for negative numbers.
+      let ``mod`` (a: Int8) (b: Int8) : Int8 = Builtin.Int8.``mod`` a b
+
+
+      /// Returns the integer remainder left over after dividing <param value> by
+      /// <param divisor>, as a <type Result>.
+      /// For example, {{Int.remainder 15 6 == Ok 3}}. The remainder will be
+      /// negative only if {{<var value> < 0}}.
+      /// The sign of <param divisor> doesn't influence the outcome.
+      /// Returns an {{Error}} if <param divisor> is {{0}}.
+      let remainder
+        (value: Int8)
+        (divisor: Int8)
+        : PACKAGE.Darklang.Stdlib.Result.Result<Int8, String> =
+        Builtin.Int8.remainder value divisor
+
+
+      /// Adds two 8 bit signed integers together
+      let add (a: Int8) (b: Int8) : Int8 = Builtin.Int8.add a b
+
+
+      /// Subtracts two 8 bit signed integers
+      let subtract (a: Int8) (b: Int8) : Int8 = Builtin.Int8.subtract a b
+
+
+      /// Multiplies two 8 bit signed integers
+      let multiply (a: Int8) (b: Int8) : Int8 = Builtin.Int8.multiply a b
+
+
+      /// Divides two 8 bit signed integers
+      let divide (a: Int8) (b: Int8) : Int8 = Builtin.Int8.divide a b
+
+
+      /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
+      let absoluteValue (a: Int8) : Int8 =
+        if (Builtin.Int8.lessThan a 0y) then
+          Builtin.Int8.negate a
+        else
+          a
+
+
+      /// Returns the negation of <param a>, {{-a}}
+      let negate (a: Int8) : Int8 = Builtin.Int8.negate a
+
+
+      /// Returns {{true}} if <param a> is greater than <param b>
+      let greaterThan (a: Int8) (b: Int8) : Bool = Builtin.Int8.greaterThan a b
+
+
+      /// Returns {{true}} if <param a> is greater than or equal to <param b>
+      let greaterThanOrEqualTo (a: Int8) (b: Int8) : Bool =
+        Builtin.Int8.greaterThanOrEqualTo a b
+
+
+      /// Returns {{true}} if <param a> is less than <param b>
+      let lessThan (a: Int8) (b: Int8) : Bool = Builtin.Int8.lessThan a b
+
+      /// Returns {{true}} if <param a> is less than or equal to <param b>
+      let lessThanOrEqualTo (a: Int8) (b: Int8) : Bool =
+        Builtin.Int8.lessThanOrEqualTo a b
+
+
+      /// Returns a random 8 bit signed integer between <param start> and <param end> (inclusive)
+      let random (start: Int8) (``end``: Int8) : Int8 =
+        Builtin.Int8.random start ``end``
+
+
+      /// Get the square root of an <type Int8>
+      let sqrt (a: Int8) : Float = Builtin.Int8.sqrt a
+
+
+      /// Converts an <type Int8> to a <type Float>
+      let toFloat (a: Int8) : Float = Builtin.Int8.toFloat a
+
+
+      /// Returns the sum of all the ints in the list
+      let sum (lst: List<Int8>) : Int8 =
+        PACKAGE.Darklang.Stdlib.List.fold lst 0 (fun acc x -> acc + x)
+
+
+      /// Returns the higher of <param a> and <param b>
+      let max (a: Int8) (b: Int8) : Int8 =
+        if (PACKAGE.Darklang.Stdlib.Int8.greaterThan a b) then
+          a
+        else
+          b
+
+
+      /// Returns the lower of <param a> and <param b>
+      let min (a: Int8) (b: Int8) : Int8 =
+        if (PACKAGE.Darklang.Stdlib.Int8.lessThan a b) then a else b
+
+
+      /// If <param value> is within the range given by <param limitA> and <param
+      /// limitB>, returns <param value>.
+      /// If <param value> is outside the range, returns <param limitA> or <param
+      /// limitB>, whichever is closer to <param value>.
+      /// <param limitA> and <param limitB> can be provided in any order.
+      let clamp (value: Int8) (limitA: Int8) (limitB: Int8) : Int8 =
+        let min =
+          if (PACKAGE.Darklang.Stdlib.Int8.lessThan limitA limitB) then
+            limitA
+          else
+            limitB
+
+        let max =
+          if (PACKAGE.Darklang.Stdlib.Int8.greaterThan limitA limitB) then
+            limitA
+          else
+            limitB
+
+        if (PACKAGE.Darklang.Stdlib.Int8.lessThan value min) then
+          min
+        else if (PACKAGE.Darklang.Stdlib.Int8.greaterThan value max) then
+          max
+        else
+          value
+
+
+      /// Returns the <type Int8> value of a <type String>
+      let parse
+        (s: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<Int8, PACKAGE.Darklang.Stdlib.Int8.ParseError> =
+        Builtin.Int8.parse s
+
+
+      /// Stringify <param int8>
+      let toString (int8: Int8) : String = Builtin.Int8.toString int8
+
+
+      /// Converts an <type Int8> to a <type Int64>. Returns {{None}} if the value is less than -128 or greater than 127.
+      let fromInt64 (int8: Int) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
+        Builtin.Int8.fromInt64 int8

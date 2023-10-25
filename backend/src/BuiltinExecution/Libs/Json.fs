@@ -127,6 +127,10 @@ let rec serialize
       // CLEANUP if the number is outside the range, store as a string?
       w.WriteNumberValue i
 
+    | TInt8, DInt8 i -> w.WriteNumberValue i
+
+    | TUInt8, DUInt8 i -> w.WriteNumberValue i
+
     | TFloat, DFloat f ->
       if System.Double.IsNaN f then
         w.WriteStringValue "NaN"
@@ -245,6 +249,8 @@ let rec serialize
     | TUnit, _
     | TBool, _
     | TInt, _
+    | TInt8, _
+    | TUInt8, _
     | TFloat, _
     | TChar, _
     | TString, _
@@ -376,6 +382,55 @@ let parse
         int64 d |> DInt |> Ply
       else
         raiseCantMatchWithType TInt j pathSoFar |> Ply
+
+    | TInt8, JsonValueKind.Number ->
+      let mutable i64 = 0L
+      let mutable ui64 = 0UL
+      let mutable d = 0.0
+      if j.TryGetUInt64(&ui64) then
+        if ui64 <= uint64 System.SByte.MaxValue then
+          DInt8(int8 ui64) |> Ply
+        else
+          raiseCantMatchWithType TInt8 j pathSoFar |> Ply
+      else if j.TryGetInt64(&i64) then
+        if i64 >= int System.SByte.MinValue && i64 <= int System.SByte.MaxValue then
+          DInt8(int8 i64) |> Ply
+        else
+          raiseCantMatchWithType TInt8 j pathSoFar |> Ply
+      else if
+        j.TryGetDouble(&d)
+        && d <= (float System.SByte.MaxValue)
+        && d >= (float System.SByte.MinValue)
+        && System.Double.IsInteger d
+      then
+        int8 d |> DInt8 |> Ply
+      else
+        raiseCantMatchWithType TInt8 j pathSoFar |> Ply
+
+    | TUInt8, JsonValueKind.Number ->
+      let mutable i64 = 0L
+      let mutable ui64 = 0UL
+      let mutable d = 0.0
+      if j.TryGetUInt64(&ui64) then
+        if ui64 <= uint64 System.Byte.MaxValue then
+          DUInt8(uint8 ui64) |> Ply
+        else
+          raiseCantMatchWithType TUInt8 j pathSoFar |> Ply
+      else if j.TryGetInt64(&i64) then
+        if i64 >= int System.Byte.MinValue && i64 <= int System.Byte.MaxValue then
+          DUInt8(uint8 i64) |> Ply
+        else
+          raiseCantMatchWithType TUInt8 j pathSoFar |> Ply
+      else if
+        j.TryGetDouble(&d)
+        && d <= (float System.Byte.MaxValue)
+        && d >= (float System.Byte.MinValue)
+        && System.Double.IsInteger d
+      then
+        uint8 d |> DUInt8 |> Ply
+      else
+        raiseCantMatchWithType TUInt8 j pathSoFar |> Ply
+
 
     | TFloat, JsonValueKind.Number -> j.GetDouble() |> DFloat |> Ply
     | TFloat, JsonValueKind.String ->
@@ -580,6 +635,8 @@ let parse
     | TUnit, _
     | TBool, _
     | TInt, _
+    | TInt8, _
+    | TUInt8, _
     | TFloat, _
     | TChar, _
     | TString, _

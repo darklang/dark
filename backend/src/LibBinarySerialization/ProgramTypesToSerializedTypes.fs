@@ -268,6 +268,8 @@ module TypeReference =
   let rec toST (t : PT.TypeReference) : ST.TypeReference =
     match t with
     | PT.TInt -> ST.TInt
+    | PT.TInt8 -> ST.TInt8
+    | PT.TUInt8 -> ST.TUInt8
     | PT.TFloat -> ST.TFloat
     | PT.TBool -> ST.TBool
     | PT.TUnit -> ST.TUnit
@@ -290,6 +292,8 @@ module TypeReference =
   let rec toPT (t : ST.TypeReference) : PT.TypeReference =
     match t with
     | ST.TInt -> PT.TInt
+    | ST.TInt8 -> PT.TInt8
+    | ST.TUInt8 -> PT.TUInt8
     | ST.TFloat -> PT.TFloat
     | ST.TBool -> PT.TBool
     | ST.TUnit -> PT.TUnit
@@ -348,6 +352,8 @@ module MatchPattern =
     | PT.MPEnum(id, caseName, fieldPats) ->
       ST.MPEnum(id, caseName, List.map toST fieldPats)
     | PT.MPInt(id, i) -> ST.MPInt(id, i)
+    | PT.MPInt8(id, i) -> ST.MPInt8(id, i)
+    | PT.MPUInt8(id, i) -> ST.MPUInt8(id, i)
     | PT.MPBool(id, b) -> ST.MPBool(id, b)
     | PT.MPChar(id, c) -> ST.MPChar(id, c)
     | PT.MPString(id, s) -> ST.MPString(id, s)
@@ -365,6 +371,8 @@ module MatchPattern =
     | ST.MPEnum(id, caseName, fieldPats) ->
       PT.MPEnum(id, caseName, List.map toPT fieldPats)
     | ST.MPInt(id, i) -> PT.MPInt(id, i)
+    | ST.MPInt8(id, i) -> PT.MPInt8(id, i)
+    | ST.MPUInt8(id, i) -> PT.MPUInt8(id, i)
     | ST.MPBool(id, b) -> PT.MPBool(id, b)
     | ST.MPChar(id, c) -> PT.MPChar(id, c)
     | ST.MPString(id, s) -> PT.MPString(id, s)
@@ -381,6 +389,8 @@ module Expr =
     match e with
     | PT.EChar(id, char) -> ST.EChar(id, char)
     | PT.EInt(id, num) -> ST.EInt(id, num)
+    | PT.EInt8(id, num) -> ST.EInt8(id, num)
+    | PT.EUInt8(id, num) -> ST.EUInt8(id, num)
     | PT.EString(id, segments) -> ST.EString(id, List.map stringSegmentToST segments)
     | PT.EFloat(id, sign, whole, fraction) -> ST.EFloat(id, sign, whole, fraction)
     | PT.EBool(id, b) -> ST.EBool(id, b)
@@ -474,6 +484,8 @@ module Expr =
     match e with
     | ST.EChar(id, char) -> PT.EChar(id, char)
     | ST.EInt(id, num) -> PT.EInt(id, num)
+    | ST.EInt8(id, num) -> PT.EInt8(id, num)
+    | ST.EUInt8(id, num) -> PT.EUInt8(id, num)
     | ST.EString(id, segment) -> PT.EString(id, List.map stringSegmentToPT segment)
     | ST.EFloat(id, sign, whole, fraction) -> PT.EFloat(id, sign, whole, fraction)
     | ST.EBool(id, b) -> PT.EBool(id, b)
@@ -565,6 +577,8 @@ module Const =
   let rec toST (c : PT.Const) : ST.Const =
     match c with
     | PT.Const.CInt i -> ST.Const.CInt i
+    | PT.Const.CInt8 i -> ST.Const.CInt8 i
+    | PT.Const.CUInt8 i -> ST.Const.CUInt8 i
     | PT.Const.CBool b -> ST.Const.CBool b
     | PT.Const.CString s -> ST.Const.CString s
     | PT.Const.CChar c -> ST.Const.CChar c
@@ -584,6 +598,8 @@ module Const =
   let rec toPT (c : ST.Const) : PT.Const =
     match c with
     | ST.Const.CInt i -> PT.Const.CInt i
+    | ST.Const.CInt8 i -> PT.Const.CInt8 i
+    | ST.Const.CUInt8 i -> PT.Const.CUInt8 i
     | ST.Const.CBool b -> PT.Const.CBool b
     | ST.Const.CString s -> PT.Const.CString s
     | ST.Const.CChar c -> PT.Const.CChar c

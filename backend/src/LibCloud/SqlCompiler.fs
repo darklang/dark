@@ -80,6 +80,12 @@ let rec dvalToSql
     | TVariable _, DInt i
     | TInt, DInt i -> return Sql.int64 i, TInt
 
+    | TVariable _, DInt8 i
+    | TInt8, DInt8 i -> return Sql.int16 (int16 i), TInt8
+
+    | TVariable _, DUInt8 i
+    | TUInt8, DUInt8 i -> return Sql.int16 (int16 i), TUInt8
+
     | TVariable _, DFloat v
     | TFloat, DFloat v -> return Sql.double v, TFloat
 
@@ -130,6 +136,8 @@ let rec dvalToSql
 
     // exhaustiveness check
     | _, DInt _
+    | _, DInt8 _
+    | _, DUInt8 _
     | _, DFloat _
     | _, DBool _
     | _, DString _
@@ -526,6 +534,16 @@ let rec lambdaToSql
           let name = randomString 10
           return $"(@{name})", [ name, Sql.int64 v ], TInt
 
+        | EInt8(_, v) ->
+          typecheck $"Int8 {v}" TInt8 expectedType
+          let name = randomString 10
+          return $"(@{name})", [ name, Sql.int8 v ], TInt8
+
+        | EUInt8(_, v) ->
+          typecheck $"UInt8 {v}" TUInt8 expectedType
+          let name = randomString 10
+          return $"(@{name})", [ name, Sql.bytea [| byte v |] ], TUInt8
+
         | EBool(_, v) ->
           typecheck $"Bool {v}" TBool expectedType
           let name = randomString 10
@@ -727,6 +745,8 @@ let rec lambdaToSql
             match t with
             | TString -> "text"
             | TInt -> "bigint"
+            | TInt8 -> "smallint"
+            | TUInt8 -> "smallint"
             | TFloat -> "double precision"
             | TBool -> "bool"
             | TDateTime -> "timestamp with time zone"
@@ -745,6 +765,8 @@ let rec lambdaToSql
           match dbFieldType with
           | TString
           | TInt
+          | TInt8
+          | TUInt8
           | TFloat
           | TBool
           | TDateTime
@@ -883,6 +905,8 @@ let partiallyEvaluate
           let rec fullySpecified (expr : Expr) =
             match expr with
             | EInt _
+            | EInt8 _
+            | EUInt8 _
             | EBool _
             | EUnit _
             | EFloat _
@@ -900,6 +924,8 @@ let partiallyEvaluate
             return expr
         | EString _
         | EInt _
+        | EInt8 _
+        | EUInt8 _
         | EFloat _
         | EBool _
         | EUnit _
@@ -931,6 +957,8 @@ let partiallyEvaluate
           uply {
             match expr with
             | EInt _
+            | EInt8 _
+            | EUInt8 _
             | EString _
             | EVariable _
             | EChar _
