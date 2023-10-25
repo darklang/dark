@@ -130,7 +130,8 @@ module RuntimeTypes =
 
   let exprs : List<RT.Expr> =
     [ RT.EInt(124151234UL, 7)
-      RT.EInt(124151235UL, 7)
+      RT.EInt8(124151235UL, 7y)
+      RT.EUInt8(124151235UL, 7uy)
       RT.EBool(158584UL, false)
       RT.EString(
         86749UL,
@@ -409,7 +410,7 @@ module ProgramTypes =
             []
           ) ]
       ),
-      PT.EInt8(929452387UL, 5y),
+      PT.EInt(929452387UL, 5L),
       PT.ELet(
         620028536UL,
         PT.LPVariable(5812673123UL, "x2"),
@@ -788,9 +789,14 @@ module ProgramTypes =
                                       ),
                                       PT.ELet(
                                         831830074UL,
-                                        PT.LPVariable(7567124UL, "uint8"),
-                                        PT.EUInt8(7567124UL, 255uy),
-                                        e
+                                        PT.LPVariable(7567124UL, "int8"),
+                                        PT.EInt8(7567124UL, 127y),
+                                        PT.ELet(
+                                          831830075UL,
+                                          PT.LPVariable(7567125UL, "uint8"),
+                                          PT.EUInt8(7567125UL, 255uy),
+                                          e
+                                        )
                                       )
                                     )
                                   )
