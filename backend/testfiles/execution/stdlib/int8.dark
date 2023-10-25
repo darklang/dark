@@ -304,3 +304,23 @@ PACKAGE.Darklang.Stdlib.Int8.parse_v0 "one" = PACKAGE.Darklang.Stdlib.Result.Res
 
 PACKAGE.Darklang.Stdlib.Int8.parse_v0 "XIV" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   PACKAGE.Darklang.Stdlib.Int8.ParseError.BadFormat
+
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt64_v0 0L = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt64_v0 1L = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt64_v0 127L = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  127y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt64_v0 128L = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt64_v0 (-1L) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  -1y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt64_v0 (-128L) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  -128y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt64_v0 (-129L) = PACKAGE.Darklang.Stdlib.Option.Option.None

@@ -317,11 +317,11 @@ let fns : List<BuiltInFn> =
           let lowerBound = max lower -128y
           let upperBound = min upper 127y
 
-          let int8Range = (int) upperBound - (int) lowerBound + 1
+          let int8Range = int upperBound - int lowerBound + 1
 
           let resultInt = randomSeeded().Next(int8Range)
 
-          let int8Result = (lowerBound + (int8 resultInt))
+          let int8Result = lowerBound + (int8 resultInt)
 
           int8Result |> DInt8 |> Ply
         | _ -> incorrectArgs ())
@@ -383,18 +383,16 @@ let fns : List<BuiltInFn> =
     { name = fn "fromInt64" 0
       typeParams = []
       parameters = [ Param.make "a" TInt "" ]
-      returnType = TInt8
-      description = "Converts an int64 to an 8 bits signed integer"
+      returnType = TypeReference.option TInt8
+      description =
+        "Converts an int64 to an 8 bits signed integer. Returns {{None}} if the value is less than -128 or greater than 127."
       fn =
         (function
-        | state, _, [ DInt a ] ->
+        | _, _, [ DInt a ] ->
           if a < -128L || a > 127L then
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.caller
-            |> Ply
+            Dval.optionNone KTInt8 |> Ply
           else
-            Ply(DInt8(int8 a))
+            Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

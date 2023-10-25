@@ -81,10 +81,10 @@ let rec dvalToSql
     | TInt, DInt i -> return Sql.int64 i, TInt
 
     | TVariable _, DInt8 i
-    | TInt8, DInt8 i -> return Sql.int64 (int i), TInt8
+    | TInt8, DInt8 i -> return Sql.int16 (int16 i), TInt8
 
     | TVariable _, DUInt8 i
-    | TUInt8, DUInt8 i -> return Sql.int64 (int i), TUInt8
+    | TUInt8, DUInt8 i -> return Sql.int16 (int16 i), TUInt8
 
     | TVariable _, DFloat v
     | TFloat, DFloat v -> return Sql.double v, TFloat
@@ -745,8 +745,8 @@ let rec lambdaToSql
             match t with
             | TString -> "text"
             | TInt -> "bigint"
-            | TInt8 -> "bigint"
-            | TUInt8 -> "bigint"
+            | TInt8 -> "smallint"
+            | TUInt8 -> "smallint"
             | TFloat -> "double precision"
             | TBool -> "bool"
             | TDateTime -> "timestamp with time zone"

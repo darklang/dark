@@ -1209,6 +1209,24 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        [ DString "a string" ]
      ),
      TypeReference.option TString)
+    ("option4",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       Dval.ignoreAndUseEmpty [ VT.int8 ],
+       "Some",
+       [ Dval.int8 15 ]
+     ),
+     TypeReference.option TInt8)
+    ("option5",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       Dval.ignoreAndUseEmpty [ VT.uint8 ],
+       "Some",
+       [ Dval.uint8 15 ]
+     ),
+     TypeReference.option TUInt8)
     ("character", DChar "s", TChar)
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
     // use image bytes here to test for any weird bytes forms

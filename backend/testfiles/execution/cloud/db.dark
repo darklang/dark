@@ -383,13 +383,21 @@ module Roundtrip =
     fetch (fun p -> p.int != 2) = [ otherSample () ]
     fetch (fun p -> p.int == 200) = []
 
-    fetch (fun p -> p.int8 == (Builtin.Int8.fromInt64 2)) = [ sample () ]
-    fetch (fun p -> p.int8 != (Builtin.Int8.fromInt64 2)) = [ otherSample () ]
-    fetch (fun p -> p.int8 == (Builtin.Int8.fromInt64 100)) = []
+    fetch (fun p -> p.int8 == ((Builtin.Int8.fromInt64 2) |> Builtin.unwrap)) = [ sample
+                                                                                    () ]
 
-    fetch (fun p -> p.uint8 == (Builtin.UInt8.fromInt64 2)) = [ sample () ]
-    fetch (fun p -> p.uint8 != (Builtin.UInt8.fromInt64 2)) = [ otherSample () ]
-    fetch (fun p -> p.uint8 == (Builtin.UInt8.fromInt64 100)) = []
+    fetch (fun p -> p.int8 != ((Builtin.Int8.fromInt64 2) |> Builtin.unwrap)) = [ otherSample
+                                                                                    () ]
+
+    fetch (fun p -> p.int8 == ((Builtin.Int8.fromInt64 100) |> Builtin.unwrap)) = []
+
+    fetch (fun p -> p.uint8 == ((Builtin.UInt8.fromInt64 2) |> Builtin.unwrap)) = [ sample
+                                                                                      () ]
+
+    fetch (fun p -> p.uint8 != ((Builtin.UInt8.fromInt64 2) |> Builtin.unwrap)) = [ otherSample
+                                                                                      () ]
+
+    fetch (fun p -> p.uint8 == ((Builtin.UInt8.fromInt64 100) |> Builtin.unwrap)) = []
 
     fetch (fun p -> p.float == 3.0) = [ sample () ]
     fetch (fun p -> p.float != 3.0) = [ otherSample () ]

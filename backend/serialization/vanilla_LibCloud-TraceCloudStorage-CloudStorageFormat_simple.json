@@ -3768,6 +3768,100 @@
                 ]
               ]
             },
+            "option4": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "Some",
+                [
+                  {
+                    "DInt8": [
+                      15
+                    ]
+                  }
+                ]
+              ]
+            },
+            "option5": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "Some",
+                [
+                  {
+                    "DUInt8": [
+                      15
+                    ]
+                  }
+                ]
+              ]
+            },
             "pi \u002B 0": {
               "DFloat": [
                 3.141592653589793
@@ -4216,7 +4310,7 @@
       7777772986753,
       "testFn",
       2,
-      "YeeewK98sVo",
+      "pqyQNTo_dvk",
       {
         "DRecord": [
           {
@@ -7977,6 +8071,100 @@
                   {
                     "DString": [
                       "a string"
+                    ]
+                  }
+                ]
+              ]
+            },
+            "option4": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "Some",
+                [
+                  {
+                    "DInt8": [
+                      15
+                    ]
+                  }
+                ]
+              ]
+            },
+            "option5": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "Some",
+                [
+                  {
+                    "DUInt8": [
+                      15
                     ]
                   }
                 ]

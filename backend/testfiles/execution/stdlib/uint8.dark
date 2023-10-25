@@ -211,3 +211,16 @@ PACKAGE.Darklang.Stdlib.UInt8.parse_v0 "one" = PACKAGE.Darklang.Stdlib.Result.Re
 
 PACKAGE.Darklang.Stdlib.UInt8.parse_v0 "XIV" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   PACKAGE.Darklang.Stdlib.UInt8.ParseError.BadFormat
+
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt64_v0 0L = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt64_v0 1L = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt64_v0 255L = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  255uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt64_v0 256L = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.UInt8.fromInt64_v0 (-1L) = PACKAGE.Darklang.Stdlib.Option.Option.None

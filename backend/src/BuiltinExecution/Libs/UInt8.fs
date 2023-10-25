@@ -52,11 +52,6 @@ let fns : List<BuiltInFn> =
             |> Int.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
-          else if m < 0uy then
-            Int.IntRuntimeError.Error.NegativeModulus
-            |> Int.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.caller
-            |> Ply
           else
             let result = v % m
             let result = if result < 0uy then m + result else result
@@ -102,6 +97,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
+
 
     { name = fn "add" 0
       typeParams = []
@@ -294,11 +290,11 @@ let fns : List<BuiltInFn> =
           let lowerBound = max lower 0uy
           let upperBound = min upper 255uy
 
-          let uint8Range = (int) upperBound - (int) lowerBound + 1
+          let uint8Range = int upperBound - int lowerBound + 1
 
           let resultInt = randomSeeded().Next(uint8Range)
 
-          let uint8Result = (lowerBound + (uint8 resultInt))
+          let uint8Result = lowerBound + (uint8 resultInt)
 
           uint8Result |> DUInt8 |> Ply
         | _ -> incorrectArgs ())
@@ -360,18 +356,16 @@ let fns : List<BuiltInFn> =
     { name = fn "fromInt64" 0
       typeParams = []
       parameters = [ Param.make "a" TInt "" ]
-      returnType = TUInt8
-      description = "Converts an int64 to an 8 bit unsigned integer"
+      returnType = TypeReference.option TUInt8
+      description =
+        "Converts an int64 to an 8 bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
       fn =
         (function
-        | state, _, [ DInt a ] ->
+        | _, _, [ DInt a ] ->
           if a < 0L || a > 255L then
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.caller
-            |> Ply
+            Dval.optionNone KTUInt8 |> Ply
           else
-            Ply(DUInt8(uint8 a))
+            Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

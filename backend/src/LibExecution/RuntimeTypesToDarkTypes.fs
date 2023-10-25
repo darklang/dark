@@ -1009,6 +1009,8 @@ module Dval =
   let fromDT (d : Dval) : Dval =
     match d with
     | DEnum(_, _, [], "DInt", [ DInt i ]) -> DInt i
+    | DEnum(_, _, [], "DInt8", [ DInt8 i ]) -> DInt8 i
+    | DEnum(_, _, [], "DUInt8", [ DUInt8 i ]) -> DUInt8 i
     | DEnum(_, _, [], "DFloat", [ DFloat f ]) -> DFloat f
     | DEnum(_, _, [], "DBool", [ DBool b ]) -> DBool b
     | DEnum(_, _, [], "DUnit", []) -> DUnit

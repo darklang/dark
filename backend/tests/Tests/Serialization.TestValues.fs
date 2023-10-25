@@ -59,6 +59,8 @@ module RuntimeTypes =
 
   let typeReferences : List<RT.TypeReference> =
     [ RT.TInt
+      RT.TInt8
+      RT.TUInt8
       RT.TFloat
       RT.TBool
       RT.TUnit
@@ -349,6 +351,8 @@ module ProgramTypes =
       PT.TFloat,
       [ PT.TBool
         PT.TUnit
+        PT.TInt8
+        PT.TUInt8
         PT.TString
         PT.TList PT.TInt
         PT.TTuple(PT.TBool, PT.TBool, [ PT.TBool ])
@@ -825,7 +829,9 @@ module ProgramTypes =
         PT.Const.CUnit
         PT.Const.CFloat(Positive, "3", "14")
         PT.Const.CChar("c")
-        PT.Const.CUnit ]
+        PT.Const.CUnit
+        PT.Const.CInt8(4y)
+        PT.Const.CUInt8(3uy) ]
     )
 
 
