@@ -13,14 +13,6 @@ PACKAGE.Darklang.Stdlib.UInt16.clamp_v0 100us 0us 0us = 0us
 PACKAGE.Darklang.Stdlib.UInt16.clamp_v0 100us 0us 1us = 1us
 PACKAGE.Darklang.Stdlib.UInt16.clamp_v0 100us 1us 0us = 1us
 
-PACKAGE.Darklang.Stdlib.UInt16.remainder_v0 15us 6us = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  3us
-
-PACKAGE.Darklang.Stdlib.UInt16.remainder_v0 20us 8us = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  4us
-
-PACKAGE.Darklang.Stdlib.UInt16.remainder_v0 5us 0us = Builtin.Test.derrorMessage
-  "Division by zero"
 
 PACKAGE.Darklang.Stdlib.UInt16.add_v0 10us 9us = 19us
 PACKAGE.Darklang.Stdlib.UInt16.add_v0 88us 9us = 97us

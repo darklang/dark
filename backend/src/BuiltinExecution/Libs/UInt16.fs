@@ -63,37 +63,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "remainder" 0
-      typeParams = []
-      parameters = [ Param.make "value" TUInt16 ""; Param.make "divisor" TUInt16 "" ]
-      returnType = TypeReference.result TUInt16 TString
-      description =
-        "Returns the integer remainder left over after dividing <param value> by
-        <param divisor>, as a <type Result>.
-        Returns an {{Error}} if <param divisor> is {{0}}."
-      fn =
-        let resultOk r = Dval.resultOk KTUInt16 KTString r |> Ply
-        (function
-        | state, _, [ DUInt16 v; DUInt16 d ] ->
-          (try
-            v % d |> DUInt16 |> resultOk
-           with e ->
-             if d = 0us then
-               Int.IntRuntimeError.Error.DivideByZeroError
-               |> Int.IntRuntimeError.RTE.toRuntimeError
-               |> raiseRTE state.caller
-               |> Ply
-             else
-               Exception.raiseInternal
-                 "unexpected failure case in UInt8.remainder"
-                 [ "v", v; "d", d ]
-                 e)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "add" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt16 ""; Param.make "b" TUInt16 "" ]

@@ -14,19 +14,6 @@ module Darklang =
       let ``mod`` (a: UInt8) (b: UInt8) : UInt8 = Builtin.UInt8.``mod`` a b
 
 
-      /// Returns the integer remainder left over after dividing <param value> by
-      /// <param divisor>, as a <type Result>.
-      /// For example, {{Int.remainder 15 6 == Ok 3}}.
-      /// The sign of <param divisor> doesn't influence the outcome.
-      /// Returns an {{Error}} if <param divisor> is {{0}}.
-      let remainder
-        (value: UInt8)
-        (divisor: UInt8)
-        : PACKAGE.Darklang.Stdlib.Result.Result<UInt8, String> =
-        Builtin.UInt8.remainder value divisor
-
-
-
       /// Adds two 8 bit unsigned integers together
       let add (a: UInt8) (b: UInt8) : UInt8 = Builtin.UInt8.add a b
 
