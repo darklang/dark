@@ -75,6 +75,7 @@ let rec evalConst (source : Source) (c : Const) : Dval =
   | CInt8 i -> DInt8 i
   | CUInt8 i -> DUInt8 i
   | CInt16 i -> DInt16 i
+  | CUInt16 i -> DUInt16 i
   | CBool b -> DBool b
   | CString s -> DString s
   | CChar c -> DChar c
@@ -291,6 +292,7 @@ let rec eval
     | EInt8(_id, i) -> return DInt8 i
     | EUInt8(_id, i) -> return DUInt8 i
     | EInt16(_id, i) -> return DInt16 i
+    | EUInt16(_id, i) -> return DUInt16 i
     | EFloat(_id, value) -> return DFloat value
     | EUnit _id -> return DUnit
     | EChar(_id, s) -> return DChar s
@@ -516,14 +518,27 @@ let rec eval
             | DUInt8 di -> return (di = pi), []
             | _ ->
               return!
-                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("UInt8", dv))
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("UInt8", dv))
 
           | MPInt16(id, pi) ->
             match dv with
             | DInt16 di -> return (di = pi), []
             | _ ->
               return!
-                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Int16", dv))
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("Int16", dv))
+
+          | MPUInt16(id, pi) ->
+            match dv with
+            | DUInt16 di -> return (di = pi), []
+            | _ ->
+              return!
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("UInt16", dv))
 
           | MPBool(id, pb) ->
             match dv with

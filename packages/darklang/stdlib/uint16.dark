@@ -1,0 +1,138 @@
+module Darklang =
+  module Stdlib =
+    module UInt16 =
+
+      type ParseError =
+        | BadFormat
+        | OutOfRange
+
+
+      /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+      /// The modulus <param b> must be 0 or negative.
+      /// Use <fn UInt16.remainder> if you want the remainder after division, which has
+      /// a different behavior for negative numbers.
+      let ``mod`` (a: UInt16) (b: UInt16) : UInt16 = Builtin.UInt16.``mod`` a b
+
+
+      /// Returns the integer remainder left over after dividing <param value> by
+      /// <param divisor>, as a <type Result>.
+      /// For example, {{Int.remainder 15 6 == Ok 3}}. The remainder will be
+      /// negative only if {{<var value> < 0}}.
+      /// The sign of <param divisor> doesn't influence the outcome.
+      /// Returns an {{Error}} if <param divisor> is {{0}}.
+      let remainder
+        (value: UInt16)
+        (divisor: UInt16)
+        : PACKAGE.Darklang.Stdlib.Result.Result<UInt16, String> =
+        Builtin.UInt16.remainder value divisor
+
+
+
+      /// Adds two 16 bit unsigned integers together
+      let add (a: UInt16) (b: UInt16) : UInt16 = Builtin.UInt16.add a b
+
+
+      /// Subtracts two 16 bit unsigned  integers
+      let subtract (a: UInt16) (b: UInt16) : UInt16 = Builtin.UInt16.subtract a b
+
+
+      /// Multiplies two 16 bit unsigned  integers
+      let multiply (a: UInt16) (b: UInt16) : UInt16 = Builtin.UInt16.multiply a b
+
+
+      /// Divides two 16 bit unsigned integers
+      let divide (a: UInt16) (b: UInt16) : UInt16 = Builtin.UInt16.divide a b
+
+
+      /// Returns {{true}} if <param a> is greater than <param b>
+      let greaterThan (a: UInt16) (b: UInt16) : Bool = Builtin.UInt16.greaterThan a b
+
+
+      /// Returns {{true}} if <param a> is greater than or equal to <param b>
+      let greaterThanOrEqualTo (a: UInt16) (b: UInt16) : Bool =
+        Builtin.UInt16.greaterThanOrEqualTo a b
+
+
+      /// Returns {{true}} if <param a> is less than <param b>
+      let lessThan (a: UInt16) (b: UInt16) : Bool = Builtin.UInt16.lessThan a b
+
+      /// Returns {{true}} if <param a> is less than or equal to <param b>
+      let lessThanOrEqualTo (a: UInt16) (b: UInt16) : Bool =
+        Builtin.UInt16.lessThanOrEqualTo a b
+
+
+      /// Returns a random 16 bit unsigned integer between <param start> and <param end> (inclusive)
+      let random (start: UInt16) (``end``: UInt16) : UInt16 =
+        Builtin.UInt16.random start ``end``
+
+
+      /// Get the square root of an <type UInt16>
+      let sqrt (a: UInt16) : Float = Builtin.UInt16.sqrt a
+
+
+      /// Converts an <type UInt16> to a <type Float>
+      let toFloat (a: UInt16) : Float = Builtin.UInt16.toFloat a
+
+
+      /// Returns the sum of all the ints in the list
+      let sum (lst: List<UInt16>) : UInt16 =
+        PACKAGE.Darklang.Stdlib.List.fold lst 0us (fun acc x ->
+          PACKAGE.Darklang.Stdlib.UInt16.add acc x)
+
+
+      /// Returns the higher of <param a> and <param b>
+      let max (a: UInt16) (b: UInt16) : UInt16 =
+        if (PACKAGE.Darklang.Stdlib.UInt16.greaterThan a b) then
+          a
+        else
+          b
+
+
+      /// Returns the lower of <param a> and <param b>
+      let min (a: UInt16) (b: UInt16) : UInt16 =
+        if (PACKAGE.Darklang.Stdlib.UInt16.lessThan a b) then
+          a
+        else
+          b
+
+
+      /// If <param value> is within the range given by <param limitA> and <param
+      /// limitB>, returns <param value>.
+      /// If <param value> is outside the range, returns <param limitA> or <param
+      /// limitB>, whichever is closer to <param value>.
+      /// <param limitA> and <param limitB> can be provided in any order.
+      let clamp (value: UInt16) (limitA: UInt16) (limitB: UInt16) : UInt16 =
+        let min =
+          if (PACKAGE.Darklang.Stdlib.UInt16.lessThan limitA limitB) then
+            limitA
+          else
+            limitB
+
+        let max =
+          if (PACKAGE.Darklang.Stdlib.UInt16.greaterThan limitA limitB) then
+            limitA
+          else
+            limitB
+
+        if (PACKAGE.Darklang.Stdlib.UInt16.lessThan value min) then
+          min
+        else if (PACKAGE.Darklang.Stdlib.UInt16.greaterThan value max) then
+          max
+        else
+          value
+
+
+      /// Returns the <type UInt16> value of a <type String>
+      let parse
+        (s: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<UInt16, PACKAGE.Darklang.Stdlib.UInt16.ParseError> =
+        Builtin.UInt16.parse s
+
+
+      /// Stringify <param Uint16>
+      let toString (uint16: UInt16) : String = Builtin.UInt16.toString uint16
+
+
+      /// Converts an <type UInt16> to a <type Int64>. Returns {{None}} if the value is less than 0 or greater than 255.
+      let fromInt64 (uint16: Int) : PACKAGE.Darklang.Stdlib.Option.Option<UInt16> =
+        Builtin.UInt16.fromInt64 uint16

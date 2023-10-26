@@ -92,6 +92,7 @@ let rec private toJsonV0
     | TInt8, DInt8 i -> w.WriteNumberValue i
     | TUInt8, DUInt8 i -> w.WriteNumberValue i
     | TInt16, DInt16 i -> w.WriteNumberValue i
+    | TUInt16, DUInt16 i -> w.WriteNumberValue i
     | TFloat, DFloat f ->
       if System.Double.IsNaN f then
         w.WriteStringValue "NaN"
@@ -206,6 +207,7 @@ let rec private toJsonV0
     | TInt8, _
     | TUInt8, _
     | TInt16, _
+    | TUInt16, _
     | TFloat, _
     | TBool, _
     | TUnit, _
@@ -246,6 +248,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
     | TInt8, JsonValueKind.Number -> j.GetSByte() |> DInt8 |> Ply
     | TUInt8, JsonValueKind.Number -> j.GetByte() |> DUInt8 |> Ply
     | TInt16, JsonValueKind.Number -> j.GetInt16() |> DInt16 |> Ply
+    | TUInt16, JsonValueKind.Number -> j.GetUInt16() |> DUInt16 |> Ply
     | TFloat, JsonValueKind.Number -> j.GetDouble() |> DFloat |> Ply
     | TFloat, JsonValueKind.String ->
       match j.GetString() with
@@ -381,6 +384,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
     | TInt8, _
     | TUInt8, _
     | TInt16, _
+    | TUInt16, _
     | TFloat, _
     | TChar, _
     | TString, _
@@ -405,6 +409,7 @@ module Test =
     | DInt8 _
     | DUInt8 _
     | DInt16 _
+    | DUInt16 _
     | DString _
     | DUnit _
     | DBool _

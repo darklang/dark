@@ -41,6 +41,7 @@ module TypeReference =
       | WT.TInt8 -> return PT.TInt8
       | WT.TUInt8 -> return PT.TUInt8
       | WT.TInt16 -> return PT.TInt16
+      | WT.TUInt16 -> return PT.TUInt16
       | WT.TFloat -> return PT.TFloat
       | WT.TChar -> return PT.TChar
       | WT.TString -> return PT.TString
@@ -103,6 +104,7 @@ module MatchPattern =
     | WT.MPInt8(id, i) -> PT.MPInt8(id, i)
     | WT.MPUInt8(id, i) -> PT.MPUInt8(id, i)
     | WT.MPInt16(id, i) -> PT.MPInt16(id, i)
+    | WT.MPUInt16(id, i) -> PT.MPUInt16(id, i)
     | WT.MPBool(id, b) -> PT.MPBool(id, b)
     | WT.MPChar(id, c) -> PT.MPChar(id, c)
     | WT.MPString(id, s) -> PT.MPString(id, s)
@@ -147,6 +149,7 @@ module Expr =
       | WT.EInt8(id, num) -> return PT.EInt8(id, num)
       | WT.EUInt8(id, num) -> return PT.EUInt8(id, num)
       | WT.EInt16(id, num) -> return PT.EInt16(id, num)
+      | WT.EUInt16(id, num) -> return PT.EUInt16(id, num)
       | WT.EString(id, segments) ->
         let! segments =
           Ply.List.mapSequentially
@@ -375,6 +378,7 @@ module Const =
       | WT.CInt8 i -> return PT.CInt8 i
       | WT.CUInt8 i -> return PT.CUInt8 i
       | WT.CInt16 i -> return PT.CInt16 i
+      | WT.CUInt16 i -> return PT.CUInt16 i
       | WT.CFloat(sign, w, f) -> return PT.CFloat(sign, w, f)
       | WT.CChar c -> return PT.CChar c
       | WT.CString s -> return PT.CString s

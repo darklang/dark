@@ -7,25 +7,45 @@ module Darklang =
         | OutOfRange
 
 
-      /// Adds two integers together
+      /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+      /// The modulus <param b> must be 0 or negative.
+      /// Use <fn Int16.remainder> if you want the remainder after division, which has
+      /// a different behavior for negative numbers.
+      let ``mod`` (a: Int16) (b: Int16) : Int16 = Builtin.Int16.``mod`` a b
+
+
+      /// Returns the integer remainder left over after dividing <param value> by
+      /// <param divisor>, as a <type Result>.
+      /// For example, {{Int.remainder 15 6 == Ok 3}}. The remainder will be
+      /// negative only if {{<var value> < 0}}.
+      /// The sign of <param divisor> doesn't influence the outcome.
+      /// Returns an {{Error}} if <param divisor> is {{0}}.
+      let remainder
+        (value: Int16)
+        (divisor: Int16)
+        : PACKAGE.Darklang.Stdlib.Result.Result<Int16, String> =
+        Builtin.Int16.remainder value divisor
+
+
+      /// Adds two 16 bit signed integers together
       let add (a: Int16) (b: Int16) : Int16 = Builtin.Int16.add a b
 
 
-      /// Subtracts two integers
+      /// Subtracts two 16 bit signed integers
       let subtract (a: Int16) (b: Int16) : Int16 = Builtin.Int16.subtract a b
 
 
-      /// Multiplies two integers
+      /// Multiplies two 16 bit signed integers
       let multiply (a: Int16) (b: Int16) : Int16 = Builtin.Int16.multiply a b
 
 
-      /// Divides two integers
+      /// Divides two 16 bit signed integers
       let divide (a: Int16) (b: Int16) : Int16 = Builtin.Int16.divide a b
 
 
       /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
       let absoluteValue (a: Int16) : Int16 =
-        if (Builtin.Int16.lessThan a (Builtin.Int16.fromInt64 0)) then
+        if (Builtin.Int16.lessThan a 0s) then
           Builtin.Int16.negate a
         else
           a
@@ -52,9 +72,14 @@ module Darklang =
         Builtin.Int16.lessThanOrEqualTo a b
 
 
-      /// Returns a random integer8 between <param start> and <param end> (inclusive)
+      /// Returns a random 16 bit signed integer between <param start> and <param end> (inclusive)
       let random (start: Int16) (``end``: Int16) : Int16 =
         Builtin.Int16.random start ``end``
+
+
+      /// Get the square root of an <type Int16>
+      let sqrt (a: Int16) : Float = Builtin.Int16.sqrt a
+
 
       /// Converts an <type Int16> to a <type Float>
       let toFloat (a: Int16) : Float = Builtin.Int16.toFloat a
@@ -110,7 +135,7 @@ module Darklang =
       /// Returns the <type Int16> value of a <type String>
       let parse
         (s: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Int, PACKAGE.Darklang.Stdlib.Int16.ParseError> =
+        : PACKAGE.Darklang.Stdlib.Result.Result<Int16, PACKAGE.Darklang.Stdlib.Int16.ParseError> =
         Builtin.Int16.parse s
 
 
@@ -118,5 +143,6 @@ module Darklang =
       let toString (int16: Int16) : String = Builtin.Int16.toString int16
 
 
-      /// Converts an <type Int16> to a <type Int64>
-      let fromInt64 (int16: Int) : Int16 = Builtin.Int16.fromInt64 int16
+      /// Converts an <type Int16> to a <type Int64>. Returns {{None}} if the value is less than -1216 or greater than 127.
+      let fromInt64 (int16: Int) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+        Builtin.Int16.fromInt64 int16

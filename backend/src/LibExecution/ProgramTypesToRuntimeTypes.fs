@@ -68,6 +68,7 @@ module TypeReference =
     | PT.TInt8 -> RT.TInt8
     | PT.TUInt8 -> RT.TUInt8
     | PT.TInt16 -> RT.TInt16
+    | PT.TUInt16 -> RT.TUInt16
     | PT.TFloat -> RT.TFloat
     | PT.TBool -> RT.TBool
     | PT.TUnit -> RT.TUnit
@@ -219,6 +220,7 @@ module MatchPattern =
     | PT.MPInt8(id, i) -> RT.MPInt8(id, i)
     | PT.MPUInt8(id, i) -> RT.MPUInt8(id, i)
     | PT.MPInt16(id, i) -> RT.MPInt16(id, i)
+    | PT.MPUInt16(id, i) -> RT.MPUInt16(id, i)
     | PT.MPBool(id, b) -> RT.MPBool(id, b)
     | PT.MPChar(id, c) -> RT.MPChar(id, c)
     | PT.MPString(id, s) -> RT.MPString(id, s)
@@ -239,6 +241,7 @@ module Expr =
     | PT.EInt8(id, num) -> RT.EInt8(id, num)
     | PT.EUInt8(id, num) -> RT.EUInt8(id, num)
     | PT.EInt16(id, num) -> RT.EInt16(id, num)
+    | PT.EUInt16(id, num) -> RT.EUInt16(id, num)
 
     | PT.EString(id, segments) -> RT.EString(id, List.map stringSegmentToRT segments)
 
@@ -430,6 +433,7 @@ module Const =
     | PT.Const.CInt8 i -> RT.CInt8 i
     | PT.Const.CUInt8 i -> RT.CUInt8 i
     | PT.Const.CInt16 i -> RT.CInt16 i
+    | PT.Const.CUInt16 i -> RT.CUInt16 i
     | PT.Const.CBool b -> RT.CBool b
     | PT.Const.CString s -> RT.CString s
     | PT.Const.CChar c -> RT.CChar c

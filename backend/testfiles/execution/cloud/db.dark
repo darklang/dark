@@ -256,6 +256,7 @@ module Roundtrip =
       int8: Int8
       uint8: UInt8
       int16: Int16
+      uint16: UInt16
       float: Float
       negZero: Float
       nan: Float
@@ -285,7 +286,8 @@ module Roundtrip =
         int = 2
         int8 = 2y
         uint8 = 2uy
-        int16 = (Builtin.Int16.fromInt64 2)
+        int16 = 2s
+        uint16 = 2us
         float = 3.0
         negZero = -0.0
         nan = Builtin.Test.nan
@@ -316,7 +318,8 @@ module Roundtrip =
         int = 3
         int8 = 3y
         uint8 = 3uy
-        int16 = (Builtin.Int16.fromInt64 4)
+        int16 = 4s
+        uint16 = 4us
         float = 4.0
         negZero = -1.0
         nan = 0.0
@@ -382,28 +385,25 @@ module Roundtrip =
     fetch (fun p -> p.``ALLCAPS`` != 1) = [ otherSample () ]
     fetch (fun p -> p.``ALLCAPS`` == 1000) = []
 
-    fetch (fun p -> p.int == 2) = [ sample () ]
-    fetch (fun p -> p.int != 2) = [ otherSample () ]
-    fetch (fun p -> p.int == 200) = []
+    fetch (fun p -> p.int == 2L) = [ sample () ]
+    fetch (fun p -> p.int != 2L) = [ otherSample () ]
+    fetch (fun p -> p.int == 200L) = []
 
-    fetch (fun p -> p.int8 == ((Builtin.Int8.fromInt64 2) |> Builtin.unwrap)) = [ sample
-                                                                                    () ]
+    fetch (fun p -> p.int8 == 2y) = [ sample () ]
+    fetch (fun p -> p.int8 != 2y) = [ otherSample () ]
+    fetch (fun p -> p.int8 == 100y) = []
 
-    fetch (fun p -> p.int8 != ((Builtin.Int8.fromInt64 2) |> Builtin.unwrap)) = [ otherSample
-                                                                                    () ]
+    fetch (fun p -> p.uint8 == 2uy) = [ sample () ]
+    fetch (fun p -> p.uint8 != 2uy) = [ otherSample () ]
+    fetch (fun p -> p.uint8 == 100uy) = []
 
-    fetch (fun p -> p.int8 == ((Builtin.Int8.fromInt64 100) |> Builtin.unwrap)) = []
+    fetch (fun p -> p.int16 == 2s) = [ sample () ]
+    fetch (fun p -> p.int16 != 2s) = [ otherSample () ]
+    fetch (fun p -> p.int16 == 100s) = []
 
-    fetch (fun p -> p.uint8 == ((Builtin.UInt8.fromInt64 2) |> Builtin.unwrap)) = [ sample
-                                                                                      () ]
-
-    fetch (fun p -> p.uint8 != ((Builtin.UInt8.fromInt64 2) |> Builtin.unwrap)) = [ otherSample
-                                                                                      () ]
-
-    fetch (fun p -> p.uint8 == ((Builtin.UInt8.fromInt64 100) |> Builtin.unwrap)) = []
-    fetch (fun p -> p.int16 == (Builtin.Int16.fromInt64 2)) = [ sample () ]
-    fetch (fun p -> p.int16 != (Builtin.Int16.fromInt64 2)) = [ otherSample () ]
-    fetch (fun p -> p.int16 == (Builtin.Int16.fromInt64 200)) = []
+    fetch (fun p -> p.uint16 == 2us) = [ sample () ]
+    fetch (fun p -> p.uint16 != 2us) = [ otherSample () ]
+    fetch (fun p -> p.uint16 == 100us) = []
 
     fetch (fun p -> p.float == 3.0) = [ sample () ]
     fetch (fun p -> p.float != 3.0) = [ otherSample () ]

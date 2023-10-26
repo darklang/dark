@@ -63,6 +63,7 @@ module TypeReference =
     | [], "Int8", [] -> WT.TInt8
     | [], "UInt8", [] -> WT.TUInt8
     | [], "Int16", [] -> WT.TInt16
+    | [], "UInt16", [] -> WT.TUInt16
     | [], "String", [] -> WT.TString
     | [], "Char", [] -> WT.TChar
     | [], "Float", [] -> WT.TFloat
@@ -209,7 +210,7 @@ module MatchPattern =
     | SynPat.Const(SynConst.SByte n, _) -> WT.MPInt8(id, int8 n)
     | SynPat.Const(SynConst.Byte n, _) -> WT.MPUInt8(id, uint8 n)
     | SynPat.Const(SynConst.Int16 n, _) -> WT.MPInt16(id, int16 n)
-    | SynPat.Const(SynConst.UInt16 n, _) -> WT.MPInt16(id, int16 n)
+    | SynPat.Const(SynConst.UInt16 n, _) -> WT.MPUInt16(id, uint16 n)
 
     | SynPat.Const(SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
@@ -348,7 +349,7 @@ module Expr =
     | SynExpr.Const(SynConst.SByte n, _) -> WT.EInt8(id, int8 n)
     | SynExpr.Const(SynConst.Byte n, _) -> WT.EUInt8(id, uint8 n)
     | SynExpr.Const(SynConst.Int16 n, _) -> WT.EInt16(id, int16 n)
-    | SynExpr.Const(SynConst.UInt16 n, _) -> WT.EInt16(id, int16 n)
+    | SynExpr.Const(SynConst.UInt16 n, _) -> WT.EUInt16(id, uint16 n)
     | SynExpr.Const(SynConst.Char c, _) -> WT.EChar(id, string c)
     | SynExpr.Const(SynConst.Bool b, _) -> WT.EBool(id, b)
     | SynExpr.Const(SynConst.Double d, _) ->
@@ -832,6 +833,7 @@ module Constant =
       | WT.EInt8(_, n) -> WT.CInt8 n
       | WT.EUInt8(_, n) -> WT.CUInt8 n
       | WT.EInt16(_, n) -> WT.CInt16 n
+      | WT.EUInt16(_, n) -> WT.CUInt16 n
       | WT.EChar(_, c) -> WT.CChar c
       | WT.EBool(_, b) -> WT.CBool b
       | WT.EFloat(_, sign, whole, fraction) -> WT.CFloat(sign, whole, fraction)

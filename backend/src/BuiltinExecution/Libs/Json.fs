@@ -130,7 +130,10 @@ let rec serialize
     | TInt8, DInt8 i -> w.WriteNumberValue i
 
     | TUInt8, DUInt8 i -> w.WriteNumberValue i
+
     | TInt16, DInt16 i -> w.WriteNumberValue i
+
+    | TUInt16, DUInt16 i -> w.WriteNumberValue i
 
     | TFloat, DFloat f ->
       if System.Double.IsNaN f then
@@ -253,6 +256,7 @@ let rec serialize
     | TInt8, _
     | TUInt8, _
     | TInt16, _
+    | TUInt16, _
     | TFloat, _
     | TChar, _
     | TString, _
@@ -432,6 +436,7 @@ let parse
         uint8 d |> DUInt8 |> Ply
       else
         raiseCantMatchWithType TUInt8 j pathSoFar |> Ply
+
     | TInt16, JsonValueKind.Number ->
       let mutable i16 = 0s
       let mutable ui16 = 0us
@@ -454,6 +459,30 @@ let parse
         int16 d |> DInt16 |> Ply
       else
         raiseCantMatchWithType TInt16 j pathSoFar |> Ply
+
+    | TUInt16, JsonValueKind.Number ->
+      let mutable i16 = 0s
+      let mutable ui16 = 0us
+      let mutable d = 0.0
+
+      if j.TryGetUInt16(&ui16) then
+        DUInt16 ui16 |> Ply
+      else if j.TryGetInt16(&i16) then
+        if
+          i16 >= int16 System.UInt16.MinValue && i16 <= int16 System.UInt16.MaxValue
+        then
+          DUInt16(uint16 i16) |> Ply
+        else
+          raiseCantMatchWithType TUInt16 j pathSoFar |> Ply
+      else if
+        j.TryGetDouble(&d)
+        && d <= (float System.UInt16.MaxValue)
+        && d >= (float System.UInt16.MinValue)
+        && System.Double.IsInteger d
+      then
+        uint16 d |> DUInt16 |> Ply
+      else
+        raiseCantMatchWithType TUInt16 j pathSoFar |> Ply
 
 
     | TFloat, JsonValueKind.Number -> j.GetDouble() |> DFloat |> Ply
@@ -662,6 +691,7 @@ let parse
     | TInt8, _
     | TUInt8, _
     | TInt16, _
+    | TUInt16, _
     | TFloat, _
     | TChar, _
     | TString, _

@@ -1,0 +1,226 @@
+PACKAGE.Darklang.Stdlib.UInt16.max_v0 5us 6us = 6us
+PACKAGE.Darklang.Stdlib.UInt16.max_v0 10us 1us = 10us
+PACKAGE.Darklang.Stdlib.UInt16.max_v0 0us 6us = 6us
+PACKAGE.Darklang.Stdlib.UInt16.max_v0 65535us 0us = 65535us
+
+PACKAGE.Darklang.Stdlib.UInt16.min_v0 5us 6us = 5us
+PACKAGE.Darklang.Stdlib.UInt16.min_v0 10us 10us = 10us
+PACKAGE.Darklang.Stdlib.UInt16.min_v0 65535us 0us = 0us
+
+PACKAGE.Darklang.Stdlib.UInt16.clamp_v0 1us 2us 1us = 1us
+PACKAGE.Darklang.Stdlib.UInt16.clamp_v0 3us 0us 2us = 2us
+PACKAGE.Darklang.Stdlib.UInt16.clamp_v0 100us 0us 0us = 0us
+PACKAGE.Darklang.Stdlib.UInt16.clamp_v0 100us 0us 1us = 1us
+PACKAGE.Darklang.Stdlib.UInt16.clamp_v0 100us 1us 0us = 1us
+
+PACKAGE.Darklang.Stdlib.UInt16.remainder_v0 15us 6us = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  3us
+
+PACKAGE.Darklang.Stdlib.UInt16.remainder_v0 20us 8us = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  4us
+
+PACKAGE.Darklang.Stdlib.UInt16.remainder_v0 5us 0us = Builtin.Test.derrorMessage
+  "Division by zero"
+
+PACKAGE.Darklang.Stdlib.UInt16.add_v0 10us 9us = 19us
+PACKAGE.Darklang.Stdlib.UInt16.add_v0 88us 9us = 97us
+PACKAGE.Darklang.Stdlib.UInt16.add_v0 1us 0us = 1us
+PACKAGE.Darklang.Stdlib.UInt16.add_v0 65534us 1us = 65535us
+
+PACKAGE.Darklang.Stdlib.UInt16.add_v0 65535us 1us = Builtin.Test.derrorMessage
+  "Out of range"
+
+PACKAGE.Darklang.Stdlib.UInt16.subtract_v0 10us 9us = 1us
+PACKAGE.Darklang.Stdlib.UInt16.subtract_v0 88us 9us = 79us
+
+PACKAGE.Darklang.Stdlib.UInt16.subtract_v0 0us 1us = Builtin.Test.derrorMessage
+  "Out of range"
+
+PACKAGE.Darklang.Stdlib.UInt16.subtract_v0 1us 0us = 1us
+PACKAGE.Darklang.Stdlib.UInt16.subtract_v0 65535us 1us = 65534us
+
+PACKAGE.Darklang.Stdlib.UInt16.multiply_v0 8us 8us = 64us
+PACKAGE.Darklang.Stdlib.UInt16.multiply_v0 8us 0us = 0us
+PACKAGE.Darklang.Stdlib.UInt16.multiply_v0 32767us 2us = 65534us
+
+PACKAGE.Darklang.Stdlib.UInt16.multiply_v0 32768us 2us = Builtin.Test.derrorMessage
+  "Out of range"
+
+PACKAGE.Darklang.Stdlib.UInt16.multiply_v0 65535us 2us = Builtin.Test.derrorMessage
+  "Out of range"
+
+PACKAGE.Darklang.Stdlib.UInt16.divide_v0 10us 5us = 2us
+PACKAGE.Darklang.Stdlib.UInt16.divide_v0 17us 3us = 5us
+PACKAGE.Darklang.Stdlib.UInt16.divide_v0 8us 5us = 1us
+PACKAGE.Darklang.Stdlib.UInt16.divide_v0 0us 1us = 0us
+PACKAGE.Darklang.Stdlib.UInt16.divide_v0 65535us 2us = 32767us
+
+PACKAGE.Darklang.Stdlib.UInt16.divide_v0 1us 0us = Builtin.Test.derrorMessage
+  "Division by zero"
+
+PACKAGE.Darklang.Stdlib.UInt16.greaterThan_v0 20us 1us = true
+
+PACKAGE.Darklang.Stdlib.UInt16.greaterThanOrEqualTo_v0 0us 1us = false
+PACKAGE.Darklang.Stdlib.UInt16.greaterThanOrEqualTo_v0 1us 0us = true
+PACKAGE.Darklang.Stdlib.UInt16.greaterThanOrEqualTo_v0 6us 1us = true
+PACKAGE.Darklang.Stdlib.UInt16.greaterThanOrEqualTo_v0 6us 8us = false
+PACKAGE.Darklang.Stdlib.UInt16.greaterThanOrEqualTo_v0 65535us 0us = true
+PACKAGE.Darklang.Stdlib.UInt16.greaterThanOrEqualTo_v0 0us 65535us = false
+
+PACKAGE.Darklang.Stdlib.UInt16.lessThanOrEqualTo_v0 6us 8us = true
+PACKAGE.Darklang.Stdlib.UInt16.lessThanOrEqualTo_v0 10us 1us = false
+PACKAGE.Darklang.Stdlib.UInt16.lessThanOrEqualTo_v0 0us 1us = true
+PACKAGE.Darklang.Stdlib.UInt16.lessThanOrEqualTo_v0 1us 0us = false
+PACKAGE.Darklang.Stdlib.UInt16.lessThanOrEqualTo_v0 65535us 0us = false
+PACKAGE.Darklang.Stdlib.UInt16.lessThanOrEqualTo_v0 0us 65535us = true
+PACKAGE.Darklang.Stdlib.UInt16.lessThanOrEqualTo_v0 65535us 65535us = true
+
+PACKAGE.Darklang.Stdlib.UInt16.lessThan_v0 6us 8us = true
+PACKAGE.Darklang.Stdlib.UInt16.lessThan_v0 10us 1us = false
+PACKAGE.Darklang.Stdlib.UInt16.lessThan_v0 0us 1us = true
+PACKAGE.Darklang.Stdlib.UInt16.lessThan_v0 1us 0us = false
+PACKAGE.Darklang.Stdlib.UInt16.lessThan_v0 0us 65535us = true
+PACKAGE.Darklang.Stdlib.UInt16.lessThan_v0 65535us 65535us = false
+
+PACKAGE.Darklang.Stdlib.UInt16.toString 120us = "120"
+PACKAGE.Darklang.Stdlib.UInt16.toString 1us = "1"
+PACKAGE.Darklang.Stdlib.UInt16.toString 0us = "0" // UInt16 lower limit
+PACKAGE.Darklang.Stdlib.UInt16.toString 65535us = "65535" // UInt16 upper limit
+
+PACKAGE.Darklang.Stdlib.UInt16.toFloat_v0 2us = 2.0
+PACKAGE.Darklang.Stdlib.UInt16.toFloat_v0 0us = 0.0
+
+PACKAGE.Darklang.Stdlib.UInt16.sqrt_v0 4us = 2.0
+PACKAGE.Darklang.Stdlib.UInt16.sqrt_v0 100us = 10.0
+PACKAGE.Darklang.Stdlib.UInt16.sqrt_v0 86us = 9.273618495495704
+
+PACKAGE.Darklang.Stdlib.UInt16.mod_v0 15us 5us = 0us
+PACKAGE.Darklang.Stdlib.UInt16.mod_v0 15us 6us = 3us
+PACKAGE.Darklang.Stdlib.UInt16.mod_v0 0us 15us = 0us
+PACKAGE.Darklang.Stdlib.UInt16.mod_v0 1us 2us = 1us
+PACKAGE.Darklang.Stdlib.UInt16.mod_v0 32768us 53us = 14us
+PACKAGE.Darklang.Stdlib.UInt16.mod_v0 65535us 3us = 0us
+
+PACKAGE.Darklang.Stdlib.UInt16.mod_v0 5us 0us = Builtin.Test.derrorMessage
+  "Zero modulus"
+
+
+(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
+  PACKAGE.Darklang.Stdlib.UInt16.random 1us 2us)
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
+  (PACKAGE.Darklang.Stdlib.UInt16.greaterThanOrEqualTo x 1us)
+  && (PACKAGE.Darklang.Stdlib.UInt16.lessThanOrEqualTo x 2us)) = [ true
+                                                                   true
+                                                                   true
+                                                                   true
+                                                                   true ]
+
+(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
+  PACKAGE.Darklang.Stdlib.UInt16.random 10us 20us)
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
+  (PACKAGE.Darklang.Stdlib.UInt16.greaterThanOrEqualTo x 10us)
+  && (PACKAGE.Darklang.Stdlib.UInt16.lessThanOrEqualTo x 20us)) = [ true
+                                                                    true
+                                                                    true
+                                                                    true
+                                                                    true ]
+
+(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
+  PACKAGE.Darklang.Stdlib.UInt16.random 2us 1us)
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
+  (PACKAGE.Darklang.Stdlib.UInt16.greaterThanOrEqualTo x 1us)
+  && (PACKAGE.Darklang.Stdlib.UInt16.lessThanOrEqualTo x 2us)) = [ true
+                                                                   true
+                                                                   true
+                                                                   true
+                                                                   true ]
+
+(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
+  PACKAGE.Darklang.Stdlib.UInt16.random 20us 10us)
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
+  (PACKAGE.Darklang.Stdlib.UInt16.greaterThanOrEqualTo x 10us)
+  && (PACKAGE.Darklang.Stdlib.UInt16.lessThanOrEqualTo x 20us)) = [ true
+                                                                    true
+                                                                    true
+                                                                    true
+                                                                    true ]
+
+((PACKAGE.Darklang.Stdlib.List.range_v0 1 100)
+ |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
+   PACKAGE.Darklang.Stdlib.UInt16.random 0us 1us)
+ |> PACKAGE.Darklang.Stdlib.List.unique_v0) = [ 0us; 1us ]
+
+((PACKAGE.Darklang.Stdlib.List.range_v0 1 100)
+ |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
+   PACKAGE.Darklang.Stdlib.UInt16.random 0us 2us)
+ |> PACKAGE.Darklang.Stdlib.List.unique_v0) = [ 0us; 1us; 2us ]
+
+PACKAGE.Darklang.Stdlib.UInt16.sum_v0 [ 1us; 2us ] = 3us
+
+PACKAGE.Darklang.Stdlib.UInt16.sum_v0 [ 1us; 65535us ] = Builtin.Test.derrorMessage
+  "Out of range"
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "-129" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.OutOfRange
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "65536" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.OutOfRange
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "65536us" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.BadFormat
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "1 2 3" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.BadFormat
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "+ 1" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.BadFormat
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "- 1" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.BadFormat
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "0xA" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.BadFormat
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "0x123" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.BadFormat
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "0b0100" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.BadFormat
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "pi" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.BadFormat
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.BadFormat
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "1.23E+04" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.BadFormat
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.BadFormat
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "1I" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.BadFormat
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "one" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.BadFormat
+
+PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "XIV" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  PACKAGE.Darklang.Stdlib.UInt16.ParseError.BadFormat
+
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt64_v0 0L = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt64_v0 1L = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt64_v0 65535L = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  65535us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt64_v0 65536L = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.UInt16.fromInt64_v0 (-1L) = PACKAGE.Darklang.Stdlib.Option.Option.None

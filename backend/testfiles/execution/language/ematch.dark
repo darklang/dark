@@ -92,6 +92,64 @@ module UInt8 =
     "Cannot match Float value 6.0 with an UInt8 pattern"
 
 
+module Int16 =
+  (match 6s with
+   | 5s -> "fail"
+   | -6s -> "fail"
+   | 6s -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6s with
+   | 6s -> "pass"
+   | 5s -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6s with
+   | var -> "pass"
+   | 6s -> "fail"
+   | 5s -> "fail") = "pass"
+
+  (match 32767s with
+   | 0s -> "fail"
+   | 32767s -> "pass") = "pass"
+
+  (match 6s with
+   | 6.0 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Int16 value 6 with a Float pattern"
+
+  (match 6.0 with
+   | 6s -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Float value 6.0 with an Int16 pattern"
+
+module UInt16 =
+  (match 6us with
+   | 5us -> "fail"
+   | 6us -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6us with
+   | 6us -> "pass"
+   | 5us -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6us with
+   | var -> "pass"
+   | 6us -> "fail"
+   | 5us -> "fail") = "pass"
+
+  (match 65535us with
+   | 0us -> "fail"
+   | 65535us -> "pass") = "pass"
+
+  (match 6us with
+   | 6.0 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match UInt16 value 6 with a Float pattern"
+
+  (match 6.0 with
+   | 6us -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Float value 6.0 with an UInt16 pattern"
+
+
 
 module String =
   (match "x" with

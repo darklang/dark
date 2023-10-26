@@ -69,12 +69,6 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the integer remainder left over after dividing <param value> by
         <param divisor>, as a <type Result>.
-
-        For example, {{UInt8.remainder 15 6 == Ok 3}}. The remainder will be
-        negative only if {{<var value> < 0}}.
-
-        The sign of <param divisor> doesn't influence the outcome.
-
         Returns an {{Error}} if <param divisor> is {{0}}."
       fn =
         let resultOk r = Dval.resultOk KTUInt8 KTString r |> Ply
