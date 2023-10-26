@@ -7,7 +7,7 @@
       "commands": ["paket"]
     },
     "dotnet-trace": {
-      "version": "7.0.447801",
+      "version": "8.0.452401",
       "commands": ["dotnet-trace"]
     }
   }
