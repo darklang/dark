@@ -8,7 +8,7 @@ module Darklang =
 
 
       /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-      /// The modulus <param b> must be 0 or negative.
+      /// The modulus <param b> must be greater than 0.
       /// Use <fn Int16.remainder> if you want the remainder after division, which has
       /// a different behavior for negative numbers.
       let ``mod`` (a: Int16) (b: Int16) : Int16 = Builtin.Int16.``mod`` a b
@@ -143,6 +143,6 @@ module Darklang =
       let toString (int16: Int16) : String = Builtin.Int16.toString int16
 
 
-      /// Converts an <type Int16> to a <type Int64>. Returns {{None}} if the value is less than -1216 or greater than 127.
+      /// Converts a <type Int16> to a <type Int64>. Returns {{None}} if the value is less than -32768 or greater than 32767.
       let fromInt64 (int16: Int) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
         Builtin.Int16.fromInt64 int16

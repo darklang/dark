@@ -65,12 +65,12 @@ type LetPattern =
 
 type MatchPattern =
   | MPUnit of id
+  | MPBool of id * bool
   | MPInt of id * int64
   | MPInt8 of id * int8
   | MPUInt8 of id * uint8
   | MPInt16 of id * int16
   | MPUInt16 of id * uint16
-  | MPBool of id * bool
   | MPFloat of id * Sign * string * string
   | MPChar of id * string
   | MPString of id * string

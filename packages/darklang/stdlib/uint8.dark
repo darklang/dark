@@ -8,7 +8,7 @@ module Darklang =
 
 
       /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-      /// The modulus <param b> must be 0 or negative.
+      /// The modulus <param b> must be greater than 0.
       /// Use <fn UInt8.remainder> if you want the remainder after division, which has
       /// a different behavior for negative numbers.
       let ``mod`` (a: UInt8) (b: UInt8) : UInt8 = Builtin.UInt8.``mod`` a b
@@ -16,8 +16,7 @@ module Darklang =
 
       /// Returns the integer remainder left over after dividing <param value> by
       /// <param divisor>, as a <type Result>.
-      /// For example, {{Int.remainder 15 6 == Ok 3}}. The remainder will be
-      /// negative only if {{<var value> < 0}}.
+      /// For example, {{Int.remainder 15 6 == Ok 3}}.
       /// The sign of <param divisor> doesn't influence the outcome.
       /// Returns an {{Error}} if <param divisor> is {{0}}.
       let remainder
@@ -133,6 +132,6 @@ module Darklang =
       let toString (uint8: UInt8) : String = Builtin.UInt8.toString uint8
 
 
-      /// Converts an <type UInt8> to a <type Int64>. Returns {{None}} if the value is less than 0 or greater than 255.
+      /// Converts a <type UInt8> to a <type Int64>. Returns {{None}} if the value is less than 0 or greater than 255.
       let fromInt64 (uint8: Int) : PACKAGE.Darklang.Stdlib.Option.Option<UInt8> =
         Builtin.UInt8.fromInt64 uint8

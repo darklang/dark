@@ -301,6 +301,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+
     { name = fn "toFloat" 0
       typeParams = []
       parameters = [ Param.make "a" TInt16 "" ]

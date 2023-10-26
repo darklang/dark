@@ -558,7 +558,7 @@ let rec lambdaToSql
           return $"(@{name})", [ name, Sql.int16 v ], TInt16
 
         | EUInt16(_, v) ->
-          typecheck $"Int16 {v}" TUInt16 expectedType
+          typecheck $"UInt16 {v}" TUInt16 expectedType
           let name = randomString 10
           return $"(@{name})", [ name, Sql.int64 (int v) ], TUInt16
 
@@ -766,7 +766,7 @@ let rec lambdaToSql
             | TInt8 -> "smallint"
             | TUInt8 -> "smallint"
             | TInt16 -> "smallint"
-            | TUInt16 -> "smallint"
+            | TUInt16 -> "integer"
             | TFloat -> "double precision"
             | TBool -> "bool"
             | TDateTime -> "timestamp with time zone"
