@@ -1,5 +1,5 @@
-PACKAGE.Darklang.Stdlib.Int.absoluteValue_v0 -5 = 5
-PACKAGE.Darklang.Stdlib.Int.absoluteValue_v0 5 = 5
+PACKAGE.Darklang.Stdlib.Int.absoluteValue_v0 -5L = 5L
+PACKAGE.Darklang.Stdlib.Int.absoluteValue_v0 5L = 5L
 
 PACKAGE.Darklang.Stdlib.Int.max_v0 5 6 = 6
 PACKAGE.Darklang.Stdlib.Int.max_v0 10 1 = 10
@@ -7,11 +7,11 @@ PACKAGE.Darklang.Stdlib.Int.max_v0 -5 6 = 6
 PACKAGE.Darklang.Stdlib.Int.max_v0 -100 -20000 = -100
 PACKAGE.Darklang.Stdlib.Int.max_v0 250 -26 = 250
 
-PACKAGE.Darklang.Stdlib.Int.min_v0 5 6 = 5
-PACKAGE.Darklang.Stdlib.Int.min_v0 50 -10 = -10
-PACKAGE.Darklang.Stdlib.Int.min_v0 -5 6 = -5
-PACKAGE.Darklang.Stdlib.Int.min_v0 -100 -20000 = -20000
-PACKAGE.Darklang.Stdlib.Int.min_v0 250 -26 = -26
+PACKAGE.Darklang.Stdlib.Int.min_v0 5L 6L = 5L
+PACKAGE.Darklang.Stdlib.Int.min_v0 50L -10L = -10L
+PACKAGE.Darklang.Stdlib.Int.min_v0 -5L 6L = -5L
+PACKAGE.Darklang.Stdlib.Int.min_v0 -100L -20000L = -20000L
+PACKAGE.Darklang.Stdlib.Int.min_v0 250L -26L = -26L
 
 
 PACKAGE.Darklang.Stdlib.Int.clamp_v0 -5 -2 5 = -2 // in bounds
@@ -30,295 +30,301 @@ PACKAGE.Darklang.Stdlib.Int.clamp_v0 100 1 0 = 1
 PACKAGE.Darklang.Stdlib.Int.clamp_v0 -2147483647 250 -26 = -26
 PACKAGE.Darklang.Stdlib.Int.clamp_v0 2147483647 250 -26 = 250
 
-PACKAGE.Darklang.Stdlib.Int.negate_v0 -5 = 5
-PACKAGE.Darklang.Stdlib.Int.negate_v0 5 = -5
-PACKAGE.Darklang.Stdlib.Int.negate_v0 0 = 0
-PACKAGE.Darklang.Stdlib.Int.negate_v0 -0 = 0
+PACKAGE.Darklang.Stdlib.Int.negate_v0 -5L = 5L
+PACKAGE.Darklang.Stdlib.Int.negate_v0 5L = -5L
+PACKAGE.Darklang.Stdlib.Int.negate_v0 0L = 0L
+PACKAGE.Darklang.Stdlib.Int.negate_v0 -0L = 0L
 
-PACKAGE.Darklang.Stdlib.Int.remainder_v0 15 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  3
+PACKAGE.Darklang.Stdlib.Int.remainder_v0 15L 6L = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  3L
 
-PACKAGE.Darklang.Stdlib.Int.remainder_v0 20 8 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  4
+PACKAGE.Darklang.Stdlib.Int.remainder_v0 20L 8L = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  4L
 
-PACKAGE.Darklang.Stdlib.Int.remainder_v0 -20 8 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  -4
+PACKAGE.Darklang.Stdlib.Int.remainder_v0 -20L 8L = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -4L
 
-PACKAGE.Darklang.Stdlib.Int.remainder_v0 -20 -8 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  -4
+PACKAGE.Darklang.Stdlib.Int.remainder_v0 -20L -8L = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -4L
 
-PACKAGE.Darklang.Stdlib.Int.remainder_v0 -15 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  -3
+PACKAGE.Darklang.Stdlib.Int.remainder_v0 -15L 6L = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -3L
 
-PACKAGE.Darklang.Stdlib.Int.remainder_v0 5 0 = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int.remainder_v0 5L 0L = Builtin.Test.derrorMessage
   "Division by zero"
 
 PACKAGE.Darklang.Stdlib.List.map_v0
-  (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5)
-  (fun v -> PACKAGE.Darklang.Stdlib.Int.remainder_v0 v -4) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 -1
-                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 0
-                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 -3
-                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 -2
-                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 -1
-                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 0
-                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 1
-                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 2
-                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 3
-                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 0
-                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                 1 ]
+  (PACKAGE.Darklang.Stdlib.List.range_v0 -5L 5L)
+  (fun v -> PACKAGE.Darklang.Stdlib.Int.remainder_v0 v -4L) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                  -1L
+                                                                PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                  0L
+                                                                PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                  -3L
+                                                                PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                  -2L
+                                                                PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                  -1L
+                                                                PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                  0L
+                                                                PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                  1L
+                                                                PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                  2L
+                                                                PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                  3L
+                                                                PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                  0L
+                                                                PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                  1L ]
 
 PACKAGE.Darklang.Stdlib.List.map_v0
-  (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5)
-  (fun v -> PACKAGE.Darklang.Stdlib.Int.remainder_v0 v 4) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                -1
-                                                              PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                0
-                                                              PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                -3
-                                                              PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                -2
-                                                              PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                -1
-                                                              PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                0
-                                                              PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                1
-                                                              PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                2
-                                                              PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                3
-                                                              PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                0
-                                                              PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                1 ]
+  (PACKAGE.Darklang.Stdlib.List.range_v0 -5L 5L)
+  (fun v -> PACKAGE.Darklang.Stdlib.Int.remainder_v0 v 4L) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                 -1L
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                 0L
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                 -3L
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                 -2L
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                 -1L
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                 0L
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                 1L
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                 2L
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                 3L
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                 0L
+                                                               PACKAGE.Darklang.Stdlib.Result.Result.Ok
+                                                                 1L ]
 
-PACKAGE.Darklang.Stdlib.Int.mod_v0 15 5 = 0
-PACKAGE.Darklang.Stdlib.Int.mod_v0 15 6 = 3
-PACKAGE.Darklang.Stdlib.Int.mod_v0 0 15 = 0
-PACKAGE.Darklang.Stdlib.Int.mod_v0 (-1) 2 = 1
-PACKAGE.Darklang.Stdlib.Int.mod_v0 (-754) 53 = 41
-PACKAGE.Darklang.Stdlib.Int.mod_v0 9999999999998L 3 = 2
+PACKAGE.Darklang.Stdlib.Int.mod_v0 15L 5L = 0L
+PACKAGE.Darklang.Stdlib.Int.mod_v0 15L 6L = 3L
+PACKAGE.Darklang.Stdlib.Int.mod_v0 0L 15L = 0L
+PACKAGE.Darklang.Stdlib.Int.mod_v0 -1L 2L = 1L
+PACKAGE.Darklang.Stdlib.Int.mod_v0 -754L 53L = 41L
+PACKAGE.Darklang.Stdlib.Int.mod_v0 9999999999998L 3L = 2L
 
-PACKAGE.Darklang.Stdlib.Int.mod_v0 5 0 = Builtin.Test.derrorMessage "Zero modulus"
+PACKAGE.Darklang.Stdlib.Int.mod_v0 5L 0L = Builtin.Test.derrorMessage "Zero modulus"
 
-PACKAGE.Darklang.Stdlib.Int.mod_v0 5 (-5) = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int.mod_v0 5L -5L = Builtin.Test.derrorMessage
   "Negative modulus"
 
-// PACKAGE.Darklang.Stdlib.List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 (-5) 5) (fun v ->
-//  PACKAGE.Darklang.Stdlib.Int.mod_v0 v 4) = [ 3 0 1 2 3 0 1 2 3 0 1 ]
+// PACKAGE.Darklang.Stdlib.List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 -5L 5L) (fun v ->
+//  PACKAGE.Darklang.Stdlib.Int.mod_v0 v 4L) = [ 3L 0L 1L 2L 3L 0L 1L 2L 3L 0L 1L ]
 
-15 % 5 = 0
-5 % 0 = Builtin.Test.derrorMessage "Zero modulus"
-5 % (-5) = Builtin.Test.derrorMessage "Negative modulus"
+15L % 5L = 0L
+5L % 0L = Builtin.Test.derrorMessage "Zero modulus"
+5L % -5L = Builtin.Test.derrorMessage "Negative modulus"
 
 PACKAGE.Darklang.Stdlib.List.map_v0
-  (PACKAGE.Darklang.Stdlib.List.range_v0 -5 5)
-  (fun v -> v % 4) = [ 3; 0; 1; 2; 3; 0; 1; 2; 3; 0; 1 ]
+  (PACKAGE.Darklang.Stdlib.List.range_v0 -5L 5L)
+  (fun v -> v % 4L) = [ 3L; 0L; 1L; 2L; 3L; 0L; 1L; 2L; 3L; 0L; 1L ]
 
+PACKAGE.Darklang.Stdlib.Int.power_v0 8L 5L = 32768L
+PACKAGE.Darklang.Stdlib.Int.power_v0 0L 1L = 0L
+PACKAGE.Darklang.Stdlib.Int.power_v0 1L 0L = 1L
+PACKAGE.Darklang.Stdlib.Int.power_v0 1000L 0L = 1L
+PACKAGE.Darklang.Stdlib.Int.power_v0 -8L 5L = -32768L
 
-PACKAGE.Darklang.Stdlib.Int.power_v0 8 5 = 32768
-PACKAGE.Darklang.Stdlib.Int.power_v0 0 1 = 0
-PACKAGE.Darklang.Stdlib.Int.power_v0 1 0 = 1
-PACKAGE.Darklang.Stdlib.Int.power_v0 1000 0 = 1
-PACKAGE.Darklang.Stdlib.Int.power_v0 -8 5 = -32768
-
-PACKAGE.Darklang.Stdlib.Int.power_v0 200 20 = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int.power_v0 200L 20L = Builtin.Test.derrorMessage
   "Out of range"
 
-PACKAGE.Darklang.Stdlib.Int.power_v0 200 7 = 12800000000000000L
+PACKAGE.Darklang.Stdlib.Int.power_v0 200L 7L = 12800000000000000L
 
-PACKAGE.Darklang.Stdlib.Int.power_v0 1 2147483649L = 1
+PACKAGE.Darklang.Stdlib.Int.power_v0 1L 2147483649L = 1L
 
-PACKAGE.Darklang.Stdlib.Int.power_v0 -1 2147483649L = -1
+PACKAGE.Darklang.Stdlib.Int.power_v0 -1L 2147483649L = -1L
 
-PACKAGE.Darklang.Stdlib.Int.power_v0 2 -3 = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int.power_v0 2L -3L = Builtin.Test.derrorMessage
   "Negative exponent"
 
-5 ^ 2 = 25
--8 ^ 5 = -32768
-50 ^ 2 = 2500
+5L ^ 2L = 25L
+-8L ^ 5L = -32768L
+50L ^ 2L = 2500L
 
-PACKAGE.Darklang.Stdlib.Int.greaterThan_v0 20 1 = true
-20 > 1 = true
+PACKAGE.Darklang.Stdlib.Int.greaterThan_v0 20L 1L = true
+20L > 1L = true
 
-0 >= 1 = false
-1 >= 0 = true
-6 >= 1 = true
-6 >= 8 = false
--5 >= -20 = true
--20 >= -1 = false
--20 >= -20 = true
+0L >= 1L = false
+1L >= 0L = true
+6L >= 1L = true
+6L >= 8L = false
+-5L >= -20L = true
+-20L >= -1L = false
+-20L >= -20L = true
 
-PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 0 1 = false
-PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 1 0 = true
-PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 6 1 = true
-PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 6 8 = false
-PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 -5 -20 = true
-PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 -20 -1 = false
-PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 -20 -20 = true
+PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 0L 1L = false
+PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 1L 0L = true
+PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 6L 1L = true
+PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 6L 8L = false
+PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 -5L -20L = true
+PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 -20L -1L = false
+PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 -20L -20L = true
 
-6 <= 8 = true
-10 <= 1 = false
-0 <= 1 = true
-1 <= 0 = false
--100 <= 22544 = true
--999 <= -9999 = false
--8888 <= -8888 = true
+6L <= 8L = true
+10L <= 1L = false
+0L <= 1L = true
+1L <= 0L = false
+-100L <= 22544L = true
+-999L <= -9999L = false
+-8888L <= -8888L = true
 
-PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 6 8 = true
-PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 10 1 = false
-PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 0 1 = true
-PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 1 0 = false
-PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 -100 22544 = true
-PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 -999 -9999 = false
-PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 -8888 -8888 = true
+PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 6L 8L = true
+PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 10L 1L = false
+PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 0L 1L = true
+PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 1L 0L = false
+PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 -100L 22544L = true
+PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 -999L -9999L = false
+PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 -8888L -8888L = true
 
-PACKAGE.Darklang.Stdlib.Int.lessThan_v0 6 8 = true
-PACKAGE.Darklang.Stdlib.Int.lessThan_v0 10 1 = false
-PACKAGE.Darklang.Stdlib.Int.lessThan_v0 0 1 = true
-PACKAGE.Darklang.Stdlib.Int.lessThan_v0 1 0 = false
-PACKAGE.Darklang.Stdlib.Int.lessThan_v0 -100 22544 = true
-PACKAGE.Darklang.Stdlib.Int.lessThan_v0 -999 -9999 = false
-PACKAGE.Darklang.Stdlib.Int.lessThan_v0 -8888 -8888 = false
-6 < 8 = true
-10 < 1 = false
-0 < 1 = true
-1 < 0 = false
--100 < 22544 = true
--999 < -9999 = false
--8888 < -8888 = false
+PACKAGE.Darklang.Stdlib.Int.lessThan_v0 6L 8L = true
+PACKAGE.Darklang.Stdlib.Int.lessThan_v0 10L 1L = false
+PACKAGE.Darklang.Stdlib.Int.lessThan_v0 0L 1L = true
+PACKAGE.Darklang.Stdlib.Int.lessThan_v0 1L 0L = false
+PACKAGE.Darklang.Stdlib.Int.lessThan_v0 -100L 22544L = true
+PACKAGE.Darklang.Stdlib.Int.lessThan_v0 -999L -9999L = false
+PACKAGE.Darklang.Stdlib.Int.lessThan_v0 -8888L -8888L = false
+6L < 8L = true
+10L < 1L = false
+0L < 1L = true
+1L < 0L = false
+-100L < 22544L = true
+-999L < -9999L = false
+-8888L < -8888L = false
 
-PACKAGE.Darklang.Stdlib.Int.sqrt_v0 4 = 2.0
-PACKAGE.Darklang.Stdlib.Int.sqrt_v0 100 = 10.0
-PACKAGE.Darklang.Stdlib.Int.sqrt_v0 86 = 9.273618495495704
+PACKAGE.Darklang.Stdlib.Int.sqrt_v0 4L = 2.0
+PACKAGE.Darklang.Stdlib.Int.sqrt_v0 100L = 10.0
+PACKAGE.Darklang.Stdlib.Int.sqrt_v0 86L = 9.273618495495704
 
-PACKAGE.Darklang.Stdlib.Int.toFloat_v0 2 = 2.0
-PACKAGE.Darklang.Stdlib.Int.toFloat_v0 955656 = 955656.0
-PACKAGE.Darklang.Stdlib.Int.toFloat_v0 -10 = -10.0
+PACKAGE.Darklang.Stdlib.Int.toFloat_v0 2L = 2.0
+PACKAGE.Darklang.Stdlib.Int.toFloat_v0 955656L = 955656.0
+PACKAGE.Darklang.Stdlib.Int.toFloat_v0 -10L = -10.0
 
-PACKAGE.Darklang.Stdlib.Int.add_v0 10 9 = 19
-PACKAGE.Darklang.Stdlib.Int.add_v0 88 9 = 97
-PACKAGE.Darklang.Stdlib.Int.add_v0 -1 2 = 1
-PACKAGE.Darklang.Stdlib.Int.add_v0 1 0 = 1
-PACKAGE.Darklang.Stdlib.Int.add_v0 -55 55 = 0
+PACKAGE.Darklang.Stdlib.Int.add_v0 10L 9L = 19L
+PACKAGE.Darklang.Stdlib.Int.add_v0 88L 9L = 97L
+PACKAGE.Darklang.Stdlib.Int.add_v0 -1L 2L = 1L
+PACKAGE.Darklang.Stdlib.Int.add_v0 1L 0L = 1L
+PACKAGE.Darklang.Stdlib.Int.add_v0 -55L 55L = 0L
+PACKAGE.Darklang.Stdlib.Int.add_v0 9223372036854775806L 1L = 9223372036854775807L
 
--2000 + 1950 = -50
--1993 + 2000 = 7
+// Overflow tests
+PACKAGE.Darklang.Stdlib.Int.add_v0 9223372036854775807L 1L = -9223372036854775808L
+PACKAGE.Darklang.Stdlib.Int.add_v0 55L 9223372036854775807L = -9223372036854775754L
+PACKAGE.Darklang.Stdlib.Int.add_v0 (-9223372036854775808L) (-1L) = 9223372036854775807L
 
-PACKAGE.Darklang.Stdlib.Int.subtract_v0 10 9 = 1
-PACKAGE.Darklang.Stdlib.Int.subtract_v0 88 9 = 79
-PACKAGE.Darklang.Stdlib.Int.subtract_v0 0 1 = -1
-PACKAGE.Darklang.Stdlib.Int.subtract_v0 1 0 = 1
-PACKAGE.Darklang.Stdlib.Int.subtract_v0 -55 -55 = 0
+-2000L + 1950L = -50L
+-1993L + 2000L = 7L
 
-2000 - 1950 = 50
--1993 - -2000 = 7
+PACKAGE.Darklang.Stdlib.Int.subtract_v0 10L 9L = 1L
+PACKAGE.Darklang.Stdlib.Int.subtract_v0 88L 9L = 79L
+PACKAGE.Darklang.Stdlib.Int.subtract_v0 0L 1L = -1L
+PACKAGE.Darklang.Stdlib.Int.subtract_v0 1L 0L = 1L
+PACKAGE.Darklang.Stdlib.Int.subtract_v0 -55L -55L = 0L
 
-PACKAGE.Darklang.Stdlib.Int.multiply_v0 8 8 = 64
-PACKAGE.Darklang.Stdlib.Int.multiply_v0 5145 5145 = 26471025
+2000L - 1950L = 50L
+-1993L - -2000L = 7L
 
-1 * 1.0 = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int.multiply_v0 8L 8L = 64L
+PACKAGE.Darklang.Stdlib.Int.multiply_v0 5145L 5145L = 26471025L
+
+1L * 1.0 = Builtin.Test.derrorMessage
   "Int.multiply's 2nd argument (`b`) should be an Int. However, a Float (1.0) was passed instead.
 
 Expected: (b: Int)
 Actual: a Float: 1.0"
 
-8 * 8 = 64
+8L * 8L = 64L
+PACKAGE.Darklang.Stdlib.Int.divide_v0 10L 5L = 2L
+PACKAGE.Darklang.Stdlib.Int.divide_v0 17L 3L = 5L
+PACKAGE.Darklang.Stdlib.Int.divide_v0 -8L 5L = -1L
+PACKAGE.Darklang.Stdlib.Int.divide_v0 0L 1L = 0L
 
-PACKAGE.Darklang.Stdlib.Int.divide_v0 10 5 = 2
-PACKAGE.Darklang.Stdlib.Int.divide_v0 17 3 = 5
-PACKAGE.Darklang.Stdlib.Int.divide_v0 -8 5 = -1
-PACKAGE.Darklang.Stdlib.Int.divide_v0 0 1 = 0
-
-PACKAGE.Darklang.Stdlib.Int.divide_v0 1 0 = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int.divide_v0 1L 0L = Builtin.Test.derrorMessage
   "Division by zero"
 
-(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
-  PACKAGE.Darklang.Stdlib.Int.random 1 2)
-|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x -> (x >= 1) && (x <= 2)) = [ true
-                                                                           true
-                                                                           true
-                                                                           true
-                                                                           true ]
-
-(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
-|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
-  PACKAGE.Darklang.Stdlib.Int.random 10 20)
-|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x -> (x >= 10) && (x <= 20)) = [ true
+  PACKAGE.Darklang.Stdlib.Int.random 1L 2L)
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x -> (x >= 1L) && (x <= 2L)) = [ true
                                                                              true
                                                                              true
                                                                              true
                                                                              true ]
 
-(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
-  PACKAGE.Darklang.Stdlib.Int.random 2 1)
-|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x -> (x >= 1) && (x <= 2)) = [ true
-                                                                           true
-                                                                           true
-                                                                           true
-                                                                           true ]
+  PACKAGE.Darklang.Stdlib.Int.random 10L 20L)
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x -> (x >= 10L) && (x <= 20L)) = [ true
+                                                                               true
+                                                                               true
+                                                                               true
+                                                                               true ]
 
-(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
-  PACKAGE.Darklang.Stdlib.Int.random 20 10)
-|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x -> (x >= 10) && (x <= 20)) = [ true
+  PACKAGE.Darklang.Stdlib.Int.random 2L 1L)
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x -> (x >= 1L) && (x <= 2L)) = [ true
                                                                              true
                                                                              true
                                                                              true
                                                                              true ]
 
-((PACKAGE.Darklang.Stdlib.List.range_v0 1 100)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
+  PACKAGE.Darklang.Stdlib.Int.random 20L 10L)
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x -> (x >= 10L) && (x <= 20L)) = [ true
+                                                                               true
+                                                                               true
+                                                                               true
+                                                                               true ]
+
+((PACKAGE.Darklang.Stdlib.List.range_v0 1L 100L)
  |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
-   PACKAGE.Darklang.Stdlib.Int.random 0 1)
- |> PACKAGE.Darklang.Stdlib.List.unique_v0) = [ 0; 1 ]
+   PACKAGE.Darklang.Stdlib.Int.random 0L 1L)
+ |> PACKAGE.Darklang.Stdlib.List.unique_v0) = [ 0L; 1L ]
 
-((PACKAGE.Darklang.Stdlib.List.range_v0 1 100)
+((PACKAGE.Darklang.Stdlib.List.range_v0 1L 100L)
  |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
-   PACKAGE.Darklang.Stdlib.Int.random 0 2)
- |> PACKAGE.Darklang.Stdlib.List.unique_v0) = [ 0; 1; 2 ]
+   PACKAGE.Darklang.Stdlib.Int.random 0L 2L)
+ |> PACKAGE.Darklang.Stdlib.List.unique_v0) = [ 0L; 1L; 2L ]
 
-PACKAGE.Darklang.Stdlib.Int.sum_v0 [ 1; 2 ] = 3
+PACKAGE.Darklang.Stdlib.Int.sum_v0 [ 1L; 2L ] = 3L
 
+PACKAGE.Darklang.Stdlib.Int.parse_v0 "0" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  0L
 
-PACKAGE.Darklang.Stdlib.Int.parse_v0 "0" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 0
-PACKAGE.Darklang.Stdlib.Int.parse_v0 "1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 1
+PACKAGE.Darklang.Stdlib.Int.parse_v0 "1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  1L
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 " 1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  1
+  1L
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "1 " = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  1
+  1L
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "+1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  1
+  1L
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 " +1 " = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  1
+  1L
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "-1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  -1
+  -1L
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "078" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  78 // "octal" format ignored
+  78L // "octal" format ignored
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "-00001" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  -1
+  -1L
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "-10001" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  -10001
+  -10001L
 
 PACKAGE.Darklang.Stdlib.Int.parse_v0 "-4611686018427387904" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   -4611686018427387904L // int63 lower limit
@@ -387,9 +393,9 @@ PACKAGE.Darklang.Stdlib.Int.parse_v0 "XIV" = PACKAGE.Darklang.Stdlib.Result.Resu
   PACKAGE.Darklang.Stdlib.Int.ParseError.BadFormat
 
 
-PACKAGE.Darklang.Stdlib.Int.toString 0 = "0"
-PACKAGE.Darklang.Stdlib.Int.toString 1 = "1"
-PACKAGE.Darklang.Stdlib.Int.toString -1 = "-1"
+PACKAGE.Darklang.Stdlib.Int.toString 0L = "0"
+PACKAGE.Darklang.Stdlib.Int.toString 1L = "1"
+PACKAGE.Darklang.Stdlib.Int.toString -1L = "-1"
 PACKAGE.Darklang.Stdlib.Int.toString -4611686018427387904L = "-4611686018427387904" // int63 lower limit
 PACKAGE.Darklang.Stdlib.Int.toString -4611686018427387905L = "-4611686018427387905" // past the int63 upper limit"
 PACKAGE.Darklang.Stdlib.Int.toString -9223372036854775808L = "-9223372036854775808" // .NET lower limit
