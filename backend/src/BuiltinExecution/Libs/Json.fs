@@ -393,16 +393,20 @@ let parse
       let mutable i64 = 0L
       let mutable ui64 = 0UL
       let mutable d = 0.0
-      if j.TryGetUInt64(&ui64) then
-        if ui64 <= uint64 System.SByte.MaxValue then
-          DInt8(int8 ui64) |> Ply
-        else
-          raiseCantMatchWithType TInt8 j pathSoFar |> Ply
-      else if j.TryGetInt64(&i64) then
-        if i64 >= int System.SByte.MinValue && i64 <= int System.SByte.MaxValue then
-          DInt8(int8 i64) |> Ply
-        else
-          raiseCantMatchWithType TInt8 j pathSoFar |> Ply
+      if
+        j.TryGetUInt64(&ui64)
+        && ui64 >= uint64 System.SByte.MinValue
+        && ui64 <= uint64 System.SByte.MaxValue
+      then
+        DInt8(int8 ui64) |> Ply
+
+      else if
+        j.TryGetInt64(&i64)
+        && i64 >= int System.SByte.MinValue
+        && i64 <= int System.SByte.MaxValue
+      then
+        DInt8(int8 i64) |> Ply
+
       else if
         j.TryGetDouble(&d)
         && d <= (float System.SByte.MaxValue)
@@ -417,16 +421,17 @@ let parse
       let mutable i64 = 0L
       let mutable ui64 = 0UL
       let mutable d = 0.0
-      if j.TryGetUInt64(&ui64) then
-        if ui64 <= uint64 System.Byte.MaxValue then
-          DUInt8(uint8 ui64) |> Ply
-        else
-          raiseCantMatchWithType TUInt8 j pathSoFar |> Ply
-      else if j.TryGetInt64(&i64) then
-        if i64 >= int System.Byte.MinValue && i64 <= int System.Byte.MaxValue then
-          DUInt8(uint8 i64) |> Ply
-        else
-          raiseCantMatchWithType TUInt8 j pathSoFar |> Ply
+
+      if j.TryGetUInt64(&ui64) && ui64 <= uint64 System.Byte.MaxValue then
+        DUInt8(uint8 ui64) |> Ply
+
+      else if
+        j.TryGetInt64(&i64)
+        && i64 >= int System.Byte.MinValue
+        && i64 <= int System.Byte.MaxValue
+      then
+        DUInt8(uint8 i64) |> Ply
+
       else if
         j.TryGetDouble(&d)
         && d <= (float System.Byte.MaxValue)
@@ -442,13 +447,11 @@ let parse
       let mutable ui16 = 0us
       let mutable d = 0.0
 
-      if j.TryGetUInt16(&ui16) then
-        if ui16 <= uint16 System.Int16.MaxValue then
-          DInt16(int16 ui16) |> Ply
-        else
-          raiseCantMatchWithType TInt16 j pathSoFar |> Ply
-      else if j.TryGetInt16(&i16) then
+      if j.TryGetInt16(&i16) then
         DInt16 i16 |> Ply
+
+      else if j.TryGetUInt16(&ui16) && ui16 <= uint16 System.Int16.MaxValue then
+        DInt16(int16 ui16) |> Ply
 
       else if
         j.TryGetDouble(&d)
