@@ -1231,7 +1231,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        Dval.optionType,
        Dval.ignoreAndUseEmpty [ VT.int8 ],
        "Some",
-       [ Dval.int8 15 ]
+       [ Dval.int8 15y ]
      ),
      TypeReference.option TInt8)
     ("option5",
@@ -1240,7 +1240,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        Dval.optionType,
        Dval.ignoreAndUseEmpty [ VT.uint8 ],
        "Some",
-       [ Dval.uint8 15 ]
+       [ Dval.uint8 15uy ]
      ),
      TypeReference.option TUInt8)
     ("option6",
@@ -1249,7 +1249,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        Dval.optionType,
        Dval.ignoreAndUseEmpty [ VT.int16 ],
        "Some",
-       [ Dval.int16 16 ]
+       [ Dval.int16 16s ]
      ),
      TypeReference.option TInt16)
     ("option7",
@@ -1258,7 +1258,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        Dval.optionType,
        Dval.ignoreAndUseEmpty [ VT.uint16 ],
        "Some",
-       [ Dval.uint16 16 ]
+       [ Dval.uint16 16us ]
      ),
      TypeReference.option TUInt16)
     ("character", DChar "s", TChar)

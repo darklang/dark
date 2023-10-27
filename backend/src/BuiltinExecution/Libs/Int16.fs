@@ -95,7 +95,7 @@ let fns : List<BuiltInFn> =
                |> Ply
              else
                Exception.raiseInternal
-                 "unexpected failure case in Int8.remainder"
+                 "unexpected failure case in Int16.remainder"
                  [ "v", v; "d", d ]
                  e)
         | _ -> incorrectArgs ())
