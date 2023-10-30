@@ -31,15 +31,15 @@ module Darklang =
       let add (a: Int16) (b: Int16) : Int16 = Builtin.Int16.add a b
 
 
-      /// Subtracts two 16 bit signed integers
+      /// Subtracts two 16-bit signed integers
       let subtract (a: Int16) (b: Int16) : Int16 = Builtin.Int16.subtract a b
 
 
-      /// Multiplies two 16 bit signed integers
+      /// Multiplies two 16-bit signed integers
       let multiply (a: Int16) (b: Int16) : Int16 = Builtin.Int16.multiply a b
 
 
-      /// Divides two 16 bit signed integers
+      /// Divides two 16-bit signed integers
       let divide (a: Int16) (b: Int16) : Int16 = Builtin.Int16.divide a b
 
 
@@ -72,7 +72,7 @@ module Darklang =
         Builtin.Int16.lessThanOrEqualTo a b
 
 
-      /// Returns a random 16 bit signed integer between <param start> and <param end> (inclusive)
+      /// Returns a random 16-bit signed integer between <param start> and <param end> (inclusive)
       let random (start: Int16) (``end``: Int16) : Int16 =
         Builtin.Int16.random start ``end``
 
@@ -143,6 +143,6 @@ module Darklang =
       let toString (int16: Int16) : String = Builtin.Int16.toString int16
 
 
-      /// Converts a <type Int16> to a <type Int64>. Returns {{None}} if the value is less than -32768 or greater than 32767.
+      /// Converts an <type Int16> to a <type Int64>. Returns {{None}} if the value is less than -32768 or greater than 32767.
       let fromInt64 (i: Int) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
         Builtin.Int16.fromInt64 i
