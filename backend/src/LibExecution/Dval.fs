@@ -9,13 +9,13 @@ module VT = ValueType
 
 let int (i : int) = DInt(int64 i)
 
-let int8 (i : int8) = DInt8(int8 i)
+let int8 (i : int8) = DInt8(i)
 
-let uint8 (i : uint8) = DUInt8(uint8 i)
+let uint8 (i : uint8) = DUInt8(i)
 
-let int16 (i : int16) = DInt16(int16 i)
+let int16 (i : int16) = DInt16(i)
 
-let uint16 (i : uint16) = DUInt16(uint16 i)
+let uint16 (i : uint16) = DUInt16(i)
 
 let list (typ : KnownType) (list : List<Dval>) : Dval = DList(VT.known typ, list)
 
