@@ -534,11 +534,14 @@ let parse
         && d >= (float System.UInt128.MinValue)
         && System.Double.IsInteger d
       then
-        System.UInt128.Parse(
-          d.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)
-        )
-        |> DUInt128
-        |> Ply
+        try
+          System.UInt128.Parse(
+            d.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)
+          )
+          |> DUInt128
+          |> Ply
+        with :? System.OverflowException ->
+          raiseCantMatchWithType TUInt128 j pathSoFar |> Ply
       else
         raiseCantMatchWithType TUInt128 j pathSoFar |> Ply
 

@@ -506,9 +506,8 @@ module UInt128 =
 
     (Builtin.Json.parse<UInt128> "\"42\n\"") |> err = Result.Error "Not JSON"
 
-// TODO: handle exception
-// (Builtin.Json.parse<UInt128> "340282366920938463463374607431768211456") |> err = Result.Error
-//   "Can't parse JSON `340282366920938463463374607431768211456` as type `UInt128` at path: `root`"
+    (Builtin.Json.parse<UInt128> "340282366920938463463374607431768211456") |> err = Result.Error
+      "Can't parse JSON `340282366920938463463374607431768211456` as type `UInt128` at path: `root`"
 
 
 module Float =
