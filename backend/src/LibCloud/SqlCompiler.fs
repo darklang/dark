@@ -92,6 +92,8 @@ let rec dvalToSql
     | TVariable _, DUInt16 i
     | TUInt16, DUInt16 i -> return Sql.int64 (int i), TUInt16
 
+    // TODO: Int128, UInt128
+
     | TVariable _, DFloat v
     | TFloat, DFloat v -> return Sql.double v, TFloat
 
@@ -146,6 +148,8 @@ let rec dvalToSql
     | _, DUInt8 _
     | _, DInt16 _
     | _, DUInt16 _
+    | _, DInt128 _
+    | _, DUInt128 _
     | _, DFloat _
     | _, DBool _
     | _, DString _
@@ -562,6 +566,8 @@ let rec lambdaToSql
           let name = randomString 10
           return $"(@{name})", [ name, Sql.int64 (int v) ], TUInt16
 
+        //TODO: Int128, UInt128
+
         | EBool(_, v) ->
           typecheck $"Bool {v}" TBool expectedType
           let name = randomString 10
@@ -767,6 +773,8 @@ let rec lambdaToSql
             | TUInt8 -> "smallint"
             | TInt16 -> "smallint"
             | TUInt16 -> "integer"
+            | TInt128 -> "bigint"
+            | TUInt128 -> "bigint"
             | TFloat -> "double precision"
             | TBool -> "bool"
             | TDateTime -> "timestamp with time zone"
@@ -789,6 +797,8 @@ let rec lambdaToSql
           | TUInt8
           | TInt16
           | TUInt16
+          | TInt128
+          | TUInt128
           | TFloat
           | TBool
           | TDateTime
@@ -931,6 +941,8 @@ let partiallyEvaluate
             | EUInt8 _
             | EInt16 _
             | EUInt16 _
+            | EInt128 _
+            | EUInt128 _
             | EBool _
             | EUnit _
             | EFloat _
@@ -952,6 +964,8 @@ let partiallyEvaluate
         | EUInt8 _
         | EInt16 _
         | EUInt16 _
+        | EInt128 _
+        | EUInt128 _
         | EFloat _
         | EBool _
         | EUnit _
@@ -987,6 +1001,8 @@ let partiallyEvaluate
             | EUInt8 _
             | EInt16 _
             | EUInt16 _
+            | EInt128 _
+            | EUInt128 _
             | EString _
             | EVariable _
             | EChar _

@@ -134,6 +134,8 @@ module FormatV0 =
         | KTUInt8
         | KTInt16
         | KTUInt16
+        | KTInt128
+        | KTUInt128
         | KTFloat
         | KTChar
         | KTString
@@ -160,6 +162,8 @@ module FormatV0 =
         | KTUInt8 -> RT.KTUInt8
         | KTInt16 -> RT.KTInt16
         | KTUInt16 -> RT.KTUInt16
+        | KTInt128 -> RT.KTInt128
+        | KTUInt128 -> RT.KTUInt128
         | KTFloat -> RT.KTFloat
         | KTChar -> RT.KTChar
         | KTString -> RT.KTString
@@ -193,6 +197,8 @@ module FormatV0 =
         | RT.KTUInt8 -> KTUInt8
         | RT.KTInt16 -> KTInt16
         | RT.KTUInt16 -> KTUInt16
+        | RT.KTInt128 -> KTInt128
+        | RT.KTUInt128 -> KTUInt128
         | RT.KTFloat -> KTFloat
         | RT.KTChar -> KTChar
         | RT.KTString -> KTString
@@ -247,6 +253,8 @@ module FormatV0 =
     | DUInt8 of uint8
     | DInt16 of int16
     | DUInt16 of uint16
+    | DInt128 of System.Int128
+    | DUInt128 of System.UInt128
     | DFloat of double
     | DBool of bool
     | DUnit
@@ -282,6 +290,8 @@ module FormatV0 =
     | DUInt8 i -> RT.DUInt8 i
     | DInt16 i -> RT.DInt16 i
     | DUInt16 i -> RT.DUInt16 i
+    | DInt128 i -> RT.DInt128 i
+    | DUInt128 i -> RT.DUInt128 i
     | DBool b -> RT.DBool b
     | DFloat f -> RT.DFloat f
     | DUnit -> RT.DUnit
@@ -329,6 +339,8 @@ module FormatV0 =
     | RT.DUInt8 i -> DUInt8 i
     | RT.DInt16 i -> DInt16 i
     | RT.DUInt16 i -> DUInt16 i
+    | RT.DInt128 i -> DInt128 i
+    | RT.DUInt128 i -> DUInt128 i
     | RT.DBool b -> DBool b
     | RT.DFloat f -> DFloat f
     | RT.DUnit -> DUnit
@@ -385,6 +397,8 @@ module Test =
     | RT.DUInt8 _
     | RT.DInt16 _
     | RT.DUInt16 _
+    | RT.DInt128 _
+    | RT.DUInt128 _
     | RT.DFloat _
     | RT.DUnit _
     | RT.DBool _

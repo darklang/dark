@@ -1,0 +1,10 @@
+PACKAGE.Darklang.Stdlib.Int128.add_v0 10I 9I = 19I
+PACKAGE.Darklang.Stdlib.Int128.add_v0 88I 9I = 97I
+PACKAGE.Darklang.Stdlib.Int128.add_v0 -1I 2I = 1I
+PACKAGE.Darklang.Stdlib.Int128.add_v0 1I 0I = 1I
+PACKAGE.Darklang.Stdlib.Int128.add_v0 -55I 55I = 0I
+PACKAGE.Darklang.Stdlib.Int128.add_v0 55I 55I = 110I
+PACKAGE.Darklang.Stdlib.Int128.add_v0 9223372036854775807I 2I = 9223372036854775809I
+
+PACKAGE.Darklang.Stdlib.Int128.add_v0 170141183460469231731687303715884105726I 4I = Builtin.Test.derrorMessage
+  "Out of range"

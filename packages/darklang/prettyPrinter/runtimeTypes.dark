@@ -184,6 +184,8 @@ module Darklang =
         | TUInt8 -> "UInt8"
         | TInt16 -> "Int16"
         | TUInt16 -> "UInt16"
+        | TInt128 -> "Int128"
+        | TUInt128 -> "UInt128"
         | TFloat -> "Float"
         | TChar -> "Char"
         | TString -> "String"
@@ -241,6 +243,8 @@ module Darklang =
         | KTUInt8 -> "UInt8"
         | KTInt16 -> "Int16"
         | KTUInt16 -> "UInt16"
+        | KTInt128 -> "Int128"
+        | KTUInt128 -> "UInt128"
         | KTFloat -> "Float"
         | KTChar -> "Char"
         | KTString -> "String"
@@ -321,6 +325,8 @@ module Darklang =
           | DUInt8 i -> Builtin.UInt8.toString i
           | DInt16 i -> Builtin.Int16.toString i
           | DUInt16 i -> Builtin.UInt16.toString i
+          // | DInt128 i -> Builtin.Int128.toString i
+          // | DUInt128 i -> Builtin.UInt128.toString i
 
           | DFloat f -> PACKAGE.Darklang.Stdlib.Float.toString f // CLEANUP: deal with Infinity, NegativeInfinity, and NaN
 

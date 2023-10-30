@@ -68,6 +68,10 @@ let eInt16 (i : int16) : Expr = EInt16(gid (), int16 i)
 
 let euInt16 (i : uint16) : Expr = EUInt16(gid (), uint16 i)
 
+let eInt128 (i : System.Int128) : Expr = EInt128(gid (), i)
+
+let euInt128 (i : System.UInt128) : Expr = EUInt128(gid (), i)
+
 let eBool (b : bool) : Expr = EBool(gid (), b)
 
 let eFloat (sign : Sign) (whole : string) (fraction : string) : Expr =
