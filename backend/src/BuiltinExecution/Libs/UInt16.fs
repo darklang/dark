@@ -339,7 +339,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DInt a ] ->
           if
-            a < int64 System.UInt16.MinValue || a > int64 System.UInt16.MaxValue
+            (a < int64 System.UInt16.MinValue) || (a > int64 System.UInt16.MaxValue)
           then
             Dval.optionNone KTUInt16 |> Ply
           else
