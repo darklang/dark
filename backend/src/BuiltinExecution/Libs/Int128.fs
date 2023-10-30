@@ -42,7 +42,78 @@ module ParseError =
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "add" 0
+  [ { name = fn "mod" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
+      returnType = TInt128
+      description =
+        "Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+
+        The modulus <param b> must be greater than 0.
+
+        Use <fn Int128.remainder> if you want the remainder after division, which has
+        a different behavior for negative numbers."
+      fn =
+        (function
+        | state, _, [ DInt128 v; DInt128 m ] ->
+          if m = System.Int128.Zero then
+            Int.IntRuntimeError.Error.ZeroModulus
+            |> Int.IntRuntimeError.RTE.toRuntimeError
+            |> raiseRTE state.caller
+            |> Ply
+          else if m < System.Int128.Zero then
+            Int.IntRuntimeError.Error.NegativeModulus
+            |> Int.IntRuntimeError.RTE.toRuntimeError
+            |> raiseRTE state.caller
+            |> Ply
+          else
+            let result = v % m
+            let result = if result < System.Int128.Zero then m + result else result
+            Ply(DInt128(result))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "remainder" 0
+      typeParams = []
+      parameters = [ Param.make "value" TInt128 ""; Param.make "divisor" TInt128 "" ]
+      returnType = TypeReference.result TInt128 TString
+      description =
+        "Returns the integer remainder left over after dividing <param value> by
+        <param divisor>, as a <type Result>.
+
+        For example, {{Int128.remainder 15 6 == Ok 3}}. The remainder will be
+        negative only if {{<var value> < 0}}.
+
+        The sign of <param divisor> doesn't influence the outcome.
+
+        Returns an {{Error}} if <param divisor> is {{0}}."
+      fn =
+        let resultOk r = Dval.resultOk KTInt128 KTString r |> Ply
+        (function
+        | state, _, [ DInt128 v; DInt128 d ] ->
+          (try
+            v % d |> DInt128 |> resultOk
+           with e ->
+             if d = System.Int128.Zero then
+               Int.IntRuntimeError.Error.DivideByZeroError
+               |> Int.IntRuntimeError.RTE.toRuntimeError
+               |> raiseRTE state.caller
+               |> Ply
+             else
+               Exception.raiseInternal
+                 "unexpected failure case in Int128.remainder"
+                 [ "v", v; "d", d ]
+                 e)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "add" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TInt128
@@ -158,7 +229,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
 
 
     { name = fn "greaterThan" 0

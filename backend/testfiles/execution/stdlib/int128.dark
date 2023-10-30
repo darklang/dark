@@ -36,6 +36,23 @@ PACKAGE.Darklang.Stdlib.Int128.negate_v0 -0I = 0I
 PACKAGE.Darklang.Stdlib.Int128.negate_v0 -170141183460469231731687303715884105728I = Builtin.Test.derrorMessage
   "Out of range"
 
+PACKAGE.Darklang.Stdlib.Int128.remainder_v0 15I 6I = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  3I
+
+PACKAGE.Darklang.Stdlib.Int128.remainder_v0 20I 8I = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  4I
+
+PACKAGE.Darklang.Stdlib.Int128.remainder_v0 -20I 8I = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -4I
+
+PACKAGE.Darklang.Stdlib.Int128.remainder_v0 -20I -8I = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -4I
+
+PACKAGE.Darklang.Stdlib.Int128.remainder_v0 -15I 6I = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  -3I
+
+PACKAGE.Darklang.Stdlib.Int128.remainder_v0 5I 0I = Builtin.Test.derrorMessage
+  "Division by zero"
 
 PACKAGE.Darklang.Stdlib.Int128.add_v0 10I 9I = 19I
 PACKAGE.Darklang.Stdlib.Int128.add_v0 88I 9I = 97I
@@ -107,6 +124,22 @@ PACKAGE.Darklang.Stdlib.Int128.toFloat_v0 (2I) = 2.0
 PACKAGE.Darklang.Stdlib.Int128.toFloat_v0 (170141183460469231731687303715884105727I) = 170141183460469231731687303715884105727.0
 PACKAGE.Darklang.Stdlib.Int128.toFloat_v0 (-170141183460469231731687303715884105728I) = -170141183460469231731687303715884105728.0
 PACKAGE.Darklang.Stdlib.Int128.toFloat_v0 (-10I) = -10.0
+
+PACKAGE.Darklang.Stdlib.Int128.sqrt_v0 4I = 2.0
+PACKAGE.Darklang.Stdlib.Int128.sqrt_v0 100I = 10.0
+PACKAGE.Darklang.Stdlib.Int128.sqrt_v0 86I = 9.273618495495704
+
+PACKAGE.Darklang.Stdlib.Int128.mod_v0 15I 5I = 0I
+PACKAGE.Darklang.Stdlib.Int128.mod_v0 15I 6I = 3I
+PACKAGE.Darklang.Stdlib.Int128.mod_v0 0I 15I = 0I
+PACKAGE.Darklang.Stdlib.Int128.mod_v0 (-1I) 2I = 1I
+PACKAGE.Darklang.Stdlib.Int128.mod_v0 (-128I) 53I = 31I
+PACKAGE.Darklang.Stdlib.Int128.mod_v0 127I 3I = 1I
+
+PACKAGE.Darklang.Stdlib.Int128.mod_v0 5I 0I = Builtin.Test.derrorMessage "Zero modulus"
+
+PACKAGE.Darklang.Stdlib.Int128.mod_v0 5I (-5I) = Builtin.Test.derrorMessage
+  "Negative modulus"
 
 PACKAGE.Darklang.Stdlib.Int128.parse_v0 "0" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
   0I
