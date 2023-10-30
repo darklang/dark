@@ -27,7 +27,7 @@ module Darklang =
         Builtin.Int16.remainder value divisor
 
 
-      /// Adds two 16 bit signed integers together
+      /// Adds two 16-bit signed integers together
       let add (a: Int16) (b: Int16) : Int16 = Builtin.Int16.add a b
 
 
