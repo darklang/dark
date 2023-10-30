@@ -1,18 +1,25 @@
 PACKAGE.Darklang.Stdlib.Int128.absoluteValue_v0 -5I = 5I
 PACKAGE.Darklang.Stdlib.Int128.absoluteValue_v0 5I = 5I
 
-PACKAGE.Darklang.Stdlib.Int128.absoluteValue_v0 -170141183460469231731687303715884105728I = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int128.absoluteValue_v0
+  -170141183460469231731687303715884105728I = Builtin.Test.derrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.Int128.max_v0 5I 6I = 6I
 PACKAGE.Darklang.Stdlib.Int128.max_v0 10I 1I = 10I
 PACKAGE.Darklang.Stdlib.Int128.max_v0 -5I 6I = 6I
-PACKAGE.Darklang.Stdlib.Int128.max_v0 170141183460469231731687303715884105727I -170141183460469231731687303715884105728I = 170141183460469231731687303715884105727I
+
+PACKAGE.Darklang.Stdlib.Int128.max_v0
+  170141183460469231731687303715884105727I
+  -170141183460469231731687303715884105728I = 170141183460469231731687303715884105727I
 
 PACKAGE.Darklang.Stdlib.Int128.min_v0 5I 6I = 5I
 PACKAGE.Darklang.Stdlib.Int128.min_v0 50I -10I = -10I
 PACKAGE.Darklang.Stdlib.Int128.min_v0 -5I 6I = -5I
-PACKAGE.Darklang.Stdlib.Int128.min_v0 170141183460469231731687303715884105727I -170141183460469231731687303715884105728I = -170141183460469231731687303715884105728I
+
+PACKAGE.Darklang.Stdlib.Int128.min_v0
+  170141183460469231731687303715884105727I
+  -170141183460469231731687303715884105728I = -170141183460469231731687303715884105728I
 
 
 PACKAGE.Darklang.Stdlib.Int128.clamp_v0 -5I -2I 5I = -2I
@@ -73,7 +80,9 @@ PACKAGE.Darklang.Stdlib.Int128.subtract_v0 0I 1I = -1I
 PACKAGE.Darklang.Stdlib.Int128.subtract_v0 1I 0I = 1I
 PACKAGE.Darklang.Stdlib.Int128.subtract_v0 -55I -55I = 0I
 
-PACKAGE.Darklang.Stdlib.Int128.subtract_v0 -55I 170141183460469231731687303715884105726I = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int128.subtract_v0
+  -55I
+  170141183460469231731687303715884105726I = Builtin.Test.derrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.Int128.multiply_v0 8I 8I = 64I
@@ -87,12 +96,17 @@ PACKAGE.Darklang.Stdlib.Int128.divide_v0 0I 1I = 0I
 PACKAGE.Darklang.Stdlib.Int128.divide_v0 1I 0I = Builtin.Test.derrorMessage
   "Division by zero"
 
-PACKAGE.Darklang.Stdlib.Int128.divide_v0 -170141183460469231731687303715884105728I -1I = Builtin.Test.derrorMessage
-  "Out of range"
+PACKAGE.Darklang.Stdlib.Int128.divide_v0
+  -170141183460469231731687303715884105728I
+  -1I = Builtin.Test.derrorMessage "Out of range"
 
 
 PACKAGE.Darklang.Stdlib.Int128.greaterThan_v0 (20I) (1I) = true
-PACKAGE.Darklang.Stdlib.Int128.greaterThan_v0 (20I) (170141183460469231731687303715884105727I) = false
+
+PACKAGE.Darklang.Stdlib.Int128.greaterThan_v0
+  (20I)
+  (170141183460469231731687303715884105727I) = false
+
 PACKAGE.Darklang.Stdlib.Int128.greaterThanOrEqualTo_v0 (0I) (1I) = false
 PACKAGE.Darklang.Stdlib.Int128.greaterThanOrEqualTo_v0 (1I) (0I) = true
 PACKAGE.Darklang.Stdlib.Int128.greaterThanOrEqualTo_v0 (6I) (1I) = true
@@ -100,24 +114,33 @@ PACKAGE.Darklang.Stdlib.Int128.greaterThanOrEqualTo_v0 (6I) (8I) = false
 PACKAGE.Darklang.Stdlib.Int128.greaterThanOrEqualTo_v0 (-5I) (-20I) = true
 PACKAGE.Darklang.Stdlib.Int128.greaterThanOrEqualTo_v0 (-20I) (-1I) = false
 PACKAGE.Darklang.Stdlib.Int128.greaterThanOrEqualTo_v0 (-20I) (-20I) = true
-PACKAGE.Darklang.Stdlib.Int128.greaterThanOrEqualTo_v0 (-170141183460469231731687303715884105728I) (-20I) = false
+
+PACKAGE.Darklang.Stdlib.Int128.greaterThanOrEqualTo_v0
+  (-170141183460469231731687303715884105728I)
+  (-20I) = false
 
 PACKAGE.Darklang.Stdlib.Int128.lessThanOrEqualTo_v0 (6I) (8I) = true
 PACKAGE.Darklang.Stdlib.Int128.lessThanOrEqualTo_v0 (10I) (1I) = false
 PACKAGE.Darklang.Stdlib.Int128.lessThanOrEqualTo_v0 (0I) (1I) = true
 PACKAGE.Darklang.Stdlib.Int128.lessThanOrEqualTo_v0 (1I) (0I) = false
-PACKAGE.Darklang.Stdlib.Int128.lessThan_v0 (-170141183460469231731687303715884105728I) (170141183460469231731687303715884105727I) = true
+
+PACKAGE.Darklang.Stdlib.Int128.lessThan_v0
+  (-170141183460469231731687303715884105728I)
+  (170141183460469231731687303715884105727I) = true
 
 PACKAGE.Darklang.Stdlib.Int128.lessThan_v0 (6I) (8I) = true
 PACKAGE.Darklang.Stdlib.Int128.lessThan_v0 (10I) (1I) = false
 PACKAGE.Darklang.Stdlib.Int128.lessThan_v0 (0I) (1I) = true
 PACKAGE.Darklang.Stdlib.Int128.lessThan_v0 (1I) (0I) = false
-PACKAGE.Darklang.Stdlib.Int128.lessThan_v0 (-170141183460469231731687303715884105728I) (170141183460469231731687303715884105727I) = true
+
+PACKAGE.Darklang.Stdlib.Int128.lessThan_v0
+  (-170141183460469231731687303715884105728I)
+  (170141183460469231731687303715884105727I) = true
 
 PACKAGE.Darklang.Stdlib.Int128.toString (0I) = "0"
 PACKAGE.Darklang.Stdlib.Int128.toString (1I) = "1"
 PACKAGE.Darklang.Stdlib.Int128.toString (-1I) = "-1"
-PACKAGE.Darklang.Stdlib.Int128.toString (-170141183460469231731687303715884105728I) ="-170141183460469231731687303715884105728"
+PACKAGE.Darklang.Stdlib.Int128.toString (-170141183460469231731687303715884105728I) = "-170141183460469231731687303715884105728"
 PACKAGE.Darklang.Stdlib.Int128.toString (170141183460469231731687303715884105727I) = "170141183460469231731687303715884105727"
 
 PACKAGE.Darklang.Stdlib.Int128.toFloat_v0 (2I) = 2.0
@@ -136,30 +159,46 @@ PACKAGE.Darklang.Stdlib.Int128.mod_v0 (-1I) 2I = 1I
 PACKAGE.Darklang.Stdlib.Int128.mod_v0 (-128I) 53I = 31I
 PACKAGE.Darklang.Stdlib.Int128.mod_v0 127I 3I = 1I
 
-PACKAGE.Darklang.Stdlib.Int128.mod_v0 5I 0I = Builtin.Test.derrorMessage "Zero modulus"
+PACKAGE.Darklang.Stdlib.Int128.mod_v0 5I 0I = Builtin.Test.derrorMessage
+  "Zero modulus"
 
 PACKAGE.Darklang.Stdlib.Int128.mod_v0 5I (-5I) = Builtin.Test.derrorMessage
   "Negative modulus"
 
-PACKAGE.Darklang.Stdlib.Int128.parse_v0 "0" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  0I
-)
+PACKAGE.Darklang.Stdlib.Int128.parse_v0 "0" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(0I)
 
-PACKAGE.Darklang.Stdlib.Int128.parse_v0 "1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  1I
-)
+PACKAGE.Darklang.Stdlib.Int128.parse_v0 "1" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(1I)
 
-PACKAGE.Darklang.Stdlib.Int128.parse_v0 " 1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  1I
-)
+PACKAGE.Darklang.Stdlib.Int128.parse_v0 " 1" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(1I)
 
-PACKAGE.Darklang.Stdlib.Int128.parse_v0 "1 " = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  1I
-)
+PACKAGE.Darklang.Stdlib.Int128.parse_v0 "1 " = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(1I)
 
-PACKAGE.Darklang.Stdlib.Int128.parse_v0 "+1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  1I
-)
+PACKAGE.Darklang.Stdlib.Int128.parse_v0 "+1" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(1I)
 
 PACKAGE.Darklang.Stdlib.Int128.parse_v0 " +1 " = PACKAGE
   .Darklang
@@ -168,9 +207,12 @@ PACKAGE.Darklang.Stdlib.Int128.parse_v0 " +1 " = PACKAGE
   .Result
   .Ok(1I)
 
-PACKAGE.Darklang.Stdlib.Int128.parse_v0 "-1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  -1I
-)
+PACKAGE.Darklang.Stdlib.Int128.parse_v0 "-1" = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Ok(-1I)
 
 PACKAGE.Darklang.Stdlib.Int128.parse_v0 "078" = PACKAGE
   .Darklang

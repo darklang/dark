@@ -94,7 +94,10 @@ module Darklang =
 
       /// Returns the lower of <param a> and <param b>
       let min (a: Int128) (b: Int128) : Int128 =
-        if (PACKAGE.Darklang.Stdlib.Int128.lessThan a b) then a else b
+        if (PACKAGE.Darklang.Stdlib.Int128.lessThan a b) then
+          a
+        else
+          b
 
 
       /// If <param value> is within the range given by <param limitA> and <param

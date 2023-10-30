@@ -158,25 +158,25 @@ module Int128 =
    | var -> "fail") = "pass"
 
   (match 6I with
-    | 6I -> "pass"
-    | 5I -> "fail"
-    | var -> "fail") = "pass"
+   | 6I -> "pass"
+   | 5I -> "fail"
+   | var -> "fail") = "pass"
 
   (match 6I with
-    | var -> "pass"
-    | 6I -> "fail"
-    | 5I -> "fail") = "pass"
+   | var -> "pass"
+   | 6I -> "fail"
+   | 5I -> "fail") = "pass"
 
   (match 170141183460469231731687303715884105727I with
-    | 0I -> "fail"
-    | 170141183460469231731687303715884105727I -> "pass") = "pass"
+   | 0I -> "fail"
+   | 170141183460469231731687303715884105727I -> "pass") = "pass"
 
   (match 6I with
-    | 6.0 -> "fail") = Builtin.Test.derrorMessage
+   | 6.0 -> "fail") = Builtin.Test.derrorMessage
     "Cannot match Int128 value 6 with a Float pattern"
 
   (match 6.0 with
-    | 6I -> "fail") = Builtin.Test.derrorMessage
+   | 6I -> "fail") = Builtin.Test.derrorMessage
     "Cannot match Float value 6.0 with an Int128 pattern"
 
 
