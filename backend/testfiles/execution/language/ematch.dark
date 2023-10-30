@@ -151,33 +151,61 @@ module UInt16 =
 
 
 module Int128 =
-  (match 6I with
-   | 5I -> "fail"
-   | -6I -> "fail"
-   | 6I -> "pass"
+  (match 6Q with
+   | 5Q -> "fail"
+   | -6Q -> "fail"
+   | 6Q -> "pass"
    | var -> "fail") = "pass"
 
-  (match 6I with
-   | 6I -> "pass"
-   | 5I -> "fail"
+  (match 6Q with
+   | 6Q -> "pass"
+   | 5Q -> "fail"
    | var -> "fail") = "pass"
 
-  (match 6I with
+  (match 6Q with
    | var -> "pass"
-   | 6I -> "fail"
-   | 5I -> "fail") = "pass"
+   | 6Q -> "fail"
+   | 5Q -> "fail") = "pass"
 
-  (match 170141183460469231731687303715884105727I with
-   | 0I -> "fail"
-   | 170141183460469231731687303715884105727I -> "pass") = "pass"
+  (match 170141183460469231731687303715884105727Q with
+   | 0Q -> "fail"
+   | 170141183460469231731687303715884105727Q -> "pass") = "pass"
 
-  (match 6I with
+  (match 6Q with
    | 6.0 -> "fail") = Builtin.Test.derrorMessage
     "Cannot match Int128 value 6 with a Float pattern"
 
   (match 6.0 with
-   | 6I -> "fail") = Builtin.Test.derrorMessage
+   | 6Q -> "fail") = Builtin.Test.derrorMessage
     "Cannot match Float value 6.0 with an Int128 pattern"
+
+module UInt128 =
+  (match 6Z with
+   | 5Z -> "fail"
+   | 6Z -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6Z with
+   | 6Z -> "pass"
+   | 5Z -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6Z with
+   | var -> "pass"
+   | 6Z -> "fail"
+   | 5Z -> "fail") = "pass"
+
+  (match 340282366920938463463374607431768211455Z with
+   | 0Z -> "fail"
+   | 340282366920938463463374607431768211455Z -> "pass") = "pass"
+
+  (match 6Z with
+   | 6.0 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match UInt128 value 6 with a Float pattern"
+
+  (match 6.0 with
+   | 6Z -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Float value 6.0 with an UInt128 pattern"
 
 
 module String =

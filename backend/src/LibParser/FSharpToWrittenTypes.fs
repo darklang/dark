@@ -214,11 +214,17 @@ module MatchPattern =
     | SynPat.Const(SynConst.Int16 n, _) -> WT.MPInt16(id, int16 n)
     | SynPat.Const(SynConst.UInt16 n, _) -> WT.MPUInt16(id, uint16 n)
 
-    | SynPat.Const(SynConst.UserNum(s, "I"), _) ->
+    | SynPat.Const(SynConst.UserNum(s, "Q"), _) ->
       match System.Int128.TryParse(s) with
-      | true, int128 -> WT.MPInt128(gid (), int128)
+      | true, int128 -> WT.MPInt128(id, int128)
       | false, _ ->
         raiseParserError "Failed to parse Int128" [ "pat", pat ] (Some pat.Range)
+
+    | SynPat.Const(SynConst.UserNum(s, "Z"), _) ->
+      match System.UInt128.TryParse(s) with
+      | true, uint128 -> WT.MPUInt128(id, uint128)
+      | false, _ ->
+        raiseParserError "Failed to parse UInt128" [ "pat", pat ] (Some pat.Range)
 
     | SynPat.Const(SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
@@ -358,11 +364,19 @@ module Expr =
     | SynExpr.Const(SynConst.Byte n, _) -> WT.EUInt8(id, uint8 n)
     | SynExpr.Const(SynConst.Int16 n, _) -> WT.EInt16(id, int16 n)
     | SynExpr.Const(SynConst.UInt16 n, _) -> WT.EUInt16(id, uint16 n)
-    | SynExpr.Const(SynConst.UserNum(s, "I"), _) ->
+
+    | SynExpr.Const(SynConst.UserNum(s, "Q"), _) ->
       match System.Int128.TryParse(s) with
       | true, int128 -> WT.EInt128(id, int128)
       | false, _ ->
         raiseParserError "Failed to parse Int128" [ "ast", ast ] (Some ast.Range)
+
+    | SynExpr.Const(SynConst.UserNum(s, "Z"), _) ->
+      match System.UInt128.TryParse(s) with
+      | true, uint128 -> WT.EUInt128(id, uint128)
+      | false, _ ->
+        raiseParserError "Failed to parse UInt128" [ "ast", ast ] (Some ast.Range)
+
     | SynExpr.Const(SynConst.Char c, _) -> WT.EChar(id, string c)
     | SynExpr.Const(SynConst.Bool b, _) -> WT.EBool(id, b)
     | SynExpr.Const(SynConst.Double d, _) ->

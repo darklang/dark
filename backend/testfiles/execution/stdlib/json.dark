@@ -405,26 +405,26 @@ module UInt16 =
 
 module Int128 =
   module Basic =
-    Builtin.Json.serialize<Int128> 0I = "0"
-    Builtin.Json.serialize<Int128> 12345I = "12345"
-    Builtin.Json.serialize<Int128> -12345I = "-12345"
-    Builtin.Json.parse<Int128> "0" = Result.Ok 0I
-    Builtin.Json.parse<Int128> "0.0" = Result.Ok 0I
-    Builtin.Json.parse<Int128> "-0.0" = Result.Ok 0I
-    Builtin.Json.parse<Int128> "-1.0" = Result.Ok(-1I)
-    Builtin.Json.parse<Int128> "1.2E2" = Result.Ok 120I
-    Builtin.Json.parse<Int128> "1.2E+2" = Result.Ok 120I
-    Builtin.Json.parse<Int128> "1200E-1" = Result.Ok 120I
+    Builtin.Json.serialize<Int128> 0Q = "0"
+    Builtin.Json.serialize<Int128> 12345Q = "12345"
+    Builtin.Json.serialize<Int128> -12345Q = "-12345"
+    Builtin.Json.parse<Int128> "0" = Result.Ok 0Q
+    Builtin.Json.parse<Int128> "0.0" = Result.Ok 0Q
+    Builtin.Json.parse<Int128> "-0.0" = Result.Ok 0Q
+    Builtin.Json.parse<Int128> "-1.0" = Result.Ok(-1Q)
+    Builtin.Json.parse<Int128> "1.2E2" = Result.Ok 120Q
+    Builtin.Json.parse<Int128> "1.2E+2" = Result.Ok 120Q
+    Builtin.Json.parse<Int128> "1200E-1" = Result.Ok 120Q
 
   module Int128Limits =
-    Builtin.Json.serialize<Int128> -170141183460469231731687303715884105728I = "-170141183460469231731687303715884105728"
-    Builtin.Json.serialize<Int128> 170141183460469231731687303715884105727I = "170141183460469231731687303715884105727"
+    Builtin.Json.serialize<Int128> -170141183460469231731687303715884105728Q = "-170141183460469231731687303715884105728"
+    Builtin.Json.serialize<Int128> 170141183460469231731687303715884105727Q = "170141183460469231731687303715884105727"
 
     Builtin.Json.parse<Int128> "-170141183460469231731687303715884105728" = Result.Ok
-      -170141183460469231731687303715884105728I
+      -170141183460469231731687303715884105728Q
 
     Builtin.Json.parse<Int128> "170141183460469231731687303715884105727" = Result.Ok
-      170141183460469231731687303715884105727I
+      170141183460469231731687303715884105727Q
 
   module Errors =
     (Builtin.Json.parse<Int128> " ") |> err = Result.Error "Not JSON"
@@ -456,10 +456,59 @@ module Int128 =
 
     // (-1.7014118346046923E+38) this result is out of range for Int128 and is wrapped around to the min value
     Builtin.Json.parse<Int128> "-170141183460469231731687303715884105800" = Result.Ok
-      -170141183460469231731687303715884105728I
+      -170141183460469231731687303715884105728Q
 
     (Builtin.Json.parse<Int128> "170141183460469231731687303715884105800") |> err = Result.Error
       "Can't parse JSON `170141183460469231731687303715884105800` as type `Int128` at path: `root`"
+
+module UInt128 =
+  module Basic =
+    Builtin.Json.serialize<UInt128> 0Z = "0"
+    Builtin.Json.serialize<UInt128> 12345Z = "12345"
+    Builtin.Json.parse<UInt128> "0" = Result.Ok 0Z
+    Builtin.Json.parse<UInt128> "0.0" = Result.Ok 0Z
+    Builtin.Json.parse<UInt128> "-0.0" = Result.Ok 0Z
+    Builtin.Json.parse<UInt128> "1.2E2" = Result.Ok 120Z
+    Builtin.Json.parse<UInt128> "1.2E+2" = Result.Ok 120Z
+    Builtin.Json.parse<UInt128> "1200E-1" = Result.Ok 120Z
+
+  module UInt128Limits =
+    Builtin.Json.serialize<UInt128> 0Z = "0"
+
+    Builtin.Json.parse<UInt128> "340282366920938463463374607431768211455" = Result.Ok
+      340282366920938463463374607431768211455Z
+
+  module Errors =
+    (Builtin.Json.parse<UInt128> " ") |> err = Result.Error "Not JSON"
+    (Builtin.Json.parse<UInt128> "4a") |> err = Result.Error "Not JSON"
+    (Builtin.Json.parse<UInt128> "- 42") |> err = Result.Error "Not JSON"
+
+    (Builtin.Json.parse<UInt128> "null") |> err = Result.Error
+      "Can't parse JSON `null` as type `UInt128` at path: `root`"
+
+    (Builtin.Json.parse<UInt128> "true") |> err = Result.Error
+      "Can't parse JSON `true` as type `UInt128` at path: `root`"
+
+    (Builtin.Json.parse<UInt128> "false") |> err = Result.Error
+      "Can't parse JSON `false` as type `UInt128` at path: `root`"
+
+    (Builtin.Json.parse<UInt128> "\"42\"") |> err = Result.Error
+      "Can't parse JSON `\"42\"` as type `UInt128` at path: `root`"
+
+    (Builtin.Json.parse<UInt128> "[42]") |> err = Result.Error
+      "Can't parse JSON `[42]` as type `UInt128` at path: `root`"
+
+    (Builtin.Json.parse<UInt128> "{ \"key\": 42 }") |> err = Result.Error
+      "Can't parse JSON `{ \"key\": 42 }` as type `UInt128` at path: `root`"
+
+    (Builtin.Json.parse<UInt128> "42.5") |> err = Result.Error
+      "Can't parse JSON `42.5` as type `UInt128` at path: `root`"
+
+    (Builtin.Json.parse<UInt128> "\"42\n\"") |> err = Result.Error "Not JSON"
+
+// TODO: handle exception
+// (Builtin.Json.parse<UInt128> "340282366920938463463374607431768211456") |> err = Result.Error
+//   "Can't parse JSON `340282366920938463463374607431768211456` as type `UInt128` at path: `root`"
 
 
 module Float =
