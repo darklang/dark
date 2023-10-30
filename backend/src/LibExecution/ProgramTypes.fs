@@ -334,6 +334,8 @@ type MatchPattern =
   | MPInt of id * int64
   | MPInt8 of id * int8
   | MPUInt8 of id * uint8
+  | MPInt16 of id * int16
+  | MPUInt16 of id * uint16
   | MPBool of id * bool
   | MPChar of id * string
   | MPString of id * string
@@ -375,6 +377,8 @@ type TypeReference =
   | TInt
   | TInt8
   | TUInt8
+  | TInt16
+  | TUInt16
   | TFloat
   | TBool
   | TUnit
@@ -402,6 +406,8 @@ type Expr =
   | EInt of id * int64
   | EInt8 of id * int8
   | EUInt8 of id * uint8
+  | EInt16 of id * int16
+  | EUInt16 of id * uint16
   | EBool of id * bool
   | EString of id * List<StringSegment>
   | EUnit of id
@@ -515,6 +521,8 @@ module Expr =
     | EInt(id, _)
     | EInt8(id, _)
     | EUInt8(id, _)
+    | EInt16(id, _)
+    | EUInt16(id, _)
     | EBool(id, _)
     | EString(id, _)
     | EChar(id, _)
@@ -635,6 +643,8 @@ type Const =
   | CInt of int64
   | CInt8 of int8
   | CUInt8 of uint8
+  | CInt16 of int16
+  | CUInt16 of uint16
   | CBool of bool
   | CString of string
   | CChar of string

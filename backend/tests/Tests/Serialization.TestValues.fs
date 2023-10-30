@@ -61,6 +61,8 @@ module RuntimeTypes =
     [ RT.TInt
       RT.TInt8
       RT.TUInt8
+      RT.TInt16
+      RT.TUInt16
       RT.TFloat
       RT.TBool
       RT.TUnit
@@ -107,7 +109,9 @@ module RuntimeTypes =
       RT.MPEnum(1234UL, "Some", [ RT.MPVariable(746385UL, "var") ])
       RT.MPInt(756385UL, 7857395)
       RT.MPInt8(756386UL, 127y)
-      RT.MPUInt8(756386UL, 255uy)
+      RT.MPUInt8(756387UL, 255uy)
+      RT.MPInt16(756388UL, 32767s)
+      RT.MPUInt16(756389UL, 65535us)
       RT.MPBool(8759375UL, true)
       RT.MPChar(4875843UL, "8jgkdjsfg")
       RT.MPString(857395UL, "iklfijo13294")
@@ -133,7 +137,9 @@ module RuntimeTypes =
   let exprs : List<RT.Expr> =
     [ RT.EInt(124151234UL, 7)
       RT.EInt8(124151235UL, 7y)
-      RT.EUInt8(124151235UL, 7uy)
+      RT.EUInt8(124151236UL, 7uy)
+      RT.EInt16(124151237UL, 7s)
+      RT.EUInt16(124151238UL, 7us)
       RT.EBool(158584UL, false)
       RT.EString(
         86749UL,
@@ -247,6 +253,8 @@ module RuntimeTypes =
       known RT.KnownType.KTInt
       known RT.KnownType.KTInt8
       known RT.KnownType.KTUInt8
+      known RT.KnownType.KTInt16
+      known RT.KnownType.KTUInt16
       known RT.KnownType.KTFloat
       known RT.KnownType.KTChar
       known RT.KnownType.KTString
@@ -321,6 +329,8 @@ module ProgramTypes =
       PT.MPInt(74816UL, 84871728)
       PT.MPInt8(74817UL, 127y)
       PT.MPUInt8(74818UL, 255uy)
+      PT.MPInt16(74819UL, 32767s)
+      PT.MPUInt16(74820UL, 65535us)
       PT.MPBool(66453UL, false)
       PT.MPChar(83749178UL, "w")
       PT.MPString(817201237UL, "testing testing 123")
@@ -353,6 +363,8 @@ module ProgramTypes =
         PT.TUnit
         PT.TInt8
         PT.TUInt8
+        PT.TInt16
+        PT.TUInt16
         PT.TString
         PT.TList PT.TInt
         PT.TTuple(PT.TBool, PT.TBool, [ PT.TBool ])
@@ -799,7 +811,17 @@ module ProgramTypes =
                                           831830075UL,
                                           PT.LPVariable(7567125UL, "uint8"),
                                           PT.EUInt8(7567125UL, 255uy),
-                                          e
+                                          PT.ELet(
+                                            831830076UL,
+                                            PT.LPVariable(7567126UL, "int16"),
+                                            PT.EInt16(7567126UL, 32767s),
+                                            PT.ELet(
+                                              831830077UL,
+                                              PT.LPVariable(7567127UL, "uint16"),
+                                              PT.EUInt16(7567128UL, 65535us),
+                                              e
+                                            )
+                                          )
                                         )
                                       )
                                     )
@@ -831,7 +853,9 @@ module ProgramTypes =
         PT.Const.CChar("c")
         PT.Const.CUnit
         PT.Const.CInt8(4y)
-        PT.Const.CUInt8(3uy) ]
+        PT.Const.CUInt8(3uy)
+        PT.Const.CInt16(4s)
+        PT.Const.CUInt16(3us) ]
     )
 
 

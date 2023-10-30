@@ -304,6 +304,8 @@ module TypeReference =
       | TInt -> "TInt", []
       | TInt8 -> "TInt8", []
       | TUInt8 -> "TUInt8", []
+      | TInt16 -> "TInt16", []
+      | TUInt16 -> "TUInt16", []
       | TFloat -> "TFloat", []
       | TChar -> "TChar", []
       | TString -> "TString", []
@@ -341,6 +343,8 @@ module TypeReference =
     | DEnum(_, _, [], "TInt", []) -> TInt
     | DEnum(_, _, [], "TInt8", []) -> TInt8
     | DEnum(_, _, [], "TUInt8", []) -> TUInt8
+    | DEnum(_, _, [], "TInt16", []) -> TInt16
+    | DEnum(_, _, [], "TUInt16", []) -> TUInt16
     | DEnum(_, _, [], "TFloat", []) -> TFloat
     | DEnum(_, _, [], "TChar", []) -> TChar
     | DEnum(_, _, [], "TString", []) -> TString
@@ -414,6 +418,8 @@ module MatchPattern =
       | MPInt(id, i) -> "MPInt", [ DInt(int64 id); DInt i ]
       | MPInt8(id, i) -> "MPInt8", [ DInt(int64 id); DInt8 i ]
       | MPUInt8(id, i) -> "MPUInt8", [ DInt(int64 id); DUInt8 i ]
+      | MPInt16(id, i) -> "MPInt16", [ DInt(int64 id); DInt16 i ]
+      | MPUInt16(id, i) -> "MPUInt16", [ DInt(int64 id); DUInt16 i ]
       | MPFloat(id, f) -> "MPFloat", [ DInt(int64 id); DFloat f ]
       | MPChar(id, c) -> "MPChar", [ DInt(int64 id); DString c ]
       | MPString(id, s) -> "MPString", [ DInt(int64 id); DString s ]
@@ -449,6 +455,8 @@ module MatchPattern =
     | DEnum(_, _, [], "MPInt", [ DInt id; DInt i ]) -> MPInt(uint64 id, i)
     | DEnum(_, _, [], "MPInt8", [ DInt id; DInt8 i ]) -> MPInt8(uint64 id, i)
     | DEnum(_, _, [], "MPUInt8", [ DInt id; DUInt8 i ]) -> MPUInt8(uint64 id, i)
+    | DEnum(_, _, [], "MPInt16", [ DInt id; DInt16 i ]) -> MPInt16(uint64 id, i)
+    | DEnum(_, _, [], "MPUInt16", [ DInt id; DUInt16 i ]) -> MPUInt16(uint64 id, i)
     | DEnum(_, _, [], "MPFloat", [ DInt id; DFloat f ]) -> MPFloat(uint64 id, f)
     | DEnum(_, _, [], "MPChar", [ DInt id; DString c ]) -> MPChar(uint64 id, c)
     | DEnum(_, _, [], "MPString", [ DInt id; DString s ]) -> MPString(uint64 id, s)
@@ -502,6 +510,8 @@ module Expr =
       | EInt(id, i) -> "EInt", [ DInt(int64 id); DInt i ]
       | EInt8(id, i) -> "EInt8", [ DInt(int64 id); DInt8 i ]
       | EUInt8(id, i) -> "EUInt8", [ DInt(int64 id); DUInt8 i ]
+      | EInt16(id, i) -> "EInt16", [ DInt(int64 id); DInt16 i ]
+      | EUInt16(id, i) -> "EUInt16", [ DInt(int64 id); DUInt16 i ]
       | EFloat(id, f) -> "EFloat", [ DInt(int64 id); DFloat f ]
       | EChar(id, c) -> "EChar", [ DInt(int64 id); DString c ]
       | EString(id, segments) ->
@@ -638,6 +648,8 @@ module Expr =
     | DEnum(_, _, [], "EInt", [ DInt id; DInt i ]) -> EInt(uint64 id, i)
     | DEnum(_, _, [], "EInt8", [ DInt id; DInt8 i ]) -> EInt8(uint64 id, i)
     | DEnum(_, _, [], "EUInt8", [ DInt id; DUInt8 i ]) -> EUInt8(uint64 id, i)
+    | DEnum(_, _, [], "EInt16", [ DInt id; DInt16 i ]) -> EInt16(uint64 id, i)
+    | DEnum(_, _, [], "EUInt16", [ DInt id; DUInt16 i ]) -> EUInt16(uint64 id, i)
     | DEnum(_, _, [], "EFloat", [ DInt id; DFloat f ]) -> EFloat(uint64 id, f)
     | DEnum(_, _, [], "EChar", [ DInt id; DString c ]) -> EChar(uint64 id, c)
     | DEnum(_, _, [], "EString", [ DInt id; DList(_vtTODO, segments) ]) ->
@@ -809,6 +821,8 @@ module Dval =
         | KTInt -> "KTInt", []
         | KTInt8 -> "KTInt8", []
         | KTUInt8 -> "KTUInt8", []
+        | KTInt16 -> "KTInt16", []
+        | KTUInt16 -> "KTUInt16", []
         | KTFloat -> "KTFloat", []
         | KTChar -> "KTChar", []
         | KTString -> "KTString", []
@@ -849,6 +863,8 @@ module Dval =
       | DEnum(_, _, [], "KTInt", []) -> KTInt
       | DEnum(_, _, [], "KTInt8", []) -> KTInt8
       | DEnum(_, _, [], "KTUInt8", []) -> KTUInt8
+      | DEnum(_, _, [], "KTInt16", []) -> KTInt16
+      | DEnum(_, _, [], "KTUInt16", []) -> KTUInt16
       | DEnum(_, _, [], "KTFloat", []) -> KTFloat
       | DEnum(_, _, [], "KTChar", []) -> KTChar
       | DEnum(_, _, [], "KTString", []) -> KTString
@@ -964,6 +980,8 @@ module Dval =
       | DInt i -> "DInt", [ DInt i ]
       | DInt8 i -> "DInt8", [ DInt8 i ]
       | DUInt8 i -> "DUInt8", [ DUInt8 i ]
+      | DInt16 i -> "DInt16", [ DInt16 i ]
+      | DUInt16 i -> "DUInt16", [ DUInt16 i ]
       | DFloat f -> "DFloat", [ DFloat f ]
       | DChar c -> "DChar", [ DChar c ]
       | DString s -> "DString", [ DString s ]
@@ -1011,6 +1029,8 @@ module Dval =
     | DEnum(_, _, [], "DInt", [ DInt i ]) -> DInt i
     | DEnum(_, _, [], "DInt8", [ DInt8 i ]) -> DInt8 i
     | DEnum(_, _, [], "DUInt8", [ DUInt8 i ]) -> DUInt8 i
+    | DEnum(_, _, [], "DInt16", [ DInt16 i ]) -> DInt16 i
+    | DEnum(_, _, [], "DUInt16", [ DUInt16 i ]) -> DUInt16 i
     | DEnum(_, _, [], "DFloat", [ DFloat f ]) -> DFloat f
     | DEnum(_, _, [], "DBool", [ DBool b ]) -> DBool b
     | DEnum(_, _, [], "DUnit", []) -> DUnit

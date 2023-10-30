@@ -72,6 +72,8 @@ module Darklang =
         | TInt
         | TInt8
         | TUInt8
+        | TInt16
+        | TUInt16
         | TFloat
         | TChar
         | TString
@@ -96,6 +98,8 @@ module Darklang =
         | CInt of Int
         | CInt8 of Int8
         | CUInt8 of UInt8
+        | CInt16 of Int16
+        | CUInt16 of UInt16
         | CFloat of PACKAGE.Darklang.LanguageTools.Sign * String * String
         | CBool of Bool
         | CChar of Char
@@ -128,6 +132,8 @@ module Darklang =
         | MPInt of PACKAGE.Darklang.LanguageTools.ID * Int
         | MPInt8 of PACKAGE.Darklang.LanguageTools.ID * Int8
         | MPUInt8 of PACKAGE.Darklang.LanguageTools.ID * UInt8
+        | MPInt16 of PACKAGE.Darklang.LanguageTools.ID * Int16
+        | MPUInt16 of PACKAGE.Darklang.LanguageTools.ID * UInt16
         | MPFloat of
           PACKAGE.Darklang.LanguageTools.ID *
           PACKAGE.Darklang.LanguageTools.Sign *
@@ -233,6 +239,10 @@ module Darklang =
 
         | EUInt8 of ID * UInt8
 
+        | EInt16 of ID * Int16
+
+        | EUInt16 of ID * UInt16
+
         // Allow the user to have arbitrarily big numbers, even if they don't make sense as
         // floats. The float is split as we want to preserve what the user entered.
         // Strings are used as numbers lose the leading zeros (eg 7.00007)
@@ -299,6 +309,8 @@ module Darklang =
           | EInt(id, _) -> id
           | EInt8(id, _) -> id
           | EUInt8(id, _) -> id
+          | EInt16(id, _) -> id
+          | EUInt16(id, _) -> id
           | EFloat(id, _, _, _) -> id
           | EChar(id, _) -> id
           | EString(id, _) -> id

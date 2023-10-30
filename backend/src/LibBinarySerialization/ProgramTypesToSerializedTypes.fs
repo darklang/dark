@@ -270,6 +270,8 @@ module TypeReference =
     | PT.TInt -> ST.TInt
     | PT.TInt8 -> ST.TInt8
     | PT.TUInt8 -> ST.TUInt8
+    | PT.TInt16 -> ST.TInt16
+    | PT.TUInt16 -> ST.TUInt16
     | PT.TFloat -> ST.TFloat
     | PT.TBool -> ST.TBool
     | PT.TUnit -> ST.TUnit
@@ -294,6 +296,8 @@ module TypeReference =
     | ST.TInt -> PT.TInt
     | ST.TInt8 -> PT.TInt8
     | ST.TUInt8 -> PT.TUInt8
+    | ST.TInt16 -> PT.TInt16
+    | ST.TUInt16 -> PT.TUInt16
     | ST.TFloat -> PT.TFloat
     | ST.TBool -> PT.TBool
     | ST.TUnit -> PT.TUnit
@@ -354,6 +358,8 @@ module MatchPattern =
     | PT.MPInt(id, i) -> ST.MPInt(id, i)
     | PT.MPInt8(id, i) -> ST.MPInt8(id, i)
     | PT.MPUInt8(id, i) -> ST.MPUInt8(id, i)
+    | PT.MPInt16(id, i) -> ST.MPInt16(id, i)
+    | PT.MPUInt16(id, i) -> ST.MPUInt16(id, i)
     | PT.MPBool(id, b) -> ST.MPBool(id, b)
     | PT.MPChar(id, c) -> ST.MPChar(id, c)
     | PT.MPString(id, s) -> ST.MPString(id, s)
@@ -373,6 +379,8 @@ module MatchPattern =
     | ST.MPInt(id, i) -> PT.MPInt(id, i)
     | ST.MPInt8(id, i) -> PT.MPInt8(id, i)
     | ST.MPUInt8(id, i) -> PT.MPUInt8(id, i)
+    | ST.MPInt16(id, i) -> PT.MPInt16(id, i)
+    | ST.MPUInt16(id, i) -> PT.MPUInt16(id, i)
     | ST.MPBool(id, b) -> PT.MPBool(id, b)
     | ST.MPChar(id, c) -> PT.MPChar(id, c)
     | ST.MPString(id, s) -> PT.MPString(id, s)
@@ -391,6 +399,8 @@ module Expr =
     | PT.EInt(id, num) -> ST.EInt(id, num)
     | PT.EInt8(id, num) -> ST.EInt8(id, num)
     | PT.EUInt8(id, num) -> ST.EUInt8(id, num)
+    | PT.EInt16(id, num) -> ST.EInt16(id, num)
+    | PT.EUInt16(id, num) -> ST.EUInt16(id, num)
     | PT.EString(id, segments) -> ST.EString(id, List.map stringSegmentToST segments)
     | PT.EFloat(id, sign, whole, fraction) -> ST.EFloat(id, sign, whole, fraction)
     | PT.EBool(id, b) -> ST.EBool(id, b)
@@ -486,6 +496,8 @@ module Expr =
     | ST.EInt(id, num) -> PT.EInt(id, num)
     | ST.EInt8(id, num) -> PT.EInt8(id, num)
     | ST.EUInt8(id, num) -> PT.EUInt8(id, num)
+    | ST.EInt16(id, num) -> PT.EInt16(id, num)
+    | ST.EUInt16(id, num) -> PT.EUInt16(id, num)
     | ST.EString(id, segment) -> PT.EString(id, List.map stringSegmentToPT segment)
     | ST.EFloat(id, sign, whole, fraction) -> PT.EFloat(id, sign, whole, fraction)
     | ST.EBool(id, b) -> PT.EBool(id, b)
@@ -579,6 +591,8 @@ module Const =
     | PT.Const.CInt i -> ST.Const.CInt i
     | PT.Const.CInt8 i -> ST.Const.CInt8 i
     | PT.Const.CUInt8 i -> ST.Const.CUInt8 i
+    | PT.Const.CInt16 i -> ST.Const.CInt16 i
+    | PT.Const.CUInt16 i -> ST.Const.CUInt16 i
     | PT.Const.CBool b -> ST.Const.CBool b
     | PT.Const.CString s -> ST.Const.CString s
     | PT.Const.CChar c -> ST.Const.CChar c
@@ -600,6 +614,8 @@ module Const =
     | ST.Const.CInt i -> PT.Const.CInt i
     | ST.Const.CInt8 i -> PT.Const.CInt8 i
     | ST.Const.CUInt8 i -> PT.Const.CUInt8 i
+    | ST.Const.CInt16 i -> PT.Const.CInt16 i
+    | ST.Const.CUInt16 i -> PT.Const.CUInt16 i
     | ST.Const.CBool b -> PT.Const.CBool b
     | ST.Const.CString s -> PT.Const.CString s
     | ST.Const.CChar c -> PT.Const.CChar c

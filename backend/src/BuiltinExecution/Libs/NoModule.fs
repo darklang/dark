@@ -15,6 +15,8 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DInt a, DInt b -> a = b
   | DInt8 a, DInt8 b -> a = b
   | DUInt8 a, DUInt8 b -> a = b
+  | DInt16 a, DInt16 b -> a = b
+  | DUInt16 a, DUInt16 b -> a = b
   | DFloat a, DFloat b -> a = b
   | DBool a, DBool b -> a = b
   | DUnit, DUnit -> true
@@ -57,6 +59,8 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DInt _, _
   | DInt8 _, _
   | DUInt8 _, _
+  | DInt16 _, _
+  | DUInt16 _, _
   | DFloat _, _
   | DBool _, _
   | DUnit, _
@@ -94,6 +98,8 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EInt(_, int1), EInt(_, int2) -> int1 = int2
   | EInt8(_, int1), EInt8(_, int2) -> int1 = int2
   | EUInt8(_, int1), EUInt8(_, int2) -> int1 = int2
+  | EInt16(_, int1), EInt16(_, int2) -> int1 = int2
+  | EUInt16(_, int1), EUInt16(_, int2) -> int1 = int2
   | EBool(_, bool1), EBool(_, bool2) -> bool1 = bool2
   | EString(_, segments1), EString(_, segments2) ->
     equalsStringSegments segments1 segments2
@@ -183,6 +189,8 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EInt _, _
   | EInt8 _, _
   | EUInt8 _, _
+  | EInt16 _, _
+  | EUInt16 _, _
   | EBool _, _
   | EString _, _
   | EChar _, _
@@ -251,6 +259,8 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
   | MPInt(_, int1), MPInt(_, int2) -> int1 = int2
   | MPInt8(_, int1), MPInt8(_, int2) -> int1 = int2
   | MPUInt8(_, int1), MPUInt8(_, int2) -> int1 = int2
+  | MPInt16(_, int1), MPInt16(_, int2) -> int1 = int2
+  | MPUInt16(_, int1), MPUInt16(_, int2) -> int1 = int2
   | MPBool(_, bool1), MPBool(_, bool2) -> bool1 = bool2
   | MPChar(_, char1), MPChar(_, char2) -> char1 = char2
   | MPString(_, str1), MPString(_, str2) -> str1 = str2
@@ -271,6 +281,8 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
   | MPInt _, _
   | MPInt8 _, _
   | MPUInt8 _, _
+  | MPInt16 _, _
+  | MPUInt16 _, _
   | MPBool _, _
   | MPChar _, _
   | MPString _, _

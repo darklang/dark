@@ -86,6 +86,12 @@ let rec dvalToSql
     | TVariable _, DUInt8 i
     | TUInt8, DUInt8 i -> return Sql.int16 (int16 i), TUInt8
 
+    | TVariable _, DInt16 i
+    | TInt16, DInt16 i -> return Sql.int16 (int16 i), TInt16
+
+    | TVariable _, DUInt16 i
+    | TUInt16, DUInt16 i -> return Sql.int64 (int i), TUInt16
+
     | TVariable _, DFloat v
     | TFloat, DFloat v -> return Sql.double v, TFloat
 
@@ -138,6 +144,8 @@ let rec dvalToSql
     | _, DInt _
     | _, DInt8 _
     | _, DUInt8 _
+    | _, DInt16 _
+    | _, DUInt16 _
     | _, DFloat _
     | _, DBool _
     | _, DString _
@@ -537,12 +545,22 @@ let rec lambdaToSql
         | EInt8(_, v) ->
           typecheck $"Int8 {v}" TInt8 expectedType
           let name = randomString 10
-          return $"(@{name})", [ name, Sql.int8 v ], TInt8
+          return $"(@{name})", [ name, Sql.int16 (int16 v) ], TInt8
 
         | EUInt8(_, v) ->
           typecheck $"UInt8 {v}" TUInt8 expectedType
           let name = randomString 10
-          return $"(@{name})", [ name, Sql.bytea [| byte v |] ], TUInt8
+          return $"(@{name})", [ name, Sql.int16 (int16 v) ], TUInt8
+
+        | EInt16(_, v) ->
+          typecheck $"Int16 {v}" TInt16 expectedType
+          let name = randomString 10
+          return $"(@{name})", [ name, Sql.int16 v ], TInt16
+
+        | EUInt16(_, v) ->
+          typecheck $"UInt16 {v}" TUInt16 expectedType
+          let name = randomString 10
+          return $"(@{name})", [ name, Sql.int64 (int v) ], TUInt16
 
         | EBool(_, v) ->
           typecheck $"Bool {v}" TBool expectedType
@@ -747,6 +765,8 @@ let rec lambdaToSql
             | TInt -> "bigint"
             | TInt8 -> "smallint"
             | TUInt8 -> "smallint"
+            | TInt16 -> "smallint"
+            | TUInt16 -> "integer"
             | TFloat -> "double precision"
             | TBool -> "bool"
             | TDateTime -> "timestamp with time zone"
@@ -767,6 +787,8 @@ let rec lambdaToSql
           | TInt
           | TInt8
           | TUInt8
+          | TInt16
+          | TUInt16
           | TFloat
           | TBool
           | TDateTime
@@ -907,6 +929,8 @@ let partiallyEvaluate
             | EInt _
             | EInt8 _
             | EUInt8 _
+            | EInt16 _
+            | EUInt16 _
             | EBool _
             | EUnit _
             | EFloat _
@@ -926,6 +950,8 @@ let partiallyEvaluate
         | EInt _
         | EInt8 _
         | EUInt8 _
+        | EInt16 _
+        | EUInt16 _
         | EFloat _
         | EBool _
         | EUnit _
@@ -959,6 +985,8 @@ let partiallyEvaluate
             | EInt _
             | EInt8 _
             | EUInt8 _
+            | EInt16 _
+            | EUInt16 _
             | EString _
             | EVariable _
             | EChar _
