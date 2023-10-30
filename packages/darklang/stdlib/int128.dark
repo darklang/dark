@@ -2,5 +2,109 @@ module Darklang =
   module Stdlib =
     module Int128 =
 
+      type ParseError =
+        | BadFormat
+        | OutOfRange
+
+
       /// Adds two 128 bit signed integers together
       let add (a: Int128) (b: Int128) : Int128 = Builtin.Int128.add a b
+
+
+      /// Subtracts two 128 bit signed integers
+      let subtract (a: Int128) (b: Int128) : Int128 = Builtin.Int128.subtract a b
+
+
+      /// Multiplies two 128 bit signed integers
+      let multiply (a: Int128) (b: Int128) : Int128 = Builtin.Int128.multiply a b
+
+
+      /// Divides two 128 bit signed integers
+      let divide (a: Int128) (b: Int128) : Int128 = Builtin.Int128.divide a b
+
+
+      /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
+      let absoluteValue (a: Int128) : Int128 =
+        if (Builtin.Int128.lessThan a (Builtin.Int128.zero)) then
+          Builtin.Int128.negate a
+        else
+          a
+
+      /// Returns the negation of <param a>, {{-a}}
+      let negate (a: Int128) : Int128 = Builtin.Int128.negate a
+
+
+      /// Returns {{true}} if <param a> is greater than <param b>
+      let greaterThan (a: Int128) (b: Int128) : Bool = Builtin.Int128.greaterThan a b
+
+
+      /// Returns {{true}} if <param a> is greater than or equal to <param b>
+      let greaterThanOrEqualTo (a: Int128) (b: Int128) : Bool =
+        Builtin.Int128.greaterThanOrEqualTo a b
+
+
+      /// Returns {{true}} if <param a> is less than <param b>
+      let lessThan (a: Int128) (b: Int128) : Bool = Builtin.Int128.lessThan a b
+
+      /// Returns {{true}} if <param a> is less than or equal to <param b>
+      let lessThanOrEqualTo (a: Int128) (b: Int128) : Bool =
+        Builtin.Int128.lessThanOrEqualTo a b
+
+
+      /// Converts an <type Int128> to a <type Float>
+      let toFloat (a: Int128) : Float = Builtin.Int128.toFloat a
+
+
+      /// Returns the sum of all the ints in the list
+      let sum (lst: List<Int128>) : Int128 =
+        PACKAGE.Darklang.Stdlib.List.fold lst 0 (fun acc x -> acc + x)
+
+
+      /// Returns the higher of <param a> and <param b>
+      let max (a: Int128) (b: Int128) : Int128 =
+        if (PACKAGE.Darklang.Stdlib.Int128.greaterThan a b) then
+          a
+        else
+          b
+
+
+      /// Returns the lower of <param a> and <param b>
+      let min (a: Int128) (b: Int128) : Int128 =
+        if (PACKAGE.Darklang.Stdlib.Int128.lessThan a b) then a else b
+
+
+      /// If <param value> is within the range given by <param limitA> and <param
+      /// limitB>, returns <param value>.
+      /// If <param value> is outside the range, returns <param limitA> or <param
+      /// limitB>, whichever is closer to <param value>.
+      /// <param limitA> and <param limitB> can be provided in any order.
+      let clamp (value: Int128) (limitA: Int128) (limitB: Int128) : Int128 =
+        let min =
+          if (PACKAGE.Darklang.Stdlib.Int128.lessThan limitA limitB) then
+            limitA
+          else
+            limitB
+
+        let max =
+          if (PACKAGE.Darklang.Stdlib.Int128.greaterThan limitA limitB) then
+            limitA
+          else
+            limitB
+
+        if (PACKAGE.Darklang.Stdlib.Int128.lessThan value min) then
+          min
+        else if (PACKAGE.Darklang.Stdlib.Int128.greaterThan value max) then
+          max
+        else
+          value
+
+
+      /// Stringify <param int128>
+      let toString (int128: Int128) : String = Builtin.Int128.toString int128
+
+
+      /// Returns the <type Int128> value of a <type String>
+      let parse
+        (s: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<Int128, PACKAGE.Darklang.Stdlib.Int128.ParseError> =
+        Builtin.Int128.parse s

@@ -325,8 +325,8 @@ module Darklang =
           | DUInt8 i -> Builtin.UInt8.toString i
           | DInt16 i -> Builtin.Int16.toString i
           | DUInt16 i -> Builtin.UInt16.toString i
-          // | DInt128 i -> Builtin.Int128.toString i
-          // | DUInt128 i -> Builtin.UInt128.toString i
+          | DInt128 i -> Builtin.Int128.toString i
+          | DUInt128 i -> Builtin.UInt128.toString i
 
           | DFloat f -> PACKAGE.Darklang.Stdlib.Float.toString f // CLEANUP: deal with Infinity, NegativeInfinity, and NaN
 
