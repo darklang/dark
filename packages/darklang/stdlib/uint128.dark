@@ -14,19 +14,19 @@ module Darklang =
       let ``mod`` (a: UInt128) (b: UInt128) : UInt128 = Builtin.UInt128.``mod`` a b
 
 
-      /// Adds two 128 bit signed integers together
+      /// Adds two 128-bit unsigned integers together
       let add (a: UInt128) (b: UInt128) : UInt128 = Builtin.UInt128.add a b
 
 
-      /// Subtracts two 128 bit signed integers
+      /// Subtracts two 128-bit unsigned integers
       let subtract (a: UInt128) (b: UInt128) : UInt128 = Builtin.UInt128.subtract a b
 
 
-      /// Multiplies two 128 bit signed integers
+      /// Multiplies two 128-bit unsigned integers
       let multiply (a: UInt128) (b: UInt128) : UInt128 = Builtin.UInt128.multiply a b
 
 
-      /// Divides two 128 bit signed integers
+      /// Divides two 128-bit unsigned integers
       let divide (a: UInt128) (b: UInt128) : UInt128 = Builtin.UInt128.divide a b
 
 
@@ -43,6 +43,7 @@ module Darklang =
       /// Returns {{true}} if <param a> is less than <param b>
       let lessThan (a: UInt128) (b: UInt128) : Bool = Builtin.UInt128.lessThan a b
 
+
       /// Returns {{true}} if <param a> is less than or equal to <param b>
       let lessThanOrEqualTo (a: UInt128) (b: UInt128) : Bool =
         Builtin.UInt128.lessThanOrEqualTo a b
@@ -52,7 +53,7 @@ module Darklang =
       let sqrt (a: UInt128) : Float = Builtin.UInt128.sqrt a
 
 
-      /// Converts an <type UInt128> to a <type Float>
+      /// Converts a <type UInt128> to a <type Float>
       let toFloat (a: UInt128) : Float = Builtin.UInt128.toFloat a
 
 

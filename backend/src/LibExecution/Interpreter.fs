@@ -132,8 +132,8 @@ let rec checkPattern
 
 // fsharplint:disable FL0039
 
-/// Interprets an expression and reduces to a Dark value
-/// (or task that should result in such)
+/// Interprets an expression and reduces it to a Dark value
+/// (or a task that should result in such)
 let rec eval
   (state : ExecutionState)
   (tlid : tlid)
@@ -191,7 +191,7 @@ let rec eval
           // The Outer definition provides:
           //   outerTypeArgs = [TVar "a"; TInt]
           // We combine this with innerTypeParams to get:
-          //   fields = [("x", TVar "a"); ("b", TInt)]
+          //   fields = [("x", TVar "a"); ("y", TInt)]
           //   outerTypeParams = ["a"]
           // So the effective result of this is:
           //   type Outer<'a> = { x : 'a; y : Int }

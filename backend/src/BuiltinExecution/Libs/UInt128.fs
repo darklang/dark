@@ -75,7 +75,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
       returnType = TUInt128
-      description = "Adds two 16 bits signed integers together"
+      description = "Adds two 128-bits unsigned integers together"
       fn =
         (function
         | state, _, [ DUInt128 a; DUInt128 b ] ->
@@ -87,7 +87,6 @@ let fns : List<BuiltInFn> =
             |> Int.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
-
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -98,7 +97,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
       returnType = TUInt128
-      description = "Subtracts two 128 bits signed integers"
+      description = "Subtracts two 128-bits unsigned integers"
       fn =
         (function
         | state, _, [ DUInt128 a; DUInt128 b ] ->
@@ -121,7 +120,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
       returnType = TUInt128
-      description = "Multiplies two 128 bits signed integers"
+      description = "Multiplies two 128-bits unsigned integers"
       fn =
         (function
         | state, _, [ DUInt128 a; DUInt128 b ] ->
@@ -143,7 +142,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
       returnType = TUInt128
-      description = "Divides two 8 bits signed integers"
+      description = "Divides two 128-bits unsigned integers"
       fn =
         (function
         | state, _, [ DUInt128 a; DUInt128 b ] ->

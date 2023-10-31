@@ -67,7 +67,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt16 ""; Param.make "b" TUInt16 "" ]
       returnType = TUInt16
-      description = "Adds two 16 bits unsigned integers together"
+      description = "Adds two 16-bits unsigned integers together"
       fn =
         (function
         | state, _, [ DUInt16 a; DUInt16 b ] ->
@@ -90,7 +90,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt16 ""; Param.make "b" TUInt16 "" ]
       returnType = TUInt16
-      description = "Subtracts two 16 bits unsigned integers"
+      description = "Subtracts two 16-bits unsigned integers"
       fn =
         (function
         | state, _, [ DUInt16 a; DUInt16 b ] ->
@@ -113,7 +113,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt16 ""; Param.make "b" TUInt16 "" ]
       returnType = TUInt16
-      description = "Multiplies two 16 bits unsigned integers"
+      description = "Multiplies two 16-bits unsigned integers"
       fn =
         (function
         | state, _, [ DUInt16 a; DUInt16 b ] ->
@@ -136,7 +136,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt16 ""; Param.make "b" TUInt16 "" ]
       returnType = TUInt16
-      description = "Divides two 16 bits unsigned integers"
+      description = "Divides two 16-bits unsigned integers"
       fn =
         (function
         | state, _, [ DUInt16 a; DUInt16 b ] ->

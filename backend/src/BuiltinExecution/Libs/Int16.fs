@@ -108,7 +108,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt16 ""; Param.make "b" TInt16 "" ]
       returnType = TInt16
-      description = "Adds two 16 bits signed integers together"
+      description = "Adds two 16-bits signed integers together"
       fn =
         (function
         | state, _, [ DInt16 a; DInt16 b ] ->
@@ -131,7 +131,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt16 ""; Param.make "b" TInt16 "" ]
       returnType = TInt16
-      description = "Subtracts two 16 bits signed integers"
+      description = "Subtracts two 16-bits signed integers"
       fn =
         (function
         | state, _, [ DInt16 a; DInt16 b ] ->
@@ -154,7 +154,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt16 ""; Param.make "b" TInt16 "" ]
       returnType = TInt16
-      description = "two 16 bits signed integers"
+      description = "multiplies two 16-bits signed integers"
       fn =
         (function
         | state, _, [ DInt16 a; DInt16 b ] ->
@@ -177,7 +177,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt16 ""; Param.make "b" TInt16 "" ]
       returnType = TInt16
-      description = "Divides two 16 bits signed integers"
+      description = "Divides two 16-bits signed integers"
       fn =
         (function
         | state, _, [ DInt16 a; DInt16 b ] ->
@@ -383,7 +383,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt "" ]
       returnType = TypeReference.option TInt16
       description =
-        "Converts an int64 to a 16 bits signed integer. Returns {{None}} if the value is less than -32768 or greater than 32767"
+        "Converts an int64 to a 16-bits signed integer. Returns {{None}} if the value is less than -32768 or greater than 32767"
       fn =
         (function
         | _, _, [ DInt a ] ->

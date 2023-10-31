@@ -765,6 +765,7 @@ let rec lambdaToSql
 
           typecheck fieldName dbFieldType expectedType
 
+          // TODO: Add support for int128 and uint128
           let rec primitiveFieldType t =
             match t with
             | TString -> "text"
@@ -773,8 +774,6 @@ let rec lambdaToSql
             | TUInt8 -> "smallint"
             | TInt16 -> "smallint"
             | TUInt16 -> "integer"
-            | TInt128 -> "bigint"
-            | TUInt128 -> "bigint"
             | TFloat -> "double precision"
             | TBool -> "bool"
             | TDateTime -> "timestamp with time zone"

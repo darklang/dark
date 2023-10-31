@@ -63,6 +63,8 @@ module RuntimeTypes =
       RT.TUInt8
       RT.TInt16
       RT.TUInt16
+      RT.TInt128
+      RT.TUInt128
       RT.TFloat
       RT.TBool
       RT.TUnit
@@ -255,6 +257,8 @@ module RuntimeTypes =
       known RT.KnownType.KTUInt8
       known RT.KnownType.KTInt16
       known RT.KnownType.KTUInt16
+      known RT.KnownType.KTInt128
+      known RT.KnownType.KTUInt128
       known RT.KnownType.KTFloat
       known RT.KnownType.KTChar
       known RT.KnownType.KTString
@@ -365,6 +369,8 @@ module ProgramTypes =
         PT.TUInt8
         PT.TInt16
         PT.TUInt16
+        PT.TInt128
+        PT.TUInt128
         PT.TString
         PT.TList PT.TInt
         PT.TTuple(PT.TBool, PT.TBool, [ PT.TBool ])
