@@ -44,6 +44,32 @@ module Int128Utils =
     System.Int128(uint64 high, uint64 low)
 
 
+module UInt128Utils =
+
+  let ToBytes (value : System.UInt128) =
+    if value = System.UInt128.Zero then
+      Array.zeroCreate 16
+    else
+      let low = uint64 value
+      let high = uint64 (value >>> 64)
+      let lowBytes = BitConverter.GetBytes(low)
+      let highBytes = BitConverter.GetBytes(high)
+
+      Array.concat [ lowBytes; highBytes ]
+
+  let FromBytes (bytes : byte[]) : System.UInt128 =
+    if bytes.Length <> 16 then
+      raise (ArgumentException "Byte array must be exactly 16 bytes long.")
+
+    let lowBytes = bytes[0..7]
+    let highBytes = bytes[8..15]
+
+    let low = BitConverter.ToUInt64(lowBytes, 0)
+    let high = BitConverter.ToUInt64(highBytes, 0)
+
+    System.UInt128(uint64 high, uint64 low)
+
+
 type Int128Formatter() =
   interface IMessagePackFormatter<System.Int128> with
     member this.Serialize
@@ -69,6 +95,30 @@ type Int128Formatter() =
       else
         raise (InvalidOperationException("Invalid binary format for System.Int128"))
 
+type UInt128Formatter() =
+  interface IMessagePackFormatter<System.UInt128> with
+    member this.Serialize
+      (
+        writer : byref<MessagePackWriter>,
+        value : System.UInt128,
+        _options : MessagePackSerializerOptions
+      ) =
+      let bytes = UInt128Utils.ToBytes(value)
+      writer.Write(bytes)
+
+    member this.Deserialize
+      (
+        reader : byref<MessagePackReader>,
+        _options : MessagePackSerializerOptions
+      ) : System.UInt128 =
+      let nullableSequence = reader.ReadBytes()
+      if nullableSequence.HasValue then
+        let sequence = nullableSequence.Value
+        let array = Array.zeroCreate<byte> (16)
+        sequence.CopyTo(array)
+        UInt128Utils.FromBytes(array)
+      else
+        raise (InvalidOperationException("Invalid binary format for System.UInt128"))
 
 // Serializers sometimes throw at runtime if the setup is not right. We do not
 // currently know of a way to statically ensure these run. As a result, we don't
@@ -77,7 +127,8 @@ type Int128Formatter() =
 
 let resolver =
   Resolvers.CompositeResolver.Create(
-    [| Int128Formatter() :> IMessagePackFormatter |],
+    [| Int128Formatter() :> IMessagePackFormatter
+       UInt128Formatter() :> IMessagePackFormatter |],
     [| FSharpResolver.Instance; StandardResolver.Instance |]
   )
 

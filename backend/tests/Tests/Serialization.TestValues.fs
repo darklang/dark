@@ -854,7 +854,15 @@ module ProgramTypes =
                                                   7567128UL,
                                                   170141183460469231731687303715884105727Q
                                                 ),
-                                                e
+                                                PT.ELet(
+                                                  831830079UL,
+                                                  PT.LPVariable(7567129UL, "uint128"),
+                                                  PT.EUInt128(
+                                                    7567128UL,
+                                                    340282366920938463463374607431768211455Z
+                                                  ),
+                                                  e
+                                                )
                                               )
                                             )
                                           )
@@ -892,7 +900,8 @@ module ProgramTypes =
         PT.Const.CUInt8(3uy)
         PT.Const.CInt16(4s)
         PT.Const.CUInt16(3us)
-        PT.Const.CInt128(-1Q) ]
+        PT.Const.CInt128(-1Q)
+        PT.Const.CUInt128(1Z) ]
     )
 
 
