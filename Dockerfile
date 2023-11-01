@@ -58,8 +58,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
-# Latest NPM (taken from  https://deb.nodesource.com/setup_8.x )
-RUN curl -sSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
+# Latest NPM (taken from https://deb.nodesource.com)
+RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 RUN curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
 RUN curl -sSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
@@ -68,8 +68,7 @@ RUN curl -sSL https://apt.releases.hashicorp.com/gpg | apt-key add -
 
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
 
-RUN echo "deb https://deb.nodesource.com/node_20.x jammy main" > /etc/apt/sources.list.d/nodesource.list
-RUN echo "deb-src https://deb.nodesource.com/node_20.x jammy main" >> /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
 
 RUN echo "deb http://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
 RUN echo "deb [arch=${TARGETARCH}] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
