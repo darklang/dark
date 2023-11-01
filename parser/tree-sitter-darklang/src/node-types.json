@@ -157,12 +157,8 @@
         "required": true,
         "types": [
           {
-            "type": "+",
-            "named": false
-          },
-          {
-            "type": "-",
-            "named": false
+            "type": "infix_operator",
+            "named": true
           }
         ]
       },
@@ -177,6 +173,11 @@
         ]
       }
     }
+  },
+  {
+    "type": "infix_operator",
+    "named": true,
+    "fields": {}
   },
   {
     "type": "let_expression",

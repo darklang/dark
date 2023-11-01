@@ -243,6 +243,19 @@
         }
       ]
     },
+    "infix_operator": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "+"
+        },
+        {
+          "type": "STRING",
+          "value": "-"
+        }
+      ]
+    },
     "infix_operation": {
       "type": "PREC_LEFT",
       "value": 1,
@@ -261,17 +274,8 @@
             "type": "FIELD",
             "name": "operator",
             "content": {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "STRING",
-                  "value": "+"
-                },
-                {
-                  "type": "STRING",
-                  "value": "-"
-                }
-              ]
+              "type": "SYMBOL",
+              "name": "infix_operator"
             }
           },
           {
