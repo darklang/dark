@@ -108,6 +108,10 @@ def circleci_validate():
   return run_backend(start, "circleci config validate")
 
 
+def build_parser():
+  start = time.time()
+  return run_other(start, "scripts/build/build-parser")
+
 ###########
 # F#
 ###########
@@ -273,6 +277,7 @@ class Should:
     self.shellcheck = []
     self.yamllint = []
     self.terraform_validate = False
+    self.build_parser = False
 
 
 def execute(should):
@@ -344,6 +349,9 @@ def execute(should):
   if should.terraform_validate:
     if not terraform_validate(): success = False
 
+  if should.build_parser:
+    if not build_parser(): success = False
+
   return success
 
 
@@ -401,6 +409,9 @@ def mark(should, f):
 
   elif (".yml" in f or ".yaml" in f):
     should.yamllint += [f]
+
+  elif ("parser/tree-sitter-darklang/grammar.js" in f):
+    should.build_parser = True
 
   else:
     print("non-build file: " + f, end='')
