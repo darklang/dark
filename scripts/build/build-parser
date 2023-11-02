@@ -54,3 +54,4 @@ cp parser/tree-sitter-darklang/bindings/tree-sitter-darklang.wasm vscode-extensi
 # , so it can be referenced via P/Invoke
 cp parser/tree-sitter-darklang/tree-sitter-darklang.so backend/src/LibTreeSitter.Darklang
 
+./scripts/generate_tree-sitter_bindings
