@@ -12,9 +12,19 @@ npm run build-parser
 npm run build-wasm-bindings
 
 
+# make parser binaries for the current platform
+zig cc -o tree-sitter-darklang.so -shared src/parser.c -Isrc -O3 -fPIC
+
+
 cd ../..
 
 # copy the WASM bindings to vscode-extension/static
 # , so the .wasm file can be used for syntax highlighting, etc.
 mkdir -p vscode-extension/static/tree-sitter
 cp parser/tree-sitter-darklang/bindings/tree-sitter-darklang.wasm vscode-extension/static/tree-sitter/
+
+
+# copy `tree-sitter-darklang.so` to `backend/src/LibTreeSitter.Darklang`
+# , so it can be referenced via P/Invoke
+cp parser/tree-sitter-darklang/tree-sitter-darklang.so backend/src/LibTreeSitter.Darklang
+
