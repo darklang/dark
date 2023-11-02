@@ -11,12 +11,8 @@ npm i
 npm run build-parser
 npm run build-wasm-bindings
 
-# copy JS/WASM bindings to backend/static/tree-sitter
+
 cd ../..
-mkdir -p backend/static/tree-sitter
-cp parser/tree-sitter-darklang/bindings/tree-sitter-darklang.wasm backend/static/tree-sitter/
-cp parser/tree-sitter-darklang/node_modules/web-tree-sitter/tree-sitter.js backend/static/tree-sitter/
-cp parser/tree-sitter-darklang/node_modules/web-tree-sitter/tree-sitter.wasm backend/static/tree-sitter/
 
 # copy the WASM bindings to vscode-extension/static
 # , so the .wasm file can be used for syntax highlighting, etc.
