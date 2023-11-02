@@ -6,7 +6,7 @@ set -euo pipefail
 usage() {
     echo "usage: compile-project [name of project] [--test] [--optimize]
 Compiles a dark project. Options are:
-client, all.
+backend, all.
   --test: runs tests
   --optimize: adds --optimize, if appropriate
 "

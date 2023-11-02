@@ -18,6 +18,7 @@ cp parser/tree-sitter-darklang/bindings/tree-sitter-darklang.wasm backend/static
 cp parser/tree-sitter-darklang/node_modules/web-tree-sitter/tree-sitter.js backend/static/tree-sitter/
 cp parser/tree-sitter-darklang/node_modules/web-tree-sitter/tree-sitter.wasm backend/static/tree-sitter/
 
-# also copy the WASM bindings to vscode-extension/static
+# copy the WASM bindings to vscode-extension/static
+# , so the .wasm file can be used for syntax highlighting, etc.
 mkdir -p vscode-extension/static/tree-sitter
 cp parser/tree-sitter-darklang/bindings/tree-sitter-darklang.wasm vscode-extension/static/tree-sitter/
