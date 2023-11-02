@@ -429,6 +429,21 @@ RUN git clone https://github.com/emscripten-core/emsdk.git --depth 1 \
   && ./emsdk activate latest
 ENV PATH "$PATH:/home/dark/emsdk/upstream/emscripten"
 
+
+#############
+# tree-sitter,
+# to P/Invoke with in our Darklang bindings
+#
+# Note: `tree-sitter.so` is moved into the `backend/src/LibTreeSitter` directory in
+# the `_copy-tree-sitter-binary` script, as this docker container doesn't seem to
+# have access the /home/dark directory here.
+#############
+RUN git clone --depth 1 --branch v0.20.8 https://github.com/tree-sitter/tree-sitter.git \
+  && gcc  -fPIC  -shared  -o tree-sitter.so  tree-sitter/lib/src/lib.c  -I tree-sitter/lib/src  -I tree-sitter/lib/src/../include \
+  && rm -rf tree-sitter/
+# TODO: cross-compile for other platforms, when we start releasing `darklang` binaries
+
+
 ############################
 # Environment
 ############################
