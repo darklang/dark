@@ -1277,7 +1277,6 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        [ Dval.uint16 16us ]
      ),
      TypeReference.option TUInt16)
-    // TODO: Int128 and UInt128
     ("character", DChar "s", TChar)
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
     // use image bytes here to test for any weird bytes forms
