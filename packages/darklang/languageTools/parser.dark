@@ -1,0 +1,25 @@
+module Darklang =
+  module LanguageTools =
+    module Parser =
+      type Point = { row: Int; column: Int }
+
+      type Range = { start: Point; end_: Point }
+
+      type ParsedNode =
+        {
+          fieldName: String // TODO: optional
+          typ: String
+
+          /// The text of this node as it was in the unparsed source code
+          text: String
+
+          /// Where in the source code is this node written/contained
+          /// i.e. Line 1, Column 2 to Line 1, Column 5
+          sourceRange: Range
+
+          children: List<ParsedNode>
+        }
+
+
+      let parse (text: String) : ParsedNode =
+        Builtins.LanguageTools.Parser.parse text

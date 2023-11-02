@@ -32,5 +32,6 @@ let contents (httpConfig : Libs.HttpClient.Configuration) : Builtin.Contents =
       Libs.NoModule.contents
       Libs.Crypto.contents
       Libs.String.contents
+      Libs.Parser.contents
       Libs.X509.contents ]
     fnRenames
