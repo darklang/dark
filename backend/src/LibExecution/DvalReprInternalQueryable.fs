@@ -93,8 +93,6 @@ let rec private toJsonV0
     | TUInt8, DUInt8 i -> w.WriteNumberValue i
     | TInt16, DInt16 i -> w.WriteNumberValue i
     | TUInt16, DUInt16 i -> w.WriteNumberValue i
-    | TInt128, DInt128 i -> w.WriteStringValue(i.ToString())
-    | TUInt128, DUInt128 i -> w.WriteStringValue(i.ToString())
     | TFloat, DFloat f ->
       if System.Double.IsNaN f then
         w.WriteStringValue "NaN"
@@ -197,6 +195,8 @@ let rec private toJsonV0
     | TCustomType(Error err, _), _ -> raiseRTE source err
 
     // Not supported
+    | TInt128, _
+    | TUInt128, _
     | TVariable _, _
     | TFn _, DFnVal _
     | TDB _, DDB _ ->
