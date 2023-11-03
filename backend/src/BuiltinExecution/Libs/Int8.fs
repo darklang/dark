@@ -108,7 +108,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
       returnType = TInt8
-      description = "Adds two 8-bits signed integers together"
+      description = "Adds two 8-bit signed integers together"
       fn =
         (function
         | state, _, [ DInt8 a; DInt8 b ] ->
@@ -129,7 +129,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
       returnType = TInt8
-      description = "Subtracts two 8-bits signed integers"
+      description = "Subtracts two 8-bit signed integers"
       fn =
         (function
         | state, _, [ DInt8 a; DInt8 b ] ->
@@ -150,7 +150,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
       returnType = TInt8
-      description = "Multiplies two 8-bits signed integers"
+      description = "Multiplies two 8-bit signed integers"
       fn =
         (function
         | state, _, [ DInt8 a; DInt8 b ] ->
@@ -171,7 +171,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
       returnType = TInt8
-      description = "Divides two 8-bits signed integers"
+      description = "Divides two 8-bit signed integers"
       fn =
         (function
         | state, _, [ DInt8 a; DInt8 b ] ->
@@ -385,7 +385,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt "" ]
       returnType = TypeReference.option TInt8
       description =
-        "Converts an int64 to an 8-bits signed integer. Returns {{None}} if the value is less than -128 or greater than 127."
+        "Converts an Int64 to an 8-bit signed integer. Returns {{None}} if the value is less than -128 or greater than 127."
       fn =
         (function
         | _, _, [ DInt a ] ->

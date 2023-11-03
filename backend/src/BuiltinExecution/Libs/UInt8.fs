@@ -66,7 +66,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TUInt8
-      description = "Adds two 8-bits unsigned integers together"
+      description = "Adds two 8-bit unsigned integers together"
       fn =
         (function
         | state, _, [ DUInt8 a; DUInt8 b ] ->
@@ -87,7 +87,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TUInt8
-      description = "Subtracts two 8-bits unsigned integers"
+      description = "Subtracts two 8-bit unsigned integers"
       fn =
         (function
         | state, _, [ DUInt8 a; DUInt8 b ] ->
@@ -108,7 +108,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TUInt8
-      description = "Multiplies two 8-bits unsigned integers"
+      description = "Multiplies two 8-bit unsigned integers"
       fn =
         (function
         | state, _, [ DUInt8 a; DUInt8 b ] ->
@@ -129,7 +129,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TUInt8
-      description = "Divides two 8-bits unsigned integers"
+      description = "Divides two 8-bit unsigned integers"
       fn =
         (function
         | state, _, [ DUInt8 a; DUInt8 b ] ->
@@ -321,7 +321,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt "" ]
       returnType = TypeReference.option TUInt8
       description =
-        "Converts an int64 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+        "Converts an Int64 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
       fn =
         (function
         | _, _, [ DInt a ] ->
