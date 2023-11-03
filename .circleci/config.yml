@@ -200,6 +200,8 @@ jobs:
             - v2-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
+      # For parser
+      - run: ./scripts/build/build-parser
       # For tests
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
