@@ -16,17 +16,17 @@ namespace LibTreeSitter.Darklang.Nodes {
             if (!node.IsNamed) return new DarklangLanguageNodeTerminalNode(node);
             switch (node.Kind) {
                 case "fn_param_def": return new FnParamDef(node);
-                case "let_expression": return new LetExpression(node);
-                case "unit": return new Unit(node);
+                case "fn_params_def": return new FnParamsDef(node);
+                case "infix_operator": return new InfixOperator(node);
+                case "expression": return new Expression(node);
                 case "type": return new Type(node);
                 case "identifier": return new Identifier(node);
-                case "fn_def": return new FnDef(node);
-                case "fn_params_def": return new FnParamsDef(node);
-                case "infix_operation": return new InfixOperation(node);
+                case "unit": return new Unit(node);
                 case "string_literal": return new StringLiteral(node);
+                case "infix_operation": return new InfixOperation(node);
                 case "source_file": return new SourceFile(node);
-                case "expression": return new Expression(node);
-                case "infix_operator": return new InfixOperator(node);
+                case "fn_def": return new FnDef(node);
+                case "let_expression": return new LetExpression(node);
                 case "ERROR": return new ErrorNode(node);
                 default: throw new System.ArgumentException("unknown node type: " + node.Kind, nameof(node));
             }
@@ -57,7 +57,7 @@ namespace LibTreeSitter.Darklang.Nodes {
         public Expression(LibTreeSitter.Node node) : base(node)
         {
             System.Diagnostics.Debug.Assert(node.Kind == "expression");
-
+            
             this.Children = node.NamedChildrenWithFields
                 .Where(x => x.Key == null && !x.Value.IsExtra)
                 .Select(x => x.Value)
@@ -74,7 +74,7 @@ namespace LibTreeSitter.Darklang.Nodes {
         public FnDef(LibTreeSitter.Node node) : base(node)
         {
             System.Diagnostics.Debug.Assert(node.Kind == "fn_def");
-
+            
             this.Body = new Expression(node.ChildByFieldName("body"));
             this.Name = new Identifier(node.ChildByFieldName("name"));
             this.Params = new FnParamsDef(node.ChildByFieldName("params"));
@@ -90,7 +90,7 @@ namespace LibTreeSitter.Darklang.Nodes {
         public FnParamDef(LibTreeSitter.Node node) : base(node)
         {
             System.Diagnostics.Debug.Assert(node.Kind == "fn_param_def");
-
+            
             {
                 var tmp = node.ChildByFieldName("identifier");
                 this.Identifier = tmp is null ? null : new Identifier(tmp);
@@ -113,7 +113,7 @@ namespace LibTreeSitter.Darklang.Nodes {
         public FnParamsDef(LibTreeSitter.Node node) : base(node)
         {
             System.Diagnostics.Debug.Assert(node.Kind == "fn_params_def");
-
+            
             this.Additional = node.ChildrenByFieldName("additional").Select(x => new FnParamDef(x)).ToList();
             this.First = new FnParamDef(node.ChildByFieldName("first"));
         }
@@ -127,7 +127,7 @@ namespace LibTreeSitter.Darklang.Nodes {
         public InfixOperation(LibTreeSitter.Node node) : base(node)
         {
             System.Diagnostics.Debug.Assert(node.Kind == "infix_operation");
-
+            
             this.Left = new Expression(node.ChildByFieldName("left"));
             this.Operator = new InfixOperator(node.ChildByFieldName("operator"));
             this.Right = new Expression(node.ChildByFieldName("right"));
@@ -139,7 +139,7 @@ namespace LibTreeSitter.Darklang.Nodes {
         public InfixOperator(LibTreeSitter.Node node) : base(node)
         {
             System.Diagnostics.Debug.Assert(node.Kind == "infix_operator");
-
+            
         }
     }
 
@@ -151,7 +151,7 @@ namespace LibTreeSitter.Darklang.Nodes {
         public LetExpression(LibTreeSitter.Node node) : base(node)
         {
             System.Diagnostics.Debug.Assert(node.Kind == "let_expression");
-
+            
             this.Body = new Expression(node.ChildByFieldName("body"));
             this.Expr = new Expression(node.ChildByFieldName("expr"));
             this.Identifier = new Identifier(node.ChildByFieldName("identifier"));
@@ -164,7 +164,7 @@ namespace LibTreeSitter.Darklang.Nodes {
         public SourceFile(LibTreeSitter.Node node) : base(node)
         {
             System.Diagnostics.Debug.Assert(node.Kind == "source_file");
-
+            
             this.Children = node.NamedChildrenWithFields
                 .Where(x => x.Key == null && !x.Value.IsExtra)
                 .Select(x => x.Value)
@@ -177,7 +177,7 @@ namespace LibTreeSitter.Darklang.Nodes {
         public StringLiteral(LibTreeSitter.Node node) : base(node)
         {
             System.Diagnostics.Debug.Assert(node.Kind == "string_literal");
-
+            
         }
     }
 
@@ -186,7 +186,7 @@ namespace LibTreeSitter.Darklang.Nodes {
         public Type(LibTreeSitter.Node node) : base(node)
         {
             System.Diagnostics.Debug.Assert(node.Kind == "type");
-
+            
         }
     }
 
@@ -195,7 +195,7 @@ namespace LibTreeSitter.Darklang.Nodes {
         public Identifier(LibTreeSitter.Node node) : base(node)
         {
             System.Diagnostics.Debug.Assert(node.Kind == "identifier");
-
+            
         }
     }
 
@@ -204,7 +204,7 @@ namespace LibTreeSitter.Darklang.Nodes {
         public Unit(LibTreeSitter.Node node) : base(node)
         {
             System.Diagnostics.Debug.Assert(node.Kind == "unit");
-
+            
         }
     }
 }

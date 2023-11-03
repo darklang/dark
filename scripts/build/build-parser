@@ -3,21 +3,26 @@
 
 set -euo pipefail
 
+echo "Installing tree-sitter-darklang dependencies..."
 # install dependencies
 cd parser/tree-sitter-darklang
 npm i
 
+echo "Building parser"
 # build the parser and generate the bindings
 npm run build-parser
+
+echo "Building WASM bindings"
 npm run build-wasm-bindings
 
-
 # make parser binaries for the current platform
+echo "Building tree-sitter-darklang.so"
 zig cc -o tree-sitter-darklang.so -shared src/parser.c -Isrc -O3 -fPIC
 
 
 # Optionally cross-compile to other platforms
 if [[ "$#" -gt 0 && "$1" == "--cross-compile" ]]; then
+  echo "Cross-compiling tree-sitter-darklang.so for all platforms"
   rm -rf xplat-builds
   mkdir xplat-builds
 
@@ -46,12 +51,15 @@ cd ../..
 
 # copy the WASM bindings to vscode-extension/static
 # , so the .wasm file can be used for syntax highlighting, etc.
+echo "Copying WASM bindings to vscode-extension/static"
 mkdir -p vscode-extension/static/tree-sitter
 cp parser/tree-sitter-darklang/bindings/tree-sitter-darklang.wasm vscode-extension/static/tree-sitter/
 
 
 # copy `tree-sitter-darklang.so` to `backend/src/LibTreeSitter.Darklang`
 # , so it can be referenced via P/Invoke
+echo "Copying tree-sitter-darklang.so to backend/src/LibTreeSitter.Darklang"
 cp parser/tree-sitter-darklang/tree-sitter-darklang.so backend/src/LibTreeSitter.Darklang
 
+# generate the C# bindings
 python3 ./scripts/generate_tree-sitter_bindings.py
