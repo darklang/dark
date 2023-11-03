@@ -47,6 +47,387 @@ type TestEnumDB2 = MyEnum
 type TestEnumDB3 = MyEnum2
 
 
+type UInt8Type = { x: UInt8 }
+[<DB>]
+type TestUint8DB = UInt8Type
+
+type Int8Type = { x: Int8 }
+[<DB>]
+type TestInt8DB = Int8Type
+
+type Int16Type = { x: Int16 }
+[<DB>]
+type TestInt16DB = Int16Type
+
+type UInt16Type = { x: UInt16 }
+[<DB>]
+type TestUint16DB = UInt16Type
+
+type IntType = { x: Int }
+[<DB>]
+type TestIntDB = IntType
+
+module OutOfRangeInts =
+
+  // ----------------
+  // Int64
+  // ----------------
+
+  // getAll
+  (let test1 = Builtin.DB.set (IntType { x = -9223372036854775808L }) "test1" TestIntDB in
+   let test2 = Builtin.DB.set (IntType { x = 9223372036854775807L }) "test2" TestIntDB in
+   (Builtin.DB.getAll TestIntDB)) = [ IntType { x = -9223372036854775808L }
+                                      IntType { x = 9223372036854775807L } ]
+
+  // out of range
+  (let test1 = Builtin.DB.set (IntType { x = -9223372036854775809L }) "test1" TestIntDB in
+   let test2 = Builtin.DB.set (IntType { x = 9223372036854775808L }) "test2" TestIntDB in
+   (Builtin.DB.getAll TestIntDB)) = [ IntType { x = -9223372036854775809L }
+                                      IntType { x = 9223372036854775808L } ]
+
+  // they are wrapping around to 0 and -9223372036854775808
+  (let test1 = Builtin.DB.set (IntType { x = -9223372036854775809L }) "test1" TestIntDB in
+   let test2 = Builtin.DB.set (IntType { x = 9223372036854775808L }) "test2" TestIntDB in
+   (Builtin.DB.getAll TestIntDB)) = [ IntType { x = 0L }
+                                      IntType { x = -9223372036854775808L } ]
+
+
+  // get
+  (let test1 = Builtin.DB.set (IntType { x = 1L }) "test1" TestIntDB in
+   let test2 = Builtin.DB.set (IntType { x = 2L }) "test2" TestIntDB in
+   (Builtin.DB.get "test1" TestIntDB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    IntType { x = 1L }
+  )
+
+  // out of range
+  //this is wrapping around to 0 and -9223372036854775808
+  (let test1 = Builtin.DB.set (IntType { x = -9223372036854775809L }) "test1" TestIntDB in
+   let test2 = Builtin.DB.set (IntType { x = 9223372036854775808L }) "test2" TestIntDB in
+   (Builtin.DB.get "test1" TestIntDB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    IntType { x = 0L }
+  )
+
+  (let test1 = Builtin.DB.set (IntType { x = -9223372036854775809L }) "test1" TestIntDB in
+   let test2 = Builtin.DB.set (IntType { x = 9223372036854775808L }) "test2" TestIntDB in
+   (Builtin.DB.get "test2" TestIntDB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    IntType { x = -9223372036854775808L }
+  )
+
+  //query
+  (let testQuery = Builtin.DB.set (IntType { x = 1L }) "test1" TestIntDB in
+   (Builtin.DB.query TestIntDB (fun p -> p.x == 1L))) = [ IntType { x = 1L } ]
+
+  //Out of range. They are wrapping around to 0 and -9223372036854775808
+  (let testQuery = Builtin.DB.set (IntType { x = 9223372036854775808L }) "test1" TestIntDB in
+  (Builtin.DB.query TestIntDB (fun p -> p.x == 9223372036854775808L))) = [ IntType { x = 9223372036854775808L } ]
+
+  (let testQuery = Builtin.DB.set (IntType { x = -9223372036854775809L }) "test1" TestIntDB in
+  (Builtin.DB.query TestIntDB (fun p -> p.x == -9223372036854775809L))) = [ IntType { x = -9223372036854775809L } ]
+
+  (let testQuery = Builtin.DB.set (IntType { x = 9223372036854775808L }) "test1" TestIntDB in
+  (Builtin.DB.query TestIntDB (fun p -> p.x == 9223372036854775808L))) = [ IntType { x = -9223372036854775808L } ]
+
+  (let testQuery = Builtin.DB.set (IntType { x = -9223372036854775809L }) "test1" TestIntDB in
+  (Builtin.DB.query TestIntDB (fun p -> p.x == 0L))) = [ IntType { x = 0L } ]
+
+
+  // ----------------
+  // UInt64
+  // ----------------
+
+  // getall
+  (let test1 = Builtin.DB.set (IntType { x = 0UL }) "test1" TestIntDB in
+   let test2 = Builtin.DB.set (IntType { x = 9223372036854775808UL }) "test2" TestIntDB in
+   (Builtin.DB.getAll TestIntDB)) = [ IntType { x = 0UL }
+                                      IntType { x = 9223372036854775808UL } ]
+
+  // Out of the Int64 range
+  (let test1 = Builtin.DB.set (IntType { x = 0UL }) "test1" TestIntDB in
+   let test2 = Builtin.DB.set (IntType { x = 9223372036854775809UL }) "test2" TestIntDB in
+   (Builtin.DB.getAll TestIntDB)) = [ IntType { x = 0UL }
+                                      IntType { x = 9223372036854775809UL } ]
+
+  (let test1 = Builtin.DB.set (IntType { x = 0UL }) "test1" TestIntDB in
+   let test2 = Builtin.DB.set (IntType { x = 18446744073709551615UL }) "test2" TestIntDB in
+   (Builtin.DB.getAll TestIntDB)) = [ IntType { x = 0UL }
+                                      IntType { x = 18446744073709551615UL } ]
+
+  // Out of the UInt64 range.
+  (let test1 = Builtin.DB.set (IntType { x = -1UL }) "test1" TestIntDB in
+   let test2 = Builtin.DB.set (IntType { x = 18446744073709551616UL }) "test2" TestIntDB in
+   (Builtin.DB.getAll TestIntDB)) = [ IntType { x = -1UL }
+                                      IntType { x = 18446744073709551616UL } ]
+
+  (let test1 = Builtin.DB.set (IntType { x = -9223372036854775809UL }) "test1" TestIntDB in
+   let test2 = Builtin.DB.set (IntType { x = 18446744073709551616UL }) "test2" TestIntDB in
+   (Builtin.DB.getAll TestIntDB)) = [ IntType { x = 9223372036854775807UL }
+                                      IntType { x = 0UL } ]
+
+  // get
+  (let test1 = Builtin.DB.set (IntType { x = 0UL }) "test1" TestIntDB in
+   let test2 = Builtin.DB.set (IntType { x = 9223372036854775808UL }) "test2" TestIntDB in
+   (Builtin.DB.get "test1" TestIntDB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    IntType { x = 0UL }
+  )
+
+  // Out of the Int64 range with a UL suffix
+  (let test1 = Builtin.DB.set (IntType { x = -9223372036854775809UL }) "test1" TestIntDB in
+   let test2 = Builtin.DB.set (IntType { x = 9223372036854775808UL }) "test2" TestIntDB in
+   (Builtin.DB.get "test1" TestIntDB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    IntType { x = 9223372036854775807UL }
+  )
+
+  (let test1 = Builtin.DB.set (IntType { x = -9223372036854775809UL }) "test1" TestIntDB in
+   let test2 = Builtin.DB.set (IntType { x = 9223372036854775808UL }) "test2" TestIntDB in
+   (Builtin.DB.get "test2" TestIntDB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    IntType { x = -9223372036854775808UL }
+  )
+
+  // query
+  (let testQuery = Builtin.DB.set (IntType { x = 0UL }) "test1" TestIntDB in
+   (Builtin.DB.query TestIntDB (fun p -> p.x == 0UL))) = [ IntType { x = 0UL } ]
+
+  // Out of range
+  (let testQuery = Builtin.DB.set (IntType { x = -9223372036854775809UL }) "test1" TestIntDB in
+   (Builtin.DB.query TestIntDB (fun p -> p.x == -9223372036854775809UL))) = [ IntType { x = -9223372036854775809UL } ]
+
+  (let testQuery = Builtin.DB.set (IntType { x = -9223372036854775809UL }) "test1" TestIntDB in
+    (Builtin.DB.query TestIntDB (fun p -> p.x == -9223372036854775809UL))) = [ IntType { x = 9223372036854775807UL } ]
+
+
+  // ----------------
+  // Int8
+  // ----------------
+
+  /// getall
+  (let test1 = Builtin.DB.set (Int8Type { x = -128y }) "test1" TestInt8DB in
+   let test2 = Builtin.DB.set (Int8Type { x = 127y }) "test2" TestInt8DB in
+   Builtin.DB.getAll TestInt8DB) = [ Int8Type { x = -128y }
+                                     Int8Type { x = 127y } ]
+
+  // out of range are wrapping around this is why they aren't failing
+  (let test1 = Builtin.DB.set (Int8Type { x = -129y }) "test1" TestInt8DB in
+   let test2 = Builtin.DB.set (Int8Type { x = 128y }) "test2" TestInt8DB in
+   Builtin.DB.getAll TestInt8DB) = [ Int8Type { x = -129y }
+                                     Int8Type { x = 128y } ]
+
+  // they are wrapping around to 0 and -128
+  (let test1 = Builtin.DB.set (Int8Type { x = -129y }) "test1" TestInt8DB in
+   let test2 = Builtin.DB.set (Int8Type { x = 128y }) "test2" TestInt8DB in
+   Builtin.DB.getAll TestInt8DB) = [ Int8Type { x = 0y }
+                                     Int8Type { x = -128y } ]
+
+
+  /// get
+  (let test1 = Builtin.DB.set (Int8Type { x = 1y }) "test1" TestInt8DB in
+   let test2 = Builtin.DB.set (Int8Type { x = 2y }) "test2" TestInt8DB in
+   (Builtin.DB.get "test1" TestInt8DB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    Int8Type { x = 1y }
+  )
+
+  // out of range
+  //this is wrapping around to 0. even if we have -150 as the value it will wrap around to 0
+  (let test1 = Builtin.DB.set (Int8Type { x = -129y }) "test1" TestInt8DB in
+   let test2 = Builtin.DB.set (Int8Type { x = 128y }) "test2" TestInt8DB in
+   (Builtin.DB.get "test1" TestInt8DB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    Int8Type { x = 0y }
+  )
+
+  //query
+  (let testQuery = Builtin.DB.set (Int8Type { x = 1y }) "test1" TestInt8DB in
+   (Builtin.DB.query TestInt8DB (fun p -> p.x == 1y))) = [ Int8Type { x = 1y } ]
+
+  //out of range. They are wrapping around to 0 and -128
+  (let testQuery = Builtin.DB.set (Int8Type { x = 128y }) "test1" TestInt8DB in
+  (Builtin.DB.query TestInt8DB (fun p -> p.x == 128y))) = [ Int8Type { x = 128y } ]
+
+  (let testQuery = Builtin.DB.set (Int8Type { x = -129y }) "test1" TestInt8DB in
+  (Builtin.DB.query TestInt8DB (fun p -> p.x == -129y))) = [ Int8Type { x = -129y } ]
+
+  (let testQuery = Builtin.DB.set (Int8Type { x = 128y }) "test1" TestInt8DB in
+  (Builtin.DB.query TestInt8DB (fun p -> p.x == 128y))) = [ Int8Type { x = -128y } ]
+
+  (let testQuery = Builtin.DB.set (Int8Type { x = -129y }) "test1" TestInt8DB in
+  (Builtin.DB.query TestInt8DB (fun p -> p.x == 0y))) = [ Int8Type { x = 0y } ]
+
+  (let testQuery = Builtin.DB.set (Int8Type { x = 2000000y }) "test1" TestInt8DB in
+  (Builtin.DB.query TestInt8DB (fun p -> p.x == 2000000y))) = [ Int8Type { x = 0y } ]
+
+
+
+  // ----------------
+  // UInt8
+  // ----------------
+
+  // getall
+  (let test1 = Builtin.DB.set (UInt8Type { x = 0uy }) "test1" TestUint8DB in
+   let test2 = Builtin.DB.set (UInt8Type { x = 255uy }) "test2" TestUint8DB in
+   (Builtin.DB.getAll TestUint8DB)) = [ UInt8Type{ x = 0uy }
+                                        UInt8Type{ x = 255uy } ]
+
+  // out of range
+  (let test1 = Builtin.DB.set (UInt8Type { x = 256uy }) "test1" TestUint8DB in
+   let test2 = Builtin.DB.set (UInt8Type { x = 259uy }) "test2" TestUint8DB in
+    (Builtin.DB.getAll TestUint8DB)) = [ UInt8Type { x = 256uy }
+                                         UInt8Type { x = 259uy } ]
+
+
+
+  // get
+  (let test1 = Builtin.DB.set (UInt8Type { x = 0uy }) "test1" TestUint8DB in
+   let test2 = Builtin.DB.set (UInt8Type { x = 255uy }) "test2" TestUint8DB in
+   (Builtin.DB.get "test1" TestUint8DB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    UInt8Type { x = 0uy }
+  )
+
+  // out of range
+  (let test1 = Builtin.DB.set (UInt8Type { x = 256uy }) "test1" TestUint8DB in
+   let test2 = Builtin.DB.set (UInt8Type { x = 259uy }) "test2" TestUint8DB in
+   (Builtin.DB.get "test1" TestUint8DB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    UInt8Type { x = 256uy }
+  )
+
+  (let test1 = Builtin.DB.set (UInt8Type { x = 256uy }) "test1" TestUint8DB in
+   let test2 = Builtin.DB.set (UInt8Type { x = 259uy }) "test2" TestUint8DB in
+   (Builtin.DB.get "test1" TestUint8DB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    UInt8Type { x = 0uy }
+  )
+
+  // Query
+  (let testQuery =
+    Builtin.DB.set (UInt8Type { x = 0uy }) "test1" TestUint8DB in
+    (Builtin.DB.query TestUint8DB (fun p -> p.x == 0uy))) = [ UInt8Type { x = 0uy } ]
+
+  (let testQuery =
+    Builtin.DB.set (UInt8Type { x = 255uy }) "test1" TestUint8DB in
+    (Builtin.DB.query TestUint8DB (fun p -> p.x == 255uy))) = [ UInt8Type { x = 255uy } ]
+
+  // Out of range. They are wrapping around to 0
+  (let testQuery =
+    Builtin.DB.set (UInt8Type { x = 256uy }) "test1" TestUint8DB in
+    (Builtin.DB.query TestUint8DB (fun p -> p.x == 256uy))) = [ UInt8Type { x = 256uy } ]
+
+  (let testQuery =
+    Builtin.DB.set (UInt8Type { x = 259uy }) "test1" TestUint8DB in
+    (Builtin.DB.query TestUint8DB (fun p -> p.x == 0uy))) = [ UInt8Type { x = 0uy } ]
+
+
+  // ----------------
+  // Int16
+  // ----------------
+
+  // getall
+  (let test1 = Builtin.DB.set (Int16Type { x = -32768s }) "test1" TestInt16DB in
+   let test2 = Builtin.DB.set (Int16Type { x = 32767s }) "test2" TestInt16DB in
+   (Builtin.DB.getAll TestInt16DB)) = [ Int16Type { x = -32768s }
+                                        Int16Type { x = 32767s } ]
+
+  // out of range
+  (let test1 = Builtin.DB.set (Int16Type { x = -32769s }) "test1" TestInt16DB in
+   let test2 = Builtin.DB.set (Int16Type { x = 32768s }) "test2" TestInt16DB in
+   (Builtin.DB.getAll TestInt16DB)) = [ Int16Type { x = -32769s }
+                                        Int16Type { x = 32768s } ]
+
+  // they are wrapping around to 0 and -32768
+  (let test1 = Builtin.DB.set (Int16Type { x = -32769s }) "test1" TestInt16DB in
+   let test2 = Builtin.DB.set (Int16Type { x = 32768s }) "test2" TestInt16DB in
+   (Builtin.DB.getAll TestInt16DB)) = [ Int16Type { x = 0s }
+                                        Int16Type { x = -32768s } ]
+
+  // get
+  (let test1 = Builtin.DB.set (Int16Type { x = 1s }) "test1" TestInt16DB in
+   let test2 = Builtin.DB.set (Int16Type { x = 2s }) "test2" TestInt16DB in
+   (Builtin.DB.get "test1" TestInt16DB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    Int16Type { x = 1s }
+  )
+
+  // out of range
+  //this is wrapping around to 0
+  (let test1 = Builtin.DB.set (Int16Type { x = -32769s }) "test1" TestInt16DB in
+   let test2 = Builtin.DB.set (Int16Type { x = 32768s }) "test2" TestInt16DB in
+   (Builtin.DB.get "test1" TestInt16DB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    Int16Type { x = 0s }
+  )
+
+  //query
+  (let testQuery = Builtin.DB.set (Int16Type { x = 1s }) "test1" TestInt16DB in
+   (Builtin.DB.query TestInt16DB (fun p -> p.x == 1s))) = [ Int16Type { x = 1s } ]
+
+  //out of range. They are wrapping around to 0 and -32768
+  (let testQuery = Builtin.DB.set (Int16Type { x = 32768s }) "test1" TestInt16DB in
+  (Builtin.DB.query TestInt16DB (fun p -> p.x == 32768s))) = [ Int16Type { x = 32768s } ]
+
+  (let testQuery = Builtin.DB.set (Int16Type { x = -32769s }) "test1" TestInt16DB in
+  (Builtin.DB.query TestInt16DB (fun p -> p.x == -32769s))) = [ Int16Type { x = -32769s } ]
+
+  (let testQuery = Builtin.DB.set (Int16Type { x = 32768s }) "test1" TestInt16DB in
+  (Builtin.DB.query TestInt16DB (fun p -> p.x == 32768s))) = [ Int16Type { x = -32768s } ]
+
+  (let testQuery = Builtin.DB.set (Int16Type { x = -32769s }) "test1" TestInt16DB in
+  (Builtin.DB.query TestInt16DB (fun p -> p.x == 0s))) = [ Int16Type { x = 0s } ]
+
+
+  // ----------------
+  // UInt16
+  // ----------------
+
+  // getall
+  (let test1 = Builtin.DB.set (UInt16Type { x = 0us }) "test1" TestUint16DB in
+   let test2 = Builtin.DB.set (UInt16Type { x = 65535us }) "test2" TestUint16DB in
+   (Builtin.DB.getAll TestUint16DB)) = [ UInt16Type { x = 0us }
+                                         UInt16Type { x = 65535us } ]
+
+  // Out of range. They are wrapping around to 0
+  (let test1 = Builtin.DB.set (UInt16Type { x = 65536us }) "test1" TestUint16DB in
+   let test2 = Builtin.DB.set (UInt16Type { x = 65539us }) "test2" TestUint16DB in
+   (Builtin.DB.getAll TestUint16DB)) = [ UInt16Type { x = 65536us }
+                                         UInt16Type { x = 65539us } ]
+
+  (let test1 = Builtin.DB.set (UInt16Type { x = 65536us }) "test1" TestUint16DB in
+   let test2 = Builtin.DB.set (UInt16Type { x = 65539us }) "test2" TestUint16DB in
+   (Builtin.DB.getAll TestUint16DB)) = [ UInt16Type { x = 0us }
+                                         UInt16Type { x = 0us } ]
+
+  // get
+  (let test1 = Builtin.DB.set (UInt16Type { x = 0us }) "test1" TestUint16DB in
+   let test2 = Builtin.DB.set (UInt16Type { x = 65535us }) "test2" TestUint16DB in
+   (Builtin.DB.get "test1" TestUint16DB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    UInt16Type { x = 0us }
+  )
+
+  // Out of range. They are wrapping around to 0
+  (let test1 = Builtin.DB.set (UInt16Type { x = 65536us }) "test1" TestUint16DB in
+   let test2 = Builtin.DB.set (UInt16Type { x = 65539us }) "test2" TestUint16DB in
+   (Builtin.DB.get "test1" TestUint16DB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    UInt16Type { x = 65536us }
+  )
+
+  (let test1 = Builtin.DB.set (UInt16Type { x = 65536us }) "test1" TestUint16DB in
+   let test2 = Builtin.DB.set (UInt16Type { x = 65539us }) "test2" TestUint16DB in
+   (Builtin.DB.get "test1" TestUint16DB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+    UInt16Type { x = 0us }
+  )
+
+  // Query
+  (let testQuery =
+    Builtin.DB.set (UInt16Type { x = 0us }) "test1" TestUint16DB in
+    (Builtin.DB.query TestUint16DB (fun p -> p.x == 0us))) = [ UInt16Type { x = 0us } ]
+
+  (let testQuery =
+    Builtin.DB.set (UInt16Type { x = 65535us }) "test1" TestUint16DB in
+    (Builtin.DB.query TestUint16DB (fun p -> p.x == 65535us))) = [ UInt16Type { x = 65535us } ]
+
+  // Out of range. They are wrapping around to 0
+  (let testQuery =
+    Builtin.DB.set (UInt16Type { x = 65536us }) "test1" TestUint16DB in
+    (Builtin.DB.query TestUint16DB (fun p -> p.x == 65536us))) = [ UInt16Type { x = 65536us } ]
+
+  (let testQuery =
+    Builtin.DB.set (UInt16Type { x = 65539us }) "test1" TestUint16DB in
+    (Builtin.DB.query TestUint16DB (fun p -> p.x == 0us))) = [ UInt16Type { x = 0us } ]
+
+
+
 // Nested field accessing
 type VeryInnerRecord = { age: Int }
 type AliasOfVeryInnerRecord = VeryInnerRecord
