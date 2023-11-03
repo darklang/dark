@@ -426,6 +426,28 @@ module Int128 =
     Builtin.Json.parse<Int128> "170141183460469231731687303715884105727" = Result.Ok
       170141183460469231731687303715884105727Q
 
+
+    // First number that doesn't fit in an Int128
+    (Builtin.Json.parse<Int128> "170141183460469231731687303715884105728") |> err = Result.Error
+      "Can't parse JSON `170141183460469231731687303715884105728` as type `Int128` at path: `root`"
+
+    // This is a float that is a valid Int128
+    Builtin.Json.parse<Int128> "1.7E38" = Result.Ok
+      169999999999999998061923293023115935744Q
+
+    // This is a float that is slightly above the Int128 max
+    (Builtin.Json.parse<Int128> "1.8E38") |> err = Result.Error
+      "Can't parse JSON `1.8E38` as type `Int128` at path: `root`"
+
+    // A large negative number that is within Int128 range
+    Builtin.Json.parse<Int128> "-1.7E38" = Result.Ok
+      -169999999999999998061923293023115935744Q
+
+    // A negative number that is too small for Int128
+    (Builtin.Json.parse<Int128> "-1.8E38") |> err = Result.Error
+      "Can't parse JSON `-1.8E38` as type `Int128` at path: `root`"
+
+
   module Errors =
     (Builtin.Json.parse<Int128> " ") |> err = Result.Error "Not JSON"
     (Builtin.Json.parse<Int128> "4a") |> err = Result.Error "Not JSON"
@@ -477,6 +499,22 @@ module UInt128 =
 
     Builtin.Json.parse<UInt128> "340282366920938463463374607431768211455" = Result.Ok
       340282366920938463463374607431768211455Z
+
+    // First number that doesn't fit in a UInt128
+    (Builtin.Json.parse<UInt128> "340282366920938463463374607431768211456") |> err = Result.Error
+      "Can't parse JSON `340282366920938463463374607431768211456` as type `UInt128` at path: `root`"
+
+    // This is a large number that is a valid UInt128
+    Builtin.Json.parse<UInt128> "3.4E38" = Result.Ok
+      339999999999999996123846586046231871488Z
+
+    // This is a number that is slightly above the UInt128 max
+    (Builtin.Json.parse<UInt128> "3.5E38") |> err = Result.Error
+      "Can't parse JSON `3.5E38` as type `UInt128` at path: `root`"
+
+    (Builtin.Json.parse<UInt128> "-1") |> err = Result.Error
+      "Can't parse JSON `-1` as type `UInt128` at path: `root`"
+
 
   module Errors =
     (Builtin.Json.parse<UInt128> " ") |> err = Result.Error "Not JSON"

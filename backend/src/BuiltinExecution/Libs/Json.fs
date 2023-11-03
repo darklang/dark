@@ -496,11 +496,7 @@ let parse
     | TInt128, JsonValueKind.Number ->
       let mutable i128 = System.Int128.Zero
       let mutable d = 0.0
-      if
-        System.Int128.TryParse(j.GetRawText(), &i128)
-        && i128 <= System.Int128.MaxValue
-        && i128 >= System.Int128.MinValue
-      then
+      if System.Int128.TryParse(j.GetRawText(), &i128) then
         DInt128 i128 |> Ply
       else if
         j.TryGetDouble(&d)
@@ -522,11 +518,7 @@ let parse
     | TUInt128, JsonValueKind.Number ->
       let mutable ui128 = System.UInt128.Zero
       let mutable d = 0.0
-      if
-        System.UInt128.TryParse(j.GetRawText(), &ui128)
-        && ui128 <= System.UInt128.MaxValue
-        && ui128 >= System.UInt128.MinValue
-      then
+      if System.UInt128.TryParse(j.GetRawText(), &ui128) then
         DUInt128 ui128 |> Ply
       else if
         j.TryGetDouble(&d)

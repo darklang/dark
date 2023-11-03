@@ -18,12 +18,7 @@ let modules = [ "UInt128" ]
 let fn = fn modules
 let constant = constant modules
 
-let constants : List<BuiltInConstant> =
-  [ { name = constant "zero" 0
-      typ = TUInt128
-      description = "The value 0"
-      body = DUInt128(System.UInt128.Zero)
-      deprecated = NotDeprecated } ]
+let constants : List<BuiltInConstant> = []
 
 module ParseError =
   type ParseError =
@@ -75,7 +70,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
       returnType = TUInt128
-      description = "Adds two 128-bits unsigned integers together"
+      description = "Adds two 128-bit unsigned integers together"
       fn =
         (function
         | state, _, [ DUInt128 a; DUInt128 b ] ->
@@ -97,7 +92,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
       returnType = TUInt128
-      description = "Subtracts two 128-bits unsigned integers"
+      description = "Subtracts two 128-bit unsigned integers"
       fn =
         (function
         | state, _, [ DUInt128 a; DUInt128 b ] ->
@@ -120,7 +115,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
       returnType = TUInt128
-      description = "Multiplies two 128-bits unsigned integers"
+      description = "Multiplies two 128-bit unsigned integers"
       fn =
         (function
         | state, _, [ DUInt128 a; DUInt128 b ] ->
@@ -142,7 +137,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
       returnType = TUInt128
-      description = "Divides two 128-bits unsigned integers"
+      description = "Divides two 128-bit unsigned integers"
       fn =
         (function
         | state, _, [ DUInt128 a; DUInt128 b ] ->

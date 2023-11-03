@@ -33,7 +33,7 @@ module Int128Utils =
 
   let FromBytes (bytes : byte[]) : System.Int128 =
     if bytes.Length <> 16 then
-      raise (ArgumentException "Byte array must be exactly 16 bytes long.")
+      Exception.raiseInternal "Byte array must be exactly 16 bytes long" []
 
     let lowBytes = bytes[0..7]
     let highBytes = bytes[8..15]
@@ -41,7 +41,7 @@ module Int128Utils =
     let low = BitConverter.ToUInt64(lowBytes, 0)
     let high = BitConverter.ToUInt64(highBytes, 0)
 
-    System.Int128(uint64 high, uint64 low)
+    System.Int128(high, low)
 
 
 module UInt128Utils =
@@ -59,7 +59,7 @@ module UInt128Utils =
 
   let FromBytes (bytes : byte[]) : System.UInt128 =
     if bytes.Length <> 16 then
-      raise (ArgumentException "Byte array must be exactly 16 bytes long.")
+      Exception.raiseInternal "Byte array must be exactly 16 bytes long" []
 
     let lowBytes = bytes[0..7]
     let highBytes = bytes[8..15]
@@ -67,7 +67,7 @@ module UInt128Utils =
     let low = BitConverter.ToUInt64(lowBytes, 0)
     let high = BitConverter.ToUInt64(highBytes, 0)
 
-    System.UInt128(uint64 high, uint64 low)
+    System.UInt128(high, low)
 
 
 type Int128Formatter() =
@@ -93,7 +93,10 @@ type Int128Formatter() =
         sequence.CopyTo(array)
         Int128Utils.FromBytes(array)
       else
-        raise (InvalidOperationException("Invalid binary format for System.Int128"))
+        Exception.raiseInternal
+          "Deserialization failed: The reader did not contain a valid byte sequence for an Int128 value"
+          []
+
 
 type UInt128Formatter() =
   interface IMessagePackFormatter<System.UInt128> with
@@ -118,7 +121,10 @@ type UInt128Formatter() =
         sequence.CopyTo(array)
         UInt128Utils.FromBytes(array)
       else
-        raise (InvalidOperationException("Invalid binary format for System.UInt128"))
+        Exception.raiseInternal
+          "Deserialization failed: The reader did not contain a valid byte sequence for a UInt128 value"
+          []
+
 
 // Serializers sometimes throw at runtime if the setup is not right. We do not
 // currently know of a way to statically ensure these run. As a result, we don't

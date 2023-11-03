@@ -117,7 +117,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TInt128
-      description = "Adds two 128-bits signed integers together"
+      description = "Adds two 128-bit signed integers together"
       fn =
         (function
         | state, _, [ DInt128 a; DInt128 b ] ->
@@ -140,7 +140,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TInt128
-      description = "Subtracts two 128-bits signed integers"
+      description = "Subtracts two 128-bit signed integers"
       fn =
         (function
         | state, _, [ DInt128 a; DInt128 b ] ->
@@ -163,7 +163,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TInt128
-      description = "Multiplies two 128-bits signed integers"
+      description = "Multiplies two 128-bit signed integers"
       fn =
         (function
         | state, _, [ DInt128 a; DInt128 b ] ->
@@ -185,7 +185,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TInt128
-      description = "Divides two 128-bits signed integers"
+      description = "Divides two 128-bit signed integers"
       fn =
         (function
         | state, _, [ DInt128 a; DInt128 b ] ->
