@@ -3,8 +3,9 @@
 
 set -euo pipefail
 
-echo "Installing tree-sitter-darklang dependencies..."
 # install dependencies
+echo "Installing tree-sitter-darklang dependencies..."
+echo "Note: installing tree-sitter automatically builds the parser as part of it"
 cd parser/tree-sitter-darklang
 npm i
 
@@ -62,4 +63,8 @@ echo "Copying tree-sitter-darklang.so to backend/src/LibTreeSitter.Darklang"
 cp parser/tree-sitter-darklang/tree-sitter-darklang.so backend/src/LibTreeSitter.Darklang
 
 # generate the C# bindings
-python3 ./scripts/generate_tree-sitter_bindings.py
+#
+#   commented out for now - we don't actually use the generated bindings at this point,
+#   and the generation seems to yield inconsistent results (different ordering),
+#   which makes CI upset.
+#python3 ./scripts/generate_tree-sitter_bindings.py
