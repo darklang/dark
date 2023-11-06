@@ -18,12 +18,7 @@ let modules = [ "Int128" ]
 let fn = fn modules
 let constant = constant modules
 
-let constants : List<BuiltInConstant> =
-  [ { name = constant "zero" 0
-      typ = TInt128
-      description = "The value 0"
-      body = DInt128(System.Int128.Zero)
-      deprecated = NotDeprecated } ]
+let constants : List<BuiltInConstant> = []
 
 module ParseError =
   type ParseError =
@@ -364,8 +359,6 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
-
-    ]
+      deprecated = NotDeprecated } ]
 
 let contents = (fns, types, constants)

@@ -93,6 +93,8 @@ let rec private toJsonV0
     | TUInt8, DUInt8 i -> w.WriteNumberValue i
     | TInt16, DInt16 i -> w.WriteNumberValue i
     | TUInt16, DUInt16 i -> w.WriteNumberValue i
+    | TInt128, DInt128 i -> w.WriteRawValue(i.ToString())
+    | TUInt128, DUInt128 i -> w.WriteRawValue(i.ToString())
     | TFloat, DFloat f ->
       if System.Double.IsNaN f then
         w.WriteStringValue "NaN"
@@ -253,6 +255,10 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
     | TUInt8, JsonValueKind.Number -> j.GetByte() |> DUInt8 |> Ply
     | TInt16, JsonValueKind.Number -> j.GetInt16() |> DInt16 |> Ply
     | TUInt16, JsonValueKind.Number -> j.GetUInt16() |> DUInt16 |> Ply
+    | TInt128, JsonValueKind.Number ->
+      j.GetRawText() |> System.Int128.Parse |> DInt128 |> Ply
+    | TUInt128, JsonValueKind.Number ->
+      j.GetRawText() |> System.UInt128.Parse |> DUInt128 |> Ply
     | TFloat, JsonValueKind.Number -> j.GetDouble() |> DFloat |> Ply
     | TFloat, JsonValueKind.String ->
       match j.GetString() with
