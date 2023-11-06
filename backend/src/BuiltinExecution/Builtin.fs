@@ -21,6 +21,7 @@ let contents (httpConfig : Libs.HttpClient.Configuration) : Builtin.Contents =
       Libs.Float.contents
       Libs.HttpClient.contents httpConfig
       Libs.Json.contents
+      Libs.AltJson.contents
       Libs.Math.contents
       Libs.Uuid.contents
       Libs.Int.contents

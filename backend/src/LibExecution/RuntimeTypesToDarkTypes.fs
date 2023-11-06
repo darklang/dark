@@ -662,10 +662,11 @@ module Expr =
     | DEnum(_, _, [], "EDict", [ DInt id; DList(_vtTODO, pairsList) ]) ->
       let pairs =
         pairsList
+        // TODO: this should be a List.map, and raise an exception
         |> List.collect (fun pair ->
           match pair with
           | DTuple(DString k, v, _) -> [ (k, fromDT v) ]
-          | _ -> [])
+          | _ -> []) // TODO: raise exception
       EDict(uint64 id, pairs)
 
 

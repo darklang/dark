@@ -1,0 +1,86 @@
+// aliases and helpers
+
+type JT = PACKAGE.Darklang.Stdlib.AltJson.JsonToken
+type ParseError = PACKAGE.Darklang.Stdlib.AltJson.ParseError
+
+
+let parsedOk (jt: JT) : PACKAGE.Darklang.Stdlib.Result.Result<JT, ParseError> =
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok jt
+
+let parsedErr
+  (err: ParseError)
+  : PACKAGE.Darklang.Stdlib.Result.Result<JT, ParseError> =
+  PACKAGE.Darklang.Stdlib.Result.Result.Error err
+
+
+// TODO: think - should it be impossible for a JNumber to hold anything that isn't alowed by JSON
+// what about huge strings or something? look into the limitations of JSON per the spec
+// I mean, just generally (?print and) read the spec - it's only 21 pages
+
+// TODO: the serializer doesn't _have_ to be a builtin... but the parser kinda does, for now
+// should we bother taking the parser out of Builtin land? enh
+
+module Null =
+  // TODO:
+  // - blank
+  // - NULL, and other spellings
+  // - "unit"
+  Builtin.AltJson.serialize JT.Null = "null"
+  Builtin.AltJson.parse "null" = parsedOk JT.Null
+
+
+module Bool =
+  // TODO:
+  // - 0, 1,
+  // - TRUE, other spellings
+  Builtin.AltJson.serialize (JT.Bool true) = "true"
+  Builtin.AltJson.serialize (JT.Bool false) = "false"
+  Builtin.AltJson.parse "true" = parsedOk (JT.Bool true)
+  Builtin.AltJson.parse "false" = parsedOk (JT.Bool false)
+
+
+module Number =
+  // TODO:
+  // - (+/-) infinity
+  // - NaN
+  // - huge numbers
+  // - negative numbers
+  // - other notation
+  Builtin.AltJson.serialize (JT.Number 0.0) = "0" // TODO: any reason we need to make this `0.0`?
+  Builtin.AltJson.parse "0" = parsedOk (JT.Number 0.0)
+
+
+module String =
+  // TODO:
+  // - `hi` (without quotes) -> err
+  // - strings with quotes in them
+  // - ' instead of "
+  Builtin.AltJson.serialize (JT.String "hi") = "\"hi\""
+  Builtin.AltJson.parse "\"hi\"" = parsedOk (JT.String "hi")
+  Builtin.AltJson.parse "hi" = parsedError ParseError.NotJson
+
+
+module Array =
+  // TODO:
+  // - nested
+  // - huge
+  // - inconsistent types
+  Builtin.AltJson.serialize (JT.Array []) = "[]"
+  Builtin.AltJson.parse "[]" = parsedOk (JT.Array [])
+
+  Builtin.AltJson.serialize (JT.Array [ JT.Null ]) = "[null]"
+  Builtin.AltJson.parse "[ null ]" = parsedOk (JT.Array [ JT.Null ])
+
+
+module Object =
+  // TODO:
+  // - empty
+  // - dupe keys
+  // - blank keys
+  // - keys with newlines
+  // - keys that are generally the same, but not by case
+  // - keys not in quotes
+  // - keys in single quotes
+  // - non-string keys
+  Builtin.AltJson.serialize (JT.Object [ ("n", JT.Null) ]) = """{"n":null}"""
+  Builtin.AltJson.parse """{ "n": null }""" = parsedOk (JT.Object[("n", JT.Null)])

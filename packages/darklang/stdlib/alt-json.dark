@@ -1,0 +1,17 @@
+module Darklang =
+  module Stdlib =
+    module AltJson =
+      type JsonToken =
+        | Null
+        | Bool of Bool
+        | Number of Float
+        | String of String
+        | Array of List<JsonToken>
+        | Object of List<String * JsonToken>
+
+      module ParseError =
+        type ParseError = | NotJson
+
+        let toString (e: ParseError) : String =
+          match e with
+          | NotJson -> "Not JSON"
