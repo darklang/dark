@@ -197,8 +197,6 @@ let rec private toJsonV0
     | TCustomType(Error err, _), _ -> raiseRTE source err
 
     // Not supported
-    | TInt128, _
-    | TUInt128, _
     | TVariable _, _
     | TFn _, DFnVal _
     | TDB _, DDB _ ->
@@ -382,9 +380,6 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 [ "typeName", typeName; "valueKind", valueKind ]
       }
     | TBytes _, _ -> Exception.raiseInternal "Bytes values not supported yet" []
-    | TInt128, _ -> Exception.raiseInternal "Int128 values not supported yet" []
-    | TUInt128, _ -> Exception.raiseInternal "UInt128 values not supported yet" []
-
     | TFn _, _ -> Exception.raiseInternal "Fn values not supported" []
     | TDB _, _ -> Exception.raiseInternal "DB values not supported" []
     | TVariable _, _ -> Exception.raiseInternal "Variables not supported yet" []
@@ -397,6 +392,8 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
     | TUInt8, _
     | TInt16, _
     | TUInt16, _
+    | TInt128, _
+    | TUInt128, _
     | TFloat, _
     | TChar, _
     | TString, _
@@ -422,6 +419,8 @@ module Test =
     | DUInt8 _
     | DInt16 _
     | DUInt16 _
+    | DInt128 _
+    | DUInt128 _
     | DString _
     | DUnit _
     | DBool _
@@ -438,8 +437,6 @@ module Test =
     | DEnum(_typeName, _, _, _caseName, fields) -> fields |> List.all isQueryableDval
 
     // TODO support
-    | DInt128 _
-    | DUInt128 _
     | DRecord _ // TYPESCLEANUP
     | DBytes _
 
