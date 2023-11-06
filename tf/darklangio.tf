@@ -113,11 +113,6 @@ resource "google_certificate_manager_certificate_map" "bwdserver" {
   description = ""
 }
 
-import {
-  to = google_certificate_manager_certificate_map.bwdserver
-  id = "projects/darklang-next/locations/global/certificateMaps/bwdserver-map"
-}
-
 # gcloud certificate-manager maps entries create star-darklangio-entry --map=bwdserver-map --certificates=darklangio-rootcert-jsd83hs --hostname=*.darklang.io
 # Waiting for 'operation-1698248068224-6088c30d8d7e4-8ee3798c-a7278f61' to
 # complete...done.
@@ -129,11 +124,6 @@ resource "google_certificate_manager_certificate_map_entry" "star_darklangio" {
   map          = google_certificate_manager_certificate_map.bwdserver.name
   certificates = [google_certificate_manager_certificate.root_cert.id]
   hostname     = "*.darklang.io"
-}
-
-import {
-  to = google_certificate_manager_certificate_map_entry.star_darklangio
-  id = "projects/darklang-next/locations/global/certificateMaps/bwdserver-map/certificateMapEntries/star-darklangio-entry"
 }
 
 # gcloud certificate-manager maps entries create darklangio-entry --map=bwdserver-map --certificates=darklangio-rootcert-jsd83
@@ -148,12 +138,6 @@ resource "google_certificate_manager_certificate_map_entry" "darklangio" {
   certificates = [google_certificate_manager_certificate.root_cert.id]
   hostname     = "darklang.io"
 }
-
-import {
-  to = google_certificate_manager_certificate_map_entry.darklangio
-  id = "projects/darklang-next/locations/global/certificateMaps/bwdserver-map/certificateMapEntries/darklangio-entry"
-}
-
 
 
 ########################
@@ -177,11 +161,6 @@ resource "google_compute_region_network_endpoint_group" "bwdserver" {
   cloud_run {
     service = google_cloud_run_service.bwdserver.name
   }
-}
-
-import {
-  to = google_compute_region_network_endpoint_group.bwdserver
-  id = "projects/darklang-next/regions/us-central1/networkEndpointGroups/bwdserver-neg"
 }
 
 # gcloud compute backend-services create bwdserver-backend
@@ -212,11 +191,6 @@ resource "google_compute_backend_service" "bwdserver" {
   }
 }
 
-import {
-  to = google_compute_backend_service.bwdserver
-  id = "projects/darklang-next/global/backendServices/bwdserver-backend"
-}
-
 # gcloud compute url-maps create darklangio-url-map \
 #   --default-service bwdserver-backend
 # Created [https://www.googleapis.com/compute/v1/projects/darklang-next/global/urlMaps/darklangio-url-map].
@@ -226,11 +200,6 @@ import {
 resource "google_compute_url_map" "darklangio_url_map" {
   name            = "darklangio-url-map"
   default_service = google_compute_backend_service.bwdserver.id
-}
-
-import {
-  to = google_compute_url_map.darklangio_url_map
-  id = "projects/darklang-next/global/urlMaps/darklangio-url-map"
 }
 
 # gcloud compute target-https-proxies create darklangio-target-proxy
@@ -245,11 +214,6 @@ resource "google_compute_target_https_proxy" "darklangio_target_proxy" {
   url_map = google_compute_url_map.darklangio_url_map.id
   // self_link isn't a member here
   certificate_map = "https://certificatemanager.googleapis.com/v1/${google_certificate_manager_certificate_map.bwdserver.id}"
-}
-
-import {
-  to = google_compute_target_https_proxy.darklangio_target_proxy
-  id = "projects/darklang-next/global/targetHttpsProxies/darklangio-target-proxy"
 }
 
 # gcloud compute forwarding-rules create forward-darklangio-all \
@@ -268,9 +232,4 @@ resource "google_compute_global_forwarding_rule" "bwdserver" {
   target                = google_compute_target_https_proxy.darklangio_target_proxy.self_link
   port_range            = "443"
   ip_address            = google_compute_global_address.darklangio_ip_address.address
-}
-
-import {
-  to = google_compute_global_forwarding_rule.bwdserver
-  id = "projects/darklang-next/global/forwardingRules/forward-darklangio-all"
 }
