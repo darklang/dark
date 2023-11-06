@@ -262,8 +262,8 @@ type MatchPattern =
   | MPUInt8 of id * uint8
   | MPInt16 of id * int16
   | MPUInt16 of id * uint16
-  | MPInt128 of id * System.Int128
-  | MPUInt128 of id * System.UInt128
+  | MPInt128 of id * System.Numerics.BigInteger
+  | MPUInt128 of id * System.Numerics.BigInteger
   | MPBool of id * bool
   | MPChar of id * string
   | MPString of id * string
@@ -290,8 +290,8 @@ type Expr =
   | EUInt8 of id * uint8
   | EInt16 of id * int16
   | EUInt16 of id * uint16
-  | EInt128 of id * System.Int128
-  | EUInt128 of id * System.UInt128
+  | EInt128 of id * System.Numerics.BigInteger
+  | EUInt128 of id * System.Numerics.BigInteger
   | EBool of id * bool
   | EString of id * List<StringSegment>
   | EChar of id * string
@@ -461,8 +461,8 @@ type Const =
   | CUInt8 of uint8
   | CInt16 of int16
   | CUInt16 of uint16
-  | CInt128 of System.Int128
-  | CUInt128 of System.UInt128
+  | CInt128 of System.Numerics.BigInteger
+  | CUInt128 of System.Numerics.BigInteger
   | CBool of bool
   | CString of string
   | CChar of string

@@ -1,10 +1,8 @@
 /// Conversion to/from Dark values to binary formats
 module LibBinarySerialization.BinarySerialization
 
-open System
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open System.Buffers
 
 open Prelude
 
@@ -15,115 +13,6 @@ module PT2ST = ProgramTypesToSerializedTypes
 open MessagePack
 open MessagePack.Resolvers
 open MessagePack.FSharp
-open MessagePack.Formatters
-
-
-module Int128Utils =
-
-  let ToBytes (value : System.Int128) =
-    if value = System.Int128.Zero then
-      Array.zeroCreate 16
-    else
-      let low = uint64 value
-      let high = uint64 (value >>> 64)
-      let lowBytes = BitConverter.GetBytes(low)
-      let highBytes = BitConverter.GetBytes(high)
-
-      Array.concat [ lowBytes; highBytes ]
-
-  let FromBytes (bytes : byte[]) : System.Int128 =
-    if bytes.Length <> 16 then
-      Exception.raiseInternal "Byte array must be exactly 16 bytes long" []
-
-    let lowBytes = bytes[0..7]
-    let highBytes = bytes[8..15]
-
-    let low = BitConverter.ToUInt64(lowBytes, 0)
-    let high = BitConverter.ToUInt64(highBytes, 0)
-
-    System.Int128(high, low)
-
-
-module UInt128Utils =
-
-  let ToBytes (value : System.UInt128) =
-    if value = System.UInt128.Zero then
-      Array.zeroCreate 16
-    else
-      let low = uint64 value
-      let high = uint64 (value >>> 64)
-      let lowBytes = BitConverter.GetBytes(low)
-      let highBytes = BitConverter.GetBytes(high)
-
-      Array.concat [ lowBytes; highBytes ]
-
-  let FromBytes (bytes : byte[]) : System.UInt128 =
-    if bytes.Length <> 16 then
-      Exception.raiseInternal "Byte array must be exactly 16 bytes long" []
-
-    let lowBytes = bytes[0..7]
-    let highBytes = bytes[8..15]
-
-    let low = BitConverter.ToUInt64(lowBytes, 0)
-    let high = BitConverter.ToUInt64(highBytes, 0)
-
-    System.UInt128(high, low)
-
-
-type Int128Formatter() =
-  interface IMessagePackFormatter<System.Int128> with
-    member this.Serialize
-      (
-        writer : byref<MessagePackWriter>,
-        value : System.Int128,
-        _options : MessagePackSerializerOptions
-      ) =
-      let bytes = Int128Utils.ToBytes(value)
-      writer.Write(bytes)
-
-    member this.Deserialize
-      (
-        reader : byref<MessagePackReader>,
-        _options : MessagePackSerializerOptions
-      ) : System.Int128 =
-      let nullableSequence = reader.ReadBytes()
-      if nullableSequence.HasValue then
-        let sequence = nullableSequence.Value
-        let array = Array.zeroCreate<byte> (16)
-        sequence.CopyTo(array)
-        Int128Utils.FromBytes(array)
-      else
-        Exception.raiseInternal
-          "Deserialization failed: The reader did not contain a valid byte sequence for an Int128 value"
-          []
-
-
-type UInt128Formatter() =
-  interface IMessagePackFormatter<System.UInt128> with
-    member this.Serialize
-      (
-        writer : byref<MessagePackWriter>,
-        value : System.UInt128,
-        _options : MessagePackSerializerOptions
-      ) =
-      let bytes = UInt128Utils.ToBytes(value)
-      writer.Write(bytes)
-
-    member this.Deserialize
-      (
-        reader : byref<MessagePackReader>,
-        _options : MessagePackSerializerOptions
-      ) : System.UInt128 =
-      let nullableSequence = reader.ReadBytes()
-      if nullableSequence.HasValue then
-        let sequence = nullableSequence.Value
-        let array = Array.zeroCreate<byte> (16)
-        sequence.CopyTo(array)
-        UInt128Utils.FromBytes(array)
-      else
-        Exception.raiseInternal
-          "Deserialization failed: The reader did not contain a valid byte sequence for a UInt128 value"
-          []
 
 
 // Serializers sometimes throw at runtime if the setup is not right. We do not
@@ -133,9 +22,8 @@ type UInt128Formatter() =
 
 let resolver =
   Resolvers.CompositeResolver.Create(
-    [| Int128Formatter() :> IMessagePackFormatter
-       UInt128Formatter() :> IMessagePackFormatter |],
-    [| FSharpResolver.Instance; StandardResolver.Instance |]
+    FSharpResolver.Instance,
+    StandardResolver.Instance
   )
 
 let optionsWithoutZip = MessagePackSerializerOptions.Standard.WithResolver(resolver)

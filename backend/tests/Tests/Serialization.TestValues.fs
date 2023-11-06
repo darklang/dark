@@ -22,20 +22,6 @@ let tlid : tlid = 777777928475UL
 let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
 
-module NumericLiteralQ =
-  let FromZero () = System.Int128.Zero
-  let FromOne () = System.Int128.One
-  let FromInt32 (i : int) = System.Int128.Parse(string i)
-  let FromInt64 (i : int64) = System.Int128.Parse(string i)
-  let FromString (s : string) = System.Int128.Parse(s)
-
-module NumericLiteralZ =
-  let FromZero () = System.UInt128.Zero
-  let FromOne () = System.UInt128.One
-  let FromInt32 (i : int) = System.UInt128.Parse(string i)
-  let FromInt64 (i : int64) = System.UInt128.Parse(string i)
-  let FromString (s : string) = System.UInt128.Parse(s)
-
 module RuntimeTypes =
   let fqTypeNames : List<RT.TypeName.TypeName> =
     [ RT.FQName.UserProgram

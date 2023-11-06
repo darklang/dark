@@ -23,6 +23,21 @@ module Canvas = LibCloud.Canvas
 module Exe = LibExecution.Execution
 module S = RTShortcuts
 
+module NumericLiteralQ =
+  let FromZero () = System.Int128.Zero
+  let FromOne () = System.Int128.One
+  let FromInt32 (i : int) = System.Int128.Parse(string i)
+  let FromInt64 (i : int64) = System.Int128.Parse(string i)
+  let FromString (s : string) = System.Int128.Parse(s)
+
+module NumericLiteralZ =
+  let FromZero () = System.UInt128.Zero
+  let FromOne () = System.UInt128.One
+  let FromInt32 (i : int) = System.UInt128.Parse(string i)
+  let FromInt64 (i : int64) = System.UInt128.Parse(string i)
+  let FromString (s : string) = System.UInt128.Parse(s)
+
+
 let testOwner : Lazy<Task<UserID>> = lazy (Account.createUser ())
 
 let nameToTestDomain (name : string) : string =
