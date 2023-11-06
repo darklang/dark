@@ -103,6 +103,9 @@ resource "google_certificate_manager_certificate" "root_cert" {
   }
 }
 
+########################
+# Certificate Map for load balancer
+########################
 resource "google_certificate_manager_certificate_map" "bwdserver" {
   name        = "bwdserver-map"
   description = ""
