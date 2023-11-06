@@ -1,4 +1,3 @@
-
 resource "google_cloud_run_service" "bwdserver" {
   name     = "bwdserver"
   location = "us-central1"
@@ -80,5 +79,5 @@ resource "google_cloud_run_service" "bwdserver" {
     latest_revision = true
   }
 
-  depends_on = [google_project_service.cloud_run_api]
+  depends_on = [google_project_service.apis["run.googleapis.com"]]
 }

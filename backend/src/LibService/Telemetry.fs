@@ -326,7 +326,7 @@ type Sampler(serviceName : string) =
     // Note we tweak sampling by service, so we can have 100% of one service and 10%
     // of another
     let percentage = LaunchDarkly.telemetrySamplePercentage serviceName
-    if false && percentage >= 100.0 then
+    if percentage >= 100.0 then
       keep
     else
       let scaled = int ((percentage / 100.0) * float Int32.MaxValue)
