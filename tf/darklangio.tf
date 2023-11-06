@@ -65,6 +65,8 @@ resource "google_dns_record_set" "psl_darklangio" {
   rrdatas      = ["https://github.com/publicsuffix/list/pull/1880"]
 }
 
+
+
 ########################
 # Certificate Manager
 ########################
@@ -101,6 +103,59 @@ resource "google_certificate_manager_certificate" "root_cert" {
   }
 }
 
+# gcloud certificate-manager maps create bwdserver-map
+# Waiting for 'operation-1698248064352-6088c309dc017-012f58c6-d94beee1' to
+# complete...done.
+# Created certificate map [bwdserver-map].
+
+resource "google_certificate_manager_certificate_map" "bwdserver" {
+  name        = "bwdserver-map"
+  description = ""
+}
+
+import {
+  to = google_certificate_manager_certificate_map.bwdserver
+  id = "projects/darklang-next/locations/global/certificateMaps/bwdserver-map"
+}
+
+# gcloud certificate-manager maps entries create star-darklangio-entry --map=bwdserver-map --certificates=darklangio-rootcert-jsd83hs --hostname=*.darklang.io
+# Waiting for 'operation-1698248068224-6088c30d8d7e4-8ee3798c-a7278f61' to
+# complete...done.
+# Created certificate map entry [star-darklangio-entry].
+
+resource "google_certificate_manager_certificate_map_entry" "star_darklangio" {
+  name         = "star-darklangio-entry"
+  description  = ""
+  map          = google_certificate_manager_certificate_map.bwdserver.name
+  certificates = [google_certificate_manager_certificate.root_cert.id]
+  hostname     = "*.darklang.io"
+}
+
+import {
+  to = google_certificate_manager_certificate_map_entry.star_darklangio
+  id = "projects/darklang-next/locations/global/certificateMaps/bwdserver-map/certificateMapEntries/star-darklangio-entry"
+}
+
+# gcloud certificate-manager maps entries create darklangio-entry --map=bwdserver-map --certificates=darklangio-rootcert-jsd83
+# hs --hostname=darklang.io
+# Waiting for 'operation-1698248085009-6088c31d8f4ca-0ff61263-1c70ec6f' to
+# complete...done.
+# Created certificate map entry [darklangio-entry].
+resource "google_certificate_manager_certificate_map_entry" "darklangio" {
+  name         = "darklangio-entry"
+  description  = ""
+  map          = google_certificate_manager_certificate_map.bwdserver.name
+  certificates = [google_certificate_manager_certificate.root_cert.id]
+  hostname     = "darklang.io"
+}
+
+import {
+  to = google_certificate_manager_certificate_map_entry.darklangio
+  id = "projects/darklang-next/locations/global/certificateMaps/bwdserver-map/certificateMapEntries/darklangio-entry"
+}
+
+
+
 ########################
 # Load balancer
 # This was tough to figure out. I followed the docs below, but used a certificate map
@@ -115,10 +170,19 @@ resource "google_certificate_manager_certificate" "root_cert" {
 # Created [https://www.googleapis.com/compute/v1/projects/darklang-next/regions/us-central1/networkEndpointGroups/bwdserver-neg].
 # Created network endpoint group [bwdserver-neg].
 
-# resource "google_compute_network_endpoint_group" "bwdserver-neg" {
-#   name                  = "bwdserver-neg"
-#   network_endpoint_type = "SERVERLESS"
-# }
+resource "google_compute_region_network_endpoint_group" "bwdserver" {
+  name                  = "bwdserver-neg"
+  network_endpoint_type = "SERVERLESS"
+  region                = google_cloud_run_service.bwdserver.location
+  cloud_run {
+    service = google_cloud_run_service.bwdserver.name
+  }
+}
+
+import {
+  to = google_compute_region_network_endpoint_group.bwdserver
+  id = "projects/darklang-next/regions/us-central1/networkEndpointGroups/bwdserver-neg"
+}
 
 # gcloud compute backend-services create bwdserver-backend
 #   --load-balancing-scheme=EXTERNAL_MANAGED
@@ -126,30 +190,32 @@ resource "google_certificate_manager_certificate" "root_cert" {
 # Created [https://www.googleapis.com/compute/v1/projects/darklang-next/global/backendServices/bwdserver-backend].
 # NAME               BACKENDS  PROTOCOL
 # bwdserver-backend            HTTP
-
-# resource "google_compute_backend_service" "bwdserver-backend" {
-#   name                  = "bwdserver-backend"
-#   load_balancing_scheme = "EXTERNAL_MANAGED"
-#   protocol              = "HTTP"
-#   backends {
-#     group = google_compute_network_endpoint_group.bwdserver-neg.self_link
-#   }
-# }
-
+#
 # gcloud compute backend-services add-backend bwdserver-backend \
 #   --global \
 #   --network-endpoint-group=bwdserver-neg \
 #   --network-endpoint-group-region=us-central1
 # Updated [https://www.googleapis.com/compute/v1/projects/darklang-next/global/backendServices/bwdserver-backend].
 
-# resource "google_compute_backend_service" "bwdserver-backend" {
-#   name                  = "bwdserver-backend"
-#   load_balancing_scheme = "EXTERNAL_MANAGED"
-#   protocol              = "HTTP"
-#   backends {
-#     group = google_compute_network_endpoint_group.bwdserver-neg.self_link
-#   }
-# }
+
+resource "google_compute_backend_service" "bwdserver" {
+  name = "bwdserver-backend"
+
+  load_balancing_scheme           = "EXTERNAL_MANAGED"
+  protocol                        = "HTTP"
+  port_name                       = "http"
+  timeout_sec                     = 30
+  connection_draining_timeout_sec = 0
+
+  backend {
+    group = google_compute_region_network_endpoint_group.bwdserver.id
+  }
+}
+
+import {
+  to = google_compute_backend_service.bwdserver
+  id = "projects/darklang-next/global/backendServices/bwdserver-backend"
+}
 
 # gcloud compute url-maps create darklangio-url-map \
 #   --default-service bwdserver-backend
@@ -157,21 +223,15 @@ resource "google_certificate_manager_certificate" "root_cert" {
 # NAME                DEFAULT_SERVICE
 # darklangio-url-map  backendServices/bwdserver-backend
 
-# resource "google_compute_url_map" "darklangio-url-map" {
-#   name            = "darklangio-url-map"
-#   default_service = google_compute_backend_service.bwdserver-backend.self_link
-# }
+resource "google_compute_url_map" "darklangio_url_map" {
+  name            = "darklangio-url-map"
+  default_service = google_compute_backend_service.bwdserver.id
+}
 
-# gcloud certificate-manager maps create bwdserver-map
-# Waiting for 'operation-1698248064352-6088c309dc017-012f58c6-d94beee1' to
-# complete...done.
-# Created certificate map [bwdserver-map].
-
-# resource "google_compute_ssl_certificate" "bwdserver-map" {
-#   name        = "bwdserver-map"
-#   certificate = google_certificate_manager_certificate.root_cert.certificate_raw_data
-#   private_key = google_certificate_manager_certificate.root_cert.private_key
-# }
+import {
+  to = google_compute_url_map.darklangio_url_map
+  id = "projects/darklang-next/global/urlMaps/darklangio-url-map"
+}
 
 # gcloud compute target-https-proxies create darklangio-target-proxy
 #   --url-map=darklangio-url-map
@@ -180,35 +240,17 @@ resource "google_certificate_manager_certificate" "root_cert" {
 # NAME                     SSL_CERTIFICATES  URL_MAP             REGION  CERTIFICATE_MAP
 # darklangio-target-proxy                    darklangio-url-map          bwdserver-map
 
-# resource "google_compute_target_https_proxy" "darklangio-target-proxy" {
-#   name               = "darklangio-target-proxy"
-#   url_map            = google_compute_url_map.darklangio-url-map.self_link
-#   ssl_certificates   = [google_compute_ssl_certificate.bwdserver-map.self_link]
-#   certificate_mapper = "bwdserver-map"
-# }
+resource "google_compute_target_https_proxy" "darklangio_target_proxy" {
+  name    = "darklangio-target-proxy"
+  url_map = google_compute_url_map.darklangio_url_map.id
+  // self_link isn't a member here
+  certificate_map = "https://certificatemanager.googleapis.com/v1/${google_certificate_manager_certificate_map.bwdserver.id}"
+}
 
-# gcloud certificate-manager maps entries create star-darklangio-entry --map=bwdserver-map --certificates=darklangio-rootcert-jsd83hs --hostname=*.darklang.io
-# Waiting for 'operation-1698248068224-6088c30d8d7e4-8ee3798c-a7278f61' to
-# complete...done.
-# Created certificate map entry [star-darklangio-entry].
-
-# resource "google_compute_ssl_certificate" "star-darklangio-entry" {
-#   name        = "star-darklangio-entry"
-#   certificate = google_certificate_manager_certificate.root_cert.certificate_raw_data
-#   private_key = google_certificate_manager_certificate.root_cert.private_key
-# }
-
-# gcloud certificate-manager maps entries create darklangio-entry --map=bwdserver-map --certificates=darklangio-rootcert-jsd83
-# hs --hostname=darklang.io
-# Waiting for 'operation-1698248085009-6088c31d8f4ca-0ff61263-1c70ec6f' to
-# complete...done.
-# Created certificate map entry [darklangio-entry].
-
-# resource "google_compute_ssl_certificate" "darklangio-entry" {
-#   name        = "darklangio-entry"
-#   certificate = google_certificate_manager_certificate.root_cert.certificate_raw_data
-#   private_key = google_certificate_manager_certificate.root_cert.private_key
-# }
+import {
+  to = google_compute_target_https_proxy.darklangio_target_proxy
+  id = "projects/darklang-next/global/targetHttpsProxies/darklangio-target-proxy"
+}
 
 # gcloud compute forwarding-rules create forward-darklangio-all \
 #   --load-balancing-scheme=EXTERNAL_MANAGED \
@@ -219,3 +261,16 @@ resource "google_certificate_manager_certificate" "root_cert" {
 #   --ports=443
 # Created [https://www.googleapis.com/compute/v1/projects/darklang-next/global/forwardingRules/forward-darklangio-all].
 
+resource "google_compute_global_forwarding_rule" "bwdserver" {
+  name = "forward-darklangio-all"
+
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  target                = google_compute_target_https_proxy.darklangio_target_proxy.self_link
+  port_range            = "443"
+  ip_address            = google_compute_global_address.darklangio_ip_address.address
+}
+
+import {
+  to = google_compute_global_forwarding_rule.bwdserver
+  id = "projects/darklang-next/global/forwardingRules/forward-darklangio-all"
+}
