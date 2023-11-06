@@ -498,12 +498,7 @@ let parse
       let mutable d = 0.0
       if System.Int128.TryParse(j.GetRawText(), &i128) then
         DInt128 i128 |> Ply
-      else if
-        j.TryGetDouble(&d)
-        && d <= (float System.Int128.MaxValue)
-        && d >= (float System.Int128.MinValue)
-        && System.Double.IsInteger d
-      then
+      else if j.TryGetDouble(&d) && System.Double.IsInteger d then
         try
           System.Int128.Parse(
             d.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)
@@ -520,12 +515,7 @@ let parse
       let mutable d = 0.0
       if System.UInt128.TryParse(j.GetRawText(), &ui128) then
         DUInt128 ui128 |> Ply
-      else if
-        j.TryGetDouble(&d)
-        && d <= (float System.UInt128.MaxValue)
-        && d >= (float System.UInt128.MinValue)
-        && System.Double.IsInteger d
-      then
+      else if j.TryGetDouble(&d) && System.Double.IsInteger d then
         try
           System.UInt128.Parse(
             d.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)
