@@ -24,8 +24,7 @@ let testMultibyteCharacters =
 
     Expect.equal fnDefNode.Kind "fn_def" "Expected 'fn_def'"
 
-    let fnDefNode = Nodes.FnDef(fnDefNode)
-    Expect.equal fnDefNode.ReturnType.Kind "type" "Expected 'type'"
+    Expect.equal (fnDefNode.ChildByFieldName("return_type")).Kind "type" "Expected 'type'"
 
 let toStringTest =
   testCase "Basic function declaration parse test"

@@ -61,10 +61,3 @@ cp parser/tree-sitter-darklang/bindings/tree-sitter-darklang.wasm vscode-extensi
 # , so it can be referenced via P/Invoke
 echo "Copying tree-sitter-darklang.so to backend/src/LibTreeSitter.Darklang"
 cp parser/tree-sitter-darklang/tree-sitter-darklang.so backend/src/LibTreeSitter.Darklang
-
-# generate the C# bindings
-#
-#   commented out for now - we don't actually use the generated bindings at this point,
-#   and the generation seems to yield inconsistent results (different ordering),
-#   which makes CI upset.
-#python3 ./scripts/generate_tree-sitter_bindings.py
