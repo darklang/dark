@@ -6,16 +6,8 @@ type TokenParseError =
   PACKAGE.Darklang.Stdlib.AltJson.TokenParseError.TokenParseError
 
 
-let tokenParsedOk
-  (jt: JT)
-  : PACKAGE.Darklang.Stdlib.Result.Result<JT, TokenParseError> =
-  PACKAGE.Darklang.Stdlib.Result.Result.Ok jt
 
-let tokenParseError
-  (err: TokenParseError)
-  : PACKAGE.Darklang.Stdlib.Result.Result<JT, TokenParseError> =
-  PACKAGE.Darklang.Stdlib.Result.Result.Error err
-
+// TODO: backfill a _lot_ from json.dark
 
 // TODO: think - should it be impossible for a JNumber to hold anything that isn't alowed by JSON
 // what about huge strings or something? look into the limitations of JSON per the spec
@@ -24,70 +16,191 @@ let tokenParseError
 // TODO: the serializer doesn't _have_ to be a builtin... but the parser kinda does, for now
 // should we bother taking the parser out of Builtin land? enh
 
-module Null =
-  // TODO:
-  // - blank
-  // - NULL, and other spellings
-  // - "unit"
-  Builtin.AltJson.serializeToken JT.Null = "null"
-  Builtin.AltJson.parseToken "null" = tokenParsedOk JT.Null
+module TokenSerialization =
+  // helpers
+  let tokenParsedOk
+    (jt: JT)
+    : PACKAGE.Darklang.Stdlib.Result.Result<JT, TokenParseError> =
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok jt
+
+  let tokenParseError
+    (err: TokenParseError)
+    : PACKAGE.Darklang.Stdlib.Result.Result<JT, TokenParseError> =
+    PACKAGE.Darklang.Stdlib.Result.Result.Error err
+
+  // tests
+  module Null =
+    Builtin.AltJson.serializeToken JT.Null = "null"
+    Builtin.AltJson.parseToken "null" = tokenParsedOk JT.Null
+
+    Builtin.AltJson.parseToken "NULL" = tokenParseError TokenParseError.NotJson
+    Builtin.AltJson.parseToken "Null" = tokenParseError TokenParseError.NotJson
+    Builtin.AltJson.parseToken "unit" = tokenParseError TokenParseError.NotJson
+    Builtin.AltJson.parseToken "()" = tokenParseError TokenParseError.NotJson
+    Builtin.AltJson.parseToken "" = tokenParseError TokenParseError.NotJson
 
 
-module Bool =
-  // TODO:
-  // - 0, 1,
-  // - TRUE, other spellings
-  Builtin.AltJson.serializeToken (JT.Bool true) = "true"
-  Builtin.AltJson.serializeToken (JT.Bool false) = "false"
-  Builtin.AltJson.parseToken "true" = tokenParsedOk (JT.Bool true)
-  Builtin.AltJson.parseToken "false" = tokenParsedOk (JT.Bool false)
+  module Bool =
+    Builtin.AltJson.serializeToken (JT.Bool true) = "true"
+    Builtin.AltJson.serializeToken (JT.Bool false) = "false"
+    Builtin.AltJson.parseToken "true" = tokenParsedOk (JT.Bool true)
+    Builtin.AltJson.parseToken "false" = tokenParsedOk (JT.Bool false)
+
+    Builtin.AltJson.parseToken "False" = tokenParseError TokenParseError.NotJson
+    Builtin.AltJson.parseToken "f" = tokenParseError TokenParseError.NotJson
+    Builtin.AltJson.parseToken "True" = tokenParseError TokenParseError.NotJson
+    Builtin.AltJson.parseToken "t" = tokenParseError TokenParseError.NotJson
 
 
-module Number =
-  // TODO:
-  // - (+/-) infinity
-  // - NaN
-  // - huge numbers
-  // - negative numbers
-  // - other notation
-  Builtin.AltJson.serializeToken (JT.Number 0.0) = "0" // TODO: any reason we need to make this `0.0`?
-  Builtin.AltJson.parseToken "0" = tokenParsedOk (JT.Number 0.0)
+  module Number =
+    // TODO:
+    // - (+/-) infinity
+    // - NaN
+    // - huge numbers (esp at Float's limits)
+    // - other notation
+    Builtin.AltJson.serializeToken (JT.Number 0.0) = "0" // TODO: any reason we need to make this `0.0`?
+    Builtin.AltJson.parseToken "0" = tokenParsedOk (JT.Number 0.0)
+
+    Builtin.AltJson.serializeToken (JT.Number 0.1) = "0.1"
+    Builtin.AltJson.parseToken "0.1" = tokenParsedOk (JT.Number 0.1)
+
+    Builtin.AltJson.serializeToken (JT.Number -1.0) = "-1"
+    Builtin.AltJson.parseToken "-1" = tokenParsedOk (JT.Number -1.0)
+
+    Builtin.AltJson.serializeToken (JT.Number -1337.0) = "-1337"
+    Builtin.AltJson.parseToken "-1337" = tokenParsedOk (JT.Number -1337.0)
 
 
-module String =
-  // TODO:
-  // - `hi` (without quotes) -> err
-  // - strings with quotes in them
-  // - ' instead of "
-  Builtin.AltJson.serializeToken (JT.String "hi") = "\"hi\""
-  Builtin.AltJson.parseToken "\"hi\"" = tokenParsedOk (JT.String "hi")
-  Builtin.AltJson.parseToken "hi" = tokenParseError TokenParseError.NotJson
+
+  module String =
+    // TODO:
+    // - strings with quotes in them
+    // - ' instead of "
+    Builtin.AltJson.serializeToken (JT.String "hi") = "\"hi\""
+    Builtin.AltJson.parseToken "\"hi\"" = tokenParsedOk (JT.String "hi")
+
+    Builtin.AltJson.parseToken "hi" = tokenParseError TokenParseError.NotJson
+    Builtin.AltJson.parseToken "\'hi\'" = tokenParseError TokenParseError.NotJson
 
 
-module Array =
-  // TODO:
-  // - nested
-  // - huge
-  // - inconsistent types
-  Builtin.AltJson.serializeToken (JT.Array []) = "[]"
-  Builtin.AltJson.parseToken "[]" = tokenParsedOk (JT.Array [])
+  module Array =
+    // TODO:
+    // - huge arrays
 
-  Builtin.AltJson.serializeToken (JT.Array [ JT.Null ]) = "[null]"
-  Builtin.AltJson.parseToken "[ null ]" = tokenParsedOk (JT.Array [ JT.Null ])
+    // empty
+    Builtin.AltJson.serializeToken (JT.Array []) = "[]"
+    Builtin.AltJson.parseToken "[]" = tokenParsedOk (JT.Array [])
+
+    // simple single null
+    Builtin.AltJson.serializeToken (JT.Array [ JT.Null ]) = "[null]"
+    Builtin.AltJson.parseToken "[ null ]" = tokenParsedOk (JT.Array [ JT.Null ])
+
+    // first fibonnaci numbers
+    Builtin.AltJson.serializeToken (
+      JT.Array
+        [ JT.Number 0.0
+          JT.Number 1.0
+          JT.Number 1.0
+          JT.Number 2.0
+          JT.Number 3.0
+          JT.Number 5.0
+          JT.Number 8.0
+          JT.Number 13.0
+          JT.Number 21.0
+          JT.Number 34.0 ]
+    ) = "[0,1,1,2,3,5,8,13,21,34]"
+
+    Builtin.AltJson.parseToken "[0, 1, 1, 2, 3, 5, 8, 13, 21, 34]" = tokenParsedOk (
+      JT.Array
+        [ JT.Number 0.0
+          JT.Number 1.0
+          JT.Number 1.0
+          JT.Number 2.0
+          JT.Number 3.0
+          JT.Number 5.0
+          JT.Number 8.0
+          JT.Number 13.0
+          JT.Number 21.0
+          JT.Number 34.0 ]
+    )
+
+    // nested arrays
+    Builtin.AltJson.parseToken
+      """
+        [ [1, 2, 3],
+          [4, 5, 6],
+          [7, 8, 9] ]""" = tokenParsedOk (
+      JT.Array
+        [ JT.Array [ JT.Number 1.0; JT.Number 2.0; JT.Number 3.0 ]
+          JT.Array [ JT.Number 4.0; JT.Number 5.0; JT.Number 6.0 ]
+          JT.Array [ JT.Number 7.0; JT.Number 8.0; JT.Number 9.0 ] ]
+    )
+
+    Builtin.AltJson.serializeToken (
+      JT.Array
+        [ JT.Array [ JT.Number 1.0; JT.Number 2.0; JT.Number 3.0 ]
+          JT.Array [ JT.Number 4.0; JT.Number 5.0; JT.Number 6.0 ]
+          JT.Array [ JT.Number 7.0; JT.Number 8.0; JT.Number 9.0 ] ]
+    ) = "[[1,2,3],[4,5,6],[7,8,9]]"
 
 
-module Object =
-  // TODO:
-  // - empty
-  // - dupe keys
-  // - blank keys
-  // - keys with newlines
-  // - keys that are generally the same, but not by case
-  // - keys not in quotes
-  // - keys in single quotes
-  // - non-string keys
-  Builtin.AltJson.serializeToken (JT.Object [ ("n", JT.Null) ]) = """{"n":null}"""
+    // mixed types
+    Builtin.AltJson.serializeToken (JT.Array [ JT.Null; JT.Number 1.2 ]) = "[null,1.2]"
 
-  Builtin.AltJson.parseToken """{ "n": null }""" = tokenParsedOk (
-    JT.Object[("n", JT.Null)]
-  )
+    Builtin.AltJson.parseToken "[ null, 1.2 ]" = tokenParsedOk (
+      JT.Array [ JT.Null; JT.Number 1.2 ]
+    )
+
+
+
+  module Object =
+    // blank
+    Builtin.AltJson.serializeToken (JT.Object []) = """{}"""
+    Builtin.AltJson.parseToken """{}""" = tokenParsedOk (JT.Object [])
+
+
+    // single name
+    Builtin.AltJson.serializeToken (JT.Object [ ("n", JT.Null) ]) = """{"n":null}"""
+
+    Builtin.AltJson.parseToken """{ "n": null }""" = tokenParsedOk (
+      JT.Object[("n", JT.Null)]
+    )
+
+
+    // dupe name
+    Builtin.AltJson.parseToken """{ "n": null, "n": 1 }""" = tokenParsedOk (
+      JT.Object [ ("n", JT.Null); ("n", JT.Number 1.0) ]
+    )
+
+    Builtin.AltJson.serializeToken (
+      JT.Object [ ("n", JT.Null); ("n", JT.Number 1.0) ]
+    ) = """{"n":null,"n":1}"""
+
+
+    // blank name
+    Builtin.AltJson.serializeToken (JT.Object [ ("", JT.Null) ]) = """{"":null}"""
+
+    Builtin.AltJson.parseToken """{ "": null }""" = tokenParsedOk (
+      JT.Object[("", JT.Null)]
+    )
+
+    // name with newline
+    // TODO not sure what's right here
+    //Builtin.AltJson.serializeToken (JT.Object [ ("a\nb", JT.Null) ]) = "{\"a\nb\": null}"
+    // Builtin.AltJson.parseToken  "{\"a\nb\": null}" = tokenParsedOk (JT.Object [ ("a\nb", JT.Null) ])
+
+    module Errors =
+      // names must be strings
+      Builtin.AltJson.parseToken """{ 1: 1}""" = tokenParseError
+        TokenParseError.NotJson
+
+      Builtin.AltJson.parseToken """{ null: 1}""" = tokenParseError
+        TokenParseError.NotJson
+
+      // names must be in quotes
+      Builtin.AltJson.parseToken """{ invalidName: 1}""" = tokenParseError
+        TokenParseError.NotJson
+
+      // ..._double_ quotes
+      Builtin.AltJson.parseToken """{ 'invalidName': 1}""" = tokenParseError
+        TokenParseError.NotJson
