@@ -200,3 +200,38 @@ module TokenSerialization =
 
       // ..._double_ quotes
       parseToken """{ 'invalidName': 1}""" = tokenParseError TokenParseError.NotJson
+
+
+module Parsing =
+  // The long way - without any helpers
+  (PACKAGE.Darklang.Stdlib.AltJson.serialize<Bool>
+    PACKAGE.Darklang.Stdlib.AltJson.JsonTokenization.Bool.tokenize
+    true) = "true"
+
+  (PACKAGE.Darklang.Stdlib.AltJson.parse<Bool>
+    PACKAGE.Darklang.Stdlib.AltJson.JsonTokenization.Bool.detokenize
+    "true") = PACKAGE.Darklang.Stdlib.Result.Result.Ok true
+
+
+  module Unit =
+    PACKAGE.Darklang.Stdlib.AltJson.Serialize.unit () = "null"
+
+    PACKAGE.Darklang.Stdlib.AltJson.Parse.unit "null" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+      ()
+
+
+  module Bool =
+    PACKAGE.Darklang.Stdlib.AltJson.Serialize.bool true = "true"
+    PACKAGE.Darklang.Stdlib.AltJson.Serialize.bool false = "false"
+
+    (PACKAGE.Darklang.Stdlib.AltJson.Parse.bool "true") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+      true
+
+    (PACKAGE.Darklang.Stdlib.AltJson.Parse.bool "false") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+      false
+
+
+// module List =
+//   (PACKAGE.Darklang.Stdlib.AltJson.Serialize.list<Bool>
+//     PACKAGE.Darklang.Stdlib.AltJson.JsonTokenization.Bool.tokenize
+//     [ true; false; false; true ]) = "[true,false,false,true]"
