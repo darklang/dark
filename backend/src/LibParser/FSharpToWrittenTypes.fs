@@ -64,6 +64,8 @@ module TypeReference =
     | [], "UInt8", [] -> WT.TUInt8
     | [], "Int16", [] -> WT.TInt16
     | [], "UInt16", [] -> WT.TUInt16
+    | [], "Int128", [] -> WT.TInt128
+    | [], "UInt128", [] -> WT.TUInt128
     | [], "String", [] -> WT.TString
     | [], "Char", [] -> WT.TChar
     | [], "Float", [] -> WT.TFloat
@@ -212,6 +214,18 @@ module MatchPattern =
     | SynPat.Const(SynConst.Int16 n, _) -> WT.MPInt16(id, int16 n)
     | SynPat.Const(SynConst.UInt16 n, _) -> WT.MPUInt16(id, uint16 n)
 
+    | SynPat.Const(SynConst.UserNum(s, "Q"), _) ->
+      match System.Int128.TryParse(s) with
+      | true, int128 -> WT.MPInt128(id, int128)
+      | false, _ ->
+        raiseParserError "Failed to parse Int128" [ "pat", pat ] (Some pat.Range)
+
+    | SynPat.Const(SynConst.UserNum(s, "Z"), _) ->
+      match System.UInt128.TryParse(s) with
+      | true, uint128 -> WT.MPUInt128(id, uint128)
+      | false, _ ->
+        raiseParserError "Failed to parse UInt128" [ "pat", pat ] (Some pat.Range)
+
     | SynPat.Const(SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
       WT.MPFloat(id, sign, whole, fraction)
@@ -350,6 +364,19 @@ module Expr =
     | SynExpr.Const(SynConst.Byte n, _) -> WT.EUInt8(id, uint8 n)
     | SynExpr.Const(SynConst.Int16 n, _) -> WT.EInt16(id, int16 n)
     | SynExpr.Const(SynConst.UInt16 n, _) -> WT.EUInt16(id, uint16 n)
+
+    | SynExpr.Const(SynConst.UserNum(s, "Q"), _) ->
+      match System.Int128.TryParse(s) with
+      | true, int128 -> WT.EInt128(id, int128)
+      | false, _ ->
+        raiseParserError "Failed to parse Int128" [ "ast", ast ] (Some ast.Range)
+
+    | SynExpr.Const(SynConst.UserNum(s, "Z"), _) ->
+      match System.UInt128.TryParse(s) with
+      | true, uint128 -> WT.EUInt128(id, uint128)
+      | false, _ ->
+        raiseParserError "Failed to parse UInt128" [ "ast", ast ] (Some ast.Range)
+
     | SynExpr.Const(SynConst.Char c, _) -> WT.EChar(id, string c)
     | SynExpr.Const(SynConst.Bool b, _) -> WT.EBool(id, b)
     | SynExpr.Const(SynConst.Double d, _) ->
@@ -834,6 +861,8 @@ module Constant =
       | WT.EUInt8(_, n) -> WT.CUInt8 n
       | WT.EInt16(_, n) -> WT.CInt16 n
       | WT.EUInt16(_, n) -> WT.CUInt16 n
+      | WT.EInt128(_, n) -> WT.CInt128 n
+      | WT.EUInt128(_, n) -> WT.CUInt128 n
       | WT.EChar(_, c) -> WT.CChar c
       | WT.EBool(_, b) -> WT.CBool b
       | WT.EFloat(_, sign, whole, fraction) -> WT.CFloat(sign, whole, fraction)

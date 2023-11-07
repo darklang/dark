@@ -28,6 +28,8 @@ let contents (httpConfig : Libs.HttpClient.Configuration) : Builtin.Contents =
       Libs.UInt8.contents
       Libs.Int16.contents
       Libs.UInt16.contents
+      Libs.Int128.contents
+      Libs.UInt128.contents
       Libs.List.contents
       Libs.NoModule.contents
       Libs.Crypto.contents

@@ -17,6 +17,10 @@ let int16 (i : int16) = DInt16(i)
 
 let uint16 (i : uint16) = DUInt16(i)
 
+let int128 (i : System.Int128) = DInt128(i)
+
+let uint128 (i : System.UInt128) = DUInt128(i)
+
 let list (typ : KnownType) (list : List<Dval>) : Dval = DList(VT.known typ, list)
 
 let dict (typ : KnownType) (entries : List<string * Dval>) : Dval =

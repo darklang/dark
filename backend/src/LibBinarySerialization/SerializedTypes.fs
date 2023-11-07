@@ -207,6 +207,8 @@ type TypeReference =
   | TUInt8
   | TInt16
   | TUInt16
+  | TInt128
+  | TUInt128
   | TFloat
   | TBool
   | TUnit
@@ -251,6 +253,12 @@ type LetPattern =
     second : LetPattern *
     theRest : List<LetPattern>
 
+
+// We use System.Numerics.BigInteger for serializing Int128 and UInt128 in MessagePack because
+// BigInteger is a built-in supported type that supports handling large integers beyond the range of Int128 and UInt128.
+// Creating custom formatters for Int128 and UInt128 would introduce complexity,
+// especially when dealing with endianness and serialization/deserialization processes.
+
 [<MessagePack.MessagePackObject>]
 type MatchPattern =
   | MPVariable of id * string
@@ -260,6 +268,8 @@ type MatchPattern =
   | MPUInt8 of id * uint8
   | MPInt16 of id * int16
   | MPUInt16 of id * uint16
+  | MPInt128 of id * bigint
+  | MPUInt128 of id * bigint
   | MPBool of id * bool
   | MPChar of id * string
   | MPString of id * string
@@ -286,6 +296,8 @@ type Expr =
   | EUInt8 of id * uint8
   | EInt16 of id * int16
   | EUInt16 of id * uint16
+  | EInt128 of id * bigint
+  | EUInt128 of id * bigint
   | EBool of id * bool
   | EString of id * List<StringSegment>
   | EChar of id * string
@@ -455,6 +467,8 @@ type Const =
   | CUInt8 of uint8
   | CInt16 of int16
   | CUInt16 of uint16
+  | CInt128 of bigint
+  | CUInt128 of bigint
   | CBool of bool
   | CString of string
   | CChar of string

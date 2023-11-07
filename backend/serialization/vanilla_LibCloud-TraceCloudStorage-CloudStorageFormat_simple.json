@@ -439,6 +439,21 @@
                 5
               ]
             },
+            "int_128_bits": {
+              "DInt128": [
+                "170141183460469231731687303715884105727"
+              ]
+            },
+            "int_16_bits": {
+              "DInt16": [
+                32767
+              ]
+            },
+            "int_8_bits": {
+              "DInt8": [
+                127
+              ]
+            },
             "int_max_31_bits \u002B 0": {
               "DInt": [
                 1073741823
@@ -3956,6 +3971,100 @@
                 ]
               ]
             },
+            "option8": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "Some",
+                [
+                  {
+                    "DInt128": [
+                      "128"
+                    ]
+                  }
+                ]
+              ]
+            },
+            "option9": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "Some",
+                [
+                  {
+                    "DUInt128": [
+                      "128"
+                    ]
+                  }
+                ]
+              ]
+            },
             "pi \u002B 0": {
               "DFloat": [
                 3.141592653589793
@@ -4355,6 +4464,21 @@
                 ]
               ]
             },
+            "uint_128_bits": {
+              "DUInt128": [
+                "340282366920938463463374607431768211455"
+              ]
+            },
+            "uint_16_bits": {
+              "DUInt16": [
+                65535
+              ]
+            },
+            "uint_8_bits": {
+              "DUInt8": [
+                255
+              ]
+            },
             "unicode4": {
               "DString": [
                 "\u0395\u03AF\u03BD\u03B1\u03B9 \u03C0\u03C1\u03BF\u03B9\u03BA\u03B9\u03C3\u03BC\u03AD\u03BD\u03BF\u03B9 \u03BC\u03B5 \u03BB\u03BF\u03B3\u03B9\u03BA\u03AE"
@@ -4404,7 +4528,7 @@
       7777772986753,
       "testFn",
       2,
-      "jSPurrQ8Dzk",
+      "_3K2fjneStI",
       {
         "DRecord": [
           {
@@ -4841,6 +4965,21 @@
                 5
               ]
             },
+            "int_128_bits": {
+              "DInt128": [
+                "170141183460469231731687303715884105727"
+              ]
+            },
+            "int_16_bits": {
+              "DInt16": [
+                32767
+              ]
+            },
+            "int_8_bits": {
+              "DInt8": [
+                127
+              ]
+            },
             "int_max_31_bits \u002B 0": {
               "DInt": [
                 1073741823
@@ -8358,6 +8497,100 @@
                 ]
               ]
             },
+            "option8": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "Some",
+                [
+                  {
+                    "DInt128": [
+                      "128"
+                    ]
+                  }
+                ]
+              ]
+            },
+            "option9": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "Some",
+                [
+                  {
+                    "DUInt128": [
+                      "128"
+                    ]
+                  }
+                ]
+              ]
+            },
             "pi \u002B 0": {
               "DFloat": [
                 3.141592653589793
@@ -8755,6 +8988,21 @@
                     "DUnit": []
                   }
                 ]
+              ]
+            },
+            "uint_128_bits": {
+              "DUInt128": [
+                "340282366920938463463374607431768211455"
+              ]
+            },
+            "uint_16_bits": {
+              "DUInt16": [
+                65535
+              ]
+            },
+            "uint_8_bits": {
+              "DUInt8": [
+                255
               ]
             },
             "unicode4": {

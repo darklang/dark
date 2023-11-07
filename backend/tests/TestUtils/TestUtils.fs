@@ -23,6 +23,21 @@ module Canvas = LibCloud.Canvas
 module Exe = LibExecution.Execution
 module S = RTShortcuts
 
+module NumericLiteralQ =
+  let FromZero () = System.Int128.Zero
+  let FromOne () = System.Int128.One
+  let FromInt32 (i : int) = System.Int128.Parse(string i)
+  let FromInt64 (i : int64) = System.Int128.Parse(string i)
+  let FromString (s : string) = System.Int128.Parse(s)
+
+module NumericLiteralZ =
+  let FromZero () = System.UInt128.Zero
+  let FromOne () = System.UInt128.One
+  let FromInt32 (i : int) = System.UInt128.Parse(string i)
+  let FromInt64 (i : int64) = System.UInt128.Parse(string i)
+  let FromString (s : string) = System.UInt128.Parse(s)
+
+
 let testOwner : Lazy<Task<UserID>> = lazy (Account.createUser ())
 
 let nameToTestDomain (name : string) : string =
@@ -397,6 +412,8 @@ module Expect =
     | DUInt8 _
     | DInt16 _
     | DUInt16 _
+    | DInt128 _
+    | DUInt128 _
     | DDateTime _
     | DBool _
     | DFloat _
@@ -507,6 +524,8 @@ module Expect =
     | MPUInt8(_, l), MPUInt8(_, l') -> check path l l'
     | MPInt16(_, l), MPInt16(_, l') -> check path l l'
     | MPUInt16(_, l), MPUInt16(_, l') -> check path l l'
+    | MPInt128(_, l), MPInt128(_, l') -> check path l l'
+    | MPUInt128(_, l), MPUInt128(_, l') -> check path l l'
     | MPFloat(_, d), MPFloat(_, d') -> check path d d'
     | MPBool(_, l), MPBool(_, l') -> check path l l'
     | MPChar(_, c), MPChar(_, c') -> check path c c'
@@ -526,6 +545,8 @@ module Expect =
     | MPUInt8 _, _
     | MPInt16 _, _
     | MPUInt16 _, _
+    | MPInt128 _, _
+    | MPUInt128 _, _
     | MPFloat _, _
     | MPBool _, _
     | MPChar _, _
@@ -549,6 +570,8 @@ module Expect =
     | TUInt8, _
     | TInt16, _
     | TUInt16, _
+    | TInt128, _
+    | TUInt128, _
     | TFloat, _
     | TBool, _
     | TUnit, _
@@ -609,6 +632,8 @@ module Expect =
     | EUInt8(_, v), EUInt8(_, v') -> check path v v'
     | EInt16(_, v), EInt16(_, v') -> check path v v'
     | EUInt16(_, v), EUInt16(_, v') -> check path v v'
+    | EInt128(_, v), EInt128(_, v') -> check path v v'
+    | EUInt128(_, v), EUInt128(_, v') -> check path v v'
     | EFloat(_, v), EFloat(_, v') -> check path v v'
     | EBool(_, v), EBool(_, v') -> check path v v'
     | ELet(_, pat, rhs, body), ELet(_, pat', rhs', body') ->
@@ -724,6 +749,8 @@ module Expect =
     | EUInt8 _, _
     | EInt16 _, _
     | EUInt16 _, _
+    | EInt128 _, _
+    | EUInt128 _, _
     | EString _, _
     | EChar _, _
     | EVariable _, _
@@ -899,6 +926,8 @@ module Expect =
     | DUInt8 _, _
     | DInt16 _, _
     | DUInt16 _, _
+    | DInt128 _, _
+    | DUInt128 _, _
     | DDateTime _, _
     | DBool _, _
     | DFloat _, _
@@ -966,6 +995,8 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DUInt8 _
     | DInt16 _
     | DUInt16 _
+    | DInt128 _
+    | DUInt128 _
     | DFloat _
     | DFnVal _
     | DUuid _
@@ -1063,6 +1094,12 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("float3", DFloat 15.0, TFloat)
     ("float4", DFloat -15.0, TFloat)
     ("int5", DInt 5L, TInt)
+    ("int_8_bits", DInt8 127y, TInt8)
+    ("int_16_bits", DInt16 32767s, TInt16)
+    ("int_128_bits", DInt128 170141183460469231731687303715884105727Q, TInt128)
+    ("uint_8_bits", DUInt8 255uy, TUInt8)
+    ("uint_16_bits", DUInt16 65535us, TUInt16)
+    ("uint_128_bits", DUInt128 340282366920938463463374607431768211455Z, TUInt128)
     ("true", DBool true, TBool)
     ("false", DBool false, TBool)
     ("unit", DUnit, TUnit)
@@ -1261,6 +1298,24 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        [ Dval.uint16 16us ]
      ),
      TypeReference.option TUInt16)
+    ("option8",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       Dval.ignoreAndUseEmpty [ VT.int128 ],
+       "Some",
+       [ Dval.int128 128Q ]
+     ),
+     TypeReference.option TInt128)
+    ("option9",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       Dval.ignoreAndUseEmpty [ VT.uint128 ],
+       "Some",
+       [ Dval.uint128 128Z ]
+     ),
+     TypeReference.option TUInt128)
     ("character", DChar "s", TChar)
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
     // use image bytes here to test for any weird bytes forms

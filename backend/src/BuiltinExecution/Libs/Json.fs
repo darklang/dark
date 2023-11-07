@@ -135,6 +135,10 @@ let rec serialize
 
     | TUInt16, DUInt16 i -> w.WriteNumberValue i
 
+    | TInt128, DInt128 i -> w.WriteRawValue(i.ToString())
+
+    | TUInt128, DUInt128 i -> w.WriteRawValue(i.ToString())
+
     | TFloat, DFloat f ->
       if System.Double.IsNaN f then
         w.WriteStringValue "NaN"
@@ -257,6 +261,8 @@ let rec serialize
     | TUInt8, _
     | TInt16, _
     | TUInt16, _
+    | TInt128, _
+    | TUInt128, _
     | TFloat, _
     | TChar, _
     | TString, _
@@ -487,6 +493,39 @@ let parse
       else
         raiseCantMatchWithType TUInt16 j pathSoFar |> Ply
 
+    | TInt128, JsonValueKind.Number ->
+      let mutable i128 = System.Int128.Zero
+      let mutable d = 0.0
+      if System.Int128.TryParse(j.GetRawText(), &i128) then
+        DInt128 i128 |> Ply
+      else if j.TryGetDouble(&d) && System.Double.IsInteger d then
+        try
+          System.Int128.Parse(
+            d.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)
+          )
+          |> DInt128
+          |> Ply
+        with :? System.OverflowException ->
+          raiseCantMatchWithType TInt128 j pathSoFar |> Ply
+      else
+        raiseCantMatchWithType TInt128 j pathSoFar |> Ply
+
+    | TUInt128, JsonValueKind.Number ->
+      let mutable ui128 = System.UInt128.Zero
+      let mutable d = 0.0
+      if System.UInt128.TryParse(j.GetRawText(), &ui128) then
+        DUInt128 ui128 |> Ply
+      else if j.TryGetDouble(&d) && System.Double.IsInteger d then
+        try
+          System.UInt128.Parse(
+            d.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)
+          )
+          |> DUInt128
+          |> Ply
+        with :? System.OverflowException ->
+          raiseCantMatchWithType TUInt128 j pathSoFar |> Ply
+      else
+        raiseCantMatchWithType TUInt128 j pathSoFar |> Ply
 
     | TFloat, JsonValueKind.Number -> j.GetDouble() |> DFloat |> Ply
     | TFloat, JsonValueKind.String ->
@@ -695,6 +734,8 @@ let parse
     | TUInt8, _
     | TInt16, _
     | TUInt16, _
+    | TInt128, _
+    | TUInt128, _
     | TFloat, _
     | TChar, _
     | TString, _

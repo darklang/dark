@@ -24,6 +24,8 @@
     <Compile Include="Libs/UInt8.fs" />
     <Compile Include="Libs/Int16.fs" />
     <Compile Include="Libs/UInt16.fs" />
+    <Compile Include="Libs/Int128.fs" />
+    <Compile Include="Libs/UInt128.fs" />
     <Compile Include="Libs/Json.fs" />
     <Compile Include="Libs/List.fs" />
     <Compile Include="Libs/Math.fs" />

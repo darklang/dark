@@ -34,6 +34,8 @@ let rec preTraversal
     | MPUInt8 _
     | MPInt16 _
     | MPUInt16 _
+    | MPInt128 _
+    | MPUInt128 _
     | MPBool _
     | MPString _
     | MPChar _
@@ -52,6 +54,8 @@ let rec preTraversal
     | TUInt8
     | TInt16
     | TUInt16
+    | TInt128
+    | TUInt128
     | TBool
     | TUnit
     | TFloat
@@ -77,6 +81,8 @@ let rec preTraversal
   | EUInt8 _
   | EInt16 _
   | EUInt16 _
+  | EInt128 _
+  | EUInt128 _
   | EBool _
   | EChar _
   | EUnit _
@@ -160,6 +166,8 @@ let rec postTraversal
     | MPUInt8 _
     | MPInt16 _
     | MPUInt16 _
+    | MPInt128 _
+    | MPUInt128 _
     | MPBool _
     | MPString _
     | MPChar _
@@ -178,6 +186,8 @@ let rec postTraversal
     | TUInt8
     | TInt16
     | TUInt16
+    | TInt128
+    | TUInt128
     | TBool
     | TUnit
     | TFloat
@@ -202,6 +212,8 @@ let rec postTraversal
    | EUInt8 _
    | EInt16 _
    | EUInt16 _
+   | EInt128 _
+   | EUInt128 _
    | EBool _
    | EChar _
    | EUnit _
@@ -299,6 +311,8 @@ let rec postTraversalAsync
       | MPUInt8 _
       | MPInt16 _
       | MPUInt16 _
+      | MPInt128 _
+      | MPUInt128 _
       | MPBool _
       | MPString _
       | MPChar _
@@ -331,6 +345,8 @@ let rec postTraversalAsync
       | TUInt8
       | TInt16
       | TUInt16
+      | TInt128
+      | TUInt128
       | TBool
       | TUnit
       | TFloat
@@ -382,6 +398,8 @@ let rec postTraversalAsync
       | EUInt8 _
       | EInt16 _
       | EUInt16 _
+      | EInt128 _
+      | EUInt128 _
       | EBool _
       | EChar _
       | EUnit _

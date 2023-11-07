@@ -32,6 +32,19 @@ let error2 (msg : string) (v : string) : 'a = error $"{msg}: {v}"
 let error3 (msg : string) (v1 : string) (v2 : string) : 'a =
   error $"{msg}:\n  {v1}\n  {v2}"
 
+let int128 (v : System.Int128) : SqlValue =
+  let typ = NpgsqlTypes.NpgsqlDbType.Numeric
+  let idParam = NpgsqlParameter("int128", typ)
+  idParam.Value <- System.Numerics.BigInteger.op_Implicit (v)
+  Sql.parameter idParam
+
+let uint128 (v : System.UInt128) : SqlValue =
+  let typ = NpgsqlTypes.NpgsqlDbType.Numeric
+  let idParam = NpgsqlParameter("uint128", typ)
+  idParam.Value <- System.Numerics.BigInteger.op_Implicit (v)
+  Sql.parameter idParam
+
+
 type position =
   | First
   | Last
@@ -92,6 +105,12 @@ let rec dvalToSql
     | TVariable _, DUInt16 i
     | TUInt16, DUInt16 i -> return Sql.int64 (int i), TUInt16
 
+    | TVariable _, DInt128 i
+    | TInt128, DInt128 i -> return int128 i, TInt128
+
+    | TVariable _, DUInt128 i
+    | TUInt128, DUInt128 i -> return uint128 i, TUInt128
+
     | TVariable _, DFloat v
     | TFloat, DFloat v -> return Sql.double v, TFloat
 
@@ -146,6 +165,8 @@ let rec dvalToSql
     | _, DUInt8 _
     | _, DInt16 _
     | _, DUInt16 _
+    | _, DInt128 _
+    | _, DUInt128 _
     | _, DFloat _
     | _, DBool _
     | _, DString _
@@ -562,6 +583,16 @@ let rec lambdaToSql
           let name = randomString 10
           return $"(@{name})", [ name, Sql.int64 (int v) ], TUInt16
 
+        | EInt128(_, v) ->
+          typecheck $"Int128 {v}" TInt128 expectedType
+          let name = randomString 10
+          return $"(@{name})", [ name, int128 v ], TInt128
+
+        | EUInt128(_, v) ->
+          typecheck $"UInt128 {v}" TUInt128 expectedType
+          let name = randomString 10
+          return $"(@{name})", [ name, uint128 v ], TUInt128
+
         | EBool(_, v) ->
           typecheck $"Bool {v}" TBool expectedType
           let name = randomString 10
@@ -767,6 +798,8 @@ let rec lambdaToSql
             | TUInt8 -> "smallint"
             | TInt16 -> "smallint"
             | TUInt16 -> "integer"
+            | TInt128 -> "numeric(39,0)"
+            | TUInt128 -> "numeric(39,0)"
             | TFloat -> "double precision"
             | TBool -> "bool"
             | TDateTime -> "timestamp with time zone"
@@ -789,6 +822,8 @@ let rec lambdaToSql
           | TUInt8
           | TInt16
           | TUInt16
+          | TInt128
+          | TUInt128
           | TFloat
           | TBool
           | TDateTime
@@ -931,6 +966,8 @@ let partiallyEvaluate
             | EUInt8 _
             | EInt16 _
             | EUInt16 _
+            | EInt128 _
+            | EUInt128 _
             | EBool _
             | EUnit _
             | EFloat _
@@ -952,6 +989,8 @@ let partiallyEvaluate
         | EUInt8 _
         | EInt16 _
         | EUInt16 _
+        | EInt128 _
+        | EUInt128 _
         | EFloat _
         | EBool _
         | EUnit _
@@ -987,6 +1026,8 @@ let partiallyEvaluate
             | EUInt8 _
             | EInt16 _
             | EUInt16 _
+            | EInt128 _
+            | EUInt128 _
             | EString _
             | EVariable _
             | EChar _

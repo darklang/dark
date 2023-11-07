@@ -14,19 +14,19 @@ module Darklang =
       let ``mod`` (a: UInt8) (b: UInt8) : UInt8 = Builtin.UInt8.``mod`` a b
 
 
-      /// Adds two 8 bit unsigned integers together
+      /// Adds two 8-bit unsigned integers together
       let add (a: UInt8) (b: UInt8) : UInt8 = Builtin.UInt8.add a b
 
 
-      /// Subtracts two 8 bit unsigned  integers
+      /// Subtracts two 8-bit unsigned  integers
       let subtract (a: UInt8) (b: UInt8) : UInt8 = Builtin.UInt8.subtract a b
 
 
-      /// Multiplies two 8 bit unsigned  integers
+      /// Multiplies two 8-bit unsigned  integers
       let multiply (a: UInt8) (b: UInt8) : UInt8 = Builtin.UInt8.multiply a b
 
 
-      /// Divides two 8 bit unsigned  integers
+      /// Divides two 8-bit unsigned  integers
       let divide (a: UInt8) (b: UInt8) : UInt8 = Builtin.UInt8.divide a b
 
 
@@ -56,7 +56,7 @@ module Darklang =
       let sqrt (a: UInt8) : Float = Builtin.UInt8.sqrt a
 
 
-      /// Converts an <type UInt8> to a <type Float>
+      /// Converts a <type UInt8> to a <type Float>
       let toFloat (a: UInt8) : Float = Builtin.UInt8.toFloat a
 
 

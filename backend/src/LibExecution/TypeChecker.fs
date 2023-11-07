@@ -227,6 +227,8 @@ let rec valueTypeUnifies
     | TUInt8, ValueType.Known KTUInt8 -> return true
     | TInt16, ValueType.Known KTInt16 -> return true
     | TUInt16, ValueType.Known KTUInt16 -> return true
+    | TInt128, ValueType.Known KTInt128 -> return true
+    | TUInt128, ValueType.Known KTUInt128 -> return true
     | TFloat, ValueType.Known KTFloat -> return true
     | TChar, ValueType.Known KTChar -> return true
     | TString, ValueType.Known KTString -> return true
@@ -307,6 +309,8 @@ let rec unify
       | TUInt8, DUInt8 _ -> return Ok()
       | TInt16, DInt16 _ -> return Ok()
       | TUInt16, DUInt16 _ -> return Ok()
+      | TInt128, DInt128 _ -> return Ok()
+      | TUInt128, DUInt128 _ -> return Ok()
       | TFloat, DFloat _ -> return Ok()
       | TBool, DBool _ -> return Ok()
       | TUnit, DUnit -> return Ok()
@@ -456,6 +460,8 @@ let rec unify
       | TUInt8, _
       | TInt16, _
       | TUInt16, _
+      | TInt128, _
+      | TUInt128, _
       | TFloat, _
       | TBool, _
       | TUnit, _

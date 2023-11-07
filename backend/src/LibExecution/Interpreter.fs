@@ -76,6 +76,8 @@ let rec evalConst (source : Source) (c : Const) : Dval =
   | CUInt8 i -> DUInt8 i
   | CInt16 i -> DInt16 i
   | CUInt16 i -> DUInt16 i
+  | CInt128 i -> DInt128 i
+  | CUInt128 i -> DUInt128 i
   | CBool b -> DBool b
   | CString s -> DString s
   | CChar c -> DChar c
@@ -130,8 +132,8 @@ let rec checkPattern
 
 // fsharplint:disable FL0039
 
-/// Interprets an expression and reduces to a Dark value
-/// (or task that should result in such)
+/// Interprets an expression and reduces it to a Dark value
+/// (or a task that should result in such)
 let rec eval
   (state : ExecutionState)
   (tlid : tlid)
@@ -189,7 +191,7 @@ let rec eval
           // The Outer definition provides:
           //   outerTypeArgs = [TVar "a"; TInt]
           // We combine this with innerTypeParams to get:
-          //   fields = [("x", TVar "a"); ("b", TInt)]
+          //   fields = [("x", TVar "a"); ("y", TInt)]
           //   outerTypeParams = ["a"]
           // So the effective result of this is:
           //   type Outer<'a> = { x : 'a; y : Int }
@@ -293,6 +295,8 @@ let rec eval
     | EUInt8(_id, i) -> return DUInt8 i
     | EInt16(_id, i) -> return DInt16 i
     | EUInt16(_id, i) -> return DUInt16 i
+    | EInt128(_id, i) -> return DInt128 i
+    | EUInt128(_id, i) -> return DUInt128 i
     | EFloat(_id, value) -> return DFloat value
     | EUnit _id -> return DUnit
     | EChar(_id, s) -> return DChar s
@@ -539,6 +543,24 @@ let rec eval
                 raiseExeRTE
                   id
                   (ExecutionError.MatchExprPatternWrongType("UInt16", dv))
+
+          | MPInt128(id, pi) ->
+            match dv with
+            | DInt128 di -> return (di = pi), []
+            | _ ->
+              return!
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("Int128", dv))
+
+          | MPUInt128(id, pi) ->
+            match dv with
+            | DUInt128 di -> return (di = pi), []
+            | _ ->
+              return!
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("UInt128", dv))
 
           | MPBool(id, pb) ->
             match dv with

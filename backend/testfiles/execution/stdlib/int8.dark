@@ -92,39 +92,39 @@ PACKAGE.Darklang.Stdlib.Int8.divide_v0 -128y -1y = Builtin.Test.derrorMessage
   "Out of range"
 
 
-PACKAGE.Darklang.Stdlib.Int8.greaterThan_v0 (20y) (1y) = true
-PACKAGE.Darklang.Stdlib.Int8.greaterThan_v0 (20y) (127y) = false
-PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 (0y) (1y) = false
-PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 (1y) (0y) = true
-PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 (6y) (1y) = true
-PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 (6y) (8y) = false
-PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 (-5y) (-20y) = true
-PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 (-20y) (-1y) = false
-PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 (-20y) (-20y) = true
-PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 (-128y) (-20y) = false
+PACKAGE.Darklang.Stdlib.Int8.greaterThan_v0 20y 1y = true
+PACKAGE.Darklang.Stdlib.Int8.greaterThan_v0 20y 127y = false
+PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 0y 1y = false
+PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 1y 0y = true
+PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 6y 1y = true
+PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 6y 8y = false
+PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 -5y -20y = true
+PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 -20y -1y = false
+PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 -20y -20y = true
+PACKAGE.Darklang.Stdlib.Int8.greaterThanOrEqualTo_v0 -128y -20y = false
 
-PACKAGE.Darklang.Stdlib.Int8.lessThanOrEqualTo_v0 (6y) (8y) = true
-PACKAGE.Darklang.Stdlib.Int8.lessThanOrEqualTo_v0 (10y) (1y) = false
-PACKAGE.Darklang.Stdlib.Int8.lessThanOrEqualTo_v0 (0y) (1y) = true
-PACKAGE.Darklang.Stdlib.Int8.lessThanOrEqualTo_v0 (1y) (0y) = false
-PACKAGE.Darklang.Stdlib.Int8.lessThan_v0 (-128y) (127y) = true
+PACKAGE.Darklang.Stdlib.Int8.lessThanOrEqualTo_v0 6y 8y = true
+PACKAGE.Darklang.Stdlib.Int8.lessThanOrEqualTo_v0 10y 1y = false
+PACKAGE.Darklang.Stdlib.Int8.lessThanOrEqualTo_v0 0y 1y = true
+PACKAGE.Darklang.Stdlib.Int8.lessThanOrEqualTo_v0 1y 0y = false
+PACKAGE.Darklang.Stdlib.Int8.lessThan_v0 -128y 127y = true
 
-PACKAGE.Darklang.Stdlib.Int8.lessThan_v0 (6y) (8y) = true
-PACKAGE.Darklang.Stdlib.Int8.lessThan_v0 (10y) (1y) = false
-PACKAGE.Darklang.Stdlib.Int8.lessThan_v0 (0y) (1y) = true
-PACKAGE.Darklang.Stdlib.Int8.lessThan_v0 (1y) (0y) = false
-PACKAGE.Darklang.Stdlib.Int8.lessThan_v0 (-128y) (127y) = true
+PACKAGE.Darklang.Stdlib.Int8.lessThan_v0 6y 8y = true
+PACKAGE.Darklang.Stdlib.Int8.lessThan_v0 10y 1y = false
+PACKAGE.Darklang.Stdlib.Int8.lessThan_v0 0y 1y = true
+PACKAGE.Darklang.Stdlib.Int8.lessThan_v0 1y 0y = false
+PACKAGE.Darklang.Stdlib.Int8.lessThan_v0 -128y 127y = true
 
-PACKAGE.Darklang.Stdlib.Int8.toString (0y) = "0"
-PACKAGE.Darklang.Stdlib.Int8.toString (1y) = "1"
-PACKAGE.Darklang.Stdlib.Int8.toString (-1y) = "-1"
-PACKAGE.Darklang.Stdlib.Int8.toString (-128y) = "-128" // Int8 lower limit
-PACKAGE.Darklang.Stdlib.Int8.toString (127y) = "127" // Int8 upper limit
+PACKAGE.Darklang.Stdlib.Int8.toString 0y = "0"
+PACKAGE.Darklang.Stdlib.Int8.toString 1y = "1"
+PACKAGE.Darklang.Stdlib.Int8.toString -1y = "-1"
+PACKAGE.Darklang.Stdlib.Int8.toString -128y = "-128" // Int8 lower limit
+PACKAGE.Darklang.Stdlib.Int8.toString 127y = "127" // Int8 upper limit
 
-PACKAGE.Darklang.Stdlib.Int8.toFloat_v0 (2y) = 2.0
-PACKAGE.Darklang.Stdlib.Int8.toFloat_v0 (127y) = 127.0
-PACKAGE.Darklang.Stdlib.Int8.toFloat_v0 (-128y) = -128.0
-PACKAGE.Darklang.Stdlib.Int8.toFloat_v0 (-10y) = -10.0
+PACKAGE.Darklang.Stdlib.Int8.toFloat_v0 2y = 2.0
+PACKAGE.Darklang.Stdlib.Int8.toFloat_v0 127y = 127.0
+PACKAGE.Darklang.Stdlib.Int8.toFloat_v0 -128y = -128.0
+PACKAGE.Darklang.Stdlib.Int8.toFloat_v0 -10y = -10.0
 
 PACKAGE.Darklang.Stdlib.Int8.sqrt_v0 4y = 2.0
 PACKAGE.Darklang.Stdlib.Int8.sqrt_v0 100y = 10.0
@@ -133,13 +133,13 @@ PACKAGE.Darklang.Stdlib.Int8.sqrt_v0 86y = 9.273618495495704
 PACKAGE.Darklang.Stdlib.Int8.mod_v0 15y 5y = 0y
 PACKAGE.Darklang.Stdlib.Int8.mod_v0 15y 6y = 3y
 PACKAGE.Darklang.Stdlib.Int8.mod_v0 0y 15y = 0y
-PACKAGE.Darklang.Stdlib.Int8.mod_v0 (-1y) 2y = 1y
-PACKAGE.Darklang.Stdlib.Int8.mod_v0 (-128y) 53y = 31y
+PACKAGE.Darklang.Stdlib.Int8.mod_v0 -1y 2y = 1y
+PACKAGE.Darklang.Stdlib.Int8.mod_v0 -128y 53y = 31y
 PACKAGE.Darklang.Stdlib.Int8.mod_v0 127y 3y = 1y
 
 PACKAGE.Darklang.Stdlib.Int8.mod_v0 5y 0y = Builtin.Test.derrorMessage "Zero modulus"
 
-PACKAGE.Darklang.Stdlib.Int8.mod_v0 5y (-5y) = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.mod_v0 5y -5y = Builtin.Test.derrorMessage
   "Negative modulus"
 
 (PACKAGE.Darklang.Stdlib.List.range_v0 1 5)

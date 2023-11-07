@@ -67,6 +67,34 @@ module Vanilla =
       else
         writer.WriteNumberValue(value)
 
+
+  type Int128Converter() =
+    // We serialize int128s as strings because they're too big to be represented as numbers in JSON.
+    // Since the deserialization is type-directed, we always know we're looking
+    // to convert them to int128s, so if we see a string we know exactly what it means
+    inherit JsonConverter<System.Int128>()
+
+    override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
+      let str = reader.GetString()
+      System.Int128.Parse(str)
+
+    override _.Write(writer : Utf8JsonWriter, value : System.Int128, _options) =
+      writer.WriteStringValue(value.ToString())
+
+  type UInt128Converter() =
+    // We serialize uint128s as strings because they're too big to be represented as numbers in JSON.
+    // Since the deserialization is type-directed, we always know we're looking to convert them to uint128s,
+    // so if we see a string we know exactly what it means
+    inherit JsonConverter<System.UInt128>()
+
+    override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
+      let str = reader.GetString()
+      System.UInt128.Parse(str)
+
+    override _.Write(writer : Utf8JsonWriter, value : System.UInt128, _options) =
+      writer.WriteStringValue(value.ToString())
+
+
   type NEListValueConverter<'TValue>() =
     inherit JsonConverter<NEList<'TValue>>()
 
@@ -153,6 +181,8 @@ module Vanilla =
     options.Converters.Add(LocalDateTimeConverter())
     options.Converters.Add(UInt64Converter())
     options.Converters.Add(Int64Converter())
+    options.Converters.Add(Int128Converter())
+    options.Converters.Add(UInt128Converter())
     options.Converters.Add(RawBytesConverter())
     options.Converters.Add(NEListConverter())
     options.Converters.Add(fsharpConverter)
