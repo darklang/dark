@@ -62,11 +62,13 @@ type Utf8JsonWriter with
 
 module RuntimeError =
   module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+
   type Error =
     /// In the future, we will add a trait to indicate types which can be serialized. For
     /// now, we'll raise a RuntimeError instead if any of those types are present.
     /// Helpfully, this allows us keep `serialize` from having to return an Error.
     | UnsupportedType of TypeReference
+
   let toRuntimeError (e : Error) : RuntimeError =
     let (caseName, fields) =
       match e with

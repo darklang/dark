@@ -1,0 +1,202 @@
+// aliases and helpers
+
+type JT = PACKAGE.Darklang.Stdlib.AltJson.JsonToken
+
+type TokenParseError =
+  PACKAGE.Darklang.Stdlib.AltJson.TokenParseError.TokenParseError
+
+
+
+// TODO: backfill a _lot_ from json.dark
+
+// TODO: think - should it be impossible for a JNumber to hold anything that isn't alowed by JSON
+// what about huge strings or something? look into the limitations of JSON per the spec
+// I mean, just generally (?print and) read the spec - it's only 21 pages
+
+// TODO: the serializer doesn't _have_ to be a builtin... but the parser kinda does, for now
+// should we bother taking the parser out of Builtin land? enh
+
+module TokenSerialization =
+  // helpers
+  let parseToken
+    (jsonString: String)
+    : PACKAGE.Darklang.Stdlib.Result.Result<JT, TokenParseError> =
+    PACKAGE.Darklang.Stdlib.AltJson.parseToken jsonString
+
+  let serializeToken (token: JT) : String =
+    PACKAGE.Darklang.Stdlib.AltJson.serializeToken token
+
+  let tokenParsedOk
+    (jt: JT)
+    : PACKAGE.Darklang.Stdlib.Result.Result<JT, TokenParseError> =
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok jt
+
+  let tokenParseError
+    (err: TokenParseError)
+    : PACKAGE.Darklang.Stdlib.Result.Result<JT, TokenParseError> =
+    PACKAGE.Darklang.Stdlib.Result.Result.Error err
+
+  // tests
+  module Null =
+    serializeToken JT.Null = "null"
+    parseToken "null" = tokenParsedOk JT.Null
+
+    parseToken "NULL" = tokenParseError TokenParseError.NotJson
+    parseToken "Null" = tokenParseError TokenParseError.NotJson
+    parseToken "unit" = tokenParseError TokenParseError.NotJson
+    parseToken "()" = tokenParseError TokenParseError.NotJson
+    parseToken "" = tokenParseError TokenParseError.NotJson
+
+
+  module Bool =
+    serializeToken (JT.Bool true) = "true"
+    serializeToken (JT.Bool false) = "false"
+    parseToken "true" = tokenParsedOk (JT.Bool true)
+    parseToken "false" = tokenParsedOk (JT.Bool false)
+
+    parseToken "False" = tokenParseError TokenParseError.NotJson
+    parseToken "f" = tokenParseError TokenParseError.NotJson
+    parseToken "True" = tokenParseError TokenParseError.NotJson
+    parseToken "t" = tokenParseError TokenParseError.NotJson
+
+
+  module Number =
+    // TODO:
+    // - (+/-) infinity
+    // - NaN
+    // - huge numbers (esp at Float's limits)
+    // - other notation
+    serializeToken (JT.Number 0.0) = "0" // TODO: any reason we need to make this `0.0`?
+    parseToken "0" = tokenParsedOk (JT.Number 0.0)
+
+    serializeToken (JT.Number 0.1) = "0.1"
+    parseToken "0.1" = tokenParsedOk (JT.Number 0.1)
+
+    serializeToken (JT.Number -1.0) = "-1"
+    parseToken "-1" = tokenParsedOk (JT.Number -1.0)
+
+    serializeToken (JT.Number -1337.0) = "-1337"
+    parseToken "-1337" = tokenParsedOk (JT.Number -1337.0)
+
+
+
+  module String =
+    // TODO:
+    // - strings with quotes in them
+    // - ' instead of "
+    serializeToken (JT.String "hi") = "\"hi\""
+    parseToken "\"hi\"" = tokenParsedOk (JT.String "hi")
+
+    parseToken "hi" = tokenParseError TokenParseError.NotJson
+    parseToken "\'hi\'" = tokenParseError TokenParseError.NotJson
+
+
+  module Array =
+    // TODO:
+    // - huge arrays
+
+    // empty
+    serializeToken (JT.Array []) = "[]"
+    parseToken "[]" = tokenParsedOk (JT.Array [])
+
+    // simple single null
+    serializeToken (JT.Array [ JT.Null ]) = "[null]"
+    parseToken "[ null ]" = tokenParsedOk (JT.Array [ JT.Null ])
+
+    // first fibonnaci numbers
+    serializeToken (
+      JT.Array
+        [ JT.Number 0.0
+          JT.Number 1.0
+          JT.Number 1.0
+          JT.Number 2.0
+          JT.Number 3.0
+          JT.Number 5.0
+          JT.Number 8.0
+          JT.Number 13.0
+          JT.Number 21.0
+          JT.Number 34.0 ]
+    ) = "[0,1,1,2,3,5,8,13,21,34]"
+
+    parseToken "[0, 1, 1, 2, 3, 5, 8, 13, 21, 34]" = tokenParsedOk (
+      JT.Array
+        [ JT.Number 0.0
+          JT.Number 1.0
+          JT.Number 1.0
+          JT.Number 2.0
+          JT.Number 3.0
+          JT.Number 5.0
+          JT.Number 8.0
+          JT.Number 13.0
+          JT.Number 21.0
+          JT.Number 34.0 ]
+    )
+
+    // nested arrays
+    parseToken
+      """
+        [ [1, 2, 3],
+          [4, 5, 6],
+          [7, 8, 9] ]""" = tokenParsedOk (
+      JT.Array
+        [ JT.Array [ JT.Number 1.0; JT.Number 2.0; JT.Number 3.0 ]
+          JT.Array [ JT.Number 4.0; JT.Number 5.0; JT.Number 6.0 ]
+          JT.Array [ JT.Number 7.0; JT.Number 8.0; JT.Number 9.0 ] ]
+    )
+
+    serializeToken (
+      JT.Array
+        [ JT.Array [ JT.Number 1.0; JT.Number 2.0; JT.Number 3.0 ]
+          JT.Array [ JT.Number 4.0; JT.Number 5.0; JT.Number 6.0 ]
+          JT.Array [ JT.Number 7.0; JT.Number 8.0; JT.Number 9.0 ] ]
+    ) = "[[1,2,3],[4,5,6],[7,8,9]]"
+
+
+    // mixed types
+    serializeToken (JT.Array [ JT.Null; JT.Number 1.2 ]) = "[null,1.2]"
+
+    parseToken "[ null, 1.2 ]" = tokenParsedOk (JT.Array [ JT.Null; JT.Number 1.2 ])
+
+
+
+  module Object =
+    // blank
+    serializeToken (JT.Object []) = """{}"""
+    parseToken """{}""" = tokenParsedOk (JT.Object [])
+
+
+    // single name
+    serializeToken (JT.Object [ ("n", JT.Null) ]) = """{"n":null}"""
+
+    parseToken """{ "n": null }""" = tokenParsedOk (JT.Object[("n", JT.Null)])
+
+
+    // dupe name
+    parseToken """{ "n": null, "n": 1 }""" = tokenParsedOk (
+      JT.Object [ ("n", JT.Null); ("n", JT.Number 1.0) ]
+    )
+
+    serializeToken (JT.Object [ ("n", JT.Null); ("n", JT.Number 1.0) ]) = """{"n":null,"n":1}"""
+
+
+    // blank name
+    serializeToken (JT.Object [ ("", JT.Null) ]) = """{"":null}"""
+
+    parseToken """{ "": null }""" = tokenParsedOk (JT.Object[("", JT.Null)])
+
+    // name with newline
+    // TODO not sure what's right here
+    //serializeToken (JT.Object [ ("a\nb", JT.Null) ]) = "{\"a\nb\": null}"
+    // parseToken  "{\"a\nb\": null}" = tokenParsedOk (JT.Object [ ("a\nb", JT.Null) ])
+
+    module Errors =
+      // names must be strings
+      parseToken """{ 1: 1}""" = tokenParseError TokenParseError.NotJson
+
+      parseToken """{ null: 1}""" = tokenParseError TokenParseError.NotJson
+
+      // names must be in quotes
+      parseToken """{ invalidName: 1}""" = tokenParseError TokenParseError.NotJson
+
+      // ..._double_ quotes
+      parseToken """{ 'invalidName': 1}""" = tokenParseError TokenParseError.NotJson

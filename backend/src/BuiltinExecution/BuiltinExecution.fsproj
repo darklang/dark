@@ -27,6 +27,7 @@
     <Compile Include="Libs/Int128.fs" />
     <Compile Include="Libs/UInt128.fs" />
     <Compile Include="Libs/Json.fs" />
+    <Compile Include="Libs/AltJson.fs" />
     <Compile Include="Libs/List.fs" />
     <Compile Include="Libs/Math.fs" />
     <Compile Include="Libs/NoModule.fs" />
