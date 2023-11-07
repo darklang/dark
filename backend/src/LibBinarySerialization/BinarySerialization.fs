@@ -1,6 +1,7 @@
 /// Conversion to/from Dark values to binary formats
 module LibBinarySerialization.BinarySerialization
 
+
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
@@ -13,7 +14,6 @@ module PT2ST = ProgramTypesToSerializedTypes
 open MessagePack
 open MessagePack.Resolvers
 open MessagePack.FSharp
-
 
 // Serializers sometimes throw at runtime if the setup is not right. We do not
 // currently know of a way to statically ensure these run. As a result, we don't

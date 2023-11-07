@@ -253,6 +253,12 @@ type LetPattern =
     second : LetPattern *
     theRest : List<LetPattern>
 
+
+// We use System.Numerics.BigInteger for serializing Int128 and UInt128 in MessagePack because
+// BigInteger is a built-in supported type that supports handling large integers beyond the range of Int128 and UInt128.
+// Creating custom formatters for Int128 and UInt128 would introduce complexity,
+// especially when dealing with endianness and serialization/deserialization processes.
+
 [<MessagePack.MessagePackObject>]
 type MatchPattern =
   | MPVariable of id * string
