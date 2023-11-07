@@ -69,6 +69,9 @@ module Vanilla =
 
 
   type Int128Converter() =
+    // We serialize int128s as strings because they're too big to be represented as numbers in JSON.
+    // Since the deserialization is type-directed, we always know we're looking
+    // to convert them to int128s, so if we see a string we know exactly what it means
     inherit JsonConverter<System.Int128>()
 
     override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
@@ -79,6 +82,9 @@ module Vanilla =
       writer.WriteStringValue(value.ToString())
 
   type UInt128Converter() =
+    // We serialize uint128s as strings because they're too big to be represented as numbers in JSON.
+    // Since the deserialization is type-directed, we always know we're looking to convert them to uint128s,
+    // so if we see a string we know exactly what it means
     inherit JsonConverter<System.UInt128>()
 
     override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
