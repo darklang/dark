@@ -34,13 +34,13 @@ let error3 (msg : string) (v1 : string) (v2 : string) : 'a =
 
 let int128 (v : System.Int128) : SqlValue =
   let typ = NpgsqlTypes.NpgsqlDbType.Numeric
-  let idParam = NpgsqlParameter("tlid", typ)
+  let idParam = NpgsqlParameter("int128", typ)
   idParam.Value <- System.Numerics.BigInteger.op_Implicit (v)
   Sql.parameter idParam
 
 let uint128 (v : System.UInt128) : SqlValue =
   let typ = NpgsqlTypes.NpgsqlDbType.Numeric
-  let idParam = NpgsqlParameter("tlid", typ)
+  let idParam = NpgsqlParameter("uint128", typ)
   idParam.Value <- System.Numerics.BigInteger.op_Implicit (v)
   Sql.parameter idParam
 
@@ -798,8 +798,8 @@ let rec lambdaToSql
             | TUInt8 -> "smallint"
             | TInt16 -> "smallint"
             | TUInt16 -> "integer"
-            | TInt128 -> "numeric"
-            | TUInt128 -> "numeric"
+            | TInt128 -> "numeric(39,0)"
+            | TUInt128 -> "numeric(39,0)"
             | TFloat -> "double precision"
             | TBool -> "bool"
             | TDateTime -> "timestamp with time zone"
