@@ -9,9 +9,19 @@ module Darklang =
         | Array of List<JsonToken>
         | Object of List<String * JsonToken>
 
+
       module TokenParseError =
         type TokenParseError = | NotJson
 
         let toString (e: TokenParseError) : String =
           match e with
           | NotJson -> "Not JSON"
+
+
+      let serializeToken (token: JsonToken) : String =
+        Builtin.AltJson.serializeToken token
+
+      let parseToken
+        (jsonString: String)
+        : Result.Result<JsonToken, TokenParseError.TokenParseError> =
+        Builtin.AltJson.parseToken jsonString
