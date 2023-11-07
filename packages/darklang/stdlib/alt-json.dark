@@ -9,9 +9,9 @@ module Darklang =
         | Array of List<JsonToken>
         | Object of List<String * JsonToken>
 
-      module ParseError =
-        type ParseError = | NotJson
+      module TokenParseError =
+        type TokenParseError = | NotJson
 
-        let toString (e: ParseError) : String =
+        let toString (e: TokenParseError) : String =
           match e with
           | NotJson -> "Not JSON"

@@ -73,16 +73,16 @@ module JsonToken =
     DEnum(typeName, typeName, [], caseName, fields)
 
 
-module ParseError =
-  let typeName = typ [ "ParseError" ] "ParseError" 0
+module TokenParseError =
+  let typeName = typ [ "TokenParseError" ] "TokenParseError" 0
   let typeRef = TCustomType(Ok typeName, [])
   let knownType = KTCustomType(typeName, [])
 
-  type ParseError = | NotJson
+  type TokenParseError = | NotJson
 
-  exception JsonException of ParseError
+  exception JsonException of TokenParseError
 
-  let toDT (e : ParseError) : Dval =
+  let toDT (e : TokenParseError) : Dval =
     let (caseName, fields) =
       match e with
       | NotJson -> "NotJson", []
@@ -98,7 +98,9 @@ module Parsing =
       MaxDepth = System.Int32.MaxValue
     )
 
-  let parse (str : string) : Result<JsonToken.JsonToken, ParseError.ParseError> =
+  let parse
+    (str : string)
+    : Result<JsonToken.JsonToken, TokenParseError.TokenParseError> =
     let rec convert (j : JsonElement) : JsonToken.JsonToken =
       match j.ValueKind with
       | JsonValueKind.Null -> JsonToken.Null
@@ -119,21 +121,21 @@ module Parsing =
         |> Seq.toList
         |> JsonToken.Object
 
-      | _ -> raise (ParseError.JsonException ParseError.NotJson)
+      | _ -> raise (TokenParseError.JsonException TokenParseError.NotJson)
 
     // .net does the hard work of actually parsing the JSON
     let parsedByDotNet =
       try
         Ok(JsonDocument.Parse(str, dotnetParsingOptions).RootElement)
       with _ex ->
-        Error ParseError.NotJson
+        Error TokenParseError.NotJson
 
     match parsedByDotNet with
     | Error err -> Error err
     | Ok parsed ->
       try
         Ok(convert parsed)
-      with ParseError.JsonException ex ->
+      with TokenParseError.JsonException ex ->
         Error ex
 
 
@@ -190,7 +192,7 @@ let constants : List<BuiltInConstant> = []
 let fn = fn [ "AltJson" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "serialize" 0
+  [ { name = fn "serializeToken" 0
       typeParams = []
       parameters = [ Param.make "token" JsonToken.typeRef "" ]
       returnType = TString
@@ -207,19 +209,19 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "parse" 0
+    { name = fn "parseToken" 0
       typeParams = []
       parameters = [ Param.make "json" TString "" ]
-      returnType = TypeReference.result JsonToken.typeRef ParseError.typeRef
+      returnType = TypeReference.result JsonToken.typeRef TokenParseError.typeRef
       description = "Parses a JSON string <param json> as a JsonToken"
       fn =
-        let result = Dval.result JsonToken.knownType ParseError.knownType
+        let result = Dval.result JsonToken.knownType TokenParseError.knownType
 
         (function
         | _, [], [ DString jsonString ] ->
           match Parsing.parse jsonString with
           | Ok jt -> jt |> JsonToken.toDT |> Ok |> result |> Ply
-          | Error e -> e |> ParseError.toDT |> Error |> result |> Ply
+          | Error e -> e |> TokenParseError.toDT |> Error |> result |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
