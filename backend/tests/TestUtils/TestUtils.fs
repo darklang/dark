@@ -1094,6 +1094,12 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("float3", DFloat 15.0, TFloat)
     ("float4", DFloat -15.0, TFloat)
     ("int5", DInt 5L, TInt)
+    ("int_8_bits", DInt8 127y, TInt8)
+    ("int_16_bits", DInt16 32767s, TInt16)
+    ("int_128_bits", DInt128 170141183460469231731687303715884105727Q, TInt128)
+    ("uint_8_bits", DUInt8 255uy, TUInt8)
+    ("uint_16_bits", DUInt16 65535us, TUInt16)
+    ("uint_128_bits", DUInt128 340282366920938463463374607431768211455Z, TUInt128)
     ("true", DBool true, TBool)
     ("false", DBool false, TBool)
     ("unit", DUnit, TUnit)
@@ -1292,6 +1298,24 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        [ Dval.uint16 16us ]
      ),
      TypeReference.option TUInt16)
+    ("option8",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       Dval.ignoreAndUseEmpty [ VT.int128 ],
+       "Some",
+       [ Dval.int128 128Q ]
+     ),
+     TypeReference.option TInt128)
+    ("option9",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       Dval.ignoreAndUseEmpty [ VT.uint128 ],
+       "Some",
+       [ Dval.uint128 128Z ]
+     ),
+     TypeReference.option TUInt128)
     ("character", DChar "s", TChar)
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
     // use image bytes here to test for any weird bytes forms
