@@ -1,9 +1,9 @@
-PACKAGE.Darklang.Stdlib.Bytes.length Builtin.Bytes.empty_v0 = 0
+PACKAGE.Darklang.Stdlib.Bytes.length Builtin.Bytes.empty_v0 = 0L
 Builtin.Bytes.empty_v0 = PACKAGE.Darklang.Stdlib.String.toBytes_v0 ""
 
 PACKAGE.Darklang.Stdlib.Bytes.length (
   PACKAGE.Darklang.Stdlib.String.toBytes_v0 "abcdef"
-) = 6
+) = 6L
 
 PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
   PACKAGE.Darklang.Stdlib.String.toBytes_v0 "123qwc"

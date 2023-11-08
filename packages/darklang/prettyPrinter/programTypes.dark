@@ -28,7 +28,7 @@ module Darklang =
                 |> (fun parts -> $"{parts}.")
 
             let versionPart =
-              if t.version == 0 then
+              if t.version == 0L then
                 ""
               else
                 $"_v{PACKAGE.Darklang.Stdlib.Int.toString t.version}"
@@ -45,7 +45,7 @@ module Darklang =
             match u.modules with
             | [] ->
               let versionPart =
-                if u.version == 0 then
+                if u.version == 0L then
                   ""
                 else
                   $"_v{PACKAGE.Darklang.Stdlib.Int.toString u.version}"
@@ -66,7 +66,7 @@ module Darklang =
                 |> (fun parts -> $"{parts}.")
 
             let versionPart =
-              if u.version == 0 then
+              if u.version == 0L then
                 ""
               else
                 $"_v{PACKAGE.Darklang.Stdlib.Int.toString u.version}"
@@ -81,7 +81,7 @@ module Darklang =
             (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.Package)
             : String =
             let versionPart =
-              if p.version == 0 then
+              if p.version == 0L then
                 ""
               else
                 $"_v{PACKAGE.Darklang.Stdlib.Int.toString p.version}"
@@ -95,7 +95,7 @@ module Darklang =
             let modulesPart = PACKAGE.Darklang.Stdlib.String.join p.modules "."
 
             let versionPart =
-              if p.version == 0 then
+              if p.version == 0L then
                 ""
               else
                 $"_v{PACKAGE.Darklang.Stdlib.Int.toString p.version}"
@@ -1029,7 +1029,7 @@ module Darklang =
 
       let db (db: PACKAGE.Darklang.LanguageTools.ProgramTypes.DB) : String =
         let versionPart =
-          if db.version == 0 then
+          if db.version == 0L then
             ""
           else
             $"_v{PACKAGE.Darklang.Stdlib.Int.toString db.version}"

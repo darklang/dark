@@ -41,7 +41,7 @@ let saveItemToCanvas
   match response with
   | Ok response ->
     match response.statusCode with
-    | 200 -> PACKAGE.Darklang.Stdlib.Result.Result.Ok()
+    | 200L -> PACKAGE.Darklang.Stdlib.Result.Result.Ok()
     | _ ->
       Builtin.printLine $"Type: {name}; Json: {json}"
 
@@ -184,11 +184,11 @@ let main (args: List<String>) : Int =
   match parseArgs args with
   | Help ->
     Builtin.printLine (usage ())
-    0
+    0L
 
   | ListPackages ->
     printAllPackagesInDb ()
-    0
+    0L
 
   | LoadPackagesIntoDarkCanvas ->
     let files = listPackageFilesOnDisk "/home/dark/app/packages"
@@ -198,7 +198,7 @@ let main (args: List<String>) : Int =
     // Wait for canvas to be ready
     let available =
       PACKAGE.Darklang.Stdlib.List.fold
-        (PACKAGE.Darklang.Stdlib.List.range 0 10)
+        (PACKAGE.Darklang.Stdlib.List.range 0L 10L)
         (PACKAGE.Darklang.Stdlib.Result.Result.Error "Not started")
         (fun found num ->
           match found with
@@ -219,7 +219,7 @@ let main (args: List<String>) : Int =
     match available with
     | Error msg ->
       Builtin.printLine $"Error waiting for dark packages canvas: {msg}"
-      1
+      1L
     | Ok() ->
       Builtin.printLine "Dark packages canvas is ready"
 
@@ -243,14 +243,14 @@ let main (args: List<String>) : Int =
       match result with
       | Error err ->
         Builtin.printLine err
-        1
+        1L
       | Ok() ->
         Builtin.printLine "Done loading packages from disk"
         printAllPackagesInDb ()
-        0
+        0L
 
   | BadOption msg ->
     Builtin.printLine ("Error: " ++ msg)
-    1
+    1L
 
 main args

@@ -15,7 +15,7 @@ Content-Length: 568
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    PACKAGE.Darklang.Stdlib.HttpClient.Response
-    { statusCode = 200
+    { statusCode = 200L
       headers = [
           ("server", "kestrel")
           ("content-length", "568")

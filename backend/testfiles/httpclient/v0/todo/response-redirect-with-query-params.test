@@ -18,7 +18,7 @@ Location: /v0/response-redirect-dest-with-query-params?value=x
  {response with headers = respHeaders}) =
    PACKAGE.Darklang.Stdlib.HttpClient.Response
     { body = "Redirect destination reached with params"
-      statusCode = 200
+      statusCode = 200L
       headers =
         [
           "Arbitrary-header" = "Test value"

@@ -97,7 +97,7 @@ PACKAGE.Darklang.Stdlib.UInt8.mod_v0 5uy 0uy = Builtin.Test.derrorMessage
   "Zero modulus"
 
 
-(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
   PACKAGE.Darklang.Stdlib.UInt8.random 1uy 2uy)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
@@ -108,7 +108,7 @@ PACKAGE.Darklang.Stdlib.UInt8.mod_v0 5uy 0uy = Builtin.Test.derrorMessage
                                                                   true
                                                                   true ]
 
-(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
   PACKAGE.Darklang.Stdlib.UInt8.random 10uy 20uy)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
@@ -119,7 +119,7 @@ PACKAGE.Darklang.Stdlib.UInt8.mod_v0 5uy 0uy = Builtin.Test.derrorMessage
                                                                    true
                                                                    true ]
 
-(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
   PACKAGE.Darklang.Stdlib.UInt8.random 2uy 1uy)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
@@ -130,7 +130,7 @@ PACKAGE.Darklang.Stdlib.UInt8.mod_v0 5uy 0uy = Builtin.Test.derrorMessage
                                                                   true
                                                                   true ]
 
-(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
   PACKAGE.Darklang.Stdlib.UInt8.random 20uy 10uy)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
@@ -141,12 +141,12 @@ PACKAGE.Darklang.Stdlib.UInt8.mod_v0 5uy 0uy = Builtin.Test.derrorMessage
                                                                    true
                                                                    true ]
 
-((PACKAGE.Darklang.Stdlib.List.range_v0 1 100)
+((PACKAGE.Darklang.Stdlib.List.range_v0 1L 100L)
  |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
    PACKAGE.Darklang.Stdlib.UInt8.random 0uy 1uy)
  |> PACKAGE.Darklang.Stdlib.List.unique_v0) = [ 0uy; 1uy ]
 
-((PACKAGE.Darklang.Stdlib.List.range_v0 1 100)
+((PACKAGE.Darklang.Stdlib.List.range_v0 1L 100L)
  |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
    PACKAGE.Darklang.Stdlib.UInt8.random 0uy 2uy)
  |> PACKAGE.Darklang.Stdlib.List.unique_v0) = [ 0uy; 1uy; 2uy ]

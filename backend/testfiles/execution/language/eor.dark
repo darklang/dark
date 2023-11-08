@@ -5,12 +5,13 @@
 (true || Builtin.Test.runtimeError "msg") = true
 (true || 5) = true
 (false || Builtin.Test.runtimeError "msg") = Builtin.Test.derrorMessage "msg"
-(false || 5) = Builtin.Test.derrorMessage "|| only supports Booleans"
+(false || 5L) = Builtin.Test.derrorMessage "|| only supports Booleans"
 
 (Builtin.Test.runtimeError "msg1" || Builtin.Test.runtimeError "msg2") = Builtin.Test.derrorMessage
   "msg1"
 
-(5 || true) = Builtin.Test.derrorMessage "|| only supports Booleans"
+(5L || true) = Builtin.Test.derrorMessage "|| only supports Booleans"
+(5l || true) = Builtin.Test.derrorMessage "|| only supports Booleans"
 (true |> (||) true) = true
 (true |> (||) false) = true
 (false |> (||) true) = true

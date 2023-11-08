@@ -17,7 +17,7 @@ Location: /v0/response-redirect-destination
  {response with headers = respHeaders}) =
    PACKAGE.Darklang.Stdlib.HttpClient.Response
     { body = "Redirect destination reached"
-      statusCode = 200
+      statusCode = 200L
       error = ""
       headers =
         [

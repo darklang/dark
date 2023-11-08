@@ -8,7 +8,7 @@ Host: HOST
 [response]
 HTTP/1.1 303 See Other
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Location: https://httpbin.org/status/200
+Location: https://httpbin.org/status/200L
 
 
 
@@ -18,19 +18,19 @@ Location: https://httpbin.org/status/200
  {response with headers = respHeaders}) =
    PACKAGE.Darklang.Stdlib.HttpClient.Response
       { body = ""
-        statusCode = 200
+        statusCode = 200L
         error = ""
         headers =
           {
             "access-control-allow-credentials" = "true"
             "access-control-allow-origin" = "*"
             "content-type" = "text/html; charset=utf-8"
-            "content-length" = "0"
+            "content-length" = "0L"
             "Date" = "xxx, xx xxx xxxx xx:xx:xx xxx"
-            "HTTP/2 200" = ""
+            "HTTP/2 200L" = ""
             "HTTP/1.1 303 See Other" = ""
-            Location = "https://httpbin.org/status/200"
-            server = "gunicorn/19.9.0"
+            Location = "https://httpbin.org/status/200L"
+            server = "gunicorn/19.9.0L"
             ("server", "kestrel")
             "Transfer-Encoding" = "chunked"
           }

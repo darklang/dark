@@ -20,7 +20,7 @@ Location: /v0/response-redirect-dest-with-auth-header
  {response with headers = respHeaders}) =
    PACKAGE.Darklang.Stdlib.HttpClient.Response
     { body = "Redirect destination reached with auth"
-      statusCode = 200
+      statusCode = 200L
       headers =
         [
           "Arbitrary-header" = "Test value"

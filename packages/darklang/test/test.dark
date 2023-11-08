@@ -8,18 +8,18 @@ module Darklang =
     let twoStringFn (str1: String) (str2: String) : String =
       str1 ++ " appended " ++ str2
 
-    let returnsInt () : Int = 5
+    let returnsInt () : Int = 5L
 
     let returnsString () : String = "string"
 
     let returnsOptionSome () : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
-      PACKAGE.Darklang.Stdlib.Option.Option.Some 5
+      PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
 
     let returnsOptionNone () : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
       PACKAGE.Darklang.Stdlib.Option.Option.None
 
     let returnsResultOk () : PACKAGE.Darklang.Stdlib.Result.Result<Int, String> =
-      PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
+      PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L
 
     let returnsResultError () : PACKAGE.Darklang.Stdlib.Result.Result<Char, Bool> =
       PACKAGE.Darklang.Stdlib.Result.Result.Error false
@@ -39,12 +39,13 @@ module Darklang =
 
     module Constants =
       let stringConst = "test"
-      let intConst = 5
+      let intConst = 5L
+      let int32Const = 5l
       let floatConst = 5.6
       let boolConst = true
-      let tupleConst = (1, 2, 3)
+      let tupleConst = (1L, 2L, 3L)
       let charConst = 'c'
       let unitConst = ()
-      let enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
-      let listConst = [ 1; 2; 3 ]
-      let dictConst = Dict { a = 1; b = 2; c = 3 }
+      let enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
+      let listConst = [ 1L; 2L; 3L ]
+      let dictConst = Dict { a = 1L; b = 2L; c = 3L }

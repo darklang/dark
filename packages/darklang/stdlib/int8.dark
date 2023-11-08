@@ -87,7 +87,7 @@ module Darklang =
 
       /// Returns the sum of all the ints in the list
       let sum (lst: List<Int8>) : Int8 =
-        PACKAGE.Darklang.Stdlib.List.fold lst 0 (fun acc x -> acc + x)
+        PACKAGE.Darklang.Stdlib.List.fold lst 0y (fun acc x -> acc + x)
 
 
       /// Returns the higher of <param a> and <param b>

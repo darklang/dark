@@ -65,41 +65,41 @@ module NestedRecordFieldAccess =
   (Builtin.DB.set
     (OuterRecord
       { name = "joe"
-        details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 41 } } })
+        details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 41L } } })
     "jjj"
     TestNestedRecord
 
    Builtin.DB.set
      (OuterRecord
        { name = "frank"
-         details = InnerRecord { numbers = VeryInnerRecord { age = 22 } } })
+         details = InnerRecord { numbers = VeryInnerRecord { age = 22L } } })
      "fff"
      TestNestedRecord
 
    let shouldBeJustJoe =
-     Builtin.DB.query TestNestedRecord (fun p -> p.details.numbers.age == 41)
+     Builtin.DB.query TestNestedRecord (fun p -> p.details.numbers.age == 41L)
 
-   PACKAGE.Darklang.Stdlib.List.length shouldBeJustJoe) = 1
+   PACKAGE.Darklang.Stdlib.List.length shouldBeJustJoe) = 1L
 
   // same as above, but with aliases
   (Builtin.DB.set
     (AliasOfRecord
       { name = "jeremy"
-        details = InnerRecord { numbers = VeryInnerRecord { age = 38 } } })
+        details = InnerRecord { numbers = VeryInnerRecord { age = 38L } } })
     "ignored"
     TestNestedAliasRecord
 
    Builtin.DB.set
      (AliasOfRecord
        { name = "josephine"
-         details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 29 } } })
+         details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 29L } } })
      "alsoIgnored"
      TestNestedAliasRecord
 
    let shouldBeJustJeremy =
-     Builtin.DB.query TestNestedAliasRecord (fun p -> p.details.numbers.age == 38)
+     Builtin.DB.query TestNestedAliasRecord (fun p -> p.details.numbers.age == 38L)
 
-   PACKAGE.Darklang.Stdlib.List.length shouldBeJustJeremy) = 1
+   PACKAGE.Darklang.Stdlib.List.length shouldBeJustJeremy) = 1L
 
 
 
@@ -244,8 +244,8 @@ type MyTlid =
 type MyTlidDB = MyTlid
 
 module addToTest =
-  (let test = Builtin.DB.set (MyTlid { mytlid = 1234 }) "test" MyTlidDB in
-   (Builtin.DB.getAll MyTlidDB)) = [ MyTlid { mytlid = 1234 } ]
+  (let test = Builtin.DB.set (MyTlid { mytlid = 1234L }) "test" MyTlidDB in
+   (Builtin.DB.getAll MyTlidDB)) = [ MyTlid { mytlid = 1234L } ]
 
 
 module Roundtrip =
@@ -284,8 +284,8 @@ module Roundtrip =
   let sample () : Sample =
     Sample
       { iNsEnSiTiVe = "iNsEnSiTiVe"
-        ``ALLCAPS`` = 1
-        int = 2
+        ``ALLCAPS`` = 1L
+        int = 2L
         int8 = 2y
         uint8 = 2uy
         int16 = 2s
@@ -299,13 +299,13 @@ module Roundtrip =
         negInfinity = Builtin.Test.negativeInfinity
         ``true`` = true
         ``false`` = false
-        list = [ 1; 2; 3 ]
+        list = [ 1L; 2L; 3L ]
         char = 'c'
-        resultOk = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
+        resultOk = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L
         resultError = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-        option = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
-        record = MyTlid { mytlid = 1234 }
-        tuple = (1, "hello")
+        option = PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
+        record = MyTlid { mytlid = 1234L }
+        tuple = (1L, "hello")
         emojiChar = (Builtin.Test.toChar "👍") |> Builtin.unwrap
         uuid =
           (PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
@@ -318,8 +318,8 @@ module Roundtrip =
   let otherSample () : Sample =
     Sample
       { iNsEnSiTiVe = "normal"
-        ``ALLCAPS`` = 2
-        int = 3
+        ``ALLCAPS`` = 2L
+        int = 3L
         int8 = 3y
         uint8 = 3uy
         int16 = 4s
@@ -333,13 +333,13 @@ module Roundtrip =
         negInfinity = -385.33
         ``true`` = false
         ``false`` = true
-        list = [ 1; 3; 45 ]
+        list = [ 1L; 3L; 45L ]
         char = 'd'
-        resultOk = PACKAGE.Darklang.Stdlib.Result.Result.Ok 6
+        resultOk = PACKAGE.Darklang.Stdlib.Result.Result.Ok 6L
         resultError = PACKAGE.Darklang.Stdlib.Result.Result.Error "other test"
         option = PACKAGE.Darklang.Stdlib.Option.Option.None
-        record = MyTlid { mytlid = 1235 }
-        tuple = (2, "goodbye")
+        record = MyTlid { mytlid = 1235L }
+        tuple = (2L, "goodbye")
         emojiChar = 'e'
         uuid =
           (PACKAGE.Darklang.Stdlib.Uuid.parse "55555555-5555-5555-5555-555555555555")
@@ -387,9 +387,9 @@ module Roundtrip =
     fetch (fun p -> p.iNsEnSiTiVe != "iNsEnSiTiVe") = [ otherSample () ]
     fetch (fun p -> p.iNsEnSiTiVe == "nothing") = []
 
-    fetch (fun p -> p.``ALLCAPS`` == 1) = [ sample () ]
-    fetch (fun p -> p.``ALLCAPS`` != 1) = [ otherSample () ]
-    fetch (fun p -> p.``ALLCAPS`` == 1000) = []
+    fetch (fun p -> p.``ALLCAPS`` == 1L) = [ sample () ]
+    fetch (fun p -> p.``ALLCAPS`` != 1L) = [ otherSample () ]
+    fetch (fun p -> p.``ALLCAPS`` == 1000L) = []
 
     fetch (fun p -> p.int == 2L) = [ sample () ]
     fetch (fun p -> p.int != 2L) = [ otherSample () ]
@@ -521,7 +521,7 @@ module Roundtrip =
        |> Builtin.unwrap)
       == ((PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
           |> Builtin.unwrap)))
-     |> PACKAGE.Darklang.Stdlib.List.length) = 2
+     |> PACKAGE.Darklang.Stdlib.List.length) = 2L
 
 
 
@@ -586,29 +586,31 @@ module Params =
   [<DB>]
   type ParamDB = Param<String>
 
-  (let _ = Builtin.DB.set (Param { x = "hello"; b = 5 }) "key" ParamDB
+  (let _ = Builtin.DB.set (Param { x = "hello"; b = 5L }) "key" ParamDB
    Builtin.DB.get "key" ParamDB) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
-    Param { x = "hello"; b = 5 }
+    Param { x = "hello"; b = 5L }
   )
 
 
 
 module GetAll =
-  (let one = Builtin.DB.set (SortedX { x = "hello"; sortBy = 0 }) "one" SortedXDB in
-   let two = Builtin.DB.set (SortedX { x = "goodbye"; sortBy = 1 }) "two" SortedXDB in
-   let three = Builtin.DB.set (SortedX { x = "howdy"; sortBy = 2 }) "three" SortedXDB in
+  (let one = Builtin.DB.set (SortedX { x = "hello"; sortBy = 0L }) "one" SortedXDB in
+   let two = Builtin.DB.set (SortedX { x = "goodbye"; sortBy = 1L }) "two" SortedXDB in
+
+   let three =
+     Builtin.DB.set (SortedX { x = "howdy"; sortBy = 2L }) "three" SortedXDB in
 
    (Builtin.DB.getAll SortedXDB)
    |> PACKAGE.Darklang.Stdlib.List.sortBy_v0 (fun x -> x.sortBy)) = [ (SortedX
                                                                         { x = "hello"
-                                                                          sortBy = 0 })
+                                                                          sortBy = 0L })
                                                                       (SortedX
                                                                         { x =
                                                                             "goodbye"
-                                                                          sortBy = 1 })
+                                                                          sortBy = 1L })
                                                                       (SortedX
                                                                         { x = "howdy"
-                                                                          sortBy = 2 }) ]
+                                                                          sortBy = 2L }) ]
 
 
 module GetAllKeys =
@@ -685,17 +687,17 @@ module DeleteAll =
 
 module Count =
   // empty
-  Builtin.DB.count XDB = 0
+  Builtin.DB.count XDB = 0L
 
   // one entries
-  (let _ = Builtin.DB.set (X { x = "hello" }) "one" XDB in Builtin.DB.count XDB) = 1
+  (let _ = Builtin.DB.set (X { x = "hello" }) "one" XDB in Builtin.DB.count XDB) = 1L
 
   // multiple entries
   (let _ = Builtin.DB.set (X { x = "hello" }) "one" XDB in
    let _ = Builtin.DB.set (X { x = "goodbye" }) "two" XDB in
    let _ = Builtin.DB.set (X { x = "howdy" }) "three" XDB in
    let _ = Builtin.DB.set (X { x = "cheers" }) "four" XDB in
-   Builtin.DB.count XDB) = 4
+   Builtin.DB.count XDB) = 4L
 
 // ------------
 // SqlCompiler queries
@@ -734,11 +736,11 @@ let addFriend
   Builtin.DB.set obj key PersonDB
 
 let prepFriends () : Unit =
-  (let _ = addFriend "ross" "Ross" 73 true "1967-05-12T00:00:00Z" 100.0 33 in
-   let _ = addFriend "rachel" "Rachel" 65 true "1969-05-05T00:00:00Z" 82.0 27 in
+  (let _ = addFriend "ross" "Ross" 73L true "1967-05-12T00:00:00Z" 100.0 33L in
+   let _ = addFriend "rachel" "Rachel" 65L true "1969-05-05T00:00:00Z" 82.0 27L in
    // Note spaces around Chandler, that's to test trim functions
-   let _ = addFriend "chandler" " Chandler " 72 true "1969-08-19T10:13:42Z" 83.0 45 in
-   let _ = addFriend "cat" "GrumpyCat" 10 false "2012-04-04T00:00:00Z" 0.0 9 in
+   let _ = addFriend "chandler" " Chandler " 72L true "1969-08-19T10:13:42Z" 83.0 45L in
+   let _ = addFriend "cat" "GrumpyCat" 10L false "2012-04-04T00:00:00Z" 0.0 9L in
    ())
 
 let d (datestr: String) : DateTime =
@@ -766,13 +768,16 @@ module FindAll =
 
   // equality
   (friends (fun p -> p.name == "Ross")) = [ "Ross" ]
-  (friends (fun p -> p.height == 73)) = [ "Ross" ]
+  (friends (fun p -> p.height == 73L)) = [ "Ross" ]
   (friends (fun p -> p.human == false)) = [ "GrumpyCat" ]
   (friends (fun p -> p.income == 100.0)) = [ "Ross" ]
   (friends (fun p -> p.dob == (rossDOB ()))) = [ "Ross" ]
 
   // with condition
-  (friends (fun p -> p.height > 3)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  (friends (fun p -> p.height > 3L)) = [ " Chandler "
+                                         "GrumpyCat"
+                                         "Rachel"
+                                         "Ross" ]
 
   // boolean queries
   (friends (fun p -> p.human)) = [ " Chandler "; "Rachel"; "Ross" ]
@@ -781,26 +786,26 @@ module FindAll =
   (friends (fun p -> p.name != "")) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // &&
-  (friends (fun p -> p.human && p.height > 66)) = [ " Chandler "; "Ross" ]
+  (friends (fun p -> p.human && p.height > 66L)) = [ " Chandler "; "Ross" ]
 
   // ||
-  (friends (fun p -> p.human || p.height > 66)) = [ " Chandler "; "Rachel"; "Ross" ]
+  (friends (fun p -> p.human || p.height > 66L)) = [ " Chandler "; "Rachel"; "Ross" ]
 
   // inlining
-  (friends (fun p -> let x = 32 in p.height > x && true)) = [ " Chandler "
-                                                              "Rachel"
-                                                              "Ross" ]
+  (friends (fun p -> let x = 32L in p.height > x && true)) = [ " Chandler "
+                                                               "Rachel"
+                                                               "Ross" ]
 
   // inlining field access
-  (friends (fun p -> let x = p.height in true && x > 32)) = [ " Chandler "
-                                                              "Rachel"
-                                                              "Ross" ]
+  (friends (fun p -> let x = p.height in true && x > 32L)) = [ " Chandler "
+                                                               "Rachel"
+                                                               "Ross" ]
 
   // inlining package functions
   (friends (fun p ->
-    let x = p.height in true && PACKAGE.Darklang.Stdlib.Int.greaterThan_v0 x 32)) = [ " Chandler "
-                                                                                      "Rachel"
-                                                                                      "Ross" ]
+    let x = p.height in true && PACKAGE.Darklang.Stdlib.Int.greaterThan_v0 x 32L)) = [ " Chandler "
+                                                                                       "Rachel"
+                                                                                       "Ross" ]
 
   // inlining user functions
   let userAnd (a: Bool) (b: Bool) : Bool = PACKAGE.Darklang.Stdlib.Bool.and_v0 a b
@@ -813,42 +818,42 @@ module FindAll =
 
   let userAdd (a: Int) (b: Int) : Int = a + b
 
-  (friends (fun p -> userAnd (true || false) (p.height > 66))) = [ " Chandler "
-                                                                   "Ross" ]
+  (friends (fun p -> userAnd (true || false) (p.height > 66L))) = [ " Chandler "
+                                                                    "Ross" ]
 
-  (friends (fun p -> let a = true in (userAnd (a && a) (p.height > 66)))) = [ " Chandler "
-                                                                              "Ross" ]
+  (friends (fun p -> let a = true in (userAnd (a && a) (p.height > 66L)))) = [ " Chandler "
+                                                                               "Ross" ]
 
   (friends (fun p -> userAnd p.human true)) = [ " Chandler "; "Rachel"; "Ross" ]
 
   (friends (fun p -> userStringContains p "Chandler")) = [ " Chandler " ]
 
-  (friends (fun p -> userLessThan p.height 65)) = [ "GrumpyCat" ]
+  (friends (fun p -> userLessThan p.height 65L)) = [ "GrumpyCat" ]
 
   (friends (fun p ->
-    let a = 1 in
-    let b = 9 in
-    (p.height == (userAdd 1 b) && (p.age == b)))) = [ "GrumpyCat" ]
+    let a = 1L in
+    let b = 9L in
+    (p.height == (userAdd 1L b) && (p.age == b)))) = [ "GrumpyCat" ]
 
   (friends (fun p ->
-    let a = 1 in
-    let b = 9 in
-    (p.height == (userAdd (b - 8) b) && (p.age == b)))) = [ "GrumpyCat" ]
+    let a = 1L in
+    let b = 9L in
+    (p.height == (userAdd (b - 8L) b) && (p.age == b)))) = [ "GrumpyCat" ]
 
   (friends (fun p ->
-    let a = 1 in
-    let b = 9 in
-    (p.height == userAdd 6 (b - 5)))) = [ "GrumpyCat" ]
+    let a = 1L in
+    let b = 9L in
+    (p.height == userAdd 6L (b - 5L)))) = [ "GrumpyCat" ]
 
   (friends (fun p ->
-    let a = 1 in
-    let b = 9 in
-    (p.height == (userAdd (b - 5) b) && (p.age == b)))) = []
+    let a = 1L in
+    let b = 9L in
+    (p.height == (userAdd (b - 5L) b) && (p.age == b)))) = []
 
   (friends (fun p ->
-    let a = 1 in
-    let b = 9 in
-    let c = userAdd 6 4 in
+    let a = 1L in
+    let b = 9L in
+    let c = userAdd 6L 4L in
     (p.height == c) && (p.age == b))) = [ "GrumpyCat" ]
 
 
@@ -861,16 +866,16 @@ module FindAll =
       user.human
       (PACKAGE.Darklang.Stdlib.Int.lessThan_v0
         user.height
-        (PACKAGE.Darklang.Stdlib.Int.add height 1))
+        (PACKAGE.Darklang.Stdlib.Int.add height 1L))
 
 
-  (friends (fun p -> nestedUserFn p 68)) = [ "Rachel" ]
+  (friends (fun p -> nestedUserFn p 68L)) = [ "Rachel" ]
 
-  (friends (fun p -> anotherNestedUserFn p 68)) = [ "Rachel" ]
+  (friends (fun p -> anotherNestedUserFn p 68L)) = [ "Rachel" ]
 
 
   // pipes
-  (friends (fun p -> p.height |> (*) 2 |> (<) 40)) = [ "GrumpyCat" ]
+  (friends (fun p -> p.height |> (*) 2L |> (<) 40L)) = [ "GrumpyCat" ]
 
   //[test.db query with external variable] with DB Person
   // TODO pass an external var x
@@ -879,15 +884,15 @@ module FindAll =
   // fieldaccess
   type IntField = { x: Int }
 
-  (friends (fun p -> let obj = IntField { x = 42 } in p.height > obj.x)) = [ " Chandler "
-                                                                             "Rachel"
-                                                                             "Ross" ]
+  (friends (fun p -> let obj = IntField { x = 42L } in p.height > obj.x)) = [ " Chandler "
+                                                                              "Rachel"
+                                                                              "Ross" ]
 
   // nested fieldaccess
   friends (fun p ->
-    let obj = T1 { field1 = T2 { field2 = 42 } } in p.height > obj.field1.field2) = [ " Chandler "
-                                                                                      "Rachel"
-                                                                                      "Ross" ]
+    let obj = T1 { field1 = T2 { field2 = 42L } } in p.height > obj.field1.field2) = [ " Chandler "
+                                                                                       "Rachel"
+                                                                                       "Ross" ]
 
   (let x = "not int"
    friends (fun p -> p.height > x)) = Builtin.Test.derrorSqlMessage
@@ -898,7 +903,7 @@ module FindAll =
     "Incorrect type in String \"x\", expected Bool, but got a String"
 
   // bad variable name
-  friendsError (fun p -> let x = 32 in true && p.height > y) = Builtin.Test.derrorSqlMessage
+  friendsError (fun p -> let x = 32L in true && p.height > y) = Builtin.Test.derrorSqlMessage
     "This variable is not defined: y"
 
   // sql injection
@@ -930,25 +935,26 @@ module CompiledFunctions =
     PACKAGE.Darklang.Stdlib.Float.greaterThanOrEqualTo_v0 82.10 p.income)) = [ "GrumpyCat"
                                                                                "Rachel" ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 p.height 65)) = [ "GrumpyCat"
-                                                                                        "Rachel" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 p.height 65L)) = [ "GrumpyCat"
+                                                                                         "Rachel" ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.lessThan_v0 p.height 65)) = [ "GrumpyCat" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.lessThan_v0 p.height 65L)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 p.height 65)) = [ " Chandler "
-                                                                                           "Rachel"
-                                                                                           "Ross" ]
+  (friends (fun p ->
+    PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 p.height 65L)) = [ " Chandler "
+                                                                           "Rachel"
+                                                                           "Ross" ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.greaterThan_v0 p.height 65)) = [ " Chandler "
-                                                                                  "Ross" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.greaterThan_v0 p.height 65L)) = [ " Chandler "
+                                                                                   "Ross" ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.add p.height 1 == 11)) = [ "GrumpyCat" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.add p.height 1L == 11L)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.subtract p.height 3 == 69)) = [ " Chandler " ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.subtract p.height 3L == 69L)) = [ " Chandler " ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.multiply_v0 p.height 2 == 146)) = [ "Ross" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.multiply_v0 p.height 2L == 146L)) = [ "Ross" ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.divide_v0 p.height 2 == 5)) = [ "GrumpyCat" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.divide_v0 p.height 2L == 5L)) = [ "GrumpyCat" ]
 
   // TODO: This test should pass, but it is causing an infinite recursion
   // (friends (fun p -> (PACKAGE.Darklang.Stdlib.Int.power p.height 2) == PACKAGE.Darklang.Stdlib.Result.Result.Ok(100))) = [ "GrumpyCat" ]
@@ -1053,27 +1059,27 @@ module CompiledFunctions =
       p.dob
       (PACKAGE.Darklang.Stdlib.DateTime.addSeconds_v0
         (PACKAGE.Darklang.Stdlib.DateTime.now_v0 ())
-        1))) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+        1L))) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   (friends (fun p ->
     PACKAGE.Darklang.Stdlib.DateTime.lessThanOrEqualTo
       p.dob
       (PACKAGE.Darklang.Stdlib.DateTime.subtractSeconds_v0
         (PACKAGE.Darklang.Stdlib.DateTime.now_v0 ())
-        1))) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+        1L))) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   (friends (fun p ->
     PACKAGE.Darklang.Stdlib.DateTime.atStartOfDay_v0 p.dob
     == (d "1969-08-19T00:00:00Z"))) = [ " Chandler " ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.hour p.dob == 10)) = [ " Chandler " ]
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.day_v0 p.dob == 19)) = [ " Chandler " ]
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.minute p.dob == 13)) = [ " Chandler " ]
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.month_v0 p.dob == 8)) = [ " Chandler " ]
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.second p.dob == 42)) = [ " Chandler " ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.hour p.dob == 10L)) = [ " Chandler " ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.day_v0 p.dob == 19L)) = [ " Chandler " ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.minute p.dob == 13L)) = [ " Chandler " ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.month_v0 p.dob == 8L)) = [ " Chandler " ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.second p.dob == 42L)) = [ " Chandler " ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.year_v0 p.dob == 1969)) = [ " Chandler "
-                                                                                  "Rachel" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.DateTime.year_v0 p.dob == 1969L)) = [ " Chandler "
+                                                                                   "Rachel" ]
 
   // Test package constants
   // Bool
@@ -1115,7 +1121,7 @@ module PartialEvaluation =
   type YL = { y: ZL }
   // fieldAccesses outside query
   (let _ = prepFriends ()
-   let x = Y { y = Z { z = A { a = 5 } } }
+   let x = Y { y = Z { z = A { a = 5L } } }
 
    ((Builtin.DB.query PersonDB (fun p -> x.y.z.a < p.height))
     |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun p -> p.name)
@@ -1125,14 +1131,14 @@ module PartialEvaluation =
                                                   "Ross" ]
 
   // fieldAccesses inside query
-  (friends (fun p -> let x = Y { y = Z { z = A { a = 5 } } } in x.y.z.a < p.height)) = [ " Chandler "
-                                                                                         "GrumpyCat"
-                                                                                         "Rachel"
-                                                                                         "Ross" ]
+  (friends (fun p -> let x = Y { y = Z { z = A { a = 5L } } } in x.y.z.a < p.height)) = [ " Chandler "
+                                                                                          "GrumpyCat"
+                                                                                          "Rachel"
+                                                                                          "Ross" ]
 
   // fieldAccesses inside query
   (friends (fun p ->
-    let x = YL { y = ZL { z = AL { a = [ 1; 2; 3; 4; 5 ] } } }
+    let x = YL { y = ZL { z = AL { a = [ 1L; 2L; 3L; 4L; 5L ] } } }
     (PACKAGE.Darklang.Stdlib.List.length_v0 x.y.z.a) < p.height)) = [ " Chandler "
                                                                       "GrumpyCat"
                                                                       "Rachel"
@@ -1140,7 +1146,7 @@ module PartialEvaluation =
 
   // tuple destructuring inside query
   (friends (fun p ->
-    let (a0, a1, a2, a3, ((b, c), d)) = (0, 1, 2, 3, ((5, "aa"), 'a'))
+    let (a0, a1, a2, a3, ((b, c), d)) = (0L, 1L, 2L, 3L, ((5L, "aa"), 'a'))
     b < p.height)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
 
@@ -1203,11 +1209,11 @@ module QueryWithKey =
 module QueryCount =
   // none
   (let _ = prepFriends () in
-   Builtin.DB.queryCount_v0 PersonDB (fun p -> p.name == "bob")) = 0
+   Builtin.DB.queryCount_v0 PersonDB (fun p -> p.name == "bob")) = 0L
 
   // one
   (let _ = prepFriends () in
-   Builtin.DB.queryCount_v0 PersonDB (fun p -> p.height > 3)) = 4
+   Builtin.DB.queryCount_v0 PersonDB (fun p -> p.height > 3L)) = 4L
 
 
-((Builtin.DB.generateKey_v0 ()) |> PACKAGE.Darklang.Stdlib.String.length) = 36
+((Builtin.DB.generateKey_v0 ()) |> PACKAGE.Darklang.Stdlib.String.length) = 36L

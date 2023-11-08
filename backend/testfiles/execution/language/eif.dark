@@ -1,26 +1,29 @@
-(if true then "correct" else 0) = "correct"
-(if true then Builtin.Test.runtimeError "a" else 0) = Builtin.Test.derrorMessage "a"
-(if false then 0 else Builtin.Test.runtimeError "a") = Builtin.Test.derrorMessage "a"
-(if false then Builtin.Test.runtimeError "a" else 0) = 0
-(if true then 0 else Builtin.Test.runtimeError "a") = 0
+(if true then "correct" else 0L) = "correct"
+(if true then Builtin.Test.runtimeError "a" else 0L) = Builtin.Test.derrorMessage "a"
+
+(if false then 0L else Builtin.Test.runtimeError "a") = Builtin.Test.derrorMessage
+  "a"
+
+(if false then Builtin.Test.runtimeError "a" else 0L) = 0L
+(if true then 0L else Builtin.Test.runtimeError "a") = 0L
 (if false then "" else "correct") = "correct"
 (if () then "" else "") = Builtin.Test.derrorMessage "If only supports Booleans"
 
 (if Builtin.Test.runtimeError "msg" then "" else "") = Builtin.Test.derrorMessage
   "msg"
 
-(if 5 then "" else "") = Builtin.Test.derrorMessage "If only supports Booleans"
+(if 5L then "" else "") = Builtin.Test.derrorMessage "If only supports Booleans"
 
 (if true then
    ()) = ()
 
-(if 1 > 3 then
-   4) = ()
+(if 1L > 3L then
+   4L) = ()
 
-(if 1 < 3 then
-   4) = 4
+(if 1L < 3L then
+   4L) = 4L
 
-(if 1 < 3 then
+(if 1L < 3L then
    "msg") = "msg"
 
 (if () then

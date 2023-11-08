@@ -40,7 +40,7 @@ module Darklang =
         let asciiCode = PACKAGE.Darklang.Stdlib.Char.toAsciiCode c
 
         match asciiCode with
-        | Some ascii -> (ascii >= 0) && (ascii <= 127)
+        | Some ascii -> (ascii >= 0L) && (ascii <= 127L)
         | None -> false
 
 

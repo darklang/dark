@@ -131,7 +131,7 @@ let compileTests =
           []
       }
       testTask "pipes expand correctly into nested functions" {
-        let! expr = p "value.age |> (-) 2 |> (+) value.age |> (<) 3"
+        let! expr = p "value.age |> (-) 2L |> (+) value.age |> (<) 3L"
         let! sql, args = compile tlid Map.empty "value" ("age", TInt) expr
 
         matchSql

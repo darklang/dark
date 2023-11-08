@@ -4,128 +4,133 @@
 //[(1,10);(2,20);(3,30,40)] = Builtin.Test.derrorMessage "Cannot form a list of mixed types"
 
 
-PACKAGE.Darklang.Stdlib.List.all_v0 [] (fun item -> item < 3) = true
-PACKAGE.Darklang.Stdlib.List.all_v0 [ 2 ] (fun item -> item < 3) = true
-PACKAGE.Darklang.Stdlib.List.all_v0 [ 1; 2 ] (fun item -> item < 3) = true
-PACKAGE.Darklang.Stdlib.List.all_v0 [ 4 ] (fun item -> item < 3) = false
-PACKAGE.Darklang.Stdlib.List.all_v0 [ 1; 4 ] (fun item -> item < 3) = false
+PACKAGE.Darklang.Stdlib.List.all_v0 [] (fun item -> item < 3L) = true
+PACKAGE.Darklang.Stdlib.List.all_v0 [ 2L ] (fun item -> item < 3L) = true
+PACKAGE.Darklang.Stdlib.List.all_v0 [ 1L; 2L ] (fun item -> item < 3L) = true
+PACKAGE.Darklang.Stdlib.List.all_v0 [ 4L ] (fun item -> item < 3L) = false
+PACKAGE.Darklang.Stdlib.List.all_v0 [ 1L; 4L ] (fun item -> item < 3L) = false
 
 
-PACKAGE.Darklang.Stdlib.List.append_v0 [ 1; 2; 3 ] [ 4; 5; 6 ] = [ 1; 2; 3; 4; 5; 6 ]
-PACKAGE.Darklang.Stdlib.List.append_v0 [ 3; 4 ] [ 5; 6 ] = [ 3; 4; 5; 6 ]
-PACKAGE.Darklang.Stdlib.List.append_v0 [ 1 ] [ 2 ] = [ 1; 2 ]
+PACKAGE.Darklang.Stdlib.List.append_v0 [ 1L; 2L; 3L ] [ 4L; 5L; 6L ] = [ 1L
+                                                                         2L
+                                                                         3L
+                                                                         4L
+                                                                         5L
+                                                                         6L ]
+
+PACKAGE.Darklang.Stdlib.List.append_v0 [ 3L; 4L ] [ 5L; 6L ] = [ 3L; 4L; 5L; 6L ]
+PACKAGE.Darklang.Stdlib.List.append_v0 [ 1L ] [ 2L ] = [ 1L; 2L ]
 PACKAGE.Darklang.Stdlib.List.append_v0 [] [] = []
 
 
-PACKAGE.Darklang.Stdlib.List.drop_v0 [ "a"; "b"; "c"; "d" ] -3 = [ "a"
-                                                                   "b"
-                                                                   "c"
-                                                                   "d" ]
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ "a"; "b"; "c"; "d" ] -3L = [ "a"
+                                                                    "b"
+                                                                    "c"
+                                                                    "d" ]
 
-PACKAGE.Darklang.Stdlib.List.drop_v0 [ "a"; "b"; "c"; "d" ] 3 = [ "d" ]
-PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] -1 = [ 1; 2; 3; 4 ]
-PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] 0 = [ 1; 2; 3; 4 ]
-PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] 440737095L = []
-PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] 1184467440737095L = []
-PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] 2 = [ 3; 4 ]
-PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] 4 = []
-PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1; 2; 3; 4 ] 5 = []
-PACKAGE.Darklang.Stdlib.List.drop_v0 [ 3; 3; 3 ] 0 = [ 3; 3; 3 ]
-PACKAGE.Darklang.Stdlib.List.drop_v0 [ 5; 4; 3; 2; 1 ] 5 = []
-PACKAGE.Darklang.Stdlib.List.drop_v0 [ 5 ] 4 = []
-PACKAGE.Darklang.Stdlib.List.drop_v0 [] 4 = []
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ "a"; "b"; "c"; "d" ] 3L = [ "d" ]
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] -1L = [ 1L; 2L; 3L; 4L ]
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 0L = [ 1L; 2L; 3L; 4L ]
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 440737095L = []
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 1184467440737095L = []
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 2L = [ 3L; 4L ]
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 4L = []
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 5L = []
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 3L; 3L; 3L ] 0L = [ 3L; 3L; 3L ]
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 5L; 4L; 3L; 2L; 1L ] 5L = []
+PACKAGE.Darklang.Stdlib.List.drop_v0 [ 5L ] 4L = []
+PACKAGE.Darklang.Stdlib.List.drop_v0 [] 4L = []
 
-PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> 0L - 1L) = Builtin.Test.derrorMessage
   "If only supports Booleans"
 
-PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item < 3) = [ 3
-                                                                                    4 ]
+PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> item < 3L) = [ 3L
+                                                                                         4L ]
 
-PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item >= 1) = []
+PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> item >= 1L) = []
 
-PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1; 5; 2; 2 ] (fun item -> item < 3) = [ 5
-                                                                                    2
-                                                                                    2 ]
+PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [ 1L; 5L; 2L; 2L ] (fun item -> item < 3L) = [ 5L
+                                                                                         2L
+                                                                                         2L ]
 
-PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [] (fun item -> item < 3) = []
+PACKAGE.Darklang.Stdlib.List.dropWhile_v0 [] (fun item -> item < 3L) = []
 
 PACKAGE.Darklang.Stdlib.List.empty_v0 = []
 
-(PACKAGE.Darklang.Stdlib.List.iter [ 1; 2; 3 ] (fun x ->
+(PACKAGE.Darklang.Stdlib.List.iter [ 1L; 2L; 3L ] (fun x ->
   Builtin.Test.incrementSideEffectCounter ())
 
- Builtin.Test.sideEffectCount ()) = 3
+ Builtin.Test.sideEffectCount ()) = 3L
 
-(PACKAGE.Darklang.Stdlib.List.iter [ 1; 2; 3; 4; 5 ] (fun x ->
-  if x % 2 == 0 then
+(PACKAGE.Darklang.Stdlib.List.iter [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
+  if x % 2L == 0L then
     Builtin.Test.incrementSideEffectCounter ())
 
- Builtin.Test.sideEffectCount ()) = 2
+ Builtin.Test.sideEffectCount ()) = 2L
 
 (PACKAGE.Darklang.Stdlib.List.iter [] (fun x ->
   Builtin.Test.incrementSideEffectCounter ())
 
- Builtin.Test.sideEffectCount ()) = 0
+ Builtin.Test.sideEffectCount ()) = 0L
 
-(PACKAGE.Darklang.Stdlib.List.iter [ 10; 20; 30 ] (fun x ->
+(PACKAGE.Darklang.Stdlib.List.iter [ 10L; 20L; 30L ] (fun x ->
   Builtin.Test.incrementSideEffectCounter ()
   Builtin.Test.incrementSideEffectCounter ())
 
- Builtin.Test.sideEffectCount ()) = 6
+ Builtin.Test.sideEffectCount ()) = 6L
 
-(PACKAGE.Darklang.Stdlib.List.iter [ 1; 2; 3 ] (fun x ->
-  if x > 2 then
+(PACKAGE.Darklang.Stdlib.List.iter [ 1L; 2L; 3L ] (fun x ->
+  if x > 2L then
     Builtin.Test.incrementSideEffectCounter ())
 
- Builtin.Test.sideEffectCount ()) = 1
+ Builtin.Test.sideEffectCount ()) = 1L
 
 
-
-PACKAGE.Darklang.Stdlib.List.filter [ 1; 2; 3 ] (fun item ->
+PACKAGE.Darklang.Stdlib.List.filter [ 1L; 2L; 3L ] (fun item ->
   match item with
-  | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None
-  | 2 -> false
-  | 3 -> true) = Builtin.Test.derrorMessage "If only supports Booleans"
+  | 1L -> PACKAGE.Darklang.Stdlib.Option.Option.None
+  | 2L -> false
+  | 3L -> true) = Builtin.Test.derrorMessage "If only supports Booleans"
 
 PACKAGE.Darklang.Stdlib.List.filter [ true; false; true ] (fun item -> "a") = Builtin.Test.derrorMessage
   "If only supports Booleans"
 
-PACKAGE.Darklang.Stdlib.List.filter [ 1; 2; 3 ] (fun item ->
+PACKAGE.Darklang.Stdlib.List.filter [ 1L; 2L; 3L ] (fun item ->
   match item with
-  | 1 -> true
-  | 2 -> false
-  | 3 -> true) = [ 1; 3 ]
+  | 1L -> true
+  | 2L -> false
+  | 3L -> true) = [ 1L; 3L ]
 
 PACKAGE.Darklang.Stdlib.List.filter [] (fun item -> true) = []
-PACKAGE.Darklang.Stdlib.List.filter [ -20; 5; 9 ] (fun x -> x > 20) = []
+PACKAGE.Darklang.Stdlib.List.filter [ -20L; 5L; 9L ] (fun x -> x > 20L) = []
 PACKAGE.Darklang.Stdlib.List.filter [] (fun item -> "a") = []
 
-PACKAGE.Darklang.Stdlib.List.filterMap_v0 [ 1; 2; 3 ] (fun item ->
-  if item == 2 then
+PACKAGE.Darklang.Stdlib.List.filterMap_v0 [ 1L; 2L; 3L ] (fun item ->
+  if item == 2L then
     PACKAGE.Darklang.Stdlib.Option.Option.None
   else
-    (PACKAGE.Darklang.Stdlib.Option.Option.Some(item * 2))) = [ 2; 6 ]
+    (PACKAGE.Darklang.Stdlib.Option.Option.Some(item * 2L))) = [ 2L; 6L ]
 
-PACKAGE.Darklang.Stdlib.List.filterMap_v0 [] (fun item -> 0) = []
+PACKAGE.Darklang.Stdlib.List.filterMap_v0 [] (fun item -> 0L) = []
 
-PACKAGE.Darklang.Stdlib.List.findFirst [ 1; 2; 3 ] (fun x -> x > 5) = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.findFirst [ 1L; 2L; 3L ] (fun x -> x > 5L) = PACKAGE.Darklang.Stdlib.Option.Option.None
 PACKAGE.Darklang.Stdlib.List.findFirst [] (fun x -> x) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.List.findFirst [ 1; 2; 3; 1; 4 ] (fun x -> x > 1) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  2
+PACKAGE.Darklang.Stdlib.List.findFirst [ 1L; 2L; 3L; 1L; 4L ] (fun x -> x > 1L) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  2L
 
-PACKAGE.Darklang.Stdlib.List.findFirst [ 0; 5; -6; -10 ] (fun x -> x < 0) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  -6
+PACKAGE.Darklang.Stdlib.List.findFirst [ 0L; 5L; -6L; -10L ] (fun x -> x < 0L) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  -6L
 
-PACKAGE.Darklang.Stdlib.List.findFirst [ 1; -33; 3; -2; 12 ] (fun x ->
-  (x < 0 && x % 2 == 0)) = PACKAGE.Darklang.Stdlib.Option.Option.Some -2
+PACKAGE.Darklang.Stdlib.List.findFirst [ 1L; -33L; 3L; -2L; 12L ] (fun x ->
+  (x < 0L && x % 2L == 0L)) = PACKAGE.Darklang.Stdlib.Option.Option.Some -2L
 
 // CLEANUP once DList contains typeRefs, this test may be uncommented and the error message updated:
 // PACKAGE.Darklang.Stdlib.List.flatten_v0 [1;2;3] =
 //   Builtin.Test.runtimeError "In List.flatten's 1st argument (`list`), the value should be a List<List<'a>>. However, a List<Int> ([1; 2; 3]) was passed instead.\n\nExpected: List<List<'a>>\nActual: List<Int>: [1; 2; 3]"
-PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1 ]; [ 2 ]; [ 3 ] ] = [ 1; 2; 3 ]
+PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1L ]; [ 2L ]; [ 3L ] ] = [ 1L; 2L; 3L ]
 
-PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1 ]; [ [ 2; 3 ] ] ] = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1L ]; [ [ 2L; 3L ] ] ] = Builtin.Test.derrorMessage
   "Could not merge types List<List<List<Int>>> and List<List<Int>>"
 
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ [] ] ] = [ [] ]
@@ -135,174 +140,194 @@ PACKAGE.Darklang.Stdlib.List.flatten_v0 [] = []
 PACKAGE.Darklang.Stdlib.List.fold_v0 [ "a"; "b"; "c"; "d" ] "x" (fun accum curr ->
   accum ++ curr) = "xabcd"
 
-PACKAGE.Darklang.Stdlib.List.fold_v0 [ 1; 2; 3; 4; 5 ] [] (fun accum curr ->
-  PACKAGE.Darklang.Stdlib.List.pushBack_v0 accum (curr + 1)) = [ 2; 3; 4; 5; 6 ]
+PACKAGE.Darklang.Stdlib.List.fold_v0 [ 1L; 2L; 3L; 4L; 5L ] [] (fun accum curr ->
+  PACKAGE.Darklang.Stdlib.List.pushBack_v0 accum (curr + 1L)) = [ 2L
+                                                                  3L
+                                                                  4L
+                                                                  5L
+                                                                  6L ]
 
-PACKAGE.Darklang.Stdlib.List.fold_v0 [] [] (fun accum curr -> 5) = []
+PACKAGE.Darklang.Stdlib.List.fold_v0 [] [] (fun accum curr -> 5L) = []
 
-PACKAGE.Darklang.Stdlib.List.getAt [ "a"; "b"; "c"; "d" ] -1 = PACKAGE.Darklang.Stdlib.Option.Option.None
-PACKAGE.Darklang.Stdlib.List.getAt [ 0 ] 1 = PACKAGE.Darklang.Stdlib.Option.Option.None
-PACKAGE.Darklang.Stdlib.List.getAt [] 1 = PACKAGE.Darklang.Stdlib.Option.Option.None
-PACKAGE.Darklang.Stdlib.List.getAt [ 1; 2; 3; 4 ] 6018427387902L = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.getAt [ "a"; "b"; "c"; "d" ] -1L = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.getAt [ 0L ] 1L = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.getAt [] 1L = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.getAt [ 1L; 2L; 3L; 4L ] 6018427387902L = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.List.getAt [ 1; 2; 3; 4 ] 0 = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1
+PACKAGE.Darklang.Stdlib.List.getAt [ 1L; 2L; 3L; 4L ] 0L = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1L
 
-PACKAGE.Darklang.Stdlib.List.getAt [ 3; 3; 3 ] -5 = PACKAGE.Darklang.Stdlib.Option.Option.None
-PACKAGE.Darklang.Stdlib.List.getAt [ 3; 3; 3 ] 2147483648L = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.getAt [ 3L; 3L; 3L ] -5L = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.getAt [ 3L; 3L; 3L ] 2147483648L = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.List.head [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1
+PACKAGE.Darklang.Stdlib.List.head [ 1L; 2L; 3L ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1L
 
 PACKAGE.Darklang.Stdlib.List.head [ Builtin.Test.runtimeError "test" ] = Builtin.Test.derrorMessage
   "test"
 
 PACKAGE.Darklang.Stdlib.List.head [] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.List.indexedMap_v0 [ 3; 2; 1 ] (fun i v -> v - i) = [ 3
-                                                                              1
-                                                                              -1 ]
+PACKAGE.Darklang.Stdlib.List.indexedMap_v0 [ 3L; 2L; 1L ] (fun i v -> v - i) = [ 3L
+                                                                                 1L
+                                                                                 -1L ]
 
 PACKAGE.Darklang.Stdlib.List.indexedMap_v0 [] (fun i v -> v - i) = []
-PACKAGE.Darklang.Stdlib.List.indexedMap_v0 [ 3; 2; 1 ] (fun i v -> i) = [ 0; 1; 2 ]
 
+PACKAGE.Darklang.Stdlib.List.indexedMap_v0 [ 3L; 2L; 1L ] (fun i v -> i) = [ 0L
+                                                                             1L
+                                                                             2L ]
 
-PACKAGE.Darklang.Stdlib.List.interleave_v0 [ 1; 2; 3 ] [ 4; 5; 6 ] = [ 1
-                                                                       4
-                                                                       2
-                                                                       5
-                                                                       3
-                                                                       6 ]
+PACKAGE.Darklang.Stdlib.List.interleave_v0 [ 1L; 2L; 3L ] [ 4L; 5L; 6L ] = [ 1L
+                                                                             4L
+                                                                             2L
+                                                                             5L
+                                                                             3L
+                                                                             6L ]
 
-PACKAGE.Darklang.Stdlib.List.interleave_v0 [ 1; 2; 3 ] [ 4 ] = [ 1; 4; 2; 3 ]
-PACKAGE.Darklang.Stdlib.List.interleave_v0 [ 1; 2; 3 ] [] = [ 1; 2; 3 ]
-PACKAGE.Darklang.Stdlib.List.interleave_v0 [ 1 ] [ 4; 5; 6 ] = [ 1; 4; 5; 6 ]
-PACKAGE.Darklang.Stdlib.List.interleave_v0 [] [ 4; 5; 6 ] = [ 4; 5; 6 ]
+PACKAGE.Darklang.Stdlib.List.interleave_v0 [ 1L; 2L; 3L ] [ 4L ] = [ 1L; 4L; 2L; 3L ]
+PACKAGE.Darklang.Stdlib.List.interleave_v0 [ 1L; 2L; 3L ] [] = [ 1L; 2L; 3L ]
+PACKAGE.Darklang.Stdlib.List.interleave_v0 [ 1L ] [ 4L; 5L; 6L ] = [ 1L; 4L; 5L; 6L ]
+PACKAGE.Darklang.Stdlib.List.interleave_v0 [] [ 4L; 5L; 6L ] = [ 4L; 5L; 6L ]
 PACKAGE.Darklang.Stdlib.List.interleave_v0 [] [] = []
 
-PACKAGE.Darklang.Stdlib.List.interleave_v0 [ "a"; "b"; "c" ] [ 0 ] = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.List.interleave_v0 [ "a"; "b"; "c" ] [ 0L ] = Builtin.Test.derrorMessage
   "Could not merge types List<Int> and List<String>"
 
-PACKAGE.Darklang.Stdlib.List.interpose_v0 [ 1; 2; 3 ] 5 = [ 1; 5; 2; 5; 3 ]
-PACKAGE.Darklang.Stdlib.List.interpose_v0 [ 1 ] 5 = [ 1 ]
-PACKAGE.Darklang.Stdlib.List.interpose_v0 [] 5 = []
+PACKAGE.Darklang.Stdlib.List.interpose_v0 [ 1L; 2L; 3L ] 5L = [ 1L; 5L; 2L; 5L; 3L ]
+PACKAGE.Darklang.Stdlib.List.interpose_v0 [ 1L ] 5L = [ 1L ]
+PACKAGE.Darklang.Stdlib.List.interpose_v0 [] 5L = []
 
-PACKAGE.Darklang.Stdlib.List.interpose_v0 [ "a"; "b"; "c" ] 0 = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.List.interpose_v0 [ "a"; "b"; "c" ] 0L = Builtin.Test.derrorMessage
   "Could not merge types List<Int> and List<String>"
 
-
-PACKAGE.Darklang.Stdlib.List.isEmpty_v0 [ 1 ] = false
+PACKAGE.Darklang.Stdlib.List.isEmpty_v0 [ 1L ] = false
 PACKAGE.Darklang.Stdlib.List.isEmpty_v0 [] = true
 
-PACKAGE.Darklang.Stdlib.List.last [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  3
+PACKAGE.Darklang.Stdlib.List.last [ 1L; 2L; 3L ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  3L
 
 PACKAGE.Darklang.Stdlib.List.last [ Builtin.Test.runtimeError "test" ] = Builtin.Test.derrorMessage
   "test"
 
 PACKAGE.Darklang.Stdlib.List.last [] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.List.length_v0 [ 1; 2; 3 ] = 3
-PACKAGE.Darklang.Stdlib.List.length_v0 [] = 0
+PACKAGE.Darklang.Stdlib.List.length_v0 [ 1L; 2L; 3L ] = 3L
+PACKAGE.Darklang.Stdlib.List.length_v0 [] = 0L
 
 PACKAGE.Darklang.Stdlib.List.map_v0
-  (PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
-  (fun x -> x + 1) = [ 2; 3; 4; 5; 6 ]
+  (PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
+  (fun x -> x + 1L) = [ 2L; 3L; 4L; 5L; 6L ]
 
-PACKAGE.Darklang.Stdlib.List.map_v0 [ 1; 2; 3 ] (fun x ->
+PACKAGE.Darklang.Stdlib.List.map_v0 [ 1L; 2L; 3L ] (fun x ->
   PACKAGE.Darklang.Stdlib.Bool.and_v0
-    (PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 x 0)
-    (PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 x 4)) = [ true; true; true ]
+    (PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 x 0L)
+    (PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 x 4L)) = [ true; true; true ]
 
-PACKAGE.Darklang.Stdlib.List.map_v0 [ 1; 2 ] (fun x -> x + 1) = [ 2; 3 ]
-PACKAGE.Darklang.Stdlib.List.map_v0 [] (fun x -> x + 1) = []
+PACKAGE.Darklang.Stdlib.List.map_v0 [ 1L; 2L ] (fun x -> x + 1L) = [ 2L; 3L ]
+PACKAGE.Darklang.Stdlib.List.map_v0 [] (fun x -> x + 1L) = []
 
-PACKAGE.Darklang.Stdlib.List.map2_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  [ 9; 18; 27 ]
+PACKAGE.Darklang.Stdlib.List.map2_v0 [ 10L; 20L; 30L ] [ 1L; 2L; 3L ] (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  [ 9L; 18L; 27L ]
 
-PACKAGE.Darklang.Stdlib.List.map2_v0 [ 10; 20 ] [ 1; 2; 3 ] (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.map2_v0 [ 10L; 20L ] [ 1L; 2L; 3L ] (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 PACKAGE.Darklang.Stdlib.List.map2_v0 [] [] (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Some
   []
 
-PACKAGE.Darklang.Stdlib.List.map2shortest_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] (fun a b ->
-  a - b) = [ 9; 18; 27 ]
+PACKAGE.Darklang.Stdlib.List.map2shortest_v0
+  [ 10L; 20L; 30L ]
+  [ 1L; 2L; 3L ]
+  (fun a b -> a - b) = [ 9L; 18L; 27L ]
 
-PACKAGE.Darklang.Stdlib.List.map2shortest_v0 [ 10; 20 ] [ 1; 2; 3 ] (fun a b ->
-  a - b) = [ 9; 18 ]
+PACKAGE.Darklang.Stdlib.List.map2shortest_v0 [ 10L; 20L ] [ 1L; 2L; 3L ] (fun a b ->
+  a - b) = [ 9L; 18L ]
 
-PACKAGE.Darklang.Stdlib.List.map2shortest_v0 [] [ 1; 2; 3 ] (fun a b -> a - b) = []
-PACKAGE.Darklang.Stdlib.List.map2shortest_v0 [ 1; 2; 3 ] [] (fun a b -> a - b) = []
+PACKAGE.Darklang.Stdlib.List.map2shortest_v0 [] [ 1L; 2L; 3L ] (fun a b -> a - b) = []
+PACKAGE.Darklang.Stdlib.List.map2shortest_v0 [ 1L; 2L; 3L ] [] (fun a b -> a - b) = []
 
-PACKAGE.Darklang.Stdlib.List.member_v0 [ 1; 2; 3 ] 2 = true
-PACKAGE.Darklang.Stdlib.List.member_v0 [ 1; 2; 3 ] 4 = false
-PACKAGE.Darklang.Stdlib.List.member_v0 [] 1 = false
+PACKAGE.Darklang.Stdlib.List.member_v0 [ 1L; 2L; 3L ] 2L = true
+PACKAGE.Darklang.Stdlib.List.member_v0 [ 1L; 2L; 3L ] 4L = false
+PACKAGE.Darklang.Stdlib.List.member_v0 [] 1L = false
 
-PACKAGE.Darklang.Stdlib.List.partition_v0 [ -20; 5; 9 ] (fun x -> x > 0) = ([ 5; 9 ],
-                                                                            [ -20 ])
+PACKAGE.Darklang.Stdlib.List.partition_v0 [ -20L; 5L; 9L ] (fun x -> x > 0L) = ([ 5L
+                                                                                  9L ],
+                                                                                [ -20L ])
 
 PACKAGE.Darklang.Stdlib.List.partition_v0 [] (fun item -> true) = ([], [])
 PACKAGE.Darklang.Stdlib.List.partition_v0 [] (fun item -> "a") = ([], [])
 
-PACKAGE.Darklang.Stdlib.List.partition_v0 [ 1; 2; 3 ] (fun item ->
+PACKAGE.Darklang.Stdlib.List.partition_v0 [ 1L; 2L; 3L ] (fun item ->
   match item with
-  | 1 -> true
-  | 2 -> false
-  | 3 -> true) = ([ 1; 3 ], [ 2 ])
+  | 1L -> true
+  | 2L -> false
+  | 3L -> true) = ([ 1L; 3L ], [ 2L ])
 
 PACKAGE.Darklang.Stdlib.List.partition_v0 [ true; false; true ] (fun item -> "a") = Builtin.Test.derrorMessage
   "If only supports Booleans"
 
 
-PACKAGE.Darklang.Stdlib.List.partition_v0 [ 1; 2; 3 ] (fun item ->
+PACKAGE.Darklang.Stdlib.List.partition_v0 [ 1L; 2L; 3L ] (fun item ->
   match item with
-  | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.None
-  | 2 -> false
-  | 3 -> true) = Builtin.Test.derrorMessage "If only supports Booleans"
+  | 1L -> PACKAGE.Darklang.Stdlib.Option.Option.None
+  | 2L -> false
+  | 3L -> true) = Builtin.Test.derrorMessage "If only supports Booleans"
 
-PACKAGE.Darklang.Stdlib.List.pushBack_v0 [ 2; 3 ] 1 = [ 2; 3; 1 ]
-PACKAGE.Darklang.Stdlib.List.pushBack_v0 [] 1 = [ 1 ]
+PACKAGE.Darklang.Stdlib.List.pushBack_v0 [ 2L; 3L ] 1L = [ 2L; 3L; 1L ]
+PACKAGE.Darklang.Stdlib.List.pushBack_v0 [] 1L = [ 1L ]
 
-PACKAGE.Darklang.Stdlib.List.push_v0 [ 2; 3 ] 1 = [ 1; 2; 3 ]
-PACKAGE.Darklang.Stdlib.List.push_v0 [] 1 = [ 1 ]
+PACKAGE.Darklang.Stdlib.List.push_v0 [ 2L; 3L ] 1L = [ 1L; 2L; 3L ]
+PACKAGE.Darklang.Stdlib.List.push_v0 [] 1L = [ 1L ]
 
-PACKAGE.Darklang.Stdlib.List.randomElement_v0 [ 1 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1
+PACKAGE.Darklang.Stdlib.List.randomElement_v0 [ 1L ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1L
 
 PACKAGE.Darklang.Stdlib.List.randomElement_v0 [ Builtin.Test.runtimeError "test" ] = Builtin.Test.derrorMessage
   "test"
 
 PACKAGE.Darklang.Stdlib.List.randomElement_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.List.range_v0 -1 0 = [ -1; 0 ]
-PACKAGE.Darklang.Stdlib.List.range_v0 -5 5 = [ -5; -4; -3; -2; -1; 0; 1; 2; 3; 4; 5 ]
-PACKAGE.Darklang.Stdlib.List.range_v0 5 0 = []
+PACKAGE.Darklang.Stdlib.List.range_v0 -1L 0L = [ -1L; 0L ]
 
-PACKAGE.Darklang.Stdlib.List.repeat_v0 0 1 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+PACKAGE.Darklang.Stdlib.List.range_v0 -5L 5L = [ -5L
+                                                 -4L
+                                                 -3L
+                                                 -2L
+                                                 -1L
+                                                 0L
+                                                 1L
+                                                 2L
+                                                 3L
+                                                 4L
+                                                 5L ]
+
+PACKAGE.Darklang.Stdlib.List.range_v0 5L 0L = []
+
+PACKAGE.Darklang.Stdlib.List.repeat_v0 0L 1L = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   []
 
-PACKAGE.Darklang.Stdlib.List.repeat_v0 1 "a" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+PACKAGE.Darklang.Stdlib.List.repeat_v0 1L "a" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   [ "a" ]
 
-PACKAGE.Darklang.Stdlib.List.repeat_v0 1 1 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  [ 1 ]
+PACKAGE.Darklang.Stdlib.List.repeat_v0 1L 1L = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ 1L ]
 
-PACKAGE.Darklang.Stdlib.List.repeat_v0 3 1 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  [ 1; 1; 1 ]
+PACKAGE.Darklang.Stdlib.List.repeat_v0 3L 1L = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ 1L; 1L; 1L ]
 
-PACKAGE.Darklang.Stdlib.List.repeat_v0 3 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  [ 3; 3; 3 ]
+PACKAGE.Darklang.Stdlib.List.repeat_v0 3L 3L = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ 3L; 3L; 3L ]
 
-PACKAGE.Darklang.Stdlib.List.repeat_v0 5 "a" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+PACKAGE.Darklang.Stdlib.List.repeat_v0 5L "a" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   [ "a"; "a"; "a"; "a"; "a" ]
 
-PACKAGE.Darklang.Stdlib.List.repeat_v0 -4 "a" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+PACKAGE.Darklang.Stdlib.List.repeat_v0 -4L "a" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Expected `times` to be positive, but it was `-4`"
 
-PACKAGE.Darklang.Stdlib.List.repeat_v0 3 [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  [ [ 1; 2; 3 ]; [ 1; 2; 3 ]; [ 1; 2; 3 ] ]
+PACKAGE.Darklang.Stdlib.List.repeat_v0 3L [ 1L; 2L; 3L ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ [ 1L; 2L; 3L ]; [ 1L; 2L; 3L ]; [ 1L; 2L; 3L ] ]
 
-PACKAGE.Darklang.Stdlib.List.repeat_v0 3 [] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+PACKAGE.Darklang.Stdlib.List.repeat_v0 3L [] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   [ []; []; [] ]
 
 PACKAGE.Darklang.Stdlib.List.reverse_v0 [ "a"; "b"; "c"; "d" ] = [ "d"
@@ -310,52 +335,92 @@ PACKAGE.Darklang.Stdlib.List.reverse_v0 [ "a"; "b"; "c"; "d" ] = [ "d"
                                                                    "b"
                                                                    "a" ]
 
-PACKAGE.Darklang.Stdlib.List.reverse_v0 [ 5; 4; 3; 2; 1 ] = [ 1; 2; 3; 4; 5 ]
+PACKAGE.Darklang.Stdlib.List.reverse_v0 [ 5L; 4L; 3L; 2L; 1L ] = [ 1L
+                                                                   2L
+                                                                   3L
+                                                                   4L
+                                                                   5L ]
+
 PACKAGE.Darklang.Stdlib.List.reverse_v0 [] = []
 
-PACKAGE.Darklang.Stdlib.List.singleton_v0 1 = [ 1 ]
+PACKAGE.Darklang.Stdlib.List.singleton_v0 1L = [ 1L ]
 
-PACKAGE.Darklang.Stdlib.List.sortBy_v0 [ 6; 2; 8; 3 ] (fun x -> 0 - x) = [ 8
-                                                                           6
-                                                                           3
-                                                                           2 ]
+PACKAGE.Darklang.Stdlib.List.sortBy_v0 [ 6L; 2L; 8L; 3L ] (fun x -> 0L - x) = [ 8L
+                                                                                6L
+                                                                                3L
+                                                                                2L ]
 
-PACKAGE.Darklang.Stdlib.List.sortBy_v0 [] (fun x -> 0 - x) = []
+PACKAGE.Darklang.Stdlib.List.sortBy_v0 [] (fun x -> 0L - x) = []
 
 PACKAGE.Darklang.Stdlib.List.sort_v0 [ "6"; "2"; "8"; "3" ] = [ "2"; "3"; "6"; "8" ]
-PACKAGE.Darklang.Stdlib.List.sort_v0 [ 6; 2; 8; 3 ] = [ 2; 3; 6; 8 ]
+PACKAGE.Darklang.Stdlib.List.sort_v0 [ 6L; 2L; 8L; 3L ] = [ 2L; 3L; 6L; 8L ]
 PACKAGE.Darklang.Stdlib.List.sort_v0 [] = []
 
-
-PACKAGE.Darklang.Stdlib.List.sortByComparator_v0 [ 3; 1; 2 ] (fun a b -> 0.1) = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 0.1) = Builtin.Test.derrorMessage
   "Function return value should be an Int. However, a Float (0.1) was returned instead.\n\nExpected: Int\nActual: a Float: 0.1"
 
-PACKAGE.Darklang.Stdlib.List.sortByComparator_v0 [ 3; 1; 2 ] (fun a b -> 3) = PACKAGE.Darklang.Stdlib.Result.Result.Error
+PACKAGE.Darklang.Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 3L) = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Expected comparator function to return -1, 0, or 1, but it returned 3"
 
-PACKAGE.Darklang.Stdlib.List.sortByComparator_v0 [ 1; 2; 3 ] (fun a b -> "㧑༷釺") = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.List.sortByComparator_v0 [ 1L; 2L; 3L ] (fun a b -> "㧑༷釺") = Builtin.Test.derrorMessage
   "Function return value should be an Int. However, a String (\"㧑༷釺\") was returned instead.\n\nExpected: Int\nActual: a String: \"㧑༷釺\""
 
-PACKAGE.Darklang.Stdlib.List.sortByComparator_v0 [ 3; 1; 2 ] (fun a b ->
+PACKAGE.Darklang.Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b ->
   if PACKAGE.Darklang.Stdlib.Int.lessThan_v0 a b then
-    -1
+    -1L
   else
-    1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok [ 1; 2; 3 ]
+    1L) = PACKAGE.Darklang.Stdlib.Result.Result.Ok [ 1L; 2L; 3L ]
 
 PACKAGE.Darklang.Stdlib.List.sortByComparator_v0 [] (fun a b ->
   if PACKAGE.Darklang.Stdlib.Int.lessThan_v0 a b then
-    -1
+    -1L
   else
-    1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok []
+    1L) = PACKAGE.Darklang.Stdlib.Result.Result.Ok []
 
 PACKAGE.Darklang.Stdlib.List.sortByComparator_v0
-  [ 3; 1; 2; 67; 3; -1; 6; 3; 5; 6; 2; 5; 63; 2; 3; 5; -1; -1; -1 ]
+  [ 3L
+    1L
+    2L
+    67L
+    3L
+    -1L
+    6L
+    3L
+    5L
+    6L
+    2L
+    5L
+    63L
+    2L
+    3L
+    5L
+    -1L
+    -1L
+    -1L ]
   (fun a b ->
     if PACKAGE.Darklang.Stdlib.Int.lessThan_v0 a b then
-      -1
+      -1L
     else
-      1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  [ -1; -1; -1; -1; 1; 2; 2; 2; 3; 3; 3; 3; 5; 5; 5; 6; 6; 63; 67 ]
+      1L) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ -1L
+    -1L
+    -1L
+    -1L
+    1L
+    2L
+    2L
+    2L
+    3L
+    3L
+    3L
+    3L
+    5L
+    5L
+    5L
+    6L
+    6L
+    63L
+    67L ]
 
 // CLEANUP this error message is not ideal in 2 ways:
 // - The error does not provide context that the issue is with the fn specifically
@@ -365,99 +430,114 @@ PACKAGE.Darklang.Stdlib.List.sortByComparator_v0
 PACKAGE.Darklang.Stdlib.List.sortByComparator_v0 [ 6.0; 2.0 ] (fun x -> x) = Builtin.Test.derrorMessage
   "Expected 1 arguments, got 2"
 
-PACKAGE.Darklang.Stdlib.List.tail_v0 [ 10; 20; 30; 40 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  [ 20; 30; 40 ]
+PACKAGE.Darklang.Stdlib.List.tail_v0 [ 10L; 20L; 30L; 40L ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  [ 20L; 30L; 40L ]
 
 PACKAGE.Darklang.Stdlib.List.tail_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] -1 = []
+PACKAGE.Darklang.Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] -1L = []
 
 PACKAGE.Darklang.Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] 2147483648L = [ "a"
                                                                             "b"
                                                                             "c"
                                                                             "d" ]
 
-PACKAGE.Darklang.Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] 3 = [ "a"; "b"; "c" ]
-PACKAGE.Darklang.Stdlib.List.take_v0 [ 3; 3; 3 ] 0 = []
-PACKAGE.Darklang.Stdlib.List.take_v0 [ 5; 4; 3; 2; 1 ] 5 = [ 5; 4; 3; 2; 1 ]
-PACKAGE.Darklang.Stdlib.List.take_v0 [ 5 ] 4 = [ 5 ]
-PACKAGE.Darklang.Stdlib.List.take_v0 [] 4 = []
+PACKAGE.Darklang.Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] 3L = [ "a"; "b"; "c" ]
+PACKAGE.Darklang.Stdlib.List.take_v0 [ 3L; 3L; 3L ] 0L = []
+
+PACKAGE.Darklang.Stdlib.List.take_v0 [ 5L; 4L; 3L; 2L; 1L ] 5L = [ 5L
+                                                                   4L
+                                                                   3L
+                                                                   2L
+                                                                   1L ]
+
+PACKAGE.Darklang.Stdlib.List.take_v0 [ 5L ] 4L = [ 5L ]
+PACKAGE.Darklang.Stdlib.List.take_v0 [] 4L = []
 
 //TODO: better error message
-PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> 0 - 1) = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> 0L - 1L) = Builtin.Test.derrorMessage
   "If only supports Booleans"
 
-PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item < 1) = []
+PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> item < 1L) = []
 
-PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [ 1; 2; 3; 4 ] (fun item -> item < 3) = [ 1
-                                                                                    2 ]
+PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> item < 3L) = [ 1L
+                                                                                         2L ]
 
-PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [ 1; 5; 2; 2 ] (fun item -> item < 3) = [ 1 ]
-PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [] (fun item -> item < 3) = []
-
+PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [ 1L; 5L; 2L; 2L ] (fun item -> item < 3L) = [ 1L ]
+PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [] (fun item -> item < 3L) = []
 // it isn't specified which is the right value to keep when there are duplicates
-PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 1; 2; 3; 4 ] (fun x ->
-  PACKAGE.Darklang.Stdlib.Int.divide_v0 x 2) = [ 1; 2; 4 ]
+PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 1L; 2L; 3L; 4L ] (fun x ->
+  PACKAGE.Darklang.Stdlib.Int.divide_v0 x 2L) = [ 1L; 2L; 4L ]
 
-PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 1; 2; 3; 4 ] (fun x -> x) = [ 1; 2; 3; 4 ]
-PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 1; 1; 1; 1 ] (fun x -> x) = [ 1 ]
+PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 1L; 2L; 3L; 4L ] (fun x -> x) = [ 1L
+                                                                             2L
+                                                                             3L
+                                                                             4L ]
 
-PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 7; 42; 7; 2; 10 ] (fun x -> x) = [ 2
-                                                                              7
-                                                                              10
-                                                                              42 ]
+PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 1L; 1L; 1L; 1L ] (fun x -> x) = [ 1L ]
+
+PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 7L; 42L; 7L; 2L; 10L ] (fun x -> x) = [ 2L
+                                                                                   7L
+                                                                                   10L
+                                                                                   42L ]
 
 PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [] (fun x -> x) = []
 
-PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 6; 2.0 ] (fun x -> x) = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 6L; 2.0 ] (fun x -> x) = Builtin.Test.derrorMessage
   "Could not merge types List<Float> and List<Int>"
 
-PACKAGE.Darklang.Stdlib.List.unique_v0 [ 1; 2; 3; 4 ] = [ 1; 2; 3; 4 ]
-PACKAGE.Darklang.Stdlib.List.unique_v0 [ 1; 1; 1; 1 ] = [ 1 ]
-PACKAGE.Darklang.Stdlib.List.unique_v0 [ 7; 42; 7; 2; 10 ] = [ 2; 7; 10; 42 ]
+PACKAGE.Darklang.Stdlib.List.unique_v0 [ 1L; 2L; 3L; 4L ] = [ 1L; 2L; 3L; 4L ]
+PACKAGE.Darklang.Stdlib.List.unique_v0 [ 1L; 1L; 1L; 1L ] = [ 1L ]
+
+PACKAGE.Darklang.Stdlib.List.unique_v0 [ 7L; 42L; 7L; 2L; 10L ] = [ 2L
+                                                                    7L
+                                                                    10L
+                                                                    42L ]
+
 PACKAGE.Darklang.Stdlib.List.unique_v0 [] = []
 // TODO: more tests, with values of more complex types
 
-PACKAGE.Darklang.Stdlib.List.unzip_v0 [ (1, 10); (2, 20); (3, 30) ] = ([ 1; 2; 3 ],
-                                                                       [ 10; 20; 30 ])
+PACKAGE.Darklang.Stdlib.List.unzip_v0 [ (1L, 10L); (2L, 20L); (3L, 30L) ] = ([ 1L;2L; 3L ], [ 10L; 20L; 30L ])
+PACKAGE.Darklang.Stdlib.List.unzip_v0 [ (10L, 6L) ] = ([ 10L ], [ 6L ])
 
-PACKAGE.Darklang.Stdlib.List.unzip_v0 [ (10, 6) ] = ([ 10 ], [ 6 ])
+PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ 10L; 20L; 30L ] [ 1L; 2L; 3L ] = [ (10L,
+                                                                                  1L)
+                                                                                 (20L,
+                                                                                  2L)
+                                                                                 (30L,
+                                                                                  3L) ]
 
-PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] = [ (10, 1)
-                                                                           (20, 2)
-                                                                           (30, 3) ]
+PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ 10L; 20L; 30L ] [ "a"; "bc"; "d" ] = [ (10L,
+                                                                                      "a")
+                                                                                     (20L,
+                                                                                      "bc")
+                                                                                     (30L,
+                                                                                      "d") ]
 
-PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ 10; 20; 30 ] [ "a"; "bc"; "d" ] = [ (10,
-                                                                                   "a")
-                                                                                  (20,
-                                                                                   "bc")
-                                                                                  (30,
-                                                                                   "d") ]
+PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ 10L; 20L ] [ 1L; 2L; 3L ] = [ (10L, 1L)
+                                                                            (20L, 2L) ]
 
-PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ 10; 20 ] [ 1; 2; 3 ] = [ (10, 1)
-                                                                       (20, 2) ]
+PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ 1L; 2L; 3L ] [ 10L; 20L ] = [ (1L, 10L)
+                                                                            (2L, 20L) ]
 
-PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ 1; 2; 3 ] [ 10; 20 ] = [ (1, 10)
-                                                                       (2, 20) ]
+PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ 10L; 20L ] [ "a"; "bc"; "d" ] = [ (10L,
+                                                                                 "a")
+                                                                                (20L,
+                                                                                  "bc") ]
 
-PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ 10; 20 ] [ "a"; "bc"; "d" ] = [ (10,
-                                                                               "a")
-                                                                              (20,
-                                                                               "bc") ]
-
-PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ "a"; "bc"; "d" ] [ 10; 20 ] = [ ("a",
-                                                                               10)
-                                                                              ("bc",
-                                                                               20) ]
+PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ "a"; "bc"; "d" ] [ 10L; 20L ] = [ ("a",
+                                                                                 10L)
+                                                                                ("bc",
+                                                                                 20L) ]
 
 PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [ "b"; "v"; "z" ] [] = []
 PACKAGE.Darklang.Stdlib.List.zipShortest_v0 [] [ "b"; "v"; "z" ] = []
 
 
-PACKAGE.Darklang.Stdlib.List.zip_v0 [ 10; 20; 30 ] [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  [ (10, 1); (20, 2); (30, 3) ]
+PACKAGE.Darklang.Stdlib.List.zip_v0 [ 10L; 20L; 30L ] [ 1L; 2L; 3L ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  [ (10L, 1L); (20L, 2L); (30L, 3L) ]
 
-PACKAGE.Darklang.Stdlib.List.zip_v0 [ 10; 20 ] [ 1; 2; 3 ] = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.List.zip_v0 [ 10L; 20L ] [ 1L; 2L; 3L ] = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 PACKAGE.Darklang.Stdlib.List.zip_v0 [] [] = PACKAGE.Darklang.Stdlib.Option.Option.Some
   []
@@ -466,35 +546,37 @@ PACKAGE.Darklang.Stdlib.List.zip_v0 [ Builtin.Test.runtimeError "msg" ] [ Some "
   "msg"
 
 
-PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x ->
-  PACKAGE.Darklang.Stdlib.Int.mod_v0 x 2) = [ (1, [ 1; 3; 5 ]); (0, [ 2; 4 ]) ]
+PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
+  PACKAGE.Darklang.Stdlib.Int.mod_v0 x 2L) = [ (1L, [ 1L; 3L; 5L ])
+                                               (0L, [ 2L; 4L ]) ]
 
-PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x ->
-  PACKAGE.Darklang.Stdlib.Int.mod_v0 x 2) = [ (1, [ 1; 3; 5 ]); (0, [ 2; 4 ]) ]
+PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
+  PACKAGE.Darklang.Stdlib.Int.mod_v0 x 2L) = [ (1L, [ 1L; 3L; 5L ])
+                                               (0L, [ 2L; 4L ]) ]
 
 PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0
   [ "apple"; "banana"; "avocado"; "grape"; "apricot" ]
-  (fun s -> PACKAGE.Darklang.Stdlib.String.first_v0 s 1) = [ ("a",
-                                                              [ "apple"
-                                                                "avocado"
-                                                                "apricot" ])
-                                                             ("b", [ "banana" ])
-                                                             ("g", [ "grape" ]) ]
+  (fun s -> PACKAGE.Darklang.Stdlib.String.first_v0 s 1L) = [ ("a",
+                                                                [ "apple"
+                                                                  "avocado"
+                                                                  "apricot" ])
+                                                              ("b", [ "banana" ])
+                                                              ("g", [ "grape" ]) ]
 
 PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 'a'; 'b'; 'c'; 'a'; 'b' ] (fun c ->
   c) = [ ('a', [ 'a'; 'a' ]); ('b', [ 'b'; 'b' ]); ('c', [ 'c' ]) ]
 
-PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x ->
-  PACKAGE.Darklang.Stdlib.Int.mod_v0 x 2 == 0) = [ (false, [ 1; 3; 5 ])
-                                                   (true, [ 2; 4 ]) ]
+PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
+  PACKAGE.Darklang.Stdlib.Int.mod_v0 x 2L == 0L) = [ (false, [ 1L; 3L; 5L ])
+                                                     (true,[ 2L; 4L ]) ]
 
-PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 1; 2; 3; 4; 5 ] (fun x ->
-  ((PACKAGE.Darklang.Stdlib.Int.mod_v0 x 2), "test")) = [ ((1, "test"), [ 1; 3; 5 ])
-                                                          ((0, "test"), [ 2; 4 ]) ]
+PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
+  ((PACKAGE.Darklang.Stdlib.Int.mod_v0 x 2L), "test")) = [ ((1L, "test"),[ 1L; 3L; 5L ])
+                                                           ((0L, "test"), [ 2L; 4L ]) ]
 
 PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [] (fun x -> x) = []
 
 
-PACKAGE.Darklang.Stdlib.List.dropLast [ 1; 2; 3; 4; 5 ] = [ 1; 2; 3; 4 ]
-PACKAGE.Darklang.Stdlib.List.dropLast [ 1 ] = []
+PACKAGE.Darklang.Stdlib.List.dropLast [ 1L; 2L; 3L; 4L; 5L ] = [ 1L; 2L; 3L; 4L ]
+PACKAGE.Darklang.Stdlib.List.dropLast [ 1L ] = []
 PACKAGE.Darklang.Stdlib.List.dropLast [] = []

@@ -22,7 +22,7 @@ let ptFQFnName =
 let testPipesToRuntimeTypes =
   testTask "pipes to runtime types" {
     let! actual =
-      "value.age |> (-) 2 |> (+) value.age |> (<) 3"
+      "value.age |> (-) 2L |> (+) value.age |> (<) 3L"
       |> LibParser.Parser.parseRTExpr nameResolver "programTypes.tests.fs"
       |> Ply.toTask
 
@@ -113,14 +113,14 @@ let testInfixProgramTypesToSerializedTypes =
     [ (PT.EInfix(
         8UL,
         PT.InfixFnCall(PT.ArithmeticPlus),
-        PT.EInt(9UL, 6),
-        PT.EInt(10UL, 6)
+        PT.EInt(9UL, 6L),
+        PT.EInt(10UL, 6L)
        ),
        ST.EInfix(
          8UL,
          ST.InfixFnCall(ST.ArithmeticPlus),
-         ST.EInt(9UL, 6),
-         ST.EInt(10UL, 6)
+         ST.EInt(9UL, 6L),
+         ST.EInt(10UL, 6L)
        )) ]
 
 

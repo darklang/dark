@@ -346,48 +346,48 @@ module GreaterThanOrEquals =
     (d "2020-11-26T04:37:46Z") = true
 
 module Fields =
-  PACKAGE.Darklang.Stdlib.DateTime.year_v0 (d "2019-07-28T22:42:36Z") = 2019
-  PACKAGE.Darklang.Stdlib.DateTime.month_v0 (d "2019-07-28T22:42:36Z") = 7
-  PACKAGE.Darklang.Stdlib.DateTime.day_v0 (d "2019-07-28T22:42:36Z") = 28
-  PACKAGE.Darklang.Stdlib.DateTime.hour (d "2019-12-27T03:27:36Z") = 3 // Leif's test case
-  PACKAGE.Darklang.Stdlib.DateTime.minute (d "2019-07-28T22:42:36Z") = 42
-  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "2019-07-22T22:42:36Z") = 1 // Monday
-  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "2019-07-23T22:42:36Z") = 2
-  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "2019-07-24T22:42:36Z") = 3
-  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "2019-07-25T22:42:36Z") = 4
-  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "2019-07-26T22:42:36Z") = 5
-  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "2019-07-27T22:42:36Z") = 6
-  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "2019-07-28T22:42:36Z") = 7
+  PACKAGE.Darklang.Stdlib.DateTime.year_v0 (d "2019-07-28T22:42:36Z") = 2019L
+  PACKAGE.Darklang.Stdlib.DateTime.month_v0 (d "2019-07-28T22:42:36Z") = 7L
+  PACKAGE.Darklang.Stdlib.DateTime.day_v0 (d "2019-07-28T22:42:36Z") = 28L
+  PACKAGE.Darklang.Stdlib.DateTime.hour (d "2019-12-27T03:27:36Z") = 3L // Leif's test case
+  PACKAGE.Darklang.Stdlib.DateTime.minute (d "2019-07-28T22:42:36Z") = 42L
+  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "2019-07-22T22:42:36Z") = 1L // Monday
+  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "2019-07-23T22:42:36Z") = 2L
+  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "2019-07-24T22:42:36Z") = 3L
+  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "2019-07-25T22:42:36Z") = 4L
+  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "2019-07-26T22:42:36Z") = 5L
+  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "2019-07-27T22:42:36Z") = 6L
+  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "2019-07-28T22:42:36Z") = 7L
 
 
 module Epoch1919 =
-  PACKAGE.Darklang.Stdlib.DateTime.year_v0 (d "1919-07-28T22:42:36Z") = 1919
-  PACKAGE.Darklang.Stdlib.DateTime.month_v0 (d "1919-07-28T22:42:36Z") = 7
-  PACKAGE.Darklang.Stdlib.DateTime.day_v0 (d "1919-07-28T22:42:36Z") = 28
-  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "1919-07-28T22:42:36Z") = 1
-  PACKAGE.Darklang.Stdlib.DateTime.hour (d "1919-12-27T03:27:36Z") = 3
-  PACKAGE.Darklang.Stdlib.DateTime.minute (d "1919-07-28T22:42:36Z") = 42
-  PACKAGE.Darklang.Stdlib.DateTime.second (d "1919-07-28T22:42:36Z") = 36
+  PACKAGE.Darklang.Stdlib.DateTime.year_v0 (d "1919-07-28T22:42:36Z") = 1919L
+  PACKAGE.Darklang.Stdlib.DateTime.month_v0 (d "1919-07-28T22:42:36Z") = 7L
+  PACKAGE.Darklang.Stdlib.DateTime.day_v0 (d "1919-07-28T22:42:36Z") = 28L
+  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "1919-07-28T22:42:36Z") = 1L
+  PACKAGE.Darklang.Stdlib.DateTime.hour (d "1919-12-27T03:27:36Z") = 3L
+  PACKAGE.Darklang.Stdlib.DateTime.minute (d "1919-07-28T22:42:36Z") = 42L
+  PACKAGE.Darklang.Stdlib.DateTime.second (d "1919-07-28T22:42:36Z") = 36L
 
 module Epoch1969 =
-  PACKAGE.Darklang.Stdlib.DateTime.year_v0 (d "1969-07-28T22:42:36Z") = 1969
-  PACKAGE.Darklang.Stdlib.DateTime.month_v0 (d "1969-07-28T22:42:36Z") = 7
-  PACKAGE.Darklang.Stdlib.DateTime.day_v0 (d "1969-07-28T22:42:36Z") = 28
-  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "1969-07-28T22:42:36Z") = 1
-  PACKAGE.Darklang.Stdlib.DateTime.hour (d "1969-12-27T03:27:36Z") = 3
-  PACKAGE.Darklang.Stdlib.DateTime.minute (d "1969-07-28T22:42:36Z") = 42
-  PACKAGE.Darklang.Stdlib.DateTime.second (d "1969-07-28T22:42:36Z") = 36
+  PACKAGE.Darklang.Stdlib.DateTime.year_v0 (d "1969-07-28T22:42:36Z") = 1969L
+  PACKAGE.Darklang.Stdlib.DateTime.month_v0 (d "1969-07-28T22:42:36Z") = 7L
+  PACKAGE.Darklang.Stdlib.DateTime.day_v0 (d "1969-07-28T22:42:36Z") = 28L
+  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "1969-07-28T22:42:36Z") = 1L
+  PACKAGE.Darklang.Stdlib.DateTime.hour (d "1969-12-27T03:27:36Z") = 3L
+  PACKAGE.Darklang.Stdlib.DateTime.minute (d "1969-07-28T22:42:36Z") = 42L
+  PACKAGE.Darklang.Stdlib.DateTime.second (d "1969-07-28T22:42:36Z") = 36L
 
 module Epoch1970 =
-  PACKAGE.Darklang.Stdlib.DateTime.year_v0 (d "1970-07-28T22:42:36Z") = 1970
-  PACKAGE.Darklang.Stdlib.DateTime.month_v0 (d "1970-07-28T22:42:36Z") = 7
-  PACKAGE.Darklang.Stdlib.DateTime.day_v0 (d "1970-07-28T22:42:36Z") = 28
-  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "1970-07-28T22:42:36Z") = 2
-  PACKAGE.Darklang.Stdlib.DateTime.hour (d "1970-12-27T03:27:36Z") = 3
-  PACKAGE.Darklang.Stdlib.DateTime.minute (d "1970-07-28T22:42:36Z") = 42
-  PACKAGE.Darklang.Stdlib.DateTime.minute (d "1970-07-28T22:42:36Z") = 42
-  PACKAGE.Darklang.Stdlib.DateTime.second (d "1970-07-28T22:42:36Z") = 36
-  PACKAGE.Darklang.Stdlib.DateTime.second (d "1970-07-28T22:42:36Z") = 36
+  PACKAGE.Darklang.Stdlib.DateTime.year_v0 (d "1970-07-28T22:42:36Z") = 1970L
+  PACKAGE.Darklang.Stdlib.DateTime.month_v0 (d "1970-07-28T22:42:36Z") = 7L
+  PACKAGE.Darklang.Stdlib.DateTime.day_v0 (d "1970-07-28T22:42:36Z") = 28L
+  PACKAGE.Darklang.Stdlib.DateTime.weekday_v0 (d "1970-07-28T22:42:36Z") = 2L
+  PACKAGE.Darklang.Stdlib.DateTime.hour (d "1970-12-27T03:27:36Z") = 3L
+  PACKAGE.Darklang.Stdlib.DateTime.minute (d "1970-07-28T22:42:36Z") = 42L
+  PACKAGE.Darklang.Stdlib.DateTime.minute (d "1970-07-28T22:42:36Z") = 42L
+  PACKAGE.Darklang.Stdlib.DateTime.second (d "1970-07-28T22:42:36Z") = 36L
+  PACKAGE.Darklang.Stdlib.DateTime.second (d "1970-07-28T22:42:36Z") = 36L
 
 module Convertsion =
   PACKAGE.Darklang.Stdlib.DateTime.toString_v0 (d "2019-07-28T22:42:36Z") = "2019-07-28T22:42:36Z"
@@ -395,7 +395,7 @@ module Convertsion =
   PACKAGE.Darklang.Stdlib.DateTime.atStartOfDay_v0 (d "2019-07-28T22:42:36Z") = (d
     "2019-07-28T00:00:00Z")
 
-  PACKAGE.Darklang.Stdlib.DateTime.toSeconds_v0 (d "2019-07-28T22:42:36Z") = 1564353756
+  PACKAGE.Darklang.Stdlib.DateTime.toSeconds_v0 (d "2019-07-28T22:42:36Z") = 1564353756L
   PACKAGE.Darklang.Stdlib.DateTime.toSeconds_v0 (d "2075-11-14T11:01:35Z") = 3340954895L
 
   PACKAGE.Darklang.Stdlib.DateTime.toStringISO8601BasicDateTime_v0 (
@@ -414,9 +414,9 @@ module Convertsion =
     d "1069-07-28T22:42:36Z"
   ) = "10690728"
 
-  1095379198
+  1095379198L
   |> PACKAGE.Darklang.Stdlib.DateTime.fromSeconds_v0
-  |> PACKAGE.Darklang.Stdlib.DateTime.toSeconds_v0 = 1095379198
+  |> PACKAGE.Darklang.Stdlib.DateTime.toSeconds_v0 = 1095379198L
 
   (d "2019-07-28T22:42:36Z")
   |> PACKAGE.Darklang.Stdlib.DateTime.toSeconds_v0
@@ -425,36 +425,36 @@ module Convertsion =
 // PACKAGE.Darklang.Stdlib.DateTime.today_v0 |> PACKAGE.Darklang.Stdlib.DateTime.toString_v0 = "2020-10-17T00:00:00Z" // todo, how can we test this
 
 module AddingSeconds =
-  PACKAGE.Darklang.Stdlib.DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 0 = (d
+  PACKAGE.Darklang.Stdlib.DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 0L = (d
     "2020-11-26T04:37:46Z")
 
-  PACKAGE.Darklang.Stdlib.DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 1 = (d
+  PACKAGE.Darklang.Stdlib.DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 1L = (d
     "2020-11-26T04:37:47Z")
 
-  PACKAGE.Darklang.Stdlib.DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 10 = (d
+  PACKAGE.Darklang.Stdlib.DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 10L = (d
     "2020-11-26T04:37:56Z")
 
-  PACKAGE.Darklang.Stdlib.DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 1000000 = (d
+  PACKAGE.Darklang.Stdlib.DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 1000000L = (d
     "2020-12-07T18:24:26Z")
 
-  PACKAGE.Darklang.Stdlib.DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") -10 = (d
+  PACKAGE.Darklang.Stdlib.DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") -10L = (d
     "2020-11-26T04:37:36Z")
 
 module SubtractingSeconds =
-  PACKAGE.Darklang.Stdlib.DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 0 = (d
+  PACKAGE.Darklang.Stdlib.DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 0L = (d
     "2020-11-26T04:37:46Z")
 
-  PACKAGE.Darklang.Stdlib.DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 1 = (d
+  PACKAGE.Darklang.Stdlib.DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 1L = (d
     "2020-11-26T04:37:45Z")
 
-  PACKAGE.Darklang.Stdlib.DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 10 = (d
+  PACKAGE.Darklang.Stdlib.DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 10L = (d
     "2020-11-26T04:37:36Z")
 
   PACKAGE.Darklang.Stdlib.DateTime.subtractSeconds_v0
     (d "2020-11-26T04:37:46Z")
-    1000000 = (d "2020-11-14T14:51:06Z")
+    1000000L = (d "2020-11-14T14:51:06Z")
 
-  PACKAGE.Darklang.Stdlib.DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") -10 = (d
+  PACKAGE.Darklang.Stdlib.DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") -10L = (d
     "2020-11-26T04:37:56Z")
 
 module Difference =

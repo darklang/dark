@@ -18,7 +18,7 @@ Hello back
  {response with headers = respHeaders}) =
    PACKAGE.Darklang.Stdlib.HttpClient.Response
     {
-      statusCode = 200
+      statusCode = 200L
       headers =
         [
           ("content-length", "LENGTH")

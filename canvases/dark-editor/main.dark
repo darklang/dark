@@ -10,7 +10,7 @@ let rUnwrap (result: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'b>) : 'a =
 let _handler _req =
   PACKAGE.Darklang.Stdlib.Http.response
     (PACKAGE.Darklang.Stdlib.String.toBytes OPENAI_API_KEY)
-    200
+    200L
 
 [<HttpHandler("GET", "/")>]
 let _handler _req =
@@ -23,7 +23,7 @@ let _handler _req =
 
   PACKAGE.Darklang.Stdlib.Http.responseWithHtml
     (PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement body)
-    200
+    200L
 
 [<HttpHandler("GET", "/assets/:path")>]
 let _handler _req =
@@ -42,12 +42,12 @@ let _handler _req =
 
     let headers = [ ("content-type", contentType) ]
 
-    PACKAGE.Darklang.Stdlib.Http.responseWithHeaders fileContents headers 200
+    PACKAGE.Darklang.Stdlib.Http.responseWithHeaders fileContents headers 200L
 
   | Error _e ->
     PACKAGE.Darklang.Stdlib.Http.response
       (PACKAGE.Darklang.Stdlib.String.toBytes "Couldn't load asset")
-      400
+      400L
 
 // We're sharing the Worker script between this canvas and
 // dark-repl, and Worker scripts can't be loaded across
@@ -61,16 +61,16 @@ let _handler _req =
     |> PACKAGE.Darklang.Stdlib.Result.withDefault Builtin.Bytes.empty
 
   let headers = [ ("Content-type", "text/javascript") ]
-  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders body headers 200
+  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders body headers 200L
 
 [<HttpHandler("GET", "/assets/client.dark")>]
 let _handler _req =
   match Experiments.readFromCanvases "dark-editor/client.dark" with
-  | Ok sourceInBytes -> PACKAGE.Darklang.Stdlib.Http.response sourceInBytes 200
+  | Ok sourceInBytes -> PACKAGE.Darklang.Stdlib.Http.response sourceInBytes 200L
   | Error _err ->
     PACKAGE.Darklang.Stdlib.Http.response
       (PACKAGE.Darklang.Stdlib.String.toBytes "Couldn't load client.dark from disk")
-      500
+      500L
 
 
 // TODO: remove once a parser can run in WASM runtime
@@ -112,34 +112,34 @@ let _handler _req =
     PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
       (PACKAGE.Darklang.Stdlib.String.toBytes json)
       [ ("content-type", "application-json") ]
-      200
+      200L
 
   | Error err ->
     PACKAGE.Darklang.Stdlib.Http.response
       (PACKAGE.Darklang.Stdlib.String.toBytes (
         "Couldn't parse the program \n" ++ err
       ))
-      400
+      400L
 
 
 [<HttpHandler("GET", "/system-prompt")>]
 let _handler _req =
   match Experiments.readFromCanvases "dark-editor/system-prompt.txt" with
-  | Ok prompt -> PACKAGE.Darklang.Stdlib.Http.response prompt 200
+  | Ok prompt -> PACKAGE.Darklang.Stdlib.Http.response prompt 200L
   | Error _e ->
     PACKAGE.Darklang.Stdlib.Http.response
       (PACKAGE.Darklang.Stdlib.String.toBytes "Couldn't load prompt from disk")
-      500
+      500L
 
 
 [<HttpHandler("GET", "/task-creation-prompt")>]
 let _handler _req =
   match Experiments.readFromCanvases "dark-editor/task-creation-prompt.txt" with
-  | Ok prompt -> PACKAGE.Darklang.Stdlib.Http.response prompt 200
+  | Ok prompt -> PACKAGE.Darklang.Stdlib.Http.response prompt 200L
   | Error e ->
     PACKAGE.Darklang.Stdlib.Http.response
       (PACKAGE.Darklang.Stdlib.String.toBytes ("Couldn't load prompt from disk" ++ e))
-      500
+      500L
 
 // below, some import/export stuff
 // TODO, move this to a `/scripts/deployment/data-backup.dark`
@@ -151,12 +151,12 @@ let _handler _req =
 
   let take =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
-    | None -> 100
+    | None -> 100L
     | Some take -> take |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
 
   let drop =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
-    | None -> 0
+    | None -> 0L
     | Some drop -> drop |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
 
   match DarkInternal.Canvas.fullProgram canvasId with
@@ -180,7 +180,7 @@ let _handler _req =
     PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
       (response |> PACKAGE.Darklang.Stdlib.String.toBytes)
       [ ("Content-Type", "text/plain") ]
-      200
+      200L
 
 [<HttpHandler("GET", "/all-canvas-functions")>]
 let _handler _req =
@@ -188,12 +188,12 @@ let _handler _req =
 
   let take =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
-    | None -> 100
+    | None -> 100L
     | Some take -> take |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
 
   let drop =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
-    | None -> 0
+    | None -> 0L
     | Some drop -> drop |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
 
   match DarkInternal.Canvas.fullProgram canvasId with
@@ -210,7 +210,7 @@ let _handler _req =
     PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
       (response |> PACKAGE.Darklang.Stdlib.String.toBytes)
       [ ("Content-Type", "text/plain") ]
-      200
+      200L
 
 
 [<HttpHandler("GET", "/all-canvas-types")>]
@@ -219,12 +219,12 @@ let _handler _req =
 
   let take =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
-    | None -> 100
+    | None -> 100L
     | Some take -> take |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
 
   let drop =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
-    | None -> 0
+    | None -> 0L
     | Some drop -> drop |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
 
 
@@ -243,7 +243,7 @@ let _handler _req =
     PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
       (response |> PACKAGE.Darklang.Stdlib.String.toBytes)
       [ ("Content-Type", "text/plain") ]
-      200
+      200L
 
 
 [<HttpHandler("GET", "/export-canvas/:canvasId")>]
@@ -262,7 +262,7 @@ let _handler _req =
        |> PACKAGE.Darklang.Stdlib.String.join "\n\n"
        |> PACKAGE.Darklang.Stdlib.String.toBytes)
       [ ("Content-Type", "text/plain") ]
-      200
+      200L
 
 
 
@@ -277,4 +277,4 @@ let _handler _req =
 
   PACKAGE.Darklang.Stdlib.Http.response
     (PACKAGE.Darklang.Stdlib.String.toBytes result)
-    200
+    200L

@@ -1,9 +1,9 @@
 module Error =
-  PACKAGE.Darklang.Stdlib.List.map_v0 [ 1; 2; 3; 4; 5 ] (fun x y -> x) = Builtin.Test.derrorMessage
+  PACKAGE.Darklang.Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x y -> x) = Builtin.Test.derrorMessage
     "Expected 2 arguments, got 1"
 
   PACKAGE.Darklang.Stdlib.Option.map2_v0
-    (PACKAGE.Darklang.Stdlib.Option.Option.Some 10)
+    (PACKAGE.Darklang.Stdlib.Option.Option.Some 10L)
     "not an option"
     (fun (a, b) -> "1") = (Builtin.Test.derrorMessage
     "PACKAGE.Darklang.Stdlib.Option.map2's 2nd argument (`option2`) should be a PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, a String (\"not an op...) was passed instead.
@@ -13,7 +13,7 @@ Actual: a String: \"not an option\"")
 
 
 // Check we get previous errors before later ones
-(PACKAGE.Darklang.Stdlib.List.map_v0 [ 1; 2; 3; 4; 5 ] (fun x ->
+(PACKAGE.Darklang.Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
   Builtin.Test.runtimeError "X"))
 |> PACKAGE.Darklang.Stdlib.List.fakeFunction = Builtin.Test.derrorMessage "X"
 
@@ -25,27 +25,27 @@ module ErrorPropagation =
   PACKAGE.Darklang.Stdlib.List.head (Builtin.Test.runtimeError "test") = Builtin.Test.derrorMessage
     "test"
 
-  (if Builtin.Test.runtimeError "test" then 5 else 6) = Builtin.Test.derrorMessage
+  (if Builtin.Test.runtimeError "test" then 5L else 6L) = Builtin.Test.derrorMessage
     "test"
 
   (PACKAGE.Darklang.Stdlib.List.head (Builtin.Test.runtimeError "test")).field = Builtin.Test.derrorMessage
     "test"
 
-  [ 5; 6; PACKAGE.Darklang.Stdlib.List.head (Builtin.Test.runtimeError "test") ] = Builtin.Test.derrorMessage
+  [ 5L; 6L; PACKAGE.Darklang.Stdlib.List.head (Builtin.Test.runtimeError "test") ] = Builtin.Test.derrorMessage
     "test"
 
-  [ 5; 6; Builtin.Test.runtimeError "test" ] = Builtin.Test.derrorMessage "test"
+  [ 5L; 6L; Builtin.Test.runtimeError "test" ] = Builtin.Test.derrorMessage "test"
 
   EPRec
     { i = Builtin.Test.runtimeError "1"
-      m = 5
+      m = 5L
       j = PACKAGE.Darklang.Stdlib.List.head (Builtin.Test.runtimeError "2")
-      n = 6 } = Builtin.Test.derrorMessage "1"
+      n = 6L } = Builtin.Test.derrorMessage "1"
 
-  5 |> (+) (Builtin.Test.runtimeError "test") |> (+) 3564 = Builtin.Test.derrorMessage
+  5L |> (+) (Builtin.Test.runtimeError "test") |> (+) 3564L = Builtin.Test.derrorMessage
     "test"
 
-  5 |> (+) (Builtin.Test.runtimeError "test") = Builtin.Test.derrorMessage "test"
+  5L |> (+) (Builtin.Test.runtimeError "test") = Builtin.Test.derrorMessage "test"
   ("test" |> Builtin.Test.runtimeError) = Builtin.Test.derrorMessage "test"
 
   PACKAGE.Darklang.Stdlib.Option.Option.Some(Builtin.Test.runtimeError "test") = Builtin.Test.derrorMessage

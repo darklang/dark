@@ -23,7 +23,7 @@ Redirect destination reached with cookies
  {response with headers = respHeaders}) =
    PACKAGE.Darklang.Stdlib.HttpClient.Response
     { body = "Redirect destination reached with cookies"
-      statusCode = 200
+      statusCode = 200L
       headers =
         [
           "Arbitrary-header" = "Test value"

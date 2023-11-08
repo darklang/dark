@@ -4,9 +4,9 @@ module UserDefined =
   "test" = stringConst
   UserDefined.stringConst = "test"
 
-  let intConst = 5
-  intConst = 5
-  UserDefined.intConst = 5
+  let intConst = 5L
+  intConst = 5L
+  UserDefined.intConst = 5L
 
   let floatConst = 5.6
   floatConst = 5.6
@@ -16,9 +16,9 @@ module UserDefined =
   boolConst = true
   UserDefined.boolConst = true
 
-  let tupleConst = (1, 2, 3)
-  tupleConst = (1, 2, 3)
-  UserDefined.tupleConst = (1, 2, 3)
+  let tupleConst = (1L, 2L, 3L)
+  tupleConst = (1L, 2L, 3L)
+  UserDefined.tupleConst = (1L, 2L, 3L)
 
   let charConst = 'c'
   charConst = 'c'
@@ -28,11 +28,11 @@ module UserDefined =
   unitConst = ()
   UserDefined.unitConst = ()
 
-  let enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
-  enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
-  UserDefined.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5
+  let enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
+  enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
+  UserDefined.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
 
-  Ok 5 = Builtin.Test.derrorMessage
+  Ok 5L = Builtin.Test.derrorMessage
     "Missing type name for enum case: Ok\n\nActual: `Ok`"
 
 
@@ -41,8 +41,10 @@ module Package =
   "test" = PACKAGE.Darklang.Test.Constants.stringConst
   PACKAGE.Darklang.Test.Constants.stringConst = "test"
 
-  PACKAGE.Darklang.Test.Constants.intConst = 5
-  PACKAGE.Darklang.Test.Constants.intConst = 5
+
+  PACKAGE.Darklang.Test.Constants.intConst = 5L
+  PACKAGE.Darklang.Test.Constants.intConst = 5L
+
 
   PACKAGE.Darklang.Test.Constants.floatConst = 5.6
   PACKAGE.Darklang.Test.Constants.floatConst = 5.6
@@ -50,8 +52,8 @@ module Package =
   PACKAGE.Darklang.Test.Constants.boolConst = true
   PACKAGE.Darklang.Test.Constants.boolConst = true
 
-  PACKAGE.Darklang.Test.Constants.tupleConst = (1, 2, 3)
-  PACKAGE.Darklang.Test.Constants.tupleConst = (1, 2, 3)
+  PACKAGE.Darklang.Test.Constants.tupleConst = (1L, 2L, 3L)
+  PACKAGE.Darklang.Test.Constants.tupleConst = (1L, 2L, 3L)
 
   PACKAGE.Darklang.Test.Constants.charConst = 'c'
   PACKAGE.Darklang.Test.Constants.charConst = 'c'
@@ -60,7 +62,7 @@ module Package =
   PACKAGE.Darklang.Test.Constants.unitConst = ()
 
   PACKAGE.Darklang.Test.Constants.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some
-    5
+    5L
 
   PACKAGE.Darklang.Test.Constants.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some
-    5
+    5L

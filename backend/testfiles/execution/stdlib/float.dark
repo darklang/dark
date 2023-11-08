@@ -1,43 +1,43 @@
 PACKAGE.Darklang.Stdlib.Float.add_v0 1.2 1.3 = 2.5
 
-PACKAGE.Darklang.Stdlib.Float.ceiling_v0 1.3 = 2
-PACKAGE.Darklang.Stdlib.Float.ceiling_v0 1.0000001 = 2
-PACKAGE.Darklang.Stdlib.Float.ceiling_v0 -2147483647.8 = -2147483647
-PACKAGE.Darklang.Stdlib.Float.ceiling_v0 2147483647.0 = 2147483647
-PACKAGE.Darklang.Stdlib.Float.ceiling_v0 0000000.1 = 1
-PACKAGE.Darklang.Stdlib.Float.ceiling_v0 0.0 = 0
-PACKAGE.Darklang.Stdlib.Float.ceiling_v0 17.55042081 = 18
+PACKAGE.Darklang.Stdlib.Float.ceiling_v0 1.3 = 2L
+PACKAGE.Darklang.Stdlib.Float.ceiling_v0 1.0000001 = 2L
+PACKAGE.Darklang.Stdlib.Float.ceiling_v0 -2147483647.8 = -2147483647L
+PACKAGE.Darklang.Stdlib.Float.ceiling_v0 2147483647.0 = 2147483647L
+PACKAGE.Darklang.Stdlib.Float.ceiling_v0 0000000.1 = 1L
+PACKAGE.Darklang.Stdlib.Float.ceiling_v0 0.0 = 0L
+PACKAGE.Darklang.Stdlib.Float.ceiling_v0 17.55042081 = 18L
 
-PACKAGE.Darklang.Stdlib.Float.roundUp_v0 1.3 = 2
-PACKAGE.Darklang.Stdlib.Float.roundUp_v0 1.0000001 = 2
-PACKAGE.Darklang.Stdlib.Float.roundUp_v0 -2147483647.8 = -2147483647
-PACKAGE.Darklang.Stdlib.Float.roundUp_v0 2147483647.0 = 2147483647
-PACKAGE.Darklang.Stdlib.Float.roundUp_v0 0000000.1 = 1
-PACKAGE.Darklang.Stdlib.Float.roundUp_v0 0.0 = 0
+PACKAGE.Darklang.Stdlib.Float.roundUp_v0 1.3 = 2L
+PACKAGE.Darklang.Stdlib.Float.roundUp_v0 1.0000001 = 2L
+PACKAGE.Darklang.Stdlib.Float.roundUp_v0 -2147483647.8 = -2147483647L
+PACKAGE.Darklang.Stdlib.Float.roundUp_v0 2147483647.0 = 2147483647L
+PACKAGE.Darklang.Stdlib.Float.roundUp_v0 0000000.1 = 1L
+PACKAGE.Darklang.Stdlib.Float.roundUp_v0 0.0 = 0L
 
-PACKAGE.Darklang.Stdlib.Float.floor_v0 1.8 = 1
-PACKAGE.Darklang.Stdlib.Float.floor_v0 -1.0000001 = -2
-PACKAGE.Darklang.Stdlib.Float.floor_v0 -2147483647.8 = -2147483648
-PACKAGE.Darklang.Stdlib.Float.floor_v0 2147483647.0 = 2147483647
-PACKAGE.Darklang.Stdlib.Float.floor_v0 0000000.1 = 0
-PACKAGE.Darklang.Stdlib.Float.floor_v0 0.0 = 0
+PACKAGE.Darklang.Stdlib.Float.floor_v0 1.8 = 1L
+PACKAGE.Darklang.Stdlib.Float.floor_v0 -1.0000001 = -2L
+PACKAGE.Darklang.Stdlib.Float.floor_v0 -2147483647.8 = -2147483648L
+PACKAGE.Darklang.Stdlib.Float.floor_v0 2147483647.0 = 2147483647L
+PACKAGE.Darklang.Stdlib.Float.floor_v0 0000000.1 = 0L
+PACKAGE.Darklang.Stdlib.Float.floor_v0 0.0 = 0L
 
-PACKAGE.Darklang.Stdlib.Float.roundDown_v0 1.8 = 1
-PACKAGE.Darklang.Stdlib.Float.roundDown_v0 -1.0000001 = -2
-PACKAGE.Darklang.Stdlib.Float.roundDown_v0 -2147483647.8 = -2147483648
-PACKAGE.Darklang.Stdlib.Float.roundDown_v0 2147483647.0 = 2147483647
-PACKAGE.Darklang.Stdlib.Float.roundDown_v0 0000000.1 = 0
-PACKAGE.Darklang.Stdlib.Float.roundDown_v0 0.0 = 0
+PACKAGE.Darklang.Stdlib.Float.roundDown_v0 1.8 = 1L
+PACKAGE.Darklang.Stdlib.Float.roundDown_v0 -1.0000001 = -2L
+PACKAGE.Darklang.Stdlib.Float.roundDown_v0 -2147483647.8 = -2147483648L
+PACKAGE.Darklang.Stdlib.Float.roundDown_v0 2147483647.0 = 2147483647L
+PACKAGE.Darklang.Stdlib.Float.roundDown_v0 0000000.1 = 0L
+PACKAGE.Darklang.Stdlib.Float.roundDown_v0 0.0 = 0L
 
-PACKAGE.Darklang.Stdlib.Float.round_v0 -2147483647.8 = -2147483648
-PACKAGE.Darklang.Stdlib.Float.round_v0 0000000.1 = 0
-PACKAGE.Darklang.Stdlib.Float.round_v0 2147483647.000009 = 2147483647
+PACKAGE.Darklang.Stdlib.Float.round_v0 -2147483647.8 = -2147483648L
+PACKAGE.Darklang.Stdlib.Float.round_v0 0000000.1 = 0L
+PACKAGE.Darklang.Stdlib.Float.round_v0 2147483647.000009 = 2147483647L
 
-PACKAGE.Darklang.Stdlib.Float.truncate_v0 -2367.9267 = -2367
-PACKAGE.Darklang.Stdlib.Float.truncate_v0 000000.9 = 0
-PACKAGE.Darklang.Stdlib.Float.truncate_v0 -000000.9 = 0
-PACKAGE.Darklang.Stdlib.Float.truncate_v0 0.0 = 0
-PACKAGE.Darklang.Stdlib.Float.truncate_v0 2147483647.000009 = 2147483647
+PACKAGE.Darklang.Stdlib.Float.truncate_v0 -2367.9267 = -2367L
+PACKAGE.Darklang.Stdlib.Float.truncate_v0 000000.9 = 0L
+PACKAGE.Darklang.Stdlib.Float.truncate_v0 -000000.9 = 0L
+PACKAGE.Darklang.Stdlib.Float.truncate_v0 0.0 = 0L
+PACKAGE.Darklang.Stdlib.Float.truncate_v0 2147483647.000009 = 2147483647L
 
 PACKAGE.Darklang.Stdlib.Float.absoluteValue_v0 Builtin.Test.negativeInfinity_v0 = Builtin.Test.infinity_v0
 PACKAGE.Darklang.Stdlib.Float.absoluteValue_v0 Builtin.Test.nan_v0 = Builtin.Test.nan_v0
@@ -184,11 +184,11 @@ PACKAGE.Darklang.Stdlib.Float.parse_v0 "1.8E+308" = PACKAGE.Darklang.Stdlib.Resu
 PACKAGE.Darklang.Stdlib.Float.power_v0 4.0 -0.5 = 0.5
 PACKAGE.Darklang.Stdlib.Float.power_v0 4.0 0.5 = 2.0
 
-PACKAGE.Darklang.Stdlib.Float.roundTowardsZero -2367.9267 = -2367
-PACKAGE.Darklang.Stdlib.Float.roundTowardsZero 000000.9 = 0
-PACKAGE.Darklang.Stdlib.Float.roundTowardsZero -000000.9 = 0
-PACKAGE.Darklang.Stdlib.Float.roundTowardsZero 0.0 = 0
-PACKAGE.Darklang.Stdlib.Float.roundTowardsZero 2147483647.000009 = 2147483647
+PACKAGE.Darklang.Stdlib.Float.roundTowardsZero -2367.9267 = -2367L
+PACKAGE.Darklang.Stdlib.Float.roundTowardsZero 000000.9 = 0L
+PACKAGE.Darklang.Stdlib.Float.roundTowardsZero -000000.9 = 0L
+PACKAGE.Darklang.Stdlib.Float.roundTowardsZero 0.0 = 0L
+PACKAGE.Darklang.Stdlib.Float.roundTowardsZero 2147483647.000009 = 2147483647L
 
 PACKAGE.Darklang.Stdlib.Float.sqrt_v0 25.0 = 5.0
 PACKAGE.Darklang.Stdlib.Float.sqrt_v0 0.0 = 0.0

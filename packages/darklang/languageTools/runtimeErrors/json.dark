@@ -17,7 +17,7 @@ module Darklang =
                   RuntimeTypes.FnName.BuiltIn
                     { modules = [ "Json" ]
                       name = RuntimeTypes.FnName.Name.FnName "parse"
-                      version = 0 }
+                      version = 0L }
                 )
 
               let serialize =
@@ -25,7 +25,7 @@ module Darklang =
                   RuntimeTypes.FnName.BuiltIn
                     { modules = [ "Json" ]
                       name = RuntimeTypes.FnName.Name.FnName "serialize"
-                      version = 0 }
+                      version = 0L }
                 )
 
 
