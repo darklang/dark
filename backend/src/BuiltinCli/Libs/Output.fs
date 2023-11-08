@@ -18,19 +18,36 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "value" TString "The value to be printed." ]
       returnType = TUnit
-      description = "Prints the given <param value> to the standard output."
+      description =
+        "Prints the given <param value> to the standard output, followed by a newline."
       fn =
         (function
         | _, _, [ DString str ] ->
           printLine str
-          Ply(DUnit)
+          Ply DUnit
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
 
-    { name = fn [] "debug" 0 // TODO: debugLine
+    { name = fn [] "print" 0
+      typeParams = []
+      parameters = [ Param.make "value" TString "The value to be printed." ]
+      returnType = TUnit
+      description = "Prints the given <param value> to the standard output."
+      fn =
+        (function
+        | _, _, [ DString str ] ->
+          print str
+          Ply DUnit
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn [] "debug" 0
       typeParams = []
       parameters =
         [ Param.make "value" (TVariable "a") "The value to be printed."

@@ -1,0 +1,17 @@
+(Builtin.printLine "Hi there - let's add 2 numbers."
+
+ Builtin.print "a: "
+ let a = Builtin.Stdin.readLine ()
+
+ Builtin.print "b: "
+ let b = Builtin.Stdin.readLine ()
+
+ match
+   (PACKAGE.Darklang.Stdlib.Int.parse a, PACKAGE.Darklang.Stdlib.Int.parse b)
+ with
+ | Ok a, Ok b ->
+   $"{PACKAGE.Darklang.Stdlib.Int.toString a} + {PACKAGE.Darklang.Stdlib.Int.toString b} = {PACKAGE.Darklang.Stdlib.Int.toString (a + b)}"
+   |> Builtin.printLine
+ | _ -> Builtin.printLine "Invalid input"
+
+ 0)

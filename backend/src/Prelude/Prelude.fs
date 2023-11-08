@@ -149,6 +149,8 @@ let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
   NonBlockingConsole.writeLine $"DEBUG: {msg} {f v}"
   v
 
+let print (string : string) : unit = NonBlockingConsole.write string
+
 let printLine (string : string) : unit = NonBlockingConsole.writeLine string
 
 let printTime (string : string) : unit =

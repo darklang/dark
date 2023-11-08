@@ -32,7 +32,7 @@ type private Private() =
             let mutable v = null
             // Don't block (eg with `Take`) while holding the lock
             if mQueue.TryTake(&v) then
-              System.Console.WriteLine(v)
+              System.Console.Write(v)
             else
               System.Threading.Thread.Sleep 1 // 1ms
           with e ->
@@ -53,10 +53,12 @@ type private Private() =
     while shouldWait do
       lock mLock (fun () -> shouldWait <- mQueue.Count > 0)
 
-  static member WriteLine(value : string) : unit =
-    if isWasm then System.Console.WriteLine value else mQueue.Add(value)
+  static member Write(value : string) : unit =
+    if isWasm then System.Console.Write value else mQueue.Add(value)
 
 
 let wait () : unit = Private.wait ()
 
-let writeLine (value : string) : unit = Private.WriteLine value
+let write (value : string) : unit = Private.Write value
+
+let writeLine (value : string) : unit = Private.Write(value + "\n")
