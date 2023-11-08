@@ -206,7 +206,7 @@ let executionStateFor
             if not exceptionCountMatches then
               List.iter
                 (fun (msg, stackTrace, metadata) ->
-                  print
+                  printLine
                     $"An error was reported in the runtime:  \n  {msg}\n{stackTrace}\n  {metadata}\n\n")
                 tc.exceptionReports
               Exception.raiseInternal

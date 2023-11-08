@@ -271,7 +271,7 @@ module Execution =
             do! client.ConnectAsync("127.0.0.1", port)
             connected <- true
         with _ when i <> 10 ->
-          print $"Server not ready on port {port}, maybe retry"
+          printLine $"Server not ready on port {port}, maybe retry"
           do! System.Threading.Tasks.Task.Delay 1000
       return client
     }

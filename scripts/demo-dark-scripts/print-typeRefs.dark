@@ -61,6 +61,6 @@
      PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference t)
    |> PACKAGE.Darklang.Stdlib.String.join "\n"
 
- Builtin.print prettyPrinted
+ Builtin.printLine prettyPrinted
 
  0)

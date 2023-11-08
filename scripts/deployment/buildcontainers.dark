@@ -36,7 +36,7 @@ let main () : Int =
       (PACKAGE.Darklang.Stdlib.String.toBytes jsonImageIds)
       "ids.json"
 
-  let _ = Builtin.print "done"
+  let _ = Builtin.printLine "done"
 
   6
 

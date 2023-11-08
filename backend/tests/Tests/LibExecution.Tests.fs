@@ -201,7 +201,7 @@ let t
               match result with
               | Error(_, result) ->
                 let result = RT.RuntimeError.toDT result
-                print $"{state.test.exceptionReports}"
+                printLine $"{state.test.exceptionReports}"
                 return
                   Exception.raiseInternal
                     ("We received an RTE, and when trying to stringify it, there was another RTE error. There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
@@ -293,7 +293,7 @@ let fileTests () : Test =
 
           testList testName tests
         with e ->
-          print $"Exception in {file}: {e.Message}"
+          printLine $"Exception in {file}: {e.Message}"
           reraise ())
     |> testList dir)
   |> Array.toList

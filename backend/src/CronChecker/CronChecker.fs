@@ -33,7 +33,7 @@ let initSerializers () =
 let main _ : int =
   try
     let name = "CronChecker"
-    print "Starting CronChecker"
+    printLine "Starting CronChecker"
     initSerializers ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.DontTraceDBQueries

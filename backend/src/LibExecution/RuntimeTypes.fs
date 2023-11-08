@@ -1628,7 +1628,7 @@ let consoleReporter : ExceptionReporter =
 
 let consoleNotifier : Notifier =
   fun _state msg tags ->
-    print $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"
+    printLine $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"
 
 let builtInParamToParam (p : BuiltInParam) : Param = { name = p.name; typ = p.typ }
 

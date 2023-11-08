@@ -1,5 +1,5 @@
 let helloWorld () : Int =
-  Builtin.print "Hello World"
+  Builtin.printLine "Hello World"
   0
 
 helloWorld ()

@@ -14,7 +14,7 @@ let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [] "print" 0
+  [ { name = fn [] "printLine" 0
       typeParams = []
       parameters = [ Param.make "value" TString "The value to be printed." ]
       returnType = TUnit
@@ -22,15 +22,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString str ] ->
-          print str
+          printLine str
           Ply(DUnit)
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
 
-    { name = fn [] "debug" 0
+    { name = fn [] "debug" 0 // TODO: debugLine
       typeParams = []
       parameters =
         [ Param.make "value" (TVariable "a") "The value to be printed."
@@ -40,10 +40,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ value; DString label ] ->
-          print $"DEBUG: {label} - {value}"
+          printLine $"DEBUG: {label} - {value}"
           Ply value
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 

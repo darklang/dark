@@ -300,7 +300,7 @@ module Darklang =
           : String =
           match t with
           | BuiltIn _b ->
-            "why are you trying to Builtin.print a stdlib type name _definition_?"
+            "why are you trying to print a stdlib type name _definition_?"
           | UserProgram u ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.UserProgram.atDefinition
               u

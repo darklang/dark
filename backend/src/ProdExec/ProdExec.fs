@@ -22,9 +22,9 @@ let runMigrations () : unit =
   LibCloud.Migrations.run ()
 
 let listMigrations () : unit =
-  print "Migrations needed:\n"
+  printLine "Migrations needed:\n"
   LibCloud.Migrations.migrationsToRun ()
-  |> List.iter (fun name -> print $" - {name}")
+  |> List.iter (fun name -> printLine $" - {name}")
 
 /// Send multiple messages to Rollbar, to ensure our usage is generally OK
 let triggerRollbar () : unit =
@@ -59,7 +59,7 @@ let help () : unit =
     "  ProdExec convert-st-to-rt [canvasID]"
     "  ProdExec help" ]
   |> List.join "\n"
-  |> print
+  |> printLine
 
 type Options =
   | MigrationList
@@ -149,7 +149,7 @@ let run (options : Options) : Task<int> =
       return 0
 
     | InvalidUsage ->
-      print "Invalid usage!!\n"
+      printLine "Invalid usage!!\n"
       help ()
       return 1
   }

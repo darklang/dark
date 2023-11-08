@@ -121,9 +121,9 @@ let createCustom (metadata : Metadata) : Dictionary.T<string, obj> =
 
 /// Notify that a non-error happened
 let notify (message : string) (metadata : Metadata) : unit =
-  print $"rollbar: {message}"
+  printLine $"rollbar: {message}"
   try
-    print (string metadata)
+    printLine (string metadata)
   with _ ->
     ()
   let stacktraceMetadata = ("stacktrace", System.Environment.StackTrace :> obj)
@@ -136,12 +136,12 @@ let notify (message : string) (metadata : Metadata) : unit =
 
 /// Notify that an error (but not an exception) happened
 let sendError (message : string) (metadata : Metadata) : unit =
-  print $"rollbar: {message}"
+  printLine $"rollbar: {message}"
   try
-    print (string metadata)
+    printLine (string metadata)
   with _ ->
     ()
-  print System.Environment.StackTrace
+  printLine System.Environment.StackTrace
   Telemetry.addEvent message metadata
   let custom = createCustom (("message", message :> obj) :: metadata)
   Rollbar.RollbarLocator.RollbarInstance.Error(message, custom)
@@ -156,7 +156,7 @@ let exceptionWhileProcessingException
   // If there's an exception while creating another exception, let's try to report
   // as much as possible without error
   try
-    print "Exception when processing exception"
+    printLine "Exception when processing exception"
   with _ ->
     ()
 
@@ -316,7 +316,7 @@ module AspNet =
               let package = HttpResponsePackageDecorator(package, ctx.Response, true)
               Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
               |> ignore<Rollbar.ILogger>
-              print "Rollbar exception sent"
+              printLine "Rollbar exception sent"
             // No telemetry call here as it should happen automatically
             with processingException ->
               exceptionWhileProcessingException e processingException
@@ -404,7 +404,7 @@ let init (serviceName : string) : unit =
   // Debug Rollbar internals - when a Rollbar log is made, we lose sight of it.
   // Enabling this callback lets us see what actually happens when it's processed
   Rollbar.RollbarInfrastructure.Instance.QueueController.InternalEvent.AddHandler
-    (fun this e -> print $"rollbar internal error: {e.TraceAsString()}")
+    (fun this e -> printLine $"rollbar internal error: {e.TraceAsString()}")
 
   // Disable the ConnectivityMonitor: https://github.com/rollbar/Rollbar.NET/issues/615
   // We actually want to call

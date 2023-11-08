@@ -47,7 +47,7 @@
 - `ignore` should always use a type signature (this should be enforced by the
   compiler)
 
-- use `print` instead of `Console.WriteLine` or similar; the latter deadlocks
+- use `printLine` instead of `Console.WriteLine` or similar; the latter deadlocks
 
 - ensure that `try` do not have a `uply`/`task` in the body unless you know what you
   are doing and provide a comment. Typically, the `uply`/`task` should be on the

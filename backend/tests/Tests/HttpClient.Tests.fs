@@ -325,7 +325,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
       if not ctx.Response.HasStarted then ctx.Response.StatusCode <- 500
 
       let body = $"{e.Message}\n\n{e.StackTrace}"
-      print $"{body}-{ctx.Request.Path}"
+      printLine $"{body}-{ctx.Request.Path}"
       let body = UTF8.toBytes body
 
       do! ctx.Response.Body.WriteAsync(body, 0, body.Length)

@@ -107,7 +107,7 @@ let seedCanvas (canvasName : string) =
       // we don't have secrets to load - we're done
       ()
 
-    print
+    printLine
       $"Success saved canvas - endpoints available
        at {host} (bwdserver)
       and {experimentalHost} (bwd-danger-server)"
@@ -122,16 +122,17 @@ let main (args : string[]) =
       match args with
       | [||]
       | [| "--help" |] ->
-        print $"`canvas-hack {CommandNames.import}` to load dark-editor from disk"
+        printLine
+          $"`canvas-hack {CommandNames.import}` to load dark-editor from disk"
 
       | [| canvasName |]
       | [| CommandNames.import; canvasName |] ->
-        print $"Loading canvas {canvasName} from disk"
+        printLine $"Loading canvas {canvasName} from disk"
         do! seedCanvas canvasName
 
       | _ ->
         let args = args |> Array.toList |> String.concat " "
-        print
+        printLine
           $"CanvasHack isn't sure what to do with these arguments: [{args}]
           Currently expecting just '{CommandNames.import}'"
 
