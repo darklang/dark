@@ -448,6 +448,11 @@
                 32767
               ]
             },
+            "int_32_bits": {
+              "DInt32": [
+                2147483647
+              ]
+            },
             "int_8_bits": {
               "DInt8": [
                 127
@@ -3859,6 +3864,100 @@
                 []
               ]
             },
+            "option10": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "Some",
+                [
+                  {
+                    "DInt128": [
+                      "128"
+                    ]
+                  }
+                ]
+              ]
+            },
+            "option11": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "Some",
+                [
+                  {
+                    "DUInt128": [
+                      "128"
+                    ]
+                  }
+                ]
+              ]
+            },
             "option2": {
               "DEnum": [
                 {
@@ -4181,8 +4280,8 @@
                 "Some",
                 [
                   {
-                    "DInt128": [
-                      "128"
+                    "DInt32": [
+                      32
                     ]
                   }
                 ]
@@ -4228,8 +4327,8 @@
                 "Some",
                 [
                   {
-                    "DUInt128": [
-                      "128"
+                    "DUInt32": [
+                      32
                     ]
                   }
                 ]
@@ -4642,6 +4741,11 @@
             "uint_16_bits": {
               "DUInt16": [
                 65535
+              ]
+            },
+            "uint_32_bits": {
+              "DUInt32": [
+                4294967295
               ]
             },
             "uint_8_bits": {
@@ -5144,6 +5248,11 @@
                 32767
               ]
             },
+            "int_32_bits": {
+              "DInt32": [
+                2147483647
+              ]
+            },
             "int_8_bits": {
               "DInt8": [
                 127
@@ -8555,6 +8664,100 @@
                 []
               ]
             },
+            "option10": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "Some",
+                [
+                  {
+                    "DInt128": [
+                      "128"
+                    ]
+                  }
+                ]
+              ]
+            },
+            "option11": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "Some",
+                [
+                  {
+                    "DUInt128": [
+                      "128"
+                    ]
+                  }
+                ]
+              ]
+            },
             "option2": {
               "DEnum": [
                 {
@@ -8877,8 +9080,8 @@
                 "Some",
                 [
                   {
-                    "DInt128": [
-                      "128"
+                    "DInt32": [
+                      32
                     ]
                   }
                 ]
@@ -8924,8 +9127,8 @@
                 "Some",
                 [
                   {
-                    "DUInt128": [
-                      "128"
+                    "DUInt32": [
+                      32
                     ]
                   }
                 ]
@@ -9338,6 +9541,11 @@
             "uint_16_bits": {
               "DUInt16": [
                 65535
+              ]
+            },
+            "uint_32_bits": {
+              "DUInt32": [
+                4294967295
               ]
             },
             "uint_8_bits": {

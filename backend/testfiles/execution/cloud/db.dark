@@ -257,6 +257,8 @@ module Roundtrip =
       uint8: UInt8
       int16: Int16
       uint16: UInt16
+      int32: Int32
+      uint32: UInt32
       int128: Int128
       uint128: UInt128
       float: Float
@@ -290,6 +292,8 @@ module Roundtrip =
         uint8 = 2uy
         int16 = 2s
         uint16 = 2us
+        int32 = 2l
+        uint32 = 2ul
         int128 = 170141183460469231731687303715884105727Q
         uint128 = 340282366920938463463374607431768211455Z
         float = 3.0
@@ -324,6 +328,8 @@ module Roundtrip =
         uint8 = 3uy
         int16 = 4s
         uint16 = 4us
+        int32 = 4l
+        uint32 = 4ul
         int128 = -170141183460469231731687303715884105728Q
         uint128 = 0Z
         float = 4.0
@@ -410,6 +416,14 @@ module Roundtrip =
     fetch (fun p -> p.uint16 == 2us) = [ sample () ]
     fetch (fun p -> p.uint16 != 2us) = [ otherSample () ]
     fetch (fun p -> p.uint16 == 100us) = []
+
+    fetch (fun p -> p.int32 == 2l) = [ sample () ]
+    fetch (fun p -> p.int32 != 2l) = [ otherSample () ]
+    fetch (fun p -> p.int32 == 100l) = []
+
+    fetch (fun p -> p.uint32 == 2ul) = [ sample () ]
+    fetch (fun p -> p.uint32 != 2ul) = [ otherSample () ]
+    fetch (fun p -> p.uint32 == 100ul) = []
 
     fetch (fun p -> p.int128 == 170141183460469231731687303715884105727Q) = [ sample
                                                                                 () ]

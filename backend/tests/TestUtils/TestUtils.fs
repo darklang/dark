@@ -412,6 +412,8 @@ module Expect =
     | DUInt8 _
     | DInt16 _
     | DUInt16 _
+    | DInt32 _
+    | DUInt32 _
     | DInt128 _
     | DUInt128 _
     | DDateTime _
@@ -524,6 +526,8 @@ module Expect =
     | MPUInt8(_, l), MPUInt8(_, l') -> check path l l'
     | MPInt16(_, l), MPInt16(_, l') -> check path l l'
     | MPUInt16(_, l), MPUInt16(_, l') -> check path l l'
+    | MPInt32(_, l), MPInt32(_, l') -> check path l l'
+    | MPUInt32(_, l), MPUInt32(_, l') -> check path l l'
     | MPInt128(_, l), MPInt128(_, l') -> check path l l'
     | MPUInt128(_, l), MPUInt128(_, l') -> check path l l'
     | MPFloat(_, d), MPFloat(_, d') -> check path d d'
@@ -545,6 +549,8 @@ module Expect =
     | MPUInt8 _, _
     | MPInt16 _, _
     | MPUInt16 _, _
+    | MPInt32 _, _
+    | MPUInt32 _, _
     | MPInt128 _, _
     | MPUInt128 _, _
     | MPFloat _, _
@@ -570,6 +576,8 @@ module Expect =
     | TUInt8, _
     | TInt16, _
     | TUInt16, _
+    | TInt32, _
+    | TUInt32, _
     | TInt128, _
     | TUInt128, _
     | TFloat, _
@@ -632,6 +640,8 @@ module Expect =
     | EUInt8(_, v), EUInt8(_, v') -> check path v v'
     | EInt16(_, v), EInt16(_, v') -> check path v v'
     | EUInt16(_, v), EUInt16(_, v') -> check path v v'
+    | EInt32(_, v), EInt32(_, v') -> check path v v'
+    | EUInt32(_, v), EUInt32(_, v') -> check path v v'
     | EInt128(_, v), EInt128(_, v') -> check path v v'
     | EUInt128(_, v), EUInt128(_, v') -> check path v v'
     | EFloat(_, v), EFloat(_, v') -> check path v v'
@@ -749,6 +759,8 @@ module Expect =
     | EUInt8 _, _
     | EInt16 _, _
     | EUInt16 _, _
+    | EInt32 _, _
+    | EUInt32 _, _
     | EInt128 _, _
     | EUInt128 _, _
     | EString _, _
@@ -926,6 +938,8 @@ module Expect =
     | DUInt8 _, _
     | DInt16 _, _
     | DUInt16 _, _
+    | DInt32 _, _
+    | DUInt32 _, _
     | DInt128 _, _
     | DUInt128 _, _
     | DDateTime _, _
@@ -995,6 +1009,8 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DUInt8 _
     | DInt16 _
     | DUInt16 _
+    | DInt32 _
+    | DUInt32 _
     | DInt128 _
     | DUInt128 _
     | DFloat _
@@ -1096,9 +1112,11 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("int5", DInt 5L, TInt)
     ("int_8_bits", DInt8 127y, TInt8)
     ("int_16_bits", DInt16 32767s, TInt16)
+    ("int_32_bits", DInt32 2147483647l, TInt32)
     ("int_128_bits", DInt128 170141183460469231731687303715884105727Q, TInt128)
     ("uint_8_bits", DUInt8 255uy, TUInt8)
     ("uint_16_bits", DUInt16 65535us, TUInt16)
+    ("uint_32_bits", DUInt32 4294967295ul, TUInt32)
     ("uint_128_bits", DUInt128 340282366920938463463374607431768211455Z, TUInt128)
     ("true", DBool true, TBool)
     ("false", DBool false, TBool)
@@ -1299,6 +1317,24 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      ),
      TypeReference.option TUInt16)
     ("option8",
+      DEnum(
+        Dval.optionType,
+        Dval.optionType,
+        Dval.ignoreAndUseEmpty [ VT.int32 ],
+        "Some",
+        [ Dval.int32 32l ]
+      ),
+      TypeReference.option TInt32)
+    ("option9",
+      DEnum(
+        Dval.optionType,
+        Dval.optionType,
+        Dval.ignoreAndUseEmpty [ VT.uint32 ],
+        "Some",
+        [ Dval.uint32 32ul ]
+      ),
+      TypeReference.option TUInt32)
+    ("option10",
      DEnum(
        Dval.optionType,
        Dval.optionType,
@@ -1307,7 +1343,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        [ Dval.int128 128Q ]
      ),
      TypeReference.option TInt128)
-    ("option9",
+    ("option11",
      DEnum(
        Dval.optionType,
        Dval.optionType,

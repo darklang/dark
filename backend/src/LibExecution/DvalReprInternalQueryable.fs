@@ -93,6 +93,8 @@ let rec private toJsonV0
     | TUInt8, DUInt8 i -> w.WriteNumberValue i
     | TInt16, DInt16 i -> w.WriteNumberValue i
     | TUInt16, DUInt16 i -> w.WriteNumberValue i
+    | TInt32, DInt32 i -> w.WriteNumberValue i
+    | TUInt32, DUInt32 i -> w.WriteNumberValue i
     | TInt128, DInt128 i -> w.WriteRawValue(i.ToString())
     | TUInt128, DUInt128 i -> w.WriteRawValue(i.ToString())
     | TFloat, DFloat f ->
@@ -210,6 +212,8 @@ let rec private toJsonV0
     | TUInt8, _
     | TInt16, _
     | TUInt16, _
+    | TInt32, _
+    | TUInt32, _
     | TInt128, _
     | TUInt128, _
     | TFloat, _
@@ -253,6 +257,8 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
     | TUInt8, JsonValueKind.Number -> j.GetByte() |> DUInt8 |> Ply
     | TInt16, JsonValueKind.Number -> j.GetInt16() |> DInt16 |> Ply
     | TUInt16, JsonValueKind.Number -> j.GetUInt16() |> DUInt16 |> Ply
+    | TInt32, JsonValueKind.Number -> j.GetInt32() |> DInt32 |> Ply
+    | TUInt32, JsonValueKind.Number -> j.GetUInt32() |> DUInt32 |> Ply
     | TInt128, JsonValueKind.Number ->
       j.GetRawText() |> System.Int128.Parse |> DInt128 |> Ply
     | TUInt128, JsonValueKind.Number ->
@@ -392,6 +398,8 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
     | TUInt8, _
     | TInt16, _
     | TUInt16, _
+    | TInt32, _
+    | TUInt32, _
     | TInt128, _
     | TUInt128, _
     | TFloat, _
@@ -419,6 +427,8 @@ module Test =
     | DUInt8 _
     | DInt16 _
     | DUInt16 _
+    | DInt32 _
+    | DUInt32 _
     | DInt128 _
     | DUInt128 _
     | DString _

@@ -77,6 +77,8 @@ module ProgramTypes =
     | TUInt8
     | TInt16
     | TUInt16
+    | TInt32
+    | TUInt32
     | TInt128
     | TUInt128
     | TFloat
@@ -107,6 +109,8 @@ module ProgramTypes =
     | MPUInt8 of ID * uint8
     | MPInt16 of ID * int16
     | MPUInt16 of ID * uint16
+    | MPInt32 of ID * int32
+    | MPUInt32 of ID * uint32
     | MPInt128 of ID * System.Int128
     | MPUInt128 of ID * System.UInt128
     | MPFloat of ID * Sign * String * String
@@ -169,6 +173,8 @@ module ProgramTypes =
     | EUInt8 of ID * uint8
     | EInt16 of ID * int16
     | EUInt16 of ID * uint16
+    | EInt32 of ID * int32
+    | EUInt32 of ID * uint32
     | EInt128 of ID * System.Int128
     | EUInt128 of ID * System.UInt128
     | EFloat of ID * Sign * string * string
@@ -256,6 +262,8 @@ module ProgramTypes =
     | CUInt8 of uint8
     | CInt16 of int16
     | CUInt16 of uint16
+    | CInt32 of int32
+    | CUInt32 of uint32
     | CInt128 of System.Int128
     | CUInt128 of System.UInt128
     | CBool of bool
@@ -429,6 +437,8 @@ module ExternalTypesToProgramTypes =
       | EPT.TUInt8 -> PT.TUInt8
       | EPT.TInt16 -> PT.TInt16
       | EPT.TUInt16 -> PT.TUInt16
+      | EPT.TInt32 -> PT.TInt32
+      | EPT.TUInt32 -> PT.TUInt32
       | EPT.TInt128 -> PT.TInt128
       | EPT.TUInt128 -> PT.TUInt128
       | EPT.TFloat -> PT.TFloat
@@ -480,6 +490,8 @@ module ExternalTypesToProgramTypes =
       | EPT.MPUInt8(id, i) -> PT.MPUInt8(id, i)
       | EPT.MPInt16(id, i) -> PT.MPInt16(id, i)
       | EPT.MPUInt16(id, i) -> PT.MPUInt16(id, i)
+      | EPT.MPInt32(id, i) -> PT.MPInt32(id, i)
+      | EPT.MPUInt32(id, i) -> PT.MPUInt32(id, i)
       | EPT.MPInt128(id, i) -> PT.MPInt128(id, i)
       | EPT.MPUInt128(id, i) -> PT.MPUInt128(id, i)
       | EPT.MPBool(id, b) -> PT.MPBool(id, b)
@@ -502,6 +514,8 @@ module ExternalTypesToProgramTypes =
       | EPT.EUInt8(id, num) -> PT.EUInt8(id, num)
       | EPT.EInt16(id, num) -> PT.EInt16(id, num)
       | EPT.EUInt16(id, num) -> PT.EUInt16(id, num)
+      | EPT.EInt32(id, num) -> PT.EInt32(id, num)
+      | EPT.EUInt32(id, num) -> PT.EUInt32(id, num)
       | EPT.EInt128(id, num) -> PT.EInt128(id, num)
       | EPT.EUInt128(id, num) -> PT.EUInt128(id, num)
       | EPT.EString(id, segment) ->
@@ -672,6 +686,8 @@ module ExternalTypesToProgramTypes =
       | EPT.CUInt8 i -> PT.CUInt8 i
       | EPT.CInt16 i -> PT.CInt16 i
       | EPT.CUInt16 i -> PT.CUInt16 i
+      | EPT.CInt32 i -> PT.CInt32 i
+      | EPT.CUInt32 i -> PT.CUInt32 i
       | EPT.CInt128 i -> PT.CInt128 i
       | EPT.CUInt128 i -> PT.CUInt128 i
       | EPT.CBool b -> PT.CBool b

@@ -64,6 +64,8 @@ module TypeReference =
     | [], "UInt8", [] -> WT.TUInt8
     | [], "Int16", [] -> WT.TInt16
     | [], "UInt16", [] -> WT.TUInt16
+    | [], "Int32", [] -> WT.TInt32
+    | [], "UInt32", [] -> WT.TUInt32
     | [], "Int128", [] -> WT.TInt128
     | [], "UInt128", [] -> WT.TUInt128
     | [], "String", [] -> WT.TString
@@ -206,13 +208,14 @@ module MatchPattern =
     | SynPat.Const(SynConst.Unit, _) -> WT.MPUnit(id)
     | SynPat.Const(SynConst.Bool b, _) -> WT.MPBool(id, b)
 
-    | SynPat.Const(SynConst.Int32 n, _) -> WT.MPInt(id, n)
     | SynPat.Const(SynConst.Int64 n, _) -> WT.MPInt(id, int64 n)
     | SynPat.Const(SynConst.UInt64 n, _) -> WT.MPInt(id, int64 n)
     | SynPat.Const(SynConst.SByte n, _) -> WT.MPInt8(id, int8 n)
     | SynPat.Const(SynConst.Byte n, _) -> WT.MPUInt8(id, uint8 n)
     | SynPat.Const(SynConst.Int16 n, _) -> WT.MPInt16(id, int16 n)
     | SynPat.Const(SynConst.UInt16 n, _) -> WT.MPUInt16(id, uint16 n)
+    | SynPat.Const(SynConst.Int32 n, _) -> WT.MPInt32(id, int32 n)
+    | SynPat.Const(SynConst.UInt32 n, _) -> WT.MPUInt32(id, uint32 n)
 
     | SynPat.Const(SynConst.UserNum(s, "Q"), _) ->
       match System.Int128.TryParse(s) with
@@ -357,13 +360,14 @@ module Expr =
       raiseParserError "null not supported, use `()`" [ "ast", ast ] (Some ast.Range)
 
     | SynExpr.Const(SynConst.Unit _, _) -> WT.EUnit id
-    | SynExpr.Const(SynConst.Int32 n, _) -> WT.EInt(id, n)
     | SynExpr.Const(SynConst.Int64 n, _) -> WT.EInt(id, int64 n)
     | SynExpr.Const(SynConst.UInt64 n, _) -> WT.EInt(id, int64 n)
     | SynExpr.Const(SynConst.SByte n, _) -> WT.EInt8(id, int8 n)
     | SynExpr.Const(SynConst.Byte n, _) -> WT.EUInt8(id, uint8 n)
     | SynExpr.Const(SynConst.Int16 n, _) -> WT.EInt16(id, int16 n)
     | SynExpr.Const(SynConst.UInt16 n, _) -> WT.EUInt16(id, uint16 n)
+    | SynExpr.Const(SynConst.Int32 n, _) -> WT.EInt32(id, n)
+    | SynExpr.Const(SynConst.UInt32 n, _) -> WT.EUInt32(id, uint32 n)
 
     | SynExpr.Const(SynConst.UserNum(s, "Q"), _) ->
       match System.Int128.TryParse(s) with
@@ -861,6 +865,8 @@ module Constant =
       | WT.EUInt8(_, n) -> WT.CUInt8 n
       | WT.EInt16(_, n) -> WT.CInt16 n
       | WT.EUInt16(_, n) -> WT.CUInt16 n
+      | WT.EInt32(_, n) -> WT.CInt32 n
+      | WT.EUInt32(_, n) -> WT.CUInt32 n
       | WT.EInt128(_, n) -> WT.CInt128 n
       | WT.EUInt128(_, n) -> WT.CUInt128 n
       | WT.EChar(_, c) -> WT.CChar c

@@ -63,6 +63,7 @@ module Int8 =
    | 6y -> "fail") = Builtin.Test.derrorMessage
     "Cannot match Float value 6.0 with an Int8 pattern"
 
+
 module UInt8 =
   (match 6uy with
    | 5uy -> "fail"
@@ -121,6 +122,7 @@ module Int16 =
    | 6s -> "fail") = Builtin.Test.derrorMessage
     "Cannot match Float value 6.0 with an Int16 pattern"
 
+
 module UInt16 =
   (match 6us with
    | 5us -> "fail"
@@ -148,6 +150,65 @@ module UInt16 =
   (match 6.0 with
    | 6us -> "fail") = Builtin.Test.derrorMessage
     "Cannot match Float value 6.0 with an UInt16 pattern"
+
+
+module Int32 =
+  (match 6l with
+   | 5l -> "fail"
+   | -6l -> "fail"
+   | 6l -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6l with
+   | 6l -> "pass"
+   | 5l -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6l with
+   | var -> "pass"
+   | 6l -> "fail"
+   | 5l -> "fail") = "pass"
+
+  (match 2147483647l with
+   | 0l -> "fail"
+   | 2147483647l -> "pass") = "pass"
+
+  (match 6l with
+   | 6.0 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Int32 value 6 with a Float pattern"
+
+  (match 6.0 with
+   | 6l -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Float value 6.0 with an Int32 pattern"
+
+
+module UInt32 =
+  (match 6ul with
+   | 5ul -> "fail"
+   | 6ul -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6ul with
+    | 6ul -> "pass"
+    | 5ul -> "fail"
+    | var -> "fail") = "pass"
+
+  (match 6ul with
+    | var -> "pass"
+    | 6ul -> "fail"
+    | 5ul -> "fail") = "pass"
+
+  (match 4294967295ul with
+    | 0ul -> "fail"
+    | 4294967295ul -> "pass") = "pass"
+
+  (match 6ul with
+    | 6.0 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match UInt32 value 6 with a Float pattern"
+
+  (match 6.0 with
+    | 6ul -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Float value 6.0 with an UInt32 pattern"
 
 
 module Int128 =

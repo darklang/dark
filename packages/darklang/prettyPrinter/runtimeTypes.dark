@@ -184,6 +184,8 @@ module Darklang =
         | TUInt8 -> "UInt8"
         | TInt16 -> "Int16"
         | TUInt16 -> "UInt16"
+        | TInt32 -> "Int32"
+        | TUInt32 -> "UInt32"
         | TInt128 -> "Int128"
         | TUInt128 -> "UInt128"
         | TFloat -> "Float"
@@ -243,6 +245,8 @@ module Darklang =
         | KTUInt8 -> "UInt8"
         | KTInt16 -> "Int16"
         | KTUInt16 -> "UInt16"
+        | KTInt32 -> "Int32"
+        | KTUInt32 -> "UInt32"
         | KTInt128 -> "Int128"
         | KTUInt128 -> "UInt128"
         | KTFloat -> "Float"
@@ -325,6 +329,8 @@ module Darklang =
           | DUInt8 i -> Builtin.UInt8.toString i
           | DInt16 i -> Builtin.Int16.toString i
           | DUInt16 i -> Builtin.UInt16.toString i
+          | DInt32 i -> Builtin.Int32.toString i
+          | DUInt32 i -> Builtin.UInt32.toString i
           | DInt128 i -> Builtin.Int128.toString i
           | DUInt128 i -> Builtin.UInt128.toString i
 

@@ -76,6 +76,8 @@ let rec evalConst (source : Source) (c : Const) : Dval =
   | CUInt8 i -> DUInt8 i
   | CInt16 i -> DInt16 i
   | CUInt16 i -> DUInt16 i
+  | CInt32 i -> DInt32 i
+  | CUInt32 i -> DUInt32 i
   | CInt128 i -> DInt128 i
   | CUInt128 i -> DUInt128 i
   | CBool b -> DBool b
@@ -295,6 +297,8 @@ let rec eval
     | EUInt8(_id, i) -> return DUInt8 i
     | EInt16(_id, i) -> return DInt16 i
     | EUInt16(_id, i) -> return DUInt16 i
+    | EInt32(_id, i) -> return DInt32 i
+    | EUInt32(_id, i) -> return DUInt32 i
     | EInt128(_id, i) -> return DInt128 i
     | EUInt128(_id, i) -> return DUInt128 i
     | EFloat(_id, value) -> return DFloat value
@@ -543,6 +547,24 @@ let rec eval
                 raiseExeRTE
                   id
                   (ExecutionError.MatchExprPatternWrongType("UInt16", dv))
+
+          | MPInt32(id, pi) ->
+            match dv with
+            | DInt32 di -> return (di = pi), []
+            | _ ->
+              return!
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("Int32", dv))
+
+          | MPUInt32(id, pi) ->
+            match dv with
+            | DUInt32 di -> return (di = pi), []
+            | _ ->
+              return!
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("UInt32", dv))
 
           | MPInt128(id, pi) ->
             match dv with

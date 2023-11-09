@@ -105,6 +105,12 @@ let rec dvalToSql
     | TVariable _, DUInt16 i
     | TUInt16, DUInt16 i -> return Sql.int64 (int i), TUInt16
 
+    | TVariable _, DInt32 i
+    | TInt32, DInt32 i -> return Sql.int i, TInt32
+
+    | TVariable _, DUInt32 i
+    | TUInt32, DUInt32 i -> return Sql.int64 (int i), TUInt32
+
     | TVariable _, DInt128 i
     | TInt128, DInt128 i -> return int128 i, TInt128
 
@@ -165,6 +171,8 @@ let rec dvalToSql
     | _, DUInt8 _
     | _, DInt16 _
     | _, DUInt16 _
+    | _, DInt32 _
+    | _, DUInt32 _
     | _, DInt128 _
     | _, DUInt128 _
     | _, DFloat _
@@ -583,6 +591,16 @@ let rec lambdaToSql
           let name = randomString 10
           return $"(@{name})", [ name, Sql.int64 (int v) ], TUInt16
 
+        | EInt32(_, v) ->
+          typecheck $"Int32 {v}" TInt32 expectedType
+          let name = randomString 10
+          return $"(@{name})", [ name, Sql.int v ], TInt32
+
+        | EUInt32(_, v) ->
+          typecheck $"UInt32 {v}" TUInt32 expectedType
+          let name = randomString 10
+          return $"(@{name})", [ name, Sql.int64 (int v) ], TUInt32
+
         | EInt128(_, v) ->
           typecheck $"Int128 {v}" TInt128 expectedType
           let name = randomString 10
@@ -798,6 +816,8 @@ let rec lambdaToSql
             | TUInt8 -> "smallint"
             | TInt16 -> "smallint"
             | TUInt16 -> "integer"
+            | TInt32 -> "integer"
+            | TUInt32 -> "bigint"
             | TInt128 -> "numeric(39,0)"
             | TUInt128 -> "numeric(39,0)"
             | TFloat -> "double precision"
@@ -822,6 +842,8 @@ let rec lambdaToSql
           | TUInt8
           | TInt16
           | TUInt16
+          | TInt32
+          | TUInt32
           | TInt128
           | TUInt128
           | TFloat
@@ -966,6 +988,8 @@ let partiallyEvaluate
             | EUInt8 _
             | EInt16 _
             | EUInt16 _
+            | EInt32 _
+            | EUInt32 _
             | EInt128 _
             | EUInt128 _
             | EBool _
@@ -989,6 +1013,8 @@ let partiallyEvaluate
         | EUInt8 _
         | EInt16 _
         | EUInt16 _
+        | EInt32 _
+        | EUInt32 _
         | EInt128 _
         | EUInt128 _
         | EFloat _
@@ -1026,6 +1052,8 @@ let partiallyEvaluate
             | EUInt8 _
             | EInt16 _
             | EUInt16 _
+            | EInt32 _
+            | EUInt32 _
             | EInt128 _
             | EUInt128 _
             | EString _

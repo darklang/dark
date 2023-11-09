@@ -1,0 +1,124 @@
+module Darklang =
+  module Stdlib =
+    module UInt32 =
+
+      type ParseError =
+        | BadFormat
+        | OutOfRange
+
+
+      /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+      /// The modulus <param b> must be greater than 0.
+      /// Use <fn UInt32.remainder> if you want the remainder after division, which has
+      /// a different behavior for negative numbers.
+      let ``mod`` (a: UInt32) (b: UInt32) : UInt32 = Builtin.UInt32.``mod`` a b
+
+
+      /// Adds two 16-bit unsigned integers together
+      let add (a: UInt32) (b: UInt32) : UInt32 = Builtin.UInt32.add a b
+
+
+      /// Subtracts two 16-bit unsigned  integers
+      let subtract (a: UInt32) (b: UInt32) : UInt32 = Builtin.UInt32.subtract a b
+
+
+      /// Multiplies two 16-bit unsigned  integers
+      let multiply (a: UInt32) (b: UInt32) : UInt32 = Builtin.UInt32.multiply a b
+
+
+      /// Divides two 16-bit unsigned integers
+      let divide (a: UInt32) (b: UInt32) : UInt32 = Builtin.UInt32.divide a b
+
+
+      /// Returns {{true}} if <param a> is greater than <param b>
+      let greaterThan (a: UInt32) (b: UInt32) : Bool = Builtin.UInt32.greaterThan a b
+
+
+      /// Returns {{true}} if <param a> is greater than or equal to <param b>
+      let greaterThanOrEqualTo (a: UInt32) (b: UInt32) : Bool =
+        Builtin.UInt32.greaterThanOrEqualTo a b
+
+
+      /// Returns {{true}} if <param a> is less than <param b>
+      let lessThan (a: UInt32) (b: UInt32) : Bool = Builtin.UInt32.lessThan a b
+
+      /// Returns {{true}} if <param a> is less than or equal to <param b>
+      let lessThanOrEqualTo (a: UInt32) (b: UInt32) : Bool =
+        Builtin.UInt32.lessThanOrEqualTo a b
+
+
+      /// Returns a random 16-bit unsigned integer between <param start> and <param end> (inclusive)
+      let random (start: UInt32) (``end``: UInt32) : UInt32 =
+        Builtin.UInt32.random start ``end``
+
+
+      /// Get the square root of an <type UInt32>
+      let sqrt (a: UInt32) : Float = Builtin.UInt32.sqrt a
+
+
+      /// Converts an <type UInt32> to a <type Float>
+      let toFloat (a: UInt32) : Float = Builtin.UInt32.toFloat a
+
+
+      /// Returns the sum of all the ints in the list
+      let sum (lst: List<UInt32>) : UInt32 =
+        PACKAGE.Darklang.Stdlib.List.fold lst 0ul (fun acc x ->
+          PACKAGE.Darklang.Stdlib.UInt32.add acc x)
+
+
+      /// Returns the higher of <param a> and <param b>
+      let max (a: UInt32) (b: UInt32) : UInt32 =
+        if (PACKAGE.Darklang.Stdlib.UInt32.greaterThan a b) then
+          a
+        else
+          b
+
+
+      /// Returns the lower of <param a> and <param b>
+      let min (a: UInt32) (b: UInt32) : UInt32 =
+        if (PACKAGE.Darklang.Stdlib.UInt32.lessThan a b) then
+          a
+        else
+          b
+
+
+      /// If <param value> is within the range given by <param limitA> and <param
+      /// limitB>, returns <param value>.
+      /// If <param value> is outside the range, returns <param limitA> or <param
+      /// limitB>, whichever is closer to <param value>.
+      /// <param limitA> and <param limitB> can be provided in any order.
+      let clamp (value: UInt32) (limitA: UInt32) (limitB: UInt32) : UInt32 =
+        let min =
+          if (PACKAGE.Darklang.Stdlib.UInt32.lessThan limitA limitB) then
+            limitA
+          else
+            limitB
+
+        let max =
+          if (PACKAGE.Darklang.Stdlib.UInt32.greaterThan limitA limitB) then
+            limitA
+          else
+            limitB
+
+        if (PACKAGE.Darklang.Stdlib.UInt32.lessThan value min) then
+          min
+        else if (PACKAGE.Darklang.Stdlib.UInt32.greaterThan value max) then
+          max
+        else
+          value
+
+
+      /// Returns the <type UInt32> value of a <type String>
+      let parse
+        (s: String)
+        : PACKAGE.Darklang.Stdlib.Result.Result<UInt32, PACKAGE.Darklang.Stdlib.UInt32.ParseError> =
+        Builtin.UInt32.parse s
+
+
+      /// Stringify <param uint32>
+      let toString (uint32: UInt32) : String = Builtin.UInt32.toString uint32
+
+
+      /// Converts a <type UInt32> to a <type Int64>. Returns {{None}} if the value is less than 0 or greater than 65535.
+      let fromInt64 (uint32: Int) : PACKAGE.Darklang.Stdlib.Option.Option<UInt32> =
+        Builtin.UInt32.fromInt64 uint32

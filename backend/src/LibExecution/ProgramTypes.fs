@@ -336,6 +336,8 @@ type MatchPattern =
   | MPUInt8 of id * uint8
   | MPInt16 of id * int16
   | MPUInt16 of id * uint16
+  | MPInt32 of id * int32
+  | MPUInt32 of id * uint32
   | MPInt128 of id * System.Int128
   | MPUInt128 of id * System.UInt128
   | MPBool of id * bool
@@ -381,6 +383,8 @@ type TypeReference =
   | TUInt8
   | TInt16
   | TUInt16
+  | TInt32
+  | TUInt32
   | TInt128
   | TUInt128
   | TFloat
@@ -412,6 +416,8 @@ type Expr =
   | EUInt8 of id * uint8
   | EInt16 of id * int16
   | EUInt16 of id * uint16
+  | EInt32 of id * int32
+  | EUInt32 of id * uint32
   | EInt128 of id * System.Int128
   | EUInt128 of id * System.UInt128
   | EBool of id * bool
@@ -529,6 +535,8 @@ module Expr =
     | EUInt8(id, _)
     | EInt16(id, _)
     | EUInt16(id, _)
+    | EInt32(id, _)
+    | EUInt32(id, _)
     | EInt128(id, _)
     | EUInt128(id, _)
     | EBool(id, _)
@@ -653,6 +661,8 @@ type Const =
   | CUInt8 of uint8
   | CInt16 of int16
   | CUInt16 of uint16
+  | CInt32 of int32
+  | CUInt32 of uint32
   | CInt128 of System.Int128
   | CUInt128 of System.UInt128
   | CBool of bool

@@ -74,6 +74,8 @@ module Darklang =
         | TUInt8
         | TInt16
         | TUInt16
+        | TInt32
+        | TUInt32
         | TInt128
         | TUInt128
         | TFloat
@@ -102,6 +104,8 @@ module Darklang =
         | CUInt8 of UInt8
         | CInt16 of Int16
         | CUInt16 of UInt16
+        | CInt32 of Int32
+        | CUInt32 of UInt32
         | CInt128 of Int128
         | CUInt128 of UInt128
         | CFloat of PACKAGE.Darklang.LanguageTools.Sign * String * String
@@ -138,6 +142,8 @@ module Darklang =
         | MPUInt8 of PACKAGE.Darklang.LanguageTools.ID * UInt8
         | MPInt16 of PACKAGE.Darklang.LanguageTools.ID * Int16
         | MPUInt16 of PACKAGE.Darklang.LanguageTools.ID * UInt16
+        | MPInt32 of PACKAGE.Darklang.LanguageTools.ID * Int32
+        | MPUInt32 of PACKAGE.Darklang.LanguageTools.ID * UInt32
         | MPInt128 of PACKAGE.Darklang.LanguageTools.ID * Int128
         | MPUInt128 of PACKAGE.Darklang.LanguageTools.ID * UInt128
         | MPFloat of
@@ -249,6 +255,10 @@ module Darklang =
 
         | EUInt16 of ID * UInt16
 
+        | EInt32 of ID * Int32
+
+        | EUInt32 of ID * UInt32
+
         | EInt128 of ID * Int128
 
         | EUInt128 of ID * UInt128
@@ -321,6 +331,8 @@ module Darklang =
           | EUInt8(id, _) -> id
           | EInt16(id, _) -> id
           | EUInt16(id, _) -> id
+          | EInt32(id, _) -> id
+          | EUInt32(id, _) -> id
           | EInt128(id, _) -> id
           | EUInt128(id, _) -> id
           | EFloat(id, _, _, _) -> id

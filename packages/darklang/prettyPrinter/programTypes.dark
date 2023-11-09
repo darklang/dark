@@ -335,6 +335,8 @@ module Darklang =
         | TUInt8 -> "UInt8"
         | TInt16 -> "Int16"
         | TUInt16 -> "UInt16"
+        | TInt32 -> "Int32"
+        | TUInt32 -> "UInt32"
         | TInt128 -> "Int128"
         | TUInt128 -> "UInt128"
         | TFloat -> "Float"
@@ -404,6 +406,8 @@ module Darklang =
         | CUInt8 i -> PACKAGE.Darklang.Stdlib.UInt8.toString i
         | CInt16 i -> PACKAGE.Darklang.Stdlib.Int16.toString i
         | CUInt16 i -> PACKAGE.Darklang.Stdlib.UInt16.toString i
+        | CInt32 i -> PACKAGE.Darklang.Stdlib.Int32.toString i
+        | CUInt32 i -> PACKAGE.Darklang.Stdlib.UInt32.toString i
         | CInt128 i -> PACKAGE.Darklang.Stdlib.Int128.toString i
         | CUInt128 i -> PACKAGE.Darklang.Stdlib.UInt128.toString i
         | CFloat(sign, whole, remainder) ->
@@ -489,6 +493,8 @@ module Darklang =
         | MPUInt8(_id, i) -> PACKAGE.Darklang.Stdlib.UInt8.toString i
         | MPInt16(_id, i) -> PACKAGE.Darklang.Stdlib.Int16.toString i
         | MPUInt16(_id, i) -> PACKAGE.Darklang.Stdlib.UInt16.toString i
+        | MPInt32(_id, i) -> PACKAGE.Darklang.Stdlib.Int32.toString i
+        | MPUInt32(_id, i) -> PACKAGE.Darklang.Stdlib.UInt32.toString i
         | MPInt128(_id, i) -> PACKAGE.Darklang.Stdlib.Int128.toString i
         | MPUInt128(_id, i) -> PACKAGE.Darklang.Stdlib.UInt128.toString i
         | MPFloat(_id, sign, whole, remainder) ->

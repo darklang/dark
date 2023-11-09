@@ -42,6 +42,8 @@ module TypeReference =
       | WT.TUInt8 -> return PT.TUInt8
       | WT.TInt16 -> return PT.TInt16
       | WT.TUInt16 -> return PT.TUInt16
+      | WT.TInt32 -> return PT.TInt32
+      | WT.TUInt32 -> return PT.TUInt32
       | WT.TInt128 -> return PT.TInt128
       | WT.TUInt128 -> return PT.TUInt128
       | WT.TFloat -> return PT.TFloat
@@ -107,6 +109,8 @@ module MatchPattern =
     | WT.MPUInt8(id, i) -> PT.MPUInt8(id, i)
     | WT.MPInt16(id, i) -> PT.MPInt16(id, i)
     | WT.MPUInt16(id, i) -> PT.MPUInt16(id, i)
+    | WT.MPInt32(id, i) -> PT.MPInt32(id, i)
+    | WT.MPUInt32(id, i) -> PT.MPUInt32(id, i)
     | WT.MPInt128(id, i) -> PT.MPInt128(id, i)
     | WT.MPUInt128(id, i) -> PT.MPUInt128(id, i)
     | WT.MPBool(id, b) -> PT.MPBool(id, b)
@@ -154,6 +158,8 @@ module Expr =
       | WT.EUInt8(id, num) -> return PT.EUInt8(id, num)
       | WT.EInt16(id, num) -> return PT.EInt16(id, num)
       | WT.EUInt16(id, num) -> return PT.EUInt16(id, num)
+      | WT.EInt32(id, num) -> return PT.EInt32(id, num)
+      | WT.EUInt32(id, num) -> return PT.EUInt32(id, num)
       | WT.EInt128(id, num) -> return PT.EInt128(id, num)
       | WT.EUInt128(id, num) -> return PT.EUInt128(id, num)
       | WT.EString(id, segments) ->
@@ -385,6 +391,8 @@ module Const =
       | WT.CUInt8 i -> return PT.CUInt8 i
       | WT.CInt16 i -> return PT.CInt16 i
       | WT.CUInt16 i -> return PT.CUInt16 i
+      | WT.CInt32 i -> return PT.CInt32 i
+      | WT.CUInt32 i -> return PT.CUInt32 i
       | WT.CInt128 i -> return PT.CInt128 i
       | WT.CUInt128 i -> return PT.CUInt128 i
       | WT.CFloat(sign, w, f) -> return PT.CFloat(sign, w, f)

@@ -8,6 +8,15 @@ module UserDefined =
   intConst = 5L
   UserDefined.intConst = 5L
 
+  let int32Const = 5l
+  int32Const = 5l
+  UserDefined.int32Const = 5l
+
+  let uint32Const = 5ul
+  uint32Const = 5ul
+  UserDefined.uint32Const = 5ul
+
+
   let floatConst = 5.6
   floatConst = 5.6
   UserDefined.floatConst = 5.6
