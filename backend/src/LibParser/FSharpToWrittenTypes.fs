@@ -366,7 +366,7 @@ module Expr =
     | SynExpr.Const(SynConst.Byte n, _) -> WT.EUInt8(id, uint8 n)
     | SynExpr.Const(SynConst.Int16 n, _) -> WT.EInt16(id, int16 n)
     | SynExpr.Const(SynConst.UInt16 n, _) -> WT.EUInt16(id, uint16 n)
-    | SynExpr.Const(SynConst.Int32 n, _) -> WT.EInt32(id, n)
+    | SynExpr.Const(SynConst.Int32 n, _) -> WT.EInt32(id, int32 n)
     | SynExpr.Const(SynConst.UInt32 n, _) -> WT.EUInt32(id, uint32 n)
 
     | SynExpr.Const(SynConst.UserNum(s, "Q"), _) ->

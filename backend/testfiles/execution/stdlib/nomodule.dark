@@ -1,7 +1,5 @@
 // CLEANUP move all these to LibMisc
 
-// TODO: add more int types tests
-
 module Equals =
   type ERec = { x: Int; y: Int }
   type ERec2 = ERec
