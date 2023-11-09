@@ -48,13 +48,13 @@ let state () =
     let metadata = extraMetadata state @ metadata
     let metadata =
       metadata |> List.map (fun (k, v) -> $"  {k}: {v}") |> String.concat ", "
-    printLine $"Notification: {msg}, {metadata}"
+    print $"Notification: {msg}, {metadata}"
 
   let reportException (state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
     let metadata = extraMetadata state @ metadata @ Exception.toMetadata exn
     let metadata =
       metadata |> List.map (fun (k, v) -> $"  {k}: {v}") |> String.concat "\n"
-    printLine
+    print
       $"Exception: {exn.Message}\nMetadata:\n{metadata}\nStacktrace:\n{exn.StackTrace}"
 
   Exe.createState
@@ -216,7 +216,7 @@ module PackageBootstrapping =
       let! (packagesParsedWithUnresolvedNamesAllowed : LibParser.Parser.Packages) =
         filesWithContents
         |> Ply.List.mapSequentially (fun (path, contents) ->
-          printLine $"Parsing {path}, allowing unresolved names"
+          print $"Parsing {path}, allowing unresolved names"
           LibParser.Parser.parsePackageFile nameResolver path contents)
         |> Ply.map flattenParsedPackages
 
@@ -253,7 +253,7 @@ module PackageBootstrapping =
       let! (packagesParsedWithUnresolvedNamesNotAllowed : LibParser.Parser.Packages) =
         filesWithContents
         |> Ply.List.mapSequentially (fun (path, contents) ->
-          printLine $"Parsing {path}, not allowing unresolved names"
+          print $"Parsing {path}, not allowing unresolved names"
           LibParser.Parser.parsePackageFile nameResolver path contents)
         |> Ply.map flattenParsedPackages
 
@@ -331,9 +331,9 @@ let main (args : string[]) : int =
 
     match args with
     | [| "load-packages" |] ->
-      printLine "Loading packages to DB"
+      print "Loading packages to DB"
       let exitCode = (PackageBootstrapping.loadPackagesFromDb ()).Result
-      printLine "Finished loading packages to DB"
+      print "Finished loading packages to DB"
       NonBlockingConsole.wait ()
       exitCode
     | _ ->

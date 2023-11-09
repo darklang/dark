@@ -19,7 +19,7 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
   let f : string = $"{dir}{f}"
 
   let debug (name : string) (value : bool) =
-    if value then printLine $"checkFilename failed: {name}: {value}"
+    if value then print $"checkFilename failed: {name}: {value}"
     value
 
   if

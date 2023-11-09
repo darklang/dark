@@ -162,7 +162,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ v; DString msg ] ->
-          printLine $"{msg}: {v}"
+          print $"{msg}: {v}"
           Ply v
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

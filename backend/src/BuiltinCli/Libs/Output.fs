@@ -23,7 +23,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString str ] ->
-          printLine str
+          print str
           Ply DUnit
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString str ] ->
-          print str
+          printInline str
           Ply DUnit
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -57,7 +57,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ value; DString label ] ->
-          printLine $"DEBUG: {label} - {value}"
+          print $"DEBUG: {label} - {value}"
           Ply value
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

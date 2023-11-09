@@ -109,8 +109,8 @@ module ToHashableRepr =
 
         if actual <> expected then
           let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
-          printLine $"expected: {p expected}"
-          printLine $"fsharp  : {p actual}"
+          print $"expected: {p expected}"
+          print $"fsharp  : {p actual}"
 
         Expect.equal actual expected "bad fsharp impl"
       }

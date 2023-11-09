@@ -149,13 +149,13 @@ let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
   NonBlockingConsole.writeLine $"DEBUG: {msg} {f v}"
   v
 
-let print (string : string) : unit = NonBlockingConsole.write string
+let printInline (string : string) : unit = NonBlockingConsole.writeInline string
 
-let printLine (string : string) : unit = NonBlockingConsole.writeLine string
+let print (string : string) : unit = NonBlockingConsole.writeLine string
 
 let printTime (string : string) : unit =
   let now = System.DateTime.UtcNow.ToString("mm:ss.ff")
-  printLine $"{now} {string}"
+  print $"{now} {string}"
 
 // Print the value of `a`. Note that since this is wrapped in a task, it must
 // resolve the task before it can print, which could lead to different ordering
@@ -176,7 +176,7 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
 
 let printMetadata (prefix : string) (metadata : Exception.Metadata) =
   try
-    List.iter (fun (k, v) -> printLine (sprintf "%s:  %s: %A" prefix k v)) metadata
+    List.iter (fun (k, v) -> print (sprintf "%s:  %s: %A" prefix k v)) metadata
   with _ ->
     ()
 
@@ -186,11 +186,11 @@ let rec printException'
   (metadata : Exception.Metadata)
   (e : exn)
   : unit =
-  printLine $"{prefix}: error: {e.Message}"
+  print $"{prefix}: error: {e.Message}"
   printMetadata prefix metadata
   printMetadata prefix (Exception.toMetadata e)
-  printLine $"{prefix}: exceptionType: {e.GetType()}"
-  printLine $"{prefix}: {e.StackTrace}"
+  print $"{prefix}: exceptionType: {e.GetType()}"
+  print $"{prefix}: {e.StackTrace}"
   if not (isNull e.InnerException) then
     printException' $"prefex.inner[{count}]" (count + 1) [] e.InnerException
 

@@ -59,6 +59,6 @@ type private Private() =
 
 let wait () : unit = Private.wait ()
 
-let write (value : string) : unit = Private.Write value
+let writeInline (value : string) : unit = Private.Write value
 
 let writeLine (value : string) : unit = Private.Write(value + "\n")
