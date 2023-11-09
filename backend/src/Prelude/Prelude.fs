@@ -17,13 +17,13 @@ let ignore<'a> (a : 'a) : unit = ignore<'a> a
                            IsHidden = true)>]
 let failwith = failwith
 
-[<CompilerMessageAttribute("printf is banned, use Prelude.print instead",
+[<CompilerMessageAttribute("printf is banned, use Prelude.printInline instead",
                            0,
                            IsError = true,
                            IsHidden = true)>]
 let printf = printf
 
-[<CompilerMessageAttribute("printfn is banned, use Prelude.printLine instead",
+[<CompilerMessageAttribute("printfn is banned, use Prelude.print instead",
                            0,
                            IsError = true,
                            IsHidden = true)>]
