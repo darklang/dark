@@ -853,14 +853,20 @@ module ProgramTypes =
                                                   PT.EUInt32(7567129UL, 4294967295ul),
                                                   PT.ELet(
                                                     831830080UL,
-                                                    PT.LPVariable(7567130UL, "int128"),
+                                                    PT.LPVariable(
+                                                      7567130UL,
+                                                      "int128"
+                                                    ),
                                                     PT.EInt128(
                                                       7567130UL,
                                                       170141183460469231731687303715884105727Q
                                                     ),
                                                     PT.ELet(
                                                       831830081UL,
-                                                      PT.LPVariable(756730UL, "uint128"),
+                                                      PT.LPVariable(
+                                                        756730UL,
+                                                        "uint128"
+                                                      ),
                                                       PT.EUInt128(
                                                         7567130UL,
                                                         340282366920938463463374607431768211455Z

@@ -5,7 +5,7 @@ PACKAGE.Darklang.Stdlib.Int32.max_v0 5l 6l = 6l
 PACKAGE.Darklang.Stdlib.Int32.max_v0 10l 1l = 10l
 PACKAGE.Darklang.Stdlib.Int32.max_v0 -5l 6l = 6l
 PACKAGE.Darklang.Stdlib.Int32.max_v0 -100l -20000l = -100l
-PACKAGE.Darklang.Stdlib.Int32.max_v0 250l -26 = 250l
+PACKAGE.Darklang.Stdlib.Int32.max_v0 250l -26l = 250l
 
 PACKAGE.Darklang.Stdlib.Int32.min_v0 5l 6l = 5l
 PACKAGE.Darklang.Stdlib.Int32.min_v0 50l -10l = -10l
@@ -61,7 +61,8 @@ PACKAGE.Darklang.Stdlib.Int32.mod_v0 -1l 2l = 1l
 PACKAGE.Darklang.Stdlib.Int32.mod_v0 -754l 53l = 41l
 PACKAGE.Darklang.Stdlib.Int32.mod_v0 222222222l 3l = 0l
 
-PACKAGE.Darklang.Stdlib.Int32.mod_v0 5l 0l = Builtin.Test.derrorMessage "Zero modulus"
+PACKAGE.Darklang.Stdlib.Int32.mod_v0 5l 0l = Builtin.Test.derrorMessage
+  "Zero modulus"
 
 PACKAGE.Darklang.Stdlib.Int32.mod_v0 5l -5l = Builtin.Test.derrorMessage
   "Negative modulus"
@@ -122,13 +123,11 @@ PACKAGE.Darklang.Stdlib.Int32.add_v0 -1l 2l = 1l
 PACKAGE.Darklang.Stdlib.Int32.add_v0 1l 0l = 1l
 PACKAGE.Darklang.Stdlib.Int32.add_v0 -55l 55l = 0l
 PACKAGE.Darklang.Stdlib.Int32.add_v0 2147483646l 1l = 2147483647l
-// TODO: recheck this
-PACKAGE.Darklang.Stdlib.Int32.add_v0 2147483647l 1l = -2147483648l
 
 // Overflow tests
 PACKAGE.Darklang.Stdlib.Int32.add_v0 2147483647l 1l = -2147483648l
 PACKAGE.Darklang.Stdlib.Int32.add_v0 55l 2147483647l = -2147483594l
-PACKAGE.Darklang.Stdlib.Int32.add_v0 (-21474836478l) (-1l) = -1l
+PACKAGE.Darklang.Stdlib.Int32.add_v0 -2147483648l -1l = 2147483647l
 
 
 PACKAGE.Darklang.Stdlib.Int32.subtract_v0 10l 9l = 1l

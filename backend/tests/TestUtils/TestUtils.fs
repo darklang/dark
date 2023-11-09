@@ -1317,23 +1317,23 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      ),
      TypeReference.option TUInt16)
     ("option8",
-      DEnum(
-        Dval.optionType,
-        Dval.optionType,
-        Dval.ignoreAndUseEmpty [ VT.int32 ],
-        "Some",
-        [ Dval.int32 32l ]
-      ),
-      TypeReference.option TInt32)
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       Dval.ignoreAndUseEmpty [ VT.int32 ],
+       "Some",
+       [ Dval.int32 32l ]
+     ),
+     TypeReference.option TInt32)
     ("option9",
-      DEnum(
-        Dval.optionType,
-        Dval.optionType,
-        Dval.ignoreAndUseEmpty [ VT.uint32 ],
-        "Some",
-        [ Dval.uint32 32ul ]
-      ),
-      TypeReference.option TUInt32)
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       Dval.ignoreAndUseEmpty [ VT.uint32 ],
+       "Some",
+       [ Dval.uint32 32ul ]
+     ),
+     TypeReference.option TUInt32)
     ("option10",
      DEnum(
        Dval.optionType,

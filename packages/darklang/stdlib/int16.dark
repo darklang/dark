@@ -47,11 +47,16 @@ module Darklang =
         // OCaml, so we have to support an exponent below int16
         // This only matters for 1 or -1, and otherwise a
         // number raised to an int16 exponent wouldn't fit in an int16
-        if ``base`` == 0s then 0s
-        else if ``base`` == 1s then 1s
-        else if ``base`` == -1s && (Builtin.Int16.``mod`` exponent 2s == 0s) then 1s
-        else if ``base`` == -1s then -1s
-        else Builtin.Int16.power ``base`` exponent
+        if ``base`` == 0s then
+          0s
+        else if ``base`` == 1s then
+          1s
+        else if ``base`` == -1s && (Builtin.Int16.``mod`` exponent 2s == 0s) then
+          1s
+        else if ``base`` == -1s then
+          -1s
+        else
+          Builtin.Int16.power ``base`` exponent
 
 
       /// Divides two 16-bit signed integers

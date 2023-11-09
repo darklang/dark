@@ -47,11 +47,16 @@ module Darklang =
         // OCaml, so we have to support an exponent below int8
         // This only matters for 1 or -1, and otherwise a
         // number raised to an int8 exponent wouldn't fit in an int8
-        if ``base`` == 0y then 0y
-        else if ``base`` == 1y then 1y
-        else if ``base`` == -1y && (Builtin.Int8.``mod`` exponent 2y == 0y) then 1y
-        else if ``base`` == -1y then -1y
-        else Builtin.Int8.power ``base`` exponent
+        if ``base`` == 0y then
+          0y
+        else if ``base`` == 1y then
+          1y
+        else if ``base`` == -1y && (Builtin.Int8.``mod`` exponent 2y == 0y) then
+          1y
+        else if ``base`` == -1y then
+          -1y
+        else
+          Builtin.Int8.power ``base`` exponent
 
 
       /// Divides two 8-bit signed integers

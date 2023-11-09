@@ -51,15 +51,24 @@ module Darklang =
         // OCaml, so we have to support an exponent below int32
         // This only matters for 1 or -1, and otherwise a
         // number raised to an int32 exponent wouldn't fit in an int32
-        if ``base`` == 0l then 0l
-        else if ``base`` == 1l then 1l
-        else if ``base`` == -1l && (Builtin.Int32.``mod`` exponent 2l == 0l) then 1l
-        else if ``base`` == -1l then -1l
-        else Builtin.Int32.power ``base`` exponent
+        if ``base`` == 0l then
+          0l
+        else if ``base`` == 1l then
+          1l
+        else if ``base`` == -1l && (Builtin.Int32.``mod`` exponent 2l == 0l) then
+          1l
+        else if ``base`` == -1l then
+          -1l
+        else
+          Builtin.Int32.power ``base`` exponent
 
 
       /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
-      let absoluteValue (a: Int32) : Int32 = if Builtin.Int32.lessThan a 0 then Builtin.Int32.negate a else a
+      let absoluteValue (a: Int32) : Int32 =
+        if Builtin.Int32.lessThan a 0 then
+          Builtin.Int32.negate a
+        else
+          a
 
 
       /// Returns the negation of <param a>, {{-a}}
@@ -71,18 +80,21 @@ module Darklang =
 
 
       /// Returns {{true}} if <param a> is greater than or equal to <param b>
-      let greaterThanOrEqualTo (a: Int32) (b: Int32) : Bool = Builtin.Int32.greaterThanOrEqualTo a b
+      let greaterThanOrEqualTo (a: Int32) (b: Int32) : Bool =
+        Builtin.Int32.greaterThanOrEqualTo a b
 
 
       /// Returns {{true}} if <param a> is less than <param b>
       let lessThan (a: Int32) (b: Int32) : Bool = Builtin.Int32.lessThan a b
 
       /// Returns {{true}} if <param a> is less than or equal to <param b>
-      let lessThanOrEqualTo (a: Int32) (b: Int32) : Bool = Builtin.Int32.lessThanOrEqualTo a b
+      let lessThanOrEqualTo (a: Int32) (b: Int32) : Bool =
+        Builtin.Int32.lessThanOrEqualTo a b
 
 
       /// Returns a random integer between <param start> and <param end> (inclusive)
-      let random (start: Int32) (``end``: Int32) : Int32 = Builtin.Int32.random start ``end``
+      let random (start: Int32) (``end``: Int32) : Int32 =
+        Builtin.Int32.random start ``end``
 
 
       /// Get the square root of an <type Int32>
@@ -95,15 +107,18 @@ module Darklang =
 
       /// Returns the sum of all the ints in the list
       let sum (lst: List<Int32>) : Int32 =
-        PACKAGE.Darklang.Stdlib.List.fold lst 0l (fun acc x -> Builtin.Int32.add acc x)
+        PACKAGE.Darklang.Stdlib.List.fold lst 0l (fun acc x ->
+          Builtin.Int32.add acc x)
 
 
       /// Returns the higher of <param a> and <param b>
-      let max (a: Int32) (b: Int32) : Int32 = if Builtin.Int32.greaterThan a b then a else b
+      let max (a: Int32) (b: Int32) : Int32 =
+        if Builtin.Int32.greaterThan a b then a else b
 
 
       /// Returns the lower of <param a> and <param b>
-      let min (a: Int32) (b: Int32) : Int32 = if Builtin.Int32.lessThan a b then a else b
+      let min (a: Int32) (b: Int32) : Int32 =
+        if Builtin.Int32.lessThan a b then a else b
 
 
       /// If <param value> is within the range given by <param limitA> and <param
@@ -112,8 +127,17 @@ module Darklang =
       /// limitB>, whichever is closer to <param value>.
       /// <param limitA> and <param limitB> can be provided in any order.
       let clamp (value: Int32) (limitA: Int32) (limitB: Int32) : Int32 =
-        let min = if Builtin.Int32.lessThan limitA limitB then limitA else limitB
-        let max = if Builtin.Int32.greaterThan limitA limitB then limitA else limitB
+        let min =
+          if Builtin.Int32.lessThan limitA limitB then
+            limitA
+          else
+            limitB
+
+        let max =
+          if Builtin.Int32.greaterThan limitA limitB then
+            limitA
+          else
+            limitB
 
         if Builtin.Int32.lessThan value min then min
         else if Builtin.Int32.greaterThan value max then max

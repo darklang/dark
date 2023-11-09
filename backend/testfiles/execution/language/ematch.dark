@@ -189,25 +189,25 @@ module UInt32 =
    | var -> "fail") = "pass"
 
   (match 6ul with
-    | 6ul -> "pass"
-    | 5ul -> "fail"
-    | var -> "fail") = "pass"
+   | 6ul -> "pass"
+   | 5ul -> "fail"
+   | var -> "fail") = "pass"
 
   (match 6ul with
-    | var -> "pass"
-    | 6ul -> "fail"
-    | 5ul -> "fail") = "pass"
+   | var -> "pass"
+   | 6ul -> "fail"
+   | 5ul -> "fail") = "pass"
 
   (match 4294967295ul with
-    | 0ul -> "fail"
-    | 4294967295ul -> "pass") = "pass"
+   | 0ul -> "fail"
+   | 4294967295ul -> "pass") = "pass"
 
   (match 6ul with
-    | 6.0 -> "fail") = Builtin.Test.derrorMessage
+   | 6.0 -> "fail") = Builtin.Test.derrorMessage
     "Cannot match UInt32 value 6 with a Float pattern"
 
   (match 6.0 with
-    | 6ul -> "fail") = Builtin.Test.derrorMessage
+   | 6ul -> "fail") = Builtin.Test.derrorMessage
     "Cannot match Float value 6.0 with an UInt32 pattern"
 
 
@@ -515,9 +515,9 @@ module List =
      | [ [ 1L; 2L ]; [ _; _ ] ] -> "fail"
      | [ [ 1L; 2L ]; [ _; _; _ ] ] -> "pass") = "pass"
 
-    (match [ [ 1LL; 2LL ]; [ 3LL; 4LL ] ] with
-     | [ [ 1LL; 2LL; 3LL ]; [ 4LL; 5LL; 6LL ] ] -> "fail"
-     | [ _; [ 3LL; _ ] ] -> "pass"
+    (match [ [ 1L; 2L ]; [ 3L; 4L ] ] with
+     | [ [ 1L; 2L; 3L ]; [ 4L; 5L; 6L ] ] -> "fail"
+     | [ _; [ 3L; _ ] ] -> "pass"
      | _ -> "fail") = "pass"
 
     (match [ [ 1L; 2L ]; [ 3L; 4L ] ] with
