@@ -47,14 +47,14 @@ let gatherDataToExport () : Result<DataExport, String> =
   |> Ok
 
 let export (unit: Unit) : Result<Unit, String> =
-  Builtin.print "gathering data to export"
+  Builtin.printLine "gathering data to export"
   let data = (gatherDataToExport ()) |> Builtin.unwrap
 
-  Builtin.print "serializing data to export"
+  Builtin.printLine "serializing data to export"
 
   let json = Builtin.Json.serialize<DataExport> data
 
-  Builtin.print "exporting data to `dark-ai-backup`"
+  Builtin.printLine "exporting data to `dark-ai-backup`"
 
   let response =
     (PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -66,12 +66,12 @@ let export (unit: Unit) : Result<Unit, String> =
 
   // TODO: ensure 200 OK
 
-  Builtin.print "done export"
+  Builtin.printLine "done export"
 
   Ok()
 
 let import () : Result<ImportResults, String> =
-  Builtin.print "fetching latest export from `dark-ai-backup`"
+  Builtin.printLine "fetching latest export from `dark-ai-backup`"
 
   let response =
     (PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -81,11 +81,11 @@ let import () : Result<ImportResults, String> =
       Builtin.Bytes.empty)
     |> Builtin.unwrap
 
-  Builtin.print "deserializing response from `dark-ai-backup`"
+  Builtin.printLine "deserializing response from `dark-ai-backup`"
 
   let deserialized = (Builtin.Json.parse<DataExport> response) |> Builtin.unwrap
 
-  Builtin.print "parsing and importing packages"
+  Builtin.printLine "parsing and importing packages"
 
   let packageImportResults =
     DarkInternal.Packages.parseAndImport deserialized.Packages
@@ -101,7 +101,7 @@ let import () : Result<ImportResults, String> =
         | Error error -> Error error)
 
 
-  Builtin.print "parsing and importing canvases"
+  Builtin.printLine "parsing and importing canvases"
   // List of results -- hopefully List of OKs
   let canvasImportResults =
     PACKAGE.Darklang.Stdlib.List.fold canvasImportResults (Ok []) (fun acc result ->
@@ -114,7 +114,7 @@ let import () : Result<ImportResults, String> =
         | Ok _ -> Ok(PACKAGE.Darklang.Stdlib.List.append acc [ canvas.name ])
         | Error error -> Error error)
 
-  Builtin.print "handling results"
+  Builtin.printLine "handling results"
 
   match (packageImportResults, canvasImportResults) with
   | (Ok packages, Ok canvases) ->
@@ -127,24 +127,24 @@ let import () : Result<ImportResults, String> =
 
 
 let main (args: List<String>) : Int =
-  Builtin.print "running `sync-packages-and-canvases.dark`"
+  Builtin.printLine "running `sync-packages-and-canvases.dark`"
 
   match args with
   | [ "export" ] ->
     match export () with
     | Ok _ -> 0
     | Error error ->
-      Builtin.print error
+      Builtin.printLine error
       1
 
   | [ "import" ] ->
     match import () with
     | Ok _ -> 0
     | Error error ->
-      Builtin.print error
+      Builtin.printLine error
       1
   | _ ->
-    Builtin.print
+    Builtin.printLine
       "Usage: ./scripts/run-cli-internal ./scripts/deployment/sync-packages-and-canvases.dark [export|import]"
 
     1

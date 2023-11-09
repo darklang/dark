@@ -17,7 +17,7 @@ let ignore<'a> (a : 'a) : unit = ignore<'a> a
                            IsHidden = true)>]
 let failwith = failwith
 
-[<CompilerMessageAttribute("printf is banned, use Prelude.print instead",
+[<CompilerMessageAttribute("printf is banned, use Prelude.printInline instead",
                            0,
                            IsError = true,
                            IsHidden = true)>]
@@ -148,6 +148,8 @@ let debugMap (msg : string) (map : Map<'k, 'v>) : Map<'k, 'v> =
 let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
   NonBlockingConsole.writeLine $"DEBUG: {msg} {f v}"
   v
+
+let printInline (string : string) : unit = NonBlockingConsole.writeInline string
 
 let print (string : string) : unit = NonBlockingConsole.writeLine string
 

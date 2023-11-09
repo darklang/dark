@@ -14,7 +14,24 @@ let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [] "print" 0
+  [ { name = fn [] "printLine" 0
+      typeParams = []
+      parameters = [ Param.make "value" TString "The value to be printed." ]
+      returnType = TUnit
+      description =
+        "Prints the given <param value> to the standard output, followed by a newline."
+      fn =
+        (function
+        | _, _, [ DString str ] ->
+          print str
+          Ply DUnit
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn [] "print" 0
       typeParams = []
       parameters = [ Param.make "value" TString "The value to be printed." ]
       returnType = TUnit
@@ -22,10 +39,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString str ] ->
-          print str
-          Ply(DUnit)
+          printInline str
+          Ply DUnit
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
@@ -43,7 +60,7 @@ let fns : List<BuiltInFn> =
           print $"DEBUG: {label} - {value}"
           Ply value
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 

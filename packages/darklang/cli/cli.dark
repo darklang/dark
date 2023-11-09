@@ -36,7 +36,7 @@ module Darklang =
 
       match parsedFns with
       | None ->
-        Builtin.print "Error getting functions"
+        Builtin.printLine "Error getting functions"
         1
       | Some fn ->
         let packageSpecificFunction =
@@ -50,10 +50,13 @@ module Darklang =
         let result =
           match packageSpecificFunction with
           | Some f ->
-            Builtin.print (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn f)
+            Builtin.printLine (
+              PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn f
+            )
+
             0
           | None ->
-            Builtin.print "Function not found"
+            Builtin.printLine "Function not found"
             1
 
         result
@@ -85,7 +88,7 @@ module Darklang =
 
       match parsedTypes with
       | None ->
-        Builtin.print "Error getting types"
+        Builtin.printLine "Error getting types"
         1
       | Some types ->
         let packageSpecificType =
@@ -98,10 +101,13 @@ module Darklang =
         let result =
           match packageSpecificType with
           | Some t ->
-            Builtin.print (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageType t)
+            Builtin.printLine (
+              PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageType t
+            )
+
             0
           | None ->
-            Builtin.print "Type not found"
+            Builtin.printLine "Type not found"
             1
 
         result
@@ -133,7 +139,7 @@ module Darklang =
 
       match parsedConstants with
       | None ->
-        Builtin.print "Error getting constants"
+        Builtin.printLine "Error getting constants"
         1
       | Some constants ->
         let packageSpecificConstant =
@@ -148,14 +154,14 @@ module Darklang =
         let result =
           match packageSpecificConstant with
           | Some c ->
-            Builtin.print (
+            Builtin.printLine (
               PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageConstant c
             )
 
             0
 
           | None ->
-            Builtin.print "Constant not found"
+            Builtin.printLine "Constant not found"
             1
 
         result
@@ -188,7 +194,7 @@ module Darklang =
 
       match parsedModules with
       | None ->
-        Builtin.print "Error getting package modules"
+        Builtin.printLine "Error getting package modules"
         1
       | Some modules ->
         if
@@ -196,11 +202,11 @@ module Darklang =
           == PACKAGE.Darklang.Stdlib.Packages
             { types = []; fns = []; constants = [] }
         then
-          Builtin.print "module not found"
+          Builtin.printLine "module not found"
           1
         else
           let result = modules |> PACKAGE.Darklang.PrettyPrinter.packages
-          Builtin.print result
+          Builtin.printLine result
           0
 
     let showPackage (owner: String) : Int =
@@ -222,11 +228,11 @@ module Darklang =
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
-          |> Builtin.print
+          |> Builtin.printLine
 
           0
         else
-          Builtin.print "Error retrieving the package for the specified owner"
+          Builtin.printLine "Error retrieving the package for the specified owner"
           1
 
       parsedPackages
@@ -235,10 +241,10 @@ module Darklang =
     let runFunction (fnName: String) (args: List<String>) : Int =
       match Builtin.Cli.executeFunction fnName args with
       | Ok result ->
-        Builtin.print result
+        Builtin.printLine result
         0
       | Error err ->
-        Builtin.print err
+        Builtin.printLine err
         1
 
 
@@ -255,14 +261,14 @@ module Darklang =
 
       match response with
       | Error e ->
-        Builtin.print e
+        Builtin.printLine e
         1
       | Ok response ->
         Builtin.File.write
           (PACKAGE.Darklang.Stdlib.String.toBytes response)
           scriptPath
 
-        Builtin.print $"Generated code saved to {scriptPath}"
+        Builtin.printLine $"Generated code saved to {scriptPath}"
         0
 
 
@@ -293,7 +299,7 @@ module Darklang =
       | RunScript(scriptPath, args) ->
         match Builtin.File.read scriptPath with
         | Error e ->
-          Builtin.print e
+          Builtin.printLine e
           1
         | Ok script ->
           let script = PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement script
@@ -306,7 +312,7 @@ module Darklang =
           with
           | Ok exitCode -> exitCode
           | Error e ->
-            Builtin.print (
+            Builtin.printLine (
               PACKAGE.Darklang.LanguageTools.RuntimeErrors.Error.toString e
             )
 
@@ -321,7 +327,7 @@ Options:
   show                                Show a package, function, type, constant, or module
   --prompt PROMPT  --script SCRIPT    Infer a script from the given prompt using OpenAI"""
 
-        Builtin.print helpText
+        Builtin.printLine helpText
         0
 
 
@@ -395,7 +401,7 @@ Options:
 
       | Invalid args ->
         let args = args |> PACKAGE.Darklang.Stdlib.String.join " "
-        Builtin.print $"Invalid command {args}. Use --help for more information."
+        Builtin.printLine $"Invalid command {args}. Use --help for more information."
         1
 
 

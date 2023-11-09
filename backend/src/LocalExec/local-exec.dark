@@ -43,20 +43,20 @@ let saveItemToCanvas
     match response.statusCode with
     | 200 -> PACKAGE.Darklang.Stdlib.Result.Result.Ok()
     | _ ->
-      Builtin.print $"Type: {name}; Json: {json}"
+      Builtin.printLine $"Type: {name}; Json: {json}"
 
-      Builtin.print
+      Builtin.printLine
         $"Status: {PACKAGE.Darklang.Stdlib.Int.toString response.statusCode}"
 
-      Builtin.print
+      Builtin.printLine
         $"Body: {response.body |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement}"
 
-      Builtin.print errMsg
+      Builtin.printLine errMsg
       PACKAGE.Darklang.Stdlib.Result.Result.Error errMsg
   | Error err ->
-    Builtin.print $"Type: {name}; Json: {json}"
-    Builtin.print err
-    Builtin.print errMsg
+    Builtin.printLine $"Type: {name}; Json: {json}"
+    Builtin.printLine err
+    Builtin.printLine errMsg
     PACKAGE.Darklang.Stdlib.Result.Result.Error errMsg
 
 
@@ -115,13 +115,13 @@ let printPackageFunction
   : Unit =
   let modules = p.modules |> PACKAGE.Darklang.Stdlib.String.join "."
 
-  Builtin.print
+  Builtin.printLine
     $"Package Function {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
 
 let printPackageType (p: PACKAGE.Darklang.LocalExec.Packages.TypeName) : Unit =
   let modules = p.modules |> PACKAGE.Darklang.Stdlib.String.join "."
 
-  Builtin.print
+  Builtin.printLine
     $"Package Type {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
 
 let printPackageConstant
@@ -129,7 +129,7 @@ let printPackageConstant
   : Unit =
   let modules = p.modules |> PACKAGE.Darklang.Stdlib.String.join "."
 
-  Builtin.print
+  Builtin.printLine
     $"Package Constant {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
 
 let printAllPackagesInDb () : Unit =
@@ -183,7 +183,7 @@ let parseArgs (args: List<String>) : CliOptions =
 let main (args: List<String>) : Int =
   match parseArgs args with
   | Help ->
-    Builtin.print (usage ())
+    Builtin.printLine (usage ())
     0
 
   | ListPackages ->
@@ -211,24 +211,24 @@ let main (args: List<String>) : Int =
               Builtin.Bytes.empty)
             |> PACKAGE.Darklang.Stdlib.Result.map (fun _ -> ())
             |> PACKAGE.Darklang.Stdlib.Result.mapError (fun err ->
-              Builtin.print $"Error: {err}"
+              Builtin.printLine $"Error: {err}"
               Builtin.Time.sleep 1000.0
               err))
 
 
     match available with
     | Error msg ->
-      Builtin.print $"Error waiting for dark packages canvas: {msg}"
+      Builtin.printLine $"Error waiting for dark packages canvas: {msg}"
       1
     | Ok() ->
-      Builtin.print "Dark packages canvas is ready"
+      Builtin.printLine "Dark packages canvas is ready"
 
       let result =
         PACKAGE.Darklang.Stdlib.List.fold
           files
           (PACKAGE.Darklang.Stdlib.Result.Result.Ok())
           (fun acc f ->
-            Builtin.print $"Loading {f}"
+            Builtin.printLine $"Loading {f}"
 
             match acc with
             | Error _err -> acc
@@ -242,15 +242,15 @@ let main (args: List<String>) : Int =
 
       match result with
       | Error err ->
-        Builtin.print err
+        Builtin.printLine err
         1
       | Ok() ->
-        Builtin.print "Done loading packages from disk"
+        Builtin.printLine "Done loading packages from disk"
         printAllPackagesInDb ()
         0
 
   | BadOption msg ->
-    Builtin.print ("Error: " ++ msg)
+    Builtin.printLine ("Error: " ++ msg)
     1
 
 main args
