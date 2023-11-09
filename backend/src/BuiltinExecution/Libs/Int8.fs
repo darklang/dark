@@ -167,6 +167,36 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "power" 0
+      typeParams = []
+      parameters = [ Param.make "base" TInt8 ""; Param.make "exponent" TInt8 "" ]
+      returnType = TInt8
+      description =
+        "Raise <param base> to the power of <param exponent>.
+        <param exponent> must to be positive.
+        Return value wrapped in a {{Result}} "
+      fn =
+        (function
+        | state, _, [ DInt8 number; DInt8 exp ] ->
+          (try
+            if exp < 0y then
+              Int.IntRuntimeError.Error.NegativeExponent
+              |> Int.IntRuntimeError.RTE.toRuntimeError
+              |> raiseRTE state.caller
+              |> Ply
+            else
+              (bigint number) ** (int exp) |> int8 |> DInt8 |> Ply
+           with :? System.OverflowException ->
+             Int.IntRuntimeError.Error.OutOfRange
+             |> Int.IntRuntimeError.RTE.toRuntimeError
+             |> raiseRTE state.caller
+             |> Ply)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "divide" 0
       typeParams = []
       parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]

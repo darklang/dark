@@ -133,6 +133,9 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // TODO: add power function
+
+
     { name = fn "divide" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]

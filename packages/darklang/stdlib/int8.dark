@@ -39,6 +39,21 @@ module Darklang =
       let multiply (a: Int8) (b: Int8) : Int8 = Builtin.Int8.multiply a b
 
 
+      /// Raise <param base> to the power of <param exponent>.
+      /// <param exponent> must to be positive.
+      /// Return value wrapped in a {{Result}}
+      let power (``base``: Int8) (exponent: Int8) : Int8 =
+        // Handle some edge cases around 1. We want to make this match
+        // OCaml, so we have to support an exponent below int8
+        // This only matters for 1 or -1, and otherwise a
+        // number raised to an int8 exponent wouldn't fit in an int8
+        if ``base`` == 0y then 0y
+        else if ``base`` == 1y then 1y
+        else if ``base`` == -1y && (Builtin.Int8.``mod`` exponent 2y == 0y) then 1y
+        else if ``base`` == -1y then -1y
+        else Builtin.Int8.power ``base`` exponent
+
+
       /// Divides two 8-bit signed integers
       let divide (a: Int8) (b: Int8) : Int8 = Builtin.Int8.divide a b
 

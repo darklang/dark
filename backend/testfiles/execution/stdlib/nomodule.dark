@@ -1,8 +1,77 @@
 // CLEANUP move all these to LibMisc
 
+// TODO: add more int types tests
+
 module Equals =
   type ERec = { x: Int; y: Int }
   type ERec2 = ERec
+
+  type ERecInt8 = { x: Int8; y: Int8 }
+  type ERec2Int8 = ERecInt8
+
+  type ERecUInt8 = { x: UInt8; y: UInt8 }
+  type ERec2UInt8 = ERecUInt8
+
+  type ERecInt16 = { x: Int16; y: Int16 }
+  type ERec2Int16 = ERecInt16
+
+  type ERecUInt16 = { x: UInt16; y: UInt16 }
+  type ERec2UInt16 = ERecUInt16
+
+  type ERecInt32 = { x: Int32; y: Int32 }
+  type ERec2Int32 = ERecInt32
+
+  type ERecUInt32 = { x: UInt32; y: UInt32 }
+  type ERec2UInt32 = ERecUInt32
+
+  type ERecInt128 = { x: Int128; y: Int128 }
+  type ERec2Int128 = ERecInt128
+
+  type ERecUInt128 = { x: UInt128; y: UInt128 }
+  type ERec2UInt128 = ERecUInt128
+
+
+  type EEnumInt8 =
+    | E1
+    | E2
+    | E3 of Int8
+
+  type EEnum2Int8 = EEnumInt8
+
+  type EEnumUInt8 =
+    | E1
+    | E2
+    | E3 of UInt8
+
+  type EEnum2UInt8 = EEnumUInt8
+
+  type EEnumInt16 =
+    | E1
+    | E2
+    | E3 of Int16
+
+  type EEnum2Int16 = EEnumInt16
+
+  type EEnumUInt16 =
+    | E1
+    | E2
+    | E3 of UInt16
+
+  type EEnum2UInt16 = EEnumUInt16
+
+  type EEnumInt32 =
+    | E1
+    | E2
+    | E3 of Int32
+
+  type EEnum2Int32 = EEnumInt32
+
+  type EEnumUInt32 =
+    | E1
+    | E2
+    | E3 of UInt32
+
+  type EEnum2UInt32 = EEnumUInt32
 
   type EEnum =
     | E1
@@ -11,9 +80,46 @@ module Equals =
 
   type EEnum2 = EEnum
 
+  type EEnumInt128 =
+    | E1
+    | E2
+    | E3 of Int128
+
+  type EEnum2Int128 = EEnumInt128
+
+  type EEnumUInt128 =
+    | E1
+    | E2
+    | E3 of UInt128
+
+  type EEnum2UInt128 = EEnumUInt128
+
+  (5Q == 5Q) = true
+  (5Q != 6Q) = true
+
+  (5Z == 5Z) = true
+  (5Z != 6Z) = true
 
   (5L == 5L) = true
   (5L != 6L) = true
+
+  (5l == 5l) = true
+  (5l != 6l) = true
+
+  (5ul == 5ul) = true
+  (5ul != 6ul) = true
+
+  (5y == 5y) = true
+  (5y != 6y) = true
+
+  (5uy == 5uy) = true
+  (5uy != 6uy) = true
+
+  (5s == 5s) = true
+  (5s != 6s) = true
+
+  (5us == 5us) = true
+  (5us != 6us) = true
 
   (5.6 == 5.6) = true
   (-55555555555555555555555555555.5 == -55555555555555555555555555555.5) = true
@@ -30,6 +136,18 @@ module Equals =
 
   ([ 1L; 2L; 3L ] == [ 1L; 2L; 3L ]) = true
   ([ 1L; 2L; 3L ] != [ 3L; 2L; 1L ]) = true
+  ([ 1l; 2l; 3l ] == [ 1l; 2l; 3l ]) = true
+  ([ 1l; 2l; 3l ] != [ 3l; 2l; 1l ]) = true
+  ([ 1ul; 2ul; 3ul ] == [ 1ul; 2ul; 3ul ]) = true
+  ([ 1ul; 2ul; 3ul ] != [ 3ul; 2ul; 1ul ]) = true
+  ([ 1s; 2s; 3s ] == [ 1s; 2s; 3s ]) = true
+  ([ 1s; 2s; 3s ] != [ 3s; 2s; 1s ]) = true
+  ([ 1us; 2us; 3us ] == [ 1us; 2us; 3us ]) = true
+  ([ 1us; 2us; 3us ] != [ 3us; 2us; 1us ]) = true
+  ([ 1y; 2y; 3y ] == [ 1y; 2y; 3y ]) = true
+  ([ 1y; 2y; 3y ] != [ 3y; 2y; 1y ]) = true
+  ([ 1uy; 2uy; 3uy ] == [ 1uy; 2uy; 3uy ]) = true
+  ([ 1uy; 2uy; 3uy ] != [ 3uy; 2uy; 1uy ]) = true
 
   ((PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")
    == (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
@@ -47,25 +165,139 @@ module Equals =
    != PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
 
   (fun x -> y) = (fun x -> y)
+  ((fun x -> let y = 1Q in y) == (fun x -> let y = 1Q in y)) = true
+  ((fun x -> let y = 1Q in y) != (fun x -> let y = 2Q in x)) = true
+
+  ((fun x -> let y = 1Z in y) == (fun x -> let y = 1Z in y)) = true
+  ((fun x -> let y = 1Z in y) != (fun x -> let y = 2Z in x)) = true
+
   ((fun x -> let y = 1L in y) == (fun x -> let y = 1L in y)) = true
   ((fun x -> let y = 1L in y) != (fun x -> let y = 2L in x)) = true
 
-  (ERec { x = 6; y = 7 } == ERec { x = 6; y = 7 }) = true
-  (ERec { x = 6; y = 7 } == ERec { y = 7; x = 6 }) = true
-  (ERec { x = 6; y = 7 } != ERec { x = 7; y = 6 }) = true
-  (ERec { x = 6; y = 7 } == ERec2 { y = 7; x = 6 }) = true
+  ((fun x -> let y = 1l in y) == (fun x -> let y = 1l in y)) = true
+  ((fun x -> let y = 1l in y) != (fun x -> let y = 2l in x)) = true
+
+  ((fun x -> let y = 1ul in y) == (fun x -> let y = 1ul in y)) = true
+  ((fun x -> let y = 1ul in y) != (fun x -> let y = 2ul in x)) = true
+
+  ((fun x -> let y = 1s in y) == (fun x -> let y = 1s in y)) = true
+  ((fun x -> let y = 1s in y) != (fun x -> let y = 2s in x)) = true
+
+  ((fun x -> let y = 1us in y) == (fun x -> let y = 1us in y)) = true
+  ((fun x -> let y = 1us in y) != (fun x -> let y = 2us in x)) = true
+
+  ((fun x -> let y = 1y in y) == (fun x -> let y = 1y in y)) = true
+  ((fun x -> let y = 1y in y) != (fun x -> let y = 2y in x)) = true
+
+  ((fun x -> let y = 1uy in y) == (fun x -> let y = 1uy in y)) = true
+  ((fun x -> let y = 1uy in y) != (fun x -> let y = 2uy in x)) = true
+
+
+  (ERecInt128 { x = 6Q; y = 7Q } == ERecInt128 { x = 6Q; y = 7Q }) = true
+  (ERecInt128 { x = 6Q; y = 7Q } == ERecInt128 { y = 7Q; x = 6Q }) = true
+  (ERecInt128 { x = 6Q; y = 7Q } != ERecInt128 { x = 7Q; y = 6Q }) = true
+  (ERecInt128 { x = 6Q; y = 7Q } == ERec2Int128 { y = 7Q; x = 6Q }) = true
+
+  (ERecUInt128 { x = 6Z; y = 7Z } == ERecUInt128 { x = 6Z; y = 7Z }) = true
+  (ERecUInt128 { x = 6Z; y = 7Z } == ERecUInt128 { y = 7Z; x = 6Z }) = true
+  (ERecUInt128 { x = 6Z; y = 7Z } != ERecUInt128 { x = 7Z; y = 6Z }) = true
+  (ERecUInt128 { x = 6Z; y = 7Z } == ERec2UInt128 { y = 7Z; x = 6Z }) = true
 
   (ERec { x = 6L; y = 7L } == ERec { x = 6L; y = 7L }) = true
   (ERec { x = 6L; y = 7L } == ERec { y = 7L; x = 6L }) = true
   (ERec { x = 6L; y = 7L } != ERec { x = 7L; y = 6L }) = true
   (ERec { x = 6L; y = 7L } == ERec2 { y = 7L; x = 6L }) = true
+
+  (ERecInt32 { x = 6l; y = 7l } == ERecInt32 { x = 6l; y = 7l }) = true
+  (ERecInt32 { x = 6l; y = 7l } == ERecInt32 { y = 7l; x = 6l }) = true
+  (ERecInt32 { x = 6l; y = 7l } != ERecInt32 { x = 7l; y = 6l }) = true
+  (ERecInt32 { x = 6l; y = 7l } == ERec2Int32 { y = 7l; x = 6l }) = true
+
+  (ERecUInt32 { x = 6ul; y = 7ul } == ERecUInt32 { x = 6ul; y = 7ul }) = true
+  (ERecUInt32 { x = 6ul; y = 7ul } == ERecUInt32 { y = 7ul; x = 6ul }) = true
+  (ERecUInt32 { x = 6ul; y = 7ul } != ERecUInt32 { x = 7ul; y = 6ul }) = true
+  (ERecUInt32 { x = 6ul; y = 7ul } == ERec2UInt32 { y = 7ul; x = 6ul }) = true
+
+  (ERecInt16 { x = 6s; y = 7s } == ERecInt16 { x = 6s; y = 7s }) = true
+  (ERecInt16 { x = 6s; y = 7s } == ERecInt16 { y = 7s; x = 6s }) = true
+  (ERecInt16 { x = 6s; y = 7s } != ERecInt16 { x = 7s; y = 6s }) = true
+  (ERecInt16 { x = 6s; y = 7s } == ERec2Int16 { y = 7s; x = 6s }) = true
+
+  (ERecUInt16 { x = 6us; y = 7us } == ERecUInt16 { x = 6us; y = 7us }) = true
+  (ERecUInt16 { x = 6us; y = 7us } == ERecUInt16 { y = 7us; x = 6us }) = true
+  (ERecUInt16 { x = 6us; y = 7us } != ERecUInt16 { x = 7us; y = 6us }) = true
+  (ERecUInt16 { x = 6us; y = 7us } == ERec2UInt16 { y = 7us; x = 6us }) = true
+
+  (ERecInt8 { x = 6y; y = 7y } == ERecInt8 { x = 6y; y = 7y }) = true
+  (ERecInt8 { x = 6y; y = 7y } == ERecInt8 { y = 7y; x = 6y }) = true
+  (ERecInt8 { x = 6y; y = 7y } != ERecInt8 { x = 7y; y = 6y }) = true
+  (ERecInt8 { x = 6y; y = 7y } == ERec2Int8 { y = 7y; x = 6y }) = true
+
+  (ERecUInt8 { x = 6uy; y = 7uy } == ERecUInt8 { x = 6uy; y = 7uy }) = true
+  (ERecUInt8 { x = 6uy; y = 7uy } == ERecUInt8 { y = 7uy; x = 6uy }) = true
+  (ERecUInt8 { x = 6uy; y = 7uy } != ERecUInt8 { x = 7uy; y = 6uy }) = true
+
+  (EEnumInt128.E1 == EEnumInt128.E1) = true
+  (EEnumInt128.E1 != EEnumInt128.E2) = true
+  (EEnumUInt128.E1 == EEnumUInt128.E1) = true
+  (EEnumUInt128.E1 != EEnumUInt128.E2) = true
+  (EEnumInt128.E3 5Q == EEnumInt128.E3 5Q) = true
+  (EEnumInt128.E3 5Q != EEnumInt128.E3 6Q) = true
+
   (EEnum.E1 == EEnum.E1) = true
   (EEnum.E1 != EEnum.E2) = true
   (EEnum.E3 5L == EEnum.E3 5L) = true
   (EEnum.E3 5L != EEnum.E3 6L) = true
+
+  (EEnumInt32.E1 == EEnumInt32.E1) = true
+  (EEnumInt32.E1 != EEnumInt32.E2) = true
+  (EEnumInt32.E3 5l == EEnumInt32.E3 5l) = true
+  (EEnumInt32.E3 5l != EEnumInt32.E3 6l) = true
+
+  (EEnumUInt32.E1 == EEnumUInt32.E1) = true
+  (EEnumUInt32.E1 != EEnumUInt32.E2) = true
+  (EEnumUInt32.E3 5ul == EEnumUInt32.E3 5ul) = true
+  (EEnumUInt32.E3 5ul != EEnumUInt32.E3 6ul) = true
+
+  (EEnumInt16.E1 == EEnumInt16.E1) = true
+  (EEnumInt16.E1 != EEnumInt16.E2) = true
+  (EEnumInt16.E3 5s == EEnumInt16.E3 5s) = true
+  (EEnumInt16.E3 5s != EEnumInt16.E3 6s) = true
+
+  (EEnumUInt16.E1 == EEnumUInt16.E1) = true
+  (EEnumUInt16.E1 != EEnumUInt16.E2) = true
+  (EEnumUInt16.E3 5us == EEnumUInt16.E3 5us) = true
+  (EEnumUInt16.E3 5us != EEnumUInt16.E3 6us) = true
+
+  (EEnumInt8.E1 == EEnumInt8.E1) = true
+  (EEnumInt8.E1 != EEnumInt8.E2) = true
+  (EEnumInt8.E3 5y == EEnumInt8.E3 5y) = true
+  (EEnumInt8.E3 5y != EEnumInt8.E3 6y) = true
+
   // aliases
+  (EEnum2Int128.E1 == EEnumInt128.E1) = true
+  (EEnum2Int128.E1 != EEnumInt128.E2) = true
+  (EEnum2UInt128.E1 == EEnumUInt128.E1) = true
+  (EEnum2UInt128.E1 != EEnumUInt128.E2) = true
+
   (EEnum2.E1 == EEnum.E1) = true
   (EEnum2.E1 != EEnum.E2) = true
+
+  (EEnum2Int32.E1 == EEnumInt32.E1) = true
+  (EEnum2Int32.E1 != EEnumInt32.E2) = true
+  (EEnum2UInt32.E1 == EEnumUInt32.E1) = true
+  (EEnum2UInt32.E1 != EEnumUInt32.E2) = true
+
+  (EEnum2Int16.E1 == EEnumInt16.E1) = true
+  (EEnum2Int16.E1 != EEnumInt16.E2) = true
+  (EEnum2UInt16.E1 == EEnumUInt16.E1) = true
+  (EEnum2UInt16.E1 != EEnumUInt16.E2) = true
+
+  (EEnum2Int8.E1 == EEnumInt8.E1) = true
+  (EEnum2Int8.E1 != EEnumInt8.E2) = true
+  (EEnum2UInt8.E1 == EEnumUInt8.E1) = true
+  (EEnum2UInt8.E1 != EEnumUInt8.E2) = true
+
 
   (PACKAGE.Darklang.Stdlib.Option.Option.None
    == PACKAGE.Darklang.Stdlib.Option.Option.None) = true
@@ -115,6 +347,11 @@ module Equals =
     (5.7 != 6L) = Builtin.Test.derrorMessage "Both values must be the same type"
     (5.7 != 5L) = Builtin.Test.derrorMessage "Both values must be the same type"
 
+    (5us == 5s) = Builtin.Test.derrorMessage "Both values must be the same type"
+    (5y == 5l) = Builtin.Test.derrorMessage "Both values must be the same type"
+    (5L == 5l) = Builtin.Test.derrorMessage "Both values must be the same type"
+    (5us != 6s) = Builtin.Test.derrorMessage "Both values must be the same type"
+
     (Builtin.Test.runtimeError "test" != Builtin.Test.runtimeError "different msg") = Builtin.Test.derrorMessage
       "test"
 
@@ -127,14 +364,53 @@ module Equals =
     (MyDB != 5L) = Builtin.Test.derrorMessage "Both values must be the same type"
 
   // Other ways to call it
+  PACKAGE.Darklang.Stdlib.equals_v0 1Q 1Q = true
+  (==) 1Q 1Q = true
+  1Q == 1Q = true
+
+  PACKAGE.Darklang.Stdlib.equals_v0 1Z 1Z = true
+  (==) 1Z 1Z = true
+  1Z == 1Z = true
+
   PACKAGE.Darklang.Stdlib.equals_v0 1L 1L = true
   (==) 1L 1L = true
   1L == 1L = true
 
+  PACKAGE.Darklang.Stdlib.equals_v0 1l 1l = true
+  (==) 1l 1l = true
+  1l == 1l = true
+
+  PACKAGE.Darklang.Stdlib.equals_v0 1ul 1ul = true
+  (==) 1ul 1ul = true
+  1ul == 1ul = true
+
+  PACKAGE.Darklang.Stdlib.equals_v0 1s 1s = true
+  (==) 1s 1s = true
+  1s == 1s = true
+
+  PACKAGE.Darklang.Stdlib.equals_v0 1us 1us = true
+  (==) 1us 1us = true
+  1us == 1us = true
+
+  PACKAGE.Darklang.Stdlib.equals_v0 1y 1y = true
+  (==) 1y 1y = true
+  1y == 1y = true
+
+  PACKAGE.Darklang.Stdlib.equals_v0 1uy 1uy = true
+  (==) 1uy 1uy = true
+  1uy == 1uy = true
+
 
 module NotEquals =
+  PACKAGE.Darklang.Stdlib.notEquals_v0 1Q 1Q = false
+  PACKAGE.Darklang.Stdlib.notEquals_v0 1Z 1Z = false
   PACKAGE.Darklang.Stdlib.notEquals_v0 1L 1L = false
   PACKAGE.Darklang.Stdlib.notEquals_v0 1l 1l = false
+  PACKAGE.Darklang.Stdlib.notEquals_v0 1ul 1ul = false
+  PACKAGE.Darklang.Stdlib.notEquals_v0 1s 1s = false
+  PACKAGE.Darklang.Stdlib.notEquals_v0 1us 1us = false
+  PACKAGE.Darklang.Stdlib.notEquals_v0 1y 1y = false
+  PACKAGE.Darklang.Stdlib.notEquals_v0 1uy 1uy = false
   PACKAGE.Darklang.Stdlib.notEquals_v0 "abc" "abc" = false
   PACKAGE.Darklang.Stdlib.notEquals_v0 "abd" "abc" = true
 
@@ -142,7 +418,15 @@ module NotEquals =
     (PACKAGE.Darklang.Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
     (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
 
+  (!=) 1Q 1Q = false
+  (!=) 1Z 1Z = false
   (!=) 1L 1L = false
+  (!=) 1l 1l = false
+  (!=) 1ul 1ul = false
+  (!=) 1s 1s = false
+  (!=) 1us 1us = false
+  (!=) 1y 1y = false
+  (!=) 1uy 1uy = false
   (!=) "abc" "abc" = false
   (!=) "abd" "abc" = true
 
@@ -150,7 +434,15 @@ module NotEquals =
     (PACKAGE.Darklang.Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
     (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
 
+  1Q != 1Q = false
+  1Z != 1Z = false
   1L != 1L = false
+  1l != 1l = false
+  1ul != 1ul = false
+  1s != 1s = false
+  1us != 1us = false
+  1y != 1y = false
+  1uy != 1uy = false
   "abc" != "abc" = false
   "abd" != "abc" = true
 

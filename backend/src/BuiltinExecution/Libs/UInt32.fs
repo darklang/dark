@@ -1,4 +1,4 @@
-module BuiltinExecution.Libs.UInt8
+module BuiltinExecution.Libs.UInt32
 
 open FSharp.Control.Tasks
 open System.Threading.Tasks
@@ -26,36 +26,37 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = TypeName.fqPackage "Darklang" [ "Stdlib"; "UInt8" ] "ParseError" 0
+    let typeName =
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "UInt32" ] "ParseError" 0
     DEnum(typeName, typeName, [], caseName, fields)
 
 
-let fn = fn [ "UInt8" ]
+let fn = fn [ "UInt32" ]
 
 let fns : List<BuiltInFn> =
   [ { name = fn "mod" 0
       typeParams = []
-      parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
-      returnType = TUInt8
+      parameters = [ Param.make "a" TUInt32 ""; Param.make "b" TUInt32 "" ]
+      returnType = TUInt32
       description =
         "Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
 
         The modulus <param b> must be greater than 0.
 
-        Use <fn UInt8.remainder> if you want the remainder after division, which has
+        Use <fn UInt32.remainder> if you want the remainder after division, which has
         a different behavior for negative numbers."
       fn =
         (function
-        | state, _, [ DUInt8 v; DUInt8 m ] ->
-          if m = 0uy then
+        | state, _, [ DUInt32 v; DUInt32 m ] ->
+          if m = 0ul then
             Int.IntRuntimeError.Error.ZeroModulus
             |> Int.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
           else
             let result = v % m
-            let result = if result < 0uy then m + result else result
-            Ply(DUInt8(result))
+            let result = if result < 0ul then m + result else result
+            Ply(DUInt32(result))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -64,19 +65,21 @@ let fns : List<BuiltInFn> =
 
     { name = fn "add" 0
       typeParams = []
-      parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
-      returnType = TUInt8
-      description = "Adds two 8-bit unsigned integers together"
+      parameters = [ Param.make "a" TUInt32 ""; Param.make "b" TUInt32 "" ]
+      returnType = TUInt32
+      description = "Adds two 32-bit unsigned integers together"
       fn =
         (function
-        | state, _, [ DUInt8 a; DUInt8 b ] ->
+        | state, _, [ DUInt32 a; DUInt32 b ] ->
           try
-            DUInt8(Checked.(+) a b) |> Ply
+            let result = Checked.(+) a b
+            Ply(DUInt32(result))
           with :? System.OverflowException ->
             Int.IntRuntimeError.Error.OutOfRange
             |> Int.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
+
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -85,19 +88,21 @@ let fns : List<BuiltInFn> =
 
     { name = fn "subtract" 0
       typeParams = []
-      parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
-      returnType = TUInt8
-      description = "Subtracts two 8-bit unsigned integers"
+      parameters = [ Param.make "a" TUInt32 ""; Param.make "b" TUInt32 "" ]
+      returnType = TUInt32
+      description = "Subtracts two 32-bit unsigned integers"
       fn =
         (function
-        | state, _, [ DUInt8 a; DUInt8 b ] ->
+        | state, _, [ DUInt32 a; DUInt32 b ] ->
           try
-            DUInt8(Checked.(-) a b) |> Ply
+            let result = Checked.(-) a b
+            Ply(DUInt32(result))
           with :? System.OverflowException ->
             Int.IntRuntimeError.Error.OutOfRange
             |> Int.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
+
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -106,19 +111,21 @@ let fns : List<BuiltInFn> =
 
     { name = fn "multiply" 0
       typeParams = []
-      parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
-      returnType = TUInt8
-      description = "Multiplies two 8-bit unsigned integers"
+      parameters = [ Param.make "a" TUInt32 ""; Param.make "b" TUInt32 "" ]
+      returnType = TUInt32
+      description = "Multiplies two 32-bit unsigned integers"
       fn =
         (function
-        | state, _, [ DUInt8 a; DUInt8 b ] ->
+        | state, _, [ DUInt32 a; DUInt32 b ] ->
           try
-            DUInt8(Checked.(*) a b) |> Ply
+            let result = Checked.(*) a b
+            Ply(DUInt32(result))
           with :? System.OverflowException ->
             Int.IntRuntimeError.Error.OutOfRange
             |> Int.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
+
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -127,23 +134,23 @@ let fns : List<BuiltInFn> =
 
     { name = fn "power" 0
       typeParams = []
-      parameters = [ Param.make "base" TUInt8 ""; Param.make "exponent" TUInt8 "" ]
-      returnType = TUInt8
+      parameters = [ Param.make "base" TUInt32 ""; Param.make "exponent" TUInt32 "" ]
+      returnType = TUInt32
       description =
         "Raise <param base> to the power of <param exponent>.
         <param exponent> must to be positive.
         Return value wrapped in a {{Result}} "
       fn =
         (function
-        | state, _, [ DUInt8 number; DUInt8 exp ] ->
+        | state, _, [ DUInt32 number; DUInt32 exp ] ->
           (try
-            if exp < 0uy then
+            if exp < 0ul then
               Int.IntRuntimeError.Error.NegativeExponent
               |> Int.IntRuntimeError.RTE.toRuntimeError
               |> raiseRTE state.caller
               |> Ply
             else
-              (bigint number) ** (int exp) |> uint8 |> DUInt8 |> Ply
+              (bigint number) ** (int exp) |> uint32 |> DUInt32 |> Ply
            with :? System.OverflowException ->
              Int.IntRuntimeError.Error.OutOfRange
              |> Int.IntRuntimeError.RTE.toRuntimeError
@@ -157,26 +164,29 @@ let fns : List<BuiltInFn> =
 
     { name = fn "divide" 0
       typeParams = []
-      parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
-      returnType = TUInt8
-      description = "Divides two 8-bit unsigned integers"
+      parameters = [ Param.make "a" TUInt32 ""; Param.make "b" TUInt32 "" ]
+      returnType = TUInt32
+      description = "Divides two 32-bit unsigned integers"
       fn =
         (function
-        | state, _, [ DUInt8 a; DUInt8 b ] ->
-          if b = 0uy then
+        | state, _, [ DUInt32 a; DUInt32 b ] ->
+          if b = 0ul then
             Int.IntRuntimeError.Error.DivideByZeroError
             |> Int.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
           else
-            let result = int a / int b
-            if result < 0 || result > 255 then
+            let result = a / b
+            if
+              result < System.UInt32.MinValue || result > System.UInt32.MaxValue
+            then
               Int.IntRuntimeError.Error.OutOfRange
               |> Int.IntRuntimeError.RTE.toRuntimeError
               |> raiseRTE state.caller
               |> Ply
             else
-              Ply(DUInt8(uint8 result))
+              Ply(DUInt32(uint32 result))
+
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -185,12 +195,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "greaterThan" 0
       typeParams = []
-      parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
+      parameters = [ Param.make "a" TUInt32 ""; Param.make "b" TUInt32 "" ]
       returnType = TBool
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
-        | _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a > b))
+        | _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -199,13 +209,13 @@ let fns : List<BuiltInFn> =
 
     { name = fn "greaterThanOrEqualTo" 0
       typeParams = []
-      parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
+      parameters = [ Param.make "a" TUInt32 ""; Param.make "b" TUInt32 "" ]
       returnType = TBool
       description =
         "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
         (function
-        | _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a >= b))
+        | _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -214,12 +224,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "lessThan" 0
       typeParams = []
-      parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
+      parameters = [ Param.make "a" TUInt32 ""; Param.make "b" TUInt32 "" ]
       returnType = TBool
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
-        | _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a < b))
+        | _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -228,13 +238,13 @@ let fns : List<BuiltInFn> =
 
     { name = fn "lessThanOrEqualTo" 0
       typeParams = []
-      parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
+      parameters = [ Param.make "a" TUInt32 ""; Param.make "b" TUInt32 "" ]
       returnType = TBool
       description =
         "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
         (function
-        | _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a <= b))
+        | _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -243,12 +253,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "toString" 0
       typeParams = []
-      parameters = [ Param.make "a" TUInt8 "" ]
+      parameters = [ Param.make "a" TUInt32 "" ]
       returnType = TString
-      description = "Converts an <type UInt8> to a <type String>"
+      description = "Stringify <param uint32>"
       fn =
         (function
-        | _, _, [ DUInt8 a ] -> Ply(DString(string a))
+        | _, _, [ DUInt32 a ] -> Ply(DString(string a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -257,12 +267,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "toFloat" 0
       typeParams = []
-      parameters = [ Param.make "a" TUInt8 "" ]
+      parameters = [ Param.make "a" TUInt32 "" ]
       returnType = TFloat
-      description = "Converts an <type UInt8> to a <type Float>"
+      description = "Converts an <type UInt32> to a <type Float>"
       fn =
         (function
-        | _, _, [ DUInt8 a ] -> Ply(DFloat(float a))
+        | _, _, [ DUInt32 a ] -> Ply(DFloat(float a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -271,39 +281,40 @@ let fns : List<BuiltInFn> =
 
     { name = fn "random" 0
       typeParams = []
-      parameters = [ Param.make "start" TUInt8 ""; Param.make "end" TUInt8 "" ]
-      returnType = TUInt8
+      parameters = [ Param.make "start" TUInt32 ""; Param.make "end" TUInt32 "" ]
+      returnType = TUInt32
       description =
-        "Returns a random 8-bit unsigned integer (uint8) between <param start> and <param end> (inclusive)"
+        "Returns a random integer32 between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, [ DUInt8 a; DUInt8 b ] ->
+        | _, _, [ DUInt32 a; DUInt32 b ] ->
           let lower, upper = if a > b then (b, a) else (a, b)
 
-          let lowerBound = max lower 0uy
-          let upperBound = min upper 255uy
+          let lowerBound = max lower 0ul
+          let upperBound = min upper 4294967295ul
+          let correctRange = 1
 
-          let uint8Range = int upperBound - int lowerBound + 1
+          let uint32Range = int upperBound - int lowerBound + correctRange
 
-          let resultInt = randomSeeded().Next(uint8Range)
+          let resultInt = randomSeeded().Next(uint32Range)
 
-          let uint8Result = lowerBound + (uint8 resultInt)
+          let uint32Result = lowerBound + (uint32 resultInt)
+          Ply(DUInt32(uint32Result))
 
-          uint8Result |> DUInt8 |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
+      sqlSpec = NotYetImplemented
+      previewable = Pure
       deprecated = NotDeprecated }
 
 
     { name = fn "sqrt" 0
       typeParams = []
-      parameters = [ Param.make "a" TUInt8 "" ]
+      parameters = [ Param.make "a" TUInt32 "" ]
       returnType = TFloat
-      description = "Get the square root of an <type UInt8>"
+      description = "Get the square root of an <type UInt32>"
       fn =
         (function
-        | _, _, [ DUInt8 a ] -> Ply(DFloat(sqrt (float a)))
+        | _, _, [ DUInt32 a ] -> Ply(DFloat(sqrt (float a)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -315,31 +326,33 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TString "" ]
       returnType =
         TypeReference.result
-          TUInt8
+          TUInt32
           (TCustomType(
             Ok(
               FQName.Package
                 { owner = "Darklang"
-                  modules = [ "Stdlib"; "UInt8" ]
+                  modules = [ "Stdlib"; "UInt32" ]
                   name = TypeName.TypeName "ParseError"
                   version = 0 }
             ),
             []
           ))
-      description = "Returns the <type UInt8> value of a <type String>"
+      description = "Returns the <type UInt32> value of a <type String>"
       fn =
-        let resultOk = Dval.resultOk KTUInt8 KTString
-        let typeName = RuntimeError.name [ "UInt8" ] "ParseError" 0
-        let resultError = Dval.resultError KTUInt8 (KTCustomType(typeName, []))
+        let resultOk = Dval.resultOk KTUInt32 KTString
+        let typeName = RuntimeError.name [ "UInt32" ] "ParseError" 0
+        let resultError = Dval.resultError KTUInt32 (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->
           try
-            s |> System.Byte.Parse |> DUInt8 |> resultOk |> Ply
+            s |> System.Convert.ToUInt32 |> DUInt32 |> resultOk |> Ply
           with
-          | :? System.FormatException ->
-            ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
           | :? System.OverflowException ->
             ParseError.OutOfRange |> ParseError.toDT |> resultError |> Ply
+
+          | :? System.FormatException ->
+            ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
+
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -349,16 +362,18 @@ let fns : List<BuiltInFn> =
     { name = fn "fromInt64" 0
       typeParams = []
       parameters = [ Param.make "a" TInt "" ]
-      returnType = TypeReference.option TUInt8
+      returnType = TypeReference.option TUInt32
       description =
-        "Converts an Int64 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+        "Converts an int64 to a 32 bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 65535."
       fn =
         (function
         | _, _, [ DInt a ] ->
-          if a < 0L || a > 255L then
-            Dval.optionNone KTUInt8 |> Ply
+          if
+            (a < int64 System.UInt32.MinValue) || (a > int64 System.UInt32.MaxValue)
+          then
+            Dval.optionNone KTUInt32 |> Ply
           else
-            Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
+            Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

@@ -39,6 +39,21 @@ module Darklang =
       let multiply (a: Int16) (b: Int16) : Int16 = Builtin.Int16.multiply a b
 
 
+      /// Raise <param base> to the power of <param exponent>.
+      /// <param exponent> must to be positive.
+      /// Return value wrapped in a {{Result}}
+      let power (``base``: Int16) (exponent: Int16) : Int16 =
+        // Handle some edge cases around 1. We want to make this match
+        // OCaml, so we have to support an exponent below int16
+        // This only matters for 1 or -1, and otherwise a
+        // number raised to an int16 exponent wouldn't fit in an int16
+        if ``base`` == 0s then 0s
+        else if ``base`` == 1s then 1s
+        else if ``base`` == -1s && (Builtin.Int16.``mod`` exponent 2s == 0s) then 1s
+        else if ``base`` == -1s then -1s
+        else Builtin.Int16.power ``base`` exponent
+
+
       /// Divides two 16-bit signed integers
       let divide (a: Int16) (b: Int16) : Int16 = Builtin.Int16.divide a b
 
