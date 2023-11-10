@@ -157,6 +157,6 @@ module Darklang =
       let toString (int8: Int8) : String = Builtin.Int8.toString int8
 
 
-      /// Converts an <type Int8> to a <type Int64>. Returns {{None}} if the value is less than -128 or greater than 127.
-      let fromInt64 (int8: Int) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
-        Builtin.Int8.fromInt64 int8
+      /// Converts an <type Int64> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
+      let fromInt64 (i: Int) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
+        Builtin.Int8.fromInt64 i

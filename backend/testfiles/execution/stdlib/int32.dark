@@ -294,3 +294,22 @@ PACKAGE.Darklang.Stdlib.Int32.toString 1l = "1"
 PACKAGE.Darklang.Stdlib.Int32.toString -1l = "-1"
 PACKAGE.Darklang.Stdlib.Int32.toString -2147483648l = "-2147483648" // Int32 lower limit
 PACKAGE.Darklang.Stdlib.Int32.toString 2147483647l = "2147483647" // Int32 upper limit
+
+PACKAGE.Darklang.Stdlib.Int32.fromInt64_v0 0L = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0l
+
+PACKAGE.Darklang.Stdlib.Int32.fromInt64_v0 1L = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1l
+
+PACKAGE.Darklang.Stdlib.Int32.fromInt64_v0 2147483647L = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  2147483647l
+
+PACKAGE.Darklang.Stdlib.Int32.fromInt64_v0 2147483648L = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.Int32.fromInt64_v0 (-1L) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  -1l
+
+PACKAGE.Darklang.Stdlib.Int32.fromInt64_v0 (-2147483648L) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  -2147483648l
+
+PACKAGE.Darklang.Stdlib.Int32.fromInt64_v0 (-2147483649L) = PACKAGE.Darklang.Stdlib.Option.Option.None

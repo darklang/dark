@@ -366,6 +366,29 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt64" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt "" ]
+      returnType = TypeReference.option TInt32
+      description =
+        "Converts an int64 to a 32-bit signed integer. Returns {{None}} if the value is less than 0 or greater than 2147483647."
+      fn =
+        (function
+        | _, _, [ DInt a ] ->
+          if
+            (a < int64 System.Int32.MinValue) || (a > int64 System.Int32.MaxValue)
+          then
+            Dval.optionNone KTInt32 |> Ply
+          else
+            Dval.optionSome KTInt32 (DInt32(int32 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    ]
 
 let contents = (fns, types, constants)

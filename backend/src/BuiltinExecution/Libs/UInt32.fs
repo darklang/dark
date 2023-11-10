@@ -358,7 +358,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts an int64 to a 32 bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 65535."
+        "Converts an int64 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 4294967295."
       fn =
         (function
         | _, _, [ DInt a ] ->
