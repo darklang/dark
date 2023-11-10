@@ -458,15 +458,10 @@ let parse
 
     | TInt16, JsonValueKind.Number ->
       let mutable i16 = 0s
-      let mutable ui16 = 0us
       let mutable d = 0.0
 
       if j.TryGetInt16(&i16) then
         DInt16 i16 |> Ply
-
-      else if j.TryGetUInt16(&ui16) && ui16 <= uint16 System.Int16.MaxValue then
-        DInt16(int16 ui16) |> Ply
-
       else if
         j.TryGetDouble(&d)
         && d <= (float System.Int16.MaxValue)
@@ -478,19 +473,11 @@ let parse
         raiseCantMatchWithType TInt16 j pathSoFar |> Ply
 
     | TUInt16, JsonValueKind.Number ->
-      let mutable i16 = 0s
       let mutable ui16 = 0us
       let mutable d = 0.0
 
       if j.TryGetUInt16(&ui16) then
         DUInt16 ui16 |> Ply
-      else if j.TryGetInt16(&i16) then
-        if
-          i16 >= int16 System.UInt16.MinValue && i16 <= int16 System.UInt16.MaxValue
-        then
-          DUInt16(uint16 i16) |> Ply
-        else
-          raiseCantMatchWithType TUInt16 j pathSoFar |> Ply
       else if
         j.TryGetDouble(&d)
         && d <= (float System.UInt16.MaxValue)
@@ -503,19 +490,10 @@ let parse
 
     | TInt32, JsonValueKind.Number ->
       let mutable i32 = 0
-      let mutable ui32 = 0ul
       let mutable d = 0.0
 
       if j.TryGetInt32(&i32) then
         DInt32 i32 |> Ply
-      else if j.TryGetUInt32(&ui32) then
-        if
-          ui32 >= uint32 System.Int32.MinValue
-          && ui32 <= uint32 System.Int32.MaxValue
-        then
-          DInt32(int32 ui32) |> Ply
-        else
-          raiseCantMatchWithType TInt32 j pathSoFar |> Ply
       else if
         j.TryGetDouble(&d)
         && d <= (float System.Int32.MaxValue)
@@ -527,19 +505,11 @@ let parse
         raiseCantMatchWithType TInt32 j pathSoFar |> Ply
 
     | TUInt32, JsonValueKind.Number ->
-      let mutable i32 = 0
       let mutable ui32 = 0ul
       let mutable d = 0.0
 
       if j.TryGetUInt32(&ui32) then
         DUInt32 ui32 |> Ply
-      else if j.TryGetInt32(&i32) then
-        if
-          i32 >= int32 System.UInt32.MinValue && i32 <= int32 System.UInt32.MaxValue
-        then
-          DUInt32(uint32 i32) |> Ply
-        else
-          raiseCantMatchWithType TUInt32 j pathSoFar |> Ply
       else if
         j.TryGetDouble(&d)
         && d <= (float System.UInt32.MaxValue)

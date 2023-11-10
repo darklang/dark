@@ -106,6 +106,9 @@ PACKAGE.Darklang.Stdlib.Int8.power_v0 -1y 5y = -1y
 PACKAGE.Darklang.Stdlib.Int8.power_v0 -1y 6y = 1y
 PACKAGE.Darklang.Stdlib.Int8.power_v0 1y 127y = 1y
 
+PACKAGE.Darklang.Stdlib.Int8.power_v0 3y 5y = Builtin.Test.derrorMessage
+  "Out of range"
+
 PACKAGE.Darklang.Stdlib.Int8.power_v0 120y 20y = Builtin.Test.derrorMessage
   "Out of range"
 

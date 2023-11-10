@@ -51,14 +51,12 @@ module Darklang =
         // OCaml, so we have to support an exponent above int32, but
         // below int63. This only matters for 1 or -1, and otherwise a
         // number raised to an int63 exponent wouldn't fit in an int63
-        match ``base``, exponent with
-        | 0L, 0L -> 1L
-        | 0L, _ -> 0L
-        | 1L, _ -> 1L
-        | -1L, exp when exp % 2L == 0L -> 1L
-        | -1L, _ -> -1L
-        | _, _ -> ``base`` ^ exponent
-
+        if ``base`` == 0L && exponent == 0L then 1L
+        else if ``base`` == 0L then 0L
+        else if ``base`` == 1L then 1L
+        else if ``base`` == -1L && exponent % 2L == 0L then 1L
+        else if ``base`` == -1L then -1L
+        else ``base`` ^ exponent
 
 
       /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)

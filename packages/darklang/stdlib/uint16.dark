@@ -30,11 +30,10 @@ module Darklang =
       /// <param exponent> must to be positive.
       /// Return value wrapped in a {{Result}}
       let power (``base``: UInt16) (exponent: UInt16) : UInt16 =
-        match ``base``, exponent with
-        | 0us, 0us -> 1us
-        | 0us, _ -> 0us
-        | 1us, _ -> 1us
-        | _, _ -> Builtin.UInt16.power ``base`` exponent
+        if ``base`` == 0us && exponent == 0us then 1us
+        else if ``base`` == 0us then 0us
+        else if ``base`` == 1us then 1us
+        else Builtin.UInt16.power ``base`` exponent
 
 
       /// Divides two 16-bit unsigned integers

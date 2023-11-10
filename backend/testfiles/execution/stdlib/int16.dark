@@ -74,6 +74,9 @@ PACKAGE.Darklang.Stdlib.Int16.power_v0 -1s 5s = -1s
 PACKAGE.Darklang.Stdlib.Int16.power_v0 -1s 6s = 1s
 PACKAGE.Darklang.Stdlib.Int16.power_v0 1s 32767s = 1s
 
+PACKAGE.Darklang.Stdlib.Int16.power_v0 2s 15s = Builtin.Test.derrorMessage
+  "Out of range"
+
 PACKAGE.Darklang.Stdlib.Int16.power_v0 120s 20s = Builtin.Test.derrorMessage
   "Out of range"
 

@@ -76,6 +76,9 @@ PACKAGE.Darklang.Stdlib.Int32.power_v0 -1l 5l = -1l
 PACKAGE.Darklang.Stdlib.Int32.power_v0 -1l 6l = 1l
 PACKAGE.Darklang.Stdlib.Int32.power_v0 1l 2147483647l = 1l
 
+PACKAGE.Darklang.Stdlib.Int32.power_v0 2l 31l = Builtin.Test.derrorMessage
+  "Out of range"
+
 PACKAGE.Darklang.Stdlib.Int32.power_v0 120l 20l = Builtin.Test.derrorMessage
   "Out of range"
 

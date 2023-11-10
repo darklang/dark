@@ -30,11 +30,11 @@ module Darklang =
       /// <param exponent> must to be positive.
       /// Return value wrapped in a {{Result}}
       let power (``base``: UInt8) (exponent: UInt8) : UInt8 =
-        match ``base``, exponent with
-        | 0uy, 0uy -> 1uy
-        | 0uy, _ -> 0uy
-        | 1uy, _ -> 1uy
-        | _, _ -> Builtin.UInt8.power ``base`` exponent
+        if ``base`` == 0uy && exponent == 0uy then 1uy
+        else if ``base`` == 0uy then 0uy
+        else if ``base`` == 1uy then 1uy
+        else Builtin.UInt8.power ``base`` exponent
+
 
       /// Divides two 8-bit unsigned  integers
       let divide (a: UInt8) (b: UInt8) : UInt8 = Builtin.UInt8.divide a b
