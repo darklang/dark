@@ -50,13 +50,13 @@ module Darklang =
         | Error parseError ->
           // to be used when the range is otherwise unknown
           let rangeOfAll =
-            let start = Position { line = 0; character = 0 }
+            let start = Position { line = 0L; character = 0L }
 
             let end' =
               let lines = text |> Stdlib.String.split "\n"
 
               Position
-                { line = (Stdlib.List.length lines) - 1
+                { line = (Stdlib.List.length lines) - 1L
                   character =
                     lines
                     |> Stdlib.List.last

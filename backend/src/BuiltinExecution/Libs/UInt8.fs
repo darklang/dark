@@ -125,6 +125,30 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "power" 0
+      typeParams = []
+      parameters = [ Param.make "base" TUInt8 ""; Param.make "exponent" TUInt8 "" ]
+      returnType = TUInt8
+      description =
+        "Raise <param base> to the power of <param exponent>.
+        <param exponent> must to be positive.
+        Return value wrapped in a {{Result}} "
+      fn =
+        (function
+        | state, _, [ DUInt8 number; DUInt8 exp ] ->
+          (try
+            (bigint number) ** (int exp) |> uint8 |> DUInt8 |> Ply
+           with :? System.OverflowException ->
+             Int.IntRuntimeError.Error.OutOfRange
+             |> Int.IntRuntimeError.RTE.toRuntimeError
+             |> raiseRTE state.caller
+             |> Ply)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "divide" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
@@ -285,7 +309,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TString "" ]
       returnType =
         TypeReference.result
-          TInt8
+          TUInt8
           (TCustomType(
             Ok(
               FQName.Package

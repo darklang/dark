@@ -4,7 +4,7 @@
 module Documentation =
   (PACKAGE.Darklang.Stdlib.List.length_v0 (
     Builtin.DarkInternal.Documentation.list ()
-  ) > 100) = true
+  ) > 100L) = true
 
   ((Builtin.DarkInternal.Documentation.list_v0 ())
    |> PACKAGE.Darklang.Stdlib.List.map (fun f -> (f.name, f))
@@ -23,7 +23,7 @@ module Infra =
   // correct number of tables
   PACKAGE.Darklang.Stdlib.Dict.size_v0 (
     Builtin.DarkInternal.Infra.getAndLogTableSizes_v0 ()
-  ) = 17
+  ) = 17L
 
   // server build hash
   (match Builtin.DarkInternal.Infra.serverBuildHash_v0 () with
@@ -32,7 +32,7 @@ module Infra =
    // in ci, "circleci"
    | "circleci" -> true
    // otherwise it's the first 7 chars of the git hash
-   | hash -> (PACKAGE.Darklang.Stdlib.String.length hash) == 7) = true
+   | hash -> (PACKAGE.Darklang.Stdlib.String.length hash) == 7L) = true
 
 module Canvas =
   // Test creating a new canvas - just check it we can call `owner` on it
@@ -70,7 +70,7 @@ module Secrets =
   // insert
   (let _ =
     (Builtin.Test.getCanvasID ())
-    |> Builtin.DarkInternal.Canvas.Secret.insert "SECRET" "VALUE" 0
+    |> Builtin.DarkInternal.Canvas.Secret.insert "SECRET" "VALUE" 0L
 
    (Builtin.Test.getCanvasID ()) |> Builtin.DarkInternal.Canvas.Secret.getAll) = [ PACKAGE.Darklang.Internal.Canvas.Secret
                                                                                      { name =
@@ -78,31 +78,31 @@ module Secrets =
                                                                                        value =
                                                                                          "VALUE"
                                                                                        version =
-                                                                                         0 } ]
+                                                                                         0L } ]
 
   // insert twice
   (let _ =
     (Builtin.Test.getCanvasID ())
-    |> Builtin.DarkInternal.Canvas.Secret.insert "SECRET" "VALUE" 1
+    |> Builtin.DarkInternal.Canvas.Secret.insert "SECRET" "VALUE" 1L
    // Does not work
    Builtin.DarkInternal.Canvas.Secret.insert
      (Builtin.Test.getCanvasID ())
      "SECRET"
      "OTHERVALUE"
-     1) = PACKAGE.Darklang.Stdlib.Result.Result.Error "Error inserting secret"
+     1L) = PACKAGE.Darklang.Stdlib.Result.Result.Error "Error inserting secret"
 
   // delete
-  Builtin.DarkInternal.Canvas.Secret.delete (Builtin.Test.getCanvasID ()) "SECRET" 2 = ()
+  Builtin.DarkInternal.Canvas.Secret.delete (Builtin.Test.getCanvasID ()) "SECRET" 2L = ()
 
   // delete
   (let canvasID = Builtin.Test.getCanvasID ()
-   let _ = Builtin.DarkInternal.Canvas.Secret.insert canvasID "SECRET" "VALUE" 3
-   let _ = Builtin.DarkInternal.Canvas.Secret.delete canvasID "SECRET" 3
+   let _ = Builtin.DarkInternal.Canvas.Secret.insert canvasID "SECRET" "VALUE" 3L
+   let _ = Builtin.DarkInternal.Canvas.Secret.delete canvasID "SECRET" 3L
    Builtin.DarkInternal.Canvas.Secret.getAll canvasID) = []
 
 
 module F404s =
-  1 = 1
+  1L = 1L
 // DarkInternal.Canvas.F404.recent (Test.getCanvasID ()) = []
 // DarkInternal.Canvas.F404.delete (Test.getCanvasID ()) "" "" "" = ()
 
@@ -116,13 +116,13 @@ module Toplevels =
 
     (Builtin.Test.getCanvasID ())
     |> Builtin.DarkInternal.Canvas.DB.unlocked
-    |> PACKAGE.Darklang.Stdlib.List.length = 1
+    |> PACKAGE.Darklang.Stdlib.List.length = 1L
 
   module NoDB =
     (Builtin.Test.getCanvasID ()) |> Builtin.DarkInternal.Canvas.DB.unlocked = []
 
     (Builtin.Test.getCanvasID ())
-    |> Builtin.DarkInternal.Canvas.deleteToplevelForever 1 = false
+    |> Builtin.DarkInternal.Canvas.deleteToplevelForever 1L = false
 
 
 module UnlockedDB =
@@ -137,7 +137,7 @@ module UnlockedDB =
     // one
     (Builtin.Test.getCanvasID ())
     |> Builtin.DarkInternal.Canvas.DB.unlocked
-    |> PACKAGE.Darklang.Stdlib.List.length = 1
+    |> PACKAGE.Darklang.Stdlib.List.length = 1L
 
     // one but locked
     (let _ = Builtin.DB.set (X { x = "str" }) "test" UXDB in

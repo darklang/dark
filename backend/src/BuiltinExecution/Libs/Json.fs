@@ -137,6 +137,10 @@ let rec serialize
 
     | TUInt16, DUInt16 i -> w.WriteNumberValue i
 
+    | TInt32, DInt32 i -> w.WriteNumberValue i
+
+    | TUInt32, DUInt32 i -> w.WriteNumberValue i
+
     | TInt128, DInt128 i -> w.WriteRawValue(i.ToString())
 
     | TUInt128, DUInt128 i -> w.WriteRawValue(i.ToString())
@@ -263,6 +267,8 @@ let rec serialize
     | TUInt8, _
     | TInt16, _
     | TUInt16, _
+    | TInt32, _
+    | TUInt32, _
     | TInt128, _
     | TUInt128, _
     | TFloat, _
@@ -452,15 +458,10 @@ let parse
 
     | TInt16, JsonValueKind.Number ->
       let mutable i16 = 0s
-      let mutable ui16 = 0us
       let mutable d = 0.0
 
       if j.TryGetInt16(&i16) then
         DInt16 i16 |> Ply
-
-      else if j.TryGetUInt16(&ui16) && ui16 <= uint16 System.Int16.MaxValue then
-        DInt16(int16 ui16) |> Ply
-
       else if
         j.TryGetDouble(&d)
         && d <= (float System.Int16.MaxValue)
@@ -472,19 +473,11 @@ let parse
         raiseCantMatchWithType TInt16 j pathSoFar |> Ply
 
     | TUInt16, JsonValueKind.Number ->
-      let mutable i16 = 0s
       let mutable ui16 = 0us
       let mutable d = 0.0
 
       if j.TryGetUInt16(&ui16) then
         DUInt16 ui16 |> Ply
-      else if j.TryGetInt16(&i16) then
-        if
-          i16 >= int16 System.UInt16.MinValue && i16 <= int16 System.UInt16.MaxValue
-        then
-          DUInt16(uint16 i16) |> Ply
-        else
-          raiseCantMatchWithType TUInt16 j pathSoFar |> Ply
       else if
         j.TryGetDouble(&d)
         && d <= (float System.UInt16.MaxValue)
@@ -494,6 +487,39 @@ let parse
         uint16 d |> DUInt16 |> Ply
       else
         raiseCantMatchWithType TUInt16 j pathSoFar |> Ply
+
+    | TInt32, JsonValueKind.Number ->
+      let mutable i32 = 0
+      let mutable d = 0.0
+
+      if j.TryGetInt32(&i32) then
+        DInt32 i32 |> Ply
+      else if
+        j.TryGetDouble(&d)
+        && d <= (float System.Int32.MaxValue)
+        && d >= (float System.Int32.MinValue)
+        && System.Double.IsInteger d
+      then
+        int32 d |> DInt32 |> Ply
+      else
+        raiseCantMatchWithType TInt32 j pathSoFar |> Ply
+
+    | TUInt32, JsonValueKind.Number ->
+      let mutable ui32 = 0ul
+      let mutable d = 0.0
+
+      if j.TryGetUInt32(&ui32) then
+        DUInt32 ui32 |> Ply
+      else if
+        j.TryGetDouble(&d)
+        && d <= (float System.UInt32.MaxValue)
+        && d >= (float System.UInt32.MinValue)
+        && System.Double.IsInteger d
+      then
+        uint32 d |> DUInt32 |> Ply
+      else
+        raiseCantMatchWithType TUInt32 j pathSoFar |> Ply
+
 
     | TInt128, JsonValueKind.Number ->
       let mutable i128 = System.Int128.Zero
@@ -736,6 +762,8 @@ let parse
     | TUInt8, _
     | TInt16, _
     | TUInt16, _
+    | TInt32, _
+    | TUInt32, _
     | TInt128, _
     | TUInt128, _
     | TFloat, _

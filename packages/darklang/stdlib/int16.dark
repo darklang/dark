@@ -39,6 +39,28 @@ module Darklang =
       let multiply (a: Int16) (b: Int16) : Int16 = Builtin.Int16.multiply a b
 
 
+      /// Raise <param base> to the power of <param exponent>.
+      /// <param exponent> must to be positive.
+      /// Return value wrapped in a {{Result}}
+      let power (``base``: Int16) (exponent: Int16) : Int16 =
+        // Handle some edge cases around 1. We want to make this match
+        // OCaml, so we have to support an exponent below int16
+        // This only matters for 1 or -1, and otherwise a
+        // number raised to an int16 exponent wouldn't fit in an int16
+        if ``base`` == 0s && exponent == 0s then
+          1s
+        else if ``base`` == 0s then
+          0s
+        else if ``base`` == 1s then
+          1s
+        else if ``base`` == -1s && (Builtin.Int16.``mod`` exponent 2s == 0s) then
+          1s
+        else if ``base`` == -1s then
+          -1s
+        else
+          Builtin.Int16.power ``base`` exponent
+
+
       /// Divides two 16-bit signed integers
       let divide (a: Int16) (b: Int16) : Int16 = Builtin.Int16.divide a b
 
@@ -87,7 +109,7 @@ module Darklang =
 
       /// Returns the sum of all the ints in the list
       let sum (lst: List<Int16>) : Int16 =
-        PACKAGE.Darklang.Stdlib.List.fold lst 0 (fun acc x -> acc + x)
+        PACKAGE.Darklang.Stdlib.List.fold lst 0s (fun acc x -> acc + x)
 
 
       /// Returns the higher of <param a> and <param b>
@@ -143,6 +165,6 @@ module Darklang =
       let toString (int16: Int16) : String = Builtin.Int16.toString int16
 
 
-      /// Converts an <type Int16> to a <type Int64>. Returns {{None}} if the value is less than -32768 or greater than 32767.
+      /// Converts an <type Int64> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
       let fromInt64 (i: Int) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
         Builtin.Int16.fromInt64 i

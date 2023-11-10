@@ -30,4 +30,4 @@ module Darklang =
       rem
       |> Builtin.unwrap
       |> PACKAGE.Darklang.Stdlib.Float.toString
-      |> PACKAGE.Darklang.Stdlib.String.dropFirst 2
+      |> PACKAGE.Darklang.Stdlib.String.dropFirst 2L

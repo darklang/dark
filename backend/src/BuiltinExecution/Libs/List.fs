@@ -22,6 +22,8 @@ module DvalComparator =
     | DUInt8 i1, DUInt8 i2 -> compare i1 i2
     | DInt16 i1, DInt16 i2 -> compare i1 i2
     | DUInt16 i1, DUInt16 i2 -> compare i1 i2
+    | DInt32 i1, DInt32 i2 -> compare i1 i2
+    | DUInt32 i1, DUInt32 i2 -> compare i1 i2
     | DInt128 i1, DInt128 i2 -> compare i1 i2
     | DUInt128 i1, DUInt128 i2 -> compare i1 i2
     | DFloat f1, DFloat f2 -> compare f1 f2
@@ -69,6 +71,8 @@ module DvalComparator =
     | DUInt8 _, _
     | DInt16 _, _
     | DUInt16 _, _
+    | DInt32 _, _
+    | DUInt32 _, _
     | DInt128 _, _
     | DUInt128 _, _
     | DFloat _, _

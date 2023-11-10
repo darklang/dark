@@ -25,6 +25,8 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EUInt8 _
   | EInt16 _
   | EUInt16 _
+  | EInt32 _
+  | EUInt32 _
   | EInt128 _
   | EUInt128 _
   | EBool _
@@ -105,6 +107,8 @@ let rec preTraversal
     | MPUInt8 _
     | MPInt16 _
     | MPUInt16 _
+    | MPInt32 _
+    | MPUInt32 _
     | MPInt128 _
     | MPUInt128 _
     | MPBool _
@@ -125,6 +129,8 @@ let rec preTraversal
     | TUInt8
     | TInt16
     | TUInt16
+    | TInt32
+    | TUInt32
     | TInt128
     | TUInt128
     | TBool
@@ -175,6 +181,8 @@ let rec preTraversal
   | EUInt8 _
   | EInt16 _
   | EUInt16 _
+  | EInt32 _
+  | EUInt32 _
   | EInt128 _
   | EUInt128 _
   | EBool _
@@ -252,6 +260,8 @@ let rec matchPatternPreTraversal
   | MPUInt8 _
   | MPInt16 _
   | MPUInt16 _
+  | MPInt32 _
+  | MPUInt32 _
   | MPInt128 _
   | MPUInt128 _
   | MPBool _
@@ -279,6 +289,8 @@ let rec matchPatternPostTraversal
     | MPUInt8 _
     | MPInt16 _
     | MPUInt16 _
+    | MPInt32 _
+    | MPUInt32 _
     | MPInt128 _
     | MPUInt128 _
     | MPBool _

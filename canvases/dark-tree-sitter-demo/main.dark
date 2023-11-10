@@ -33,7 +33,7 @@ let _handler _req =
       ("Content-type", contentType)
       ("Accept-Ranges", "bytes") ]
 
-  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders body headers 200
+  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders body headers 200L
 
 [<HttpHandler("GET", "/")>]
 let _indexHandler _req =
@@ -152,11 +152,11 @@ let _indexHandler _req =
   PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
     (PACKAGE.Darklang.Stdlib.String.toBytes body)
     [ ("Content-Type", "text/html") ]
-    200
+    200L
 
 
 let gid () : Int =
-  PACKAGE.Darklang.Stdlib.Int.random 0 9223372036854775807I
+  PACKAGE.Darklang.Stdlib.Int.random 0L 9223372036854775807L
 
 
 let err (msg: String) : Unit =
@@ -175,6 +175,8 @@ type PTExpr =
   | EUInt8 of id: Int * UInt8
   | EInt16 of id: Int * Int16
   | EUInt16 of id: Int * UInt16
+  | EInt32 of id: Int * Int32
+  | EUInt32 of id: Int * UInt32
   | EInt128 of id: Int * Int128
   | EUInt128 of id: Int * UInt128
   | ELet of id: Int * identifier: String * expr: PTExpr * body: PTExpr
@@ -354,9 +356,9 @@ let _handler _req =
     PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
       (PACKAGE.Darklang.Stdlib.String.toBytes serialized)
       respHeaders
-      200
+      200L
 
   | Error e ->
     PACKAGE.Darklang.Stdlib.Http.response
       (PACKAGE.Darklang.Stdlib.String.toBytes_v0 e)
-      400
+      400L

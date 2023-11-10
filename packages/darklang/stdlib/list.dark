@@ -81,10 +81,12 @@ module Darklang =
 
       // TODO: remove this once we have a way to call lambdas recursively
       let repeatUnsafe (times: Int) (value: 'a) : List<'a> =
-        if times <= 0 then
+        if times <= 0L then
           []
         else
-          PACKAGE.Darklang.Stdlib.List.push_v0 (repeatUnsafe (times - 1) value) value
+          PACKAGE.Darklang.Stdlib.List.push_v0
+            (repeatUnsafe (times - 1L) value)
+            value
 
 
       /// Returns a list containing <param val> repeated <param times> times
@@ -92,7 +94,7 @@ module Darklang =
         (times: Int)
         (value: 'a)
         : PACKAGE.Darklang.Stdlib.Result.Result<List<'a>, String> =
-        if times < 0 then
+        if times < 0L then
           PACKAGE.Darklang.Stdlib.Result.Result.Error
             $"Expected `times` to be positive, but it was `{times |> Builtin.Int.toString}`"
         else
@@ -112,7 +114,7 @@ module Darklang =
           []
         else
           PACKAGE.Darklang.Stdlib.List.push_v0
-            (PACKAGE.Darklang.Stdlib.List.range (lowest + 1) highest)
+            (PACKAGE.Darklang.Stdlib.List.range (lowest + 1L) highest)
             lowest
 
 
@@ -263,12 +265,12 @@ module Darklang =
 
       /// Drops the first <param count> values from <param list>
       let drop (list: List<'a>) (count: Int) : List<'a> =
-        if count <= 0 then
+        if count <= 0L then
           list
         else
           match list with
           | [] -> []
-          | _ :: tail -> PACKAGE.Darklang.Stdlib.List.drop tail (count - 1)
+          | _ :: tail -> PACKAGE.Darklang.Stdlib.List.drop tail (count - 1L)
 
 
       /// Drops the longest prefix of <param list> which satisfies the predicate <param val>
@@ -297,14 +299,14 @@ module Darklang =
 
       /// Drops all but the first <param count> values from <param list>
       let take (list: List<'a>) (count: Int) : List<'a> =
-        if count <= 0 then
+        if count <= 0L then
           []
         else
           match list with
           | [] -> []
           | head :: tail ->
             PACKAGE.Darklang.Stdlib.List.push_v0
-              (PACKAGE.Darklang.Stdlib.List.take tail (count - 1))
+              (PACKAGE.Darklang.Stdlib.List.take tail (count - 1L))
               head
 
 
@@ -444,16 +446,16 @@ module Darklang =
         (list: List<'a>)
         (index: Int)
         : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
-        if index < 0 then
+        if index < 0L then
           PACKAGE.Darklang.Stdlib.Option.Option.None
         else
           match list with
           | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
           | head :: tail ->
-            if index == 0 then
+            if index == 0L then
               PACKAGE.Darklang.Stdlib.Option.Option.Some head
             else
-              PACKAGE.Darklang.Stdlib.List.getAt tail (index - 1)
+              PACKAGE.Darklang.Stdlib.List.getAt tail (index - 1L)
 
 
       /// Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly

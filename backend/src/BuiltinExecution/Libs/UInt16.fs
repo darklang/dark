@@ -132,6 +132,30 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "power" 0
+      typeParams = []
+      parameters = [ Param.make "base" TUInt16 ""; Param.make "exponent" TUInt16 "" ]
+      returnType = TUInt16
+      description =
+        "Raise <param base> to the power of <param exponent>.
+        <param exponent> must to be positive.
+        Return value wrapped in a {{Result}} "
+      fn =
+        (function
+        | state, _, [ DUInt16 number; DUInt16 exp ] ->
+          (try
+            (bigint number) ** (int exp) |> uint16 |> DUInt16 |> Ply
+           with :? System.OverflowException ->
+             Int.IntRuntimeError.Error.OutOfRange
+             |> Int.IntRuntimeError.RTE.toRuntimeError
+             |> raiseRTE state.caller
+             |> Ply)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "divide" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt16 ""; Param.make "b" TUInt16 "" ]

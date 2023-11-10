@@ -11,7 +11,7 @@ let _handler _req =
 
   PACKAGE.Darklang.Stdlib.Http.response
     (PACKAGE.Darklang.Stdlib.String.toBytes result)
-    200
+    200L
 
 
 [<HttpHandler("GET", "/openai-chat")>]
@@ -23,7 +23,7 @@ let _handler _req =
 
   PACKAGE.Darklang.Stdlib.Http.response
     (PACKAGE.Darklang.Stdlib.String.toBytes result)
-    200
+    200L
 
 
 
@@ -34,7 +34,7 @@ let _handler _req =
 
   PACKAGE.Darklang.Stdlib.Http.response
     (PACKAGE.Darklang.Stdlib.String.toBytes result)
-    200
+    200L
 
 
 [<HttpHandler("GET", "/openai-test-retrieve-model")>]
@@ -43,7 +43,7 @@ let _handler _req =
 
   PACKAGE.Darklang.Stdlib.Http.response
     (PACKAGE.Darklang.Stdlib.String.toBytes result)
-    200
+    200L
 
 
 [<HttpHandler("GET", "/openai-test-get-models-list")>]
@@ -52,7 +52,7 @@ let _handler _req =
 
   PACKAGE.Darklang.Stdlib.Http.response
     (PACKAGE.Darklang.Stdlib.String.toBytes result)
-    200
+    200L
 
 
 [<HttpHandler("GET", "/openai-test-completion-options")>]
@@ -68,16 +68,16 @@ let _handler _req =
                   { role = "user"
                     content = "create a function that adds two numbers" } ]
             temperature = 0.7
-            max_tokens = 700
+            max_tokens = 700L
             top_p = 1.0
-            n = 1
+            n = 1L
             stream = false }
       )))
     |> rUnwrap
 
   PACKAGE.Darklang.Stdlib.Http.response
     (PACKAGE.Darklang.Stdlib.String.toBytes result)
-    200
+    200L
 
 [<HttpHandler("GET", "/openai-test-completion-options-nothing")>]
 let _handler _req =
@@ -89,7 +89,7 @@ let _handler _req =
 
   PACKAGE.Darklang.Stdlib.Http.response
     (PACKAGE.Darklang.Stdlib.String.toBytes result)
-    200
+    200L
 
 
 [<HttpHandler("GET", "/openai-test-completion-options2")>]
@@ -97,7 +97,7 @@ let _handler _req =
   let options =
     { PACKAGE.OpenAI.ChatCompletion.completionOptionsDefault () with
         temperature = 0.0
-        max_tokens = 1 }
+        max_tokens = 1L }
 
   let result =
     (PACKAGE.OpenAI.ChatCompletion.completionWithOption
@@ -107,4 +107,4 @@ let _handler _req =
 
   PACKAGE.Darklang.Stdlib.Http.response
     (PACKAGE.Darklang.Stdlib.String.toBytes result)
-    200
+    200L

@@ -81,7 +81,7 @@ module NoInternal =
     []
     Builtin.Bytes.empty))
  |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  200
+  200L
 
 (((PACKAGE.Darklang.Stdlib.HttpClient.request
     "get"
@@ -89,12 +89,12 @@ module NoInternal =
     []
     Builtin.Bytes.empty))
  |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  200
+  200L
 
 PACKAGE.Darklang.Stdlib.HttpClient.request
   "get"
   "https://darklang.com"
-  [ 1 ]
+  [ 1L ]
   Builtin.Bytes.empty = Builtin.Test.derrorMessage
   "PACKAGE.Darklang.Stdlib.HttpClient.request's 3rd argument (`headers`) should be a List<(String * String)>. However, a List<Int> ([  1]) was passed instead.
 

@@ -1,8 +1,8 @@
 [] = []
-[ 1 ] = [ 1 ]
-[ 1; 2 ] = [ 1; 2 ]
-[ 5; PACKAGE.Darklang.Stdlib.Int.add_v0 1 5; 0 ] = [ 5; 6; 0 ]
-[ 5; Builtin.Test.runtimeError "test"; 0 ] = Builtin.Test.derrorMessage "test"
+[ 1L ] = [ 1L ]
+[ 1L; 2L ] = [ 1L; 2L ]
+[ 5L; PACKAGE.Darklang.Stdlib.Int.add_v0 1L 5L; 0L ] = [ 5L; 6L; 0L ]
+[ 5L; Builtin.Test.runtimeError "test"; 0L ] = Builtin.Test.derrorMessage "test"
 
-[ 5; Builtin.Test.runtimeError "1"; Builtin.Test.runtimeError "2" ] = Builtin.Test.derrorMessage
+[ 5L; Builtin.Test.runtimeError "1"; Builtin.Test.runtimeError "2" ] = Builtin.Test.derrorMessage
   "1"

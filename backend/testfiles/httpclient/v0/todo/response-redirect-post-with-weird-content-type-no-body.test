@@ -18,7 +18,7 @@ Location: /v0/response-redirect-dest-post-with-weird-content-type-no-body
  {response with headers = respHeaders}) =
    PACKAGE.Darklang.Stdlib.HttpClient.Response
     { body = "Redirect destination reached"
-      statusCode = 200
+      statusCode = 200L
       headers =
         [
           "Arbitrary-header" = "Test value"

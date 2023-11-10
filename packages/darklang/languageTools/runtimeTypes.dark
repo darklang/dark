@@ -70,6 +70,8 @@ module Darklang =
         | TUInt8
         | TInt16
         | TUInt16
+        | TInt32
+        | TUInt32
         | TInt128
         | TUInt128
         | TFloat
@@ -94,6 +96,8 @@ module Darklang =
         | EUInt8 of ID * UInt8
         | EInt16 of ID * Int16
         | EUInt16 of ID * UInt16
+        | EInt32 of ID * Int32
+        | EUInt32 of ID * UInt32
         | EInt128 of ID * Int128
         | EUInt128 of ID * UInt128
         | EBool of ID * Bool
@@ -149,6 +153,8 @@ module Darklang =
         | MPUInt8 of ID * UInt8
         | MPInt16 of ID * Int16
         | MPUInt16 of ID * UInt16
+        | MPInt32 of ID * Int32
+        | MPUInt32 of ID * UInt32
         | MPInt128 of ID * Int128
         | MPUInt128 of ID * UInt128
         | MPBool of ID * Bool
@@ -182,6 +188,8 @@ module Darklang =
         | KTUInt8
         | KTInt16
         | KTUInt16
+        | KTInt32
+        | KTUInt32
         | KTInt128
         | KTUInt128
         | KTFloat
@@ -213,6 +221,8 @@ module Darklang =
           | DUInt8 of UInt8
           | DInt16 of Int16
           | DUInt16 of UInt16
+          | DInt32 of Int32
+          | DUInt32 of UInt32
           | DInt128 of Int128
           | DUInt128 of UInt128
           | DFloat of Float
@@ -257,6 +267,8 @@ module Darklang =
           | DUInt8 _ -> ValueType.Known KnownType.KTUInt8
           | DInt16 _ -> ValueType.Known KnownType.KTInt16
           | DUInt16 _ -> ValueType.Known KnownType.KTUInt16
+          | DInt32 _ -> ValueType.Known KnownType.KTInt32
+          | DUInt32 _ -> ValueType.Known KnownType.KTUInt32
           | DInt128 _ -> ValueType.Known KnownType.KTInt128
           | DUInt128 _ -> ValueType.Known KnownType.KTUInt128
           | DFloat _ -> ValueType.Known KnownType.KTFloat

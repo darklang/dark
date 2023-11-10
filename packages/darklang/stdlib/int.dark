@@ -51,15 +51,16 @@ module Darklang =
         // OCaml, so we have to support an exponent above int32, but
         // below int63. This only matters for 1 or -1, and otherwise a
         // number raised to an int63 exponent wouldn't fit in an int63
-        if ``base`` == 0 then 0
-        else if ``base`` == 1 then 1
-        else if ``base`` == -1 && exponent % 2 == 0 then 1
-        else if ``base`` == -1 then -1
+        if ``base`` == 0L && exponent == 0L then 1L
+        else if ``base`` == 0L then 0L
+        else if ``base`` == 1L then 1L
+        else if ``base`` == -1L && exponent % 2L == 0L then 1L
+        else if ``base`` == -1L then -1L
         else ``base`` ^ exponent
 
 
       /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
-      let absoluteValue (a: Int) : Int = if a < 0 then -a else a
+      let absoluteValue (a: Int) : Int = if a < 0L then -a else a
 
 
       /// Returns the negation of <param a>, {{-a}}
@@ -95,7 +96,7 @@ module Darklang =
 
       /// Returns the sum of all the ints in the list
       let sum (lst: List<Int>) : Int =
-        PACKAGE.Darklang.Stdlib.List.fold lst 0 (fun acc x -> acc + x)
+        PACKAGE.Darklang.Stdlib.List.fold lst 0L (fun acc x -> acc + x)
 
 
       /// Returns the higher of <param a> and <param b>

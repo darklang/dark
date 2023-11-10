@@ -32,7 +32,7 @@ module OpenAI =
         PACKAGE.OpenAI.Completion.Request
           { model = "text-davinci-003"
             prompt = prompt
-            max_tokens = 700
+            max_tokens = 700L
             temperature = 0.7 }
 
       let reqBody =
@@ -102,9 +102,9 @@ module OpenAI =
             [ PACKAGE.OpenAI.ChatCompletion.RequestMessage
                 { role = "user"; content = "test" } ]
           temperature = 0.7
-          max_tokens = 700
+          max_tokens = 700L
           top_p = 1.0
-          n = 1
+          n = 1L
           stream = false }
 
 
@@ -173,7 +173,7 @@ module OpenAI =
       let openAIRequest =
         PACKAGE.OpenAI.ChatCompletion.Request
           { model = "gpt-3.5-turbo"
-            max_tokens = 700
+            max_tokens = 700L
             temperature = 0.7
             messages =
               [ PACKAGE.OpenAI.ChatCompletion.RequestMessage

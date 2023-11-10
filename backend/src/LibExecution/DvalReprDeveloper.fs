@@ -12,6 +12,8 @@ let rec typeName (t : TypeReference) : string =
   | TUInt8 -> "UInt8"
   | TInt16 -> "Int16"
   | TUInt16 -> "UInt16"
+  | TInt32 -> "Int32"
+  | TUInt32 -> "UInt32"
   | TInt128 -> "Int128"
   | TUInt128 -> "UInt128"
   | TFloat -> "Float"
@@ -50,6 +52,8 @@ let rec knownTypeName (vt : KnownType) : string =
   | KTUInt8 -> "UInt8"
   | KTInt16 -> "Int16"
   | KTUInt16 -> "UInt16"
+  | KTInt32 -> "Int32"
+  | KTUInt32 -> "UInt32"
   | KTInt128 -> "Int128"
   | KTUInt128 -> "UInt128"
   | KTFloat -> "Float"
@@ -122,6 +126,8 @@ let toRepr (dv : Dval) : string =
     | DUInt8 i -> string i
     | DInt16 i -> string i
     | DUInt16 i -> string i
+    | DInt32 i -> string i
+    | DUInt32 i -> string i
     | DInt128 i -> string i
     | DUInt128 i -> string i
     | DBool true -> "true"

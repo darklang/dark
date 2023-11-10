@@ -272,6 +272,8 @@ module TypeReference =
     | PT.TUInt8 -> ST.TUInt8
     | PT.TInt16 -> ST.TInt16
     | PT.TUInt16 -> ST.TUInt16
+    | PT.TInt32 -> ST.TInt32
+    | PT.TUInt32 -> ST.TUInt32
     | PT.TInt128 -> ST.TInt128
     | PT.TUInt128 -> ST.TUInt128
     | PT.TFloat -> ST.TFloat
@@ -300,6 +302,8 @@ module TypeReference =
     | ST.TUInt8 -> PT.TUInt8
     | ST.TInt16 -> PT.TInt16
     | ST.TUInt16 -> PT.TUInt16
+    | ST.TInt32 -> PT.TInt32
+    | ST.TUInt32 -> PT.TUInt32
     | ST.TInt128 -> PT.TInt128
     | ST.TUInt128 -> PT.TUInt128
     | ST.TFloat -> PT.TFloat
@@ -364,6 +368,8 @@ module MatchPattern =
     | PT.MPUInt8(id, i) -> ST.MPUInt8(id, i)
     | PT.MPInt16(id, i) -> ST.MPInt16(id, i)
     | PT.MPUInt16(id, i) -> ST.MPUInt16(id, i)
+    | PT.MPInt32(id, i) -> ST.MPInt32(id, i)
+    | PT.MPUInt32(id, i) -> ST.MPUInt32(id, i)
     | PT.MPInt128(id, i) -> ST.MPInt128(id, System.Numerics.BigInteger.op_Implicit i)
     | PT.MPUInt128(id, i) ->
       ST.MPUInt128(id, System.Numerics.BigInteger.op_Implicit i)
@@ -388,6 +394,8 @@ module MatchPattern =
     | ST.MPUInt8(id, i) -> PT.MPUInt8(id, i)
     | ST.MPInt16(id, i) -> PT.MPInt16(id, i)
     | ST.MPUInt16(id, i) -> PT.MPUInt16(id, i)
+    | ST.MPInt32(id, i) -> PT.MPInt32(id, i)
+    | ST.MPUInt32(id, i) -> PT.MPUInt32(id, i)
     | ST.MPInt128(id, i) -> PT.MPInt128(id, System.Numerics.BigInteger.op_Explicit i)
     | ST.MPUInt128(id, i) ->
       PT.MPUInt128(id, System.Numerics.BigInteger.op_Explicit i)
@@ -415,6 +423,8 @@ module Expr =
       ST.EInt128(id, System.Numerics.BigInteger.op_Implicit num)
     | PT.EUInt128(id, num) ->
       ST.EUInt128(id, System.Numerics.BigInteger.op_Implicit num)
+    | PT.EInt32(id, num) -> ST.EInt32(id, num)
+    | PT.EUInt32(id, num) -> ST.EUInt32(id, num)
     | PT.EString(id, segments) -> ST.EString(id, List.map stringSegmentToST segments)
     | PT.EFloat(id, sign, whole, fraction) -> ST.EFloat(id, sign, whole, fraction)
     | PT.EBool(id, b) -> ST.EBool(id, b)
@@ -512,6 +522,8 @@ module Expr =
     | ST.EUInt8(id, num) -> PT.EUInt8(id, num)
     | ST.EInt16(id, num) -> PT.EInt16(id, num)
     | ST.EUInt16(id, num) -> PT.EUInt16(id, num)
+    | ST.EInt32(id, num) -> PT.EInt32(id, num)
+    | ST.EUInt32(id, num) -> PT.EUInt32(id, num)
     | ST.EInt128(id, num) ->
       PT.EInt128(id, System.Numerics.BigInteger.op_Explicit num)
     | ST.EUInt128(id, num) ->
@@ -611,6 +623,8 @@ module Const =
     | PT.Const.CUInt8 i -> ST.Const.CUInt8 i
     | PT.Const.CInt16 i -> ST.Const.CInt16 i
     | PT.Const.CUInt16 i -> ST.Const.CUInt16 i
+    | PT.Const.CInt32 i -> ST.Const.CInt32 i
+    | PT.Const.CUInt32 i -> ST.Const.CUInt32 i
     | PT.Const.CInt128 i ->
       ST.Const.CInt128(System.Numerics.BigInteger.op_Implicit i)
     | PT.Const.CUInt128 i ->
@@ -638,6 +652,8 @@ module Const =
     | ST.Const.CUInt8 i -> PT.Const.CUInt8 i
     | ST.Const.CInt16 i -> PT.Const.CInt16 i
     | ST.Const.CUInt16 i -> PT.Const.CUInt16 i
+    | ST.Const.CInt32 i -> PT.Const.CInt32 i
+    | ST.Const.CUInt32 i -> PT.Const.CUInt32 i
     | ST.Const.CInt128 i ->
       PT.Const.CInt128(System.Numerics.BigInteger.op_Explicit i)
     | ST.Const.CUInt128 i ->

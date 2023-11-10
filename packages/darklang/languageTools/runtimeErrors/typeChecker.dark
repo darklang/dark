@@ -114,7 +114,7 @@ module Darklang =
             | FunctionCallParameter(fnName, parameter, paramIndex, _) ->
               [ ErrorSegment.ErrorSegment.FunctionName fnName
                 ErrorSegment.ErrorSegment.String "'s "
-                ErrorSegment.ErrorSegment.Ordinal(paramIndex + 1)
+                ErrorSegment.ErrorSegment.Ordinal(paramIndex + 1L)
                 ErrorSegment.ErrorSegment.String " argument ("
                 ErrorSegment.ErrorSegment.ParamName parameter.name
                 ErrorSegment.ErrorSegment.String ")" ]
@@ -141,7 +141,7 @@ module Darklang =
                 ErrorSegment.ErrorSegment.String "."
                 ErrorSegment.ErrorSegment.InlineFieldName caseName
                 ErrorSegment.ErrorSegment.String "'s "
-                ErrorSegment.ErrorSegment.Ordinal(fieldIndex + 1)
+                ErrorSegment.ErrorSegment.Ordinal(fieldIndex + 1L)
                 ErrorSegment.ErrorSegment.String " argument" ]
 
             | DBSchemaType(dbName, expectedType, _) ->
@@ -248,25 +248,25 @@ module Darklang =
               // RTETODO: extract description from the type definition later
 
               let prefix =
-                if fieldIndex == 0 then
+                if fieldIndex == 0L then
                   []
                 else
                   [ ErrorSegment.ErrorSegment.String "..., " ]
 
               let suffix =
-                if fieldIndex == fieldCount - 1 then
+                if fieldIndex == fieldCount - 1L then
                   []
                 else
                   [ ErrorSegment.ErrorSegment.String ", ..." ]
 
               let openParen =
-                if fieldCount > 0 then
+                if fieldCount > 0L then
                   [ ErrorSegment.ErrorSegment.String "(" ]
                 else
                   []
 
               let closeParen =
-                if fieldCount > 0 then
+                if fieldCount > 0L then
                   [ ErrorSegment.ErrorSegment.String ")" ]
                 else
                   []

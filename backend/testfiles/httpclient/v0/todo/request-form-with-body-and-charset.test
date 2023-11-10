@@ -24,7 +24,7 @@ Content-Length: LENGTH
 {response with headers = respHeaders}) =
    PACKAGE.Darklang.Stdlib.HttpClient.Response
     { body = ""
-      statusCode = 200
+      statusCode = 200L
       headers =
         [
           ("content-type", "text/plain; charset=utf-8")

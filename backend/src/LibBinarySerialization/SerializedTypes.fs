@@ -207,6 +207,8 @@ type TypeReference =
   | TUInt8
   | TInt16
   | TUInt16
+  | TInt32
+  | TUInt32
   | TInt128
   | TUInt128
   | TFloat
@@ -268,6 +270,8 @@ type MatchPattern =
   | MPUInt8 of id * uint8
   | MPInt16 of id * int16
   | MPUInt16 of id * uint16
+  | MPInt32 of id * int32
+  | MPUInt32 of id * uint32
   | MPInt128 of id * bigint
   | MPUInt128 of id * bigint
   | MPBool of id * bool
@@ -296,6 +300,8 @@ type Expr =
   | EUInt8 of id * uint8
   | EInt16 of id * int16
   | EUInt16 of id * uint16
+  | EInt32 of id * int32
+  | EUInt32 of id * uint32
   | EInt128 of id * bigint
   | EUInt128 of id * bigint
   | EBool of id * bool
@@ -467,6 +473,8 @@ type Const =
   | CUInt8 of uint8
   | CInt16 of int16
   | CUInt16 of uint16
+  | CInt32 of int32
+  | CUInt32 of uint32
   | CInt128 of bigint
   | CUInt128 of bigint
   | CBool of bool

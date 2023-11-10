@@ -154,11 +154,11 @@ PACKAGE.Darklang.Stdlib.Base64.decode
   .Ok(PACKAGE.Darklang.Stdlib.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
 // These produce strings of bytes which are technically legal it seems
 PACKAGE.Darklang.Stdlib.Base64.decode "-p" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  Builtin.Test.asBytes_v0 [ 250 ]
+  Builtin.Test.asBytes_v0 [ 250L ]
 )
 
 PACKAGE.Darklang.Stdlib.Base64.decode "lI" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  Builtin.Test.asBytes_v0 [ 148 ]
+  Builtin.Test.asBytes_v0 [ 148L ]
 )
 
 PACKAGE.Darklang.Stdlib.Base64.decode "5Sk" = PACKAGE
@@ -166,14 +166,14 @@ PACKAGE.Darklang.Stdlib.Base64.decode "5Sk" = PACKAGE
   .Stdlib
   .Result
   .Result
-  .Ok(Builtin.Test.asBytes_v0 [ 229; 41 ])
+  .Ok(Builtin.Test.asBytes_v0 [ 229L; 41L ])
 
 PACKAGE.Darklang.Stdlib.Base64.decode "AA" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  Builtin.Test.asBytes_v0 [ 0 ]
+  Builtin.Test.asBytes_v0 [ 0L ]
 )
 
 PACKAGE.Darklang.Stdlib.Base64.decode "_w" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  Builtin.Test.asBytes_v0 [ 255 ]
+  Builtin.Test.asBytes_v0 [ 255L ]
 )
 
 

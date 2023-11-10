@@ -23,7 +23,7 @@ module Darklang =
         |> Builtin.unwrap
 
       let parsedFns =
-        if statusCode == 200 then
+        if statusCode == 200L then
           fns
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
@@ -37,7 +37,7 @@ module Darklang =
       match parsedFns with
       | None ->
         Builtin.printLine "Error getting functions"
-        1
+        1L
       | Some fn ->
         let packageSpecificFunction =
           (PACKAGE.Darklang.Stdlib.List.filter fn (fun f ->
@@ -54,10 +54,10 @@ module Darklang =
               PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn f
             )
 
-            0
+            0L
           | None ->
             Builtin.printLine "Function not found"
-            1
+            1L
 
         result
 
@@ -75,7 +75,7 @@ module Darklang =
         |> Builtin.unwrap
 
       let parsedTypes =
-        if statusCode == 200 then
+        if statusCode == 200L then
           types
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
@@ -89,7 +89,7 @@ module Darklang =
       match parsedTypes with
       | None ->
         Builtin.printLine "Error getting types"
-        1
+        1L
       | Some types ->
         let packageSpecificType =
           (PACKAGE.Darklang.Stdlib.List.filter types (fun t ->
@@ -105,10 +105,10 @@ module Darklang =
               PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageType t
             )
 
-            0
+            0L
           | None ->
             Builtin.printLine "Type not found"
-            1
+            1L
 
         result
 
@@ -126,7 +126,7 @@ module Darklang =
         |> Builtin.unwrap
 
       let parsedConstants =
-        if statusCode == 200 then
+        if statusCode == 200L then
           constants
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
@@ -140,7 +140,7 @@ module Darklang =
       match parsedConstants with
       | None ->
         Builtin.printLine "Error getting constants"
-        1
+        1L
       | Some constants ->
         let packageSpecificConstant =
           (PACKAGE.Darklang.Stdlib.List.filter constants (fun c ->
@@ -158,11 +158,11 @@ module Darklang =
               PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageConstant c
             )
 
-            0
+            0L
 
           | None ->
             Builtin.printLine "Constant not found"
-            1
+            1L
 
         result
 
@@ -180,7 +180,7 @@ module Darklang =
         |> Builtin.unwrap
 
       let parsedModules =
-        if statusCode == 200 then
+        if statusCode == 200L then
           modules
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
@@ -195,7 +195,7 @@ module Darklang =
       match parsedModules with
       | None ->
         Builtin.printLine "Error getting package modules"
-        1
+        1L
       | Some modules ->
         if
           modules
@@ -203,7 +203,7 @@ module Darklang =
             { types = []; fns = []; constants = [] }
         then
           Builtin.printLine "module not found"
-          1
+          1L
         else
           let result = modules |> PACKAGE.Darklang.PrettyPrinter.packages
           Builtin.printLine result
@@ -223,17 +223,17 @@ module Darklang =
         |> Builtin.unwrap
 
       let parsedPackages =
-        if statusCode == 200 then
+        if statusCode == 200L then
           packages
           |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
           |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
           |> Builtin.printLine
 
-          0
+          0L
         else
           Builtin.printLine "Error retrieving the package for the specified owner"
-          1
+          1L
 
       parsedPackages
 
@@ -242,10 +242,10 @@ module Darklang =
       match Builtin.Cli.executeFunction fnName args with
       | Ok result ->
         Builtin.printLine result
-        0
+        0L
       | Error err ->
         Builtin.printLine err
-        1
+        1L
 
 
     let generateCode (prompt: String) (scriptPath: String) : Int =
@@ -262,14 +262,14 @@ module Darklang =
       match response with
       | Error e ->
         Builtin.printLine e
-        1
+        1L
       | Ok response ->
         Builtin.File.write
           (PACKAGE.Darklang.Stdlib.String.toBytes response)
           scriptPath
 
         Builtin.printLine $"Generated code saved to {scriptPath}"
-        0
+        0L
 
 
     let parseArguments (args: List<String>) : Command =
@@ -286,7 +286,7 @@ module Darklang =
 
       | opt :: args ->
         if PACKAGE.Darklang.Stdlib.String.startsWith opt "@" then
-          let name = opt |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1
+          let name = opt |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1L
           Command.RunFunction name args
         else
           Command.RunScript(opt, args)
@@ -300,7 +300,7 @@ module Darklang =
         match Builtin.File.read scriptPath with
         | Error e ->
           Builtin.printLine e
-          1
+          1L
         | Ok script ->
           let script = PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement script
 
@@ -316,7 +316,7 @@ module Darklang =
               PACKAGE.Darklang.LanguageTools.RuntimeErrors.Error.toString e
             )
 
-            1
+            1L
 
 
       | Help ->
@@ -328,12 +328,12 @@ Options:
   --prompt PROMPT  --script SCRIPT    Infer a script from the given prompt using OpenAI"""
 
         Builtin.printLine helpText
-        0
+        0L
 
 
       | Show name ->
 
-        let fullName = name |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1
+        let fullName = name |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1L
 
         let owner =
           fullName
@@ -344,12 +344,12 @@ Options:
         let modules =
           fullName
           |> PACKAGE.Darklang.Stdlib.String.split "."
-          |> (PACKAGE.Darklang.Stdlib.List.drop 1)
+          |> (PACKAGE.Darklang.Stdlib.List.drop 1L)
           |> PACKAGE.Darklang.Stdlib.List.dropLast
 
         let name =
           name
-          |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1
+          |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1L
           |> PACKAGE.Darklang.Stdlib.String.split "."
           |> PACKAGE.Darklang.Stdlib.List.last
           |> Builtin.unwrap
@@ -367,7 +367,7 @@ Options:
           |> Builtin.unwrap
 
         let category =
-          if statusCode == 200 then
+          if statusCode == 200L then
             categoryRequest
             |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.body)
             |> Builtin.unwrap
@@ -383,9 +383,9 @@ Options:
           let modules =
             fullName
             |> PACKAGE.Darklang.Stdlib.String.split "."
-            |> (PACKAGE.Darklang.Stdlib.List.drop 1)
+            |> (PACKAGE.Darklang.Stdlib.List.drop 1L)
 
-          if PACKAGE.Darklang.Stdlib.List.length modules == 0 then
+          if PACKAGE.Darklang.Stdlib.List.length modules == 0L then
             PACKAGE.Darklang.Cli.showPackage owner
           else
             PACKAGE.Darklang.Cli.showModule fullName
@@ -402,7 +402,7 @@ Options:
       | Invalid args ->
         let args = args |> PACKAGE.Darklang.Stdlib.String.join " "
         Builtin.printLine $"Invalid command {args}. Use --help for more information."
-        1
+        1L
 
 
     let executeCliCommand (args: List<String>) : Int =

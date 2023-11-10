@@ -68,6 +68,10 @@ let eInt16 (i : int16) : Expr = EInt16(gid (), i)
 
 let euInt16 (i : uint16) : Expr = EUInt16(gid (), i)
 
+let eInt32 (i : int32) : Expr = EInt32(gid (), i)
+
+let euInt32 (i : uint32) : Expr = EUInt32(gid (), i)
+
 let eInt128 (i : System.Int128) : Expr = EInt128(gid (), i)
 
 let euInt128 (i : System.UInt128) : Expr = EUInt128(gid (), i)

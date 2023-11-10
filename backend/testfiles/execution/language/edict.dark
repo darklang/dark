@@ -1,7 +1,7 @@
-((Dict { a = 5 }) |> PACKAGE.Darklang.Stdlib.Dict.get "a") = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  5
+((Dict { a = 5L }) |> PACKAGE.Darklang.Stdlib.Dict.get "a") = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  5L
 
-((Dict { ___ = 5 }) |> PACKAGE.Darklang.Stdlib.Dict.get "") = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  5
+((Dict { ___ = 5L }) |> PACKAGE.Darklang.Stdlib.Dict.get "") = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  5L
 
-((Dict { a = 5 }) |> PACKAGE.Darklang.Stdlib.Dict.get "b") = PACKAGE.Darklang.Stdlib.Option.Option.None
+((Dict { a = 5L }) |> PACKAGE.Darklang.Stdlib.Dict.get "b") = PACKAGE.Darklang.Stdlib.Option.Option.None

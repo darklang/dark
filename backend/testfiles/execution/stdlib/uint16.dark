@@ -41,6 +41,15 @@ PACKAGE.Darklang.Stdlib.UInt16.multiply_v0 32768us 2us = Builtin.Test.derrorMess
 PACKAGE.Darklang.Stdlib.UInt16.multiply_v0 65535us 2us = Builtin.Test.derrorMessage
   "Out of range"
 
+PACKAGE.Darklang.Stdlib.UInt16.power_v0 2us 3us = 8us
+PACKAGE.Darklang.Stdlib.UInt16.power_v0 0us 1us = 0us
+PACKAGE.Darklang.Stdlib.UInt16.power_v0 1us 0us = 1us
+PACKAGE.Darklang.Stdlib.UInt16.power_v0 0us 0us = 1us
+PACKAGE.Darklang.Stdlib.UInt16.power_v0 1us 255us = 1us
+
+PACKAGE.Darklang.Stdlib.UInt16.power_v0 256us 2us = Builtin.Test.derrorMessage
+  "Out of range"
+
 PACKAGE.Darklang.Stdlib.UInt16.divide_v0 10us 5us = 2us
 PACKAGE.Darklang.Stdlib.UInt16.divide_v0 17us 3us = 5us
 PACKAGE.Darklang.Stdlib.UInt16.divide_v0 8us 5us = 1us
@@ -97,7 +106,7 @@ PACKAGE.Darklang.Stdlib.UInt16.mod_v0 5us 0us = Builtin.Test.derrorMessage
   "Zero modulus"
 
 
-(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
   PACKAGE.Darklang.Stdlib.UInt16.random 1us 2us)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
@@ -108,7 +117,7 @@ PACKAGE.Darklang.Stdlib.UInt16.mod_v0 5us 0us = Builtin.Test.derrorMessage
                                                                    true
                                                                    true ]
 
-(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
   PACKAGE.Darklang.Stdlib.UInt16.random 10us 20us)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
@@ -119,7 +128,7 @@ PACKAGE.Darklang.Stdlib.UInt16.mod_v0 5us 0us = Builtin.Test.derrorMessage
                                                                     true
                                                                     true ]
 
-(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
   PACKAGE.Darklang.Stdlib.UInt16.random 2us 1us)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
@@ -130,7 +139,7 @@ PACKAGE.Darklang.Stdlib.UInt16.mod_v0 5us 0us = Builtin.Test.derrorMessage
                                                                    true
                                                                    true ]
 
-(PACKAGE.Darklang.Stdlib.List.range_v0 1 5)
+(PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
   PACKAGE.Darklang.Stdlib.UInt16.random 20us 10us)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
@@ -141,12 +150,12 @@ PACKAGE.Darklang.Stdlib.UInt16.mod_v0 5us 0us = Builtin.Test.derrorMessage
                                                                     true
                                                                     true ]
 
-((PACKAGE.Darklang.Stdlib.List.range_v0 1 100)
+((PACKAGE.Darklang.Stdlib.List.range_v0 1L 100L)
  |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
    PACKAGE.Darklang.Stdlib.UInt16.random 0us 1us)
  |> PACKAGE.Darklang.Stdlib.List.unique_v0) = [ 0us; 1us ]
 
-((PACKAGE.Darklang.Stdlib.List.range_v0 1 100)
+((PACKAGE.Darklang.Stdlib.List.range_v0 1L 100L)
  |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
    PACKAGE.Darklang.Stdlib.UInt16.random 0us 2us)
  |> PACKAGE.Darklang.Stdlib.List.unique_v0) = [ 0us; 1us; 2us ]

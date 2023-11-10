@@ -26,6 +26,16 @@ module Darklang =
       let multiply (a: UInt16) (b: UInt16) : UInt16 = Builtin.UInt16.multiply a b
 
 
+      /// Raise <param base> to the power of <param exponent>.
+      /// <param exponent> must to be positive.
+      /// Return value wrapped in a {{Result}}
+      let power (``base``: UInt16) (exponent: UInt16) : UInt16 =
+        if ``base`` == 0us && exponent == 0us then 1us
+        else if ``base`` == 0us then 0us
+        else if ``base`` == 1us then 1us
+        else Builtin.UInt16.power ``base`` exponent
+
+
       /// Divides two 16-bit unsigned integers
       let divide (a: UInt16) (b: UInt16) : UInt16 = Builtin.UInt16.divide a b
 
@@ -41,6 +51,7 @@ module Darklang =
 
       /// Returns {{true}} if <param a> is less than <param b>
       let lessThan (a: UInt16) (b: UInt16) : Bool = Builtin.UInt16.lessThan a b
+
 
       /// Returns {{true}} if <param a> is less than or equal to <param b>
       let lessThanOrEqualTo (a: UInt16) (b: UInt16) : Bool =
@@ -119,6 +130,6 @@ module Darklang =
       let toString (uint16: UInt16) : String = Builtin.UInt16.toString uint16
 
 
-      /// Converts a <type UInt16> to a <type Int64>. Returns {{None}} if the value is less than 0 or greater than 65535.
-      let fromInt64 (uint16: Int) : PACKAGE.Darklang.Stdlib.Option.Option<UInt16> =
-        Builtin.UInt16.fromInt64 uint16
+      /// Converts an <type Int64> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 65535.
+      let fromInt64 (i: Int) : PACKAGE.Darklang.Stdlib.Option.Option<UInt16> =
+        Builtin.UInt16.fromInt64 i

@@ -21,7 +21,7 @@ module Darklang =
               |> (fun parts -> $"{parts}.")
 
           let versionPart =
-            if t.version == 0 then
+            if t.version == 0L then
               ""
             else
               $"_v{PACKAGE.Darklang.Stdlib.Int.toString t.version}"
@@ -42,7 +42,7 @@ module Darklang =
               |> (fun parts -> $"{parts}.")
 
           let versionPart =
-            if u.version == 0 then
+            if u.version == 0L then
               ""
             else
               $"_v{PACKAGE.Darklang.Stdlib.Int.toString u.version}"
@@ -57,7 +57,7 @@ module Darklang =
           let modulesPart = PACKAGE.Darklang.Stdlib.String.join p.modules "."
 
           let versionPart =
-            if p.version == 0 then
+            if p.version == 0L then
               ""
             else
               $"_v{PACKAGE.Darklang.Stdlib.Int.toString p.version}"
@@ -184,6 +184,8 @@ module Darklang =
         | TUInt8 -> "UInt8"
         | TInt16 -> "Int16"
         | TUInt16 -> "UInt16"
+        | TInt32 -> "Int32"
+        | TUInt32 -> "UInt32"
         | TInt128 -> "Int128"
         | TUInt128 -> "UInt128"
         | TFloat -> "Float"
@@ -243,6 +245,8 @@ module Darklang =
         | KTUInt8 -> "UInt8"
         | KTInt16 -> "Int16"
         | KTUInt16 -> "UInt16"
+        | KTInt32 -> "Int32"
+        | KTUInt32 -> "UInt32"
         | KTInt128 -> "Int128"
         | KTUInt128 -> "UInt128"
         | KTFloat -> "Float"
@@ -304,8 +308,8 @@ module Darklang =
           (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval)
           : String =
           let nl = "\n" ++ (makeSpaces indent)
-          let inl = "\n" ++ (makeSpaces (indent + 2))
-          let indent = indent + 2
+          let inl = "\n" ++ (makeSpaces (indent + 2L))
+          let indent = indent + 2L
 
           let valueTypeName = valueTypeName dv
 
@@ -325,6 +329,8 @@ module Darklang =
           | DUInt8 i -> Builtin.UInt8.toString i
           | DInt16 i -> Builtin.Int16.toString i
           | DUInt16 i -> Builtin.UInt16.toString i
+          | DInt32 i -> Builtin.Int32.toString i
+          | DUInt32 i -> Builtin.UInt32.toString i
           | DInt128 i -> Builtin.Int128.toString i
           | DUInt128 i -> Builtin.UInt128.toString i
 
@@ -362,7 +368,7 @@ module Darklang =
 
             let short = PACKAGE.Darklang.Stdlib.String.join parts ", "
 
-            if PACKAGE.Darklang.Stdlib.String.length short <= 80 then
+            if PACKAGE.Darklang.Stdlib.String.length short <= 80L then
               $"({short})"
             else
               let long = PACKAGE.Darklang.Stdlib.String.join parts $"{inl}, "
@@ -428,7 +434,7 @@ module Darklang =
               let typeStr = typeName typeName
               $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
-            if PACKAGE.Darklang.Stdlib.String.length short <= 80 then
+            if PACKAGE.Darklang.Stdlib.String.length short <= 80L then
               short
             else
               let fieldStr =
@@ -463,4 +469,4 @@ module Darklang =
 
 
       let dval (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval) : String =
-        Dval.withIndent 0 dv
+        Dval.withIndent 0L dv

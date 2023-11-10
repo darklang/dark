@@ -25,11 +25,11 @@ let parserTests =
     "Parser tests"
     [ t
         "pipe without expr"
-        "(let x = 5\nx |> PACKAGE.Darklang.Stdlib.List.map_v0 5)"
+        "(let x = 5L\nx |> PACKAGE.Darklang.Stdlib.List.map_v0 5L)"
         (PT.ELet(
           id,
           PT.LPVariable(id, "x"),
-          PT.EInt(id, 5),
+          PT.EInt(id, 5L),
           PT.EPipe(
             id,
             PT.EVariable(id, "x"),
@@ -37,45 +37,45 @@ let parserTests =
                 id,
                 Ok(PT.FnName.fqPackage "Darklang" [ "Stdlib"; "List" ] "map" 0),
                 [],
-                [ PT.EInt(id, 5) ]
+                [ PT.EInt(id, 5L) ]
               ) ]
           )
         ))
       t
         "simple expr"
-        "(5 + 3) == 8"
+        "(5L + 3L) == 8L"
         (PT.EInfix(
           id,
           PT.InfixFnCall(PT.ComparisonEquals),
           PT.EInfix(
             id,
             (PT.InfixFnCall(PT.ArithmeticPlus)),
-            PT.EInt(id, 5),
-            PT.EInt(id, 3)
+            PT.EInt(id, 5L),
+            PT.EInt(id, 3L)
           ),
-          PT.EInt(id, 8)
+          PT.EInt(id, 8L)
         ))
       t
         "lambdas with 2 args"
-        "fun x y -> 8"
+        "fun x y -> 8L"
         (PT.ELambda(
           id,
           NEList.doubleton (PT.LPVariable(id, "x")) (PT.LPVariable(id, "y")),
-          PT.EInt(id, 8)
+          PT.EInt(id, 8L)
         ))
       t
         "lambdas with 3 args"
-        "fun x y z -> 8"
+        "fun x y z -> 8L"
         (PT.ELambda(
           id,
           NEList.ofList
             (PT.LPVariable(id, "x"))
             [ PT.LPVariable(id, "y"); PT.LPVariable(id, "z") ],
-          PT.EInt(id, 8)
+          PT.EInt(id, 8L)
         ))
       t
         "lambdas with 4 args"
-        "fun a b c d -> 8"
+        "fun a b c d -> 8L"
         (PT.ELambda(
           id,
           NEList.ofList
@@ -83,7 +83,7 @@ let parserTests =
             [ PT.LPVariable(id, "b")
               PT.LPVariable(id, "c")
               PT.LPVariable(id, "d") ],
-          PT.EInt(id, 8)
+          PT.EInt(id, 8L)
         ))
       t "negative zero" "(-0.0)" (PT.EFloat(id, Negative, "0", "0"))
       t

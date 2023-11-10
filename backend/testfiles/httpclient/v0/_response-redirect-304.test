@@ -4,7 +4,7 @@ Host: HOST
 Content-Length: 0
 
 [response]
-HTTP/1.1 304 Not Modified
+HTTP/1.1 304L Not Modified
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Location: /v0/response-redirect-destination
 
@@ -14,7 +14,7 @@ Location: /v0/response-redirect-destination
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    PACKAGE.Darklang.Stdlib.HttpClient.Response
-    { statusCode = 304
+    { statusCode = 304L
       headers =
         [
           ("server", "kestrel")

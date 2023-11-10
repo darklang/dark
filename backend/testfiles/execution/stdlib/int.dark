@@ -1,11 +1,11 @@
 PACKAGE.Darklang.Stdlib.Int.absoluteValue_v0 -5L = 5L
 PACKAGE.Darklang.Stdlib.Int.absoluteValue_v0 5L = 5L
 
-PACKAGE.Darklang.Stdlib.Int.max_v0 5 6 = 6
-PACKAGE.Darklang.Stdlib.Int.max_v0 10 1 = 10
-PACKAGE.Darklang.Stdlib.Int.max_v0 -5 6 = 6
-PACKAGE.Darklang.Stdlib.Int.max_v0 -100 -20000 = -100
-PACKAGE.Darklang.Stdlib.Int.max_v0 250 -26 = 250
+PACKAGE.Darklang.Stdlib.Int.max_v0 5L 6L = 6L
+PACKAGE.Darklang.Stdlib.Int.max_v0 10L 1L = 10L
+PACKAGE.Darklang.Stdlib.Int.max_v0 -5L 6L = 6L
+PACKAGE.Darklang.Stdlib.Int.max_v0 -100L -20000L = -100L
+PACKAGE.Darklang.Stdlib.Int.max_v0 250L -26L = 250L
 
 PACKAGE.Darklang.Stdlib.Int.min_v0 5L 6L = 5L
 PACKAGE.Darklang.Stdlib.Int.min_v0 50L -10L = -10L
@@ -14,21 +14,21 @@ PACKAGE.Darklang.Stdlib.Int.min_v0 -100L -20000L = -20000L
 PACKAGE.Darklang.Stdlib.Int.min_v0 250L -26L = -26L
 
 
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 -5 -2 5 = -2 // in bounds
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 -3 -2 1 = -2 // below min
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 -5 1 1 = 1 // at limit
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 1 2 1 = 1 // above max
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 3 0 2 = 2 //  below in
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 -100 0 0 = 0
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 100 0 0 = 0
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 -100 0 -1 = -1
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 100 0 -1 = 0
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 -100 -1 0 = -1
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 100 -1 0 = 0
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 -100 1 0 = 0
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 100 1 0 = 1
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 -2147483647 250 -26 = -26
-PACKAGE.Darklang.Stdlib.Int.clamp_v0 2147483647 250 -26 = 250
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 -5L -2L 5L = -2L // in bounds
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 -3L -2L 1L = -2L // below min
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 -5L 1L 1L = 1L // at limit
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 1L 2L 1L = 1L // above max
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 3L 0L 2L = 2L //  below in
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 -100L 0L 0L = 0L
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 100L 0L 0L = 0L
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 -100L 0L -1L = -1L
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 100L 0L -1L = 0L
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 -100L -1L 0L = -1L
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 100L -1L 0L = 0L
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 -100L 1L 0L = 0L
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 100L 1L 0L = 1L
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 -2147483647L 250L -26L = -26L
+PACKAGE.Darklang.Stdlib.Int.clamp_v0 2147483647L 250L -26L = 250L
 
 PACKAGE.Darklang.Stdlib.Int.negate_v0 -5L = 5L
 PACKAGE.Darklang.Stdlib.Int.negate_v0 5L = -5L
@@ -128,6 +128,7 @@ PACKAGE.Darklang.Stdlib.List.map_v0
 
 PACKAGE.Darklang.Stdlib.Int.power_v0 8L 5L = 32768L
 PACKAGE.Darklang.Stdlib.Int.power_v0 0L 1L = 0L
+PACKAGE.Darklang.Stdlib.Int.power_v0 0L 0L = 1L
 PACKAGE.Darklang.Stdlib.Int.power_v0 1L 0L = 1L
 PACKAGE.Darklang.Stdlib.Int.power_v0 1000L 0L = 1L
 PACKAGE.Darklang.Stdlib.Int.power_v0 -8L 5L = -32768L

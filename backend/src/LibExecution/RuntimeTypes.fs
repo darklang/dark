@@ -346,6 +346,8 @@ type KnownType =
   | KTUInt8
   | KTInt16
   | KTUInt16
+  | KTInt32
+  | KTUInt32
   | KTInt128
   | KTUInt128
   | KTFloat
@@ -423,6 +425,8 @@ module ValueType =
   let uint8 = known KTUInt8
   let int16 = known KTInt16
   let uint16 = known KTUInt16
+  let int32 = known KTInt32
+  let uint32 = known KTUInt32
   let int128 = known KTInt128
   let uint128 = known KTUInt128
   let float = known KTFloat
@@ -459,6 +463,8 @@ module ValueType =
       | KTUInt8 -> "UInt8"
       | KTInt16 -> "Int16"
       | KTUInt16 -> "UInt16"
+      | KTInt32 -> "Int32"
+      | KTUInt32 -> "UInt32"
       | KTInt128 -> "Int128"
       | KTUInt128 -> "UInt128"
       | KTFloat -> "Float"
@@ -506,6 +512,8 @@ module ValueType =
     | KTUInt8, KTUInt8 -> KTUInt8 |> Ok
     | KTInt16, KTInt16 -> KTInt16 |> Ok
     | KTUInt16, KTUInt16 -> KTUInt16 |> Ok
+    | KTInt32, KTInt32 -> KTInt32 |> Ok
+    | KTUInt32, KTUInt32 -> KTUInt32 |> Ok
     | KTInt128, KTInt128 -> KTInt128 |> Ok
     | KTUInt128, KTUInt128 -> KTUInt128 |> Ok
     | KTFloat, KTFloat -> KTFloat |> Ok
@@ -567,6 +575,8 @@ and TypeReference =
   | TUInt8
   | TInt16
   | TUInt16
+  | TInt32
+  | TUInt32
   | TInt128
   | TUInt128
   | TFloat
@@ -607,6 +617,8 @@ and TypeReference =
       | TUInt8
       | TInt16
       | TUInt16
+      | TInt32
+      | TUInt32
       | TInt128
       | TUInt128
       | TFloat
@@ -626,6 +638,8 @@ and Expr =
   | EUInt8 of id * uint8
   | EInt16 of id * int16
   | EUInt16 of id * uint16
+  | EInt32 of id * int32
+  | EUInt32 of id * uint32
   | EInt128 of id * System.Int128
   | EUInt128 of id * System.UInt128
   | EBool of id * bool
@@ -680,6 +694,8 @@ and MatchPattern =
   | MPUInt8 of id * uint8
   | MPInt16 of id * int16
   | MPUInt16 of id * uint16
+  | MPInt32 of id * int32
+  | MPUInt32 of id * uint32
   | MPInt128 of id * System.Int128
   | MPUInt128 of id * System.UInt128
   | MPBool of id * bool
@@ -723,6 +739,8 @@ and [<NoComparison>] Dval =
   | DUInt8 of uint8
   | DInt16 of int16
   | DUInt16 of uint16
+  | DInt32 of int32
+  | DUInt32 of uint32
   | DInt128 of System.Int128
   | DUInt128 of System.UInt128
   | DFloat of double
@@ -940,6 +958,8 @@ module Expr =
     | EUInt8(id, _)
     | EInt16(id, _)
     | EUInt16(id, _)
+    | EInt32(id, _)
+    | EUInt32(id, _)
     | EInt128(id, _)
     | EUInt128(id, _)
     | EString(id, _)
@@ -983,6 +1003,8 @@ module MatchPattern =
     | MPUInt8(id, _)
     | MPInt16(id, _)
     | MPUInt16(id, _)
+    | MPInt32(id, _)
+    | MPUInt32(id, _)
     | MPInt128(id, _)
     | MPUInt128(id, _)
     | MPString(id, _)
@@ -1019,6 +1041,8 @@ module Dval =
     | DUInt8 _, TUInt8
     | DInt16 _, TInt16
     | DUInt16 _, TUInt16
+    | DInt32 _, TInt32
+    | DUInt32 _, TUInt32
     | DInt128 _, TInt128
     | DUInt128 _, TUInt128
     | DFloat _, TFloat
@@ -1060,6 +1084,8 @@ module Dval =
     | DUInt8 _, _
     | DInt16 _, _
     | DUInt16 _, _
+    | DInt32 _, _
+    | DUInt32 _, _
     | DInt128 _, _
     | DUInt128 _, _
     | DFloat _, _
@@ -1089,6 +1115,8 @@ module Dval =
     | DUInt8 _ -> ValueType.Known KTUInt8
     | DInt16 _ -> ValueType.Known KTInt16
     | DUInt16 _ -> ValueType.Known KTUInt16
+    | DInt32 _ -> ValueType.Known KTInt32
+    | DUInt32 _ -> ValueType.Known KTUInt32
     | DInt128 _ -> ValueType.Known KTInt128
     | DUInt128 _ -> ValueType.Known KTUInt128
     | DFloat _ -> ValueType.Known KTFloat
@@ -1203,6 +1231,8 @@ type Const =
   | CUInt8 of uint8
   | CInt16 of int16
   | CUInt16 of uint16
+  | CInt32 of int32
+  | CUInt32 of uint32
   | CInt128 of System.Int128
   | CUInt128 of System.UInt128
   | CBool of bool
@@ -1583,6 +1613,8 @@ module Types =
     | TUInt8
     | TInt16
     | TUInt16
+    | TInt32
+    | TUInt32
     | TInt128
     | TUInt128
     | TFloat

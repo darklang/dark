@@ -61,7 +61,7 @@ module Darklang =
                   | Count(i, singular, plural) ->
                     let count = PACKAGE.Darklang.Stdlib.Int.toString i
 
-                    if i == 1 then
+                    if i == 1L then
                       let segment = toString [ singular ]
                       $"{count} {segment}"
                     else
@@ -98,7 +98,7 @@ module Darklang =
                   | InlineVarName v -> v
                   | InlineValue dv ->
                     (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv)
-                    |> Stdlib.String.ellipsis 10
+                    |> Stdlib.String.ellipsis 10L
                     |> Stdlib.String.splitOnNewline
                     |> PACKAGE.Darklang.Stdlib.String.join ""
                   | FullValue dv ->

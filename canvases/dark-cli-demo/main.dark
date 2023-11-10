@@ -6,4 +6,4 @@ let _indexHandler _req =
     |> Builtin.Json.serialize<List<String>>
     |> PACKAGE.Darklang.Stdlib.String.toBytes
 
-  PACKAGE.Darklang.Stdlib.Http.response respBody 200
+  PACKAGE.Darklang.Stdlib.Http.response respBody 200L

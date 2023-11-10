@@ -5,7 +5,7 @@ Content-Length: 0
 
 
 [response]
-HTTP/1.1 302 Found
+HTTP/1.1 302L Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Location: http://URL
 
@@ -14,7 +14,7 @@ Location: http://URL
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
   PACKAGE.Darklang.Stdlib.HttpClient.Response
-    { statusCode = 302
+    { statusCode = 302L
       headers =
         [
           ("server", "kestrel")

@@ -1,11 +1,11 @@
-(1, 2) = (1, 2)
-(1, 2, 3) = (1, 2, 3)
-(1, 2 + 3, 4) = (1, 5, 4)
+(1L, 2L) = (1L, 2L)
+(1L, 2L, 3L) = (1L, 2L, 3L)
+(1L, 2L + 3L, 4L) = (1L, 5L, 4L)
 
 // note: there is no upper limit set on Tuple size
-(1, 2, 3, 4, 5, 6, 7, 8, 9) = (1, 2, 3, 4, 5, 6, 7, 8, 9)
+(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L) = (1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L)
 
-(1, Builtin.Test.runtimeError "test", 3) = Builtin.Test.derrorMessage "test"
+(1L, Builtin.Test.runtimeError "test", 3L) = Builtin.Test.derrorMessage "test"
 
-(1, Builtin.Test.runtimeError "error1", Builtin.Test.runtimeError "error2") = Builtin.Test.derrorMessage
+(1L, Builtin.Test.runtimeError "error1", Builtin.Test.runtimeError "error2") = Builtin.Test.derrorMessage
   "error1"
