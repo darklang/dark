@@ -137,13 +137,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DUInt8 number; DUInt8 exp ] ->
           (try
-            if exp < 0uy then
-              Int.IntRuntimeError.Error.NegativeExponent
-              |> Int.IntRuntimeError.RTE.toRuntimeError
-              |> raiseRTE state.caller
-              |> Ply
-            else
-              (bigint number) ** (int exp) |> uint8 |> DUInt8 |> Ply
+            (bigint number) ** (int exp) |> uint8 |> DUInt8 |> Ply
            with :? System.OverflowException ->
              Int.IntRuntimeError.Error.OutOfRange
              |> Int.IntRuntimeError.RTE.toRuntimeError

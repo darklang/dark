@@ -70,6 +70,7 @@ PACKAGE.Darklang.Stdlib.Int32.mod_v0 5l -5l = Builtin.Test.derrorMessage
 PACKAGE.Darklang.Stdlib.Int32.power_v0 2l 3l = 8l
 PACKAGE.Darklang.Stdlib.Int32.power_v0 0l 1l = 0l
 PACKAGE.Darklang.Stdlib.Int32.power_v0 1l 0l = 1l
+PACKAGE.Darklang.Stdlib.Int32.power_v0 0l 0l = 1l
 PACKAGE.Darklang.Stdlib.Int32.power_v0 -2l 5l = -32l
 PACKAGE.Darklang.Stdlib.Int32.power_v0 -1l 5l = -1l
 PACKAGE.Darklang.Stdlib.Int32.power_v0 -1l 6l = 1l

@@ -68,6 +68,7 @@ PACKAGE.Darklang.Stdlib.Int16.multiply_v0 5145s 5145s = Builtin.Test.derrorMessa
 PACKAGE.Darklang.Stdlib.Int16.power_v0 2s 3s = 8s
 PACKAGE.Darklang.Stdlib.Int16.power_v0 0s 1s = 0s
 PACKAGE.Darklang.Stdlib.Int16.power_v0 1s 0s = 1s
+PACKAGE.Darklang.Stdlib.Int16.power_v0 0s 0s = 1s
 PACKAGE.Darklang.Stdlib.Int16.power_v0 -2s 5s = -32s
 PACKAGE.Darklang.Stdlib.Int16.power_v0 -1s 5s = -1s
 PACKAGE.Darklang.Stdlib.Int16.power_v0 -1s 6s = 1s

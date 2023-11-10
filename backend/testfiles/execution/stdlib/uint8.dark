@@ -41,6 +41,16 @@ PACKAGE.Darklang.Stdlib.UInt8.multiply_v0 128uy 2uy = Builtin.Test.derrorMessage
 PACKAGE.Darklang.Stdlib.UInt8.multiply_v0 255uy 2uy = Builtin.Test.derrorMessage
   "Out of range"
 
+PACKAGE.Darklang.Stdlib.UInt8.power_v0 2uy 3uy = 8uy
+PACKAGE.Darklang.Stdlib.UInt8.power_v0 0uy 1uy = 0uy
+PACKAGE.Darklang.Stdlib.UInt8.power_v0 1uy 0uy = 1uy
+PACKAGE.Darklang.Stdlib.UInt8.power_v0 0uy 0uy = 1uy
+PACKAGE.Darklang.Stdlib.UInt8.power_v0 1uy 255uy = 1uy
+
+PACKAGE.Darklang.Stdlib.UInt8.power_v0 16uy 2uy = Builtin.Test.derrorMessage
+  "Out of range"
+
+
 PACKAGE.Darklang.Stdlib.UInt8.divide_v0 10uy 5uy = 2uy
 PACKAGE.Darklang.Stdlib.UInt8.divide_v0 17uy 3uy = 5uy
 PACKAGE.Darklang.Stdlib.UInt8.divide_v0 8uy 5uy = 1uy

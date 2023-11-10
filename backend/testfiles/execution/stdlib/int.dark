@@ -128,6 +128,7 @@ PACKAGE.Darklang.Stdlib.List.map_v0
 
 PACKAGE.Darklang.Stdlib.Int.power_v0 8L 5L = 32768L
 PACKAGE.Darklang.Stdlib.Int.power_v0 0L 1L = 0L
+PACKAGE.Darklang.Stdlib.Int.power_v0 0L 0L = 1L
 PACKAGE.Darklang.Stdlib.Int.power_v0 1L 0L = 1L
 PACKAGE.Darklang.Stdlib.Int.power_v0 1000L 0L = 1L
 PACKAGE.Darklang.Stdlib.Int.power_v0 -8L 5L = -32768L

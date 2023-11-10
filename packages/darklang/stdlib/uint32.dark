@@ -26,6 +26,17 @@ module Darklang =
       let multiply (a: UInt32) (b: UInt32) : UInt32 = Builtin.UInt32.multiply a b
 
 
+      /// Raise <param base> to the power of <param exponent>.
+      /// <param exponent> must to be positive.
+      /// Return value wrapped in a {{Result}}
+      let power (``base``: UInt32) (exponent: UInt32) : UInt32 =
+        match ``base``, exponent with
+        | 0ul, 0ul -> 1ul
+        | 0ul, _ -> 0ul
+        | 1ul, _ -> 1ul
+        | _, _ -> Builtin.UInt32.power ``base`` exponent
+
+
       /// Divides two 16-bit unsigned integers
       let divide (a: UInt32) (b: UInt32) : UInt32 = Builtin.UInt32.divide a b
 
@@ -41,6 +52,7 @@ module Darklang =
 
       /// Returns {{true}} if <param a> is less than <param b>
       let lessThan (a: UInt32) (b: UInt32) : Bool = Builtin.UInt32.lessThan a b
+
 
       /// Returns {{true}} if <param a> is less than or equal to <param b>
       let lessThanOrEqualTo (a: UInt32) (b: UInt32) : Bool =

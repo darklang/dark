@@ -100,6 +100,7 @@ PACKAGE.Darklang.Stdlib.Int8.multiply_v0 -128y -1y = Builtin.Test.derrorMessage
 PACKAGE.Darklang.Stdlib.Int8.power_v0 2y 3y = 8y
 PACKAGE.Darklang.Stdlib.Int8.power_v0 0y 1y = 0y
 PACKAGE.Darklang.Stdlib.Int8.power_v0 1y 0y = 1y
+PACKAGE.Darklang.Stdlib.Int8.power_v0 0y 0y = 1y
 PACKAGE.Darklang.Stdlib.Int8.power_v0 -2y 5y = -32y
 PACKAGE.Darklang.Stdlib.Int8.power_v0 -1y 5y = -1y
 PACKAGE.Darklang.Stdlib.Int8.power_v0 -1y 6y = 1y

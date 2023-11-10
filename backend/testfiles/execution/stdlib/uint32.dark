@@ -38,6 +38,16 @@ PACKAGE.Darklang.Stdlib.UInt32.multiply_v0 2147483647ul 2ul = 4294967294ul
 PACKAGE.Darklang.Stdlib.UInt32.multiply_v0 2147483648ul 2ul = Builtin.Test.derrorMessage
   "Out of range"
 
+PACKAGE.Darklang.Stdlib.UInt32.power_v0 2ul 3ul = 8ul
+PACKAGE.Darklang.Stdlib.UInt32.power_v0 0ul 1ul = 0ul
+PACKAGE.Darklang.Stdlib.UInt32.power_v0 1ul 0ul = 1ul
+PACKAGE.Darklang.Stdlib.UInt32.power_v0 0ul 0ul = 1ul
+PACKAGE.Darklang.Stdlib.UInt32.power_v0 1ul 255ul = 1ul
+
+PACKAGE.Darklang.Stdlib.UInt32.power_v0 65536ul 2ul = Builtin.Test.derrorMessage
+  "Out of range"
+
+
 PACKAGE.Darklang.Stdlib.UInt32.divide_v0 10ul 5ul = 2ul
 PACKAGE.Darklang.Stdlib.UInt32.divide_v0 17ul 3ul = 5ul
 PACKAGE.Darklang.Stdlib.UInt32.divide_v0 8ul 5ul = 1ul
