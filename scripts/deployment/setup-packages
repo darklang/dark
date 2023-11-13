@@ -24,7 +24,7 @@ run_prod_exec() {
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
   DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
-  ./scripts/run-prod-exec $@
+  ./scripts/run-prod-exec "$@"
 }
 
 run_local_exec() {
@@ -32,7 +32,7 @@ run_local_exec() {
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
   DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
-  ./scripts/run-local-exec $@
+  ./scripts/run-local-exec "$@"
 }
 
 subdomain='jolly-hippo-481052'
@@ -53,8 +53,8 @@ case $1 in
   3)
     echo "3. Setup account"
     # create account
-    ownerID=exec_sql "INSERT INTO accounts_v0 (id) VALUES (NEW_GUID()) RETURNING id"
-    canvasID=exec_sql "INSERT INTO canvases_v0 (id, account_id) VALUES (NEW_GUID(), $ownerID) RETURNING id"
+    ownerID=$(exec_sql "INSERT INTO accounts_v0 (id) VALUES (NEW_GUID()) RETURNING id")
+    canvasID=$(exec_sql "INSERT INTO canvases_v0 (id, account_id) VALUES (NEW_GUID(), $ownerID) RETURNING id")
     exec_sql "INSERT INTO domains_v0 (canvas_id, domain) VALUES ($canvasID, $subdomain)"
     exec_sql "INSERT INTO domains_v0 (canvas_id, domain) VALUES ($canvasID, $domain)"
     ;;
