@@ -56,7 +56,8 @@ let fns : List<BuiltInFn> =
         "Computes the md5 digest of the given <param data>. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security"
       fn =
         (function
-        | _, _, [ DBytes data ] -> MD5.HashData(System.ReadOnlySpan data) |> DBytes |> Ply
+        | _, _, [ DBytes data ] ->
+          MD5.HashData(System.ReadOnlySpan data) |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = ImpurePreviewable

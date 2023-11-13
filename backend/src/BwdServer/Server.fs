@@ -136,7 +136,8 @@ type System.IO.Pipelines.PipeWriter with
   [<System.Runtime.CompilerServices.Extension>]
   member this.WriteAsync(bytes : byte array) : Task =
     task {
-      let! (_ : System.IO.Pipelines.FlushResult) = this.WriteAsync(System.ReadOnlyMemory bytes)
+      let! (_ : System.IO.Pipelines.FlushResult) =
+        this.WriteAsync(System.ReadOnlyMemory bytes)
       return ()
     }
 
