@@ -1,6 +1,5 @@
 module BuiltinExecution.Libs.Bytes
 
-open System
 open System.Text
 open System.Text.RegularExpressions
 

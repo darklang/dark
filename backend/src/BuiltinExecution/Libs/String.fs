@@ -5,7 +5,6 @@ open FSharp.Control.Tasks
 
 open System.Globalization
 open System.Security.Cryptography
-open System
 open System.Text
 open System.Text.RegularExpressions
 

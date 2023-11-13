@@ -11,7 +11,6 @@ module BwdServer.Server
 open FSharp.Control.Tasks
 open System.Threading.Tasks
 
-open System
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
@@ -82,7 +81,7 @@ let getBody (ctx : HttpContext) : Task<byte array> =
   task {
     try
       // TODO: apparently it's faster to use a PipeReader, but that broke for us
-      let ms = new IO.MemoryStream()
+      let ms = new System.IO.MemoryStream()
       do! ctx.Request.Body.CopyToAsync(ms)
       return ms.ToArray()
     with e ->
@@ -107,10 +106,10 @@ let setResponseHeader (ctx : HttpContext) (name : string) (value : string) : uni
   ctx.Response.Headers[name] <- StringValues([| value |])
 
 /// Reads a static (Dark) favicon image
-let favicon : Lazy<ReadOnlyMemory<byte>> =
+let favicon : Lazy<System.ReadOnlyMemory<byte>> =
   lazy
     (LibCloud.File.readfileBytes LibCloud.Config.Webroot "favicon-32x32.png"
-     |> ReadOnlyMemory)
+     |> System.ReadOnlyMemory)
 
 /// Handles a request for favicon.ico, returning static Dark icon
 let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
@@ -123,7 +122,7 @@ let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
     ctx.Response.StatusCode <- 200
     ctx.Response.ContentType <- "image/png"
     ctx.Response.ContentLength <- int64 memory.Length
-    let! (_flushResult : IO.Pipelines.FlushResult) =
+    let! (_flushResult : System.IO.Pipelines.FlushResult) =
       ctx.Response.BodyWriter.WriteAsync(memory)
     return ctx
   }
@@ -137,7 +136,7 @@ type System.IO.Pipelines.PipeWriter with
   [<System.Runtime.CompilerServices.Extension>]
   member this.WriteAsync(bytes : byte array) : Task =
     task {
-      let! (_ : IO.Pipelines.FlushResult) = this.WriteAsync(ReadOnlyMemory bytes)
+      let! (_ : System.IO.Pipelines.FlushResult) = this.WriteAsync(System.ReadOnlyMemory bytes)
       return ()
     }
 

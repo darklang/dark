@@ -1,7 +1,6 @@
 /// Supports WASM <--> JS interop
 module Wasm.WasmHelpers
 
-open System
 open System.Threading.Tasks
 open System.Reflection
 

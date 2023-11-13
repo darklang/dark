@@ -1,6 +1,5 @@
 module Wasm.DarkEditor
 
-open System
 open System.Net.Http
 open System.Threading.Tasks
 

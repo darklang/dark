@@ -6,7 +6,6 @@
 
 module BuiltinExecution.Libs.Crypto
 
-open System
 open System.Security.Cryptography
 
 open Prelude
@@ -27,7 +26,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DBytes data ] ->
-          SHA256.HashData(ReadOnlySpan data) |> DBytes |> Ply
+          SHA256.HashData(System.ReadOnlySpan data) |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -42,7 +41,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DBytes data ] ->
-          SHA384.HashData(ReadOnlySpan data) |> DBytes |> Ply
+          SHA384.HashData(System.ReadOnlySpan data) |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -57,7 +56,7 @@ let fns : List<BuiltInFn> =
         "Computes the md5 digest of the given <param data>. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security"
       fn =
         (function
-        | _, _, [ DBytes data ] -> MD5.HashData(ReadOnlySpan data) |> DBytes |> Ply
+        | _, _, [ DBytes data ] -> MD5.HashData(System.ReadOnlySpan data) |> DBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = ImpurePreviewable
