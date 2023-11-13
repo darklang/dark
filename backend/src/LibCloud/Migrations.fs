@@ -60,11 +60,6 @@ let runSystemMigration (name : string) (sql : string) : unit =
     |> Sql.parameters recordMigrationParams
     |> Sql.executeStatementSync
   | _ ->
-    // CLEANUP
-    // a small number of migrations need this. We could move them to the
-    // migrations themselves though
-    let sql = $"DO $do$\nBEGIN\n{sql};\nEND\n$do$"
-
     let counts =
       LibService.DBConnection.dataSource
       |> Sql.fromDataSource
