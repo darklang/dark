@@ -57,7 +57,8 @@ variable "service_env_vars" {
 
     # DB
     "DARK_CONFIG_DB_DBNAME" = "defaultdb"
-    "DARK_CONFIG_DB_HOST"   = "slim-elk-13135.5xj.cockroachlabs.cloud:26257"
+    "DARK_CONFIG_DB_HOST"   = "slim-elk-13135.5xj.cockroachlabs.cloud"
+    "DARK_CONFIG_DB_PORT"   = "26257"
     # DARK_CONFIG_DB_USER
     # DARK_CONFIG_DB_PASSWORD
     "DARK_CONFIG_DB_POOL_SIZE" = "20"

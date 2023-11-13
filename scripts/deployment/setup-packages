@@ -3,12 +3,24 @@
 
 set -euo pipefail
 
+db_password="$POSTGRES_DB_PASSWORD"
+db_username=user1
+db_host=slim-elk-13135.5xj.cockroachlabs.cloud
+db_port=26257
+db_name=defaultdb
+db_url="postgres://$db_username:$db_password@$db_host:$db_port/$db_name"
+
 exec_sql() {
-  cockroach sql --url postgres://@slim-elk-13135.5xj.cockroachlabs.cloud:26257/defaultdb -e $1
+  cockroach sql --url "$db_url" -e "$1"
 }
 
 run_prod_exec() {
   # Password DARK_CONFIG_DB_PASSWORD should be set in environment
+  DARK_CONFIG_DB_USER="$db_username" \
+  DARK_CONFIG_DB_PASSWORD="$db_password" \
+  DARK_CONFIG_DB_HOST="$db_host" \
+  DARK_CONFIG_DB_PORT="$db_port" \
+  DARK_CONFIG_DB_DBNAME="$db_name" \
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
   DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
@@ -31,11 +43,10 @@ domain='packages.darklang.com'
 case $1 in
   1)
     echo "1. Connecting to cockroach"
-    exec_sql "select 1 ;;"
+    exec_sql "select 2 ;"
     ;;
   2)
     echo "2. Run migrations"
-    run_prod_exec migrations list
     run_prod_exec migrations run
     run_prod_exec migrations list
       ;;
