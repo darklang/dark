@@ -11,7 +11,7 @@ let dataSource : NpgsqlDataSource =
   let connectionString =
 
     Sql.host Config.pgHost
-    |> Sql.port 5432
+    |> Sql.port Config.pgPort
     |> Sql.username Config.pgUser
     |> Sql.password Config.pgPassword
     |> Sql.database Config.pgDBName

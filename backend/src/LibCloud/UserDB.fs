@@ -68,7 +68,7 @@ let rec set
     | Ok _ ->
       let upsertQuery =
         if upsert then
-          "ON CONFLICT ON CONSTRAINT user_data_key_uniq DO UPDATE SET data = EXCLUDED.data"
+          "ON CONFLICT ON CONSTRAINT user_data_key_uniq DO UPDATE SET data=EXCLUDED.data, updated_at=NOW()"
         else
           ""
 
@@ -77,8 +77,8 @@ let rec set
       do!
         Sql.query
           $"INSERT INTO user_data_v0
-            (id, canvas_id, table_tlid, user_version, dark_version, key, data)
-            VALUES (@id, @canvasID, @tlid, @userVersion, @darkVersion, @key, @data)
+            (id, canvas_id, table_tlid, user_version, dark_version, key, data, updated_at)
+            VALUES (@id, @canvasID, @tlid, @userVersion, @darkVersion, @key, @data, NOW())
             {upsertQuery}"
         |> Sql.parameters
           [ "id", Sql.uuid id

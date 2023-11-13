@@ -9,8 +9,6 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
-open System
-
 type ID = uint64
 type TLID = uint64
 
@@ -50,13 +48,13 @@ module ProgramTypes =
 
 
   module TypeName =
-    type Name = TypeName of String
+    type Name = TypeName of string
     type TypeName = FQName.FQName<Name>
     type BuiltIn = FQName.BuiltIn<Name>
     type Package = FQName.Package<Name>
 
   module FnName =
-    type Name = FnName of String
+    type Name = FnName of string
     type FnName = FQName.FQName<Name>
     type BuiltIn = FQName.BuiltIn<Name>
     type Package = FQName.Package<Name>
@@ -69,7 +67,7 @@ module ProgramTypes =
 
 
   type TypeReference =
-    | TVariable of String
+    | TVariable of string
     | TUnit
     | TBool
     | TInt
@@ -97,11 +95,11 @@ module ProgramTypes =
     | TFn of NEList<TypeReference> * TypeReference
 
   type LetPattern =
-    | LPVariable of ID * name : String
+    | LPVariable of ID * name : string
     | LPTuple of ID * LetPattern * LetPattern * List<LetPattern>
 
   type MatchPattern =
-    | MPVariable of ID * String
+    | MPVariable of ID * string
     | MPUnit of ID
     | MPBool of ID * bool
     | MPInt of ID * int
@@ -113,13 +111,13 @@ module ProgramTypes =
     | MPUInt32 of ID * uint32
     | MPInt128 of ID * System.Int128
     | MPUInt128 of ID * System.UInt128
-    | MPFloat of ID * Sign * String * String
-    | MPChar of ID * String
-    | MPString of ID * String
+    | MPFloat of ID * Sign * string * string
+    | MPChar of ID * string
+    | MPString of ID * string
     | MPList of ID * List<MatchPattern>
     | MPListCons of ID * head : MatchPattern * tail : MatchPattern
     | MPTuple of ID * MatchPattern * MatchPattern * List<MatchPattern>
-    | MPEnum of ID * caseName : String * fieldPats : List<MatchPattern>
+    | MPEnum of ID * caseName : string * fieldPats : List<MatchPattern>
 
   type BinaryOperation =
     | BinOpAnd
@@ -160,7 +158,7 @@ module ProgramTypes =
     | EPipeEnum of
       ID *
       typeName : NameResolution<TypeName.TypeName> *
-      caseName : String *
+      caseName : string *
       fields : List<Expr>
 
 
@@ -184,18 +182,18 @@ module ProgramTypes =
     | EConstant of ID * NameResolution<ConstantName.ConstantName>
 
     | EList of ID * List<Expr>
-    | EDict of ID * List<String * Expr>
+    | EDict of ID * List<string * Expr>
     | ETuple of ID * Expr * Expr * List<Expr>
     | ERecord of ID * NameResolution<TypeName.TypeName> * List<string * Expr>
     | EEnum of
       ID *
       typeName : NameResolution<TypeName.TypeName> *
-      caseName : String *
+      caseName : string *
       fields : List<Expr>
 
     | ELet of ID * LetPattern * Expr * Expr
-    | EFieldAccess of ID * Expr * String
-    | EVariable of ID * String
+    | EFieldAccess of ID * Expr * string
+    | EVariable of ID * string
 
     | EIf of ID * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
     | EMatch of ID * arg : Expr * cases : List<MatchCase>
@@ -205,7 +203,7 @@ module ProgramTypes =
     | ELambda of ID * pats : NEList<LetPattern> * body : Expr
     | EApply of ID * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
     | EFnName of ID * NameResolution<FnName.FnName>
-    | ERecordUpdate of ID * record : Expr * updates : NEList<String * Expr>
+    | ERecordUpdate of ID * record : Expr * updates : NEList<string * Expr>
 
   and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
@@ -235,7 +233,7 @@ module ProgramTypes =
 
   type PackageType =
     { tlid : TLID
-      id : Guid
+      id : System.Guid
       name : TypeName.Package
       declaration : TypeDeclaration.TypeDeclaration
       description : string
@@ -243,17 +241,17 @@ module ProgramTypes =
 
 
   module PackageFn =
-    type Parameter = { name : String; typ : TypeReference; description : String }
+    type Parameter = { name : string; typ : TypeReference; description : string }
 
     type PackageFn =
       { tlid : TLID
-        id : Guid
+        id : System.Guid
         name : FnName.Package
         body : Expr
-        typeParams : List<String>
+        typeParams : List<string>
         parameters : NEList<Parameter>
         returnType : TypeReference
-        description : String
+        description : string
         deprecated : Deprecation<FnName.FnName> }
 
   type Const =
@@ -267,21 +265,21 @@ module ProgramTypes =
     | CInt128 of System.Int128
     | CUInt128 of System.UInt128
     | CBool of bool
-    | CString of string
+    | Cstring of string
     | CChar of string
     | CFloat of Sign * string * string
     | CUnit
     | CTuple of first : Const * second : Const * rest : List<Const>
     | CEnum of NameResolution<TypeName.TypeName> * caseName : string * List<Const>
     | CList of List<Const>
-    | CDict of List<String * Const>
+    | CDict of List<string * Const>
 
 
   type PackageConstant =
     { tlid : TLID
-      id : Guid
+      id : System.Guid
       name : ConstantName.Package
-      description : String
+      description : string
       deprecated : Deprecation<ConstantName.ConstantName>
       body : Const }
 
@@ -691,7 +689,7 @@ module ExternalTypesToProgramTypes =
       | EPT.CInt128 i -> PT.CInt128 i
       | EPT.CUInt128 i -> PT.CUInt128 i
       | EPT.CBool b -> PT.CBool b
-      | EPT.CString s -> PT.CString s
+      | EPT.Cstring s -> PT.CString s
       | EPT.CChar c -> PT.CChar c
       | EPT.CFloat(s, w, f) -> PT.CFloat(Sign.toPT s, w, f)
       | EPT.CUnit -> PT.CUnit
@@ -753,9 +751,9 @@ let packageManager : RT.PackageManager =
     : Ply<Option<'cachedType>> =
     uply {
       let modules = modules |> String.concat "."
-      let nameString = $"{owner}.{modules}.{name}_v{version}"
+      let namestring = $"{owner}.{modules}.{name}_v{version}"
       let! response =
-        $"http://dark-packages.dlio.localhost:11003/{kind}/by-name/{nameString}"
+        $"http://dark-packages.dlio.localhost:11003/{kind}/by-name/{namestring}"
         |> httpClient.GetAsync
 
       let! responseStr = response.Content.ReadAsStringAsync()

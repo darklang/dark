@@ -249,7 +249,6 @@ let honeycombOptions (serviceName : string) : HoneycombOptions =
   options
 
 
-open System
 open System.Collections.Generic
 open System.Threading.Tasks
 
@@ -296,10 +295,10 @@ let configureAspNetCore
 
 
   options.EnrichWithHttpRequest <-
-    Action<Diagnostics.Activity, Microsoft.AspNetCore.Http.HttpRequest>
+    System.Action<System.Diagnostics.Activity, Microsoft.AspNetCore.Http.HttpRequest>
       enrichHttpRequest
   options.EnrichWithHttpResponse <-
-    Action<Diagnostics.Activity, Microsoft.AspNetCore.Http.HttpResponse>
+    System.Action<System.Diagnostics.Activity, Microsoft.AspNetCore.Http.HttpResponse>
       enrichHttpResponse
 
   options.RecordException <- true
@@ -329,7 +328,7 @@ type Sampler(serviceName : string) =
     if percentage >= 100.0 then
       keep
     else
-      let scaled = int ((percentage / 100.0) * float Int32.MaxValue)
+      let scaled = int ((percentage / 100.0) * float System.Int32.MaxValue)
       // Deterministic sampler, will produce the same result for every span in a trace
       // Originally based on https://github.com/open-telemetry/opentelemetry-dotnet/blob/b2fb873fcd9ceca2552b152a60bf192e2ea12b99/src/OpenTelemetry/Trace/TraceIdRatioBasedSampler.cs#LL76
       let traceIDAsInt = ps.TraceId.GetHashCode() |> System.Math.Abs

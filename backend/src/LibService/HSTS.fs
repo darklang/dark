@@ -1,6 +1,5 @@
 module LibService.HSTS
 
-open System
 open Microsoft.AspNetCore.HttpsPolicy
 
 // The traditional methods of using `UseHsts` and `AddHsts` within BwdServer
@@ -14,6 +13,6 @@ open Microsoft.AspNetCore.HttpsPolicy
 let setConfig (options : HstsOptions) =
   options.Preload <- true
   options.IncludeSubDomains <- true
-  options.MaxAge <- TimeSpan.FromDays 365
+  options.MaxAge <- System.TimeSpan.FromDays 365
 
 let stringConfig = "max-age=31536000; includeSubDomains; preload"

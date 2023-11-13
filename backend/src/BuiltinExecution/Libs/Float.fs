@@ -1,7 +1,5 @@
 module BuiltinExecution.Libs.Float
 
-open System
-
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
@@ -33,7 +31,7 @@ let fns : List<BuiltInFn> =
       description = "Round up to an integer value"
       fn =
         (function
-        | _, _, [ DFloat a ] -> a |> Math.Ceiling |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> System.Math.Ceiling |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -47,7 +45,7 @@ let fns : List<BuiltInFn> =
       description = "Round up to an integer value"
       fn =
         (function
-        | _, _, [ DFloat a ] -> a |> Math.Ceiling |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> System.Math.Ceiling |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -66,7 +64,7 @@ let fns : List<BuiltInFn> =
         but {{Float.truncate -1.9 == -1.0}}"
       fn =
         (function
-        | _, _, [ DFloat a ] -> a |> Math.Floor |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> System.Math.Floor |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -86,7 +84,7 @@ let fns : List<BuiltInFn> =
 
       fn =
         (function
-        | _, _, [ DFloat a ] -> a |> Math.Floor |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> System.Math.Floor |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -100,7 +98,7 @@ let fns : List<BuiltInFn> =
       description = "Round to the nearest integer value"
       fn =
         (function
-        | _, _, [ DFloat a ] -> a |> Math.Round |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> System.Math.Round |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -115,7 +113,7 @@ let fns : List<BuiltInFn> =
         "Discard the fractional portion of the float, rounding towards zero"
       fn =
         (function
-        | _, _, [ DFloat a ] -> a |> Math.Truncate |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> System.Math.Truncate |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -129,7 +127,7 @@ let fns : List<BuiltInFn> =
       description = "Get the square root of a float"
       fn =
         (function
-        | _, _, [ DFloat a ] -> Ply(DFloat(Math.Sqrt a))
+        | _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Sqrt a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -270,7 +268,7 @@ let fns : List<BuiltInFn> =
         "Discard the fractional portion of <type Float> <param a>, rounding towards zero."
       fn =
         (function
-        | _, _, [ DFloat a ] -> a |> Math.Truncate |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> System.Math.Truncate |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

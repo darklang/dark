@@ -1,12 +1,3 @@
-CREATE OR REPLACE FUNCTION trigger_set_timestamp()
-RETURNS TRIGGER AS $t$
-  BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-  END;
-$t$ LANGUAGE plpgsql;
-
-
 CREATE TABLE IF NOT EXISTS
 accounts_v0
 ( id UUID PRIMARY KEY
@@ -18,14 +9,7 @@ canvases_v0
 ( id UUID PRIMARY KEY
 , account_id UUID REFERENCES accounts_v0(id) NOT NULL
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-CREATE TRIGGER set_canvas_timestamp
-BEFORE UPDATE ON canvases_v0
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
 
 CREATE TABLE IF NOT EXISTS
 cron_records_v0
@@ -44,7 +28,8 @@ ON cron_records_v0
 CREATE TABLE IF NOT EXISTS
 domains_v0
 ( domain TEXT PRIMARY KEY
-, canvas_id UUID NOT NULL);
+, canvas_id UUID NOT NULL
+, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
 
 
 CREATE TABLE IF NOT EXISTS
@@ -86,14 +71,8 @@ package_functions_v0
 -- the actual definition
 , definition BYTEA NOT NULL /* the whole thing serialized as binary */
 -- bonus
-, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-CREATE TRIGGER set_package_function_timestamp
-BEFORE UPDATE ON package_functions_v0
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
 
 CREATE TABLE IF NOT EXISTS
 package_types_v0
@@ -112,14 +91,8 @@ package_types_v0
 -- the actual definition
 , definition BYTEA NOT NULL /* the whole thing serialized as binary */
 -- bonus
-, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-CREATE TRIGGER set_package_type_timestamp
-BEFORE UPDATE ON package_types_v0
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
 
 
 CREATE TABLE IF NOT EXISTS
@@ -134,15 +107,8 @@ package_constants_v0
 -- the actual definition
 , definition BYTEA NOT NULL /* the whole thing serialized as binary */
 -- bonus
-, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-CREATE TRIGGER set_package_constants_timestamp
-BEFORE UPDATE ON package_constants_v0
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
 
 
 CREATE TYPE scheduling_rule_type AS ENUM ('pause', 'block');
@@ -199,12 +165,6 @@ toplevels_v0
 , PRIMARY KEY (canvas_id, tlid)
 );
 
-CREATE TRIGGER set_toplevels_timestamp
-BEFORE UPDATE ON toplevels_v0
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-
 
 -- Keep track of what traces are available for which handler/function/etc
 CREATE TABLE IF NOT EXISTS
@@ -230,6 +190,7 @@ user_data_v0
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , key TEXT NOT NULL
+, CONSTRAINT user_data_key_uniq UNIQUE (canvas_id, table_tlid, dark_version, user_version, key)
 );
 
 CREATE INDEX IF NOT EXISTS
@@ -242,25 +203,8 @@ idx_user_data_current_data_for_tlid
 ON user_data_v0
 (user_version, dark_version, canvas_id, table_tlid);
 
-CREATE UNIQUE INDEX
-idx_user_data_row_uniqueness
-ON user_data_v0
-(canvas_id, table_tlid, dark_version, user_version, key);
-
-
 CREATE INDEX IF NOT EXISTS
 idx_user_data_gin_data
 ON user_data_v0
 USING GIN
-(data jsonb_path_ops);
-
-CREATE TRIGGER set_user_data_timestamp
-BEFORE UPDATE ON user_data_v0
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-
-ALTER TABLE user_data_v0
-   ADD constraint user_data_key_uniq UNIQUE
-   USING INDEX idx_user_data_row_uniqueness
-
+(data jsonb_path_ops)

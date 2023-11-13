@@ -1,6 +1,5 @@
 module CanvasHack.Main
 
-open System
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
@@ -30,7 +29,7 @@ let parseYamlExn<'a> (filename : string) : 'a =
 
   match List.head deserialized with
   | Some(Legivel.Serialization.Success s) -> s.Data
-  | ex -> raise (Exception($"couldn't parse {filename} with error {ex}"))
+  | ex -> raise (System.Exception($"couldn't parse {filename} with error {ex}"))
 
 let packageManager = LibCloud.PackageManager.packageManager
 
@@ -45,8 +44,8 @@ let seedCanvas (canvasName : string) =
     let experimentalHost = $"http://{domain}:{LibService.Config.bwdDangerServerPort}"
     let canvasID =
       match config.CanvasId with
-      | None -> Guid.NewGuid()
-      | Some id -> Guid.Parse id
+      | None -> System.Guid.NewGuid()
+      | Some id -> System.Guid.Parse id
 
     let! ownerID = LibCloud.Account.createUser ()
     do! LibCloud.Canvas.createWithExactID canvasID ownerID domain

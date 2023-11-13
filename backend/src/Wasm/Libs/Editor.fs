@@ -1,8 +1,6 @@
 /// Builtin for handling JS-WASM interactions via WASM'd Darklang code
 module Wasm.Libs.Editor
 
-open System
-
 open Prelude
 
 open LibExecution.RuntimeTypes

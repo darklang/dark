@@ -113,6 +113,8 @@ let traceSamplingRuleDefault = string "DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT"
 // --------------------
 let pgHost = string "DARK_CONFIG_DB_HOST"
 
+let pgPort = int "DARK_CONFIG_DB_PORT"
+
 let pgDBName = string "DARK_CONFIG_DB_DBNAME"
 
 let pgUser = string "DARK_CONFIG_DB_USER"

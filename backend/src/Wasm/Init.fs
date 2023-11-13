@@ -1,6 +1,5 @@
 namespace Wasm
 
-open System
 open Microsoft.JSInterop
 
 open Prelude
@@ -8,7 +7,7 @@ open Prelude
 type Init =
   [<JSInvokable>]
   static member InitializeDarkRuntime() : unit =
-    Environment.SetEnvironmentVariable("TZ", "UTC")
+    System.Environment.SetEnvironmentVariable("TZ", "UTC")
     Json.Vanilla.allow<Wasm.Libs.Editor.Editor>
       "to 'Export' the editor - just for debugging"
     System.Console.WriteLine("Dark runtime initialized")

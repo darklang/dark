@@ -1,7 +1,6 @@
 module BuiltinExecution.Libs.NoModule
 
 open Prelude
-open System
 
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 

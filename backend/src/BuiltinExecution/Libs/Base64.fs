@@ -1,6 +1,5 @@
 module BuiltinExecution.Libs.Base64
 
-open System
 open System.Text
 open System.Text.RegularExpressions
 
@@ -51,7 +50,7 @@ let fns : List<BuiltInFn> =
             try
               s
               |> base64FromUrlEncoded
-              |> Convert.FromBase64String
+              |> System.Convert.FromBase64String
               |> DBytes
               |> resultOk
             with e ->
