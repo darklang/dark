@@ -190,6 +190,7 @@ user_data_v0
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , key TEXT NOT NULL
+, CONSTRAINT user_data_key_uniq UNIQUE (canvas_id, table_tlid, dark_version, user_version, key)
 );
 
 CREATE INDEX IF NOT EXISTS
@@ -202,20 +203,8 @@ idx_user_data_current_data_for_tlid
 ON user_data_v0
 (user_version, dark_version, canvas_id, table_tlid);
 
-CREATE UNIQUE INDEX
-idx_user_data_row_uniqueness
-ON user_data_v0
-(canvas_id, table_tlid, dark_version, user_version, key);
-
-
 CREATE INDEX IF NOT EXISTS
 idx_user_data_gin_data
 ON user_data_v0
 USING GIN
-(data jsonb_path_ops);
-
-
-ALTER TABLE user_data_v0
-   ADD constraint user_data_key_uniq UNIQUE
-   USING INDEX idx_user_data_row_uniqueness
-
+(data jsonb_path_ops)
