@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+exec_sql() {
+  cockroach sql --url postgres://@slim-elk-13135.5xj.cockroachlabs.cloud:26257/defaultdb -e $1
+}
+
+run_prod_exec() {
+  # Password DARK_CONFIG_DB_PASSWORD should be set in environment
+  DARK_CONFIG_TELEMETRY_EXPORTER=none \
+  DARK_CONFIG_ROLLBAR_ENABLED=n \
+  DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
+  ./scripts/run-prod-exec $@
+}
+
+run_local_exec() {
+  # Password DARK_CONFIG_DB_PASSWORD should be set in environment
+  DARK_CONFIG_TELEMETRY_EXPORTER=none \
+  DARK_CONFIG_ROLLBAR_ENABLED=n \
+  DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
+  ./scripts/run-local-exec $@
+}
+
+subdomain='jolly-hippo-481052'
+domain='packages.darklang.com'
+
+# All the steps. Run this with `./scripts/deployment/setup-packages 1`` or
+# whatever step number to run.
+case $1 in
+  1)
+    echo "1. Connecting to cockroach"
+    exec_sql "select 1 ;;"
+    ;;
+  2)
+    echo "2. Run migrations"
+    run_prod_exec migrations list
+    run_prod_exec migrations run
+    run_prod_exec migrations list
+      ;;
+  3)
+    echo "3. Setup account"
+    # create account
+    ownerID=exec_sql "INSERT INTO accounts_v0 (id) VALUES (NEW_GUID()) RETURNING id"
+    canvasID=exec_sql "INSERT INTO canvases_v0 (id, account_id) VALUES (NEW_GUID(), $ownerID) RETURNING id"
+    exec_sql "INSERT INTO domains_v0 (canvas_id, domain) VALUES ($canvasID, $subdomain)"
+    exec_sql "INSERT INTO domains_v0 (canvas_id, domain) VALUES ($canvasID, $domain)"
+    ;;
+  4)
+    echo "4. Add old packages"
+    run_local_exec list-packages
+    run_local_exec load-packages
+    ;;
+  5)
+    echo "5. Add canvas"
+    ./scripts/run-canvas-hack dark-packages
+    ;;
+  6)
+    echo "6. Upload packages"
+    run_local_exec load-packages-dark
+    ;;
+esac
