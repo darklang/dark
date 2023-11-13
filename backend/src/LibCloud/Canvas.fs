@@ -463,9 +463,9 @@ let saveTLIDs
           Sql.query
             "INSERT INTO toplevels_v0
                     (canvas_id, tlid, digest, tipe, name, module, modifier,
-                     deleted, data)
+                     deleted, data, updated_at)
                     VALUES (@canvasID, @tlid, @digest, @typ::toplevel_type, @name,
-                            @module, @modifier, @deleted, @data)
+                            @module, @modifier, @deleted, @data, NOW())
                     ON CONFLICT (canvas_id, tlid) DO UPDATE
                     SET digest = @digest,
                         tipe = @typ::toplevel_type,
