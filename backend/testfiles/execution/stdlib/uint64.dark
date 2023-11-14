@@ -18,7 +18,8 @@ PACKAGE.Darklang.Stdlib.UInt64.mod_v0 15UL 6UL = 3UL
 PACKAGE.Darklang.Stdlib.UInt64.mod_v0 0UL 15UL = 0UL
 PACKAGE.Darklang.Stdlib.UInt64.mod_v0 9999999999998UL 3UL = 2UL
 
-PACKAGE.Darklang.Stdlib.UInt64.mod_v0 5UL 0UL = Builtin.Test.derrorMessage "Zero modulus"
+PACKAGE.Darklang.Stdlib.UInt64.mod_v0 5UL 0UL = Builtin.Test.derrorMessage
+  "Zero modulus"
 
 
 PACKAGE.Darklang.Stdlib.UInt64.power_v0 8UL 5UL = 32768UL
@@ -80,6 +81,7 @@ PACKAGE.Darklang.Stdlib.UInt64.subtract_v0 1UL 0UL = 1UL
 
 PACKAGE.Darklang.Stdlib.UInt64.multiply_v0 8UL 8UL = 64UL
 PACKAGE.Darklang.Stdlib.UInt64.multiply_v0 5145UL 5145UL = 26471025UL
+
 PACKAGE.Darklang.Stdlib.UInt64.multiply_v0 9223372036854775808UL 2UL = Builtin.Test.derrorMessage
   "Out of range"
 
@@ -93,38 +95,30 @@ PACKAGE.Darklang.Stdlib.UInt64.divide_v0 1UL 0UL = Builtin.Test.derrorMessage
 (PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
   PACKAGE.Darklang.Stdlib.UInt64.random 1UL 2UL)
-|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x -> (Builtin.UInt64.greaterThanOrEqualTo x 1UL) && (Builtin.UInt64.lessThanOrEqualTo x 2UL)) = [ true
-                                                                                                                                              true
-                                                                                                                                              true
-                                                                                                                                              true
-                                                                                                                                              true ]
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
+  (Builtin.UInt64.greaterThanOrEqualTo x 1UL)
+  && (Builtin.UInt64.lessThanOrEqualTo x 2UL)) = [ true; true; true; true; true ]
 
 (PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
   PACKAGE.Darklang.Stdlib.UInt64.random 10UL 20UL)
-|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x -> (Builtin.UInt64.greaterThanOrEqualTo x 10UL) && (Builtin.UInt64.lessThanOrEqualTo x 20UL)) = [ true
-                                                                                                                                                true
-                                                                                                                                                true
-                                                                                                                                                true
-                                                                                                                                                true ]
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
+  (Builtin.UInt64.greaterThanOrEqualTo x 10UL)
+  && (Builtin.UInt64.lessThanOrEqualTo x 20UL)) = [ true; true; true; true; true ]
 
 (PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
   PACKAGE.Darklang.Stdlib.UInt64.random 2UL 1UL)
-|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x -> (Builtin.UInt64.greaterThanOrEqualTo x 1UL) && (Builtin.UInt64.lessThanOrEqualTo x 2UL)) = [ true
-                                                                                                                                              true
-                                                                                                                                              true
-                                                                                                                                              true
-                                                                                                                                              true ]
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
+  (Builtin.UInt64.greaterThanOrEqualTo x 1UL)
+  && (Builtin.UInt64.lessThanOrEqualTo x 2UL)) = [ true; true; true; true; true ]
 
 (PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)
 |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
   PACKAGE.Darklang.Stdlib.UInt64.random 20UL 10UL)
-|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x -> (Builtin.UInt64.greaterThanOrEqualTo x 10UL) && (Builtin.UInt64.lessThanOrEqualTo x 20UL)) = [ true
-                                                                                                                                                true
-                                                                                                                                                true
-                                                                                                                                                true
-                                                                                                                                                true ]
+|> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->
+  (Builtin.UInt64.greaterThanOrEqualTo x 10UL)
+  && (Builtin.UInt64.lessThanOrEqualTo x 20UL)) = [ true; true; true; true; true ]
 
 ((PACKAGE.Darklang.Stdlib.List.range_v0 1L 100L)
  |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun x ->

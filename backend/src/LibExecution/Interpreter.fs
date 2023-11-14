@@ -514,14 +514,18 @@ let rec eval
             | DInt64 di -> return (di = pi), []
             | _ ->
               return!
-                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Int64", dv))
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("Int64", dv))
 
           | MPUInt64(id, pi) ->
             match dv with
             | DUInt64 di -> return (di = pi), []
             | _ ->
               return!
-                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("UInt64", dv))
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("UInt64", dv))
 
           | MPInt8(id, pi) ->
             match dv with

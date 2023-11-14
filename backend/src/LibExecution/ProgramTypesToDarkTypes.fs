@@ -428,7 +428,11 @@ module LetPattern =
     | DEnum(_, _, [], "LPVariable", [ DInt64 id; DString name ]) ->
       PT.LPVariable(uint64 id, name)
     | DEnum(_, _, [], "LPUnit", [ DInt64 id ]) -> PT.LPUnit(uint64 id)
-    | DEnum(_, _, [], "LPTuple", [ DInt64 id; first; second; DList(_vtTODO, theRest) ]) ->
+    | DEnum(_,
+            _,
+            [],
+            "LPTuple",
+            [ DInt64 id; first; second; DList(_vtTODO, theRest) ]) ->
       PT.LPTuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
     | _ -> Exception.raiseInternal "Invalid LetPattern" []
 
@@ -461,7 +465,8 @@ module MatchPattern =
       | PT.MPString(id, s) -> "MPString", [ DInt64(int64 id); DString s ]
 
       | PT.MPList(id, inner) ->
-        "MPList", [ DInt64(int64 id); DList(VT.known knownType, List.map toDT inner) ]
+        "MPList",
+        [ DInt64(int64 id); DList(VT.known knownType, List.map toDT inner) ]
       | PT.MPListCons(id, head, tail) ->
         "MPListCons", [ DInt64(int64 id); toDT head; toDT tail ]
       | PT.MPTuple(id, first, second, theRest) ->
@@ -487,7 +492,8 @@ module MatchPattern =
     | DEnum(_, _, [], "MPUnit", [ DInt64 id ]) -> PT.MPUnit(uint64 id)
     | DEnum(_, _, [], "MPBool", [ DInt64 id; DBool b ]) -> PT.MPBool(uint64 id, b)
     | DEnum(_, _, [], "MPInt64", [ DInt64 id; DInt64 i ]) -> PT.MPInt64(uint64 id, i)
-    | DEnum(_, _, [], "MPUInt64", [ DInt64 id; DUInt64 i ]) -> PT.MPUInt64(uint64 id, i)
+    | DEnum(_, _, [], "MPUInt64", [ DInt64 id; DUInt64 i ]) ->
+      PT.MPUInt64(uint64 id, i)
     | DEnum(_, _, [], "MPInt8", [ DInt64 id; DInt8 i ]) -> PT.MPInt8(uint64 id, i)
     | DEnum(_, _, [], "MPUInt8", [ DInt64 id; DUInt8 i ]) -> PT.MPUInt8(uint64 id, i)
     | DEnum(_, _, [], "MPInt16", [ DInt64 id; DInt16 i ]) -> PT.MPInt16(uint64 id, i)
@@ -500,7 +506,11 @@ module MatchPattern =
       PT.MPInt128(uint64 id, i)
     | DEnum(_, _, [], "MPUInt128", [ DInt64 id; DUInt128 i ]) ->
       PT.MPUInt128(uint64 id, i)
-    | DEnum(_, _, [], "MPFloat", [ DInt64 id; sign; DString whole; DString remainder ]) ->
+    | DEnum(_,
+            _,
+            [],
+            "MPFloat",
+            [ DInt64 id; sign; DString whole; DString remainder ]) ->
       PT.MPFloat(uint64 id, Sign.fromDT sign, whole, remainder)
     | DEnum(_, _, [], "MPChar", [ DInt64 id; DString c ]) -> PT.MPChar(uint64 id, c)
     | DEnum(_, _, [], "MPString", [ DInt64 id; DString s ]) ->
@@ -510,7 +520,11 @@ module MatchPattern =
       PT.MPList(uint64 id, List.map fromDT inner)
     | DEnum(_, _, [], "MPListCons", [ DInt64 id; head; tail ]) ->
       PT.MPListCons(uint64 id, fromDT head, fromDT tail)
-    | DEnum(_, _, [], "MPTuple", [ DInt64 id; first; second; DList(_vtTODO, theRest) ]) ->
+    | DEnum(_,
+            _,
+            [],
+            "MPTuple",
+            [ DInt64 id; first; second; DList(_vtTODO, theRest) ]) ->
       PT.MPTuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
     | DEnum(_,
             _,
@@ -797,7 +811,8 @@ module Expr =
       | PT.EFieldAccess(id, expr, fieldName) ->
         "EFieldAccess", [ DInt64(int64 id); toDT expr; DString fieldName ]
 
-      | PT.EVariable(id, varName) -> "EVariable", [ DInt64(int64 id); DString varName ]
+      | PT.EVariable(id, varName) ->
+        "EVariable", [ DInt64(int64 id); DString varName ]
 
 
       // control flow
@@ -895,14 +910,18 @@ module Expr =
     // simple data
     | DEnum(_, _, [], "EBool", [ DInt64 id; DBool b ]) -> PT.EBool(uint64 id, b)
     | DEnum(_, _, [], "EInt64", [ DInt64 id; DInt64 i ]) -> PT.EInt64(uint64 id, i)
-    | DEnum(_, _, [], "EUInt64", [ DInt64 id; DUInt64 i ]) -> PT.EUInt64(uint64 id, i)
+    | DEnum(_, _, [], "EUInt64", [ DInt64 id; DUInt64 i ]) ->
+      PT.EUInt64(uint64 id, i)
     | DEnum(_, _, [], "EInt8", [ DInt64 id; DInt8 i ]) -> PT.EInt8(uint64 id, i)
     | DEnum(_, _, [], "EUInt8", [ DInt64 id; DUInt8 i ]) -> PT.EUInt8(uint64 id, i)
     | DEnum(_, _, [], "EInt16", [ DInt64 id; DInt16 i ]) -> PT.EInt16(uint64 id, i)
-    | DEnum(_, _, [], "EUInt16", [ DInt64 id; DUInt16 i ]) -> PT.EUInt16(uint64 id, i)
+    | DEnum(_, _, [], "EUInt16", [ DInt64 id; DUInt16 i ]) ->
+      PT.EUInt16(uint64 id, i)
     | DEnum(_, _, [], "EInt32", [ DInt64 id; DInt32 i ]) -> PT.EInt32(uint64 id, i)
-    | DEnum(_, _, [], "EUInt32", [ DInt64 id; DUInt32 i ]) -> PT.EUInt32(uint64 id, i)
-    | DEnum(_, _, [], "EInt128", [ DInt64 id; DInt128 i ]) -> PT.EInt128(uint64 id, i)
+    | DEnum(_, _, [], "EUInt32", [ DInt64 id; DUInt32 i ]) ->
+      PT.EUInt32(uint64 id, i)
+    | DEnum(_, _, [], "EInt128", [ DInt64 id; DInt128 i ]) ->
+      PT.EInt128(uint64 id, i)
     | DEnum(_, _, [], "EUInt128", [ DInt64 id; DUInt128 i ]) ->
       PT.EUInt128(uint64 id, i)
     | DEnum(_, _, [], "EFloat", [ DInt64 id; sign; DString whole; DString remainder ]) ->
@@ -1502,7 +1521,9 @@ module Secret =
   let toDT (s : PT.Secret.T) : Dval =
     let typeName = ptTyp [] "Secret" 0
     let fields =
-      [ "name", DString s.name; "value", DString s.value; "version", DInt64 s.version ]
+      [ "name", DString s.name
+        "value", DString s.value
+        "version", DInt64 s.version ]
     DRecord(typeName, typeName, [], Map fields)
 
   let fromDT (d : Dval) : PT.Secret.T =

@@ -81,27 +81,27 @@ PACKAGE.Darklang.Stdlib.List.map_v0
 PACKAGE.Darklang.Stdlib.List.map_v0
   (PACKAGE.Darklang.Stdlib.List.range_v0 -5L 5L)
   (fun v -> PACKAGE.Darklang.Stdlib.Int64.remainder_v0 v 4L) = [ PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                  -1L
+                                                                   -1L
                                                                  PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                  0L
+                                                                   0L
                                                                  PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                  -3L
+                                                                   -3L
                                                                  PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                  -2L
+                                                                   -2L
                                                                  PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                  -1L
+                                                                   -1L
                                                                  PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                  0L
+                                                                   0L
                                                                  PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                  1L
+                                                                   1L
                                                                  PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                  2L
+                                                                   2L
                                                                  PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                  3L
+                                                                   3L
                                                                  PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                  0L
+                                                                   0L
                                                                  PACKAGE.Darklang.Stdlib.Result.Result.Ok
-                                                                  1L ]
+                                                                   1L ]
 
 PACKAGE.Darklang.Stdlib.Int64.mod_v0 15L 5L = 0L
 PACKAGE.Darklang.Stdlib.Int64.mod_v0 15L 6L = 3L
@@ -110,7 +110,8 @@ PACKAGE.Darklang.Stdlib.Int64.mod_v0 -1L 2L = 1L
 PACKAGE.Darklang.Stdlib.Int64.mod_v0 -754L 53L = 41L
 PACKAGE.Darklang.Stdlib.Int64.mod_v0 9999999999998L 3L = 2L
 
-PACKAGE.Darklang.Stdlib.Int64.mod_v0 5L 0L = Builtin.Test.derrorMessage "Zero modulus"
+PACKAGE.Darklang.Stdlib.Int64.mod_v0 5L 0L = Builtin.Test.derrorMessage
+  "Zero modulus"
 
 PACKAGE.Darklang.Stdlib.Int64.mod_v0 5L -5L = Builtin.Test.derrorMessage
   "Negative modulus"

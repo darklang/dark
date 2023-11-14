@@ -578,8 +578,9 @@ PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
 
 PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
   ((PACKAGE.Darklang.Stdlib.Int64.mod_v0 x 2L), "test")) = [ ((1L, "test"),
-                                                               [ 1L; 3L; 5L ])
-                                                             ((0L, "test"), [ 2L; 4L ]) ]
+                                                              [ 1L; 3L; 5L ])
+                                                             ((0L, "test"),
+                                                              [ 2L; 4L ]) ]
 
 PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [] (fun x -> x) = []
 

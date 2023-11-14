@@ -350,7 +350,9 @@ let fns : List<BuiltInFn> =
           // but we'd rather an inclusive version of this function
           let correction : int64 = 1
 
-          lower + randomSeeded().NextInt64(upper - lower + correction) |> DInt64 |> Ply
+          lower + randomSeeded().NextInt64(upper - lower + correction)
+          |> DInt64
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

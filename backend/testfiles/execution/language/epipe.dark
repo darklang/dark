@@ -6,7 +6,9 @@ let userFn () : Int64 = 6L
 // nested function
 ([]
  |> PACKAGE.Darklang.Stdlib.List.push_v0 (
-   PACKAGE.Darklang.Stdlib.Int64.add_v0 1L (PACKAGE.Darklang.Stdlib.Int64.add_v0 1L 3L)
+   PACKAGE.Darklang.Stdlib.Int64.add_v0
+     1L
+     (PACKAGE.Darklang.Stdlib.Int64.add_v0 1L 3L)
  )) = [ 5L ]
 
 ([]

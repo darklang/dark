@@ -145,7 +145,8 @@ module Error =
             Location.toDT location ]
 
         | ListIndex(index, listTyp, parent) ->
-          "ListIndex", [ DInt64 index; RT2DT.TypeReference.toDT listTyp; toDT parent ]
+          "ListIndex",
+          [ DInt64 index; RT2DT.TypeReference.toDT listTyp; toDT parent ]
 
         | TupleIndex(index, elementType, parent) ->
           "TupleIndex",

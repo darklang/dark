@@ -27,7 +27,8 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = TypeName.fqPackage "Darklang" [ "Stdlib"; "UInt64" ] "ParseError" 0
+    let typeName =
+      TypeName.fqPackage "Darklang" [ "Stdlib"; "UInt64" ] "ParseError" 0
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -71,7 +72,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ DUInt64 a; DUInt64 b ] ->
-          try DUInt64(Checked.(+) a b) |> Ply
+          try
+            DUInt64(Checked.(+) a b) |> Ply
           with :? System.OverflowException ->
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
@@ -91,12 +93,13 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ DUInt64 a; DUInt64 b ] ->
-        try DUInt64(Checked.(-) a b) |> Ply
-        with :? System.OverflowException ->
-          Int64.IntRuntimeError.Error.OutOfRange
-          |> Int64.IntRuntimeError.RTE.toRuntimeError
-          |> raiseRTE state.caller
-          |> Ply
+          try
+            DUInt64(Checked.(-) a b) |> Ply
+          with :? System.OverflowException ->
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            |> raiseRTE state.caller
+            |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -111,7 +114,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ DUInt64 a; DUInt64 b ] ->
-          try DUInt64(Checked.( * ) a b) |> Ply
+          try
+            DUInt64(Checked.(*) a b) |> Ply
           with :? System.OverflowException ->
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
@@ -162,7 +166,9 @@ let fns : List<BuiltInFn> =
             |> Ply
           else
             let result = a / b
-            if result < System.UInt64.MinValue || result > System.UInt64.MaxValue then
+            if
+              result < System.UInt64.MinValue || result > System.UInt64.MaxValue
+            then
               Int64.IntRuntimeError.Error.OutOfRange
               |> Int64.IntRuntimeError.RTE.toRuntimeError
               |> raiseRTE state.caller

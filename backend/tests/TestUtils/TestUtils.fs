@@ -1369,7 +1369,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        "Some",
        [ Dval.uint64 64UL ]
      ),
-     TypeReference.option TUInt64 )
+     TypeReference.option TUInt64)
     ("character", DChar "s", TChar)
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
     // use image bytes here to test for any weird bytes forms
@@ -1380,7 +1380,9 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      ),
      TBytes)
 
-    ("simple2Tuple", DTuple(Dval.int64 1, Dval.int64 2, []), TTuple(TInt64, TInt64, []))
+    ("simple2Tuple",
+     DTuple(Dval.int64 1, Dval.int64 2, []),
+     TTuple(TInt64, TInt64, []))
     ("simple3Tuple",
      DTuple(Dval.int64 1, Dval.int64 2, [ Dval.int64 3 ]),
      TTuple(TInt64, TInt64, [ TInt64 ]))

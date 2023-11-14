@@ -83,7 +83,8 @@ module Darklang =
 
 
       /// Returns a random integer between <param start> and <param end> (inclusive)
-      let random (start: Int64) (``end``: Int64) : Int64 = Builtin.Int64.random start ``end``
+      let random (start: Int64) (``end``: Int64) : Int64 =
+        Builtin.Int64.random start ``end``
 
 
       /// Get the square root of an <type Int64>

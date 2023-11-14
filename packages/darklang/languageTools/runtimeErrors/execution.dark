@@ -5,7 +5,10 @@ module Darklang =
         type Error =
           | MatchExprUnmatched of RuntimeTypes.Dval.Dval
           | MatchExprPatternWrongType of String * RuntimeTypes.Dval.Dval
-          | MatchExprEnumPatternWrongCount of String * expected: Int64 * actual: Int64
+          | MatchExprEnumPatternWrongCount of
+            String *
+            expected: Int64 *
+            actual: Int64
           | NonStringInStringInterpolation of RuntimeTypes.Dval.Dval
           | ConstDoesntExist of RuntimeTypes.ConstantName.ConstantName
 

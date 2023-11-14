@@ -150,7 +150,8 @@ let testInternalRoundtrippableNew =
   testList
     "internalNew"
     [ test "tuples serialize correctly" {
-        let expected = """{"DTuple":[{"DInt64":[1]},{"DInt64":[2]},[{"DInt64":[3]}]]}"""
+        let expected =
+          """{"DTuple":[{"DInt64":[1]},{"DInt64":[2]},[{"DInt64":[3]}]]}"""
 
         let actual =
           RT.DTuple(RT.DInt64 1, RT.DInt64 2, [ RT.DInt64 3 ])

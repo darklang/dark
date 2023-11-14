@@ -43,18 +43,21 @@ module Darklang =
 
 
       /// Returns {{true}} if <param a> is greater than or equal to <param b>
-      let greaterThanOrEqualTo (a: UInt64) (b: UInt64) : Bool = Builtin.UInt64.greaterThanOrEqualTo a b
+      let greaterThanOrEqualTo (a: UInt64) (b: UInt64) : Bool =
+        Builtin.UInt64.greaterThanOrEqualTo a b
 
 
       /// Returns {{true}} if <param a> is less than <param b>
       let lessThan (a: UInt64) (b: UInt64) : Bool = Builtin.UInt64.lessThan a b
 
       /// Returns {{true}} if <param a> is less than or equal to <param b>
-      let lessThanOrEqualTo (a: UInt64) (b: UInt64) : Bool = Builtin.UInt64.lessThanOrEqualTo a b
+      let lessThanOrEqualTo (a: UInt64) (b: UInt64) : Bool =
+        Builtin.UInt64.lessThanOrEqualTo a b
 
 
       /// Returns a random integer between <param start> and <param end> (inclusive)
-      let random (start: UInt64) (``end``: UInt64) : UInt64 = Builtin.UInt64.random start ``end``
+      let random (start: UInt64) (``end``: UInt64) : UInt64 =
+        Builtin.UInt64.random start ``end``
 
 
       /// Get the square root of an <type UInt64>
@@ -67,15 +70,18 @@ module Darklang =
 
       /// Returns the sum of all the ints in the list
       let sum (lst: List<UInt64>) : UInt64 =
-        PACKAGE.Darklang.Stdlib.List.fold lst 0UL (fun acc x -> Builtin.UInt64.add acc x)
+        PACKAGE.Darklang.Stdlib.List.fold lst 0UL (fun acc x ->
+          Builtin.UInt64.add acc x)
 
 
       /// Returns the higher of <param a> and <param b>
-      let max (a: UInt64) (b: UInt64) : UInt64 = if Builtin.UInt64.greaterThan a b then a else b
+      let max (a: UInt64) (b: UInt64) : UInt64 =
+        if Builtin.UInt64.greaterThan a b then a else b
 
 
       /// Returns the lower of <param a> and <param b>
-      let min (a: UInt64) (b: UInt64) : UInt64 = if Builtin.UInt64.lessThan a b then a else b
+      let min (a: UInt64) (b: UInt64) : UInt64 =
+        if Builtin.UInt64.lessThan a b then a else b
 
 
       /// If <param value> is within the range given by <param limitA> and <param
@@ -84,8 +90,17 @@ module Darklang =
       /// limitB>, whichever is closer to <param value>.
       /// <param limitA> and <param limitB> can be provided in any order.
       let clamp (value: UInt64) (limitA: UInt64) (limitB: UInt64) : UInt64 =
-        let min = if Builtin.UInt64.lessThan limitA limitB then limitA else limitB
-        let max = if Builtin.UInt64.greaterThan limitA limitB then limitA else limitB
+        let min =
+          if Builtin.UInt64.lessThan limitA limitB then
+            limitA
+          else
+            limitB
+
+        let max =
+          if Builtin.UInt64.greaterThan limitA limitB then
+            limitA
+          else
+            limitB
 
         if Builtin.UInt64.lessThan value min then min
         else if Builtin.UInt64.greaterThan value max then max

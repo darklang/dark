@@ -410,7 +410,11 @@ module LetPattern =
     | DEnum(_, _, [], "LPVariable", [ DInt64 id; DString name ]) ->
       LPVariable(uint64 id, name)
     | DEnum(_, _, [], "LPUnit", [ DInt64 id ]) -> LPUnit(uint64 id)
-    | DEnum(_, _, [], "LPTuple", [ DInt64 id; first; second; DList(_vtTODO, theRest) ]) ->
+    | DEnum(_,
+            _,
+            [],
+            "LPTuple",
+            [ DInt64 id; first; second; DList(_vtTODO, theRest) ]) ->
       LPTuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
     | _ -> Exception.raiseInternal "Invalid LetPattern" []
 
@@ -440,7 +444,8 @@ module MatchPattern =
       | MPString(id, s) -> "MPString", [ DInt64(int64 id); DString s ]
 
       | MPList(id, inner) ->
-        "MPList", [ DInt64(int64 id); DList(VT.known knownType, List.map toDT inner) ]
+        "MPList",
+        [ DInt64(int64 id); DList(VT.known knownType, List.map toDT inner) ]
       | MPListCons(id, head, tail) ->
         "MPListCons", [ DInt64(int64 id); toDT head; toDT tail ]
 
@@ -487,7 +492,11 @@ module MatchPattern =
     | DEnum(_, _, [], "MPListCons", [ DInt64 id; head; tail ]) ->
       MPListCons(uint64 id, fromDT head, fromDT tail)
 
-    | DEnum(_, _, [], "MPTuple", [ DInt64 id; first; second; DList(_vtTODO, theRest) ]) ->
+    | DEnum(_,
+            _,
+            [],
+            "MPTuple",
+            [ DInt64 id; first; second; DList(_vtTODO, theRest) ]) ->
       MPTuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
 
     | DEnum(_,
@@ -680,7 +689,8 @@ module Expr =
     | DEnum(_, _, [], "EInt32", [ DInt64 id; DInt32 i ]) -> EInt32(uint64 id, i)
     | DEnum(_, _, [], "EUInt32", [ DInt64 id; DUInt32 i ]) -> EUInt32(uint64 id, i)
     | DEnum(_, _, [], "EInt128", [ DInt64 id; DInt128 i ]) -> EInt128(uint64 id, i)
-    | DEnum(_, _, [], "EUInt128", [ DInt64 id; DUInt128 i ]) -> EUInt128(uint64 id, i)
+    | DEnum(_, _, [], "EUInt128", [ DInt64 id; DUInt128 i ]) ->
+      EUInt128(uint64 id, i)
     | DEnum(_, _, [], "EFloat", [ DInt64 id; DFloat f ]) -> EFloat(uint64 id, f)
     | DEnum(_, _, [], "EChar", [ DInt64 id; DString c ]) -> EChar(uint64 id, c)
     | DEnum(_, _, [], "EString", [ DInt64 id; DList(_vtTODO, segments) ]) ->

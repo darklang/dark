@@ -101,7 +101,8 @@ let parseAndSerializeProgram
     )
   | _ ->
     Error(
-      "Unexpected response code: " ++ PACKAGE.Darklang.Stdlib.Int64.toString statusCode
+      "Unexpected response code: "
+      ++ PACKAGE.Darklang.Stdlib.Int64.toString statusCode
     )
 
 
