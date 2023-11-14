@@ -1372,7 +1372,7 @@ module Handler =
   let toDT (h : PT.Handler.T) : Dval =
     let typeName = ptTyp [ "Handler" ] "Handler" 0
     let fields =
-      [ "tlid", DInt64(int64 h.tlid)
+      [ "tlid", DUInt64(uint64 h.tlid)
         "ast", Expr.toDT h.ast
         "spec", Spec.toDT h.spec ]
     DRecord(typeName, typeName, [], Map fields)
@@ -1391,7 +1391,7 @@ module DB =
   let toDT (db : PT.DB.T) : Dval =
     let typeName = ptTyp [] "DB" 0
     let fields =
-      [ "tlid", DInt64(int64 db.tlid)
+      [ "tlid", DUInt64(uint64 db.tlid)
         "name", DString db.name
         "version", DInt64 db.version
         "typ", TypeReference.toDT db.typ ]
@@ -1412,7 +1412,7 @@ module UserType =
 
   let toDT (ut : PT.UserType.T) : Dval =
     let fields =
-      [ "tlid", DInt64(int64 ut.tlid)
+      [ "tlid", DUInt64(uint64 ut.tlid)
         "name", ut.name |> TypeName.UserProgram.toDT
         "description", ut.description |> DString
         "declaration", ut.declaration |> TypeDeclaration.toDT
@@ -1457,7 +1457,7 @@ module UserFunction =
 
   let toDT (userFn : PT.UserFunction.T) : Dval =
     let fields =
-      [ ("tlid", DInt64(int64 userFn.tlid))
+      [ ("tlid", DUInt64(uint64 userFn.tlid))
         ("name", FnName.UserProgram.toDT userFn.name)
         ("typeParams", DList(VT.string, List.map DString userFn.typeParams))
         ("parameters",
@@ -1494,7 +1494,7 @@ module UserConstant =
   let toDT (userConstant : PT.UserConstant.T) : Dval =
     let typeName = ptTyp [] "UserConstant" 0
     let fields =
-      [ "tlid", DInt64(int64 userConstant.tlid)
+      [ "tlid", DUInt64(uint64 userConstant.tlid)
         "name", ConstantName.UserProgram.toDT userConstant.name
         "body", Const.toDT userConstant.body
         "description", DString userConstant.description
@@ -1540,7 +1540,7 @@ module PackageType =
 
   let toDT (p : PT.PackageType.T) : Dval =
     let fields =
-      [ "tlid", DInt64(int64 p.tlid)
+      [ "tlid", DUInt64(uint64 p.tlid)
         "id", DUuid p.id
         "name", TypeName.Package.toDT p.name
         "declaration", TypeDeclaration.toDT p.declaration
@@ -1587,7 +1587,7 @@ module PackageFn =
 
   let toDT (p : PT.PackageFn.T) : Dval =
     let fields =
-      [ ("tlid", DInt64(int64 p.tlid))
+      [ ("tlid", DUInt64(uint64 p.tlid))
         ("id", DUuid p.id)
         ("name", FnName.Package.toDT p.name)
         ("body", Expr.toDT p.body)
@@ -1628,7 +1628,7 @@ module PackageConstant =
 
   let toDT (p : PT.PackageConstant.T) : Dval =
     let fields =
-      [ "tlid", DInt64(int64 p.tlid)
+      [ "tlid", DUInt64(uint64 p.tlid)
         "id", DUuid p.id
         "name", ConstantName.Package.toDT p.name
         "body", Const.toDT p.body

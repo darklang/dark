@@ -39,9 +39,8 @@ let int64Field (name : string) (m : DvalMap) : int64 =
 let uint64Field (name : string) (m : DvalMap) : uint64 =
   m
   |> field name
-  |> Dval.asInt64
-  |> unwrap $"Expected '{name}' field to be an int64" []
-  |> uint64
+  |> Dval.asUInt64
+  |> unwrap $"Expected '{name}' field to be an uint64" []
 
 let intField (name : string) (m : DvalMap) : int = m |> int64Field name |> int
 
@@ -68,7 +67,6 @@ let uint16Field (name : string) (m : DvalMap) : uint16 =
   |> field name
   |> Dval.asUInt16
   |> unwrap $"Expected '{name}' field to be a uint16" []
-
 
 let int32Field (name : string) (m : DvalMap) : int32 =
   m
