@@ -43,8 +43,8 @@ module Darklang =
 
         module IncomingRequest =
           type RequestParams =
-            | Array of Array<JToken>
-            | Object of Array<String * JToken>
+            | Array of List<JToken>
+            | Object of List<String * JToken>
 
         //   type Request =
         //     { jsonrpc: String // should always be "2.0"
