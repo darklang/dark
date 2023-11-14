@@ -270,7 +270,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the year portion of <param date> as an <type Int64>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> d.Year |> Dval.int64 |> Ply
+        | _, _, [ DDateTime d ] -> d.Year |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'year'" ])
       previewable = Pure
@@ -285,7 +285,7 @@ let fns : List<BuiltInFn> =
         "Returns the month portion of <param date> as an <type Int64> between {{1}} and {{12}}"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> d.Month |> Dval.int64 |> Ply
+        | _, _, [ DDateTime d ] -> d.Month |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'month'" ])
       previewable = Pure
@@ -299,7 +299,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the day portion of <param date> as an <type Int64>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> d.Day |> Dval.int64 |> Ply
+        | _, _, [ DDateTime d ] -> d.Day |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'day'" ])
       previewable = Pure
