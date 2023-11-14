@@ -13,6 +13,7 @@
     <Compile Include="Libs/Environment.fs" />
     <Compile Include="Libs/File.fs" />
     <Compile Include="Libs/LanguageTools.fs" />
+    <Compile Include="Libs/LanguageServerProtocol.fs" />
     <Compile Include="Libs/Output.fs" />
     <Compile Include="Libs/Process.fs" />
     <Compile Include="Libs/Stdin.fs" />

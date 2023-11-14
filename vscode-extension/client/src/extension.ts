@@ -13,14 +13,34 @@ import {
 
 let client: LanguageClient;
 
+const useDarklangServer = false;
+
 export function activate(context: ExtensionContext) {
-  const serverModule: string = context.asAbsolutePath(
-    path.join("server", "out", "server.js"),
-  );
-  const serverOptions: ServerOptions = {
-    run: { module: serverModule, transport: TransportKind.ipc },
-    debug: { module: serverModule, transport: TransportKind.ipc },
+  const sharedDarklangServerOptions = {
+    options: { cwd: "/home/dark/app" },
+    command: "bash",
+    args: [
+      "./scripts/run-cli",
+      "./user-code/darklang/scripts/language-server.dark",
+    ],
   };
+  const darklangServerOptions: ServerOptions = {
+    run: sharedDarklangServerOptions,
+    debug: sharedDarklangServerOptions,
+  };
+
+  const sharedNodeServerOptions = {
+    module: context.asAbsolutePath(path.join("server", "out", "server.js")),
+    transport: TransportKind.ipc,
+  };
+  const nodeServerOptions: ServerOptions = {
+    run: sharedNodeServerOptions,
+    debug: sharedNodeServerOptions,
+  };
+
+  const serverOptions = useDarklangServer
+    ? darklangServerOptions
+    : nodeServerOptions;
 
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: "file", language: "darklang" }],
