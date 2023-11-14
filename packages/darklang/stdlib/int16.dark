@@ -166,5 +166,5 @@ module Darklang =
 
 
       /// Converts an <type Int64> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
-      let fromInt64 (i: Int) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+      let fromInt64 (i: Int64) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
         Builtin.Int16.fromInt64 i

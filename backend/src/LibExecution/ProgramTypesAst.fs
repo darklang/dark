@@ -20,7 +20,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     | EPipeVariable(id, name, exprs) -> EPipeVariable(id, name, List.map f exprs)
 
   match expr with
-  | EInt _
+  | EInt64 _
   | EInt8 _
   | EUInt8 _
   | EInt16 _
@@ -102,7 +102,7 @@ let rec preTraversal
     let f = preTraverseMatchPattern
     match matchPatternFn pat with
     | MPVariable _
-    | MPInt _
+    | MPInt64 _
     | MPInt8 _
     | MPUInt8 _
     | MPInt16 _
@@ -124,7 +124,7 @@ let rec preTraversal
   let rec preTraversalTypeRef (typeRef : TypeReference) : TypeReference =
     let f = preTraversalTypeRef
     match typeRefFn typeRef with
-    | TInt
+    | TInt64
     | TInt8
     | TUInt8
     | TInt16
@@ -176,7 +176,7 @@ let rec preTraversal
     | EPipeVariable(id, name, exprs) -> EPipeVariable(id, name, List.map f exprs)
 
   match exprFn expr with
-  | EInt _
+  | EInt64 _
   | EInt8 _
   | EUInt8 _
   | EInt16 _
@@ -255,7 +255,7 @@ let rec matchPatternPreTraversal
   match pattern with
   | MPVariable _
   | MPChar _
-  | MPInt _
+  | MPInt64 _
   | MPInt8 _
   | MPUInt8 _
   | MPInt16 _
@@ -284,7 +284,7 @@ let rec matchPatternPostTraversal
     match pattern with
     | MPVariable _
     | MPChar _
-    | MPInt _
+    | MPInt64 _
     | MPInt8 _
     | MPUInt8 _
     | MPInt16 _

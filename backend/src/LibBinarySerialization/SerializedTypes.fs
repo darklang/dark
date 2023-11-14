@@ -202,7 +202,7 @@ module ConstantName =
 
 [<MessagePack.MessagePackObject>]
 type TypeReference =
-  | TInt
+  | TInt64
   | TInt8
   | TUInt8
   | TInt16
@@ -256,7 +256,7 @@ type LetPattern =
     theRest : List<LetPattern>
 
 
-// We use System.Numerics.BigInteger for serializing Int128 and UInt128 in MessagePack because
+// We use bigint for serializing Int128 and UInt128 in MessagePack because
 // BigInteger is a built-in supported type that supports handling large integers beyond the range of Int128 and UInt128.
 // Creating custom formatters for Int128 and UInt128 would introduce complexity,
 // especially when dealing with endianness and serialization/deserialization processes.
@@ -265,7 +265,7 @@ type LetPattern =
 type MatchPattern =
   | MPVariable of id * string
   | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
-  | MPInt of id * int64
+  | MPInt64 of id * int64
   | MPInt8 of id * int8
   | MPUInt8 of id * uint8
   | MPInt16 of id * int16
@@ -295,7 +295,7 @@ type Infix =
 
 [<MessagePack.MessagePackObject>]
 type Expr =
-  | EInt of id * int64
+  | EInt64 of id * int64
   | EInt8 of id * int8
   | EUInt8 of id * uint8
   | EInt16 of id * int16
@@ -468,7 +468,7 @@ module UserType =
 
 [<MessagePack.MessagePackObject>]
 type Const =
-  | CInt of int64
+  | CInt64 of int64
   | CInt8 of int8
   | CUInt8 of uint8
   | CInt16 of int16

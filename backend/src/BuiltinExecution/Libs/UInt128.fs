@@ -52,8 +52,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DUInt128 v; DUInt128 m ] ->
           if m = System.UInt128.Zero then
-            Int.IntRuntimeError.Error.ZeroModulus
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.ZeroModulus
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
           else
@@ -78,8 +78,8 @@ let fns : List<BuiltInFn> =
             let result = System.UInt128.op_CheckedAddition (a, b)
             Ply(DUInt128(result))
           with :? System.OverflowException ->
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
         | _ -> incorrectArgs ())
@@ -100,8 +100,8 @@ let fns : List<BuiltInFn> =
             let result = System.UInt128.op_CheckedSubtraction (a, b)
             Ply(DUInt128(result))
           with :? System.OverflowException ->
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
         | _ -> incorrectArgs ())
@@ -123,8 +123,8 @@ let fns : List<BuiltInFn> =
             let result = System.UInt128.op_CheckedMultiply (a, b)
             Ply(DUInt128(result))
           with :? System.OverflowException ->
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
         | _ -> incorrectArgs ())
@@ -149,13 +149,13 @@ let fns : List<BuiltInFn> =
             Ply(DUInt128(result))
           with
           | :? System.DivideByZeroException ->
-            Int.IntRuntimeError.Error.DivideByZeroError
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.DivideByZeroError
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
           | :? System.OverflowException ->
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
         | _ -> incorrectArgs ())

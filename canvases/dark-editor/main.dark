@@ -152,12 +152,12 @@ let _handler _req =
   let take =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
     | None -> 100L
-    | Some take -> take |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
+    | Some take -> take |> PACKAGE.Darklang.Stdlib.Int64.parse |> rUnwrap
 
   let drop =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
     | None -> 0L
-    | Some drop -> drop |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
+    | Some drop -> drop |> PACKAGE.Darklang.Stdlib.Int64.parse |> rUnwrap
 
   match DarkInternal.Canvas.fullProgram canvasId with
   | Ok program ->
@@ -189,12 +189,12 @@ let _handler _req =
   let take =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
     | None -> 100L
-    | Some take -> take |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
+    | Some take -> take |> PACKAGE.Darklang.Stdlib.Int64.parse |> rUnwrap
 
   let drop =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
     | None -> 0L
-    | Some drop -> drop |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
+    | Some drop -> drop |> PACKAGE.Darklang.Stdlib.Int64.parse |> rUnwrap
 
   match DarkInternal.Canvas.fullProgram canvasId with
   | Ok program ->
@@ -220,12 +220,12 @@ let _handler _req =
   let take =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
     | None -> 100L
-    | Some take -> take |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
+    | Some take -> take |> PACKAGE.Darklang.Stdlib.Int64.parse |> rUnwrap
 
   let drop =
     match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
     | None -> 0L
-    | Some drop -> drop |> PACKAGE.Darklang.Stdlib.Int.parse |> rUnwrap
+    | Some drop -> drop |> PACKAGE.Darklang.Stdlib.Int64.parse |> rUnwrap
 
 
   match DarkInternal.Canvas.fullProgram canvasId with

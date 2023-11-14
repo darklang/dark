@@ -41,10 +41,10 @@ module Errors =
     // (match MyEnum.C "test" with | D -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Builtin.Test.runtimeError "TODO"
     // (match MyEnum.C "test" with | 5 -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Builtin.Test.runtimeError "TODO"
     (MyEnum.C 5L) = Builtin.Test.derrorMessage
-      "Errors.User.MyEnum.C's 1st argument should be a String. However, an Int (5) was passed instead.
+      "Errors.User.MyEnum.C's 1st argument should be a String. However, an Int64 (5) was passed instead.
 
 Expected: Errors.User.MyEnum.C (String)
-Actual: Errors.User.MyEnum.C (Int)"
+Actual: Errors.User.MyEnum.C (Int64)"
 
 
 module Simple =
@@ -68,7 +68,7 @@ module Simple =
 
   module EnumReference =
     type CorD =
-      | C of Int
+      | C of Int64
       | D of AorB
 
     (CorD.C 5L != CorD.D AorB.B) = true
@@ -78,17 +78,17 @@ module MixedCases =
   type EnumOfMixedCases =
     | W
     | X of String
-    | Y of i: Int
-    | Z of c: String * i: Int
+    | Y of i: Int64
+    | Z of c: String * i: Int64
 
   (EnumOfMixedCases.W == (EnumOfMixedCases.Y 1L)) = false
   (EnumOfMixedCases.Y 1L == EnumOfMixedCases.Y 1L) = true
 
   EnumOfMixedCases.X 1L = Builtin.Test.derrorMessage
-    "MixedCases.EnumOfMixedCases.X's 1st argument should be a String. However, an Int (1) was passed instead.\n\nExpected: MixedCases.EnumOfMixedCases.X (String)\nActual: MixedCases.EnumOfMixedCases.X (Int)"
+    "MixedCases.EnumOfMixedCases.X's 1st argument should be a String. However, an Int64 (1) was passed instead.\n\nExpected: MixedCases.EnumOfMixedCases.X (String)\nActual: MixedCases.EnumOfMixedCases.X (Int64)"
 
   EnumOfMixedCases.Y "test" = Builtin.Test.derrorMessage
-    "MixedCases.EnumOfMixedCases.Y's 1st argument should be an Int. However, a String (\"test\") was passed instead.\n\nExpected: MixedCases.EnumOfMixedCases.Y (Int)\nActual: MixedCases.EnumOfMixedCases.Y (String)"
+    "MixedCases.EnumOfMixedCases.Y's 1st argument should be an Int64. However, a String (\"test\") was passed instead.\n\nExpected: MixedCases.EnumOfMixedCases.Y (Int64)\nActual: MixedCases.EnumOfMixedCases.Y (String)"
 
   EnumOfMixedCases.Z 1L = Builtin.Test.derrorMessage
     "Case `Z` expected 2 fields but got 1"
@@ -119,13 +119,13 @@ module MixedCases =
      match v with
      | X s -> "X " ++ s
      | Z(s, _i) -> "Z " ++ s
-     | Y y -> "Y " ++ (PACKAGE.Darklang.Stdlib.Int.toString_v0 y)
+     | Y y -> "Y " ++ (PACKAGE.Darklang.Stdlib.Int64.toString_v0 y)
      | W -> "a simple W")) = [ "a simple W"; "X testX"; "Y 5"; "Z testZ" ]
 
 module TuplesVsNonTuples =
   type Tuples =
-    | NotTuple of String * Int
-    | Tuple of (String * Int)
+    | NotTuple of String * Int64
+    | Tuple of (String * Int64)
 
   (match Tuples.NotTuple("printer broke", 7L) with
    | NotTuple(reason, 7L) -> reason) = "printer broke"
@@ -163,7 +163,7 @@ module Polymorphism =
   let singleton (value: 'a) : RBTree<'a> =
     RBTree.Node(Color.Red, RBTree.Empty, value, RBTree.Empty)
 
-  let insert' (tree: RBTree<'a>) (value: 'a) (cmp: ('a * 'a) -> Int) : RBTree<'a> =
+  let insert' (tree: RBTree<'a>) (value: 'a) (cmp: ('a * 'a) -> Int64) : RBTree<'a> =
     match tree with
     | Empty -> singleton value
     | Node(color, left, v, right) ->
@@ -178,10 +178,10 @@ module Polymorphism =
       else
         RBTree.Node(color, left, value, right)
 
-  let insert (tree: RBTree<'a>) (value: 'a) (cmp: ('a * 'a) -> Int) : RBTree<'a> =
+  let insert (tree: RBTree<'a>) (value: 'a) (cmp: ('a * 'a) -> Int64) : RBTree<'a> =
     insert' tree value cmp
 
-  let ofList (values: List<'a>) (cmp: ('a * 'a) -> Int) : RBTree<'a> =
+  let ofList (values: List<'a>) (cmp: ('a * 'a) -> Int64) : RBTree<'a> =
     PACKAGE.Darklang.Stdlib.List.fold_v0 values RBTree.Empty (fun tree value ->
       insert tree value cmp)
 

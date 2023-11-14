@@ -60,7 +60,7 @@ let fns : List<BuiltInFn> =
                        modules |> String.split "." |> List.map DString
                      ))
                     ("name", DString fnname)
-                    ("version", DInt version) ]
+                    ("version", DInt64 version) ]
 
                 DRecord(typeName, typeName, [], Map fields))
 
@@ -103,7 +103,7 @@ let fns : List<BuiltInFn> =
                        modules |> String.split "." |> List.map DString
                      ))
                     ("name", DString typename)
-                    ("version", DInt version) ]
+                    ("version", DInt64 version) ]
                 DRecord(typeName, typeName, [], Map fields))
 
             return DList(VT.customType typeName [], types)
@@ -146,7 +146,7 @@ let fns : List<BuiltInFn> =
                        modules |> String.split "." |> List.map DString
                      ))
                     ("name", DString fnname)
-                    ("version", DInt version) ]
+                    ("version", DInt64 version) ]
                 DRecord(typeName, typeName, [], Map fields))
 
             return DList(VT.customType typeName [], consts)

@@ -127,11 +127,11 @@ PACKAGE.Darklang.Stdlib.List.findFirst [ 1L; -33L; 3L; -2L; 12L ] (fun x ->
 
 // CLEANUP once DList contains typeRefs, this test may be uncommented and the error message updated:
 // PACKAGE.Darklang.Stdlib.List.flatten_v0 [1;2;3] =
-//   Builtin.Test.runtimeError "In List.flatten's 1st argument (`list`), the value should be a List<List<'a>>. However, a List<Int> ([1; 2; 3]) was passed instead.\n\nExpected: List<List<'a>>\nActual: List<Int>: [1; 2; 3]"
+//   Builtin.Test.runtimeError "In List.flatten's 1st argument (`list`), the value should be a List<List<'a>>. However, a List<Int64> ([1; 2; 3]) was passed instead.\n\nExpected: List<List<'a>>\nActual: List<Int64>: [1; 2; 3]"
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1L ]; [ 2L ]; [ 3L ] ] = [ 1L; 2L; 3L ]
 
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ 1L ]; [ [ 2L; 3L ] ] ] = Builtin.Test.derrorMessage
-  "Could not merge types List<List<List<Int>>> and List<List<Int>>"
+  "Could not merge types List<List<List<Int64>>> and List<List<Int64>>"
 
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [ [] ] ] = [ [] ]
 PACKAGE.Darklang.Stdlib.List.flatten_v0 [ [] ] = []
@@ -192,14 +192,14 @@ PACKAGE.Darklang.Stdlib.List.interleave_v0 [] [ 4L; 5L; 6L ] = [ 4L; 5L; 6L ]
 PACKAGE.Darklang.Stdlib.List.interleave_v0 [] [] = []
 
 PACKAGE.Darklang.Stdlib.List.interleave_v0 [ "a"; "b"; "c" ] [ 0L ] = Builtin.Test.derrorMessage
-  "Could not merge types List<Int> and List<String>"
+  "Could not merge types List<Int64> and List<String>"
 
 PACKAGE.Darklang.Stdlib.List.interpose_v0 [ 1L; 2L; 3L ] 5L = [ 1L; 5L; 2L; 5L; 3L ]
 PACKAGE.Darklang.Stdlib.List.interpose_v0 [ 1L ] 5L = [ 1L ]
 PACKAGE.Darklang.Stdlib.List.interpose_v0 [] 5L = []
 
 PACKAGE.Darklang.Stdlib.List.interpose_v0 [ "a"; "b"; "c" ] 0L = Builtin.Test.derrorMessage
-  "Could not merge types List<Int> and List<String>"
+  "Could not merge types List<Int64> and List<String>"
 
 PACKAGE.Darklang.Stdlib.List.isEmpty_v0 [ 1L ] = false
 PACKAGE.Darklang.Stdlib.List.isEmpty_v0 [] = true
@@ -221,8 +221,8 @@ PACKAGE.Darklang.Stdlib.List.map_v0
 
 PACKAGE.Darklang.Stdlib.List.map_v0 [ 1L; 2L; 3L ] (fun x ->
   PACKAGE.Darklang.Stdlib.Bool.and_v0
-    (PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 x 0L)
-    (PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 x 4L)) = [ true; true; true ]
+    (PACKAGE.Darklang.Stdlib.Int64.greaterThanOrEqualTo_v0 x 0L)
+    (PACKAGE.Darklang.Stdlib.Int64.lessThanOrEqualTo_v0 x 4L)) = [ true; true; true ]
 
 PACKAGE.Darklang.Stdlib.List.map_v0 [ 1L; 2L ] (fun x -> x + 1L) = [ 2L; 3L ]
 PACKAGE.Darklang.Stdlib.List.map_v0 [] (fun x -> x + 1L) = []
@@ -357,22 +357,22 @@ PACKAGE.Darklang.Stdlib.List.sort_v0 [ 6L; 2L; 8L; 3L ] = [ 2L; 3L; 6L; 8L ]
 PACKAGE.Darklang.Stdlib.List.sort_v0 [] = []
 
 PACKAGE.Darklang.Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 0.1) = Builtin.Test.derrorMessage
-  "Function return value should be an Int. However, a Float (0.1) was returned instead.\n\nExpected: Int\nActual: a Float: 0.1"
+  "Function return value should be an Int64. However, a Float (0.1) was returned instead.\n\nExpected: Int64\nActual: a Float: 0.1"
 
 PACKAGE.Darklang.Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 3L) = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "Expected comparator function to return -1, 0, or 1, but it returned 3"
 
 PACKAGE.Darklang.Stdlib.List.sortByComparator_v0 [ 1L; 2L; 3L ] (fun a b -> "㧑༷釺") = Builtin.Test.derrorMessage
-  "Function return value should be an Int. However, a String (\"㧑༷釺\") was returned instead.\n\nExpected: Int\nActual: a String: \"㧑༷釺\""
+  "Function return value should be an Int64. However, a String (\"㧑༷釺\") was returned instead.\n\nExpected: Int64\nActual: a String: \"㧑༷釺\""
 
 PACKAGE.Darklang.Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b ->
-  if PACKAGE.Darklang.Stdlib.Int.lessThan_v0 a b then
+  if PACKAGE.Darklang.Stdlib.Int64.lessThan_v0 a b then
     -1L
   else
     1L) = PACKAGE.Darklang.Stdlib.Result.Result.Ok [ 1L; 2L; 3L ]
 
 PACKAGE.Darklang.Stdlib.List.sortByComparator_v0 [] (fun a b ->
-  if PACKAGE.Darklang.Stdlib.Int.lessThan_v0 a b then
+  if PACKAGE.Darklang.Stdlib.Int64.lessThan_v0 a b then
     -1L
   else
     1L) = PACKAGE.Darklang.Stdlib.Result.Result.Ok []
@@ -398,7 +398,7 @@ PACKAGE.Darklang.Stdlib.List.sortByComparator_v0
     -1L
     -1L ]
   (fun a b ->
-    if PACKAGE.Darklang.Stdlib.Int.lessThan_v0 a b then
+    if PACKAGE.Darklang.Stdlib.Int64.lessThan_v0 a b then
       -1L
     else
       1L) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
@@ -467,7 +467,7 @@ PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [ 1L; 5L; 2L; 2L ] (fun item -> item <
 PACKAGE.Darklang.Stdlib.List.takeWhile_v0 [] (fun item -> item < 3L) = []
 // it isn't specified which is the right value to keep when there are duplicates
 PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 1L; 2L; 3L; 4L ] (fun x ->
-  PACKAGE.Darklang.Stdlib.Int.divide_v0 x 2L) = [ 1L; 2L; 4L ]
+  PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 2L) = [ 1L; 2L; 4L ]
 
 PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 1L; 2L; 3L; 4L ] (fun x -> x) = [ 1L
                                                                              2L
@@ -484,7 +484,7 @@ PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 7L; 42L; 7L; 2L; 10L ] (fun x -> x) =
 PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [] (fun x -> x) = []
 
 PACKAGE.Darklang.Stdlib.List.uniqueBy_v0 [ 6L; 2.0 ] (fun x -> x) = Builtin.Test.derrorMessage
-  "Could not merge types List<Float> and List<Int>"
+  "Could not merge types List<Float> and List<Int64>"
 
 PACKAGE.Darklang.Stdlib.List.unique_v0 [ 1L; 2L; 3L; 4L ] = [ 1L; 2L; 3L; 4L ]
 PACKAGE.Darklang.Stdlib.List.unique_v0 [ 1L; 1L; 1L; 1L ] = [ 1L ]
@@ -553,12 +553,12 @@ PACKAGE.Darklang.Stdlib.List.zip_v0 [ Builtin.Test.runtimeError "msg" ] [ Some "
 
 
 PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
-  PACKAGE.Darklang.Stdlib.Int.mod_v0 x 2L) = [ (1L, [ 1L; 3L; 5L ])
-                                               (0L, [ 2L; 4L ]) ]
+  PACKAGE.Darklang.Stdlib.Int64.mod_v0 x 2L) = [ (1L, [ 1L; 3L; 5L ])
+                                                 (0L, [ 2L; 4L ]) ]
 
 PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
-  PACKAGE.Darklang.Stdlib.Int.mod_v0 x 2L) = [ (1L, [ 1L; 3L; 5L ])
-                                               (0L, [ 2L; 4L ]) ]
+  PACKAGE.Darklang.Stdlib.Int64.mod_v0 x 2L) = [ (1L, [ 1L; 3L; 5L ])
+                                                 (0L, [ 2L; 4L ]) ]
 
 PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0
   [ "apple"; "banana"; "avocado"; "grape"; "apricot" ]
@@ -573,13 +573,13 @@ PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 'a'; 'b'; 'c'; 'a'; 'b' ] (fun 
   c) = [ ('a', [ 'a'; 'a' ]); ('b', [ 'b'; 'b' ]); ('c', [ 'c' ]) ]
 
 PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
-  PACKAGE.Darklang.Stdlib.Int.mod_v0 x 2L == 0L) = [ (false, [ 1L; 3L; 5L ])
-                                                     (true, [ 2L; 4L ]) ]
+  PACKAGE.Darklang.Stdlib.Int64.mod_v0 x 2L == 0L) = [ (false, [ 1L; 3L; 5L ])
+                                                       (true, [ 2L; 4L ]) ]
 
 PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
-  ((PACKAGE.Darklang.Stdlib.Int.mod_v0 x 2L), "test")) = [ ((1L, "test"),
-                                                            [ 1L; 3L; 5L ])
-                                                           ((0L, "test"), [ 2L; 4L ]) ]
+  ((PACKAGE.Darklang.Stdlib.Int64.mod_v0 x 2L), "test")) = [ ((1L, "test"),
+                                                               [ 1L; 3L; 5L ])
+                                                             ((0L, "test"), [ 2L; 4L ]) ]
 
 PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [] (fun x -> x) = []
 

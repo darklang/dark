@@ -129,7 +129,7 @@ module FormatV0 =
       type KnownType =
         | KTUnit
         | KTBool
-        | KTInt
+        | KTInt64
         | KTInt8
         | KTUInt8
         | KTInt16
@@ -159,7 +159,7 @@ module FormatV0 =
         match kt with
         | KTUnit -> RT.KTUnit
         | KTBool -> RT.KTBool
-        | KTInt -> RT.KTInt
+        | KTInt64 -> RT.KTInt64
         | KTInt8 -> RT.KTInt8
         | KTUInt8 -> RT.KTUInt8
         | KTInt16 -> RT.KTInt16
@@ -196,7 +196,7 @@ module FormatV0 =
         match kt with
         | RT.KTUnit -> KTUnit
         | RT.KTBool -> KTBool
-        | RT.KTInt -> KTInt
+        | RT.KTInt64 -> KTInt64
         | RT.KTInt8 -> KTInt8
         | RT.KTUInt8 -> KTUInt8
         | RT.KTInt16 -> KTInt16
@@ -254,7 +254,7 @@ module FormatV0 =
   and RuntimeError = RuntimeError of Source * Dval
 
   and Dval =
-    | DInt of int64
+    | DInt64 of int64
     | DInt8 of int8
     | DUInt8 of uint8
     | DInt16 of int16
@@ -293,7 +293,7 @@ module FormatV0 =
     match dv with
     | DString s -> RT.DString s
     | DChar c -> RT.DChar c
-    | DInt i -> RT.DInt i
+    | DInt64 i -> RT.DInt64 i
     | DInt8 i -> RT.DInt8 i
     | DUInt8 i -> RT.DUInt8 i
     | DInt16 i -> RT.DInt16 i
@@ -344,7 +344,7 @@ module FormatV0 =
     match dv with
     | RT.DString s -> DString s
     | RT.DChar c -> DChar c
-    | RT.DInt i -> DInt i
+    | RT.DInt64 i -> DInt64 i
     | RT.DInt8 i -> DInt8 i
     | RT.DUInt8 i -> DUInt8 i
     | RT.DInt16 i -> DInt16 i
@@ -404,7 +404,7 @@ module Test =
     match dval with
     | RT.DFnVal _ -> false // not supported
     | RT.DString _
-    | RT.DInt _
+    | RT.DInt64 _
     | RT.DInt8 _
     | RT.DUInt8 _
     | RT.DInt16 _

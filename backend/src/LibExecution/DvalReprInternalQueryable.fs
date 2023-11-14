@@ -88,7 +88,7 @@ let rec private toJsonV0
     // basic types
     | TUnit, DUnit -> w.WriteNumberValue(0)
     | TBool, DBool b -> w.WriteBooleanValue b
-    | TInt, DInt i -> w.WriteNumberValue i // CLEANUP if the number is outside the range, store as a string?
+    | TInt64, DInt64 i -> w.WriteNumberValue i // CLEANUP if the number is outside the range, store as a string?
     | TInt8, DInt8 i -> w.WriteNumberValue i
     | TUInt8, DUInt8 i -> w.WriteNumberValue i
     | TInt16, DInt16 i -> w.WriteNumberValue i
@@ -207,7 +207,7 @@ let rec private toJsonV0
         [ "value", dv; "type", typ ]
 
     // exhaustiveness checking
-    | TInt, _
+    | TInt64, _
     | TInt8, _
     | TUInt8, _
     | TInt16, _
@@ -252,7 +252,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
     | TUnit, JsonValueKind.Number -> DUnit |> Ply
     | TBool, JsonValueKind.True -> DBool true |> Ply
     | TBool, JsonValueKind.False -> DBool false |> Ply
-    | TInt, JsonValueKind.Number -> j.GetInt64() |> DInt |> Ply
+    | TInt64, JsonValueKind.Number -> j.GetInt64() |> DInt64 |> Ply
     | TInt8, JsonValueKind.Number -> j.GetSByte() |> DInt8 |> Ply
     | TUInt8, JsonValueKind.Number -> j.GetByte() |> DUInt8 |> Ply
     | TInt16, JsonValueKind.Number -> j.GetInt16() |> DInt16 |> Ply
@@ -393,7 +393,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
     // Exhaustiveness checking
     | TUnit, _
     | TBool, _
-    | TInt, _
+    | TInt64, _
     | TInt8, _
     | TUInt8, _
     | TInt16, _
@@ -422,7 +422,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
 module Test =
   let rec isQueryableDval (dval : Dval) : bool =
     match dval with
-    | DInt _
+    | DInt64 _
     | DInt8 _
     | DUInt8 _
     | DInt16 _

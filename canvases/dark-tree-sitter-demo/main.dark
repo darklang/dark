@@ -59,7 +59,7 @@ let _indexHandler _req =
     <div class="container">
       <div class="left-side">
         <label>Source code:</label>
-        <textarea id="input-textarea" class="textarea">let add (a: Int) (b: Int): Int =
+        <textarea id="input-textarea" class="textarea">let add (a: Int64) (b: Int64): Int64 =
   let sum = a + b
   sum</textarea>
       </div>
@@ -155,8 +155,8 @@ let _indexHandler _req =
     200L
 
 
-let gid () : Int =
-  PACKAGE.Darklang.Stdlib.Int.random 0L 9223372036854775807L
+let gid () : Int64 =
+  PACKAGE.Darklang.Stdlib.Int64.random 0L 9223372036854775807L
 
 
 let err (msg: String) : Unit =
@@ -165,33 +165,33 @@ let err (msg: String) : Unit =
   ()
 
 
-type PTTypeReference = | TInt
+type PTTypeReference = | TInt64
 
 
-// TODO: the types of the 'id' fields should be something more like `type id = Int`
+// TODO: the types of the 'id' fields should be something more like `type id = Int64`
 type PTExpr =
-  | EInt of id: Int * Int
-  | EInt8 of id: Int * Int8
-  | EUInt8 of id: Int * UInt8
-  | EInt16 of id: Int * Int16
-  | EUInt16 of id: Int * UInt16
-  | EInt32 of id: Int * Int32
-  | EUInt32 of id: Int * UInt32
-  | EInt128 of id: Int * Int128
-  | EUInt128 of id: Int * UInt128
-  | ELet of id: Int * identifier: String * expr: PTExpr * body: PTExpr
-  | EVariable of id: Int * String
-  | EFnCall of id: Int * fnName: String * args: List<PTExpr>
+  | EInt64 of id: Int64 * Int64
+  | EInt8 of id: Int64 * Int8
+  | EUInt8 of id: Int64 * UInt8
+  | EInt16 of id: Int64 * Int16
+  | EUInt16 of id: Int64 * UInt16
+  | EInt32 of id: Int64 * Int32
+  | EUInt32 of id: Int64 * UInt32
+  | EInt128 of id: Int64 * Int128
+  | EUInt128 of id: Int64 * UInt128
+  | ELet of id: Int64 * identifier: String * expr: PTExpr * body: PTExpr
+  | EVariable of id: Int64 * String
+  | EFnCall of id: Int64 * fnName: String * args: List<PTExpr>
 
 
 type PTUserFunctionParameter =
-  { id: Int
+  { id: Int64
     name: String
     typ: PTTypeReference
     description: String }
 
 type PTUserFunction =
-  { tlid: Int
+  { tlid: Int64
     name: String
     typeParams: List<Unit> // TODO
     parameters: List<PTUserFunctionParameter>
@@ -237,8 +237,8 @@ let parseExprCase (node: SyntaxTreeNode) : PTExpr =
   | "identifier" -> PTExpr.EVariable(gid (), getText node)
 
   | "integer" ->
-    let i = PACKAGE.Darklang.Stdlib.Int.parse (getText node)
-    PTExpr.EInt(gid (), i)
+    let i = PACKAGE.Darklang.Stdlib.Int64.parse (getText node)
+    PTExpr.EInt64(gid (), i)
 
   | "let_expression" ->
     let identifier = (getField node "identifier") |> getText
@@ -265,9 +265,9 @@ let parseExprCase (node: SyntaxTreeNode) : PTExpr =
     let right = parseExpr (getField node "right")
 
     match op with
-    | "+" -> PTExpr.EFnCall(id, "PACKAGE.Darklang.Stdlib.Int.add", [ left; right ])
+    | "+" -> PTExpr.EFnCall(id, "PACKAGE.Darklang.Stdlib.Int64.add", [ left; right ])
     | "-" ->
-      PTExpr.EFnCall(id, "PACKAGE.Darklang.Stdlib.Int.subtract", [ left; right ])
+      PTExpr.EFnCall(id, "PACKAGE.Darklang.Stdlib.Int64.subtract", [ left; right ])
 
 
 // TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTExpr, String>
@@ -283,7 +283,7 @@ let parseExpr (node: SyntaxTreeNode) : PTExpr =
 // TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTTypeReference, String>
 let parseTypeReference (node: SyntaxTreeNode) : PTTypeReference =
   // TODO: support additional types
-  PTTypeReference.TInt
+  PTTypeReference.TInt64
 
 
 // TODO: handle unit params

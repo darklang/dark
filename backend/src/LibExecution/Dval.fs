@@ -7,7 +7,7 @@ open LibExecution.RuntimeTypes
 module VT = ValueType
 
 
-let int (i : int) = DInt(int64 i)
+let int64 (i : int) = DInt64(int64 i)
 
 let int8 (i : int8) = DInt8(i)
 

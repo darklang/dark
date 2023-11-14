@@ -31,7 +31,7 @@ module Darklang =
               if t.version == 0L then
                 ""
               else
-                $"_v{PACKAGE.Darklang.Stdlib.Int.toString t.version}"
+                $"_v{PACKAGE.Darklang.Stdlib.Int64.toString t.version}"
 
             $"{modulesPart}{namePart}{versionPart}"
 
@@ -48,7 +48,7 @@ module Darklang =
                 if u.version == 0L then
                   ""
                 else
-                  $"_v{PACKAGE.Darklang.Stdlib.Int.toString u.version}"
+                  $"_v{PACKAGE.Darklang.Stdlib.Int64.toString u.version}"
 
               $"{namePart}{versionPart}"
             | _ -> "(UserTypeName.atDefinition unexpected nonempty u.modules)"
@@ -69,7 +69,7 @@ module Darklang =
               if u.version == 0L then
                 ""
               else
-                $"_v{PACKAGE.Darklang.Stdlib.Int.toString u.version}"
+                $"_v{PACKAGE.Darklang.Stdlib.Int64.toString u.version}"
 
             $"{modulesPart}{namePart}{versionPart}"
 
@@ -84,7 +84,7 @@ module Darklang =
               if p.version == 0L then
                 ""
               else
-                $"_v{PACKAGE.Darklang.Stdlib.Int.toString p.version}"
+                $"_v{PACKAGE.Darklang.Stdlib.Int64.toString p.version}"
 
             $"{namePart}{versionPart}"
 
@@ -98,7 +98,7 @@ module Darklang =
               if p.version == 0L then
                 ""
               else
-                $"_v{PACKAGE.Darklang.Stdlib.Int.toString p.version}"
+                $"_v{PACKAGE.Darklang.Stdlib.Int64.toString p.version}"
 
             $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
 
@@ -330,7 +330,7 @@ module Darklang =
 
         | TUnit -> "Unit"
         | TBool -> "Bool"
-        | TInt -> "Int"
+        | TInt64 -> "Int64"
         | TInt8 -> "Int8"
         | TUInt8 -> "UInt8"
         | TInt16 -> "Int16"
@@ -401,7 +401,7 @@ module Darklang =
 
       let constant (c: PACKAGE.Darklang.LanguageTools.ProgramTypes.Const) : String =
         match c with
-        | CInt i -> PACKAGE.Darklang.Stdlib.Int.toString i
+        | CInt64 i -> PACKAGE.Darklang.Stdlib.Int64.toString i
         | CInt8 i -> PACKAGE.Darklang.Stdlib.Int8.toString i
         | CUInt8 i -> PACKAGE.Darklang.Stdlib.UInt8.toString i
         | CInt16 i -> PACKAGE.Darklang.Stdlib.Int16.toString i
@@ -488,7 +488,7 @@ module Darklang =
         | MPVariable(_id, name) -> name
         | MPUnit _id -> "()"
         | MPBool(_id, b) -> PACKAGE.Darklang.Stdlib.Bool.toString b
-        | MPInt(_id, i) -> PACKAGE.Darklang.Stdlib.Int.toString i
+        | MPInt64(_id, i) -> PACKAGE.Darklang.Stdlib.Int64.toString i
         | MPInt8(_id, i) -> PACKAGE.Darklang.Stdlib.Int8.toString i
         | MPUInt8(_id, i) -> PACKAGE.Darklang.Stdlib.UInt8.toString i
         | MPInt16(_id, i) -> PACKAGE.Darklang.Stdlib.Int16.toString i
@@ -669,7 +669,7 @@ module Darklang =
 
         // simple data
         | EBool(_id, b) -> PACKAGE.Darklang.Stdlib.Bool.toString b
-        | EInt(_id, i) -> PACKAGE.Darklang.Stdlib.Int.toString i
+        | EInt64(_id, i) -> PACKAGE.Darklang.Stdlib.Int64.toString i
         | EFloat(_id, sign, whole, remainder) ->
           let signPart = PACKAGE.Darklang.PrettyPrinter.sign sign
 
@@ -1038,7 +1038,7 @@ module Darklang =
           if db.version == 0L then
             ""
           else
-            $"_v{PACKAGE.Darklang.Stdlib.Int.toString db.version}"
+            $"_v{PACKAGE.Darklang.Stdlib.Int64.toString db.version}"
 
         let typPart =
           PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference db.typ
@@ -1110,7 +1110,7 @@ module Darklang =
 
 
       // let secret (s: PACKAGE.Darklang.Stdlib.Secret.T) : String =
-      //   let versionPart = if s.version == 0 then "" else $"_v{PACKAGE.Darklang.Stdlib.Int.toString s.version}"
+      //   let versionPart = if s.version == 0 then "" else $"_v{PACKAGE.Darklang.Stdlib.Int64.toString s.version}"
 
       //   $"let {s.name}{versionPart} = \"*****\""
 

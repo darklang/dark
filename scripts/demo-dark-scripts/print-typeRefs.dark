@@ -1,7 +1,7 @@
 (let typeReferences: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference> =
   [ PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "test"
 
-    PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+    PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TInt64
     PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TFloat
     PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBool
     PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TUnit
@@ -9,7 +9,7 @@
     PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBytes
 
     PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TList
-      PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+      PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TInt64
 
     PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(
       PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBool,

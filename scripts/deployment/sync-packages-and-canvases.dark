@@ -126,7 +126,7 @@ let import () : Result<ImportResults, String> =
   | (_, Error error) -> Error error
 
 
-let main (args: List<String>) : Int =
+let main (args: List<String>) : Int64 =
   Builtin.printLine "running `sync-packages-and-canvases.dark`"
 
   match args with

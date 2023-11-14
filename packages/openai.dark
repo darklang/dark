@@ -12,7 +12,7 @@ module OpenAI =
     type Request =
       { model: String
         prompt: String
-        max_tokens: Int
+        max_tokens: Int64
         temperature: Float }
 
     type ResponseChoice = { text: String }
@@ -20,7 +20,7 @@ module OpenAI =
     type Response =
       { id: String
         object: String
-        created: Int
+        created: Int64
         model: String
         choices: List<PACKAGE.OpenAI.Completion.ResponseChoice> }
 
@@ -71,7 +71,7 @@ module OpenAI =
 
     type Request =
       { model: String
-        max_tokens: Int
+        max_tokens: Int64
         temperature: Float
         messages: List<PACKAGE.OpenAI.ChatCompletion.RequestMessage> }
 
@@ -88,9 +88,9 @@ module OpenAI =
       { model: String
         messages: List<PACKAGE.OpenAI.ChatCompletion.RequestMessage>
         temperature: Float
-        max_tokens: Int
+        max_tokens: Int64
         top_p: Float
-        n: Int
+        n: Int64
         stream: Bool }
 
     let completionOptionsDefault
@@ -269,7 +269,7 @@ module OpenAI =
     type Response =
       { id: String
         object: String
-        created: Int
+        created: Int64
         model: String }
 
     let retrieveModel

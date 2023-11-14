@@ -34,7 +34,7 @@ module Range =
     { start = posFromParserError range.start; end_ = posFromParserError range.end_ }
 
   let posToDT (pos : Pos) : Dval =
-    let fields = [ "line", DInt pos.line; "character", DInt pos.character ]
+    let fields = [ "line", DInt64 pos.line; "character", DInt64 pos.character ]
     let typeName = typ [] "Position" 0
     DRecord(typeName, typeName, [], Map fields)
 

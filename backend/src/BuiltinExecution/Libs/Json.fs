@@ -99,7 +99,7 @@ module JsonPath =
       let (caseName, fields) =
         match part with
         | Root -> "Root", []
-        | Index i -> "Index", [ DInt(int64 i) ]
+        | Index i -> "Index", [ DInt64(int64 i) ]
         | Field s -> "Field", [ DString s ]
       DEnum(typeName, typeName, [], caseName, fields)
 
@@ -125,7 +125,7 @@ let rec serialize
 
     | TBool, DBool b -> w.WriteBooleanValue b
 
-    | TInt, DInt i ->
+    | TInt64, DInt64 i ->
       // CLEANUP if the number is outside the range, store as a string?
       w.WriteNumberValue i
 
@@ -262,7 +262,7 @@ let rec serialize
     // Exhaust the types
     | TUnit, _
     | TBool, _
-    | TInt, _
+    | TInt64, _
     | TInt8, _
     | TUInt8, _
     | TInt16, _
@@ -325,7 +325,7 @@ module ParseError =
       | EnumMissingField(typ, fieldCount, errorPath) ->
         "EnumMissingField",
         [ RT2DT.TypeReference.toDT typ
-          DInt(int64 fieldCount)
+          DInt64(int64 fieldCount)
           JsonPath.toDT errorPath ]
 
       | EnumInvalidCasename(typ, caseName, errorPath) ->
@@ -376,19 +376,14 @@ let parse
     | TBool, JsonValueKind.True -> DBool true |> Ply
     | TBool, JsonValueKind.False -> DBool false |> Ply
 
-    | TInt, JsonValueKind.Number ->
+    | TInt64, JsonValueKind.Number ->
       let mutable i64 = 0L
-      let mutable ui64 = 0UL
       let mutable d = 0.0
       // dotnet will wrap 9223372036854775808 to be -9223372036854775808 instead, we
       // don't want that and will error instead
-      if j.TryGetUInt64(&ui64) then
-        if ui64 <= uint64 System.Int64.MaxValue then
-          DInt(int64 ui64) |> Ply
-        else
-          raiseCantMatchWithType TInt j pathSoFar |> Ply
-      else if j.TryGetInt64(&i64) then
-        DInt i64 |> Ply
+
+      if j.TryGetInt64(&i64) then
+        DInt64 i64 |> Ply
       // We allow the user to specify numbers in int or float format (e.g. 1 or 1.0
       // or even 1E+0) -- JSON uses floating point numbers, and the person/API
       // client/server that is creating a field we understand to be an int may choose
@@ -399,9 +394,9 @@ let parse
         && d >= (float System.Int64.MinValue)
         && System.Double.IsInteger d
       then
-        int64 d |> DInt |> Ply
+        int64 d |> DInt64 |> Ply
       else
-        raiseCantMatchWithType TInt j pathSoFar |> Ply
+        raiseCantMatchWithType TInt64 j pathSoFar |> Ply
 
     | TInt8, JsonValueKind.Number ->
       let mutable i64 = 0L
@@ -757,7 +752,7 @@ let parse
     // exhaust TypeReferences
     | TUnit, _
     | TBool, _
-    | TInt, _
+    | TInt64, _
     | TInt8, _
     | TUInt8, _
     | TInt16, _

@@ -58,7 +58,7 @@ module RuntimeTypes =
           version = 2 } ]
 
   let typeReferences : List<RT.TypeReference> =
-    [ RT.TInt
+    [ RT.TInt64
       RT.TInt8
       RT.TUInt8
       RT.TInt16
@@ -71,7 +71,7 @@ module RuntimeTypes =
       RT.TBool
       RT.TUnit
       RT.TString
-      RT.TList RT.TInt
+      RT.TList RT.TInt64
       RT.TTuple(RT.TBool, RT.TBool, [ RT.TBool ])
       RT.TDict RT.TBool
       RT.TDB RT.TBool
@@ -111,7 +111,7 @@ module RuntimeTypes =
   let matchPatterns : List<RT.MatchPattern> =
     [ RT.MPVariable(123UL, "test")
       RT.MPEnum(1234UL, "Some", [ RT.MPVariable(746385UL, "var") ])
-      RT.MPInt(756385UL, 7857395)
+      RT.MPInt64(756385UL, 7857395)
       RT.MPInt8(756386UL, 127y)
       RT.MPUInt8(756387UL, 255uy)
       RT.MPInt16(756388UL, 32767s)
@@ -143,7 +143,7 @@ module RuntimeTypes =
       ) ]
 
   let exprs : List<RT.Expr> =
-    [ RT.EInt(124151234UL, 7)
+    [ RT.EInt64(124151234UL, 7L)
       RT.EInt8(124151235UL, 7y)
       RT.EUInt8(124151236UL, 7uy)
       RT.EInt16(124151237UL, 7s)
@@ -226,7 +226,7 @@ module RuntimeTypes =
       RT.ERecordUpdate(
         619623640UL,
         RT.EVariable(81036610UL, "myRec"),
-        NEList.singleton ("y", RT.EInt(401690270UL, 2L))
+        NEList.singleton ("y", RT.EInt64(401690270UL, 2L))
       )
       RT.EEnum(
         64617UL,
@@ -238,7 +238,7 @@ module RuntimeTypes =
       )
       RT.EMatch(
         712743UL,
-        RT.EInt(712373UL, 123),
+        RT.EInt64(712373UL, 123),
         NEList.singleton
           { pat = RT.MPVariable(12738UL, "i")
             whenCondition = None
@@ -262,7 +262,7 @@ module RuntimeTypes =
     [ RT.ValueType.Unknown
       ktUnit
       known RT.KnownType.KTBool
-      known RT.KnownType.KTInt
+      known RT.KnownType.KTInt64
       known RT.KnownType.KTInt8
       known RT.KnownType.KTUInt8
       known RT.KnownType.KTInt16
@@ -311,7 +311,7 @@ module ProgramTypes =
     [ PT.FQName.UserProgram
         { modules = []; name = PT.FnName.FnName "fn"; version = 0 }
       PT.FQName.BuiltIn
-        { modules = [ "Int" ]; name = PT.FnName.FnName "increment"; version = 1 }
+        { modules = [ "Int64" ]; name = PT.FnName.FnName "increment"; version = 1 }
       PT.FQName.Package
         { owner = "twilio"
           modules = [ "Twilio" ]
@@ -342,7 +342,7 @@ module ProgramTypes =
   let matchPatterns : List<PT.MatchPattern> =
     [ PT.MPVariable(1234123UL, "var8481")
       PT.MPEnum(7471263UL, "None", [])
-      PT.MPInt(74816UL, 84871728)
+      PT.MPInt64(74816UL, 84871728L)
       PT.MPInt8(74817UL, 127y)
       PT.MPUInt8(74818UL, 255uy)
       PT.MPInt16(74819UL, 32767s)
@@ -358,11 +358,11 @@ module ProgramTypes =
       PT.MPUnit(9123871238UL)
       PT.MPTuple(
         91298UL,
-        PT.MPInt(812831UL, 123),
+        PT.MPInt64(812831UL, 123),
         PT.MPBool(81871UL, true),
         [ PT.MPUnit(17123UL) ]
       )
-      PT.MPList(57174UL, [ PT.MPInt(58175891783UL, 123) ])
+      PT.MPList(57174UL, [ PT.MPInt64(58175891783UL, 123) ])
       PT.MPListCons(
         59696239UL,
         PT.MPString(94973551UL, "val1"),
@@ -377,7 +377,7 @@ module ProgramTypes =
   // Note: This is aimed to contain all cases of `TypeReference`
   let typeReference : PT.TypeReference =
     PT.TTuple(
-      PT.TInt,
+      PT.TInt64,
       PT.TFloat,
       [ PT.TBool
         PT.TUnit
@@ -390,7 +390,7 @@ module ProgramTypes =
         PT.TInt128
         PT.TUInt128
         PT.TString
-        PT.TList PT.TInt
+        PT.TList PT.TInt64
         PT.TTuple(PT.TBool, PT.TBool, [ PT.TBool ])
         PT.TDict PT.TBool
         PT.TDB PT.TBool
@@ -431,7 +431,7 @@ module ProgramTypes =
 
   // Note: this is aimed to contain all cases of `Expr`
   let expr =
-    let e = PT.EInt(34545UL, 5)
+    let e = PT.EInt64(34545UL, 5)
     PT.ELet(
       14219007199254740992UL,
       PT.LPTuple(
@@ -450,11 +450,11 @@ module ProgramTypes =
             []
           ) ]
       ),
-      PT.EInt(929452387UL, 5L),
+      PT.EInt64(929452387UL, 5L),
       PT.ELet(
         620028536UL,
         PT.LPVariable(5812673123UL, "x2"),
-        PT.EInt(452247642UL, 9223372036854775807L),
+        PT.EInt64(452247642UL, 9223372036854775807L),
         PT.ELet(
           68205955UL,
           PT.LPVariable(458172UL, "bool"),
@@ -494,27 +494,27 @@ module ProgramTypes =
                             63953UL,
                             Ok(
                               PT.FQName.BuiltIn
-                                { modules = [ "Int" ]
+                                { modules = [ "Int64" ]
                                   name = PT.FnName.FnName "toString"
                                   version = 0 }
                             )
                           ),
                           [ typeReference ],
-                          NEList.singleton (PT.EInt(160106123UL, 6L))
+                          NEList.singleton (PT.EInt64(160106123UL, 6L))
                         ),
                         PT.EIf(
                           729246077UL,
                           PT.EInfix(
                             94793109UL,
                             PT.InfixFnCall(PT.ComparisonNotEquals),
-                            PT.EInt(264400705UL, 5L),
-                            PT.EInt(335743639UL, 6L)
+                            PT.EInt64(264400705UL, 5L),
+                            PT.EInt64(335743639UL, 6L)
                           ),
                           PT.EInfix(
                             775118986UL,
                             PT.InfixFnCall(PT.ArithmeticPlus),
-                            PT.EInt(803876589UL, 5L),
-                            PT.EInt(219131014UL, 2L)
+                            PT.EInt64(803876589UL, 5L),
+                            PT.EInt64(219131014UL, 2L)
                           ),
                           Some(
                             PT.ELambda(
@@ -523,7 +523,7 @@ module ProgramTypes =
                               PT.EInfix(
                                 140609068UL,
                                 PT.InfixFnCall(PT.ArithmeticPlus),
-                                PT.EInt(450951790UL, 2L),
+                                PT.EInt64(450951790UL, 2L),
                                 PT.EVariable(402203255UL, "y")
                               )
                             )
@@ -547,22 +547,22 @@ module ProgramTypes =
                                   638434UL,
                                   Ok(
                                     PT.FQName.BuiltIn
-                                      { modules = [ "Int" ]
+                                      { modules = [ "Int64" ]
                                         name = PT.FnName.FnName "add"
                                         version = 0 }
                                   )
                                 ),
                                 [],
                                 NEList.doubleton
-                                  (PT.EInt(250221144UL, 6L))
-                                  (PT.EInt(298149318UL, 2L))
+                                  (PT.EInt64(250221144UL, 6L))
+                                  (PT.EInt64(298149318UL, 2L))
                               )
                             ),
                             PT.EList(
                               539797095UL,
-                              [ PT.EInt(267797631UL, 5L)
-                                PT.EInt(352138743UL, 6L)
-                                PT.EInt(430871955UL, 7L) ]
+                              [ PT.EInt64(267797631UL, 5L)
+                                PT.EInt64(352138743UL, 6L)
+                                PT.EInt64(430871955UL, 7L) ]
                             )
                           )
                         )
@@ -582,7 +582,7 @@ module ProgramTypes =
                           [ ("field",
                              PT.EPipe(
                                786862131UL,
-                               PT.EInt(555880460UL, 5L),
+                               PT.EInt64(555880460UL, 5L),
                                [ PT.EPipeVariable(
                                    1021880969UL,
                                    "fn",
@@ -594,38 +594,38 @@ module ProgramTypes =
                                    PT.EInfix(
                                      140609068UL,
                                      PT.InfixFnCall(PT.ArithmeticPlus),
-                                     PT.EInt(450951790UL, 2L),
+                                     PT.EInt64(450951790UL, 2L),
                                      PT.EVariable(402203255UL, "y")
                                    )
                                  )
                                  PT.EPipeInfix(
                                    1021880969UL,
                                    PT.InfixFnCall(PT.ArithmeticPlus),
-                                   PT.EInt(962393769UL, 2L)
+                                   PT.EInt64(962393769UL, 2L)
                                  )
                                  PT.EPipeFnCall(
                                    1021880969UL,
                                    Ok(
                                      PT.FQName.BuiltIn
-                                       { modules = [ "Int" ]
+                                       { modules = [ "Int64" ]
                                          name = PT.FnName.FnName "add"
                                          version = 0 }
                                    ),
                                    [],
-                                   [ (PT.EInt(250221144UL, 6L))
-                                     (PT.EInt(298149318UL, 2L)) ]
+                                   [ (PT.EInt64(250221144UL, 6L))
+                                     (PT.EInt64(298149318UL, 2L)) ]
                                  )
                                  PT.EPipeEnum(
                                    1021880969UL,
                                    Ok(
                                      PT.FQName.BuiltIn
-                                       { modules = [ "Int" ]
+                                       { modules = [ "Int64" ]
                                          name = PT.TypeName.TypeName "Result"
                                          version = 0 }
                                    ),
                                    "add",
-                                   [ (PT.EInt(250221144UL, 6L))
-                                     (PT.EInt(298149318UL, 2L)) ]
+                                   [ (PT.EInt64(250221144UL, 6L))
+                                     (PT.EInt64(298149318UL, 2L)) ]
                                  ) ]
                              ))
                             ("enum",
@@ -682,7 +682,7 @@ module ProgramTypes =
                           PT.ERecordUpdate(
                             619623640UL,
                             PT.EVariable(81036610UL, "r"),
-                            NEList.singleton ("field", PT.EInt(401690270UL, 42L))
+                            NEList.singleton ("field", PT.EInt64(401690270UL, 42L))
                           ),
                           PT.ELet(
                             745304029UL,
@@ -701,7 +701,7 @@ module ProgramTypes =
                                   )
                                 ),
                                 [],
-                                (NEList.singleton (PT.EInt(1015986188UL, 5L)))
+                                (NEList.singleton (PT.EInt64(1015986188UL, 5L)))
                               ),
                               [ { pat =
                                     PT.MPEnum(
@@ -711,12 +711,12 @@ module ProgramTypes =
                                     )
                                   whenCondition = None
                                   rhs = PT.EVariable(863810169UL, "v") }
-                                { pat = PT.MPInt(928253813UL, 5L)
+                                { pat = PT.MPInt64(928253813UL, 5L)
                                   whenCondition = None
-                                  rhs = PT.EInt(342670561UL, -9223372036854775808L) }
+                                  rhs = PT.EInt64(342670561UL, -9223372036854775808L) }
                                 { pat = PT.MPBool(435227293UL, true)
                                   whenCondition = None
-                                  rhs = PT.EInt(232748650UL, 7L) }
+                                  rhs = PT.EInt64(232748650UL, 7L) }
                                 { pat = PT.MPChar(387662539UL, "c")
                                   whenCondition = None
                                   rhs = PT.EChar(657848009UL, "c") }
@@ -769,7 +769,7 @@ module ProgramTypes =
                                     PT.EInfix(
                                       275666765UL,
                                       PT.InfixFnCall(PT.ArithmeticPlus),
-                                      PT.EInt(739193732UL, 6L),
+                                      PT.EInt64(739193732UL, 6L),
                                       PT.EVariable(880556562UL, "var")
                                     ) }
                                 { pat = PT.MPFloat(409097457UL, Positive, "5", "6")
@@ -800,8 +800,8 @@ module ProgramTypes =
                               PT.EIf(
                                 882488977UL,
                                 PT.EBool(349352147UL, true),
-                                PT.EInt(578528886UL, 5L),
-                                Some(PT.EInt(562930224UL, 6L))
+                                PT.EInt64(578528886UL, 5L),
+                                Some(PT.EInt64(562930224UL, 6L))
                               ),
                               PT.ELet(
                                 6345345UL,
@@ -825,7 +825,7 @@ module ProgramTypes =
                                       PT.LPVariable(7567123UL, "dict"),
                                       PT.EDict(
                                         109539183UL,
-                                        [ ("a string", PT.EInt(450951790UL, 2L)) ]
+                                        [ ("a string", PT.EInt64(450951790UL, 2L)) ]
                                       ),
                                       PT.ELet(
                                         831830074UL,
@@ -901,7 +901,7 @@ module ProgramTypes =
 
   let constValue : PT.Const =
     PT.Const.CTuple(
-      PT.Const.CInt(314L),
+      PT.Const.CInt64(314L),
       PT.Const.CBool(true),
       [ PT.Const.CString("string")
         PT.Const.CUnit
@@ -1017,7 +1017,7 @@ module ProgramTypes =
   let packageFn : PT.PackageFn.T =
     { name =
         { owner = "dark"
-          modules = [ "stdlib"; "Int"; "Int64" ]
+          modules = [ "stdlib"; "Int64"; "Int64" ]
           name = PT.FnName.FnName "mod"
           version = 0 }
       body = expr
@@ -1036,7 +1036,7 @@ module ProgramTypes =
   let packageType : PT.PackageType.T =
     { name =
         { owner = "darklang"
-          modules = [ "stdlib"; "Int"; "Int64" ]
+          modules = [ "stdlib"; "Int64"; "Int64" ]
           name = PT.TypeName.TypeName "Int64"
           version = 0 }
       declaration =
@@ -1060,7 +1060,7 @@ module ProgramTypes =
   let packageConstant : PT.PackageConstant.T =
     { name =
         { owner = "dark"
-          modules = [ "stdlib"; "Int"; "Int64" ]
+          modules = [ "stdlib"; "Int64"; "Int64" ]
           name = PT.ConstantName.ConstantName "testConstant"
           version = 0 }
       body = constValue

@@ -95,7 +95,7 @@ let testToDeveloperRepr =
         DvalReprDeveloper.toRepr
         [ RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
-          RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(1, 2, 3)"
+          RT.DTuple(RT.DInt64 1, RT.DInt64 2, [ RT.DInt64 3 ]), "(1, 2, 3)"
           RT.DDict(VT.unit, Map [ "", RT.DUnit ]), "{\n  : ()\n}"
           RT.DList(VT.unit, [ RT.DUnit ]), "[\n  ()\n]" ] ]
 
@@ -150,10 +150,10 @@ let testInternalRoundtrippableNew =
   testList
     "internalNew"
     [ test "tuples serialize correctly" {
-        let expected = """{"DTuple":[{"DInt":[1]},{"DInt":[2]},[{"DInt":[3]}]]}"""
+        let expected = """{"DTuple":[{"DInt64":[1]},{"DInt64":[2]},[{"DInt64":[3]}]]}"""
 
         let actual =
-          RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ])
+          RT.DTuple(RT.DInt64 1, RT.DInt64 2, [ RT.DInt64 3 ])
           |> DvalReprInternalRoundtrippable.toJsonV0
 
         Expect.equal actual expected ""

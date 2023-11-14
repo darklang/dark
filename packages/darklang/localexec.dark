@@ -6,21 +6,21 @@ module Darklang =
         { owner: String
           modules: List<String>
           name: String
-          version: Int }
+          version: Int64 }
 
       /// The name of a package type
       type TypeName =
         { owner: String
           modules: List<String>
           name: String
-          version: Int }
+          version: Int64 }
 
       /// The name of a package constant
       type ConstantName =
         { owner: String
           modules: List<String>
           name: String
-          version: Int }
+          version: Int64 }
 
       /// A package, with types, constants, and functions
       type Package =

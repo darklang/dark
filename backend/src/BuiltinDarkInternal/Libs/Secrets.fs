@@ -40,7 +40,7 @@ let fns : List<BuiltInFn> =
                 let fields =
                   [ "name", DString s.name
                     "value", DString s.value
-                    "version", DInt s.version ]
+                    "version", DInt64 s.version ]
                 DRecord(typeName, typeName, [], Map fields))
               |> Dval.list (KTCustomType(typeName, []))
           }
@@ -55,12 +55,12 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "canvasID" TUuid ""
           Param.make "name" TString ""
-          Param.make "version" TInt "" ]
+          Param.make "version" TInt64 "" ]
       returnType = TUnit
       description = "Delete a secret"
       fn =
         (function
-        | _, _, [ DUuid canvasID; DString name; DInt version ] ->
+        | _, _, [ DUuid canvasID; DString name; DInt64 version ] ->
           uply {
             do! Secret.delete canvasID name (int version)
             return DUnit
@@ -77,14 +77,14 @@ let fns : List<BuiltInFn> =
         [ Param.make "canvasID" TUuid ""
           Param.make "name" TString ""
           Param.make "value" TString ""
-          Param.make "version" TInt "" ]
+          Param.make "version" TInt64 "" ]
       returnType = TypeReference.result TUnit TString
       description = "Add a secret"
       fn =
         let resultOk = Dval.resultOk KTUnit KTString
         let resultError = Dval.resultError KTUnit KTString
         (function
-        | _, _, [ DUuid canvasID; DString name; DString value; DInt version ] ->
+        | _, _, [ DUuid canvasID; DString name; DString value; DInt64 version ] ->
           uply {
             try
               do! Secret.insert canvasID name value (int version)

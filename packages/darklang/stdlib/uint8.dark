@@ -131,5 +131,5 @@ module Darklang =
 
 
       /// Converts an <type Int64> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
-      let fromInt64 (i: Int) : PACKAGE.Darklang.Stdlib.Option.Option<UInt8> =
+      let fromInt64 (i: Int64) : PACKAGE.Darklang.Stdlib.Option.Option<UInt8> =
         Builtin.UInt8.fromInt64 i

@@ -57,7 +57,7 @@ module Response =
       let body = Map.get "body" fields
 
       match code, headers, body with
-      | Some(RT.DInt code), Some(RT.DList(_, headers)), Some(RT.DBytes body) ->
+      | Some(RT.DInt64 code), Some(RT.DList(_, headers)), Some(RT.DBytes body) ->
         let headers =
           headers
           |> List.fold
@@ -102,7 +102,7 @@ module Response =
               $"  {LibExecution.DvalReprDeveloper.toRepr result}"
               "\nHTTP handlers should return results in the form:"
               "  PACKAGE.Darklang.Stdlib.Http.Response {"
-              "    statusCode : Int"
+              "    statusCode : Int64"
               "    headers : List<String*String>"
               "    body : Bytes"
               "  }" ]

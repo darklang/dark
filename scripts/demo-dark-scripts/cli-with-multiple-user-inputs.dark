@@ -7,10 +7,10 @@
  let b = Builtin.Stdin.readLine ()
 
  match
-   (PACKAGE.Darklang.Stdlib.Int.parse a, PACKAGE.Darklang.Stdlib.Int.parse b)
+   (PACKAGE.Darklang.Stdlib.Int64.parse a, PACKAGE.Darklang.Stdlib.Int64.parse b)
  with
  | Ok a, Ok b ->
-   $"{PACKAGE.Darklang.Stdlib.Int.toString a} + {PACKAGE.Darklang.Stdlib.Int.toString b} = {PACKAGE.Darklang.Stdlib.Int.toString (a + b)}"
+   $"{PACKAGE.Darklang.Stdlib.Int64.toString a} + {PACKAGE.Darklang.Stdlib.Int64.toString b} = {PACKAGE.Darklang.Stdlib.Int64.toString (a + b)}"
    |> Builtin.printLine
  | _ -> Builtin.printLine "Invalid input"
 

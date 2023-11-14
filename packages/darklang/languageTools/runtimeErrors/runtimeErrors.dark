@@ -9,10 +9,10 @@ module Darklang =
         type ErrorSegment =
           // -- Basic types
           | String of String
-          | Int of Int
-          | Ordinal of Int // 1st, 2nd, etc
+          | Int of Int64
+          | Ordinal of Int64 // 1st, 2nd, etc
           | IndefiniteArticle // "a" or "an" (chosen based on the next segment)
-          | Count of Int * singular: ErrorSegment * plural: ErrorSegment // 2 errors, 1 error, etc
+          | Count of Int64 * singular: ErrorSegment * plural: ErrorSegment // 2 errors, 1 error, etc
 
           // -- Functions
           | FunctionName of PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.FnName
@@ -56,10 +56,10 @@ module Darklang =
                 let newSegment =
                   match segment with
                   | String s -> s
-                  | Int i -> PACKAGE.Darklang.Stdlib.Int.toString i
+                  | Int i -> PACKAGE.Darklang.Stdlib.Int64.toString i
                   | Ordinal i -> Stdlib.String.toOrdinal i
                   | Count(i, singular, plural) ->
-                    let count = PACKAGE.Darklang.Stdlib.Int.toString i
+                    let count = PACKAGE.Darklang.Stdlib.Int64.toString i
 
                     if i == 1L then
                       let segment = toString [ singular ]

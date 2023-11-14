@@ -24,7 +24,7 @@ let parse (code : string) : Task<PT.Expr> =
 let testDBOplistRoundtrip : Test =
   testTask "db oplist roundtrip" {
     let! canvasID = initializeTestCanvas "db_oplist_roundtrip"
-    let db = testDB "myDB" PT.TInt
+    let db = testDB "myDB" PT.TInt64
     let tl = PT.Toplevel.TLDB db
 
     do! Canvas.saveTLIDs canvasID [ (tl, Serialize.NotDeleted) ]
@@ -36,7 +36,7 @@ let testDBOplistRoundtrip : Test =
 let testHttpOplistRoundtrip =
   testTask "test http oplist roundtrip" {
     let! canvasID = initializeTestCanvas "http_oplist_roundtrip"
-    let h = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
+    let h = testHttpRouteHandler "/path" "GET" (PT.EInt64(gid (), 5L))
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]
     let! (c : Canvas.T) =
       Canvas.loadHttpHandlers
@@ -50,11 +50,11 @@ let testHttpOplistRoundtrip =
 let testHttpOplistLoadsUserTypes =
   testTask "httpOplistLoadsUserTypes" {
     let! canvasID = initializeTestCanvas "http_oplist_loads_user_types"
-    let handler = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInt64(gid (), 5L))
     let typ =
       testUserRecordType
         ({ modules = []; name = PT.TypeName.TypeName "test-tipe"; version = 0 })
-        ("age", PT.TInt)
+        ("age", PT.TInt64)
         []
 
     do!
@@ -77,7 +77,7 @@ let testHttpOplistLoadsUserTypes =
 let testHttpLoadIgnoresDeletedHandler =
   testTask "Http load ignores deleted handler" {
     let! canvasID = initializeTestCanvas "http-load-ignores-deleted-handler"
-    let handler = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInt64(gid (), 5L))
     do!
       Canvas.saveTLIDs
         canvasID
@@ -115,7 +115,7 @@ let testHttpLoadIgnoresDeletedFns =
   testTask "Http load ignores deleted fns" {
     let! canvasID = initializeTestCanvas "http-load-ignores-deleted-fns"
 
-    let handler = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInt64(gid (), 5L))
     let ps = (NEList.singleton "param")
 
     let! fivePlusThreeParsed = parse "5 + 3"

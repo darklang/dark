@@ -145,11 +145,11 @@ let fns : List<BuiltInFn> =
     { name = fn "length" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Returns the length of the string"
       fn =
         (function
-        | _, _, [ DString s ] -> s |> String.lengthInEgcs |> Dval.int |> Ply
+        | _, _, [ DString s ] -> s |> String.lengthInEgcs |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented // there isn't a unicode version of length
       previewable = Pure
@@ -294,15 +294,15 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "string" TString ""
-          Param.make "from" TInt ""
-          Param.make "to" TInt "" ]
+          Param.make "from" TInt64 ""
+          Param.make "to" TInt64 "" ]
       returnType = TString
       description =
         "Returns the substring of <param string> between the <param from> and <param to> indices.
          Negative indices start counting from the end of <param string>."
       fn =
         (function
-        | _, _, [ DString s; DInt first; DInt last ] ->
+        | _, _, [ DString s; DInt64 first; DInt64 last ] ->
           let getLengthInTextElements s =
             System.Globalization.StringInfo(s).LengthInTextElements
 
@@ -453,14 +453,14 @@ let fns : List<BuiltInFn> =
             "searchFor"
             TString
             "The string to search for within <param str>" ]
-      returnType = TInt
+      returnType = TInt64
       description =
         "Returns the index of the first occurrence of <param searchFor> in <param str>, or returns -1 if <param searchFor> does not occur."
       fn =
         (function
         | _, _, [ DString str; DString search ] ->
           let index = str.IndexOf(search)
-          Ply(DInt index)
+          Ply(DInt64 index)
         | _ -> incorrectArgs ())
       sqlSpec = SqlCallback2(fun str search -> $"strpos({str}, {search}) - 1")
       previewable = Pure

@@ -1,4 +1,4 @@
-let helloWorld () : Int =
+let helloWorld () : Int64 =
   Builtin.printLine "Hello World"
   0
 

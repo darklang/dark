@@ -46,7 +46,7 @@ let saveItemToCanvas
       Builtin.printLine $"Type: {name}; Json: {json}"
 
       Builtin.printLine
-        $"Status: {PACKAGE.Darklang.Stdlib.Int.toString response.statusCode}"
+        $"Status: {PACKAGE.Darklang.Stdlib.Int64.toString response.statusCode}"
 
       Builtin.printLine
         $"Body: {response.body |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement}"
@@ -116,13 +116,13 @@ let printPackageFunction
   let modules = p.modules |> PACKAGE.Darklang.Stdlib.String.join "."
 
   Builtin.printLine
-    $"Package Function {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
+    $"Package Function {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int64.toString_v0 p.version}"
 
 let printPackageType (p: PACKAGE.Darklang.LocalExec.Packages.TypeName) : Unit =
   let modules = p.modules |> PACKAGE.Darklang.Stdlib.String.join "."
 
   Builtin.printLine
-    $"Package Type {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
+    $"Package Type {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int64.toString_v0 p.version}"
 
 let printPackageConstant
   (p: PACKAGE.Darklang.LocalExec.Packages.ConstantName)
@@ -130,7 +130,7 @@ let printPackageConstant
   let modules = p.modules |> PACKAGE.Darklang.Stdlib.String.join "."
 
   Builtin.printLine
-    $"Package Constant {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int.toString_v0 p.version}"
+    $"Package Constant {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int64.toString_v0 p.version}"
 
 let printAllPackagesInDb () : Unit =
   let functions = Builtin.LocalExec.Packages.listFunctions ()
@@ -180,7 +180,7 @@ let parseArgs (args: List<String>) : CliOptions =
 
 
 
-let main (args: List<String>) : Int =
+let main (args: List<String>) : Int64 =
   match parseArgs args with
   | Help ->
     Builtin.printLine (usage ())

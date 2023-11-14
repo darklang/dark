@@ -407,7 +407,7 @@ module Expect =
 
     match dv with
     | DDateTime _
-    | DInt _
+    | DInt64 _
     | DInt8 _
     | DUInt8 _
     | DInt16 _
@@ -521,7 +521,7 @@ module Expect =
       check path caseName caseName'
       eqList (caseName :: path) fieldPats fieldPats'
     | MPString(_, str), MPString(_, str') -> check path str str'
-    | MPInt(_, l), MPInt(_, l') -> check path l l'
+    | MPInt64(_, l), MPInt64(_, l') -> check path l l'
     | MPInt8(_, l), MPInt8(_, l') -> check path l l'
     | MPUInt8(_, l), MPUInt8(_, l') -> check path l l'
     | MPInt16(_, l), MPInt16(_, l') -> check path l l'
@@ -544,7 +544,7 @@ module Expect =
     | MPVariable _, _
     | MPEnum _, _
     | MPString _, _
-    | MPInt _, _
+    | MPInt64 _, _
     | MPInt8 _, _
     | MPUInt8 _, _
     | MPInt16 _, _
@@ -571,7 +571,7 @@ module Expect =
     : unit =
     // as long as TypeReferences don't get IDs, depending on structural equality is OK
     match actual, expected with
-    | TInt, _
+    | TInt64, _
     | TInt8, _
     | TUInt8, _
     | TInt16, _
@@ -635,7 +635,7 @@ module Expect =
     | EChar(_, v), EChar(_, v')
     | EVariable(_, v), EVariable(_, v') -> check path v v'
     | EConstant(_, name), EConstant(_, name') -> check path name name'
-    | EInt(_, v), EInt(_, v') -> check path v v'
+    | EInt64(_, v), EInt64(_, v') -> check path v v'
     | EInt8(_, v), EInt8(_, v') -> check path v v'
     | EUInt8(_, v), EUInt8(_, v') -> check path v v'
     | EInt16(_, v), EInt16(_, v') -> check path v v'
@@ -754,7 +754,7 @@ module Expect =
 
     // exhaustiveness check
     | EUnit _, _
-    | EInt _, _
+    | EInt64 _, _
     | EInt8 _, _
     | EUInt8 _, _
     | EInt16 _, _
@@ -933,7 +933,7 @@ module Expect =
     | DList _, _
     | DTuple _, _
     | DString _, _
-    | DInt _, _
+    | DInt64 _, _
     | DInt8 _, _
     | DUInt8 _, _
     | DInt16 _, _
@@ -1004,7 +1004,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
 
     | DUnit
     | DBool _
-    | DInt _
+    | DInt64 _
     | DInt8 _
     | DUInt8 _
     | DInt16 _
@@ -1109,7 +1109,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("float2", DFloat -7.2, TFloat)
     ("float3", DFloat 15.0, TFloat)
     ("float4", DFloat -15.0, TFloat)
-    ("int5", DInt 5L, TInt)
+    ("int5", DInt64 5L, TInt64)
     ("int_8_bits", DInt8 127y, TInt8)
     ("int_16_bits", DInt16 32767s, TInt16)
     ("int_32_bits", DInt32 2147483647l, TInt32)
@@ -1121,7 +1121,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("true", DBool true, TBool)
     ("false", DBool false, TBool)
     ("unit", DUnit, TUnit)
-    ("datastore", DDB "Visitors", TDB TInt)
+    ("datastore", DDB "Visitors", TDB TInt64)
     ("string", DString "incredibly this was broken", TString)
     // Json.NET has a habit of converting things automatically based on the type in the string
     ("date string", DString "2018-09-14T00:31:41Z", TString)
@@ -1129,13 +1129,13 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("int string2", DString "-1039485", TString)
     ("int string3", DString "0", TString)
     ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6", TString)
-    ("list", DList(ValueType.Known KTInt, [ Dval.int 4 ]), TList TInt)
+    ("list", DList(ValueType.Known KTInt64, [ Dval.int64 4 ]), TList TInt64)
     ("record",
      DRecord(
        S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0,
        S.fqUserTypeName [ "Two"; "Modules" ] "FooAlias" 0,
        [],
-       Map.ofList [ "foo", Dval.int 5 ]
+       Map.ofList [ "foo", Dval.int64 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0), []))
     ("record2",
@@ -1160,7 +1160,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
        [ VT.bool; VT.char; (VT.customType (S.fqUserTypeName [] "Foo" 0)) [] ],
-       Map.ofList [ "foo\\\\bar", Dval.int 5 ]
+       Map.ofList [ "foo\\\\bar", Dval.int64 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
     ("record5",
@@ -1168,16 +1168,16 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        S.fqUserTypeName [] "Foo" 0,
        S.fqUserTypeName [] "Foo" 0,
        [],
-       Map.ofList [ "$type", Dval.int 5 ]
+       Map.ofList [ "$type", Dval.int64 5 ]
      ),
      TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    ("dict", DDict(VT.unknown, Map [ "foo", Dval.int 5 ]), TDict TInt)
+    ("dict", DDict(VT.unknown, Map [ "foo", Dval.int64 5 ]), TDict TInt64)
     ("dict3",
      DDict(VT.unknown, Map [ ("type", DString "weird"); ("value", DString "x") ]),
      TDict TString)
     // More Json.NET tests
-    ("dict4", DDict(VT.unknown, Map [ "foo\\\\bar", Dval.int 5 ]), TDict TInt)
-    ("dict5", DDict(VT.unknown, Map [ "$type", Dval.int 5 ]), TDict TInt)
+    ("dict4", DDict(VT.unknown, Map [ "foo\\\\bar", Dval.int64 5 ]), TDict TInt64)
+    ("dict5", DDict(VT.unknown, Map [ "$type", Dval.int64 5 ]), TDict TInt64)
     ("lambda",
      DFnVal(
        Lambda
@@ -1187,7 +1187,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
            symtable = Map.empty
            parameters = NEList.singleton (RT.LPVariable(id 5678, "a")) }
      ),
-     TFn(NEList.singleton TInt, TUnit))
+     TFn(NEList.singleton TInt64, TUnit))
     ("lambda with pipe",
      DFnVal(
        Lambda
@@ -1230,12 +1230,12 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                            )),
                            [],
                            (NEList.doubleton
-                             (EInt(234213618UL, 5))
-                             (EInt(923423468UL, 6)))
+                             (EInt64(234213618UL, 5))
+                             (EInt64(923423468UL, 6)))
                          ))
-                         (EInt(648327618UL, 7)))
+                         (EInt64(648327618UL, 7)))
                      ))
-                     (EInt(325843618UL, 8)))
+                     (EInt64(325843618UL, 8)))
                  )
                )
              )
@@ -1244,8 +1244,8 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
            typeSymbolTable = Map.empty
            parameters = NEList.singleton (RT.LPVariable(id 5678, "a")) }
      ),
-     TFn(NEList.singleton TInt, TInt))
-    ("db", DDB "Visitors", TDB TInt)
+     TFn(NEList.singleton TInt64, TInt64))
+    ("db", DDB "Visitors", TDB TInt64)
     ("date",
      DDateTime(
        DarkDateTime.fromInstant (NodaTime.Instant.ofIsoString "2018-09-14T00:31:41Z")
@@ -1257,20 +1257,20 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DEnum(
        Dval.optionType,
        Dval.optionType,
-       Dval.ignoreAndUseEmpty [ VT.int ],
+       Dval.ignoreAndUseEmpty [ VT.int64 ],
        "None",
        []
      ),
-     TypeReference.option TInt)
+     TypeReference.option TInt64)
     ("option2",
      DEnum(
        Dval.optionType,
        Dval.optionType,
-       Dval.ignoreAndUseEmpty [ VT.int ],
+       Dval.ignoreAndUseEmpty [ VT.int64 ],
        "Some",
-       [ Dval.int 15 ]
+       [ Dval.int64 15 ]
      ),
-     TypeReference.option TInt)
+     TypeReference.option TInt64)
     ("option3",
      DEnum(
        Dval.optionType,
@@ -1362,16 +1362,16 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      ),
      TBytes)
 
-    ("simple2Tuple", DTuple(Dval.int 1, Dval.int 2, []), TTuple(TInt, TInt, []))
+    ("simple2Tuple", DTuple(Dval.int64 1, Dval.int64 2, []), TTuple(TInt64, TInt64, []))
     ("simple3Tuple",
-     DTuple(Dval.int 1, Dval.int 2, [ Dval.int 3 ]),
-     TTuple(TInt, TInt, [ TInt ]))
+     DTuple(Dval.int64 1, Dval.int64 2, [ Dval.int64 3 ]),
+     TTuple(TInt64, TInt64, [ TInt64 ]))
     ("tupleWithUnit",
-     DTuple(Dval.int 1, Dval.int 2, [ DUnit ]),
-     TTuple(TInt, TInt, [ TUnit ]))
+     DTuple(Dval.int64 1, Dval.int64 2, [ DUnit ]),
+     TTuple(TInt64, TInt64, [ TUnit ]))
     ("tupleWithError",
      DTuple(
-       Dval.int 1,
+       Dval.int64 1,
        DEnum(
          Dval.resultType,
          Dval.resultType,
@@ -1381,10 +1381,10 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        ),
        []
      ),
-     TTuple(TInt, TypeReference.result TInt TString, [])) ]
+     TTuple(TInt64, TypeReference.result TInt64 TString, [])) ]
 
 let sampleDvals : List<string * (Dval * TypeReference)> =
-  (List.map (fun (k, v) -> k, DInt v, TInt) interestingInts
+  (List.map (fun (k, v) -> k, DInt64 v, TInt64) interestingInts
    @ List.map (fun (k, v) -> k, DFloat v, TFloat) interestingFloats
    @ List.map (fun (k, v) -> k, DString v, TString) interestingStrings
    @ List.map (fun (k, v) -> k, DString v, TString) naughtyStrings

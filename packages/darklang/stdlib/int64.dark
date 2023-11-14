@@ -1,6 +1,6 @@
 module Darklang =
   module Stdlib =
-    module Int =
+    module Int64 =
 
       type ParseError =
         | BadFormat
@@ -9,44 +9,44 @@ module Darklang =
 
       /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
       /// The modulus <param b> must be greater than 0
-      /// Use <fn Int.remainder> if you want the remainder after division, which has
+      /// Use <fn Int64.remainder> if you want the remainder after division, which has
       /// a different behavior for negative numbers.
-      let ``mod`` (a: Int) (b: Int) : Int = a % b
+      let ``mod`` (a: Int64) (b: Int64) : Int64 = a % b
 
 
       /// Returns the integer remainder left over after dividing <param value> by
       /// <param divisor>, as a <type Result>.
-      /// For example, {{Int.remainder 15 6 == Ok 3}}. The remainder will be
+      /// For example, {{Int64.remainder 15 6 == Ok 3}}. The remainder will be
       /// negative only if {{<var value> < 0}}.
       /// The sign of <param divisor> doesn't influence the outcome.
       /// Returns an {{Error}} if <param divisor> is {{0}}.
       let remainder
-        (value: Int)
-        (divisor: Int)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Int, String> =
-        Builtin.Int.remainder value divisor
+        (value: Int64)
+        (divisor: Int64)
+        : PACKAGE.Darklang.Stdlib.Result.Result<Int64, String> =
+        Builtin.Int64.remainder value divisor
 
 
       /// Adds two integers together
-      let add (a: Int) (b: Int) : Int = a + b
+      let add (a: Int64) (b: Int64) : Int64 = a + b
 
 
       /// Subtracts two integers
-      let subtract (a: Int) (b: Int) : Int = a - b
+      let subtract (a: Int64) (b: Int64) : Int64 = a - b
 
 
       /// Multiplies two integers
-      let multiply (a: Int) (b: Int) : Int = a * b
+      let multiply (a: Int64) (b: Int64) : Int64 = a * b
 
 
       /// Divides two integers
-      let divide (a: Int) (b: Int) : Int = Builtin.Int.divide a b
+      let divide (a: Int64) (b: Int64) : Int64 = Builtin.Int64.divide a b
 
 
       /// Raise <param base> to the power of <param exponent>.
       /// <param exponent> must to be positive.
       /// Return value wrapped in a {{Result}}
-      let power (``base``: Int) (exponent: Int) : Int =
+      let power (``base``: Int64) (exponent: Int64) : Int64 =
         // Handle some edge cases around 1. We want to make this match
         // OCaml, so we have to support an exponent above int32, but
         // below int63. This only matters for 1 or -1, and otherwise a
@@ -60,51 +60,51 @@ module Darklang =
 
 
       /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
-      let absoluteValue (a: Int) : Int = if a < 0L then -a else a
+      let absoluteValue (a: Int64) : Int64 = if a < 0L then -a else a
 
 
       /// Returns the negation of <param a>, {{-a}}
-      let negate (a: Int) : Int = -a
+      let negate (a: Int64) : Int64 = -a
 
 
       /// Returns {{true}} if <param a> is greater than <param b>
-      let greaterThan (a: Int) (b: Int) : Bool = a > b
+      let greaterThan (a: Int64) (b: Int64) : Bool = a > b
 
 
       /// Returns {{true}} if <param a> is greater than or equal to <param b>
-      let greaterThanOrEqualTo (a: Int) (b: Int) : Bool = a >= b
+      let greaterThanOrEqualTo (a: Int64) (b: Int64) : Bool = a >= b
 
 
       /// Returns {{true}} if <param a> is less than <param b>
-      let lessThan (a: Int) (b: Int) : Bool = a < b
+      let lessThan (a: Int64) (b: Int64) : Bool = a < b
 
       /// Returns {{true}} if <param a> is less than or equal to <param b>
-      let lessThanOrEqualTo (a: Int) (b: Int) : Bool = a <= b
+      let lessThanOrEqualTo (a: Int64) (b: Int64) : Bool = a <= b
 
 
       /// Returns a random integer between <param start> and <param end> (inclusive)
-      let random (start: Int) (``end``: Int) : Int = Builtin.Int.random start ``end``
+      let random (start: Int64) (``end``: Int64) : Int64 = Builtin.Int64.random start ``end``
 
 
-      /// Get the square root of an <type Int>
-      let sqrt (a: Int) : Float = Builtin.Int.sqrt a
+      /// Get the square root of an <type Int64>
+      let sqrt (a: Int64) : Float = Builtin.Int64.sqrt a
 
 
-      /// Converts an <type Int> to a <type Float>
-      let toFloat (a: Int) : Float = Builtin.Int.toFloat a
+      /// Converts an <type Int64> to a <type Float>
+      let toFloat (a: Int64) : Float = Builtin.Int64.toFloat a
 
 
       /// Returns the sum of all the ints in the list
-      let sum (lst: List<Int>) : Int =
+      let sum (lst: List<Int64>) : Int64 =
         PACKAGE.Darklang.Stdlib.List.fold lst 0L (fun acc x -> acc + x)
 
 
       /// Returns the higher of <param a> and <param b>
-      let max (a: Int) (b: Int) : Int = if a > b then a else b
+      let max (a: Int64) (b: Int64) : Int64 = if a > b then a else b
 
 
       /// Returns the lower of <param a> and <param b>
-      let min (a: Int) (b: Int) : Int = if a < b then a else b
+      let min (a: Int64) (b: Int64) : Int64 = if a < b then a else b
 
 
       /// If <param value> is within the range given by <param limitA> and <param
@@ -112,7 +112,7 @@ module Darklang =
       /// If <param value> is outside the range, returns <param limitA> or <param
       /// limitB>, whichever is closer to <param value>.
       /// <param limitA> and <param limitB> can be provided in any order.
-      let clamp (value: Int) (limitA: Int) (limitB: Int) : Int =
+      let clamp (value: Int64) (limitA: Int64) (limitB: Int64) : Int64 =
         let min = if limitA < limitB then limitA else limitB
         let max = if limitA > limitB then limitA else limitB
 
@@ -121,12 +121,12 @@ module Darklang =
         else value
 
 
-      /// Returns the <type Int> value of a <type String>
+      /// Returns the <type Int64> value of a <type String>
       let parse
         (s: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Int, PACKAGE.Darklang.Stdlib.Int.ParseError> =
-        Builtin.Int.parse s
+        : PACKAGE.Darklang.Stdlib.Result.Result<Int64, PACKAGE.Darklang.Stdlib.Int64.ParseError> =
+        Builtin.Int64.parse s
 
 
       /// Stringify <param int>
-      let toString (int: Int) : String = Builtin.Int.toString int
+      let toString (int: Int64) : String = Builtin.Int64.toString int

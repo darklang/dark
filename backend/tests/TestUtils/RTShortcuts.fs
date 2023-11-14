@@ -58,7 +58,7 @@ let eStr (str : string) : Expr = EString(gid (), [ StringText str ])
 
 let eChar (c : string) : Expr = EChar(gid (), c)
 
-let eInt (i : int) : Expr = EInt(gid (), int64 i)
+let eInt64 (i : int64) : Expr = EInt64(gid (), i)
 
 let eInt8 (i : int8) : Expr = EInt8(gid (), i)
 

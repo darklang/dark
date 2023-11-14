@@ -41,4 +41,4 @@ module Darklang =
                 actual = [ ErrorSegment.ErrorSegment.TypeReference typ ]
                 expected =
                   [ ErrorSegment.ErrorSegment.String
-                      "A supported type (Int, String, etc)" ] }
+                      "A supported type (Int64, String, etc)" ] }

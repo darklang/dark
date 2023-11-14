@@ -46,7 +46,7 @@ module Darklang =
 
 
       type Response =
-        { statusCode: Int
+        { statusCode: Int64
           headers: List<String * String>
           body: Bytes }
 
@@ -54,7 +54,7 @@ module Darklang =
       /// respond with HTTP status <param code> and <param response> body.
       let response
         (body: Bytes)
-        (statusCode: Int)
+        (statusCode: Int64)
         : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
           { statusCode = statusCode
@@ -67,7 +67,7 @@ module Darklang =
       let responseWithHeaders
         (body: Bytes)
         (headers: List<String * String>)
-        (statusCode: Int)
+        (statusCode: Int64)
         : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
           { statusCode = statusCode
@@ -87,7 +87,7 @@ module Darklang =
       /// Content-Type header set to "text/html; charset=utf-8".
       let responseWithHtml
         (body: String)
-        (statusCode: Int)
+        (statusCode: Int64)
         : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
           { statusCode = statusCode
@@ -100,7 +100,7 @@ module Darklang =
       /// Content-Type header set to "text/plain; charset=utf-8".
       let responseWithText
         (text: String)
-        (statusCode: Int)
+        (statusCode: Int64)
         : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
           { statusCode = statusCode
@@ -112,7 +112,7 @@ module Darklang =
       /// Content-Type header set to "application/json".
       let responseWithJson
         (json: String)
-        (statusCode: Int)
+        (statusCode: Int64)
         : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
           { statusCode = statusCode
@@ -161,7 +161,7 @@ module Darklang =
 
       type Cookie =
         { expires: DateTime
-          maxAge: Int
+          maxAge: Int64
           domain: String
           path: String
           secure: Bool
@@ -195,7 +195,7 @@ module Darklang =
 
 //     let cookie =
 //       [ ("Expires", expires)
-//         ("Max-Age", cookie.maxAge |> PACKAGE.Darklang.Stdlib.Int.toString)
+//         ("Max-Age", cookie.maxAge |> PACKAGE.Darklang.Stdlib.Int64.toString)
 //         ("Domain", cookie.domain)
 //         ("Path", cookie.path)
 //         ("Secure", cookie.secure |> PACKAGE.Darklang.Stdlib.Bool.toString)

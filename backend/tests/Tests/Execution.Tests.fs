@@ -67,7 +67,7 @@ let testExecFunctionTLIDs : Test =
     let name = "testFunction"
     let ps = NEList.singleton "param"
     let (fn : UserFunction.T) =
-      testUserFn name [] ps (PT.TVariable "a") (PT.EInt(gid (), 5))
+      testUserFn name [] ps (PT.TVariable "a") (PT.EInt64(gid (), 5))
       |> PT2RT.UserFunction.toRT
     let fns = Map.ofList [ (fn.name, fn) ]
     let! state = executionStateFor meta false false Map.empty Map.empty fns Map.empty
@@ -85,7 +85,7 @@ let testExecFunctionTLIDs : Test =
         (NEList.singleton DUnit)
 
     Expect.equal (HashSet.toList tlids) [ fn.tlid ] "tlid of function is traced"
-    Expect.equal value (Ok(DInt 5L)) "make sure"
+    Expect.equal value (Ok(DInt64 5L)) "make sure"
   }
 
 // TYPESCLEANUP add tests for non-record-shaped types

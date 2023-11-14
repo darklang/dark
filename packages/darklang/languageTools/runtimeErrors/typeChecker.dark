@@ -30,7 +30,7 @@ module Darklang =
           | FunctionCallParameter of
             fnName: RTFnName *
             parameter: RTParam *
-            paramIndex: Int *
+            paramIndex: Int64 *
             location: Location
 
           | FunctionCallResult of
@@ -49,8 +49,8 @@ module Darklang =
           | EnumField of
             enumTypeName: RTTypeName *
             caseName: String *
-            fieldIndex: Int *  // nth argument to the enum constructor
-            fieldCount: Int *
+            fieldIndex: Int64 *  // nth argument to the enum constructor
+            fieldCount: Int64 *
             fieldType: RTTypeReference *
             location: Location
 
@@ -64,9 +64,9 @@ module Darklang =
             expectedType: RTTypeReference *
             location: Location
 
-          | ListIndex of index: Int * listTyp: RTTypeReference * parent: Context
+          | ListIndex of index: Int64 * listTyp: RTTypeReference * parent: Context
 
-          | TupleIndex of index: Int * elementType: RTTypeReference * parent: Context
+          | TupleIndex of index: Int64 * elementType: RTTypeReference * parent: Context
 
           | FnValResult of returnType: RTTypeReference * location: Location
 

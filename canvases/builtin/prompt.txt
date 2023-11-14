@@ -124,7 +124,7 @@ type DType =
   // simple types
   | TUnit
   | TBool
-  | TInt
+  | TInt64
   | TFloat
   | TChar
   | TStr
@@ -147,7 +147,7 @@ type DType =
   | TVariable of string
 
   /// A type defined by a standard library module, a canvas/user, or a package
-  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
+  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt64, TStr])`
   /// `typeArgs` is the list of type arguments, if any
   | TCustomType of TypeName.TypeName * typeArgs : List<DType>
 
@@ -161,7 +161,7 @@ The result should be a Ply<Dval>. Dval is:
 
 ```
 and [<NoComparison>] Dval =
-  | DInt of int64
+  | DInt64 of int64
   | DFloat of double
   | DBool of bool
   | DUnit

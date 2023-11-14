@@ -1,4 +1,4 @@
-let loop () : Int =
+let loop () : Int64 =
   Builtin.printLine "Enter single-line standalone expression (or 'exit' to exit):"
 
   let input = Builtin.Stdin.readLine ()

@@ -10,19 +10,19 @@ module Darklang =
         type BuiltIn<'name> =
           { modules: List<String>
             name: 'name
-            version: Int }
+            version: Int64 }
 
         /// Part of the user's program (e.g. canvas or CLI)
         type UserProgram<'name> =
           { modules: List<String>
             name: 'name
-            version: Int }
+            version: Int64 }
 
         type Package<'name> =
           { owner: String
             modules: List<String>
             name: 'name
-            version: Int }
+            version: Int64 }
 
         type FQName<'name> =
           | BuiltIn of BuiltIn<'name>
@@ -65,7 +65,7 @@ module Darklang =
       type TypeReference =
         | TUnit
         | TBool
-        | TInt
+        | TInt64
         | TInt8
         | TUInt8
         | TInt16
@@ -91,7 +91,7 @@ module Darklang =
         | TDict of TypeReference
 
       type Expr =
-        | EInt of ID * Int
+        | EInt64 of ID * Int64
         | EInt8 of ID * Int8
         | EUInt8 of ID * UInt8
         | EInt16 of ID * Int16
@@ -148,7 +148,7 @@ module Darklang =
       type MatchPattern =
         | MPVariable of ID * String
         | MPEnum of ID * caseName: String * fieldPatterns: List<MatchPattern>
-        | MPInt of ID * Int
+        | MPInt64 of ID * Int64
         | MPInt8 of ID * Int8
         | MPUInt8 of ID * UInt8
         | MPInt16 of ID * Int16
@@ -183,7 +183,7 @@ module Darklang =
       type KnownType =
         | KTUnit
         | KTBool
-        | KTInt
+        | KTInt64
         | KTInt8
         | KTUInt8
         | KTInt16
@@ -216,7 +216,7 @@ module Darklang =
         type Dval =
           | DUnit
           | DBool of Bool
-          | DInt of Int
+          | DInt64 of Int64
           | DInt8 of Int8
           | DUInt8 of UInt8
           | DInt16 of Int16
@@ -262,7 +262,7 @@ module Darklang =
           match dv with
           | DUnit -> ValueType.Known KnownType.KTUnit
           | DBool _ -> ValueType.Known KnownType.KTBool
-          | DInt _ -> ValueType.Known KnownType.KTInt
+          | DInt64 _ -> ValueType.Known KnownType.KTInt64
           | DInt8 _ -> ValueType.Known KnownType.KTInt8
           | DUInt8 _ -> ValueType.Known KnownType.KTUInt8
           | DInt16 _ -> ValueType.Known KnownType.KTInt16
@@ -319,7 +319,7 @@ module Darklang =
       /// i.e. within the execution of `x+y` in
       ///  `let x = 1; let y = 2; x + y`
       /// , we would have a Symtable of
-      ///   `{ "x" => DInt 1; "y" => DInt 2 }`
+      ///   `{ "x" => DInt64 1; "y" => DInt64 2 }`
       type Symtable = Dict<Dval.Dval>
 
       type TypeSymbolTable = Dict<TypeReference>

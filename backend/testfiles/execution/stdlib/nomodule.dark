@@ -1,7 +1,7 @@
 // CLEANUP move all these to LibMisc
 
 module Equals =
-  type ERec = { x: Int; y: Int }
+  type ERec = { x: Int64; y: Int64 }
   type ERec2 = ERec
 
   type ERecInt8 = { x: Int8; y: Int8 }
@@ -74,7 +74,7 @@ module Equals =
   type EEnum =
     | E1
     | E2
-    | E3 of Int
+    | E3 of Int64
 
   type EEnum2 = EEnum
 

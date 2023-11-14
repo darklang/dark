@@ -51,7 +51,7 @@ let fns : List<BuiltInFn> =
     { name = fn "toAsciiCode" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
-      returnType = TypeReference.option TInt
+      returnType = TypeReference.option TInt64
       description =
         "Return {{Some <var code>}} if <param c> is a valid ASCII character, otherwise {{None}}"
       fn =
@@ -59,9 +59,9 @@ let fns : List<BuiltInFn> =
         | _, _, [ DChar c ] ->
           let charValue = int c[0]
           if charValue >= 0 && charValue < 256 then
-            Dval.optionSome KTInt (DInt charValue) |> Ply
+            Dval.optionSome KTInt64 (DInt64 charValue) |> Ply
           else
-            Dval.optionNone KTInt |> Ply
+            Dval.optionNone KTInt64 |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure

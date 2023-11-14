@@ -66,7 +66,7 @@ type LetPattern =
 type MatchPattern =
   | MPUnit of id
   | MPBool of id * bool
-  | MPInt of id * int64
+  | MPInt64 of id * int64
   | MPInt8 of id * int8
   | MPUInt8 of id * uint8
   | MPInt16 of id * int16
@@ -117,7 +117,7 @@ type TypeReference =
   // | Variable of string
   | TUnit
   | TBool
-  | TInt
+  | TInt64
   | TInt8
   | TUInt8
   | TInt16
@@ -148,7 +148,7 @@ type TypeReference =
 type Expr =
   | EUnit of id
   | EBool of id * bool
-  | EInt of id * int64
+  | EInt64 of id * int64
   | EInt8 of id * int8
   | EUInt8 of id * uint8
   | EInt16 of id * int16
@@ -223,7 +223,7 @@ and PipeExpr =
 type Const =
   | CUnit
   | CBool of bool
-  | CInt of int64
+  | CInt64 of int64
   | CInt8 of int8
   | CUInt8 of uint8
   | CInt16 of int16

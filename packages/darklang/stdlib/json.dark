@@ -6,14 +6,14 @@ module Darklang =
           module Part =
             type Part =
               | Root
-              | Index of Int
+              | Index of Int64
               | Field of String
 
             let toString (part: Part) : String =
               match part with
               | Root -> "root"
               | Field name -> "." ++ name
-              | Index index -> "[" ++ Int.toString index ++ "]"
+              | Index index -> "[" ++ Int64.toString index ++ "]"
 
           type JsonPath = List<Part.Part>
 
@@ -30,7 +30,7 @@ module Darklang =
           | EnumExtraField of rawJson: String * JsonPath.JsonPath
           | EnumMissingField of
             PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
-            index: Int *
+            index: Int64 *
             JsonPath.JsonPath
           | EnumInvalidCasename of
             PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
@@ -63,10 +63,10 @@ module Darklang =
             ++ JsonPath.toString path
             ++ "`"
 
-          // Can't parse JSON because argument 4 (`Int`) is missing at path: `root.Enh`
+          // Can't parse JSON because argument 4 (`Int64`) is missing at path: `root.Enh`
           | EnumMissingField(typ, index, path) ->
             "Can't parse JSON because argument "
-            ++ Int.toString index
+            ++ Int64.toString index
             ++ " (`"
             ++ PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference typ
             ++ "`) is missing at path: `"

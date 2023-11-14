@@ -341,7 +341,7 @@ module ConstantName =
 type KnownType =
   | KTUnit
   | KTBool
-  | KTInt
+  | KTInt64
   | KTInt8
   | KTUInt8
   | KTInt16
@@ -358,7 +358,7 @@ type KnownType =
   | KTDateTime
 
   // let empty =    [] // KTList Unknown
-  // let intList = [1] // KTList (ValueType.Known KTInt)
+  // let intList = [1] // KTList (ValueType.Known KTInt64)
   | KTList of ValueType
 
   // Intuitively, since Dvals generate KnownTypes, you would think that we can
@@ -371,7 +371,7 @@ type KnownType =
   | KTTuple of ValueType * ValueType * List<ValueType>
 
   // let f = (fun x -> x)        // KTFn([Unknown], Unknown)
-  // let intF = (fun (x: Int) -> x) // KTFn([Known KTInt], Unknown)
+  // let intF = (fun (x: Int) -> x) // KTFn([Known KTInt64], Unknown)
   //
   // Note that we could theoretically know some return types by analyzing the
   // code or type signatures of functions. We don't do this yet as it's
@@ -392,8 +392,8 @@ type KnownType =
   | KTDB of ValueType
 
   /// let n = None          // type args: [Unknown]
-  /// let s = Some(5)       // type args: [Known KTInt]
-  /// let o = Ok (5)        // type args: [Known KTInt, Unknown]
+  /// let s = Some(5)       // type args: [Known KTInt64]
+  /// let o = Ok (5)        // type args: [Known KTInt64, Unknown]
   /// let e = Error ("str") // type args: [Unknown, Known KTString]
   | KTCustomType of TypeName.TypeName * typeArgs : List<ValueType>
 
@@ -420,7 +420,7 @@ module ValueType =
 
   let unit = known KTUnit
   let bool = known KTBool
-  let int = known KTInt
+  let int64 = known KTInt64
   let int8 = known KTInt8
   let uint8 = known KTUInt8
   let int16 = known KTInt16
@@ -458,7 +458,7 @@ module ValueType =
       match kt with
       | KTUnit -> "Unit"
       | KTBool -> "Bool"
-      | KTInt -> "Int"
+      | KTInt64 -> "Int64"
       | KTInt8 -> "Int8"
       | KTUInt8 -> "UInt8"
       | KTInt16 -> "Int16"
@@ -507,7 +507,7 @@ module ValueType =
     match left, right with
     | KTUnit, KTUnit -> KTUnit |> Ok
     | KTBool, KTBool -> KTBool |> Ok
-    | KTInt, KTInt -> KTInt |> Ok
+    | KTInt64, KTInt64 -> KTInt64 |> Ok
     | KTInt8, KTInt8 -> KTInt8 |> Ok
     | KTUInt8, KTUInt8 -> KTUInt8 |> Ok
     | KTInt16, KTInt16 -> KTInt16 |> Ok
@@ -570,7 +570,7 @@ type NameResolution<'a> = Result<'a, RuntimeError>
 and TypeReference =
   | TUnit
   | TBool
-  | TInt
+  | TInt64
   | TInt8
   | TUInt8
   | TInt16
@@ -612,7 +612,7 @@ and TypeReference =
       // exhaustiveness
       | TUnit
       | TBool
-      | TInt
+      | TInt64
       | TInt8
       | TUInt8
       | TInt16
@@ -633,7 +633,7 @@ and TypeReference =
 // Expressions here are runtime variants of the AST in ProgramTypes, having had
 // superfluous information removed.
 and Expr =
-  | EInt of id * int64
+  | EInt64 of id * int64
   | EInt8 of id * int8
   | EUInt8 of id * uint8
   | EInt16 of id * int16
@@ -689,7 +689,7 @@ and StringSegment =
 and MatchPattern =
   | MPVariable of id * string
   | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
-  | MPInt of id * int64
+  | MPInt64 of id * int64
   | MPInt8 of id * int8
   | MPUInt8 of id * uint8
   | MPInt16 of id * int16
@@ -734,7 +734,7 @@ and [<NoComparison>] Dval =
 
   // Simple types
   | DBool of bool
-  | DInt of int64
+  | DInt64 of int64
   | DInt8 of int8
   | DUInt8 of uint8
   | DInt16 of int16
@@ -790,7 +790,7 @@ and DvalTask = Ply<Dval>
 /// i.e. within the execution of `x+y` in
 ///  `let x = 1; let y = 2; x + y`
 /// , we would have a Symtable of
-///   `{ "x" => DInt 1; "y" => DInt 2 }`
+///   `{ "x" => DInt64 1; "y" => DInt64 2 }`
 and Symtable = Map<string, Dval>
 
 /// Our record of any type arguments in scope
@@ -800,7 +800,7 @@ and Symtable = Map<string, Dval>
 /// called with inputs
 ///   `serialize<int> 1`,
 /// we would have a TypeSymbolTable of
-///  { "a" => TInt }
+///  { "a" => TInt64 }
 and TypeSymbolTable = Map<string, TypeReference>
 
 
@@ -953,7 +953,7 @@ module TypeDeclaration =
 module Expr =
   let toID (expr : Expr) : id =
     match expr with
-    | EInt(id, _)
+    | EInt64(id, _)
     | EInt8(id, _)
     | EUInt8(id, _)
     | EInt16(id, _)
@@ -998,7 +998,7 @@ module LetPattern =
 module MatchPattern =
   let toID (pat : MatchPattern) : id =
     match pat with
-    | MPInt(id, _)
+    | MPInt64(id, _)
     | MPInt8(id, _)
     | MPUInt8(id, _)
     | MPInt16(id, _)
@@ -1036,7 +1036,7 @@ module Dval =
 
     match (dv, typ) with
     | _, TVariable _ -> true
-    | DInt _, TInt
+    | DInt64 _, TInt64
     | DInt8 _, TInt8
     | DUInt8 _, TUInt8
     | DInt16 _, TInt16
@@ -1079,7 +1079,7 @@ module Dval =
       typeName = typeName'
 
     // exhaustiveness checking
-    | DInt _, _
+    | DInt64 _, _
     | DInt8 _, _
     | DUInt8 _, _
     | DInt16 _, _
@@ -1110,7 +1110,7 @@ module Dval =
     | DUnit -> ValueType.Known KTUnit
 
     | DBool _ -> ValueType.Known KTBool
-    | DInt _ -> ValueType.Known KTInt
+    | DInt64 _ -> ValueType.Known KTInt64
     | DInt8 _ -> ValueType.Known KTInt8
     | DUInt8 _ -> ValueType.Known KTUInt8
     | DInt16 _ -> ValueType.Known KTInt16
@@ -1182,7 +1182,7 @@ module Dval =
 
   let asInt (dv : Dval) : Option<int64> =
     match dv with
-    | DInt i -> Some i
+    | DInt64 i -> Some i
     | _ -> None
 
   let asFloat (dv : Dval) : Option<double> =
@@ -1226,7 +1226,7 @@ module UserType =
     { tlid : tlid; name : TypeName.UserProgram; declaration : TypeDeclaration.T }
 
 type Const =
-  | CInt of int64
+  | CInt64 of int64
   | CInt8 of int8
   | CUInt8 of uint8
   | CInt16 of int16
@@ -1608,7 +1608,7 @@ module Types =
 
     | TUnit
     | TBool
-    | TInt
+    | TInt64
     | TInt8
     | TUInt8
     | TInt16

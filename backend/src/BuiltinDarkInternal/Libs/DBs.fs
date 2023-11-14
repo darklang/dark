@@ -20,14 +20,14 @@ let fns : List<BuiltInFn> =
   [ { name = fn "list" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TList TInt
+      returnType = TList TInt64
       description = "Returns a list of toplevel ids of dbs in <param canvasName>"
       fn =
         (function
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! tlids = UserDB.all canvasID
-            return tlids |> List.map int64 |> List.map DInt |> Dval.list KTInt
+            return tlids |> List.map int64 |> List.map DInt64 |> Dval.list KTInt64
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -38,14 +38,14 @@ let fns : List<BuiltInFn> =
     { name = fn "unlocked" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TList TInt
+      returnType = TList TInt64
       description = "Get a list of unlocked DBs"
       fn =
         (function
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! unlocked = UserDB.unlocked canvasID
-            return unlocked |> List.map int64 |> List.map DInt |> Dval.list KTInt
+            return unlocked |> List.map int64 |> List.map DInt64 |> Dval.list KTInt64
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

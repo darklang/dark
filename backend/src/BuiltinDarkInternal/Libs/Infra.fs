@@ -89,8 +89,8 @@ human-readable data."
               tableStats
               |> List.map (fun ts ->
                 let fields =
-                  [ ("disk", DInt(ts.diskBytes))
-                    ("rows", DInt(ts.rows))
+                  [ ("disk", DInt64(ts.diskBytes))
+                    ("rows", DInt64(ts.rows))
                     ("diskHuman", DString ts.diskHuman)
                     ("rowsHuman", DString ts.rowsHuman) ]
 

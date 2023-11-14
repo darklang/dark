@@ -48,8 +48,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DUInt8 v; DUInt8 m ] ->
           if m = 0uy then
-            Int.IntRuntimeError.Error.ZeroModulus
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.ZeroModulus
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
           else
@@ -73,8 +73,8 @@ let fns : List<BuiltInFn> =
           try
             DUInt8(Checked.(+) a b) |> Ply
           with :? System.OverflowException ->
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
         | _ -> incorrectArgs ())
@@ -94,8 +94,8 @@ let fns : List<BuiltInFn> =
           try
             DUInt8(Checked.(-) a b) |> Ply
           with :? System.OverflowException ->
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
         | _ -> incorrectArgs ())
@@ -115,8 +115,8 @@ let fns : List<BuiltInFn> =
           try
             DUInt8(Checked.(*) a b) |> Ply
           with :? System.OverflowException ->
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
         | _ -> incorrectArgs ())
@@ -139,8 +139,8 @@ let fns : List<BuiltInFn> =
           (try
             (bigint number) ** (int exp) |> uint8 |> DUInt8 |> Ply
            with :? System.OverflowException ->
-             Int.IntRuntimeError.Error.OutOfRange
-             |> Int.IntRuntimeError.RTE.toRuntimeError
+             Int64.IntRuntimeError.Error.OutOfRange
+             |> Int64.IntRuntimeError.RTE.toRuntimeError
              |> raiseRTE state.caller
              |> Ply)
         | _ -> incorrectArgs ())
@@ -158,15 +158,15 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DUInt8 a; DUInt8 b ] ->
           if b = 0uy then
-            Int.IntRuntimeError.Error.DivideByZeroError
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.DivideByZeroError
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
           else
             let result = int a / int b
             if result < 0 || result > 255 then
-              Int.IntRuntimeError.Error.OutOfRange
-              |> Int.IntRuntimeError.RTE.toRuntimeError
+              Int64.IntRuntimeError.Error.OutOfRange
+              |> Int64.IntRuntimeError.RTE.toRuntimeError
               |> raiseRTE state.caller
               |> Ply
             else
@@ -342,13 +342,13 @@ let fns : List<BuiltInFn> =
 
     { name = fn "fromInt64" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
+      parameters = [ Param.make "a" TInt64 "" ]
       returnType = TypeReference.option TUInt8
       description =
         "Converts an Int64 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
       fn =
         (function
-        | _, _, [ DInt a ] ->
+        | _, _, [ DInt64 a ] ->
           if a < 0L || a > 255L then
             Dval.optionNone KTUInt8 |> Ply
           else

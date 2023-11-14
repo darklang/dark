@@ -132,7 +132,7 @@ let compileTests =
       }
       testTask "pipes expand correctly into nested functions" {
         let! expr = p "value.age |> (-) 2L |> (+) value.age |> (<) 3L"
-        let! sql, args = compile tlid Map.empty "value" ("age", TInt) expr
+        let! sql, args = compile tlid Map.empty "value" ("age", TInt64) expr
 
         matchSql
           sql
@@ -249,7 +249,7 @@ let inlineWorksWithUserFunctions =
       )
 
     let (userAdd : UserFunction.T) =
-      testUserFn "userAdd" [] (NEList.doubleton "a" "b") PT.TInt userAddBody
+      testUserFn "userAdd" [] (NEList.doubleton "a" "b") PT.TInt64 userAddBody
       |> PT2RT.UserFunction.toRT
 
     let existingFunctions = ExecutionState.availableFunctions state
@@ -309,7 +309,7 @@ let inlineWorksWithPackageAndUserFunctions =
     let! expr =
       parse
         nr
-        "userAnd user.human (PACKAGE.Darklang.Stdlib.Int.lessThan_v0 user.height (PACKAGE.Darklang.Stdlib.Int.add height 1))"
+        "userAnd user.human (PACKAGE.Darklang.Stdlib.Int64.lessThan_v0 user.height (PACKAGE.Darklang.Stdlib.Int64.add height 1))"
 
     let! expected = p "user.human && (user.height < (height + 1))"
     let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
@@ -337,7 +337,7 @@ let inlineFunctionArguments =
       )
 
     let (userAdd : UserFunction.T) =
-      testUserFn "userAdd" [] (NEList.doubleton "a" "b") PT.TInt userAddBody
+      testUserFn "userAdd" [] (NEList.doubleton "a" "b") PT.TInt64 userAddBody
       |> PT2RT.UserFunction.toRT
 
     let existingFunctions = ExecutionState.availableFunctions state

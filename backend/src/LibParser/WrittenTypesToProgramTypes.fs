@@ -37,7 +37,7 @@ module TypeReference =
       match t with
       | WT.TUnit -> return PT.TUnit
       | WT.TBool -> return PT.TBool
-      | WT.TInt -> return PT.TInt
+      | WT.TInt64 -> return PT.TInt64
       | WT.TInt8 -> return PT.TInt8
       | WT.TUInt8 -> return PT.TUInt8
       | WT.TInt16 -> return PT.TInt16
@@ -104,7 +104,7 @@ module MatchPattern =
     | WT.MPVariable(id, str) -> PT.MPVariable(id, str)
     | WT.MPEnum(id, caseName, fieldPats) ->
       PT.MPEnum(id, caseName, List.map toPT fieldPats)
-    | WT.MPInt(id, i) -> PT.MPInt(id, i)
+    | WT.MPInt64(id, i) -> PT.MPInt64(id, i)
     | WT.MPInt8(id, i) -> PT.MPInt8(id, i)
     | WT.MPUInt8(id, i) -> PT.MPUInt8(id, i)
     | WT.MPInt16(id, i) -> PT.MPInt16(id, i)
@@ -153,7 +153,7 @@ module Expr =
     uply {
       match e with
       | WT.EChar(id, char) -> return PT.EChar(id, char)
-      | WT.EInt(id, num) -> return PT.EInt(id, num)
+      | WT.EInt64(id, num) -> return PT.EInt64(id, num)
       | WT.EInt8(id, num) -> return PT.EInt8(id, num)
       | WT.EUInt8(id, num) -> return PT.EUInt8(id, num)
       | WT.EInt16(id, num) -> return PT.EInt16(id, num)
@@ -386,7 +386,7 @@ module Const =
       match c with
       | WT.CUnit -> return PT.CUnit
       | WT.CBool b -> return PT.CBool b
-      | WT.CInt i -> return PT.CInt i
+      | WT.CInt64 i -> return PT.CInt64 i
       | WT.CInt8 i -> return PT.CInt8 i
       | WT.CUInt8 i -> return PT.CUInt8 i
       | WT.CInt16 i -> return PT.CInt16 i

@@ -12,7 +12,7 @@ type OpenAIChatCompletionRequestMessage = { role: String; content: String }
 
 type OpenAIChatCompletionRequest =
   { model: String
-    max_tokens: Int
+    max_tokens: Int64
     temperature: Float
     messages: List<OpenAIChatCompletionRequestMessage> }
 
@@ -101,7 +101,7 @@ let parseAndSerializeProgram
     )
   | _ ->
     Error(
-      "Unexpected response code: " ++ PACKAGE.Darklang.Stdlib.Int.toString statusCode
+      "Unexpected response code: " ++ PACKAGE.Darklang.Stdlib.Int64.toString statusCode
     )
 
 
@@ -414,7 +414,7 @@ let init () : Model =
     let demoSnippet =
       CodeSnippet
         { id = (PACKAGE.Darklang.Stdlib.String.random 5) |> Builtin.unwrap
-          code = "let incr (i: Int): Int = i + 1\n\nincr 5"
+          code = "let incr (i: Int64): Int64 = i + 1\n\nincr 5"
           eval = PACKAGE.Darklang.Stdlib.Option.Option.None }
 
     let demoAction =

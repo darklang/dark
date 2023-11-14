@@ -17,7 +17,7 @@ module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalComparator =
   let rec compareDval (dv1 : Dval) (dv2 : Dval) : int =
     match dv1, dv2 with
-    | DInt i1, DInt i2 -> compare i1 i2
+    | DInt64 i1, DInt64 i2 -> compare i1 i2
     | DInt8 i1, DInt8 i2 -> compare i1 i2
     | DUInt8 i1, DUInt8 i2 -> compare i1 i2
     | DInt16 i1, DInt16 i2 -> compare i1 i2
@@ -66,7 +66,7 @@ module DvalComparator =
         c
 
     // exhaustiveness check
-    | DInt _, _
+    | DInt64 _, _
     | DInt8 _, _
     | DUInt8 _, _
     | DInt16 _, _
@@ -320,11 +320,11 @@ let fns : List<BuiltInFn> =
     { name = fn "length" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Returns the number of values in <param list>"
       fn =
         (function
-        | _, _, [ DList(_, l) ] -> Ply(Dval.int (l.Length))
+        | _, _, [ DList(_, l) ] -> Ply(Dval.int64 (l.Length))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -425,7 +425,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs
             "fn"
-            (TFn(NEList.doubleton varA varA, TInt))
+            (TFn(NEList.doubleton varA varA, TInt64))
             ""
             [ "a"; "b" ] ]
       returnType = TypeReference.result varA TString
@@ -452,11 +452,11 @@ let fns : List<BuiltInFn> =
               let! result = Interpreter.applyFnVal state state.caller f [] args
 
               match result with
-              | DInt i when i = 1L || i = 0L || i = -1L -> return int i
-              | DInt i -> return raise (Sort.InvalidSortComparatorInt i)
+              | DInt64 i when i = 1L || i = 0L || i = -1L -> return int i
+              | DInt64 i -> return raise (Sort.InvalidSortComparatorInt i)
               | v ->
                 return!
-                  TypeChecker.raiseFnValResultNotExpectedType state.caller v TInt
+                  TypeChecker.raiseFnValResultNotExpectedType state.caller v TInt64
             }
 
           uply {
@@ -602,7 +602,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs
             "fn"
-            (TFn(NEList.doubleton TInt varA, varB))
+            (TFn(NEList.doubleton TInt64 varA, varB))
             ""
             [ "index"; "val" ] ]
       returnType = TList varB
@@ -620,7 +620,7 @@ let fns : List<BuiltInFn> =
             let! result =
               Ply.List.mapSequentially
                 (fun ((i, dv) : int * Dval) ->
-                  let args = NEList.doubleton (DInt(int64 i)) dv
+                  let args = NEList.doubleton (DInt64(int64 i)) dv
                   Interpreter.applyFnVal state state.caller b [] args)
                 list
 
@@ -765,7 +765,7 @@ let fns : List<BuiltInFn> =
          <param fn> to each element in the list.
 
          For example, if <param list> is {{[1, 2, 3, 4, 5]}} and <param fn>
-         is {{fn item -> Int.mod_v0 item 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
+         is {{fn item -> Int64.mod_v0 item 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
 
           Preserves the order of values and of the keys."
       fn =

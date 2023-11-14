@@ -130,7 +130,7 @@ let main (args : string[]) =
         System.Console.WriteLine $"Original Error: {rte}"
         System.Console.WriteLine $"New Error is:\n{newErr}"
       1
-    | Ok(RT.DInt i) -> (int i)
+    | Ok(RT.DInt64 i) -> (int i)
     | Ok dval ->
       let output = LibExecution.DvalReprDeveloper.toRepr dval
       System.Console.WriteLine

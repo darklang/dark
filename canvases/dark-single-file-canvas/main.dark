@@ -40,7 +40,7 @@ let _stringifyEnumHandler (request) =
 
 
 
-type Test = { id: Int; name: String }
+type Test = { id: Int64; name: String }
 
 [<DB>]
 type TestDB = Test

@@ -20,7 +20,7 @@ Actual: a String: \"not an option\"")
 
 
 module ErrorPropagation =
-  type EPRec = { i: Int; m: Int; j: Int; n: Int }
+  type EPRec = { i: Int64; m: Int64; j: Int64; n: Int64 }
 
   PACKAGE.Darklang.Stdlib.List.head (Builtin.Test.runtimeError "test") = Builtin.Test.derrorMessage
     "test"

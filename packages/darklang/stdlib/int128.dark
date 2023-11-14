@@ -16,7 +16,7 @@ module Darklang =
 
       /// Returns the integer remainder left over after dividing <param value> by
       /// <param divisor>, as a <type Result>.
-      /// For example, {{Int.remainder 15 6 == Ok 3}}. The remainder will be
+      /// For example, {{Int128.remainder 15 6 == Ok 3}}. The remainder will be
       /// negative only if {{<var value> < 0}}.
       /// The sign of <param divisor> doesn't influence the outcome.
       /// Returns an {{Error}} if <param divisor> is {{0}}.

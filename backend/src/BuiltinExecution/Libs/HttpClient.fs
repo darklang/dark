@@ -514,7 +514,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                           version = 0 }
 
                     let fields =
-                      [ ("statusCode", DInt(int64 response.statusCode))
+                      [ ("statusCode", DInt64(int64 response.statusCode))
                         ("headers", responseHeaders)
                         ("body", DBytes response.body) ]
 

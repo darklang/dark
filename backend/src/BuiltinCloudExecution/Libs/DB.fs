@@ -258,7 +258,7 @@ let fns : List<BuiltInFn> =
     { name = fn "count" 0
       typeParams = []
       parameters = [ tableParam ]
-      returnType = TInt
+      returnType = TInt64
       description = "Return the number of items stored in <param table>"
       fn =
         (function
@@ -266,7 +266,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! (count : int) = UserDB.count state db
-            return count |> int64 |> DInt
+            return count |> int64 |> DInt64
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -423,7 +423,7 @@ let fns : List<BuiltInFn> =
     { name = fn "queryCount" 0
       typeParams = []
       parameters = [ tableParam; queryParam ]
-      returnType = TInt
+      returnType = TInt64
       description =
         "Return the number of items from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
@@ -434,7 +434,7 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! result = UserDB.queryCount state db b
               match result with
-              | Ok result -> return Dval.int result
+              | Ok result -> return Dval.int64 result
               | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e

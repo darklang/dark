@@ -12,7 +12,7 @@ module Darklang =
       /// A tagging type for string properties that are actually URIs
       type URI = String
 
-      type Position = { line: Int; character: Int }
+      type Position = { line: Int64; character: Int64 }
 
       type Range = { start: Position; end_: Position }
 
@@ -40,7 +40,7 @@ module Darklang =
       let getDiagnostics
         (uri: String)
         (text: String)
-        (maxNumberOfProblems: Int)
+        (maxNumberOfProblems: Int64)
         : String =
         match Builtin.LanguageTools.parseCliScript text with
         | Ok() ->
