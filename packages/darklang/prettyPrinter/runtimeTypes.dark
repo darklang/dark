@@ -180,6 +180,7 @@ module Darklang =
         | TUnit -> "Unit"
         | TBool -> "Bool"
         | TInt64 -> "Int64"
+        | TUInt64 -> "UInt64"
         | TInt8 -> "Int8"
         | TUInt8 -> "UInt8"
         | TInt16 -> "Int16"
@@ -241,6 +242,7 @@ module Darklang =
         | KTUnit -> "Unit"
         | KTBool -> "Bool"
         | KTInt64 -> "Int64"
+        | KTUInt64 -> "UInt64"
         | KTInt8 -> "Int8"
         | KTUInt8 -> "UInt8"
         | KTInt16 -> "Int16"
@@ -325,6 +327,7 @@ module Darklang =
           | DString s -> $"\"{s}\""
 
           | DInt64 i -> Builtin.Int64.toString i
+          | DUInt64 i -> Builtin.UInt64.toString i
           | DInt8 i -> Builtin.Int8.toString i
           | DUInt8 i -> Builtin.UInt8.toString i
           | DInt16 i -> Builtin.Int16.toString i

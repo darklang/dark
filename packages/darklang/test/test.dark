@@ -42,6 +42,7 @@ module Darklang =
       let int128Const = 5Q
       let uint128Const = 5Z
       let intConst = 5L
+      let uint64Const = 5UL
       let int32Const = 5l
       let uint32Const = 5ul
       let int16Const = 5s

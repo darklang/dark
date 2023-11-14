@@ -71,6 +71,7 @@ module ProgramTypes =
     | TUnit
     | TBool
     | TInt64
+    | TUInt64
     | TInt8
     | TUInt8
     | TInt16
@@ -103,6 +104,7 @@ module ProgramTypes =
     | MPUnit of ID
     | MPBool of ID * bool
     | MPInt64 of ID * int64
+    | MPUInt64 of ID * uint64
     | MPInt8 of ID * int8
     | MPUInt8 of ID * uint8
     | MPInt16 of ID * int16
@@ -167,6 +169,7 @@ module ProgramTypes =
 
     | EBool of ID * bool
     | EInt64 of ID * int64
+    | EUInt64 of ID * uint64
     | EInt8 of ID * int8
     | EUInt8 of ID * uint8
     | EInt16 of ID * int16
@@ -256,6 +259,7 @@ module ProgramTypes =
 
   type Const =
     | CInt64 of int64
+    | CUInt64 of uint64
     | CInt8 of int8
     | CUInt8 of uint8
     | CInt16 of int16
@@ -431,6 +435,7 @@ module ExternalTypesToProgramTypes =
     let rec toPT (t : EPT.TypeReference) : PT.TypeReference =
       match t with
       | EPT.TInt64 -> PT.TInt64
+      | EPT.TUInt64 -> PT.TUInt64
       | EPT.TInt8 -> PT.TInt8
       | EPT.TUInt8 -> PT.TUInt8
       | EPT.TInt16 -> PT.TInt16
@@ -484,6 +489,7 @@ module ExternalTypesToProgramTypes =
       | EPT.MPEnum(id, caseName, fieldPats) ->
         PT.MPEnum(id, caseName, List.map toPT fieldPats)
       | EPT.MPInt64(id, i) -> PT.MPInt64(id, i)
+      | EPT.MPUInt64(id, i) -> PT.MPUInt64(id, i)
       | EPT.MPInt8(id, i) -> PT.MPInt8(id, i)
       | EPT.MPUInt8(id, i) -> PT.MPUInt8(id, i)
       | EPT.MPInt16(id, i) -> PT.MPInt16(id, i)
@@ -508,6 +514,7 @@ module ExternalTypesToProgramTypes =
       match e with
       | EPT.EChar(id, char) -> PT.EChar(id, char)
       | EPT.EInt64(id, num) -> PT.EInt64(id, num)
+      | EPT.EUInt64(id, num) -> PT.EUInt64(id, num)
       | EPT.EInt8(id, num) -> PT.EInt8(id, num)
       | EPT.EUInt8(id, num) -> PT.EUInt8(id, num)
       | EPT.EInt16(id, num) -> PT.EInt16(id, num)
@@ -680,6 +687,7 @@ module ExternalTypesToProgramTypes =
     let rec toPT (c : EPT.Const) : PT.Const =
       match c with
       | EPT.CInt64 i -> PT.CInt64 i
+      | EPT.CUInt64 i -> PT.CUInt64 i
       | EPT.CInt8 i -> PT.CInt8 i
       | EPT.CUInt8 i -> PT.CUInt8 i
       | EPT.CInt16 i -> PT.CInt16 i

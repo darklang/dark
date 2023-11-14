@@ -32,6 +32,12 @@ let error2 (msg : string) (v : string) : 'a = error $"{msg}: {v}"
 let error3 (msg : string) (v1 : string) (v2 : string) : 'a =
   error $"{msg}:\n  {v1}\n  {v2}"
 
+let uint64 (v : System.UInt64) : SqlValue =
+  let typ = NpgsqlTypes.NpgsqlDbType.Numeric
+  let idParam = NpgsqlParameter("uint64", typ)
+  idParam.Value <- System.Numerics.BigInteger.op_Implicit (v)
+  Sql.parameter idParam
+
 let int128 (v : System.Int128) : SqlValue =
   let typ = NpgsqlTypes.NpgsqlDbType.Numeric
   let idParam = NpgsqlParameter("int128", typ)
@@ -92,6 +98,9 @@ let rec dvalToSql
 
     | TVariable _, DInt64 i
     | TInt64, DInt64 i -> return Sql.int64 i, TInt64
+
+    | TVariable _, DUInt64 i
+    | TUInt64, DUInt64 i -> return uint64 i, TUInt64
 
     | TVariable _, DInt8 i
     | TInt8, DInt8 i -> return Sql.int16 (int16 i), TInt8
@@ -167,6 +176,7 @@ let rec dvalToSql
 
     // exhaustiveness check
     | _, DInt64 _
+    | _, DUInt64 _
     | _, DInt8 _
     | _, DUInt8 _
     | _, DInt16 _
@@ -571,6 +581,11 @@ let rec lambdaToSql
           let name = randomString 10
           return $"(@{name})", [ name, Sql.int64 v ], TInt64
 
+        | EUInt64(_, v) ->
+          typecheck $"UInt64 {v}" TUInt64 expectedType
+          let name = randomString 10
+          return $"(@{name})", [ name, uint64 v ], TUInt64
+
         | EInt8(_, v) ->
           typecheck $"Int8 {v}" TInt8 expectedType
           let name = randomString 10
@@ -812,6 +827,7 @@ let rec lambdaToSql
             match t with
             | TString -> "text"
             | TInt64 -> "bigint"
+            | TUInt64 -> "numeric(19,0)"
             | TInt8 -> "smallint"
             | TUInt8 -> "smallint"
             | TInt16 -> "smallint"
@@ -838,6 +854,7 @@ let rec lambdaToSql
           match dbFieldType with
           | TString
           | TInt64
+          | TUInt64
           | TInt8
           | TUInt8
           | TInt16
@@ -984,6 +1001,7 @@ let partiallyEvaluate
           let rec fullySpecified (expr : Expr) =
             match expr with
             | EInt64 _
+            | EUInt64 _
             | EInt8 _
             | EUInt8 _
             | EInt16 _
@@ -1009,6 +1027,7 @@ let partiallyEvaluate
             return expr
         | EString _
         | EInt64 _
+        | EUInt64 _
         | EInt8 _
         | EUInt8 _
         | EInt16 _
@@ -1048,6 +1067,7 @@ let partiallyEvaluate
           uply {
             match expr with
             | EInt64 _
+            | EUInt64 _
             | EInt8 _
             | EUInt8 _
             | EInt16 _

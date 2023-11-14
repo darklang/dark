@@ -129,6 +129,8 @@ let rec serialize
       // CLEANUP if the number is outside the range, store as a string?
       w.WriteNumberValue i
 
+    | TUInt64, DUInt64 i -> w.WriteNumberValue i
+
     | TInt8, DInt8 i -> w.WriteNumberValue i
 
     | TUInt8, DUInt8 i -> w.WriteNumberValue i
@@ -263,6 +265,7 @@ let rec serialize
     | TUnit, _
     | TBool, _
     | TInt64, _
+    | TUInt64, _
     | TInt8, _
     | TUInt8, _
     | TInt16, _
@@ -397,6 +400,21 @@ let parse
         int64 d |> DInt64 |> Ply
       else
         raiseCantMatchWithType TInt64 j pathSoFar |> Ply
+
+    | TUInt64, JsonValueKind.Number ->
+      let mutable ui64 = 0UL
+      let mutable d = 0.0
+      if j.TryGetUInt64(&ui64) then
+        DUInt64 ui64 |> Ply
+      else if
+        j.TryGetDouble(&d)
+        && d <= (float System.UInt64.MaxValue)
+        && d >= (float System.UInt64.MinValue)
+        && System.Double.IsInteger d
+      then
+        uint64 d |> DUInt64 |> Ply
+      else
+        raiseCantMatchWithType TUInt64 j pathSoFar |> Ply
 
     | TInt8, JsonValueKind.Number ->
       let mutable i64 = 0L
@@ -753,6 +771,7 @@ let parse
     | TUnit, _
     | TBool, _
     | TInt64, _
+    | TUInt64, _
     | TInt8, _
     | TUInt8, _
     | TInt16, _

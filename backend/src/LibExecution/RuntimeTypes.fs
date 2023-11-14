@@ -342,6 +342,7 @@ type KnownType =
   | KTUnit
   | KTBool
   | KTInt64
+  | KTUInt64
   | KTInt8
   | KTUInt8
   | KTInt16
@@ -421,6 +422,7 @@ module ValueType =
   let unit = known KTUnit
   let bool = known KTBool
   let int64 = known KTInt64
+  let uint64 = known KTUInt64
   let int8 = known KTInt8
   let uint8 = known KTUInt8
   let int16 = known KTInt16
@@ -459,6 +461,7 @@ module ValueType =
       | KTUnit -> "Unit"
       | KTBool -> "Bool"
       | KTInt64 -> "Int64"
+      | KTUInt64 -> "UInt64"
       | KTInt8 -> "Int8"
       | KTUInt8 -> "UInt8"
       | KTInt16 -> "Int16"
@@ -508,6 +511,7 @@ module ValueType =
     | KTUnit, KTUnit -> KTUnit |> Ok
     | KTBool, KTBool -> KTBool |> Ok
     | KTInt64, KTInt64 -> KTInt64 |> Ok
+    | KTUInt64, KTUInt64 -> KTUInt64 |> Ok
     | KTInt8, KTInt8 -> KTInt8 |> Ok
     | KTUInt8, KTUInt8 -> KTUInt8 |> Ok
     | KTInt16, KTInt16 -> KTInt16 |> Ok
@@ -571,6 +575,7 @@ and TypeReference =
   | TUnit
   | TBool
   | TInt64
+  | TUInt64
   | TInt8
   | TUInt8
   | TInt16
@@ -613,6 +618,7 @@ and TypeReference =
       | TUnit
       | TBool
       | TInt64
+      | TUInt64
       | TInt8
       | TUInt8
       | TInt16
@@ -634,6 +640,7 @@ and TypeReference =
 // superfluous information removed.
 and Expr =
   | EInt64 of id * int64
+  | EUInt64 of id * uint64
   | EInt8 of id * int8
   | EUInt8 of id * uint8
   | EInt16 of id * int16
@@ -690,6 +697,7 @@ and MatchPattern =
   | MPVariable of id * string
   | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
   | MPInt64 of id * int64
+  | MPUInt64 of id * uint64
   | MPInt8 of id * int8
   | MPUInt8 of id * uint8
   | MPInt16 of id * int16
@@ -735,6 +743,7 @@ and [<NoComparison>] Dval =
   // Simple types
   | DBool of bool
   | DInt64 of int64
+  | DUInt64 of uint64
   | DInt8 of int8
   | DUInt8 of uint8
   | DInt16 of int16
@@ -954,6 +963,7 @@ module Expr =
   let toID (expr : Expr) : id =
     match expr with
     | EInt64(id, _)
+    | EUInt64(id, _)
     | EInt8(id, _)
     | EUInt8(id, _)
     | EInt16(id, _)
@@ -999,6 +1009,7 @@ module MatchPattern =
   let toID (pat : MatchPattern) : id =
     match pat with
     | MPInt64(id, _)
+    | MPUInt64(id, _)
     | MPInt8(id, _)
     | MPUInt8(id, _)
     | MPInt16(id, _)
@@ -1037,6 +1048,7 @@ module Dval =
     match (dv, typ) with
     | _, TVariable _ -> true
     | DInt64 _, TInt64
+    | DUInt64 _, TUInt64
     | DInt8 _, TInt8
     | DUInt8 _, TUInt8
     | DInt16 _, TInt16
@@ -1080,6 +1092,7 @@ module Dval =
 
     // exhaustiveness checking
     | DInt64 _, _
+    | DUInt64 _, _
     | DInt8 _, _
     | DUInt8 _, _
     | DInt16 _, _
@@ -1111,6 +1124,7 @@ module Dval =
 
     | DBool _ -> ValueType.Known KTBool
     | DInt64 _ -> ValueType.Known KTInt64
+    | DUInt64 _ -> ValueType.Known KTUInt64
     | DInt8 _ -> ValueType.Known KTInt8
     | DUInt8 _ -> ValueType.Known KTUInt8
     | DInt16 _ -> ValueType.Known KTInt16
@@ -1200,6 +1214,7 @@ module Dval =
     | DUuid u -> Some u
     | _ -> None
 
+  // Should we add asInt8, asInt16, etc?
 
 module Handler =
   type CronInterval =
@@ -1227,6 +1242,7 @@ module UserType =
 
 type Const =
   | CInt64 of int64
+  | CUInt64 of uint64
   | CInt8 of int8
   | CUInt8 of uint8
   | CInt16 of int16
@@ -1609,6 +1625,7 @@ module Types =
     | TUnit
     | TBool
     | TInt64
+    | TUInt64
     | TInt8
     | TUInt8
     | TInt16

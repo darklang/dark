@@ -9,6 +9,8 @@ module VT = ValueType
 
 let int64 (i : int) = DInt64(int64 i)
 
+let uint64 (i : uint64) = DUInt64(i)
+
 let int8 (i : int8) = DInt8(i)
 
 let uint8 (i : uint8) = DUInt8(i)

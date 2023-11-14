@@ -8,6 +8,7 @@ open RuntimeTypes
 let rec typeName (t : TypeReference) : string =
   match t with
   | TInt64 -> "Int64"
+  | TUInt64 -> "UInt64"
   | TInt8 -> "Int8"
   | TUInt8 -> "UInt8"
   | TInt16 -> "Int16"
@@ -48,6 +49,7 @@ let rec typeName (t : TypeReference) : string =
 let rec knownTypeName (vt : KnownType) : string =
   match vt with
   | KTInt64 -> "Int64"
+  | KTUInt64 -> "UInt64"
   | KTInt8 -> "Int8"
   | KTUInt8 -> "UInt8"
   | KTInt16 -> "Int16"
@@ -122,6 +124,7 @@ let toRepr (dv : Dval) : string =
     | DString s -> $"\"{s}\""
     | DChar c -> $"'{c}'"
     | DInt64 i -> string i
+    | DUInt64 i -> string i
     | DInt8 i -> string i
     | DUInt8 i -> string i
     | DInt16 i -> string i

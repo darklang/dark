@@ -21,6 +21,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
 
   match expr with
   | EInt64 _
+  | EUInt64 _
   | EInt8 _
   | EUInt8 _
   | EInt16 _
@@ -103,6 +104,7 @@ let rec preTraversal
     match matchPatternFn pat with
     | MPVariable _
     | MPInt64 _
+    | MPUInt64 _
     | MPInt8 _
     | MPUInt8 _
     | MPInt16 _
@@ -125,6 +127,7 @@ let rec preTraversal
     let f = preTraversalTypeRef
     match typeRefFn typeRef with
     | TInt64
+    | TUInt64
     | TInt8
     | TUInt8
     | TInt16
@@ -177,6 +180,7 @@ let rec preTraversal
 
   match exprFn expr with
   | EInt64 _
+  | EUInt64 _
   | EInt8 _
   | EUInt8 _
   | EInt16 _
@@ -256,6 +260,7 @@ let rec matchPatternPreTraversal
   | MPVariable _
   | MPChar _
   | MPInt64 _
+  | MPUInt64 _
   | MPInt8 _
   | MPUInt8 _
   | MPInt16 _
@@ -285,6 +290,7 @@ let rec matchPatternPostTraversal
     | MPVariable _
     | MPChar _
     | MPInt64 _
+    | MPUInt64 _
     | MPInt8 _
     | MPUInt8 _
     | MPInt16 _

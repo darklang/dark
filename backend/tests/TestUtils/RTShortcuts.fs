@@ -60,6 +60,8 @@ let eChar (c : string) : Expr = EChar(gid (), c)
 
 let eInt64 (i : int64) : Expr = EInt64(gid (), i)
 
+let euInt64 (i : uint64) : Expr = EUInt64(gid (), i)
+
 let eInt8 (i : int8) : Expr = EInt8(gid (), i)
 
 let euInt8 (i : uint8) : Expr = EUInt8(gid (), i)

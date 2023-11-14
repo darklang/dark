@@ -59,6 +59,7 @@ module RuntimeTypes =
 
   let typeReferences : List<RT.TypeReference> =
     [ RT.TInt64
+      RT.TUInt64
       RT.TInt8
       RT.TUInt8
       RT.TInt16
@@ -112,6 +113,7 @@ module RuntimeTypes =
     [ RT.MPVariable(123UL, "test")
       RT.MPEnum(1234UL, "Some", [ RT.MPVariable(746385UL, "var") ])
       RT.MPInt64(756385UL, 7857395)
+      RT.MPUInt64(756386UL, 756386UL)
       RT.MPInt8(756386UL, 127y)
       RT.MPUInt8(756387UL, 255uy)
       RT.MPInt16(756388UL, 32767s)
@@ -144,6 +146,7 @@ module RuntimeTypes =
 
   let exprs : List<RT.Expr> =
     [ RT.EInt64(124151234UL, 7L)
+      RT.EUInt64(124151235UL, 7UL)
       RT.EInt8(124151235UL, 7y)
       RT.EUInt8(124151236UL, 7uy)
       RT.EInt16(124151237UL, 7s)
@@ -263,6 +266,7 @@ module RuntimeTypes =
       ktUnit
       known RT.KnownType.KTBool
       known RT.KnownType.KTInt64
+      known RT.KnownType.KTUInt64
       known RT.KnownType.KTInt8
       known RT.KnownType.KTUInt8
       known RT.KnownType.KTInt16
@@ -343,6 +347,7 @@ module ProgramTypes =
     [ PT.MPVariable(1234123UL, "var8481")
       PT.MPEnum(7471263UL, "None", [])
       PT.MPInt64(74816UL, 84871728L)
+      PT.MPUInt64(74817UL, 84871728UL)
       PT.MPInt8(74817UL, 127y)
       PT.MPUInt8(74818UL, 255uy)
       PT.MPInt16(74819UL, 32767s)
@@ -381,6 +386,7 @@ module ProgramTypes =
       PT.TFloat,
       [ PT.TBool
         PT.TUnit
+        PT.TUInt64
         PT.TInt8
         PT.TUInt8
         PT.TInt16
@@ -908,6 +914,7 @@ module ProgramTypes =
         PT.Const.CFloat(Positive, "3", "14")
         PT.Const.CChar("c")
         PT.Const.CUnit
+        PT.Const.CUInt64(3UL)
         PT.Const.CInt8(4y)
         PT.Const.CUInt8(3uy)
         PT.Const.CInt16(4s)

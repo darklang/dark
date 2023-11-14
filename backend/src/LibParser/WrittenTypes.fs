@@ -67,6 +67,7 @@ type MatchPattern =
   | MPUnit of id
   | MPBool of id * bool
   | MPInt64 of id * int64
+  | MPUInt64 of id * uint64
   | MPInt8 of id * int8
   | MPUInt8 of id * uint8
   | MPInt16 of id * int16
@@ -118,6 +119,7 @@ type TypeReference =
   | TUnit
   | TBool
   | TInt64
+  | TUInt64
   | TInt8
   | TUInt8
   | TInt16
@@ -149,6 +151,7 @@ type Expr =
   | EUnit of id
   | EBool of id * bool
   | EInt64 of id * int64
+  | EUInt64 of id * uint64
   | EInt8 of id * int8
   | EUInt8 of id * uint8
   | EInt16 of id * int16
@@ -224,6 +227,7 @@ type Const =
   | CUnit
   | CBool of bool
   | CInt64 of int64
+  | CUInt64 of uint64
   | CInt8 of int8
   | CUInt8 of uint8
   | CInt16 of int16

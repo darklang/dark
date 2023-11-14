@@ -331,6 +331,7 @@ module Darklang =
         | TUnit -> "Unit"
         | TBool -> "Bool"
         | TInt64 -> "Int64"
+        | TUInt64 -> "UInt64"
         | TInt8 -> "Int8"
         | TUInt8 -> "UInt8"
         | TInt16 -> "Int16"
@@ -402,6 +403,7 @@ module Darklang =
       let constant (c: PACKAGE.Darklang.LanguageTools.ProgramTypes.Const) : String =
         match c with
         | CInt64 i -> PACKAGE.Darklang.Stdlib.Int64.toString i
+        | CUInt64 i -> PACKAGE.Darklang.Stdlib.UInt64.toString i
         | CInt8 i -> PACKAGE.Darklang.Stdlib.Int8.toString i
         | CUInt8 i -> PACKAGE.Darklang.Stdlib.UInt8.toString i
         | CInt16 i -> PACKAGE.Darklang.Stdlib.Int16.toString i
@@ -489,6 +491,7 @@ module Darklang =
         | MPUnit _id -> "()"
         | MPBool(_id, b) -> PACKAGE.Darklang.Stdlib.Bool.toString b
         | MPInt64(_id, i) -> PACKAGE.Darklang.Stdlib.Int64.toString i
+        | MPUInt64(_id, i) -> PACKAGE.Darklang.Stdlib.UInt64.toString i
         | MPInt8(_id, i) -> PACKAGE.Darklang.Stdlib.Int8.toString i
         | MPUInt8(_id, i) -> PACKAGE.Darklang.Stdlib.UInt8.toString i
         | MPInt16(_id, i) -> PACKAGE.Darklang.Stdlib.Int16.toString i
@@ -670,6 +673,7 @@ module Darklang =
         // simple data
         | EBool(_id, b) -> PACKAGE.Darklang.Stdlib.Bool.toString b
         | EInt64(_id, i) -> PACKAGE.Darklang.Stdlib.Int64.toString i
+        // TODO: fill in the rest of int types
         | EFloat(_id, sign, whole, remainder) ->
           let signPart = PACKAGE.Darklang.PrettyPrinter.sign sign
 

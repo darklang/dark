@@ -408,6 +408,7 @@ module Expect =
     match dv with
     | DDateTime _
     | DInt64 _
+    | DUInt64 _
     | DInt8 _
     | DUInt8 _
     | DInt16 _
@@ -522,6 +523,7 @@ module Expect =
       eqList (caseName :: path) fieldPats fieldPats'
     | MPString(_, str), MPString(_, str') -> check path str str'
     | MPInt64(_, l), MPInt64(_, l') -> check path l l'
+    | MPUInt64(_, l), MPUInt64(_, l') -> check path l l'
     | MPInt8(_, l), MPInt8(_, l') -> check path l l'
     | MPUInt8(_, l), MPUInt8(_, l') -> check path l l'
     | MPInt16(_, l), MPInt16(_, l') -> check path l l'
@@ -545,6 +547,7 @@ module Expect =
     | MPEnum _, _
     | MPString _, _
     | MPInt64 _, _
+    | MPUInt64 _, _
     | MPInt8 _, _
     | MPUInt8 _, _
     | MPInt16 _, _
@@ -572,6 +575,7 @@ module Expect =
     // as long as TypeReferences don't get IDs, depending on structural equality is OK
     match actual, expected with
     | TInt64, _
+    | TUInt64, _
     | TInt8, _
     | TUInt8, _
     | TInt16, _
@@ -636,6 +640,7 @@ module Expect =
     | EVariable(_, v), EVariable(_, v') -> check path v v'
     | EConstant(_, name), EConstant(_, name') -> check path name name'
     | EInt64(_, v), EInt64(_, v') -> check path v v'
+    | EUInt64(_, v), EUInt64(_, v') -> check path v v'
     | EInt8(_, v), EInt8(_, v') -> check path v v'
     | EUInt8(_, v), EUInt8(_, v') -> check path v v'
     | EInt16(_, v), EInt16(_, v') -> check path v v'
@@ -755,6 +760,7 @@ module Expect =
     // exhaustiveness check
     | EUnit _, _
     | EInt64 _, _
+    | EUInt64 _, _
     | EInt8 _, _
     | EUInt8 _, _
     | EInt16 _, _
@@ -934,6 +940,7 @@ module Expect =
     | DTuple _, _
     | DString _, _
     | DInt64 _, _
+    | DUInt64 _, _
     | DInt8 _, _
     | DUInt8 _, _
     | DInt16 _, _
@@ -1005,6 +1012,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DUnit
     | DBool _
     | DInt64 _
+    | DUInt64 _
     | DInt8 _
     | DUInt8 _
     | DInt16 _
@@ -1117,6 +1125,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("uint_8_bits", DUInt8 255uy, TUInt8)
     ("uint_16_bits", DUInt16 65535us, TUInt16)
     ("uint_32_bits", DUInt32 4294967295ul, TUInt32)
+    ("uint_64_bits", DUInt64 18446744073709551615UL, TUInt64)
     ("uint_128_bits", DUInt128 340282366920938463463374607431768211455Z, TUInt128)
     ("true", DBool true, TBool)
     ("false", DBool false, TBool)
@@ -1352,6 +1361,15 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
        [ Dval.uint128 128Z ]
      ),
      TypeReference.option TUInt128)
+    ("option12",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       Dval.ignoreAndUseEmpty [ VT.uint64 ],
+       "Some",
+       [ Dval.uint64 64UL ]
+     ),
+     TypeReference.option TUInt64 )
     ("character", DChar "s", TChar)
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
     // use image bytes here to test for any weird bytes forms

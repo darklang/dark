@@ -18,6 +18,7 @@ module DvalComparator =
   let rec compareDval (dv1 : Dval) (dv2 : Dval) : int =
     match dv1, dv2 with
     | DInt64 i1, DInt64 i2 -> compare i1 i2
+    | DUInt64 i1, DUInt64 i2 -> compare i1 i2
     | DInt8 i1, DInt8 i2 -> compare i1 i2
     | DUInt8 i1, DUInt8 i2 -> compare i1 i2
     | DInt16 i1, DInt16 i2 -> compare i1 i2
@@ -67,6 +68,7 @@ module DvalComparator =
 
     // exhaustiveness check
     | DInt64 _, _
+    | DUInt64 _, _
     | DInt8 _, _
     | DUInt8 _, _
     | DInt16 _, _

@@ -302,6 +302,7 @@ module TypeReference =
       | TUnit -> "TUnit", []
       | TBool -> "TBool", []
       | TInt64 -> "TInt64", []
+      | TUInt64 -> "TUInt64", []
       | TInt8 -> "TInt8", []
       | TUInt8 -> "TUInt8", []
       | TInt16 -> "TInt16", []
@@ -345,6 +346,7 @@ module TypeReference =
     | DEnum(_, _, [], "TUnit", []) -> TUnit
     | DEnum(_, _, [], "TBool", []) -> TBool
     | DEnum(_, _, [], "TInt64", []) -> TInt64
+    | DEnum(_, _, [], "TUInt64", []) -> TUInt64
     | DEnum(_, _, [], "TInt8", []) -> TInt8
     | DEnum(_, _, [], "TUInt8", []) -> TUInt8
     | DEnum(_, _, [], "TInt16", []) -> TInt16
@@ -424,6 +426,7 @@ module MatchPattern =
       | MPUnit id -> "MPUnit", [ DInt64(int64 id) ]
       | MPBool(id, b) -> "MPBool", [ DInt64(int64 id); DBool b ]
       | MPInt64(id, i) -> "MPInt64", [ DInt64(int64 id); DInt64 i ]
+      | MPUInt64(id, i) -> "MPUInt64", [ DInt64(int64 id); DUInt64 i ]
       | MPInt8(id, i) -> "MPInt8", [ DInt64(int64 id); DInt8 i ]
       | MPUInt8(id, i) -> "MPUInt8", [ DInt64(int64 id); DUInt8 i ]
       | MPInt16(id, i) -> "MPInt16", [ DInt64(int64 id); DInt16 i ]
@@ -465,6 +468,7 @@ module MatchPattern =
     | DEnum(_, _, [], "MPUnit", [ DInt64 id ]) -> MPUnit(uint64 id)
     | DEnum(_, _, [], "MPBool", [ DInt64 id; DBool b ]) -> MPBool(uint64 id, b)
     | DEnum(_, _, [], "MPInt64", [ DInt64 id; DInt64 i ]) -> MPInt64(uint64 id, i)
+    | DEnum(_, _, [], "MPUInt64", [ DInt64 id; DUInt64 i ]) -> MPUInt64(uint64 id, i)
     | DEnum(_, _, [], "MPInt8", [ DInt64 id; DInt8 i ]) -> MPInt8(uint64 id, i)
     | DEnum(_, _, [], "MPUInt8", [ DInt64 id; DUInt8 i ]) -> MPUInt8(uint64 id, i)
     | DEnum(_, _, [], "MPInt16", [ DInt64 id; DInt16 i ]) -> MPInt16(uint64 id, i)
@@ -525,6 +529,7 @@ module Expr =
 
       | EBool(id, b) -> "EBool", [ DInt64(int64 id); DBool b ]
       | EInt64(id, i) -> "EInt64", [ DInt64(int64 id); DInt64 i ]
+      | EUInt64(id, i) -> "EUInt64", [ DInt64(int64 id); DUInt64 i ]
       | EInt8(id, i) -> "EInt8", [ DInt64(int64 id); DInt8 i ]
       | EUInt8(id, i) -> "EUInt8", [ DInt64(int64 id); DUInt8 i ]
       | EInt16(id, i) -> "EInt16", [ DInt64(int64 id); DInt16 i ]
@@ -667,6 +672,7 @@ module Expr =
 
     | DEnum(_, _, [], "EBool", [ DInt64 id; DBool b ]) -> EBool(uint64 id, b)
     | DEnum(_, _, [], "EInt64", [ DInt64 id; DInt64 i ]) -> EInt64(uint64 id, i)
+    | DEnum(_, _, [], "EUInt64", [ DInt64 id; DUInt64 i ]) -> EUInt64(uint64 id, i)
     | DEnum(_, _, [], "EInt8", [ DInt64 id; DInt8 i ]) -> EInt8(uint64 id, i)
     | DEnum(_, _, [], "EUInt8", [ DInt64 id; DUInt8 i ]) -> EUInt8(uint64 id, i)
     | DEnum(_, _, [], "EInt16", [ DInt64 id; DInt16 i ]) -> EInt16(uint64 id, i)
@@ -845,6 +851,7 @@ module Dval =
         | KTUnit -> "KTUnit", []
         | KTBool -> "KTBool", []
         | KTInt64 -> "KTInt64", []
+        | KTUInt64 -> "KTUInt64", []
         | KTInt8 -> "KTInt8", []
         | KTUInt8 -> "KTUInt8", []
         | KTInt16 -> "KTInt16", []
@@ -891,6 +898,7 @@ module Dval =
       | DEnum(_, _, [], "KTUnit", []) -> KTUnit
       | DEnum(_, _, [], "KTBool", []) -> KTBool
       | DEnum(_, _, [], "KTInt64", []) -> KTInt64
+      | DEnum(_, _, [], "KTUInt64", []) -> KTUInt64
       | DEnum(_, _, [], "KTInt8", []) -> KTInt8
       | DEnum(_, _, [], "KTUInt8", []) -> KTUInt8
       | DEnum(_, _, [], "KTInt16", []) -> KTInt16
@@ -1012,6 +1020,7 @@ module Dval =
       | DUnit -> "DUnit", []
       | DBool b -> "DBool", [ DBool b ]
       | DInt64 i -> "DInt64", [ DInt64 i ]
+      | DUInt64 i -> "DUInt64", [ DUInt64 i ]
       | DInt8 i -> "DInt8", [ DInt8 i ]
       | DUInt8 i -> "DUInt8", [ DUInt8 i ]
       | DInt16 i -> "DInt16", [ DInt16 i ]
@@ -1065,7 +1074,7 @@ module Dval =
   let fromDT (d : Dval) : Dval =
     match d with
     | DEnum(_, _, [], "DInt64", [ DInt64 i ]) -> DInt64 i
-    | DEnum(_, _, [], "DInt", [ DInt i ]) -> DInt i
+    | DEnum(_, _, [], "DUInt64", [ DUInt64 i ]) -> DUInt64 i
     | DEnum(_, _, [], "DInt8", [ DInt8 i ]) -> DInt8 i
     | DEnum(_, _, [], "DUInt8", [ DUInt8 i ]) -> DUInt8 i
     | DEnum(_, _, [], "DInt16", [ DInt16 i ]) -> DInt16 i

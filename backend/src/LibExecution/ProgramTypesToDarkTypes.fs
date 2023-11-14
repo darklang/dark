@@ -323,6 +323,7 @@ module TypeReference =
       | PT.TUnit -> "TUnit", []
       | PT.TBool -> "TBool", []
       | PT.TInt64 -> "TInt64", []
+      | PT.TUInt64 -> "TUInt64", []
       | PT.TInt8 -> "TInt8", []
       | PT.TUInt8 -> "TUInt8", []
       | PT.TInt16 -> "TInt16", []
@@ -368,6 +369,7 @@ module TypeReference =
     | DEnum(_, _, [], "TUnit", []) -> PT.TUnit
     | DEnum(_, _, [], "TBool", []) -> PT.TBool
     | DEnum(_, _, [], "TInt64", []) -> PT.TInt64
+    | DEnum(_, _, [], "TUInt64", []) -> PT.TUInt64
     | DEnum(_, _, [], "TInt8", []) -> PT.TInt8
     | DEnum(_, _, [], "TUInt8", []) -> PT.TUInt8
     | DEnum(_, _, [], "TInt16", []) -> PT.TInt16
@@ -442,6 +444,7 @@ module MatchPattern =
       | PT.MPUnit id -> "MPUnit", [ DInt64(int64 id) ]
       | PT.MPBool(id, b) -> "MPBool", [ DInt64(int64 id); DBool b ]
       | PT.MPInt64(id, i) -> "MPInt64", [ DInt64(int64 id); DInt64 i ]
+      | PT.MPUInt64(id, i) -> "MPUInt64", [ DInt64(int64 id); DUInt64 i ]
       | PT.MPInt8(id, i) -> "MPInt8", [ DInt64(int64 id); DInt8 i ]
       | PT.MPUInt8(id, i) -> "MPUInt8", [ DInt64(int64 id); DUInt8 i ]
       | PT.MPInt16(id, i) -> "MPInt16", [ DInt64(int64 id); DInt16 i ]
@@ -484,6 +487,7 @@ module MatchPattern =
     | DEnum(_, _, [], "MPUnit", [ DInt64 id ]) -> PT.MPUnit(uint64 id)
     | DEnum(_, _, [], "MPBool", [ DInt64 id; DBool b ]) -> PT.MPBool(uint64 id, b)
     | DEnum(_, _, [], "MPInt64", [ DInt64 id; DInt64 i ]) -> PT.MPInt64(uint64 id, i)
+    | DEnum(_, _, [], "MPUInt64", [ DInt64 id; DUInt64 i ]) -> PT.MPUInt64(uint64 id, i)
     | DEnum(_, _, [], "MPInt8", [ DInt64 id; DInt8 i ]) -> PT.MPInt8(uint64 id, i)
     | DEnum(_, _, [], "MPUInt8", [ DInt64 id; DUInt8 i ]) -> PT.MPUInt8(uint64 id, i)
     | DEnum(_, _, [], "MPInt16", [ DInt64 id; DInt16 i ]) -> PT.MPInt16(uint64 id, i)
@@ -725,6 +729,7 @@ module Expr =
       // simple data
       | PT.EBool(id, b) -> "EBool", [ DInt64(int64 id); DBool b ]
       | PT.EInt64(id, i) -> "EInt64", [ DInt64(int64 id); DInt64 i ]
+      | PT.EUInt64(id, i) -> "EUInt64", [ DInt64(int64 id); DUInt64 i ]
       | PT.EInt8(id, i) -> "EInt8", [ DInt64(int64 id); DInt8 i ]
       | PT.EUInt8(id, i) -> "EUInt8", [ DInt64(int64 id); DUInt8 i ]
       | PT.EInt16(id, i) -> "EInt16", [ DInt64(int64 id); DInt16 i ]
@@ -890,6 +895,7 @@ module Expr =
     // simple data
     | DEnum(_, _, [], "EBool", [ DInt64 id; DBool b ]) -> PT.EBool(uint64 id, b)
     | DEnum(_, _, [], "EInt64", [ DInt64 id; DInt64 i ]) -> PT.EInt64(uint64 id, i)
+    | DEnum(_, _, [], "EUInt64", [ DInt64 id; DUInt64 i ]) -> PT.EUInt64(uint64 id, i)
     | DEnum(_, _, [], "EInt8", [ DInt64 id; DInt8 i ]) -> PT.EInt8(uint64 id, i)
     | DEnum(_, _, [], "EUInt8", [ DInt64 id; DUInt8 i ]) -> PT.EUInt8(uint64 id, i)
     | DEnum(_, _, [], "EInt16", [ DInt64 id; DInt16 i ]) -> PT.EInt16(uint64 id, i)
@@ -1042,6 +1048,7 @@ module Const =
       | PT.Const.CUnit -> "CUnit", []
       | PT.Const.CBool b -> "CBool", [ DBool b ]
       | PT.Const.CInt64 i -> "CInt64", [ DInt64 i ]
+      | PT.Const.CUInt64 i -> "CUInt64", [ DUInt64 i ]
       | PT.Const.CInt8 i -> "CInt8", [ DInt8 i ]
       | PT.Const.CUInt8 i -> "CUInt8", [ DUInt8 i ]
       | PT.Const.CInt16 i -> "CInt16", [ DInt16 i ]
@@ -1083,6 +1090,7 @@ module Const =
   let rec fromDT (d : Dval) : PT.Const =
     match d with
     | DEnum(_, _, [], "CInt64", [ DInt64 i ]) -> PT.Const.CInt64 i
+    | DEnum(_, _, [], "CUInt64", [ DUInt64 i ]) -> PT.Const.CUInt64 i
     | DEnum(_, _, [], "CInt8", [ DInt8 i ]) -> PT.Const.CInt8 i
     | DEnum(_, _, [], "CUInt8", [ DUInt8 i ]) -> PT.Const.CUInt8 i
     | DEnum(_, _, [], "CInt16", [ DInt16 i ]) -> PT.Const.CInt16 i

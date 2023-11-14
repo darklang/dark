@@ -30,6 +30,7 @@ let rec preTraversal
     match matchPatternFn pat with
     | MPVariable _
     | MPInt64 _
+    | MPUInt64 _
     | MPInt8 _
     | MPUInt8 _
     | MPInt16 _
@@ -52,6 +53,7 @@ let rec preTraversal
     let f = preTraversalTypeRef
     match typeRefFn typeRef with
     | TInt64
+    | TUInt64
     | TInt8
     | TUInt8
     | TInt16
@@ -81,6 +83,7 @@ let rec preTraversal
 
   match exprFn expr with
   | EInt64 _
+  | EUInt64 _
   | EInt8 _
   | EUInt8 _
   | EInt16 _
@@ -168,6 +171,7 @@ let rec postTraversal
     match matchPatternFn pat with
     | MPVariable _
     | MPInt64 _
+    | MPUInt64 _
     | MPInt8 _
     | MPUInt8 _
     | MPInt16 _
@@ -190,6 +194,7 @@ let rec postTraversal
     let f = postTraversalTypeRef
     match typeRefFn typeRef with
     | TInt64
+    | TUInt64
     | TInt8
     | TUInt8
     | TInt16
@@ -218,6 +223,7 @@ let rec postTraversal
     postTraversal exprFn typeRefFn fqtnFn fqfnFn fqcnFn letPatternFn matchPatternFn
   (match expr with
    | EInt64 _
+   | EUInt64 _
    | EInt8 _
    | EUInt8 _
    | EInt16 _
@@ -319,6 +325,7 @@ let rec postTraversalAsync
       match pat with
       | MPVariable _
       | MPInt64 _
+      | MPUInt64 _
       | MPInt8 _
       | MPUInt8 _
       | MPInt16 _
@@ -355,6 +362,7 @@ let rec postTraversalAsync
       let r = postTraversalTypeRef
       match typeRef with
       | TInt64
+      | TUInt64
       | TInt8
       | TUInt8
       | TInt16
@@ -410,6 +418,7 @@ let rec postTraversalAsync
     let! expr =
       match expr with
       | EInt64 _
+      | EUInt64 _
       | EInt8 _
       | EUInt8 _
       | EInt16 _

@@ -223,6 +223,7 @@ let rec valueTypeUnifies
     | TUnit, ValueType.Known KTUnit -> return true
     | TBool, ValueType.Known KTBool -> return true
     | TInt64, ValueType.Known KTInt64 -> return true
+    | TUInt64, ValueType.Known KTUInt64 -> return true
     | TInt8, ValueType.Known KTInt8 -> return true
     | TUInt8, ValueType.Known KTUInt8 -> return true
     | TInt16, ValueType.Known KTInt16 -> return true
@@ -307,6 +308,7 @@ let rec unify
         | None -> return Ok()
         | Some t -> return! unify context types tst t value
       | TInt64, DInt64 _ -> return Ok()
+      | TUInt64, DUInt64 _ -> return Ok()
       | TInt8, DInt8 _ -> return Ok()
       | TUInt8, DUInt8 _ -> return Ok()
       | TInt16, DInt16 _ -> return Ok()
@@ -460,6 +462,7 @@ let rec unify
       | TCustomType _, _
       | TVariable _, _
       | TInt64, _
+      | TUInt64, _
       | TInt8, _
       | TUInt8, _
       | TInt16, _

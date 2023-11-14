@@ -332,6 +332,7 @@ type MatchPattern =
   | MPVariable of id * string
   | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
   | MPInt64 of id * int64
+  | MPUInt64 of id * uint64
   | MPInt8 of id * int8
   | MPUInt8 of id * uint8
   | MPInt16 of id * int16
@@ -379,6 +380,7 @@ type Infix =
 /// - etc.
 type TypeReference =
   | TInt64
+  | TUInt64
   | TInt8
   | TUInt8
   | TInt16
@@ -412,6 +414,7 @@ type TypeReference =
 /// Expressions - the main part of the language.
 type Expr =
   | EInt64 of id * int64
+  | EUInt64 of id * uint64
   | EInt8 of id * int8
   | EUInt8 of id * uint8
   | EInt16 of id * int16
@@ -531,6 +534,7 @@ module Expr =
   let toID (expr : Expr) : id =
     match expr with
     | EInt64(id, _)
+    | EUInt64(id, _)
     | EInt8(id, _)
     | EUInt8(id, _)
     | EInt16(id, _)
@@ -657,6 +661,7 @@ module UserType =
 
 type Const =
   | CInt64 of int64
+  | CUInt64 of uint64
   | CInt8 of int8
   | CUInt8 of uint8
   | CInt16 of int16

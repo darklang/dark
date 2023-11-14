@@ -171,6 +171,7 @@ type PTTypeReference = | TInt64
 // TODO: the types of the 'id' fields should be something more like `type id = Int64`
 type PTExpr =
   | EInt64 of id: Int64 * Int64
+  | EUInt64 of id: Int64 * UInt64
   | EInt8 of id: Int64 * Int8
   | EUInt8 of id: Int64 * UInt8
   | EInt16 of id: Int64 * Int16

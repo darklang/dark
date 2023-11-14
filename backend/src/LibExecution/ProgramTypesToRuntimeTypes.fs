@@ -65,6 +65,7 @@ module TypeReference =
   let rec toRT (t : PT.TypeReference) : RT.TypeReference =
     match t with
     | PT.TInt64 -> RT.TInt64
+    | PT.TUInt64 -> RT.TUInt64
     | PT.TInt8 -> RT.TInt8
     | PT.TUInt8 -> RT.TUInt8
     | PT.TInt16 -> RT.TInt16
@@ -221,6 +222,7 @@ module MatchPattern =
     | PT.MPEnum(id, caseName, fieldPats) ->
       RT.MPEnum(id, caseName, List.map toRT fieldPats)
     | PT.MPInt64(id, i) -> RT.MPInt64(id, i)
+    | PT.MPUInt64(id, i) -> RT.MPUInt64(id, i)
     | PT.MPInt8(id, i) -> RT.MPInt8(id, i)
     | PT.MPUInt8(id, i) -> RT.MPUInt8(id, i)
     | PT.MPInt16(id, i) -> RT.MPInt16(id, i)
@@ -246,6 +248,7 @@ module Expr =
     match e with
     | PT.EChar(id, char) -> RT.EChar(id, char)
     | PT.EInt64(id, num) -> RT.EInt64(id, num)
+    | PT.EUInt64(id, num) -> RT.EUInt64(id, num)
     | PT.EInt8(id, num) -> RT.EInt8(id, num)
     | PT.EUInt8(id, num) -> RT.EUInt8(id, num)
     | PT.EInt16(id, num) -> RT.EInt16(id, num)
@@ -442,6 +445,7 @@ module Const =
   let rec toRT (c : PT.Const) : RT.Const =
     match c with
     | PT.Const.CInt64 i -> RT.CInt64 i
+    | PT.Const.CUInt64 i -> RT.CUInt64 i
     | PT.Const.CInt8 i -> RT.CInt8 i
     | PT.Const.CUInt8 i -> RT.CUInt8 i
     | PT.Const.CInt16 i -> RT.CInt16 i
