@@ -381,11 +381,17 @@ let parse
 
     | TInt64, JsonValueKind.Number ->
       let mutable i64 = 0L
+      let mutable ui64 = 0UL
       let mutable d = 0.0
       // dotnet will wrap 9223372036854775808 to be -9223372036854775808 instead, we
       // don't want that and will error instead
 
-      if j.TryGetInt64(&i64) then
+      if j.TryGetUInt64(&ui64) then
+        if ui64 <= uint64 System.Int64.MaxValue then
+          DInt64(int64 ui64) |> Ply
+        else
+          raiseCantMatchWithType TInt64 j pathSoFar |> Ply
+      else if j.TryGetInt64(&i64) then
         DInt64 i64 |> Ply
       // We allow the user to specify numbers in int or float format (e.g. 1 or 1.0
       // or even 1E+0) -- JSON uses floating point numbers, and the person/API

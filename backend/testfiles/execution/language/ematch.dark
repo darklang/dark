@@ -34,6 +34,34 @@ module Int64 =
     "Cannot match Float value 6.0 with an Int64 pattern"
 
 
+module UInt64 =
+  (match 6UL with
+   | 5UL -> "fail"
+   | 6UL -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6UL with
+   | 6UL -> "pass"
+   | 5UL -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6UL with
+   | var -> "pass"
+   | 6UL -> "fail"
+   | 5UL -> "fail") = "pass"
+
+  (match 18446744073709551615UL with
+   | 0UL -> "fail"
+   | 18446744073709551615UL -> "pass") = "pass"
+
+  (match 6UL with
+   | 6.0 -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match UInt64 value 6 with a Float pattern"
+
+  (match 6.0 with
+   | 6UL -> "fail") = Builtin.Test.derrorMessage
+    "Cannot match Float value 6.0 with an UInt64 pattern"
+
 
 module Int8 =
   (match 6y with

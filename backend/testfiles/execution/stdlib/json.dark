@@ -101,9 +101,8 @@ module Int64 =
     // be certain
 
     // First number that doesn't fit in an int64
-    // TODO : FIX THIS
-    // (Builtin.Json.parse<Int64> "9223372036854775808") |> err = Result.Error
-    //   "Can't parse JSON `9223372036854775808` as type `Int64` at path: `root`"
+    (Builtin.Json.parse<Int64> "9223372036854775808") |> err = Result.Error
+      "Can't parse JSON `9223372036854775808` as type `Int64` at path: `root`"
 
     // This is a float that is a valid int64
     Builtin.Json.parse<Int64> "9.2E18" = Result.Ok 9200000000000000000L
@@ -154,6 +153,57 @@ module Int64 =
 
     (Builtin.Json.parse<Int64> "\"42\n\"") |> err = Result.Error "Not JSON"
 
+
+module UInt64 =
+  module Basic =
+    Builtin.Json.serialize<UInt64> 0UL = "0"
+    Builtin.Json.serialize<UInt64> 12345UL = "12345"
+    Builtin.Json.parse<UInt64> "0" = Result.Ok 0UL
+    Builtin.Json.parse<UInt64> "0.0" = Result.Ok 0UL
+    Builtin.Json.parse<UInt64> "1.2E2" = Result.Ok 120UL
+    Builtin.Json.parse<UInt64> "1.2E+2" = Result.Ok 120UL
+    Builtin.Json.parse<UInt64> "1200E-1" = Result.Ok 120UL
+
+  module UInt64Limits =
+    // test the limits of uint64 (0 to 18446744073709551615)
+    Builtin.Json.serialize<UInt64> 0UL = "0"
+    Builtin.Json.serialize<UInt64> 18446744073709551615UL = "18446744073709551615"
+    Builtin.Json.parse<UInt64> "0" = Result.Ok 0UL
+    Builtin.Json.parse<UInt64> "18446744073709551615" = Result.Ok 18446744073709551615UL
+
+    // First number that doesn't fit in an int64
+    // TODO : this should error but it is rounding to 18446744073709551615
+    (Builtin.Json.parse<UInt64> "18446744073709551616") = Result.Ok
+      18446744073709551615UL
+
+    // This is a float that is a valid uint64
+    Builtin.Json.parse<UInt64> "1.8446744073709551615E19" = Result.Ok
+      18446744073709551615UL
+
+    // This is a float that is slightly above the uint64 max
+    (Builtin.Json.parse<UInt64> "1.9E19") |> err = Result.Error
+      "Can't parse JSON `1.9E19` as type `UInt64` at path: `root`"
+
+
+  module Errors =
+    (Builtin.Json.parse<UInt64> " ") |> err = Result.Error "Not JSON"
+    (Builtin.Json.parse<UInt64> "4a") |> err = Result.Error "Not JSON"
+    (Builtin.Json.parse<UInt64> "- 42") |> err = Result.Error "Not JSON"
+    (Builtin.Json.parse<UInt64> "null") |> err = Result.Error
+      "Can't parse JSON `null` as type `UInt64` at path: `root`"
+    (Builtin.Json.parse<UInt64> "true") |> err = Result.Error
+      "Can't parse JSON `true` as type `UInt64` at path: `root`"
+    (Builtin.Json.parse<UInt64> "false") |> err = Result.Error
+      "Can't parse JSON `false` as type `UInt64` at path: `root`"
+    (Builtin.Json.parse<UInt64> "\"42\"") |> err = Result.Error
+      "Can't parse JSON `\"42\"` as type `UInt64` at path: `root`"
+    (Builtin.Json.parse<UInt64> "[42]") |> err = Result.Error
+      "Can't parse JSON `[42]` as type `UInt64` at path: `root`"
+    (Builtin.Json.parse<UInt64> "{ \"key\": 42 }") |> err = Result.Error
+      "Can't parse JSON `{ \"key\": 42 }` as type `UInt64` at path: `root`"
+    (Builtin.Json.parse<UInt64> "42.5") |> err = Result.Error
+      "Can't parse JSON `42.5` as type `UInt64` at path: `root`"
+    (Builtin.Json.parse<UInt64> "\"42\n\"") |> err = Result.Error "Not JSON"
 
 
 module Int8 =

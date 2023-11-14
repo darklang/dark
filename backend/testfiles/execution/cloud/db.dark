@@ -253,6 +253,7 @@ module Roundtrip =
     { iNsEnSiTiVe: String
       ``ALLCAPS``: Int64
       int: Int64
+      uint64: UInt64
       int8: Int8
       uint8: UInt8
       int16: Int16
@@ -288,6 +289,7 @@ module Roundtrip =
       { iNsEnSiTiVe = "iNsEnSiTiVe"
         ``ALLCAPS`` = 1L
         int = 2L
+        uint64 = 2UL
         int8 = 2y
         uint8 = 2uy
         int16 = 2s
@@ -324,6 +326,7 @@ module Roundtrip =
       { iNsEnSiTiVe = "normal"
         ``ALLCAPS`` = 2L
         int = 3L
+        uint64 = 3UL
         int8 = 3y
         uint8 = 3uy
         int16 = 4s
@@ -400,6 +403,10 @@ module Roundtrip =
     fetch (fun p -> p.int == 2L) = [ sample () ]
     fetch (fun p -> p.int != 2L) = [ otherSample () ]
     fetch (fun p -> p.int == 200L) = []
+
+    fetch (fun p -> p.uint64 == 2UL) = [ sample () ]
+    fetch (fun p -> p.uint64 != 2UL) = [ otherSample () ]
+    fetch (fun p -> p.uint64 == 200UL) = []
 
     fetch (fun p -> p.int8 == 2y) = [ sample () ]
     fetch (fun p -> p.int8 != 2y) = [ otherSample () ]

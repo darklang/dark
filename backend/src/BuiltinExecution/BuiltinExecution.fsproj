@@ -20,6 +20,7 @@
     <Compile Include="Libs/Float.fs" />
     <Compile Include="Libs/HttpClient.fs" />
     <Compile Include="Libs/Int64.fs" />
+    <Compile Include="Libs/UInt64.fs" />
     <Compile Include="Libs/Int8.fs" />
     <Compile Include="Libs/UInt8.fs" />
     <Compile Include="Libs/Int16.fs" />
