@@ -30,7 +30,7 @@ module Darklang =
       /// TODO just separate the abstractions of 'handle request and send response' apart from 'send request and handle response'
       module JsonRPC =
         // <aliases>
-        type JToken = PACKAGE.Darklang.Stdlib.AltJson.JsonToken
+        type Json = PACKAGE.Darklang.Stdlib.AltJson.Json
         // </aliases>
 
         let expectedJsonRpcVersion = "2.0"
@@ -43,8 +43,8 @@ module Darklang =
 
         module IncomingRequest =
           type RequestParams =
-            | Array of List<JToken>
-            | Object of List<String * JToken>
+            | Array of List<Json>
+            | Object of List<String * Json>
 
         //   type Request =
         //     { jsonrpc: String // should always be "2.0"
@@ -56,25 +56,25 @@ module Darklang =
 
         //   type SingleRequestParseError =
         //     // must be an object `{...}`)
-        //     | NotObject of JToken
+        //     | NotObject of Json
 
         //     /// must be provided
         //     | MissingJsonRpcField
 
         //     /// must be `String "2.0"` exactly
-        //     | InvalidJsonRpcField of actual: JToken
+        //     | InvalidJsonRpcField of actual: Json
 
         //     /// can be missing, but otherwise must be null, a String, or a Number
-        //     | InvalidIdField of actual: JToken
+        //     | InvalidIdField of actual: Json
 
         //     /// must be provided
         //     | MissingMethodField of PACKAGE.Darklang.Stdlib.Option.Option<RequestId>
 
         //     /// must be a string
-        //     | InvalidMethodField of PACKAGE.Darklang.Stdlib.Option.Option<RequestId> * actual: JToken
+        //     | InvalidMethodField of PACKAGE.Darklang.Stdlib.Option.Option<RequestId> * actual: Json
 
         //     /// can be missing, but otherwise must be an array or an object
-        //     | InvalidParamsField of PACKAGE.Darklang.Stdlib.Option.Option<RequestId> * actual: JToken
+        //     | InvalidParamsField of PACKAGE.Darklang.Stdlib.Option.Option<RequestId> * actual: Json
 
         //   type BatchRequestParseError =
         //     | EmptyArray // generally thse should just be ignored - don't return any response
@@ -96,7 +96,7 @@ module Darklang =
         //     | Batch of Array<Result<Request, SingleRequestParseError>>
 
 
-        // let parseSingleRequest (json: JToken): PACKAGE.Darklang.Stdlib.Result.Result<Request, SingleRequestParseError> =
+        // let parseSingleRequest (json: Json): PACKAGE.Darklang.Stdlib.Result.Result<Request, SingleRequestParseError> =
         //   match json with
         //   | Object o ->
         //     let jsonRpcFieldError =
@@ -127,7 +127,7 @@ module Darklang =
         //   | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None // TODO: invalid request thing
 
         // let parseRequest
-        //   (json: JToken)
+        //   (json: Json)
         //   : PACKAGE.Darklang.Stdlib.Option.Option<Request> =
         //   match json with
         //   | Object o ->
@@ -142,7 +142,7 @@ module Darklang =
         //   type ResponseSuccess =
         //     { jsonrpc: String // should always be "2.0"
         //       id: RequestId
-        //       result: JToken }
+        //       result: Json }
 
         //   type ResponseErrorDetails = { code: Int; message: String }
 
@@ -153,21 +153,21 @@ module Darklang =
 
         //   type Response = Result<ResponseSuccess, ResponseError>
 
-        //   let sendResponse (json: JToken): PACKAGE.Darklang.Stdlib.Result.Result<Response, String> =
+        //   let sendResponse (json: Json): PACKAGE.Darklang.Stdlib.Result.Result<Response, String> =
         //     match json with
         //     | Object o ->
 
 
         // type ServerConfig =
-        //   { handleIncomingRequest: Request -> JToken
-        //     onBatchRequest: Array<Request> -> Array<JToken> }
+        //   { handleIncomingRequest: Request -> Json
+        //     onBatchRequest: Array<Request> -> Array<Json> }
 
         // let runServerCliLoop () : Int =
         //   let incomingRequestRaw = Builtin.Stdin.readLine ()
 
         //   Builtin.printLine $"got request {incomingRequestRaw}"
 
-        //   match Builtin.AltJson.parseToken incomingRequestRaw with
+        //   match Builtin.AltJson.parse incomingRequestRaw with
         //   | Ok incomingRequest ->
         //     // TODO: validate that it's a valid JsonRPC 2.0 request and extract out id, method, params
         //     // TODO: call config.onRequest with the (id, method, params)
@@ -220,7 +220,7 @@ module Darklang =
         // (for requests that require a response, that is -- anything without an `id` can be ignored)
 
         // TODO:
-        // match Builtin.AltJson.parseToken incomingRequestRaw with
+        // match Builtin.AltJson.parse incomingRequestRaw with
         // | Ok incomingRequest ->
         //   // TODO: validate that it's a valid JsonRPC 2.0 request and extract out id, method, params
         //   // TODO: call config.onRequest with the (id, method, params)
