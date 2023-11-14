@@ -12,6 +12,10 @@ do
   esac
 done
 
+
+LOGS="${DARK_CONFIG_RUNDIR}/logs"
+CLI_LOG="$LOGS/cli.log"
+
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE="backend/Build/out/Cli/Release/net7.0/linux-x64/publish/Cli"
 else
@@ -28,4 +32,4 @@ do
   fi
 done
 
-"${EXE}" "$@"
+"${EXE}" "$@" 2>&1 | tee "${CLI_LOG}"
