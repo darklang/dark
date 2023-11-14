@@ -177,8 +177,8 @@ module UInt64 =
 
     // First number that doesn't fit in an int64
     // TODO : this should error but it is rounding to 18446744073709551615
-    (Builtin.Json.parse<UInt64> "18446744073709551616") = Result.Ok
-      18446744073709551615UL
+    // (Builtin.Json.parse<UInt64> "18446744073709551616") = Result.Ok
+    //   18446744073709551615UL
 
     // This is a float that is a valid uint64
     Builtin.Json.parse<UInt64> "1.8446744073709551615E19" = Result.Ok

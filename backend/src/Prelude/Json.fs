@@ -12,6 +12,14 @@ let isBaseType (t : System.Type) =
   || t = typeof<float>
   || t = typeof<int64>
   || t = typeof<uint64>
+  || t = typeof<int8>
+  || t = typeof<uint8>
+  || t = typeof<int16>
+  || t = typeof<uint16>
+  || t = typeof<int32>
+  || t = typeof<uint32>
+  || t = typeof<System.Int128>
+  || t = typeof<System.UInt128>
   || t = typeof<NodaTime.Instant>
   || t = typeof<System.Guid>
 
