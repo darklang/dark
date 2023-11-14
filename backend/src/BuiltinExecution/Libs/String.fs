@@ -149,7 +149,8 @@ let fns : List<BuiltInFn> =
       description = "Returns the length of the string"
       fn =
         (function
-        | _, _, [ DString s ] -> s |> String.lengthInEgcs |> int64 |> Dval.int64 |> Ply
+        | _, _, [ DString s ] ->
+          s |> String.lengthInEgcs |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented // there isn't a unicode version of length
       previewable = Pure

@@ -1194,9 +1194,54 @@ module Dval =
     | DString s -> Some s
     | _ -> None
 
-  let asInt (dv : Dval) : Option<int64> =
+  let asInt64 (dv : Dval) : Option<int64> =
     match dv with
     | DInt64 i -> Some i
+    | _ -> None
+
+  let asUInt64 (dv : Dval) : Option<uint64> =
+    match dv with
+    | DUInt64 i -> Some i
+    | _ -> None
+
+  let asInt8 (dv : Dval) : Option<int8> =
+    match dv with
+    | DInt8 i -> Some i
+    | _ -> None
+
+  let asUInt8 (dv : Dval) : Option<uint8> =
+    match dv with
+    | DUInt8 i -> Some i
+    | _ -> None
+
+  let asInt16 (dv : Dval) : Option<int16> =
+    match dv with
+    | DInt16 i -> Some i
+    | _ -> None
+
+  let asUInt16 (dv : Dval) : Option<uint16> =
+    match dv with
+    | DUInt16 i -> Some i
+    | _ -> None
+
+  let asInt32 (dv : Dval) : Option<int32> =
+    match dv with
+    | DInt32 i -> Some i
+    | _ -> None
+
+  let asUInt32 (dv : Dval) : Option<uint32> =
+    match dv with
+    | DUInt32 i -> Some i
+    | _ -> None
+
+  let asInt128 (dv : Dval) : Option<System.Int128> =
+    match dv with
+    | DInt128 i -> Some i
+    | _ -> None
+
+  let asUInt128 (dv : Dval) : Option<System.UInt128> =
+    match dv with
+    | DUInt128 i -> Some i
     | _ -> None
 
   let asFloat (dv : Dval) : Option<double> =
@@ -1214,7 +1259,6 @@ module Dval =
     | DUuid u -> Some u
     | _ -> None
 
-// Should we add asInt8, asInt16, etc?
 
 module Handler =
   type CronInterval =
