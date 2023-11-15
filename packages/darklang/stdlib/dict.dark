@@ -10,7 +10,7 @@ module Darklang =
 
 
       /// Returns the number of entries in <param dict>
-      let size (dict: Dict<'a>) : Int = Builtin.Dict.size_v0 dict
+      let size (dict: Dict<'a>) : Int64 = Builtin.Dict.size_v0 dict
 
 
       /// Returns <param dict>'s keys in a <type List>, in an arbitrary order

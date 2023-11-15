@@ -4,7 +4,7 @@ module Darklang =
     module Process =
       /// The result of running a process, typically with `Process.run`
       type Result =
-        { exitCode: Int
+        { exitCode: Int64
 
           // TODO bytes, not strings -- see internal note in Process.fs
           stdout: String

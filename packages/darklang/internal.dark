@@ -17,7 +17,7 @@ module Darklang =
       type Secret =
         { name: String
           value: String
-          version: Int }
+          version: Int64 }
 
       /// 404 record
       type F404 =
@@ -45,10 +45,10 @@ module Darklang =
       type TableSize =
         {
           /// Number of bytes on disk
-          disk: Int
+          disk: Int64
 
           /// Number of rows
-          rows: Int
+          rows: Int64
 
           /// Disk space, in human-readable form
           diskHuman: String

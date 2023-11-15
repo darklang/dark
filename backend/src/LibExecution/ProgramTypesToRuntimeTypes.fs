@@ -64,7 +64,8 @@ module NameResolution =
 module TypeReference =
   let rec toRT (t : PT.TypeReference) : RT.TypeReference =
     match t with
-    | PT.TInt -> RT.TInt
+    | PT.TInt64 -> RT.TInt64
+    | PT.TUInt64 -> RT.TUInt64
     | PT.TInt8 -> RT.TInt8
     | PT.TUInt8 -> RT.TUInt8
     | PT.TInt16 -> RT.TInt16
@@ -190,16 +191,16 @@ module ConstantName =
 module InfixFnName =
   let toFnName (name : PT.InfixFnName) : (List<string> * string * int) =
     match name with
-    | PT.ArithmeticPlus -> ([ "Int" ], "add", 0)
-    | PT.ArithmeticMinus -> ([ "Int" ], "subtract", 0)
-    | PT.ArithmeticMultiply -> ([ "Int" ], "multiply", 0)
+    | PT.ArithmeticPlus -> ([ "Int64" ], "add", 0)
+    | PT.ArithmeticMinus -> ([ "Int64" ], "subtract", 0)
+    | PT.ArithmeticMultiply -> ([ "Int64" ], "multiply", 0)
     | PT.ArithmeticDivide -> ([ "Float" ], "divide", 0)
-    | PT.ArithmeticModulo -> ([ "Int" ], "mod", 0)
-    | PT.ArithmeticPower -> ([ "Int" ], "power", 0)
-    | PT.ComparisonGreaterThan -> ([ "Int" ], "greaterThan", 0)
-    | PT.ComparisonGreaterThanOrEqual -> ([ "Int" ], "greaterThanOrEqualTo", 0)
-    | PT.ComparisonLessThan -> ([ "Int" ], "lessThan", 0)
-    | PT.ComparisonLessThanOrEqual -> ([ "Int" ], "lessThanOrEqualTo", 0)
+    | PT.ArithmeticModulo -> ([ "Int64" ], "mod", 0)
+    | PT.ArithmeticPower -> ([ "Int64" ], "power", 0)
+    | PT.ComparisonGreaterThan -> ([ "Int64" ], "greaterThan", 0)
+    | PT.ComparisonGreaterThanOrEqual -> ([ "Int64" ], "greaterThanOrEqualTo", 0)
+    | PT.ComparisonLessThan -> ([ "Int64" ], "lessThan", 0)
+    | PT.ComparisonLessThanOrEqual -> ([ "Int64" ], "lessThanOrEqualTo", 0)
     | PT.StringConcat -> ([ "String" ], "append", 0)
     | PT.ComparisonEquals -> ([], "equals", 0)
     | PT.ComparisonNotEquals -> ([], "notEquals", 0)
@@ -220,7 +221,8 @@ module MatchPattern =
     | PT.MPVariable(id, str) -> RT.MPVariable(id, str)
     | PT.MPEnum(id, caseName, fieldPats) ->
       RT.MPEnum(id, caseName, List.map toRT fieldPats)
-    | PT.MPInt(id, i) -> RT.MPInt(id, i)
+    | PT.MPInt64(id, i) -> RT.MPInt64(id, i)
+    | PT.MPUInt64(id, i) -> RT.MPUInt64(id, i)
     | PT.MPInt8(id, i) -> RT.MPInt8(id, i)
     | PT.MPUInt8(id, i) -> RT.MPUInt8(id, i)
     | PT.MPInt16(id, i) -> RT.MPInt16(id, i)
@@ -245,7 +247,8 @@ module Expr =
   let rec toRT (e : PT.Expr) : RT.Expr =
     match e with
     | PT.EChar(id, char) -> RT.EChar(id, char)
-    | PT.EInt(id, num) -> RT.EInt(id, num)
+    | PT.EInt64(id, num) -> RT.EInt64(id, num)
+    | PT.EUInt64(id, num) -> RT.EUInt64(id, num)
     | PT.EInt8(id, num) -> RT.EInt8(id, num)
     | PT.EUInt8(id, num) -> RT.EUInt8(id, num)
     | PT.EInt16(id, num) -> RT.EInt16(id, num)
@@ -441,7 +444,8 @@ module Const =
 
   let rec toRT (c : PT.Const) : RT.Const =
     match c with
-    | PT.Const.CInt i -> RT.CInt i
+    | PT.Const.CInt64 i -> RT.CInt64 i
+    | PT.Const.CUInt64 i -> RT.CUInt64 i
     | PT.Const.CInt8 i -> RT.CInt8 i
     | PT.Const.CUInt8 i -> RT.CUInt8 i
     | PT.Const.CInt16 i -> RT.CInt16 i

@@ -8,6 +8,10 @@ module UserDefined =
   intConst = 5L
   UserDefined.intConst = 5L
 
+  let uint64Const = 5UL
+  uint64Const = 5UL
+  UserDefined.uint64Const = 5UL
+
   let int32Const = 5l
   int32Const = 5l
   UserDefined.int32Const = 5l
@@ -73,6 +77,9 @@ module Package =
 
   PACKAGE.Darklang.Test.Constants.intConst = 5L
   PACKAGE.Darklang.Test.Constants.intConst = 5L
+
+  PACKAGE.Darklang.Test.Constants.uint64Const = 5UL
+  PACKAGE.Darklang.Test.Constants.uint64Const = 5UL
 
   PACKAGE.Darklang.Test.Constants.int32Const = 5l
   PACKAGE.Darklang.Test.Constants.int32Const = 5l

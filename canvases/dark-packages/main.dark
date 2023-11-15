@@ -12,7 +12,7 @@ type GenericName =
   { owner: String
     modules: List<String>
     name: String
-    version: Int }
+    version: Int64 }
 
 type Entry =
   { name: GenericName
@@ -123,19 +123,19 @@ let _handler _req =
   let items = Builtin.DB.count PackagesDB
 
   let body =
-    $"Package stats:\ntypes: {Builtin.Int.toString types}, fns: {Builtin.Int.toString fns}, constants: {Builtin.Int.toString constants}\n\ntotal items in DB: {Builtin.Int.toString items}\n"
+    $"Package stats:\ntypes: {Builtin.Int64.toString types}, fns: {Builtin.Int64.toString fns}, constants: {Builtin.Int64.toString constants}\n\ntotal items in DB: {Builtin.Int64.toString items}\n"
     |> PACKAGE.Darklang.Stdlib.String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response body 200L
 
-let parseVersion (name: String) : (String * Int) =
+let parseVersion (name: String) : (String * Int64) =
   let parts = PACKAGE.Darklang.Stdlib.String.split name "_v"
   let name = (PACKAGE.Darklang.Stdlib.List.head parts) |> Builtin.unwrap
 
   let version =
     (PACKAGE.Darklang.Stdlib.List.last parts)
     |> Builtin.unwrap
-    |> Builtin.Int.parse
+    |> Builtin.Int64.parse
     |> Builtin.unwrap
 
   (name, version)

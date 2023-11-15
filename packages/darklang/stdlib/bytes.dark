@@ -8,7 +8,7 @@ module Darklang =
 
 
       /// Returns the number of bytes in <param bytes>
-      let length (bytes: Bytes) : Int = Builtin.Bytes.length bytes
+      let length (bytes: Bytes) : Int64 = Builtin.Bytes.length bytes
 
 
       /// Returns the concatenation of <param bytes1> and <param bytes2>

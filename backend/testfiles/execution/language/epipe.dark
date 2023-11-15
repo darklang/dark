@@ -1,17 +1,19 @@
 // function
-let userFn () : Int = 6L
+let userFn () : Int64 = 6L
 (() |> userFn) = 6L
 ([] |> PACKAGE.Darklang.Stdlib.List.push_v0 2L) = [ 2L ]
 
 // nested function
 ([]
  |> PACKAGE.Darklang.Stdlib.List.push_v0 (
-   PACKAGE.Darklang.Stdlib.Int.add_v0 1L (PACKAGE.Darklang.Stdlib.Int.add_v0 1L 3L)
+   PACKAGE.Darklang.Stdlib.Int64.add_v0
+     1L
+     (PACKAGE.Darklang.Stdlib.Int64.add_v0 1L 3L)
  )) = [ 5L ]
 
 ([]
  |> PACKAGE.Darklang.Stdlib.List.push_v0 (
-   PACKAGE.Darklang.Stdlib.Int.add_v0 1L ((+) 1L 3L)
+   PACKAGE.Darklang.Stdlib.Int64.add_v0 1L ((+) 1L 3L)
  )) = [ 5L ]
 
 ([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Builtin.Test.runtimeError "err")) = Builtin.Test.derrorMessage
@@ -23,7 +25,7 @@ let userFn () : Int = 6L
 ([ 5L ]
  |> PACKAGE.Darklang.Stdlib.List.head
  |> Builtin.unwrap
- |> PACKAGE.Darklang.Stdlib.Int.add_v0 1L
+ |> PACKAGE.Darklang.Stdlib.Int64.add_v0 1L
  |> (+) 3L
  |> (fun x -> if (x + 4L) > 1L then x else (1L + x))) = 9L
 
@@ -38,14 +40,14 @@ let userFn () : Int = 6L
   "Expected a function value, got something else: 1"
 
 // dict
-type Z = { a: List<Int> }
+type Z = { a: List<Int64> }
 type Y = { z: Z }
 type X = { y: Y }
 
 (let x = X { y = Y { z = Z { a = [ 1L; 2L; 3L; 4L; 5L ] } } } in
  (x.y.z.a |> PACKAGE.Darklang.Stdlib.List.length_v0)) = 5L
 
-type MyEnum = A of Int * Int * Int
+type MyEnum = A of Int64 * Int64 * Int64
 (33L |> MyEnum.A 21L 42L) = MyEnum.A 33L 21L 42L
 
 (3L |> PACKAGE.Darklang.Stdlib.Result.Result.Ok) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
@@ -119,11 +121,11 @@ module FnName =
   (let fn = (fun x -> x + 1L)
    6L |> fn) = 7L
 
-  (let fn = PACKAGE.Darklang.Stdlib.Int.add
+  (let fn = PACKAGE.Darklang.Stdlib.Int64.add
    3L |> fn 4L) = 7L
 
-  (let fn = PACKAGE.Darklang.Stdlib.Int.subtract
+  (let fn = PACKAGE.Darklang.Stdlib.Int64.subtract
    11L |> fn 4L) = 7L
 
-  (let fn = PACKAGE.Darklang.Stdlib.Int.max
+  (let fn = PACKAGE.Darklang.Stdlib.Int64.max
    3L |> fn 7L) = 7L

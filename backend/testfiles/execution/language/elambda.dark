@@ -54,7 +54,7 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
 (let pairs = [ (1L, "one"); (2L, "two"); (3L, "three") ] in
 
  let transformer =
-   fun (num, str) -> $"{PACKAGE.Darklang.Stdlib.Int.toString num}:{str}" in
+   fun (num, str) -> $"{PACKAGE.Darklang.Stdlib.Int64.toString num}:{str}" in
 
  PACKAGE.Darklang.Stdlib.List.map_v0 pairs transformer) = [ "1:one"
                                                             "2:two"
@@ -65,9 +65,9 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
  let transformer =
    fun (num, str, flag) ->
      if flag then
-       $"{PACKAGE.Darklang.Stdlib.Int.toString num}:{str}:TRUE"
+       $"{PACKAGE.Darklang.Stdlib.Int64.toString num}:{str}:TRUE"
      else
-       $"{PACKAGE.Darklang.Stdlib.Int.toString num}:{str}:FALSE" in
+       $"{PACKAGE.Darklang.Stdlib.Int64.toString num}:{str}:FALSE" in
 
  PACKAGE.Darklang.Stdlib.List.map_v0 triplets transformer) = [ "1:one:TRUE"
                                                                "2:two:FALSE" ]
@@ -87,9 +87,9 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
 //  let transformer =
 //    fun ((num, str), flag) ->
 //      if flag then
-//        $"{PACKAGE.Darklang.Stdlib.Int.toString num}:{str}:TRUE"
+//        $"{PACKAGE.Darklang.Stdlib.Int64.toString num}:{str}:TRUE"
 //      else
-//        $"{PACKAGE.Darklang.Stdlib.Int.toString num}:{str}:FALSE" in
+//        $"{PACKAGE.Darklang.Stdlib.Int64.toString num}:{str}:FALSE" in
 
 //  PACKAGE.Darklang.Stdlib.List.map_v0 triplets transformer) = [ "1:one:TRUE"
 //                                                                "2:two:FALSE" ]
@@ -97,7 +97,7 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
 (let triplets = [ (1L, "one", true); (2L, "two", false) ] in
 
  let transformer =
-   fun (num, str) -> $"{PACKAGE.Darklang.Stdlib.Int.toString num}:{str}" in
+   fun (num, str) -> $"{PACKAGE.Darklang.Stdlib.Int64.toString num}:{str}" in
 
  PACKAGE.Darklang.Stdlib.List.map_v0 triplets transformer) = Builtin.Test.derrorMessage
   "Tuple pattern has wrong number of elements"

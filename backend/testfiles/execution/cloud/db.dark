@@ -17,7 +17,7 @@ type XY = { x: String; y: String }
 type XYDB = XY
 
 
-type SortedX = { x: String; sortBy: Int }
+type SortedX = { x: String; sortBy: Int64 }
 
 [<DB>]
 type SortedXDB = SortedX
@@ -48,7 +48,7 @@ type TestEnumDB3 = MyEnum2
 
 
 // Nested field accessing
-type VeryInnerRecord = { age: Int }
+type VeryInnerRecord = { age: Int64 }
 type AliasOfVeryInnerRecord = VeryInnerRecord
 type InnerRecord = { numbers: AliasOfVeryInnerRecord }
 type OuterRecord = { name: String; details: InnerRecord }
@@ -244,15 +244,16 @@ type MyTlid =
 type MyTlidDB = MyTlid
 
 module addToTest =
-  (let test = Builtin.DB.set (MyTlid { mytlid = 1234L }) "test" MyTlidDB in
-   (Builtin.DB.getAll MyTlidDB)) = [ MyTlid { mytlid = 1234L } ]
+  (let test = Builtin.DB.set (MyTlid { mytlid = 1234UL }) "test" MyTlidDB in
+   (Builtin.DB.getAll MyTlidDB)) = [ MyTlid { mytlid = 1234UL } ]
 
 
 module Roundtrip =
   type Sample =
     { iNsEnSiTiVe: String
-      ``ALLCAPS``: Int
-      int: Int
+      ``ALLCAPS``: Int64
+      int: Int64
+      uint64: UInt64
       int8: Int8
       uint8: UInt8
       int16: Int16
@@ -271,12 +272,12 @@ module Roundtrip =
       char: Char
       emojiChar: Char
       uuid: Uuid
-      resultOk: PACKAGE.Darklang.Stdlib.Result.Result<Int, String>
-      resultError: PACKAGE.Darklang.Stdlib.Result.Result<Int, String>
-      option: PACKAGE.Darklang.Stdlib.Option.Option<Int>
-      tuple: (Int * String)
+      resultOk: PACKAGE.Darklang.Stdlib.Result.Result<Int64, String>
+      resultError: PACKAGE.Darklang.Stdlib.Result.Result<Int64, String>
+      option: PACKAGE.Darklang.Stdlib.Option.Option<Int64>
+      tuple: (Int64 * String)
       record: MyTlid
-      list: List<Int>
+      list: List<Int64>
       datetime: DateTime
       unit: Unit }
 
@@ -288,6 +289,7 @@ module Roundtrip =
       { iNsEnSiTiVe = "iNsEnSiTiVe"
         ``ALLCAPS`` = 1L
         int = 2L
+        uint64 = 2UL
         int8 = 2y
         uint8 = 2uy
         int16 = 2s
@@ -308,7 +310,7 @@ module Roundtrip =
         resultOk = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L
         resultError = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
         option = PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
-        record = MyTlid { mytlid = 1234L }
+        record = MyTlid { mytlid = 1234UL }
         tuple = (1L, "hello")
         emojiChar = (Builtin.Test.toChar "👍") |> Builtin.unwrap
         uuid =
@@ -324,6 +326,7 @@ module Roundtrip =
       { iNsEnSiTiVe = "normal"
         ``ALLCAPS`` = 2L
         int = 3L
+        uint64 = 3UL
         int8 = 3y
         uint8 = 3uy
         int16 = 4s
@@ -344,7 +347,7 @@ module Roundtrip =
         resultOk = PACKAGE.Darklang.Stdlib.Result.Result.Ok 6L
         resultError = PACKAGE.Darklang.Stdlib.Result.Result.Error "other test"
         option = PACKAGE.Darklang.Stdlib.Option.Option.None
-        record = MyTlid { mytlid = 1235L }
+        record = MyTlid { mytlid = 1235UL }
         tuple = (2L, "goodbye")
         emojiChar = 'e'
         uuid =
@@ -378,16 +381,16 @@ module Roundtrip =
     //   Builtin.Test.derrorSqlMessage "Incorrect type in variable, expected Bool, but got a Error"
 
     fetch (fun p -> p.int == "str") = Builtin.Test.derrorSqlMessage
-      "Incorrect type in String \"str\", expected Int, but got a String"
+      "Incorrect type in String \"str\", expected Int64, but got a String"
 
     fetch (fun p -> p.int != "str") = Builtin.Test.derrorSqlMessage
-      "Incorrect type in String \"str\", expected Int, but got a String"
+      "Incorrect type in String \"str\", expected Int64, but got a String"
 
     fetch (fun p -> "str" == p.int) = Builtin.Test.derrorSqlMessage
-      "Incorrect type in int, expected String, but got a Int"
+      "Incorrect type in int, expected String, but got a Int64"
 
     fetch (fun p -> "str" == p.int) = Builtin.Test.derrorSqlMessage
-      "Incorrect type in int, expected String, but got a Int"
+      "Incorrect type in int, expected String, but got a Int64"
 
     fetch (fun p -> p.iNsEnSiTiVe == "iNsEnSiTiVe") = [ sample () ]
     fetch (fun p -> p.iNsEnSiTiVe != "iNsEnSiTiVe") = [ otherSample () ]
@@ -400,6 +403,10 @@ module Roundtrip =
     fetch (fun p -> p.int == 2L) = [ sample () ]
     fetch (fun p -> p.int != 2L) = [ otherSample () ]
     fetch (fun p -> p.int == 200L) = []
+
+    fetch (fun p -> p.uint64 == 2UL) = [ sample () ]
+    fetch (fun p -> p.uint64 != 2UL) = [ otherSample () ]
+    fetch (fun p -> p.uint64 == 200UL) = []
 
     fetch (fun p -> p.int8 == 2y) = [ sample () ]
     fetch (fun p -> p.int8 != 2y) = [ otherSample () ]
@@ -595,7 +602,7 @@ module Get =
 
 
 module Params =
-  type Param<'a> = { x: 'a; b: Int }
+  type Param<'a> = { x: 'a; b: Int64 }
 
   [<DB>]
   type ParamDB = Param<String>
@@ -719,10 +726,10 @@ module Count =
 type Person =
   { name: String
     human: Bool
-    height: Int
+    height: Int64
     income: Float
     dob: DateTime
-    age: Int }
+    age: Int64 }
 
 [<DB>]
 type PersonDB = Person
@@ -730,11 +737,11 @@ type PersonDB = Person
 let addFriend
   (key: String)
   (name: String)
-  (height: Int)
+  (height: Int64)
   (human: Bool)
   (dob: String)
   (income: Float)
-  (age: Int)
+  (age: Int64)
   : Person =
   let dob = (PACKAGE.Darklang.Stdlib.DateTime.parse dob) |> Builtin.unwrap in
 
@@ -775,7 +782,7 @@ let friends (lambda: ('a -> Bool)) : List<String> =
 
 // Test standard language features
 module FindAll =
-  type T2 = { field2: Int }
+  type T2 = { field2: Int64 }
   type T1 = { field1: T2 }
 
   (friends (fun p -> true)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
@@ -817,9 +824,9 @@ module FindAll =
 
   // inlining package functions
   (friends (fun p ->
-    let x = p.height in true && PACKAGE.Darklang.Stdlib.Int.greaterThan_v0 x 32L)) = [ " Chandler "
-                                                                                       "Rachel"
-                                                                                       "Ross" ]
+    let x = p.height in true && PACKAGE.Darklang.Stdlib.Int64.greaterThan_v0 x 32L)) = [ " Chandler "
+                                                                                         "Rachel"
+                                                                                         "Ross" ]
 
   // inlining user functions
   let userAnd (a: Bool) (b: Bool) : Bool = PACKAGE.Darklang.Stdlib.Bool.and_v0 a b
@@ -827,10 +834,10 @@ module FindAll =
   let userStringContains (user: Person) (str: String) : Bool =
     PACKAGE.Darklang.Stdlib.String.contains_v0 user.name str
 
-  let userLessThan (user: Person) (height: Int) : Bool =
-    Builtin.Int.lessThan_v0 user height
+  let userLessThan (user: Person) (height: Int64) : Bool =
+    Builtin.Int64.lessThan_v0 user height
 
-  let userAdd (a: Int) (b: Int) : Int = a + b
+  let userAdd (a: Int64) (b: Int64) : Int64 = a + b
 
   (friends (fun p -> userAnd (true || false) (p.height > 66L))) = [ " Chandler "
                                                                     "Ross" ]
@@ -872,15 +879,15 @@ module FindAll =
 
 
   // Tests for functions that are inlined 2-3 functions deep
-  let nestedUserFn (user: Person) (height: Int) : Bool =
+  let nestedUserFn (user: Person) (height: Int64) : Bool =
     userAnd user.human (userLessThan user.height height)
 
-  let anotherNestedUserFn (user: Person) (height: Int) : Bool =
+  let anotherNestedUserFn (user: Person) (height: Int64) : Bool =
     userAnd
       user.human
-      (PACKAGE.Darklang.Stdlib.Int.lessThan_v0
+      (PACKAGE.Darklang.Stdlib.Int64.lessThan_v0
         user.height
-        (PACKAGE.Darklang.Stdlib.Int.add height 1L))
+        (PACKAGE.Darklang.Stdlib.Int64.add height 1L))
 
 
   (friends (fun p -> nestedUserFn p 68L)) = [ "Rachel" ]
@@ -896,7 +903,7 @@ module FindAll =
   //(friends (fun p -> p.height < x)) = ["GrumpyCat"]
 
   // fieldaccess
-  type IntField = { x: Int }
+  type IntField = { x: Int64 }
 
   (friends (fun p -> let obj = IntField { x = 42L } in p.height > obj.x)) = [ " Chandler "
                                                                               "Rachel"
@@ -910,7 +917,7 @@ module FindAll =
 
   (let x = "not int"
    friends (fun p -> p.height > x)) = Builtin.Test.derrorSqlMessage
-    "Variable `x` should be an Int. However, a String (\"not int\") was passed instead.\n\nExpected: (x: Int)\nActual: a String: \"not int\""
+    "Variable `x` should be an Int64. However, a String (\"not int\") was passed instead.\n\nExpected: (x: Int64)\nActual: a String: \"not int\""
 
   // lambda doesnt return a bool
   friendsError (fun p -> "x") = Builtin.Test.derrorSqlMessage
@@ -949,29 +956,29 @@ module CompiledFunctions =
     PACKAGE.Darklang.Stdlib.Float.greaterThanOrEqualTo_v0 82.10 p.income)) = [ "GrumpyCat"
                                                                                "Rachel" ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.lessThanOrEqualTo_v0 p.height 65L)) = [ "GrumpyCat"
-                                                                                         "Rachel" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int64.lessThanOrEqualTo_v0 p.height 65L)) = [ "GrumpyCat"
+                                                                                           "Rachel" ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.lessThan_v0 p.height 65L)) = [ "GrumpyCat" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int64.lessThan_v0 p.height 65L)) = [ "GrumpyCat" ]
 
   (friends (fun p ->
-    PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo_v0 p.height 65L)) = [ " Chandler "
-                                                                           "Rachel"
-                                                                           "Ross" ]
+    PACKAGE.Darklang.Stdlib.Int64.greaterThanOrEqualTo_v0 p.height 65L)) = [ " Chandler "
+                                                                             "Rachel"
+                                                                             "Ross" ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.greaterThan_v0 p.height 65L)) = [ " Chandler "
-                                                                                   "Ross" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int64.greaterThan_v0 p.height 65L)) = [ " Chandler "
+                                                                                     "Ross" ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.add p.height 1L == 11L)) = [ "GrumpyCat" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int64.add p.height 1L == 11L)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.subtract p.height 3L == 69L)) = [ " Chandler " ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int64.subtract p.height 3L == 69L)) = [ " Chandler " ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.multiply_v0 p.height 2L == 146L)) = [ "Ross" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int64.multiply_v0 p.height 2L == 146L)) = [ "Ross" ]
 
-  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int.divide_v0 p.height 2L == 5L)) = [ "GrumpyCat" ]
+  (friends (fun p -> PACKAGE.Darklang.Stdlib.Int64.divide_v0 p.height 2L == 5L)) = [ "GrumpyCat" ]
 
   // TODO: This test should pass, but it is causing an infinite recursion
-  // (friends (fun p -> (PACKAGE.Darklang.Stdlib.Int.power p.height 2) == PACKAGE.Darklang.Stdlib.Result.Result.Ok(100))) = [ "GrumpyCat" ]
+  // (friends (fun p -> (PACKAGE.Darklang.Stdlib.Int64.power p.height 2) == PACKAGE.Darklang.Stdlib.Result.Result.Ok(100))) = [ "GrumpyCat" ]
 
   (friends (fun p -> PACKAGE.Darklang.Stdlib.String.toLowercase p.name == "rachel")) = [ "Rachel" ]
   (friends (fun p -> PACKAGE.Darklang.Stdlib.String.toUppercase p.name == "RACHEL")) = [ "Rachel" ]
@@ -1110,9 +1117,9 @@ module CompiledFunctions =
       p.income
       PACKAGE.Darklang.Test.Constants.floatConst)) = [ "GrumpyCat" ]
 
-  // Int
+  // Int64
   (friends (fun p ->
-    PACKAGE.Darklang.Stdlib.Int.greaterThanOrEqualTo
+    PACKAGE.Darklang.Stdlib.Int64.greaterThanOrEqualTo
       p.height
       PACKAGE.Darklang.Test.Constants.intConst)) = [ " Chandler "
                                                      "GrumpyCat"
@@ -1127,10 +1134,10 @@ module CompiledFunctions =
 
 
 module PartialEvaluation =
-  type A = { a: Int }
+  type A = { a: Int64 }
   type Z = { z: A }
   type Y = { y: Z }
-  type AL = { a: List<Int> }
+  type AL = { a: List<Int64> }
   type ZL = { z: AL }
   type YL = { y: ZL }
   // fieldAccesses outside query

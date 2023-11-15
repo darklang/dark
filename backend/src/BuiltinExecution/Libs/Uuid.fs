@@ -49,7 +49,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "uuid" TString "" ]
       returnType =
         TypeReference.result
-          TInt
+          TInt64
           (TCustomType(
             Ok(
               FQName.Package

@@ -49,8 +49,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DUInt16 v; DUInt16 m ] ->
           if m = 0us then
-            Int.IntRuntimeError.Error.ZeroModulus
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.ZeroModulus
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
           else
@@ -75,8 +75,8 @@ let fns : List<BuiltInFn> =
             let result = Checked.(+) a b
             Ply(DUInt16(result))
           with :? System.OverflowException ->
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
 
@@ -98,8 +98,8 @@ let fns : List<BuiltInFn> =
             let result = Checked.(-) a b
             Ply(DUInt16(result))
           with :? System.OverflowException ->
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
 
@@ -121,8 +121,8 @@ let fns : List<BuiltInFn> =
             let result = Checked.(*) a b
             Ply(DUInt16(result))
           with :? System.OverflowException ->
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
 
@@ -146,8 +146,8 @@ let fns : List<BuiltInFn> =
           (try
             (bigint number) ** (int exp) |> uint16 |> DUInt16 |> Ply
            with :? System.OverflowException ->
-             Int.IntRuntimeError.Error.OutOfRange
-             |> Int.IntRuntimeError.RTE.toRuntimeError
+             Int64.IntRuntimeError.Error.OutOfRange
+             |> Int64.IntRuntimeError.RTE.toRuntimeError
              |> raiseRTE state.caller
              |> Ply)
         | _ -> incorrectArgs ())
@@ -165,8 +165,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DUInt16 a; DUInt16 b ] ->
           if b = 0us then
-            Int.IntRuntimeError.Error.DivideByZeroError
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.DivideByZeroError
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
           else
@@ -174,8 +174,8 @@ let fns : List<BuiltInFn> =
             if
               result < System.UInt16.MinValue || result > System.UInt16.MaxValue
             then
-              Int.IntRuntimeError.Error.OutOfRange
-              |> Int.IntRuntimeError.RTE.toRuntimeError
+              Int64.IntRuntimeError.Error.OutOfRange
+              |> Int64.IntRuntimeError.RTE.toRuntimeError
               |> raiseRTE state.caller
               |> Ply
             else
@@ -355,13 +355,13 @@ let fns : List<BuiltInFn> =
 
     { name = fn "fromInt64" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
+      parameters = [ Param.make "a" TInt64 "" ]
       returnType = TypeReference.option TUInt16
       description =
         "Converts an int64 to a 16 bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 65535."
       fn =
         (function
-        | _, _, [ DInt a ] ->
+        | _, _, [ DInt64 a ] ->
           if
             (a < int64 System.UInt16.MinValue) || (a > int64 System.UInt16.MaxValue)
           then

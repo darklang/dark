@@ -1,5 +1,5 @@
 [http-handler POST /]
-(let body = request.body |> PACKAGE.Darklang.Stdlib.Bytes.length |> PACKAGE.Darklang.Stdlib.Int.toString |> PACKAGE.Darklang.Stdlib.String.toBytes_v0 in
+(let body = request.body |> PACKAGE.Darklang.Stdlib.Bytes.length |> PACKAGE.Darklang.Stdlib.Int64.toString |> PACKAGE.Darklang.Stdlib.String.toBytes_v0 in
 PACKAGE.Darklang.Stdlib.Http.response body 200L)
 
 [request]

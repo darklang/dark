@@ -62,7 +62,7 @@ let fns : List<BuiltInFn> =
           let typeName =
             TypeName.fqPackage "Darklang" [ "Stdlib"; "Process" ] "Result" 0
           let fields =
-            [ "exitCode", DInt p.ExitCode
+            [ "exitCode", DInt64 p.ExitCode
               "stdout", DString stdout
               "stderr", DString stderr ]
           DRecord(typeName, typeName, [], Map fields) |> Ply

@@ -69,7 +69,7 @@ let fns : List<BuiltInFn> =
     { name = fn "runtimeError" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Return a value representing a type error"
       fn =
         (function
@@ -143,11 +143,11 @@ let fns : List<BuiltInFn> =
     { name = fn "sideEffectCount" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Return the value of the side-effect counter"
       fn =
         (function
-        | state, _, [ DUnit ] -> Ply(Dval.int state.test.sideEffectCount)
+        | state, _, [ DUnit ] -> Ply(Dval.int64 state.test.sideEffectCount)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -219,7 +219,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "asBytes" 0
       typeParams = []
-      parameters = [ Param.make "list" (TList TInt) "" ]
+      parameters = [ Param.make "list" (TList TInt64) "" ]
       returnType = TBytes
       description = "Turns a list of ints into bytes"
       fn =
@@ -228,7 +228,7 @@ let fns : List<BuiltInFn> =
           l
           |> List.map (fun x ->
             match x with
-            | DInt x -> byte x
+            | DInt64 x -> byte x
             | _ -> incorrectArgs ())
           |> Array.ofList
           |> DBytes
@@ -255,7 +255,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "intArrayToBytes" 0
       typeParams = []
-      parameters = [ Param.make "bytes" (TList TInt) "" ]
+      parameters = [ Param.make "bytes" (TList TInt64) "" ]
       returnType = TBytes
       description = "Create a bytes structure from an array of ints"
       fn =
@@ -265,7 +265,7 @@ let fns : List<BuiltInFn> =
           |> List.toArray
           |> Array.map (fun dval ->
             match dval with
-            | DInt i -> byte i
+            | DInt64 i -> byte i
             | other -> raiseString $"Expected int, got {other}")
           |> DBytes
           |> Ply
@@ -310,12 +310,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "setExpectedExceptionCount" 0
       typeParams = []
-      parameters = [ Param.make "count" TInt "" ]
+      parameters = [ Param.make "count" TInt64 "" ]
       returnType = TUnit
       description = "Set the expected exception count for the current test"
       fn =
         (function
-        | state, _, [ DInt count ] ->
+        | state, _, [ DInt64 count ] ->
           uply {
             state.test.expectedExceptionCount <- int count
             return DUnit

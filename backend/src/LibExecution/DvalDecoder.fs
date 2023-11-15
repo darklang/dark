@@ -33,17 +33,64 @@ let stringListField (name : string) (m : DvalMap) : List<string> =
 let int64Field (name : string) (m : DvalMap) : int64 =
   m
   |> field name
-  |> Dval.asInt
-  |> unwrap $"Expected '{name}' field to be an int" []
+  |> Dval.asInt64
+  |> unwrap $"Expected '{name}' field to be an int64" []
 
 let uint64Field (name : string) (m : DvalMap) : uint64 =
   m
   |> field name
-  |> Dval.asInt
-  |> unwrap $"Expected '{name}' field to be an int" []
-  |> uint64
+  |> Dval.asUInt64
+  |> unwrap $"Expected '{name}' field to be an uint64" []
 
 let intField (name : string) (m : DvalMap) : int = m |> int64Field name |> int
+
+let int8Field (name : string) (m : DvalMap) : int8 =
+  m
+  |> field name
+  |> Dval.asInt8
+  |> unwrap $"Expected '{name}' field to be an int8" []
+
+let uint8Field (name : string) (m : DvalMap) : uint8 =
+  m
+  |> field name
+  |> Dval.asUInt8
+  |> unwrap $"Expected '{name}' field to be a uint8" []
+
+let int16Field (name : string) (m : DvalMap) : int16 =
+  m
+  |> field name
+  |> Dval.asInt16
+  |> unwrap $"Expected '{name}' field to be an int16" []
+
+let uint16Field (name : string) (m : DvalMap) : uint16 =
+  m
+  |> field name
+  |> Dval.asUInt16
+  |> unwrap $"Expected '{name}' field to be a uint16" []
+
+let int32Field (name : string) (m : DvalMap) : int32 =
+  m
+  |> field name
+  |> Dval.asInt32
+  |> unwrap $"Expected '{name}' field to be an int32" []
+
+let uint32Field (name : string) (m : DvalMap) : uint32 =
+  m
+  |> field name
+  |> Dval.asUInt32
+  |> unwrap $"Expected '{name}' field to be a uint32" []
+
+let int128Field (name : string) (m : DvalMap) : System.Int128 =
+  m
+  |> field name
+  |> Dval.asInt128
+  |> unwrap $"Expected '{name}' field to be an int128" []
+
+let uint128Field (name : string) (m : DvalMap) : System.UInt128 =
+  m
+  |> field name
+  |> Dval.asUInt128
+  |> unwrap $"Expected '{name}' field to be a uint128" []
 
 let uuidField (name : string) (m : DvalMap) : System.Guid =
   m

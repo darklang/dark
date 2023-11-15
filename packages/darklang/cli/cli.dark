@@ -9,7 +9,7 @@ module Darklang =
       | Invalid of List<String>
 
 
-    let showFn (name: String) (owner: String) (modules: List<String>) : Int =
+    let showFn (name: String) (owner: String) (modules: List<String>) : Int64 =
       let fns =
         PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
@@ -61,7 +61,7 @@ module Darklang =
 
         result
 
-    let showType (name: String) (owner: String) (modules: List<String>) : Int =
+    let showType (name: String) (owner: String) (modules: List<String>) : Int64 =
       let types =
         PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
@@ -112,7 +112,7 @@ module Darklang =
 
         result
 
-    let showConstant (name: String) (owner: String) (modules: List<String>) : Int =
+    let showConstant (name: String) (owner: String) (modules: List<String>) : Int64 =
       let constants =
         PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
@@ -166,7 +166,7 @@ module Darklang =
 
         result
 
-    let showModule (name: String) : Int =
+    let showModule (name: String) : Int64 =
       let modules =
         PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
@@ -209,7 +209,7 @@ module Darklang =
           Builtin.printLine result
           0
 
-    let showPackage (owner: String) : Int =
+    let showPackage (owner: String) : Int64 =
       let packages =
         PACKAGE.Darklang.Stdlib.HttpClient.request
           "GET"
@@ -238,7 +238,7 @@ module Darklang =
       parsedPackages
 
 
-    let runFunction (fnName: String) (args: List<String>) : Int =
+    let runFunction (fnName: String) (args: List<String>) : Int64 =
       match Builtin.Cli.executeFunction fnName args with
       | Ok result ->
         Builtin.printLine result
@@ -248,7 +248,7 @@ module Darklang =
         1L
 
 
-    let generateCode (prompt: String) (scriptPath: String) : Int =
+    let generateCode (prompt: String) (scriptPath: String) : Int64 =
 
       let systemPrompt =
         (Builtin.File.read "canvases/dark-editor/system-prompt-cli.txt")
@@ -294,7 +294,7 @@ module Darklang =
       | _ -> Command.Invalid [ "Invalid arguments" ]
 
 
-    let executeCommand (command: Command) : Int =
+    let executeCommand (command: Command) : Int64 =
       match command with
       | RunScript(scriptPath, args) ->
         match Builtin.File.read scriptPath with
@@ -405,7 +405,7 @@ Options:
         1L
 
 
-    let executeCliCommand (args: List<String>) : Int =
+    let executeCliCommand (args: List<String>) : Int64 =
       args
       |> PACKAGE.Darklang.Cli.parseArguments
       |> PACKAGE.Darklang.Cli.executeCommand

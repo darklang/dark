@@ -51,7 +51,7 @@ module ExecutionError =
       match e with
       | MatchExprEnumPatternWrongCount(caseName, expected, actual) ->
         "MatchExprEnumPatternWrongCount",
-        [ DString caseName; DInt expected; DInt actual ]
+        [ DString caseName; DInt64 expected; DInt64 actual ]
 
       | MatchExprPatternWrongType(expected, actual) ->
         "MatchExprPatternWrongType", [ DString expected; RT2DT.Dval.toDT actual ]
@@ -71,7 +71,8 @@ module ExecutionError =
 let rec evalConst (source : Source) (c : Const) : Dval =
   let r = evalConst source
   match c with
-  | CInt i -> DInt i
+  | CInt64 i -> DInt64 i
+  | CUInt64 i -> DUInt64 i
   | CInt8 i -> DInt8 i
   | CUInt8 i -> DUInt8 i
   | CInt16 i -> DInt16 i
@@ -175,7 +176,7 @@ let rec eval
           // Here we have found an alias, so we need to combine the type's
           // typeArgs with the aliased type's typeParams.
           // Eg in
-          //   type Var = Result<Int, String>
+          //   type Var = Result<Int64, String>
           // we need to combine Var's typeArgs (<Int, String>) with Result's
           // typeParams (<`Ok, `Error>)
           //
@@ -191,9 +192,9 @@ let rec eval
           //   innerTypeParams = ["x"; "y"]
           //   fields = [("x", TVar "x"); ("y", TVar "y")]
           // The Outer definition provides:
-          //   outerTypeArgs = [TVar "a"; TInt]
+          //   outerTypeArgs = [TVar "a"; TInt64]
           // We combine this with innerTypeParams to get:
-          //   fields = [("x", TVar "a"); ("y", TInt)]
+          //   fields = [("x", TVar "a"); ("y", TInt64)]
           //   outerTypeParams = ["a"]
           // So the effective result of this is:
           //   type Outer<'a> = { x : 'a; y : Int }
@@ -292,7 +293,8 @@ let rec eval
           })
       return segments |> String.concat "" |> String.normalize |> DString
     | EBool(_id, b) -> return DBool b
-    | EInt(_id, i) -> return DInt i
+    | EInt64(_id, i) -> return DInt64 i
+    | EUInt64(_id, i) -> return DUInt64 i
     | EInt8(_id, i) -> return DInt8 i
     | EUInt8(_id, i) -> return DUInt8 i
     | EInt16(_id, i) -> return DInt16 i
@@ -507,12 +509,23 @@ let rec eval
         : Ply<bool * List<string * Dval>> =
         uply {
           match pattern with
-          | MPInt(id, pi) ->
+          | MPInt64(id, pi) ->
             match dv with
-            | DInt di -> return (di = pi), []
+            | DInt64 di -> return (di = pi), []
             | _ ->
               return!
-                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Int", dv))
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("Int64", dv))
+
+          | MPUInt64(id, pi) ->
+            match dv with
+            | DUInt64 di -> return (di = pi), []
+            | _ ->
+              return!
+                raiseExeRTE
+                  id
+                  (ExecutionError.MatchExprPatternWrongType("UInt64", dv))
 
           | MPInt8(id, pi) ->
             match dv with

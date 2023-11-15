@@ -81,12 +81,12 @@ module Error =
 
   module Location =
     let toDT (location : Location) : Dval =
-      let optType = KTTuple(VT.int, VT.int, [])
+      let optType = KTTuple(VT.int64, VT.int64, [])
       match location with
       | None -> Dval.optionNone optType
       | Some(tlid, id) ->
-        let tlid = DInt(int64 tlid)
-        let id = DInt(int64 id)
+        let tlid = DInt64(int64 tlid)
+        let id = DInt64(int64 id)
         Dval.optionSome optType (DTuple(tlid, id, []))
 
 
@@ -98,7 +98,7 @@ module Error =
           "FunctionCallParameter",
           [ RT2DT.FnName.toDT fnName
             RT2DT.Param.toDT param
-            DInt paramIndex
+            DInt64 paramIndex
             Location.toDT location ]
 
         | FunctionCallResult(fnName, returnType, location) ->
@@ -127,8 +127,8 @@ module Error =
           "EnumField",
           [ RT2DT.TypeName.toDT enumTypeName
             DString caseName
-            DInt fieldIndex
-            DInt fieldCount
+            DInt64 fieldIndex
+            DInt64 fieldCount
             RT2DT.TypeReference.toDT fieldType
             Location.toDT location ]
 
@@ -145,11 +145,12 @@ module Error =
             Location.toDT location ]
 
         | ListIndex(index, listTyp, parent) ->
-          "ListIndex", [ DInt index; RT2DT.TypeReference.toDT listTyp; toDT parent ]
+          "ListIndex",
+          [ DInt64 index; RT2DT.TypeReference.toDT listTyp; toDT parent ]
 
         | TupleIndex(index, elementType, parent) ->
           "TupleIndex",
-          [ DInt index; RT2DT.TypeReference.toDT elementType; toDT parent ]
+          [ DInt64 index; RT2DT.TypeReference.toDT elementType; toDT parent ]
 
         | FnValResult(returnType, location) ->
           "FnValResult",
@@ -222,7 +223,8 @@ let rec valueTypeUnifies
 
     | TUnit, ValueType.Known KTUnit -> return true
     | TBool, ValueType.Known KTBool -> return true
-    | TInt, ValueType.Known KTInt -> return true
+    | TInt64, ValueType.Known KTInt64 -> return true
+    | TUInt64, ValueType.Known KTUInt64 -> return true
     | TInt8, ValueType.Known KTInt8 -> return true
     | TUInt8, ValueType.Known KTUInt8 -> return true
     | TInt16, ValueType.Known KTInt16 -> return true
@@ -306,7 +308,8 @@ let rec unify
         // further arguments and return values.
         | None -> return Ok()
         | Some t -> return! unify context types tst t value
-      | TInt, DInt _ -> return Ok()
+      | TInt64, DInt64 _ -> return Ok()
+      | TUInt64, DUInt64 _ -> return Ok()
       | TInt8, DInt8 _ -> return Ok()
       | TUInt8, DUInt8 _ -> return Ok()
       | TInt16, DInt16 _ -> return Ok()
@@ -459,7 +462,8 @@ let rec unify
       | TTuple _, _
       | TCustomType _, _
       | TVariable _, _
-      | TInt, _
+      | TInt64, _
+      | TUInt64, _
       | TInt8, _
       | TUInt8, _
       | TInt16, _
@@ -540,11 +544,11 @@ let checkFunctionReturnType
 ///
 /// Dvals should be created carefully:
 /// - to have the correct valueTypes, where appropriate
-///  i.e. we should not have DList(Known KTInt, [ DString("hi") ])
+///  i.e. we should not have DList(Known KTInt64, [ DString("hi") ])
 ///
 /// - similarly, we should fail when trying to merge Dvals with conflicting valueTypes
 ///   i.e. `List.append [1] ["hi"]` should fail
-///   because we can't merge `Known KTInt` and `Known KTString`
+///   because we can't merge `Known KTInt64` and `Known KTString`
 ///
 /// These functions are intended to help with both of these, in cases where
 /// the functions in Dval.fs are insufficient (i.e. we don't know the Dark sub-types

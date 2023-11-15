@@ -8,17 +8,17 @@ module Darklang =
     let twoStringFn (str1: String) (str2: String) : String =
       str1 ++ " appended " ++ str2
 
-    let returnsInt () : Int = 5L
+    let returnsInt () : Int64 = 5L
 
     let returnsString () : String = "string"
 
-    let returnsOptionSome () : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
+    let returnsOptionSome () : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
       PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
 
     let returnsOptionNone () : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
       PACKAGE.Darklang.Stdlib.Option.Option.None
 
-    let returnsResultOk () : PACKAGE.Darklang.Stdlib.Result.Result<Int, String> =
+    let returnsResultOk () : PACKAGE.Darklang.Stdlib.Result.Result<Int64, String> =
       PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L
 
     let returnsResultError () : PACKAGE.Darklang.Stdlib.Result.Result<Char, Bool> =
@@ -30,7 +30,7 @@ module Darklang =
     let derrorFn (msg: String) : String = msg ++ Builtin.Test.runtimeError msg
 
     type X<'a> =
-      | A of Int
+      | A of Int64
       | B of 'a
 
     let polyFn (a: X<'a>) : X<'a> = a
@@ -42,6 +42,7 @@ module Darklang =
       let int128Const = 5Q
       let uint128Const = 5Z
       let intConst = 5L
+      let uint64Const = 5UL
       let int32Const = 5l
       let uint32Const = 5ul
       let int16Const = 5s

@@ -308,7 +308,7 @@ let runLocalExecScript (args : string[]) : Ply<int> =
       System.Console.WriteLine source
       // System.Console.WriteLine $"module is: {modul}"
       return 1
-    | Ok(RT.DInt i) -> return (int i)
+    | Ok(RT.DInt64 i) -> return (int i)
     | Ok dval ->
       let output = LibExecution.DvalReprDeveloper.toRepr dval
       System.Console.WriteLine

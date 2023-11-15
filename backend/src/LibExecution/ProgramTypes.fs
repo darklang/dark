@@ -331,7 +331,8 @@ type LetPattern =
 type MatchPattern =
   | MPVariable of id * string
   | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
-  | MPInt of id * int64
+  | MPInt64 of id * int64
+  | MPUInt64 of id * uint64
   | MPInt8 of id * int8
   | MPUInt8 of id * uint8
   | MPInt16 of id * int16
@@ -378,7 +379,8 @@ type Infix =
 /// - user-defined enums
 /// - etc.
 type TypeReference =
-  | TInt
+  | TInt64
+  | TUInt64
   | TInt8
   | TUInt8
   | TInt16
@@ -404,14 +406,15 @@ type TypeReference =
   | TFn of NEList<TypeReference> * TypeReference
 
   /// A type defined by a standard library module, a canvas/user, or a package
-  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
+  /// e.g. `Result<Int64, String>` is represented as `TCustomType("Result", [TInt64, TString])`
   /// `typeArgs` is the list of type arguments, if any
   | TCustomType of NameResolution<TypeName.TypeName> * typeArgs : List<TypeReference>
 
 
 /// Expressions - the main part of the language.
 type Expr =
-  | EInt of id * int64
+  | EInt64 of id * int64
+  | EUInt64 of id * uint64
   | EInt8 of id * int8
   | EUInt8 of id * uint8
   | EInt16 of id * int16
@@ -489,7 +492,7 @@ type Expr =
   /// , this is the expression
   ///   `C (1, "title")`
   /// represented as
-  ///   `EEnum(Some UserType.MyEnum, "C", [EInt(1), EString("title")]`
+  ///   `EEnum(Some UserType.MyEnum, "C", [EInt64(1), EString("title")]`
   | EEnum of
     id *
     typeName : NameResolution<TypeName.TypeName> *
@@ -530,7 +533,8 @@ and PipeExpr =
 module Expr =
   let toID (expr : Expr) : id =
     match expr with
-    | EInt(id, _)
+    | EInt64(id, _)
+    | EUInt64(id, _)
     | EInt8(id, _)
     | EUInt8(id, _)
     | EInt16(id, _)
@@ -583,7 +587,7 @@ module TypeDeclaration =
 
   /// The right-hand-side of the declaration: eg List<'a>
   type Definition =
-    /// `type MyAlias = Int`
+    /// `type MyAlias = Int64`
     | Alias of TypeReference
 
     /// `type MyRecord = { a : int; b : string }`
@@ -656,7 +660,8 @@ module UserType =
 
 
 type Const =
-  | CInt of int64
+  | CInt64 of int64
+  | CUInt64 of uint64
   | CInt8 of int8
   | CUInt8 of uint8
   | CInt16 of int16

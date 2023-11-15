@@ -24,7 +24,7 @@ module Darklang =
             if t.version == 0L then
               ""
             else
-              $"_v{PACKAGE.Darklang.Stdlib.Int.toString t.version}"
+              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString t.version}"
 
           $"{modulesPart}{namePart}{versionPart}"
 
@@ -45,7 +45,7 @@ module Darklang =
             if u.version == 0L then
               ""
             else
-              $"_v{PACKAGE.Darklang.Stdlib.Int.toString u.version}"
+              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString u.version}"
 
           $"{modulesPart}{namePart}{versionPart}"
 
@@ -60,7 +60,7 @@ module Darklang =
             if p.version == 0L then
               ""
             else
-              $"_v{PACKAGE.Darklang.Stdlib.Int.toString p.version}"
+              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString p.version}"
 
           $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
 
@@ -179,7 +179,8 @@ module Darklang =
         match t with
         | TUnit -> "Unit"
         | TBool -> "Bool"
-        | TInt -> "Int"
+        | TInt64 -> "Int64"
+        | TUInt64 -> "UInt64"
         | TInt8 -> "Int8"
         | TUInt8 -> "UInt8"
         | TInt16 -> "Int16"
@@ -240,7 +241,8 @@ module Darklang =
         match t with
         | KTUnit -> "Unit"
         | KTBool -> "Bool"
-        | KTInt -> "Int"
+        | KTInt64 -> "Int64"
+        | KTUInt64 -> "UInt64"
         | KTInt8 -> "Int8"
         | KTUInt8 -> "UInt8"
         | KTInt16 -> "Int16"
@@ -298,13 +300,13 @@ module Darklang =
           : String =
           dv |> LanguageTools.RuntimeTypes.Dval.toValueType |> valueType
 
-        let makeSpaces (len: Int) : String =
+        let makeSpaces (len: Int64) : String =
           (PACKAGE.Darklang.Stdlib.List.repeat len " ")
           |> Builtin.unwrap
           |> PACKAGE.Darklang.Stdlib.String.join ""
 
         let withIndent
-          (indent: Int)
+          (indent: Int64)
           (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval)
           : String =
           let nl = "\n" ++ (makeSpaces indent)
@@ -324,7 +326,8 @@ module Darklang =
             $"'{c}'"
           | DString s -> $"\"{s}\""
 
-          | DInt i -> Builtin.Int.toString i
+          | DInt64 i -> Builtin.Int64.toString i
+          | DUInt64 i -> Builtin.UInt64.toString i
           | DInt8 i -> Builtin.Int8.toString i
           | DUInt8 i -> Builtin.UInt8.toString i
           | DInt16 i -> Builtin.Int16.toString i

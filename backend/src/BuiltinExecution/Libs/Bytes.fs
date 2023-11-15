@@ -55,11 +55,12 @@ let fns : List<BuiltInFn> =
     { name = fn "length" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Returns the number of bytes in <param bytes>"
       fn =
         (function
-        | _, _, [ DBytes bytes ] -> bytes |> Array.length |> Dval.int |> Ply
+        | _, _, [ DBytes bytes ] ->
+          bytes |> Array.length |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

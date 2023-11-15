@@ -11,7 +11,8 @@ module Dval = LibExecution.Dval
 
 let rec equals (a : Dval) (b : Dval) : bool =
   match a, b with
-  | DInt a, DInt b -> a = b
+  | DInt64 a, DInt64 b -> a = b
+  | DUInt64 a, DUInt64 b -> a = b
   | DInt8 a, DInt8 b -> a = b
   | DUInt8 a, DUInt8 b -> a = b
   | DInt16 a, DInt16 b -> a = b
@@ -59,7 +60,8 @@ let rec equals (a : Dval) (b : Dval) : bool =
     a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 equals a3 b3
 
   // exhaustiveness check
-  | DInt _, _
+  | DInt64 _, _
+  | DUInt64 _, _
   | DInt8 _, _
   | DUInt8 _, _
   | DInt16 _, _
@@ -102,7 +104,8 @@ and equalsSymtable (a : Symtable) (b : Symtable) : bool =
 
 and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   match expr1, expr2 with
-  | EInt(_, int1), EInt(_, int2) -> int1 = int2
+  | EInt64(_, int1), EInt64(_, int2) -> int1 = int2
+  | EUInt64(_, int1), EUInt64(_, int2) -> int1 = int2
   | EInt8(_, int1), EInt8(_, int2) -> int1 = int2
   | EUInt8(_, int1), EUInt8(_, int2) -> int1 = int2
   | EInt16(_, int1), EInt16(_, int2) -> int1 = int2
@@ -197,7 +200,8 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     msg = msg2 && List.forall2 equalsExpr exprs exprs2
 
   // exhaustiveness check
-  | EInt _, _
+  | EInt64 _, _
+  | EUInt64 _, _
   | EInt8 _, _
   | EUInt8 _, _
   | EInt16 _, _
@@ -271,7 +275,8 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
     tag1 = tag2
     && args1.Length = args2.Length
     && List.forall2 equalsMatchPattern args1 args2
-  | MPInt(_, int1), MPInt(_, int2) -> int1 = int2
+  | MPInt64(_, int1), MPInt64(_, int2) -> int1 = int2
+  | MPUInt64(_, int1), MPUInt64(_, int2) -> int1 = int2
   | MPInt8(_, int1), MPInt8(_, int2) -> int1 = int2
   | MPUInt8(_, int1), MPUInt8(_, int2) -> int1 = int2
   | MPInt16(_, int1), MPInt16(_, int2) -> int1 = int2
@@ -297,7 +302,8 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
   // exhaustiveness check
   | MPVariable _, _
   | MPEnum _, _
-  | MPInt _, _
+  | MPInt64 _, _
+  | MPUInt64 _, _
   | MPInt8 _, _
   | MPUInt8 _, _
   | MPInt16 _, _

@@ -19,14 +19,14 @@ PACKAGE.Darklang.Stdlib.Option.andThen_v0
   (PACKAGE.Darklang.Stdlib.Option.Option.Some 8L)
   (fun x ->
     PACKAGE.Darklang.Stdlib.Option.Option.Some(
-      PACKAGE.Darklang.Stdlib.Int.divide_v0 x 2L
+      PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 2L
     )) = PACKAGE.Darklang.Stdlib.Option.Option.Some 4L
 
 PACKAGE.Darklang.Stdlib.Option.andThen_v0
   (PACKAGE.Darklang.Stdlib.Option.Option.Some 8L)
   (fun x ->
     PACKAGE.Darklang.Stdlib.Option.Option.Some(
-      PACKAGE.Darklang.Stdlib.Int.divide_v0 x 0L
+      PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 0L
     )) = Builtin.Test.derrorMessage "Division by zero"
 
 
@@ -132,12 +132,12 @@ PACKAGE.Darklang.Stdlib.Option.andThen4_v0
 
 PACKAGE.Darklang.Stdlib.Option.map
   (PACKAGE.Darklang.Stdlib.Option.Option.Some 4L)
-  (fun x -> PACKAGE.Darklang.Stdlib.Int.divide_v0 x 2L) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  (fun x -> PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 2L) = PACKAGE.Darklang.Stdlib.Option.Option.Some
   2L
 
 PACKAGE.Darklang.Stdlib.Option.map
   PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun x -> PACKAGE.Darklang.Stdlib.Int.divide_v0 x 2L) = PACKAGE.Darklang.Stdlib.Option.Option.None
+  (fun x -> PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 2L) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 
 PACKAGE.Darklang.Stdlib.Option.map2_v0

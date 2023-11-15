@@ -105,7 +105,7 @@
                 },
                 {
                   "foo": {
-                    "DInt": [
+                    "DInt64": [
                       5
                     ]
                   }
@@ -138,7 +138,7 @@
                 },
                 {
                   "foo\\\\bar": {
-                    "DInt": [
+                    "DInt64": [
                       5
                     ]
                   }
@@ -152,7 +152,7 @@
                 },
                 {
                   "$type": {
-                    "DInt": [
+                    "DInt64": [
                       5
                     ]
                   }
@@ -325,67 +325,67 @@
               ]
             },
             "int int-1 - 1": {
-              "DInt": [
+              "DInt64": [
                 -2
               ]
             },
             "int int0 - 1": {
-              "DInt": [
+              "DInt64": [
                 -1
               ]
             },
             "int int1 - 1": {
-              "DInt": [
+              "DInt64": [
                 0
               ]
             },
             "int int_max_31_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 1073741822
               ]
             },
             "int int_max_32_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 2147483646
               ]
             },
             "int int_max_63_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 "4611686018427387902"
               ]
             },
             "int int_max_64_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 "9223372036854775806"
               ]
             },
             "int int_max_double - 1": {
-              "DInt": [
+              "DInt64": [
                 9007199254740991
               ]
             },
             "int int_min_31_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 -1073741825
               ]
             },
             "int int_min_32_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 -2147483649
               ]
             },
             "int int_min_63_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 "-4611686018427387905"
               ]
             },
             "int int_min_64_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 "9223372036854775807"
               ]
             },
             "int int_min_double - 1": {
-              "DInt": [
+              "DInt64": [
                 "-9007199254740993"
               ]
             },
@@ -405,37 +405,37 @@
               ]
             },
             "int-1 \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 -1
               ]
             },
             "int-1 \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 0
               ]
             },
             "int0 \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 0
               ]
             },
             "int0 \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 1
               ]
             },
             "int1 \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 1
               ]
             },
             "int1 \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 2
               ]
             },
             "int5": {
-              "DInt": [
+              "DInt64": [
                 5
               ]
             },
@@ -460,102 +460,102 @@
               ]
             },
             "int_max_31_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 1073741823
               ]
             },
             "int_max_31_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 1073741824
               ]
             },
             "int_max_32_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 2147483647
               ]
             },
             "int_max_32_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 2147483648
               ]
             },
             "int_max_63_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 "4611686018427387903"
               ]
             },
             "int_max_63_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 "4611686018427387904"
               ]
             },
             "int_max_64_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 "9223372036854775807"
               ]
             },
             "int_max_64_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 "-9223372036854775808"
               ]
             },
             "int_max_double \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 9007199254740992
               ]
             },
             "int_max_double \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 "9007199254740993"
               ]
             },
             "int_min_31_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 -1073741824
               ]
             },
             "int_min_31_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 -1073741823
               ]
             },
             "int_min_32_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 -2147483648
               ]
             },
             "int_min_32_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 -2147483647
               ]
             },
             "int_min_63_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 "-4611686018427387904"
               ]
             },
             "int_min_63_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 "-4611686018427387903"
               ]
             },
             "int_min_64_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 "-9223372036854775808"
               ]
             },
             "int_min_64_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 "-9223372036854775807"
               ]
             },
             "int_min_double \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 -9007199254740992
               ]
             },
             "int_min_double \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 -9007199254740991
               ]
             },
@@ -570,13 +570,13 @@
                 {
                   "Known": [
                     {
-                      "KTInt": []
+                      "KTInt64": []
                     }
                   ]
                 },
                 [
                   {
-                    "DInt": [
+                    "DInt64": [
                       4
                     ]
                   }
@@ -3788,6 +3788,53 @@
                 ]
               ]
             },
+            "option12": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "Some",
+                [
+                  {
+                    "DUInt64": [
+                      64
+                    ]
+                  }
+                ]
+              ]
+            },
             "option2": {
               "DEnum": [
                 {
@@ -3828,7 +3875,7 @@
                 "Some",
                 [
                   {
-                    "DInt": [
+                    "DInt64": [
                       15
                     ]
                   }
@@ -4211,7 +4258,7 @@
                 [],
                 {
                   "foo": {
-                    "DInt": [
+                    "DInt64": [
                       5
                     ]
                   }
@@ -4381,7 +4428,7 @@
                 ],
                 {
                   "foo\\\\bar": {
-                    "DInt": [
+                    "DInt64": [
                       5
                     ]
                   }
@@ -4419,7 +4466,7 @@
                 [],
                 {
                   "$type": {
-                    "DInt": [
+                    "DInt64": [
                       5
                     ]
                   }
@@ -4429,12 +4476,12 @@
             "simple2Tuple": {
               "DTuple": [
                 {
-                  "DInt": [
+                  "DInt64": [
                     1
                   ]
                 },
                 {
-                  "DInt": [
+                  "DInt64": [
                     2
                   ]
                 },
@@ -4444,18 +4491,18 @@
             "simple3Tuple": {
               "DTuple": [
                 {
-                  "DInt": [
+                  "DInt64": [
                     1
                   ]
                 },
                 {
-                  "DInt": [
+                  "DInt64": [
                     2
                   ]
                 },
                 [
                   {
-                    "DInt": [
+                    "DInt64": [
                       3
                     ]
                   }
@@ -4490,7 +4537,7 @@
             "tupleWithError": {
               "DTuple": [
                 {
-                  "DInt": [
+                  "DInt64": [
                     1
                   ]
                 },
@@ -4547,12 +4594,12 @@
             "tupleWithUnit": {
               "DTuple": [
                 {
-                  "DInt": [
+                  "DInt64": [
                     1
                   ]
                 },
                 {
-                  "DInt": [
+                  "DInt64": [
                     2
                   ]
                 },
@@ -4576,6 +4623,11 @@
             "uint_32_bits": {
               "DUInt32": [
                 4294967295
+              ]
+            },
+            "uint_64_bits": {
+              "DUInt64": [
+                "18446744073709551615"
               ]
             },
             "uint_8_bits": {
@@ -4632,7 +4684,7 @@
       7777772986753,
       "testFn",
       2,
-      "1qun-LwOqsI",
+      "id-rcEo9Ues",
       {
         "DRecord": [
           {
@@ -4735,7 +4787,7 @@
                 },
                 {
                   "foo": {
-                    "DInt": [
+                    "DInt64": [
                       5
                     ]
                   }
@@ -4768,7 +4820,7 @@
                 },
                 {
                   "foo\\\\bar": {
-                    "DInt": [
+                    "DInt64": [
                       5
                     ]
                   }
@@ -4782,7 +4834,7 @@
                 },
                 {
                   "$type": {
-                    "DInt": [
+                    "DInt64": [
                       5
                     ]
                   }
@@ -4955,67 +5007,67 @@
               ]
             },
             "int int-1 - 1": {
-              "DInt": [
+              "DInt64": [
                 -2
               ]
             },
             "int int0 - 1": {
-              "DInt": [
+              "DInt64": [
                 -1
               ]
             },
             "int int1 - 1": {
-              "DInt": [
+              "DInt64": [
                 0
               ]
             },
             "int int_max_31_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 1073741822
               ]
             },
             "int int_max_32_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 2147483646
               ]
             },
             "int int_max_63_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 "4611686018427387902"
               ]
             },
             "int int_max_64_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 "9223372036854775806"
               ]
             },
             "int int_max_double - 1": {
-              "DInt": [
+              "DInt64": [
                 9007199254740991
               ]
             },
             "int int_min_31_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 -1073741825
               ]
             },
             "int int_min_32_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 -2147483649
               ]
             },
             "int int_min_63_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 "-4611686018427387905"
               ]
             },
             "int int_min_64_bits - 1": {
-              "DInt": [
+              "DInt64": [
                 "9223372036854775807"
               ]
             },
             "int int_min_double - 1": {
-              "DInt": [
+              "DInt64": [
                 "-9007199254740993"
               ]
             },
@@ -5035,37 +5087,37 @@
               ]
             },
             "int-1 \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 -1
               ]
             },
             "int-1 \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 0
               ]
             },
             "int0 \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 0
               ]
             },
             "int0 \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 1
               ]
             },
             "int1 \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 1
               ]
             },
             "int1 \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 2
               ]
             },
             "int5": {
-              "DInt": [
+              "DInt64": [
                 5
               ]
             },
@@ -5090,102 +5142,102 @@
               ]
             },
             "int_max_31_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 1073741823
               ]
             },
             "int_max_31_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 1073741824
               ]
             },
             "int_max_32_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 2147483647
               ]
             },
             "int_max_32_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 2147483648
               ]
             },
             "int_max_63_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 "4611686018427387903"
               ]
             },
             "int_max_63_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 "4611686018427387904"
               ]
             },
             "int_max_64_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 "9223372036854775807"
               ]
             },
             "int_max_64_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 "-9223372036854775808"
               ]
             },
             "int_max_double \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 9007199254740992
               ]
             },
             "int_max_double \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 "9007199254740993"
               ]
             },
             "int_min_31_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 -1073741824
               ]
             },
             "int_min_31_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 -1073741823
               ]
             },
             "int_min_32_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 -2147483648
               ]
             },
             "int_min_32_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 -2147483647
               ]
             },
             "int_min_63_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 "-4611686018427387904"
               ]
             },
             "int_min_63_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 "-4611686018427387903"
               ]
             },
             "int_min_64_bits \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 "-9223372036854775808"
               ]
             },
             "int_min_64_bits \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 "-9223372036854775807"
               ]
             },
             "int_min_double \u002B 0": {
-              "DInt": [
+              "DInt64": [
                 -9007199254740992
               ]
             },
             "int_min_double \u002B 1": {
-              "DInt": [
+              "DInt64": [
                 -9007199254740991
               ]
             },
@@ -5200,13 +5252,13 @@
                 {
                   "Known": [
                     {
-                      "KTInt": []
+                      "KTInt64": []
                     }
                   ]
                 },
                 [
                   {
-                    "DInt": [
+                    "DInt64": [
                       4
                     ]
                   }
@@ -8418,6 +8470,53 @@
                 ]
               ]
             },
+            "option12": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "Option"
+                      ],
+                      "name": {
+                        "TypeName": [
+                          "Option"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "Some",
+                [
+                  {
+                    "DUInt64": [
+                      64
+                    ]
+                  }
+                ]
+              ]
+            },
             "option2": {
               "DEnum": [
                 {
@@ -8458,7 +8557,7 @@
                 "Some",
                 [
                   {
-                    "DInt": [
+                    "DInt64": [
                       15
                     ]
                   }
@@ -8841,7 +8940,7 @@
                 [],
                 {
                   "foo": {
-                    "DInt": [
+                    "DInt64": [
                       5
                     ]
                   }
@@ -9011,7 +9110,7 @@
                 ],
                 {
                   "foo\\\\bar": {
-                    "DInt": [
+                    "DInt64": [
                       5
                     ]
                   }
@@ -9049,7 +9148,7 @@
                 [],
                 {
                   "$type": {
-                    "DInt": [
+                    "DInt64": [
                       5
                     ]
                   }
@@ -9059,12 +9158,12 @@
             "simple2Tuple": {
               "DTuple": [
                 {
-                  "DInt": [
+                  "DInt64": [
                     1
                   ]
                 },
                 {
-                  "DInt": [
+                  "DInt64": [
                     2
                   ]
                 },
@@ -9074,18 +9173,18 @@
             "simple3Tuple": {
               "DTuple": [
                 {
-                  "DInt": [
+                  "DInt64": [
                     1
                   ]
                 },
                 {
-                  "DInt": [
+                  "DInt64": [
                     2
                   ]
                 },
                 [
                   {
-                    "DInt": [
+                    "DInt64": [
                       3
                     ]
                   }
@@ -9120,7 +9219,7 @@
             "tupleWithError": {
               "DTuple": [
                 {
-                  "DInt": [
+                  "DInt64": [
                     1
                   ]
                 },
@@ -9177,12 +9276,12 @@
             "tupleWithUnit": {
               "DTuple": [
                 {
-                  "DInt": [
+                  "DInt64": [
                     1
                   ]
                 },
                 {
-                  "DInt": [
+                  "DInt64": [
                     2
                   ]
                 },
@@ -9206,6 +9305,11 @@
             "uint_32_bits": {
               "DUInt32": [
                 4294967295
+              ]
+            },
+            "uint_64_bits": {
+              "DUInt64": [
+                "18446744073709551615"
               ]
             },
             "uint_8_bits": {

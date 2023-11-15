@@ -220,18 +220,18 @@ PACKAGE.Darklang.Stdlib.Result.mapError
 
 PACKAGE.Darklang.Stdlib.Result.mapError
   (PACKAGE.Darklang.Stdlib.Result.Result.Ok 4L)
-  (fun x -> PACKAGE.Darklang.Stdlib.Int.divide_v0 x 2L) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  (fun x -> PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 2L) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   4L
 
 
 PACKAGE.Darklang.Stdlib.Result.map
   (PACKAGE.Darklang.Stdlib.Result.Result.Error "test")
-  (fun x -> PACKAGE.Darklang.Stdlib.Int.divide_v0 x 2L) = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  (fun x -> PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 2L) = PACKAGE.Darklang.Stdlib.Result.Result.Error
   "test"
 
 PACKAGE.Darklang.Stdlib.Result.map
   (PACKAGE.Darklang.Stdlib.Result.Result.Ok 4L)
-  (fun x -> PACKAGE.Darklang.Stdlib.Int.divide_v0 x 2L) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  (fun x -> PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 2L) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   2L
 
 

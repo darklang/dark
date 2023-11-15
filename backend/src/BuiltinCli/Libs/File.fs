@@ -210,17 +210,17 @@ let fns : List<BuiltInFn> =
     { name = fn "size" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
-      returnType = TypeReference.result TInt TString
+      returnType = TypeReference.result TInt64 TString
       description =
         "Returns the size of the file at the specified <param path> in bytes, or an error if the file does not exist or an error occurs"
       fn =
-        let resultOk r = Dval.resultOk KTInt KTString r |> Ply
-        let resultError r = Dval.resultError KTInt KTString r |> Ply
+        let resultOk r = Dval.resultOk KTInt64 KTString r |> Ply
+        let resultError r = Dval.resultError KTInt64 KTString r |> Ply
         (function
         | _, _, [ DString path ] ->
           try
             let fileInfo = System.IO.FileInfo(path)
-            resultOk (DInt fileInfo.Length)
+            resultOk (DInt64 fileInfo.Length)
           with e ->
             resultError (DString e.Message)
         | _ -> incorrectArgs ())

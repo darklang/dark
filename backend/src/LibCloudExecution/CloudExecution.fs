@@ -144,7 +144,7 @@ let executeHandler
             version = 0 }
 
       let fields =
-        [ ("statusCode", RT.DInt 500)
+        [ ("statusCode", RT.DInt64 500)
           ("headers",
            [] |> Dval.list (RT.KTTuple(RT.ValueType.string, RT.ValueType.string, [])))
           ("body", RT.DBytes(msg |> UTF8.toBytes)) ]

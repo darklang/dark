@@ -1,8 +1,11 @@
 // CLEANUP move all these to LibMisc
 
 module Equals =
-  type ERec = { x: Int; y: Int }
+  type ERec = { x: Int64; y: Int64 }
   type ERec2 = ERec
+
+  type ERecUInt64 = { x: UInt64; y: UInt64 }
+  type ERec2UInt64 = ERecUInt64
 
   type ERecInt8 = { x: Int8; y: Int8 }
   type ERec2Int8 = ERecInt8
@@ -74,9 +77,16 @@ module Equals =
   type EEnum =
     | E1
     | E2
-    | E3 of Int
+    | E3 of Int64
 
   type EEnum2 = EEnum
+
+  type EEnumUIn64 =
+    | E1
+    | E2
+    | E3 of UInt64
+
+  type EEnum2UIn64 = EEnumUIn64
 
   type EEnumInt128 =
     | E1
@@ -206,6 +216,11 @@ module Equals =
   (ERec { x = 6L; y = 7L } != ERec { x = 7L; y = 6L }) = true
   (ERec { x = 6L; y = 7L } == ERec2 { y = 7L; x = 6L }) = true
 
+  (ERecUInt64 { x = 6UL; y = 7UL } == ERecUInt64 { x = 6UL; y = 7UL }) = true
+  (ERecUInt64 { x = 6UL; y = 7UL } == ERecUInt64 { y = 7UL; x = 6UL }) = true
+  (ERecUInt64 { x = 6UL; y = 7UL } != ERecUInt64 { x = 7UL; y = 6UL }) = true
+  (ERecUInt64 { x = 6UL; y = 7UL } == ERec2UInt64 { y = 7UL; x = 6UL }) = true
+
   (ERecInt32 { x = 6l; y = 7l } == ERecInt32 { x = 6l; y = 7l }) = true
   (ERecInt32 { x = 6l; y = 7l } == ERecInt32 { y = 7l; x = 6l }) = true
   (ERecInt32 { x = 6l; y = 7l } != ERecInt32 { x = 7l; y = 6l }) = true
@@ -247,6 +262,11 @@ module Equals =
   (EEnum.E3 5L == EEnum.E3 5L) = true
   (EEnum.E3 5L != EEnum.E3 6L) = true
 
+  (EEnumUIn64.E1 == EEnumUIn64.E1) = true
+  (EEnumUIn64.E1 != EEnumUIn64.E2) = true
+  (EEnumUIn64.E3 5UL == EEnumUIn64.E3 5UL) = true
+  (EEnumUIn64.E3 5UL != EEnumUIn64.E3 6UL) = true
+
   (EEnumInt32.E1 == EEnumInt32.E1) = true
   (EEnumInt32.E1 != EEnumInt32.E2) = true
   (EEnumInt32.E3 5l == EEnumInt32.E3 5l) = true
@@ -280,6 +300,8 @@ module Equals =
 
   (EEnum2.E1 == EEnum.E1) = true
   (EEnum2.E1 != EEnum.E2) = true
+  (EEnum2UIn64.E1 == EEnumUIn64.E1) = true
+  (EEnum2UIn64.E1 != EEnumUIn64.E2) = true
 
   (EEnum2Int32.E1 == EEnumInt32.E1) = true
   (EEnum2Int32.E1 != EEnumInt32.E2) = true

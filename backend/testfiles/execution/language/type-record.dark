@@ -1,5 +1,5 @@
-type Cols1 = { col1: Int }
-type Cols2 = { col1: Int; col2: Int }
+type Cols1 = { col1: Int64 }
+type Cols2 = { col1: Int64; col2: Int64 }
 
 type AnEnum =
   | A
@@ -22,7 +22,7 @@ module WithTypeArgs =
   type B<'b> = { c: C<'b> }
   type A<'a> = { b: B<'a> }
 
-  let getC (a: A<Int>) : Int = a.b.c.v
+  let getC (a: A<Int64>) : Int64 = a.b.c.v
 
   getC (A { b = B { c = C { v = 5L } } }) = 5L
 
@@ -43,7 +43,7 @@ module InvalidCols =
     "Unexpected field `col3` in Cols2"
 
   Cols1 { col1 = "" } = Builtin.Test.derrorMessage
-    "Cols1's `col1` field should be an Int. However, a String (\"\") was passed instead.\n\nExpected: ({ col1: Int; ... })\nActual: a String: \"\""
+    "Cols1's `col1` field should be an Int64. However, a String (\"\") was passed instead.\n\nExpected: ({ col1: Int64; ... })\nActual: a String: \"\""
 
 
 module InvalidType =
@@ -54,7 +54,7 @@ module InvalidType =
     "Expected a record but AnEnum is an enum"
 
 module Polymorphism =
-  type MyRecord<'a> = { col1: 'a; col2: Int }
+  type MyRecord<'a> = { col1: 'a; col2: Int64 }
   (MyRecord { col1 = (); col2 = 1L }).col2 = 1L
 
   (MyRecord
@@ -69,14 +69,14 @@ module Polymorphism =
 
 
 module Nested =
-  type NestedRecordA = { col1: Int }
+  type NestedRecordA = { col1: Int64 }
   type NestedRecordB = { col1: NestedRecordA }
   (NestedRecordB { col1 = NestedRecordA { col1 = 1L } }).col1.col1 = 1L
 
 
 module Update =
-  type RecordForUpdate = { x: Int; y: Int }
-  type RecordForUpdateMultipe = { x: Int; y: Int; z: Int }
+  type RecordForUpdate = { x: Int64; y: Int64 }
+  type RecordForUpdateMultipe = { x: Int64; y: Int64; z: Int64 }
 
   ({ RecordForUpdate { x = 4L; y = 1L } with
       y = 2L }) = RecordForUpdate { x = 4L; y = 2L }
@@ -113,4 +113,4 @@ module Update =
       "Unexpected field `other` in Update.RecordForUpdate"
 
     (let myRec = RecordForUpdate { x = 4L; y = 1L } in { myRec with y = "2" }) = Builtin.Test.derrorMessage
-      "Update.RecordForUpdate's `y` field should be an Int. However, a String (\"2\") was passed instead.\n\nExpected: ({ y: Int; ... })\nActual: a String: \"2\""
+      "Update.RecordForUpdate's `y` field should be an Int64. However, a String (\"2\") was passed instead.\n\nExpected: ({ y: Int64; ... })\nActual: a String: \"2\""

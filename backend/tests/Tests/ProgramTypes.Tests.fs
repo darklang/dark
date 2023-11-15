@@ -28,23 +28,23 @@ let testPipesToRuntimeTypes =
 
     let expected =
       S.eFn
-        [ "Int" ]
+        [ "Int64" ]
         "lessThan"
         0
         []
         [ S.eFn
-            [ "Int" ]
+            [ "Int64" ]
             "add"
             0
             []
             [ S.eFn
-                [ "Int" ]
+                [ "Int64" ]
                 "subtract"
                 0
                 []
-                [ S.eFieldAccess (S.eVar "value") "age"; S.eInt 2 ]
+                [ S.eFieldAccess (S.eVar "value") "age"; S.eInt64 2 ]
               S.eFieldAccess (S.eVar "value") "age" ]
-          S.eInt 3 ]
+          S.eInt64 3 ]
 
     return Expect.equalExprIgnoringIDs actual expected
   }
@@ -113,14 +113,14 @@ let testInfixProgramTypesToSerializedTypes =
     [ (PT.EInfix(
         8UL,
         PT.InfixFnCall(PT.ArithmeticPlus),
-        PT.EInt(9UL, 6L),
-        PT.EInt(10UL, 6L)
+        PT.EInt64(9UL, 6L),
+        PT.EInt64(10UL, 6L)
        ),
        ST.EInfix(
          8UL,
          ST.InfixFnCall(ST.ArithmeticPlus),
-         ST.EInt(9UL, 6L),
-         ST.EInt(10UL, 6L)
+         ST.EInt64(9UL, 6L),
+         ST.EInt64(10UL, 6L)
        )) ]
 
 

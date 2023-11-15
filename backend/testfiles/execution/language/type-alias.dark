@@ -6,7 +6,7 @@ Something { ID = "2"; Data = "test" } = Something { ID = "2"; Data = "test" }
 
 // TODO: would be better if this indicated that it was an Id originally
 Something { ID = 2L; Data = "test" } = Builtin.Test.derrorMessage
-  "Something's `ID` field should be a String. However, an Int (2) was passed instead.\n\nExpected: ({ ID: Id; ... })\nActual: an Int: 2"
+  "Something's `ID` field should be a String. However, an Int64 (2) was passed instead.\n\nExpected: ({ ID: Id; ... })\nActual: an Int64: 2"
 
 
 module SimpleRecordAlias =
@@ -41,7 +41,7 @@ module NestedAlias =
   getUserID (("Alice", "EMP123")) = "EMP123"
 
   getUserID (("Alice", 123L)) = Builtin.Test.derrorMessage
-    "NestedAlias.getUserID's return value should be a String. However, an Int (123) was returned instead.\n\nExpected: Id\nActual: an Int: 123"
+    "NestedAlias.getUserID's return value should be a String. However, an Int64 (123) was returned instead.\n\nExpected: Id\nActual: an Int64: 123"
 
   type UserProfile =
     { credential: UserCredential
@@ -57,7 +57,7 @@ module NestedAlias =
   ) = "Alice"
 
 module ListAlias =
-  type IntegerList = List<Int>
+  type IntegerList = List<Int64>
 
   let isEmpty (il: IntegerList) : Bool =
     PACKAGE.Darklang.Stdlib.List.isEmpty_v0 il
@@ -67,9 +67,9 @@ module ListAlias =
 
 module ResultAlias =
   // result alias
-  type IntResult = PACKAGE.Darklang.Stdlib.Result.Result<Int, String>
+  type IntResult = PACKAGE.Darklang.Stdlib.Result.Result<Int64, String>
 
-  let getIntResultValue (ir: IntResult) : Int =
+  let getIntResultValue (ir: IntResult) : Int64 =
     PACKAGE.Darklang.Stdlib.Result.withDefault_v0 ir 0L
 
   getIntResultValue (PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L) = 5L
@@ -78,7 +78,7 @@ module ResultAlias =
 module RecordWithTypeArgs =
   type Inner<'a, 'b> = { a: 'a; b: 'b }
 
-  type Outer1<'a> = Inner<'a, Int>
+  type Outer1<'a> = Inner<'a, Int64>
   type Outer2<'b> = Inner<String, 'b>
 
   let getInnerField (x: Inner<'a, 'b>) : 'b = x.b
@@ -89,28 +89,28 @@ module RecordWithTypeArgs =
   Outer1 { a = "test"; b = 5L } = Outer2 { a = "test"; b = 5L }
 
   Outer2 { a = 5L; b = 6L } = Builtin.Test.derrorMessage
-    "RecordWithTypeArgs.Outer2's `a` field should be a String. However, an Int (5) was passed instead.\n\nExpected: ({ a: String; ... })\nActual: an Int: 5"
+    "RecordWithTypeArgs.Outer2's `a` field should be a String. However, an Int64 (5) was passed instead.\n\nExpected: ({ a: String; ... })\nActual: an Int64: 5"
 
   Outer1 { a = "a"; b = "b" } = Builtin.Test.derrorMessage
-    "RecordWithTypeArgs.Outer1's `b` field should be an Int. However, a String (\"b\") was passed instead.\n\nExpected: ({ b: Int; ... })\nActual: a String: \"b\""
+    "RecordWithTypeArgs.Outer1's `b` field should be an Int64. However, a String (\"b\") was passed instead.\n\nExpected: ({ b: Int64; ... })\nActual: a String: \"b\""
 
   Outer2 { a = 5L; b = 6L } = Builtin.Test.derrorMessage
-    "RecordWithTypeArgs.Outer2's `a` field should be a String. However, an Int (5) was passed instead.\n\nExpected: ({ a: String; ... })\nActual: an Int: 5"
+    "RecordWithTypeArgs.Outer2's `a` field should be a String. However, an Int64 (5) was passed instead.\n\nExpected: ({ a: String; ... })\nActual: an Int64: 5"
 
 module RecordWithTypeArgsDifferentName =
   type Inner<'a, 'b> = { a: 'a; b: 'b }
   type LessInner<'b, 'a> = Inner<'a, 'b>
-  type Outer<'x> = LessInner<'x, Int>
+  type Outer<'x> = LessInner<'x, Int64>
   type Outest<'y> = Outer<'y>
-  type MostOutest = Outest<String> // { a: Int; b: String }
+  type MostOutest = Outest<String> // { a: Int64; b: String }
 
   MostOutest { a = 5L; b = "string" } = Inner { a = 5L; b = "string" }
 
   MostOutest { a = "not allowed"; b = "string" } = Builtin.Test.derrorMessage
-    "RecordWithTypeArgsDifferentName.MostOutest's `a` field should be an Int. However, a String (\"not allow...) was passed instead.\n\nExpected: ({ a: Int; ... })\nActual: a String: \"not allowed\""
+    "RecordWithTypeArgsDifferentName.MostOutest's `a` field should be an Int64. However, a String (\"not allow...) was passed instead.\n\nExpected: ({ a: Int64; ... })\nActual: a String: \"not allowed\""
 
   MostOutest { a = 5L; b = 6L } = Builtin.Test.derrorMessage
-    "RecordWithTypeArgsDifferentName.MostOutest's `b` field should be a String. However, an Int (6) was passed instead.\n\nExpected: ({ b: String; ... })\nActual: an Int: 6"
+    "RecordWithTypeArgsDifferentName.MostOutest's `b` field should be a String. However, an Int64 (6) was passed instead.\n\nExpected: ({ b: String; ... })\nActual: an Int64: 6"
 
 
 module RecordWithRecursiveTypeArgs =
@@ -152,7 +152,7 @@ module EnumWithTypeArgs =
     | A of 'a
     | B of 'b
 
-  type Outer1<'a> = Inner<'a, Int>
+  type Outer1<'a> = Inner<'a, Int64>
   type Outer2<'b> = Inner<String, 'b>
 
   let getInnerField (x: Inner<'a, 'b>) (default': 'b) : 'b =
@@ -174,10 +174,10 @@ module EnumWithTypeArgs =
   Outer2.B 5L = Outer1.B 5L
 
   Outer1.B "b" = Builtin.Test.derrorMessage
-    "EnumWithTypeArgs.Outer1.B's 1st argument should be an Int. However, a String (\"b\") was passed instead.\n\nExpected: EnumWithTypeArgs.Outer1.B (Int)\nActual: EnumWithTypeArgs.Outer1.B (String)"
+    "EnumWithTypeArgs.Outer1.B's 1st argument should be an Int64. However, a String (\"b\") was passed instead.\n\nExpected: EnumWithTypeArgs.Outer1.B (Int64)\nActual: EnumWithTypeArgs.Outer1.B (String)"
 
   Outer2.A 5L = Builtin.Test.derrorMessage
-    "EnumWithTypeArgs.Outer2.A's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: EnumWithTypeArgs.Outer2.A (String)\nActual: EnumWithTypeArgs.Outer2.A (Int)"
+    "EnumWithTypeArgs.Outer2.A's 1st argument should be a String. However, an Int64 (5) was passed instead.\n\nExpected: EnumWithTypeArgs.Outer2.A (String)\nActual: EnumWithTypeArgs.Outer2.A (Int64)"
 
 module EnumWithTypeArgsDifferentName =
   type Inner<'a, 'b> =
@@ -185,18 +185,18 @@ module EnumWithTypeArgsDifferentName =
     | B of 'b
 
   type LessInner<'b, 'a> = Inner<'a, 'b>
-  type Outer<'x> = LessInner<'x, Int>
+  type Outer<'x> = LessInner<'x, Int64>
   type Outest<'y> = Outer<'y>
-  type MostOutest = Outest<String> // | A of Int | B of String
+  type MostOutest = Outest<String> // | A of Int64 | B of String
 
   MostOutest.A 5L = Inner.A 5L
   MostOutest.B "test" = Inner.B "test"
 
   MostOutest.A "not allowed" = Builtin.Test.derrorMessage
-    "EnumWithTypeArgsDifferentName.MostOutest.A's 1st argument should be an Int. However, a String (\"not allow...) was passed instead.\n\nExpected: EnumWithTypeArgsDifferentName.MostOutest.A (Int)\nActual: EnumWithTypeArgsDifferentName.MostOutest.A (String)"
+    "EnumWithTypeArgsDifferentName.MostOutest.A's 1st argument should be an Int64. However, a String (\"not allow...) was passed instead.\n\nExpected: EnumWithTypeArgsDifferentName.MostOutest.A (Int64)\nActual: EnumWithTypeArgsDifferentName.MostOutest.A (String)"
 
   MostOutest.B 6L = Builtin.Test.derrorMessage
-    "EnumWithTypeArgsDifferentName.MostOutest.B's 1st argument should be a String. However, an Int (6) was passed instead.\n\nExpected: EnumWithTypeArgsDifferentName.MostOutest.B (String)\nActual: EnumWithTypeArgsDifferentName.MostOutest.B (Int)"
+    "EnumWithTypeArgsDifferentName.MostOutest.B's 1st argument should be a String. However, an Int64 (6) was passed instead.\n\nExpected: EnumWithTypeArgsDifferentName.MostOutest.B (String)\nActual: EnumWithTypeArgsDifferentName.MostOutest.B (Int64)"
 
 
 module EnumWithRecursiveTypeArgs =

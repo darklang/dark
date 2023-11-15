@@ -9,13 +9,13 @@ module Darklang =
         type BuiltIn<'name> =
           { modules: List<String>
             name: 'name
-            version: Int }
+            version: Int64 }
 
         /// Part of the user's program (eg canvas or cli)
         type UserProgram<'name> =
           { modules: List<String>
             name: 'name
-            version: Int }
+            version: Int64 }
 
         /// The name of a thing in the package manager
         // TODO: We plan to use UUIDs for this, but this is a placeholder
@@ -23,7 +23,7 @@ module Darklang =
           { owner: String
             modules: List<String>
             name: 'name
-            version: Int }
+            version: Int64 }
 
         type FQName<'name> =
           | BuiltIn of FQName.BuiltIn<'name>
@@ -69,7 +69,8 @@ module Darklang =
 
         | TUnit
         | TBool
-        | TInt
+        | TInt64
+        | TUInt64
         | TInt8
         | TUInt8
         | TInt16
@@ -99,7 +100,8 @@ module Darklang =
 
 
       type Const =
-        | CInt of Int
+        | CInt64 of Int64
+        | CUInt64 of UInt64
         | CInt8 of Int8
         | CUInt8 of UInt8
         | CInt16 of Int16
@@ -137,7 +139,8 @@ module Darklang =
 
         | MPUnit of PACKAGE.Darklang.LanguageTools.ID
         | MPBool of PACKAGE.Darklang.LanguageTools.ID * Bool
-        | MPInt of PACKAGE.Darklang.LanguageTools.ID * Int
+        | MPInt64 of PACKAGE.Darklang.LanguageTools.ID * Int64
+        | MPUInt64 of PACKAGE.Darklang.LanguageTools.ID * UInt64
         | MPInt8 of PACKAGE.Darklang.LanguageTools.ID * Int8
         | MPUInt8 of PACKAGE.Darklang.LanguageTools.ID * UInt8
         | MPInt16 of PACKAGE.Darklang.LanguageTools.ID * Int16
@@ -245,7 +248,9 @@ module Darklang =
 
         | EBool of ID * Bool
 
-        | EInt of ID * Int
+        | EInt64 of ID * Int64
+
+        | EUInt64 of ID * UInt64
 
         | EInt8 of ID * Int8
 
@@ -326,7 +331,8 @@ module Darklang =
           match expr with
           | EUnit id -> id
           | EBool(id, _) -> id
-          | EInt(id, _) -> id
+          | EInt64(id, _) -> id
+          | EUInt64(id, _) -> id
           | EInt8(id, _) -> id
           | EUInt8(id, _) -> id
           | EInt16(id, _) -> id
@@ -419,7 +425,7 @@ module Darklang =
       type DB =
         { tlid: TLID
           name: String
-          version: Int
+          version: Int64
           typ: TypeReference }
 
 
@@ -473,7 +479,7 @@ module Darklang =
       type Secret =
         { name: String
           value: String
-          version: Int }
+          version: Int64 }
 
 
       type PackageType =

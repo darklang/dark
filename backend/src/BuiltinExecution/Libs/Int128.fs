@@ -52,13 +52,13 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DInt128 v; DInt128 m ] ->
           if m = System.Int128.Zero then
-            Int.IntRuntimeError.Error.ZeroModulus
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.ZeroModulus
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
           else if m < System.Int128.Zero then
-            Int.IntRuntimeError.Error.NegativeModulus
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.NegativeModulus
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
           else
@@ -93,8 +93,8 @@ let fns : List<BuiltInFn> =
             v % d |> DInt128 |> resultOk
            with e ->
              if d = System.Int128.Zero then
-               Int.IntRuntimeError.Error.DivideByZeroError
-               |> Int.IntRuntimeError.RTE.toRuntimeError
+               Int64.IntRuntimeError.Error.DivideByZeroError
+               |> Int64.IntRuntimeError.RTE.toRuntimeError
                |> raiseRTE state.caller
                |> Ply
              else
@@ -120,8 +120,8 @@ let fns : List<BuiltInFn> =
             let result = System.Int128.op_CheckedAddition (a, b)
             Ply(DInt128(result))
           with :? System.OverflowException ->
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
 
@@ -143,8 +143,8 @@ let fns : List<BuiltInFn> =
             let result = System.Int128.op_CheckedSubtraction (a, b)
             Ply(DInt128(result))
           with :? System.OverflowException ->
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
         | _ -> incorrectArgs ())
@@ -166,8 +166,8 @@ let fns : List<BuiltInFn> =
             let result = System.Int128.op_CheckedMultiply (a, b)
             Ply(DInt128(result))
           with :? System.OverflowException ->
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
         | _ -> incorrectArgs ())
@@ -192,13 +192,13 @@ let fns : List<BuiltInFn> =
             Ply(DInt128(result))
           with
           | :? System.DivideByZeroException ->
-            Int.IntRuntimeError.Error.DivideByZeroError
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.DivideByZeroError
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
           | :? System.OverflowException ->
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
         | _ -> incorrectArgs ())
@@ -219,8 +219,8 @@ let fns : List<BuiltInFn> =
             let result = System.Int128.op_CheckedUnaryNegation a
             Ply(DInt128(result))
           with :? System.OverflowException ->
-            Int.IntRuntimeError.Error.OutOfRange
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.OutOfRange
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
         | _ -> incorrectArgs ())

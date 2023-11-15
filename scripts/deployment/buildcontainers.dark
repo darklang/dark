@@ -11,7 +11,7 @@ let unwrap (result: PACKAGE.Darklang.Stdlib.Result.Result<String, 'a>) : String 
   | Ok value -> value
   | Error error -> ()
 
-let main () : Int =
+let main () : Int64 =
 
   let dockerfiles =
     (Builtin.Directory.list "containers")

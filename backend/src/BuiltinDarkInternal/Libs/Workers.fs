@@ -49,7 +49,7 @@ let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Dval =
   rules
   |> List.map (fun r ->
     let fields =
-      [ ("id", Dval.int r.id)
+      [ ("id", Dval.int64 r.id)
         ("rule_type", r.ruleType.ToString() |> DString)
         ("canvas_id", DUuid r.canvasID)
         ("handler_name", DString r.handlerName)
@@ -64,16 +64,16 @@ let types : List<BuiltInType> = []
 let fns : List<BuiltInFn> =
   [ { name = fn [ "DarkInternal"; "Canvas"; "Queue" ] "count" 0
       typeParams = []
-      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
-      returnType = TList TInt
+      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TUInt64 "" ]
+      returnType = TList TInt64
       description = "Get count of how many events are in the queue for this tlid"
       fn =
         (function
-        | _, _, [ DUuid canvasID; DInt tlid ] ->
+        | _, _, [ DUuid canvasID; DUInt64 tlid ] ->
           uply {
             let tlid = uint64 tlid
             let! count = LibCloud.Stats.workerStats canvasID tlid
-            return DInt count
+            return DInt64 count
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

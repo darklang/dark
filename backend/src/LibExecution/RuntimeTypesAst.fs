@@ -29,7 +29,8 @@ let rec preTraversal
     let f = preTraverseMatchPattern
     match matchPatternFn pat with
     | MPVariable _
-    | MPInt _
+    | MPInt64 _
+    | MPUInt64 _
     | MPInt8 _
     | MPUInt8 _
     | MPInt16 _
@@ -51,7 +52,8 @@ let rec preTraversal
   let rec preTraversalTypeRef (typeRef : TypeReference) : TypeReference =
     let f = preTraversalTypeRef
     match typeRefFn typeRef with
-    | TInt
+    | TInt64
+    | TUInt64
     | TInt8
     | TUInt8
     | TInt16
@@ -80,7 +82,8 @@ let rec preTraversal
     preTraversal exprFn typeRefFn fqtnFn fqfnFn fqcnFn letPatternFn matchPatternFn
 
   match exprFn expr with
-  | EInt _
+  | EInt64 _
+  | EUInt64 _
   | EInt8 _
   | EUInt8 _
   | EInt16 _
@@ -167,7 +170,8 @@ let rec postTraversal
     let f = postTraverseMatchPattern
     match matchPatternFn pat with
     | MPVariable _
-    | MPInt _
+    | MPInt64 _
+    | MPUInt64 _
     | MPInt8 _
     | MPUInt8 _
     | MPInt16 _
@@ -189,7 +193,8 @@ let rec postTraversal
   let rec postTraversalTypeRef (typeRef : TypeReference) : TypeReference =
     let f = postTraversalTypeRef
     match typeRefFn typeRef with
-    | TInt
+    | TInt64
+    | TUInt64
     | TInt8
     | TUInt8
     | TInt16
@@ -217,7 +222,8 @@ let rec postTraversal
   let f =
     postTraversal exprFn typeRefFn fqtnFn fqfnFn fqcnFn letPatternFn matchPatternFn
   (match expr with
-   | EInt _
+   | EInt64 _
+   | EUInt64 _
    | EInt8 _
    | EUInt8 _
    | EInt16 _
@@ -318,7 +324,8 @@ let rec postTraversalAsync
       let r = postTraverseMatchPattern
       match pat with
       | MPVariable _
-      | MPInt _
+      | MPInt64 _
+      | MPUInt64 _
       | MPInt8 _
       | MPUInt8 _
       | MPInt16 _
@@ -354,7 +361,8 @@ let rec postTraversalAsync
       let! typeRef = typeRefFn typeRef
       let r = postTraversalTypeRef
       match typeRef with
-      | TInt
+      | TInt64
+      | TUInt64
       | TInt8
       | TUInt8
       | TInt16
@@ -409,7 +417,8 @@ let rec postTraversalAsync
 
     let! expr =
       match expr with
-      | EInt _
+      | EInt64 _
+      | EUInt64 _
       | EInt8 _
       | EUInt8 _
       | EInt16 _

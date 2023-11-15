@@ -133,15 +133,15 @@ let fns : List<BuiltInFn> =
           Param.make "symtable" (TDict TString) "" ]
       returnType =
         TypeReference.result
-          TInt
+          TInt64
           (TCustomType(Ok(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)), []))
       description =
         "Parses Dark code as a script, and and executes it, returning an exit code"
       fn =
         let errType =
           KTCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), [])
-        let resultOk = Dval.resultOk KTInt errType
-        let resultError = Dval.resultError KTInt errType
+        let resultOk = Dval.resultOk KTInt64 errType
+        let resultError = Dval.resultError KTInt64 errType
         (function
         | state, [], [ DString filename; DString code; DDict(_vtTODO, symtable) ] ->
           uply {
@@ -167,7 +167,7 @@ let fns : List<BuiltInFn> =
               match parsedScript with
               | Ok mod' ->
                 match! execute state mod' symtable with
-                | Ok(DInt i) -> return resultOk (DInt i)
+                | Ok(DInt64 i) -> return resultOk (DInt64 i)
                 | Ok result ->
                   return
                     CliRuntimeError.NonIntReturned result

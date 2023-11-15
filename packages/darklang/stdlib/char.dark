@@ -45,7 +45,7 @@ module Darklang =
 
 
       /// Return {{Some <var code>}} if <param c> is a valid ASCII character, otherwise {{None}}"
-      let toAsciiCode (c: Char) : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
+      let toAsciiCode (c: Char) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
         Builtin.Char.toAsciiCode c
 
 

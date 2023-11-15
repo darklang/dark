@@ -138,12 +138,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "addSeconds" 0
       typeParams = []
-      parameters = [ Param.make "d" TDateTime ""; Param.make "seconds" TInt "" ]
+      parameters = [ Param.make "d" TDateTime ""; Param.make "seconds" TInt64 "" ]
       returnType = TDateTime
       description = "Returns a <type Date> <param seconds> seconds after <param d>"
       fn =
         (function
-        | _, _, [ DDateTime d; DInt s ] ->
+        | _, _, [ DDateTime d; DInt64 s ] ->
           d + (NodaTime.Period.FromSeconds s) |> DDateTime |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "+"
@@ -158,12 +158,12 @@ let fns : List<BuiltInFn> =
     // should include the name of the relevant unit in the fn name.
     { name = fn "subtractSeconds" 0
       typeParams = []
-      parameters = [ Param.make "d" TDateTime ""; Param.make "seconds" TInt "" ]
+      parameters = [ Param.make "d" TDateTime ""; Param.make "seconds" TInt64 "" ]
       returnType = TDateTime
       description = "Returns a <type Date> <param seconds> seconds before <param d>"
       fn =
         (function
-        | _, _, [ DDateTime d; DInt s ] ->
+        | _, _, [ DDateTime d; DInt64 s ] ->
           d - (NodaTime.Period.FromSeconds s) |> DDateTime |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
@@ -230,13 +230,13 @@ let fns : List<BuiltInFn> =
     { name = fn "toSeconds" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
-      returnType = TInt
+      returnType = TInt64
       description =
-        "Converts <param date> to an <type Int> representing seconds since the Unix epoch"
+        "Converts <param date> to an <type Int64> representing seconds since the Unix epoch"
       fn =
         (function
         | _, _, [ DDateTime d ] ->
-          (DarkDateTime.toInstant d).ToUnixTimeSeconds() |> DInt |> Ply
+          (DarkDateTime.toInstant d).ToUnixTimeSeconds() |> DInt64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -245,13 +245,13 @@ let fns : List<BuiltInFn> =
 
     { name = fn "fromSeconds" 0
       typeParams = []
-      parameters = [ Param.make "seconds" TInt "" ]
+      parameters = [ Param.make "seconds" TInt64 "" ]
       returnType = TDateTime
       description =
-        "Converts an <type Int> representing seconds since the Unix epoch into a <type Date>"
+        "Converts an <type Int64> representing seconds since the Unix epoch into a <type Date>"
       fn =
         (function
-        | _, _, [ DInt s ] ->
+        | _, _, [ DInt64 s ] ->
           s
           |> Instant.FromUnixTimeSeconds
           |> DarkDateTime.fromInstant
@@ -266,11 +266,11 @@ let fns : List<BuiltInFn> =
     { name = fn "year" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
-      returnType = TInt
-      description = "Returns the year portion of <param date> as an <type Int>"
+      returnType = TInt64
+      description = "Returns the year portion of <param date> as an <type Int64>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> d.Year |> Dval.int |> Ply
+        | _, _, [ DDateTime d ] -> d.Year |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'year'" ])
       previewable = Pure
@@ -280,12 +280,12 @@ let fns : List<BuiltInFn> =
     { name = fn "month" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
-      returnType = TInt
+      returnType = TInt64
       description =
-        "Returns the month portion of <param date> as an <type Int> between {{1}} and {{12}}"
+        "Returns the month portion of <param date> as an <type Int64> between {{1}} and {{12}}"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> d.Month |> Dval.int |> Ply
+        | _, _, [ DDateTime d ] -> d.Month |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'month'" ])
       previewable = Pure
@@ -295,11 +295,11 @@ let fns : List<BuiltInFn> =
     { name = fn "day" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
-      returnType = TInt
-      description = "Returns the day portion of <param date> as an <type Int>"
+      returnType = TInt64
+      description = "Returns the day portion of <param date> as an <type Int64>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> d.Day |> Dval.int |> Ply
+        | _, _, [ DDateTime d ] -> d.Day |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'day'" ])
       previewable = Pure
@@ -309,12 +309,12 @@ let fns : List<BuiltInFn> =
     { name = fn "weekday" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
-      returnType = TInt
+      returnType = TInt64
       description =
-        "Returns the weekday of <param date> as an <type Int>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601)"
+        "Returns the weekday of <param date> as an <type Int64>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601)"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> d.DayOfWeek |> int64 |> DInt |> Ply
+        | _, _, [ DDateTime d ] -> d.DayOfWeek |> int64 |> DInt64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -324,11 +324,11 @@ let fns : List<BuiltInFn> =
     { name = fn "hour" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
-      returnType = TInt
-      description = "Returns the hour portion of <param date> as an <type Int>"
+      returnType = TInt64
+      description = "Returns the hour portion of <param date> as an <type Int64>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> Ply(Dval.int d.Hour)
+        | _, _, [ DDateTime d ] -> Ply(Dval.int64 d.Hour)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
       previewable = Pure
@@ -338,11 +338,11 @@ let fns : List<BuiltInFn> =
     { name = fn "minute" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
-      returnType = TInt
-      description = "Returns the minute portion of <param date> as an <type Int>"
+      returnType = TInt64
+      description = "Returns the minute portion of <param date> as an <type Int64>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> Ply(Dval.int d.Minute)
+        | _, _, [ DDateTime d ] -> Ply(Dval.int64 d.Minute)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
       previewable = Pure
@@ -352,11 +352,11 @@ let fns : List<BuiltInFn> =
     { name = fn "second" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
-      returnType = TInt
-      description = "Returns the second portion of <param date> as an <type Int>"
+      returnType = TInt64
+      description = "Returns the second portion of <param date> as an <type Int64>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> Ply(Dval.int d.Second)
+        | _, _, [ DDateTime d ] -> Ply(Dval.int64 d.Second)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
       previewable = Pure
@@ -386,14 +386,14 @@ let fns : List<BuiltInFn> =
     { name = fn "subtract" 0
       typeParams = []
       parameters = [ Param.make "end" TDateTime ""; Param.make "start" TDateTime "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Returns the difference of the two dates, in seconds"
       fn =
         (function
         | _, _, [ DDateTime endDate; DDateTime startDate ] ->
           let diff =
             (DarkDateTime.toInstant endDate) - (DarkDateTime.toInstant startDate)
-          diff.TotalSeconds |> System.Math.Round |> int64 |> DInt |> Ply
+          diff.TotalSeconds |> System.Math.Round |> int64 |> DInt64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

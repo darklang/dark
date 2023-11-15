@@ -32,6 +32,12 @@ let error2 (msg : string) (v : string) : 'a = error $"{msg}: {v}"
 let error3 (msg : string) (v1 : string) (v2 : string) : 'a =
   error $"{msg}:\n  {v1}\n  {v2}"
 
+let uint64 (v : System.UInt64) : SqlValue =
+  let typ = NpgsqlTypes.NpgsqlDbType.Numeric
+  let idParam = NpgsqlParameter("uint64", typ)
+  idParam.Value <- System.Numerics.BigInteger.op_Implicit (v)
+  Sql.parameter idParam
+
 let int128 (v : System.Int128) : SqlValue =
   let typ = NpgsqlTypes.NpgsqlDbType.Numeric
   let idParam = NpgsqlParameter("int128", typ)
@@ -90,8 +96,11 @@ let rec dvalToSql
         (date |> LibExecution.DarkDateTime.toDateTimeUtc |> Sql.timestamptz,
          TDateTime)
 
-    | TVariable _, DInt i
-    | TInt, DInt i -> return Sql.int64 i, TInt
+    | TVariable _, DInt64 i
+    | TInt64, DInt64 i -> return Sql.int64 i, TInt64
+
+    | TVariable _, DUInt64 i
+    | TUInt64, DUInt64 i -> return uint64 i, TUInt64
 
     | TVariable _, DInt8 i
     | TInt8, DInt8 i -> return Sql.int16 (int16 i), TInt8
@@ -141,7 +150,7 @@ let rec dvalToSql
     //   let typeToNpgSqlType (t : DType) : NpgsqlTypes.NpgsqlDbType =
     //     match t with
     //     | TString -> NpgsqlTypes.NpgsqlDbType.Text
-    //     | TInt -> NpgsqlTypes.NpgsqlDbType.Bigint
+    //     | TInt64 -> NpgsqlTypes.NpgsqlDbType.Bigint
     //     | TFloat -> NpgsqlTypes.NpgsqlDbType.Double
     //     | TBool -> NpgsqlTypes.NpgsqlDbType.Boolean
     //     | TDateTime -> NpgsqlTypes.NpgsqlDbType.TimestampTz
@@ -152,7 +161,7 @@ let rec dvalToSql
     //   |> List.map (fun v ->
     //     match v with
     //     | DString s -> s : obj
-    //     | DInt i -> i
+    //     | DInt64 i -> i
     //     | DFloat f -> f
     //     | DBool b -> b
     //     | DDateTime date -> string date
@@ -166,7 +175,8 @@ let rec dvalToSql
     //   |> Sql.array (typeToNpgSqlType typ)
 
     // exhaustiveness check
-    | _, DInt _
+    | _, DInt64 _
+    | _, DUInt64 _
     | _, DInt8 _
     | _, DUInt8 _
     | _, DInt16 _
@@ -566,10 +576,15 @@ let rec lambdaToSql
             return $"(@{newname})", [ newname, sqlValue ], actualType
           | None -> return error $"This variable is not defined: {varname}"
 
-        | EInt(_, v) ->
-          typecheck $"Int {v}" TInt expectedType
+        | EInt64(_, v) ->
+          typecheck $"Int64 {v}" TInt64 expectedType
           let name = randomString 10
-          return $"(@{name})", [ name, Sql.int64 v ], TInt
+          return $"(@{name})", [ name, Sql.int64 v ], TInt64
+
+        | EUInt64(_, v) ->
+          typecheck $"UInt64 {v}" TUInt64 expectedType
+          let name = randomString 10
+          return $"(@{name})", [ name, uint64 v ], TUInt64
 
         | EInt8(_, v) ->
           typecheck $"Int8 {v}" TInt8 expectedType
@@ -811,7 +826,8 @@ let rec lambdaToSql
           let rec primitiveFieldType t =
             match t with
             | TString -> "text"
-            | TInt -> "bigint"
+            | TInt64 -> "bigint"
+            | TUInt64 -> "numeric(20,0)"
             | TInt8 -> "smallint"
             | TUInt8 -> "smallint"
             | TInt16 -> "smallint"
@@ -837,7 +853,8 @@ let rec lambdaToSql
           let fieldAccessPath = NEList.map escapeFieldname fieldAccessPath
           match dbFieldType with
           | TString
-          | TInt
+          | TInt64
+          | TUInt64
           | TInt8
           | TUInt8
           | TInt16
@@ -917,11 +934,11 @@ let rec lambdaToSql
 //  them to rewrite:
 //
 //   Db.query Person \value ->
-//     value.age < Int.sqrt (String.length (String.append a b))
+//     value.age < Int64.sqrt (String.length (String.append a b))
 //
 //  into
 //
-//   let myAge = Int.sqrt (String.length (String::append a b))
+//   let myAge = Int64.sqrt (String.length (String::append a b))
 //   Db.query Person \value ->
 //     value.age < myAge
 //
@@ -983,7 +1000,8 @@ let partiallyEvaluate
         | EApply(_, _, typeArgs, args) ->
           let rec fullySpecified (expr : Expr) =
             match expr with
-            | EInt _
+            | EInt64 _
+            | EUInt64 _
             | EInt8 _
             | EUInt8 _
             | EInt16 _
@@ -1008,7 +1026,8 @@ let partiallyEvaluate
           else
             return expr
         | EString _
-        | EInt _
+        | EInt64 _
+        | EUInt64 _
         | EInt8 _
         | EUInt8 _
         | EInt16 _
@@ -1047,7 +1066,8 @@ let partiallyEvaluate
         let! result =
           uply {
             match expr with
-            | EInt _
+            | EInt64 _
+            | EUInt64 _
             | EInt8 _
             | EUInt8 _
             | EInt16 _

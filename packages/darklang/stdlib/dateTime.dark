@@ -32,12 +32,12 @@ module Darklang =
 
 
       /// Returns a <type Date> <param seconds> seconds after <param d>
-      let addSeconds (d: DateTime) (seconds: Int) : DateTime =
+      let addSeconds (d: DateTime) (seconds: Int64) : DateTime =
         Builtin.DateTime.addSeconds d seconds
 
 
       /// Returns a <type Date> <param seconds> seconds before <param d>
-      let subtractSeconds (d: DateTime) (seconds: Int) : DateTime =
+      let subtractSeconds (d: DateTime) (seconds: Int64) : DateTime =
         Builtin.DateTime.subtractSeconds d seconds
 
 
@@ -61,41 +61,41 @@ module Darklang =
         Builtin.DateTime.lessThanOrEqualTo d1 d2
 
 
-      /// Converts <param date> to an <type Int> representing seconds since the Unix epoch
-      let toSeconds (date: DateTime) : Int = Builtin.DateTime.toSeconds date
+      /// Converts <param date> to an <type Int64> representing seconds since the Unix epoch
+      let toSeconds (date: DateTime) : Int64 = Builtin.DateTime.toSeconds date
 
 
-      /// Converts an <type Int> representing seconds since the Unix epoch into a <type Date>
-      let fromSeconds (seconds: Int) : DateTime =
+      /// Converts an <type Int64> representing seconds since the Unix epoch into a <type Date>
+      let fromSeconds (seconds: Int64) : DateTime =
         Builtin.DateTime.fromSeconds seconds
 
 
-      /// Returns the year portion of <param date> as an <type Int>
-      let year (date: DateTime) : Int = Builtin.DateTime.year date
+      /// Returns the year portion of <param date> as an <type Int64>
+      let year (date: DateTime) : Int64 = Builtin.DateTime.year date
 
 
-      /// Returns the month portion of <param date> as an <type Int> between {{1}} and {{12}}
-      let month (date: DateTime) : Int = Builtin.DateTime.month date
+      /// Returns the month portion of <param date> as an <type Int64> between {{1}} and {{12}}
+      let month (date: DateTime) : Int64 = Builtin.DateTime.month date
 
 
-      /// Returns the day portion of <param date> as an <type Int>
-      let day (date: DateTime) : Int = Builtin.DateTime.day date
+      /// Returns the day portion of <param date> as an <type Int64>
+      let day (date: DateTime) : Int64 = Builtin.DateTime.day date
 
 
-      /// Returns the weekday of <param date> as an <type Int>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601
-      let weekday (date: DateTime) : Int = Builtin.DateTime.weekday date
+      /// Returns the weekday of <param date> as an <type Int64>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601
+      let weekday (date: DateTime) : Int64 = Builtin.DateTime.weekday date
 
 
-      /// Returns the hour portion of <param date> as an <type Int>
-      let hour (date: DateTime) : Int = Builtin.DateTime.hour date
+      /// Returns the hour portion of <param date> as an <type Int64>
+      let hour (date: DateTime) : Int64 = Builtin.DateTime.hour date
 
 
-      /// Returns the minute portion of <param date> as an <type Int>
-      let minute (date: DateTime) : Int = Builtin.DateTime.minute date
+      /// Returns the minute portion of <param date> as an <type Int64>
+      let minute (date: DateTime) : Int64 = Builtin.DateTime.minute date
 
 
-      /// Returns the second portion of <param date> as an <type Int>
-      let second (date: DateTime) : Int = Builtin.DateTime.second date
+      /// Returns the second portion of <param date> as an <type Int64>
+      let second (date: DateTime) : Int64 = Builtin.DateTime.second date
 
 
       /// Returns <type date> with the time set to midnight
@@ -104,5 +104,5 @@ module Darklang =
 
 
       /// Returns the difference of the two dates, in seconds
-      let subtract (d1: DateTime) (d2: DateTime) : Int =
+      let subtract (d1: DateTime) (d2: DateTime) : Int64 =
         Builtin.DateTime.subtract d1 d2

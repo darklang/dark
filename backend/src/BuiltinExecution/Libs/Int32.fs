@@ -50,13 +50,13 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DInt32 v; DInt32 m ] ->
           if m = 0 then
-            Int.IntRuntimeError.Error.ZeroModulus
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.ZeroModulus
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
           else if m < 0 then
-            Int.IntRuntimeError.Error.NegativeModulus
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.NegativeModulus
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
           else
@@ -91,8 +91,8 @@ let fns : List<BuiltInFn> =
             v % d |> DInt32 |> resultOk
            with e ->
              if d = 0 then
-               Int.IntRuntimeError.Error.DivideByZeroError
-               |> Int.IntRuntimeError.RTE.toRuntimeError
+               Int64.IntRuntimeError.Error.DivideByZeroError
+               |> Int64.IntRuntimeError.RTE.toRuntimeError
                |> raiseRTE state.caller
                |> Ply
              else
@@ -161,15 +161,15 @@ let fns : List<BuiltInFn> =
         | state, _, [ DInt32 number; DInt32 exp ] ->
           (try
             if exp < 0 then
-              Int.IntRuntimeError.Error.NegativeExponent
-              |> Int.IntRuntimeError.RTE.toRuntimeError
+              Int64.IntRuntimeError.Error.NegativeExponent
+              |> Int64.IntRuntimeError.RTE.toRuntimeError
               |> raiseRTE state.caller
               |> Ply
             else
               (bigint number) ** (int exp) |> int32 |> DInt32 |> Ply
            with :? System.OverflowException ->
-             Int.IntRuntimeError.Error.OutOfRange
-             |> Int.IntRuntimeError.RTE.toRuntimeError
+             Int64.IntRuntimeError.Error.OutOfRange
+             |> Int64.IntRuntimeError.RTE.toRuntimeError
              |> raiseRTE state.caller
              |> Ply)
         | _ -> incorrectArgs ())
@@ -187,8 +187,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DInt32 a; DInt32 b ] ->
           if b = 0 then
-            Int.IntRuntimeError.Error.DivideByZeroError
-            |> Int.IntRuntimeError.RTE.toRuntimeError
+            Int64.IntRuntimeError.Error.DivideByZeroError
+            |> Int64.IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.caller
             |> Ply
           else
@@ -371,13 +371,13 @@ let fns : List<BuiltInFn> =
 
     { name = fn "fromInt64" 0
       typeParams = []
-      parameters = [ Param.make "a" TInt "" ]
+      parameters = [ Param.make "a" TInt64 "" ]
       returnType = TypeReference.option TInt32
       description =
         "Converts an int64 to a 32-bit signed integer. Returns {{None}} if the value is less than 0 or greater than 2147483647."
       fn =
         (function
-        | _, _, [ DInt a ] ->
+        | _, _, [ DInt64 a ] ->
           if
             (a < int64 System.Int32.MinValue) || (a > int64 System.Int32.MaxValue)
           then

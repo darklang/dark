@@ -27,11 +27,11 @@ let fns : List<BuiltInFn> =
   [ { name = fn "ceiling" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Round up to an integer value"
       fn =
         (function
-        | _, _, [ DFloat a ] -> a |> System.Math.Ceiling |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> System.Math.Ceiling |> int64 |> DInt64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -41,11 +41,11 @@ let fns : List<BuiltInFn> =
     { name = fn "roundUp" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Round up to an integer value"
       fn =
         (function
-        | _, _, [ DFloat a ] -> a |> System.Math.Ceiling |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> System.Math.Ceiling |> int64 |> DInt64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -55,7 +55,7 @@ let fns : List<BuiltInFn> =
     { name = fn "floor" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt
+      returnType = TInt64
       description =
         "Round down to an integer value.
 
@@ -64,7 +64,7 @@ let fns : List<BuiltInFn> =
         but {{Float.truncate -1.9 == -1.0}}"
       fn =
         (function
-        | _, _, [ DFloat a ] -> a |> System.Math.Floor |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> System.Math.Floor |> int64 |> DInt64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -74,7 +74,7 @@ let fns : List<BuiltInFn> =
     { name = fn "roundDown" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt
+      returnType = TInt64
       description =
         "Round down to an integer value.
 
@@ -84,7 +84,7 @@ let fns : List<BuiltInFn> =
 
       fn =
         (function
-        | _, _, [ DFloat a ] -> a |> System.Math.Floor |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> System.Math.Floor |> int64 |> DInt64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -94,11 +94,11 @@ let fns : List<BuiltInFn> =
     { name = fn "round" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt
+      returnType = TInt64
       description = "Round to the nearest integer value"
       fn =
         (function
-        | _, _, [ DFloat a ] -> a |> System.Math.Round |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> System.Math.Round |> int64 |> DInt64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -108,12 +108,12 @@ let fns : List<BuiltInFn> =
     { name = fn "truncate" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt
+      returnType = TInt64
       description =
         "Discard the fractional portion of the float, rounding towards zero"
       fn =
         (function
-        | _, _, [ DFloat a ] -> a |> System.Math.Truncate |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> System.Math.Truncate |> int64 |> DInt64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -263,12 +263,12 @@ let fns : List<BuiltInFn> =
     { name = fn "roundTowardsZero" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt
+      returnType = TInt64
       description =
         "Discard the fractional portion of <type Float> <param a>, rounding towards zero."
       fn =
         (function
-        | _, _, [ DFloat a ] -> a |> System.Math.Truncate |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> System.Math.Truncate |> int64 |> DInt64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -285,7 +285,7 @@ let fns : List<BuiltInFn> =
             Ok(
               FQName.Package
                 { owner = "Darklang"
-                  modules = [ "Stdlib"; "Int" ]
+                  modules = [ "Stdlib"; "Int64" ]
                   name = TypeName.TypeName "ParseError"
                   version = 0 }
             ),

@@ -8,7 +8,7 @@ module Darklang =
 
       /// Truncates the string <param s> to the specified <param length> and appends an ellipsis ("...")
       /// to it if the original string exceeds the given length. Otherwise, returns the original string.
-      let ellipsis (s: String) (length: Int) : String =
+      let ellipsis (s: String) (length: Int64) : String =
         if PACKAGE.Darklang.Stdlib.String.length s > length then
           (PACKAGE.Darklang.Stdlib.String.slice_v0 s 0L length) ++ "..."
         else
@@ -63,7 +63,7 @@ module Darklang =
 
 
       /// Returns the length of the string
-      let length (s: String) : Int = Builtin.String.length s
+      let length (s: String) : Int64 = Builtin.String.length s
 
 
       /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.
@@ -158,11 +158,11 @@ module Darklang =
 
       /// Generate a <type String> of length <param length> from random characters
       let random
-        (length: Int)
+        (length: Int64)
         : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
         if length < 0L then
           PACKAGE.Darklang.Stdlib.Result.Result.Error
-            $"Expected `length` to be positive, but it was `{length |> PACKAGE.Darklang.Stdlib.Int.toString}`"
+            $"Expected `length` to be positive, but it was `{length |> PACKAGE.Darklang.Stdlib.Int64.toString}`"
         else
           let characters =
             "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -170,7 +170,7 @@ module Darklang =
           let randomChar =
             fun _ ->
               (let index =
-                PACKAGE.Darklang.Stdlib.Int.random
+                PACKAGE.Darklang.Stdlib.Int64.random
                   0L
                   ((PACKAGE.Darklang.Stdlib.String.length characters) - 1L)
 
@@ -210,14 +210,14 @@ module Darklang =
 
       /// Returns the substring of <param string> between the <param from> and <param to> indices.
       /// Negative indices start counting from the end of <param string>.
-      let slice (string: String) (from: Int) (``to``: Int) : String =
+      let slice (string: String) (from: Int64) (``to``: Int64) : String =
         let len = PACKAGE.Darklang.Stdlib.String.length string
 
         let normalize =
           (fun i ->
             (if i < 0L then len + i else i)
-            |> PACKAGE.Darklang.Stdlib.Int.min len
-            |> PACKAGE.Darklang.Stdlib.Int.max 0L)
+            |> PACKAGE.Darklang.Stdlib.Int64.min len
+            |> PACKAGE.Darklang.Stdlib.Int64.max 0L)
 
         let f = normalize from
         let l = normalize ``to``
@@ -229,7 +229,7 @@ module Darklang =
       /// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
       /// If <param characterCount> is longer than <param string>, returns <param string>.
       /// If <param characterCount> is negative, returns the empty string."
-      let first (string: String) (characterCount: Int) : String =
+      let first (string: String) (characterCount: Int64) : String =
         if characterCount < 0L then
           ""
         else if characterCount > PACKAGE.Darklang.Stdlib.String.length string then
@@ -241,7 +241,7 @@ module Darklang =
       /// Returns the last <param characterCount> characters of <param string>, as a Builtin.String.
       /// If <param characterCount> is longer than <param string>, returns <param string>.
       /// If <param characterCount> is negative, returns the empty string.
-      let last (string: String) (characterCount: Int) : String =
+      let last (string: String) (characterCount: Int64) : String =
         if characterCount < 0L then
           ""
         else if characterCount > PACKAGE.Darklang.Stdlib.String.length string then
@@ -256,7 +256,7 @@ module Darklang =
       /// Returns all but the last <param characterCount> characters of <param string>, as a Builtin.String.
       /// If <param characterCount> is longer than <param string>, returns the empty string.
       /// If <param characterCount> is negative, returns <param string>.
-      let dropLast (string: String) (characterCount: Int) : String =
+      let dropLast (string: String) (characterCount: Int64) : String =
         if characterCount < 0L then
           string
         else if characterCount > PACKAGE.Darklang.Stdlib.String.length string then
@@ -271,7 +271,7 @@ module Darklang =
       /// Returns all but the first <param characterCount> characters of <param string>, as a <type String>.
       /// If <param characterCount> is longer than <param string>, returns the empty string.
       /// If <param characterCount> is negative, returns <param string>.
-      let dropFirst (string: String) (characterCount: Int) : String =
+      let dropFirst (string: String) (characterCount: Int64) : String =
         if characterCount < 0L then
           string
         else if characterCount > PACKAGE.Darklang.Stdlib.String.length string then
@@ -290,7 +290,7 @@ module Darklang =
       let padStart
         (string: String)
         (padWith: String)
-        (goalLength: Int)
+        (goalLength: Int64)
         : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
         if PACKAGE.Darklang.Stdlib.String.length padWith != 1L then
           PACKAGE.Darklang.Stdlib.Result.Result.Error
@@ -310,7 +310,7 @@ module Darklang =
       let padEnd
         (string: String)
         (padWith: String)
-        (goalLength: Int)
+        (goalLength: Int64)
         : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
         if PACKAGE.Darklang.Stdlib.String.length padWith != 1L then
           PACKAGE.Darklang.Stdlib.Result.Result.Error
@@ -382,7 +382,7 @@ module Darklang =
       let indexOf
         (str: String)
         (searchFor: String)
-        : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
+        : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
         if (Builtin.String.indexOf str searchFor) == -1L then
           PACKAGE.Darklang.Stdlib.Option.Option.None
         else
@@ -394,7 +394,7 @@ module Darklang =
 
       /// Returns the <param string> repeated for a specified <param count> times.
       /// If <param count> is less than or equal to 0, returns an empty string.
-      let repeat (string: String) (count: Int) : String =
+      let repeat (string: String) (count: Int64) : String =
         if count <= 0L then
           ""
         else
@@ -404,7 +404,7 @@ module Darklang =
 
 
       /// Converts an integer <param n> to its ordinal representation as a string.
-      let toOrdinal (n: Int) : String =
+      let toOrdinal (n: Int64) : String =
         let suffix =
           match n % 10L with
           | 1L -> "st"
@@ -412,7 +412,7 @@ module Darklang =
           | 3L -> "rd"
           | _ -> "th"
 
-        (PACKAGE.Darklang.Stdlib.Int.toString n) ++ suffix
+        (PACKAGE.Darklang.Stdlib.Int64.toString n) ++ suffix
 
 
       /// Splits the given <param str> at each newline character and returns a list of substrings.

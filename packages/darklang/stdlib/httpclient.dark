@@ -46,7 +46,7 @@ module Darklang =
 
       /// The response from a HTTP request
       type Response =
-        { statusCode: Int
+        { statusCode: Int64
           headers: List<String * String>
           body: Bytes }
 

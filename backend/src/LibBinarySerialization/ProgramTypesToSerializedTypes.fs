@@ -267,7 +267,8 @@ module InfixFnName =
 module TypeReference =
   let rec toST (t : PT.TypeReference) : ST.TypeReference =
     match t with
-    | PT.TInt -> ST.TInt
+    | PT.TInt64 -> ST.TInt64
+    | PT.TUInt64 -> ST.TUInt64
     | PT.TInt8 -> ST.TInt8
     | PT.TUInt8 -> ST.TUInt8
     | PT.TInt16 -> ST.TInt16
@@ -297,7 +298,8 @@ module TypeReference =
 
   let rec toPT (t : ST.TypeReference) : PT.TypeReference =
     match t with
-    | ST.TInt -> PT.TInt
+    | ST.TInt64 -> PT.TInt64
+    | ST.TUInt64 -> PT.TUInt64
     | ST.TInt8 -> PT.TInt8
     | ST.TUInt8 -> PT.TUInt8
     | ST.TInt16 -> PT.TInt16
@@ -363,7 +365,8 @@ module MatchPattern =
     | PT.MPVariable(id, str) -> ST.MPVariable(id, str)
     | PT.MPEnum(id, caseName, fieldPats) ->
       ST.MPEnum(id, caseName, List.map toST fieldPats)
-    | PT.MPInt(id, i) -> ST.MPInt(id, i)
+    | PT.MPInt64(id, i) -> ST.MPInt64(id, i)
+    | PT.MPUInt64(id, i) -> ST.MPUInt64(id, i)
     | PT.MPInt8(id, i) -> ST.MPInt8(id, i)
     | PT.MPUInt8(id, i) -> ST.MPUInt8(id, i)
     | PT.MPInt16(id, i) -> ST.MPInt16(id, i)
@@ -389,7 +392,8 @@ module MatchPattern =
     | ST.MPVariable(id, str) -> PT.MPVariable(id, str)
     | ST.MPEnum(id, caseName, fieldPats) ->
       PT.MPEnum(id, caseName, List.map toPT fieldPats)
-    | ST.MPInt(id, i) -> PT.MPInt(id, i)
+    | ST.MPInt64(id, i) -> PT.MPInt64(id, i)
+    | ST.MPUInt64(id, i) -> PT.MPUInt64(id, i)
     | ST.MPInt8(id, i) -> PT.MPInt8(id, i)
     | ST.MPUInt8(id, i) -> PT.MPUInt8(id, i)
     | ST.MPInt16(id, i) -> PT.MPInt16(id, i)
@@ -414,7 +418,8 @@ module Expr =
   let rec toST (e : PT.Expr) : ST.Expr =
     match e with
     | PT.EChar(id, char) -> ST.EChar(id, char)
-    | PT.EInt(id, num) -> ST.EInt(id, num)
+    | PT.EInt64(id, num) -> ST.EInt64(id, num)
+    | PT.EUInt64(id, num) -> ST.EUInt64(id, num)
     | PT.EInt8(id, num) -> ST.EInt8(id, num)
     | PT.EUInt8(id, num) -> ST.EUInt8(id, num)
     | PT.EInt16(id, num) -> ST.EInt16(id, num)
@@ -517,7 +522,8 @@ module Expr =
   let rec toPT (e : ST.Expr) : PT.Expr =
     match e with
     | ST.EChar(id, char) -> PT.EChar(id, char)
-    | ST.EInt(id, num) -> PT.EInt(id, num)
+    | ST.EInt64(id, num) -> PT.EInt64(id, num)
+    | ST.EUInt64(id, num) -> PT.EUInt64(id, num)
     | ST.EInt8(id, num) -> PT.EInt8(id, num)
     | ST.EUInt8(id, num) -> PT.EUInt8(id, num)
     | ST.EInt16(id, num) -> PT.EInt16(id, num)
@@ -618,7 +624,8 @@ module Expr =
 module Const =
   let rec toST (c : PT.Const) : ST.Const =
     match c with
-    | PT.Const.CInt i -> ST.Const.CInt i
+    | PT.Const.CInt64 i -> ST.Const.CInt64 i
+    | PT.Const.CUInt64 i -> ST.Const.CUInt64 i
     | PT.Const.CInt8 i -> ST.Const.CInt8 i
     | PT.Const.CUInt8 i -> ST.Const.CUInt8 i
     | PT.Const.CInt16 i -> ST.Const.CInt16 i
@@ -647,7 +654,8 @@ module Const =
 
   let rec toPT (c : ST.Const) : PT.Const =
     match c with
-    | ST.Const.CInt i -> PT.Const.CInt i
+    | ST.Const.CInt64 i -> PT.Const.CInt64 i
+    | ST.Const.CUInt64 i -> PT.Const.CUInt64 i
     | ST.Const.CInt8 i -> PT.Const.CInt8 i
     | ST.Const.CUInt8 i -> PT.Const.CUInt8 i
     | ST.Const.CInt16 i -> PT.Const.CInt16 i

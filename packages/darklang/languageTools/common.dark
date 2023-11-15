@@ -1,8 +1,8 @@
 module Darklang =
   module LanguageTools =
-    type ID = Int
+    type ID = Int64
 
-    type TLID = Int
+    type TLID = UInt64
 
     type Sign =
       | Positive

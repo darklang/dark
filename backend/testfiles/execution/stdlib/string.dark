@@ -202,10 +202,10 @@ module Map =
 
   PACKAGE.Darklang.Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x ->
     5L) = Builtin.Test.derrorMessage
-    """Function return value should be a Char. However, an Int (5) was returned instead.
+    """Function return value should be a Char. However, an Int64 (5) was returned instead.
 
 Expected: Char
-Actual: an Int: 5"""
+Actual: an Int64: 5"""
 
   // Check that map executes the right number of times
   (let v =

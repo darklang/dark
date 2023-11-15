@@ -59,7 +59,8 @@ module TypeReference =
     // no type args
     | [], "Bool", [] -> WT.TBool
     | [], "Bytes", [] -> WT.TBytes
-    | [], "Int", [] -> WT.TInt
+    | [], "Int64", [] -> WT.TInt64
+    | [], "UInt64", [] -> WT.TUInt64
     | [], "Int8", [] -> WT.TInt8
     | [], "UInt8", [] -> WT.TUInt8
     | [], "Int16", [] -> WT.TInt16
@@ -208,8 +209,8 @@ module MatchPattern =
     | SynPat.Const(SynConst.Unit, _) -> WT.MPUnit(id)
     | SynPat.Const(SynConst.Bool b, _) -> WT.MPBool(id, b)
 
-    | SynPat.Const(SynConst.Int64 n, _) -> WT.MPInt(id, int64 n)
-    | SynPat.Const(SynConst.UInt64 n, _) -> WT.MPInt(id, int64 n)
+    | SynPat.Const(SynConst.Int64 n, _) -> WT.MPInt64(id, int64 n)
+    | SynPat.Const(SynConst.UInt64 n, _) -> WT.MPUInt64(id, uint64 n)
     | SynPat.Const(SynConst.SByte n, _) -> WT.MPInt8(id, int8 n)
     | SynPat.Const(SynConst.Byte n, _) -> WT.MPUInt8(id, uint8 n)
     | SynPat.Const(SynConst.Int16 n, _) -> WT.MPInt16(id, int16 n)
@@ -360,8 +361,8 @@ module Expr =
       raiseParserError "null not supported, use `()`" [ "ast", ast ] (Some ast.Range)
 
     | SynExpr.Const(SynConst.Unit _, _) -> WT.EUnit id
-    | SynExpr.Const(SynConst.Int64 n, _) -> WT.EInt(id, int64 n)
-    | SynExpr.Const(SynConst.UInt64 n, _) -> WT.EInt(id, int64 n)
+    | SynExpr.Const(SynConst.Int64 n, _) -> WT.EInt64(id, int64 n)
+    | SynExpr.Const(SynConst.UInt64 n, _) -> WT.EUInt64(id, uint64 n)
     | SynExpr.Const(SynConst.SByte n, _) -> WT.EInt8(id, int8 n)
     | SynExpr.Const(SynConst.Byte n, _) -> WT.EUInt8(id, uint8 n)
     | SynExpr.Const(SynConst.Int16 n, _) -> WT.EInt16(id, int16 n)
@@ -428,7 +429,7 @@ module Expr =
     | SynExprLongIdentPat [ "op_UnaryNegation" ] ->
       WT.EApply(
         id,
-        WT.EFnName(gid (), WT.KnownBuiltin([ "Int" ], "negate", 0)),
+        WT.EFnName(gid (), WT.KnownBuiltin([ "Int64" ], "negate", 0)),
         [],
         NEList.singleton WT.EPlaceHolder
       )
@@ -860,7 +861,8 @@ module Constant =
     let rec c (e : WT.Expr) : WT.Const =
       match e with
       | WT.EUnit _ -> WT.CUnit
-      | WT.EInt(_, n) -> WT.CInt n
+      | WT.EInt64(_, n) -> WT.CInt64 n
+      | WT.EUInt64(_, n) -> WT.CUInt64 n
       | WT.EInt8(_, n) -> WT.CInt8 n
       | WT.EUInt8(_, n) -> WT.CUInt8 n
       | WT.EInt16(_, n) -> WT.CInt16 n

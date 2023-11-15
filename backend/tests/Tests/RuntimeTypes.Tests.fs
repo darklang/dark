@@ -12,13 +12,13 @@ let dvalTypeMatches =
     [ test "matching tuple" {
         let v =
           RT.Dval.DTuple(
-            RT.Dval.DInt 1,
+            RT.Dval.DInt64 1,
             RT.Dval.DString "two",
             [ RT.Dval.DFloat 3.14 ]
           )
         let tipe =
           RT.TypeReference.TTuple(
-            RT.TypeReference.TInt,
+            RT.TypeReference.TInt64,
             RT.TypeReference.TString,
             [ RT.TypeReference.TFloat ]
           )
@@ -29,13 +29,13 @@ let dvalTypeMatches =
       test "non-matching tuple" {
         let v =
           RT.Dval.DTuple(
-            RT.Dval.DInt 1,
+            RT.Dval.DInt64 1,
             RT.Dval.DString "two",
             [ RT.Dval.DFloat 3.14 ]
           )
         let tipe =
           RT.TypeReference.TTuple(
-            RT.TypeReference.TInt,
+            RT.TypeReference.TInt64,
             RT.TypeReference.TString,
             [ RT.TypeReference.TChar ]
           )

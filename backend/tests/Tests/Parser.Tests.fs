@@ -29,7 +29,7 @@ let parserTests =
         (PT.ELet(
           id,
           PT.LPVariable(id, "x"),
-          PT.EInt(id, 5L),
+          PT.EInt64(id, 5L),
           PT.EPipe(
             id,
             PT.EVariable(id, "x"),
@@ -37,7 +37,7 @@ let parserTests =
                 id,
                 Ok(PT.FnName.fqPackage "Darklang" [ "Stdlib"; "List" ] "map" 0),
                 [],
-                [ PT.EInt(id, 5L) ]
+                [ PT.EInt64(id, 5L) ]
               ) ]
           )
         ))
@@ -50,10 +50,10 @@ let parserTests =
           PT.EInfix(
             id,
             (PT.InfixFnCall(PT.ArithmeticPlus)),
-            PT.EInt(id, 5L),
-            PT.EInt(id, 3L)
+            PT.EInt64(id, 5L),
+            PT.EInt64(id, 3L)
           ),
-          PT.EInt(id, 8L)
+          PT.EInt64(id, 8L)
         ))
       t
         "lambdas with 2 args"
@@ -61,7 +61,7 @@ let parserTests =
         (PT.ELambda(
           id,
           NEList.doubleton (PT.LPVariable(id, "x")) (PT.LPVariable(id, "y")),
-          PT.EInt(id, 8L)
+          PT.EInt64(id, 8L)
         ))
       t
         "lambdas with 3 args"
@@ -71,7 +71,7 @@ let parserTests =
           NEList.ofList
             (PT.LPVariable(id, "x"))
             [ PT.LPVariable(id, "y"); PT.LPVariable(id, "z") ],
-          PT.EInt(id, 8L)
+          PT.EInt64(id, 8L)
         ))
       t
         "lambdas with 4 args"
@@ -83,7 +83,7 @@ let parserTests =
             [ PT.LPVariable(id, "b")
               PT.LPVariable(id, "c")
               PT.LPVariable(id, "d") ],
-          PT.EInt(id, 8L)
+          PT.EInt64(id, 8L)
         ))
       t "negative zero" "(-0.0)" (PT.EFloat(id, Negative, "0", "0"))
       t
