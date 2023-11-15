@@ -122,7 +122,7 @@ module Toplevels =
     (Builtin.Test.getCanvasID ()) |> Builtin.DarkInternal.Canvas.DB.unlocked = []
 
     (Builtin.Test.getCanvasID ())
-    |> Builtin.DarkInternal.Canvas.deleteToplevelForever 1L = false
+    |> Builtin.DarkInternal.Canvas.deleteToplevelForever 1UL = false
 
 
 module UnlockedDB =

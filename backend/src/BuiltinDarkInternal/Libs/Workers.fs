@@ -64,12 +64,12 @@ let types : List<BuiltInType> = []
 let fns : List<BuiltInFn> =
   [ { name = fn [ "DarkInternal"; "Canvas"; "Queue" ] "count" 0
       typeParams = []
-      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt64 "" ]
+      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TUInt64 "" ]
       returnType = TList TInt64
       description = "Get count of how many events are in the queue for this tlid"
       fn =
         (function
-        | _, _, [ DUuid canvasID; DInt64 tlid ] ->
+        | _, _, [ DUuid canvasID; DUInt64 tlid ] ->
           uply {
             let tlid = uint64 tlid
             let! count = LibCloud.Stats.workerStats canvasID tlid

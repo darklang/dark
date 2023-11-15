@@ -96,13 +96,13 @@ let fns : List<BuiltInFn> =
     // ---------------------
     { name = fn "deleteToplevelForever" 0
       typeParams = []
-      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt64 "" ]
+      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TUInt64 "" ]
       returnType = TBool
       description =
         "Delete a toplevel forever. Requires that the toplevel already by deleted. If so, deletes and returns true. Otherwise returns false"
       fn =
         (function
-        | _, _, [ DUuid canvasID; DInt64 tlid ] ->
+        | _, _, [ DUuid canvasID; DUInt64 tlid ] ->
           uply {
             let tlid = uint64 tlid
             let! c = Canvas.loadFrom canvasID [ tlid ]

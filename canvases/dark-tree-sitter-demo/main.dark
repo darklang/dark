@@ -192,7 +192,7 @@ type PTUserFunctionParameter =
     description: String }
 
 type PTUserFunction =
-  { tlid: Int64
+  { tlid: UInt64
     name: String
     typeParams: List<Unit> // TODO
     parameters: List<PTUserFunctionParameter>

@@ -27,7 +27,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! tlids = UserDB.all canvasID
-            return tlids |> List.map int64 |> List.map DInt64 |> Dval.list KTInt64
+            return tlids |> List.map uint64 |> List.map DUInt64 |> Dval.list KTUInt64
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
