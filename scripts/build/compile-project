@@ -6,13 +6,14 @@ set -euo pipefail
 usage() {
     echo "usage: compile-project [name of project] [--test] [--optimize]
 Compiles a dark project. Options are:
-backend, all.
+parser, backend, all.
   --test: runs tests
   --optimize: adds --optimize, if appropriate
 "
 }
 
 declare -A files
+files["parser"]="parser/tree-sitter-darklang/grammar.js"
 files["backend"]="backend/global.json"
 for v in "${files[@]}"; do
   files["all"]+=" $v"
@@ -24,7 +25,7 @@ testfiles=""
 
 for cmd in "$@"; do
   case $cmd in
-    backend | all)
+    parser | backend | all)
       testfiles="${testfiles} ${files[$cmd]}"
       ;;
     --test )
