@@ -827,7 +827,7 @@ let rec lambdaToSql
             match t with
             | TString -> "text"
             | TInt64 -> "bigint"
-            | TUInt64 -> "numeric(19,0)"
+            | TUInt64 -> "numeric(20,0)"
             | TInt8 -> "smallint"
             | TUInt8 -> "smallint"
             | TInt16 -> "smallint"
