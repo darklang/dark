@@ -201,6 +201,7 @@ jobs:
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For parser
+      # TODO: cache the parser artifacts -- only rebuild if grammar has changed since last build (or upon cache-miss)
       - run: ./scripts/build/build-parser
       # For tests
       - run: ./scripts/build/_dotnet-wrapper tool restore
