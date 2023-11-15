@@ -15,7 +15,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="tree-sitter-darklang.so">
+      <None Include="tree-sitter-darklang.so">
           <Pack>True</Pack>
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
