@@ -1,198 +1,16 @@
 module Darklang =
   module LanguageTools =
-    /// This supports the Darklang-specific LSP server
+    /// This supports the Darklang-specific LSP (Language Server Protocol) server,
+    /// per the 3.17 spec: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification
     ///
-    /// There are 3 layers here:
-    /// - json-rpc support
-    ///   (targeted at 2.0 spec: https://www.jsonrpc.org/specification)
+    /// This LSP server is currently used by our in-progress VS Code Extension.
+    /// Namely, `LspServer.runServerCli` creates a long-running process that reads
+    /// incoming requests from stdin, and writes responses to stdout, following the LSP spec
     ///
-    /// - LSP (Language Server Protocol) support
-    ///   (targeted at 3.17 spec: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification)
+    /// This depends on json-rpc 2.0 support, currently in the @Darklang.JsonRPC module
     ///
-    /// - Darklang-specific language server (used in our VS Code Extension)
-    ///   - `LspServer.runServerCli` creates a long-running process that reads incoming requests
-    ///    from stdin, and writes responses to stdout, following the LSP spec
-    ///
-    /// TODO: some parts of this (like JsonRPC support, and general LSP support) should be abstracted
-    /// out at some point for general use, but let's see where this ends up before we consider that.
-    ///
-    /// Note: as such, this is meant for internal use only
+    /// TODO: some day, abstract out general LSP support in a separate module
     module LspServer =
-
-      /// https://www.jsonrpc.org/specification
-      ///
-      /// This is for the 2.0 version of the spec.
-      /// TODO consider versioning this module somehow
-      ///
-      /// note: this is currently assuming that the LSP server is prediminantly running as the server
-      /// tehnically, the LSP spec allows for the server to be the client, and the client to be the server
-      ///
-      /// TODO just separate the abstractions of 'handle request and send response' apart from 'send request and handle response'
-      module JsonRPC =
-        // <aliases>
-        type Json = PACKAGE.Darklang.Stdlib.AltJson.Json
-        // </aliases>
-
-        let expectedJsonRpcVersion = "2.0"
-
-        type RequestId =
-          | Null
-          | Int of Int
-          | String of String
-
-
-        module IncomingRequest =
-          type RequestParams =
-            | Array of List<Json>
-            | Object of List<String * Json>
-
-        //   type Request =
-        //     { jsonrpc: String // should always be "2.0"
-        //       id: PACKAGE.Darklang.Stdlib.Option.Option<RequestId>
-        //       method: String
-        //       ``params``: PACKAGE.Darklang.Stdlib.Option.Option<RequestParams> }
-
-
-
-        //   type SingleRequestParseError =
-        //     // must be an object `{...}`)
-        //     | NotObject of Json
-
-        //     /// must be provided
-        //     | MissingJsonRpcField
-
-        //     /// must be `String "2.0"` exactly
-        //     | InvalidJsonRpcField of actual: Json
-
-        //     /// can be missing, but otherwise must be null, a String, or a Number
-        //     | InvalidIdField of actual: Json
-
-        //     /// must be provided
-        //     | MissingMethodField of PACKAGE.Darklang.Stdlib.Option.Option<RequestId>
-
-        //     /// must be a string
-        //     | InvalidMethodField of PACKAGE.Darklang.Stdlib.Option.Option<RequestId> * actual: Json
-
-        //     /// can be missing, but otherwise must be an array or an object
-        //     | InvalidParamsField of PACKAGE.Darklang.Stdlib.Option.Option<RequestId> * actual: Json
-
-        //   type BatchRequestParseError =
-        //     | EmptyArray // generally thse should just be ignored - don't return any response
-        //     | InvalidRequest of SingleRequestParseError
-
-        //   type ParseError =
-        //     | SingleRequestParseError of SingleRequestParseError
-        //     | BatchRequestParseError of BatchRequestParseError
-
-        //   type IncomingRequest =
-        //     // return invalid request thing
-        //     | NotJson of String
-
-        //     | SingleRequest of Result<Request, SingleRequestParseError>
-
-        //     // can just be ignored
-        //     | EmptyBatch
-
-        //     | Batch of Array<Result<Request, SingleRequestParseError>>
-
-
-        // let parseSingleRequest (json: Json): PACKAGE.Darklang.Stdlib.Result.Result<Request, SingleRequestParseError> =
-        //   match json with
-        //   | Object o ->
-        //     let jsonRpcFieldError =
-        //       match List.find (fun (k, v) -> k = "jsonrpc") o with
-        //       | Some (_, String "2.0") -> PACKAGE.Darklang.Stdlib.Option.Option.None // great
-        //       | None ->
-        //         PACKAGE.Darklang.Stdlib.Option.Option.Some (SingleRequestParseError.MissingJsonRpcField)
-        //       | Some (_, invalidJsonRpc) ->
-        //         PACKAGE.Darklang.Stdlib.Option.Option.Some (SingleRequestParseError.InvalidJsonRpcField invalidJsonRpc)
-
-        //     // TODO: only one if any
-        //     // TODO extract out value, ensure string or number or null
-        //     let id = List.find (fun (k, v) -> k = "id") o
-
-
-        //     // TODO: only one
-        //     // TODO: extract out value, ensure string
-        //     let method = List.find (fun (k, v) -> k = "method") o
-
-        //     // TODO only one
-        //     // TODO extract out value, ensure array or object
-        //     // TODO; deal with 'params' name being special
-        //     let params = List.find (fun (k, v) -> k = "params") o
-
-        //     // TODO a big `match`,
-        //     // TODO then return either Request (exclude jsonrpc version bit) or error
-
-        //   | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None // TODO: invalid request thing
-
-        // let parseRequest
-        //   (json: Json)
-        //   : PACKAGE.Darklang.Stdlib.Option.Option<Request> =
-        //   match json with
-        //   | Object o ->
-        //     parseSingleRequest json
-        //   | Array l ->
-        //     // TODO deal with batch requests
-        //     None
-        //   | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None // TODO: invalid request thing
-
-
-        // type OutgoingResponse =
-        //   type ResponseSuccess =
-        //     { jsonrpc: String // should always be "2.0"
-        //       id: RequestId
-        //       result: Json }
-
-        //   type ResponseErrorDetails = { code: Int; message: String }
-
-        //   type ResponseError =
-        //     { jsonrpc: String // should always be "2.0"
-        //       id: RequestId
-        //       error: ResponseErrorDetails }
-
-        //   type Response = Result<ResponseSuccess, ResponseError>
-
-        //   let sendResponse (json: Json): PACKAGE.Darklang.Stdlib.Result.Result<Response, String> =
-        //     match json with
-        //     | Object o ->
-
-
-        // type ServerConfig =
-        //   { handleIncomingRequest: Request -> Json
-        //     onBatchRequest: Array<Request> -> Array<Json> }
-
-        // let runServerCliLoop () : Int =
-        //   let incomingRequestRaw = Builtin.Stdin.readLine ()
-
-        //   Builtin.printLine $"got request {incomingRequestRaw}"
-
-        //   match Builtin.AltJson.parse incomingRequestRaw with
-        //   | Ok incomingRequest ->
-        //     // TODO: validate that it's a valid JsonRPC 2.0 request and extract out id, method, params
-        //     // TODO: call config.onRequest with the (id, method, params)
-        //     // TODO: config.onRequest should return a JsonToken
-        //     // TODO: validate that the response is a valid JsonRPC 2.0 response
-        //     // TODO: print the response (-> stdout for consumer)
-
-        //     runServerCliLoop config
-
-        //   | Error err ->
-        //     Builtin.printLine $"Error parsing incoming request: {err}"
-        //     1
-
-
-        // let runServerCli () : Int =
-        //   Builtin.printLine
-        //     "Running Darklang.LanguageTools.LspServer.JsonRPC.runServerCli"
-
-        //   runServerCliLoop ()
-
-        // this exists just to keep the above-commented code indented within its module
-        // (it'll be used soon, but if it's misindented in the meantime it's going to bug me)
-        let foo = "bar"
-
-
       let logFilePath = "/home/dark/app/rundir/logs/lsp-server.log"
 
       let log (input: String) : Unit =
@@ -201,42 +19,136 @@ module Darklang =
 
         ()
 
-      let logRequest (request: String) : Unit = log $"Request: {request}"
+      let logRequest (request: String) : Unit = log $"From client: {request}"
 
 
-      let logAndRespond (response: String) : Unit =
-        log $"Response: {response}"
+      let logAndSendToClient (response: String) : Unit =
+        log $"To client: {response}"
 
-        let contentLength = response |> Stdlib.String.length |> Stdlib.Int.toString
-        Builtin.printLine $"Content-Length: {contentLength}\r\n\r\n{response}"
+        let contentLengthInBytes =
+          response
+          |> Stdlib.String.toBytes_v0
+          |> Stdlib.Bytes.length
+          |> Stdlib.Int64.toString
+
+        Builtin.print $"Content-Length: {contentLengthInBytes}\r\n\r\n{response}"
 
 
-      let runServerCliLoop () : Int =
-        let incomingRequestRaw = Builtin.LanguageServerProtocol.readNextMessage ()
-        log $"Request: {incomingRequestRaw}"
+      // TODO maybe this should return a Result eventually,
+      // and Error if we don't get a proper LSP message
+      let readMessageFromClient () : String =
+        Builtin.Danger.LanguageServerProtocol.readNextMessage ()
 
-        // for now, we're just logging the incoming requests
-        // shortly, we'll need to parse them, and respond to them appropriately
-        // (for requests that require a response, that is -- anything without an `id` can be ignored)
 
-        // TODO:
-        // match Builtin.AltJson.parse incomingRequestRaw with
-        // | Ok incomingRequest ->
-        //   // TODO: validate that it's a valid JsonRPC 2.0 request and extract out id, method, params
-        //   // TODO: call config.onRequest with the (id, method, params)
-        //   // TODO: config.onRequest should return a JsonToken
-        //   // TODO: validate that the response is a valid JsonRPC 2.0 response
-        //   // TODO: print the response (-> stdout for consumer)
+      /// returns `true` if we got a shutdown request
+      ///
+      /// maybe we should instead return some DU here, with "Shutdown" as a case?
+      /// or a list of DUs - like actions, including returning responses?
+      let handleRequest (r: JsonRPC.Request.Request) : Bool =
+        match r.method, r.id with
+        // -- Lifecycle and general support
+        | ("initialized", None) ->
+          log "(ignore)"
+          false
 
-        //   runServerCliLoop config
+        | ("initialize", None) ->
+          log "TODO: fail - we shouldn't be seeing a second one of these"
+          false
 
-        // | Error err ->
-        //   Builtin.printLine $"Error parsing incoming request: {err}"
-        //   1
+        | ("$/setTrace", None) ->
+          log "TODO we should do something with this"
+          false
 
-        runServerCliLoop ()
+        | ("shutdown", None) ->
+          log "shutting down"
+          true
 
-      let runServerCli (u: Unit) : Int =
+
+        // -- textDocument
+        | ("textDocument/didOpen", None) ->
+          log "TODO we should do something with this - like report problems"
+          false
+        | ("textDocument/didSave", None) ->
+          log "TODO we should do something with this - like report problems"
+          false
+
+
+        // -- other
+        | (other, _) ->
+          log $"TODO: we don't yet support this method: {other}"
+          false
+
+
+
+      let runServerCliLoop () : Int64 =
+        log "---"
+
+        let incomingMessageRaw = readMessageFromClient ()
+        logRequest incomingMessageRaw
+
+
+        let shouldShutdown =
+          match JsonRPC.IncomingMessage.parse incomingMessageRaw with
+          // # Things we want/expect
+
+          | SingleRequest(Ok(jsonRpcRequest)) ->
+            log $"Parsed incoming message as single JSON-RPC request"
+            handleRequest jsonRpcRequest
+
+          | BatchOfRequests items ->
+            // TODO: need to reply in a batch as well
+            log "TODO - Got batch request; not yet set to handle these"
+            false
+
+
+          // # Errors
+
+          // was an object {} but not a valid json-rpc 2.0 _request_
+          // (note: could have been a valid _response_ though - we don't yet have good support for that)
+          | SingleRequest(Error(singleRequestParseError)) ->
+            // TODO match on singleRequestParseError, and return proper error-specific responses
+
+            log
+              $"Error parsing incoming message as json-rpc request:\n{incomingMessageRaw}"
+
+            logAndSendToClient
+              """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+            false
+
+
+          | NotJson ->
+            log
+              $"Error parsing incoming message as json:\n{incomingMessageRaw}\nError: {PACKAGE.Darklang.Stdlib.AltJson.ParseError.toString err}"
+
+            logAndSendToClient
+              """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+            false
+
+
+          | NotObjectOrArray ->
+            log $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}"
+
+            logAndSendToClient
+              """{"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": null}"""
+
+            false
+
+
+          // The json-rpc spec says to just ignore any incoming messages of `[]`
+          | EmptyBatch ->
+            log "ignoring empty batch"
+            false
+
+
+        // shut down if instructed, or listen for the next message
+        if shouldShutdown then 0L else (runServerCliLoop ())
+
+
+
+      let runServerCli (u: Unit) : Int64 =
+        // clear `lsp.log`
         let _deleted = Builtin.File.delete logFilePath
 
         let nowStr =
@@ -253,11 +165,32 @@ module Darklang =
         // responding with a static set of capabilities of the server
         //
         // https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#initialize
-        let incomingRequestRaw = Builtin.LanguageServerProtocol.readNextMessage ()
-        logRequest incomingRequestRaw
+        let incomingMessageRaw = readMessageFromClient ()
+        logRequest incomingMessageRaw
 
-        logAndRespond
+
+        // Let's demonstrate that the server is waking up.
+        // These are (basically) the only things we're allowed to do before
+        // returning the initialize response
+        logAndSendToClient
+          """{ "jsonrpc": "2.0", "method": "$/logTrace", "params": { "message": "hi I'm an early trace" } }"""
+
+        logAndSendToClient
+          """{ "jsonrpc":"2.0", "method":"window/showMessage", "params":{"type":3,"message":"wow cool, a second message from the server came in"}}"""
+
+        logAndSendToClient
+          """{ "jsonrpc":"2.0", "method":"window/logMessage", "params":{"type":1,"message":"just logging a message"}}"""
+
+
+
+        // finally, reply to the initialize request
+        logAndSendToClient
           """{"jsonrpc":"2.0","id":0,"result":{"capabilities":{"completionProvider":{"resolveProvider":true},"textDocumentSync":1}}}"""
+
+
+        // trying to get the `Darklang LSP - Server` output logs to show up...
+        logAndSendToClient
+          """{ "jsonrpc": "2.0", "method": "$/logTrace", "params": { "message": "hi I'm a trace after initialize" } }"""
 
 
         // now that _that_ is out of the way, we can start responding to normal requests

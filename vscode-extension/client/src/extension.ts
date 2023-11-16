@@ -13,7 +13,7 @@ import {
 
 let client: LanguageClient;
 
-const useDarklangServer = false;
+const useDarklangServer = true;
 
 export function activate(context: ExtensionContext) {
   const sharedDarklangServerOptions = {
@@ -23,6 +23,7 @@ export function activate(context: ExtensionContext) {
       "./scripts/run-cli",
       "./user-code/darklang/scripts/language-server.dark",
     ],
+    transport: TransportKind.stdio,
   };
   const darklangServerOptions: ServerOptions = {
     run: sharedDarklangServerOptions,
@@ -62,7 +63,7 @@ export function activate(context: ExtensionContext) {
     serverOptions,
     clientOptions,
   );
-  client.registerFeature(new SemanticTokensFeature(client));
+  //client.registerFeature(new SemanticTokensFeature(client));
   client.trace = Trace.Verbose;
   client.start();
 }

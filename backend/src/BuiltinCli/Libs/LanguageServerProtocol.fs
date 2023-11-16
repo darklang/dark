@@ -16,7 +16,7 @@ let constants : List<BuiltInConstant> = []
 // TODO reimplement this in Darklang, without any custom built-in function. I had
 // some difficulties around this - I forget what - but this got the job done for now
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "LanguageServerProtocol" ] "readNextMessage" 0
+  [ { name = fn [ "Danger"; "LanguageServerProtocol" ] "readNextMessage" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TString
@@ -61,6 +61,56 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+(*
+  A Darklang draft of replacing this function
+
+
+  let tryReadContentLengthHeader
+    (acc: Stdlib.Option.Option<Int64>)
+    : Stdlib.Result.Result<Int64, Unit> =
+    log "a"
+
+    match Builtin.Stdin.readLine () with
+    | "" ->
+      log "b"
+
+      match acc with
+      | None -> Stdlib.Result.Result.Error()
+      | Some contentLength -> Stdlib.Result.Result.Ok contentLength
+
+    | line ->
+      log $"c: {line}"
+
+      if Stdlib.String.startsWith line "Content-Length: " then
+        log "d"
+
+        let lengthStr =
+          Stdlib.String.dropFirst line (Stdlib.String.length "Content-Length: ")
+
+        log lengthStr
+
+        match Stdlib.Int64.parse lengthStr with
+        | Ok length ->
+          tryReadContentLengthHeader (Stdlib.Option.Option.Some length)
+        | Error _ -> Stdlib.Result.Result.Error()
+
+      else
+        log "e"
+        // ignore other headers
+        tryReadContentLengthHeader acc
+
+
+  let readBody (input : StreamReader) (length : int) =
+      let buffer = Array.create length ' '
+      input.ReadBlock(buffer, 0, length) |> ignore
+      System.String buffer
+
+
+  match tryReadContentLengthHeader Stdlib.Option.Option.None with
+  | Ok contentLength -> "yay"
+  | Error() -> "boo"
+*)
 
 
 let contents : Builtin.Contents = (fns, types, constants)

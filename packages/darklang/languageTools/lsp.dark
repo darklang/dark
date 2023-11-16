@@ -5,6 +5,10 @@ module Darklang =
     //
     // some of these types are somewaht general to the LSP spec,
     // others are specific to our implementation
+    //
+    // Note: this was written as a backend to support a middle-man Node LSP server. This
+    // should all be migrated elsewhere shortly, as we remove that server in favor of
+    // one written in Darklang. TODO
     module LanguageServerProtocol =
       /// A tagging type for string properties that are actually document URIs.
       type DocumentUri = String
