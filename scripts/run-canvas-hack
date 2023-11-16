@@ -21,7 +21,7 @@ else
   EXE="backend/Build/out/CanvasHack/Debug/net7.0/CanvasHack"
 fi
 
-./scripts/devcontainer/_wait-for-background-services postgresql
+./scripts/devcontainer/_wait-for-postgres
 
 # if it hasn't been compiled yet, wait for it
 

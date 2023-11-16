@@ -49,7 +49,7 @@ case "$DB" in
     export DARK_CONFIG_DB_PASSWORD=darklang
 
     echo "Dropping postgres testdb database"
-    ./scripts/devcontainer/_wait-for-background-services postgresql
+    ./scripts/devcontainer/_wait-for-postgres
     dropdb --if-exists testdb
     createdb testdb
     ;;
