@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+echo "--------------------------"
+echo "--  Starting cockroachdb --"
+echo "--------------------------"
+
+sudo cockroach start-single-node --insecure --store=/cockroach-store --background
