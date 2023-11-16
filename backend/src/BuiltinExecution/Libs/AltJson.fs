@@ -18,20 +18,20 @@ let typ
   TypeName.fqPackage "Darklang" ([ "Stdlib"; "AltJson" ] @ addlModules) name version
 
 
-module JsonToken =
-  type JsonToken =
+module Json =
+  type Json =
     | Null
     | Bool of bool
     | Number of double
     | String of string
-    | Array of List<JsonToken>
-    | Object of List<string * JsonToken>
+    | Array of List<Json>
+    | Object of List<string * Json>
 
-  let typeName = typ [] "JsonToken" 0
+  let typeName = typ [] "Json" 0
   let typeRef = TCustomType(Ok typeName, [])
   let knownType = KTCustomType(typeName, [])
 
-  let rec fromDT (dv : Dval) : JsonToken =
+  let rec fromDT (dv : Dval) : Json =
     match dv with
     | DEnum(_, _, [], "Null", []) -> Null
     | DEnum(_, _, [], "Bool", [ DBool b ]) -> Bool b
@@ -46,13 +46,13 @@ module JsonToken =
       |> List.map (fun pair ->
         match pair with
         | DTuple(DString k, v, _) -> (k, fromDT v)
-        | _ -> Exception.raiseInternal "Invalid JsonToken" [])
+        | _ -> Exception.raiseInternal "Invalid Json" [])
       |> Object
 
-    | _ -> Exception.raiseInternal "Invalid JsonToken" []
+    | _ -> Exception.raiseInternal "Invalid Json" []
 
 
-  let rec toDT (token : JsonToken) : Dval =
+  let rec toDT (token : Json) : Dval =
     let (caseName, fields) =
       match token with
       | Null -> "Null", []
@@ -73,16 +73,16 @@ module JsonToken =
     DEnum(typeName, typeName, [], caseName, fields)
 
 
-module TokenParseError =
-  let typeName = typ [ "TokenParseError" ] "TokenParseError" 0
+module ParseError =
+  let typeName = typ [ "ParseError" ] "ParseError" 0
   let typeRef = TCustomType(Ok typeName, [])
   let knownType = KTCustomType(typeName, [])
 
-  type TokenParseError = | NotJson
+  type ParseError = | NotJson
 
-  exception JsonException of TokenParseError
+  exception JsonException of ParseError
 
-  let toDT (e : TokenParseError) : Dval =
+  let toDT (e : ParseError) : Dval =
     let (caseName, fields) =
       match e with
       | NotJson -> "NotJson", []
@@ -98,44 +98,42 @@ module Parsing =
       MaxDepth = System.Int32.MaxValue
     )
 
-  let parse
-    (str : string)
-    : Result<JsonToken.JsonToken, TokenParseError.TokenParseError> =
-    let rec convert (j : JsonElement) : JsonToken.JsonToken =
+  let parse (str : string) : Result<Json.Json, ParseError.ParseError> =
+    let rec convert (j : JsonElement) : Json.Json =
       match j.ValueKind with
-      | JsonValueKind.Null -> JsonToken.Null
+      | JsonValueKind.Null -> Json.Null
 
-      | JsonValueKind.True -> JsonToken.Bool true
-      | JsonValueKind.False -> JsonToken.Bool false
+      | JsonValueKind.True -> Json.Bool true
+      | JsonValueKind.False -> Json.Bool false
 
-      | JsonValueKind.Number -> j.GetDouble() |> JsonToken.Number
+      | JsonValueKind.Number -> j.GetDouble() |> Json.Number
 
-      | JsonValueKind.String -> j.GetString() |> JsonToken.String
+      | JsonValueKind.String -> j.GetString() |> Json.String
 
       | JsonValueKind.Array ->
-        j.EnumerateArray() |> Seq.map convert |> Seq.toList |> JsonToken.Array
+        j.EnumerateArray() |> Seq.map convert |> Seq.toList |> Json.Array
 
       | JsonValueKind.Object ->
         j.EnumerateObject()
         |> Seq.map (fun jp -> (jp.Name, convert jp.Value))
         |> Seq.toList
-        |> JsonToken.Object
+        |> Json.Object
 
-      | _ -> raise (TokenParseError.JsonException TokenParseError.NotJson)
+      | _ -> raise (ParseError.JsonException ParseError.NotJson)
 
     // .net does the hard work of actually parsing the JSON
     let parsedByDotNet =
       try
         Ok(JsonDocument.Parse(str, dotnetParsingOptions).RootElement)
       with _ex ->
-        Error TokenParseError.NotJson
+        Error ParseError.NotJson
 
     match parsedByDotNet with
     | Error err -> Error err
     | Ok parsed ->
       try
         Ok(convert parsed)
-      with TokenParseError.JsonException ex ->
+      with ParseError.JsonException ex ->
         Error ex
 
 
@@ -158,20 +156,20 @@ module Serialize =
     UTF8.ofBytesUnsafe (stream.ToArray())
 
 
-  let rec writeToken (w : Utf8JsonWriter) (jsonToken : JsonToken.JsonToken) : unit =
+  let rec writeToken (w : Utf8JsonWriter) (jsonToken : Json.Json) : unit =
     let r = writeToken w
     match jsonToken with
-    | JsonToken.Null -> w.WriteNullValue()
-    | JsonToken.Bool b -> w.WriteBooleanValue b
-    | JsonToken.Number n -> w.WriteNumberValue n
-    | JsonToken.String s -> w.WriteStringValue s
+    | Json.Null -> w.WriteNullValue()
+    | Json.Bool b -> w.WriteBooleanValue b
+    | Json.Number n -> w.WriteNumberValue n
+    | Json.String s -> w.WriteStringValue s
 
-    | JsonToken.Array l ->
+    | Json.Array l ->
       w.WriteStartArray()
       List.iter r l
       w.WriteEndArray()
 
-    | JsonToken.Object entries ->
+    | Json.Object entries ->
       w.WriteStartObject() // {
 
       entries
@@ -192,15 +190,15 @@ let constants : List<BuiltInConstant> = []
 let fn = fn [ "AltJson" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "serializeToken" 0
+  [ { name = fn "format" 0
       typeParams = []
-      parameters = [ Param.make "token" JsonToken.typeRef "" ]
+      parameters = [ Param.make "json" Json.typeRef "" ]
       returnType = TString
-      description = "Serializes a JsonToken to a JSON string."
+      description = "Formats a JSON value as a JSON string."
       fn =
         (function
         | _, [], [ jtDval ] ->
-          let jt = JsonToken.fromDT jtDval
+          let jt = Json.fromDT jtDval
           let jsonString = Serialize.writeJson (fun w -> Serialize.writeToken w jt)
           Ply(DString jsonString)
         | _ -> incorrectArgs ())
@@ -209,19 +207,19 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "parseToken" 0
+    { name = fn "parse" 0
       typeParams = []
-      parameters = [ Param.make "json" TString "" ]
-      returnType = TypeReference.result JsonToken.typeRef TokenParseError.typeRef
-      description = "Parses a JSON string <param json> as a JsonToken"
+      parameters = [ Param.make "jsonString" TString "" ]
+      returnType = TypeReference.result Json.typeRef ParseError.typeRef
+      description = "Tries to parse a string <param jsonString> as Json"
       fn =
-        let result = Dval.result JsonToken.knownType TokenParseError.knownType
+        let result = Dval.result Json.knownType ParseError.knownType
 
         (function
         | _, [], [ DString jsonString ] ->
           match Parsing.parse jsonString with
-          | Ok jt -> jt |> JsonToken.toDT |> Ok |> result |> Ply
-          | Error e -> e |> TokenParseError.toDT |> Error |> result |> Ply
+          | Ok jt -> jt |> Json.toDT |> Ok |> result |> Ply
+          | Error e -> e |> ParseError.toDT |> Error |> result |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -1,0 +1,274 @@
+module Darklang =
+  /// https://www.jsonrpc.org/specification
+  ///
+  /// This is for the 2.0 version of the spec.
+  /// TODO consider versioning this module somehow
+  ///
+  /// note: this is currently assuming that the LSP server is prediminantly running as the server
+  /// tehnically, the LSP spec allows for the server to be the client, and the client to be the server
+  module JsonRPC =
+    // <aliases>
+    type Json = Stdlib.AltJson.Json
+    // </aliases>
+
+    let expectedJsonRpcVersion = "2.0"
+
+    type RequestId =
+      | Null
+      | Int of Int64
+      | String of String
+
+    module Request =
+      type RequestParams =
+        | Array of List<Json>
+        | Object of List<String * Json>
+
+      /// A single message from an LSP Client to an LSP Server
+      ///
+      /// Note: when the `id` is `None`, this is referred to as a "notification"
+      type Request =
+        { id: Stdlib.Option.Option<RequestId>
+          method: String
+          ``params``: Stdlib.Option.Option<RequestParams> }
+
+
+      module Parsing =
+        type ParseError =
+          // must be an object `{...}`)
+          | NotObject of Json
+
+          /// must be provided
+          | MissingJsonRpcField
+
+          /// must be `String "2.0"` exactly
+          | InvalidJsonRpcField of actual: Json
+
+          /// can be missing, but otherwise must be null, a String, or a Number
+          | InvalidIdField of actual: Json
+
+          /// must be provided
+          | MissingMethodField of id: Stdlib.Option.Option<RequestId>
+
+          /// must be a string
+          | InvalidMethodField of id: Stdlib.Option.Option<RequestId> * actual: Json
+
+          /// can be missing, but otherwise must be an array or an object
+          | InvalidParamsField of id: Stdlib.Option.Option<RequestId> * actual: Json
+
+
+
+        // all requests, whether sent by themselves or in a batch,
+        // must have a `jsonrpc` field, and its value must be exactly "2.0"
+        let validateJsonRpcVersionField
+          (fields: List<String * Json>)
+          : Stdlib.Result.Result<Unit, ParseError> =
+          match Stdlib.List.findFirst fields (fun (k, v) -> k == "jsonrpc") with
+          | Some((_, String "2.0")) -> Stdlib.Result.Result.Ok()
+
+          | None -> Stdlib.Result.Result.Error(ParseError.MissingJsonRpcField)
+
+          | Some(_, invalidJsonRpc) ->
+            Stdlib.Result.Result.Error(ParseError.InvalidJsonRpcField invalidJsonRpc)
+
+
+        // If `id` is provided, it must be a Json.Null, .String, or .Number
+        // If it's not provided, that's OK -- it's a notification we don't have to respond to!
+        let extractIdFromRequest
+          (fields: List<String * Json>)
+          : Stdlib.Result.Result<Stdlib.Option.Option<RequestId>, ParseError> =
+          match Stdlib.List.findFirst fields (fun (k, v) -> k == "id") with
+
+          // none provided - fine - notification
+          | None -> Stdlib.Result.Result.Ok(Stdlib.Option.Option.None)
+
+          // can be null, a string, or a number
+          | Some((_, Null)) ->
+            RequestId.Null |> Stdlib.Option.Option.Some |> Stdlib.Result.Result.Ok
+          | Some((_, String s)) ->
+            (RequestId.String s)
+            |> Stdlib.Option.Option.Some
+            |> Stdlib.Result.Result.Ok
+          | Some((_, Number n)) ->
+            (Stdlib.Float.floor n)
+            |> RequestId.Int
+            |> Stdlib.Option.Option.Some
+            |> Stdlib.Result.Result.Ok
+
+          // otherwise, invalid
+          | Some((_, invalidId)) ->
+            Stdlib.Result.Result.Error(ParseError.InvalidIdField invalidId)
+
+
+        // for each request, a `method` field must be present, and must be a string
+        let extractMethodFromRequest
+          (requestId: Stdlib.Option.Option<RequestId>)
+          (fields: List<String * Json>)
+          : Stdlib.Result.Result<String, ParseError> =
+          match Stdlib.List.findFirst fields (fun (k, v) -> k == "method") with
+          | Some((_, String method)) -> Stdlib.Result.Result.Ok method
+
+          | Some((_, invalidMethod)) ->
+            Stdlib.Result.Result.Error(
+              ParseError.InvalidMethodField(requestId, invalidMethod)
+            )
+          | None ->
+            Stdlib.Result.Result.Error(ParseError.MissingMethodField requestId)
+
+
+        // can be missing, but if it's present it must be either:
+        // - an Array (with params by index)
+        // - or an Object (with params by name)
+        let extractParamsMaybeFromRequest
+          (requestId: Stdlib.Option.Option<RequestId>)
+          (fields: List<String * Json>)
+          : Stdlib.Result.Result<Stdlib.Option.Option<RequestParams>, ParseError> =
+          match Stdlib.List.findFirst fields (fun (k, v) -> k == "params") with
+          | None -> Stdlib.Option.Option.None |> Stdlib.Result.Result.Ok
+          | Some((_, Array p)) ->
+            (RequestParams.Array p)
+            |> Stdlib.Option.Option.Some
+            |> Stdlib.Result.Result.Ok
+          | Some((_, Object p)) ->
+            (RequestParams.Object p)
+            |> Stdlib.Option.Option.Some
+            |> Stdlib.Result.Result.Ok
+          | Some((_, invalidParams)) ->
+            Stdlib.Result.Result.Error(
+              ParseError.InvalidParamsField(requestId, invalidParams)
+            )
+
+
+        /// Parse a single json-rpc request
+        ///
+        /// e.g. `{ "jsonrpc": "2.0", "method": "$/logTrace", "params": { "message": "hello!" } }`
+        let parse (json: Json) : Stdlib.Result.Result<Request, ParseError> =
+
+          match json with
+          | Object o ->
+            Builtin.printLine "here6"
+            let idOrError = extractIdFromRequest o
+
+            // (this is just convenient for including in some errors)
+            let simplifiedIdMaybe = // : Option<RequestId>
+              match idOrError with
+              | Ok idMaybe -> idMaybe
+              | Error _ -> Stdlib.Option.Option.None
+
+            let method = extractMethodFromRequest simplifiedIdMaybe o
+
+            let ps = extractParamsMaybeFromRequest simplifiedIdMaybe o
+
+            match (validateJsonRpcVersionField o, idOrError, method, ps) with
+            | (Error jsonRpcFieldError, _, _, _) ->
+              Stdlib.Result.Result.Error(jsonRpcFieldError)
+            | (_, Error idError, _, _) -> Stdlib.Result.Result.Error(idError)
+            | (_, _, Error methodError, _) -> Stdlib.Result.Result.Error(methodError)
+            | (_, _, _, Error paramsError) -> Stdlib.Result.Result.Error(paramsError)
+
+            | (Ok(), Ok idMaybe, Ok method, Ok paramsMaybe) ->
+              (Request
+                { id = idMaybe
+                  method = method
+                  ``params`` = paramsMaybe })
+              |> Stdlib.Result.Result.Ok
+
+          | _ -> Stdlib.Result.Result.Error ParseError.NotObject
+
+
+      let makeString
+        (method: String)
+        (id: Stdlib.Option.Option<RequestId>)
+        (params: Stdlib.Option.Option<RequestParams>)
+        : String =
+        let fields =
+          [ Stdlib.Option.Option.Some(
+              ("jsonrpc", Json.String expectedJsonRpcVersion)
+            )
+
+            Stdlib.Option.Option.Some(("method", Json.String method))
+
+            (id
+             |> Stdlib.Option.map (fun id ->
+               let v =
+                 match id with
+                 | Null -> Json.Null
+                 | Int i -> Json.Number i
+                 | String s -> Json.String s
+
+               ("id", v)))
+
+            (params
+             |> Stdlib.Option.map (fun params ->
+               let v =
+                 match params with
+                 | Array a -> Json.Array a
+                 | Object o -> Json.Object o
+
+               ("params", v))) ]
+
+          |> Stdlib.List.filterMap (fun x -> x)
+
+        (Json.Object fields) |> Stdlib.AltJson.format
+
+
+
+      /// Note: a 'notification' is a 'request' where we don't care about the response
+      let makeNotificationString
+        (method: String)
+        (params: Stdlib.Option.Option<RequestParams>)
+        : String =
+        makeString method Stdlib.Option.Option.None params
+
+
+
+    module IncomingMessage =
+      // TODO: SingleResponse, BatchOfResponses
+      // (really rare in our use case, but possible per the spec)
+      type IncomingMessage =
+        | NotJson of String
+        | NotObjectOrArray of Json
+
+        | EmptyBatch
+
+        | SingleRequest of
+          Stdlib.Result.Result<Request.Request, Request.Parsing.ParseError>
+        | BatchOfRequests of
+          List<Stdlib.Result.Result<Request.Request, Request.Parsing.ParseError>>
+
+
+      let parse (jsonString: String) : IncomingMessage =
+        match Stdlib.AltJson.parse jsonString with
+        | Error _ -> IncomingMessage.NotJson jsonString
+        | Ok json ->
+          match json with
+          | Object o -> IncomingMessage.SingleRequest(Request.Parsing.parse json)
+          | Array items ->
+            match items |> Stdlib.List.map (fun r -> Request.Parsing.parse r) with
+            | [] -> IncomingMessage.EmptyBatch
+            | batch -> IncomingMessage.BatchOfRequests batch
+          | other -> IncomingMessage.NotObjectOrArray other
+
+
+
+    module Response =
+      module Ok =
+        let make (requestId: Stdlib.Option.Option<Int64>) (result: Json) : String =
+          (Json.Object
+            [ ("jsonrpc", Json.String "2.0"); ("id", requestId); ("result", result) ])
+          |> Stdlib.AltJson.format
+
+
+      module Error =
+        let make
+          (id: Stdlib.Option.Option<Int64>)
+          (errorCode: Int64)
+          (errorMessage: String)
+          : String =
+          (Json.Object
+            [ ("jsonrpc", Json.String "2.0")
+              ("id", id)
+              ("error",
+               Json.Object
+                 [ ("code", Json.Number(Int64.of_int errorCode))
+                   ("message", Json.String errorMessage) ]) ])
+          |> Stdlib.AltJson.format

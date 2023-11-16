@@ -90,9 +90,9 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "append" 0
+    { name = fn "appendText" 0
       typeParams = []
-      parameters = [ Param.make "path" TString ""; Param.make "content" TBytes "" ]
+      parameters = [ Param.make "path" TString ""; Param.make "content" TString "" ]
       returnType = TypeReference.result TUnit TString
       description =
         "Appends the given <param content> to the file at the specified <param path>. If the file does not exist, a new file is created with the content. Returns a Result type indicating success or failure."
@@ -100,10 +100,10 @@ let fns : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTUnit KTString
         let resultError = Dval.resultError KTUnit KTString
         (function
-        | _, _, [ DBytes content; DString path ] ->
+        | _, _, [ DString path; DString content ] ->
           uply {
             try
-              do! System.IO.File.WriteAllBytesAsync(path, content)
+              do! System.IO.File.AppendAllTextAsync(path, content)
               return resultOk DUnit
             with e ->
               return resultError (DString e.Message)

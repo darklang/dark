@@ -151,6 +151,7 @@ connection.onInitialize(async (params: InitializeParams) => {
     },
   };
 
+  //console.log("initialization result: ", JSON.stringify(result));
   return result;
 });
 

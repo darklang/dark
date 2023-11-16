@@ -1,0 +1,197 @@
+module Darklang =
+  module LanguageTools =
+    /// This supports the Darklang-specific LSP (Language Server Protocol) server,
+    /// per the 3.17 spec: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification
+    ///
+    /// This LSP server is currently used by our in-progress VS Code Extension.
+    /// Namely, `LspServer.runServerCli` creates a long-running process that reads
+    /// incoming requests from stdin, and writes responses to stdout, following the LSP spec
+    ///
+    /// This depends on json-rpc 2.0 support, currently in the @Darklang.JsonRPC module
+    ///
+    /// TODO: some day, abstract out general LSP support in a separate module
+    module LspServer =
+      let logFilePath = "/home/dark/app/rundir/logs/lsp-server.log"
+
+      let log (input: String) : Unit =
+        // returns Result -- ignored
+        let _logged = Builtin.File.appendText logFilePath (input ++ "\n")
+
+        ()
+
+      let logRequest (request: String) : Unit = log $"From client: {request}"
+
+
+      let logAndSendToClient (response: String) : Unit =
+        log $"To client: {response}"
+
+        let contentLengthInBytes =
+          response
+          |> Stdlib.String.toBytes_v0
+          |> Stdlib.Bytes.length
+          |> Stdlib.Int64.toString
+
+        Builtin.print $"Content-Length: {contentLengthInBytes}\r\n\r\n{response}"
+
+
+      // TODO maybe this should return a Result eventually,
+      // and Error if we don't get a proper LSP message
+      let readMessageFromClient () : String =
+        Builtin.Danger.LanguageServerProtocol.readNextMessage ()
+
+
+      /// returns `true` if we got a shutdown request
+      ///
+      /// maybe we should instead return some DU here, with "Shutdown" as a case?
+      /// or a list of DUs - like actions, including returning responses?
+      let handleRequest (r: JsonRPC.Request.Request) : Bool =
+        match r.method, r.id with
+        // -- Lifecycle and general support
+        | ("initialized", None) ->
+          log "(ignore)"
+          false
+
+        | ("initialize", None) ->
+          log "TODO: fail - we shouldn't be seeing a second one of these"
+          false
+
+        | ("$/setTrace", None) ->
+          log "TODO we should do something with this"
+          false
+
+        | ("shutdown", None) ->
+          log "shutting down"
+          true
+
+
+        // -- textDocument
+        | ("textDocument/didOpen", None) ->
+          log "TODO we should do something with this - like report problems"
+          false
+        | ("textDocument/didSave", None) ->
+          log "TODO we should do something with this - like report problems"
+          false
+
+
+        // -- other
+        | (other, _) ->
+          log $"TODO: we don't yet support this method: {other}"
+          false
+
+
+
+      let runServerCliLoop () : Int64 =
+        log "---"
+
+        let incomingMessageRaw = readMessageFromClient ()
+        logRequest incomingMessageRaw
+
+
+        let shouldShutdown =
+          match JsonRPC.IncomingMessage.parse incomingMessageRaw with
+          // # Things we want/expect
+
+          | SingleRequest(Ok(jsonRpcRequest)) ->
+            log $"Parsed incoming message as single JSON-RPC request"
+            handleRequest jsonRpcRequest
+
+          | BatchOfRequests items ->
+            // TODO: need to reply in a batch as well
+            log "TODO - Got batch request; not yet set to handle these"
+            false
+
+
+          // # Errors
+
+          // was an object {} but not a valid json-rpc 2.0 _request_
+          // (note: could have been a valid _response_ though - we don't yet have good support for that)
+          | SingleRequest(Error(singleRequestParseError)) ->
+            // TODO match on singleRequestParseError, and return proper error-specific responses
+
+            log
+              $"Error parsing incoming message as json-rpc request:\n{incomingMessageRaw}"
+
+            logAndSendToClient
+              """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+            false
+
+
+          | NotJson ->
+            log
+              $"Error parsing incoming message as json:\n{incomingMessageRaw}\nError: {PACKAGE.Darklang.Stdlib.AltJson.ParseError.toString err}"
+
+            logAndSendToClient
+              """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+            false
+
+
+          | NotObjectOrArray ->
+            log $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}"
+
+            logAndSendToClient
+              """{"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": null}"""
+
+            false
+
+
+          // The json-rpc spec says to just ignore any incoming messages of `[]`
+          | EmptyBatch ->
+            log "ignoring empty batch"
+            false
+
+
+        // shut down if instructed, or listen for the next message
+        if shouldShutdown then 0L else (runServerCliLoop ())
+
+
+
+      let runServerCli (u: Unit) : Int64 =
+        // clear `lsp.log`
+        let _deleted = Builtin.File.delete logFilePath
+
+        let nowStr =
+          (PACKAGE.Darklang.Stdlib.DateTime.now_v0 ())
+          |> PACKAGE.Darklang.Stdlib.DateTime.toString
+
+        log $"Running Darklang LSP Server {nowStr}"
+
+
+        // The first thing we get is the `"method": "initialize"` request,
+        // which we need to respond to with the capabilities of the server
+        //
+        // At this point we are ignoring the body of this request, and just
+        // responding with a static set of capabilities of the server
+        //
+        // https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#initialize
+        let incomingMessageRaw = readMessageFromClient ()
+        logRequest incomingMessageRaw
+
+
+        // Let's demonstrate that the server is waking up.
+        // These are (basically) the only things we're allowed to do before
+        // returning the initialize response
+        logAndSendToClient
+          """{ "jsonrpc": "2.0", "method": "$/logTrace", "params": { "message": "hi I'm an early trace" } }"""
+
+        logAndSendToClient
+          """{ "jsonrpc":"2.0", "method":"window/showMessage", "params":{"type":3,"message":"wow cool, a second message from the server came in"}}"""
+
+        logAndSendToClient
+          """{ "jsonrpc":"2.0", "method":"window/logMessage", "params":{"type":1,"message":"just logging a message"}}"""
+
+
+
+        // finally, reply to the initialize request
+        logAndSendToClient
+          """{"jsonrpc":"2.0","id":0,"result":{"capabilities":{"completionProvider":{"resolveProvider":true},"textDocumentSync":1}}}"""
+
+
+        // trying to get the `Darklang LSP - Server` output logs to show up...
+        logAndSendToClient
+          """{ "jsonrpc": "2.0", "method": "$/logTrace", "params": { "message": "hi I'm a trace after initialize" } }"""
+
+
+        // now that _that_ is out of the way, we can start responding to normal requests
+        runServerCliLoop ()
