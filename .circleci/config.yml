@@ -17,7 +17,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:06089da
+      - image: darklang/dark-base:f21ea1e
 
 commands:
   show-large-files-and-directories:
@@ -66,6 +66,11 @@ commands:
             scripts/devcontainer/_create-cache-directories
             scripts/devcontainer/_setup-hosts
             scripts/devcontainer/_start-background-services postgresql
+            if [[ -f /home/dark/tree-sitter.so && ! -f /home/dark/app/backend/src/LibTreeSitter/tree-sitter.so ]]; then
+              mv /home/dark/tree-sitter.so /home/dark/app/backend/src/LibTreeSitter/
+            else
+              echo "No action needed."
+            fi
             env
 
   ##########################
@@ -195,6 +200,9 @@ jobs:
             - v2-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
+      # For parser
+      # TODO: cache the parser artifacts -- only rebuild if grammar has changed since last build (or upon cache-miss)
+      - run: ./scripts/build/build-parser
       # For tests
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore

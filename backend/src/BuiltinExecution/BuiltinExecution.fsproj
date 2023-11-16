@@ -34,6 +34,7 @@
     <Compile Include="Libs/List.fs" />
     <Compile Include="Libs/Math.fs" />
     <Compile Include="Libs/NoModule.fs" />
+    <Compile Include="Libs/Parser.fs" />
     <Compile Include="Libs/String.fs" />
     <Compile Include="Libs/Uuid.fs" />
     <Compile Include="Builtin.fs" />
@@ -41,6 +42,8 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../LibTreeSitter/LibTreeSitter.csproj" />
+    <ProjectReference Include="../LibTreeSitter.Darklang/LibTreeSitter.Darklang.csproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

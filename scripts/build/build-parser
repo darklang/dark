@@ -4,20 +4,60 @@
 set -euo pipefail
 
 # install dependencies
+echo "Installing tree-sitter-darklang dependencies..."
+echo "Note: installing tree-sitter automatically builds the parser as part of it"
 cd parser/tree-sitter-darklang
 npm i
 
+echo "Building parser"
 # build the parser and generate the bindings
 npm run build-parser
+
+echo "Building WASM bindings"
 npm run build-wasm-bindings
 
-# copy JS/WASM bindings to backend/static/tree-sitter
-cd ../..
-mkdir -p backend/static/tree-sitter
-cp parser/tree-sitter-darklang/bindings/tree-sitter-darklang.wasm backend/static/tree-sitter/
-cp parser/tree-sitter-darklang/node_modules/web-tree-sitter/tree-sitter.js backend/static/tree-sitter/
-cp parser/tree-sitter-darklang/node_modules/web-tree-sitter/tree-sitter.wasm backend/static/tree-sitter/
+# make parser binaries for the current platform
+echo "Building tree-sitter-darklang.so"
+zig cc -o tree-sitter-darklang.so -shared src/parser.c -Isrc -O3 -fPIC
 
-# also copy the WASM bindings to vscode-extension/static
+
+# Optionally cross-compile to other platforms
+if [[ "$#" -gt 0 && "$1" == "--cross-compile" ]]; then
+  echo "Cross-compiling tree-sitter-darklang.so for all platforms"
+  rm -rf xplat-builds
+  mkdir xplat-builds
+
+  declare -A targets=(
+    # TODO it seems i386 targets aren't working - commented out for now
+
+    ["x86_64-windows-gnu"]="tree-sitter-darklang-windows-x86_64.dll"
+    #["i386-windows-gnu"]="tree-sitter-darklang-windows-i386.dll"
+
+    ["x86_64-linux-gnu"]="tree-sitter-darklang-linux-x86_64.so"
+    #["i386-linux-gnu"]="tree-sitter-darklang-linux-i386.so"
+    ["aarch64-linux-gnu"]="tree-sitter-darklang-linux-aarch64.so"
+    ["arm-linux-gnueabi"]="tree-sitter-darklang-linux-arm.so"
+
+    ["x86_64-macos"]="tree-sitter-darklang-macOS-x86_64.dylib"
+    ["aarch64-macos"]="tree-sitter-darklang-macOS-aarch64.dylib"
+  )
+  for target in "${!targets[@]}"; do
+    zig cc -target $target -o "xplat-builds/${targets[$target]}" -shared src/parser.c -Isrc -O3
+  done
+
+  echo "Compilation completed successfully for all targets."
+fi
+
+cd ../..
+
+# copy the WASM bindings to vscode-extension/static
+# , so the .wasm file can be used for syntax highlighting, etc.
+echo "Copying WASM bindings to vscode-extension/static"
 mkdir -p vscode-extension/static/tree-sitter
 cp parser/tree-sitter-darklang/bindings/tree-sitter-darklang.wasm vscode-extension/static/tree-sitter/
+
+
+# copy `tree-sitter-darklang.so` to `backend/src/LibTreeSitter.Darklang`
+# , so it can be referenced via P/Invoke
+echo "Copying tree-sitter-darklang.so to backend/src/LibTreeSitter.Darklang"
+cp parser/tree-sitter-darklang/tree-sitter-darklang.so backend/src/LibTreeSitter.Darklang

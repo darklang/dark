@@ -429,6 +429,52 @@ RUN git clone https://github.com/emscripten-core/emsdk.git --depth 1 \
   && ./emsdk activate latest
 ENV PATH "$PATH:/home/dark/emsdk/upstream/emscripten"
 
+
+#############
+# tree-sitter,
+# to P/Invoke with in our Darklang bindings
+#
+# Note: `tree-sitter.so` is moved into the `backend/src/LibTreeSitter` directory in
+# the `_copy-tree-sitter-binary` script, as this docker container doesn't seem to
+# have access the /home/dark directory here.
+#############
+RUN git clone --depth 1 --branch v0.20.8 https://github.com/tree-sitter/tree-sitter.git \
+  && gcc  -fPIC  -shared  -o tree-sitter.so  tree-sitter/lib/src/lib.c  -I tree-sitter/lib/src  -I tree-sitter/lib/src/../include \
+  && rm -rf tree-sitter/
+# TODO: cross-compile for other platforms, when we start releasing `darklang` binaries
+
+
+#############
+# Zig,
+# for (cross-)compiling the `tree-sitter-darklang` parser
+# TODO Occasionally, check https://ziglang.org/download to see if we're using the latest version
+ENV ZIG_VERSION=0.11.0
+ENV ZIG_ARM64_MINISIG="RUSGOq2NVecA2XPwbgbN5SvU46UcCmhhfcfrjVC+YvcwUcjAYfIXQmqE//df1Mes7iyGZvGoy2+PSJ8pog7QGLE+3nvP8gtlSAs="
+ENV ZIG=AMD64_MINISIG="RUSGOq2NVecA2X2did6P61CXthPLZEUwi07GDWQ2MWU58W+asm3v85+PRVHN5SljhdsKoAMmbg4fdyseAcbVZayGaV1Iv6chcgE="
+#############
+RUN set -e; \
+  case ${TARGETARCH} in \
+  arm64) \
+  ZIG_ARCH="aarch64"; \
+  ZIG_MINISIG=$ZIG_ARM64_MINISIG; \
+  ;; \
+  amd64) \
+  ZIG_ARCH="x86_64"; \
+  ZIG_MINISIG=$AMD64_MINISIG; \
+  ;; \
+  *) exit 1;; \
+  esac;  \
+  curl -o zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz"; \
+  # TODO: verify signature
+  # RUN minisign -Vm zig.tar.xz -P "RWSGOq2NVecA2UPNdBUZykf1CCb147pkmdtYxgb3Ti+JO/wCYvhbAb/U" \
+  #   || (echo "Verification failed!" && exit 1)
+  mkdir ~/zig; \
+  tar -xf zig.tar.xz -C ~/zig; \
+  rm zig.tar.xz; \
+  mv ~/zig/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}/* ~/zig;
+
+ENV PATH "$PATH:~/zig"
+
 ############################
 # Environment
 ############################

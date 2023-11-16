@@ -46,11 +46,6 @@ def pretty_print(msg, color):
   print(f"\x1b[6;30;{str(color)}m\n$ {msg}\x1b[0m")
 
 
-def run_frontend(start, bash):
-  pretty_print(bash, 44)
-  return run(start, bash)
-
-
 def run_backend(start, bash):
   pretty_print(bash, 42)
   return run(start, bash)
@@ -75,20 +70,6 @@ def is_script(f):
   return "Bourne-Again" in filetype
 
 
-def sass_compile():
-  start = time.time()
-  return run_frontend(
-      start,
-      "npx sass client/styles/app.scss > backend/static/app.css && npx postcss --map --output backend/static/app.css backend/static/app.css"
-  )
-
-
-def copy_static():
-  # For changing static files (esp icons)
-  start = time.time()
-  return run_frontend(start, "npm run copy:static")
-
-
 def copy_dark_wasm():
   start = time.time()
   if optimize:
@@ -102,19 +83,6 @@ def copy_dark_wasm():
         "rsync -a backend/Build/out/Wasm/Debug/net7.0/wwwroot/_framework/ backend/static/dark_wasm/"
     )
   return dark_wasm
-
-
-def client_build():
-  start = time.time()
-  build = "./scripts/build/_npm-run-build-with-retry"
-  result = run_frontend(start, build)
-  return result
-
-
-def npm_install():
-  start = time.time()
-  build = "./scripts/build/_npm-install-with-retry"
-  return run_frontend(start, build)
 
 
 def shellcheck(f):
@@ -139,6 +107,10 @@ def circleci_validate():
   start = time.time()
   return run_backend(start, "circleci config validate")
 
+
+def build_parser():
+  start = time.time()
+  return run_other(start, "scripts/build/build-parser")
 
 ###########
 # F#
@@ -298,7 +270,6 @@ class Should:
     self.backend_test = False
     self.reload_all_packages = False
     self.reload_canvases = []
-    self.npm_install = False
     self.circleci_validate = False
     self.clear_local_db = False
     self.run_migrations = False
@@ -306,6 +277,7 @@ class Should:
     self.shellcheck = []
     self.yamllint = []
     self.terraform_validate = False
+    self.build_parser = False
 
 
 def execute(should):
@@ -377,6 +349,9 @@ def execute(should):
   if should.terraform_validate:
     if not terraform_validate(): success = False
 
+  if should.build_parser:
+    if not build_parser(): success = False
+
   return success
 
 
@@ -434,6 +409,9 @@ def mark(should, f):
 
   elif (".yml" in f or ".yaml" in f):
     should.yamllint += [f]
+
+  elif ("parser/tree-sitter-darklang/grammar.js" in f):
+    should.build_parser = True
 
   else:
     print("non-build file: " + f, end='')

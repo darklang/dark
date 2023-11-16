@@ -20,6 +20,8 @@
     <ProjectReference Include="../../src/BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
     <ProjectReference Include="../../src/BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
     <ProjectReference Include="../../src/QueueWorker/QueueWorker.fsproj" />
+    <ProjectReference Include="../../src/LibTreeSitter/LibTreeSitter.csproj" />
+    <ProjectReference Include="../../src/LibTreeSitter.Darklang/LibTreeSitter.Darklang.csproj" />
     <ProjectReference Include="../TestUtils/TestUtils.fsproj" />
   </ItemGroup>
   <ItemGroup>
@@ -46,6 +48,7 @@
     <Compile Include="Serialization.DarkTypes.Tests.fs" />
     <Compile Include="Builtin.Tests.fs" />
     <Compile Include="SqlCompiler.Tests.fs" />
+    <Compile Include="TreeSitter.Tests.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

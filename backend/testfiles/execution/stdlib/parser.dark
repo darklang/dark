@@ -1,0 +1,265 @@
+// aliases and helper fns
+type Point = PACKAGE.Darklang.LanguageTools.Parser.Point
+type Range = PACKAGE.Darklang.LanguageTools.Parser.Range
+type ParsedNode = PACKAGE.Darklang.LanguageTools.Parser.ParsedNode
+
+let range (s: Int * Int) (e: Int * Int) : Range =
+  let (startRow, startColumn) = s
+  let (endRow, endColumn) = e
+
+  Range
+    { start = Point { row = startRow; column = startColumn }
+      end_ = Point { row = endRow; column = endColumn } }
+
+
+// super basic test just to make sure we don't throw an exception
+(let parsed =
+  Builtin.Parser.parseToSimplifiedTree
+    "let add (a: Int) (b: Int): Int =\n  let sum = a + b\n  sum"
+
+ parsed.typ) = "source_file"
+
+
+// successful parse
+(Builtin.Parser.parseToSimplifiedTree "let self (i: Int): Int =\n  i") = ParsedNode
+  { typ = "source_file"
+    fieldName = ""
+    text = "let self (i: Int): Int =\n  i"
+    sourceRange = range (0, 0) (1, 3)
+    children =
+      [ ParsedNode
+          { fieldName = ""
+            typ = "fn_def"
+            sourceRange = range (0, 0) (1, 3)
+            text = "let self (i: Int): Int =\n  i"
+            children =
+              [ ParsedNode
+                  { fieldName = ""
+                    typ = "let"
+                    text = "let"
+                    sourceRange = range (0, 0) (0, 3)
+                    children = [] }
+
+                ParsedNode
+                  { fieldName = "name"
+                    typ = "identifier"
+                    text = "self"
+                    sourceRange = range (0, 4) (0, 8)
+                    children = [] }
+
+                ParsedNode
+                  { fieldName = "params"
+                    typ = "fn_params_def"
+                    text = "(i: Int)"
+                    sourceRange = range (0, 9) (0, 17)
+                    children =
+                      [ ParsedNode
+                          { fieldName = "first"
+                            typ = "fn_param_def"
+                            text = "(i: Int)"
+                            sourceRange = range (0, 9) (0, 17)
+                            children =
+                              [ ParsedNode
+                                  { children = []
+                                    fieldName = ""
+                                    text = "("
+                                    sourceRange = range (0, 9) (0, 10)
+                                    typ = "(" }
+
+                                ParsedNode
+                                  { fieldName = "identifier"
+                                    typ = "identifier"
+                                    text = "i"
+                                    sourceRange = range (0, 10) (0, 11)
+                                    children = [] }
+
+                                ParsedNode
+                                  { fieldName = ""
+                                    typ = ":"
+                                    text = ":"
+                                    sourceRange = range (0, 11) (0, 12)
+                                    children = [] }
+
+                                ParsedNode
+                                  { typ = "type"
+                                    sourceRange = range (0, 13) (0, 16)
+                                    fieldName = "typ"
+                                    text = "Int"
+                                    children = [] }
+
+                                ParsedNode
+                                  { children = []
+                                    fieldName = ""
+                                    text = ")"
+                                    sourceRange = range (0, 16) (0, 17)
+                                    typ = ")" } ] } ] }
+
+                ParsedNode
+                  { fieldName = ""
+                    typ = ":"
+                    text = ":"
+                    sourceRange = range (0, 17) (0, 18)
+                    children = [] }
+
+                ParsedNode
+                  { fieldName = "return_type"
+                    typ = "type"
+                    text = "Int"
+                    sourceRange = range (0, 19) (0, 22)
+                    children = [] }
+
+                ParsedNode
+                  { fieldName = ""
+                    typ = "="
+                    text = "="
+                    sourceRange = range (0, 23) (0, 24)
+                    children = [] }
+
+                ParsedNode
+                  { fieldName = "body"
+                    typ = "expression"
+                    text = "i"
+                    sourceRange = range (1, 2) (1, 3)
+                    children =
+                      [ ParsedNode
+                          { fieldName = ""
+                            typ = "identifier"
+                            text = "i"
+                            sourceRange = range (1, 2) (1, 3)
+                            children = [] } ] } ] } ] }
+
+
+// failing parse
+// an ERROR exists here because the grammar doesn't support raw ints (`1`) yet
+(Builtin.Parser.parseToSimplifiedTree "let increment (i: Int): Int =\n  i + 1") = ParsedNode
+  { typ = "source_file"
+    fieldName = ""
+    text = "let increment (i: Int): Int =\n  i + 1"
+    sourceRange = range (0, 0) (1, 7)
+    children =
+      [ ParsedNode
+          { fieldName = ""
+            typ = "fn_def"
+            sourceRange = range (0, 0) (1, 3)
+            text = "let increment (i: Int): Int =\n  i"
+            children =
+              [ ParsedNode
+                  { fieldName = ""
+                    typ = "let"
+                    text = "let"
+                    sourceRange = range (0, 0) (0, 3)
+                    children = [] }
+
+                ParsedNode
+                  { fieldName = "name"
+                    typ = "identifier"
+                    text = "increment"
+                    sourceRange = range (0, 4) (0, 13)
+                    children = [] }
+
+                ParsedNode
+                  { fieldName = "params"
+                    typ = "fn_params_def"
+                    text = "(i: Int)"
+                    sourceRange = range (0, 14) (0, 22)
+                    children =
+                      [ ParsedNode
+                          { fieldName = "first"
+                            typ = "fn_param_def"
+                            text = "(i: Int)"
+                            sourceRange = range (0, 14) (0, 22)
+                            children =
+                              [ ParsedNode
+                                  { children = []
+                                    fieldName = ""
+                                    text = "("
+                                    sourceRange = range (0, 14) (0, 15)
+                                    typ = "(" }
+
+                                ParsedNode
+                                  { fieldName = "identifier"
+                                    typ = "identifier"
+                                    text = "i"
+                                    sourceRange = range (0, 15) (0, 16)
+                                    children = [] }
+
+                                ParsedNode
+                                  { fieldName = ""
+                                    typ = ":"
+                                    text = ":"
+                                    sourceRange = range (0, 16) (0, 17)
+                                    children = [] }
+
+                                ParsedNode
+                                  { typ = "type"
+                                    sourceRange = range (0, 18) (0, 21)
+                                    fieldName = "typ"
+                                    text = "Int"
+                                    children = [] }
+
+                                ParsedNode
+                                  { children = []
+                                    fieldName = ""
+                                    text = ")"
+                                    sourceRange = range (0, 21) (0, 22)
+                                    typ = ")" } ] } ] }
+
+                ParsedNode
+                  { fieldName = ""
+                    typ = ":"
+                    text = ":"
+                    sourceRange = range (0, 22) (0, 23)
+                    children = [] }
+
+                ParsedNode
+                  { fieldName = "return_type"
+                    typ = "type"
+                    text = "Int"
+                    sourceRange = range (0, 24) (0, 27)
+                    children = [] }
+
+                ParsedNode
+                  { fieldName = ""
+                    typ = "="
+                    text = "="
+                    sourceRange = range (0, 28) (0, 29)
+                    children = [] }
+
+                ParsedNode
+                  { fieldName = "body"
+                    typ = "expression"
+                    text = "i"
+                    sourceRange = range (1, 2) (1, 3)
+                    children =
+                      [ ParsedNode
+                          { fieldName = ""
+                            typ = "identifier"
+                            text = "i"
+                            sourceRange = range (1, 2) (1, 3)
+                            children = [] } ] } ] }
+
+        ParsedNode
+          { fieldName = ""
+            typ = "ERROR"
+            text = "+ 1"
+            sourceRange = range (1, 4) (1, 7)
+            children =
+              [ ParsedNode
+                  { fieldName = ""
+                    typ = "infix_operator"
+                    text = "+"
+                    sourceRange = range (1, 4) (1, 5)
+                    children =
+                      [ ParsedNode
+                          { fieldName = ""
+                            typ = "+"
+                            text = "+"
+                            sourceRange = range (1, 4) (1, 5)
+                            children = [] } ] }
+
+                ParsedNode
+                  { fieldName = ""
+                    typ = "ERROR"
+                    text = "1"
+                    sourceRange = range (1, 6) (1, 7)
+                    children = [] } ] } ] }

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <LangVersion>9</LangVersion>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <PackageId>LibTreeSitter.Darklang</PackageId>
+        <Version>1.0.0</Version>
+        <Authors>Darklang</Authors>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\LibTreeSitter\LibTreeSitter.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Include="tree-sitter-darklang.so">
+          <Pack>True</Pack>
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+</Project>

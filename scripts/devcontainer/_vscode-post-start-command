@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+
+echo "Copying tree-sitter.so to backend/src/LibTreeSitter"
+mv /home/dark/tree-sitter.so /home/dark/app/backend/src/LibTreeSitter/tree-sitter.so
+
+
 echo "Starting build server"
 
 mkdir -p rundir/logs/
