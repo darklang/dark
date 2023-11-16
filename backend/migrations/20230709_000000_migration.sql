@@ -115,7 +115,7 @@ CREATE TYPE scheduling_rule_type AS ENUM ('pause', 'block');
 
 CREATE TABLE IF NOT EXISTS
 scheduling_rules_v0
-( id SERIAL PRIMARY KEY -- TODO: change to UUID
+( id UUID PRIMARY KEY
 , rule_type scheduling_rule_type NOT NULL
 , canvas_id UUID NOT NULL
 , handler_name TEXT NOT NULL
