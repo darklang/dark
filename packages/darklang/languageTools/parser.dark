@@ -1,7 +1,7 @@
 module Darklang =
   module LanguageTools =
     module Parser =
-      type Point = { row: Int; column: Int }
+      type Point = { row: Int64; column: Int64 }
 
       type Range = { start: Point; end_: Point }
 

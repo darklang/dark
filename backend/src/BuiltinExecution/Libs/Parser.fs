@@ -56,7 +56,8 @@ let fns : List<BuiltInFn> =
 
             let fields =
               let mapPoint (point : Point) =
-                let fields = [ "row", DInt point.Row; "column", DInt point.Column ]
+                let fields =
+                  [ "row", DInt64 point.Row; "column", DInt64 point.Column ]
                 DRecord(pointTypeName, pointTypeName, [], Map fields)
 
               let startPos = cursor.Current.StartPosition
