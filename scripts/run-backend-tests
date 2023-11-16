@@ -13,6 +13,7 @@ function ctrl_c() {
 LLDB=false
 PUBLISHED=false
 PUBLISHED_FLAG=
+DB=pg
 
 EXPECTO_ARGS=()
 
@@ -20,6 +21,7 @@ for i in "$@"
 do
   case "${i}" in
     --lldb) LLDB=true ;;
+    --cockroach) DB=cr ;;
     --published)
       PUBLISHED=true
       PUBLISHED_FLAG=$i
@@ -38,10 +40,29 @@ else
   PRODEXEC=Build/out/ProdExec/Debug/net7.0/ProdExec
 fi
 
-echo "Dropping testdb database"
-./scripts/devcontainer/_wait-for-background-services postgresql
-dropdb --if-exists testdb
-createdb testdb
+case "$DB" in
+  pg)
+    export DARK_CONFIG_DB_HOST=localhost
+    export DARK_CONFIG_DB_PORT=5432
+    export DARK_CONFIG_DB_DBNAME=testdb
+    export DARK_CONFIG_DB_USER=dark
+    export DARK_CONFIG_DB_PASSWORD=darklang
+
+    echo "Dropping postgres testdb database"
+    ./scripts/devcontainer/_wait-for-background-services postgresql
+    dropdb --if-exists testdb
+    createdb testdb
+    ;;
+  cr)
+    export DARK_CONFIG_DB_HOST=localhost
+    export DARK_CONFIG_DB_PORT=26257
+    export DARK_CONFIG_DB_DBNAME=testdb
+    export DARK_CONFIG_DB_USER=root
+    export DARK_CONFIG_DB_PASSWORD=''
+    echo "Dropping cockroach testdb database"
+    cockroach sql --insecure -e "DROP DATABASE IF EXISTS testdb; CREATE DATABASE testdb"
+    ;;
+esac
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
@@ -59,11 +80,6 @@ reset="\033[0m"
 echo -e "Running migrations ${grey}($LOGS/test-migrations.log)${reset}"
 cd backend && \
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
-  DARK_CONFIG_DB_HOST=localhost \
-  DARK_CONFIG_DB_PORT=5432 \
-  DARK_CONFIG_DB_DBNAME=testdb \
-  DARK_CONFIG_DB_USER=dark \
-  DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
   DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
   DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
@@ -71,11 +87,6 @@ cd backend && \
 cd ..
 
 DARK_CONFIG_TELEMETRY_EXPORTER=none \
-DARK_CONFIG_DB_HOST=localhost \
-DARK_CONFIG_DB_PORT=5432 \
-DARK_CONFIG_DB_DBNAME=testdb \
-DARK_CONFIG_DB_USER=dark \
-DARK_CONFIG_DB_PASSWORD=darklang \
 DARK_CONFIG_ROLLBAR_ENABLED=n \
 DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
 DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
@@ -97,11 +108,6 @@ cd backend
 if [[ "$LLDB" == "true" ]]; then
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
-  DARK_CONFIG_DB_HOST=localhost \
-  DARK_CONFIG_DB_PORT=5432 \
-  DARK_CONFIG_DB_DBNAME=testdb \
-  DARK_CONFIG_DB_USER=dark \
-  DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
   DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
   DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
@@ -109,11 +115,6 @@ if [[ "$LLDB" == "true" ]]; then
 else
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
-  DARK_CONFIG_DB_HOST=localhost \
-  DARK_CONFIG_DB_PORT=5432 \
-  DARK_CONFIG_DB_DBNAME=testdb \
-  DARK_CONFIG_DB_USER=dark \
-  DARK_CONFIG_DB_PASSWORD=darklang \
   DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
   DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
   DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
