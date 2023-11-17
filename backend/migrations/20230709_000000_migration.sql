@@ -169,7 +169,7 @@ toplevels_v0
 -- Keep track of what traces are available for which handler/function/etc
 CREATE TABLE IF NOT EXISTS
 traces_v0
-( id UUID PRIMARY KEY DEFAULT gen_random_uuid()
+( id UUID PRIMARY KEY
 , canvas_id UUID NOT NULL
 -- the handler's (or for a function's default trace, the function's) TLID (used to
 -- store the trace data in Cloud Storage)
