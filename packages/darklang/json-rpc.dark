@@ -18,6 +18,13 @@ module Darklang =
       | Int of Int64
       | String of String
 
+    let requestIdToJson (id: RequestId) : Json =
+      match id with
+      | Null -> Json.Null
+      | Int i -> Json.Number i
+      | String s -> Json.String s
+
+
     module Request =
       type RequestParams =
         | Array of List<Json>
@@ -187,15 +194,7 @@ module Darklang =
 
             Stdlib.Option.Option.Some(("method", Json.String method))
 
-            (id
-             |> Stdlib.Option.map (fun id ->
-               let v =
-                 match id with
-                 | Null -> Json.Null
-                 | Int i -> Json.Number i
-                 | String s -> Json.String s
-
-               ("id", v)))
+            (id |> Stdlib.Option.map (fun id -> ("id", requestIdToJson id)))
 
             (params
              |> Stdlib.Option.map (fun params ->
@@ -257,18 +256,30 @@ module Darklang =
             [ ("jsonrpc", Json.String "2.0"); ("id", requestId); ("result", result) ])
           |> Stdlib.AltJson.format
 
-
       module Error =
+        module KnownErrorCodes =
+          let parserError = -32700L
+          let invalidRequest = -32600L
+          let methodNotFound = -32601L
+          let invalidParams = -32602L
+          let internalError = -32603L
+
         let make
-          (id: Stdlib.Option.Option<Int64>)
+          (requestId: Stdlib.Option.Option<RequestId>)
           (errorCode: Int64)
           (errorMessage: String)
+          (errorData: Stdlib.Option.Option<Json>)
           : String =
-          (Json.Object
-            [ ("jsonrpc", Json.String "2.0")
-              ("id", id)
-              ("error",
-               Json.Object
-                 [ ("code", Json.Number(Int64.of_int errorCode))
-                   ("message", Json.String errorMessage) ]) ])
-          |> Stdlib.AltJson.format
+          let errorDetailFeilds =
+            [ Some(("code", Json.Number errorCode))
+              Some(("message", Json.String errorMessage))
+              (errorData |> Stdlib.Option.map (fun data -> ("data", data))) ]
+            |> Stdlib.List.filterMap (fun f -> f)
+
+          let fields =
+            [ (requestId |> Stdlib.Option.map (fun id -> ("id", requestIdToJson id)))
+              Some(("jsonrpc", Json.String "2.0"))
+              Some(("error", Json.Object errorDetailFeilds)) ]
+            |> Stdlib.List.filterMap (fun f -> f)
+
+          (Json.Object fields) |> Stdlib.AltJson.format
