@@ -41,11 +41,7 @@ module Darklang =
 
       type ComputeDiagnosticsOutput = { diagnostics: List<Diagnostic> }
 
-      let getDiagnostics
-        (uri: String)
-        (text: String)
-        (maxNumberOfProblems: Int64)
-        : String =
+      let getDiagnostics (uri: String) (text: String) : String =
         match Builtin.LanguageTools.parseCliScript text with
         | Ok() ->
           (ComputeDiagnosticsOutput { diagnostics = [] })
