@@ -340,6 +340,120 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "fromInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt8 "" ]
+      returnType = TypeReference.option TUInt8
+      description =
+        "Converts an Int8 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+      fn =
+        (function
+        | _, _, [ DInt8 a ] ->
+          if a < 0y || a > 127y then
+            Dval.optionNone KTUInt8 |> Ply
+          else
+            Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 "" ]
+      returnType = TypeReference.option TUInt8
+      description =
+        "Converts a UInt8 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+      fn =
+        (function
+        | _, _, [ DUInt8 a ] ->
+          if a < 0uy || a > 255uy then
+            Dval.optionNone KTUInt8 |> Ply
+          else
+            Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt16 "" ]
+      returnType = TypeReference.option TUInt8
+      description =
+        "Converts an Int16 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+      fn =
+        (function
+        | _, _, [ DInt16 a ] ->
+          if a < 0s || a > 255s then
+            Dval.optionNone KTUInt8 |> Ply
+          else
+            Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 "" ]
+      returnType = TypeReference.option TUInt8
+      description =
+        "Converts a UInt16 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+      fn =
+        (function
+        | _, _, [ DUInt16 a ] ->
+          if a < 0us || a > 255us then
+            Dval.optionNone KTUInt8 |> Ply
+          else
+            Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt32 "" ]
+      returnType = TypeReference.option TUInt8
+      description =
+        "Converts an Int32 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+      fn =
+        (function
+        | _, _, [ DInt32 a ] ->
+          if a < 0l || a > 255l then
+            Dval.optionNone KTUInt8 |> Ply
+          else
+            Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt32 "" ]
+      returnType = TypeReference.option TUInt8
+      description =
+        "Converts a UInt32 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+      fn =
+        (function
+        | _, _, [ DUInt32 a ] ->
+          if a < 0ul || a > 255ul then
+            Dval.optionNone KTUInt8 |> Ply
+          else
+            Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "fromInt64" 0
       typeParams = []
       parameters = [ Param.make "a" TInt64 "" ]
@@ -350,6 +464,63 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DInt64 a ] ->
           if a < 0L || a > 255L then
+            Dval.optionNone KTUInt8 |> Ply
+          else
+            Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt64" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt64 "" ]
+      returnType = TypeReference.option TUInt8
+      description =
+        "Converts a UInt64 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+      fn =
+        (function
+        | _, _, [ DUInt64 a ] ->
+          if a < 0UL || a > 255UL then
+            Dval.optionNone KTUInt8 |> Ply
+          else
+            Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt128 "" ]
+      returnType = TypeReference.option TUInt8
+      description =
+        "Converts an Int128 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+      fn =
+        (function
+        | _, _, [ DInt128 a ] ->
+          if a < 0Q || a > 255Q then
+            Dval.optionNone KTUInt8 |> Ply
+          else
+            Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 "" ]
+      returnType = TypeReference.option TUInt8
+      description =
+        "Converts a UInt128 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+      fn =
+        (function
+        | _, _, [ DUInt128 a ] ->
+          if a < 0Z || a > 255Z then
             Dval.optionNone KTUInt8 |> Ply
           else
             Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply

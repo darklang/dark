@@ -362,6 +362,161 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt8 "" ]
+      returnType = TypeReference.option TInt128
+      description =
+        "Converts an Int8 to a 128-bit signed integer. Returns {{None}} if the value is less than −170141183460469231731687303715884105728 or greater than 170141183460469231731687303715884105727."
+      fn =
+        (function
+        | _, _, [ DInt8 a ] ->
+          if (a < -128y) || (a > 127y) then
+            Dval.optionNone KTInt128 |> Ply
+          else
+            Dval.optionSome KTInt128 (DInt128(System.Int128.op_Implicit a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 "" ]
+      returnType = TypeReference.option TInt128
+      description =
+        "Converts a UInt8 to a 128-bit signed integer. Returns {{None}} if the value is less than −170141183460469231731687303715884105728 or greater than 170141183460469231731687303715884105727."
+      fn =
+        (function
+        | _, _, [ DUInt8 a ] ->
+          if (a < 0uy) || (a > 255uy) then
+            Dval.optionNone KTInt128 |> Ply
+          else
+            Dval.optionSome KTInt128 (DInt128(System.Int128.op_Implicit a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt16 "" ]
+      returnType = TypeReference.option TInt128
+      description =
+        "Converts an Int16 to a 128-bit signed integer. Returns {{None}} if the value is less than −170141183460469231731687303715884105728 or greater than 170141183460469231731687303715884105727."
+      fn =
+        (function
+        | _, _, [ DInt16 a ] ->
+          if (a < System.Int16.MinValue) || (a > int16 System.Int16.MaxValue) then
+            Dval.optionNone KTInt128 |> Ply
+          else
+            Dval.optionSome KTInt128 (DInt128(System.Int128.op_Implicit a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 "" ]
+      returnType = TypeReference.option TInt128
+      description =
+        "Converts a UInt16 to a 128-bit signed integer. Returns {{None}} if the value is less than −170141183460469231731687303715884105728 or greater than 170141183460469231731687303715884105727."
+      fn =
+        (function
+        | _, _, [ DUInt16 a ] ->
+          if (a < System.UInt16.MinValue) || (a > System.UInt16.MaxValue) then
+            Dval.optionNone KTInt128 |> Ply
+          else
+            Dval.optionSome KTInt128 (DInt128(System.Int128.op_Implicit a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt32 "" ]
+      returnType = TypeReference.option TInt128
+      description =
+        "Converts an Int32 to a 128-bit signed integer. Returns {{None}} if the value is less than −170141183460469231731687303715884105728 or greater than 170141183460469231731687303715884105727."
+      fn =
+        (function
+        | _, _, [ DInt32 a ] ->
+          if (a < System.Int32.MinValue) || (a > System.Int32.MaxValue) then
+            Dval.optionNone KTInt128 |> Ply
+          else
+            Dval.optionSome KTInt128 (DInt128(System.Int128.op_Implicit a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt32 "" ]
+      returnType = TypeReference.option TInt128
+      description =
+        "Converts a UInt32 to a 128-bit signed integer. Returns {{None}} if the value is less than −170141183460469231731687303715884105728 or greater than 170141183460469231731687303715884105727."
+      fn =
+        (function
+        | _, _, [ DUInt32 a ] ->
+          if (a < System.UInt32.MinValue) || (a > System.UInt32.MaxValue) then
+            Dval.optionNone KTInt128 |> Ply
+          else
+            Dval.optionSome KTInt128 (DInt128(System.Int128.op_Implicit a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt64" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt64 "" ]
+      returnType = TypeReference.option TInt128
+      description =
+        "Converts an Int64 to a 128-bit signed integer. Returns {{None}} if the value is less than −170141183460469231731687303715884105728 or greater than 170141183460469231731687303715884105727."
+      fn =
+        (function
+        | _, _, [ DInt64 a ] ->
+          if (a < System.Int64.MinValue) || (a > System.Int64.MaxValue) then
+            Dval.optionNone KTInt128 |> Ply
+          else
+            Dval.optionSome KTInt128 (DInt128(System.Int128.op_Implicit a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt64" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt64 "" ]
+      returnType = TypeReference.option TInt128
+      description =
+        "Converts a UInt64 to a 128-bit signed integer. Returns {{None}} if the value is less than −170141183460469231731687303715884105728 or greater than 170141183460469231731687303715884105727."
+      fn =
+        (function
+        | _, _, [ DUInt64 a ] ->
+          if (a < System.UInt64.MinValue) || (a > System.UInt64.MaxValue) then
+            Dval.optionNone KTInt128 |> Ply
+          else
+            Dval.optionSome KTInt128 (DInt128(System.Int128.op_Implicit a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    ]
 
 let contents = (fns, types, constants)

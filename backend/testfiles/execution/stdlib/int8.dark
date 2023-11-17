@@ -342,6 +342,80 @@ PACKAGE.Darklang.Stdlib.Int8.parse_v0 "XIV" = PACKAGE.Darklang.Stdlib.Result.Res
   PACKAGE.Darklang.Stdlib.Int8.ParseError.BadFormat
 
 
+PACKAGE.Darklang.Stdlib.Int8.fromUInt8_v0 0uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0y
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt8_v0 1uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1y
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt8_v0 127uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  127y
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt8_v0 128uy = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.Int8.fromUInt8_v0 255uy = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt16_v0 0s = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt16_v0 1s = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt16_v0 127s = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  127y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt16_v0 128s = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt16_v0 (-1s) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  -1y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt16_v0 (-128s) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  -128y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt16_v0 (-129s) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt16_v0 0us = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0y
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt16_v0 1us = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1y
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt16_v0 127us = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  127y
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt16_v0 128us = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.Int8.fromUInt16_v0 255us = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt32_v0 0l = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt32_v0 1l = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt32_v0 127l = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  127y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt32_v0 128l = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt32_v0 (-1l) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  -1y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt32_v0 (-128l) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  -128y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt32_v0 2147483647l = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt32_v0 0ul = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0y
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt32_v0 1ul = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1y
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt32_v0 127ul = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  127y
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt32_v0 128ul = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.Int8.fromUInt32_v0 4294967295ul = PACKAGE.Darklang.Stdlib.Option.Option.None
+
 PACKAGE.Darklang.Stdlib.Int8.fromInt64_v0 0L = PACKAGE.Darklang.Stdlib.Option.Option.Some
   0y
 
@@ -360,3 +434,46 @@ PACKAGE.Darklang.Stdlib.Int8.fromInt64_v0 (-128L) = PACKAGE.Darklang.Stdlib.Opti
   -128y
 
 PACKAGE.Darklang.Stdlib.Int8.fromInt64_v0 (-129L) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt64_v0 0UL = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0y
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt64_v0 1UL = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1y
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt64_v0 127UL = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  127y
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt64_v0 128UL = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.Int8.fromUInt64_v0 255UL = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt128_v0 0Q = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt128_v0 1Q = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt128_v0 127Q = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  127y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt128_v0 128Q = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt128_v0 (-1Q) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  -1y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt128_v0 (-128Q) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  -128y
+
+PACKAGE.Darklang.Stdlib.Int8.fromInt128_v0 (-129Q) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt128_v0 0Z = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0y
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt128_v0 1Z = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1y
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt128_v0 127Z = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  127y
+
+PACKAGE.Darklang.Stdlib.Int8.fromUInt128_v0 128Z = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.Int8.fromUInt128_v0 255Z = PACKAGE.Darklang.Stdlib.Option.Option.None

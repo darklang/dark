@@ -215,6 +215,63 @@ PACKAGE.Darklang.Stdlib.UInt8.parse_v0 "XIV" = PACKAGE.Darklang.Stdlib.Result.Re
   PACKAGE.Darklang.Stdlib.UInt8.ParseError.BadFormat
 
 
+PACKAGE.Darklang.Stdlib.UInt8.fromInt8_v0 0y = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt8_v0 1y = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt8_v0 127y = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  127uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt8_v0 (-128y) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt16_v0 0s = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt16_v0 1s = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt16_v0 255s = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  255uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt16_v0 256s = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.UInt8.fromInt16_v0 (-1s) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt16_v0 0us = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt16_v0 1us = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt16_v0 255us = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  255uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt16_v0 256us = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt32_v0 0l = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt32_v0 1l = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt32_v0 255l = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  255uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt32_v0 256l = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.UInt8.fromInt32_v0 (-1l) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt32_v0 0ul = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt32_v0 1ul = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt32_v0 255ul = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  255uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt32_v0 256ul = PACKAGE.Darklang.Stdlib.Option.Option.None
+
 PACKAGE.Darklang.Stdlib.UInt8.fromInt64_v0 0L = PACKAGE.Darklang.Stdlib.Option.Option.Some
   0uy
 
@@ -226,3 +283,37 @@ PACKAGE.Darklang.Stdlib.UInt8.fromInt64_v0 255L = PACKAGE.Darklang.Stdlib.Option
 
 PACKAGE.Darklang.Stdlib.UInt8.fromInt64_v0 256L = PACKAGE.Darklang.Stdlib.Option.Option.None
 PACKAGE.Darklang.Stdlib.UInt8.fromInt64_v0 (-1L) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt64_v0 0UL = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt64_v0 1UL = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt64_v0 255UL = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  255uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt64_v0 256UL = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt128_v0 0Q = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt128_v0 1Q = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt128_v0 255Q = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  255uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromInt128_v0 256Q = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.UInt8.fromInt128_v0 (-1Q) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt128_v0 0Z = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt128_v0 1Z = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt128_v0 255Z = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  255uy
+
+PACKAGE.Darklang.Stdlib.UInt8.fromUInt128_v0 256Z = PACKAGE.Darklang.Stdlib.Option.Option.None

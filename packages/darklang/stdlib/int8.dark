@@ -162,6 +162,46 @@ module Darklang =
       let toString (int8: Int8) : String = Builtin.Int8.toString int8
 
 
+      /// Converts a <type UInt8> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
+      let fromUInt8 (i: UInt8) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
+        Builtin.Int8.fromUInt8 i
+
+
+      /// Converts an <type Int16> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
+      let fromInt16 (i: Int16) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
+        Builtin.Int8.fromInt16 i
+
+
+      /// Converts a <type UInt16> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
+      let fromUInt16 (i: UInt16) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
+        Builtin.Int8.fromUInt16 i
+
+
+      /// Converts an <type Int32> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
+      let fromInt32 (i: Int32) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
+        Builtin.Int8.fromInt32 i
+
+
+      /// Converts a <type UInt32> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
+      let fromUInt32 (i: UInt32) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
+        Builtin.Int8.fromUInt32 i
+
+
       /// Converts an <type Int64> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
       let fromInt64 (i: Int64) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
         Builtin.Int8.fromInt64 i
+
+
+      /// Converts a <type UInt64> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
+      let fromUInt64 (i: UInt64) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
+        Builtin.Int8.fromUInt64 i
+
+
+      /// Converts an <type Int128> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
+      let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
+        Builtin.Int8.fromInt128 i
+
+
+      /// Converts a <type UInt128> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
+      let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
+        Builtin.Int8.fromUInt128 i

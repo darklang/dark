@@ -345,6 +345,193 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt8 "" ]
+      returnType = TypeReference.option TUInt64
+      description =
+        "Converts an Int8 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+      fn =
+        (function
+        | _, _, [ DInt8 a ] ->
+          if (a < 0y) || (a > 127y) then
+            Dval.optionNone KTUInt64 |> Ply
+          else
+            Dval.optionSome KTUInt64 (DUInt64(uint64 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 "" ]
+      returnType = TypeReference.option TUInt64
+      description =
+        "Converts a UInt8 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+      fn =
+        (function
+        | _, _, [ DUInt8 a ] ->
+          if (a < 0uy) || (a > 255uy) then
+            Dval.optionNone KTUInt64 |> Ply
+          else
+            Dval.optionSome KTUInt64 (DUInt64(uint64 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt16 "" ]
+      returnType = TypeReference.option TUInt64
+      description =
+        "Converts an Int16 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+      fn =
+        (function
+        | _, _, [ DInt16 a ] ->
+          if (a < 0s) || (a > int16 System.Int16.MaxValue) then
+            Dval.optionNone KTUInt64 |> Ply
+          else
+            Dval.optionSome KTUInt64 (DUInt64(uint64 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 "" ]
+      returnType = TypeReference.option TUInt64
+      description =
+        "Converts a UInt16 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+      fn =
+        (function
+        | _, _, [ DUInt16 a ] ->
+          if
+            (a < uint16 System.UInt16.MinValue)
+            || (a > uint16 System.UInt16.MaxValue)
+          then
+            Dval.optionNone KTUInt64 |> Ply
+          else
+            Dval.optionSome KTUInt64 (DUInt64(uint64 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt32 "" ]
+      returnType = TypeReference.option TUInt64
+      description =
+        "Converts an Int32 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+      fn =
+        (function
+        | _, _, [ DInt32 a ] ->
+          if
+            (a < 0l) || (a > int32 System.Int32.MaxValue)
+          then
+            Dval.optionNone KTUInt64 |> Ply
+          else
+            Dval.optionSome KTUInt64 (DUInt64(uint64 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt32 "" ]
+      returnType = TypeReference.option TUInt64
+      description =
+        "Converts a UInt32 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+      fn =
+        (function
+        | _, _, [ DUInt32 a ] ->
+          if
+            (a < uint32 System.UInt32.MinValue)
+            || (a > uint32 System.UInt32.MaxValue)
+          then
+            Dval.optionNone KTUInt64 |> Ply
+          else
+            Dval.optionSome KTUInt64 (DUInt64(uint64 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt64" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt64 "" ]
+      returnType = TypeReference.option TUInt64
+      description =
+        "Converts an Int64 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+      fn =
+        (function
+        | _, _, [ DInt64 a ] ->
+          if
+            (a < 0L) || (a > int64 System.Int64.MaxValue)
+          then
+            Dval.optionNone KTUInt64 |> Ply
+          else
+            Dval.optionSome KTUInt64 (DUInt64(uint64 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt128 "" ]
+      returnType = TypeReference.option TUInt64
+      description =
+        "Converts an Int128 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+      fn =
+        (function
+        | _, _, [ DInt128 a ] ->
+          if
+            (a < System.Int128.op_Implicit System.UInt64.MinValue)
+            || (a > System.Int128.op_Implicit System.UInt64.MaxValue)
+          then
+            Dval.optionNone KTUInt64 |> Ply
+          else
+            Dval.optionSome KTUInt64 (DUInt64(uint64 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 "" ]
+      returnType = TypeReference.option TUInt64
+      description =
+        "Converts a UInt128 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+      fn =
+        (function
+        | _, _, [ DUInt128 a ] ->
+          if
+            (a < System.UInt128.op_Implicit System.UInt64.MinValue)
+            || (a > System.UInt128.op_Implicit System.UInt64.MaxValue)
+          then
+            Dval.optionNone KTUInt64 |> Ply
+          else
+            Dval.optionSome KTUInt64 (DUInt64(uint64 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 let contents = (fns, types, constants)

@@ -165,6 +165,41 @@ module Darklang =
       let toString (int16: Int16) : String = Builtin.Int16.toString int16
 
 
+      /// Converts an <type Int8> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
+      let fromInt8 (i: Int8) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+        Builtin.Int16.fromInt8 i
+
+
+      /// Converts a <type UInt8> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
+      let fromUInt8 (i: UInt8) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+        Builtin.Int16.fromUInt8 i
+
+
+      /// Converts a <type UInt16> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
+      let fromUInt16 (i: UInt16) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+        Builtin.Int16.fromUInt16 i
+
+
+      /// Converts an <type Int32> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
+      let fromInt32 (i: Int32) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+        Builtin.Int16.fromInt32 i
+
+
+      /// Converts a <type UInt32> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
+      let fromUInt32 (i: UInt32) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+        Builtin.Int16.fromUInt32 i
+
+
       /// Converts an <type Int64> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
       let fromInt64 (i: Int64) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
         Builtin.Int16.fromInt64 i
+
+
+      /// Converts a <type UInt64> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
+      let fromUInt64 (i: UInt64) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+        Builtin.Int16.fromUInt64 i
+
+
+      /// Converts an <type Int128> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
+      let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+        Builtin.Int16.fromInt128 i

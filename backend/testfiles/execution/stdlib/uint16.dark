@@ -213,6 +213,61 @@ PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "one" = PACKAGE.Darklang.Stdlib.Result.R
 PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "XIV" = PACKAGE.Darklang.Stdlib.Result.Result.Error
   PACKAGE.Darklang.Stdlib.UInt16.ParseError.BadFormat
 
+PACKAGE.Darklang.Stdlib.UInt16.fromInt8_v0 0y = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt8_v0 1y = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt8_v0 127y = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  127us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt8_v0 (-1y) = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.UInt16.fromInt8_v0 (-128y) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt8_v0 0uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt8_v0 1uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt8_v0 255uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  255us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt16_v0 0s = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt16_v0 1s = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt16_v0 32767s = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  32767us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt16_v0 (-1s) = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.UInt16.fromInt16_v0 (-32768s) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt32_v0 0l = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt32_v0 1l = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt32_v0 65535l = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  65535us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt32_v0 65536l = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.UInt16.fromInt32_v0 (-1l) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt32_v0 0ul = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt32_v0 1ul = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt32_v0 65535ul = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  65535us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt32_v0 65536ul = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 PACKAGE.Darklang.Stdlib.UInt16.fromInt64_v0 0L = PACKAGE.Darklang.Stdlib.Option.Option.Some
   0us
@@ -225,3 +280,37 @@ PACKAGE.Darklang.Stdlib.UInt16.fromInt64_v0 65535L = PACKAGE.Darklang.Stdlib.Opt
 
 PACKAGE.Darklang.Stdlib.UInt16.fromInt64_v0 65536L = PACKAGE.Darklang.Stdlib.Option.Option.None
 PACKAGE.Darklang.Stdlib.UInt16.fromInt64_v0 (-1L) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt64_v0 0UL = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt64_v0 1UL = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt64_v0 65535UL = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  65535us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt64_v0 65536UL = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt128_v0 0Q = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt128_v0 1Q = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt128_v0 65535Q = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  65535us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromInt128_v0 65536Q = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.UInt16.fromInt128_v0 (-1Q) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt128_v0 0Z = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt128_v0 1Z = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt128_v0 65535Z = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  65535us
+
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt128_v0 65536Z = PACKAGE.Darklang.Stdlib.Option.Option.None
