@@ -108,6 +108,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
       google-cloud-sdk-pubsub-emulator \
       google-cloud-sdk-gke-gcloud-auth-plugin \
       jq \
+      # yugabyte
+      ntp \
       vim \
       unzip \
       docker-ce \

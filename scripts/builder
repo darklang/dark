@@ -135,7 +135,7 @@ docker run \
   --user "$uid:$gid" \
   --cap-add=ALL \
   --security-opt seccomp=unconfined \
-  --ulimit=nofile=65536:65536 \
+  --ulimit=nofile=1048576:1048576 \
   $MOUNTS \
   dark \
   scripts/build/_build-server "${@}"

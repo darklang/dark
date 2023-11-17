@@ -54,7 +54,7 @@
     "8.8.8.8",
     "--dns",
     "8.8.4.4",
-    "--ulimit=nofile=65536:65536",
+    "--ulimit=nofile=1048576:1048576",
     "--hostname",
     "dark-dev",
     "--env-file",
