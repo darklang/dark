@@ -195,3 +195,8 @@ module Darklang =
       /// Converts an <type Int128> to a <type Int32>. Returns {{None}} if the value is less than 0 or greater than 4294967295.
       let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<Int32> =
         Builtin.Int32.fromInt128 i
+
+
+      /// Converts a <type UInt128> to a <type Int32>. Returns {{None}} if the value is less than 0 or greater than 4294967295.
+      let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<Int32> =
+        Builtin.Int32.fromUInt128 i

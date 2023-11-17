@@ -359,25 +359,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromUInt8" 0
-      typeParams = []
-      parameters = [ Param.make "a" TUInt8 "" ]
-      returnType = TypeReference.option TUInt8
-      description =
-        "Converts a UInt8 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
-      fn =
-        (function
-        | _, _, [ DUInt8 a ] ->
-          if a < 0uy || a > 255uy then
-            Dval.optionNone KTUInt8 |> Ply
-          else
-            Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "fromInt16" 0
       typeParams = []
       parameters = [ Param.make "a" TInt16 "" ]

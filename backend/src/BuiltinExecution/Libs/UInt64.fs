@@ -436,9 +436,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DInt32 a ] ->
-          if
-            (a < 0l) || (a > int32 System.Int32.MaxValue)
-          then
+          if (a < 0l) || (a > int32 System.Int32.MaxValue) then
             Dval.optionNone KTUInt64 |> Ply
           else
             Dval.optionSome KTUInt64 (DUInt64(uint64 a)) |> Ply
@@ -479,9 +477,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DInt64 a ] ->
-          if
-            (a < 0L) || (a > int64 System.Int64.MaxValue)
-          then
+          if (a < 0L) || (a > int64 System.Int64.MaxValue) then
             Dval.optionNone KTUInt64 |> Ply
           else
             Dval.optionSome KTUInt64 (DUInt64(uint64 a)) |> Ply

@@ -395,3 +395,14 @@ PACKAGE.Darklang.Stdlib.Int16.fromInt128_v0 (-32768Q) = PACKAGE.Darklang.Stdlib.
   -32768s
 
 PACKAGE.Darklang.Stdlib.Int16.fromInt128_v0 (-32769Q) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.Int16.fromUInt128_v0 0Z = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0s
+
+PACKAGE.Darklang.Stdlib.Int16.fromUInt128_v0 1Z = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1s
+
+PACKAGE.Darklang.Stdlib.Int16.fromUInt128_v0 32767Z = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  32767s
+
+PACKAGE.Darklang.Stdlib.Int16.fromUInt128_v0 32768Z = PACKAGE.Darklang.Stdlib.Option.Option.None

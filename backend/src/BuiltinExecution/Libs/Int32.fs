@@ -523,6 +523,27 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 "" ]
+      returnType = TypeReference.option TInt32
+      description =
+        "Converts a UInt128 to a 32-bit signed integer. Returns {{None}} if the value is less than 0 or greater than 2147483647."
+      fn =
+        (function
+        | _, _, [ DUInt128 a ] ->
+          if (a < 0Z) || (a > 2147483647Z) then
+            Dval.optionNone KTInt32 |> Ply
+          else
+            Dval.optionSome KTInt32 (DInt32(int32 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    ]
 
 let contents = (fns, types, constants)

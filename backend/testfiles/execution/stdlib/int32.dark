@@ -396,3 +396,14 @@ PACKAGE.Darklang.Stdlib.Int32.fromInt128_v0 (-2147483648Q) = PACKAGE.Darklang.St
   -2147483648l
 
 PACKAGE.Darklang.Stdlib.Int32.fromInt128_v0 (-2147483649Q) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
+PACKAGE.Darklang.Stdlib.Int32.fromUInt128_v0 0Z = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  0l
+
+PACKAGE.Darklang.Stdlib.Int32.fromUInt128_v0 1Z = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  1l
+
+PACKAGE.Darklang.Stdlib.Int32.fromUInt128_v0 2147483647Z = PACKAGE.Darklang.Stdlib.Option.Option.Some
+  2147483647l
+
+PACKAGE.Darklang.Stdlib.Int32.fromUInt128_v0 2147483648Z = PACKAGE.Darklang.Stdlib.Option.Option.None

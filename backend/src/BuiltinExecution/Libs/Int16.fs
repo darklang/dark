@@ -562,6 +562,25 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+
+    { name = fn "fromUInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 "" ]
+      returnType = TypeReference.option TInt16
+      description =
+        "Converts an UInt128 to a 16-bit signed integer. Returns {{None}} if the value is less than -32768 or greater than 32767"
+      fn =
+        (function
+        | _, _, [ DUInt128 a ] ->
+          if a < 0Z || a > 32767Z then
+            Dval.optionNone KTInt16 |> Ply
+          else
+            Dval.optionSome KTInt16 (DInt16(int16 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
     ]
 
 let contents = (fns, types, constants)

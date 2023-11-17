@@ -203,3 +203,8 @@ module Darklang =
       /// Converts an <type Int128> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
       let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
         Builtin.Int16.fromInt128 i
+
+
+      /// Converts a <type UInt128> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
+      let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+        Builtin.Int16.fromUInt128 i

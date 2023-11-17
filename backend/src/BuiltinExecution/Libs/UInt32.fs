@@ -419,7 +419,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DUInt16 a ] ->
-          if (a < uint16 System.UInt16.MinValue) || (a > uint16 System.UInt16.MaxValue) then
+          if
+            (a < uint16 System.UInt16.MinValue)
+            || (a > uint16 System.UInt16.MaxValue)
+          then
             Dval.optionNone KTUInt32 |> Ply
           else
             Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply
