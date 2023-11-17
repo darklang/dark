@@ -5,7 +5,7 @@ set -euo pipefail
 
 # install dependencies
 echo "Installing tree-sitter-darklang dependencies..."
-echo "Note: installing tree-sitter automatically builds the parser as part of it"
+echo "Note: installing tree-sitter automatically builds the parser as part of it, so this might take a bit..."
 cd parser/tree-sitter-darklang
 npm i
 
@@ -13,8 +13,6 @@ echo "Building parser"
 # build the parser and generate the bindings
 npm run build-parser
 
-echo "Building WASM bindings"
-npm run build-wasm-bindings
 
 # make parser binaries for the current platform
 echo "Building tree-sitter-darklang.so"
@@ -49,13 +47,6 @@ if [[ "$#" -gt 0 && "$1" == "--cross-compile" ]]; then
 fi
 
 cd ../..
-
-# copy the WASM bindings to vscode-extension/static
-# , so the .wasm file can be used for syntax highlighting, etc.
-echo "Copying WASM bindings to vscode-extension/static"
-mkdir -p vscode-extension/static/tree-sitter
-cp parser/tree-sitter-darklang/bindings/tree-sitter-darklang.wasm vscode-extension/static/tree-sitter/
-
 
 # copy `tree-sitter-darklang.so` to `backend/src/LibTreeSitter.Darklang`
 # , so it can be referenced via P/Invoke

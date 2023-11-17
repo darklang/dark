@@ -1,4 +1,3 @@
-import * as path from "path";
 import { workspace, ExtensionContext } from "vscode";
 
 import * as vscode from "vscode";
@@ -13,10 +12,8 @@ import {
 
 let client: LanguageClient;
 
-const useDarklangServer = true;
-
 export function activate(context: ExtensionContext) {
-  const sharedDarklangServerOptions = {
+  const sharedServerOptions = {
     options: { cwd: "/home/dark/app" },
     command: "bash",
     args: [
@@ -25,23 +22,10 @@ export function activate(context: ExtensionContext) {
     ],
     transport: TransportKind.stdio,
   };
-  const darklangServerOptions: ServerOptions = {
-    run: sharedDarklangServerOptions,
-    debug: sharedDarklangServerOptions,
+  const serverOptions: ServerOptions = {
+    run: sharedServerOptions,
+    debug: sharedServerOptions,
   };
-
-  const sharedNodeServerOptions = {
-    module: context.asAbsolutePath(path.join("server", "out", "server.js")),
-    transport: TransportKind.ipc,
-  };
-  const nodeServerOptions: ServerOptions = {
-    run: sharedNodeServerOptions,
-    debug: sharedNodeServerOptions,
-  };
-
-  const serverOptions = useDarklangServer
-    ? darklangServerOptions
-    : nodeServerOptions;
 
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: "file", language: "darklang" }],
@@ -63,8 +47,10 @@ export function activate(context: ExtensionContext) {
     serverOptions,
     clientOptions,
   );
-  //client.registerFeature(new SemanticTokensFeature(client));
+
+  client.registerFeature(new SemanticTokensFeature(client));
   client.trace = Trace.Verbose;
+
   client.start();
 }
 
