@@ -321,7 +321,7 @@ module Test =
     Sql.query
       "SELECT trace_id
        FROM traces_v0
-      WHERE canvas_id = @canvas_id
+      WHERE canvas_id = @canvasID
       ORDER BY trace_id ASC"
-    |> Sql.parameters [ "canvas_id", Sql.uuid canvasID ]
+    |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
     |> Sql.executeAsync (fun read -> read.traceID "trace_id")
