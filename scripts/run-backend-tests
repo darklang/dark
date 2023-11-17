@@ -40,7 +40,7 @@ else
   EXE=Build/out/Tests/Debug/net7.0/Tests
   PRODEXEC=Build/out/ProdExec/Debug/net7.0/ProdExec
 fi
-set -v
+
 case "$DB" in
   pg)
     export DARK_CONFIG_DB_HOST=localhost
