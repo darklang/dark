@@ -5,7 +5,6 @@
   "main": "bindings/node",
   "scripts": {
     "build-parser": "tree-sitter generate",
-    "build-wasm-bindings": "tree-sitter build-wasm . && mv ./tree-sitter-darklang.wasm ./bindings",
     "test": "tree-sitter test"
   },
   "repository": {

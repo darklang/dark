@@ -6,13 +6,7 @@ In-progress / experimental `tree-sitter` parser for Darklang.
 
 ## Getting started
 
-Run `./scripts/build/build-parser` to build the parser and JS/WASM bindings.
-
-Alternatively, run the scripts included in the package.json file:
-
-- `npm run build-parser` to build the parser from the grammar.js file
-- `npm run build-wasm-bindings`
-- `npm run test` to run the tests in `test/corpus`
+`./scripts/build/build-parser` should be run automatically as part of your devcontainer starting up.
 
 ## Grammar and Parser
 
