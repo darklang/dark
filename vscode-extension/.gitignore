@@ -1,4 +1,2 @@
 out
 node_modules
-client/server
-static/tree-sitter/tree-sitter-darklang.wasm
