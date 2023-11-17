@@ -305,7 +305,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt8 "" ]
       returnType = TypeReference.option TUInt128
       description =
-        "Converts a UInt8 to a 128-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 340282366920938463463374607431768211455."
+        "Converts a UInt8 to a 128-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
       fn =
         (function
         | _, _, [ DUInt8 a ] ->
@@ -324,7 +324,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt16 "" ]
       returnType = TypeReference.option TUInt128
       description =
-        "Converts a UInt16 to a 128-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 340282366920938463463374607431768211455."
+        "Converts a UInt16 to a 128-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 65535."
       fn =
         (function
         | _, _, [ DUInt16 a ] ->
@@ -343,7 +343,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt32 "" ]
       returnType = TypeReference.option TUInt128
       description =
-        "Converts a UInt32 to a 128-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 340282366920938463463374607431768211455."
+        "Converts a UInt32 to a 128-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 4294967295."
       fn =
         (function
         | _, _, [ DUInt32 a ] ->
@@ -362,7 +362,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt64 "" ]
       returnType = TypeReference.option TUInt128
       description =
-        "Converts a UInt64 to a 128-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 340282366920938463463374607431768211455."
+        "Converts a UInt64 to a 128-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
       fn =
         (function
         | _, _, [ DUInt64 a ] ->

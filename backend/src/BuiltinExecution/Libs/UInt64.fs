@@ -353,7 +353,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt8 "" ]
       returnType = TypeReference.option TUInt64
       description =
-        "Converts an Int8 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+        "Converts an Int8 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 127."
       fn =
         (function
         | _, _, [ DInt8 a ] ->
@@ -372,7 +372,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt8 "" ]
       returnType = TypeReference.option TUInt64
       description =
-        "Converts a UInt8 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+        "Converts a UInt8 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
       fn =
         (function
         | _, _, [ DUInt8 a ] ->
@@ -391,7 +391,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt16 "" ]
       returnType = TypeReference.option TUInt64
       description =
-        "Converts an Int16 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+        "Converts an Int16 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 32767."
       fn =
         (function
         | _, _, [ DInt16 a ] ->
@@ -410,7 +410,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt16 "" ]
       returnType = TypeReference.option TUInt64
       description =
-        "Converts a UInt16 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+        "Converts a UInt16 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 65535."
       fn =
         (function
         | _, _, [ DUInt16 a ] ->
@@ -432,7 +432,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt32 "" ]
       returnType = TypeReference.option TUInt64
       description =
-        "Converts an Int32 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+        "Converts an Int32 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 2147483647."
       fn =
         (function
         | _, _, [ DInt32 a ] ->
@@ -451,7 +451,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt32 "" ]
       returnType = TypeReference.option TUInt64
       description =
-        "Converts a UInt32 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+        "Converts a UInt32 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 4294967295."
       fn =
         (function
         | _, _, [ DUInt32 a ] ->
@@ -473,7 +473,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt64 "" ]
       returnType = TypeReference.option TUInt64
       description =
-        "Converts an Int64 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+        "Converts an Int64 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 9223372036854775807."
       fn =
         (function
         | _, _, [ DInt64 a ] ->

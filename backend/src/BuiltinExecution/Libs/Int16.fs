@@ -413,7 +413,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt8 "" ]
       returnType = TypeReference.option TInt16
       description =
-        "Converts an Int8 to a 16-bit signed integer. Returns {{None}} if the value is less than -32768 or greater than 32767"
+        "Converts an Int8 to a 16-bit signed integer. Returns {{None}} if the value is less than -128 or greater than 127"
       fn =
         (function
         | _, _, [ DInt8 a ] ->
@@ -432,7 +432,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt8 "" ]
       returnType = TypeReference.option TInt16
       description =
-        "Converts a UInt8 to a 16-bit signed integer. Returns {{None}} if the value is less than -32768 or greater than 32767"
+        "Converts a UInt8 to a 16-bit signed integer. Returns {{None}} if the value is less than 0 or greater than 255"
       fn =
         (function
         | _, _, [ DUInt8 a ] ->
@@ -451,7 +451,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt16 "" ]
       returnType = TypeReference.option TInt16
       description =
-        "Converts a UInt16 to a 16-bit signed integer. Returns {{None}} if the value is less than -32768 or greater than 32767"
+        "Converts a UInt16 to a 16-bit signed integer. Returns {{None}} if the value is less than 0 or greater than 32767"
       fn =
         (function
         | _, _, [ DUInt16 a ] ->
@@ -489,7 +489,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt32 "" ]
       returnType = TypeReference.option TInt16
       description =
-        "Converts a UInt32 to a 16-bit signed integer. Returns {{None}} if the value is less than -32768 or greater than 32767"
+        "Converts a UInt32 to a 16-bit signed integer. Returns {{None}} if the value is less than 0 or greater than 32767"
       fn =
         (function
         | _, _, [ DUInt32 a ] ->
@@ -527,7 +527,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt64 "" ]
       returnType = TypeReference.option TInt16
       description =
-        "Converts a UInt64 to a 16-bit signed integer. Returns {{None}} if the value is less than -32768 or greater than 32767"
+        "Converts a UInt64 to a 16-bit signed integer. Returns {{None}} if the value is less than 0 or greater than 32767"
       fn =
         (function
         | _, _, [ DUInt64 a ] ->
@@ -568,7 +568,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt128 "" ]
       returnType = TypeReference.option TInt16
       description =
-        "Converts an UInt128 to a 16-bit signed integer. Returns {{None}} if the value is less than -32768 or greater than 32767"
+        "Converts an UInt128 to a 16-bit signed integer. Returns {{None}} if the value is less than 0 or greater than 32767"
       fn =
         (function
         | _, _, [ DUInt128 a ] ->

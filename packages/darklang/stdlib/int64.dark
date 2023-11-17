@@ -133,37 +133,37 @@ module Darklang =
       let toString (int: Int64) : String = Builtin.Int64.toString int
 
 
-      /// Converts an <type Int8> to an <type Int64>. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807
+      /// Converts an <type Int8> to an <type Int64>. Returns {{None}} if the value is less than -128 or greater than 127
       let fromInt8 (i: Int8) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
         Builtin.Int64.fromInt8 i
 
 
-      /// Converts a <type UInt8> to an <type Int64>. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807
+      /// Converts a <type UInt8> to an <type Int64>. Returns {{None}} if the value is less than 0 or greater than 255
       let fromUInt8 (i: UInt8) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
         Builtin.Int64.fromUInt8 i
 
 
-      /// Converts an <type Int16> to an <type Int64>. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807
+      /// Converts an <type Int16> to an <type Int64>. Returns {{None}} if the value is less than -32768 or greater than 32767
       let fromInt16 (i: Int16) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
         Builtin.Int64.fromInt16 i
 
 
-      /// Converts a <type UInt16> to an <type Int64>. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807
+      /// Converts a <type UInt16> to an <type Int64>. Returns {{None}} if the value is less than 0 or greater than 65535
       let fromUInt16 (i: UInt16) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
         Builtin.Int64.fromUInt16 i
 
 
-      /// Converts an <type Int32> to an <type Int64>. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807
+      /// Converts an <type Int32> to an <type Int64>. Returns {{None}} if the value is less than -2147483648 or greater than 2147483647
       let fromInt32 (i: Int32) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
         Builtin.Int64.fromInt32 i
 
 
-      /// Converts a <type UInt32> to an <type Int64>. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807
+      /// Converts a <type UInt32> to an <type Int64>. Returns {{None}} if the value is less than 0 or greater than 4294967295
       let fromUInt32 (i: UInt32) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
         Builtin.Int64.fromUInt32 i
 
 
-      /// Converts a <type UInt64> to an <type Int64>. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807
+      /// Converts a <type UInt64> to an <type Int64>. Returns {{None}} if the value is less than 0 or greater than 9223372036854775807
       let fromUInt64 (i: UInt64) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
         Builtin.Int64.fromUInt64 i
 

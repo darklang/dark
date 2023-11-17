@@ -358,7 +358,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt8 "" ]
       returnType = TypeReference.option TUInt16
       description =
-        "Converts an Int8 to a 16-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 65535."
+        "Converts an Int8 to a 16-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 127."
       fn =
         (function
         | _, _, [ DInt8 a ] ->
@@ -377,7 +377,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt8 "" ]
       returnType = TypeReference.option TUInt16
       description =
-        "Converts a UInt8 to a 16-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 65535."
+        "Converts a UInt8 to a 16-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
       fn =
         (function
         | _, _, [ DUInt8 a ] ->

@@ -130,12 +130,12 @@ module Darklang =
       let toString (uint16: UInt16) : String = Builtin.UInt16.toString uint16
 
 
-      /// Converts an <type Int8> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 65535.
+      /// Converts an <type Int8> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 127.
       let fromInt8 (i: Int8) : PACKAGE.Darklang.Stdlib.Option.Option<UInt16> =
         Builtin.UInt16.fromInt8 i
 
 
-      /// Converts a <type UInt8> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 65535.
+      /// Converts a <type UInt8> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 255.
       let fromUInt8 (i: UInt8) : PACKAGE.Darklang.Stdlib.Option.Option<UInt16> =
         Builtin.UInt16.fromUInt8 i
 

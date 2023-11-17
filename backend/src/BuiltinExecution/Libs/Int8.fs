@@ -415,7 +415,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt8 "" ]
       returnType = TypeReference.option TInt8
       description =
-        "Converts a UInt8 to an 8-bit signed integer. Returns {{None}} if the value is less than -128 or greater than 127."
+        "Converts a UInt8 to an 8-bit signed integer. Returns {{None}} if the value is less than 0 or greater than 127."
       fn =
         (function
         | _, _, [ DUInt8 a ] ->
@@ -453,7 +453,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt16 "" ]
       returnType = TypeReference.option TInt8
       description =
-        "Converts a UInt16 to an 8-bit signed integer. Returns {{None}} if the value is less than -128 or greater than 127."
+        "Converts a UInt16 to an 8-bit signed integer. Returns {{None}} if the value is less than 0 or greater than 127."
       fn =
         (function
         | _, _, [ DUInt16 a ] ->
@@ -491,7 +491,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt32 "" ]
       returnType = TypeReference.option TInt8
       description =
-        "Converts a UInt32 to an 8-bit signed integer. Returns {{None}} if the value is less than -128 or greater than 127."
+        "Converts a UInt32 to an 8-bit signed integer. Returns {{None}} if the value is less than 0 or greater than 127."
       fn =
         (function
         | _, _, [ DUInt32 a ] ->
@@ -529,7 +529,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt64 "" ]
       returnType = TypeReference.option TInt8
       description =
-        "Converts a UInt64 to an 8-bit signed integer. Returns {{None}} if the value is less than -128 or greater than 127."
+        "Converts a UInt64 to an 8-bit signed integer. Returns {{None}} if the value is less than 0 or greater than 127."
       fn =
         (function
         | _, _, [ DUInt64 a ] ->
@@ -567,7 +567,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt128 "" ]
       returnType = TypeReference.option TInt8
       description =
-        "Converts a UInt128 to an 8-bit signed integer. Returns {{None}} if the value is less than -128 or greater than 127."
+        "Converts a UInt128 to an 8-bit signed integer. Returns {{None}} if the value is less than 0 or greater than 127."
       fn =
         (function
         | _, _, [ DUInt128 a ] ->
