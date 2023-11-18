@@ -13,7 +13,7 @@ sha1sum "$binfile"
 
 echo -e "\n\nRegenerating: "
 cd backend
-Build/out/Tests/Debug/net7.0/linux-x64/Tests --regenerate-test-files
+Build/out/Tests/Debug/net8.0/linux-x64/Tests --regenerate-test-files
 cd ..
 
 echo -e "\n\nAfter: "

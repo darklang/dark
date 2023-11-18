@@ -38,21 +38,21 @@ if [[ "${RUNNING}" == "true" && "${RESTART}" == "false" ]]; then
 fi
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  BWDSERVER_BINPATH="backend/Build/out/BwdServer/Release/net7.0/linux-x64/publish"
-  CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Release/net7.0/linux-x64/publish"
-  QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Release/net7.0/linux-x64/publish"
-  PRODEXEC_BINPATH="backend/Build/out/ProdExec/Release/net7.0/linux-x64/publish"
-  LOCALEXEC_BINPATH="backend/Build/out/LocalExec/Release/net7.0/linux-x64/publish"
+  BWDSERVER_BINPATH="backend/Build/out/BwdServer/Release/net8.0/linux-x64/publish"
+  CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Release/net8.0/linux-x64/publish"
+  QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Release/net8.0/linux-x64/publish"
+  PRODEXEC_BINPATH="backend/Build/out/ProdExec/Release/net8.0/linux-x64/publish"
+  LOCALEXEC_BINPATH="backend/Build/out/LocalExec/Release/net8.0/linux-x64/publish"
 
-  BWDDANGERSERVER_BINPATH="backend/Build/out/BwdDangerServer/Release/net7.0/linux-x64/publish"
+  BWDDANGERSERVER_BINPATH="backend/Build/out/BwdDangerServer/Release/net8.0/linux-x64/publish"
 else
-  BWDSERVER_BINPATH="backend/Build/out/BwdServer/Debug/net7.0"
-  CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Debug/net7.0"
-  QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Debug/net7.0"
-  PRODEXEC_BINPATH="backend/Build/out/ProdExec/Debug/net7.0"
-  LOCALEXEC_BINPATH="backend/Build/out/LocalExec/Debug/net7.0"
+  BWDSERVER_BINPATH="backend/Build/out/BwdServer/Debug/net8.0"
+  CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Debug/net8.0"
+  QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Debug/net8.0"
+  PRODEXEC_BINPATH="backend/Build/out/ProdExec/Debug/net8.0"
+  LOCALEXEC_BINPATH="backend/Build/out/LocalExec/Debug/net8.0"
 
-  BWDDANGERSERVER_BINPATH="backend/Build/out/BwdDangerServer/Debug/net7.0"
+  BWDDANGERSERVER_BINPATH="backend/Build/out/BwdDangerServer/Debug/net8.0"
 fi
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"

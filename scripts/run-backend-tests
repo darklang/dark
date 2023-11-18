@@ -34,11 +34,11 @@ done
 killall -9 Tests || true
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  EXE=Build/out/Tests/Release/net7.0/linux-x64/Tests
-  PRODEXEC=Build/out/ProdExec/Release/net7.0/linux-x64/ProdExec
+  EXE=Build/out/Tests/Release/net8.0/linux-x64/Tests
+  PRODEXEC=Build/out/ProdExec/Release/net8.0/linux-x64/ProdExec
 else
-  EXE=Build/out/Tests/Debug/net7.0/Tests
-  PRODEXEC=Build/out/ProdExec/Debug/net7.0/ProdExec
+  EXE=Build/out/Tests/Debug/net8.0/Tests
+  PRODEXEC=Build/out/ProdExec/Debug/net8.0/ProdExec
 fi
 
 case "$DB" in

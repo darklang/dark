@@ -35,9 +35,9 @@ fi
 
 # Note: doesn't support release/published
 if [[ "$PUBLISHED" == "true" ]]; then
-  LOCALEXEC_EXE="backend/Build/out/LocalExec/Release/net7.0/linux-x64/LocalExec"
+  LOCALEXEC_EXE="backend/Build/out/LocalExec/Release/net8.0/linux-x64/LocalExec"
 else
-  LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net7.0/LocalExec"
+  LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net8.0/LocalExec"
 fi
 
 echo -e "Loading packages into DB ${grey}($LOG_DB)${reset}"

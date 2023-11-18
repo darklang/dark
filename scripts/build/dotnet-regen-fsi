@@ -6,4 +6,4 @@ set -euo pipefail
 cd backend
 rm -f paket-files/paket.restore.cached
 dotnet restore fsdark.sln
-dotnet paket generate-load-scripts --framework net7.0
+dotnet paket generate-load-scripts --framework net8.0

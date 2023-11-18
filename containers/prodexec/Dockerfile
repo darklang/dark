@@ -13,7 +13,7 @@ RUN mkdir app
 ENV DARK_CONFIG_RUNDIR=/home/dark/gcp-rundir
 RUN ./scripts/devcontainer/_create-app-directories
 
-COPY --chown=dark:dark backend/Build/out/ProdExec/Release/net7.0/linux-x64/publish/ProdExec app/
+COPY --chown=dark:dark backend/Build/out/ProdExec/Release/net8.0/linux-x64/publish/ProdExec app/
 RUN ./scripts/linting/_check-linked-libs app/ProdExec
 
 COPY --chown=dark:dark containers/prodexec/sleep.sh .
