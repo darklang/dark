@@ -145,10 +145,11 @@ let storeTraceTLIDs
   : Task<unit> =
   Sql.query
     "INSERT INTO traces_v0
-     (canvas_id, trace_id, root_tlid, callgraph_tlids)
-     VALUES (@canvasID, @traceID, @rootTLID, @callgraphTLIDs::bigint[])"
+     (id, canvas_id, trace_id, root_tlid, callgraph_tlids)
+     VALUES (@id, @canvasID, @traceID, @rootTLID, @callgraphTLIDs::bigint[])"
   |> Sql.parameters
-    [ "canvasID", Sql.uuid canvasID
+    [ "id", System.Guid.NewGuid() |> Sql.uuid
+      "canvasID", Sql.uuid canvasID
       "traceID", Sql.traceID traceID
       "rootTLID", Sql.tlid rootTLID
       "callgraphTLIDs", Sql.idArray callgraphTLIDs ]
@@ -320,7 +321,7 @@ module Test =
     Sql.query
       "SELECT trace_id
        FROM traces_v0
-      WHERE canvas_id = @canvas_id
+      WHERE canvas_id = @canvasID
       ORDER BY trace_id ASC"
-    |> Sql.parameters [ "canvas_id", Sql.uuid canvasID ]
+    |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
     |> Sql.executeAsync (fun read -> read.traceID "trace_id")

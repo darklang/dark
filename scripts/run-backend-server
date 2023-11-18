@@ -76,7 +76,7 @@ sudo pkill -f "BwdDangerServer" || true
 ./scripts/run-cloud-storage-emulator
 
 echo "Waiting for postgres"
-./scripts/devcontainer/_wait-for-background-services postgresql
+./scripts/devcontainer/_wait-for-postgres
 
 # if it hasn't been compiled yet, wait for it
 echo "Waiting for compiled servers"

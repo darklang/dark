@@ -49,7 +49,7 @@ let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Dval =
   rules
   |> List.map (fun r ->
     let fields =
-      [ ("id", Dval.int64 r.id)
+      [ ("id", DUuid r.id)
         ("rule_type", r.ruleType.ToString() |> DString)
         ("canvas_id", DUuid r.canvasID)
         ("handler_name", DString r.handlerName)

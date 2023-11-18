@@ -34,7 +34,7 @@ module SchedulingRule =
       | _ -> None
 
   type T =
-    { id : int
+    { id : System.Guid
       ruleType : RuleType.T
       canvasID : CanvasID
       handlerName : string
@@ -66,7 +66,7 @@ module WorkerStates =
 
 let rowToSchedulingRule (read : RowReader) : SchedulingRule.T =
   let ruleType = read.string "rule_type"
-  { id = read.int "id"
+  { id = read.uuid "id"
     ruleType =
       ruleType
       |> SchedulingRule.RuleType.parse
@@ -155,13 +155,15 @@ let addSchedulingRule
   (workerName : string)
   : Task<unit> =
   task {
+    let id = System.Guid.NewGuid()
     do!
       Sql.query
-        "INSERT INTO scheduling_rules_v0 (rule_type, canvas_id, handler_name, event_space)
-         VALUES ( @ruleType::scheduling_rule_type, @canvasID, @workerName, 'WORKER')
+        "INSERT INTO scheduling_rules_v0 (id, rule_type, canvas_id, handler_name, event_space)
+         VALUES (@id, @ruleType::scheduling_rule_type, @canvasID, @workerName, 'WORKER')
          ON CONFLICT DO NOTHING"
       |> Sql.parameters
-        [ "ruleType", Sql.string ruleType
+        [ "id", Sql.uuid id
+          "ruleType", Sql.string ruleType
           "canvasID", Sql.uuid canvasID
           "workerName", Sql.string workerName ]
       |> Sql.executeStatementAsync

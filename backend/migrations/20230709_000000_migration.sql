@@ -115,7 +115,7 @@ CREATE TYPE scheduling_rule_type AS ENUM ('pause', 'block');
 
 CREATE TABLE IF NOT EXISTS
 scheduling_rules_v0
-( id SERIAL PRIMARY KEY -- TODO: change to UUID
+( id UUID PRIMARY KEY
 , rule_type scheduling_rule_type NOT NULL
 , canvas_id UUID NOT NULL
 , handler_name TEXT NOT NULL
@@ -169,7 +169,7 @@ toplevels_v0
 -- Keep track of what traces are available for which handler/function/etc
 CREATE TABLE IF NOT EXISTS
 traces_v0
-( id UUID PRIMARY KEY DEFAULT gen_random_uuid()
+( id UUID PRIMARY KEY
 , canvas_id UUID NOT NULL
 -- the handler's (or for a function's default trace, the function's) TLID (used to
 -- store the trace data in Cloud Storage)

@@ -108,6 +108,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
       google-cloud-sdk-pubsub-emulator \
       google-cloud-sdk-gke-gcloud-auth-plugin \
       jq \
+      # yugabyte
+      ntp \
       vim \
       unzip \
       docker-ce \
@@ -304,6 +306,34 @@ RUN /home/dark/install-targz-file \
   --url=https://binaries.cockroachdb.com/cockroach-v23.2.0-alpha.2.linux-${TARGETARCH}.tgz \
   --extract-file=cockroach-v23.2.0-alpha.2.linux-${TARGETARCH}/cockroach \
   --target=/usr/bin/cockroach
+
+############################
+# Yugabyte
+############################
+RUN <<EOF
+set -e;
+case ${TARGETARCH} in
+  arm64)
+  ARCH="aarch64";
+  ;;
+  amd64)
+  ARCH="x86_64";
+  ;;
+  *) exit 1 ;;
+esac
+URL=https://downloads.yugabyte.com/releases/2.19.3.0/yugabyte-2.19.3.0-b140-linux-${ARCH}.tar.gz
+FILENAME=$(basename $URL)
+DIR=~/yugabyte
+mkdir -p $DIR
+cd $DIR
+wget $URL
+tar xvf $FILENAME --strip-components=1
+rm $FILENAME
+./bin/post_install.sh
+# python on our system is called python3
+sed -i 's|#!/usr/bin/env python|#!/usr/bin/env python3|' ./bin/yugabyted
+cd ..
+EOF
 
 ############################
 # Terraform
