@@ -20,9 +20,9 @@ done
 ./scripts/run-cloud-storage-emulator
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  EXE="backend/Build/out/LocalExec/Release/net7.0/linux-x64/LocalExec"
+  EXE="backend/Build/out/LocalExec/Release/net8.0/linux-x64/LocalExec"
 else
-  EXE="backend/Build/out/LocalExec/Debug/net7.0/LocalExec"
+  EXE="backend/Build/out/LocalExec/Debug/net8.0/LocalExec"
 fi
 
 "${EXE}" "${ARGS[@]}"

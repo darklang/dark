@@ -432,19 +432,15 @@ module Roundtrip =
     fetch (fun p -> p.uint32 != 2ul) = [ otherSample () ]
     fetch (fun p -> p.uint32 == 100ul) = []
 
-    fetch (fun p -> p.int128 == 170141183460469231731687303715884105727Q) = [ sample
-                                                                                () ]
+    fetch (fun p -> p.int128 == 170141183460469231731687303715884105727Q) = [ sample () ]
 
-    fetch (fun p -> p.int128 != 170141183460469231731687303715884105727Q) = [ otherSample
-                                                                                () ]
+    fetch (fun p -> p.int128 != 170141183460469231731687303715884105727Q) = [ otherSample () ]
 
     fetch (fun p -> p.int128 == 100Q) = []
 
-    fetch (fun p -> p.uint128 == 340282366920938463463374607431768211455Z) = [ sample
-                                                                                 () ]
+    fetch (fun p -> p.uint128 == 340282366920938463463374607431768211455Z) = [ sample () ]
 
-    fetch (fun p -> p.uint128 != 340282366920938463463374607431768211455Z) = [ otherSample
-                                                                                 () ]
+    fetch (fun p -> p.uint128 != 340282366920938463463374607431768211455Z) = [ otherSample () ]
 
     fetch (fun p -> p.uint128 == 100Z) = []
 
@@ -467,8 +463,7 @@ module Roundtrip =
 
     fetch (fun p -> p.negInfinity == Builtin.Test.negativeInfinity) = [ sample () ]
 
-    fetch (fun p -> p.negInfinity != Builtin.Test.negativeInfinity) = [ otherSample
-                                                                          () ]
+    fetch (fun p -> p.negInfinity != Builtin.Test.negativeInfinity) = [ otherSample () ]
 
     fetch (fun p -> p.negInfinity == 1.0) = []
 
@@ -487,11 +482,9 @@ module Roundtrip =
     fetch (fun p -> p.char != 'c') = [ otherSample () ]
     fetch (fun p -> p.char == 'x') = []
 
-    fetch (fun p -> p.emojiChar == ((Builtin.Test.toChar "👍") |> Builtin.unwrap)) = [ sample
-                                                                                         () ]
+    fetch (fun p -> p.emojiChar == ((Builtin.Test.toChar "👍") |> Builtin.unwrap)) = [ sample () ]
 
-    fetch (fun p -> p.emojiChar != ((Builtin.Test.toChar "👍") |> Builtin.unwrap)) = [ otherSample
-                                                                                         () ]
+    fetch (fun p -> p.emojiChar != ((Builtin.Test.toChar "👍") |> Builtin.unwrap)) = [ otherSample () ]
 
     fetch (fun p -> p.emojiChar == 'x') = []
 

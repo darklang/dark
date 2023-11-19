@@ -314,14 +314,13 @@ RUN <<EOF
 set -e;
 case ${TARGETARCH} in
   arm64)
-  ARCH="aarch64";
+  URL=https://downloads.yugabyte.com/releases/2.20.0.0/yugabyte-2.20.0.0-b76-el8-aarch64.tar.gz
   ;;
   amd64)
-  ARCH="x86_64";
+  URL=https://downloads.yugabyte.com/releases/2.20.0.0/yugabyte-2.20.0.0-b76-linux-x86_64.tar.gz
   ;;
   *) exit 1 ;;
 esac
-URL=https://downloads.yugabyte.com/releases/2.19.3.0/yugabyte-2.19.3.0-b140-linux-${ARCH}.tar.gz
 FILENAME=$(basename $URL)
 DIR=~/yugabyte
 mkdir -p $DIR
@@ -406,7 +405,7 @@ RUN /home/dark/install-exe-file \
 # (runtime-deps, runtime, and sdk), see
 # https://github.com/dotnet/dotnet-docker/blob/master/src
 
-ENV DOTNET_SDK_VERSION=7.0.400 \
+ENV DOTNET_SDK_VERSION=8.0.100 \
     # Skip extraction of XML docs - generally not useful within an
     # image/container - helps performance
     NUGET_XMLDOC_MODE=skip \
@@ -424,11 +423,11 @@ set -e
 case ${TARGETARCH} in
   arm64)
     ARCH=arm64
-    CHECKSUM=474879abcf40d4a06d54e02997a3fb93dd10c8d5f0dfd5acbf7e1a6f493a6d3421e426431d512b482c62cda92d7cda4eddd8bab80f923d0d2da583edaa8905e8
+    CHECKSUM=3296d2bc15cc433a0ca13c3da83b93a4e1ba00d4f9f626f5addc60e7e398a7acefa7d3df65273f3d0825df9786e029c89457aea1485507b98a4df2a1193cd765
     ;;
   amd64)
     ARCH=x64
-    CHECKSUM=4cfeedb8e99ffd423da7a99159ee3f31535fd142711941b8206542acb6be26638fbd9a184a5d904084ffdbd8362c83b6b2acf9d193b2cd38bf7f061443439e3c
+    CHECKSUM=13905ea20191e70baeba50b0e9bbe5f752a7c34587878ee104744f9fb453bfe439994d38969722bdae7f60ee047d75dda8636f3ab62659450e9cd4024f38b2a5
     ;;
   *) exit 1;;
 esac
@@ -443,7 +442,7 @@ dotnet --help
 EOF
 
 # formatting
-RUN dotnet tool install fantomas --version 6.1.3 -g
+RUN dotnet tool install fantomas --version 6.2.3 -g
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
 #############
@@ -523,10 +522,10 @@ RUN mkdir -p app
 RUN mkdir -p app/backend/Build
 
 RUN mkdir -p \
-      /home/dark/.vscode-server/extensions \
-      /home/dark/.vscode-server-insiders/extensions \
-    && chown -R dark \
-      /home/dark/.vscode-server \
-      /home/dark/.vscode-server-insiders
+  /home/dark/.vscode-server/extensions \
+  /home/dark/.vscode-server-insiders/extensions \
+  && chown -R dark \
+  /home/dark/.vscode-server \
+  /home/dark/.vscode-server-insiders
 
 USER dark

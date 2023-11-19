@@ -3,7 +3,7 @@
   <!-- This library only exists so that we can separate LibCloudStdLib from LibCloud -->
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <LangVersion>7.0</LangVersion>
     <!-- Publishing configuration -->
     <IsPublishable>false</IsPublishable>

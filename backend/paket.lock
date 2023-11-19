@@ -1,5 +1,5 @@
 STORAGE: NONE
-RESTRICTION: == net7.0
+RESTRICTION: == net8.0
 NUGET
   remote: https://api.nuget.org/v3/index.json
     AspNetCore.HealthChecks.NpgSql (7.0.0-rc2.7)
