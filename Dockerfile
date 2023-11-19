@@ -321,7 +321,7 @@ case ${TARGETARCH} in
   ;;
   *) exit 1 ;;
 esac
-URL=https://downloads.yugabyte.com/releases/2.19.3.0/yugabyte-2.19.3.0-b140-linux-${ARCH}.tar.gz
+URL=https://downloads.yugabyte.com/releases/2.20.0.0/yugabyte-2.20.0.0-b76-el8-${ARCH}.tar.gz
 FILENAME=$(basename $URL)
 DIR=~/yugabyte
 mkdir -p $DIR
