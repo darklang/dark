@@ -314,14 +314,13 @@ RUN <<EOF
 set -e;
 case ${TARGETARCH} in
   arm64)
-  ARCH="aarch64";
+  URL=https://downloads.yugabyte.com/releases/2.20.0.0/yugabyte-2.20.0.0-b76-el8-aarch64.tar.gz
   ;;
   amd64)
-  ARCH="x86_64";
+  URL=https://downloads.yugabyte.com/releases/2.20.0.0/yugabyte-2.20.0.0-b76-linux-x86_64.tar.gz
   ;;
   *) exit 1 ;;
 esac
-URL=https://downloads.yugabyte.com/releases/2.20.0.0/yugabyte-2.20.0.0-b76-el8-${ARCH}.tar.gz
 FILENAME=$(basename $URL)
 DIR=~/yugabyte
 mkdir -p $DIR
