@@ -145,7 +145,8 @@ module SimpleTypeArgs =
           decls
           |> List.map (fun decl ->
             match decl with
-            | SynTyparDecl(_, SynTypar(name, TyparStaticReq.None, _)) -> name.idText
+            | SynTyparDecl(_, SynTypar(name, TyparStaticReq.None, _), _, _) ->
+              name.idText
             | _ ->
               raiseParserError
                 "Unsupported type parameter"
@@ -174,7 +175,7 @@ module LetPattern =
     | SynPat.Named(SynIdent(name, _), _, _, _) -> WT.LPVariable(gid (), name.idText)
     | SynPat.Const(SynConst.Unit, _) -> WT.LPUnit(gid ())
 
-    | SynPat.Tuple(_, (first :: second :: theRest), _) ->
+    | SynPat.Tuple(_, (first :: second :: theRest), _, _) ->
       WT.LPTuple(gid (), mapPat first, mapPat second, List.map mapPat theRest)
 
     | _ ->
@@ -194,10 +195,10 @@ module MatchPattern =
       // enum. But if it has two parens around it, it's a single tuple.
       // eg: (Foo(1, 2)) vs (Foo((1, 2)))
       match ast with
-      | SynPat.Paren(SynPat.Paren(SynPat.Tuple(_, t1 :: t2 :: trest, _), _), _) ->
+      | SynPat.Paren(SynPat.Paren(SynPat.Tuple(_, t1 :: t2 :: trest, _, _), _), _) ->
         [ WT.MPTuple(gid (), r t1, r t2, List.map r trest) ]
-      | SynPat.Paren(SynPat.Tuple(_, args, _), _) -> List.map r args
-      | SynPat.Tuple(_, args, _) -> List.map r args
+      | SynPat.Paren(SynPat.Tuple(_, args, _, _), _) -> List.map r args
+      | SynPat.Tuple(_, args, _, _) -> List.map r args
       | e -> [ r e ]
 
     match pat with
@@ -263,7 +264,7 @@ module MatchPattern =
     | SynPat.ListCons(headPat, tailPat, _, _) ->
       WT.MPListCons(id, r headPat, r tailPat)
 
-    | SynPat.Tuple(_isStruct, (first :: second :: theRest), _range) ->
+    | SynPat.Tuple(_isStruct, first :: second :: theRest, _range, _) ->
       WT.MPTuple(id, r first, r second, List.map r theRest)
 
     | _ -> raiseParserError "unhandled pattern" [ "pattern", pat ] (Some pat.Range)

@@ -430,6 +430,7 @@ def get_ignored_files():
         "scripts/build/compile",
         "backend/serialization/",
         "containers/",
+        "*.tmp*",
         "*.md",
         "*.sw",
         "*/.#"
