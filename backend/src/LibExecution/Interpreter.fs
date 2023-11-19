@@ -984,7 +984,7 @@ and execFn
                   return! f (state, typeArgs, NEList.toList args)
                 with e ->
                   match e with
-                  | RuntimeErrorException(None _, rte) ->
+                  | RuntimeErrorException(None, rte) ->
                     // Add the caller ID to the error if there isn't one already
                     return raiseRTE caller rte
                   | RuntimeErrorException _ -> return Exception.reraise e

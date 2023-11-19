@@ -421,7 +421,7 @@ module Test =
     | RT.DInt128 _
     | RT.DUInt128 _
     | RT.DFloat _
-    | RT.DUnit _
+    | RT.DUnit
     | RT.DBool _
     | RT.DChar _
     | RT.DBytes _
