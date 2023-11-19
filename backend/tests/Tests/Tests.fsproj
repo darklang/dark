@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
-    <LangVersion>7.0</LangVersion>
+    <LangVersion>8.0</LangVersion>
         <!-- We make this publishable so that we can run tests on the published version -->
     <PublishReadyToRun>true</PublishReadyToRun>
     <SelfContained>false</SelfContained>
