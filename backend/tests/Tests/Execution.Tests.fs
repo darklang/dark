@@ -34,7 +34,7 @@ let executionStateForPreview
     let! state = executionStateFor canvasID false false dbs types fns constants
     let results, traceFn = Exe.traceDvals ()
 
-    let state = { state with tracing = { state.tracing with traceDval = traceFn } }
+    let state = { state with tracing.traceDval = traceFn }
     return (results, state)
   }
 
@@ -74,7 +74,7 @@ let testExecFunctionTLIDs : Test =
 
     let tlids, traceFn = Exe.traceTLIDs ()
 
-    let state = { state with tracing = { state.tracing with traceTLID = traceFn } }
+    let state = { state with tracing.traceTLID = traceFn }
 
     let! value =
       Exe.executeFunction

@@ -126,7 +126,7 @@ let t
       let results, traceDvalFn = Exe.traceDvals ()
       let state =
         if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
-          { state with tracing = { state.tracing with traceDval = traceDvalFn } }
+          { state with tracing.traceDval = traceDvalFn }
         else
           state
 
