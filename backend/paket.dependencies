@@ -10,7 +10,6 @@ nuget FSharpPlus = 1.5.0
 nuget FsRegEx = 0.7.2
 nuget FSharpx.Extras = 3.1.0
 nuget FSharp.Core = 8.0.100
-nuget Faithlife.Utility = 0.12.2
 nuget FSharp.SystemTextJson = 1.2.42
 nuget NodaTime = 3.1.9
 nuget NodaTime.Serialization.SystemTextJson = 1.1.2
