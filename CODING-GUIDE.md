@@ -142,15 +142,3 @@ module RuleEngine =
     let parse (str : string) : T =
       ...
 ```
-
-### FsCheck Generators
-
-- The `static member`s of FsCheck generators should have names that match the
-  corresponding type, and explicitly annotate Arbitrary type
-
-  ```
-  type Generator =
-    static member String(): Arbitrary<string> = ...
-  ```
-
-  Failing to do so may result in conflicting generators or unexpected behaviour.

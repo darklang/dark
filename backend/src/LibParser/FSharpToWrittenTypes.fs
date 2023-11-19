@@ -360,7 +360,7 @@ module Expr =
     | SynExpr.Null _ ->
       raiseParserError "null not supported, use `()`" [ "ast", ast ] (Some ast.Range)
 
-    | SynExpr.Const(SynConst.Unit _, _) -> WT.EUnit id
+    | SynExpr.Const(SynConst.Unit, _) -> WT.EUnit id
     | SynExpr.Const(SynConst.Int64 n, _) -> WT.EInt64(id, int64 n)
     | SynExpr.Const(SynConst.UInt64 n, _) -> WT.EUInt64(id, uint64 n)
     | SynExpr.Const(SynConst.SByte n, _) -> WT.EInt8(id, int8 n)

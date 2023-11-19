@@ -2,9 +2,10 @@
 
 import sys
 import subprocess
-import glob
+import fnmatch
 import time
 import os
+import pathspec
 from pathlib import Path
 
 run_tests = False
@@ -356,6 +357,7 @@ def execute(should):
 
 
 def mark(should, f):
+  f = "/" + f
   if ("/backend/global.json" in f or \
         "/backend/.config/dotnet-tools.json" in f or \
         "/backend/Directory.Build.props" in f):
@@ -418,43 +420,28 @@ def mark(should, f):
 
   return should
 
+# Ignore .gitignore and also some custom files
+def get_ignored_files():
+  with open(".gitignore", 'r') as file:
+    gitignores = file.readlines()
 
-def ignore(filename):
-  # substring
   ignores = [
-      ".git",
-      ".ionide",
-      "scripts/build/compile",
-      "rundir/",
-      "backend/serialization/",
-      "backend/Build",
-      "backend/static/dark_wasm",
-      "paket-files",
-      ".paket/load",
-      "/obj/fsac.cache",
-      "/backend/packages/analysis",
-      ".sourcedirs.json",
-      "/obj",
-      ".processlock",
-      ".md",
-      ".sw",
-  ]
-  for i in ignores:
-    if i in filename:
-      return True
-  # emacs thing
-  if "/.#" in filename:
-    return True
-  # vim thing
-  if filename[-1] == "~":
-    return True
-  return False
+        ".git/",
+        "scripts/build/compile",
+        "backend/serialization/",
+        "containers/",
+        "*.md",
+        "*.sw",
+        "*/.#"
+        "*~" ]
 
+  all_ignores = gitignores + ignores
+  return pathspec.GitIgnoreSpec.from_lines(all_ignores)
 
-files = []
-
+ignored_files = get_ignored_files()
 
 def main():
+  files = []
   for f in sys.argv[1:]:
     if f == "--test":
       global run_tests
@@ -463,13 +450,12 @@ def main():
       global optimize
       optimize = True
     else:
-      f = os.path.abspath(f)  # the ignore patterns rely on absolute dirs
-      if not ignore(f):
+      f = os.path.relpath(f, "/home/dark/app")
+      if not (ignored_files.match_file(f)):
         files.append(f)
 
   if len(files) > 0:
-    pretty_files = [file[15:] for file in files]  # trim /home/dark/app/
-    pretty_print("Compiling: " + ", ".join(pretty_files), 43)
+    pretty_print("Compiling: " + ", ".join(files), 43)
 
     should = Should()
     for f in files:

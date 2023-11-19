@@ -388,7 +388,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 "Couldn't parse custom type"
                 [ "typeName", typeName; "valueKind", valueKind ]
       }
-    | TBytes _, _ -> Exception.raiseInternal "Bytes values not supported yet" []
+    | TBytes, _ -> Exception.raiseInternal "Bytes values not supported yet" []
     | TFn _, _ -> Exception.raiseInternal "Fn values not supported" []
     | TDB _, _ -> Exception.raiseInternal "DB values not supported" []
     | TVariable _, _ -> Exception.raiseInternal "Variables not supported yet" []
@@ -437,7 +437,7 @@ module Test =
     | DInt128 _
     | DUInt128 _
     | DString _
-    | DUnit _
+    | DUnit
     | DBool _
     | DDateTime _
     | DChar _

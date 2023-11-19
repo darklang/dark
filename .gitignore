@@ -22,6 +22,11 @@ backend/experiments/**/obj
 backend/static/dark_wasm/
 backend/static/tree-sitter/
 
+# Parser
+parser/tree-sitter-darklang/tree-sitter-darklang.so
+parser/tree-sitter-darklang/build/
+parser/tree-sitter-darklang/package-lock.json
+
 # Terraform
 **/.terraform/*
 *.tfstate
