@@ -25,9 +25,9 @@ let builtIns : RT.BuiltIns =
         BuiltinCloudExecution.Builtin.contents
         TestUtils.LibTest.contents ]
       []
-  { types = types |> Map.fromListBy (fun typ -> typ.name)
-    fns = fns |> Map.fromListBy (fun fn -> fn.name)
-    constants = constants |> Map.fromListBy (fun c -> c.name) }
+  { types = types |> Map.fromListBy _.name
+    fns = fns |> Map.fromListBy _.name
+    constants = constants |> Map.fromListBy _.name }
 
 
 let defaultTLID = 4989026UL
@@ -75,18 +75,10 @@ let execute
     let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
-        fns =
-          mod'.fns
-          |> List.map PT2RT.UserFunction.toRT
-          |> Map.fromListBy (fun fn -> fn.name)
-        types =
-          mod'.types
-          |> List.map PT2RT.UserType.toRT
-          |> Map.fromListBy (fun typ -> typ.name)
+        fns = mod'.fns |> List.map PT2RT.UserFunction.toRT |> Map.fromListBy _.name
+        types = mod'.types |> List.map PT2RT.UserType.toRT |> Map.fromListBy _.name
         constants =
-          mod'.constants
-          |> List.map PT2RT.UserConstant.toRT
-          |> Map.fromListBy (fun c -> c.name)
+          mod'.constants |> List.map PT2RT.UserConstant.toRT |> Map.fromListBy _.name
         dbs = Map.empty
         secrets = [] }
 

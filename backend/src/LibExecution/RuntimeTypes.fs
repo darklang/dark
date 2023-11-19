@@ -1635,14 +1635,12 @@ module Types =
     (types : Types)
     : Ply<Option<TypeDeclaration.T>> =
     match name with
-    | FQName.BuiltIn b ->
-      Map.find b types.builtIn |> Option.map (fun t -> t.declaration) |> Ply
+    | FQName.BuiltIn b -> Map.find b types.builtIn |> Option.map _.declaration |> Ply
 
     | FQName.UserProgram user ->
-      Map.find user types.userProgram |> Option.map (fun t -> t.declaration) |> Ply
+      Map.find user types.userProgram |> Option.map _.declaration |> Ply
 
-    | FQName.Package pkg ->
-      types.package pkg |> Ply.map (Option.map (fun t -> t.declaration))
+    | FQName.Package pkg -> types.package pkg |> Ply.map (Option.map _.declaration)
 
   // Swap concrete types for type parameters
   let rec substitute

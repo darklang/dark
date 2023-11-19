@@ -25,9 +25,9 @@ let getStateForEval
     { canvasID = CanvasID.Empty
       internalFnsAllowed = true
       dbs = Map.empty
-      fns = Map.fromListBy (fun fn -> fn.name) fns
-      types = Map.fromListBy (fun typ -> typ.name) types
-      constants = Map.fromListBy (fun c -> c.name) constants
+      fns = Map.fromListBy (_.name) fns
+      types = Map.fromListBy (_.name) types
+      constants = Map.fromListBy (_.name) constants
       secrets = List.empty }
 
   { builtIns = builtIns

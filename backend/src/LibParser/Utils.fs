@@ -10,8 +10,7 @@ open ParserException
 /// Takes a long identifier and returns a list of its components, stringified
 ///
 /// for example, F# code with System.IO.File would return ["System"; "IO"; "File"]
-let longIdentToList (li : LongIdent) : List<string> =
-  li |> List.map (fun id -> id.idText)
+let longIdentToList (li : LongIdent) : List<string> = li |> List.map _.idText
 
 let parseAsFSharpSourceFile
   (filename : string)

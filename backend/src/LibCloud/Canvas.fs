@@ -240,7 +240,7 @@ let verify (c : T) : T =
   let dupedNames =
     c.dbs
     |> Map.values
-    |> List.groupBy (fun db -> db.name)
+    |> List.groupBy _.name
     |> Map.filter (fun db -> List.length db > 1)
     |> Map.keys
 

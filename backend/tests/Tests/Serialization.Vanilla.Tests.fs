@@ -158,7 +158,7 @@ module PersistedSerializations =
   let testAllAllowedTypesHaveARecord : Test =
     test "no extra or missing types tested by files" {
       let expected = Json.Vanilla.allowedTypes |> Dictionary.keys |> Set
-      let actual = data.Force() |> List.map (fun z -> z.TypeName) |> Set
+      let actual = data.Force() |> List.map _.TypeName |> Set
 
       let missingTypes = Set.difference actual expected
       let extraTypes = Set.difference expected actual
@@ -169,7 +169,7 @@ module PersistedSerializations =
 
   let testNoMissingOrExtraOutputTestFiles : Test =
     test "no extra or missing test files" {
-      let expectedFilenames = data.Force() |> List.map (fun z -> z.FileName) |> Set
+      let expectedFilenames = data.Force() |> List.map _.FileName |> Set
       let actualFilenames =
         File.lsPattern Config.Serialization "vanilla_*.json" |> Set
 
@@ -184,11 +184,11 @@ module PersistedSerializations =
     test "no two records would result in the same file name" {
       let duplicates =
         data.Force()
-        |> List.groupBy (fun z -> z.FileName)
+        |> List.groupBy _.FileName
         |> Map.toList
         |> List.filterMap (fun (fileName, records) ->
           if List.length records > 1 then
-            Some(fileName, records |> List.map (fun r -> r.SerializedData))
+            Some(fileName, records |> List.map _.SerializedData)
           else
             None)
 
