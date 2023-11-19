@@ -100,7 +100,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
     : List<WT.DB.T> * List<WT.UserType.T> =
     match typeDefn with
     | SynTypeDefn(SynComponentInfo(attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
-      let attrs = attrs |> List.map (fun attr -> attr.Attributes) |> List.concat
+      let attrs = attrs |> List.map _.Attributes |> List.concat
       let isDB =
         attrs
         |> List.exists (fun attr ->
@@ -236,14 +236,14 @@ let parseTestFile
       |> parseAsFSharpSourceFile filename
       |> parseFile
 
-    let fns = modules |> List.map (fun m -> m.fns) |> List.concat
-    let fnNames = fns |> List.map (fun fn -> fn.name) |> Set.ofList
+    let fns = modules |> List.map _.fns |> List.concat
+    let fnNames = fns |> List.map _.name |> Set.ofList
 
-    let types = modules |> List.map (fun m -> m.types) |> List.concat
-    let typeNames = types |> List.map (fun typ -> typ.name) |> Set.ofList
+    let types = modules |> List.map _.types |> List.concat
+    let typeNames = types |> List.map _.name |> Set.ofList
 
-    let constants = modules |> List.map (fun m -> m.constants) |> List.concat
-    let constantNames = constants |> List.map (fun c -> c.name) |> Set.ofList
+    let constants = modules |> List.map _.constants |> List.concat
+    let constantNames = constants |> List.map _.name |> Set.ofList
 
     let programResolver =
       { NameResolver.empty with

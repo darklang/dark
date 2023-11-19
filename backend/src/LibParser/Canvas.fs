@@ -84,7 +84,7 @@ let parseLetBinding (m : WTCanvasModule) (letBinding : SynBinding) : WTCanvasMod
   | SynBinding(_, _, _, _, attrs, _, _, pat, returnInfo, expr, _, _, _) ->
     let expr = FS2WT.Expr.fromSynExpr expr
 
-    let attrs = attrs |> List.collect (fun l -> l.Attributes)
+    let attrs = attrs |> List.collect _.Attributes
 
     match attrs with
     | [] ->
@@ -167,7 +167,7 @@ let parseTypeDefn (m : WTCanvasModule) (typeDefn : SynTypeDefn) : WTCanvasModule
   | SynTypeDefn(SynComponentInfo(attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
     let isDB =
       attrs
-      |> List.map (fun attr -> attr.Attributes)
+      |> List.map _.Attributes
       |> List.concat
       |> List.exists (fun attr -> longIdentToList attr.TypeName.LongIdent = [ "DB" ])
 
@@ -216,9 +216,9 @@ let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
     decls
 
 let toResolver (canvas : WTCanvasModule) : NameResolver.NameResolver =
-  let fns = canvas.fns |> List.map (fun fn -> fn.name)
-  let types = canvas.types |> List.map (fun typ -> typ.name)
-  let constants = canvas.constants |> List.map (fun c -> c.name)
+  let fns = canvas.fns |> List.map _.name
+  let types = canvas.types |> List.map _.name
+  let constants = canvas.constants |> List.map _.name
   NameResolver.create [] [] [] types fns constants true None
 
 let toPT

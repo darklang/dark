@@ -26,9 +26,9 @@ let builtins : LibExecution.Builtin.Contents =
     []
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) = builtins
-  { types = types |> Map.fromListBy (fun typ -> typ.name)
-    fns = fns |> Map.fromListBy (fun fn -> fn.name)
-    constants = constants |> Map.fromListBy (fun c -> c.name) }
+  { types = types |> Map.fromListBy _.name
+    fns = fns |> Map.fromListBy _.name
+    constants = constants |> Map.fromListBy _.name }
 
 let packageManager = PackageManager.packageManager
 

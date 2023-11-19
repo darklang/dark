@@ -209,7 +209,7 @@ let subscriptionName =
 let credentials : Option<Grpc.Core.ChannelCredentials> =
   Config.queuePubSubCredentials
   |> Option.map Google.Apis.Auth.OAuth2.GoogleCredential.FromJson
-  |> Option.map (fun c -> c.ToChannelCredentials())
+  |> Option.map _.ToChannelCredentials()
 
 // PublisherClient and SubscriberClient have deprecated constructors that take
 // Channels as arguments. However, it's not clear what we're supposed to use instead.

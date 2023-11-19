@@ -229,7 +229,7 @@ let testLoadAllDBs =
           (PT.Toplevel.TLDB db3, Serialize.NotDeleted) ]
 
     let! (c : Canvas.T) = Canvas.loadAll canvasID
-    let ids = Map.values c.dbs |> List.map (fun db -> db.tlid) |> Set
+    let ids = Map.values c.dbs |> List.map _.tlid |> Set
     Expect.equal ids (Set [ db2.tlid; db3.tlid ]) "Loaded only undeleted dbs"
   }
 

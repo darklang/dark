@@ -66,9 +66,9 @@ let builtIns : RT.BuiltIns =
     LibExecution.Builtin.combine
       [ libExecutionContents; BuiltinCli.Builtin.contents ]
       []
-  { types = types |> Map.fromListBy (fun typ -> typ.name)
-    fns = fns |> Map.fromListBy (fun fn -> fn.name)
-    constants = constants |> Map.fromListBy (fun c -> c.name) }
+  { types = types |> Map.fromListBy _.name
+    fns = fns |> Map.fromListBy _.name
+    constants = constants |> Map.fromListBy _.name }
 
 let packageManager = LibCloud.PackageManager.packageManager
 
@@ -82,18 +82,10 @@ let execute
     let (program : Program) =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
-        fns =
-          mod'.fns
-          |> List.map PT2RT.UserFunction.toRT
-          |> Map.fromListBy (fun fn -> fn.name)
-        types =
-          mod'.types
-          |> List.map PT2RT.UserType.toRT
-          |> Map.fromListBy (fun typ -> typ.name)
+        fns = mod'.fns |> List.map PT2RT.UserFunction.toRT |> Map.fromListBy _.name
+        types = mod'.types |> List.map PT2RT.UserType.toRT |> Map.fromListBy _.name
         constants =
-          mod'.constants
-          |> List.map PT2RT.UserConstant.toRT
-          |> Map.fromListBy (fun c -> c.name)
+          mod'.constants |> List.map PT2RT.UserConstant.toRT |> Map.fromListBy _.name
         dbs = Map.empty
         secrets = [] }
 
@@ -256,8 +248,7 @@ let fns : List<BuiltInFn> =
                 | Some f ->
                   let types = RT.ExecutionState.availableTypes state
 
-                  let expectedTypes =
-                    (NEList.toList f.parameters) |> List.map (fun p -> p.typ)
+                  let expectedTypes = (NEList.toList f.parameters) |> List.map _.typ
 
                   let stringArgs =
                     args

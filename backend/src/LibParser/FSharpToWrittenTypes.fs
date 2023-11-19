@@ -33,7 +33,7 @@ let (|IdentExprPat|_|) (input : SynExpr) =
 let parseExprName (e : SynExpr) : Result<NEList<string>, string> =
   match e with
   | SynExpr.LongIdent(_, SynLongIdent(head :: tail, _, _), _, _) ->
-    NEList.ofList head tail |> NEList.map (fun i -> i.idText) |> Ok
+    NEList.ofList head tail |> NEList.map _.idText |> Ok
 
   | SynExpr.Ident name -> NEList.singleton name.idText |> Ok
 
@@ -42,7 +42,7 @@ let parseExprName (e : SynExpr) : Result<NEList<string>, string> =
 let parseTypeName (t : SynType) : Result<NEList<string>, string> =
   match t with
   | SynType.LongIdent(SynLongIdent(head :: tail, _, _)) ->
-    NEList.ofList head tail |> NEList.map (fun i -> i.idText) |> Ok
+    NEList.ofList head tail |> NEList.map _.idText |> Ok
 
   | _ -> Error "Bad format in type name"
 
@@ -251,7 +251,7 @@ module MatchPattern =
     | SynPat.LongIdent(SynLongIdent(names, _, _), _, _, SynArgPats.Pats args, _, _) ->
       let enumName =
         List.last names |> Exception.unwrapOptionInternal "missing enum name" []
-      let modules = List.initial names |> List.map (fun i -> i.idText)
+      let modules = List.initial names |> List.map _.idText
       if modules <> [] then
         Exception.raiseInternal
           "Module in enum pattern casename. Only use the casename in Enum patterns"
@@ -950,7 +950,7 @@ module TypeDeclaration =
       match typ with
       | SynField(_, _, fieldName, typ, _, _, _, _, _) ->
         { typ = TypeReference.fromSynType typ
-          label = fieldName |> Option.map (fun id -> id.idText)
+          label = fieldName |> Option.map _.idText
           description = "" }
 
     let parseCase (case : SynUnionCase) : WT.TypeDeclaration.EnumCase =

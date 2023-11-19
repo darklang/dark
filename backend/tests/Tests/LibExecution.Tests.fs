@@ -268,9 +268,9 @@ let fileTests () : Test =
             |> fun ply -> ply.Result
 
           // Within a module, tests have access to
-          let fns = modules |> List.map (fun m -> m.fns) |> List.concat
-          let types = modules |> List.map (fun m -> m.types) |> List.concat
-          let constants = modules |> List.map (fun m -> m.constants) |> List.concat
+          let fns = modules |> List.map _.fns |> List.concat
+          let types = modules |> List.map _.types |> List.concat
+          let constants = modules |> List.map _.constants |> List.concat
           let tests =
             modules
             |> List.map (fun m ->

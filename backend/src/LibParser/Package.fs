@@ -82,8 +82,7 @@ let rec parseDecls
                                    _,
                                    _) ->
 
-        let moduleNames =
-          moduleNames @ (nestedModuleNames |> List.map (fun id -> id.idText))
+        let moduleNames = moduleNames @ (nestedModuleNames |> List.map _.idText)
         let nestedDecls = parseDecls moduleNames nested
 
         { fns = m.fns @ nestedDecls.fns
