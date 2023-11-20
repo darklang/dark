@@ -298,47 +298,33 @@ PACKAGE.Darklang.Stdlib.Int32.toString -1l = "-1"
 PACKAGE.Darklang.Stdlib.Int32.toString -2147483648l = "-2147483648" // Int32 lower limit
 PACKAGE.Darklang.Stdlib.Int32.toString 2147483647l = "2147483647" // Int32 upper limit
 
-PACKAGE.Darklang.Stdlib.Int32.fromInt8_v0 0y = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0l
+PACKAGE.Darklang.Stdlib.Int32.fromInt8_v0 0y = 0l
 
-PACKAGE.Darklang.Stdlib.Int32.fromInt8_v0 1y = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1l
+PACKAGE.Darklang.Stdlib.Int32.fromInt8_v0 1y = 1l
 
-PACKAGE.Darklang.Stdlib.Int32.fromInt8_v0 127y = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  127l
+PACKAGE.Darklang.Stdlib.Int32.fromInt8_v0 127y = 127l
 
-PACKAGE.Darklang.Stdlib.Int32.fromInt8_v0 (-128y) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  -128l
+PACKAGE.Darklang.Stdlib.Int32.fromInt8_v0 (-128y) = -128l
 
-PACKAGE.Darklang.Stdlib.Int32.fromUInt8_v0 0uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0l
+PACKAGE.Darklang.Stdlib.Int32.fromUInt8_v0 0uy = 0l
 
-PACKAGE.Darklang.Stdlib.Int32.fromUInt8_v0 1uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1l
+PACKAGE.Darklang.Stdlib.Int32.fromUInt8_v0 1uy = 1l
 
-PACKAGE.Darklang.Stdlib.Int32.fromUInt8_v0 255uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  255l
+PACKAGE.Darklang.Stdlib.Int32.fromUInt8_v0 255uy = 255l
 
-PACKAGE.Darklang.Stdlib.Int32.fromInt16_v0 0s = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0l
+PACKAGE.Darklang.Stdlib.Int32.fromInt16_v0 0s = 0l
 
-PACKAGE.Darklang.Stdlib.Int32.fromInt16_v0 1s = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1l
+PACKAGE.Darklang.Stdlib.Int32.fromInt16_v0 1s = 1l
 
-PACKAGE.Darklang.Stdlib.Int32.fromInt16_v0 32767s = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  32767l
+PACKAGE.Darklang.Stdlib.Int32.fromInt16_v0 32767s = 32767l
 
-PACKAGE.Darklang.Stdlib.Int32.fromInt16_v0 (-32768s) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  -32768l
+PACKAGE.Darklang.Stdlib.Int32.fromInt16_v0 (-32768s) = -32768l
 
-PACKAGE.Darklang.Stdlib.Int32.fromUInt16_v0 0us = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0l
+PACKAGE.Darklang.Stdlib.Int32.fromUInt16_v0 0us = 0l
 
-PACKAGE.Darklang.Stdlib.Int32.fromUInt16_v0 1us = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1l
+PACKAGE.Darklang.Stdlib.Int32.fromUInt16_v0 1us = 1l
 
-PACKAGE.Darklang.Stdlib.Int32.fromUInt16_v0 65535us = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  65535l
+PACKAGE.Darklang.Stdlib.Int32.fromUInt16_v0 65535us = 65535l
 
 PACKAGE.Darklang.Stdlib.Int32.fromUInt32_v0 0ul = PACKAGE.Darklang.Stdlib.Option.Option.Some
   0l

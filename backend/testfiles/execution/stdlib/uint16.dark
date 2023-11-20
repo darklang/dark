@@ -225,14 +225,11 @@ PACKAGE.Darklang.Stdlib.UInt16.fromInt8_v0 127y = PACKAGE.Darklang.Stdlib.Option
 PACKAGE.Darklang.Stdlib.UInt16.fromInt8_v0 (-1y) = PACKAGE.Darklang.Stdlib.Option.Option.None
 PACKAGE.Darklang.Stdlib.UInt16.fromInt8_v0 (-128y) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.UInt16.fromUInt8_v0 0uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0us
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt8_v0 0uy = 0us
 
-PACKAGE.Darklang.Stdlib.UInt16.fromUInt8_v0 1uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1us
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt8_v0 1uy = 1us
 
-PACKAGE.Darklang.Stdlib.UInt16.fromUInt8_v0 255uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  255us
+PACKAGE.Darklang.Stdlib.UInt16.fromUInt8_v0 255uy = 255us
 
 PACKAGE.Darklang.Stdlib.UInt16.fromInt16_v0 0s = PACKAGE.Darklang.Stdlib.Option.Option.Some
   0us

@@ -115,21 +115,17 @@ module Darklang =
         Builtin.UInt128.parse s
 
 
-      /// Converts a <type UInt8> to an <type UInt128>. Returns {{None}} if the value is less than 0 or greater than 255
-      let fromUInt8 (i: UInt8) : PACKAGE.Darklang.Stdlib.Option.Option<UInt128> =
-        Builtin.UInt128.fromUInt8 i
+      /// Converts a <type UInt8> to an <type UInt128>.
+      let fromUInt8 (i: UInt8) : UInt128 = Builtin.UInt128.fromUInt8 i
 
 
-      /// Converts a <type UInt16> to an <type UInt128>. Returns {{None}} if the value is less than 0 or greater than 65535
-      let fromUInt16 (i: UInt16) : PACKAGE.Darklang.Stdlib.Option.Option<UInt128> =
-        Builtin.UInt128.fromUInt16 i
+      /// Converts a <type UInt16> to an <type UInt128>.
+      let fromUInt16 (i: UInt16) : UInt128 = Builtin.UInt128.fromUInt16 i
 
 
-      /// Converts a <type UInt32> to an <type UInt128>. Returns {{None}} if the value is less than 0 or greater than 4294967295
-      let fromUInt32 (i: UInt32) : PACKAGE.Darklang.Stdlib.Option.Option<UInt128> =
-        Builtin.UInt128.fromUInt32 i
+      /// Converts a <type UInt32> to an <type UInt128>.
+      let fromUInt32 (i: UInt32) : UInt128 = Builtin.UInt128.fromUInt32 i
 
 
-      /// Converts a <type UInt64> to an <type UInt128>. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615
-      let fromUInt64 (i: UInt64) : PACKAGE.Darklang.Stdlib.Option.Option<UInt128> =
-        Builtin.UInt128.fromUInt64 i
+      /// Converts a <type UInt64> to an <type UInt128>.
+      let fromUInt64 (i: UInt64) : UInt128 = Builtin.UInt128.fromUInt64 i

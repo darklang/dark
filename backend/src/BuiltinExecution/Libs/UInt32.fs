@@ -358,11 +358,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt8 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts an Int8 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 127."
+        "Converts an Int8 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0."
       fn =
         (function
         | _, _, [ DInt8 a ] ->
-          if (a < 0y) || (a > 127y) then
+          if (a < 0y) then
             Dval.optionNone KTUInt32 |> Ply
           else
             Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply
@@ -375,16 +375,11 @@ let fns : List<BuiltInFn> =
     { name = fn "fromUInt8" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 "" ]
-      returnType = TypeReference.option TUInt32
-      description =
-        "Converts a UInt8 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+      returnType = TUInt32
+      description = "Converts a UInt8 to a 32-bit unsigned integer."
       fn =
         (function
-        | _, _, [ DUInt8 a ] ->
-          if (a < 0uy) || (a > 255uy) then
-            Dval.optionNone KTUInt32 |> Ply
-          else
-            Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply
+        | _, _, [ DUInt8 a ] -> DUInt32(uint32 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -396,11 +391,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt16 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts an Int16 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 32767."
+        "Converts an Int16 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0."
       fn =
         (function
         | _, _, [ DInt16 a ] ->
-          if (a < 0s) || (a > int16 System.Int16.MaxValue) then
+          if (a < 0s) then
             Dval.optionNone KTUInt32 |> Ply
           else
             Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply
@@ -413,19 +408,11 @@ let fns : List<BuiltInFn> =
     { name = fn "fromUInt16" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt16 "" ]
-      returnType = TypeReference.option TUInt16
-      description =
-        "Converts a UInt16 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 65535."
+      returnType = TUInt32
+      description = "Converts a UInt16 to a 32-bit unsigned integer."
       fn =
         (function
-        | _, _, [ DUInt16 a ] ->
-          if
-            (a < uint16 System.UInt16.MinValue)
-            || (a > uint16 System.UInt16.MaxValue)
-          then
-            Dval.optionNone KTUInt32 |> Ply
-          else
-            Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply
+        | _, _, [ DUInt16 a ] -> DUInt32(uint32 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -437,11 +424,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt32 "" ]
       returnType = TypeReference.option TInt32
       description =
-        "Converts an Int32 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 2147483647."
+        "Converts an Int32 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0"
       fn =
         (function
         | _, _, [ DInt32 a ] ->
-          if (a < 0l) || (a > System.Int32.MaxValue) then
+          if (a < 0l) then
             Dval.optionNone KTUInt32 |> Ply
           else
             Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply
@@ -477,14 +464,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt64 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts a UInt64 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 4294967295."
+        "Converts a UInt64 to a 32-bit unsigned integer. Returns {{None}} if the value is greater than 4294967295."
       fn =
         (function
         | _, _, [ DUInt64 a ] ->
-          if
-            (a < uint64 System.UInt32.MinValue)
-            || (a > uint64 System.UInt32.MaxValue)
-          then
+          if (a > uint64 System.UInt32.MaxValue) then
             Dval.optionNone KTUInt32 |> Ply
           else
             Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply
@@ -521,14 +505,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt128 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts a UInt128 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 4294967295."
+        "Converts a UInt128 to a 32-bit unsigned integer. Returns {{None}} if the value is greater than 4294967295."
       fn =
         (function
         | _, _, [ DUInt128 a ] ->
-          if
-            (a < System.UInt128.op_Implicit System.UInt32.MinValue)
-            || (a > System.UInt128.op_Implicit System.UInt32.MaxValue)
-          then
+          if (a > System.UInt128.op_Implicit System.UInt32.MaxValue) then
             Dval.optionNone KTUInt32 |> Ply
           else
             Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply

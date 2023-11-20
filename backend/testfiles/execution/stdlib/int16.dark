@@ -283,29 +283,21 @@ PACKAGE.Darklang.Stdlib.Int16.parse_v0 "XIV" = PACKAGE.Darklang.Stdlib.Result.Re
   PACKAGE.Darklang.Stdlib.Int16.ParseError.BadFormat
 
 
-PACKAGE.Darklang.Stdlib.Int16.fromInt8_v0 0y = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0s
+PACKAGE.Darklang.Stdlib.Int16.fromInt8_v0 0y = 0s
 
-PACKAGE.Darklang.Stdlib.Int16.fromInt8_v0 1y = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1s
+PACKAGE.Darklang.Stdlib.Int16.fromInt8_v0 1y = 1s
 
-PACKAGE.Darklang.Stdlib.Int16.fromInt8_v0 127y = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  127s
+PACKAGE.Darklang.Stdlib.Int16.fromInt8_v0 127y = 127s
 
-PACKAGE.Darklang.Stdlib.Int16.fromInt8_v0 (-1y) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  -1s
+PACKAGE.Darklang.Stdlib.Int16.fromInt8_v0 (-1y) = -1s
 
-PACKAGE.Darklang.Stdlib.Int16.fromInt8_v0 (-128y) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  -128s
+PACKAGE.Darklang.Stdlib.Int16.fromInt8_v0 (-128y) = -128s
 
-PACKAGE.Darklang.Stdlib.Int16.fromUInt8_v0 0uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0s
+PACKAGE.Darklang.Stdlib.Int16.fromUInt8_v0 0uy = 0s
 
-PACKAGE.Darklang.Stdlib.Int16.fromUInt8_v0 1uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1s
+PACKAGE.Darklang.Stdlib.Int16.fromUInt8_v0 1uy = 1s
 
-PACKAGE.Darklang.Stdlib.Int16.fromUInt8_v0 255uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  255s
+PACKAGE.Darklang.Stdlib.Int16.fromUInt8_v0 255uy = 255s
 
 PACKAGE.Darklang.Stdlib.Int16.fromUInt16_v0 0us = PACKAGE.Darklang.Stdlib.Option.Option.Some
   0s

@@ -223,14 +223,11 @@ PACKAGE.Darklang.Stdlib.UInt32.fromInt8_v0 127y = PACKAGE.Darklang.Stdlib.Option
 
 PACKAGE.Darklang.Stdlib.UInt32.fromInt8_v0 (-128y) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.UInt32.fromUInt8_v0 0uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0ul
+PACKAGE.Darklang.Stdlib.UInt32.fromUInt8_v0 0uy = 0ul
 
-PACKAGE.Darklang.Stdlib.UInt32.fromUInt8_v0 1uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1ul
+PACKAGE.Darklang.Stdlib.UInt32.fromUInt8_v0 1uy = 1ul
 
-PACKAGE.Darklang.Stdlib.UInt32.fromUInt8_v0 255uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  255ul
+PACKAGE.Darklang.Stdlib.UInt32.fromUInt8_v0 255uy = 255ul
 
 PACKAGE.Darklang.Stdlib.UInt32.fromInt16_v0 0s = PACKAGE.Darklang.Stdlib.Option.Option.Some
   0ul
@@ -243,25 +240,22 @@ PACKAGE.Darklang.Stdlib.UInt32.fromInt16_v0 32767s = PACKAGE.Darklang.Stdlib.Opt
 
 PACKAGE.Darklang.Stdlib.UInt32.fromInt16_v0 (-32768s) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.UInt32.fromUInt16_v0 0us = PACKAGE.Darklang.Stdlib.Option.Option.Some
+PACKAGE.Darklang.Stdlib.UInt32.fromUInt16_v0 0us = 0ul
+
+PACKAGE.Darklang.Stdlib.UInt32.fromUInt16_v0 1us = 1ul
+
+PACKAGE.Darklang.Stdlib.UInt32.fromUInt16_v0 65535us = 65535ul
+
+PACKAGE.Darklang.Stdlib.UInt32.fromInt32_v0 0l = PACKAGE.Darklang.Stdlib.Option.Option.Some
   0ul
 
-PACKAGE.Darklang.Stdlib.UInt32.fromUInt16_v0 1us = PACKAGE.Darklang.Stdlib.Option.Option.Some
+PACKAGE.Darklang.Stdlib.UInt32.fromInt32_v0 1l = PACKAGE.Darklang.Stdlib.Option.Option.Some
   1ul
 
-PACKAGE.Darklang.Stdlib.UInt32.fromUInt16_v0 65535us = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  65535ul
-
-PACKAGE.Darklang.Stdlib.UInt32.fromInt32_v0 0 = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0ul
-
-PACKAGE.Darklang.Stdlib.UInt32.fromInt32_v0 1 = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1ul
-
-PACKAGE.Darklang.Stdlib.UInt32.fromInt32_v0 2147483647 = PACKAGE.Darklang.Stdlib.Option.Option.Some
+PACKAGE.Darklang.Stdlib.UInt32.fromInt32_v0 2147483647l = PACKAGE.Darklang.Stdlib.Option.Option.Some
   2147483647ul
 
-PACKAGE.Darklang.Stdlib.UInt32.fromInt32_v0 (-2147483648) = PACKAGE.Darklang.Stdlib.Option.Option.None
+PACKAGE.Darklang.Stdlib.UInt32.fromInt32_v0 (-2147483648l) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 PACKAGE.Darklang.Stdlib.UInt32.fromInt64_v0 0L = PACKAGE.Darklang.Stdlib.Option.Option.Some
   0ul

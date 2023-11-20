@@ -244,86 +244,58 @@ PACKAGE.Darklang.Stdlib.Int128.parse_v0 "XQV" = PACKAGE.Darklang.Stdlib.Result.R
   PACKAGE.Darklang.Stdlib.Int128.ParseError.BadFormat
 
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt8_v0 0y = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt8_v0 0y = 0Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt8_v0 1y = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt8_v0 1y = 1Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt8_v0 127y = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  127Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt8_v0 127y = 127Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt8_v0 -128y = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  -128Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt8_v0 -128y = -128Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromUInt8_v0 0uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0Q
+PACKAGE.Darklang.Stdlib.Int128.fromUInt8_v0 0uy = 0Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromUInt8_v0 1uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1Q
+PACKAGE.Darklang.Stdlib.Int128.fromUInt8_v0 1uy = 1Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromUInt8_v0 255uy = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  255Q
+PACKAGE.Darklang.Stdlib.Int128.fromUInt8_v0 255uy = 255Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt16_v0 0s = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt16_v0 0s = 0Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt16_v0 1s = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt16_v0 1s = 1Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt16_v0 32767s = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  32767Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt16_v0 32767s = 32767Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt16_v0 -32768s = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  -32768Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt16_v0 -32768s = -32768Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromUInt16_v0 0us = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0Q
+PACKAGE.Darklang.Stdlib.Int128.fromUInt16_v0 0us = 0Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromUInt16_v0 1us = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1Q
+PACKAGE.Darklang.Stdlib.Int128.fromUInt16_v0 1us = 1Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromUInt16_v0 65535us = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  65535Q
+PACKAGE.Darklang.Stdlib.Int128.fromUInt16_v0 65535us = 65535Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt32_v0 0l = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt32_v0 0l = 0Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt32_v0 1l = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt32_v0 1l = 1Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt32_v0 2147483647l = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  2147483647Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt32_v0 2147483647l = 2147483647Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt32_v0 -2147483648l = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  -2147483648Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt32_v0 -2147483648l = -2147483648Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromUInt32_v0 0ul = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0Q
+PACKAGE.Darklang.Stdlib.Int128.fromUInt32_v0 0ul = 0Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromUInt32_v0 1ul = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1Q
+PACKAGE.Darklang.Stdlib.Int128.fromUInt32_v0 1ul = 1Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromUInt32_v0 4294967295ul = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  4294967295Q
+PACKAGE.Darklang.Stdlib.Int128.fromUInt32_v0 4294967295ul = 4294967295Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt64_v0 0L = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt64_v0 0L = 0Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt64_v0 1L = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt64_v0 1L = 1Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt64_v0 9223372036854775807L = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  9223372036854775807Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt64_v0 9223372036854775807L = 9223372036854775807Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromInt64_v0 -9223372036854775808L = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  -9223372036854775808Q
+PACKAGE.Darklang.Stdlib.Int128.fromInt64_v0 -9223372036854775808L = -9223372036854775808Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromUInt64_v0 0UL = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0Q
+PACKAGE.Darklang.Stdlib.Int128.fromUInt64_v0 0UL = 0Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromUInt64_v0 1UL = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  1Q
+PACKAGE.Darklang.Stdlib.Int128.fromUInt64_v0 1UL = 1Q
 
-PACKAGE.Darklang.Stdlib.Int128.fromUInt64_v0 18446744073709551615UL = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  18446744073709551615Q
+PACKAGE.Darklang.Stdlib.Int128.fromUInt64_v0 18446744073709551615UL = 18446744073709551615Q

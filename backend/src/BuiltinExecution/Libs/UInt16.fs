@@ -358,11 +358,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt8 "" ]
       returnType = TypeReference.option TUInt16
       description =
-        "Converts an Int8 to a 16-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 127."
+        "Converts an Int8 to a 16-bit unsigned integer. Returns {{None}} if the value is less than 0."
       fn =
         (function
         | _, _, [ DInt8 a ] ->
-          if (a < 0y) || (a > 127y) then
+          if (a < 0y) then
             Dval.optionNone KTUInt16 |> Ply
           else
             Dval.optionSome KTUInt16 (DUInt16(uint16 a)) |> Ply
@@ -375,16 +375,11 @@ let fns : List<BuiltInFn> =
     { name = fn "fromUInt8" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 "" ]
-      returnType = TypeReference.option TUInt16
-      description =
-        "Converts a UInt8 to a 16-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+      returnType = TUInt16
+      description = "Converts a UInt8 to a 16-bit unsigned integer."
       fn =
         (function
-        | _, _, [ DUInt8 a ] ->
-          if (a < 0uy) || (a > 255uy) then
-            Dval.optionNone KTUInt16 |> Ply
-          else
-            Dval.optionSome KTUInt16 (DUInt16(uint16 a)) |> Ply
+        | _, _, [ DUInt8 a ] -> DUInt16(uint16 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -396,11 +391,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt16 "" ]
       returnType = TypeReference.option TUInt16
       description =
-        "Converts an Int16 to a 16-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 65535."
+        "Converts an Int16 to a 16-bit unsigned integer. Returns {{None}} if the value is less than 0."
       fn =
         (function
         | _, _, [ DInt16 a ] ->
-          if (a < 0s) || (a > System.Int16.MaxValue) then
+          if (a < 0s) then
             Dval.optionNone KTUInt16 |> Ply
           else
             Dval.optionSome KTUInt16 (DUInt16(uint16 a)) |> Ply
@@ -436,14 +431,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt32 "" ]
       returnType = TypeReference.option TUInt16
       description =
-        "Converts a UInt32 to a 16-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 65535."
+        "Converts a UInt32 to a 16-bit unsigned integer. Returns {{None}} if the value is greater than 65535."
       fn =
         (function
         | _, _, [ DUInt32 a ] ->
-          if
-            (a < uint32 System.UInt16.MinValue)
-            || (a > uint32 System.UInt16.MaxValue)
-          then
+          if (a > uint32 System.UInt16.MaxValue) then
             Dval.optionNone KTUInt16 |> Ply
           else
             Dval.optionSome KTUInt16 (DUInt16(uint16 a)) |> Ply
@@ -479,14 +471,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt64 "" ]
       returnType = TypeReference.option TUInt16
       description =
-        "Converts a UInt64 to a 16-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 65535."
+        "Converts a UInt64 to a 16-bit unsigned integer. Returns {{None}} if the value is greater than 65535."
       fn =
         (function
         | _, _, [ DUInt64 a ] ->
-          if
-            (a < uint64 System.UInt16.MinValue)
-            || (a > uint64 System.UInt16.MaxValue)
-          then
+          if (a > uint64 System.UInt16.MaxValue) then
             Dval.optionNone KTUInt16 |> Ply
           else
             Dval.optionSome KTUInt16 (DUInt16(uint16 a)) |> Ply
@@ -523,14 +512,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt128 "" ]
       returnType = TypeReference.option TUInt16
       description =
-        "Converts a UInt128 to a 16-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 65535."
+        "Converts a UInt128 to a 16-bit unsigned integer. Returns {{None}} if the value is greater than 65535."
       fn =
         (function
         | _, _, [ DUInt128 a ] ->
-          if
-            (a < System.UInt128.op_Implicit System.UInt16.MinValue)
-            || (a > System.UInt128.op_Implicit System.UInt16.MaxValue)
-          then
+          if (a > System.UInt128.op_Implicit System.UInt16.MaxValue) then
             Dval.optionNone KTUInt16 |> Ply
           else
             Dval.optionSome KTUInt16 (DUInt16(uint16 a)) |> Ply
