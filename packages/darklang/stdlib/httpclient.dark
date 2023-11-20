@@ -8,25 +8,26 @@ module Darklang =
         | InvalidContentType
 
       type BadUrlDetails =
-        // Occurs when the URI scheme is not allowed. eg. "ftp://darklang.com"
+        /// Occurs when the URI scheme is not allowed. eg. "ftp://darklang.com"
         | UnsupportedProtocol
-        // Occurs when the host is not allowed. eg. "http://0"
+        /// Occurs when the host is not allowed. eg. "http://0"
         | InvalidHost
-        // Occurs when the URI does not conform to the format specified by RFC 2396. eg. "{ ] nonsense ^#( :"
+        /// Occurs when the URI does not conform to the format specified by RFC 2396. eg. "{ ] nonsense ^#( :"
         | InvalidUri
-        // Occurs when the request contains invalid headers. eg.A request to "http://google.com" with [("Metadata-Flavor", "Google")] header
+        /// Occurs when the request contains invalid headers. eg.A request to "http://google.com" with [("Metadata-Flavor", "Google")] header
         | InvalidRequest
 
       type RequestError =
         | BadUrl of BadUrlDetails
-        // Occurs when the request is cancelled due to a timeout
+        /// Occurs when the request is cancelled due to a timeout
         | Timeout
         | BadHeader of BadHeader
-        // Occurs when there's an issue connecting to the endpoint or an I/O error. eg. network error, DNS failure, certifivate validation error, etc.
+        /// Occurs when there's an issue connecting to the endpoint or an I/O error. eg. network error, DNS failure, certifivate validation error, etc.
         | NetworkError
-        // Occurs when the request method is not invalid.
+        /// Occurs when the request method is not invalid.
         | BadMethod
 
+      // TODO: move this into a RequestError module, along with the type
       let toString (e: RequestError) : String =
         match e with
         | BadUrl details ->
@@ -40,8 +41,8 @@ module Darklang =
           match details with
           | EmptyKey -> "Empty key"
           | InvalidContentType -> "Invalid content-type header"
-        | NetworkError -> "NetworkError"
-        | BadMethod -> "BadMethod"
+        | NetworkError -> "Network Error"
+        | BadMethod -> "Bad Method"
 
 
       /// The response from a HTTP request
@@ -59,73 +60,53 @@ module Darklang =
         (uri: String)
         (headers: List<String * String>)
         (body: Bytes)
-        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, PACKAGE.Darklang.Stdlib.HttpClient.RequestError> =
+        : Stdlib.Result.Result<Response, RequestError> =
         Builtin.HttpClient.request method uri headers body
 
 
-      let get
-        (uri: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, PACKAGE.Darklang.Stdlib.HttpClient.RequestError> =
-        PACKAGE.Darklang.Stdlib.HttpClient.request "GET" uri [] Builtin.Bytes.empty
+      let get (uri: String) : Stdlib.Result.Result<Response, RequestError> =
+        request "GET" uri [] Builtin.Bytes.empty
 
 
       let post
         (uri: String)
         (headers: List<String * String>)
         (body: Bytes)
-        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, PACKAGE.Darklang.Stdlib.HttpClient.RequestError> =
-        PACKAGE.Darklang.Stdlib.HttpClient.request "POST" uri headers body
+        : Stdlib.Result.Result<Response, RequestError> =
+        request "POST" uri headers body
 
 
       let put
         (uri: String)
         (headers: List<String * String>)
         (body: Bytes)
-        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, PACKAGE.Darklang.Stdlib.HttpClient.RequestError> =
-        PACKAGE.Darklang.Stdlib.HttpClient.request "PUT" uri headers body
+        : Stdlib.Result.Result<Response, RequestError> =
+        request "PUT" uri headers body
 
 
-      let options
-        (uri: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, PACKAGE.Darklang.Stdlib.HttpClient.RequestError> =
-        PACKAGE.Darklang.Stdlib.HttpClient.request
-          "OPTIONS"
-          uri
-          []
-          Builtin.Bytes.empty
+      let options (uri: String) : Stdlib.Result.Result<Response, RequestError> =
+        request "OPTIONS" uri [] Builtin.Bytes.empty
 
 
-      let delete
-        (uri: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, PACKAGE.Darklang.Stdlib.HttpClient.RequestError> =
-        PACKAGE.Darklang.Stdlib.HttpClient.request
-          "DELETE"
-          uri
-          []
-          Builtin.Bytes.empty
+      let delete (uri: String) : Stdlib.Result.Result<Response, RequestError> =
+        request "DELETE" uri [] Builtin.Bytes.empty
 
 
-      let head
-        (uri: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.Stdlib.HttpClient.Response, PACKAGE.Darklang.Stdlib.HttpClient.RequestError> =
-        PACKAGE.Darklang.Stdlib.HttpClient.request "HEAD" uri [] Builtin.Bytes.empty
+      let head (uri: String) : Stdlib.Result.Result<Response, RequestError> =
+        request "HEAD" uri [] Builtin.Bytes.empty
 
 
       /// Returns a header <type (String*String))> with {{'authorization'}} created using HTTP basic auth
       let basicAuth
         (username: String)
         (password: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<(String * String), String> =
-        if PACKAGE.Darklang.Stdlib.String.contains username "-" then
-          PACKAGE.Darklang.Stdlib.Result.Result.Error
-            "Username cannot contain a hyphen"
+        : Stdlib.Result.Result<(String * String), String> =
+        if Stdlib.String.contains username "-" then
+          Stdlib.Result.Result.Error "Username cannot contain a hyphen"
         else
-          let encoded =
-            PACKAGE.Darklang.Stdlib.String.base64Encode $"{username}:{password}"
+          let encoded = Stdlib.String.base64Encode $"{username}:{password}"
 
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-            ("authorization", $"basic {encoded}")
-          )
+          Stdlib.Result.Result.Ok(("authorization", $"basic {encoded}"))
 
       /// Returns a header <type (String*String))> with {{'authorization'}} set to <param token>
       let bearerToken (token: String) : (String * String) =
