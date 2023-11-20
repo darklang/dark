@@ -345,11 +345,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt8 "" ]
       returnType = TypeReference.option TUInt8
       description =
-        "Converts an Int8 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+        "Converts an Int8 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0."
       fn =
         (function
         | _, _, [ DInt8 a ] ->
-          if a < 0y || a > 127y then
+          if a < 0y then
             Dval.optionNone KTUInt8 |> Ply
           else
             Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
