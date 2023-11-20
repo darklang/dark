@@ -567,11 +567,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt128 "" ]
       returnType = TypeReference.option TInt64
       description =
-        "Converts a UInt128 to a 64-bit signed integer. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807."
+        "Converts a UInt128 to a 64-bit signed integer. Returns {{None}} if the value is greater than 9223372036854775807."
       fn =
         (function
         | _, _, [ DUInt128 a ] ->
-          if (a < 0Z) || (a > 9223372036854775807Z) then
+          if (a > 9223372036854775807Z) then
             Dval.optionNone KTInt64 |> Ply
           else
             Dval.optionSome KTInt64 (DInt64(int64 a)) |> Ply

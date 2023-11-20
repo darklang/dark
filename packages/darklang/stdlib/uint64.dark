@@ -155,6 +155,6 @@ module Darklang =
         Builtin.UInt64.fromInt128 i
 
 
-      /// Converts a <type UInt128> to an <type UInt64>. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615
+      /// Converts a <type UInt128> to an <type UInt64>. Returns {{None}} if the value is greater than 18446744073709551615
       let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<UInt64> =
         Builtin.UInt64.fromUInt128 i

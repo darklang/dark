@@ -383,11 +383,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt16 "" ]
       returnType = TypeReference.option TUInt8
       description =
-        "Converts a UInt16 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+        "Converts a UInt16 to an 8-bit unsigned integer. Returns {{None}} if the value is greater than 255."
       fn =
         (function
         | _, _, [ DUInt16 a ] ->
-          if a < 0us || a > 255us then
+          if a > 255us then
             Dval.optionNone KTUInt8 |> Ply
           else
             Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
@@ -421,11 +421,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt32 "" ]
       returnType = TypeReference.option TUInt8
       description =
-        "Converts a UInt32 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+        "Converts a UInt32 to an 8-bit unsigned integer. Returns {{None}} if the value is greater than 255."
       fn =
         (function
         | _, _, [ DUInt32 a ] ->
-          if a < 0ul || a > 255ul then
+          if a > 255ul then
             Dval.optionNone KTUInt8 |> Ply
           else
             Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
@@ -459,11 +459,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt64 "" ]
       returnType = TypeReference.option TUInt8
       description =
-        "Converts a UInt64 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+        "Converts a UInt64 to an 8-bit unsigned integer. Returns {{None}} if the value is greater than 255."
       fn =
         (function
         | _, _, [ DUInt64 a ] ->
-          if a < 0UL || a > 255UL then
+          if a > 255UL then
             Dval.optionNone KTUInt8 |> Ply
           else
             Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply
@@ -497,11 +497,11 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt128 "" ]
       returnType = TypeReference.option TUInt8
       description =
-        "Converts a UInt128 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
+        "Converts a UInt128 to an 8-bit unsigned integer. Returns {{None}} if the value is greater than 255."
       fn =
         (function
         | _, _, [ DUInt128 a ] ->
-          if a < 0Z || a > 255Z then
+          if a > 255Z then
             Dval.optionNone KTUInt8 |> Ply
           else
             Dval.optionSome KTUInt8 (DUInt8(uint8 a)) |> Ply

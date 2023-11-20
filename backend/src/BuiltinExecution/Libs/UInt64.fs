@@ -493,13 +493,12 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt128 "" ]
       returnType = TypeReference.option TUInt64
       description =
-        "Converts a UInt128 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
+        "Converts a UInt128 to a 64-bit usigned integer. Returns {{None}} if the value is greater than 18446744073709551615."
       fn =
         (function
         | _, _, [ DUInt128 a ] ->
           if
-            (a < System.UInt128.op_Implicit System.UInt64.MinValue)
-            || (a > System.UInt128.op_Implicit System.UInt64.MaxValue)
+            (a > System.UInt128.op_Implicit System.UInt64.MaxValue)
           then
             Dval.optionNone KTUInt64 |> Ply
           else
