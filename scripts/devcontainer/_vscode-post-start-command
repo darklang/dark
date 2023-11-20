@@ -3,14 +3,14 @@
 set -euo pipefail
 
 
-echo "Copying tree-sitter.so to backend/src/LibTreeSitter"
+echo "Copying tree-sitter.so (built in Dockerfile) to backend/src/LibTreeSitter (to P/Invoke against)"
 TREE_SITTER_SOURCE="/home/dark/tree-sitter.so"
 TREE_SITTER_TARGET="/home/dark/app/backend/src/LibTreeSitter/tree-sitter.so"
 if [ -e "$TREE_SITTER_SOURCE" ]; then
-    mv "$TREE_SITTER_SOURCE" "$TREE_SITTER_TARGET"
+  mv "$TREE_SITTER_SOURCE" "$TREE_SITTER_TARGET"
 elif [ ! -e "$TREE_SITTER_TARGET" ]; then
-    echo "Error: Source does not exist and target is missing."
-    exit 1
+  echo "Error: Source does not exist and target is missing."
+  exit 1
 fi
 
 
