@@ -410,6 +410,101 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "fromUInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 "" ]
+      returnType = TypeReference.option TInt8
+      description =
+        "Converts a UInt8 to an 8-bit signed integer. Returns {{None}} if the value is greater than 127."
+      fn =
+        (function
+        | _, _, [ DUInt8 a ] ->
+          if a > 127uy then
+            Dval.optionNone KTInt8 |> Ply
+          else
+            Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt16 "" ]
+      returnType = TypeReference.option TInt8
+      description =
+        "Converts an Int16 to an 8-bit signed integer. Returns {{None}} if the value is less than -128 or greater than 127."
+      fn =
+        (function
+        | _, _, [ DInt16 a ] ->
+          if a < -128s || a > 127s then
+            Dval.optionNone KTInt8 |> Ply
+          else
+            Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 "" ]
+      returnType = TypeReference.option TInt8
+      description =
+        "Converts a UInt16 to an 8-bit signed integer. Returns {{None}} if the value is greater than 127."
+      fn =
+        (function
+        | _, _, [ DUInt16 a ] ->
+          if a > 127us then
+            Dval.optionNone KTInt8 |> Ply
+          else
+            Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt32 "" ]
+      returnType = TypeReference.option TInt8
+      description =
+        "Converts an Int32 to an 8-bit signed integer. Returns {{None}} if the value is less than -128 or greater than 127."
+      fn =
+        (function
+        | _, _, [ DInt32 a ] ->
+          if a < -128l || a > 127l then
+            Dval.optionNone KTInt8 |> Ply
+          else
+            Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt32 "" ]
+      returnType = TypeReference.option TInt8
+      description =
+        "Converts a UInt32 to an 8-bit signed integer. Returns {{None}} if the value is greater than 127."
+      fn =
+        (function
+        | _, _, [ DUInt32 a ] ->
+          if a > 127ul then
+            Dval.optionNone KTInt8 |> Ply
+          else
+            Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "fromInt64" 0
       typeParams = []
       parameters = [ Param.make "a" TInt64 "" ]
@@ -420,6 +515,63 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DInt64 a ] ->
           if a < -128L || a > 127L then
+            Dval.optionNone KTInt8 |> Ply
+          else
+            Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt64" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt64 "" ]
+      returnType = TypeReference.option TInt8
+      description =
+        "Converts a UInt64 to an 8-bit signed integer. Returns {{None}} if the value is greater than 127."
+      fn =
+        (function
+        | _, _, [ DUInt64 a ] ->
+          if a > 127UL then
+            Dval.optionNone KTInt8 |> Ply
+          else
+            Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt128 "" ]
+      returnType = TypeReference.option TInt8
+      description =
+        "Converts an Int128 to an 8-bit signed integer. Returns {{None}} if the value is less than -128 or greater than 127."
+      fn =
+        (function
+        | _, _, [ DInt128 a ] ->
+          if a < -128Q || a > 127Q then
+            Dval.optionNone KTInt8 |> Ply
+          else
+            Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 "" ]
+      returnType = TypeReference.option TInt8
+      description =
+        "Converts a UInt128 to an 8-bit signed integer. Returns {{None}} if the value is greater than 127."
+      fn =
+        (function
+        | _, _, [ DUInt128 a ] ->
+          if a > 127Z then
             Dval.optionNone KTInt8 |> Ply
           else
             Dval.optionSome KTInt8 (DInt8(int8 a)) |> Ply

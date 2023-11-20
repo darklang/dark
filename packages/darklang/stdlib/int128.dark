@@ -135,3 +135,35 @@ module Darklang =
         (s: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<Int128, PACKAGE.Darklang.Stdlib.Int128.ParseError> =
         Builtin.Int128.parse s
+
+
+      /// Converts an <type Int8> to an <type Int128>.
+      let fromInt8 (i: Int8) : Int128 = Builtin.Int128.fromInt8 i
+
+
+      /// Converts a <type UInt8> to an <type Int128>.
+      let fromUInt8 (i: UInt8) : Int128 = Builtin.Int128.fromUInt8 i
+
+
+      /// Converts an <type Int16> to an <type Int128>.
+      let fromInt16 (i: Int16) : Int128 = Builtin.Int128.fromInt16 i
+
+
+      /// Converts a <type UInt16> to an <type Int128>.
+      let fromUInt16 (i: UInt16) : Int128 = Builtin.Int128.fromUInt16 i
+
+
+      /// Converts an <type Int32> to an <type Int128>.
+      let fromInt32 (i: Int32) : Int128 = Builtin.Int128.fromInt32 i
+
+
+      /// Converts a <type UInt32> to an <type Int128>.
+      let fromUInt32 (i: UInt32) : Int128 = Builtin.Int128.fromUInt32 i
+
+
+      /// Converts an <type Int64> to an <type Int128>.
+      let fromInt64 (i: Int64) : Int128 = Builtin.Int128.fromInt64 i
+
+
+      /// Converts a <type UInt64> to an <type Int128>.
+      let fromUInt64 (i: UInt64) : Int128 = Builtin.Int128.fromUInt64 i

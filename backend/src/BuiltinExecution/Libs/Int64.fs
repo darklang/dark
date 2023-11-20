@@ -434,6 +434,152 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt8 "" ]
+      returnType = TInt64
+      description = "Converts an Int8 to a 64-bit signed integer."
+      fn =
+        (function
+        | _, _, [ DInt8 a ] -> DInt64(int64 a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 "" ]
+      returnType = TInt64
+      description = "Converts a UInt8 to a 64-bit signed integer."
+      fn =
+        (function
+        | _, _, [ DUInt8 a ] -> DInt64(int64 a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt16 "" ]
+      returnType = TInt64
+      description = "Converts an Int16 to a 64-bit signed integer."
+      fn =
+        (function
+        | _, _, [ DInt16 a ] -> DInt64(int64 a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 "" ]
+      returnType = TInt64
+      description = "Converts a UInt16 to a 64-bit signed integer."
+      fn =
+        (function
+        | _, _, [ DUInt16 a ] -> DInt64(int64 a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt32 "" ]
+      returnType = TInt64
+      description = "Converts an Int32 to a 64-bit signed integer."
+      fn =
+        (function
+        | _, _, [ DInt32 a ] -> DInt64(int64 a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt32 "" ]
+      returnType = TInt64
+      description = "Converts a UInt32 to a 64-bit signed integer."
+      fn =
+        (function
+        | _, _, [ DUInt32 a ] -> DInt64(int64 a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt64" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt64 "" ]
+      returnType = TypeReference.option TInt64
+      description =
+        "Converts a UInt64 to a 64-bit signed integer. Returns {{None}} if the value is greater than 9223372036854775807."
+      fn =
+        (function
+        | _, _, [ DUInt64 a ] ->
+          if (a > uint64 System.Int64.MaxValue) then
+            Dval.optionNone KTInt64 |> Ply
+          else
+            Dval.optionSome KTInt64 (DInt64(int64 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt128 "" ]
+      returnType = TypeReference.option TInt64
+      description =
+        "Converts an Int128 to a 64-bit signed integer. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807."
+      fn =
+        (function
+        | _, _, [ DInt128 a ] ->
+          if
+            (a < System.Int128.op_Implicit System.Int64.MinValue)
+            || (a > System.Int128.op_Implicit System.Int64.MaxValue)
+          then
+            Dval.optionNone KTInt64 |> Ply
+          else
+            Dval.optionSome KTInt64 (DInt64(int64 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 "" ]
+      returnType = TypeReference.option TInt64
+      description =
+        "Converts a UInt128 to a 64-bit signed integer. Returns {{None}} if the value is greater than 9223372036854775807."
+      fn =
+        (function
+        | _, _, [ DUInt128 a ] ->
+          if (a > 9223372036854775807Z) then
+            Dval.optionNone KTInt64 |> Ply
+          else
+            Dval.optionSome KTInt64 (DInt64(int64 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    ]
 
 let contents = (fns, types, constants)

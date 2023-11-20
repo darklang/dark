@@ -369,18 +369,153 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "fromInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt8 "" ]
+      returnType = TInt32
+      description = "Converts an Int8 to a 32-bit signed integer."
+      fn =
+        (function
+        | _, _, [ DInt8 a ] -> DInt32(int32 a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 "" ]
+      returnType = TInt32
+      description = "Converts a UInt8 to a 32-bit signed integer."
+      fn =
+        (function
+        | _, _, [ DUInt8 a ] -> DInt32(int32 a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt16 "" ]
+      returnType = TInt32
+      description = "Converts an Int16 to a 32-bit signed integer."
+      fn =
+        (function
+        | _, _, [ DInt16 a ] -> DInt32(int32 a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 "" ]
+      returnType = TInt32
+      description = "Converts a UInt16 to a 32-bit signed integer."
+      fn =
+        (function
+        | _, _, [ DUInt16 a ] -> DInt32(int32 a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt32 "" ]
+      returnType = TypeReference.option TInt32
+      description =
+        "Converts a UInt32 to a 32-bit signed integer. Returns {{None}} if the value is greater than 2147483647."
+      fn =
+        (function
+        | _, _, [ DUInt32 a ] ->
+          if (a > uint32 System.Int32.MaxValue) then
+            Dval.optionNone KTInt32 |> Ply
+          else
+            Dval.optionSome KTInt32 (DInt32(int32 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "fromInt64" 0
       typeParams = []
       parameters = [ Param.make "a" TInt64 "" ]
       returnType = TypeReference.option TInt32
       description =
-        "Converts an int64 to a 32-bit signed integer. Returns {{None}} if the value is less than 0 or greater than 2147483647."
+        "Converts an Int64 to a 32-bit signed integer. Returns {{None}} if the value is less than -2147483648 or greater than 2147483647."
       fn =
         (function
         | _, _, [ DInt64 a ] ->
           if
             (a < int64 System.Int32.MinValue) || (a > int64 System.Int32.MaxValue)
           then
+            Dval.optionNone KTInt32 |> Ply
+          else
+            Dval.optionSome KTInt32 (DInt32(int32 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt64" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt64 "" ]
+      returnType = TypeReference.option TInt32
+      description =
+        "Converts a UInt64 to a 32-bit signed integer. Returns {{None}} if the value is greater than 2147483647."
+      fn =
+        (function
+        | _, _, [ DUInt64 a ] ->
+          if (a > uint64 System.Int32.MaxValue) then
+            Dval.optionNone KTInt32 |> Ply
+          else
+            Dval.optionSome KTInt32 (DInt32(int32 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt128 "" ]
+      returnType = TypeReference.option TInt32
+      description =
+        "Converts an Int128 to a 32-bit signed integer. Returns {{None}} if the value is less than -2147483648 or greater than 2147483647."
+      fn =
+        (function
+        | _, _, [ DInt128 a ] ->
+          if
+            (a < System.Int128.op_Implicit System.Int32.MinValue)
+            || (a > System.Int128.op_Implicit System.Int32.MaxValue)
+          then
+            Dval.optionNone KTInt32 |> Ply
+          else
+            Dval.optionSome KTInt32 (DInt32(int32 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 "" ]
+      returnType = TypeReference.option TInt32
+      description =
+        "Converts a UInt128 to a 32-bit signed integer. Returns {{None}} if the value is greater than 2147483647."
+      fn =
+        (function
+        | _, _, [ DUInt128 a ] ->
+          if (a > 2147483647Z) then
             Dval.optionNone KTInt32 |> Ply
           else
             Dval.optionSome KTInt32 (DInt32(int32 a)) |> Ply

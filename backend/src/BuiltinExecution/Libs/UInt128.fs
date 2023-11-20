@@ -299,6 +299,62 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+
+    { name = fn "fromUInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 "" ]
+      returnType = TUInt128
+      description = "Converts a UInt8 to a 128-bit unsigned integer."
+      fn =
+        (function
+        | _, _, [ DUInt8 a ] -> DUInt128(System.UInt128.op_Implicit a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 "" ]
+      returnType = TUInt128
+      description = "Converts a UInt16 to a 128-bit unsigned integer."
+      fn =
+        (function
+        | _, _, [ DUInt16 a ] -> DUInt128(System.UInt128.op_Implicit a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt32 "" ]
+      returnType = TUInt128
+      description = "Converts a UInt32 to a 128-bit unsigned integer."
+      fn =
+        (function
+        | _, _, [ DUInt32 a ] -> DUInt128(System.UInt128.op_Implicit a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt64" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt64 "" ]
+      returnType = TUInt128
+      description = "Converts a UInt64 to a 128-bit unsigned integer."
+      fn =
+        (function
+        | _, _, [ DUInt64 a ] -> DUInt128(System.UInt128.op_Implicit a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
     ]
 
 let contents = (fns, types, constants)

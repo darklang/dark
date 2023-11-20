@@ -408,6 +408,91 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "fromInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt8 "" ]
+      returnType = TInt16
+      description = "Converts an Int8 to a 16-bit signed integer."
+      fn =
+        (function
+        | _, _, [ DInt8 a ] -> DInt16(int16 a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 "" ]
+      returnType = TInt16
+      description = "Converts a UInt8 to a 16-bit signed integer."
+      fn =
+        (function
+        | _, _, [ DUInt8 a ] -> DInt16(int16 a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 "" ]
+      returnType = TypeReference.option TInt16
+      description =
+        "Converts a UInt16 to a 16-bit signed integer. Returns {{None}} if the value is greater than 32767"
+      fn =
+        (function
+        | _, _, [ DUInt16 a ] ->
+          if a > uint16 System.Int16.MaxValue then
+            Dval.optionNone KTInt16 |> Ply
+          else
+            Dval.optionSome KTInt16 (DInt16(int16 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt32 "" ]
+      returnType = TypeReference.option TInt16
+      description =
+        "Converts an Int32 to a 16-bit signed integer. Returns {{None}} if the value is less than -32768 or greater than 32767"
+      fn =
+        (function
+        | _, _, [ DInt32 a ] ->
+          if a < int32 System.Int16.MinValue || a > int32 System.Int16.MaxValue then
+            Dval.optionNone KTInt16 |> Ply
+          else
+            Dval.optionSome KTInt16 (DInt16(int16 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt32 "" ]
+      returnType = TypeReference.option TInt16
+      description =
+        "Converts a UInt32 to a 16-bit signed integer. Returns {{None}} if the value is greater than 32767"
+      fn =
+        (function
+        | _, _, [ DUInt32 a ] ->
+          if a > uint32 System.Int16.MaxValue then
+            Dval.optionNone KTInt16 |> Ply
+          else
+            Dval.optionSome KTInt16 (DInt16(int16 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "fromInt64" 0
       typeParams = []
       parameters = [ Param.make "a" TInt64 "" ]
@@ -418,6 +503,66 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DInt64 a ] ->
           if a < int64 System.Int16.MinValue || a > int64 System.Int16.MaxValue then
+            Dval.optionNone KTInt16 |> Ply
+          else
+            Dval.optionSome KTInt16 (DInt16(int16 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt64" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt64 "" ]
+      returnType = TypeReference.option TInt16
+      description =
+        "Converts a UInt64 to a 16-bit signed integer. Returns {{None}} if the value is greater than 32767"
+      fn =
+        (function
+        | _, _, [ DUInt64 a ] ->
+          if a > uint64 System.Int16.MaxValue then
+            Dval.optionNone KTInt16 |> Ply
+          else
+            Dval.optionSome KTInt16 (DInt16(int16 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt128 "" ]
+      returnType = TypeReference.option TInt16
+      description =
+        "Converts an Int128 to a 16-bit signed integer. Returns {{None}} if the value is less than -32768 or greater than 32767"
+      fn =
+        (function
+        | _, _, [ DInt128 a ] ->
+          if
+            a < System.Int128.op_Implicit System.Int16.MinValue
+            || a > System.Int128.op_Implicit System.Int16.MaxValue
+          then
+            Dval.optionNone KTInt16 |> Ply
+          else
+            Dval.optionSome KTInt16 (DInt16(int16 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 "" ]
+      returnType = TypeReference.option TInt16
+      description =
+        "Converts an UInt128 to a 16-bit signed integer. Returns {{None}} if the value is greater than 32767"
+      fn =
+        (function
+        | _, _, [ DUInt128 a ] ->
+          if a > 32767Z then
             Dval.optionNone KTInt16 |> Ply
           else
             Dval.optionSome KTInt16 (DInt16(int16 a)) |> Ply

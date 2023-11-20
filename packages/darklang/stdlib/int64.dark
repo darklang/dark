@@ -131,3 +131,42 @@ module Darklang =
 
       /// Stringify <param int>
       let toString (int: Int64) : String = Builtin.Int64.toString int
+
+
+      /// Converts an <type Int8> to an <type Int64>.
+      let fromInt8 (i: Int8) : Int64 = Builtin.Int64.fromInt8 i
+
+
+      /// Converts a <type UInt8> to an <type Int64>.
+      let fromUInt8 (i: UInt8) : Int64 = Builtin.Int64.fromUInt8 i
+
+
+      /// Converts an <type Int16> to an <type Int64>.
+      let fromInt16 (i: Int16) : Int64 = Builtin.Int64.fromInt16 i
+
+
+      /// Converts a <type UInt16> to an <type Int64>.
+      let fromUInt16 (i: UInt16) : Int64 = Builtin.Int64.fromUInt16 i
+
+
+      /// Converts an <type Int32> to an <type Int64>.
+      let fromInt32 (i: Int32) : Int64 = Builtin.Int64.fromInt32 i
+
+
+      /// Converts a <type UInt32> to an <type Int64>.
+      let fromUInt32 (i: UInt32) : Int64 = Builtin.Int64.fromUInt32 i
+
+
+      /// Converts a <type UInt64> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
+      let fromUInt64 (i: UInt64) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
+        Builtin.Int64.fromUInt64 i
+
+
+      /// Converts an <type Int128> to an <type Int64>. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807
+      let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
+        Builtin.Int64.fromInt128 i
+
+
+      /// Converts a <type UInt128> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
+      let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
+        Builtin.Int64.fromUInt128 i

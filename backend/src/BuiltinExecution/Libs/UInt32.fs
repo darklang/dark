@@ -353,18 +353,163 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "fromInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt8 "" ]
+      returnType = TypeReference.option TUInt32
+      description =
+        "Converts an Int8 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0."
+      fn =
+        (function
+        | _, _, [ DInt8 a ] ->
+          if (a < 0y) then
+            Dval.optionNone KTUInt32 |> Ply
+          else
+            Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 "" ]
+      returnType = TUInt32
+      description = "Converts a UInt8 to a 32-bit unsigned integer."
+      fn =
+        (function
+        | _, _, [ DUInt8 a ] -> DUInt32(uint32 a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt16 "" ]
+      returnType = TypeReference.option TUInt32
+      description =
+        "Converts an Int16 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0."
+      fn =
+        (function
+        | _, _, [ DInt16 a ] ->
+          if (a < 0s) then
+            Dval.optionNone KTUInt32 |> Ply
+          else
+            Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 "" ]
+      returnType = TUInt32
+      description = "Converts a UInt16 to a 32-bit unsigned integer."
+      fn =
+        (function
+        | _, _, [ DUInt16 a ] -> DUInt32(uint32 a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt32 "" ]
+      returnType = TypeReference.option TInt32
+      description =
+        "Converts an Int32 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0"
+      fn =
+        (function
+        | _, _, [ DInt32 a ] ->
+          if (a < 0l) then
+            Dval.optionNone KTUInt32 |> Ply
+          else
+            Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "fromInt64" 0
       typeParams = []
       parameters = [ Param.make "a" TInt64 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts an int64 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 4294967295."
+        "Converts an Int64 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 4294967295."
       fn =
         (function
         | _, _, [ DInt64 a ] ->
           if
             (a < int64 System.UInt32.MinValue) || (a > int64 System.UInt32.MaxValue)
           then
+            Dval.optionNone KTUInt32 |> Ply
+          else
+            Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt64" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt64 "" ]
+      returnType = TypeReference.option TUInt32
+      description =
+        "Converts a UInt64 to a 32-bit unsigned integer. Returns {{None}} if the value is greater than 4294967295."
+      fn =
+        (function
+        | _, _, [ DUInt64 a ] ->
+          if (a > uint64 System.UInt32.MaxValue) then
+            Dval.optionNone KTUInt32 |> Ply
+          else
+            Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt128 "" ]
+      returnType = TypeReference.option TUInt32
+      description =
+        "Converts an Int128 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 4294967295."
+      fn =
+        (function
+        | _, _, [ DInt128 a ] ->
+          if
+            (a < System.Int128.op_Implicit System.UInt32.MinValue)
+            || (a > System.Int128.op_Implicit System.UInt32.MaxValue)
+          then
+            Dval.optionNone KTUInt32 |> Ply
+          else
+            Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "fromUInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 "" ]
+      returnType = TypeReference.option TUInt32
+      description =
+        "Converts a UInt128 to a 32-bit unsigned integer. Returns {{None}} if the value is greater than 4294967295."
+      fn =
+        (function
+        | _, _, [ DUInt128 a ] ->
+          if (a > System.UInt128.op_Implicit System.UInt32.MaxValue) then
             Dval.optionNone KTUInt32 |> Ply
           else
             Dval.optionSome KTUInt32 (DUInt32(uint32 a)) |> Ply
