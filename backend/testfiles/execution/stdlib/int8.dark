@@ -402,6 +402,8 @@ PACKAGE.Darklang.Stdlib.Int8.fromInt32_v0 (-1l) = PACKAGE.Darklang.Stdlib.Option
 PACKAGE.Darklang.Stdlib.Int8.fromInt32_v0 (-128l) = PACKAGE.Darklang.Stdlib.Option.Option.Some
   -128y
 
+PACKAGE.Darklang.Stdlib.Int8.fromInt32_v0 (-129l) = PACKAGE.Darklang.Stdlib.Option.Option.None
+
 PACKAGE.Darklang.Stdlib.Int8.fromInt32_v0 2147483647l = PACKAGE.Darklang.Stdlib.Option.Option.None
 
 PACKAGE.Darklang.Stdlib.Int8.fromUInt32_v0 0ul = PACKAGE.Darklang.Stdlib.Option.Option.Some
