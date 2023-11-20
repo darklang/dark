@@ -283,6 +283,10 @@ class Should:
 
 def execute(should):
   success = True
+
+  if should.build_parser:
+    if not build_parser(): success = False
+
   # Fast path: get the important stuff built first
   if should.fsharp_tool_restore:
     if not fsharp_tool_restore(): success = False
@@ -349,9 +353,6 @@ def execute(should):
 
   if should.terraform_validate:
     if not terraform_validate(): success = False
-
-  if should.build_parser:
-    if not build_parser(): success = False
 
   return success
 
