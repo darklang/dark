@@ -497,9 +497,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DUInt128 a ] ->
-          if
-            (a > System.UInt128.op_Implicit System.UInt64.MaxValue)
-          then
+          if (a > System.UInt128.op_Implicit System.UInt64.MaxValue) then
             Dval.optionNone KTUInt64 |> Ply
           else
             Dval.optionSome KTUInt64 (DUInt64(uint64 a)) |> Ply
