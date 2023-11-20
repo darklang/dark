@@ -206,19 +206,21 @@ let main (args: List<String>) : Int64 =
           | Error _ ->
             (PACKAGE.Darklang.Stdlib.HttpClient.request
               "GET"
-              ("http://dark-packages.dlio.localhost:11003/health")
+              "http://dark-packages.dlio.localhost:11003/health"
               []
               Builtin.Bytes.empty)
             |> PACKAGE.Darklang.Stdlib.Result.map (fun _ -> ())
             |> PACKAGE.Darklang.Stdlib.Result.mapError (fun err ->
-              Builtin.printLine $"Error: {err}"
+              let errMsg = PACKAGE.Darklang.Stdlib.HttpClient.toString err
+              Builtin.printLine $"Error: {errMsg}"
               Builtin.Time.sleep 1000.0
               err))
 
 
     match available with
-    | Error msg ->
-      Builtin.printLine $"Error waiting for dark packages canvas: {msg}"
+    | Error err ->
+      let errMsg = PACKAGE.Darklang.Stdlib.HttpClient.toString err
+      Builtin.printLine $"Error waiting for dark packages canvas: {errMsg}"
       1L
     | Ok() ->
       Builtin.printLine "Dark packages canvas is ready"
