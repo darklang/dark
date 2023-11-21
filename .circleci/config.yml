@@ -133,7 +133,7 @@ commands:
   ##########################
   prep-container-creation:
     steps:
-      - setup_remote_docker: { docker_layer_caching: true, version: 20.10.24 }
+      - setup_remote_docker: { docker_layer_caching: true, version: edge }
 
       # Save the docker env: type .docker-env when sshing in, then you can
       # use ./scripts/run-in-docker
@@ -145,11 +145,7 @@ commands:
     steps:
       - run: echo TODO
       - prep-container-creation
-      # LIGHTTODO build containers
-      # - run: scripts/deployment/shipit containers build --save-manifest=gcr-image-ids.json
-      # - run: cat gcr-image-ids.json
-      # Test them
-      # - run: scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
+      - run: ./scripts/build/new-build-containers.sh
 
   ##########################
   # Google Cloud
@@ -167,13 +163,6 @@ commands:
               echo $CIRCLE_OIDC_TOKEN > CIRCLE_OIDC_TOKEN_FILE
               gcloud auth login --brief --cred-file .circleci/gcp-workload-identity-config.json
             fi
-
-  auth-gcr:
-    steps:
-      - run:
-          name: Auth with GCR
-          command: |
-            gcloud auth configure-docker
 
 ##########################
 # Actual workflow
@@ -268,7 +257,6 @@ jobs:
       - darkcheckout
       - setup-app
       - auth-with-gcp: { background: true }
-      - auth-gcr
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - build-gcp-containers
@@ -277,7 +265,7 @@ jobs:
       #     root: "."
       #     paths: ["gcr-image-ids.json"]
       # LIGHTTODO push containers
-      # - run: scripts/deployment/shipit containers push
+      - run: scripts/deployment/new-push-containers.sh
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 

@@ -1,6 +1,6 @@
 # Base docker image for most services we run in production on GCP
 
-FROM ubuntu:22.04@sha256:c9cf959fd83770dfdefd8fb42cfef0761432af36a764c077aed54bbc5bb25368 as dark-base
+FROM ubuntu:22.04@sha256:c9cf959fd83770dfdefd8fb42cfef0761432af36a764c077aed54bbc5bb25368
 
 # Our deploy runs this on CircleCI, and the default URLs can sometimes be slow to
 # download from. This switches to the closest mirror to CircleCI (recommended by
@@ -27,7 +27,7 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 
 # Certs - this is for our yugabyte db server
-COPY yugabyte.crt /usr/local/share/ca-certificates/
+COPY containers/yugabyte.crt /usr/local/share/ca-certificates/
 RUN update-ca-certificates
 
 # Dark user
