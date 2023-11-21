@@ -358,62 +358,60 @@ def execute(should):
 
 
 def mark(should, f):
-  f = "/" + f
-  if ("/backend/global.json" in f or \
-        "/backend/.config/dotnet-tools.json" in f or \
-        "/backend/Directory.Build.props" in f):
+  if f == "backend/global.json" or \
+      f == "backend/.config/dotnet-tools.json" or \
+      f == "backend/Directory.Build.props":
     should.fsharp_tool_restore = True
 
-  elif ("/backend/paket.dependencies" in f):
+  elif "backend/paket.dependencies" == f:
     should.fsharp_paket_install = True
 
-  elif ("/backend/" in f and "paket.references" in f):
+  elif f.startswith("backend/") and f.endswith("paket.references"):
     should.fsharp_paket_restore = True
 
-  elif ("/backend/" in f) and \
-    (".fsproj" in f or ".sln" in f):
+  elif f.startswith("/backend/") and \
+    (f.endswith(".fsproj") or f.endswith(".sln")):
     should.backend_full_build = True
 
-  elif ("/backend/" in f) and \
-       ("src/Benchmark/benchmarks" not in f) and \
+  elif f.startswith("/backend/") and \
        (f.endswith(".fs") or f.endswith(".fsi") or f.endswith(".cs")):
     if in_ci:
       should.backend_full_build = True
     else:
       should.backend_quick_build = True
 
-  elif ("/backend/" in f) and ("/tests/" in f):
+  elif f.startswith("backend/tests/"):
     should.backend_test = True
 
-  elif ("/packages/" in f) and (f.endswith(".dark")):
+  elif f.startswith("packages/") and f.endswith(".dark"):
     should.reload_all_packages = True
 
-  elif ("/canvases/" in f) and (f.endswith(".dark")):
+  elif f.startswith("canvases/") and f.endswith(".dark"):
     should.reload_canvases += [f]
 
   # elif ("/LocalExec/" in f) and (f.endswith(".dark")):
   #   should.reload_all_packages = True
 
-  elif ("/migrations/" in f):
+  elif f.startswith("backend/migrations/"):
     should.clear_local_db = True
 
-  elif "/scripts/run-backend-server" in f:
+  elif f == "scripts/run-backend-server":
     should.shellcheck += [f]
     should.reload_backend_server = True
 
-  elif (".circleci/config.yml" in f):
+  elif f == ".circleci/config.yml":
     should.circleci_validate = True
 
-  elif ("/tf/" in f and ".tf" in f):
+  elif f.startswith("tf/") and f.endswith(".tf"):
     should.terraform_validate = True
 
-  elif ("/scripts/" in f or ".sh" in f) and is_script(f):
+  elif (f.startswith("scripts/") or f.endswith(".sh")) and is_script(f):
     should.shellcheck += [f]
 
-  elif (".yml" in f or ".yaml" in f):
+  elif f.endswith(".yml") or f.endswith(".yaml"):
     should.yamllint += [f]
 
-  elif ("parser/tree-sitter-darklang/grammar.js" in f):
+  elif f == "parser/tree-sitter-darklang/grammar.js":
     should.build_parser = True
 
   else:
@@ -431,6 +429,7 @@ def get_ignored_files():
         "scripts/build/compile",
         "backend/serialization/",
         "containers/",
+        "Dockerfile",
         "*.tmp*",
         "*.md",
         "*.sw",

@@ -116,6 +116,7 @@ docker run \
   -v pgconf:/etc/postgresql \
   -v pglogs:/var/log/postgresql \
   -v pgdata:/var/lib/postgresql \
+  -v yugabyte:/home/dark/yugabyte-data \
   -v cloudstorage:/home/dark/cloud-storage \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -p 3275:3275 \

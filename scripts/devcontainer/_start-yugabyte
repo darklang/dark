@@ -6,4 +6,7 @@ echo "--------------------------"
 echo "--  Starting yugabyte   --"
 echo "--------------------------"
 
-sudo nohup ../yugabyte/bin/yugabyted start --insecure --base_dir /yugabyte-store | sudo tee file rundir/logs/yugabyte-startup &
+../yugabyte/bin/yugabyted start \
+  --insecure \
+  --base_dir /home/dark/yugabyte-data \
+  --advertise_address 192.168.215.2

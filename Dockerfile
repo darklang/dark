@@ -287,7 +287,7 @@ case $(dpkg --print-architecture) in
   amd64) CHECKSUM=$AMD64_SHA256;;
   *) exit 1;;
 esac
-sudo wget -O ${TARGET} $URL
+sudo curl -SL --output ${TARGET} $URL
 echo "$CHECKSUM ${TARGET}" | sha256sum -c -
 sudo chmod +x ${TARGET}
 EOF
@@ -322,13 +322,24 @@ case ${TARGETARCH} in
   *) exit 1 ;;
 esac
 FILENAME=$(basename $URL)
-DIR=~/yugabyte
+DIR=/home/dark/yugabyte
 mkdir -p $DIR
 cd $DIR
-wget $URL
+curl -sSL -o $FILENAME $URL
 tar xvf $FILENAME --strip-components=1
 rm $FILENAME
 ./bin/post_install.sh
+case $(dpkg --print-architecture) in
+  arm64)
+  sudo ln -sf /usr/lib/aarch64-linux-gnu/liblber-2.5.so.0 /usr/lib/aarch64-linux-gnu/liblber-2.4.so.2
+  sudo ln -sf /usr/lib/aarch64-linux-gnu/libldap-2.5.so.0 /usr/lib/aarch64-linux-gnu/libldap_r-2.4.so.2
+  ;;
+  amd64)
+  sudo ln -sf /usr/lib/x86_64-linux-gnu/liblber-2.5.so.0 /usr/lib/x86_64-linux-gnu/liblber-2.4.so.2
+  sudo ln -sf /usr/lib/x86_64-linux-gnu/libldap-2.5.so.0 /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+  ;;
+  *) exit 1;;
+esac
 # python on our system is called python3
 sed -i 's|#!/usr/bin/env python|#!/usr/bin/env python3|' ./bin/yugabyted
 cd ..
