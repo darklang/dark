@@ -428,6 +428,7 @@ def get_ignored_files():
         ".git/",
         "scripts/build/compile",
         "backend/serialization/",
+        "parser/tree-sitter-darklang/src/"
         "containers/",
         "Dockerfile",
         "*.tmp*",
