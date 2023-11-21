@@ -6,4 +6,4 @@ echo "--------------------------"
 echo "--  Starting yugabyte   --"
 echo "--------------------------"
 
-sudo nohup ../yugabyte/bin/yugabyted start --insecure --base_dir /yugabyte-store > rundir/logs/yugabyte-startup &
+sudo nohup ../yugabyte/bin/yugabyted start --insecure --base_dir /yugabyte-store | sudo tee file rundir/logs/yugabyte-startup &
