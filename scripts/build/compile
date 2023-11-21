@@ -344,8 +344,8 @@ def execute(should):
     if not backend_test(): success = False
 
   if should.shellcheck != []:
-    if not all([shellcheck(f) for f in should.shellcheck]):
-      success = False
+    all_files = " ".join(should.shellcheck)
+    if not shellcheck(all_files): success = False
 
   if should.yamllint:
     if not all([yamllint(f) for f in should.yamllint]):
@@ -369,11 +369,11 @@ def mark(should, f):
   elif f.startswith("backend/") and f.endswith("paket.references"):
     should.fsharp_paket_restore = True
 
-  elif f.startswith("/backend/") and \
+  elif f.startswith("backend/") and \
     (f.endswith(".fsproj") or f.endswith(".sln")):
     should.backend_full_build = True
 
-  elif f.startswith("/backend/") and \
+  elif f.startswith("backend/") and \
        (f.endswith(".fs") or f.endswith(".fsi") or f.endswith(".cs")):
     if in_ci:
       should.backend_full_build = True
@@ -431,6 +431,7 @@ def get_ignored_files():
         "parser/tree-sitter-darklang/src/"
         "containers/",
         "Dockerfile",
+        ".devcontainer/devcontainer.json"
         "*.tmp*",
         "*.md",
         "*.sw",

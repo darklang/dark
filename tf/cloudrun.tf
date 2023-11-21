@@ -1,6 +1,11 @@
 resource "google_cloud_run_service" "bwdserver" {
   name     = "bwdserver"
   location = "us-central1"
+  metadata {
+    annotations = {
+      "run.googleapis.com/launch-stage" : "BETA"
+    }
+  }
 
   template {
 
@@ -11,7 +16,11 @@ resource "google_cloud_run_service" "bwdserver" {
         "run.googleapis.com/startup-cpu-boost" : "true"
         "run.googleapis.com/cpu-throttling" : "true"
         "run.googleapis.com/execution-environment" : "gen2"
-        "run.googleapis.com/vpc-access-connector" : "projects/darklang-next/locations/us-central1/connectors/connector"
+        "run.googleapis.com/network-interfaces" : "[{\"network\":\"default\",\"subnetwork\":\"default\"}]"
+        "run.googleapis.com/vpc-access-egress" : "private-ranges-only"
+      }
+      labels = {
+        "cloud.googleapis.com/location" : "us-central1"
       }
     }
 

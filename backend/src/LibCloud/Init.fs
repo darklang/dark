@@ -1,6 +1,5 @@
+/// LibCloud holds the whole framework
 module LibCloud.Init
-
-// LibCloud holds the whole framework
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -9,7 +8,6 @@ open Npgsql.FSharp
 open Db
 
 open Prelude
-open Microsoft.Extensions.Diagnostics.HealthChecks
 
 module Telemetry = LibService.Telemetry
 
@@ -23,7 +21,10 @@ let waitForDB () : Task<unit> =
     while not success do
       use (_span : Telemetry.Span.T) = Telemetry.child "iteration" [ "count", count ]
       try
-        printTime "Trying to connect to DB"
+        let cs = LibService.DBConnection.connectionString ()
+        let cs = FsRegEx.replace "password=.*;" "password=***;" cs
+        let cs = FsRegEx.replace "Password=.*;" "Password=***;" cs
+        printTime $"Trying to connect to DB ({count} - {cs})"
         count <- count + 1
         do!
           Sql.query "select current_date"
