@@ -344,8 +344,8 @@ def execute(should):
     if not backend_test(): success = False
 
   if should.shellcheck != []:
-    if not all([shellcheck(f) for f in should.shellcheck]):
-      success = False
+    all_files = " ".join(should.shellcheck)
+    if not shellcheck(all_files): success = False
 
   if should.yamllint:
     if not all([yamllint(f) for f in should.yamllint]):
