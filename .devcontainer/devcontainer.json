@@ -101,6 +101,9 @@
     "type=volume,src=pglogs,dst=/var/log/postgresql",
     "type=volume,src=pgdata,dst=/var/lib/postgresql",
 
+    // Yugabyte
+    "type=volume,src=yugabyte,dst=/home/dark/yugabyte-data",
+
     // Cloud storage
     "type=volume,src=cloudstorage,dst=/home/dark/cloud-storage",
 

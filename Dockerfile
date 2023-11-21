@@ -287,7 +287,7 @@ case $(dpkg --print-architecture) in
   amd64) CHECKSUM=$AMD64_SHA256;;
   *) exit 1;;
 esac
-sudo wget -O ${TARGET} $URL
+sudo curl -SL --output ${TARGET} $URL
 echo "$CHECKSUM ${TARGET}" | sha256sum -c -
 sudo chmod +x ${TARGET}
 EOF
@@ -322,15 +322,18 @@ case ${TARGETARCH} in
   *) exit 1 ;;
 esac
 FILENAME=$(basename $URL)
-DIR=~/yugabyte
+DIR=/home/dark/yugabyte
 mkdir -p $DIR
 cd $DIR
-wget $URL
+curl -sSL -o $FILENAME $URL
 tar xvf $FILENAME --strip-components=1
 rm $FILENAME
 ./bin/post_install.sh
 # python on our system is called python3
 sed -i 's|#!/usr/bin/env python|#!/usr/bin/env python3|' ./bin/yugabyted
+# Create the data directory
+./bin/yugabyted start --base_dir /home/dark/yugabyte-data --insecure
+./bin/yugabyted stop --base_dir /home/dark/yugabyte-data
 cd ..
 EOF
 
