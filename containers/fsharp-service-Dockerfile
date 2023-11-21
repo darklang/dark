@@ -30,7 +30,7 @@ RUN sudo apt-get update \
   && sudo rm -rf /var/lib/apt/lists/*
 
 ENV \
-  DOTNET_SDK_VERSION=7.0.400 \
+  DOTNET_SDK_VERSION=8.0.100 \
   DOTNET_RUNNING_IN_CONTAINER=true \
   DOTNET_EnableDiagnostics=0
 
