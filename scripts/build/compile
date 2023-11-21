@@ -369,11 +369,11 @@ def mark(should, f):
   elif f.startswith("backend/") and f.endswith("paket.references"):
     should.fsharp_paket_restore = True
 
-  elif f.startswith("/backend/") and \
+  elif f.startswith("backend/") and \
     (f.endswith(".fsproj") or f.endswith(".sln")):
     should.backend_full_build = True
 
-  elif f.startswith("/backend/") and \
+  elif f.startswith("backend/") and \
        (f.endswith(".fs") or f.endswith(".fsi") or f.endswith(".cs")):
     if in_ci:
       should.backend_full_build = True
