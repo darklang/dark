@@ -1,6 +1,6 @@
 # Dockerfile for the grand-user facing Dark app at darklang.io
 
-FROM dark-fsharp-service:latest
+FROM darkfsharpservice:latest
 
 WORKDIR /home/dark
 
