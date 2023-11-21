@@ -329,11 +329,19 @@ curl -sSL -o $FILENAME $URL
 tar xvf $FILENAME --strip-components=1
 rm $FILENAME
 ./bin/post_install.sh
+case $(dpkg --print-architecture) in
+  arm64)
+  sudo ln -sf /usr/lib/aarch64-linux-gnu/liblber-2.5.so.0 /usr/lib/aarch64-linux-gnu/liblber-2.4.so.2
+  sudo ln -sf /usr/lib/aarch64-linux-gnu/libldap-2.5.so.0 /usr/lib/aarch64-linux-gnu/libldap_r-2.4.so.2
+  ;;
+  amd64)
+  sudo ln -sf /usr/lib/x86_64-linux-gnu/liblber-2.5.so.0 /usr/lib/x86_64-linux-gnu/liblber-2.4.so.2
+  sudo ln -sf /usr/lib/x86_64-linux-gnu/libldap-2.5.so.0 /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+  ;;
+  *) exit 1;;
+esac
 # python on our system is called python3
 sed -i 's|#!/usr/bin/env python|#!/usr/bin/env python3|' ./bin/yugabyted
-# Create the data directory
-./bin/yugabyted start --base_dir /home/dark/yugabyte-data --insecure
-./bin/yugabyted stop --base_dir /home/dark/yugabyte-data
 cd ..
 EOF
 
