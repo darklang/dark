@@ -430,6 +430,7 @@ def get_ignored_files():
         "backend/serialization/",
         "containers/",
         "Dockerfile",
+        ".devcontainer/devcontainer.json"
         "*.tmp*",
         "*.md",
         "*.sw",
