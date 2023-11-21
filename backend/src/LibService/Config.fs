@@ -122,3 +122,5 @@ let pgUser = string "DARK_CONFIG_DB_USER"
 let pgPassword = credentials "DARK_CONFIG_DB_PASSWORD"
 
 let pgPoolSize = int "DARK_CONFIG_DB_POOL_SIZE"
+
+let pgSslRequired = bool "DARK_CONFIG_DB_SSL_REQUIRED"

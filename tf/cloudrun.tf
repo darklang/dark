@@ -11,6 +11,7 @@ resource "google_cloud_run_service" "bwdserver" {
         "run.googleapis.com/startup-cpu-boost" : "true"
         "run.googleapis.com/cpu-throttling" : "true"
         "run.googleapis.com/execution-environment" : "gen2"
+        "run.googleapis.com/vpc-access-connector" : "projects/darklang-next/locations/us-central1/connectors/connector"
       }
     }
 
