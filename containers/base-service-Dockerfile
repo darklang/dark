@@ -27,7 +27,7 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 
 # Certs - this is for our yugabyte db server
-COPY yugabyte.crt /usr/local/share/ca-certificates/
+COPY containers/yugabyte.crt /usr/local/share/ca-certificates/
 RUN update-ca-certificates
 
 # Dark user
