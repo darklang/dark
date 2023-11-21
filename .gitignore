@@ -23,9 +23,12 @@ backend/static/dark_wasm/
 backend/static/tree-sitter/
 
 # Parser
-parser/tree-sitter-darklang/tree-sitter-darklang.so
 parser/tree-sitter-darklang/build/
 parser/tree-sitter-darklang/package-lock.json
+parser/tree-sitter-darklang/node_modules
+parser/tree-sitter-darklang/bindings
+parser/tree-sitter-darklang/tree-sitter-darklang.so
+parser/tree-sitter-darklang/xplat-builds
 
 # Terraform
 **/.terraform/*
