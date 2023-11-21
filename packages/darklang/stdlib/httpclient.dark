@@ -49,7 +49,7 @@ module Darklang =
       type Response =
         { statusCode: Int64
           headers: List<String * String>
-          body: Bytes }
+          body: List<UInt8> }
 
 
       /// Make blocking HTTP call to <param uri>. Returns a <type Result> where
@@ -59,19 +59,19 @@ module Darklang =
         (method: String)
         (uri: String)
         (headers: List<String * String>)
-        (body: Bytes)
+        (body: List<UInt8>)
         : Stdlib.Result.Result<Response, RequestError> =
         Builtin.HttpClient.request method uri headers body
 
 
       let get (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-        request "GET" uri [] Builtin.Bytes.empty
+        request "GET" uri [] []
 
 
       let post
         (uri: String)
         (headers: List<String * String>)
-        (body: Bytes)
+        (body: List<UInt8>)
         : Stdlib.Result.Result<Response, RequestError> =
         request "POST" uri headers body
 
@@ -79,21 +79,21 @@ module Darklang =
       let put
         (uri: String)
         (headers: List<String * String>)
-        (body: Bytes)
+        (body: List<UInt8>)
         : Stdlib.Result.Result<Response, RequestError> =
         request "PUT" uri headers body
 
 
       let options (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-        request "OPTIONS" uri [] Builtin.Bytes.empty
+        request "OPTIONS" uri [] []
 
 
       let delete (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-        request "DELETE" uri [] Builtin.Bytes.empty
+        request "DELETE" uri [] []
 
 
       let head (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-        request "HEAD" uri [] Builtin.Bytes.empty
+        request "HEAD" uri [] []
 
 
       /// Returns a header <type (String*String))> with {{'authorization'}} created using HTTP basic auth

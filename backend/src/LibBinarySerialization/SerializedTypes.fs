@@ -225,7 +225,6 @@ type TypeReference =
   | TCustomType of
     typeName : NameResolution<TypeName.TypeName> *
     typeArgs : List<TypeReference>
-  | TBytes
   | TVariable of string
   | TFn of NEList<TypeReference> * TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>

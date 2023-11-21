@@ -16,22 +16,36 @@ let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "File" ]
 
+let byteArrayToDvalList (bytes : byte[]) : Dval =
+  bytes
+  |> Array.toList
+  |> List.map (fun b -> DUInt8(uint8 b))
+  |> fun dvalList -> DList(VT.uint8, dvalList)
+
+let DlistToByteArray (dvalList : List<Dval>) : byte[] =
+  dvalList
+  |> List.map (fun dval ->
+    match dval with
+    | DUInt8 b -> b
+    | _ -> (Exception.raiseInternal "Invalid type in byte list") [])
+  |> Array.ofList
+
 let fns : List<BuiltInFn> =
   [ { name = fn "read" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
-      returnType = TypeReference.result TBytes TString
+      returnType = TypeReference.result (TList TUInt8) TString
       description =
-        "Reads the contents of a file specified by <param path> asynchronously and returns its contents as Bytes wrapped in a Result"
+        "Reads the contents of a file specified by <param path> asynchronously and returns its contents as a list of uint8 wrapped in a Result"
       fn =
-        let resultOk = Dval.resultOk KTBytes KTString
-        let resultError = Dval.resultError KTBytes KTString
+        let resultOk = Dval.resultOk (KTList(ValueType.Known KTUInt8)) KTString
+        let resultError = Dval.resultError (KTList(ValueType.Known KTUInt8)) KTString
         (function
         | _, _, [ DString path ] ->
           uply {
             try
               let! contents = System.IO.File.ReadAllBytesAsync path
-              return resultOk (DBytes contents)
+              return resultOk (byteArrayToDvalList contents)
             with e ->
               return resultError (DString($"Error reading file: {e.Message}"))
           }
@@ -43,7 +57,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "write" 0
       typeParams = []
-      parameters = [ Param.make "contents" TBytes ""; Param.make "path" TString "" ]
+      parameters =
+        [ Param.make "contents" (TList(TUInt8)) ""; Param.make "path" TString "" ]
       returnType = TypeReference.result TUnit TString
       description =
         "Writes the specified byte array <param contents> to the file specified by <param path> asynchronously"
@@ -51,10 +66,10 @@ let fns : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTUnit KTString
         let resultError = Dval.resultError KTUnit KTString
         (function
-        | _, _, [ DBytes contents; DString path ] ->
+        | _, _, [ DList(_, contents); DString path ] ->
           uply {
             try
-              do! System.IO.File.WriteAllBytesAsync(path, contents)
+              do! System.IO.File.WriteAllBytesAsync(path, DlistToByteArray contents)
               return resultOk DUnit
             with e ->
               return resultError (DString($"Error writing file: {e.Message}"))

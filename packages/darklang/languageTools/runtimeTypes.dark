@@ -79,7 +79,6 @@ module Darklang =
         | TChar
         | TString
         | TUuid
-        | TBytes
         | TDateTime
         | TList of TypeReference
         | TTuple of TypeReference * TypeReference * List<TypeReference>
@@ -200,7 +199,6 @@ module Darklang =
         | KTChar
         | KTString
         | KTUuid
-        | KTBytes
         | KTDateTime
         | KTList of ValueType
         | KTTuple of ValueType * ValueType * List<ValueType>
@@ -234,7 +232,6 @@ module Darklang =
           | DChar of String
           | DString of String
           | DDateTime of DateTime
-          | DBytes of Bytes
           | DUuid of Uuid
 
           | DList of ValueType * List<Dval>
@@ -281,7 +278,6 @@ module Darklang =
           | DChar _ -> ValueType.Known KnownType.KTChar
           | DString _ -> ValueType.Known KnownType.KTString
           | DUuid _ -> ValueType.Known KnownType.KTUuid
-          | DBytes _ -> ValueType.Known KnownType.KTBytes
           | DDateTime _ -> ValueType.Known KnownType.KTDateTime
 
           | DList(t, _) -> ValueType.Known(KnownType.KTList t)

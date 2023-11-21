@@ -24,6 +24,20 @@ type Request = { url : string; method : Method; headers : Headers.T; body : Body
 
 type Response = { statusCode : int; headers : Headers.T; body : Body }
 
+let byteArrayToDvalList (bytes : byte[]) : Dval =
+  bytes
+  |> Array.toList
+  |> List.map (fun b -> DUInt8(uint8 b))
+  |> fun dvalList -> DList(VT.uint8, dvalList)
+
+let DlistToByteArray (dvalList : List<Dval>) : byte[] =
+  dvalList
+  |> List.map (fun dval ->
+    match dval with
+    | DUInt8 b -> b
+    | _ -> (Exception.raiseInternal "Invalid type in byte list") [])
+  |> Array.ofList
+
 
 module BadHeader =
   type BadHeader =
@@ -405,7 +419,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
         [ Param.make "method" TString ""
           Param.make "uri" TString ""
           Param.make "headers" headersType ""
-          Param.make "body" TBytes "" ]
+          Param.make "body" (TList(TUInt8)) "" ]
       returnType =
         TypeReference.result
           (TCustomType(
@@ -441,7 +455,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
         (function
         | state,
           _,
-          [ DString method; DString uri; DList(_, reqHeaders); DBytes reqBody ] ->
+          [ DString method; DString uri; DList(_, reqHeaders); DList(_, reqBody) ] ->
           uply {
             let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
               reqHeaders
@@ -490,7 +504,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     { url = uri
                       method = method
                       headers = reqHeaders
-                      body = reqBody }
+                      body = DlistToByteArray reqBody }
 
                   let! response = makeRequest config httpClient request
 
@@ -516,7 +530,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     let fields =
                       [ ("statusCode", DInt64(int64 response.statusCode))
                         ("headers", responseHeaders)
-                        ("body", DBytes response.body) ]
+                        ("body", byteArrayToDvalList response.body) ]
 
                     return Ok(DRecord(typ, typ, [], Map fields) |> resultOk)
 

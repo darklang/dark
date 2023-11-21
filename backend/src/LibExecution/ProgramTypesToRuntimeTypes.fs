@@ -91,7 +91,6 @@ module TypeReference =
         NameResolution.toRT TypeName.toRT typeName,
         List.map toRT typeArgs
       )
-    | PT.TBytes -> RT.TBytes
     | PT.TVariable(name) -> RT.TVariable(name)
     | PT.TFn(paramTypes, returnType) ->
       RT.TFn(NEList.map toRT paramTypes, toRT returnType)

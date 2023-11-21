@@ -23,6 +23,12 @@ module Canvas = LibCloud.Canvas
 module Exe = LibExecution.Execution
 module S = RTShortcuts
 
+let byteArrayToDvalList (bytes : byte[]) : RT.Dval =
+  bytes
+  |> Array.toList
+  |> List.map (fun b -> RT.DUInt8(uint8 b))
+  |> fun dvalList -> RT.DList(VT.uint8, dvalList)
+
 
 let testOwner : Lazy<Task<UserID>> = lazy (Account.createUser ())
 
@@ -372,16 +378,6 @@ let rec debugDval (v : Dval) : string =
     |> String.concat ",\n  "
     |> fun contents -> $"DDict {{\n  {contents}}}"
 
-  | DBytes b ->
-    b
-    |> Array.toList
-    |> List.map string
-    |> String.concat ", "
-    // TODO: when I try to prepend this with "DBytes ",
-    // the console output is "DB[|...|]", and the "ytes " are cut off.
-    // Why?
-    |> fun s -> $"[|{s}|]"
-
   | _ -> v.ToString()
 
 module Expect =
@@ -410,7 +406,6 @@ module Expect =
     | DFnVal _
     | DDB _
     | DUuid _
-    | DBytes _
     | DFloat _ -> true
 
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
@@ -581,7 +576,6 @@ module Expect =
     | TDateTime, _
     | TChar, _
     | TUuid, _
-    | TBytes, _
     | TVariable(_), _
     | TFn(_, _), _
     | TCustomType(_, _), _ ->
@@ -942,8 +936,7 @@ module Expect =
     | DChar _, _
     | DFnVal _, _
     | DDB _, _
-    | DUuid _, _
-    | DBytes _, _ -> check path actual expected
+    | DUuid _, _ -> check path actual expected
 
   let formatMsg (initialMsg : string) (path : Path) (actual : 'a) : string =
     let initial = if initialMsg = "" then "" else $"{initialMsg}\n\n"
@@ -1011,7 +1004,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DFnVal _
     | DUuid _
     | DDateTime _
-    | DBytes _
     | DDB _
     | DChar _
     | DString _ -> f dv
@@ -1357,15 +1349,15 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      ),
      TypeReference.option TUInt64)
     ("character", DChar "s", TChar)
-    ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
+    ("bytes",
+     ((System.Convert.FromBase64String "JyIoXCg=") |> byteArrayToDvalList),
+     (TList(TUInt8)))
     // use image bytes here to test for any weird bytes forms
     ("bytes2",
-     DBytes(
-       LibCloud.File.readfileBytes LibCloud.Config.Testdata "sample_image_bytes.png"
      // TODO: deeply nested data
-     ),
-     TBytes)
-
+     (LibCloud.File.readfileBytes LibCloud.Config.Testdata "sample_image_bytes.png")
+     |> byteArrayToDvalList,
+     (TList(TUInt8)))
     ("simple2Tuple",
      DTuple(Dval.int64 1, Dval.int64 2, []),
      TTuple(TInt64, TInt64, []))

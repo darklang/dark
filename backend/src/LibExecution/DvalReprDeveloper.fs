@@ -44,7 +44,6 @@ let rec typeName (t : TypeReference) : string =
     TypeName.toString t + typeArgsPortion
   | TCustomType(Error _nre, _) -> "(Error during function resolution)"
 
-  | TBytes -> "Bytes"
 
 let rec knownTypeName (vt : KnownType) : string =
   match vt with
@@ -65,7 +64,6 @@ let rec knownTypeName (vt : KnownType) : string =
   | KTString -> "String"
   | KTDateTime -> "DateTime"
   | KTUuid -> "Uuid"
-  | KTBytes -> "Bytes"
 
   | KTList typ -> $"List<{valueTypeName typ}>"
   | KTDict typ -> $"Dict<{valueTypeName typ}>"
@@ -190,7 +188,6 @@ let toRepr (dv : Dval) : string =
 
         let elems = String.concat $",{inl}" strs
         "{" + $"{inl}{elems}{nl}" + "}"
-    | DBytes bytes -> Base64.defaultEncodeToString bytes
     | DEnum(_, typeName, typeArgs, caseName, fields) ->
       let typeArgsPart =
         match typeArgs with

@@ -6,7 +6,6 @@
     PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBool
     PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TUnit
     PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TString
-    PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBytes
 
     PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TList
       PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TInt64

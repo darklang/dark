@@ -346,16 +346,18 @@ module Darklang =
 
 
       /// Converts the given unicode string to a UTF8-encoded byte sequence.
-      let toBytes (str: String) : Bytes = Builtin.String.toBytes str
+      let toBytes (str: String) : List<UInt8> = Builtin.String.toBytes str
 
 
       /// Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters
-      let fromBytesWithReplacement (bytes: Bytes) : String =
+      let fromBytesWithReplacement (bytes: List<UInt8>) : String =
         Builtin.String.fromBytesWithReplacement bytes
 
 
       /// Converts the UTF8-encoded byte sequence into a string
-      let fromBytes (bytes: Bytes) : PACKAGE.Darklang.Stdlib.Option.Option<String> =
+      let fromBytes
+        (bytes: List<UInt8>)
+        : PACKAGE.Darklang.Stdlib.Option.Option<String> =
         Builtin.String.fromBytes bytes
 
 

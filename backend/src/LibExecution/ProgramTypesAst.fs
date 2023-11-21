@@ -142,7 +142,6 @@ let rec preTraversal
     | TChar
     | TUuid
     | TDateTime
-    | TBytes
     | TVariable _
     | TString -> typeRef
     | TList tr -> TList(f tr)

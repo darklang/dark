@@ -78,7 +78,7 @@ let import () : Result<ImportResults, String> =
       "GET"
       "http://dark-ai-backup.builtwithdark.com/latest-export"
       [ ("Accept", "application/json") ]
-      Builtin.Bytes.empty)
+      [])
     |> Builtin.unwrap
 
   Builtin.printLine "deserializing response from `dark-ai-backup`"

@@ -994,15 +994,9 @@ module Uuid =
       "Can't parse JSON `\"00000000-0000-0000-0000-00000000000\"` as type `Uuid` at path: `root`"
 
 
-module Bytes =
-  // TODO check errors
-  Builtin.Json.serialize<Bytes> Builtin.Bytes.empty = "\"\""
-
-  Builtin.Json.parse<Bytes> "\"\"" = Result.Ok Builtin.Bytes.empty
-
 module BadTypes =
   // these cause an error in the type checker
-  // Builtin.Json.parse<'a> "5" = Result.Ok Builtin.Bytes.empty
+  // Builtin.Json.parse<'a> "5" = Result.Ok []
   // Builtin.Json.serialize<'a> 5 = Result.Error "dunno what happens"
 
   Builtin.Json.parse<Int64 -> Int64> "{}" = Builtin.Test.derrorMessage
@@ -1123,16 +1117,17 @@ module Tuples =
   )
 
 
-  Builtin.Json.serialize<(List<Int64 * String> * Bytes) * (Person * Dict<String>)> (
-    ([ (1L, "two"); (3L, "four") ], Builtin.Bytes.empty),
+  Builtin.Json.serialize<(List<Int64 * String> * List<UInt8>) *
+  (Person * Dict<String>)> (
+    ([ (1L, "two"); (3L, "four") ], []),
     (Person { Name = "Alice"; Age = 42L },
      PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b")
-  ) = "[[[[1,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
+  ) = "[[[[1,\"two\"],[3,\"four\"]],[]],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
 
-  Builtin.Json.parse<(List<Int64 * String> * Bytes) * (Person * Dict<String>)>
-    "[[[[1,\"two\"],[3,\"four\"]],\"\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]" = Result
+  Builtin.Json.parse<(List<Int64 * String> * List<UInt8>) * (Person * Dict<String>)>
+    "[[[[1,\"two\"],[3,\"four\"]],[]],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]" = Result
     .Ok(
-      (([ (1L, "two"); (3L, "four") ], Builtin.Bytes.empty),
+      (([ (1L, "two"); (3L, "four") ], []),
        (Person { Name = "Alice"; Age = 42L },
         PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b"))
     )

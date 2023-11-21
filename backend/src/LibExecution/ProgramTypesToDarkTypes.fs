@@ -337,7 +337,6 @@ module TypeReference =
       | PT.TString -> "TString", []
       | PT.TDateTime -> "TDateTime", []
       | PT.TUuid -> "TUuid", []
-      | PT.TBytes -> "TBytes", []
 
       | PT.TList inner -> "TList", [ toDT inner ]
 
@@ -383,7 +382,6 @@ module TypeReference =
     | DEnum(_, _, [], "TString", []) -> PT.TString
     | DEnum(_, _, [], "TDateTime", []) -> PT.TDateTime
     | DEnum(_, _, [], "TUuid", []) -> PT.TUuid
-    | DEnum(_, _, [], "TBytes", []) -> PT.TBytes
 
     | DEnum(_, _, [], "TList", [ inner ]) -> PT.TList(fromDT inner)
 

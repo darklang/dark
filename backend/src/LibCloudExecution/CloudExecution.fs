@@ -18,6 +18,13 @@ module Interpreter = LibExecution.Interpreter
 
 open LibCloud
 
+let byteArrayToDvalList (bytes : byte[]) : RT.Dval =
+  bytes
+  |> Array.toList
+  |> List.map (fun b -> RT.DUInt8(uint8 b))
+  |> fun dvalList -> RT.DList(RT.ValueType.uint8, dvalList)
+
+
 let builtins : LibExecution.Builtin.Contents =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.contents HttpClient.configuration
@@ -147,7 +154,7 @@ let executeHandler
         [ ("statusCode", RT.DInt64 500)
           ("headers",
            [] |> Dval.list (RT.KTTuple(RT.ValueType.string, RT.ValueType.string, [])))
-          ("body", RT.DBytes(msg |> UTF8.toBytes)) ]
+          ("body", msg |> UTF8.toBytes |> byteArrayToDvalList) ]
 
       RT.DRecord(typeName, typeName, [], Map fields)
 

@@ -316,7 +316,6 @@ module TypeReference =
       | TString -> "TString", []
       | TDateTime -> "TDateTime", []
       | TUuid -> "TUuid", []
-      | TBytes -> "TBytes", []
 
       | TList inner -> "TList", [ toDT inner ]
 
@@ -360,7 +359,6 @@ module TypeReference =
     | DEnum(_, _, [], "TString", []) -> TString
     | DEnum(_, _, [], "TDateTime", []) -> TDateTime
     | DEnum(_, _, [], "TUuid", []) -> TUuid
-    | DEnum(_, _, [], "TBytes", []) -> TBytes
 
     | DEnum(_, _, [], "TList", [ inner ]) -> TList(fromDT inner)
 
@@ -875,7 +873,6 @@ module Dval =
         | KTString -> "KTString", []
         | KTUuid -> "KTUuid", []
         | KTDateTime -> "KTDateTime", []
-        | KTBytes -> "KTBytes", []
 
         | KTList inner -> "KTList", [ ValueType.toDT inner ]
         | KTTuple(first, second, theRest) ->
@@ -922,7 +919,6 @@ module Dval =
       | DEnum(_, _, [], "KTString", []) -> KTString
       | DEnum(_, _, [], "KTUuid", []) -> KTUuid
       | DEnum(_, _, [], "KTDateTime", []) -> KTDateTime
-      | DEnum(_, _, [], "KTBytes", []) -> KTBytes
 
       | DEnum(_, _, [], "KTList", [ inner ]) -> KTList(ValueType.fromDT inner)
       | DEnum(_, _, [], "KTTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
@@ -1044,7 +1040,6 @@ module Dval =
       | DString s -> "DString", [ DString s ]
       | DUuid u -> "DUuid", [ DUuid u ]
       | DDateTime d -> "DDateTime", [ DDateTime d ]
-      | DBytes b -> "DBytes", [ DBytes b ]
 
       | DList(vt, items) ->
         "DList",
@@ -1110,7 +1105,6 @@ module Dval =
 
     | DEnum(_, _, [], "DDateTime", [ DDateTime d ]) -> DDateTime d
     | DEnum(_, _, [], "DUuid", [ DUuid u ]) -> DUuid u
-    | DEnum(_, _, [], "DBytes", [ DBytes b ]) -> DBytes b
 
     | DEnum(_, _, [], "DDict", [ vt; DDict(_vtTODO, map) ]) ->
       DDict(ValueType.fromDT vt, Map.map fromDT map)

@@ -13,6 +13,13 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
+let byteArrayToDvalList (bytes : byte[]) : Dval =
+  bytes
+  |> Array.toList
+  |> List.map (fun b -> DUInt8(uint8 b))
+  |> fun dvalList -> DList(ValueType.uint8, dvalList)
+
+
 let builtIns : RT.BuiltIns =
   let (fns, types, constants) =
     LibExecution.Builtin.combine
@@ -75,7 +82,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn [ "LocalExec"; "File" ] "read" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
-      returnType = TBytes
+      returnType = (TList(TUInt8))
       description =
         "Reads the contents of a file specified by <param path> asynchronously and returns its contents as Bytes. This function exists as Builtin.File.read uses a result, which isn't yet available in LocalExec"
       fn =
@@ -84,7 +91,7 @@ let fns : List<BuiltInFn> =
           uply {
             try
               let! contents = System.IO.File.ReadAllBytesAsync path
-              return DBytes contents
+              return byteArrayToDvalList contents
             with e ->
               return
                 raiseUntargetedRTE (

@@ -4,7 +4,7 @@ module Darklang =
       type Request =
         { url: String
           headers: List<String * String>
-          body: Bytes }
+          body: List<UInt8> }
 
       module Request =
         let queryParams
@@ -48,12 +48,12 @@ module Darklang =
       type Response =
         { statusCode: Int64
           headers: List<String * String>
-          body: Bytes }
+          body: List<UInt8> }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with HTTP status <param code> and <param response> body.
       let response
-        (body: Bytes)
+        (body: List<UInt8>)
         (statusCode: Int64)
         : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
@@ -65,7 +65,7 @@ module Darklang =
       /// respond with HTTP status <param code>, <param response> body and
       /// <param headers>.
       let responseWithHeaders
-        (body: Bytes)
+        (body: List<UInt8>)
         (headers: List<String * String>)
         (statusCode: Int64)
         : PACKAGE.Darklang.Stdlib.Http.Response =
@@ -76,7 +76,7 @@ module Darklang =
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with HTTP status 200 and <param response> body.
-      let success (body: Bytes) : PACKAGE.Darklang.Stdlib.Http.Response =
+      let success (body: List<UInt8>) : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
           { statusCode = 200L
             headers = []
@@ -125,7 +125,7 @@ module Darklang =
         PACKAGE.Darklang.Stdlib.Http.Response
           { statusCode = 302L
             headers = [ ("Location", url) ]
-            body = Builtin.Bytes.empty }
+            body = [] }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with {{400}} status code and <param response> body.
@@ -141,7 +141,7 @@ module Darklang =
         PACKAGE.Darklang.Stdlib.Http.Response
           { statusCode = 404L
             headers = []
-            body = Builtin.Bytes.empty }
+            body = [] }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with {{401}} status code.
@@ -149,7 +149,7 @@ module Darklang =
         PACKAGE.Darklang.Stdlib.Http.Response
           { statusCode = 401L
             headers = []
-            body = Builtin.Bytes.empty }
+            body = [] }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with {{403}} status code.
@@ -157,7 +157,7 @@ module Darklang =
         PACKAGE.Darklang.Stdlib.Http.Response
           { statusCode = 403L
             headers = []
-            body = Builtin.Bytes.empty }
+            body = [] }
 
       type Cookie =
         { expires: DateTime

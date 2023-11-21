@@ -208,7 +208,7 @@ let main (args: List<String>) : Int64 =
               "GET"
               "http://dark-packages.dlio.localhost:11003/health"
               []
-              Builtin.Bytes.empty)
+              [])
             |> PACKAGE.Darklang.Stdlib.Result.map (fun _ -> ())
             |> PACKAGE.Darklang.Stdlib.Result.mapError (fun err ->
               let errMsg = PACKAGE.Darklang.Stdlib.HttpClient.toString err

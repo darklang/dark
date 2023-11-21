@@ -11,6 +11,21 @@ module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
 module Telemetry = LibService.Telemetry
 
+let byteArrayToDvalList (bytes : byte[]) : RT.Dval =
+  bytes
+  |> Array.toList
+  |> List.map (fun b -> RT.DUInt8(uint8 b))
+  |> fun dvalList -> RT.DList(RT.ValueType.uint8, dvalList)
+
+let DlistToByteArray (dvalList : List<RT.Dval>) : byte[] =
+  dvalList
+  |> List.map (fun dval ->
+    match dval with
+    | RT.DUInt8 b -> b
+    | _ -> (Exception.raiseInternal "Invalid type in byte list") [])
+  |> Array.ofList
+
+
 let lowercaseHeaderKeys (headers : List<string * string>) : List<string * string> =
   headers |> List.map (fun (k, v) -> (String.toLowercase k, v))
 
@@ -32,7 +47,7 @@ module Request =
       |> Dval.list headerType
 
     let fields =
-      [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]
+      [ "body", byteArrayToDvalList body; "headers", headers; "url", RT.DString uri ]
     RT.DRecord(typ, typ, [], Map fields)
 
 
@@ -57,7 +72,7 @@ module Response =
       let body = Map.get "body" fields
 
       match code, headers, body with
-      | Some(RT.DInt64 code), Some(RT.DList(_, headers)), Some(RT.DBytes body) ->
+      | Some(RT.DInt64 code), Some(RT.DList(_, headers)), Some(RT.DList(_, body)) ->
         let headers =
           headers
           |> List.fold
@@ -74,7 +89,7 @@ module Response =
         | Ok headers ->
           { statusCode = int code
             headers = lowercaseHeaderKeys headers
-            body = body }
+            body = body |> DlistToByteArray }
         | Error msg ->
           { statusCode = 500
             headers = [ "Content-Type", "text/plain; charset=utf-8" ]

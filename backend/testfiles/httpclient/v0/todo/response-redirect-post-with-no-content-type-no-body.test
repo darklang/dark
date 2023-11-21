@@ -13,7 +13,7 @@ Location: /v0/response-redirect-dest-post-with-no-content-type-no-body
 
 
 [test]
-(let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "post" "http://URL" "" [] Builtin.Bytes.empty) |> Builtin.unwrap
+(let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "post" "http://URL" "" [] []) |> Builtin.unwrap
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    PACKAGE.Darklang.Stdlib.HttpClient.Response

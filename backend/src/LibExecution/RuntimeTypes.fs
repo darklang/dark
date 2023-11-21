@@ -355,7 +355,6 @@ type KnownType =
   | KTChar
   | KTString
   | KTUuid
-  | KTBytes
   | KTDateTime
 
   // let empty =    [] // KTList Unknown
@@ -436,7 +435,6 @@ module ValueType =
   let string = known KTString
   let dateTime = known KTDateTime
   let uuid = known KTUuid
-  let bytes = known KTBytes
 
   let list (inner : ValueType) : ValueType = known (KTList inner)
   let dict (inner : ValueType) : ValueType = known (KTDict inner)
@@ -474,7 +472,6 @@ module ValueType =
       | KTChar -> "Char"
       | KTString -> "String"
       | KTUuid -> "Uuid"
-      | KTBytes -> "Bytes"
       | KTDateTime -> "DateTime"
 
       | KTList inner -> $"List<{toString inner}>"
@@ -524,7 +521,6 @@ module ValueType =
     | KTChar, KTChar -> KTChar |> Ok
     | KTString, KTString -> KTString |> Ok
     | KTUuid, KTUuid -> KTUuid |> Ok
-    | KTBytes, KTBytes -> KTBytes |> Ok
     | KTDateTime, KTDateTime -> KTDateTime |> Ok
 
     | KTList left, KTList right -> r left right |> Result.map KTList
@@ -588,7 +584,6 @@ and TypeReference =
   | TChar
   | TString
   | TUuid
-  | TBytes
   | TDateTime
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
@@ -631,7 +626,6 @@ and TypeReference =
       | TChar
       | TString
       | TUuid
-      | TBytes
       | TDateTime -> true
     isConcrete this
 
@@ -757,7 +751,6 @@ and [<NoComparison>] Dval =
   | DString of string
   | DDateTime of DarkDateTime.T
   | DUuid of System.Guid
-  | DBytes of byte array
 
   // Compound types
   | DList of ValueType * List<Dval>
@@ -1064,8 +1057,7 @@ module Dval =
     | DDateTime _, TDateTime
     | DUuid _, TUuid
     | DChar _, TChar
-    | DDB _, TDB _
-    | DBytes _, TBytes -> true
+    | DDB _, TDB _ -> true
     | DTuple(first, second, theRest), TTuple(firstType, secondType, otherTypes) ->
       let pairs =
         [ (first, firstType); (second, secondType) ] @ List.zip theRest otherTypes
@@ -1109,7 +1101,6 @@ module Dval =
     | DUuid _, _
     | DChar _, _
     | DDB _, _
-    | DBytes _, _
     | DList _, _
     | DTuple _, _
     | DDict _, _
@@ -1138,7 +1129,6 @@ module Dval =
     | DString _ -> ValueType.Known KTString
     | DDateTime _ -> ValueType.Known KTDateTime
     | DUuid _ -> ValueType.Known KTUuid
-    | DBytes _ -> ValueType.Known KTBytes
 
     | DList(t, _) -> ValueType.Known(KTList t)
     | DDict(t, _) -> ValueType.Known(KTDict t)
@@ -1680,7 +1670,6 @@ module Types =
     | TChar
     | TString
     | TUuid
-    | TBytes
     | TDateTime -> typ
 
     | TList t -> TList(substitute t)

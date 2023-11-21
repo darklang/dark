@@ -133,7 +133,6 @@ type TypeReference =
   | TString
   | TDateTime
   | TUuid
-  | TBytes
 
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>

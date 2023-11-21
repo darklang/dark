@@ -13,7 +13,7 @@ Location: https://httpbin.org/status/200L
 
 
 [test]
-(let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL" [] Builtin.Bytes.empty) |> Builtin.unwrap
+(let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL" [] []) |> Builtin.unwrap
  let respHeaders = response.headers |> Dict.remove_v0 "date"
  {response with headers = respHeaders}) =
    PACKAGE.Darklang.Stdlib.HttpClient.Response

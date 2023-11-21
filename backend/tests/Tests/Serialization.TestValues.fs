@@ -100,7 +100,6 @@ module RuntimeTypes =
         ),
         [ RT.TBool ]
       )
-      RT.TBytes
       RT.TVariable "test"
       RT.TFn(NEList.singleton RT.TBool, RT.TBool) ]
 
@@ -279,7 +278,6 @@ module RuntimeTypes =
       known RT.KnownType.KTChar
       known RT.KnownType.KTString
       known RT.KnownType.KTUuid
-      known RT.KnownType.KTBytes
       known RT.KnownType.KTDateTime
       known (RT.KnownType.KTList ktUnit)
       known (RT.KnownType.KTTuple(ktUnit, ktUnit, []))
@@ -428,7 +426,6 @@ module ProgramTypes =
           ),
           [ PT.TBool ]
         )
-        PT.TBytes
         PT.TVariable "test"
         PT.TFn(NEList.singleton PT.TBool, PT.TBool) ]
     )

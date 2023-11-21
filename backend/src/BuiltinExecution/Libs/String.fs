@@ -26,6 +26,21 @@ let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 
+let byteArrayToDvalList (bytes : byte[]) : Dval =
+  bytes
+  |> Array.toList
+  |> List.map (fun b -> DUInt8(uint8 b))
+  |> fun dvalList -> DList(VT.uint8, dvalList)
+
+let DlistToByteArray (dvalList : List<Dval>) : byte[] =
+  dvalList
+  |> List.map (fun dval ->
+    match dval with
+    | DUInt8 b -> b
+    | _ -> (Exception.raiseInternal "Invalid type in byte list") [])
+  |> Array.ofList
+
+
 let fns : List<BuiltInFn> =
   [ { name = fn "map" 0
       typeParams = []
@@ -395,14 +410,14 @@ let fns : List<BuiltInFn> =
     { name = fn "toBytes" 0
       typeParams = []
       parameters = [ Param.make "str" TString "" ]
-      returnType = TBytes
+      returnType = (TList(TUInt8))
       description =
         "Converts the given unicode string to a UTF8-encoded byte sequence."
       fn =
         (function
         | _, _, [ DString str ] ->
           let theBytes = System.Text.Encoding.UTF8.GetBytes str
-          Ply(DBytes theBytes)
+          Ply(byteArrayToDvalList theBytes)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -411,13 +426,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "fromBytesWithReplacement" 0
       typeParams = []
-      parameters = [ Param.make "bytes" TBytes "" ]
+      parameters = [ Param.make "bytes" (TList(TUInt8)) "" ]
       returnType = TString
       description =
         "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"
       fn =
         (function
-        | _, _, [ DBytes bytes ] ->
+        | _, _, [ DList(_vt, bytes) ] ->
+          let bytes = DlistToByteArray bytes
           let str = System.Text.Encoding.UTF8.GetString bytes
           Ply(DString str)
         | _ -> incorrectArgs ())
@@ -428,14 +444,15 @@ let fns : List<BuiltInFn> =
 
     { name = fn "fromBytes" 0
       typeParams = []
-      parameters = [ Param.make "bytes" TBytes "" ]
+      parameters = [ Param.make "bytes" (TList(TUInt8)) "" ]
       returnType = TypeReference.option TString
       description =
         "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"
       fn =
         (function
-        | _, _, [ DBytes bytes ] ->
+        | _, _, [ DList(_vt, bytes) ] ->
           try
+            let bytes = DlistToByteArray bytes
             let str = System.Text.UTF8Encoding(false, true).GetString bytes
             Dval.optionSome KTString (DString str) |> Ply
           with e ->
