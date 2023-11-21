@@ -3,8 +3,8 @@ module LibService.DBConnection
 open Npgsql
 open Npgsql.FSharp
 
-let dataSource : NpgsqlDataSource =
 
+let connectionString () =
   let sb = NpgsqlConnectionStringBuilder()
   sb.Host <- Config.pgHost
   sb.Port <- Config.pgPort
@@ -18,7 +18,11 @@ let dataSource : NpgsqlDataSource =
   sb.Pooling <- true
   sb.MinPoolSize <- int (float Config.pgPoolSize * 0.5)
   sb.MaxPoolSize <- int (float Config.pgPoolSize * 1.5)
+  sb.ToString()
 
-  let builder = new NpgsqlDataSourceBuilder(sb.ToString())
+
+let dataSource : NpgsqlDataSource =
+  let cs = connectionString()
+  let builder = new NpgsqlDataSourceBuilder(cs)
   builder.UseNodaTime() |> ignore<TypeMapping.INpgsqlTypeMapper>
   builder.Build()
