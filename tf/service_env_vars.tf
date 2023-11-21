@@ -56,12 +56,13 @@ variable "service_env_vars" {
     "DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT" = "sample-none"
 
     # DB
-    "DARK_CONFIG_DB_DBNAME" = "defaultdb"
+    "DARK_CONFIG_DB_DBNAME" = "yugabyte"
     "DARK_CONFIG_DB_HOST"   = "us-central1.ac92fd1c-c9e2-48b4-8a62-ec6809031dcc.gcp.ybdb.io"
     "DARK_CONFIG_DB_PORT"   = "5433"
     # DARK_CONFIG_DB_USER
     # DARK_CONFIG_DB_PASSWORD
-    "DARK_CONFIG_DB_POOL_SIZE" = "20"
+    "DARK_CONFIG_DB_POOL_SIZE"    = "20"
+    "DARK_CONFIG_DB_SSL_REQUIRED" = true
 
     # Queue / pubsub
     "DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID"        = "darklang-next"

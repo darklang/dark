@@ -7,6 +7,7 @@ let dataSource : NpgsqlDataSource =
 
   let maxPoolSize = int (float Config.pgPoolSize * 1.5)
   let minPoolSize = int (float Config.pgPoolSize * 0.5)
+  let sslMode = if Config.pgSslRequired then SslMode.Require else SslMode.Prefer
 
   let connectionString =
 
@@ -15,7 +16,7 @@ let dataSource : NpgsqlDataSource =
     |> Sql.username Config.pgUser
     |> Sql.password Config.pgPassword
     |> Sql.database Config.pgDBName
-    // |> Sql.sslMode SslMode.Require
+    |> Sql.sslMode sslMode
 
     // Our DB in GCP supports 800 connections at once. We plan to have 2 ApiServers, 2
     // BwdServers, 2 QueueWorkers, and 1 CronChecker, in addition to 1 garbage
