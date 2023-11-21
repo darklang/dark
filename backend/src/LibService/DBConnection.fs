@@ -22,7 +22,7 @@ let connectionString () =
 
 
 let dataSource : NpgsqlDataSource =
-  let cs = connectionString()
+  let cs = connectionString ()
   let builder = new NpgsqlDataSourceBuilder(cs)
   builder.UseNodaTime() |> ignore<TypeMapping.INpgsqlTypeMapper>
   builder.Build()
