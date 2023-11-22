@@ -6,6 +6,7 @@ echo "--------------------------"
 echo "--  Starting yugabyte   --"
 echo "--------------------------"
 
+sudo mkdir -p /home/dark/yugabyte-data
 sudo chown -R dark:dark /home/dark/yugabyte-data
 
 ../yugabyte/bin/yugabyted start \
