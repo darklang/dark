@@ -80,11 +80,6 @@ let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 let fn = fn [ "Experiments" ]
 
-let byteArrayToDvalList (bytes : byte[]) : Dval =
-  bytes
-  |> Array.toList
-  |> List.map (fun b -> DUInt8(uint8 b))
-  |> fun dvalList -> DList(VT.uint8, dvalList)
 
 let fns : List<BuiltInFn> =
   [ { name = fn "parseAndSerializeProgram" 0
@@ -145,7 +140,7 @@ let fns : List<BuiltInFn> =
                 RestrictedFileIO.readfileBytes
                   RestrictedFileIO.Config.BackendStatic
                   path
-              return resultOk (byteArrayToDvalList contents)
+              return resultOk (Dval.byteArrayToDvalList contents)
             with e ->
               return DString($"Error reading file: {e.Message}") |> resultError
           }
@@ -171,7 +166,7 @@ let fns : List<BuiltInFn> =
               RestrictedFileIO.readfileBytes
                 RestrictedFileIO.Config.CanvasesFiles
                 path
-            resultOk (byteArrayToDvalList contents) |> Ply
+            resultOk (Dval.byteArrayToDvalList contents) |> Ply
           with e ->
             resultError (DString($"Error reading file: {e.Message}")) |> Ply
         | _ -> incorrectArgs ())

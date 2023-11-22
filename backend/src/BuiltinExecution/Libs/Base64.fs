@@ -18,21 +18,6 @@ let modules = [ "Base64" ]
 let fn = fn modules
 
 
-let byteArrayToDvalList (bytes : byte[]) : Dval =
-  bytes
-  |> Array.toList
-  |> List.map (fun b -> DUInt8(uint8 b))
-  |> fun dvalList -> DList(VT.uint8, dvalList)
-
-let DlistToByteArray (dvalList : List<Dval>) : byte[] =
-  dvalList
-  |> List.map (fun dval ->
-    match dval with
-    | DUInt8 b -> b
-    | _ -> (Exception.raiseInternal "Invalid type in byte list") [])
-  |> Array.ofList
-
-
 let fns : List<BuiltInFn> =
   [ { name = fn "decode" 0
       typeParams = []
@@ -70,7 +55,7 @@ let fns : List<BuiltInFn> =
                 s
                 |> base64FromUrlEncoded
                 |> System.Convert.FromBase64String
-                |> byteArrayToDvalList
+                |> Dval.byteArrayToDvalList
 
               byte |> resultOk
             with e ->
@@ -92,7 +77,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DList(_vt, bytes) ] ->
-          let bytes = DlistToByteArray bytes
+          let bytes = Dval.DlistToByteArray bytes
           System.Convert.ToBase64String(bytes) |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -111,7 +96,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DList(_vt, bytes) ] ->
-          let bytes = DlistToByteArray bytes
+          let bytes = Dval.DlistToByteArray bytes
           // Differs from Base64.encodeToUrlSafe as this version has padding
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DString

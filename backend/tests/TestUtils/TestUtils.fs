@@ -23,12 +23,6 @@ module Canvas = LibCloud.Canvas
 module Exe = LibExecution.Execution
 module S = RTShortcuts
 
-let byteArrayToDvalList (bytes : byte[]) : RT.Dval =
-  bytes
-  |> Array.toList
-  |> List.map (fun b -> RT.DUInt8(uint8 b))
-  |> fun dvalList -> RT.DList(VT.uint8, dvalList)
-
 
 let testOwner : Lazy<Task<UserID>> = lazy (Account.createUser ())
 
@@ -1350,13 +1344,13 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      TypeReference.option TUInt64)
     ("character", DChar "s", TChar)
     ("bytes",
-     ((System.Convert.FromBase64String "JyIoXCg=") |> byteArrayToDvalList),
+     ((System.Convert.FromBase64String "JyIoXCg=") |> Dval.byteArrayToDvalList),
      (TList(TUInt8)))
     // use image bytes here to test for any weird bytes forms
     ("bytes2",
      // TODO: deeply nested data
      (LibCloud.File.readfileBytes LibCloud.Config.Testdata "sample_image_bytes.png")
-     |> byteArrayToDvalList,
+     |> Dval.byteArrayToDvalList,
      (TList(TUInt8)))
     ("simple2Tuple",
      DTuple(Dval.int64 1, Dval.int64 2, []),

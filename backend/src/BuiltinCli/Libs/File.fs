@@ -16,20 +16,6 @@ let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "File" ]
 
-let byteArrayToDvalList (bytes : byte[]) : Dval =
-  bytes
-  |> Array.toList
-  |> List.map (fun b -> DUInt8(uint8 b))
-  |> fun dvalList -> DList(VT.uint8, dvalList)
-
-let DlistToByteArray (dvalList : List<Dval>) : byte[] =
-  dvalList
-  |> List.map (fun dval ->
-    match dval with
-    | DUInt8 b -> b
-    | _ -> (Exception.raiseInternal "Invalid type in byte list") [])
-  |> Array.ofList
-
 let fns : List<BuiltInFn> =
   [ { name = fn "read" 0
       typeParams = []
@@ -45,7 +31,7 @@ let fns : List<BuiltInFn> =
           uply {
             try
               let! contents = System.IO.File.ReadAllBytesAsync path
-              return resultOk (byteArrayToDvalList contents)
+              return resultOk (Dval.byteArrayToDvalList contents)
             with e ->
               return resultError (DString($"Error reading file: {e.Message}"))
           }
@@ -69,7 +55,11 @@ let fns : List<BuiltInFn> =
         | _, _, [ DList(_, contents); DString path ] ->
           uply {
             try
-              do! System.IO.File.WriteAllBytesAsync(path, DlistToByteArray contents)
+              do!
+                System.IO.File.WriteAllBytesAsync(
+                  path,
+                  Dval.DlistToByteArray contents
+                )
               return resultOk DUnit
             with e ->
               return resultError (DString($"Error writing file: {e.Message}"))

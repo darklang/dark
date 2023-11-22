@@ -12,12 +12,8 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
+module Dval = LibExecution.Dval
 
-let byteArrayToDvalList (bytes : byte[]) : Dval =
-  bytes
-  |> Array.toList
-  |> List.map (fun b -> DUInt8(uint8 b))
-  |> fun dvalList -> DList(ValueType.uint8, dvalList)
 
 
 let builtIns : RT.BuiltIns =
@@ -91,7 +87,7 @@ let fns : List<BuiltInFn> =
           uply {
             try
               let! contents = System.IO.File.ReadAllBytesAsync path
-              return byteArrayToDvalList contents
+              return Dval.byteArrayToDvalList contents
             with e ->
               return
                 raiseUntargetedRTE (

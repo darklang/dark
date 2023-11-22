@@ -13,27 +13,13 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
+module Dval = LibExecution.Dval
+
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "Crypto" ]
-
-
-let byteArrayToDvalList (bytes : byte[]) : Dval =
-  bytes
-  |> Array.toList
-  |> List.map (fun b -> DUInt8(uint8 b))
-  |> fun dvalList -> DList(VT.uint8, dvalList)
-
-let DlistToByteArray (dvalList : List<Dval>) : byte[] =
-  dvalList
-  |> List.map (fun dval ->
-    match dval with
-    | DUInt8 b -> b
-    | _ -> (Exception.raiseInternal "Invalid type in byte list") [])
-  |> Array.ofList
-
 
 let fns : List<BuiltInFn> =
   [ { name = fn "sha256" 0
@@ -44,9 +30,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DList(_vt, data) ] ->
-          let data = DlistToByteArray data
+          let data = Dval.DlistToByteArray data
           let hash = SHA256.HashData(System.ReadOnlySpan<byte>(data))
-          byteArrayToDvalList hash |> Ply
+          Dval.byteArrayToDvalList hash |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -61,9 +47,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DList(_vt, data) ] ->
-          let data = DlistToByteArray data
+          let data = Dval.DlistToByteArray data
           let hash = SHA384.HashData(System.ReadOnlySpan data)
-          byteArrayToDvalList hash |> Ply
+          Dval.byteArrayToDvalList hash |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -79,9 +65,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DList(_vt, data) ] ->
-          let data = DlistToByteArray data
+          let data = Dval.DlistToByteArray data
           let hash = MD5.HashData(System.ReadOnlySpan data)
-          byteArrayToDvalList hash |> Ply
+          Dval.byteArrayToDvalList hash |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = ImpurePreviewable
@@ -98,11 +84,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DList(_, key); DList(_, data) ] ->
-          let key = DlistToByteArray key
+          let key = Dval.DlistToByteArray key
           let hmac = new HMACSHA256(key)
-          let data = DlistToByteArray data
+          let data = Dval.DlistToByteArray data
           let hash = hmac.ComputeHash(data)
-          byteArrayToDvalList hash |> Ply
+          Dval.byteArrayToDvalList hash |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = ImpurePreviewable
@@ -119,11 +105,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DList(_, key); DList(_, data) ] ->
-          let key = DlistToByteArray key
+          let key = Dval.DlistToByteArray key
           let hmac = new HMACSHA1(key)
-          let data = DlistToByteArray data
+          let data = Dval.DlistToByteArray data
           let hash = hmac.ComputeHash(data)
-          byteArrayToDvalList hash |> Ply
+          Dval.byteArrayToDvalList hash |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = ImpurePreviewable
