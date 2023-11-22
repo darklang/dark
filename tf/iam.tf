@@ -17,7 +17,7 @@ resource "google_service_account" "circleci_deployer" {
 
 resource "google_project_iam_custom_role" "circleci-deployment-role" {
   description = "CircleCI deployment role"
-  permissions = ["resourcemanager.projects.get"] // Just give it a very small permission
+  permissions = ["artifactregistry.repositories.uploadArtifacts"] // Just give it a very small permission
   project     = "darklang-next"
   role_id     = "circleciDeploymentRole"
   title       = "CircleCI deployment role"

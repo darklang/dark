@@ -35,11 +35,11 @@ resource "google_cloud_run_service" "bwdserver" {
         }
         resources {
           requests = {
-            "cpu"    = "2.0"
+            "cpu"    = "2000m"
             "memory" = "4000Mi"
           }
           limits = {
-            cpu    = "2.0"
+            cpu    = "2000m"
             memory = "6000Mi"
           }
         }
