@@ -99,29 +99,32 @@ let testToDeveloperRepr =
           RT.DDict(VT.unit, Map [ "", RT.DUnit ]), "{\n  : ()\n}"
           RT.DList(VT.unit, [ RT.DUnit ]), "[\n  ()\n]" ] ]
 
-// TODO : fix this getting different values than expected
-// module ToHashableRepr =
-//   open LibExecution.RuntimeTypes
+module ToHashableRepr =
+  open LibExecution.RuntimeTypes
 
-//   let testHashV2 =
-//     let t (l : NEList<Dval>) (expected : string) : Test =
-//       testTask $"hashV2: {l}" {
-//         let actual = DvalReprInternalHash.hash 2 l
+  let testHashV2 =
+    let t (l : NEList<Dval>) (expected : string) : Test =
+      testTask $"hashV2: {l}" {
+        let actual = DvalReprInternalHash.hash 2 l
 
-//         if actual <> expected then
-//           let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
-//           print $"expected: {p expected}"
-//           print $"fsharp  : {p actual}"
+        if actual <> expected then
+          let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
+          print $"expected: {p expected}"
+          print $"fsharp  : {p actual}"
 
-//         Expect.equal actual expected "bad fsharp impl"
-//       }
+        Expect.equal actual expected "bad fsharp impl"
+      }
 
-//     testList
-//       "hashv2"
-//       [ t (NEList.singleton (DList(VT.uint8, []))) "X1YnxJLFsVg" //DEux3mJnJPs
-//         t (NEList.singleton (DList(VT.uint8,  List.map (fun i -> DUInt8 (uint8 i)) [ 128uy ]))) "Hj0nqyrvXis" ] //cE2FaQ8GKZU
+    testList
+      "hashv2"
+      [ t (NEList.singleton (DList(VT.uint8, []))) "DEux3mJnJPs"
+        t
+          (NEList.singleton (
+            DList(VT.uint8, List.map (fun i -> DUInt8(uint8 i)) [ 128uy ])
+          ))
+          "cE2FaQ8GKZU" ]
 
-//   let tests = testList "hashing" [ testHashV2 ]
+  let tests = testList "hashing" [ testHashV2 ]
 
 
 let allRoundtrips =
@@ -166,6 +169,6 @@ let tests =
     "dvalRepr"
     [ testDvalRoundtrippableRoundtrips
       testToDeveloperRepr
-      // ToHashableRepr.tests
+      ToHashableRepr.tests
       testInternalRoundtrippableNew
       allRoundtrips ]

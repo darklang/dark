@@ -1,36 +1,36 @@
-Builtin.Base64.hexEncode_v0 (
+PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
   PACKAGE.Darklang.Stdlib.Crypto.md5_v0 (
     PACKAGE.Darklang.Stdlib.String.toBytes_v0 ""
   )
 ) = "D41D8CD98F00B204E9800998ECF8427E"
 
-Builtin.Base64.hexEncode_v0 (
+PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
   PACKAGE.Darklang.Stdlib.Crypto.sha256_v0 (
     PACKAGE.Darklang.Stdlib.String.toBytes_v0 ""
   )
 ) = "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
 
-Builtin.Base64.hexEncode_v0 (
+PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
   PACKAGE.Darklang.Stdlib.Crypto.sha384_v0 (
     PACKAGE.Darklang.Stdlib.String.toBytes_v0 ""
   )
 ) = "38B060A751AC96384CD9327EB1B1E36A21FDB71114BE07434C0CC7BF63F6E1DA274EDEBFE76F65FBD51AD2F14898B95B"
 
-Builtin.Base64.hexEncode_v0 (
+PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
   PACKAGE.Darklang.Stdlib.Crypto.md5_v0 (
     PACKAGE.Darklang.Stdlib.String.toBytes_v0
       "a longer string that's more interesting"
   )
 ) = "D95E619F023B430CAAAEB6778A0B9BD1"
 
-Builtin.Base64.hexEncode_v0 (
+PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
   PACKAGE.Darklang.Stdlib.Crypto.sha256_v0 (
     PACKAGE.Darklang.Stdlib.String.toBytes_v0
       "a longer string that's more interesting"
   )
 ) = "1316F78627BC453D44D27E3133902CF798859572E814EED4B5FB56BB1447F05F"
 
-Builtin.Base64.hexEncode_v0 (
+PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
   PACKAGE.Darklang.Stdlib.Crypto.sha384_v0 (
     PACKAGE.Darklang.Stdlib.String.toBytes_v0
       "a longer string that's more interesting"
@@ -44,7 +44,7 @@ Builtin.Base64.hexEncode_v0 (
 
  let dataBytes = PACKAGE.Darklang.Stdlib.String.toBytes_v0 "20150830" in
 
- Builtin.Base64.hexEncode_v0 (
+ PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
    PACKAGE.Darklang.Stdlib.Crypto.sha256hmac_v0 secretBytes dataBytes
  )) = "0138C7A6CBD60AA727B2F653A522567439DFB9F3E72B21F9B25941A42F04A7CD"
 
@@ -55,7 +55,7 @@ Builtin.Base64.hexEncode_v0 (
 
  let dataBytes = PACKAGE.Darklang.Stdlib.String.toBytes_v0 "20150830" in
 
- Builtin.Base64.hexEncode_v0 (
+ PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 (
    PACKAGE.Darklang.Stdlib.Crypto.sha1hmac_v0 secretBytes dataBytes
  )) = "0932CB57FE685FEBC66657AA30C7568A4AB05CAF"
 
@@ -94,4 +94,6 @@ Builtin.Base64.hexEncode_v0 (
      signing
      (PACKAGE.Darklang.Stdlib.String.toBytes_v0 strToSign) in
 
- PACKAGE.Darklang.Stdlib.String.toLowercase (Builtin.Base64.hexEncode_v0 signed)) = "5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"
+ PACKAGE.Darklang.Stdlib.String.toLowercase (
+   PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 signed
+ )) = "5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"

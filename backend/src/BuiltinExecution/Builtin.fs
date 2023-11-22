@@ -14,6 +14,7 @@ let contents (httpConfig : Libs.HttpClient.Configuration) : Builtin.Contents =
   Builtin.combine
     [ Libs.Bool.contents
       Libs.Base64.contents
+      Libs.Bytes.contents
       Libs.Char.contents
       Libs.DateTime.contents
       Libs.Dict.contents
