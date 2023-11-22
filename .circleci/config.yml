@@ -145,7 +145,7 @@ commands:
     steps:
       - run: echo TODO
       - prep-container-creation
-      - run: ./scripts/build/new-build-containers.sh
+      - run: ./scripts/deployment/new-build-containers.sh
 
   ##########################
   # Google Cloud
