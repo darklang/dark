@@ -31,7 +31,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DList(_vt, data) ] ->
           let data = Dval.DlistToByteArray data
-          let hash = SHA256.HashData(System.ReadOnlySpan<byte>(data))
+          let hash = SHA256.HashData(System.ReadOnlySpan(data))
           Dval.byteArrayToDvalList hash |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

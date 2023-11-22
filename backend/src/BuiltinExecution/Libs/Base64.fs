@@ -51,13 +51,12 @@ let fns : List<BuiltInFn> =
             "Not a valid base64 string" |> DString |> resultError
           else
             try
-              let byte =
-                s
-                |> base64FromUrlEncoded
-                |> System.Convert.FromBase64String
-                |> Dval.byteArrayToDvalList
+              s
+              |> base64FromUrlEncoded
+              |> System.Convert.FromBase64String
+              |> Dval.byteArrayToDvalList
+              |> resultOk
 
-              byte |> resultOk
             with e ->
               resultError (DString("Not a valid base64 string"))
         | _ -> incorrectArgs ())
