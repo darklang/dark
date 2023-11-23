@@ -138,6 +138,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
       # parser (tree-sitter) dependencies
       build-essential \
       # end parser dependencies
+      # required to clean up line endings for COPY when building on a Windows machine
+      dos2unix \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -292,6 +294,9 @@ echo "$CHECKSUM ${TARGET}" | sha256sum -c -
 sudo chmod +x ${TARGET}
 EOF
 
+RUN sudo dos2unix /home/dark/install-targz-file
+RUN sudo dos2unix /home/dark/install-exe-file
+
 RUN sudo chown dark:dark /home/dark/install-targz-file
 RUN chmod +x /home/dark/install-targz-file
 RUN sudo chown dark:dark /home/dark/install-exe-file
@@ -310,7 +315,11 @@ RUN /home/dark/install-targz-file \
 ############################
 # Yugabyte
 ############################
-RUN <<EOF
+COPY <<-"EOF" /home/dark/install-yugabyte
+#!/bin/bash
+
+# Script to install yugabyte
+
 set -e;
 case ${TARGETARCH} in
   arm64)
@@ -344,6 +353,13 @@ esac
 sed -i 's|#!/usr/bin/env python|#!/usr/bin/env python3|' ./bin/yugabyted
 cd ..
 EOF
+
+RUN sudo dos2unix /home/dark/install-yugabyte
+
+RUN sudo chown dark:dark /home/dark/install-yugabyte
+RUN chmod +x /home/dark/install-yugabyte
+
+RUN /home/dark/install-yugabyte
 
 ############################
 # Terraform
@@ -429,7 +445,11 @@ ENV DOTNET_SDK_VERSION=8.0.100 \
     # Enable correct mode for dotnet watch (only mode supported in a container)
     DOTNET_USE_POLLING_FILE_WATCHER=true
 
-RUN <<EOF
+COPY <<-"EOF" /home/dark/install-dotnet8
+#!/bin/bash
+
+# Script to install dotnet 8
+
 set -e
 case ${TARGETARCH} in
   arm64)
@@ -451,6 +471,13 @@ sudo rm dotnet.tar.gz
 sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
 dotnet --help
 EOF
+
+RUN sudo dos2unix /home/dark/install-dotnet8
+
+RUN sudo chown dark:dark /home/dark/install-dotnet8
+RUN chmod +x /home/dark/install-dotnet8
+
+RUN /home/dark/install-dotnet8
 
 # formatting
 RUN dotnet tool install fantomas --version 6.2.3 -g
