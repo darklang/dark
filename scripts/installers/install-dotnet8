@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Script to install dotnet 8
+
+set -e
+case ${TARGETARCH} in
+  arm64)
+    ARCH=arm64
+    CHECKSUM=3296d2bc15cc433a0ca13c3da83b93a4e1ba00d4f9f626f5addc60e7e398a7acefa7d3df65273f3d0825df9786e029c89457aea1485507b98a4df2a1193cd765
+    ;;
+  amd64)
+    ARCH=x64
+    CHECKSUM=13905ea20191e70baeba50b0e9bbe5f752a7c34587878ee104744f9fb453bfe439994d38969722bdae7f60ee047d75dda8636f3ab62659450e9cd4024f38b2a5
+    ;;
+  *) exit 1;;
+esac
+curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-${ARCH}.tar.gz
+echo "$CHECKSUM dotnet.tar.gz" | sha512sum -c -
+sudo mkdir -p /usr/share/dotnet
+sudo tar -C /usr/share/dotnet -oxzf dotnet.tar.gz .
+sudo rm dotnet.tar.gz
+# Trigger first run experience by running arbitrary cmd
+sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
+dotnet --help

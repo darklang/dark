@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Script to install single files from tar.gz files, checking the sha
+
+set -euo pipefail
+
+for i in "$@" ; do
+  case "${i}" in
+    --arm64-sha256=*)
+    ARM64_SHA256=${1/--arm64-sha256=/''}
+    shift
+    ;;
+    --amd64-sha256=*)
+    AMD64_SHA256=${1/--amd64-sha256=/''}
+    shift
+    ;;
+    --url=*)
+    URL=${1/--url=/''}
+    shift
+    ;;
+    --target=*)
+    TARGET=${1/--target=/''}
+    shift
+    ;;
+  esac
+done
+DIR=$(echo $URL | sed 's/[^0-9A-Za-z]*//g')
+FILENAME=$(basename $URL)
+case $(dpkg --print-architecture) in
+  arm64) CHECKSUM=$ARM64_SHA256;;
+  amd64) CHECKSUM=$AMD64_SHA256;;
+  *) exit 1;;
+esac
+sudo curl -SL --output ${TARGET} $URL
+echo "$CHECKSUM ${TARGET}" | sha256sum -c -
+sudo chmod +x ${TARGET}
