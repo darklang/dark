@@ -143,8 +143,8 @@ commands:
 
   build-gcp-containers:
     steps:
-      - run: echo TODO
       - prep-container-creation
+      - run: ls -laR
       - run: ./scripts/deployment/new-build-containers.sh
 
   ##########################
