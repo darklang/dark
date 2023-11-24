@@ -215,6 +215,8 @@ RUN /home/dark/install-targz-file \
 ############################
 # Yugabyte
 ############################
+ENV YUGABYTE_VERSION=2.20.0.0 \
+  YUGABYTE_BUILD=b76
 
 RUN /home/dark/install-yugabyte
 
@@ -290,6 +292,8 @@ RUN /home/dark/install-exe-file \
 # https://github.com/dotnet/dotnet-docker/blob/master/src
 
 ENV DOTNET_SDK_VERSION=8.0.100 \
+    DOTNET_SDK_ARM64_CHECKSUM=3296d2bc15cc433a0ca13c3da83b93a4e1ba00d4f9f626f5addc60e7e398a7acefa7d3df65273f3d0825df9786e029c89457aea1485507b98a4df2a1193cd765 \
+    DOTNET_SDK_X64_CHECKSUM=13905ea20191e70baeba50b0e9bbe5f752a7c34587878ee104744f9fb453bfe439994d38969722bdae7f60ee047d75dda8636f3ab62659450e9cd4024f38b2a5 \
     # Skip extraction of XML docs - generally not useful within an
     # image/container - helps performance
     NUGET_XMLDOC_MODE=skip \
