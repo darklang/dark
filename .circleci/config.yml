@@ -143,7 +143,6 @@ commands:
 
   build-gcp-containers:
     steps:
-      - run: echo TODO
       - prep-container-creation
       - run: ./scripts/deployment/new-build-containers.sh
 
@@ -213,7 +212,7 @@ jobs:
           root: "."
           paths:
             # Just enough for deploy
-            - backend/Build/out/BwdServer/Release/net8.0/linux-x64/publish/BwdServer
+            - backend/Build/out/BwdServer/Release/net8.0/linux-x64/publish/
             # - backend/Build/out/QueueWorker/Release/net8.0/linux-x64/publish/QueueWorker
             # - backend/Build/out/CronChecker/Release/net8.0/linux-x64/publish/CronChecker
             - backend/Build/out/ProdExec/Release/net8.0/linux-x64/publish/ProdExec
