@@ -28,7 +28,7 @@ for i in "$@" ; do
     ;;
   esac
 done
-DIR=$(echo $URL | sed 's/[^0-9A-Za-z]*//g')
+DIR=${URL//[^0-9A-Za-z]/}
 FILENAME=$(basename $URL)
 case $(dpkg --print-architecture) in
   arm64) CHECKSUM=$ARM64_SHA256;;
