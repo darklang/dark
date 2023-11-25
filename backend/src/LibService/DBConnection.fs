@@ -4,7 +4,7 @@ open Npgsql
 open Npgsql.FSharp
 
 
-let connectionString () =
+let connectionString () : string =
   let sb = NpgsqlConnectionStringBuilder()
   sb.Host <- Config.pgHost
   sb.Port <- Config.pgPort
