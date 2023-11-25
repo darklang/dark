@@ -1,4 +1,7 @@
 resource "google_cloud_run_service" "bwdserver" {
+  lifecycle {
+    ignore_changes = [template[0].spec[0].containers[0].image]
+  }
   name     = "bwdserver"
   location = "us-central1"
 
@@ -25,12 +28,12 @@ resource "google_cloud_run_service" "bwdserver" {
           container_port = 11001
         }
         resources {
-          requests = {
-            "cpu"    = "2000m"
-            "memory" = "4000Mi"
-          }
+          # requests = {
+          #   "cpu"    = "2.0"
+          #   "memory" = "4000Mi"
+          # }
           limits = {
-            cpu    = "2000m"
+            cpu    = "2.0"
             memory = "6000Mi"
           }
         }
