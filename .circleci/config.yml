@@ -235,7 +235,7 @@ jobs:
       - run: scripts/linting/shellchecker
       # There are currently no yaml files
       # - run: scripts/linting/yamllinter
-      - run: cd tf && terraform validate
+      - run: cd tf && terraform init -backend=false && terraform validate
       - run: scripts/formatting/format check
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
