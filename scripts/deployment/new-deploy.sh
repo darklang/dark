@@ -6,4 +6,5 @@ set -euo pipefail
 set -x
 
 gcloud run services update bwdserver \
-   --image "us-central1-docker.pkg.dev/darklang-next/production-containers/bwdserver:$1"
+  --project darklang-next \
+  --image "us-central1-docker.pkg.dev/darklang-next/production-containers/bwdserver:$1"
