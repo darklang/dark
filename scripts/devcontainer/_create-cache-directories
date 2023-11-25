@@ -10,3 +10,6 @@ prepare () {
 prepare "backend/Build"
 prepare "/home/dark/.nuget"
 prepare "/home/dark/cloud-storage"
+prepare "/home/dark/yugabyte-data"
+prepare "parser/tree-sitter-darklang/build"
+prepare "parser/tree-sitter-darklang/node_modules"

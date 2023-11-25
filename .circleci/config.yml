@@ -187,11 +187,10 @@ jobs:
       - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
       - restore_cache:
           keys:
-            - v2-backend-{{ checksum "../checksum" }}
+            - v3-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For parser
-      # TODO: cache the parser artifacts -- only rebuild if grammar has changed since last build (or upon cache-miss)
       - run: ./scripts/build/build-parser
       # For tests
       - run: ./scripts/build/_dotnet-wrapper tool restore
@@ -221,7 +220,9 @@ jobs:
           paths:
             - backend/Build/obj
             - /home/dark/.nuget
-          key: v2-backend-{{ checksum "../checksum" }}
+            - parser/tree-sitter-darklang/node_modules
+            - parser/tree-sitter-darklang/build
+          key: v3-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
@@ -234,7 +235,7 @@ jobs:
       - run: scripts/linting/shellchecker
       # There are currently no yaml files
       # - run: scripts/linting/yamllinter
-      # LIGHTTODO check terraform
+      - run: cd tf && terraform validate
       - run: scripts/formatting/format check
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail

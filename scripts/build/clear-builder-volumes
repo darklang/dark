@@ -9,6 +9,8 @@ set -euo pipefail
 docker volume rm \
   dark_build \
   dark_nuget \
+  tree-sitter-build \
+  tree-sitter-node-modules \
   darklang-dark-extension-volume \
   darklang-dark-extension-volume-insiders \
   vscode
