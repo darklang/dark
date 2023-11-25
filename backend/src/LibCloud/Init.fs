@@ -29,15 +29,15 @@ let waitForDB () : Task<unit> =
         client.BeginConnect(
           LibService.Config.pgHost,
           LibService.Config.pgPort,
-          (fun _ -> printTime $"Connected ok to {url}"),
+          null,
           null
         )
-      let connected = connection.AsyncWaitHandle.WaitOne(5000)
-      if not connected then
+      client.EndConnect(connection)
+      let success = connection.AsyncWaitHandle.WaitOne(5000)
+      if not success then
         printTime $"Failed to connect to {url}"
       else
         printTime $"Got connected to {url}"
-        client.EndConnect(connection)
     with e ->
       Telemetry.addException [] e
       printTime $"Failed to get response from {url}: {e.Message} {e.StackTrace}"
