@@ -259,7 +259,7 @@ jobs:
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - build-gcp-containers
-      - run: scripts/deployment/save-image-digests.sh
+      - run: scripts/deployment/new-save-image-digests.sh
       - persist_to_workspace:
           root: "."
           paths: ["image-digests.json"]
