@@ -58,7 +58,6 @@ module TypeReference =
     match modules, name, typeArgs with
     // no type args
     | [], "Bool", [] -> WT.TBool
-    | [], "Bytes", [] -> WT.TBytes
     | [], "Int64", [] -> WT.TInt64
     | [], "UInt64", [] -> WT.TUInt64
     | [], "Int8", [] -> WT.TInt8

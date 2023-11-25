@@ -185,9 +185,6 @@
                   ]
                 },
                 {
-                  "TBytes": []
-                },
-                {
                   "TVariable": [
                     "test"
                   ]
@@ -376,9 +373,6 @@
                   }
                 ]
               ]
-            },
-            {
-              "TBytes": []
             },
             {
               "TVariable": [
@@ -794,9 +788,6 @@
                                                                 }
                                                               ]
                                                             ]
-                                                          },
-                                                          {
-                                                            "TBytes": []
                                                           },
                                                           {
                                                             "TVariable": [

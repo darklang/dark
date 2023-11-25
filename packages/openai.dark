@@ -283,7 +283,7 @@ module OpenAI =
           "GET"
           ("https://api.openai.com/v1/models/" ++ model)
           headers
-          Builtin.Bytes.empty
+          []
 
       match modelResponse with
       | Ok r ->
@@ -306,7 +306,7 @@ module OpenAI =
           "GET"
           "https://api.openai.com/v1/models"
           headers
-          Builtin.Bytes.empty
+          []
 
       match modelResponse with
       | Ok r ->

@@ -291,7 +291,6 @@ module TypeReference =
     | PT.TUuid -> ST.TUuid
     | PT.TCustomType(t, typeArgs) ->
       ST.TCustomType(NameResolution.toST TypeName.toST t, List.map toST typeArgs)
-    | PT.TBytes -> ST.TBytes
     | PT.TVariable(name) -> ST.TVariable(name)
     | PT.TFn(paramTypes, returnType) ->
       ST.TFn(paramTypes |> NEList.map toST |> NEList.toST, toST returnType)
@@ -322,7 +321,6 @@ module TypeReference =
     | ST.TUuid -> PT.TUuid
     | ST.TCustomType(t, typeArgs) ->
       PT.TCustomType(NameResolution.toPT TypeName.toPT t, List.map toPT typeArgs)
-    | ST.TBytes -> PT.TBytes
     | ST.TVariable(name) -> PT.TVariable(name)
     | ST.TFn(paramTypes, returnType) ->
       PT.TFn(paramTypes |> NEList.toPT |> NEList.map toPT, toPT returnType)

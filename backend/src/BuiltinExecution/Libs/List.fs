@@ -51,7 +51,6 @@ module DvalComparator =
     | DDB name1, DDB name2 -> compare name1 name2
     | DDateTime dt1, DDateTime dt2 -> compare dt1 dt2
     | DUuid u1, DUuid u2 -> compare u1 u2
-    | DBytes b1, DBytes b2 -> compare b1 b2
     | DDict(_vtTODO1, o1), DDict(_vtTODO2, o2) ->
       compareMaps (Map.toList o1) (Map.toList o2)
     | DRecord(tn1, _, _typeArgsTODO1, o1), DRecord(tn2, _, _typeArgsTODO2, o2) ->
@@ -88,7 +87,6 @@ module DvalComparator =
     | DDB _, _
     | DDateTime _, _
     | DUuid _, _
-    | DBytes _, _
     | DDict _, _
     | DRecord _, _
     | DEnum _, _ ->

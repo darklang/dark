@@ -400,7 +400,6 @@ type TypeReference =
   | TDateTime
   | TChar
   | TUuid
-  | TBytes
   // A named variable, eg `a` in `List<a>`, matches anything
   | TVariable of string
   | TFn of NEList<TypeReference> * TypeReference

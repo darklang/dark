@@ -148,7 +148,7 @@ let executeHandler
       let fields : List<string * RT.Dval> =
         [ "statusCode", RT.DInt64 500
           "headers", Dval.list (RT.KTTuple(VT.string, VT.string, [])) []
-          "body", RT.DBytes(UTF8.toBytes msg) ]
+          "body", (UTF8.toBytes msg) |> Dval.byteArrayToDvalList ]
 
       RT.DRecord(typeName, typeName, [], Map fields)
 

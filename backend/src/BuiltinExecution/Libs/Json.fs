@@ -166,10 +166,6 @@ let rec serialize
 
     | TUuid, DUuid uuid -> w.WriteStringValue(string uuid)
 
-    | TBytes, DBytes bytes ->
-      bytes |> Base64.defaultEncodeToString |> w.WriteStringValue
-
-
     // Nested types
     | TList ltype, DList(_, l) ->
       do! w.writeArray (fun () -> Ply.List.iterSequentially (r ltype) l)
@@ -278,7 +274,6 @@ let rec serialize
     | TChar, _
     | TString, _
     | TUuid, _
-    | TBytes, _
     | TDateTime, _
     | TList _, _
     | TTuple _, _
@@ -591,9 +586,6 @@ let parse
 
     | TString, JsonValueKind.String -> DString(j.GetString()) |> Ply
 
-    | TBytes, JsonValueKind.String ->
-      j.GetString() |> Base64.decodeFromString |> DBytes |> Ply
-
     | TUuid, JsonValueKind.String ->
       try
         DUuid(System.Guid(j.GetString())) |> Ply
@@ -790,7 +782,6 @@ let parse
     | TChar, _
     | TString, _
     | TUuid, _
-    | TBytes, _
     | TDateTime, _
     | TList _, _
     | TTuple _, _

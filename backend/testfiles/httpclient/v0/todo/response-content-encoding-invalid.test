@@ -15,4 +15,4 @@ Content-Encoding: not-valid
 "Hello back"
 
 [test]
-PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL/" [] Builtin.Bytes.empty = Error "Unrecognized or bad HTTP Content or Transfer-Encoding"
+PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL/" [] [] = Error "Unrecognized or bad HTTP Content or Transfer-Encoding"

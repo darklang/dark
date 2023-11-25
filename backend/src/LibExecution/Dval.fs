@@ -104,3 +104,18 @@ let result
   match dv with
   | Ok dv -> resultOk okType errorType dv
   | Error dv -> resultError okType errorType dv
+
+
+let byteArrayToDvalList (bytes : byte[]) : Dval =
+  bytes
+  |> Array.toList
+  |> List.map (fun b -> DUInt8(byte b))
+  |> fun dvalList -> DList(VT.uint8, dvalList)
+
+let DlistToByteArray (dvalList : List<Dval>) : byte[] =
+  dvalList
+  |> List.map (fun dval ->
+    match dval with
+    | DUInt8 b -> b
+    | _ -> (Exception.raiseInternal "Invalid type in byte list") [])
+  |> Array.ofList

@@ -405,7 +405,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
         [ Param.make "method" TString ""
           Param.make "uri" TString ""
           Param.make "headers" headersType ""
-          Param.make "body" TBytes "" ]
+          Param.make "body" (TList(TUInt8)) "" ]
       returnType =
         TypeReference.result
           (TCustomType(
@@ -441,7 +441,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
         (function
         | state,
           _,
-          [ DString method; DString uri; DList(_, reqHeaders); DBytes reqBody ] ->
+          [ DString method; DString uri; DList(_, reqHeaders); DList(_, reqBody) ] ->
           uply {
             let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
               reqHeaders
@@ -490,7 +490,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     { url = uri
                       method = method
                       headers = reqHeaders
-                      body = reqBody }
+                      body = Dval.DlistToByteArray reqBody }
 
                   let! response = makeRequest config httpClient request
 
@@ -516,7 +516,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     let fields =
                       [ ("statusCode", DInt64(int64 response.statusCode))
                         ("headers", responseHeaders)
-                        ("body", DBytes response.body) ]
+                        ("body", Dval.byteArrayToDvalList response.body) ]
 
                     return Ok(DRecord(typ, typ, [], Map fields) |> resultOk)
 

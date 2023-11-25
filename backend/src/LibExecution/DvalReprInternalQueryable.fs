@@ -112,8 +112,6 @@ let rec private toJsonV0
     | TChar, DChar c -> w.WriteStringValue c
     | TString, DString s -> w.WriteStringValue s
     | TUuid, DUuid uuid -> w.WriteStringValue(string uuid)
-    | TBytes, DBytes bytes ->
-      bytes |> Base64.defaultEncodeToString |> w.WriteStringValue
     | TDateTime, DDateTime date -> w.WriteStringValue(DarkDateTime.toIsoString date)
 
     // nested types
@@ -228,7 +226,6 @@ let rec private toJsonV0
     | TDateTime, _
     | TUuid, _
     | TTuple _, _
-    | TBytes, _
     | TDB _, _
     | TFn _, _ ->
       Exception.raiseInternal
@@ -388,7 +385,6 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 "Couldn't parse custom type"
                 [ "typeName", typeName; "valueKind", valueKind ]
       }
-    | TBytes, _ -> Exception.raiseInternal "Bytes values not supported yet" []
     | TFn _, _ -> Exception.raiseInternal "Fn values not supported" []
     | TDB _, _ -> Exception.raiseInternal "DB values not supported" []
     | TVariable _, _ -> Exception.raiseInternal "Variables not supported yet" []
@@ -453,7 +449,6 @@ module Test =
 
     // TODO support
     | DRecord _ // TYPESCLEANUP
-    | DBytes _
 
     // Maybe never support
     | DFnVal _

@@ -68,7 +68,6 @@ let rec preTraversal
     | TChar
     | TUuid
     | TDateTime
-    | TBytes
     | TVariable _
     | TString -> typeRef
     | TList tr -> TList(f tr)
@@ -209,7 +208,6 @@ let rec postTraversal
     | TChar
     | TUuid
     | TDateTime
-    | TBytes
     | TVariable _
     | TString -> typeRef
     | TList tr -> TList(f tr)
@@ -377,7 +375,6 @@ let rec postTraversalAsync
       | TChar
       | TUuid
       | TDateTime
-      | TBytes
       | TVariable _
       | TString -> return typeRef
       | TList tr ->

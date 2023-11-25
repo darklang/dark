@@ -143,7 +143,6 @@ module FormatV0 =
         | KTChar
         | KTString
         | KTUuid
-        | KTBytes
         | KTDateTime
 
         | KTList of ValueType
@@ -174,7 +173,6 @@ module FormatV0 =
         | KTChar -> RT.KTChar
         | KTString -> RT.KTString
         | KTUuid -> RT.KTUuid
-        | KTBytes -> RT.KTBytes
         | KTDateTime -> RT.KTDateTime
 
         | KTList vt -> RT.KTList(ValueType.toRT vt)
@@ -212,7 +210,6 @@ module FormatV0 =
         | RT.KTChar -> KTChar
         | RT.KTString -> KTString
         | RT.KTUuid -> KTUuid
-        | RT.KTBytes -> KTBytes
         | RT.KTDateTime -> KTDateTime
 
         | RT.KTList vt -> KTList(ValueType.fromRT vt)
@@ -279,7 +276,6 @@ module FormatV0 =
     | DDB of string
     | DDateTime of NodaTime.LocalDateTime
     | DUuid of System.Guid
-    | DBytes of byte array
     | DRecord of
       runtimeTypeName : TypeName.TypeName *
       sourceTypeName : TypeName.TypeName *
@@ -333,7 +329,6 @@ module FormatV0 =
         List.map ValueType.toRT typeArgs,
         Map.map toRT o
       )
-    | DBytes bytes -> RT.DBytes bytes
     | DEnum(typeName, original, typeArgs, caseName, fields) ->
       RT.DEnum(
         TypeName.toRT typeName,
@@ -377,7 +372,6 @@ module FormatV0 =
         List.map ValueType.fromRT typeArgs,
         Map.map fromRT o
       )
-    | RT.DBytes bytes -> DBytes bytes
     | RT.DEnum(typeName, original, typeArgs, caseName, fields) ->
       DEnum(
         TypeName.fromRT typeName,
@@ -424,7 +418,6 @@ module Test =
     | RT.DUnit
     | RT.DBool _
     | RT.DChar _
-    | RT.DBytes _
     | RT.DDateTime _ -> true
     | RT.DEnum(_typeName, _, _typeArgsDEnumTODO, _caseName, fields) ->
       List.all isRoundtrippableDval fields

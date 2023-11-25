@@ -345,7 +345,6 @@ module Darklang =
         | TString -> "String"
         | TDateTime -> "DateTime"
         | TUuid -> "Uuid"
-        | TBytes -> "Bytes"
 
         | TList inner ->
           $"List<{PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference inner}>"

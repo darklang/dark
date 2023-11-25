@@ -59,4 +59,4 @@ let _handler _req =
 let _handler _req =
   let key = Builtin.DB.generateKey_v0 ()
   let _ = Builtin.DB.set (Test { id = 1L; name = key }) key TestDB
-  PACKAGE.Darklang.Stdlib.Http.response Builtin.Bytes.empty 200L
+  PACKAGE.Darklang.Stdlib.Http.response [] 200L

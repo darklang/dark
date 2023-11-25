@@ -54,7 +54,6 @@ let rec equals (a : Dval) (b : Dval) : bool =
     | NamedFn _, _ -> false
   | DDateTime a, DDateTime b -> a = b
   | DUuid a, DUuid b -> a = b
-  | DBytes a, DBytes b -> a = b
   | DDB a, DDB b -> a = b
   | DEnum(a1, _, _typeArgsTODO1, a2, a3), DEnum(b1, _, _typeArgsTODO2, b2, b3) -> // these should be the fully resolved type
     a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 equals a3 b3
@@ -82,7 +81,6 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DFnVal _, _
   | DDateTime _, _
   | DUuid _, _
-  | DBytes _, _
   | DDB _, _
   | DEnum _, _ -> raiseString "Both values must be the same type"
 

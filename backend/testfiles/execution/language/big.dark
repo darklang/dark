@@ -4,7 +4,7 @@ module BigTestCase =
    let base64Encode = PACKAGE.Darklang.Stdlib.Base64.urlEncode_v0 bytes in
    let hexEncode = PACKAGE.Darklang.Stdlib.Bytes.hexEncode_v0 bytes in
    let sl = PACKAGE.Darklang.Stdlib.String.length str in
-   let bl = PACKAGE.Darklang.Stdlib.Bytes.length bytes in
+   let bl = PACKAGE.Darklang.Stdlib.List.length bytes in
    let t = true in
    let f = false in
 

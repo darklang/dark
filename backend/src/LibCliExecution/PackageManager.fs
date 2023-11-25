@@ -85,7 +85,6 @@ module ProgramTypes =
     | TString
     | TDateTime
     | TUuid
-    | TBytes
     | TList of TypeReference
     | TTuple of TypeReference * TypeReference * List<TypeReference>
     | TDict of TypeReference
@@ -458,7 +457,6 @@ module ExternalTypesToProgramTypes =
       | EPT.TUuid -> PT.TUuid
       | EPT.TCustomType(t, typeArgs) ->
         PT.TCustomType(NameResolution.toPT TypeName.toPT t, List.map toPT typeArgs)
-      | EPT.TBytes -> PT.TBytes
       | EPT.TVariable(name) -> PT.TVariable(name)
       | EPT.TFn(paramTypes, returnType) ->
         PT.TFn(NEList.map toPT paramTypes, toPT returnType)

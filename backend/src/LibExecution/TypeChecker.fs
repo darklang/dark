@@ -238,7 +238,6 @@ let rec valueTypeUnifies
     | TString, ValueType.Known KTString -> return true
     | TUuid, ValueType.Known KTUuid -> return true
     | TDateTime, ValueType.Known KTDateTime -> return true
-    | TBytes, ValueType.Known KTBytes -> return true
 
     | TList innerT, ValueType.Known(KTList innerV) -> return! r innerT innerV
 
@@ -325,7 +324,6 @@ let rec unify
       | TDateTime, DDateTime _ -> return Ok()
       | TUuid, DUuid _ -> return Ok()
       | TChar, DChar _ -> return Ok()
-      | TBytes, DBytes _ -> return Ok()
       | TDB _, DDB _ -> return Ok() // TODO: check DB type
       | TList expected, DList(actual, _dvs) ->
         match! valueTypeUnifies tst expected actual with
@@ -482,8 +480,7 @@ let rec unify
       | TFn _, _
       | TUuid, _
       | TChar, _
-      | TDB _, _
-      | TBytes, _ ->
+      | TDB _, _ ->
         return
           ValueNotExpectedType(value, expected, context)
           |> Error.toRuntimeError

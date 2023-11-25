@@ -18,6 +18,7 @@ module Interpreter = LibExecution.Interpreter
 
 open LibCloud
 
+
 let builtins : LibExecution.Builtin.Contents =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.contents HttpClient.configuration
@@ -147,7 +148,7 @@ let executeHandler
         [ ("statusCode", RT.DInt64 500)
           ("headers",
            [] |> Dval.list (RT.KTTuple(RT.ValueType.string, RT.ValueType.string, [])))
-          ("body", RT.DBytes(msg |> UTF8.toBytes)) ]
+          ("body", msg |> UTF8.toBytes |> Dval.byteArrayToDvalList) ]
 
       RT.DRecord(typeName, typeName, [], Map fields)
 

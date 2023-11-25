@@ -13,7 +13,7 @@ Content-Length: 0
 
 [test]
 (let reqHeaders = [("Content-type", "application/x-www-form-urlencoded")]
- let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL" reqHeaders Builtin.Bytes.empty) |> Builtin.unwrap
+ let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL" reqHeaders []) |> Builtin.unwrap
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    PACKAGE.Darklang.Stdlib.HttpClient.Response
@@ -24,4 +24,4 @@ Content-Length: 0
           ("transfer-encoding", "chunked")
           ("content-type", "application/x-www-form-urlencoded; charset=utf-8")
         ]
-      body = Builtin.Bytes.empty }
+      body = [] }

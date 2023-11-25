@@ -75,27 +75,15 @@ module NoInternal =
 // Tests that try to make requests to the internet
 
 // basic requests work
-(((PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "https://example.com"
-    []
-    Builtin.Bytes.empty))
+(((PACKAGE.Darklang.Stdlib.HttpClient.request "get" "https://example.com" [] []))
  |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   200L
 
-(((PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://example.com"
-    []
-    Builtin.Bytes.empty))
+(((PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://example.com" [] []))
  |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   200L
 
-PACKAGE.Darklang.Stdlib.HttpClient.request
-  "get"
-  "https://darklang.com"
-  [ 1L ]
-  Builtin.Bytes.empty = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.HttpClient.request "get" "https://darklang.com" [ 1L ] [] = Builtin.Test.derrorMessage
   "PACKAGE.Darklang.Stdlib.HttpClient.request's 3rd argument (`headers`) should be a List<(String * String)>. However, a List<Int64> ([  1]) was passed instead.
 
 Expected: (headers: List<(String * String)>)
@@ -105,7 +93,7 @@ PACKAGE.Darklang.Stdlib.HttpClient.request
   "get"
   "https://darklang.com"
   [ ("", "") ]
-  Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+  [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
   PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadHeader(
     PACKAGE.Darklang.Stdlib.HttpClient.BadHeader.EmptyKey
   )
@@ -113,63 +101,63 @@ PACKAGE.Darklang.Stdlib.HttpClient.request
 
 
 // type errors for bad `method` are OK
-PACKAGE.Darklang.Stdlib.HttpClient.request
-  ""
-  "https://darklang.com"
-  []
-  Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-  PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadMethod
-)
+PACKAGE.Darklang.Stdlib.HttpClient.request "" "https://darklang.com" [] [] = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Error(PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadMethod)
 
-PACKAGE.Darklang.Stdlib.HttpClient.request
-  " get "
-  "https://darklang.com"
-  []
-  Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-  PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadMethod
-)
+PACKAGE.Darklang.Stdlib.HttpClient.request " get " "https://darklang.com" [] [] = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Error(PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadMethod)
 
-PACKAGE.Darklang.Stdlib.HttpClient.request
-  "🇵🇷"
-  "https://darklang.com"
-  []
-  Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-  PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadMethod
-)
+PACKAGE.Darklang.Stdlib.HttpClient.request "🇵🇷" "https://darklang.com" [] [] = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Error(PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadMethod)
 
 // unsupported protocols
-PACKAGE.Darklang.Stdlib.HttpClient.request
-  "get"
-  "ftp://darklang.com"
-  []
-  Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-  PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
-    PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.UnsupportedProtocol
+PACKAGE.Darklang.Stdlib.HttpClient.request "get" "ftp://darklang.com" [] [] = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Error(
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.UnsupportedProtocol
+    )
   )
-)
 
-PACKAGE.Darklang.Stdlib.HttpClient.request
-  "put"
-  "file:///etc/passwd"
-  []
-  Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-  PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
-    PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.UnsupportedProtocol
+PACKAGE.Darklang.Stdlib.HttpClient.request "put" "file:///etc/passwd" [] [] = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Error(
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.UnsupportedProtocol
+    )
   )
-)
 
-PACKAGE.Darklang.Stdlib.HttpClient.request
-  "put"
-  "/just-a-path"
-  []
-  Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-  PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
-    PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.UnsupportedProtocol
+PACKAGE.Darklang.Stdlib.HttpClient.request "put" "/just-a-path" [] [] = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Error(
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.UnsupportedProtocol
+    )
   )
-)
 
 // totally bogus URLs
-PACKAGE.Darklang.Stdlib.HttpClient.request "get" "" [] Builtin.Bytes.empty = PACKAGE
+PACKAGE.Darklang.Stdlib.HttpClient.request "get" "" [] [] = PACKAGE
   .Darklang
   .Stdlib
   .Result
@@ -181,39 +169,40 @@ PACKAGE.Darklang.Stdlib.HttpClient.request "get" "" [] Builtin.Bytes.empty = PAC
   )
 
 
-PACKAGE.Darklang.Stdlib.HttpClient.request
-  "post"
-  "{ ] nonsense ^#( :"
-  []
-  Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-  PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
-    PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidUri
+PACKAGE.Darklang.Stdlib.HttpClient.request "post" "{ ] nonsense ^#( :" [] [] = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Error(
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidUri
+    )
   )
-)
 
 // URLs we can't actually communicate with
-PACKAGE.Darklang.Stdlib.HttpClient.request
-  "get"
-  "http://google.com:79"
-  []
-  Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-  PACKAGE.Darklang.Stdlib.HttpClient.RequestError.Timeout
-)
+PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://google.com:79" [] [] = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Result
+  .Error(PACKAGE.Darklang.Stdlib.HttpClient.RequestError.Timeout)
 
 // Check for banned urls in the host name
 module Disallowed =
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://0.0.0.0"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
-      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://0.0.0.0" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(
+      PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+        PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+      )
     )
-  )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://0" [] Builtin.Bytes.empty = PACKAGE
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://0" [] [] = PACKAGE
     .Darklang
     .Stdlib
     .Result
@@ -227,17 +216,7 @@ module Disallowed =
 // Check for banned urls in the host name
 module Disallowed =
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://0.0.0.0"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
-      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
-    )
-  )
-
-  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://0" [] Builtin.Bytes.empty = PACKAGE
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://0.0.0.0" [] [] = PACKAGE
     .Darklang
     .Stdlib
     .Result
@@ -248,15 +227,25 @@ module Disallowed =
       )
     )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://[0:0:0:0:0:0:0:0]"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
-  )
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://0" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(
+      PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+        PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+      )
+    )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "localhost" [] Builtin.Bytes.empty = PACKAGE
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://[0:0:0:0:0:0:0:0]" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError)
+
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "localhost" [] [] = PACKAGE
     .Darklang
     .Stdlib
     .Result
@@ -267,73 +256,73 @@ module Disallowed =
       )
     )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://localhost"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
-      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://localhost" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(
+      PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+        PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+      )
     )
-  )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://127.0.0.1"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
-      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://127.0.0.1" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(
+      PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+        PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+      )
     )
-  )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://[::1]"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
-  )
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://[::1]" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError)
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://[0:0:0:0:0:0:0:1]"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
-  )
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://[0:0:0:0:0:0:0:1]" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError)
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
     "get"
     "http://[0000:0000:0000:0000:0000:0000:0000:0001]"
     []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://127.0.0.17"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
-      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://127.0.0.17" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(
+      PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+        PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+      )
     )
-  )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://[::ffff:7f00:11]"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
-  )
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://[::ffff:7f00:11]" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError)
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
     "get"
     "http://[0:0:0:0:0:ffff:7f00:0011]"
     []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
@@ -341,64 +330,66 @@ module Disallowed =
     "get"
     "http://[0000:0000:0000:0000:0000:ffff:7f00:0011]"
     []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://127.255.174.17"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
-      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://127.255.174.17" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(
+      PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+        PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+      )
     )
-  )
 
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
     "get"
     "http://metadata.google.internal"
     []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
       PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
     )
   )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://metadata"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
-      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://metadata" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(
+      PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+        PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+      )
     )
-  )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://169.254.169.254"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
-      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://169.254.169.254" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(
+      PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+        PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+      )
     )
-  )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://[::ffff:a9fe:a9fe]"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
-  )
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://[::ffff:a9fe:a9fe]" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError)
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
     "get"
     "http://[0:0:0:0:0:ffff:a9fe:a9fe]"
     []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
@@ -406,43 +397,44 @@ module Disallowed =
     "get"
     "http://[0000:0000:0000:0000:0000:ffff:a9fe:a9fe]"
     []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://169.254.0.0"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
-      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://169.254.0.0" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(
+      PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+        PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+      )
     )
-  )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://172.16.0.1"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
-      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://172.16.0.1" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(
+      PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+        PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+      )
     )
-  )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://[::ffff:ac10:1]"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
-  )
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://[::ffff:ac10:1]" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError)
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
     "get"
     "http://[0:0:0:0:0:ffff:ac10:0001]"
     []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
@@ -450,33 +442,33 @@ module Disallowed =
     "get"
     "http://[0000:0000:0000:0000:0000:ffff:ac10:0001]"
     []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://192.168.1.1"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
-      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://192.168.1.1" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(
+      PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+        PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+      )
     )
-  )
 
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://[::ffff:c0a8:101]"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
-  )
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://[::ffff:c0a8:101]" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError)
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
     "get"
     "http://[0:0:0:0:0:ffff:c0a8:0101]"
     []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
@@ -484,34 +476,32 @@ module Disallowed =
     "get"
     "http://[0000:0000:0000:0000:0000:ffff:c0a8:0101]"
     []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
   // Check for sneaky banned urls - blocked via connection callback
   // 127.0.0.1
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://localtest.me"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
-  )
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://localtest.me" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError)
   // 0.0.0.0
-  PACKAGE.Darklang.Stdlib.HttpClient.request
-    "get"
-    "http://c.cx"
-    []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
-  )
+  PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://c.cx" [] [] = PACKAGE
+    .Darklang
+    .Stdlib
+    .Result
+    .Result
+    .Error(PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError)
 
   // invalid headers
   PACKAGE.Darklang.Stdlib.HttpClient.request
     "get"
     "http://google.com"
     [ ("Metadata-Flavor", "Google") ]
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
       PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidRequest
     )
@@ -521,7 +511,7 @@ module Disallowed =
     "get"
     "http://google.com"
     [ ("metadata-flavor", "Google") ]
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
       PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidRequest
     )
@@ -531,7 +521,7 @@ module Disallowed =
     "get"
     "http://google.com"
     [ ("Metadata-Flavor", "google") ]
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
       PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidRequest
     )
@@ -541,7 +531,7 @@ module Disallowed =
     "get"
     "http://google.com"
     [ ("Metadata-Flavor", " Google ") ]
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
       PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidRequest
     )
@@ -551,7 +541,7 @@ module Disallowed =
     "get"
     "http://google.com"
     [ ("X-Google-Metadata-Request", " True ") ]
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
       PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidRequest
     )
@@ -561,7 +551,7 @@ module Disallowed =
     "get"
     "http://google.com"
     [ (" x-Google-metaData-Request", " True ") ]
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
       PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidRequest
     )
@@ -572,7 +562,7 @@ module BadSSL =
     "get"
     "http://thenonexistingurlforsure.com"
     []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 
@@ -580,7 +570,7 @@ module BadSSL =
     "get"
     "https://self-signed.badssl.com"
     []
-    Builtin.Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error(
+    [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
     PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
   )
 

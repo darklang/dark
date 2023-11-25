@@ -11,6 +11,7 @@ module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
 module Telemetry = LibService.Telemetry
 
+
 let lowercaseHeaderKeys (headers : List<string * string>) : List<string * string> =
   headers |> List.map (fun (k, v) -> (String.toLowercase k, v))
 
@@ -32,7 +33,9 @@ module Request =
       |> Dval.list headerType
 
     let fields =
-      [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]
+      [ "body", Dval.byteArrayToDvalList body
+        "headers", headers
+        "url", RT.DString uri ]
     RT.DRecord(typ, typ, [], Map fields)
 
 
@@ -57,7 +60,7 @@ module Response =
       let body = Map.get "body" fields
 
       match code, headers, body with
-      | Some(RT.DInt64 code), Some(RT.DList(_, headers)), Some(RT.DBytes body) ->
+      | Some(RT.DInt64 code), Some(RT.DList(_, headers)), Some(RT.DList(_, body)) ->
         let headers =
           headers
           |> List.fold
@@ -74,7 +77,7 @@ module Response =
         | Ok headers ->
           { statusCode = int code
             headers = lowercaseHeaderKeys headers
-            body = body }
+            body = body |> Dval.DlistToByteArray }
         | Error msg ->
           { statusCode = 500
             headers = [ "Content-Type", "text/plain; charset=utf-8" ]

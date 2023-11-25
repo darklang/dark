@@ -3,7 +3,7 @@ let _handler _req =
   let body =
 
     (Experiments.readFromStaticDir $"{path}")
-    |> PACKAGE.Darklang.Stdlib.Result.withDefault Builtin.Bytes.empty
+    |> PACKAGE.Darklang.Stdlib.Result.withDefault []
 
   let contentType =
     match

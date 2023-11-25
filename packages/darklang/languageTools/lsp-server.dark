@@ -28,7 +28,7 @@ module Darklang =
         let contentLengthInBytes =
           response
           |> Stdlib.String.toBytes_v0
-          |> Stdlib.Bytes.length
+          |> Stdlib.List.length
           |> Stdlib.Int64.toString
 
         Builtin.print $"Content-Length: {contentLengthInBytes}\r\n\r\n{response}"

@@ -15,7 +15,7 @@ module Darklang =
           "GET"
           "http://dark-packages.dlio.localhost:11003/functions/"
           []
-          Builtin.Bytes.empty
+          []
 
       let statusCode =
         fns
@@ -67,7 +67,7 @@ module Darklang =
           "GET"
           "http://dark-packages.dlio.localhost:11003/types/"
           []
-          Builtin.Bytes.empty
+          []
 
       let statusCode =
         types
@@ -118,7 +118,7 @@ module Darklang =
           "GET"
           "http://dark-packages.dlio.localhost:11003/constants/"
           []
-          Builtin.Bytes.empty
+          []
 
       let statusCode =
         constants
@@ -172,7 +172,7 @@ module Darklang =
           "GET"
           ("http://dark-packages.dlio.localhost:11003/modules/" ++ name)
           []
-          Builtin.Bytes.empty
+          []
 
       let statusCode =
         modules
@@ -215,7 +215,7 @@ module Darklang =
           "GET"
           $"http://dark-packages.dlio.localhost:11003/owner/{owner}"
           []
-          Builtin.Bytes.empty
+          []
 
       let statusCode =
         packages
@@ -359,7 +359,7 @@ Options:
             "GET"
             $"http://dark-packages.dlio.localhost:11003/category/{fullName}"
             []
-            Builtin.Bytes.empty
+            []
 
         let statusCode =
           categoryRequest

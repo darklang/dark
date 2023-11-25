@@ -217,28 +217,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "asBytes" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList TInt64) "" ]
-      returnType = TBytes
-      description = "Turns a list of ints into bytes"
-      fn =
-        (function
-        | _, _, [ DList(_, l) ] ->
-          l
-          |> List.map (fun x ->
-            match x with
-            | DInt64 x -> byte x
-            | _ -> incorrectArgs ())
-          |> Array.ofList
-          |> DBytes
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "raiseException" 0
       typeParams = []
       parameters = [ Param.make "message" TString "" ]
@@ -247,29 +225,6 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString message ] -> raise (System.Exception(message))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "intArrayToBytes" 0
-      typeParams = []
-      parameters = [ Param.make "bytes" (TList TInt64) "" ]
-      returnType = TBytes
-      description = "Create a bytes structure from an array of ints"
-      fn =
-        (function
-        | _, _, [ DList(_, bytes) ] ->
-          bytes
-          |> List.toArray
-          |> Array.map (fun dval ->
-            match dval with
-            | DInt64 i -> byte i
-            | other -> raiseString $"Expected int, got {other}")
-          |> DBytes
-          |> Ply
-
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

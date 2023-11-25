@@ -15,7 +15,7 @@ Hello back
 
 [test]
 (let reqHeaders = [("Content-Type", "application/json; charset=invalid")]
- let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL" reqHeaders Builtin.Bytes.empty) |> Builtin.unwrap
+ let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL" reqHeaders []) |> Builtin.unwrap
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    PACKAGE.Darklang.Stdlib.HttpClient.Response

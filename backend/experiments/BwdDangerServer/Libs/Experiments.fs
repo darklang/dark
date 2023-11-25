@@ -80,6 +80,7 @@ let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 let fn = fn [ "Experiments" ]
 
+
 let fns : List<BuiltInFn> =
   [ { name = fn "parseAndSerializeProgram" 0
       typeParams = []
@@ -125,12 +126,12 @@ let fns : List<BuiltInFn> =
     { name = fn "readFromStaticDir" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
-      returnType = TypeReference.result TBytes TString
+      returnType = TypeReference.result (TList(TUInt8)) TString
       description =
         "Reads a file at backend/static/<param path>, and returns its contents as Bytes wrapped in a Result"
       fn =
-        let resultOk = Dval.resultOk KTBytes KTString
-        let resultError = Dval.resultError KTBytes KTString
+        let resultOk = Dval.resultOk (KTList(ValueType.Known KTUInt8)) KTString
+        let resultError = Dval.resultError (KTList(ValueType.Known KTUInt8)) KTString
         (function
         | _, _, [ DString path ] ->
           uply {
@@ -139,7 +140,7 @@ let fns : List<BuiltInFn> =
                 RestrictedFileIO.readfileBytes
                   RestrictedFileIO.Config.BackendStatic
                   path
-              return DBytes contents |> resultOk
+              return resultOk (Dval.byteArrayToDvalList contents)
             with e ->
               return DString($"Error reading file: {e.Message}") |> resultError
           }
@@ -152,12 +153,12 @@ let fns : List<BuiltInFn> =
     { name = fn "readFromCanvases" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
-      returnType = TypeReference.result TBytes TString
+      returnType = TypeReference.result (TList(TUInt8)) TString
       description =
         "Reads a file at canvases/<param path>, and returns its contents as Bytes wrapped in a Result"
       fn =
-        let resultOk = Dval.resultOk KTBytes KTString
-        let resultError = Dval.resultError KTBytes KTString
+        let resultOk = Dval.resultOk (KTList(ValueType.Known KTUInt8)) KTString
+        let resultError = Dval.resultError (KTList(ValueType.Known KTUInt8)) KTString
         (function
         | _, _, [ DString path ] ->
           try
@@ -165,7 +166,7 @@ let fns : List<BuiltInFn> =
               RestrictedFileIO.readfileBytes
                 RestrictedFileIO.Config.CanvasesFiles
                 path
-            resultOk (DBytes contents) |> Ply
+            resultOk (Dval.byteArrayToDvalList contents) |> Ply
           with e ->
             resultError (DString($"Error reading file: {e.Message}")) |> Ply
         | _ -> incorrectArgs ())

@@ -30,9 +30,7 @@ let openAIcompletion
   let apiKey =
     let url = "http://dark-editor.dlio.localhost:11003/openai-apikey-yikes"
 
-    match
-      PACKAGE.Darklang.Stdlib.HttpClient.request "get" url [] Builtin.Bytes.empty
-    with
+    match PACKAGE.Darklang.Stdlib.HttpClient.request "get" url [] [] with
     | Ok response ->
       response.body |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
 
@@ -181,7 +179,7 @@ let update (model: Model) (msg: Msg) : Model =
         "get"
         "http://dark-editor.dlio.localhost:11003/system-prompt"
         []
-        Builtin.Bytes.empty
+        []
 
     match systemPrompt with
     | Ok response ->
@@ -209,7 +207,7 @@ let update (model: Model) (msg: Msg) : Model =
         "get"
         "http://dark-editor.dlio.localhost:11003/task-creation-prompt"
         []
-        Builtin.Bytes.empty)
+        [])
       |> Builtin.unwrap
       |> (fun r -> r.body)
       |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
@@ -441,7 +439,7 @@ let init () : Model =
           "GET"
           "http://dark-editor.dlio.localhost:11003/all-canvas-functions"
           []
-          Builtin.Bytes.empty
+          []
 
       match response with
       | Ok response ->
@@ -460,7 +458,7 @@ let init () : Model =
           "GET"
           "http://dark-editor.dlio.localhost:11003/all-canvas-types"
           []
-          Builtin.Bytes.empty
+          []
 
       match response with
       | Ok response ->

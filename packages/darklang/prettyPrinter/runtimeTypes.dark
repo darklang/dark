@@ -193,7 +193,6 @@ module Darklang =
         | TChar -> "Char"
         | TString -> "String"
         | TUuid -> "Uuid"
-        | TBytes -> "Bytes"
         | TDateTime -> "DateTime"
 
         | TList inner -> $"List<{typeReference inner}>"
@@ -256,7 +255,6 @@ module Darklang =
         | KTString -> "String"
         | KTDateTime -> "DateTime"
         | KTUuid -> "Uuid"
-        | KTBytes -> "Bytes"
 
         | KTList typ -> $"List<{valueType typ}>"
         | KTDict typ -> $"Dict<{valueType typ}>"
@@ -341,10 +339,6 @@ module Darklang =
 
           | DDateTime d ->
             $"<{valueTypeName}: {PACKAGE.Darklang.Stdlib.DateTime.toString d}>"
-
-          | DBytes bytes ->
-            //Base64.defaultEncodeToString bytes
-            "<Bytes>"
 
           | DUuid uuid ->
             $"<{valueTypeName}: {PACKAGE.Darklang.Stdlib.Uuid.toString uuid}>"

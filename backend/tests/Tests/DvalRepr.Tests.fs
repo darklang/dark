@@ -117,8 +117,12 @@ module ToHashableRepr =
 
     testList
       "hashv2"
-      [ t (NEList.singleton (DBytes [||])) "X1YnxJLFsVg"
-        t (NEList.singleton (DBytes [| 128uy |])) "Hj0nqyrvXis" ]
+      [ t (NEList.singleton (DList(VT.uint8, []))) "DEux3mJnJPs"
+        t
+          (NEList.singleton (
+            DList(VT.uint8, List.map (fun i -> DUInt8(uint8 i)) [ 128uy ])
+          ))
+          "cE2FaQ8GKZU" ]
 
   let tests = testList "hashing" [ testHashV2 ]
 

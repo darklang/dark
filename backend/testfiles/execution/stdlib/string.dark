@@ -49,45 +49,45 @@ module Join =
   PACKAGE.Darklang.Stdlib.String.join_v0 [ "🧑🏽‍🦰‍"; "🧑🏼‍💻‍‍" ] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
 
 module ToBytes =
-  PACKAGE.Darklang.Stdlib.Bytes.length (
+  PACKAGE.Darklang.Stdlib.List.length (
     PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿"
   ) = 62L
 
-  PACKAGE.Darklang.Stdlib.Bytes.length (
+  PACKAGE.Darklang.Stdlib.List.length (
     PACKAGE.Darklang.Stdlib.String.toBytes_v0 "😄APPLE🍏"
   ) = 13L
 
-  PACKAGE.Darklang.Stdlib.Bytes.length (
+  PACKAGE.Darklang.Stdlib.List.length (
     PACKAGE.Darklang.Stdlib.String.toBytes_v0 "Είναι προικισμένοι με λογική"
   ) = 53L
 
-  PACKAGE.Darklang.Stdlib.Bytes.length (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "") = 0L
+  PACKAGE.Darklang.Stdlib.List.length (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "") = 0L
 
-  PACKAGE.Darklang.Stdlib.Bytes.length (
+  PACKAGE.Darklang.Stdlib.List.length (
     PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿"
   ) = 62L
 
-  PACKAGE.Darklang.Stdlib.Bytes.length (
+  PACKAGE.Darklang.Stdlib.List.length (
     PACKAGE.Darklang.Stdlib.String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
   ) = 48L
 
-  PACKAGE.Darklang.Stdlib.Bytes.length (
+  PACKAGE.Darklang.Stdlib.List.length (
     PACKAGE.Darklang.Stdlib.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
   ) = 44L
 
-  PACKAGE.Darklang.Stdlib.Bytes.length (
+  PACKAGE.Darklang.Stdlib.List.length (
     PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧟‍♀️🧟‍♂️"
   ) = 26L
 
-  PACKAGE.Darklang.Stdlib.Bytes.length (
+  PACKAGE.Darklang.Stdlib.List.length (
     PACKAGE.Darklang.Stdlib.String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
   ) = 82L
 
-  PACKAGE.Darklang.Stdlib.Bytes.length (
+  PACKAGE.Darklang.Stdlib.List.length (
     PACKAGE.Darklang.Stdlib.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
   ) = 49L
 
-  PACKAGE.Darklang.Stdlib.Bytes.length (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "") = 0L
+  PACKAGE.Darklang.Stdlib.List.length (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "") = 0L
 
 
 module FromBytesWithReplacement =
