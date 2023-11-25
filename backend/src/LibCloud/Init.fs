@@ -58,6 +58,7 @@ let waitForDB () : Task<unit> =
         success <- true
       with e ->
         Telemetry.addException [] e
+        printTime $"Failed to connect to DB: {e.Message} {e.StackTrace}"
         do! Task.Delay 10
     return ()
   }
