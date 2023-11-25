@@ -22,8 +22,8 @@ let waitForDB () : Task<unit> =
       use (_span : Telemetry.Span.T) = Telemetry.child "iteration" [ "count", count ]
       try
         let cs = LibService.DBConnection.connectionString ()
-        let cs = FsRegEx.replace "password=.*;" "password=***;" cs
-        let cs = FsRegEx.replace "Password=.*;" "Password=***;" cs
+        let cs = FsRegEx.replace "password=.*?;" "password=***;" cs
+        let cs = FsRegEx.replace "Password=.*?;" "Password=***;" cs
         printTime $"Trying to connect to DB ({count} - {cs})"
         count <- count + 1
         do!
