@@ -259,11 +259,10 @@ jobs:
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - build-gcp-containers
-      # LIGHTTODO re-enable
-      # - persist_to_workspace:
-      #     root: "."
-      #     paths: ["gcr-image-ids.json"]
-      # LIGHTTODO push containers
+      - run: docker image ls bwdserver:latest -q > bwdserver-image-id
+      - persist_to_workspace:
+          root: "."
+          paths: ["bwdserver-image-id"]
       - run: scripts/deployment/new-push-containers.sh
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
@@ -298,17 +297,14 @@ jobs:
   deploy:
     executor: in-container
     steps:
-      - run: echo TODO
-      # LIGHTTODO
       - darkcheckout
       - setup-app
       - auth-with-gcp: { background: false }
-      # - attach_workspace: { at: "." }
+      - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      # LIGHTTODO
       # # deploy lock is removed as part of the gke-deploy script
       - run: ./scripts/deployment/deploy-lock-one-remove
-      # # - run: scripts/deployment/gke-deploy --manifest=gcr-image-ids.json
+      - run: ./scripts/deployment/new-deploy $(cat bwdserver-image-id)
       - slack-notify-deploy
       - deploy-lock-remove-on-fail
 
