@@ -1345,13 +1345,13 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("character", DChar "s", TChar)
     ("bytes",
      ((System.Convert.FromBase64String "JyIoXCg=") |> Dval.byteArrayToDvalList),
-     (TList(TUInt8)))
+     (TList TUInt8))
     // use image bytes here to test for any weird bytes forms
     ("bytes2",
      // TODO: deeply nested data
      (LibCloud.File.readfileBytes LibCloud.Config.Testdata "sample_image_bytes.png")
      |> Dval.byteArrayToDvalList,
-     (TList(TUInt8)))
+     (TList TUInt8))
     ("simple2Tuple",
      DTuple(Dval.int64 1, Dval.int64 2, []),
      TTuple(TInt64, TInt64, []))

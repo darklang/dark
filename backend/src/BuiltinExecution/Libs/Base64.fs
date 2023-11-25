@@ -22,7 +22,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "decode" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TypeReference.result (TList(TUInt8)) TString
+      returnType = TypeReference.result (TList TUInt8) TString
       description =
         "Base64 decodes a string. Works with both the URL-safe and standard Base64
          alphabets defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
@@ -67,7 +67,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "encode" 0
       typeParams = []
-      parameters = [ Param.make "bytes" (TList(TUInt8)) "" ]
+      parameters = [ Param.make "bytes" (TList TUInt8) "" ]
       returnType = TString
       description =
         "Base64 encodes <param bytes> with {{=}} padding. Uses the standard
@@ -86,7 +86,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "urlEncode" 0
       typeParams = []
-      parameters = [ Param.make "bytes" (TList(TUInt8)) "" ]
+      parameters = [ Param.make "bytes" (TList TUInt8) "" ]
       returnType = TString
       description =
         "Base64URL encodes <param bytes> with {{=}} padding. Uses URL-safe encoding

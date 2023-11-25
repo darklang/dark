@@ -24,8 +24,8 @@ let fn = fn [ "Crypto" ]
 let fns : List<BuiltInFn> =
   [ { name = fn "sha256" 0
       typeParams = []
-      parameters = [ Param.make "data" (TList(TUInt8)) "" ]
-      returnType = (TList(TUInt8))
+      parameters = [ Param.make "data" (TList TUInt8) "" ]
+      returnType = TList TUInt8
       description = "Computes the SHA-256 digest of the given <param data>"
       fn =
         (function
@@ -41,8 +41,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "sha384" 0
       typeParams = []
-      parameters = [ Param.make "data" (TList(TUInt8)) "" ]
-      returnType = (TList(TUInt8))
+      parameters = [ Param.make "data" (TList TUInt8) "" ]
+      returnType = (TList TUInt8)
       description = "Computes the SHA-384 digest of the given <param data>"
       fn =
         (function
@@ -58,8 +58,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "md5" 0
       typeParams = []
-      parameters = [ Param.make "data" (TList(TUInt8)) "" ]
-      returnType = (TList(TUInt8))
+      parameters = [ Param.make "data" (TList TUInt8) "" ]
+      returnType = (TList TUInt8)
       description =
         "Computes the md5 digest of the given <param data>. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security"
       fn =
@@ -77,8 +77,8 @@ let fns : List<BuiltInFn> =
     { name = fn "sha256hmac" 0
       typeParams = []
       parameters =
-        [ Param.make "key" (TList(TUInt8)) ""; Param.make "data" (TList(TUInt8)) "" ]
-      returnType = (TList(TUInt8))
+        [ Param.make "key" (TList TUInt8) ""; Param.make "data" (TList TUInt8) "" ]
+      returnType = (TList TUInt8)
       description =
         "Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given <param key> and <param data>."
       fn =
@@ -98,8 +98,8 @@ let fns : List<BuiltInFn> =
     { name = fn "sha1hmac" 0
       typeParams = []
       parameters =
-        [ Param.make "key" (TList(TUInt8)) ""; Param.make "data" (TList(TUInt8)) "" ]
-      returnType = (TList(TUInt8))
+        [ Param.make "key" (TList TUInt8) ""; Param.make "data" (TList TUInt8) "" ]
+      returnType = (TList TUInt8)
       description =
         "Computes the SHA1-HMAC (hash-based message authentication code) digest of the given <param key> and <param data>."
       fn =
