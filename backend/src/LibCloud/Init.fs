@@ -17,6 +17,31 @@ let waitForDB () : Task<unit> =
     use (_span : Telemetry.Span.T) = Telemetry.createRoot "wait for db"
     let mutable success = false
     let mutable count = 0
+    // get the id of the host to check it resolves
+    LibService.Config.pgHost
+    |> System.Net.Dns.GetHostAddresses
+    |> Seq.iter (fun ip -> printTime $"IP is ip {ip}")
+    // check it's reachable - using a method which works across vpcs on google cloud
+    let url = $"{LibService.Config.pgHost}:{LibService.Config.pgPort}"
+    try
+      let client = new System.Net.Sockets.TcpClient()
+      let connection =
+        client.BeginConnect(
+          LibService.Config.pgHost,
+          LibService.Config.pgPort,
+          (fun _ -> printTime $"Connected ok to {url}"),
+          null
+        )
+      let connected = connection.AsyncWaitHandle.WaitOne(5000)
+      if not connected then
+        printTime $"Failed to connect to {url}"
+      else
+        printTime $"Got connected to {url}"
+        client.EndConnect(connection)
+    with e ->
+      Telemetry.addException [] e
+      printTime $"Failed to get response from {url}: {e.Message} {e.StackTrace}"
+
     Telemetry.addEvent "starting to loop to wait for DB" []
     while not success do
       use (_span : Telemetry.Span.T) = Telemetry.child "iteration" [ "count", count ]
