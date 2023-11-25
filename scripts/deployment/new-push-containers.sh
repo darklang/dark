@@ -5,10 +5,10 @@ set -euo pipefail
 
 set -x
 
-host="us-central1-docker.pkg.dev"
-repo="$host/darklang-next/production-containers"
+registry="us-central1-docker.pkg.dev"
+gcloud auth configure-docker "$registry"
 
-gcloud auth configure-docker "$repo"
+repo="$registry/darklang-next/production-containers"
 
 docker tag bwdserver:latest "$repo/bwdserver:latest"
 docker image push "$repo/bwdserver:latest"
