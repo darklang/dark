@@ -304,7 +304,7 @@ jobs:
       - show-large-files-and-directories
       # # deploy lock is removed as part of the gke-deploy script
       - run: ./scripts/deployment/deploy-lock-one-remove
-      - run: ./scripts/deployment/new-deploy $(cat bwdserver-image-id)
+      - run: ./scripts/deployment/new-deploy.sh $(cat bwdserver-image-id)
       - slack-notify-deploy
       - deploy-lock-remove-on-fail
 
