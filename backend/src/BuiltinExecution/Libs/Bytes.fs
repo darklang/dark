@@ -20,7 +20,7 @@ let constant = constant modules
 let fns : List<BuiltInFn> =
   [ { name = fn "hexEncode" 0
       typeParams = []
-      parameters = [ Param.make "bytes" (TList(TUInt8)) "" ]
+      parameters = [ Param.make "bytes" (TList TUInt8) "" ]
       returnType = TString
       description =
         "Hex (Base16) encodes <param bytes> using an uppercase alphabet. Complies

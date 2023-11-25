@@ -44,7 +44,7 @@ let fns : List<BuiltInFn> =
     { name = fn "write" 0
       typeParams = []
       parameters =
-        [ Param.make "contents" (TList(TUInt8)) ""; Param.make "path" TString "" ]
+        [ Param.make "contents" (TList TUInt8) ""; Param.make "path" TString "" ]
       returnType = TypeReference.result TUnit TString
       description =
         "Writes the specified byte array <param contents> to the file specified by <param path> asynchronously"

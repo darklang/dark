@@ -394,7 +394,7 @@ let fns : List<BuiltInFn> =
     { name = fn "toBytes" 0
       typeParams = []
       parameters = [ Param.make "str" TString "" ]
-      returnType = (TList(TUInt8))
+      returnType = TList TUInt8
       description =
         "Converts the given unicode string to a UTF8-encoded byte sequence."
       fn =
@@ -410,7 +410,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "fromBytesWithReplacement" 0
       typeParams = []
-      parameters = [ Param.make "bytes" (TList(TUInt8)) "" ]
+      parameters = [ Param.make "bytes" (TList TUInt8) "" ]
       returnType = TString
       description =
         "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"
@@ -428,7 +428,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "fromBytes" 0
       typeParams = []
-      parameters = [ Param.make "bytes" (TList(TUInt8)) "" ]
+      parameters = [ Param.make "bytes" (TList TUInt8) "" ]
       returnType = TypeReference.option TString
       description =
         "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"

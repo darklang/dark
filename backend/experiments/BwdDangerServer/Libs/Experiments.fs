@@ -126,7 +126,7 @@ let fns : List<BuiltInFn> =
     { name = fn "readFromStaticDir" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
-      returnType = TypeReference.result (TList(TUInt8)) TString
+      returnType = TypeReference.result (TList TUInt8) TString
       description =
         "Reads a file at backend/static/<param path>, and returns its contents as Bytes wrapped in a Result"
       fn =
@@ -153,7 +153,7 @@ let fns : List<BuiltInFn> =
     { name = fn "readFromCanvases" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
-      returnType = TypeReference.result (TList(TUInt8)) TString
+      returnType = TypeReference.result (TList TUInt8) TString
       description =
         "Reads a file at canvases/<param path>, and returns its contents as Bytes wrapped in a Result"
       fn =

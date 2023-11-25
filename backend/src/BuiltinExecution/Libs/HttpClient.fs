@@ -405,7 +405,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
         [ Param.make "method" TString ""
           Param.make "uri" TString ""
           Param.make "headers" headersType ""
-          Param.make "body" (TList(TUInt8)) "" ]
+          Param.make "body" (TList TUInt8) "" ]
       returnType =
         TypeReference.result
           (TCustomType(
