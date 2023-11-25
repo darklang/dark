@@ -259,10 +259,10 @@ jobs:
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - build-gcp-containers
-      - run: docker image ls bwdserver:latest -q > bwdserver-image-id
+      - run: scripts/deployment/save-image-digests.sh
       - persist_to_workspace:
           root: "."
-          paths: ["bwdserver-image-id"]
+          paths: ["image-digests.json"]
       - run: scripts/deployment/new-push-containers.sh
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
@@ -303,8 +303,8 @@ jobs:
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       # # deploy lock is removed as part of the gke-deploy script
-      - run: ./scripts/deployment/deploy-lock-one-remove
-      - run: ./scripts/deployment/new-deploy.sh $(cat bwdserver-image-id)
+      - run: scripts/deployment/deploy-lock-one-remove
+      - run: scripts/deployment/new-deploy.sh
       - slack-notify-deploy
       - deploy-lock-remove-on-fail
 

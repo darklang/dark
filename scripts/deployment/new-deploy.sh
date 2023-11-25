@@ -5,7 +5,14 @@ set -euo pipefail
 
 set -x
 
-gcloud run services update bwdserver \
-  --project darklang-next \
-  --region us-central1 \
-  --image "us-central1-docker.pkg.dev/darklang-next/production-containers/bwdserver:$1"
+# Read each entry from the JSON file and deploy the container
+jq -c '.[]' image-digests.json | while IFS= read -r line; do
+    container=$(echo "$line" | jq -r '.name')
+    digest=$(echo "$line" | jq -r '.digest')
+
+    gcloud run services update $container \
+      --project darklang-next \
+      --region us-central1 \
+      --image "us-central1-docker.pkg.dev/darklang-next/production-containers/$container:$digest"
+done
+
