@@ -29,7 +29,8 @@
         "ms-python.python",
         "ms-azuretools.vscode-docker",
         "editorconfig.editorconfig",
-        "hashicorp.terraform"
+        "hashicorp.terraform",
+        "CircleCI.circleci"
       ]
     }
   },
