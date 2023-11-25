@@ -259,11 +259,10 @@ jobs:
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - build-gcp-containers
-      - run: scripts/deployment/new-save-image-digests.sh
+      - run: scripts/deployment/new-push-containers.sh
       - persist_to_workspace:
           root: "."
           paths: ["image-digests.json"]
-      - run: scripts/deployment/new-push-containers.sh
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
