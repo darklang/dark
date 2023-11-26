@@ -12,53 +12,51 @@ open LibExecution.RuntimeTypes
 
 
 // For security, we want to prevent access to internal IP address ranges or
-// Instance Metadata service or localhost
+// Instance Metadata service or localhost, or anything Cloud Run routes internally
 // 1. via hostname
 // 2. via IP address in the connectionCallback
 // 3. via IP tables on the container (see TODO)
 // 4. via header for Instance Metadata service
 // 5. By removing all access for the cloud run service account (see iam.tf)
 module LocalAccess =
-  let bannedIPv4Strings (ipStr : string) : bool =
-    // This from ChatGPT so verify this before using
-    // let bytes = ipAddress.GetAddressBytes() |> Array.rev
-    // let ipAsInt = System.BitConverter.ToUInt32(bytes, 0)
-    // // Check the following private IP ranges:
-    // 10.0.0.0 - 10.255.255.255 (10.0.0.0/8)
-    // 172.16.0.0 - 172.31.255.255 (172.16.0.0/12)
-    // 192.168.0.0 - 192.168.255.255 (192.168.0.0/16)
-    // 169.254.0.0 - 169.254.255.255 (169.254.0.0/16, link-local addresses)
-    // todo 127.0.0.1
-    // todo 0.0.0.0
-    // (ipAsInt >= 0x0A000000u && ipAsInt <= 0x0AFFFFFFu) ||
-    // (ipAsInt >= 0xAC100000u && ipAsInt <= 0xAC1FFFFFu) ||
-    // (ipAsInt >= 0xC0A80000u && ipAsInt <= 0xC0A8FFFFu) ||
-    // (ipAsInt >= 0xA9FE0000u && ipAsInt <= 0xA9FEFFFFu)
-
-    // Slower version
-    ipStr.StartsWith("10.0.0.")
-    || ipStr.StartsWith("172.16.")
-    || ipStr.StartsWith("192.168.")
-    || ipStr.StartsWith("169.254.") // covers Instance Metadata service
-    || ipStr.StartsWith("127.")
-    || ipStr = "0.0.0.0"
-    || ipStr = "0"
 
   let bannedHost (host : string) =
     let host = host.Trim().ToLower()
-    // Internal network addresses
-    // Localhost
-    host = "localhost"
-    || host = "metadata"
-    || host = "metadata.google.internal"
-    || bannedIPv4Strings host
+    host = "localhost" || host = "metadata" || host = "metadata.google.internal"
 
+
+
+  // Cloud Run lists the IPs it routes internally here:
+  // https://cloud.google.com/run/docs/configuring/vpc-connectors?#manage
+  // Ban all of them
+
+  // https://datatracker.ietf.org/doc/html/rfc1918#section-3
+  let ten = System.Net.IPNetwork.Parse "10.0.0.0/8"
+  let oneSevenTwo = System.Net.IPNetwork.Parse "172.16.0.0/12"
+  let oneNineTwo = System.Net.IPNetwork.Parse "192.168.0.0/16"
+
+  // https://datatracker.ietf.org/doc/html/rfc6598#section-7
+  let oneHundred = System.Net.IPNetwork.Parse "100.64.0.0/10"
+
+  // 199.36.153.4/30 and 199.36.153.8/30
+  let oneNineNineFour = System.Net.IPNetwork.Parse "199.36.153.4/30"
+  let oneNineNineEight = System.Net.IPNetwork.Parse "199.36.153.8/30"
+
+  // 169.254.0.0 - 169.254.255.255 (169.254.0.0/16, link-local addresses)
+  let oneSixNine = System.Net.IPNetwork.Parse "169.254.0.0/16"
+
+
+  let bannedIPv4 (ip : System.Net.IPAddress) : bool =
+    System.Net.IPAddress.IsLoopback ip // 127.*
+    || ten.Contains ip
+    || oneSevenTwo.Contains ip
+    || oneNineTwo.Contains ip
+    || oneHundred.Contains ip
+    || oneNineNineFour.Contains ip
+    || oneNineNineEight.Contains ip
+    || oneSixNine.Contains ip
 
   let bannedIp (ip : System.Net.IPAddress) : bool =
-    let bannedIPv4 (ip : System.Net.IPAddress) : bool =
-      System.Net.IPAddress.IsLoopback ip // 127.*
-      || bannedIPv4Strings (string ip)
-
     if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetworkV6 then
       if ip.IsIPv4MappedToIPv6 then
         bannedIPv4 (ip.MapToIPv4())
