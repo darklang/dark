@@ -316,7 +316,11 @@ module Disallowed =
     .Stdlib
     .Result
     .Result
-    .Error(PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError)
+    .Error(
+      PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+        PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+      )
+    )
 
 
   PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://[::ffff:7f00:11]" [] [] = PACKAGE
@@ -324,14 +328,20 @@ module Disallowed =
     .Stdlib
     .Result
     .Result
-    .Error(PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError)
+    .Error(
+      PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+        PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+      )
+    )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
     "get"
     "http://[0:0:0:0:0:ffff:7f00:0011]"
     []
     [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+    )
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request
@@ -339,7 +349,9 @@ module Disallowed =
     "http://[0000:0000:0000:0000:0000:ffff:7f00:0011]"
     []
     [] = PACKAGE.Darklang.Stdlib.Result.Result.Error(
-    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.NetworkError
+    PACKAGE.Darklang.Stdlib.HttpClient.RequestError.BadUrl(
+      PACKAGE.Darklang.Stdlib.HttpClient.BadUrlDetails.InvalidHost
+    )
   )
 
   PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://127.255.174.17" [] [] = PACKAGE
