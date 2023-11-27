@@ -21,7 +21,7 @@ module Darklang =
     let requestIdToJson (id: RequestId) : Json =
       match id with
       | Null -> Json.Null
-      | Int i -> Json.Number i
+      | Int i -> Json.Number(Stdlib.Int64.toFloat i)
       | String s -> Json.String s
 
 
@@ -251,10 +251,17 @@ module Darklang =
 
     module Response =
       module Ok =
-        let make (requestId: Stdlib.Option.Option<Int64>) (result: Json) : String =
-          (Json.Object
-            [ ("jsonrpc", Json.String "2.0"); ("id", requestId); ("result", result) ])
-          |> Stdlib.AltJson.format
+        let make (requestId: Stdlib.Option.Option<Int64>) (result: Json) : Json =
+          [ Stdlib.Option.Option.Some(("jsonrpc", Json.String "2.0"))
+
+            (requestId
+             |> Stdlib.Option.map (fun id ->
+               ("id", requestIdToJson (RequestId.Int id))))
+
+            Stdlib.Option.Option.Some(("result", result)) ]
+
+          |> Stdlib.List.filterMap (fun x -> x)
+          |> Json.Object
 
       module Error =
         module KnownErrorCodes =
