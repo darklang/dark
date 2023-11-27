@@ -3,6 +3,9 @@ module LibService.DBConnection
 open Npgsql
 open Npgsql.FSharp
 
+open Microsoft.Extensions.Logging.Console
+open Microsoft.Extensions.Logging
+
 
 let connectionString () : string =
   let sb = NpgsqlConnectionStringBuilder()
@@ -27,5 +30,13 @@ let connectionString () : string =
 let dataSource : NpgsqlDataSource =
   let cs = connectionString ()
   let builder = new NpgsqlDataSourceBuilder(cs)
+
+  // Logging to debug connection issues
+  let loggerFactory =
+    LoggerFactory.Create(fun builder ->
+      builder.AddConsole().SetMinimumLevel(LogLevel.Debug) |> ignore<_>)
+  builder.UseLoggerFactory(loggerFactory).EnableParameterLogging()
+  |> ignore<NpgsqlDataSourceBuilder>
+
   builder.UseNodaTime() |> ignore<TypeMapping.INpgsqlTypeMapper>
   builder.Build()
