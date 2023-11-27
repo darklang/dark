@@ -138,8 +138,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       # parser (tree-sitter) dependencies
       build-essential \
       # end parser dependencies
-      # required to clean up line endings for COPY when building on a Windows machine
-      dos2unix \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -201,106 +199,8 @@ RUN sudo chown postgres:postgres -R /var/lib/postgresql
 ############################
 # Scripts to install files from the internet
 ############################
-COPY <<-"EOF" /home/dark/install-targz-file
-#!/bin/bash
 
-# Script to install binary files, checking the sha
-
-set -euo pipefail
-
-for i in "$@" ; do
-  case "${i}" in
-    --arm64-sha256=*)
-    ARM64_SHA256=${1/--arm64-sha256=/''}
-    shift
-    ;;
-    --amd64-sha256=*)
-    AMD64_SHA256=${1/--amd64-sha256=/''}
-    shift
-    ;;
-    --url=*)
-    URL=${1/--url=/''}
-    shift
-    ;;
-    --extract-file=*)
-    EXTRACT_FILE=${1/--extract-file=/''}
-    shift
-    ;;
-    --target=*)
-    TARGET=${1/--target=/''}
-    shift
-    ;;
-  esac
-done
-DIR=$(echo $URL | sed 's/[^0-9A-Za-z]*//g')
-FILENAME=$(basename $URL)
-case $(dpkg --print-architecture) in
-  arm64) CHECKSUM=$ARM64_SHA256;;
-  amd64) CHECKSUM=$AMD64_SHA256;;
-  *) exit 1;;
-esac
-mkdir -p $DIR
-wget -P $DIR $URL
-echo "$CHECKSUM $DIR/$FILENAME" | sha256sum -c -
-ARCHIVE_TYPE=$(file --mime-type $DIR/$FILENAME | awk -F "/" '{print $NF}')
-echo "Archive type: $ARCHIVE_TYPE"
-case $ARCHIVE_TYPE in
-  zip)  unzip $DIR/$FILENAME -d $DIR;;
-  gzip | x-xz) tar xvf $DIR/$FILENAME -C $DIR;;
-  *) exit 1;;
-esac
-ls -l $DIR
-sudo cp $DIR/${EXTRACT_FILE} ${TARGET}
-sudo chmod +x ${TARGET}
-rm -Rf $DIR
-EOF
-
-COPY <<-"EOF" /home/dark/install-exe-file
-#!/bin/bash
-
-# Script to install single files from tar.gz files, checking the sha
-
-set -euo pipefail
-
-for i in "$@" ; do
-  case "${i}" in
-    --arm64-sha256=*)
-    ARM64_SHA256=${1/--arm64-sha256=/''}
-    shift
-    ;;
-    --amd64-sha256=*)
-    AMD64_SHA256=${1/--amd64-sha256=/''}
-    shift
-    ;;
-    --url=*)
-    URL=${1/--url=/''}
-    shift
-    ;;
-    --target=*)
-    TARGET=${1/--target=/''}
-    shift
-    ;;
-  esac
-done
-DIR=$(echo $URL | sed 's/[^0-9A-Za-z]*//g')
-FILENAME=$(basename $URL)
-case $(dpkg --print-architecture) in
-  arm64) CHECKSUM=$ARM64_SHA256;;
-  amd64) CHECKSUM=$AMD64_SHA256;;
-  *) exit 1;;
-esac
-sudo curl -SL --output ${TARGET} $URL
-echo "$CHECKSUM ${TARGET}" | sha256sum -c -
-sudo chmod +x ${TARGET}
-EOF
-
-RUN sudo dos2unix /home/dark/install-targz-file
-RUN sudo dos2unix /home/dark/install-exe-file
-
-RUN sudo chown dark:dark /home/dark/install-targz-file
-RUN chmod +x /home/dark/install-targz-file
-RUN sudo chown dark:dark /home/dark/install-exe-file
-RUN chmod +x /home/dark/install-exe-file
+COPY --chown=dark:dark --chmod=+x ./scripts/installers/* .
 
 ############################
 # Cockroach
@@ -315,51 +215,8 @@ RUN /home/dark/install-targz-file \
 ############################
 # Yugabyte
 ############################
-COPY <<-"EOF" /home/dark/install-yugabyte
-#!/bin/bash
 
-# Script to install yugabyte
-
-set -e;
-case ${TARGETARCH} in
-  arm64)
-  URL=https://downloads.yugabyte.com/releases/2.20.0.0/yugabyte-2.20.0.0-b76-el8-aarch64.tar.gz
-  ;;
-  amd64)
-  URL=https://downloads.yugabyte.com/releases/2.20.0.0/yugabyte-2.20.0.0-b76-linux-x86_64.tar.gz
-  ;;
-  *) exit 1 ;;
-esac
-FILENAME=$(basename $URL)
-DIR=/home/dark/yugabyte
-mkdir -p $DIR
-cd $DIR
-curl -sSL -o $FILENAME $URL
-tar xvf $FILENAME --strip-components=1
-rm $FILENAME
-./bin/post_install.sh
-case $(dpkg --print-architecture) in
-  arm64)
-  sudo ln -sf /usr/lib/aarch64-linux-gnu/liblber-2.5.so.0 /usr/lib/aarch64-linux-gnu/liblber-2.4.so.2
-  sudo ln -sf /usr/lib/aarch64-linux-gnu/libldap-2.5.so.0 /usr/lib/aarch64-linux-gnu/libldap_r-2.4.so.2
-  ;;
-  amd64)
-  sudo ln -sf /usr/lib/x86_64-linux-gnu/liblber-2.5.so.0 /usr/lib/x86_64-linux-gnu/liblber-2.4.so.2
-  sudo ln -sf /usr/lib/x86_64-linux-gnu/libldap-2.5.so.0 /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
-  ;;
-  *) exit 1;;
-esac
-# python on our system is called python3
-sed -i 's|#!/usr/bin/env python|#!/usr/bin/env python3|' ./bin/yugabyted
-cd ..
-EOF
-
-RUN sudo dos2unix /home/dark/install-yugabyte
-
-RUN sudo chown dark:dark /home/dark/install-yugabyte
-RUN chmod +x /home/dark/install-yugabyte
-
-RUN /home/dark/install-yugabyte
+RUN /home/dark/install-yugabyte --version=2.20.0.0 --build=b76
 
 ############################
 # Terraform
@@ -432,10 +289,9 @@ RUN /home/dark/install-exe-file \
 # (runtime-deps, runtime, and sdk), see
 # https://github.com/dotnet/dotnet-docker/blob/master/src
 
-ENV DOTNET_SDK_VERSION=8.0.100 \
     # Skip extraction of XML docs - generally not useful within an
     # image/container - helps performance
-    NUGET_XMLDOC_MODE=skip \
+ENV NUGET_XMLDOC_MODE=skip \
     # Enable detection of running in a container
     DOTNET_RUNNING_IN_CONTAINER=true \
     # Do not generate certificate
@@ -445,39 +301,10 @@ ENV DOTNET_SDK_VERSION=8.0.100 \
     # Enable correct mode for dotnet watch (only mode supported in a container)
     DOTNET_USE_POLLING_FILE_WATCHER=true
 
-COPY <<-"EOF" /home/dark/install-dotnet8
-#!/bin/bash
-
-# Script to install dotnet 8
-
-set -e
-case ${TARGETARCH} in
-  arm64)
-    ARCH=arm64
-    CHECKSUM=3296d2bc15cc433a0ca13c3da83b93a4e1ba00d4f9f626f5addc60e7e398a7acefa7d3df65273f3d0825df9786e029c89457aea1485507b98a4df2a1193cd765
-    ;;
-  amd64)
-    ARCH=x64
-    CHECKSUM=13905ea20191e70baeba50b0e9bbe5f752a7c34587878ee104744f9fb453bfe439994d38969722bdae7f60ee047d75dda8636f3ab62659450e9cd4024f38b2a5
-    ;;
-  *) exit 1;;
-esac
-curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-${ARCH}.tar.gz
-echo "$CHECKSUM dotnet.tar.gz" | sha512sum -c -
-sudo mkdir -p /usr/share/dotnet
-sudo tar -C /usr/share/dotnet -oxzf dotnet.tar.gz .
-sudo rm dotnet.tar.gz
-# Trigger first run experience by running arbitrary cmd
-sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
-dotnet --help
-EOF
-
-RUN sudo dos2unix /home/dark/install-dotnet8
-
-RUN sudo chown dark:dark /home/dark/install-dotnet8
-RUN chmod +x /home/dark/install-dotnet8
-
-RUN /home/dark/install-dotnet8
+RUN /home/dark/install-dotnet8 \
+  --version=8.0.100 \
+  --arm64-sha256=3296d2bc15cc433a0ca13c3da83b93a4e1ba00d4f9f626f5addc60e7e398a7acefa7d3df65273f3d0825df9786e029c89457aea1485507b98a4df2a1193cd765 \
+  --amd64-sha256=13905ea20191e70baeba50b0e9bbe5f752a7c34587878ee104744f9fb453bfe439994d38969722bdae7f60ee047d75dda8636f3ab62659450e9cd4024f38b2a5
 
 # formatting
 RUN dotnet tool install fantomas --version 6.2.3 -g
