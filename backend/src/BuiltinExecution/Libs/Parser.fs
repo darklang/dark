@@ -84,9 +84,13 @@ let fns : List<BuiltInFn> =
 
                   String.concat "\n" (firstLine :: middleLines @ [ lastLine ])
 
-              [ ("fieldName",
-                 // TODO: Option<String>
-                 DString(if cursor.FieldName = null then "" else cursor.FieldName))
+              let fieldName =
+                if cursor.FieldName = null then
+                  Dval.optionNone KTString
+                else
+                  Dval.optionSome KTString (DString cursor.FieldName)
+
+              [ ("fieldName", fieldName)
                 ("typ", DString cursor.Current.Kind)
                 ("text", DString sourceText)
                 ("sourceRange", sourceRange)

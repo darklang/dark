@@ -7,7 +7,10 @@ module Darklang =
 
       type ParsedNode =
         {
-          fieldName: String // TODO: optional
+          // e.g., a node of `typ` `let_epression` has a child node with a `body` field name
+          fieldName: Stdlib.Option.Option<String>
+
+          /// e.g. `source_file`, `fn_def`, `expression`, `let_expression`
           typ: String
 
           /// The text of this node as it was in the unparsed source code
