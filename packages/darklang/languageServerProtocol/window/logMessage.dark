@@ -1,0 +1,20 @@
+// Server->Client notification to log a message (to console or something)
+
+(*
+  /// The log message notification is sent from the server to the client to ask
+  /// the client to log a particular message.
+  export namespace LogMessageNotification {
+    export const method: 'window/logMessage' = 'window/logMessage';
+    export const messageDirection: MessageDirection = MessageDirection.serverToClient;
+    export const type = new ProtocolNotificationType<LogMessageParams, void>(method);
+  }
+
+  /// The log message parameters.
+  export interface LogMessageParams {
+    /// The message type. See {@link MessageType}
+    type: MessageType;
+
+    /// The actual message.
+    message: string;
+  }
+*)

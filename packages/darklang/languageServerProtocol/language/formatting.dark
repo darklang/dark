@@ -1,0 +1,187 @@
+(* Supports formatting code: a whole document, a range, multiple ranges, and (seemingly?) _as_ you type
+
+  /// Value-object describing what options formatting should use.
+  export interface FormattingOptions {
+    /// Size of a tab in spaces.
+    tabSize: uinteger;
+
+    /// Prefer spaces over tabs.
+    insertSpaces: boolean;
+
+    /// Trim trailing whitespace on a line.
+    trimTrailingWhitespace?: boolean;
+
+    /// Insert a newline character at the end of the file if one does not exist.
+    insertFinalNewline?: boolean;
+
+    /// Trim all newlines after the final newline at the end of the file.
+    trimFinalNewlines?: boolean;
+
+    /// Signature for further properties.
+    [key: string]: boolean | integer | string | undefined;
+  }
+
+
+
+  /// Client capabilities of a {@link DocumentFormattingRequest}.
+  export interface DocumentFormattingClientCapabilities {
+    /// Whether formatting supports dynamic registration.
+    dynamicRegistration?: boolean;
+  }
+
+  /// The parameters of a {@link DocumentFormattingRequest}.
+  export interface DocumentFormattingParams
+    extends
+      WorkDoneProgressParams {
+
+    /// The document to format.
+    textDocument: TextDocumentIdentifier;
+
+    /// The format options.
+    options: FormattingOptions;
+  }
+
+  /// Provider options for a {@link DocumentFormattingRequest}.
+  export interface DocumentFormattingOptions
+    extends
+      WorkDoneProgressOptions {
+  }
+
+  /// Registration options for a {@link DocumentFormattingRequest}.
+  export interface DocumentFormattingRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions,
+      DocumentFormattingOptions {
+  }
+
+  /// A request to format a whole document.
+  export namespace DocumentFormattingRequest {
+    export const method: 'textDocument/formatting' = 'textDocument/formatting';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<DocumentFormattingParams, TextEdit[] | null, never, void, DocumentFormattingRegistrationOptions>(method);
+  }
+
+  /// Client capabilities of a {@link DocumentRangeFormattingRequest}.
+  export interface DocumentRangeFormattingClientCapabilities {
+    /// Whether range formatting supports dynamic registration.
+    dynamicRegistration?: boolean;
+
+    /// Whether the client supports formatting multiple ranges at once.
+    /// @proposed
+    rangesSupport?: boolean;
+  }
+
+  /// The parameters of a {@link DocumentRangeFormattingRequest}.
+  export interface DocumentRangeFormattingParams
+    extends
+      WorkDoneProgressParams {
+
+    /// The document to format.
+    textDocument: TextDocumentIdentifier;
+
+    /// The range to format
+    range: Range;
+
+    /// The format options
+    options: FormattingOptions;
+  }
+
+  /// The parameters of a {@link DocumentRangesFormattingRequest}.
+  ///
+  /// @proposed
+  export interface DocumentRangesFormattingParams
+    extends
+      WorkDoneProgressParams {
+
+    /// The document to format.
+    textDocument: TextDocumentIdentifier;
+
+    /// The ranges to format
+    ranges: Range[];
+
+    /// The format options
+    options: FormattingOptions;
+  }
+
+  /// Provider options for a {@link DocumentRangeFormattingRequest}.
+  export interface DocumentRangeFormattingOptions
+    extends
+      WorkDoneProgressOptions {
+
+    /// Whether the server supports formatting multiple ranges at once.
+    rangesSupport?: boolean;
+  }
+
+  /// Registration options for a {@link DocumentRangeFormattingRequest}.
+  export interface DocumentRangeFormattingRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions,
+      DocumentRangeFormattingOptions {
+  }
+
+  /// A request to format a range in a document.
+  export namespace DocumentRangeFormattingRequest {
+    export const method: 'textDocument/rangeFormatting' = 'textDocument/rangeFormatting';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<DocumentRangeFormattingParams, TextEdit[] | null, never, void, DocumentRangeFormattingRegistrationOptions>(method);
+  }
+
+  /// A request to format ranges in a document.
+  ///
+  /// @proposed
+  export namespace DocumentRangesFormattingRequest {
+    export const method: 'textDocument/rangesFormatting' = 'textDocument/rangesFormatting';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<DocumentRangesFormattingParams, TextEdit[] | null, never, void, DocumentRangeFormattingRegistrationOptions>(method);
+  }
+
+  /// Client capabilities of a {@link DocumentOnTypeFormattingRequest}.
+  export interface DocumentOnTypeFormattingClientCapabilities {
+    /// Whether on type formatting supports dynamic registration.
+    dynamicRegistration?: boolean;
+  }
+
+  /// The parameters of a {@link DocumentOnTypeFormattingRequest}.
+  export interface DocumentOnTypeFormattingParams {
+
+    /// The document to format.
+    textDocument: TextDocumentIdentifier;
+
+    /// The position around which the on type formatting should happen.
+    /// This is not necessarily the exact position where the character denoted
+    /// by the property `ch` got typed.
+    position: Position;
+
+    /// The character that has been typed that triggered the formatting
+    /// on type request. That is not necessarily the last character that
+    /// got inserted into the document since the client could auto insert
+    /// characters as well (e.g. like automatic brace completion).
+    ch: string;
+
+    /// The formatting options.
+    options: FormattingOptions;
+  }
+
+  /// Provider options for a {@link DocumentOnTypeFormattingRequest}.
+  export interface DocumentOnTypeFormattingOptions {
+    /// A character on which formatting should be triggered, like `{`.
+    firstTriggerCharacter: string;
+
+    /// More trigger characters.
+    moreTriggerCharacter?: string[];
+  }
+
+  /// Registration options for a {@link DocumentOnTypeFormattingRequest}.
+  export interface DocumentOnTypeFormattingRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions,
+      DocumentOnTypeFormattingOptions {
+  }
+
+  /// A request to format a document on type.
+  export namespace DocumentOnTypeFormattingRequest {
+    export const method: 'textDocument/onTypeFormatting' = 'textDocument/onTypeFormatting';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<DocumentOnTypeFormattingParams, TextEdit[] | null, never, void, DocumentOnTypeFormattingRegistrationOptions>(method);
+  }
+*)

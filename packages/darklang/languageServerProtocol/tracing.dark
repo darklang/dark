@@ -1,0 +1,17 @@
+// Supports:
+// - the client setting a trace level
+// - the server logging a trace
+
+(*
+  namespace SetTraceNotification {
+    export const method: '$/setTrace' = '$/setTrace';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolNotificationType<SetTraceParams, void>(method);
+  }
+
+  namespace LogTraceNotification {
+    export const method: '$/logTrace' = '$/logTrace';
+    export const messageDirection: MessageDirection = MessageDirection.serverToClient;
+    export const type = new ProtocolNotificationType<LogTraceParams, void>(method);
+  }
+*)

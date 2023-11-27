@@ -1,0 +1,16 @@
+// types and such common between notebook sync and doc sync
+
+(*
+  /// An event describing a change to a text document. If range and rangeLength are omitted
+  /// the new text is considered to be the full content of the document.
+  type TextDocumentContentChangeEvent = {
+    /// The range of the document that changed.
+    range: Range;
+
+    /// The new text for the provided range.
+    text: string;
+  } | {
+    /// The new text of the whole document.
+    text: string;
+  };
+*)

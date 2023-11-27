@@ -1,0 +1,55 @@
+// for registering and unregistering capabilities _after_ the initialize handshake
+
+(*
+  /// General parameters to register for a notification or to register a provider.
+  export interface Registration {
+    /// The id used to register the request. The id can be used to deregister
+    /// the request again.
+    id: string;
+
+    /// The method / capability to register for.
+    method: string;
+
+    /// Options necessary for the registration.
+    registerOptions?: LSPAny;
+  }
+
+  export interface RegistrationParams {
+    registrations: Registration[];
+  }
+
+  /// The `client/registerCapability` request is sent from the server to the client to register a new capability
+  /// handler on the client side.
+  export namespace RegistrationRequest {
+    export const method: 'client/registerCapability' = 'client/registerCapability';
+    export const messageDirection: MessageDirection = MessageDirection.serverToClient;
+    export const type = new ProtocolRequestType<RegistrationParams, void, never, void, void>(method);
+    export type HandlerSignature = RequestHandler<RegistrationParams, void, void>;
+  }
+
+  /// General parameters to unregister a request or notification.
+  export interface Unregistration {
+    /// The id used to unregister the request or notification. Usually an id
+    /// provided during the register request.
+    id: string;
+
+    /// The method to unregister for.
+    method: string;
+  }
+
+  export interface UnregistrationParams {
+    // Should correctly be named `unregistrations`. However
+    // this is a breaking change which has to wait for
+    // protocol version 4.0.
+    unregisterations: Unregistration[];
+  }
+
+  /// The `client/unregisterCapability` request is sent from the server to the client to unregister a previously registered capability
+  /// handler on the client side.
+  export namespace UnregistrationRequest {
+    export const method: 'client/unregisterCapability' = 'client/unregisterCapability';
+    export const messageDirection: MessageDirection = MessageDirection.serverToClient;
+    export const type = new ProtocolRequestType<UnregistrationParams, void, never, void, void>(method);
+    export type HandlerSignature = RequestHandler<UnregistrationParams, void, void>;
+  }
+*)

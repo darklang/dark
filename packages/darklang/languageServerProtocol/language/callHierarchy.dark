@@ -1,0 +1,127 @@
+// Used to find and display incoming and outgoing calls of whatever was selected in the editor
+// (probably/only a function)
+
+(*
+  /// Represents programming constructs like functions or constructors in the context
+  /// of call hierarchy.
+  export interface CallHierarchyItem {
+    /// The name of this item.
+    name: string;
+
+    /// The kind of this item.
+    kind: SymbolKind;
+
+    /// Tags for this item.
+    tags?: SymbolTag[];
+
+    /// More detail for this item, e.g. the signature of a function.
+    detail?: string;
+
+    /// The resource identifier of this item.
+    uri: DocumentUri;
+
+    /// The range enclosing this symbol not including leading/trailing whitespace but everything else, e.g. comments and code.
+    range: Range;
+
+    /// The range that should be selected and revealed when this symbol is being picked, e.g. the name of a function.
+    /// Must be contained by the {@link CallHierarchyItem.range `range`}.
+    selectionRange: Range;
+
+    /// A data entry field that is preserved between a call hierarchy prepare and
+    /// incoming calls or outgoing calls requests.
+    data?: LSPAny;
+  }
+
+  /// Represents an incoming call, e.g. a caller of a method or constructor.
+  export interface CallHierarchyIncomingCall {
+    /// The item that makes the call.
+    from: CallHierarchyItem;
+
+    /// The ranges at which the calls appear. This is relative to the caller
+    /// denoted by {@link CallHierarchyIncomingCall.from `this.from`}.
+    fromRanges: Range[];
+  }
+
+  /// Represents an outgoing call, e.g. calling a getter from a method or a method from a constructor etc.
+  export interface CallHierarchyOutgoingCall {
+    /// The item that is called.
+    to: CallHierarchyItem;
+
+    /// The range at which this item is called. This is the range relative to the caller, e.g the item
+    /// passed to {@link CallHierarchyItemProvider.provideCallHierarchyOutgoingCalls `provideCallHierarchyOutgoingCalls`}
+    /// and not {@link CallHierarchyOutgoingCall.to `this.to`}.
+    fromRanges: Range[];
+  }
+
+  export interface CallHierarchyClientCapabilities {
+    /// Whether implementation supports dynamic registration. If this is set to `true`
+    /// the client supports the new `(TextDocumentRegistrationOptions & StaticRegistrationOptions)`
+    /// return value for the corresponding server capability as well.
+    dynamicRegistration?: boolean;
+  }
+
+
+  /// Call hierarchy options used during static registration.
+  export interface CallHierarchyOptions
+    extends
+      WorkDoneProgressOptions { }
+
+  /// Call hierarchy options used during static or dynamic registration.
+  export interface CallHierarchyRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions,
+      CallHierarchyOptions,
+      StaticRegistrationOptions {
+  }
+
+  /// The parameter of a `textDocument/prepareCallHierarchy` request.
+  export interface CallHierarchyPrepareParams
+    extends
+      TextDocumentPositionParams,
+      WorkDoneProgressParams { }
+
+  /// A request to result a `CallHierarchyItem` in a document at a given position.
+  /// Can be used as an input to an incoming or outgoing call hierarchy.
+  export namespace CallHierarchyPrepareRequest {
+    export const method: 'textDocument/prepareCallHierarchy' = 'textDocument/prepareCallHierarchy';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<CallHierarchyPrepareParams, CallHierarchyItem[] | null, never, void, CallHierarchyRegistrationOptions>(method);
+    export type HandlerSignature = RequestHandler<CallHierarchyPrepareParams, CallHierarchyItem[] | null, void>;
+  }
+
+
+  /// The parameter of a `callHierarchy/incomingCalls` request.
+  export interface CallHierarchyIncomingCallsParams
+    extends
+      WorkDoneProgressParams,
+      PartialResultParams {
+
+    item: CallHierarchyItem;
+  }
+
+  /// A request to resolve the incoming calls for a given `CallHierarchyItem`.
+  export namespace CallHierarchyIncomingCallsRequest {
+    export const method: 'callHierarchy/incomingCalls' = 'callHierarchy/incomingCalls';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<CallHierarchyIncomingCallsParams, CallHierarchyIncomingCall[] | null, CallHierarchyIncomingCall[], void, void>(method);
+    export type HandlerSignature = RequestHandler<CallHierarchyIncomingCallsParams, CallHierarchyIncomingCall[] | null, void>;
+  }
+
+
+  /// The parameter of a `callHierarchy/outgoingCalls` request.
+  export interface CallHierarchyOutgoingCallsParams
+    extends
+      WorkDoneProgressParams,
+      PartialResultParams {
+
+    item: CallHierarchyItem;
+  }
+
+  /// A request to resolve the outgoing calls for a given `CallHierarchyItem`.
+  export namespace CallHierarchyOutgoingCallsRequest {
+    export const method: 'callHierarchy/outgoingCalls' = 'callHierarchy/outgoingCalls';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<CallHierarchyOutgoingCallsParams, CallHierarchyOutgoingCall[] | null, CallHierarchyOutgoingCall[], void, void>(method);
+    export type HandlerSignature = RequestHandler<CallHierarchyOutgoingCallsParams, CallHierarchyOutgoingCall[] | null, void>;
+  }
+*)

@@ -149,13 +149,43 @@ module Darklang =
           | Error() ->
             log "couldn't parse params of didSave"
             state
-        // -- textDocument
-        | ("textDocument/didOpen", None) ->
-          log "TODO we should do something with this - like report problems"
-          false
-        | ("textDocument/didSave", None) ->
-          log "TODO we should do something with this - like report problems"
-          false
+
+
+        // -- autocomplete
+        | ("textDocument/completion", Some id, Some p) ->
+          match p with
+          | Array p ->
+            let p = (Json.Array p) |> Stdlib.AltJson.format
+            log $"Some Array-based params: {p}"
+          | Object p ->
+            let p = (Json.Object p) |> Stdlib.AltJson.format
+            log $"Some Object-based params: {p}"
+
+          (*[
+            { label: "TypeScript", kind: CompletionItemKind.Text, data: 1 },
+            { label: "JavaScript", kind: CompletionItemKind.Text, data: 2 },
+          ]*)
+
+          log "TODO: return a response with some completions"
+          state
+
+        | ("completionItem/resolve", Some id) ->
+          (*
+            // once you hover over some completion, this fills in some details (I think)
+            connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
+              if (item.data === 1) {
+                item.detail = "TypeScript details";
+                item.documentation = "TypeScript documentation";
+              } else if (item.data === 2) {
+                item.detail = "JavaScript details";
+                item.documentation = "JavaScript documentation";
+              }
+              return item;
+            });
+          *)
+          // TODO: use r.params
+          log "TODO: deal with completion item resolution"
+          state
 
 
         // -- other
@@ -408,39 +438,7 @@ documents.onDidChangeContent(change => {
 
 
 
-(* Future: completions (autocomplete)
 
-include this in 'capabilities' configuration:
-
-      completionProvider: {
-        resolveProvider: true,
-      },
-
-
-// (how) should we autocomplete?
-// (currently this just provides 2 bogus autocompletes)
-connection.onCompletion(
-  (_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
-    return [
-      { label: "TypeScript", kind: CompletionItemKind.Text, data: 1 },
-      { label: "JavaScript", kind: CompletionItemKind.Text, data: 2 },
-    ];
-  },
-);
-
-// once you hover over some completion, this fills in some details (I think)
-connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
-  if (item.data === 1) {
-    item.detail = "TypeScript details";
-    item.documentation = "TypeScript documentation";
-  } else if (item.data === 2) {
-    item.detail = "JavaScript details";
-    item.documentation = "JavaScript documentation";
-  }
-  return item;
-});
-
-*)
 
 
 

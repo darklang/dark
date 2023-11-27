@@ -1,0 +1,77 @@
+// Seemingly, provides some way for the client to ask the server where all the 'links' are in a document. (by position)
+// Not totally sure what this is useful for
+
+(*
+  /// A document link is a range in a text document that links to an internal or external resource, like another
+  /// text document or a web site.
+  export interface DocumentLink {
+    /// The range this link applies to.
+    range: Range;
+
+    /// The uri this link points to. If missing a resolve request is sent later.
+    target?: URI;
+
+    /// The tooltip text when you hover over this link.
+    ///
+    /// If a tooltip is provided, is will be displayed in a string that includes instructions on how to
+    /// trigger the link, such as `{0} (ctrl + click)`. The specific instructions vary depending on OS,
+    /// user settings, and localization.
+    tooltip?: string;
+
+    /// A data entry field that is preserved on a document link between a
+    /// DocumentLinkRequest and a DocumentLinkResolveRequest.
+    data?: LSPAny;
+  }
+
+
+  /// The client capabilities of a {@link DocumentLinkRequest}.
+  export interface DocumentLinkClientCapabilities {
+    /// Whether document link supports dynamic registration.
+    dynamicRegistration?: boolean;
+
+    /// Whether the client supports the `tooltip` property on `DocumentLink`.
+    tooltipSupport?: boolean;
+  }
+
+  /// The parameters of a {@link DocumentLinkRequest}.
+  export interface DocumentLinkParams
+    extends
+      WorkDoneProgressParams,
+      PartialResultParams {
+
+    /// The document to provide document links for.
+    textDocument: TextDocumentIdentifier;
+  }
+
+  /// Provider options for a {@link DocumentLinkRequest}.
+  export interface DocumentLinkOptions
+    extends
+      WorkDoneProgressOptions {
+
+    /// Document links have a resolve provider as well.
+    resolveProvider?: boolean;
+  }
+
+  /// Registration options for a {@link DocumentLinkRequest}.
+  export interface DocumentLinkRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions,
+      DocumentLinkOptions {
+  }
+
+  /// A request to provide document links
+  export namespace DocumentLinkRequest {
+    export const method: 'textDocument/documentLink' = 'textDocument/documentLink';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<DocumentLinkParams, DocumentLink[] | null, DocumentLink[], void, DocumentLinkRegistrationOptions>(method);
+  }
+
+  /// Request to resolve additional information for a given document link. The request's
+  /// parameter is of type {@link DocumentLink} the response
+  /// is of type {@link DocumentLink} or a Thenable that resolves to such.
+  export namespace DocumentLinkResolveRequest {
+    export const method: 'documentLink/resolve' = 'documentLink/resolve';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<DocumentLink, DocumentLink, never, void, void>(method);
+  }
+*)

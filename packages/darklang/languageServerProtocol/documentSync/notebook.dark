@@ -1,0 +1,296 @@
+(*
+
+  /// Notebook specific client capabilities.
+  export type NotebookDocumentSyncClientCapabilities = {
+    /// Whether implementation supports dynamic registration. If this is
+    /// set to `true` the client supports the new
+    /// `(TextDocumentRegistrationOptions & StaticRegistrationOptions)`
+    /// return value for the corresponding server capability as well.
+    dynamicRegistration?: boolean;
+
+    /// The client supports sending execution summary data per cell.
+    executionSummarySupport?: boolean;
+  };
+
+  /// A notebook cell kind.
+  export namespace NotebookCellKind {
+    /// A markup-cell is formatted source that is used for display.
+    export const Markup: 1 = 1;
+
+    /// A code-cell is source code.
+    export const Code: 2 = 2;
+  }
+  export type NotebookCellKind = 1 | 2;
+
+  export type ExecutionSummary = {
+    /// A strict monotonically increasing value
+    /// indicating the execution order of a cell
+    /// inside a notebook.
+    executionOrder: uinteger;
+
+    /// Whether the execution was successful or not if known by the client.
+    success?: boolean;
+  };
+
+  /// A notebook cell.
+  ///
+  /// A cell's document URI must be unique across ALL notebook
+  /// cells and can therefore be used to uniquely identify a
+  /// notebook cell or the cell's text document.
+  export type NotebookCell = {
+    /// The cell's kind
+    kind: NotebookCellKind;
+
+    /// The URI of the cell's text document
+    /// content.
+    document: DocumentUri;
+
+    /// Additional metadata stored with the cell.
+    ///
+    /// Note: should always be an object literal (e.g. LSPObject)
+    metadata?: LSPObject;
+
+    /// Additional execution summary information if supported by the client.
+    executionSummary?: ExecutionSummary;
+  };
+
+
+  /// A notebook document.
+  export type NotebookDocument = {
+    /// The notebook document's uri.
+    uri: URI;
+
+    /// The type of the notebook.
+    notebookType: string;
+
+    /// The version number of this document (it will increase after each
+    /// change, including undo/redo).
+    version: integer;
+
+    /// Additional metadata stored with the notebook
+    /// document.
+    ///
+    /// Note: should always be an object literal (e.g. LSPObject)
+    metadata?: LSPObject;
+
+    /// The cells of a notebook.
+    cells: NotebookCell[];
+  };
+
+
+  /// A literal to identify a notebook document in the client.
+  export type NotebookDocumentIdentifier = {
+    /// The notebook document's uri.
+    uri: URI;
+  };
+
+  /// A versioned notebook document identifier.
+  export type VersionedNotebookDocumentIdentifier = {
+    /// The version number of this notebook document.
+    version: integer;
+
+    /// The notebook document's uri.
+    uri: URI;
+  };
+
+  /// @proposed
+  export interface NotebookCellLanguage {
+    language: string;
+  }
+
+  /// @proposed
+  export interface NotebookDocumentFilterWithNotebook {
+    /// The notebook to be synced If a string
+    /// value is provided it matches against the
+    /// notebook type. '*' matches every notebook.
+    notebook: string | NotebookDocumentFilter;
+
+    /// The cells of the matching notebook to be synced.
+    cells?: NotebookCellLanguage[];
+  }
+
+
+  /// @proposed
+  export interface NotebookDocumentFilterWithCells {
+    /// The notebook to be synced If a string
+    /// value is provided it matches against the
+    /// notebook type. '*' matches every notebook.
+    notebook?: string | NotebookDocumentFilter;
+
+    /// The cells of the matching notebook to be synced.
+    cells: NotebookCellLanguage[];
+  }
+
+  /// Options specific to a notebook plus its cells
+  /// to be synced to the server.
+  ///
+  /// If a selector provides a notebook document
+  /// filter but no cell selector all cells of a
+  /// matching notebook document will be synced.
+  ///
+  /// If a selector provides no notebook document
+  /// filter but only a cell selector all notebook
+  /// document that contain at least one matching
+  /// cell will be synced.
+  export type NotebookDocumentSyncOptions = {
+    /// The notebooks to be synced
+    notebookSelector: (NotebookDocumentFilterWithNotebook | NotebookDocumentFilterWithCells)[];
+
+    /// Whether save notification should be forwarded to
+    /// the server. Will only be honored if mode === `notebook`.
+    save?: boolean;
+  };
+
+  /// Registration options specific to a notebook.
+  export type NotebookDocumentSyncRegistrationOptions = NotebookDocumentSyncOptions & StaticRegistrationOptions;
+
+  export namespace NotebookDocumentSyncRegistrationType {
+    export const method: 'notebookDocument/sync' = 'notebookDocument/sync';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new RegistrationType<NotebookDocumentSyncRegistrationOptions>(method);
+  }
+
+  /// The params sent in an open notebook document notification.
+  export type DidOpenNotebookDocumentParams = {
+    /// The notebook document that got opened.
+    notebookDocument: NotebookDocument;
+
+    /// The text documents that represent the content
+    /// of a notebook cell.
+    cellTextDocuments: TextDocumentItem[];
+  };
+
+  /// A notification sent when a notebook opens.
+  export namespace DidOpenNotebookDocumentNotification {
+    export const method: 'notebookDocument/didOpen' = 'notebookDocument/didOpen';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolNotificationType<DidOpenNotebookDocumentParams, void>(method);
+    export const registrationMethod: typeof NotebookDocumentSyncRegistrationType.method = NotebookDocumentSyncRegistrationType.method;
+  }
+
+  /// A change describing how to move a `NotebookCell`
+  /// array from state S to S'.
+  export type NotebookCellArrayChange = {
+    /// The start oftest of the cell that changed.
+    start: uinteger;
+
+    /// The deleted cells
+    deleteCount: uinteger;
+
+    /// The new cells, if any
+    cells?: NotebookCell[];
+  };
+
+
+
+  /// Structural changes to cells in a notebook document.
+  ///
+  /// @proposed
+  export interface NotebookDocumentCellChangeStructure {
+    /// The change to the cell array.
+    array: NotebookCellArrayChange;
+
+    /// Additional opened cell text documents.
+    didOpen?: TextDocumentItem[];
+
+    /// Additional closed cell text documents.
+    didClose?: TextDocumentIdentifier[];
+  }
+
+  /// Content changes to a cell in a notebook document.
+  ///
+  /// @proposed
+  export interface NotebookDocumentCellContentChanges {
+    document: VersionedTextDocumentIdentifier;
+    changes: TextDocumentContentChangeEvent[];
+  }
+
+  /// Cell changes to a notebook document.
+  ///
+  /// @proposed
+  export interface NotebookDocumentCellChanges {
+    /// Changes to the cell structure to add or remove cells.
+    structure?: NotebookDocumentCellChangeStructure;
+
+    /// Changes to notebook cells properties like its
+    /// kind, execution summary or metadata.
+    data?: NotebookCell[];
+
+    /// Changes to the text content of notebook cells.
+    textContent?: NotebookDocumentCellContentChanges[];
+  }
+
+  /// A change event for a notebook document.
+  export type NotebookDocumentChangeEvent = {
+    /// The changed meta data if any.
+    ///
+    /// Note: should always be an object literal (e.g. LSPObject)
+    metadata?: LSPObject;
+
+    /// Changes to cells
+    cells?: NotebookDocumentCellChanges;
+  };
+
+  /// The params sent in a change notebook document notification.
+  export type DidChangeNotebookDocumentParams = {
+    /// The notebook document that did change. The version number points
+    /// to the version after all provided changes have been applied. If
+    /// only the text document content of a cell changes the notebook version
+    /// doesn't necessarily have to change.
+    notebookDocument: VersionedNotebookDocumentIdentifier;
+
+    /// The actual changes to the notebook document.
+    ///
+    /// The changes describe single state changes to the notebook document.
+    /// So if there are two changes c1 (at array index 0) and c2 (at array
+    /// index 1) for a notebook in state S then c1 moves the notebook from
+    /// S to S' and c2 from S' to S''. So c1 is computed on the state S and
+    /// c2 is computed on the state S'.
+    ///
+    /// To mirror the content of a notebook using change events use the following approach:
+    /// - start with the same initial content
+    /// - apply the 'notebookDocument/didChange' notifications in the order you receive them.
+    /// - apply the `NotebookChangeEvent`s in a single notification in the order
+    ///   you receive them.
+    change: NotebookDocumentChangeEvent;
+  };
+
+  export namespace DidChangeNotebookDocumentNotification {
+    export const method: 'notebookDocument/didChange' = 'notebookDocument/didChange';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolNotificationType<DidChangeNotebookDocumentParams, void>(method);
+    export const registrationMethod: typeof NotebookDocumentSyncRegistrationType.method = NotebookDocumentSyncRegistrationType.method;
+  }
+
+  /// The params sent in a save notebook document notification.
+  export type DidSaveNotebookDocumentParams = {
+    /// The notebook document that got saved.
+    notebookDocument: NotebookDocumentIdentifier;
+  };
+
+  /// A notification sent when a notebook document is saved.
+  export namespace DidSaveNotebookDocumentNotification {
+    export const method: 'notebookDocument/didSave' = 'notebookDocument/didSave';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolNotificationType<DidSaveNotebookDocumentParams, void>(method);
+    export const registrationMethod: typeof NotebookDocumentSyncRegistrationType.method = NotebookDocumentSyncRegistrationType.method;
+  }
+
+  /// The params sent in a close notebook document notification.
+  export type DidCloseNotebookDocumentParams = {
+    /// The notebook document that got closed.
+    notebookDocument: NotebookDocumentIdentifier;
+
+    /// The text documents that represent the content
+    /// of a notebook cell that got closed.
+    cellTextDocuments: TextDocumentIdentifier[];
+  };
+
+  /// A notification sent when a notebook closes.
+  export namespace DidCloseNotebookDocumentNotification {
+    export const method: 'notebookDocument/didClose' = 'notebookDocument/didClose';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolNotificationType<DidCloseNotebookDocumentParams, void>(method);
+    export const registrationMethod: typeof NotebookDocumentSyncRegistrationType.method = NotebookDocumentSyncRegistrationType.method;
+  }
+*)

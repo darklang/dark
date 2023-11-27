@@ -1,0 +1,96 @@
+// Supports rename-handling of variables, functions, types, etc.
+
+(*
+  export namespace PrepareSupportDefaultBehavior {
+    /// The client's default behavior is to select the identifier
+    /// according the to language's syntax rule.
+    export const Identifier: 1 = 1;
+  }
+
+  export type PrepareSupportDefaultBehavior = 1;
+
+  export interface RenameClientCapabilities {
+    /// Whether rename supports dynamic registration.
+    dynamicRegistration?: boolean;
+
+    /// Client supports testing for validity of rename operations
+    /// before execution.
+    prepareSupport?: boolean;
+
+    /// Client supports the default behavior result.
+    /// The value indicates the default behavior used by the
+    /// client.
+    prepareSupportDefaultBehavior?: PrepareSupportDefaultBehavior;
+
+    /// Whether the client honors the change annotations in
+    /// text edits and resource operations returned via the
+    /// rename request's workspace edit by for example presenting
+    /// the workspace edit in the user interface and asking
+    /// for confirmation.
+    honorsChangeAnnotations?: boolean;
+  }
+
+  /// The parameters of a {@link RenameRequest}.
+  export interface RenameParams
+    extends
+      WorkDoneProgressParams {
+    /// The document to rename.
+    textDocument: TextDocumentIdentifier;
+
+    /// The position at which this request was sent.
+    position: Position;
+
+    /// The new name of the symbol. If the given name is not valid the
+    /// request must return a {@link ResponseError} with an
+    /// appropriate message set.
+    newName: string;
+  }
+
+  /// Provider options for a {@link RenameRequest}.
+  export interface RenameOptions
+    extends
+      WorkDoneProgressOptions {
+    /// Renames should be checked and tested before being executed.
+    prepareProvider?: boolean;
+  }
+
+  /// Registration options for a {@link RenameRequest}.
+  export interface RenameRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions,
+      RenameOptions {
+  }
+
+  /// A request to rename a symbol.
+  export namespace RenameRequest {
+    export const method: 'textDocument/rename' = 'textDocument/rename';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<RenameParams, WorkspaceEdit | null, never, void, RenameRegistrationOptions>(method);
+  }
+
+  export interface PrepareRenameParams
+    extends
+      TextDocumentPositionParams,
+      WorkDoneProgressParams {
+  }
+
+  /// @proposed
+  export interface PrepareRenamePlaceholder {
+    range: Range;
+    placeholder: string;
+  }
+
+  /// @proposed
+  export interface PrepareRenameDefaultBehavior {
+    defaultBehavior: boolean;
+  }
+
+  export type PrepareRenameResult = Range | PrepareRenamePlaceholder | PrepareRenameDefaultBehavior;
+
+  /// A request to test and perform the setup necessary for a rename.
+  export namespace PrepareRenameRequest {
+    export const method: 'textDocument/prepareRename' = 'textDocument/prepareRename';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<PrepareRenameParams, PrepareRenameResult | null, never, void, void>(method);
+  }
+*)

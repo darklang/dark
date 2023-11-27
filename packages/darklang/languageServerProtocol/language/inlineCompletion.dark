@@ -1,0 +1,40 @@
+(*
+  /// Client capabilities specific to inline completions.
+  ///
+  /// @proposed
+  export type InlineCompletionClientCapabilities = {
+    * Whether implementation supports dynamic registration for inline completion providers.
+    dynamicRegistration?: boolean;
+  };
+
+  /// Inline completion options used during static registration.
+  ///
+  /// @proposed
+  export type InlineCompletionOptions = WorkDoneProgressOptions;
+
+  /// Inline completion options used during static or dynamic registration.
+  ///
+  /// @proposed
+  export type InlineCompletionRegistrationOptions = InlineCompletionOptions & TextDocumentRegistrationOptions & StaticRegistrationOptions;
+
+  /// A parameter literal used in inline completion requests.
+  ///
+  /// @proposed
+  export type InlineCompletionParams = WorkDoneProgressParams & TextDocumentPositionParams & {
+    * Additional information about the context in which inline completions were
+    * requested.
+    context: InlineCompletionContext;
+  };
+
+  /// A request to provide inline completions in a document. The request's parameter is of
+  /// type {@link InlineCompletionParams}, the response is of type
+  /// {@link InlineCompletion InlineCompletion[]} or a Thenable that resolves to such.
+  ///
+  /// @proposed
+  export namespace InlineCompletionRequest {
+    export const method: 'textDocument/inlineCompletion' = 'textDocument/inlineCompletion';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<InlineCompletionParams, InlineCompletionList | InlineCompletionItem[] | null, InlineCompletionItem[], void, InlineCompletionRegistrationOptions>(method);
+    export type HandlerSignature = RequestHandler<InlineCompletionParams, InlineCompletionList | InlineCompletionItem[] | null, void>;
+  }
+*)

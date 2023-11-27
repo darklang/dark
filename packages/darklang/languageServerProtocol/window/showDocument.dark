@@ -1,0 +1,40 @@
+// Server->Client request to show a document (by URI)
+
+(*
+  /// Client capabilities for the showDocument request.
+  export interface ShowDocumentClientCapabilities {
+    /// The client has support for the showDocument request.
+    support: boolean;
+  }
+
+  /// Params to show a resource in the UI.
+  export interface ShowDocumentParams {
+    uri: URI;
+
+    /// Indicates to show the resource in an external program (i.e. web browser)
+    external?: boolean;
+
+    /// An optional property to indicate whether the editor showing the document should take focus or not.
+    /// Clients might ignore this property if an external program is started.
+    takeFocus?: boolean;
+
+    /// An optional selection range if the document is a text document.
+    /// Clients might ignore the property if an external program is started or the file is not a text file.
+    selection?: Range;
+  }
+
+  /// The result of a showDocument request.
+  export interface ShowDocumentResult {
+    /// A boolean indicating if the show was successful.
+    success: boolean;
+  }
+
+  /// A request to show a document in the UI
+  export namespace ShowDocumentRequest {
+    export const method: 'window/showDocument' = 'window/showDocument';
+    export const messageDirection: MessageDirection = MessageDirection.serverToClient;
+    export const type = new ProtocolRequestType<ShowDocumentParams, ShowDocumentResult, void, void, void>(method);
+    export type HandlerSignature = RequestHandler<ShowDocumentParams, ShowDocumentResult, void>;
+    export type MiddlewareSignature = (params: ShowDocumentParams, next: HandlerSignature) => HandlerResult<ShowDocumentResult, void>;
+  }
+*)

@@ -1,0 +1,117 @@
+// Allows for the display of variable values directly in line with the code, without having to hover or open a separate tool or pane.
+// It's a way to provide developers with immediate information about the state of a program while they are coding.
+
+(*
+
+  /// Provide inline value as text.
+  export type InlineValueText = {
+    /// The document range for which the inline value applies.
+    range: Range;
+
+    /// The text of the inline value.
+    text: string;
+  };
+
+
+  /// Provide inline value through a variable lookup.
+  /// If only a range is specified, the variable name will be extracted from the underlying document.
+  /// An optional variable name can be used to override the extracted name.
+  export type InlineValueVariableLookup = {
+    /// The document range for which the inline value applies.
+    /// The range is used to extract the variable name from the underlying document.
+    range: Range;
+
+    /// If specified the name of the variable to look up.
+    variableName?: string;
+
+    /// How to perform the lookup.
+    caseSensitiveLookup: boolean;
+  };
+
+
+  /// Provide an inline value through an expression evaluation.
+  /// If only a range is specified, the expression will be extracted from the underlying document.
+  /// An optional expression can be used to override the extracted expression.
+  export type InlineValueEvaluatableExpression = {
+    /// The document range for which the inline value applies.
+    /// The range is used to extract the evaluatable expression from the underlying document.
+    range: Range;
+
+    /// If specified the expression overrides the extracted expression.
+    expression?: string;
+  };
+
+
+  /// Inline value information can be provided by different means:
+  /// - directly as a text value (class InlineValueText).
+  /// - as a name to use for a variable lookup (class InlineValueVariableLookup)
+  /// - as an evaluatable expression (class InlineValueEvaluatableExpression)
+  /// The InlineValue types combines all inline value types into one type.
+  export type InlineValue = InlineValueText | InlineValueVariableLookup | InlineValueEvaluatableExpression;
+
+  export type InlineValueContext = {
+    /// The stack frame (as a DAP Id) where the execution has stopped.
+    frameId: integer;
+
+    /// The document range where execution has stopped.
+    /// Typically the end position of the range denotes the line where the inline values are shown.
+    stoppedLocation: Range;
+  };
+
+
+
+
+  /// Client capabilities specific to inline values.
+  export type InlineValueClientCapabilities = {
+    /// Whether implementation supports dynamic registration for inline value providers.
+    dynamicRegistration?: boolean;
+  };
+
+  /// Client workspace capabilities specific to inline values.
+  export type InlineValueWorkspaceClientCapabilities = {
+    /// Whether the client implementation supports a refresh request sent from the
+    /// server to the client.
+    ///
+    /// Note that this event is global and will force the client to refresh all
+    /// inline values currently shown. It should be used with absolute care and is
+    /// useful for situation where a server for example detects a project wide
+    /// change that requires such a calculation.
+    refreshSupport?: boolean;
+  };
+
+  /// Inline value options used during static registration.
+  export type InlineValueOptions = WorkDoneProgressOptions;
+
+  /// Inline value options used during static or dynamic registration.
+  export type InlineValueRegistrationOptions = InlineValueOptions & TextDocumentRegistrationOptions & StaticRegistrationOptions;
+
+  /// A parameter literal used in inline value requests.
+  export type InlineValueParams = WorkDoneProgressParams & {
+    /// The text document.
+    textDocument: TextDocumentIdentifier;
+
+    /// The document range for which inline values should be computed.
+    range: Range;
+
+    /// Additional information about the context in which inline values were requested.
+    context: InlineValueContext;
+  };
+
+  /// A request to provide inline values in a document. The request's parameter is of
+  /// type {@link InlineValueParams}, the response is of type
+  /// {@link InlineValue InlineValue[]} or a Thenable that resolves to such.
+  export namespace InlineValueRequest {
+    export const method: 'textDocument/inlineValue' = 'textDocument/inlineValue';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<InlineValueParams, InlineValue[] | null, InlineValue[], void, InlineValueRegistrationOptions>(method);
+    export type HandlerSignature = RequestHandler<InlineValueParams, InlineValue[] | null, void>;
+  }
+
+  /// @since 3.17.0
+  export namespace InlineValueRefreshRequest {
+    export const method: `workspace/inlineValue/refresh` = `workspace/inlineValue/refresh`;
+    export const messageDirection: MessageDirection = MessageDirection.serverToClient;
+    export const type = new ProtocolRequestType0<void, void, void, void>(method);
+    export type HandlerSignature = RequestHandler0<void, void>;
+  }
+*)

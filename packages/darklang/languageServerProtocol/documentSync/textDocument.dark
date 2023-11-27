@@ -223,3 +223,165 @@ module Darklang =
             |> Stdlib.List.filterMap (fun x -> x)
             |> Json.Object
 
+
+
+// /// The document change notification is sent from the client to the server to signal
+// /// changes to a text document.
+// module DidChangeTextDocumentNotification =
+//   let method = "textDocument/didChange"
+//   //let messageDirection = MessageDirection.clientToServer;
+//   // registration options: TextDocumentChangeRegistrationOptions
+
+//   module DidChangeTextDocumentParams =
+//     type DidChangeTextDocumentParams =
+//     /// The change text document notification's parameters.
+//     type DidChangeTextDocumentParams {
+//       /// The document that did change. The version number points
+//       /// to the version after all provided content changes have
+//       /// been applied.
+//       textDocument: VersionedTextDocumentIdentifier
+
+//       /// The actual content changes. The content changes describe single state changes
+//       /// to the document. So if there are two content changes c1 (at array index 0) and
+//       /// c2 (at array index 1) for a document in state S then c1 moves the document from
+//       /// S to S' and c2 from S' to S''. So c1 is computed on the state S and c2 is computed
+//       /// on the state S'.
+//       /// To mirror the content of a document using change events use the following approach:
+//       /// - start with the same initial content
+//       /// - apply the 'textDocument/didChange' notifications in the order you receive them.
+//       /// - apply the `TextDocumentContentChangeEvent`s in a single notification in the order
+//       ///   you receive them.
+//       contentChanges: TextDocumentContentChangeEvent[];
+//     }
+
+(*
+
+  export interface TextDocumentSyncClientCapabilities {
+    /// Whether text document synchronization supports dynamic registration.
+    dynamicRegistration?: boolean;
+
+    /// The client supports sending will save notifications.
+    willSave?: boolean;
+
+    /// The client supports sending a will save request and
+    /// waits for a response providing text edits which will
+    /// be applied to the document before it is saved.
+    willSaveWaitUntil?: boolean;
+
+    /// The client supports did save notifications.
+    didSave?: boolean;
+  }
+
+
+
+
+
+  /// @proposed
+  export interface TextDocumentContentChangeWholeDocument {
+    /// The new text of the whole document.
+    text: string;
+  }
+
+  /// @proposed
+  export interface TextDocumentContentChangePartial {
+    /// The range of the document that changed.
+    range: Range;
+
+    /// The optional length of the range that got replaced.
+    /// @deprecated use range instead.
+    rangeLength?: uinteger;
+
+    /// The new text for the provided range.
+    text: string;
+  }
+
+  /// An event describing a change to a text document. If only a text is provided
+  /// it is considered to be the full content of the document.
+  export type TextDocumentContentChangeEvent = TextDocumentContentChangePartial | TextDocumentContentChangeWholeDocument;
+
+
+
+  /// The change text document notification's parameters.
+  export interface DidChangeTextDocumentParams {
+    /// The document that did change. The version number points
+    /// to the version after all provided content changes have
+    /// been applied.
+    textDocument: VersionedTextDocumentIdentifier;
+
+    /// The actual content changes. The content changes describe single state changes
+    /// to the document. So if there are two content changes c1 (at array index 0) and
+    /// c2 (at array index 1) for a document in state S then c1 moves the document from
+    /// S to S' and c2 from S' to S''. So c1 is computed on the state S and c2 is computed
+    /// on the state S'.
+    /// To mirror the content of a document using change events use the following approach:
+    /// - start with the same initial content
+    /// - apply the 'textDocument/didChange' notifications in the order you receive them.
+    /// - apply the `TextDocumentContentChangeEvent`s in a single notification in the order
+    ///   you receive them.
+    contentChanges: TextDocumentContentChangeEvent[];
+  }
+
+  /// Describe options to be used when registered for text document change events.
+  export interface TextDocumentChangeRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions {
+
+    /// How documents are synced to the server.
+    syncKind: TextDocumentSyncKind;
+  }
+
+
+
+
+
+
+  /// Save registration options.
+  export interface TextDocumentSaveRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions,
+      SaveOptions {
+  }
+
+  /// Represents reasons why a text document is saved.
+  export namespace TextDocumentSaveReason {
+    /// Manually triggered, e.g. by the user pressing save, by starting debugging,
+    /// or by an API call.
+    export const Manual: 1 = 1;
+
+    /// Automatic after a delay.
+    export const AfterDelay: 2 = 2;
+
+    /// When the editor lost focus.
+    export const FocusOut: 3 = 3;
+  }
+  export type TextDocumentSaveReason = 1 | 2 | 3;
+
+  /// The parameters sent in a will save text document notification.
+  export interface WillSaveTextDocumentParams {
+    /// The document that will be saved.
+    textDocument: TextDocumentIdentifier;
+
+    /// The 'TextDocumentSaveReason'.
+    reason: TextDocumentSaveReason;
+  }
+
+  /// A document will save notification is sent from the client to the server before
+  /// the document is actually saved.
+  export namespace WillSaveTextDocumentNotification {
+    export const method: 'textDocument/willSave' = 'textDocument/willSave';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolNotificationType<WillSaveTextDocumentParams, TextDocumentRegistrationOptions>(method);
+  }
+
+  /// A "document will save" request is sent from the client to the server before
+  /// the document is actually saved. The request can return an array of TextEdits
+  /// which will be applied to the text document before it is saved. Please note that
+  /// clients might drop results if computing the text edits took too long or if a
+  /// server constantly fails on this request. This is done to keep the save fast and
+  /// reliable.
+  export namespace WillSaveTextDocumentWaitUntilRequest {
+    export const method: 'textDocument/willSaveWaitUntil' = 'textDocument/willSaveWaitUntil';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<WillSaveTextDocumentParams, TextEdit[] | null, never, void, TextDocumentRegistrationOptions>(method);
+  }
+*)

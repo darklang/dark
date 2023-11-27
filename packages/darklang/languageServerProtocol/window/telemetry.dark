@@ -1,0 +1,11 @@
+// Server->Client notification to log telemetry data
+
+(*
+  /// The telemetry event notification is sent from the server to the client to ask
+  /// the client to log telemetry data.
+  export namespace TelemetryEventNotification {
+    export const method: 'telemetry/event' = 'telemetry/event';
+    export const messageDirection: MessageDirection = MessageDirection.serverToClient;
+    export const type = new ProtocolNotificationType<LSPAny, void>(method);
+  }
+*)

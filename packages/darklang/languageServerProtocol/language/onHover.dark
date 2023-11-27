@@ -1,0 +1,52 @@
+// What happens when you 'hover' on something in the editor?
+
+(*
+  /// The result of a hover request.
+  export interface Hover {
+    /// The hover's content
+    contents: MarkupContent;
+
+    /// An optional range inside the text document that is used to
+    /// visualize the hover, e.g. by changing the background color.
+    range?: Range;
+  }
+
+
+  export interface HoverClientCapabilities {
+    /// Whether hover supports dynamic registration.
+    dynamicRegistration?: boolean;
+
+    /// Client supports the following content formats for the content
+    /// property. The order describes the preferred format of the client.
+    contentFormat?: MarkupKind[];
+  }
+
+  /// Hover options.
+  export interface HoverOptions
+    extends
+      WorkDoneProgressOptions {
+  }
+
+  /// Parameters for a {@link HoverRequest}.
+  export interface HoverParams
+    extends
+      TextDocumentPositionParams,
+      WorkDoneProgressParams {
+  }
+
+  /// Registration options for a {@link HoverRequest}.
+  export interface HoverRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions,
+      HoverOptions {
+  }
+
+  /// Request to request hover information at a given text document position. The request's
+  /// parameter is of type {@link TextDocumentPosition} the response is of
+  /// type {@link Hover} or a Thenable that resolves to such.
+  export namespace HoverRequest {
+    export const method: 'textDocument/hover' = 'textDocument/hover';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<HoverParams, Hover | null, never, void, HoverRegistrationOptions>(method);
+  }
+*)
