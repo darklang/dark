@@ -76,6 +76,145 @@ module Darklang =
           |> Json.Object
 
 
+      /// Request to request completion at a given text document position.
+      ///
+      /// The request's parameter is of type {@link TextDocumentPosition}.
+      ///
+      /// The response may be of type {@link CompletionItem CompletionItem[]} or {@link CompletionList}
+      /// or a Thenable that resolves to such.
+      ///
+      /// The request can delay the computation of the {@link CompletionItem.detail `detail`}
+      /// and {@link CompletionItem.documentation `documentation`} properties to the `completionItem/resolve`
+      /// request. However, properties that are needed for the initial sorting and filtering, like `sortText`,
+      /// `filterText`, `insertText`, and `textEdit`, must not be changed during resolve.
+      module CompletionRequest =
+        let method = "textDocument/completion"
+        // let messageDirection = MessageDirection.ClientToServer
+        // params: CompletionParams
+        // result: CompletionItem[] | CompletionList | null
+        // registrationOptions: CompletionRegistrationOptions
+
+
+        module CompletionTriggerKind =
+          /// How a completion was triggered
+          type CompletionTriggerKind =
+            /// Completion was triggered by:
+            /// - typing an identifier (24x7 code complete)
+            /// - manual invocation (e.g Ctrl+Space)
+            /// - , or via API. (TODO: not sure what this means)
+            | Invoked
+
+            /// Completion was triggered by a trigger character specified by
+            /// the `triggerCharacters` properties of the `CompletionRegistrationOptions`.
+            | TriggerCharacter
+
+            /// Completion was re-triggered as current completion list is incomplete
+            | TriggerForIncompleteCompletions
+
+          let fromJson
+            (json: Json)
+            : Stdlib.Result.Result<CompletionTriggerKind, Unit> =
+            match json with
+            | Number 1.0 -> Stdlib.Result.Result.Ok CompletionTriggerKind.Invoked
+            | Number 2.0 ->
+              Stdlib.Result.Result.Ok CompletionTriggerKind.TriggerCharacter
+            | Number 3.0 ->
+              Stdlib.Result.Result.Ok
+                CompletionTriggerKind.TriggerForIncompleteCompletions
+            | _ -> Stdlib.Result.Result.Error()
+
+
+        /// Contains additional information about the context in which a completion request is triggered.
+        module CompletionContext =
+          type CompletionContext =
+            {
+              /// How the completion was triggered.
+              triggerKind: CompletionTriggerKind.CompletionTriggerKind
+
+              /// The trigger character (a single character) that has trigger code complete.
+              /// Is undefined if `triggerKind !== CompletionTriggerKind.TriggerCharacter`
+              triggerCharacter: Stdlib.Option.Option<String>
+            }
+
+          let fromJson (json: Json) : Stdlib.Result.Result<CompletionContext, Unit> =
+            match json with
+            | Object fields ->
+              let triggerKind = // Result<CompletionTriggerKind, Unit>
+                match
+                  Stdlib.List.findFirst fields (fun (key, _) -> key == "triggerKind")
+                with
+                | Some((_, tk)) -> CompletionTriggerKind.fromJson tk
+                | _ -> Stdlib.Result.Result.Error()
+
+              let triggerCharacter = // Option<String>
+                match
+                  Stdlib.List.findFirst fields (fun (key, _) ->
+                    key == "triggerCharacter")
+                with
+                | Some((_, String triggerCharacter)) ->
+                  Stdlib.Option.Option.Some triggerCharacter
+                | _ -> Stdlib.Option.Option.None
+
+              match (triggerKind, triggerCharacter) with
+              | (Ok triggerKind, triggerCharacter) ->
+                (CompletionContext
+                  { triggerKind = triggerKind
+                    triggerCharacter = triggerCharacter })
+                |> Stdlib.Result.Result.Ok
+
+            | _ -> Stdlib.Result.Result.Error()
+
+
+        module CompletionParams =
+
+          /// Completion parameters
+          ///
+          /// TODO:
+          /// - extends WorkDoneProgressParams
+          /// - extends PartialResultParams
+          type CompletionParams =
+            {
+              // in TypeScript, was inlined via `@extends TextDocumentPositionParams`
+              textDocumentPosition:
+                TextDocumentPositionParams.TextDocumentPositionParams
+
+              /// The completion context. This is only available it the client specifies
+              /// to send this using the client capability `textDocument.completion.contextSupport === true`
+              context: Stdlib.Option.Option<CompletionContext.CompletionContext>
+            }
+
+          let fromJson (json: Json) : Stdlib.Result.Result<CompletionParams, Unit> =
+            match json with
+            | Object fields ->
+              let textDocumentPosition = // Result<TextDocumentPositionParams, Unit>
+                TextDocumentPositionParams.fromJson json
+
+              let context = // Option<Result<CompletionContext, Unit>>
+                match
+                  Stdlib.List.findFirst fields (fun (key, _) -> key == "context")
+                with
+                | None -> Stdlib.Option.Option.None
+                | Some((_, context)) ->
+                  (CompletionContext.fromJson context) |> Stdlib.Option.Option.Some
+                | _ -> Stdlib.Result.Result.Error()
+
+              match textDocumentPosition, context with
+              | Ok(textDocumentPosition), None ->
+                (CompletionParams
+                  { textDocumentPosition = textDocumentPosition
+                    context = Stdlib.Option.Option.None })
+                |> Stdlib.Result.Result.Ok
+
+              | Ok(textDocumentPosition), Some(Ok context) ->
+                (CompletionParams
+                  { textDocumentPosition = textDocumentPosition
+                    context = Stdlib.Option.Option.Some context })
+                |> Stdlib.Result.Result.Ok
+
+              | _ -> Stdlib.Result.Result.Error()
+
+            | _ -> Stdlib.Result.Result.Error()
+
 (*
   /// Defines whether the insert text in a completion item should be interpreted as
   /// plain text or a snippet.
@@ -707,44 +846,11 @@ module Darklang =
     completionList?: CompletionListCapabilities;
   }
 
-  /// How a completion was triggered
-  export namespace CompletionTriggerKind {
-    /// Completion was triggered by typing an identifier (24x7 code
-    /// complete), manual invocation (e.g Ctrl+Space) or via API.
-    export const Invoked: 1 = 1;
-
-    /// Completion was triggered by a trigger character specified by
-    /// the `triggerCharacters` properties of the `CompletionRegistrationOptions`.
-    export const TriggerCharacter: 2 = 2;
-
-    /// Completion was re-triggered as current completion list is incomplete
-    export const TriggerForIncompleteCompletions: 3 = 3;
-  }
-
-  export type CompletionTriggerKind = 1 | 2 | 3;
 
 
-  /// Contains additional information about the context in which a completion request is triggered.
-  export interface CompletionContext {
-    /// How the completion was triggered.
-    triggerKind: CompletionTriggerKind;
 
-    /// The trigger character (a single character) that has trigger code complete.
-    /// Is undefined if `triggerKind !== CompletionTriggerKind.TriggerCharacter`
-    triggerCharacter?: string;
-  }
 
-  /// Completion parameters
-  export interface CompletionParams
-    extends
-      TextDocumentPositionParams,
-      WorkDoneProgressParams,
-      PartialResultParams {
 
-    /// The completion context. This is only available it the client specifies
-    /// to send this using the client capability `textDocument.completion.contextSupport === true`
-    context?: CompletionContext;
-  }
 
 
 
@@ -755,20 +861,7 @@ module Darklang =
       CompletionOptions {
   }
 
-  /// Request to request completion at a given text document position. The request's
-  /// parameter is of type {@link TextDocumentPosition} the response
-  /// is of type {@link CompletionItem CompletionItem[]} or {@link CompletionList}
-  /// or a Thenable that resolves to such.
-  ///
-  /// The request can delay the computation of the {@link CompletionItem.detail `detail`}
-  /// and {@link CompletionItem.documentation `documentation`} properties to the `completionItem/resolve`
-  /// request. However, properties that are needed for the initial sorting and filtering, like `sortText`,
-  /// `filterText`, `insertText`, and `textEdit`, must not be changed during resolve.
-  export namespace CompletionRequest {
-    export const method: 'textDocument/completion' = 'textDocument/completion';
-    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
-    export const type = new ProtocolRequestType<CompletionParams, CompletionItem[] | CompletionList | null, CompletionItem[], void, CompletionRegistrationOptions>(method);
-  }
+
 
   /// Request to resolve additional information for a given completion item.The request's
   /// parameter is of type {@link CompletionItem} the response

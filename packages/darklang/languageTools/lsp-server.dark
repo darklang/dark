@@ -80,13 +80,11 @@ module Darklang =
 
 
         // -- textDocument synchronization
-        | ("textDocument/didOpen", None, Some(Object fields)) ->
-          // TODO: use `LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.method` above
-          let reconstructedJson = Stdlib.AltJson.Json.Object fields
-
+        // TODO: use `LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.method` below
+        | ("textDocument/didOpen", None, Some(Object requestParams)) ->
           let parsed =
-            LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.fromJson
-              reconstructedJson
+            (Stdlib.AltJson.Json.Object requestParams)
+            |> LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.fromJson
 
           match parsed with
           | Ok parsed ->
@@ -103,13 +101,11 @@ module Darklang =
             state
 
 
-        | ("textDocument/didSave", None, Some(Object fields)) ->
-          // TODO: use `LanguageServerProtocol.DocumentSync.TextDocument.DidSaveTextDocumentNotification.method` above
-          let reconstructedJson = Stdlib.AltJson.Json.Object fields
-
+        // TODO: use `LanguageServerProtocol.DocumentSync.TextDocument.DidSaveTextDocumentNotification.method` below
+        | ("textDocument/didSave", None, Some(Object requestParams)) ->
           let parsed =
-            LanguageServerProtocol.DocumentSync.TextDocument.DidSaveTextDocumentNotification.DidSaveTextDocumentParams.fromJson
-              reconstructedJson
+            (Stdlib.AltJson.Json.Object requestParams)
+            |> LanguageServerProtocol.DocumentSync.TextDocument.DidSaveTextDocumentNotification.DidSaveTextDocumentParams.fromJson
 
           match parsed with
           | Ok parsed ->
@@ -131,13 +127,11 @@ module Darklang =
             log "couldn't parse params of didSave"
             state
 
-        | ("textDocument/didClose", None, Some(Object fields)) ->
-          // TODO: use `LanguageServerProtocol.DocumentSync.TextDocument.DidCloseTextDocumentNotification.method` above
-          let reconstructedJson = Stdlib.AltJson.Json.Object fields
-
+        // TODO: use `LanguageServerProtocol.DocumentSync.TextDocument.DidCloseTextDocumentNotification.method` below
+        | ("textDocument/didClose", None, Some(Object requestParams)) ->
           let parsed =
-            LanguageServerProtocol.DocumentSync.TextDocument.DidCloseTextDocumentNotification.DidCloseTextDocumentParams.fromJson
-              reconstructedJson
+            (Stdlib.AltJson.Json.Object requestParams)
+            |> LanguageServerProtocol.DocumentSync.TextDocument.DidCloseTextDocumentNotification.DidCloseTextDocumentParams.fromJson
 
           match parsed with
           | Ok parsed ->
@@ -152,39 +146,19 @@ module Darklang =
 
 
         // -- autocomplete
-        | ("textDocument/completion", Some id, Some p) ->
-          match p with
-          | Array p ->
-            let p = (Json.Array p) |> Stdlib.AltJson.format
-            log $"Some Array-based params: {p}"
-          | Object p ->
-            let p = (Json.Object p) |> Stdlib.AltJson.format
-            log $"Some Object-based params: {p}"
+        | ("textDocument/completion", Some id, Some(Object requestParams)) ->
+          let parsed =
+            (Stdlib.AltJson.Json.Object requestParams)
+            |> LanguageServerProtocol.Completions.CompletionRequest.CompletionParams.fromJson
 
-          (*[
-            { label: "TypeScript", kind: CompletionItemKind.Text, data: 1 },
-            { label: "JavaScript", kind: CompletionItemKind.Text, data: 2 },
-          ]*)
+          match parsed with
+          | Ok parsed ->
+            log
+              $"got completion request for {parsed.textDocumentPosition.textDocument.uri}"
 
-          log "TODO: return a response with some completions"
-          state
+            log "TODO: return a response with some completions"
+          | Error() -> log "couldn't parse params of completion request"
 
-        | ("completionItem/resolve", Some id) ->
-          (*
-            // once you hover over some completion, this fills in some details (I think)
-            connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
-              if (item.data === 1) {
-                item.detail = "TypeScript details";
-                item.documentation = "TypeScript documentation";
-              } else if (item.data === 2) {
-                item.detail = "JavaScript details";
-                item.documentation = "JavaScript documentation";
-              }
-              return item;
-            });
-          *)
-          // TODO: use r.params
-          log "TODO: deal with completion item resolution"
           state
 
 

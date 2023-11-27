@@ -67,6 +67,10 @@ module Darklang =
       /// Converts an <type UInt64> to a <type Float>
       let toFloat (a: UInt64) : Float = Builtin.UInt64.toFloat a
 
+      /// Converts a <type Float> to an <type UInt64>
+      let fromFloat (a: Float) : Stdlib.Option.Option<UInt64> =
+        a |> Float.round |> fromInt64
+
 
       /// Returns the sum of all the ints in the list
       let sum (lst: List<UInt64>) : UInt64 =

@@ -65,6 +65,32 @@ module Darklang =
           [ ("line", p.line |> Stdlib.UInt64.toFloat Json.Number)
             ("character", p.character |> Stdlib.UInt64.toFloat |> Json.Number) ]
 
+      let fromJson (json: Json) : Stdlib.Result.Result<Position, Unit> =
+        match json with
+        | Object fields ->
+          let line =
+            match Stdlib.List.findFirst fields (fun (k, _) -> k == "line") with
+            | Some((_, Number l)) ->
+              match Stdlib.UInt64.fromFloat l with
+              | None -> Stdlib.Result.Result.Error()
+              | Some l -> Stdlib.Result.Result.Ok l
+            | _ -> Stdlib.Result.Result.Error()
+
+          let character =
+            match Stdlib.List.findFirst fields (fun (k, _) -> k == "character") with
+            | Some((_, Number c)) ->
+              match Stdlib.UInt64.fromFloat c with
+              | None -> Stdlib.Result.Result.Error()
+              | Some c -> Stdlib.Result.Result.Ok c
+            | _ -> Stdlib.Result.Result.Error()
+
+          match (line, character) with
+          | (Ok line, Ok character) ->
+            Stdlib.Result.Result.Ok(Position { line = line; character = character })
+          | _ -> Stdlib.Result.Result.Error()
+
+        | _ -> Stdlib.Result.Result.Error()
+
     module Range =
       type Range =
         {
@@ -134,6 +160,46 @@ module Darklang =
         match json with
         | Object [ ("uri", String uri) ] ->
           Stdlib.Result.Result.Ok(TextDocumentIdentifier { uri = uri })
+        | _ -> Stdlib.Result.Result.Error()
+
+
+    module TextDocumentPositionParams =
+      /// A parameter literal used in requests to pass a text document and a position inside that document.
+      type TextDocumentPositionParams =
+        {
+          /// The text document.
+          textDocument: TextDocumentIdentifier.TextDocumentIdentifier
+
+          /// The position inside the text document.
+          position: Position.Position
+        }
+
+      let fromJson
+        (json: Json)
+        : Stdlib.Result.Result<TextDocumentPositionParams, Unit> =
+        match json with
+        | Object fields ->
+          let textDocument = // Result<TextDocumentIdentifier, Unit>
+            match
+              Stdlib.List.findFirst fields (fun (k, _) -> k == "textDocument")
+            with
+            | Some((_, textDocument)) -> TextDocumentIdentifier.fromJson textDocument
+            | None -> Stdlib.Result.Result.Error()
+
+          let position = // Result<Position, Unit>
+            match Stdlib.List.findFirst fields (fun (k, _) -> k == "position") with
+            | Some((_, position)) -> Position.fromJson position
+            | None -> Stdlib.Result.Result.Error()
+
+          match (textDocument, position) with
+          | (Ok textDocument, Ok position) ->
+            Stdlib.Result.Result.Ok(
+              TextDocumentPositionParams
+                { textDocument = textDocument
+                  position = position }
+            )
+          | _ -> Stdlib.Result.Result.Error()
+
         | _ -> Stdlib.Result.Result.Error()
 
 
@@ -797,15 +863,7 @@ module Darklang =
 
 
 
-  /// A parameter literal used in requests to pass a text document and a position inside that
-  /// document.
-  export interface TextDocumentPositionParams {
-    /// The text document.
-    textDocument: TextDocumentIdentifier;
 
-    /// The position inside the text document.
-    position: Position;
-  }
 
 
 
