@@ -85,6 +85,3 @@ let debugConnection () : unit =
   with e ->
     Telemetry.addException [] e
     printTime $"Failed to get response from {url}: {e.Message} {e.StackTrace}"
-
-
-
