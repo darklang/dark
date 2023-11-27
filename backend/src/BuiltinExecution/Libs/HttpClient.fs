@@ -240,19 +240,11 @@ let makeRequest
 
         let host = uri.Host.Trim().ToLower()
         if not (config.allowedHost host) then
-          return
-            Error(RequestError.RequestError.BadUrl BadUrl.BadUrlDetails.InvalidHost)
+          return Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidHost)
         else if not (config.allowedHeaders httpRequest.headers) then
-          return
-            Error(
-              RequestError.RequestError.BadUrl BadUrl.BadUrlDetails.InvalidRequest
-            )
+          return Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidRequest)
         else if not (config.allowedScheme uri.Scheme) then
-          return
-            Error(
-              RequestError.RequestError.BadUrl
-                BadUrl.BadUrlDetails.UnsupportedProtocol
-            )
+          return Error(RequestError.BadUrl BadUrl.BadUrlDetails.UnsupportedProtocol)
         else
           let reqUri =
             System.UriBuilder(
@@ -291,7 +283,7 @@ let makeRequest
                     Headers.MediaTypeHeaderValue.Parse(v)
                   Ok()
                 with :? System.FormatException ->
-                  Error BadHeader.BadHeader.InvalidContentType
+                  Error BadHeader.InvalidContentType
               else
                 let added = req.Headers.TryAddWithoutValidation(k, v)
 
@@ -364,18 +356,13 @@ let makeRequest
         // If we get this otherwise, return generic error
         config.telemetryAddTag "error" true
         config.telemetryAddTag "error.msg" "Unsupported Protocol"
-        return
-          Error(
-            RequestError.RequestError.BadUrl
-              BadUrl.BadUrlDetails.UnsupportedProtocol
-          )
+        return Error(RequestError.BadUrl BadUrl.BadUrlDetails.UnsupportedProtocol)
 
       | :? System.UriFormatException ->
         config.telemetryAddTag "error" true
         config.telemetryAddTag "error.msg" "Invalid URI"
-        return
-          Error(RequestError.RequestError.BadUrl BadUrl.BadUrlDetails.InvalidUri)
-      | :? IOException -> return Error(RequestError.RequestError.NetworkError)
+        return Error(RequestError.BadUrl BadUrl.BadUrlDetails.InvalidUri)
+      | :? IOException -> return Error(RequestError.NetworkError)
       | :? HttpRequestException as e ->
         // This is a bit of an awkward case. I'm unsure how it fits into our model.
         // We've made a request, and _potentially_ (according to .NET) have a status
@@ -386,7 +373,7 @@ let makeRequest
 
         config.telemetryAddException [ "error.status_code", statusCode ] e
 
-        return Error(RequestError.RequestError.NetworkError)
+        return Error(RequestError.NetworkError)
     })
 
 
