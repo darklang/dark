@@ -1,0 +1,116 @@
+//
+
+(*
+  /// A special workspace symbol that supports locations without a range.
+  ///
+  /// See also SymbolInformation.
+  export interface WorkspaceSymbol
+    extends
+      BaseSymbolInformation {
+
+    /// The location of the symbol. Whether a server is allowed to
+    /// return a location without a range depends on the client
+    /// capability `workspace.symbol.resolveSupport`.
+    ///
+    /// See SymbolInformation#location for more details.
+    location: Location;
+
+    /// A data entry field that is preserved on a workspace symbol between a
+    /// workspace symbol request and a workspace symbol resolve request.
+    data?: LSPAny;
+  }
+
+
+
+  /// @proposed
+  export interface ClientSymbolKindOptions {
+    /// The symbol kind values the client supports. When this
+    /// property exists the client also guarantees that it will
+    /// handle values outside its set gracefully and falls back
+    /// to a default value when unknown.
+    /// If this property is not present the client only supports
+    /// the symbol kinds from `File` to `Array` as defined in
+    /// the initial version of the protocol.
+    valueSet?: SymbolKind[];
+  }
+
+  /// @proposed
+  export interface ClientSymbolTagOptions {
+    /// The tags supported by the client.
+    valueSet: SymbolTag[];
+  }
+
+  /// @proposed
+  export interface ClientSymbolResolveOptions {
+    /// The properties that a client can resolve lazily. Usually
+    /// `location.range`
+    properties: string[];
+  }
+
+  /// Client capabilities for a {@link WorkspaceSymbolRequest}.
+  export interface WorkspaceSymbolClientCapabilities {
+    /// Symbol request supports dynamic registration.
+    dynamicRegistration?: boolean;
+
+    /// Specific capabilities for the `SymbolKind` in the `workspace/symbol` request.
+    symbolKind?: ClientSymbolKindOptions;
+
+    /// The client supports tags on `SymbolInformation`.
+    /// Clients supporting tags have to handle unknown tags gracefully.
+    tagSupport?: ClientSymbolTagOptions;
+
+    /// The client support partial workspace symbols. The client will send the
+    /// request `workspaceSymbol/resolve` to the server to resolve additional
+    /// properties.
+    resolveSupport?: ClientSymbolResolveOptions;
+  }
+
+  /// The parameters of a {@link WorkspaceSymbolRequest}.
+  export interface WorkspaceSymbolParams
+    extends
+      WorkDoneProgressParams,
+      PartialResultParams {
+
+    /// A query string to filter symbols by. Clients may send an empty
+    /// string here to request all symbols.
+    query: string;
+  }
+
+  /// Server capabilities for a {@link WorkspaceSymbolRequest}.
+  export interface WorkspaceSymbolOptions
+    extends
+      WorkDoneProgressOptions {
+
+    /// The server provides support to resolve additional
+    /// information for a workspace symbol.
+    resolveProvider?: boolean;
+  }
+
+
+  /// Registration options for a {@link WorkspaceSymbolRequest}.
+  export interface WorkspaceSymbolRegistrationOptions
+    extends
+      WorkspaceSymbolOptions {
+
+  }
+
+  /// A request to list project-wide symbols matching the query string given
+  /// by the {@link WorkspaceSymbolParams}. The response is
+  /// of type {@link SymbolInformation SymbolInformation[]} or a Thenable that
+  /// resolves to such.
+  ///
+  /// need to advertise support for WorkspaceSymbols via the client capability
+  /// `workspace.symbol.resolveSupport`.
+  export namespace WorkspaceSymbolRequest {
+    export const method: 'workspace/symbol' = 'workspace/symbol';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<WorkspaceSymbolParams, SymbolInformation[] | WorkspaceSymbol[] | null, SymbolInformation[] | WorkspaceSymbol[], void, WorkspaceSymbolRegistrationOptions>(method);
+  }
+
+  /// A request to resolve the range inside the workspace symbol's location.
+  export namespace WorkspaceSymbolResolveRequest {
+    export const method: 'workspaceSymbol/resolve' = 'workspaceSymbol/resolve';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<WorkspaceSymbol, WorkspaceSymbol, never, void, void>(method);
+  }
+*)

@@ -11,6 +11,25 @@ module Darklang =
     ///
     /// TODO: some day, abstract out general LSP support in a separate module
     module LspServer =
+      // <aliases>
+      type Json = Stdlib.AltJson.Json
+      // </aliases>
+
+
+      type DocumentInScope = { uri: String; text: String }
+
+      type State =
+        {
+          initialized: Bool
+
+          shouldShutdown: Bool
+
+          /// Documents that are currently open in the editor
+          /// (i.e. have been `textDocument/didOpen`ed, and not yet `textDocument/didClose`d)
+          /// note: the string key here is the URI
+          documentsInScope: Dict<DocumentInScope>
+        }
+
       let logFilePath = "/home/dark/app/rundir/logs/lsp-server.log"
 
       let log (input: String) : Unit =
@@ -40,65 +59,160 @@ module Darklang =
         Builtin.Danger.LanguageServerProtocol.readNextMessage ()
 
 
-      /// returns `true` if we got a shutdown request
-      ///
-      /// maybe we should instead return some DU here, with "Shutdown" as a case?
-      /// or a list of DUs - like actions, including returning responses?
-      let handleRequest (r: JsonRPC.Request.Request) : Bool =
-        match r.method, r.id with
+      let handleRequest (state: State) (r: JsonRPC.Request.Request) : State =
+        match (r.method, r.id, r.params) with
         // -- Lifecycle and general support
-        | ("initialized", None) ->
-          log "(ignore)"
-          false
-
-        | ("initialize", None) ->
+        | ("initialize", None, _) ->
           log "TODO: fail - we shouldn't be seeing a second one of these"
-          false
+          { state with initialized = true }
 
-        | ("$/setTrace", None) ->
+        | ("initialized", None, Some(Object [])) ->
+          log "(ignore)"
+          state
+
+        | ("$/setTrace", None, _) ->
           log "TODO we should do something with this"
-          false
+          state
 
-        | ("shutdown", None) ->
+        | ("shutdown", None, _) ->
           log "shutting down"
-          true
+          { state with shouldShutdown = true }
 
 
-        // -- textDocument
-        | ("textDocument/didOpen", None) ->
-          log "TODO we should do something with this - like report problems"
-          false
-        | ("textDocument/didSave", None) ->
-          log "TODO we should do something with this - like report problems"
-          false
+        // -- textDocument synchronization
+        | ("textDocument/didOpen", None, Some(Object fields)) ->
+          // TODO: use `LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.method` above
+          let reconstructedJson = Stdlib.AltJson.Json.Object fields
+
+          let parsed =
+            LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.fromJson
+              reconstructedJson
+
+          match parsed with
+          | Ok parsed ->
+            log $"adding/setting document {parsed.textDocument.uri}"
+
+            { state with
+                documentsInScope =
+                  Stdlib.Dict.set
+                    state.documentsInScope
+                    parsed.textDocument.uri
+                    parsed.textDocument.text }
+          | Error() ->
+            log "couldn't parse params of didOpen"
+            state
+
+
+        | ("textDocument/didSave", None, Some(Object fields)) ->
+          // TODO: use `LanguageServerProtocol.DocumentSync.TextDocument.DidSaveTextDocumentNotification.method` above
+          let reconstructedJson = Stdlib.AltJson.Json.Object fields
+
+          let parsed =
+            LanguageServerProtocol.DocumentSync.TextDocument.DidSaveTextDocumentNotification.DidSaveTextDocumentParams.fromJson
+              reconstructedJson
+
+          match parsed with
+          | Ok parsed ->
+            match parsed.text with
+            | None ->
+              log "WARNING: no text in didSave"
+              state
+
+            | Some text ->
+              log $"updating document {parsed.textDocument.uri}"
+
+              { state with
+                  documentsInScope =
+                    Stdlib.Dict.set
+                      state.documentsInScope
+                      parsed.textDocument.uri
+                      text }
+          | Error() ->
+            log "couldn't parse params of didSave"
+            state
+
+        | ("textDocument/didClose", None, Some(Object fields)) ->
+          // TODO: use `LanguageServerProtocol.DocumentSync.TextDocument.DidCloseTextDocumentNotification.method` above
+          let reconstructedJson = Stdlib.AltJson.Json.Object fields
+
+          let parsed =
+            LanguageServerProtocol.DocumentSync.TextDocument.DidCloseTextDocumentNotification.DidCloseTextDocumentParams.fromJson
+              reconstructedJson
+
+          match parsed with
+          | Ok parsed ->
+            log $"removing document from documentsInScope"
+
+            { state with
+                documentsInScope =
+                  Stdlib.Dict.remove state.documentsInScope parsed.textDocument.uri }
+          | Error() ->
+            log "couldn't parse params of didSave"
+            state
+
+
+        // -- autocomplete
+        | ("textDocument/completion", Some id, Some p) ->
+          match p with
+          | Array p ->
+            let p = (Json.Array p) |> Stdlib.AltJson.format
+            log $"Some Array-based params: {p}"
+          | Object p ->
+            let p = (Json.Object p) |> Stdlib.AltJson.format
+            log $"Some Object-based params: {p}"
+
+          (*[
+            { label: "TypeScript", kind: CompletionItemKind.Text, data: 1 },
+            { label: "JavaScript", kind: CompletionItemKind.Text, data: 2 },
+          ]*)
+
+          log "TODO: return a response with some completions"
+          state
+
+        | ("completionItem/resolve", Some id) ->
+          (*
+            // once you hover over some completion, this fills in some details (I think)
+            connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
+              if (item.data === 1) {
+                item.detail = "TypeScript details";
+                item.documentation = "TypeScript documentation";
+              } else if (item.data === 2) {
+                item.detail = "JavaScript details";
+                item.documentation = "JavaScript documentation";
+              }
+              return item;
+            });
+          *)
+          // TODO: use r.params
+          log "TODO: deal with completion item resolution"
+          state
 
 
         // -- other
-        | (other, _) ->
+        | (other, _, _) ->
           log $"TODO: we don't yet support this method: {other}"
-          false
+          state
 
 
-
-      let runServerCliLoop () : Int64 =
+      let runServerCliLoop (state: State) : Int64 =
         log "---"
 
         let incomingMessageRaw = readMessageFromClient ()
         logRequest incomingMessageRaw
 
 
-        let shouldShutdown =
+        let updatedState =
           match JsonRPC.IncomingMessage.parse incomingMessageRaw with
           // # Things we want/expect
 
           | SingleRequest(Ok(jsonRpcRequest)) ->
             log $"Parsed incoming message as single JSON-RPC request"
-            handleRequest jsonRpcRequest
+            handleRequest state jsonRpcRequest
 
           | BatchOfRequests items ->
             // TODO: need to reply in a batch as well
             log "TODO - Got batch request; not yet set to handle these"
-            false
+            state
 
 
           // # Errors
@@ -114,7 +228,7 @@ module Darklang =
             logAndSendToClient
               """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
 
-            false
+            state
 
 
           | NotJson ->
@@ -124,7 +238,7 @@ module Darklang =
             logAndSendToClient
               """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
 
-            false
+            state
 
 
           | NotObjectOrArray ->
@@ -133,17 +247,20 @@ module Darklang =
             logAndSendToClient
               """{"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": null}"""
 
-            false
+            state
 
 
           // The json-rpc spec says to just ignore any incoming messages of `[]`
           | EmptyBatch ->
             log "ignoring empty batch"
-            false
+            state
 
 
         // shut down if instructed, or listen for the next message
-        if shouldShutdown then 0L else (runServerCliLoop ())
+        if updatedState.shouldShutdown then
+          0L
+        else
+          runServerCliLoop updatedState
 
 
 
@@ -166,7 +283,7 @@ module Darklang =
         //
         // https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#initialize
         let incomingMessageRaw = readMessageFromClient ()
-        logRequest incomingMessageRaw
+        logRequest incomingMessageRaw // otherwise ignored...
 
 
         // Let's demonstrate that the server is waking up.
@@ -184,18 +301,58 @@ module Darklang =
 
 
         // finally, reply to the initialize request
-        logAndSendToClient
-          """{"jsonrpc":"2.0","id":0,"result":{"capabilities":{"completionProvider":{"resolveProvider":true},"textDocumentSync":1}}}"""
+        let initializeResult =
+          LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeResult.InitializeResult
+            { capabilities =
+                LanguageServerProtocol.Lifecycle.InitializeRequest.ServerCapabilities.ServerCapabilities
+                  { textDocumentSync =
+                      Stdlib.Option.Option.Some(
+                        LanguageServerProtocol
+                          .Lifecycle
+                          .InitializeRequest
+                          .TextDocumentSyncServerCapabilities
+                          .TextDocumentSyncServerCapabilities
+                          .TextDocumentSyncOptions(
+                            LanguageServerProtocol.DocumentSync.TextDocument.TextDocumentSyncOptions.TextDocumentSyncOptions
+                              { openClose = Stdlib.Option.Option.Some true
+                                change =
+                                  Stdlib.Option.Option.Some
+                                    LanguageServerProtocol.DocumentSync.TextDocument.TextDocumentSyncKind.TextDocumentSyncKind.Full
+                                save =
+                                  Stdlib.Option.Option.Some(
+                                    LanguageServerProtocol
+                                      .DocumentSync
+                                      .TextDocument
+                                      .TextDocumentSyncOptions
+                                      .SaveOptionsOrBool
+                                      .SaveOptionsOrBool
+                                      .SaveOptions(
+                                        LanguageServerProtocol.DocumentSync.TextDocument.SaveOptions.SaveOptions
+                                          { includeText =
+                                              Stdlib.Option.Option.Some true }
+                                      )
+                                  ) }
+                          )
+                      ) }
+              serverInfo = Stdlib.Option.Option.None }
+
+        let initializeResponse =
+          initializeResult
+          |> LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeResult.toJson
+          |> (fun r -> JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some 0L) r)
+          |> Stdlib.AltJson.format
+
+        logAndSendToClient initializeResponse
 
 
-        // trying to get the `Darklang LSP - Server` output logs to show up...
-        logAndSendToClient
-          """{ "jsonrpc": "2.0", "method": "$/logTrace", "params": { "message": "hi I'm a trace after initialize" } }"""
-
+        let initialState =
+          State
+            { initialized = true
+              shouldShutdown = false
+              documentsInScope = Dict { } }
 
         // now that _that_ is out of the way, we can start responding to normal requests
-        runServerCliLoop ()
-
+        runServerCliLoop initialState
 
 
 
@@ -281,39 +438,7 @@ documents.onDidChangeContent(change => {
 
 
 
-(* Future: completions (autocomplete)
 
-include this in 'capabilities' configuration:
-
-      completionProvider: {
-        resolveProvider: true,
-      },
-
-
-// (how) should we autocomplete?
-// (currently this just provides 2 bogus autocompletes)
-connection.onCompletion(
-  (_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
-    return [
-      { label: "TypeScript", kind: CompletionItemKind.Text, data: 1 },
-      { label: "JavaScript", kind: CompletionItemKind.Text, data: 2 },
-    ];
-  },
-);
-
-// once you hover over some completion, this fills in some details (I think)
-connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
-  if (item.data === 1) {
-    item.detail = "TypeScript details";
-    item.documentation = "TypeScript documentation";
-  } else if (item.data === 2) {
-    item.detail = "JavaScript details";
-    item.documentation = "JavaScript documentation";
-  }
-  return item;
-});
-
-*)
 
 
 

@@ -1,0 +1,87 @@
+// see: https://code.visualstudio.com/blogs/2017/02/12/code-lens-roundup
+
+(*  /// A code lens represents a {@link Command command} that should be shown along with
+  /// source text, like the number of references, a way to run tests, etc.
+  ///
+  /// A code lens is _unresolved_ when no command is associated to it. For performance
+  /// reasons the creation of a code lens and resolving should be done in two stages.
+  export interface CodeLens {
+    /// The range in which this code lens is valid. Should only span a single line.
+    range: Range;
+
+    /// The command this code lens represents.
+    command?: Command;
+
+    /// A data entry field that is preserved on a code lens item between
+    /// a {@link CodeLensRequest} and a {@link CodeLensResolveRequest}
+    data?: LSPAny;
+  }
+
+
+
+  /// The client capabilities of a {@link CodeLensRequest}.
+  export interface CodeLensClientCapabilities {
+    /// Whether code lens supports dynamic registration.
+    dynamicRegistration?: boolean;
+  }
+
+  export interface CodeLensWorkspaceClientCapabilities {
+    /// Whether the client implementation supports a refresh request sent from the
+    /// server to the client.
+    /// Note that this event is global and will force the client to refresh all
+    /// code lenses currently shown. It should be used with absolute care and is
+    /// useful for situations where a server for example detects a project-wide
+    /// change that requires such a calculation.
+    refreshSupport?: boolean;
+  }
+
+  /// The parameters of a {@link CodeLensRequest}.
+  export interface CodeLensParams
+    extends
+      WorkDoneProgressParams,
+      PartialResultParams {
+
+    /// The document to request code lens for.
+    textDocument: TextDocumentIdentifier;
+  }
+
+  /// Code Lens provider options of a {@link CodeLensRequest}.
+  export interface CodeLensOptions
+    extends
+      WorkDoneProgressOptions {
+
+    /// Code lens has a resolve provider as well.
+    resolveProvider?: boolean;
+  }
+
+  /// Registration options for a {@link CodeLensRequest}.
+  export interface CodeLensRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions,
+      CodeLensOptions {
+  }
+
+
+  /// A request to provide code lens for the given text document.
+  export namespace CodeLensRequest {
+    export const method: 'textDocument/codeLens' = 'textDocument/codeLens';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<CodeLensParams, CodeLens[] | null, CodeLens[], void, CodeLensRegistrationOptions>(method);
+  }
+
+
+  /// A request to resolve a command for a given code lens.
+  export namespace CodeLensResolveRequest {
+    export const method: 'codeLens/resolve' = 'codeLens/resolve';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<CodeLens, CodeLens, never, void, void>(method);
+  }
+
+
+  /// A request to refresh all code actions
+  export namespace CodeLensRefreshRequest {
+    export const method: `workspace/codeLens/refresh` = `workspace/codeLens/refresh`;
+    export const messageDirection: MessageDirection = MessageDirection.serverToClient;
+    export const type = new ProtocolRequestType0<void, void, void, void>(method);
+  }
+*)

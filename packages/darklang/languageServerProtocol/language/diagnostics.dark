@@ -1,0 +1,315 @@
+// Supports the reporting of diagnostics against code (i.e. "problems" -- errors and warnings)
+//
+// _Usually_, diagnostics are reported by the server to the client without an explicit prompt from the client,
+// usually after the server learns about some file being changed. In this case, the server will send a
+// `textDocument/publishDiagnostics` notification to the client.
+//
+// However, the client can also request diagnostics from the server for a given file, using the
+// `textDocument/publishDiagnostics` request. This is useful for clients that want to show diagnostics
+// for a file that has not been opened yet, or for clients that want to show diagnostics for a file
+// that has been opened but not changed recently.
+//
+// The client can also request diagnostics for a given file _and_ all files that depend on it, using the
+// `workspace/publishDiagnostics` request. This is useful for clients that want to show diagnostics
+// for a file that has not been opened yet, or for clients that want to show diagnostics for a file
+// that has been opened but not changed recently.
+
+
+module Darklang =
+  module LanguageServerProtocol =
+    module Messages =
+      /// server -> client `textDocument/publishDiagnostics` notification
+      module PublishDiagnostics =
+        let method = "textDocument/publishDiagnostics"
+
+        module PublishDiagnosticsParams =
+          type PublishDiagnosticsParams =
+            {
+              /// The URI for which diagnostic information is reported.
+              uri: DocumentUri
+
+              /// Optionally, the version number of the document the diagnostics are published for.
+              version: Stdlib.Option.Option<Int64>
+
+              /// An array of diagnostic information items.
+              diagnostics: List<Diagnostic.Diagnostic>
+            }
+
+          let toJson (p: PublishDiagnosticsParams) : Json =
+            let fields =
+              [ Some(("uri", Json.String p.uri))
+
+                (p.version |> Stdlib.Option.map (fun v -> ("version", Json.String v)))
+
+                Some(
+                  ("diagnostics",
+                   Json.Array(
+                     Stdlib.List.map p.diagnostics (fun d -> Diagnostic.toJson d)
+                   ))
+                ) ]
+              |> Stdlib.List.filterMap (fun f -> f)
+
+            Json.Object fields
+
+
+(*
+  /// @proposed
+  export interface ClientDiagnosticsTagOptions {
+    /// The tags supported by the client.
+    valueSet: DiagnosticTag[];
+  }
+
+  /// The publish diagnostic client capabilities.
+  export interface PublishDiagnosticsClientCapabilities {
+    /// Whether the clients accepts diagnostics with related information.
+    relatedInformation?: boolean;
+
+    /// Client supports the tag property to provide meta data about a diagnostic.
+    /// Clients supporting tags have to handle unknown tags gracefully.
+    tagSupport?: ClientDiagnosticsTagOptions;
+
+    /// Whether the client interprets the version property of the
+    /// `textDocument/publishDiagnostics` notification's parameter.
+    versionSupport?: boolean;
+
+    /// Client supports a codeDescription property
+    codeDescriptionSupport?: boolean;
+
+    /// Whether code action supports the `data` property which is
+    /// preserved between a `textDocument/publishDiagnostics` and
+    /// `textDocument/codeAction` request.
+    dataSupport?: boolean;
+  }
+
+
+  /// Diagnostics notification are sent from the server to the client to signal
+  /// results of validation runs.
+  export namespace PublishDiagnosticsNotification {
+    export const method: 'textDocument/publishDiagnostics' = 'textDocument/publishDiagnostics';
+    export const messageDirection: MessageDirection = MessageDirection.serverToClient;
+    export const type = new ProtocolNotificationType<PublishDiagnosticsParams, void>(method);
+  }
+*)
+
+
+
+(*
+  /// Client capabilities specific to diagnostic pull requests.
+  export type DiagnosticClientCapabilities = {
+    /// Whether implementation supports dynamic registration. If this is set to `true`
+    /// the client supports the new `(TextDocumentRegistrationOptions & StaticRegistrationOptions)`
+    /// return value for the corresponding server capability as well.
+    dynamicRegistration?: boolean;
+
+    /// Whether the clients supports related documents for document diagnostic pulls.
+    relatedDocumentSupport?: boolean;
+  };
+
+  /// Workspace client capabilities specific to diagnostic pull requests.
+  export type DiagnosticWorkspaceClientCapabilities = {
+    /// Whether the client implementation supports a refresh request sent from
+    /// the server to the client.
+    ///
+    /// Note that this event is global and will force the client to refresh all
+    /// pulled diagnostics currently shown. It should be used with absolute care and
+    /// is useful for situation where a server for example detects a project wide
+    /// change that requires such a calculation.
+    refreshSupport?: boolean;
+  };
+
+  /// Diagnostic options.
+  export type DiagnosticOptions = WorkDoneProgressOptions & {
+    /// An optional identifier under which the diagnostics are
+    /// managed by the client.
+    identifier?: string;
+
+    /// Whether the language has inter file dependencies meaning that
+    /// editing code in one file can result in a different diagnostic
+    /// set in another file. Inter file dependencies are common for
+    /// most programming languages and typically uncommon for linters.
+    interFileDependencies: boolean;
+
+    /// The server provides support for workspace diagnostics as well.
+    workspaceDiagnostics: boolean;
+  };
+
+  /// Diagnostic registration options.
+  export type DiagnosticRegistrationOptions = TextDocumentRegistrationOptions & DiagnosticOptions & StaticRegistrationOptions;
+
+  export type $DiagnosticServerCapabilities = {
+    diagnosticProvider?: DiagnosticOptions;
+  };
+
+  /// Cancellation data returned from a diagnostic request.
+  export type DiagnosticServerCancellationData = {
+    retriggerRequest: boolean;
+  };
+
+
+  /// Parameters of the document diagnostic request.
+  export type DocumentDiagnosticParams = WorkDoneProgressParams & PartialResultParams & {
+    /// The text document.
+    textDocument: TextDocumentIdentifier;
+
+    /// The additional identifier  provided during registration.
+    identifier?: string;
+
+    /// The result id of a previous response if provided.
+    previousResultId?: string;
+  };
+
+  /// The document diagnostic report kinds.
+  export namespace DocumentDiagnosticReportKind {
+    /// A diagnostic report with a full set of problems.
+    export const Full = 'full';
+
+    /// A report indicating that the last returned report is still accurate.
+    export const Unchanged = 'unchanged';
+  }
+
+  export type DocumentDiagnosticReportKind = 'full' | 'unchanged';
+
+  /// A diagnostic report with a full set of problems.
+  export type FullDocumentDiagnosticReport = {
+    /// A full document diagnostic report.
+    kind: typeof DocumentDiagnosticReportKind.Full;
+
+    /// An optional result id. If provided it will
+    /// be sent on the next diagnostic request for the
+    /// same document.
+    resultId?: string;
+
+    /// The actual items.
+    items: Diagnostic[];
+  };
+
+  /// A full diagnostic report with a set of related documents.
+  export type RelatedFullDocumentDiagnosticReport = FullDocumentDiagnosticReport & {
+    /// Diagnostics of related documents. This information is useful
+    /// in programming languages where code in a file A can generate
+    /// diagnostics in a file B which A depends on. An example of
+    /// such a language is C/C++ where marco definitions in a file
+    /// a.cpp and result in errors in a header file b.hpp.
+    relatedDocuments?: {
+      [uri: DocumentUri]: FullDocumentDiagnosticReport | UnchangedDocumentDiagnosticReport;
+    };
+  };
+
+  /// A diagnostic report indicating that the last returned
+  /// report is still accurate.
+  export type UnchangedDocumentDiagnosticReport = {
+    /// A document diagnostic report indicating
+    /// no changes to the last result. A server can
+    /// only return `unchanged` if result ids are
+    /// provided.
+    kind: typeof DocumentDiagnosticReportKind.Unchanged;
+
+    /// A result id which will be sent on the next
+    /// diagnostic request for the same document.
+    resultId: string;
+  };
+
+  /// An unchanged diagnostic report with a set of related documents.
+  export type RelatedUnchangedDocumentDiagnosticReport = UnchangedDocumentDiagnosticReport & {
+    /// Diagnostics of related documents. This information is useful
+    /// in programming languages where code in a file A can generate
+    /// diagnostics in a file B which A depends on. An example of
+    /// such a language is C/C++ where marco definitions in a file
+    /// a.cpp and result in errors in a header file b.hpp.
+    relatedDocuments?: {
+      [uri: DocumentUri]: FullDocumentDiagnosticReport | UnchangedDocumentDiagnosticReport;
+    };
+  };
+
+  /// The result of a document diagnostic pull request. A report can
+  /// either be a full report containing all diagnostics for the
+  /// requested document or an unchanged report indicating that nothing
+  /// has changed in terms of diagnostics in comparison to the last
+  /// pull request.
+  export type DocumentDiagnosticReport = RelatedFullDocumentDiagnosticReport | RelatedUnchangedDocumentDiagnosticReport;
+
+  /// A partial result for a document diagnostic report.
+  export type DocumentDiagnosticReportPartialResult = {
+    relatedDocuments: {
+      [uri: DocumentUri]: FullDocumentDiagnosticReport | UnchangedDocumentDiagnosticReport;
+    };
+  };
+
+  /// The document diagnostic request definition.
+  export namespace DocumentDiagnosticRequest {
+    export const method: 'textDocument/diagnostic' = 'textDocument/diagnostic';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<DocumentDiagnosticParams, DocumentDiagnosticReport, DocumentDiagnosticReportPartialResult, DiagnosticServerCancellationData, DiagnosticRegistrationOptions>(method);
+    export const partialResult = new ProgressType<DocumentDiagnosticReportPartialResult>();
+    export type HandlerSignature = RequestHandler<DocumentDiagnosticParams, DocumentDiagnosticReport, void>;
+  }
+
+  /// A previous result id in a workspace pull request.
+  export type PreviousResultId = {
+    /// The URI for which the client knowns a result id.
+    uri: DocumentUri;
+
+    /// The value of the previous result id.
+    value: string;
+  };
+
+  /// Parameters of the workspace diagnostic request.
+  export type WorkspaceDiagnosticParams = WorkDoneProgressParams & PartialResultParams & {
+    /// The additional identifier provided during registration.
+    identifier?: string;
+
+    /// The currently known diagnostic reports with their previous result ids.
+    previousResultIds: PreviousResultId[];
+  };
+
+  /// A full document diagnostic report for a workspace diagnostic result.
+  export type WorkspaceFullDocumentDiagnosticReport = FullDocumentDiagnosticReport & {
+    /// The URI for which diagnostic information is reported.
+    uri: DocumentUri;
+
+    /// The version number for which the diagnostics are reported.
+    /// If the document is not marked as open `null` can be provided.
+    version: integer | null;
+  };
+
+  /// An unchanged document diagnostic report for a workspace diagnostic result.
+  export type WorkspaceUnchangedDocumentDiagnosticReport = UnchangedDocumentDiagnosticReport & {
+    /// The URI for which diagnostic information is reported.
+    uri: DocumentUri;
+
+    /// The version number for which the diagnostics are reported.
+    /// If the document is not marked as open `null` can be provided.
+    version: integer | null;
+  };
+
+  /// A workspace diagnostic document report.
+  export type WorkspaceDocumentDiagnosticReport = WorkspaceFullDocumentDiagnosticReport | WorkspaceUnchangedDocumentDiagnosticReport;
+
+
+  /// A workspace diagnostic report.
+  export type WorkspaceDiagnosticReport = {
+    items: WorkspaceDocumentDiagnosticReport[];
+  };
+
+  /// A partial result for a workspace diagnostic report.
+  export type WorkspaceDiagnosticReportPartialResult = {
+    items: WorkspaceDocumentDiagnosticReport[];
+  };
+
+  /// The workspace diagnostic request definition.
+  export namespace WorkspaceDiagnosticRequest {
+    export const method: 'workspace/diagnostic' = 'workspace/diagnostic';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<WorkspaceDiagnosticParams, WorkspaceDiagnosticReport, WorkspaceDiagnosticReportPartialResult, DiagnosticServerCancellationData, void>(method);
+    export const partialResult = new ProgressType<WorkspaceDiagnosticReportPartialResult>();
+    export type HandlerSignature = RequestHandler<WorkspaceDiagnosticParams, WorkspaceDiagnosticReport | null, void>;
+  }
+
+  /// The diagnostic refresh request definition.
+  export namespace DiagnosticRefreshRequest {
+    export const method: `workspace/diagnostic/refresh` = `workspace/diagnostic/refresh`;
+    export const messageDirection: MessageDirection = MessageDirection.serverToClient;
+    export const type = new ProtocolRequestType0<void, void, void, void>(method);
+    export type HandlerSignature = RequestHandler0<void, void>;
+  }
+*)

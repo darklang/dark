@@ -1,0 +1,54 @@
+// Server->Client request to show a message (as a little popup) in the UI,
+// along with a number of options to choose from, as a prompt for the user.
+
+module Darklang =
+  module LanguageServerProtocol =
+    module Window =
+      module ShowMessageRequest =
+        /// @proposed
+        type ClientShowMessageActionItemOptions =
+          {
+            /// Whether the client supports additional attributes which are
+            /// preserved and send back to the server in the request's response.
+            additionalPropertiesSupport: Stdlib.Option.Option<Bool>
+          }
+
+        /// Show message request client capabilities
+        type ShowMessageRequestClientCapabilities =
+          {
+            /// Capabilities specific to the `MessageActionItem` type.
+            messageActionItem:
+              Stdlib.Option.Option<ClientShowMessageActionItemOptions>
+          }
+
+(*
+
+  export interface MessageActionItem {
+    /// A short title like 'Retry', 'Open Log' etc.
+    title: string;
+
+    /// Additional attributes that the client preserves and
+    /// sends back to the server. This depends on the client
+    /// capability window.messageActionItem.additionalPropertiesSupport
+    [key: string]: string | boolean | integer | object;
+  }
+
+  export interface ShowMessageRequestParams {
+    /// The message type. See {@link MessageType}
+    type: MessageType;
+
+    /// The actual message.
+    message: string;
+
+    /// The message action items to present.
+    actions?: MessageActionItem[];
+  }
+
+  /// The show message request is sent from the server to the client to show a message
+  /// and a set of options actions to the user.
+  export namespace ShowMessageRequest {
+    export const method: 'window/showMessageRequest' = 'window/showMessageRequest';
+    export const messageDirection: MessageDirection = MessageDirection.serverToClient;
+    export const type = new ProtocolRequestType<ShowMessageRequestParams, MessageActionItem | null, never, void, void>(method);
+  }
+*)

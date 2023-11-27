@@ -1,0 +1,68 @@
+// A document highlight is a range inside a text document which deserves
+// special attention. Usually a document highlight is visualized by changing
+// the background color of its range.
+
+(*
+  /// A document highlight kind.
+  export namespace DocumentHighlightKind {
+    /// A textual occurrence.
+    export const Text: 1 = 1;
+
+    /// Read-access of a symbol, like reading a variable.
+    export const Read: 2 = 2;
+
+    /// Write-access of a symbol, like writing to a variable.
+    export const Write: 3 = 3;
+  }
+  export type DocumentHighlightKind = 1 | 2 | 3;
+
+
+  /// A document highlight is a range inside a text document which deserves
+  /// special attention. Usually a document highlight is visualized by changing
+  /// the background color of its range.
+  export interface DocumentHighlight {
+    /// The range this highlight applies to.
+    range: Range;
+
+    /// The highlight kind, default is {@link DocumentHighlightKind.Text text}.
+    kind?: DocumentHighlightKind;
+  }
+
+
+  /// Client Capabilities for a {@link DocumentHighlightRequest}.
+  export interface DocumentHighlightClientCapabilities {
+    /// Whether document highlight supports dynamic registration.
+    dynamicRegistration?: boolean;
+  }
+
+  /// Parameters for a {@link DocumentHighlightRequest}.
+  export interface DocumentHighlightParams
+    extends
+      TextDocumentPositionParams,
+      WorkDoneProgressParams,
+      PartialResultParams {
+  }
+
+  /// Provider options for a {@link DocumentHighlightRequest}.
+  export interface DocumentHighlightOptions
+    extends
+      WorkDoneProgressOptions {
+  }
+
+  /// Registration options for a {@link DocumentHighlightRequest}.
+  export interface DocumentHighlightRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions,
+      DocumentHighlightOptions {
+  }
+
+  /// Request to resolve a {@link DocumentHighlight} for a given
+  /// text document position. The request's parameter is of type {@link TextDocumentPosition}
+  /// the request response is an array of type {@link DocumentHighlight}
+  /// or a Thenable that resolves to such.
+  export namespace DocumentHighlightRequest {
+    export const method: 'textDocument/documentHighlight' = 'textDocument/documentHighlight';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<DocumentHighlightParams, DocumentHighlight[] | null, DocumentHighlight[], void, DocumentHighlightRegistrationOptions>(method);
+  }
+*)

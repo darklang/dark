@@ -1,0 +1,387 @@
+module Darklang =
+  module LanguageServerProtocol =
+    module DocumentSync =
+      module TextDocument =
+        // <aliases>
+        type Json = Stdlib.AltJson.Json
+        // </aliases>
+
+        module TextDocumentSyncKind =
+          type TextDocumentSyncKind =
+            /// Documents should not be synced at all.
+            | None
+
+            /// Documents are synced by always sending the full content of the document.
+            | Full
+
+            /// Documents are synced by sending the full content on open.
+            /// After that only incremental updates to the document are send.
+            | Incremental
+
+          let toJson (kind: TextDocumentSyncKind) : Json =
+            match kind with
+            | None -> Json.Number 0.0
+            | Full -> Json.Number 1.0
+            | Incremental -> Json.Number 2.0
+
+          let fromJson
+            (json: Json)
+            : Stdlib.Result.Result<TextDocumentSyncKind, Unit> =
+            match json with
+            | Number 0.0 -> Stdlib.Result.Result.Ok TextDocumentSyncKind.None
+            | Number 1.0 -> Stdlib.Result.Result.Ok TextDocumentSyncKind.Full
+            | Number 2.0 -> Stdlib.Result.Result.Ok TextDocumentSyncKind.Incremental
+            | _ -> Stdlib.Result.Result.Error()
+
+
+        /// The document open notification is sent from the client to the server to signal
+        /// newly opened text documents. The document's truth is now managed by the client
+        /// and the server must not try to read the document's truth using the document's
+        /// uri. Open in this sense means it is managed by the client. It doesn't necessarily
+        /// mean that its content is presented in an editor. An open notification must not
+        /// be sent more than once without a corresponding close notification send before.
+        /// This means open and close notification must be balanced and the max open count
+        /// is one. DidOpenTextDocumentNotification
+        module DidOpenTextDocumentNotification =
+          let method = "textDocument/didOpen"
+          // params: DidOpenTextDocumentParams (from client)
+          // registrationOptions: TextDocumentRegistrationOptions -- not sure what this is used for
+          // messageDirection = MessageDirection.clientToServer
+          // response: N/A
+
+
+          /// The parameters sent in an open text document notification
+          module DidOpenTextDocumentParams =
+            type DidOpenTextDocumentParams =
+              {
+                /// The document that was opened.
+                textDocument: TextDocumentItem.TextDocumentItem
+              }
+
+            let fromJson
+              (json: Json)
+              : Stdlib.Result.Result<DidOpenTextDocumentParams, Unit> =
+              let jsonAsText = Stdlib.AltJson.format json // TODO: manually parse the JSON so we have better control
+
+              match Builtin.Json.parse<DidOpenTextDocumentParams> jsonAsText with
+              | Ok params -> Stdlib.Result.Result.Ok params
+              | Error _ -> Stdlib.Result.Result.Error()
+
+
+        /// The document close notification is sent from the client to the server when
+        /// the document got closed in the client. The document's truth now exists where
+        /// the document's uri points to (e.g. if the document's uri is a file uri the
+        /// truth now exists on disk). As with the open notification the close notification
+        /// is about managing the document's content. Receiving a close notification
+        /// doesn't mean that the document was open in an editor before. A close
+        /// notification requires a previous open notification to be sent.
+        module DidCloseTextDocumentNotification =
+          let method = "textDocument/didClose"
+          //let messageDirection = MessageDirection.clientToServer
+          // registration options: `TextDocumentRegistrationOptions`
+
+          module DidCloseTextDocumentParams =
+            /// The parameters sent in a close text document notification
+            type DidCloseTextDocumentParams =
+              {
+                /// The document that was closed.
+                textDocument: TextDocumentIdentifier.TextDocumentIdentifier
+              }
+
+            let fromJson
+              (json: Json)
+              : Stdlib.Result.Result<DidCloseTextDocumentParams, Unit> =
+              let jsonAsText = Stdlib.AltJson.format json // TODO: manually parse the JSON so we have better control
+
+              match Builtin.Json.parse<DidCloseTextDocumentParams> jsonAsText with
+              | Ok params -> Stdlib.Result.Result.Ok params
+              | Error _ -> Stdlib.Result.Result.Error()
+
+
+        /// The document save notification is sent from the client to the server when
+        /// the document got saved in the client.
+        module DidSaveTextDocumentNotification =
+          let method = "textDocument/didSave"
+          //let messageDirection = MessageDirection.clientToServer;
+          // registration options: `TextDocumentSaveRegistrationOptions`
+
+          /// The parameters sent in a "save text document" notification
+          module DidSaveTextDocumentParams =
+            type DidSaveTextDocumentParams =
+              {
+                /// The document that was saved.
+                textDocument: TextDocumentIdentifier.TextDocumentIdentifier
+
+                /// Optional the content when saved. Depends on the includeText value
+                /// when the save notification was requested.
+                text: Stdlib.Option.Option<String>
+              }
+
+            let fromJson
+              (json: Json)
+              : Stdlib.Result.Result<DidSaveTextDocumentParams, Unit> =
+
+              match json with
+              | Object fields ->
+                let textDocument = // Result<TextDocumentIdentifier, Unit>
+                  match
+                    Stdlib.List.findFirst fields (fun (k, _) -> k == "textDocument")
+                  with
+                  | None -> Stdlib.Result.Result.Error()
+                  | Some((_key, textDocument)) ->
+                    TextDocumentIdentifier.fromJson textDocument
+
+                let textMaybe = // Option<String>
+                  match Stdlib.List.findFirst fields (fun (k, _) -> k == "text") with
+                  | Some((_key, String textJson)) ->
+                    Stdlib.Option.Option.Some textJson
+                  | _ -> Stdlib.Option.Option.None
+
+                match textDocument, textMaybe with
+                | Ok textDocument, textMaybe ->
+                  Stdlib.Result.Result.Ok(
+                    DidSaveTextDocumentParams
+                      { textDocument = textDocument
+                        text = textMaybe }
+                  )
+                | _ -> Stdlib.Result.Result.Error()
+              | _ -> Stdlib.Result.Result.Error()
+
+
+        /// Save options.
+        module SaveOptions =
+          type SaveOptions =
+            {
+              /// The client is supposed to include the content on save.
+              includeText: Stdlib.Option.Option<Bool>
+            }
+
+          let toJson (saveOptions: SaveOptions.SaveOptions) : Json =
+            match saveOptions.includeText with
+            | Some b -> Json.Object [ ("includeText", Json.Bool b) ]
+            | None -> Json.Object []
+
+
+        module TextDocumentSyncOptions =
+          /// The `save` property of the `TextDocumentSyncOptions` type can be
+          /// either a `Bool` or a `SaveOptions` type, and this type is used to
+          /// represent that. It's important to note that this type itself should
+          /// have no artifact in the resultant Json.
+          ///
+          /// TODO: better name
+          module SaveOptionsOrBool =
+            type SaveOptionsOrBool =
+              | Bool of Bool
+              | SaveOptions of SaveOptions.SaveOptions
+
+            let toJson (s: SaveOptionsOrBool.SaveOptionsOrBool) : Json =
+              match s with
+              | Bool b -> Json.Bool b
+              | SaveOptions saveOptions -> SaveOptions.toJson saveOptions
+
+          type TextDocumentSyncOptions =
+            {
+              /// Open and close notifications are sent to the server.
+              /// If omitted open close notification should not be sent.
+              openClose: Stdlib.Option.Option<Bool>
+
+              /// Change notifications are sent to the server.
+              /// See
+              /// - TextDocumentSyncKind.None
+              /// - TextDocumentSyncKind.Full
+              /// - TextDocumentSyncKind.Incremental.
+              ///
+              /// If omitted it defaults to TextDocumentSyncKind.None.
+              change: Stdlib.Option.Option<TextDocumentSyncKind.TextDocumentSyncKind>
+
+              // /// If present will save notifications are sent to the server.
+              // /// If omitted the notification should not be sent.
+              // willSave?: boolean;
+
+              // /// If present will save wait until requests are sent to the server.
+              // /// If omitted the request should not be sent.
+              // willSaveWaitUntil?: boolean;
+
+              /// If present save notifications are sent to the server.
+              /// If omitted the notification should not be sent.
+              save: Stdlib.Option.Option<SaveOptionsOrBool.SaveOptionsOrBool>
+            }
+
+          let toJson
+            (options: TextDocumentSyncOptions.TextDocumentSyncOptions)
+            : Json =
+            [ options.openClose
+              |> Stdlib.Option.map (fun b -> ("openClose", Json.Bool b))
+
+              options.change
+              |> Stdlib.Option.map (fun c ->
+                ("change", TextDocumentSyncKind.toJson c))
+
+              options.save
+              |> Stdlib.Option.map (fun s -> ("save", SaveOptionsOrBool.toJson s)) ]
+
+            |> Stdlib.List.filterMap (fun x -> x)
+            |> Json.Object
+
+
+
+// /// The document change notification is sent from the client to the server to signal
+// /// changes to a text document.
+// module DidChangeTextDocumentNotification =
+//   let method = "textDocument/didChange"
+//   //let messageDirection = MessageDirection.clientToServer;
+//   // registration options: TextDocumentChangeRegistrationOptions
+
+//   module DidChangeTextDocumentParams =
+//     type DidChangeTextDocumentParams =
+//     /// The change text document notification's parameters.
+//     type DidChangeTextDocumentParams {
+//       /// The document that did change. The version number points
+//       /// to the version after all provided content changes have
+//       /// been applied.
+//       textDocument: VersionedTextDocumentIdentifier
+
+//       /// The actual content changes. The content changes describe single state changes
+//       /// to the document. So if there are two content changes c1 (at array index 0) and
+//       /// c2 (at array index 1) for a document in state S then c1 moves the document from
+//       /// S to S' and c2 from S' to S''. So c1 is computed on the state S and c2 is computed
+//       /// on the state S'.
+//       /// To mirror the content of a document using change events use the following approach:
+//       /// - start with the same initial content
+//       /// - apply the 'textDocument/didChange' notifications in the order you receive them.
+//       /// - apply the `TextDocumentContentChangeEvent`s in a single notification in the order
+//       ///   you receive them.
+//       contentChanges: TextDocumentContentChangeEvent[];
+//     }
+
+(*
+
+  export interface TextDocumentSyncClientCapabilities {
+    /// Whether text document synchronization supports dynamic registration.
+    dynamicRegistration?: boolean;
+
+    /// The client supports sending will save notifications.
+    willSave?: boolean;
+
+    /// The client supports sending a will save request and
+    /// waits for a response providing text edits which will
+    /// be applied to the document before it is saved.
+    willSaveWaitUntil?: boolean;
+
+    /// The client supports did save notifications.
+    didSave?: boolean;
+  }
+
+
+
+
+
+  /// @proposed
+  export interface TextDocumentContentChangeWholeDocument {
+    /// The new text of the whole document.
+    text: string;
+  }
+
+  /// @proposed
+  export interface TextDocumentContentChangePartial {
+    /// The range of the document that changed.
+    range: Range;
+
+    /// The optional length of the range that got replaced.
+    /// @deprecated use range instead.
+    rangeLength?: uinteger;
+
+    /// The new text for the provided range.
+    text: string;
+  }
+
+  /// An event describing a change to a text document. If only a text is provided
+  /// it is considered to be the full content of the document.
+  export type TextDocumentContentChangeEvent = TextDocumentContentChangePartial | TextDocumentContentChangeWholeDocument;
+
+
+
+  /// The change text document notification's parameters.
+  export interface DidChangeTextDocumentParams {
+    /// The document that did change. The version number points
+    /// to the version after all provided content changes have
+    /// been applied.
+    textDocument: VersionedTextDocumentIdentifier;
+
+    /// The actual content changes. The content changes describe single state changes
+    /// to the document. So if there are two content changes c1 (at array index 0) and
+    /// c2 (at array index 1) for a document in state S then c1 moves the document from
+    /// S to S' and c2 from S' to S''. So c1 is computed on the state S and c2 is computed
+    /// on the state S'.
+    /// To mirror the content of a document using change events use the following approach:
+    /// - start with the same initial content
+    /// - apply the 'textDocument/didChange' notifications in the order you receive them.
+    /// - apply the `TextDocumentContentChangeEvent`s in a single notification in the order
+    ///   you receive them.
+    contentChanges: TextDocumentContentChangeEvent[];
+  }
+
+  /// Describe options to be used when registered for text document change events.
+  export interface TextDocumentChangeRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions {
+
+    /// How documents are synced to the server.
+    syncKind: TextDocumentSyncKind;
+  }
+
+
+
+
+
+
+  /// Save registration options.
+  export interface TextDocumentSaveRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions,
+      SaveOptions {
+  }
+
+  /// Represents reasons why a text document is saved.
+  export namespace TextDocumentSaveReason {
+    /// Manually triggered, e.g. by the user pressing save, by starting debugging,
+    /// or by an API call.
+    export const Manual: 1 = 1;
+
+    /// Automatic after a delay.
+    export const AfterDelay: 2 = 2;
+
+    /// When the editor lost focus.
+    export const FocusOut: 3 = 3;
+  }
+  export type TextDocumentSaveReason = 1 | 2 | 3;
+
+  /// The parameters sent in a will save text document notification.
+  export interface WillSaveTextDocumentParams {
+    /// The document that will be saved.
+    textDocument: TextDocumentIdentifier;
+
+    /// The 'TextDocumentSaveReason'.
+    reason: TextDocumentSaveReason;
+  }
+
+  /// A document will save notification is sent from the client to the server before
+  /// the document is actually saved.
+  export namespace WillSaveTextDocumentNotification {
+    export const method: 'textDocument/willSave' = 'textDocument/willSave';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolNotificationType<WillSaveTextDocumentParams, TextDocumentRegistrationOptions>(method);
+  }
+
+  /// A "document will save" request is sent from the client to the server before
+  /// the document is actually saved. The request can return an array of TextEdits
+  /// which will be applied to the text document before it is saved. Please note that
+  /// clients might drop results if computing the text edits took too long or if a
+  /// server constantly fails on this request. This is done to keep the save fast and
+  /// reliable.
+  export namespace WillSaveTextDocumentWaitUntilRequest {
+    export const method: 'textDocument/willSaveWaitUntil' = 'textDocument/willSaveWaitUntil';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<WillSaveTextDocumentParams, TextEdit[] | null, never, void, TextDocumentRegistrationOptions>(method);
+  }
+*)

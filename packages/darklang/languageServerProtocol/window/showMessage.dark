@@ -1,0 +1,32 @@
+// Server->Client notification to show a message (as a little popup) in the UI
+
+(*
+  /// The message type
+  export namespace MessageType {
+    export const Error = 1;
+    export const Warning = 2;
+    export const Info = 3;
+    export const Log = 4;
+
+    /// @proposed
+    export const Debug = 5;
+  }
+  export type MessageType = 1 | 2 | 3 | 4 | 5;
+
+  /// The parameters of a notification message.
+  export interface ShowMessageParams {
+    /// The message type. See {@link MessageType}
+    type: MessageType;
+
+    /// The actual message.
+    message: string;
+  }
+
+  /// The show message notification is sent from a server to a client to ask
+  /// the client to display a particular message in the user interface.
+  export namespace ShowMessageNotification {
+    export const method: 'window/showMessage' = 'window/showMessage';
+    export const messageDirection: MessageDirection = MessageDirection.serverToClient;
+    export const type = new ProtocolNotificationType<ShowMessageParams, void>(method);
+  }
+*)

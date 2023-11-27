@@ -1,0 +1,9 @@
+(*
+  /// The exit event is sent from the client to the server to
+  /// ask the server to exit its process.
+  export namespace ExitNotification {
+    export const method: 'exit' = 'exit';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolNotificationType0<void>(method);
+  }
+*)

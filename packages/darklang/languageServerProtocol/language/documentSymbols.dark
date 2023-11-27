@@ -1,0 +1,91 @@
+(*
+  /// Represents programming constructs like variables, classes, interfaces etc.
+  /// that appear in a document. Document symbols can be hierarchical and they
+  /// have two ranges: one that encloses its definition and one that points to
+  /// its most interesting range, e.g. the range of an identifier.
+  export interface DocumentSymbol {
+    /// The name of this symbol. Will be displayed in the user interface and therefore must not be
+    /// an empty string or a string only consisting of white spaces.
+    name: string;
+
+    /// More detail for this symbol, e.g the signature of a function.
+    detail?: string;
+
+    /// The kind of this symbol.
+    kind: SymbolKind;
+
+    /// Tags for this document symbol.
+    tags?: SymbolTag[];
+
+    /// The range enclosing this symbol not including leading/trailing whitespace but everything else
+    /// like comments. This information is typically used to determine if the clients cursor is
+    /// inside the symbol to reveal in the symbol in the UI.
+    range: Range;
+
+    /// The range that should be selected and revealed when this symbol is being picked, e.g the name of a function.
+    /// Must be contained by the `range`.
+    selectionRange: Range;
+
+    /// Children of this symbol, e.g. properties of a class.
+    children?: DocumentSymbol[];
+  }
+
+
+  export interface DocumentSymbolClientCapabilities {
+    /// Whether document symbol supports dynamic registration.
+    dynamicRegistration?: boolean;
+
+    /// Specific capabilities for the `SymbolKind` in the
+    /// `textDocument/documentSymbol` request.
+    symbolKind?: ClientSymbolKindOptions;
+
+    /// The client supports hierarchical document symbols.
+    hierarchicalDocumentSymbolSupport?: boolean;
+
+    /// The client supports tags on `SymbolInformation`. Tags are supported on
+    /// `DocumentSymbol` if `hierarchicalDocumentSymbolSupport` is set to true.
+    /// Clients supporting tags have to handle unknown tags gracefully.
+    tagSupport?: ClientSymbolTagOptions;
+
+    /// The client supports an additional label presented in the UI when
+    /// registering a document symbol provider.
+    labelSupport?: boolean;
+  }
+
+
+  /// Parameters for a {@link DocumentSymbolRequest}.
+  export interface DocumentSymbolParams
+    extends
+      WorkDoneProgressParams,
+      PartialResultParams {
+    /// The text document.
+    textDocument: TextDocumentIdentifier;
+  }
+
+  /// Provider options for a {@link DocumentSymbolRequest}.
+  export interface DocumentSymbolOptions
+    extends
+      WorkDoneProgressOptions {
+
+    /// A human-readable string that is shown when multiple outlines trees
+    /// are shown for the same document.
+    label?: string;
+  }
+
+  /// Registration options for a {@link DocumentSymbolRequest}.
+  export interface DocumentSymbolRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions,
+      DocumentSymbolOptions {
+  }
+
+  /// A request to list all symbols found in a given text document. The request's
+  /// parameter is of type {@link TextDocumentIdentifier} the
+  /// response is of type {@link SymbolInformation SymbolInformation[]} or a Thenable
+  /// that resolves to such.
+  export namespace DocumentSymbolRequest {
+    export const method: 'textDocument/documentSymbol' = 'textDocument/documentSymbol';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<DocumentSymbolParams, SymbolInformation[] | DocumentSymbol[] | null, SymbolInformation[] | DocumentSymbol[], void, DocumentSymbolRegistrationOptions>(method);
+  }
+*)

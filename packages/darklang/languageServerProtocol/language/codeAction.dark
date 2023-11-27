@@ -1,0 +1,254 @@
+// see: https://code.visualstudio.com/docs/editor/refactoring#_code-actions-quick-fixes-and-refactorings
+
+(*
+  /// The kind of a code action.
+  ///
+  /// Kinds are a hierarchical list of identifiers separated by `.`, e.g. `"refactor.extract.function"`.
+  ///
+  /// The set of kinds is open and client needs to announce the kinds it supports to the server during
+  /// initialization.
+  export type CodeActionKind = string;
+
+  /// A set of predefined code action kinds
+  export namespace CodeActionKind {
+    /// Empty kind.
+    export const Empty: '' = '';
+
+    /// Base kind for quickfix actions: 'quickfix'
+    export const QuickFix: 'quickfix' = 'quickfix';
+
+    /// Base kind for refactoring actions: 'refactor'
+    export const Refactor: 'refactor' = 'refactor';
+
+    /// Base kind for refactoring extraction actions: 'refactor.extract'
+    ///
+    /// Example extract actions:
+    ///
+    /// - Extract method
+    /// - Extract function
+    /// - Extract variable
+    /// - Extract interface from class
+    /// - ...
+    export const RefactorExtract: 'refactor.extract' = 'refactor.extract';
+
+    /// Base kind for refactoring inline actions: 'refactor.inline'
+    ///
+    /// Example inline actions:
+    ///
+    /// - Inline function
+    /// - Inline variable
+    /// - Inline constant
+    /// - ...
+    export const RefactorInline: 'refactor.inline' = 'refactor.inline';
+
+    /// Base kind for refactoring rewrite actions: 'refactor.rewrite'
+    ///
+    /// Example rewrite actions:
+    ///
+    /// - Convert JavaScript function to class
+    /// - Add or remove parameter
+    /// - Encapsulate field
+    /// - Make method static
+    /// - Move method to base class
+    /// - ...
+    export const RefactorRewrite: 'refactor.rewrite' = 'refactor.rewrite';
+
+    /// Base kind for source actions: `source`
+    ///
+    /// Source code actions apply to the entire file.
+    export const Source: 'source' = 'source';
+
+    /// Base kind for an organize imports source action: `source.organizeImports`
+    export const SourceOrganizeImports: 'source.organizeImports' = 'source.organizeImports';
+
+    /// Base kind for auto-fix source actions: `source.fixAll`.
+    ///
+    /// Fix all actions automatically fix errors that have a clear fix that do not require user input.
+    /// They should not suppress errors or perform unsafe fixes such as generating new types or classes.
+    export const SourceFixAll: 'source.fixAll' = 'source.fixAll';
+  }
+
+  /// The reason why code actions were requested.
+  export namespace CodeActionTriggerKind {
+    /// Code actions were explicitly requested by the user or by an extension.
+    export const Invoked: 1 = 1;
+
+    /// Code actions were requested automatically.
+    ///
+    /// This typically happens when current selection in a file changes, but can
+    /// also be triggered when file content changes.
+    export const Automatic: 2 = 2;
+  }
+  export type CodeActionTriggerKind = 1 | 2;
+
+
+  /// Contains additional diagnostic information about the context in which
+  /// a {@link CodeActionProvider.provideCodeActions code action} is run.
+  export interface CodeActionContext {
+    /// An array of diagnostics known on the client side overlapping the range provided to the
+    /// `textDocument/codeAction` request. They are provided so that the server knows which
+    /// errors are currently presented to the user for the given range. There is no guarantee
+    /// that these accurately reflect the error state of the resource. The primary parameter
+    /// to compute code actions is the provided range.
+    diagnostics: Diagnostic[];
+
+    /// Requested kind of actions to return.
+    ///
+    /// Actions not of this kind are filtered out by the client before being shown. So servers
+    /// can omit computing them.
+    only?: CodeActionKind[];
+
+    /// The reason why code actions were requested.
+    triggerKind?: CodeActionTriggerKind;
+  }
+
+
+
+
+  /// A code action represents a change that can be performed in code, e.g. to fix a problem or
+  /// to refactor code.
+  ///
+  /// A CodeAction must set either `edit` and/or a `command`. If both are supplied, the `edit` is applied first, then the `command` is executed.
+  export interface CodeAction {
+    /// A short, human-readable, title for this code action.
+    title: string;
+
+    /// The kind of the code action.
+    ///
+    /// Used to filter code actions.
+    kind?: CodeActionKind;
+
+    /// The diagnostics that this code action resolves.
+    diagnostics?: Diagnostic[];
+
+    /// Marks this as a preferred action. Preferred actions are used by the `auto fix` command and can be targeted
+    /// by keybindings.
+    ///
+    /// A quick fix should be marked preferred if it properly addresses the underlying error.
+    /// A refactoring should be marked preferred if it is the most reasonable choice of actions to take.
+    isPreferred?: boolean;
+
+
+    /// The workspace edit this code action performs.
+    edit?: WorkspaceEdit;
+
+    /// A command this code action executes. If a code action
+    /// provides an edit and a command, first the edit is
+    /// executed and then the command.
+    command?: Command;
+
+    /// A data entry field that is preserved on a code action between
+    /// a `textDocument/codeAction` and a `codeAction/resolve` request.
+    data?: LSPAny;
+  }
+
+  /// @proposed
+  export interface ClientCodeActionKindOptions {
+    /// The code action kind values the client supports. When this
+    /// property exists the client also guarantees that it will
+    /// handle values outside its set gracefully and falls back
+    /// to a default value when unknown.
+    valueSet: CodeActionKind[]
+  }
+  /// @proposed
+  export interface ClientCodeActionLiteralOptions {
+    /// The code action kind is support with the following value set.
+    codeActionKind: ClientCodeActionKindOptions
+  }
+
+  /// @proposed
+  export interface ClientCodeActionResolveOptions {
+    /// The properties that a client can resolve lazily.
+    properties: string[]
+  }
+
+  /// The Client Capabilities of a {@link CodeActionRequest}.
+  export interface CodeActionClientCapabilities {
+    /// Whether code action supports dynamic registration.
+    dynamicRegistration?: boolean
+
+    /// The client support code action literals of type `CodeAction` as a valid
+    /// response of the `textDocument/codeAction` request. If the property is not
+    /// set the request can only return `Command` literals.
+    codeActionLiteralSupport?: ClientCodeActionLiteralOptions
+
+    /// Whether code action supports the `isPreferred` property.
+    isPreferredSupport?: boolean
+
+    /// Whether code action supports the `disabled` property.
+    disabledSupport?: boolean
+
+    /// Whether code action supports the `data` property which is
+    /// preserved between a `textDocument/codeAction` and a
+    /// `codeAction/resolve` request.
+    dataSupport?: boolean
+
+    /// Whether the client supports resolving additional code action
+    /// properties via a separate `codeAction/resolve` request.
+    resolveSupport?: ClientCodeActionResolveOptions
+
+    /// Whether the client honors the change annotations in
+    /// text edits and resource operations returned via the
+    /// `CodeAction#edit` property by for example presenting
+    /// the workspace edit in the user interface and asking
+    /// for confirmation.
+    honorsChangeAnnotations?: boolean
+  }
+
+
+
+  /// The parameters of a {@link CodeActionRequest}.
+  export interface CodeActionParams
+    extends
+      WorkDoneProgressParams,
+      PartialResultParams {
+
+    /// The document in which the command was invoked.
+    textDocument: TextDocumentIdentifier
+
+    /// The range for which the command was invoked.
+    range: Range
+
+    /// Context carrying additional information.
+    context: CodeActionContext
+  }
+
+  /// Provider options for a {@link CodeActionRequest}.
+  export interface CodeActionOptions
+    extends
+      WorkDoneProgressOptions {
+
+    /// CodeActionKinds that this server may return.
+    /// The list of kinds may be generic, such as `CodeActionKind.Refactor`, or the server
+    /// may list out every specific kind they provide.
+    codeActionKinds?: CodeActionKind[]
+
+    /// The server provides support to resolve additional
+    /// information for a code action.
+    resolveProvider?: boolean
+  }
+
+  /// Registration options for a {@link CodeActionRequest}.
+  export interface CodeActionRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions,
+      CodeActionOptions {
+  }
+
+  /// A request to provide commands for the given text document and range.
+  export namespace CodeActionRequest {
+    export const method: 'textDocument/codeAction' = 'textDocument/codeAction'
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer
+    export const type = new ProtocolRequestType<CodeActionParams, (Command | CodeAction)[] | null, (Command | CodeAction)[], void, CodeActionRegistrationOptions>(method)
+  }
+
+
+  /// Request to resolve additional information for a given code action.
+  /// The request's parameter is of type {@link CodeAction} the response
+  /// is of type {@link CodeAction} or a Thenable that resolves to such.
+  export namespace CodeActionResolveRequest {
+    export const method: 'codeAction/resolve' = 'codeAction/resolve'
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer
+    export const type = new ProtocolRequestType<CodeAction, CodeAction, never, void, void>(method)
+  }
+*)

@@ -1,0 +1,40 @@
+(* supports a client's ability to "find all references" for something in focus
+
+  /// Client Capabilities for a {@link ReferencesRequest}.
+  export interface ReferenceClientCapabilities {
+    * Whether references supports dynamic registration.
+    dynamicRegistration?: boolean;
+  }
+
+  /// Parameters for a {@link ReferencesRequest}.
+  export interface ReferenceParams
+    extends
+      TextDocumentPositionParams,
+      WorkDoneProgressParams,
+      PartialResultParams {
+
+    context: ReferenceContext;
+  }
+
+  export interface ReferenceOptions
+    extends
+      WorkDoneProgressOptions {
+  }
+
+  /// Registration options for a {@link ReferencesRequest}.
+  export interface ReferenceRegistrationOptions
+    extends
+      TextDocumentRegistrationOptions,
+      ReferenceOptions {
+  }
+
+  /// A request to resolve project-wide references for the symbol denoted
+  /// by the given text document position. The request's parameter is of
+  /// type {@link ReferenceParams} the response is of type
+  /// {@link Location Location[]} or a Thenable that resolves to such.
+  export namespace ReferencesRequest {
+    export const method: 'textDocument/references' = 'textDocument/references';
+    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
+    export const type = new ProtocolRequestType<ReferenceParams, Location[] | null, Location[], void, ReferenceRegistrationOptions>(method);
+  }
+*)
