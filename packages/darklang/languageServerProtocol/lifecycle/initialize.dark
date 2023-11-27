@@ -1,0 +1,235 @@
+module Darklang =
+  module LanguageServerProtocol =
+    module Lifecycle =
+      /// The initialize request is the first request of a client-server relationship.
+      /// It is sent once, from the client to the server.
+      module InitializeRequest =
+        let method = "initialize"
+
+        // /// Defines workspace specific capabilities of the server.
+        // ///
+        // /// @proposed
+        // export interface WorkspaceOptions {
+        //   /// The server supports workspace folder.
+        //   workspaceFolders?: WorkspaceFoldersServerCapabilities;
+
+        //   * The server is interested in notifications/requests for operations on files.
+        //   fileOperations?: FileOperationOptions;
+        // }
+
+
+        // note: this doesn't directly map to a single type in the spec
+        module TextDocumentSyncServerCapabilities =
+          type TextDocumentSyncServerCapabilities =
+            | TextDocumentSyncOptions of
+              DocumentSync.TextDocument.TextDocumentSyncOptions.TextDocumentSyncOptions
+            | TextDocumentSyncKind of
+              DocumentSync.TextDocument.TextDocumentSyncKind.TextDocumentSyncKind
+
+          // Note: we intentionally don't include any extra json representing this wrapper union type
+          // (i.e. we don't indicate the 'case' of the union)
+          let toJson (capabilities: TextDocumentSyncServerCapabilities) : Json =
+            match capabilities with
+            | TextDocumentSyncOptions o ->
+              DocumentSync.TextDocument.TextDocumentSyncOptions.toJson o
+            | TextDocumentSyncKind kind -> TextDocumentSyncKind.toJson kind
+
+
+        module ServerCapabilities =
+          /// Defines the capabilities provided by a language server.
+          type ServerCapabilities =
+            {
+              // /// The position encoding the server picked from the encodings offered
+              // /// by the client via the client capability `general.positionEncodings`.
+              // /// If the client didn't provide any position encodings the only valid
+              // /// value that a server can return is 'utf-16'.
+              // /// If omitted it defaults to 'utf-16'.
+              // positionEncoding?: PositionEncodingKind;
+
+              /// Defines how text documents are synced. Is either a detailed structure
+              /// defining each notification or for backwards compatibility the
+              /// TextDocumentSyncKind number.
+              textDocumentSync:
+                Stdlib.Option.Option<TextDocumentSyncServerCapabilities.TextDocumentSyncServerCapabilities>
+
+            // /// Defines how notebook documents are synced.
+            // notebookDocumentSync?: NotebookDocumentSyncOptions | NotebookDocumentSyncRegistrationOptions;
+
+            // /// The server provides completion support.
+            // completionProvider?: CompletionOptions;
+
+            // /// The server provides hover support.
+            // hoverProvider?: boolean | HoverOptions;
+
+            // /// The server provides signature help support.
+            // signatureHelpProvider?: SignatureHelpOptions;
+
+            // /// The server provides Goto Declaration support.
+            // declarationProvider?: boolean | DeclarationOptions | DeclarationRegistrationOptions;
+
+            // /// The server provides goto definition support.
+            // definitionProvider?: boolean | DefinitionOptions;
+
+            // /// The server provides Goto Type Definition support.
+            // typeDefinitionProvider?: boolean | TypeDefinitionOptions | TypeDefinitionRegistrationOptions;
+
+            // /// The server provides Goto Implementation support.
+            // implementationProvider?: boolean | ImplementationOptions | ImplementationRegistrationOptions;
+
+            // /// The server provides find references support.
+            // referencesProvider?: boolean | ReferenceOptions;
+
+            // /// The server provides document highlight support.
+            // documentHighlightProvider?: boolean | DocumentHighlightOptions;
+
+            // /// The server provides document symbol support.
+            // documentSymbolProvider?: boolean | DocumentSymbolOptions;
+
+            // /// The server provides code actions. CodeActionOptions may only be
+            // /// specified if the client states that it supports
+            // /// `codeActionLiteralSupport` in its initial `initialize` request.
+            // codeActionProvider?: boolean | CodeActionOptions;
+
+            // /// The server provides code lens.
+            // codeLensProvider?: CodeLensOptions;
+
+            // /// The server provides document link support.
+            // documentLinkProvider?: DocumentLinkOptions;
+
+            // /// The server provides color provider support.
+            // colorProvider?: boolean | DocumentColorOptions | DocumentColorRegistrationOptions;
+
+            // /// The server provides workspace symbol support.
+            // workspaceSymbolProvider?: boolean | WorkspaceSymbolOptions;
+
+            // /// The server provides document formatting.
+            // documentFormattingProvider?: boolean | DocumentFormattingOptions;
+
+            // /// The server provides document range formatting.
+            // documentRangeFormattingProvider?: boolean | DocumentRangeFormattingOptions;
+
+            // /// The server provides document formatting on typing.
+            // documentOnTypeFormattingProvider?: DocumentOnTypeFormattingOptions;
+
+            // /// The server provides rename support. RenameOptions may only be
+            // /// specified if the client states that it supports
+            // /// `prepareSupport` in its initial `initialize` request.
+            // renameProvider?: boolean | RenameOptions;
+
+            // /// The server provides folding provider support.
+            // foldingRangeProvider?: boolean | FoldingRangeOptions | FoldingRangeRegistrationOptions;
+
+            // /// The server provides selection range support.
+            // selectionRangeProvider?: boolean | SelectionRangeOptions | SelectionRangeRegistrationOptions;
+
+            // /// The server provides execute command support.
+            // executeCommandProvider?: ExecuteCommandOptions;
+
+            // /// The server provides call hierarchy support.
+            // callHierarchyProvider?: boolean | CallHierarchyOptions | CallHierarchyRegistrationOptions;
+
+            // /// The server provides linked editing range support.
+            // linkedEditingRangeProvider?: boolean | LinkedEditingRangeOptions | LinkedEditingRangeRegistrationOptions;
+
+            // /// The server provides semantic tokens support.
+            // semanticTokensProvider?: SemanticTokensOptions | SemanticTokensRegistrationOptions;
+
+            // /// The server provides moniker support.
+            // monikerProvider?: boolean | MonikerOptions | MonikerRegistrationOptions;
+
+            // /// The server provides type hierarchy support.
+            // typeHierarchyProvider?: boolean | TypeHierarchyOptions | TypeHierarchyRegistrationOptions;
+
+            // /// The server provides inline values.
+            // inlineValueProvider?: boolean | InlineValueOptions | InlineValueRegistrationOptions;
+
+            // /// The server provides inlay hints.
+            // inlayHintProvider?: boolean | InlayHintOptions | InlayHintRegistrationOptions;
+
+            // /// The server has support for pull model diagnostics.
+            // diagnosticProvider?: DiagnosticOptions | DiagnosticRegistrationOptions;
+
+            // /// Inline completion options used during static registration.
+            // ///
+            // /// @proposed
+            // inlineCompletionProvider?: boolean | InlineCompletionOptions;
+
+            // /// Workspace specific server capabilities.
+            // workspace?: WorkspaceOptions;
+
+            // /// Experimental server capabilities.
+            // experimental: Stdlib.Option.Option<Json>
+            }
+
+          let toJson (capabilities: ServerCapabilities) : Json =
+            [ capabilities.textDocumentSync
+              |> Stdlib.Option.map (fun sync ->
+                ("textDocumentSync", TextDocumentSyncServerCapabilities.toJson sync)) ]
+
+            |> Stdlib.List.filterMap (fun self -> self)
+            |> Json.Object
+
+
+        /// Information about the server
+        module ServerInfo =
+          /// Information about the server
+          type ServerInfo =
+            {
+              /// The name of the server as defined by the server.
+              name: String
+
+              /// The server's version as defined by the server.
+              version: Stdlib.Option.Option<String>
+            }
+
+          let toJson (serverInfo: ServerInfo) : Json =
+            let fields =
+              [ Some(("name", Json.String serverInfo.name))
+
+                (serverInfo.version
+                 |> Stdlib.Option.map (fun v -> ("version", Json.String v))) ]
+              |> Stdlib.List.filterMap (fun self -> self)
+
+            Json.Object fields
+
+
+        module InitializeResult =
+          /// The result returned from an `initialize` request.
+          type InitializeResult =
+            {
+              /// The capabilities the language server provides.
+              capabilities: ServerCapabilities.ServerCapabilities
+
+              /// Information about the server.
+              serverInfo: Stdlib.Option.Option<ServerInfo.ServerInfo>
+
+            // /// Custom initialization results.
+            // [custom: string]: LSPAny | ServerCapabilities<T> | undefined; /** undefined is needed since serverInfo is optional */
+            }
+
+          let toJson (result: InitializeResult) : Json =
+            [ Stdlib.Option.Option.Some(
+                ("capabilities", ServerCapabilities.toJson result.capabilities)
+              )
+
+              (result.serverInfo
+               |> Stdlib.Option.map (fun info ->
+                 ("serverInfo", ServerInfo.toJson info))) ]
+
+            |> Stdlib.List.filterMap (fun self -> self)
+            |> Json.Object
+
+
+        module InitializeError =
+          /// The data type of the ResponseError if the initialize request fails.
+          type InitializeError =
+            {
+              /// Indicates whether the client execute the following retry logic:
+              /// (1) show the message provided by the ResponseError to the user
+              /// (2) user selects retry or cancel
+              /// (3) if user selected retry the initialize method is sent again.
+              retry: Bool
+            }
+
+          let toJson (error: InitializeError) : Json =
+            Json.Object [ ("retry", Json.Bool error.retry) ]

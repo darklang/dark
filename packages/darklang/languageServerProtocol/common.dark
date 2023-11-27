@@ -1,0 +1,70 @@
+// All of the base / common types shared between the LSP client and server
+// explicitly does not include any messages, requests, or responses
+
+module Darklang =
+  /// Supporting types and functionality corresponding to the LSP 3.17.0 specification,
+  /// built as-needed for _our_ LSP Server implementation
+  module LanguageServerProtocol =
+    // <aliases>
+    type Json = Stdlib.AltJson.Json
+    // </aliases>
+
+
+    // TODO: maybe better constraints here
+    type DocumentUri = String
+
+    /// A tagging type for string properties that are actually URIs
+    // TODO: maybe better constraints here
+    type URI = String
+
+
+
+    module TextDocumentItem =
+      /// An item to transfer a text document from the client to the server.
+      type TextDocumentItem =
+        {
+          /// The text document's URI.
+          uri: DocumentUri
+
+          /// The text document's language identifier.
+          languageId: String
+
+          /// The version number of this document
+          /// (it will increase after each change, including undo/redo).
+          version: Int64
+
+          /// The content of the opened text document.
+          text: String
+        }
+
+      let toJson (i: TextDocumentItem) : Json =
+        [ ("uri", Json.String i.uri)
+          ("languageId", Json.String i.languageId)
+          ("version", Json.Number(Stdlib.Int64.toFloat i.version))
+          ("text", Json.String i.text) ]
+        |> Json.Object
+
+      let fromJson (json: Json) : Stdlib.Result.Result<TextDocumentItem, Unit> =
+        match Builtin.Json.parse<TextDocumentItem> json with
+        | Ok item -> Stdlib.Result.Result.Ok item
+        | Error _ -> Stdlib.Result.Result.Error()
+
+
+    module TextDocumentIdentifier =
+      type TextDocumentIdentifier =
+        {
+          /// The text document's URI.
+          uri: DocumentUri
+        }
+
+      let toJson (i: TextDocumentIdentifier) : Json =
+        Json.Object [ ("uri", Json.String i.uri) ]
+
+      let fromJson
+        (json: Json)
+        : Stdlib.Result.Result<TextDocumentIdentifier, Unit> =
+        match json with
+        | Object [ ("uri", String uri) ] ->
+          Stdlib.Result.Result.Ok(TextDocumentIdentifier { uri = uri })
+        | _ -> Stdlib.Result.Result.Error()
+
