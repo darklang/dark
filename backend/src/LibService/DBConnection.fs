@@ -12,6 +12,9 @@ let connectionString () : string =
   sb.Password <- Config.pgPassword
   sb.Database <- Config.pgDBName
   sb.SslMode <- if Config.pgSslRequired then SslMode.VerifyFull else SslMode.Allow
+  match Config.pgRootCertPath with
+  | Some rootCert -> sb.RootCertificate <- rootCert
+  | None -> ()
   sb.IncludeErrorDetail <- true
   // Our DB in GCP supports 800 connections at once. We plan to have 2
   // BwdServers, 2 QueueWorkers, and 1 CronChecker

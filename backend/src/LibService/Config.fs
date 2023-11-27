@@ -124,3 +124,5 @@ let pgPassword = credentials "DARK_CONFIG_DB_PASSWORD"
 let pgPoolSize = int "DARK_CONFIG_DB_POOL_SIZE"
 
 let pgSslRequired = bool "DARK_CONFIG_DB_SSL_REQUIRED"
+
+let pgRootCertPath = stringOption "DARK_CONFIG_DB_ROOT_CERT_PATH"
