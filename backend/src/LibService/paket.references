@@ -1,4 +1,5 @@
 FSharp.Core
+FsRegex
 Rollbar
 Rollbar.NetCore.AspNet
 Honeycomb.OpenTelemetry

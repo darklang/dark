@@ -319,7 +319,7 @@ let main (args : string[]) : int =
       name
       LibService.Telemetry.DontTraceDBQueries
 
-    (LibCloud.Init.waitForDB ()).Result
+    (LibCloud.Db.waitUntilConnected ()).Result
 
     match args with
     | [| "load-packages" |] ->

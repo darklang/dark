@@ -8,7 +8,10 @@ open Npgsql.FSharp
 
 open Prelude
 
+module Telemetry = LibService.Telemetry
+
 module RT = LibExecution.RuntimeTypes
+
 
 module Sql =
 
@@ -228,3 +231,36 @@ let tableStats () : Task<List<TableStatsRow>> =
       rows = read.int64OrNone "rows" |> Option.unwrap 0
       diskHuman = read.string "disk_human"
       rowsHuman = read.string "rows_human" })
+
+
+let waitUntilConnected () : Task<unit> =
+  task {
+    use (_span : Telemetry.Span.T) = Telemetry.createRoot "wait for db"
+    let mutable success = false
+    let mutable count = 0
+    Telemetry.addEvent "starting to loop to wait for DB" []
+    let cs = LibService.DBConnection.debugConnectionString ()
+    while not success do
+      use (_span : Telemetry.Span.T) = Telemetry.child "iteration" [ "count", count ]
+      try
+        printTime $"Trying to connect to DB ({count} - {cs})"
+        count <- count + 1
+        do!
+          Sql.query "select current_date"
+          |> Sql.parameters []
+          |> Sql.executeStatementAsync
+        success <- true
+      with
+      | :? Npgsql.PostgresException as e ->
+        Telemetry.addException [] e
+        printTime $"Failed to connect to DB: {e.Message} {e.Detail} {e.StackTrace}"
+        do! Task.Delay 10
+      | e ->
+        let exnType = e.GetType().FullName
+        Telemetry.addException [] e
+        printTime $"Failed to connect to DB ({exnType}): {e.Message} {e.StackTrace}"
+        do! Task.Delay 10
+    return ()
+  }
+
+
