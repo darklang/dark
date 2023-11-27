@@ -32,11 +32,18 @@ let dataSource : NpgsqlDataSource =
   let builder = new NpgsqlDataSourceBuilder(cs)
 
   // Logging to debug connection issues
-  let loggerFactory =
-    LoggerFactory.Create(fun builder ->
-      builder.AddConsole().SetMinimumLevel(LogLevel.Debug) |> ignore<_>)
-  builder.UseLoggerFactory(loggerFactory).EnableParameterLogging()
-  |> ignore<NpgsqlDataSourceBuilder>
+  match Config.pgLogLevel with
+  | Some level ->
+    let level =
+      match level with
+      | "debug" -> LogLevel.Debug
+      | _ -> LogLevel.Information
+    let loggerFactory =
+      LoggerFactory.Create(fun builder ->
+        builder.AddConsole().SetMinimumLevel(level) |> ignore<_>)
+    builder.UseLoggerFactory(loggerFactory).EnableParameterLogging()
+    |> ignore<NpgsqlDataSourceBuilder>
+  | None -> ()
 
   builder.UseNodaTime() |> ignore<TypeMapping.INpgsqlTypeMapper>
   builder.Build()
