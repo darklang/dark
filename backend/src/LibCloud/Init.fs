@@ -56,9 +56,15 @@ let waitForDB () : Task<unit> =
           |> Sql.parameters []
           |> Sql.executeStatementAsync
         success <- true
-      with e ->
+      with
+      | :? Npgsql.PostgresException as e ->
         Telemetry.addException [] e
-        printTime $"Failed to connect to DB: {e.Message} {e.StackTrace}"
+        printTime $"Failed to connect to DB: {e.Message} {e.Detail} {e.StackTrace}"
+        do! Task.Delay 10
+      | e ->
+        let exnType = e.GetType().FullName
+        Telemetry.addException [] e
+        printTime $"Failed to connect to DB ({exnType}): {e.Message} {e.StackTrace}"
         do! Task.Delay 10
     return ()
   }

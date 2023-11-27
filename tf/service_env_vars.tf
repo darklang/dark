@@ -61,8 +61,10 @@ variable "service_env_vars" {
     "DARK_CONFIG_DB_PORT"   = "5433"
     # DARK_CONFIG_DB_USER
     # DARK_CONFIG_DB_PASSWORD
-    "DARK_CONFIG_DB_POOL_SIZE"    = "20"
-    "DARK_CONFIG_DB_SSL_REQUIRED" = "y"
+    "DARK_CONFIG_DB_POOL_SIZE"      = "20"
+    "DARK_CONFIG_DB_SSL_REQUIRED"   = "y"
+    "DARK_CONFIG_DB_ROOT_CERT_PATH" = "/usr/local/share/ca-certificates/yugabyte.crt"
+    "DARK_CONFIG_DB_LOG_LEVEL"      = "debug"
 
     # Queue / pubsub
     "DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID"        = "darklang-next"

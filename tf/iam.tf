@@ -17,10 +17,14 @@ resource "google_service_account" "circleci_deployer" {
 
 resource "google_project_iam_custom_role" "circleci-deployment-role" {
   description = "CircleCI deployment role"
-  permissions = ["artifactregistry.repositories.uploadArtifacts"] // Just give it a very small permission
-  project     = "darklang-next"
-  role_id     = "circleciDeploymentRole"
-  title       = "CircleCI deployment role"
+  permissions = [
+    "artifactregistry.repositories.uploadArtifacts",
+    "run.services.get",
+    "run.services.update"
+  ]
+  project = "darklang-next"
+  role_id = "circleciDeploymentRole"
+  title   = "CircleCI deployment role"
 }
 
 # resource "google_project_iam_member" "circleci_deployer_member_object_viewer" {
