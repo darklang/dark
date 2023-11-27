@@ -20,11 +20,6 @@ open LibExecution.RuntimeTypes
 // 5. By removing all access for the cloud run service account (see iam.tf)
 module LocalAccess =
 
-  let bannedHost (host : string) =
-    let host = host.Trim().ToLower()
-    host = "localhost" || host = "metadata" || host = "metadata.google.internal"
-
-
 
   // Cloud Run lists the IPs it routes internally here:
   // https://cloud.google.com/run/docs/configuring/vpc-connectors?#manage
@@ -45,6 +40,7 @@ module LocalAccess =
   // 169.254.0.0 - 169.254.255.255 (169.254.0.0/16, link-local addresses)
   let oneSixNine = System.Net.IPNetwork.Parse "169.254.0.0/16"
 
+  let oneTwoSeven = System.Net.IPAddress.Parse "127.0.0.1"
   let zero = System.Net.IPAddress.Parse "0.0.0.0"
 
 
@@ -58,6 +54,7 @@ module LocalAccess =
     || oneNineNineEight.Contains ip
     || oneSixNine.Contains ip
     || zero = ip
+    || oneTwoSeven = ip
 
   let bannedIp (ip : System.Net.IPAddress) : bool =
     if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetworkV6 then
@@ -71,6 +68,16 @@ module LocalAccess =
       bannedIPv4 ip
     else
       true // not ipv4 or ipv6, so banned
+
+  let bannedHost (host : string) =
+    let host = host.Trim().ToLower()
+    let badIP =
+      let mutable ip = null
+      if System.Net.IPAddress.TryParse(host, &ip) then bannedIp ip else false
+    badIP
+    || host = "localhost"
+    || host = "metadata"
+    || host = "metadata.google.internal"
 
 
   // Disallow headers that access the Instance Metadata service
