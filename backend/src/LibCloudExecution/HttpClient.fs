@@ -40,7 +40,7 @@ module LocalAccess =
   // 169.254.0.0 - 169.254.255.255 (169.254.0.0/16, link-local addresses)
   let oneSixNine = System.Net.IPNetwork.Parse "169.254.0.0/16"
 
-  let oneTwoSeven = System.Net.IPAddress.Parse "127.0.0.1"
+  // Local
   let zero = System.Net.IPAddress.Parse "0.0.0.0"
 
 
@@ -54,7 +54,6 @@ module LocalAccess =
     || oneNineNineEight.Contains ip
     || oneSixNine.Contains ip
     || zero = ip
-    || oneTwoSeven = ip
 
   let bannedIp (ip : System.Net.IPAddress) : bool =
     if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetworkV6 then
