@@ -333,6 +333,15 @@ module Darklang =
                                       )
                                   ) }
                           )
+                      )
+
+                    completionProvider =
+                      Stdlib.Option.Option.Some(
+                        LanguageServerProtocol.Completions.CompletionOptions.CompletionOptions
+                          { triggerCharacters = Stdlib.Option.Option.None
+                            allCommitCharacters = Stdlib.Option.Option.None
+                            resolveProvider = Stdlib.Option.Option.Some false // just return all info at once
+                            completionItem = Stdlib.Option.Option.None }
                       ) }
               serverInfo = Stdlib.Option.Option.None }
 

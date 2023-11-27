@@ -1,7 +1,82 @@
 // Supports "completions," generally known as "autocomplete" or "intellisense."
 
-(*
+module Darklang =
+  module LanguageServerProtocol =
+    module Completions =
 
+      /// @proposed
+      module ServerCompletionItemOptions =
+        type ServerCompletionItemOptions =
+          {
+            /// The server has support for completion item label
+            /// details (see also `CompletionItemLabelDetails`) when
+            /// receiving a completion item in a resolve call.
+            labelDetailsSupport: Stdlib.Option.Option<Bool>
+          }
+
+        let toJson (o: ServerCompletionItemOptions) : Json =
+          [ o.labelDetailsSupport
+            |> Stdlib.Option.map (fun b -> ("labelDetailsSupport", Json.Bool b)) ]
+
+          |> Stdlib.List.filterMap (fun self -> self)
+          |> Json.Object
+
+
+      module CompletionOptions =
+        /// Completion options, used for configuration of the completion feature.
+        ///
+        /// TODO: `extends WorkDoneProgressOptions`
+        type CompletionOptions =
+          {
+            /// Most tools trigger completion request automatically without explicitly requesting
+            /// it using a keyboard shortcut (e.g. Ctrl+Space). Typically they do so when the user
+            /// starts to type an identifier. For example if the user types `c` in a JavaScript file
+            /// code complete will automatically pop up present `console` besides others as a
+            /// completion item. Characters that make up identifiers don't need to be listed here.
+            /// If code complete should automatically be trigger on characters not being valid inside
+            /// an identifier (for example `.` in JavaScript) list them in `triggerCharacters`.
+            triggerCharacters: Stdlib.Option.Option<List<String>>
+
+            /// The list of all possible characters that commit a completion. This field can be used
+            /// if clients don't support individual commit characters per completion item. See
+            /// `ClientCapabilities.textDocument.completion.completionItem.commitCharactersSupport`
+            /// If a server provides both `allCommitCharacters` and commit characters on an individual
+            /// completion item the ones on the completion item win.
+            allCommitCharacters: Stdlib.Option.Option<List<String>>
+
+            /// The server provides support to resolve additional
+            /// information for a completion item.
+            resolveProvider: Stdlib.Option.Option<Bool>
+
+            /// The server supports the following `CompletionItem`-specific capabilities.
+            completionItem:
+              Stdlib.Option.Option<ServerCompletionItemOptions.ServerCompletionItemOptions>
+          }
+
+
+        let toJson (o: CompletionOptions) : Json =
+          [ o.triggerCharacters
+            |> Stdlib.Option.map (fun chars ->
+              ("triggerCharacters",
+               chars |> Stdlib.List.map (fun c -> Json.String c) |> Json.List))
+
+            o.allCommitCharacters
+            |> Stdlib.Option.map (fun chars ->
+              ("allCommitCharacters",
+               chars |> Stdlib.List.map (fun c -> Json.String c) |> Json.List))
+
+            o.resolveProvider
+            |> Stdlib.Option.map (fun p -> ("resolveProvider", Json.Bool p))
+
+            o.completionItem
+            |> Stdlib.Option.map (fun item ->
+              ("completionItem", ServerCompletionItemOptions.toJson item)) ]
+
+          |> Stdlib.List.filterMap (fun self -> self)
+          |> Json.Object
+
+
+(*
   /// Defines whether the insert text in a completion item should be interpreted as
   /// plain text or a snippet.
   export namespace InsertTextFormat {
@@ -671,43 +746,7 @@
     context?: CompletionContext;
   }
 
-  /// @proposed
-  export interface ServerCompletionItemOptions {
-    /// The server has support for completion item label
-    /// details (see also `CompletionItemLabelDetails`) when
-    /// receiving a completion item in a resolve call.
-    labelDetailsSupport?: boolean;
-  }
 
-  /// Completion options.
-  export interface CompletionOptions
-    extends
-      WorkDoneProgressOptions {
-
-    /// Most tools trigger completion request automatically without explicitly requesting
-    /// it using a keyboard shortcut (e.g. Ctrl+Space). Typically they do so when the user
-    /// starts to type an identifier. For example if the user types `c` in a JavaScript file
-    /// code complete will automatically pop up present `console` besides others as a
-    /// completion item. Characters that make up identifiers don't need to be listed here.
-    /// If code complete should automatically be trigger on characters not being valid inside
-    /// an identifier (for example `.` in JavaScript) list them in `triggerCharacters`.
-    triggerCharacters?: string[];
-
-    /// The list of all possible characters that commit a completion. This field can be used
-    /// if clients don't support individual commit characters per completion item. See
-    /// `ClientCapabilities.textDocument.completion.completionItem.commitCharactersSupport`
-    /// If a server provides both `allCommitCharacters` and commit characters on an individual
-    /// completion item the ones on the completion item win.
-    allCommitCharacters?: string[];
-
-    /// The server provides support to resolve additional
-    /// information for a completion item.
-    resolveProvider?: boolean;
-
-    /// The server supports the following `CompletionItem` specific
-    /// capabilities.
-    completionItem?: ServerCompletionItemOptions;
-  }
 
   /// Registration options for a {@link CompletionRequest}.
   export interface CompletionRegistrationOptions

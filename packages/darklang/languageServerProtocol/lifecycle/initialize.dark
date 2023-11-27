@@ -450,11 +450,12 @@ module Darklang =
               textDocumentSync:
                 Stdlib.Option.Option<TextDocumentSyncServerCapabilities.TextDocumentSyncServerCapabilities>
 
-            // /// Defines how notebook documents are synced.
-            // notebookDocumentSync?: NotebookDocumentSyncOptions | NotebookDocumentSyncRegistrationOptions;
+              // /// Defines how notebook documents are synced.
+              // notebookDocumentSync?: NotebookDocumentSyncOptions | NotebookDocumentSyncRegistrationOptions;
 
-            // /// The server provides completion support.
-            // completionProvider?: CompletionOptions;
+              /// The server provides completion support.
+              completionProvider:
+                Stdlib.Option.Option<Completions.CompletionOptions.CompletionOptions>
 
             // /// The server provides hover support.
             // hoverProvider?: boolean | HoverOptions;
@@ -562,7 +563,12 @@ module Darklang =
           let toJson (capabilities: ServerCapabilities) : Json =
             [ capabilities.textDocumentSync
               |> Stdlib.Option.map (fun sync ->
-                ("textDocumentSync", TextDocumentSyncServerCapabilities.toJson sync)) ]
+                ("textDocumentSync", TextDocumentSyncServerCapabilities.toJson sync))
+
+              (capabilities.completionProvider
+               |> Stdlib.Option.map (fun provider ->
+                 ("completionProvider",
+                  Completions.CompletionOptions.toJson provider))) ]
 
             |> Stdlib.List.filterMap (fun self -> self)
             |> Json.Object
