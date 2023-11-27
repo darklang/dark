@@ -3,14 +3,31 @@
 # Script to install dotnet 8
 
 set -e
+
+for i in "$@" ; do
+  case "${i}" in
+    --version=*)
+    DOTNET_SDK_VERSION=${1/--version=/''}
+    shift
+    ;;
+    --arm64-sha256=*)
+    ARM64_SHA256=${1/--arm64-sha256=/''}
+    shift
+    ;;
+    --amd64-sha256=*)
+    AMD64_SHA256=${1/--amd64-sha256=/''}
+    shift
+    ;;  esac
+done
+
 case ${TARGETARCH} in
   arm64)
     ARCH=arm64
-    CHECKSUM=$DOTNET_SDK_ARM64_CHECKSUM
+    CHECKSUM=$ARM64_SHA256
     ;;
   amd64)
     ARCH=x64
-    CHECKSUM=$DOTNET_SDK_X64_CHECKSUM
+    CHECKSUM=$AMD64_SHA256
     ;;
   *) exit 1;;
 esac

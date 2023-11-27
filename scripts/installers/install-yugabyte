@@ -3,6 +3,19 @@
 # Script to install yugabyte
 
 set -e;
+
+for i in "$@" ; do
+  case "${i}" in
+    --version=*)
+    YUGABYTE_VERSION=${1/--version=/''}
+    shift
+    ;;
+    --build=*)
+    YUGABYTE_BUILD=${1/--build=/''}
+    shift
+    ;;  esac
+done
+
 case ${TARGETARCH} in
   arm64)
   URL=https://downloads.yugabyte.com/releases/$YUGABYTE_VERSION/yugabyte-$YUGABYTE_VERSION-$YUGABYTE_BUILD-el8-aarch64.tar.gz
