@@ -212,7 +212,7 @@ module Darklang =
 
             item.data |> Stdlib.Option.map (fun d -> ("data", d)) ]
 
-          |> Stdlib.List.filterMap (fun self -> self)
+          |> Stdlib.Option.values
           |> Json.Object
 
 
@@ -264,7 +264,7 @@ module Darklang =
 
             d.data |> Stdlib.Option.map (fun d -> ("data", d)) ]
 
-          |> Stdlib.List.filterMap (fun self -> self)
+          |> Stdlib.Option.values
           |> Json.Object
 
 
@@ -312,7 +312,7 @@ module Darklang =
                |> Json.Array)
             ) ]
 
-          |> Stdlib.List.filterMap (fun self -> self)
+          |> Stdlib.Option.values
           |> Json.Object
 
 
@@ -330,7 +330,7 @@ module Darklang =
           [ o.labelDetailsSupport
             |> Stdlib.Option.map (fun b -> ("labelDetailsSupport", Json.Bool b)) ]
 
-          |> Stdlib.List.filterMap (fun self -> self)
+          |> Stdlib.Option.values
           |> Json.Object
 
 
@@ -384,7 +384,7 @@ module Darklang =
             |> Stdlib.Option.map (fun item ->
               ("completionItem", ServerCompletionItemOptions.toJson item)) ]
 
-          |> Stdlib.List.filterMap (fun self -> self)
+          |> Stdlib.Option.values
           |> Json.Object
 
 
@@ -485,21 +485,21 @@ module Darklang =
           /// - extends PartialResultParams
           type CompletionParams =
             {
-              // in TypeScript, was inlined via `@extends TextDocumentPositionParams`
-              textDocumentPosition:
-                TextDocumentPositionParams.TextDocumentPositionParams
-
               /// The completion context. This is only available it the client specifies
               /// to send this using the client capability `textDocument.completion.contextSupport === true`
               context: Stdlib.Option.Option<CompletionContext.CompletionContext>
+
+              // <extends TextDocumentPositionParams>
+              /// The text document.
+              textDocument: TextDocumentIdentifier.TextDocumentIdentifier
+
+              /// The position inside the text document.
+              position: Position.Position
             }
 
           let fromJson (json: Json) : Stdlib.Result.Result<CompletionParams, Unit> =
             match json with
             | Object fields ->
-              let textDocumentPosition = // Result<TextDocumentPositionParams, Unit>
-                TextDocumentPositionParams.fromJson json
-
               let context = // Option<Result<CompletionContext, Unit>>
                 match
                   Stdlib.List.findFirst fields (fun (key, _) -> key == "context")
@@ -507,23 +507,38 @@ module Darklang =
                 | None -> Stdlib.Option.Option.None
                 | Some((_, context)) ->
                   (CompletionContext.fromJson context) |> Stdlib.Option.Option.Some
-                | _ -> Stdlib.Result.Result.Error()
 
-              match textDocumentPosition, context with
-              | Ok(textDocumentPosition), None ->
+              let textDocument = // Result<TextDocumentIdentifier, Unit>
+                match
+                  Stdlib.List.findFirst fields (fun (k, _) -> k == "textDocument")
+                with
+                | Some((_, textDocument)) ->
+                  TextDocumentIdentifier.fromJson textDocument
+                | None -> Stdlib.Result.Result.Error()
+
+              let position = // Result<Position, Unit>
+                match
+                  Stdlib.List.findFirst fields (fun (k, _) -> k == "position")
+                with
+                | Some((_, position)) -> Position.fromJson position
+                | None -> Stdlib.Result.Result.Error()
+
+              match context, textDocument, position with
+              | None, Ok textDocument, Ok position ->
                 (CompletionParams
-                  { textDocumentPosition = textDocumentPosition
-                    context = Stdlib.Option.Option.None })
+                  { context = Stdlib.Option.Option.None
+                    textDocument = textDocument
+                    position = position })
                 |> Stdlib.Result.Result.Ok
 
-              | Ok(textDocumentPosition), Some(Ok context) ->
+              | Some(Ok context), Ok textDocument, Ok position ->
                 (CompletionParams
-                  { textDocumentPosition = textDocumentPosition
-                    context = Stdlib.Option.Option.Some context })
+                  { context = Stdlib.Option.Option.Some context
+                    textDocument = textDocument
+                    position = position })
                 |> Stdlib.Result.Result.Ok
 
               | _ -> Stdlib.Result.Result.Error()
-
             | _ -> Stdlib.Result.Result.Error()
 
 

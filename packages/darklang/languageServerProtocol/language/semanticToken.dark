@@ -1,41 +1,258 @@
+// Supports "semantic tokens," which are a way to provide syntax highlighting, among other things.
+
+module Darklang =
+  module LanguageServerProtocol =
+    module SemanticTokens =
+
+      module SemanticTokensLegend =
+        type SemanticTokensLegend =
+          {
+            /// The token types a server uses.
+            tokenTypes: List<String>
+
+            /// The token modifiers a server uses.
+            tokenModifiers: List<String>
+          }
+
+        let toJson (l: SemanticTokensLegend) : Json =
+          [ ("tokenTypes",
+             l.tokenTypes |> Stdlib.List.map (fun t -> Json.String t) |> Json.Array)
+
+            ("tokenModifiers",
+             l.tokenModifiers
+             |> Stdlib.List.map (fun m -> Json.String m)
+             |> Json.Array) ]
+
+          |> Json.Object
+
+
+      module SemanticTokens =
+        type SemanticTokens =
+          {
+            /// An optional result id. If provided and clients support delta updating
+            /// the client will include the result id in the next semantic token request.
+            /// A server can then instead of computing all semantic tokens again simply
+            /// send a delta.
+            resultId: Stdlib.Option.Option<String>
+
+            /// The actual tokens.
+            ///
+            /// TODO describe the data format
+            data: List<UInt64>
+          }
+
+        let toJson (t: SemanticTokens) : Json =
+          [ t.resultId |> Stdlib.Option.map (fun id -> ("resultId", Json.String id))
+
+            Stdlib.Option.Option.Some(
+              ("data",
+               t.data
+               |> Stdlib.List.map (fun d -> Json.Number(Stdlib.UInt64.toFloat d))
+               |> Json.Array)
+            ) ]
+
+          |> Stdlib.Option.values
+          |> Json.Object
+
+
+
+
+      module SemanticTokensRequest =
+        let method = "textDocument/semanticTokens/full"
+        // let messageDirection = MessageDirection.clientToServer;
+        // registration: SemanticTokensRegistrationType.method;
+
+        module SemanticTokensParams =
+          /// TODO: extends WorkDoneProgressParams
+          /// TODO: extends PartialResultParams
+          type SemanticTokensParams =
+            {
+              /// The text document.
+              textDocument: TextDocumentIdentifier.TextDocumentIdentifier
+            }
+
+          let fromJson
+            (json: Json)
+            : Stdlib.Result.Result<SemanticTokensParams, Unit> =
+            match json with
+            | Object fields ->
+              let textDocument = // Result<TextDocumentIdentifier, Unit>
+                match
+                  Stdlib.List.findFirst fields (fun (k, _) -> k == "textDocument")
+                with
+                | Some((_, d)) -> TextDocumentIdentifier.fromJson d
+                | _ -> Stdlib.Result.Result.Error()
+
+              match textDocument with
+              | Ok d ->
+                (SemanticTokensParams { textDocument = d })
+                |> Stdlib.Result.Result.Ok
+              | _ -> Stdlib.Result.Result.Error()
+
+            | _ -> Stdlib.Result.Result.Error()
+
+
+        module SemanticTokensResult =
+          type SemanticTokensResult =
+            | Null
+            | SemanticTokens of SemanticTokens.SemanticTokens
+
+          let toJson (r: SemanticTokensResult) : Json =
+            match r with
+            | Null -> Json.Null
+            | SemanticTokens t -> SemanticTokens.toJson t
+
+
+
+      // <server options>
+
+      module SemanticTokensOptions =
+        // Note: not a type in the spec, but used in SemanticTokensOptions as a union
+        module SemanticTokensOptionsRange =
+          type SemanticTokensOptionsRange =
+            | Bool of Bool
+            | EmptyObject
+
+          let toJson (r: SemanticTokensOptionsRange) : Json =
+            match r with
+            | Bool b -> Json.Bool b
+            | EmptyObject -> Json.Object []
+
+        module SemanticTokensFullDelta =
+          /// Semantic tokens options to support deltas for full documents
+          ///
+          /// @proposed
+          type SemanticTokensFullDelta =
+            {
+              /// The server supports deltas for full documents.
+              delta: Stdlib.Option.Option<Bool>
+            }
+
+          let toJson (d: SemanticTokensFullDelta) : Json =
+            [ d.delta |> Stdlib.Option.map (fun b -> ("delta", Json.Bool b)) ]
+
+            |> Stdlib.Option.values
+            |> Json.Object
+
+        // Note: not a type in the spec, but used in SemanticTokensOptions as a union
+        module SemanticTokensOptionsFull =
+          type SemanticTokensOptionsFull =
+            | Bool of Bool
+            | SemanticTokensFullDelta of
+              SemanticTokensFullDelta.SemanticTokensFullDelta
+
+          let toJson (f: SemanticTokensOptionsFull) : Json =
+            match f with
+            | Bool b -> Json.Bool b
+            | SemanticTokensFullDelta d -> SemanticTokensFullDelta.toJson d
+
+        type SemanticTokensOptions =
+          {
+            /// The legend used by the server
+            legend: SemanticTokensLegend.SemanticTokensLegend
+
+            /// Server supports providing semantic tokens for a specific range of a document.
+            range:
+              Stdlib.Option.Option<SemanticTokensOptionsRange.SemanticTokensOptionsRange>
+
+            /// Server supports providing semantic tokens for a full document.
+            full:
+              Stdlib.Option.Option<SemanticTokensOptionsFull.SemanticTokensOptionsFull>
+
+          // TODO: extends WorkDoneProgressOptions {
+          }
+
+        let toJson (o: SemanticTokensOptions) : Json =
+          [ Stdlib.Option.Option.Some(
+              ("legend", SemanticTokensLegend.toJson o.legend)
+            )
+
+            o.range
+            |> Stdlib.Option.map (fun r ->
+              ("range", SemanticTokensOptionsRange.toJson r))
+
+            o.full
+            |> Stdlib.Option.map (fun f ->
+              ("full", SemanticTokensOptionsFull.toJson f)) ]
+
+          |> Stdlib.Option.values
+          |> Json.Object
+
+
+      // module SemanticTokensRegistrationOptions =
+      //   type SemanticTokensRegistrationOptions =
+      //     {
+      //       // <extends TextDocumentRegistrationOptions>
+      //       documentSelector:
+      //         TextDocumentRegistrationOptions.TextDocumentRegistrationOptionsDocumentSelector.TextDocumentRegistrationOptionsDocumentSelector
+
+
+      //       // <extends SemanticTokensOptions>
+      //       /// The legend used by the server
+      //       legend: SemanticTokensLegend.SemanticTokensLegend
+
+      //       /// Server supports providing semantic tokens for a specific range of a document.
+      //       range:
+      //         Stdlib.Option.Option<SemanticTokensOptions.SemanticTokensOptionsRange.SemanticTokensOptionsRange>
+
+      //       /// Server supports providing semantic tokens for a full document.
+      //       full:
+      //         Stdlib.Option.Option<SemanticTokensOptions.SemanticTokensOptionsFull.SemanticTokensOptionsFull>
+
+
+      //       // <extends StaticRegistrationOptions>
+      //       /// The id used to register the request.
+      //       /// The id can be used to deregister the request again. See also Registration#id.
+      //       id: Stdlib.Option.Option<String>
+      //     }
+
+      //   let toJson (o: SemanticTokensRegistrationOptions) : Json =
+      //     [ Some(
+      //         ("documentSelector",
+      //          TextDocumentRegistrationOptions.TextDocumentRegistrationOptionsDocumentSelector.toJson
+      //            o.documentSelector)
+      //       )
+
+      //       Some(("legend", SemanticTokensLegend.toJson o.legend))
+
+      //       o.range
+      //       |> Stdlib.Option.map (fun r ->
+      //         ("range", SemanticTokensOptions.SemanticTokensOptionsRange.toJson r))
+
+      //       o.full
+      //       |> Stdlib.Option.map (fun f ->
+      //         ("full", SemanticTokensOptions.SemanticTokensOptionsFull.toJson f))
+
+      //       o.id |> Stdlib.Option.map (fun id -> ("id", Json.String id)) ]
+
+      //     |> Stdlib.Option.values
+      //     |> Json.Object
+
+
+      /// What server capabilities the server declares it supports,
+      /// during the `initialize` handshake.
+      module SemanticTokenProviderOptions =
+        type SemanticTokenProviderOptions =
+          // | SemanticTokensRegistrationOptions of
+          //   SemanticTokensRegistrationOptions.SemanticTokensRegistrationOptions
+
+          | SemanticTokensOptions of SemanticTokensOptions.SemanticTokensOptions
+
+        let toJson (o: SemanticTokenProviderOptions) : Json =
+          match o with
+          // | SemanticTokensRegistrationOptions o ->
+          //   SemanticTokensRegistrationOptions.toJson o
+
+          | SemanticTokensOptions o -> SemanticTokensOptions.toJson o
+
+
+
+
 (*
-  export interface SemanticTokens {
-    /// An optional result id. If provided and clients support delta updating
-    /// the client will include the result id in the next semantic token request.
-    /// A server can then instead of computing all semantic tokens again simply
-    /// send a delta.
-    resultId?: string;
-
-    /// The actual tokens.
-    data: uinteger[];
-  }
-
-  //------- 'textDocument/semanticTokens/full' -----
-
-  export interface SemanticTokensParams
-    extends
-      WorkDoneProgressParams,
-      PartialResultParams {
-
-    /// The text document.
-    textDocument: TextDocumentIdentifier;
-  }
-
-  export namespace SemanticTokensRequest {
-    export const method: 'textDocument/semanticTokens/full' = 'textDocument/semanticTokens/full';
-    export const messageDirection: MessageDirection = MessageDirection.clientToServer;
-    export const type = new ProtocolRequestType<SemanticTokensParams, SemanticTokens | null, SemanticTokensPartialResult, void, SemanticTokensRegistrationOptions>(method);
-    export const registrationMethod: typeof SemanticTokensRegistrationType.method  = SemanticTokensRegistrationType.method;
-    export type HandlerSignature = RequestHandler<SemanticTokensDeltaParams, SemanticTokens | null, void>;
-  }
-*)
-
-
-
-
-(*
-  /// A set of predefined token types. This set is not fixed and clients can specify
-  /// additional token types via the corresponding client capabilities.
+  /// A set of predefined token types.
+  ///
+  /// This set is not fixed and clients can specify additional token types
+  /// via the corresponding client capabilities.
   export enum SemanticTokenTypes {
     namespace = 'namespace',
     /// Represents a generic type. Acts as a fallback for types which can't be mapped to
@@ -64,8 +281,9 @@
     decorator = 'decorator'
   }
 
-  /// A set of predefined token modifiers. This set is not fixed
-  /// an clients can specify additional token types via the
+  /// A set of predefined token modifiers.
+  ///
+  /// This set is not fixed, and clients can specify additional token types via the
   /// corresponding client capabilities.
   export enum SemanticTokenModifiers {
     declaration = 'declaration',
@@ -80,13 +298,7 @@
     defaultLibrary = 'defaultLibrary'
   }
 
-  export interface SemanticTokensLegend {
-    /// The token types a server uses.
-    tokenTypes: string[];
 
-    /// The token modifiers a server uses.
-    tokenModifiers: string[];
-  }
 
 
 
@@ -195,35 +407,10 @@
   }
 
 
-  /// Semantic tokens options to support deltas for full documents
-  ///
-  /// @proposed
-  export interface SemanticTokensFullDelta {
-    /// The server supports deltas for full documents.
-    delta?: boolean;
-  }
 
-  export interface SemanticTokensOptions
-    extends
-      WorkDoneProgressOptions {
 
-    /// The legend used by the server
-    legend: SemanticTokensLegend;
 
-    /// Server supports providing semantic tokens for a specific range
-    /// of a document.
-    range?: boolean | {};
 
-    /// Server supports providing semantic tokens for a full document.
-    full?: boolean | SemanticTokensFullDelta;
-  }
-
-  export interface SemanticTokensRegistrationOptions
-    extends
-      TextDocumentRegistrationOptions,
-      SemanticTokensOptions,
-      StaticRegistrationOptions {
-  }
 
   export namespace SemanticTokensRegistrationType {
     export const method: 'textDocument/semanticTokens' = 'textDocument/semanticTokens';

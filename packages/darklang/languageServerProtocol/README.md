@@ -71,10 +71,9 @@ project is quite hard to follow, though, so we've reorganized things here.
   }
   ```
 
-  The latter is easier to understand, but won't work out of the box if we end up
-  switching to our usage-ignorant Json parser/serializer. I'm going to use the
-  latter for now, and we can re-evaluate if/when needed. That said, for each case
-  where we do this, we should add a comment roughly of `@extends TextDocumentPositionParams`
+  There are various issues trying with the latter (i.e. redundant definitions when
+  one `@extends` extends another `@extends`), so we've gone with the former. It'll
+  come with some unfortunate redundancy throughout, though.
 
 ## TODOs:
 
