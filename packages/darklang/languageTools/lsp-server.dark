@@ -146,7 +146,7 @@ module Darklang =
 
 
         // -- autocomplete
-        | ("textDocument/completion", Some id, Some(Object requestParams)) ->
+        | ("textDocument/completion", Some requestId, Some(Object requestParams)) ->
           let parsed =
             (Stdlib.AltJson.Json.Object requestParams)
             |> LanguageServerProtocol.Completions.CompletionRequest.CompletionParams.fromJson
@@ -156,7 +156,41 @@ module Darklang =
             log
               $"got completion request for {parsed.textDocumentPosition.textDocument.uri}"
 
-            log "TODO: return a response with some completions"
+
+            let includeBogusCompletion = true
+
+            let bogusCompletions =
+              [ LanguageServerProtocol.Completions.CompletionItem.CompletionItem
+                  { label =
+                      "bogus completion response | a b c d e f g h i j k l m n o p q r s t u v w x y z"
+                    detail = Stdlib.Option.Option.None
+                    preselect = Stdlib.Option.Option.Some true
+                    sortText = Stdlib.Option.Option.None
+                    filterText = Stdlib.Option.Option.None
+                    insertText = Stdlib.Option.Option.None
+                    insertTextFormat = Stdlib.Option.Option.None
+                    insertTextMode = Stdlib.Option.Option.None
+                    textEditText = Stdlib.Option.Option.None
+                    commitCharacters = Stdlib.Option.Option.None
+                    data = Stdlib.Option.Option.None } ]
+
+            let bogusResponse =
+              LanguageServerProtocol
+                .Completions
+                .CompletionRequest
+                .CompletionResult
+                .CompletionResult
+                .SimpleList(if includeBogusCompletion then bogusCompletions else [])
+
+            let bogusResponseJson =
+              bogusResponse
+              |> LanguageServerProtocol.Completions.CompletionRequest.CompletionResult.toJson
+              |> (fun r ->
+                JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+              |> Stdlib.AltJson.format
+
+            logAndSendToClient bogusResponseJson
+
           | Error() -> log "couldn't parse params of completion request"
 
           state
@@ -322,7 +356,10 @@ module Darklang =
         let initializeResponse =
           initializeResult
           |> LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeResult.toJson
-          |> (fun r -> JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some 0L) r)
+          |> (fun r ->
+            JsonRPC.Response.Ok.make
+              (Stdlib.Option.Option.Some(JsonRPC.RequestId.Int 0L))
+              r)
           |> Stdlib.AltJson.format
 
         logAndSendToClient initializeResponse
