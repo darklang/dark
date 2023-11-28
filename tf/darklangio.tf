@@ -138,9 +138,9 @@ resource "google_certificate_manager_certificate_map_entry" "darklangio" {
 resource "google_compute_region_network_endpoint_group" "bwdserver" {
   name                  = "bwdserver-neg"
   network_endpoint_type = "SERVERLESS"
-  region                = google_cloud_run_service.bwdserver.location
+  region                = google_cloud_run_v2_service.bwdserver.location
   cloud_run {
-    service = google_cloud_run_service.bwdserver.name
+    service = google_cloud_run_v2_service.bwdserver.name
   }
 }
 

@@ -1,5 +1,7 @@
 module LibService.DBConnection
 
+open Prelude
+
 open Npgsql
 open Npgsql.FSharp
 
@@ -26,6 +28,15 @@ let connectionString () : string =
   sb.MaxPoolSize <- int (float Config.pgPoolSize * 1.5)
   sb.ToString()
 
+let debugConnectionString () : string =
+  match Config.pgLogLevel with
+  | None -> "debug info disabled"
+  | Some _ ->
+    let cs = connectionString ()
+    let cs = FsRegEx.replace "password=.*?;" "password=***;" cs
+    let cs = FsRegEx.replace "Password=.*?;" "Password=***;" cs
+    cs
+
 
 let dataSource : NpgsqlDataSource =
   let cs = connectionString ()
@@ -47,3 +58,30 @@ let dataSource : NpgsqlDataSource =
 
   builder.UseNodaTime() |> ignore<TypeMapping.INpgsqlTypeMapper>
   builder.Build()
+
+let debugConnection () : unit =
+  // get the id of the host to check it resolves
+  LibService.Config.pgHost
+  |> System.Net.Dns.GetHostAddresses
+  |> Seq.iter (fun ip -> printTime $"IP is ip {ip}")
+
+  // check it's reachable - using a method which works across vpcs on google cloud
+  let url = $"{LibService.Config.pgHost}:{LibService.Config.pgPort}"
+  try
+    let client = new System.Net.Sockets.TcpClient()
+    let connection =
+      client.BeginConnect(
+        LibService.Config.pgHost,
+        LibService.Config.pgPort,
+        null,
+        null
+      )
+    client.EndConnect(connection)
+    let success = connection.AsyncWaitHandle.WaitOne(5000)
+    if not success then
+      printTime $"Failed to connect to {url}"
+    else
+      printTime $"Got connected to {url}"
+  with e ->
+    Telemetry.addException [] e
+    printTime $"Failed to get response from {url}: {e.Message} {e.StackTrace}"
