@@ -152,7 +152,6 @@ module Darklang =
 
           match json with
           | Object o ->
-            Builtin.printLine "here6"
             let idOrError = extractIdFromRequest o
 
             // (this is just convenient for including in some errors)
@@ -251,12 +250,10 @@ module Darklang =
 
     module Response =
       module Ok =
-        let make (requestId: Stdlib.Option.Option<Int64>) (result: Json) : Json =
+        let make (requestId: Stdlib.Option.Option<RequestId>) (result: Json) : Json =
           [ Stdlib.Option.Option.Some(("jsonrpc", Json.String "2.0"))
 
-            (requestId
-             |> Stdlib.Option.map (fun id ->
-               ("id", requestIdToJson (RequestId.Int id))))
+            (requestId |> Stdlib.Option.map (fun id -> ("id", requestIdToJson id)))
 
             Stdlib.Option.Option.Some(("result", result)) ]
 
