@@ -153,9 +153,7 @@ module Darklang =
 
           match parsed with
           | Ok parsed ->
-            log
-              $"got completion request for {parsed.textDocumentPosition.textDocument.uri}"
-
+            log $"got completion request for {parsed.textDocument.uri}"
 
             let includeBogusCompletion = true
 
