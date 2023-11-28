@@ -203,6 +203,144 @@ module Darklang =
         | _ -> Stdlib.Result.Result.Error()
 
 
+    module TextDocumentFilterLanguage =
+      /// A document filter where `language` is required field.
+      ///
+      /// @proposed
+      type TextDocumentFilterLanguage =
+        {
+          /// A language id, like `typescript`.
+          language: String
+
+          /// A Uri {@link Uri.scheme scheme}, like `file` or `untitled`.
+          scheme: Stdlib.Option.Option<String>
+
+          /// A glob pattern, like **​/*.{ts,js}. See TextDocumentFilter for examples.
+          pattern: Stdlib.Option.Option<String>
+        }
+
+      let toJson (l: TextDocumentFilterLanguage) : Json =
+        [ Stdlib.Option.Option.Some(("language", Json.String l.language))
+
+          l.scheme |> Stdlib.Option.map (fun s -> ("scheme", Json.String s))
+
+          l.pattern |> Stdlib.Option.map (fun p -> ("pattern", Json.String p)) ]
+
+        |> Stdlib.Option.values
+        |> Json.Object
+
+
+    module TextDocumentFilterScheme =
+      /// A document filter where `scheme` is required field.
+      ///
+      /// @proposed
+      type TextDocumentFilterScheme =
+        {
+          /// A language id, like `typescript`.
+          language: Stdlib.Option.Option<String>
+
+          /// A Uri {@link Uri.scheme scheme}, like `file` or `untitled`.
+          scheme: String
+
+          /// A glob pattern, like **​/*.{ts,js}. See TextDocumentFilter for examples.
+          pattern: Stdlib.Option.Option<String>
+        }
+
+      let toJson (s: TextDocumentFilterScheme) : Json =
+        [ s.language |> Stdlib.Option.map (fun l -> ("language", Json.String l))
+
+          Some(("scheme", Json.String s.scheme))
+
+          s.pattern |> Stdlib.Option.map (fun p -> ("pattern", Json.String p)) ]
+
+        |> Stdlib.Option.values
+        |> Json.Object
+
+
+    module TextDocumentFilter =
+      /// A document filter denotes a document by different properties like
+      /// the {@link TextDocument.languageId language}, the {@link Uri.scheme scheme} of
+      /// its resource, or a glob-pattern that is applied to the {@link TextDocument.fileName path}.
+      ///
+      /// Glob patterns can have the following syntax:
+      /// - `*` to match one or more characters in a path segment
+      /// - `?` to match on one character in a path segment
+      /// - `**` to match any number of path segments, including none
+      /// - `{}` to group sub patterns into an OR expression.
+      ///   (e.g. `**​/*.{ts,js}` matches all TypeScript and JavaScript files)
+      /// - `[]` to declare a range of characters to match in a path segment
+      ///   (e.g., `example.[0-9]` to match on `example.0`, `example.1`, …)
+      /// - `[!...]` to negate a range of characters to match in a path segment
+      ///   (e.g., `example.[!0-9]` to match on `example.a`, `example.b`, but not `example.0`)
+      ///
+      /// @sample A language filter that applies to typescript files on disk: `{ language: 'typescript', scheme: 'file' }`
+      /// @sample A language filter that applies to all package.json paths: `{ language: 'json', pattern: '**package.json' }`
+      type TextDocumentFilter =
+        | TextDocumentFilterLanguage of
+          TextDocumentFilterLanguage.TextDocumentFilterLanguage
+
+        | TextDocumentFilterScheme of
+          TextDocumentFilterScheme.TextDocumentFilterScheme
+
+      let toJson (f: TextDocumentFilter) : Json =
+        match f with
+        | TextDocumentFilterLanguage l -> TextDocumentFilterLanguage.toJson l
+        | TextDocumentFilterScheme s -> TextDocumentFilterScheme.toJson s
+
+
+    module DocumentFilter =
+      /// A document filter describes a top level text document
+      /// or a notebook cell document.
+      type DocumentFilter = Text of TextDocumentFilter.TextDocumentFilter
+      // TODO: | NotebookCell of NotebookCellTextDocumentFilter;
+
+      let toJson (f: DocumentFilter) : Json =
+        match f with
+        | Text t -> TextDocumentFilter.toJson t
+
+
+    module DocumentSelector =
+      /// A document selector is the combination of one or many document filters.
+      ///
+      /// Sample:
+      /// ```javascript
+      /// let sel:DocumentSelector =
+      ///   [ { language: 'typescript' },
+      ///     { language: 'json', pattern: '**∕tsconfig.json' } ]
+      /// ```;
+      type DocumentSelector = List<DocumentFilter.DocumentFilter>
+
+      let toJson (filters: DocumentSelector) : Json =
+        filters |> Stdlib.List.map (fun f -> DocumentFilter.toJson f) |> Json.Array
+
+
+    module TextDocumentRegistrationOptions =
+      module TextDocumentRegistrationOptionsDocumentSelector =
+        type TextDocumentRegistrationOptionsDocumentSelector =
+          | Null
+          | DocumentSelector of DocumentSelector.DocumentSelector
+
+        let toJson (d: TextDocumentRegistrationOptionsDocumentSelector) : Json =
+          match d with
+          | Null -> Json.Null
+          | DocumentSelector s -> DocumentSelector.toJson s
+
+      /// General text document registration options.
+      type TextDocumentRegistrationOptions =
+        {
+          /// A document selector to identify the scope of the registration.
+          /// If set to null, the document selector provided on the client side will be used.
+          documentSelector:
+            TextDocumentRegistrationOptionsDocumentSelector.TextDocumentRegistrationOptionsDocumentSelector
+        }
+
+      let toJson (o: TextDocumentRegistrationOptions) : Json =
+        [ ("documentSelector",
+           TextDocumentRegistrationOptionsDocumentSelector.toJson o.documentSelector) ]
+        |> Json.Object
+
+
+
     module DiagnosticSeverity =
       type DiagnosticSeverity =
         | Error
@@ -316,6 +454,21 @@ module Darklang =
         let fields = [] // TODO
         Json.Object fields
 
+
+    module StaticRegistrationOptions =
+      /// Static registration options to be returned in the initialize request.
+      type StaticRegistrationOptions =
+        {
+          /// The id used to register the request.
+          /// The id can be used to deregister the request again. See also Registration#id.
+          id: Stdlib.Option.Option<String>
+        }
+
+      let toJson (o: StaticRegistrationOptions) : Json =
+        [ o.id |> Stdlib.Option.map (fun i -> ("id", Json.String i)) ]
+        |> Stdlib.Option.values
+        |> Json.Object
+
 (* LSP Error Codes
   export namespace LSPErrorCodes {
     * This is the start range of LSP reserved error codes.
@@ -388,10 +541,6 @@ module Darklang =
   /// interval notations (e.g. [0, 1] denotes all decimals d with
   /// 0 <= d <= 1.
   export type decimal = number;
-
-
-
-
 
 
 
@@ -700,11 +849,6 @@ module Darklang =
 
 
 
-
-
-
-
-
   /// The definition of a symbol represented as one or many {@link Location locations}.
   /// For most programming languages there is only one location at which a symbol is
   /// defined.
@@ -737,8 +881,6 @@ module Darklang =
     /// Include the declaration of the current symbol.
     includeDeclaration: boolean;
   }
-
-
 
 
 
@@ -823,9 +965,6 @@ module Darklang =
 
 
 
-
-
-
   /// A workspace folder inside a client.
   export interface WorkspaceFolder {
     /// The associated URI for this workspace folder.
@@ -835,8 +974,6 @@ module Darklang =
     /// workspace folder in the user interface.
     name: string;
   }
-
-
 
 
 
@@ -858,84 +995,6 @@ module Darklang =
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  /// Static registration options to be returned in the initialize request.
-  export interface StaticRegistrationOptions {
-    /// The id used to register the request. The id can be used to deregister
-    /// the request again. See also Registration#id.
-    id?: string;
-  }
-
-
-
-
-
-
-
-
-
-
-
-  /// A document filter where `language` is required field.
-  ///
-  /// @proposed
-  export interface TextDocumentFilterLanguage {
-    /// A language id, like `typescript`.
-    language: string;
-
-    /// A Uri {@link Uri.scheme scheme}, like `file` or `untitled`.
-    scheme?: string;
-
-    /// A glob pattern, like **​/*.{ts,js}. See TextDocumentFilter for examples.
-    pattern?: string;
-  }
-
-  /// A document filter where `scheme` is required field.
-  ///
-  /// @proposed
-  export interface TextDocumentFilterScheme {
-    /// A language id, like `typescript`.
-    language?: string;
-
-    /// A Uri {@link Uri.scheme scheme}, like `file` or `untitled`.
-    scheme: string;
-
-    /// A glob pattern, like **​/*.{ts,js}. See TextDocumentFilter for examples.
-    pattern?: string;
-  }
-
-
-  /// A document filter denotes a document by different properties like
-  /// the {@link TextDocument.languageId language}, the {@link Uri.scheme scheme} of
-  /// its resource, or a glob-pattern that is applied to the {@link TextDocument.fileName path}.
-  ///
-  /// Glob patterns can have the following syntax:
-  /// - `*` to match one or more characters in a path segment
-  /// - `?` to match on one character in a path segment
-  /// - `**` to match any number of path segments, including none
-  /// - `{}` to group sub patterns into an OR expression. (e.g. `**​/*.{ts,js}` matches all TypeScript and JavaScript files)
-  /// - `[]` to declare a range of characters to match in a path segment (e.g., `example.[0-9]` to match on `example.0`, `example.1`, …)
-  /// - `[!...]` to negate a range of characters to match in a path segment (e.g., `example.[!0-9]` to match on `example.a`, `example.b`, but not `example.0`)
-  ///
-  /// @sample A language filter that applies to typescript files on disk: `{ language: 'typescript', scheme: 'file' }`
-  /// @sample A language filter that applies to all package.json paths: `{ language: 'json', pattern: '**package.json' }`
-  export type TextDocumentFilter = TextDocumentFilterLanguage | TextDocumentFilterScheme;
 
 
 
@@ -991,19 +1050,4 @@ module Darklang =
   };
 
 
-  /// A document filter describes a top level text document or
-  /// a notebook cell document.
-  export type DocumentFilter = TextDocumentFilter | NotebookCellTextDocumentFilter;
-
-  /// A document selector is the combination of one or many document filters.
-  ///
-  /// @sample `let sel:DocumentSelector = [{ language: 'typescript' }, { language: 'json', pattern: '**∕tsconfig.json' }]`;
-  export type DocumentSelector = (DocumentFilter)[];
-
-  /// General text document registration options.
-  export interface TextDocumentRegistrationOptions {
-    /// A document selector to identify the scope of the registration. If set to null
-    /// the document selector provided on the client side will be used.
-    documentSelector: DocumentSelector | null;
-  }
 *)

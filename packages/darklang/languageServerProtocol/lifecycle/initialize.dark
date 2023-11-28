@@ -433,6 +433,8 @@ module Darklang =
             | TextDocumentSyncKind kind -> TextDocumentSyncKind.toJson kind
 
 
+
+
         module ServerCapabilities =
           /// Defines the capabilities provided by a language server.
           type ServerCapabilities =
@@ -457,81 +459,82 @@ module Darklang =
               completionProvider:
                 Stdlib.Option.Option<Completions.CompletionOptions.CompletionOptions>
 
-            // /// The server provides hover support.
-            // hoverProvider?: boolean | HoverOptions;
+              // /// The server provides hover support.
+              // hoverProvider?: boolean | HoverOptions;
 
-            // /// The server provides signature help support.
-            // signatureHelpProvider?: SignatureHelpOptions;
+              // /// The server provides signature help support.
+              // signatureHelpProvider?: SignatureHelpOptions;
 
-            // /// The server provides Goto Declaration support.
-            // declarationProvider?: boolean | DeclarationOptions | DeclarationRegistrationOptions;
+              // /// The server provides Goto Declaration support.
+              // declarationProvider?: boolean | DeclarationOptions | DeclarationRegistrationOptions;
 
-            // /// The server provides goto definition support.
-            // definitionProvider?: boolean | DefinitionOptions;
+              // /// The server provides goto definition support.
+              // definitionProvider?: boolean | DefinitionOptions;
 
-            // /// The server provides Goto Type Definition support.
-            // typeDefinitionProvider?: boolean | TypeDefinitionOptions | TypeDefinitionRegistrationOptions;
+              // /// The server provides Goto Type Definition support.
+              // typeDefinitionProvider?: boolean | TypeDefinitionOptions | TypeDefinitionRegistrationOptions;
 
-            // /// The server provides Goto Implementation support.
-            // implementationProvider?: boolean | ImplementationOptions | ImplementationRegistrationOptions;
+              // /// The server provides Goto Implementation support.
+              // implementationProvider?: boolean | ImplementationOptions | ImplementationRegistrationOptions;
 
-            // /// The server provides find references support.
-            // referencesProvider?: boolean | ReferenceOptions;
+              // /// The server provides find references support.
+              // referencesProvider?: boolean | ReferenceOptions;
 
-            // /// The server provides document highlight support.
-            // documentHighlightProvider?: boolean | DocumentHighlightOptions;
+              // /// The server provides document highlight support.
+              // documentHighlightProvider?: boolean | DocumentHighlightOptions;
 
-            // /// The server provides document symbol support.
-            // documentSymbolProvider?: boolean | DocumentSymbolOptions;
+              // /// The server provides document symbol support.
+              // documentSymbolProvider?: boolean | DocumentSymbolOptions;
 
-            // /// The server provides code actions. CodeActionOptions may only be
-            // /// specified if the client states that it supports
-            // /// `codeActionLiteralSupport` in its initial `initialize` request.
-            // codeActionProvider?: boolean | CodeActionOptions;
+              // /// The server provides code actions. CodeActionOptions may only be
+              // /// specified if the client states that it supports
+              // /// `codeActionLiteralSupport` in its initial `initialize` request.
+              // codeActionProvider?: boolean | CodeActionOptions;
 
-            // /// The server provides code lens.
-            // codeLensProvider?: CodeLensOptions;
+              // /// The server provides code lens.
+              // codeLensProvider?: CodeLensOptions;
 
-            // /// The server provides document link support.
-            // documentLinkProvider?: DocumentLinkOptions;
+              // /// The server provides document link support.
+              // documentLinkProvider?: DocumentLinkOptions;
 
-            // /// The server provides color provider support.
-            // colorProvider?: boolean | DocumentColorOptions | DocumentColorRegistrationOptions;
+              // /// The server provides color provider support.
+              // colorProvider?: boolean | DocumentColorOptions | DocumentColorRegistrationOptions;
 
-            // /// The server provides workspace symbol support.
-            // workspaceSymbolProvider?: boolean | WorkspaceSymbolOptions;
+              // /// The server provides workspace symbol support.
+              // workspaceSymbolProvider?: boolean | WorkspaceSymbolOptions;
 
-            // /// The server provides document formatting.
-            // documentFormattingProvider?: boolean | DocumentFormattingOptions;
+              // /// The server provides document formatting.
+              // documentFormattingProvider?: boolean | DocumentFormattingOptions;
 
-            // /// The server provides document range formatting.
-            // documentRangeFormattingProvider?: boolean | DocumentRangeFormattingOptions;
+              // /// The server provides document range formatting.
+              // documentRangeFormattingProvider?: boolean | DocumentRangeFormattingOptions;
 
-            // /// The server provides document formatting on typing.
-            // documentOnTypeFormattingProvider?: DocumentOnTypeFormattingOptions;
+              // /// The server provides document formatting on typing.
+              // documentOnTypeFormattingProvider?: DocumentOnTypeFormattingOptions;
 
-            // /// The server provides rename support. RenameOptions may only be
-            // /// specified if the client states that it supports
-            // /// `prepareSupport` in its initial `initialize` request.
-            // renameProvider?: boolean | RenameOptions;
+              // /// The server provides rename support. RenameOptions may only be
+              // /// specified if the client states that it supports
+              // /// `prepareSupport` in its initial `initialize` request.
+              // renameProvider?: boolean | RenameOptions;
 
-            // /// The server provides folding provider support.
-            // foldingRangeProvider?: boolean | FoldingRangeOptions | FoldingRangeRegistrationOptions;
+              // /// The server provides folding provider support.
+              // foldingRangeProvider?: boolean | FoldingRangeOptions | FoldingRangeRegistrationOptions;
 
-            // /// The server provides selection range support.
-            // selectionRangeProvider?: boolean | SelectionRangeOptions | SelectionRangeRegistrationOptions;
+              // /// The server provides selection range support.
+              // selectionRangeProvider?: boolean | SelectionRangeOptions | SelectionRangeRegistrationOptions;
 
-            // /// The server provides execute command support.
-            // executeCommandProvider?: ExecuteCommandOptions;
+              // /// The server provides execute command support.
+              // executeCommandProvider?: ExecuteCommandOptions;
 
-            // /// The server provides call hierarchy support.
-            // callHierarchyProvider?: boolean | CallHierarchyOptions | CallHierarchyRegistrationOptions;
+              // /// The server provides call hierarchy support.
+              // callHierarchyProvider?: boolean | CallHierarchyOptions | CallHierarchyRegistrationOptions;
 
-            // /// The server provides linked editing range support.
-            // linkedEditingRangeProvider?: boolean | LinkedEditingRangeOptions | LinkedEditingRangeRegistrationOptions;
+              // /// The server provides linked editing range support.
+              // linkedEditingRangeProvider?: boolean | LinkedEditingRangeOptions | LinkedEditingRangeRegistrationOptions;
 
-            // /// The server provides semantic tokens support.
-            // semanticTokensProvider?: SemanticTokensOptions | SemanticTokensRegistrationOptions;
+              /// The server provides semantic tokens support.
+              semanticTokensProvider:
+                Stdlib.Option.Option<SemanticTokens.SemanticTokenProviderOptions.SemanticTokenProviderOptions>
 
             // /// The server provides moniker support.
             // monikerProvider?: boolean | MonikerOptions | MonikerRegistrationOptions;
@@ -565,12 +568,16 @@ module Darklang =
               |> Stdlib.Option.map (fun sync ->
                 ("textDocumentSync", TextDocumentSyncServerCapabilities.toJson sync))
 
-              (capabilities.completionProvider
-               |> Stdlib.Option.map (fun provider ->
-                 ("completionProvider",
-                  Completions.CompletionOptions.toJson provider))) ]
+              capabilities.completionProvider
+              |> Stdlib.Option.map (fun p ->
+                ("completionProvider", Completions.CompletionOptions.toJson p))
 
-            |> Stdlib.List.filterMap (fun self -> self)
+              capabilities.semanticTokensProvider
+              |> Stdlib.Option.map (fun p ->
+                ("semanticTokensProvider",
+                 SemanticTokens.SemanticTokenProviderOptions.toJson p)) ]
+
+            |> Stdlib.Option.values
             |> Json.Object
 
 
@@ -592,7 +599,7 @@ module Darklang =
 
                 (serverInfo.version
                  |> Stdlib.Option.map (fun v -> ("version", Json.String v))) ]
-              |> Stdlib.List.filterMap (fun self -> self)
+              |> Stdlib.Option.values
 
             Json.Object fields
 
@@ -620,7 +627,7 @@ module Darklang =
                |> Stdlib.Option.map (fun info ->
                  ("serverInfo", ServerInfo.toJson info))) ]
 
-            |> Stdlib.List.filterMap (fun self -> self)
+            |> Stdlib.Option.values
             |> Json.Object
 
 

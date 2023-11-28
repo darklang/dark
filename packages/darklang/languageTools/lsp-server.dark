@@ -196,6 +196,57 @@ module Darklang =
           state
 
 
+        // -- semantic tokens (which provides syntax highlighting)
+        | ("textDocument/semanticTokens/full",
+           Some requestId,
+           Some(Object requestParams)) ->
+          let parsed =
+            (Stdlib.AltJson.Json.Object requestParams)
+            |> LanguageServerProtocol.SemanticTokens.SemanticTokensRequest.SemanticTokensParams.fromJson
+
+          match parsed with
+          | Ok parsed ->
+            log $"got semanticTokens request for {parsed.textDocument.uri}"
+
+            let bogusResponse =
+              LanguageServerProtocol
+                .SemanticTokens
+                .SemanticTokensRequest
+                .SemanticTokensResult
+                .SemanticTokensResult
+                .SemanticTokens(
+                  LanguageServerProtocol.SemanticTokens.SemanticTokens.SemanticTokens
+                    { resultId = Stdlib.Option.Option.None
+                      data =
+                        [
+                          // Reported tokens are all in a big list of UInts -- five #s per reported token.
+                          // The following translates to:
+
+                          //                    the first token, ...
+                          0UL // (deltaLine)      starts 0 lines after the previous token
+                          0UL // (deltaStart)     starts 0 characters after the previous token
+                          3UL // (length)         is 3 characters long
+                          0UL // (tokenType)      is a keyword (in the `initialize` handshake, "keyword" is the 0th token type we declared)
+                          0UL // (tokenModifiers) has no modifiers
+                          //                      ^ _would_ be a bit-wise representation of the modifiers, but we have none
+
+                          // (the .dark file that I've been testing against starts with the word `let` so this works out well)
+                          ] }
+                )
+
+            let bogusResponseJson =
+              bogusResponse
+              |> LanguageServerProtocol.SemanticTokens.SemanticTokensRequest.SemanticTokensResult.toJson
+              |> (fun r ->
+                JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+              |> Stdlib.AltJson.format
+
+            logAndSendToClient bogusResponseJson
+
+          | Error() -> log "couldn't parse params of semanticTokens request"
+
+          state
+
         // -- other
         | (other, _, _) ->
           log $"TODO: we don't yet support this method: {other}"
@@ -350,6 +401,38 @@ module Darklang =
                             allCommitCharacters = Stdlib.Option.Option.None
                             resolveProvider = Stdlib.Option.Option.Some false // just return all info at once
                             completionItem = Stdlib.Option.Option.None }
+                      )
+
+                    semanticTokensProvider =
+                      Stdlib.Option.Option.Some(
+                        LanguageServerProtocol
+                          .SemanticTokens
+                          .SemanticTokenProviderOptions
+                          .SemanticTokenProviderOptions
+                          .SemanticTokensOptions(
+                            LanguageServerProtocol.SemanticTokens.SemanticTokensOptions.SemanticTokensOptions
+                              { legend =
+                                  LanguageServerProtocol.SemanticTokens.SemanticTokensLegend.SemanticTokensLegend
+                                    { tokenTypes =
+                                        [ "keyword"
+                                          "function"
+                                          "parameter"
+                                          "type"
+                                          "string"
+                                          "operator"
+                                          "variable" ]
+                                      tokenModifiers = [] }
+                                range =
+                                  Stdlib.Option.Option.Some(
+                                    LanguageServerProtocol.SemanticTokens.SemanticTokensOptions.SemanticTokensOptionsRange.SemanticTokensOptionsRange.Bool
+                                      false
+                                  )
+                                full =
+                                  Stdlib.Option.Option.Some(
+                                    LanguageServerProtocol.SemanticTokens.SemanticTokensOptions.SemanticTokensOptionsFull.SemanticTokensOptionsFull.Bool
+                                      true
+                                  ) }
+                          )
                       ) }
               serverInfo = Stdlib.Option.Option.None }
 

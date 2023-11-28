@@ -1,5 +1,5 @@
 {
-  "name": "darklang",
+  "name": "darklang-vs-code-extension",
   "description": "darklang VS Code Extension",
   "author": "darklang",
   "version": "0.0.1",
@@ -38,47 +38,17 @@
       "type": "object",
       "title": "Darklang Extension Config",
       "properties": {
-        "darklangLsp.maxNumberOfProblems": {
-          "scope": "resource",
-          "type": "number",
-          "default": 100,
-          "description": "Controls the maximum number of problems produced by the server."
-        },
-        "darklangLsp.trace.server": {
-          "TODO": "not sure what this is used for",
-          "scope": "window",
-          "type": "string",
-          "enum": [ "off", "messages", "verbose" ],
-          "default": "off",
-          "description": "Traces the communication between VS Code and the language server."
-        }
       }
     },
-    "_semanticTokenProvider": {
-        "legend": {
-            "tokenTypes": ["keyword", "function", "parameter", "type", "string", "operator", "variable"],
-            "tokenModifiers": []
-        },
-        "languages": ["darklang", "dark"]
-    },
     "semanticTokenTypes": [
-      {"id": "keyword","description": "Language keywords like 'let' and 'in'"},
-      {"id": "function","description": "Function names or identifiers"},
-      {"id": "parameter","description": "Function parameter identifiers"},
-      {"id": "type","description": "Type names like Int, Bool, etc."},
-      {"id": "string","description": "String literals"},
-      {"id": "operator","description": "Operators like +, -"},
-      {"id": "variable","description": "General variable identifiers"}
-    ],
-    "semanticTokenColors": {
-      "keyword": "#FF4500",
-      "function": "#4CAF50",
-      "parameter": "#FFD700",
-      "type": "#00CED1",
-      "string": "#DAA520",
-      "operator": "#FF6347",
-      "variable": "#20B2AA"
-    }
+      {"id": "keyword", "description": "Language keywords like 'let' and 'in'"},
+      {"id": "function", "description": "Function names or identifiers"},
+      {"id": "parameter", "description": "Function parameter identifiers"},
+      {"id": "type", "description": "Type names like Int, Bool, etc."},
+      {"id": "string", "description": "String literals"},
+      {"id": "operator", "description": "Operators like +, -"},
+      {"id": "variable", "description": "General variable identifiers"}
+    ]
   },
 
   "scripts": {

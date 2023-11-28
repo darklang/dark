@@ -212,7 +212,7 @@ module Darklang =
 
             item.data |> Stdlib.Option.map (fun d -> ("data", d)) ]
 
-          |> Stdlib.List.filterMap (fun self -> self)
+          |> Stdlib.Option.values
           |> Json.Object
 
 
@@ -264,7 +264,7 @@ module Darklang =
 
             d.data |> Stdlib.Option.map (fun d -> ("data", d)) ]
 
-          |> Stdlib.List.filterMap (fun self -> self)
+          |> Stdlib.Option.values
           |> Json.Object
 
 
@@ -312,7 +312,7 @@ module Darklang =
                |> Json.Array)
             ) ]
 
-          |> Stdlib.List.filterMap (fun self -> self)
+          |> Stdlib.Option.values
           |> Json.Object
 
 
@@ -330,7 +330,7 @@ module Darklang =
           [ o.labelDetailsSupport
             |> Stdlib.Option.map (fun b -> ("labelDetailsSupport", Json.Bool b)) ]
 
-          |> Stdlib.List.filterMap (fun self -> self)
+          |> Stdlib.Option.values
           |> Json.Object
 
 
@@ -384,7 +384,7 @@ module Darklang =
             |> Stdlib.Option.map (fun item ->
               ("completionItem", ServerCompletionItemOptions.toJson item)) ]
 
-          |> Stdlib.List.filterMap (fun self -> self)
+          |> Stdlib.Option.values
           |> Json.Object
 
 
@@ -485,21 +485,19 @@ module Darklang =
           /// - extends PartialResultParams
           type CompletionParams =
             {
-              // in TypeScript, was inlined via `@extends TextDocumentPositionParams`
-              textDocumentPosition:
-                TextDocumentPositionParams.TextDocumentPositionParams
-
               /// The completion context. This is only available it the client specifies
               /// to send this using the client capability `textDocument.completion.contextSupport === true`
               context: Stdlib.Option.Option<CompletionContext.CompletionContext>
+
+              // in TypeScript, was inlined via `@extends TextDocumentPositionParams`
+              // TODO: inline it here too
+              textDocumentPosition:
+                TextDocumentPositionParams.TextDocumentPositionParams
             }
 
           let fromJson (json: Json) : Stdlib.Result.Result<CompletionParams, Unit> =
             match json with
             | Object fields ->
-              let textDocumentPosition = // Result<TextDocumentPositionParams, Unit>
-                TextDocumentPositionParams.fromJson json
-
               let context = // Option<Result<CompletionContext, Unit>>
                 match
                   Stdlib.List.findFirst fields (fun (key, _) -> key == "context")
@@ -509,17 +507,20 @@ module Darklang =
                   (CompletionContext.fromJson context) |> Stdlib.Option.Option.Some
                 | _ -> Stdlib.Result.Result.Error()
 
+              let textDocumentPosition = // Result<TextDocumentPositionParams, Unit>
+                TextDocumentPositionParams.fromJson json
+
               match textDocumentPosition, context with
               | Ok(textDocumentPosition), None ->
                 (CompletionParams
-                  { textDocumentPosition = textDocumentPosition
-                    context = Stdlib.Option.Option.None })
+                  { context = Stdlib.Option.Option.None
+                    textDocumentPosition = textDocumentPosition })
                 |> Stdlib.Result.Result.Ok
 
               | Ok(textDocumentPosition), Some(Ok context) ->
                 (CompletionParams
-                  { textDocumentPosition = textDocumentPosition
-                    context = Stdlib.Option.Option.Some context })
+                  { context = Stdlib.Option.Option.Some context
+                    textDocumentPosition = textDocumentPosition })
                 |> Stdlib.Result.Result.Ok
 
               | _ -> Stdlib.Result.Result.Error()
