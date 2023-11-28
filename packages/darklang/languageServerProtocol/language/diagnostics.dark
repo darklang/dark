@@ -47,7 +47,7 @@ module Darklang =
                      Stdlib.List.map p.diagnostics (fun d -> Diagnostic.toJson d)
                    ))
                 ) ]
-              |> Stdlib.List.filterMap (fun f -> f)
+              |> Stdlib.Option.values
 
             Json.Object fields
 

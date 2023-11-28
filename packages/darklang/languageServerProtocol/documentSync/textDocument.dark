@@ -220,7 +220,7 @@ module Darklang =
               options.save
               |> Stdlib.Option.map (fun s -> ("save", SaveOptionsOrBool.toJson s)) ]
 
-            |> Stdlib.List.filterMap (fun x -> x)
+            |> Stdlib.Option.values
             |> Json.Object
 
 

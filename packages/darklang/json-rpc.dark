@@ -204,7 +204,7 @@ module Darklang =
 
                ("params", v))) ]
 
-          |> Stdlib.List.filterMap (fun x -> x)
+          |> Stdlib.Option.values
 
         (Json.Object fields) |> Stdlib.AltJson.format
 
@@ -257,7 +257,7 @@ module Darklang =
 
             Stdlib.Option.Option.Some(("result", result)) ]
 
-          |> Stdlib.List.filterMap (fun x -> x)
+          |> Stdlib.Option.values
           |> Json.Object
 
       module Error =
@@ -278,12 +278,12 @@ module Darklang =
             [ Some(("code", Json.Number errorCode))
               Some(("message", Json.String errorMessage))
               (errorData |> Stdlib.Option.map (fun data -> ("data", data))) ]
-            |> Stdlib.List.filterMap (fun f -> f)
+            |> Stdlib.Option.values
 
           let fields =
             [ (requestId |> Stdlib.Option.map (fun id -> ("id", requestIdToJson id)))
               Some(("jsonrpc", Json.String "2.0"))
               Some(("error", Json.Object errorDetailFeilds)) ]
-            |> Stdlib.List.filterMap (fun f -> f)
+            |> Stdlib.Option.values
 
           (Json.Object fields) |> Stdlib.AltJson.format
