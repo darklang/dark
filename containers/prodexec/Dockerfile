@@ -13,10 +13,14 @@ RUN mkdir app
 ENV DARK_CONFIG_RUNDIR=/home/dark/gcp-rundir
 RUN ./scripts/devcontainer/_create-app-directories
 
-COPY --chown=dark:dark backend/Build/out/ProdExec/Release/net8.0/linux-x64/publish/ProdExec app/
-RUN ./scripts/linting/_check-linked-libs app/ProdExec
+# COPY --chown=dark:dark backend/Build/out/ProdExec/Release/net8.0/linux-x64/publish/ProdExec app/
+# RUN ./scripts/linting/_check-linked-libs app/ProdExec
 
-COPY --chown=dark:dark containers/prodexec/sleep.sh .
-RUN chmod +x ./sleep.sh
+# Add chisel. This allows us to tunnel SSH over HTTP
+COPY --from=jpillora/chisel /app/chisel /usr/bin
 
-CMD "./sleep.sh"
+RUN apt update && apt install openssh-server -y
+
+COPY --chmod=755 --chown=dark:dark containers/prodexec/sleep.sh .
+
+CMD "./run.sh"
