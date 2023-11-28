@@ -200,7 +200,7 @@ RUN sudo chown postgres:postgres -R /var/lib/postgresql
 # Scripts to install files from the internet
 ############################
 
-COPY --chown=dark:dark --chmod=+x ./scripts/installers/* .
+COPY --chown=dark:dark --chmod=755 ./scripts/installers/* .
 
 ############################
 # Cockroach
