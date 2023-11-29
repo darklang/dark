@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+username=$(gcloud secret-manager versions access latest --secret=DARK_CONFIG_PRODEXEC_CHISEL_USERNAME)
+# password=$(gcloud secret-manager versions access latest --secret=DARK_CONFIG_PRODEXEC_CHISEL_PASSWORD)
+
+ssh -o ProxyCommand='chisel client something.cloudrun.com:8080 stdio:%h:%p' "$username@localhost"
