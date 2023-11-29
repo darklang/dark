@@ -1,3 +1,8 @@
+# We keep env vars and secrets together and sort them so that the order is the
+# same on each update. Otherwise, it's hard to read the changes in the
+# terraform plan output.
+# Abstracting this code seems to be impossible in terraform, so in the future
+# we should write this code in dark and generate the service_env_vars from it
 variable "service_env_vars" {
   type = map(object({
     value  = optional(string)
