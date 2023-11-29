@@ -19,7 +19,7 @@ docker image push "$repo/prodexec:latest"
 # Digests are a property of the container in the registry, which is why we do
 # this here
 bwdserver_digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$repo/bwdserver:latest")
-prodexer_digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$repo/prodexec:latest")
+prodexec_digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$repo/prodexec:latest")
 
 cat << EOF > image-digests.json
 [
