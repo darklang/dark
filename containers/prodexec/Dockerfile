@@ -22,7 +22,6 @@ RUN ./scripts/linting/_check-linked-libs app/ProdExec
 
 # Add chisel. This allows us to tunnel SSH over HTTP
 COPY --from=jpillora/chisel /app/bin /usr/bin/chisel
-COPY ./containers/prodexec/users.json /home/dark/users.json
 
 COPY --chmod=755 --chown=dark:dark containers/prodexec/run.sh .
 
