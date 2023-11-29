@@ -1,23 +1,25 @@
-#!/bin/sh
+#!/usr/bin/env bash
+
+set -euo pipefail
+
 _term() {
   >&2 echo "TERM (entrypoint.sh)"
   exit 0
 }
 trap "_term" TERM
 
-if [ "$CHISEL_SERVER" = "" ]; then
-  echo "CHISEL_SERVER missing"
-  sleep 1
-  exit 1
-fi
-# dummy http server to satisfy cloud run PORT bind
->/dev/null 2>&1 chisel server &
+chisel --version
 
-sudo service run ssh
+cat <<EOF > /home/dark/auth.json
+{
+  "$DARK_CONFIG_PRODEXEC_CHISEL_USERNAME:$DARK_CONFIG_PRODEXEC_CHISEL_PASSWORD": ["localhost:22"]
+}
+EOF
+
+nohup chisel server --authfile /home/dark/auth.json --port "$DARK_CONFIG_PRODEXEC_PORT" -v &
+
+sudo service ssh start
 
 while true; do
-  set +e
-    chisel client "$CHISEL_SERVER" R:2222:localhost:2222
-  set -e
   sleep 1
 done
