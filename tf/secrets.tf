@@ -1,3 +1,4 @@
+// to add more secrets, add them here and apply, then add a version via the UI or CLI
 variable "secret_names" {
   type = list(string)
   default = [
@@ -12,7 +13,9 @@ variable "secret_names" {
     "queue-pubsub-credentials",
     "rollbar-post-token",
     "traces-cloud-storage-credentials",
-    "allowed-dark-internal-canvas-ids"
+    "allowed-dark-internal-canvas-ids",
+    "prodexec-chisel-username",
+    "prodexec-chisel-password"
   ]
 }
 
