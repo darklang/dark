@@ -104,7 +104,10 @@ module Darklang =
         match parsed.typ with
         | "identifier" ->
           PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-            PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(0L, getText parsed)
+            PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(
+              0L,
+              getText parsed
+            )
           )
         | "infix_operation" ->
           let left =
@@ -119,7 +122,9 @@ module Darklang =
             |> parseExpr
             |> Builtin.unwrap
 
-          let operatorNode = (findNodeByFieldName parsed "operator") |> Builtin.unwrap
+          let operatorNode =
+            (findNodeByFieldName parsed "operator") |> Builtin.unwrap
+
           let operatorText = getText operatorNode
 
           let operator =
@@ -133,7 +138,8 @@ module Darklang =
                 PACKAGE.Darklang.LanguageTools.WrittenTypes.InfixFnName.ArithmeticMinus
               )
             | _ ->
-              PACKAGE.Darklang.Stdlib.Result.Result.Error "TODO : operator not implemented"
+              PACKAGE.Darklang.Stdlib.Result.Result.Error
+                "TODO : operator not implemented"
 
           PACKAGE.Darklang.Stdlib.Result.Result.Ok(
             PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EInfix(
@@ -208,7 +214,8 @@ module Darklang =
         if parsed.typ == "expression" then
           match parsed.children with
           | [ single ] -> parseExprCase single
-          | _ -> PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a single expression"
+          | _ ->
+            PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a single expression"
         else
           PACKAGE.Darklang.Stdlib.Result.Result.Error "Not an expression"
 
@@ -282,7 +289,9 @@ module Darklang =
           PACKAGE.Darklang.Stdlib.Result.Result.Ok(
             PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter
               { name =
-                  (findNodeByFieldName parsed "identifier") |> Builtin.unwrap |> getText
+                  (findNodeByFieldName parsed "identifier")
+                  |> Builtin.unwrap
+                  |> getText
                 typ =
                   (findNodeByFieldName parsed "typ")
                   |> Builtin.unwrap
