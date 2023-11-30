@@ -25,6 +25,4 @@ COPY --from=jpillora/chisel /app/bin /usr/bin/chisel
 
 COPY --chmod=755 --chown=dark:dark containers/prodexec/run.sh .
 
-EXPOSE 6666
-
 CMD "./run.sh"
