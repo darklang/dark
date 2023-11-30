@@ -2,25 +2,24 @@
 
 set -euo pipefail
 
-_term() {
-  >&2 echo "TERM (entrypoint.sh)"
-  exit 0
-}
-trap "_term" TERM
-
+# Set up chisel
 chisel --version
-
 cat <<EOF > /home/dark/auth.json
 {
   "$DARK_CONFIG_PRODEXEC_CHISEL_USERNAME:$DARK_CONFIG_PRODEXEC_CHISEL_PASSWORD": ["localhost:22"]
 }
 EOF
-
 nohup chisel server --authfile /home/dark/auth.json --port "$DARK_CONFIG_PRODEXEC_PORT" -v &
 
-RUN echo "dark:$DARK_CONFIG_PRODEXEC_SSH_PASSWORD" | sudo chpasswd
 
+# Set up ssh auth
+RUN echo "dark:$DARK_CONFIG_PRODEXEC_SSH_PASSWORD" | sudo chpasswd
 sudo service ssh start
+
+
+# Add config vars to env for users logging in
+env | grep DARK_CONFIG | sed 's/.*/export \1/g' >> ~/.bashrc
+
 
 while true; do
   sleep 1
