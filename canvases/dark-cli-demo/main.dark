@@ -1,9 +1,0 @@
-[<HttpHandler("GET", "/")>]
-let _indexHandler _req =
-  let respBody =
-    Builtin.Directory.pwd
-    |> Builtin.Directory.ls
-    |> Builtin.Json.serialize<List<String>>
-    |> PACKAGE.Darklang.Stdlib.String.toBytes
-
-  PACKAGE.Darklang.Stdlib.Http.response respBody 200L
