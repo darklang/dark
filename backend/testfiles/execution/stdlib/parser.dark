@@ -22,8 +22,8 @@ let range (s: Int64 * Int64) (e: Int64 * Int64) : Range =
 
 // successful parse
 (Builtin.Parser.parseToSimplifiedTree "let self (i: Int): Int =\n  i") = ParsedNode
-  { typ = "source_file"
-    fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+  { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+    typ = "source_file"
     text = "let self (i: Int): Int =\n  i"
     sourceRange = range (0L, 0L) (1L, 3L)
     children =
