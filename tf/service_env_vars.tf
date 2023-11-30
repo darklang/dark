@@ -1,3 +1,8 @@
+# We keep env vars and secrets together and sort them so that the order is the
+# same on each update. Otherwise, it's hard to read the changes in the
+# terraform plan output.
+# Abstracting this code seems to be impossible in terraform, so in the future
+# we should write this code in dark and generate the service_env_vars from it
 variable "service_env_vars" {
   type = map(object({
     value  = optional(string)
@@ -30,6 +35,11 @@ variable "service_env_vars" {
     "DARK_CONFIG_TRIGGER_CRONS"         = { value : "y" }
     "DARK_CONFIG_PAUSE_BETWEEN_CRONS"   = { value : "0" }
 
+    ## ProdExec
+    "DARK_CONFIG_PRODEXEC_PORT"            = { value : "8080" }
+    "DARK_CONFIG_PRODEXEC_CHISEL_USERNAME" = { secret : "prodexec-chisel-username" }
+    "DARK_CONFIG_PRODEXEC_CHISEL_PASSWORD" = { secret : "prodexec-chisel-password" }
+    "DARK_CONFIG_PRODEXEC_SSH_PASSWORD"    = { secret : "prodexec-ssh-password" }
 
     # Http
     "DARK_CONFIG_HTTPCLIENT_TIMEOUT_IN_MS" = { value : "10000" }
@@ -61,12 +71,9 @@ variable "service_env_vars" {
     "DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT" = { value : "sample-none" }
 
     # DB
-    "DARK_CONFIG_DB_DBNAME" = { value : "yugabyte" }
-    "DARK_CONFIG_DB_HOST"   = { value : "us-central1.ac92fd1c-c9e2-48b4-8a62-ec6809031dcc.gcp.ybdb.io" }
-    "DARK_CONFIG_DB_PORT"   = { value : "5433" }
-
-    # DARK_CONFIG_DB_USER
-    # DARK_CONFIG_DB_PASSWORD
+    "DARK_CONFIG_DB_DBNAME"         = { value : "yugabyte" }
+    "DARK_CONFIG_DB_HOST"           = { value : "us-central1.ac92fd1c-c9e2-48b4-8a62-ec6809031dcc.gcp.ybdb.io" }
+    "DARK_CONFIG_DB_PORT"           = { value : "5433" }
     "DARK_CONFIG_DB_USER"           = { secret : "db-username" }
     "DARK_CONFIG_DB_PASSWORD"       = { secret : "db-password" }
     "DARK_CONFIG_DB_POOL_SIZE"      = { value : "20" }

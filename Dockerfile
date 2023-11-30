@@ -138,6 +138,10 @@ RUN DEBIAN_FRONTEND=noninteractive \
       # parser (tree-sitter) dependencies
       build-essential \
       # end parser dependencies
+      # prodexec dependencies
+      sshpass \
+      chisel \
+      # end prodexec dependencies
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
