@@ -18,6 +18,8 @@ EOF
 
 nohup chisel server --authfile /home/dark/auth.json --port "$DARK_CONFIG_PRODEXEC_PORT" -v &
 
+RUN echo "dark:$DARK_CONFIG_PRODEXEC_SSH_PASSWORD" | sudo chpasswd
+
 sudo service ssh start
 
 while true; do

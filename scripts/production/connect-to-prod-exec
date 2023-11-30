@@ -3,7 +3,15 @@
 
 set -euo pipefail
 
-username=$(gcloud secret-manager versions access latest --secret=DARK_CONFIG_PRODEXEC_CHISEL_USERNAME)
-# password=$(gcloud secret-manager versions access latest --secret=DARK_CONFIG_PRODEXEC_CHISEL_PASSWORD)
+# we have a separate username and password for the chisel, HD server, and the ssh server
+username=$(gcloud secrets versions access latest --secret prodexec-chisel-username)
+password=$(gcloud secrets versions access latest --secret prodexec-chisel-password)
+ssh_password=$(gcloud secrets versions access latest --secret prodexec-ssh-password)
 
-ssh -o ProxyCommand='chisel client something.cloudrun.com:8080 stdio:%h:%p' "$username@localhost"
+# Google won't let us reach the server unless we are authenticated
+header="Authorization: Bearer $(gcloud auth print-identity-token)"
+
+sshpass -p "$ssh_password" \
+  ssh \
+  -o ProxyCommand="chisel client --auth '$username:$password' --header '$header' https://prodexec-d4mr6gl3ia-uc.a.run.app stdio:%h:%p" \
+ "dark@localhost"

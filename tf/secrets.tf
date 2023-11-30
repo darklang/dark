@@ -15,7 +15,8 @@ variable "secret_names" {
     "traces-cloud-storage-credentials",
     "allowed-dark-internal-canvas-ids",
     "prodexec-chisel-username",
-    "prodexec-chisel-password"
+    "prodexec-chisel-password",
+    "prodexec-ssh-password"
   ]
 }
 
