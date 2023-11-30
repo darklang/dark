@@ -18,7 +18,7 @@ sudo service ssh start
 
 
 # Add config vars to env for users logging in
-env | grep DARK_CONFIG | sed 's/.*/export \1/g' >> ~/.bashrc
+env | grep DARK_CONFIG | sed 's/\(.*\)/export \1/g' >> ~/.bashrc
 
 
 while true; do
