@@ -13,7 +13,7 @@ parser, backend, all.
 }
 
 declare -A files
-files["parser"]="parser/tree-sitter-darklang/grammar.js"
+files["parser"]="tree-sitter-darklang/grammar.js"
 files["backend"]="backend/global.json"
 for v in "${files[@]}"; do
   files["all"]+=" $v"

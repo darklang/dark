@@ -6,7 +6,7 @@ set -euo pipefail
 # install dependencies
 echo "Installing tree-sitter-darklang dependencies..."
 echo "Note: installing tree-sitter automatically builds the parser as part of it, so this might take a bit..."
-cd parser/tree-sitter-darklang
+cd tree-sitter-darklang
 npm i
 
 echo "Building parser"
@@ -46,9 +46,9 @@ if [[ "$#" -gt 0 && "$1" == "--cross-compile" ]]; then
   echo "Compilation completed successfully for all targets."
 fi
 
-cd ../..
+cd ..
 
 # copy `tree-sitter-darklang.so` to `backend/src/LibTreeSitter.Darklang`
 # , so it can be referenced via P/Invoke
 echo "Copying tree-sitter-darklang.so to backend/src/LibTreeSitter.Darklang"
-cp parser/tree-sitter-darklang/tree-sitter-darklang.so backend/src/LibTreeSitter.Darklang
+cp tree-sitter-darklang/tree-sitter-darklang.so backend/src/LibTreeSitter.Darklang

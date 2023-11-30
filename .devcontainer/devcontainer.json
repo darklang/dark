@@ -106,8 +106,8 @@
     "type=volume,src=yugabyte,dst=/home/dark/yugabyte-data",
 
     // Tree-sitter
-    "type=volume,src=tree-sitter-build,dst=/home/dark/parser/tree-sitter-darklang/build",
-    "type=volume,src=tree-sitter-node-modules,dst=/home/dark/parser/tree-sitter-darklang/node_modules",
+    "type=volume,src=tree-sitter-build,dst=/home/dark/tree-sitter-darklang/build",
+    "type=volume,src=tree-sitter-node-modules,dst=/home/dark/tree-sitter-darklang/node_modules",
 
     // Cloud storage
     "type=volume,src=cloudstorage,dst=/home/dark/cloud-storage",

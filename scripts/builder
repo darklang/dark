@@ -20,8 +20,8 @@ fi
 rm -Rf backend/src/*/obj
 rm -Rf backend/tests/*/obj
 rm -Rf backend/Build
-rm -Rf parser/tree-sitter-darklang/build
-rm -Rf parser/tree-sitter-darklang/node_modules
+rm -Rf tree-sitter-darklang/build
+rm -Rf tree-sitter-darklang/node_modules
 
 # See Dockerfile for an explanation of uid/gid.
 gid="$(id -g)"
@@ -118,8 +118,8 @@ docker run \
   -v pgconf:/etc/postgresql \
   -v pglogs:/var/log/postgresql \
   -v pgdata:/var/lib/postgresql \
-  -v tree-sitter-node-modules:/home/dark/app/parser/tree-sitter-darklang/node_modules \
-  -v tree-sitter-build:/home/dark/app/parser/tree-sitter-darklang/build \
+  -v tree-sitter-node-modules:/home/dark/app/tree-sitter-darklang/node_modules \
+  -v tree-sitter-build:/home/dark/app/tree-sitter-darklang/build \
   -v yugabyte:/home/dark/yugabyte-data \
   -v cloudstorage:/home/dark/cloud-storage \
   -v /var/run/docker.sock:/var/run/docker.sock \
