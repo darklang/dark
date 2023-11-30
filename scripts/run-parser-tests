@@ -3,6 +3,6 @@
 
 set -euo pipefail
 
-cd parser/tree-sitter-darklang
+cd tree-sitter-darklang
 npm run test
-cd ../..
+cd ..

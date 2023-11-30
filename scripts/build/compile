@@ -411,7 +411,7 @@ def mark(should, f):
   elif f.endswith(".yml") or f.endswith(".yaml"):
     should.yamllint += [f]
 
-  elif f == "parser/tree-sitter-darklang/grammar.js":
+  elif f == "tree-sitter-darklang/grammar.js":
     should.build_parser = True
 
   else:
@@ -428,7 +428,7 @@ def get_ignored_files():
         ".git/",
         "scripts/build/compile",
         "backend/serialization/",
-        "parser/tree-sitter-darklang/src/"
+        "tree-sitter-darklang/src/"
         "containers/",
         "Dockerfile",
         ".devcontainer/devcontainer.json"
