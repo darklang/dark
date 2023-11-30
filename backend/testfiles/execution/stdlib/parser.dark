@@ -54,8 +54,7 @@ let range (s: Int64 * Int64) (e: Int64 * Int64) : Range =
                     sourceRange = range (0L, 9L) (0L, 17L)
                     children =
                       [ ParsedNode
-                          { fieldName =
-                              PACKAGE.Darklang.Stdlib.Option.Option.Some "first"
+                          { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
                             typ = "fn_param_def"
                             text = "(i: Int)"
                             sourceRange = range (0L, 9L) (0L, 17L)
@@ -173,8 +172,7 @@ let range (s: Int64 * Int64) (e: Int64 * Int64) : Range =
                     sourceRange = range (0L, 14L) (0L, 22L)
                     children =
                       [ ParsedNode
-                          { fieldName =
-                              PACKAGE.Darklang.Stdlib.Option.Option.Some "first"
+                          { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
                             typ = "fn_param_def"
                             text = "(i: Int)"
                             sourceRange = range (0L, 14L) (0L, 22L)
