@@ -16,7 +16,7 @@ let runDir = absoluteDir "DARK_CONFIG_RUNDIR"
 
 let backendDir = $"{LibService.Config.rootDir}backend/"
 
-let testdataDir = $"{backendDir}test_appdata/"
+let testdataDir = $"{backendDir}testfiles/data/"
 
 let logDir = $"{runDir}logs/"
 
