@@ -1,5 +1,0 @@
-let helloWorld () : Int64 =
-  Builtin.printLine "Hello World"
-  0
-
-helloWorld ()
