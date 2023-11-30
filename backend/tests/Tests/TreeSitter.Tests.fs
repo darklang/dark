@@ -39,7 +39,7 @@ let toStringTest =
 
     Expect.equal
       (tree.Root.ToString())
-      "(source_file (fn_def name: (identifier) params: (fn_params_def first: (fn_param_def identifier: (identifier) typ: (type))) return_type: (type) body: (expression (identifier))) (ERROR (infix_operator) (UNEXPECTED '1')))"
+      "(source_file (fn_def name: (identifier) params: (fn_params_def (fn_param_def identifier: (identifier) typ: (type))) return_type: (type) body: (expression (identifier))) (ERROR (infix_operator) (UNEXPECTED '1')))"
       ""
 
 let tests = testList "TreeSitter" [ testMultibyteCharacters; toStringTest ]

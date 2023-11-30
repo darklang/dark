@@ -8,6 +8,10 @@
       "required": true,
       "types": [
         {
+          "type": "function_call",
+          "named": true
+        },
+        {
           "type": "identifier",
           "named": true
         },
@@ -115,23 +119,38 @@
   {
     "type": "fn_params_def",
     "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "fn_param_def",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "function_call",
+    "named": true,
     "fields": {
-      "additional": {
+      "args": {
         "multiple": true,
-        "required": false,
+        "required": true,
         "types": [
           {
-            "type": "fn_param_def",
+            "type": "expression",
             "named": true
           }
         ]
       },
-      "first": {
+      "fn": {
         "multiple": false,
         "required": true,
         "types": [
           {
-            "type": "fn_param_def",
+            "type": "identifier",
             "named": true
           }
         ]
