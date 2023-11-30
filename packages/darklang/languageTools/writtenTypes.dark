@@ -10,12 +10,12 @@ module Darklang =
 
       type LetPattern =
         | LPUnit of PACKAGE.Darklang.LanguageTools.ID
-        | LPVariable of PACKAGE.Darklang.LanguageTools.ID * name : String
+        | LPVariable of PACKAGE.Darklang.LanguageTools.ID * name: String
         | LPTuple of
           PACKAGE.Darklang.LanguageTools.ID *
-          first : LetPattern *
-          second : LetPattern *
-          theRest : List<LetPattern>
+          first: LetPattern *
+          second: LetPattern *
+          theRest: List<LetPattern>
 
       type MatchPattern =
         | MPUnit of PACKAGE.Darklang.LanguageTools.ID
@@ -30,17 +30,31 @@ module Darklang =
         | MPUInt32 of PACKAGE.Darklang.LanguageTools.ID * UInt32
         | MPInt128 of PACKAGE.Darklang.LanguageTools.ID * Int128
         | MPUInt128 of PACKAGE.Darklang.LanguageTools.ID * UInt128
-        | MPFloat of PACKAGE.Darklang.LanguageTools.ID * PACKAGE.Darklang.LanguageTools.Sign * String * String
+        | MPFloat of
+          PACKAGE.Darklang.LanguageTools.ID *
+          PACKAGE.Darklang.LanguageTools.Sign *
+          String *
+          String
         | MPChar of PACKAGE.Darklang.LanguageTools.ID * String
         | MPString of PACKAGE.Darklang.LanguageTools.ID * String
 
         | MPList of PACKAGE.Darklang.LanguageTools.ID * List<MatchPattern>
-        | MPListCons of PACKAGE.Darklang.LanguageTools.ID * head : MatchPattern * tail : MatchPattern
-        | MPTuple of PACKAGE.Darklang.LanguageTools.ID * MatchPattern * MatchPattern * List<MatchPattern>
+        | MPListCons of
+          PACKAGE.Darklang.LanguageTools.ID *
+          head: MatchPattern *
+          tail: MatchPattern
+        | MPTuple of
+          PACKAGE.Darklang.LanguageTools.ID *
+          MatchPattern *
+          MatchPattern *
+          List<MatchPattern>
 
         | MPVariable of PACKAGE.Darklang.LanguageTools.ID * String
 
-        | MPEnum of PACKAGE.Darklang.LanguageTools.ID * caseName : String * fieldPats : List<MatchPattern>
+        | MPEnum of
+          PACKAGE.Darklang.LanguageTools.ID *
+          caseName: String *
+          fieldPats: List<MatchPattern>
 
       type BinaryOperation =
         | BinOpAnd
@@ -87,7 +101,7 @@ module Darklang =
         | TList of TypeReference
         | TTuple of TypeReference * TypeReference * List<TypeReference>
         | TDict of TypeReference
-        | TCustomType of Name * typeArgs : List<TypeReference>
+        | TCustomType of Name * typeArgs: List<TypeReference>
 
         | TFn of List<TypeReference> * TypeReference
 
@@ -101,7 +115,10 @@ module Darklang =
 
       type PipeExpr =
         | EPipeInfix of PACKAGE.Darklang.LanguageTools.ID * Infix * Expr
-        | EPipeLambda of PACKAGE.Darklang.LanguageTools.ID * pats : List<LetPattern> * body : Expr
+        | EPipeLambda of
+          PACKAGE.Darklang.LanguageTools.ID *
+          pats: List<LetPattern> *
+          body: Expr
 
         | EPipeEnum of
           PACKAGE.Darklang.LanguageTools.ID *
@@ -111,7 +128,7 @@ module Darklang =
 
         | EPipeFnCall of
           PACKAGE.Darklang.LanguageTools.ID *
-          fnName : Name *
+          fnName: Name *
           typeArgs: List<TypeReference> *
           args: List<Expr>
 
@@ -188,10 +205,7 @@ module Darklang =
         | CList of List<Const>
         | CDict of List<String * Const>
         | CTuple of Const * Const * List<Const>
-        | CEnum of
-          UnresolvedEnumTypeName *
-          caseName: String *
-          fields: List<Const>
+        | CEnum of UnresolvedEnumTypeName * caseName: String * fields: List<Const>
 
       module TypeDeclaration =
         type RecordField =
@@ -244,8 +258,7 @@ module Darklang =
       type UserType =
         { name: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.UserProgram
           description: String
-          declaration: TypeDeclaration.TypeDeclaration
-        }
+          declaration: TypeDeclaration.TypeDeclaration }
 
 
       module UserFunction =
@@ -281,25 +294,14 @@ module Darklang =
             typeParams: List<String>
             parameters: List<Parameter>
             returnType: TypeReference
-            description: String
-          }
+            description: String }
 
       type PackageType =
         { name: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Package
           declaration: TypeDeclaration.TypeDeclaration
-          description: String
-        }
+          description: String }
 
       type PackageConstant =
         { name: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Package
           body: Const
-          description: String
-        }
-
-
-
-
-
-
-
-
+          description: String }
