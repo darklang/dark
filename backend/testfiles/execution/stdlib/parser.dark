@@ -281,3 +281,142 @@ let range (s: Int64 * Int64) (e: Int64 * Int64) : Range =
                     text = "1"
                     sourceRange = range (1L, 6L) (1L, 7L)
                     children = [] } ] } ] }
+
+
+
+// test parseNodeToWT
+( let parsed =
+    Builtin.Parser.parseToSimplifiedTree
+      "let self (i: Int64): Int64 = i"
+
+  PACKAGE.Darklang.LanguageTools.Parser.parseNodeToWT parsed ) =
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok
+    [
+      PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.PackageFn
+        { name =
+            PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.Package
+              { owner = "TODO"
+                modules = ["TODO"]
+                name = PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name.FnName "self"
+                version = 0L
+              }
+          body = PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(0L, "i")
+          typeParams = []
+          parameters =
+            [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter
+               { name = "i"
+                 typ = PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64
+                 description = "" } ]
+          returnType = PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64
+          description = ""
+          }
+      ]
+
+( let parsed =
+    Builtin.Parser.parseToSimplifiedTree
+      "let double1 (i: Int64): Int64 = i + i"
+
+  PACKAGE.Darklang.LanguageTools.Parser.parseNodeToWT parsed ) =
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok
+      [
+        PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.PackageFn
+          { name =
+              PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.Package
+                { owner = "TODO"
+                  modules = ["TODO"]
+                  name = PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name.FnName "double1"
+                  version = 0L
+                }
+            body =
+              PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EInfix(
+                0L,
+                PACKAGE.Darklang.LanguageTools.WrittenTypes.Infix.InfixFnCall(PACKAGE.Darklang.LanguageTools.WrittenTypes.InfixFnName.ArithmeticPlus),
+                PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(0L, "i"),
+                PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(0L, "i"))
+            typeParams = []
+            parameters =
+              [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter
+                 { name = "i"
+                   typ = PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64
+                   description = "" } ]
+            returnType = PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64
+            description = ""
+            }
+        ]
+
+( let parsed =
+    Builtin.Parser.parseToSimplifiedTree
+      "let add (a: Int64) (b: Int64): Int64 = a + b"
+
+  PACKAGE.Darklang.LanguageTools.Parser.parseNodeToWT parsed ) =
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok
+      [
+        PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.PackageFn
+          { name =
+              PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.Package
+                { owner = "TODO"
+                  modules = ["TODO"]
+                  name = PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name.FnName "add"
+                  version = 0L
+                }
+            body =
+              PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EInfix(
+                0L,
+                PACKAGE.Darklang.LanguageTools.WrittenTypes.Infix.InfixFnCall(PACKAGE.Darklang.LanguageTools.WrittenTypes.InfixFnName.ArithmeticPlus),
+                PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(0L, "a"),
+                PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(0L, "b"))
+            typeParams = []
+            parameters =
+              [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter
+                 { name = "a"
+                   typ = PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64
+                   description = "" }
+                PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter
+                  { name = "b"
+                    typ = PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64
+                    description = "" } ]
+            returnType = PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64
+            description = ""
+            }
+        ]
+
+
+( let parsed =
+    Builtin.Parser.parseToSimplifiedTree
+      "let add (a: Int64) (b: Int64): Int64 =\n  let sum = a + b\n  sum"
+
+  PACKAGE.Darklang.LanguageTools.Parser.parseNodeToWT parsed ) =
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok
+      [
+        PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.PackageFn
+          { name =
+              PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.Package
+                { owner = "TODO"
+                  modules = ["TODO"]
+                  name = PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name.FnName "add"
+                  version = 0L
+                }
+            body =
+              PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.ELet(
+                0L,
+                PACKAGE.Darklang.LanguageTools.WrittenTypes.LetPattern.LPVariable(0L, "sum"),
+                PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EInfix(
+                  0L,
+                  PACKAGE.Darklang.LanguageTools.WrittenTypes.Infix.InfixFnCall(PACKAGE.Darklang.LanguageTools.WrittenTypes.InfixFnName.ArithmeticPlus),
+                  PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(0L, "a"),
+                  PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(0L, "b")),
+                PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(0L, "sum"))
+            typeParams = []
+            parameters =
+              [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter
+                 { name = "a"
+                   typ = PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64
+                   description = "" }
+                PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter
+                  { name = "b"
+                    typ = PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64
+                    description = "" } ]
+            returnType = PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64
+            description = ""
+            }
+        ]

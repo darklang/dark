@@ -2,6 +2,7 @@ module.exports = grammar({
   name: "darklang",
 
   rules: {
+    // TODO: should this be repeat1?
     source_file: $ => repeat($.fn_def),
 
     // Function definitions
@@ -18,12 +19,7 @@ module.exports = grammar({
 
     // fns need at least one param
     // TODO: should this rule be enforced like this _in the parser_?
-    // TODO: we could just repeat1 here
-    fn_params_def: $ =>
-      seq(
-        field("first", $.fn_param_def),
-        field("additional", repeat($.fn_param_def)),
-      ),
+    fn_params_def: $ => repeat1($.fn_param_def),
 
     fn_param_def: $ =>
       choice(
@@ -41,7 +37,7 @@ module.exports = grammar({
     expression: $ =>
       choice(
         $.let_expression,
-        //$.function_call, TODO: fix this (generator doesn't work when included)
+        $.function_call,
         $.infix_operation,
         $.identifier,
         $.string_literal,
@@ -57,7 +53,11 @@ module.exports = grammar({
         field("body", $.expression),
       ),
     function_call: $ =>
-      seq(field("fn", $.identifier), field("args", repeat1($.expression))),
+      prec(
+        1,
+        seq(field("fn", $.identifier), field("args", repeat1($.expression))),
+      ),
+
     string_literal: $ => seq('"', field("value", /.*/), '"'),
     infix_operator: $ => choice("+", "-"),
     infix_operation: $ =>
