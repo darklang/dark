@@ -72,7 +72,7 @@ module.exports = grammar({
 
     // Basics
     unit: $ => "()",
-    type: $ => choice(/Int/, /Bool/, /Float/, /String/, /Char/),
+    type: $ => choice(/Unit/, /Int/, /Bool/, /Float/, /String/, /Char/),
     identifier: $ => /[a-zA-Z_][a-zA-Z0-9_]*/,
   },
 });

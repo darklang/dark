@@ -27,6 +27,13 @@ module Darklang =
       let parse (text: String) : ParsedNode =
         Builtins.LanguageTools.Parser.parse text
 
+
+      // TODO: maybe re-frame this into expected/actual or something
+      type ParseError =
+        { sourceRange: Range
+          sourceText: String
+          message: String }
+
       // --------------------
       // Helper functions
       // --------------------
@@ -36,123 +43,104 @@ module Darklang =
       let findNodeByFieldName
         (node: ParsedNode)
         (fieldName: String)
-        : PACKAGE.Darklang.Stdlib.Option.Option<ParsedNode> =
-        let children = node.children
-
+        : Stdlib.Option.Option<ParsedNode> =
         let filteredChildren =
-          children
-          |> PACKAGE.Darklang.Stdlib.List.filter (fun c ->
+          node.children
+          |> Stdlib.List.filter (fun c ->
             match c.fieldName with
             | Some fName -> fName == fieldName
             | None -> false)
 
         match filteredChildren with
-        | [ c ] -> PACKAGE.Darklang.Stdlib.Option.Option.Some c
-        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
-        | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None // TODO: this should error, there are multiple matches
+        | [ c ] -> Stdlib.Option.Option.Some c
 
-      let stringToPackage
-        (str: String)
-        : PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.Package =
-        let name = PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name.FnName str
+        | [] -> Stdlib.Option.Option.None
+        | _ -> Stdlib.Option.Option.None // TODO: this should error, there are multiple matches
 
-        PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.Package
-          { owner = "TODO"
-            modules = [ "TODO" ]
-            name = name
-            version = 0L }
 
 
       // --------------------
       // Parsing to WrittenTypes
       // --------------------
 
-      // TODO: support more types
-      type WTTypeReference =
-        | TInt64
-        | TBool
-        | TString
-
       let parseTypeReference
         (node: ParsedNode)
-        : PACKAGE.Darklang.Stdlib.Option.Option<WTTypeReference> =
-        // TODO: support more types
-        let typ = node.typ
-
-        if typ == "type" then
+        : Stdlib.Option.Option<WrittenTypes.TypeReference> =
+        if node.typ == "type" then
           match (getText node) with
+          | "Unit" ->
+            (WrittenTypes.TypeReference.TInt64(node.sourceRange))
+            |> Stdlib.Option.Option.Some
+
           | "Int" ->
-            PACKAGE.Darklang.Stdlib.Option.Option.Some
-              PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64
-          | "Int64" ->
-            PACKAGE.Darklang.Stdlib.Option.Option.Some
-              PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64
+            (WrittenTypes.TypeReference.TInt64(node.sourceRange))
+            |> Stdlib.Option.Option.Some
+
           | "Bool" ->
-            PACKAGE.Darklang.Stdlib.Option.Option.Some
-              PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TBool
+            (WrittenTypes.TypeReference.TBool(node.sourceRange))
+            |> Stdlib.Option.Option.Some
+
+          | "Float" ->
+            (WrittenTypes.TypeReference.TFloat(node.sourceRange))
+            |> Stdlib.Option.Option.Some
+
           | "String" ->
-            PACKAGE.Darklang.Stdlib.Option.Option.Some
-              PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TString
-          | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None
+            (WrittenTypes.TypeReference.TString(node.sourceRange))
+            |> Stdlib.Option.Option.Some
+
+          | "Char" ->
+            (WrittenTypes.TypeReference.TChar(node.sourceRange))
+            |> Stdlib.Option.Option.Some
+
+          | _ -> Stdlib.Option.Option.None // TODO: error?
         else
-          PACKAGE.Darklang.Stdlib.Option.Option.None // this should return and error?
+          Stdlib.Option.Option.None // TODO: error?
 
 
+      /// this parses one of the Expr cases
       let parseExprCase
         (parsed: ParsedNode)
-        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr, String> =
+        : Stdlib.Result.Result<WrittenTypes.Expr, String> =
         match parsed.typ with
         | "identifier" ->
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-            PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(
-              0L,
-              getText parsed
-            )
-          )
+          (WrittenTypes.Expr.EVariable(parsed.sourceRange, getText parsed))
+          |> Stdlib.Result.Result.Ok
+
+
         | "infix_operation" ->
-          let left =
+          let leftArg =
             (findNodeByFieldName parsed "left")
             |> Builtin.unwrap
             |> parseExpr
             |> Builtin.unwrap
 
-          let right =
+          let operatorText =
+            (findNodeByFieldName parsed "operator") |> Builtin.unwrap |> getText
+
+          let rightArg =
             (findNodeByFieldName parsed "right")
             |> Builtin.unwrap
             |> parseExpr
             |> Builtin.unwrap
 
-          let operatorNode =
-            (findNodeByFieldName parsed "operator") |> Builtin.unwrap
-
-          let operatorText = getText operatorNode
-
+          // TODO: revisit error-handling
           let operator =
             match operatorText with
             | "+" ->
-              PACKAGE.Darklang.LanguageTools.WrittenTypes.Infix.InfixFnCall(
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.InfixFnName.ArithmeticPlus
-              )
+              WrittenTypes.Infix.InfixFnCall(WrittenTypes.InfixFnName.ArithmeticPlus)
             | "-" ->
-              PACKAGE.Darklang.LanguageTools.WrittenTypes.Infix.InfixFnCall(
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.InfixFnName.ArithmeticMinus
+              WrittenTypes.Infix.InfixFnCall(
+                WrittenTypes.InfixFnName.ArithmeticMinus
               )
-            | _ ->
-              PACKAGE.Darklang.Stdlib.Result.Result.Error
-                "TODO : operator not implemented"
+            | _ -> Stdlib.Result.Result.Error "TODO : operator not implemented"
 
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-            PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EInfix(
-              0L,
-              operator,
-              left,
-              right
-            )
-          )
+          (WrittenTypes.Expr.EInfix(parsed.sourceRange, operator, leftArg, rightArg))
+          |> Stdlib.Result.Result.Ok
+
 
         | "let_expression" ->
-          let identifier =
-            (findNodeByFieldName parsed "identifier") |> Builtin.unwrap |> getText
+          let identifierNode =
+            (findNodeByFieldName parsed "identifier") |> Builtin.unwrap
 
           let expr =
             (findNodeByFieldName parsed "expr")
@@ -166,84 +154,136 @@ module Darklang =
             |> parseExpr
             |> Builtin.unwrap
 
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-            PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.ELet(
-              0L,
-              PACKAGE.Darklang.LanguageTools.WrittenTypes.LetPattern.LPVariable(
-                0L,
-                identifier
-              ),
-              expr,
-              body
-            )
-          )
+          (WrittenTypes.Expr.ELet(
+            parsed.sourceRange,
+            WrittenTypes.LetPattern.LPVariable(
+              identifierNode.sourceRange,
+              identifierNode.text
+            ),
+            expr,
+            body
+          ))
+          |> Stdlib.Result.Result.Ok
+
 
         // TODO: This is not tested yet
         | "function_call" ->
-          let fnName = (findNodeByFieldName parsed "fn") |> Builtin.unwrap |> getText
+          let fnNameNode = (findNodeByFieldName parsed "fn") |> Builtin.unwrap
 
           let args =
             (findNodeByFieldName parsed "args")
             |> Builtin.unwrap
-            |> PACKAGE.Darklang.Stdlib.List.map (
-              fun arg -> (parseExpr arg)
-              |> Builtin.unwrap
-            )
+            |> fun argsNode -> argsNode.children
+            |> Stdlib.List.map (fun arg -> (parseExpr arg) |> Builtin.unwrap)
 
-          let fnCallExpr =
-            PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EApply(
-              0L,
-              PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EFnName(
-                0L,
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.Name.Unresolved
-                  [ "Darklang"; "Stdlib"; "Int"; fnName ]
-              ),
-              [],
-              args
-            )
+          (WrittenTypes.Expr.EApply(
+            parsed.sourceRange,
+            WrittenTypes.Expr.EFnName(
+              WrittenTypes.Name.Unresolved(
+                fnNameNode.sourceRange,
+                [ "Darklang"; "Stdlib"; "Int"; getText fnNameNode ]
+              )
 
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok(fnCallExpr)
-        | _ ->
-          PACKAGE.Darklang.Stdlib.Result.Result.Error
-            "TODO : parseExprCase not implemented"
+            ),
+            [],
+            args
+          ))
+          |> Stdlib.Result.Result.Ok
 
 
+        | uncaughtType ->
+          Stdlib.Result.Result.Error
+            $"TODO : parseExprCase {uncaughtType} not implemented"
+
+
+      /// this parses the 'container' of an expression
       let parseExpr
         (parsed: ParsedNode)
-        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr, String> =
+        : Stdlib.Result.Result<WrittenTypes.Expr, String> =
         if parsed.typ == "expression" then
           match parsed.children with
           | [ single ] -> parseExprCase single
-          | _ ->
-            PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a single expression"
+          | _ -> Stdlib.Result.Result.Error "Not a single expression"
         else
-          PACKAGE.Darklang.Stdlib.Result.Result.Error "Not an expression"
+          Stdlib.Result.Result.Error "Not an expression"
 
 
-      let parseNodeToWT
+
+      /// Parses a package function definiti;on parameter
+      ///
+      /// i.e. in `fn foo(x: Int)`, this parses `x: Int`
+      let parseFnDefParam
         (parsed: ParsedNode)
-        : PACKAGE.Darklang.Stdlib.Result.Result<List<PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.PackageFn>, String> =
-        if parsed.typ == "source_file" then
-          match parsed.children with
-          | [ fnDef ] -> parsePackageFn fnDef
-          | _ -> PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a single fn_def"
-        else
-          PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a source_file"
+        : Stdlib.Result.Result<WrittenTypes.PackageFn.Parameter, String> =
+        if parsed.typ == "fn_param_def" then
+          let name =
+            (findNodeByFieldName parsed "identifier") |> Builtin.unwrap |> getText
 
-
-      let parsePackageFn
-        (parsed: ParsedNode)
-        : PACKAGE.Darklang.Stdlib.Result.Result<List<PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.PackageFn>, String> =
-        if parsed.typ == "fn_def" then
-          let parameters =
-            match (findNodeByFieldName parsed "params") with
-            | Some p -> (parseFnParams p) |> Builtin.unwrap
-            | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error "No params"
-
-          let body =
-            (findNodeByFieldName parsed "body")
+          let typ =
+            (findNodeByFieldName parsed "typ")
             |> Builtin.unwrap
-            |> parseExpr
+            |> parseTypeReference
+            |> Builtin.unwrap
+
+          (WrittenTypes.PackageFn.Parameter
+            { sourceRange = parsed.sourceRange
+              name = name
+              typ = typ
+            //description = ""
+            })
+          |> Stdlib.Result.Result.Ok
+
+        else
+          Stdlib.Result.Result.Error "Not a fn_param_def"
+
+
+      /// Parses a package function definition's parameters
+      ///
+      /// i.e. in `fn add(x: Int, y: Int)`, this parses `x: Int, y: Int`
+      let parseFnDefParams
+        (parsed: ParsedNode)
+        : Stdlib.Result.Result<List<WrittenTypes.PackageFn.Parameter>, String> =
+        if parsed.typ == "fn_params_def" then
+          let defs =
+            Stdlib.List.fold
+              parsed.children
+              (Stdlib.Result.Result.Ok [])
+              (fun defs param ->
+                match defs with
+                | Error e -> Stdlib.Result.Result.Error e
+
+                | Ok defs ->
+                  match parseFnDefParam param with
+                  | Error e -> Stdlib.Result.Result.Error e
+
+                  | Ok parsed ->
+                    Stdlib.Result.Result.Ok(Stdlib.List.push defs parsed))
+
+          match defs with
+          | Error _e -> defs
+          | Ok defs -> Stdlib.Result.Result.Ok(Stdlib.List.reverse defs)
+        else
+          Stdlib.Result.Result.Error "Not a fn_params_def"
+
+
+      /// Parses a package function definition
+      ///
+      /// i.e. `let add (x: Int) (y: Int) = x + y`,
+      ///
+      /// - `add` is the function name
+      /// - `x: Int` and `y: Int` are the parameters
+      /// - `x + y` is the body
+      /// - `Int` is the return type
+      let parsePackageFnDef
+        (parsed: ParsedNode)
+        : Stdlib.Result.Result<List<WrittenTypes.PackageFn.PackageFn>, String> =
+        if parsed.typ == "fn_def" then
+          let nameNode = parsed |> findNodeByFieldName "name" |> Builtin.unwrap
+
+          let parameters =
+            (findNodeByFieldName parsed "params")
+            |> Builtin.unwrap
+            |> parseFnDefParams
             |> Builtin.unwrap
 
           let returnType =
@@ -252,52 +292,57 @@ module Darklang =
             |> parseTypeReference
             |> Builtin.unwrap
 
-          let name =
-            ((findNodeByFieldName parsed "name") |> Builtin.unwrap |> getText)
-            |> stringToPackage
+          let body =
+            (findNodeByFieldName parsed "body")
+            |> Builtin.unwrap
+            |> parseExpr
+            |> Builtin.unwrap
 
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok
-            [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.PackageFn
-                { name = name
-                  body = body
-                  typeParams = []
-                  parameters = parameters
-                  returnType = returnType
-                  description = "" } ]
+          (WrittenTypes.PackageFn.PackageFn
+            { sourceRange = parsed.sourceRange
+              name =
+                WrittenTypes.Name.Unresolved(nameNode.sourceRange, [ nameNode.text ])
+              //typeParams = []
+              parameters = parameters
+              returnType = returnType
+              body = body
+            //description = ""
+            })
+          |> Stdlib.Result.Result.Ok
         else
-          PACKAGE.Darklang.Stdlib.Result.Result.Error parsed
+          Stdlib.Result.Result.Error parsed
 
 
-      let parseFnParams
+      /// Currently, all "source files"
+      /// are just a list of package function definitions
+      ///
+      /// TODO^
+      let parseNodeToWrittenTypesSourceFile
         (parsed: ParsedNode)
-        : PACKAGE.Darklang.Stdlib.Result.Result<List<PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter>, String> =
-        if parsed.typ == "fn_params_def" then
-          let parameters =
-            parsed.children
-            |> PACKAGE.Darklang.Stdlib.List.map (fun p ->
-              (parseFnParam p) |> Builtin.unwrap)
+        : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
+        if parsed.typ == "source_file" then
+          let packageFnDefs =
+            Stdlib.List.fold
+              parsed.children
+              (Stdlib.Result.Result.Ok [])
+              (fun defs packageFnDef ->
+                match defs with
+                | Error e -> Stdlib.Result.Result.Error e
 
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok parameters
+                | Ok defs ->
+                  match parsePackageFnDef packageFnDef with
+                  | Error e -> Stdlib.Result.Result.Error e
+                  | Ok parsed ->
+                    Stdlib.Result.Result.Ok(Stdlib.List.push defs parsed))
+
+          match packageFnDefs with
+          | Error e -> Stdlib.Result.Result.Error e
+          | Ok packageFnDefs ->
+            (WrittenTypes.ParsedFile.PackageFunctions(
+              parsed.sourceRange,
+              Stdlib.List.reverse packageFnDefs
+            ))
+            |> Stdlib.Result.Result.Ok
+
         else
-          PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a fn_params_def"
-
-
-      let parseFnParam
-        (parsed: ParsedNode)
-        : PACKAGE.Darklang.Stdlib.Result.Result<PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter, String> =
-        if parsed.typ == "fn_param_def" then
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-            PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter
-              { name =
-                  (findNodeByFieldName parsed "identifier")
-                  |> Builtin.unwrap
-                  |> getText
-                typ =
-                  (findNodeByFieldName parsed "typ")
-                  |> Builtin.unwrap
-                  |> parseTypeReference
-                  |> Builtin.unwrap
-                description = "" }
-          )
-        else
-          PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a fn_param_def"
+          Stdlib.Result.Result.Error "Not a source_file"

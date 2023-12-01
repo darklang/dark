@@ -46,9 +46,7 @@ module Darklang =
 
         type BuiltIn = FQName.BuiltIn<Name>
         type UserProgram = FQName.UserProgram<Name>
-
-        type Package =
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.Package<Name>
+        type Package = FQName.Package<Name>
 
       module ConstantName =
         type Name = ConstantName of String
@@ -59,7 +57,7 @@ module Darklang =
         type Package = FQName.Package<Name>
 
       type NameResolution<'a> =
-        PACKAGE.Darklang.Stdlib.Result.Result<'a, PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error>
+        Stdlib.Result.Result<'a, PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error>
 
 
       /// Darklang's available types (int, List<T>, user-defined types, etc.)

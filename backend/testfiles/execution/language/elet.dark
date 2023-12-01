@@ -33,6 +33,16 @@ module Tuples =
   (let ((a, ((b, (c, d)), e)), f) = ((1L, ((2L, (3L, 4L)), 5L)), 6L) in c) = 3L
   (let ((a, ((b, cd), e)), f) = ((1L, ((2L, (3L, 4L)), 5L)), 6L) in cd) = (3L, 4L)
 
+
+module Nesting =
+  (let x =
+    let y = 1L
+    let z = 2L
+    y + z
+
+   x) = 3L
+
+
 module Shadowing =
   (let x = 5L
    let x = 6L
