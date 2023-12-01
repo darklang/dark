@@ -24,7 +24,6 @@ for i in "$@" ; do
     ;;
   esac
 done
-DIR=${URL//[^0-9A-Za-z]/}
 FILENAME=$(basename $URL)
 case $(dpkg --print-architecture) in
   arm64) CHECKSUM=$ARM64_SHA256;;
@@ -33,7 +32,7 @@ case $(dpkg --print-architecture) in
 esac
 wget $URL
 echo "$CHECKSUM $FILENAME" | sha256sum -c -
-gunzip $FILENAME 
+gunzip $FILENAME
 EXTRACT_FILE="${FILENAME%.*}"
 sudo mv ${EXTRACT_FILE} ${TARGET}
 sudo chmod +x ${TARGET}
