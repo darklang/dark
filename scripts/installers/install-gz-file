@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Script to install binary files, checking the sha
+
+set -euo pipefail
+
+for i in "$@" ; do
+  case "${i}" in
+    --arm64-sha256=*)
+    ARM64_SHA256=${1/--arm64-sha256=/''}
+    shift
+    ;;
+    --amd64-sha256=*)
+    AMD64_SHA256=${1/--amd64-sha256=/''}
+    shift
+    ;;
+    --url=*)
+    URL=${1/--url=/''}
+    shift
+    ;;
+    --target=*)
+    TARGET=${1/--target=/''}
+    shift
+    ;;
+  esac
+done
+DIR=${URL//[^0-9A-Za-z]/}
+FILENAME=$(basename $URL)
+case $(dpkg --print-architecture) in
+  arm64) CHECKSUM=$ARM64_SHA256;;
+  amd64) CHECKSUM=$AMD64_SHA256;;
+  *) exit 1;;
+esac
+wget $URL
+echo "$CHECKSUM $FILENAME" | sha256sum -c -
+gunzip $FILENAME 
+EXTRACT_FILE="${FILENAME%.*}"
+sudo mv ${EXTRACT_FILE} ${TARGET}
+sudo chmod +x ${TARGET}
