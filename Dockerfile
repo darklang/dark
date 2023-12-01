@@ -140,7 +140,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       # end parser dependencies
       # prodexec dependencies
       sshpass \
-      chisel \
       # end prodexec dependencies
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
@@ -207,16 +206,6 @@ RUN sudo chown postgres:postgres -R /var/lib/postgresql
 COPY --chown=dark:dark --chmod=755 ./scripts/installers/* .
 
 ############################
-# Cockroach
-############################
-RUN /home/dark/install-targz-file \
-  --arm64-sha256=e64f7dc6c404e01a36c96e6da9ed96d84e3ff8ed66cf02216dcaaec1d192a55b \
-  --amd64-sha256=b233763c48dd97d4c7c76d25054a7cd98edf700aa64466ee40c3909758281045 \
-  --url=https://binaries.cockroachdb.com/cockroach-v23.2.0-alpha.2.linux-${TARGETARCH}.tgz \
-  --extract-file=cockroach-v23.2.0-alpha.2.linux-${TARGETARCH}/cockroach \
-  --target=/usr/bin/cockroach
-
-############################
 # Yugabyte
 ############################
 
@@ -232,10 +221,23 @@ RUN /home/dark/install-targz-file \
   --extract-file=terraform \
   --target=/usr/bin/terraform
 
+############################
+# Chisel
+############################
+RUN /home/dark/install-gz-file \
+  --arm64-sha256=05f5eabab4a5f65f2bb08d967d6af41247465af213f1c874ad0e059c0a3ebedc \
+  --amd64-sha256=704a31cd89911a0f7d1741ee9ca32ca0f5496b06370bf398dfc5b7d3a31ef563 \
+  --url=https://github.com/jpillora/chisel/releases/download/v1.9.1/chisel_1.9.1_linux_${TARGETARCH}.gz \
+  --target=/usr/bin/chisel
+
+############################
 # PubSub
+############################
 ENV PUBSUB_EMULATOR_HOST=localhost:8085
 
+############################
 # GCS emulator
+############################
 RUN /home/dark/install-targz-file \
   --arm64-sha256=e37183fb37d3614434bb6e9aa9cfe953a9cde83c240088d842ff1671f8804bda \
   --amd64-sha256=443811366a779b204adb5feff2460248bc0aef0d0b713b64cb52947ebd429563 \

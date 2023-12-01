@@ -182,7 +182,6 @@ jobs:
             set -x
             scripts/devcontainer/_start-postgres
             # Disable for now since they're not used
-            # scripts/devcontainer/_start-cockroach
             # scripts/devcontainer/_start-yugabyte
             if [[ -f /home/dark/tree-sitter.so && ! -f /home/dark/app/backend/src/LibTreeSitter/tree-sitter.so ]]; then
               mv /home/dark/tree-sitter.so /home/dark/app/backend/src/LibTreeSitter/

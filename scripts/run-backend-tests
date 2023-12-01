@@ -21,7 +21,6 @@ for i in "$@"
 do
   case "${i}" in
     --lldb) LLDB=true ;;
-    --cockroach) DB=cr ;;
     --yugabyte) DB=yb ;;
     --published)
       PUBLISHED=true
@@ -53,15 +52,6 @@ case "$DB" in
     ./scripts/devcontainer/_wait-for-postgres
     dropdb --if-exists testdb
     createdb testdb
-    ;;
-  cr)
-    export DARK_CONFIG_DB_HOST=localhost
-    export DARK_CONFIG_DB_PORT=26257
-    export DARK_CONFIG_DB_DBNAME=testdb
-    export DARK_CONFIG_DB_USER=root
-    export DARK_CONFIG_DB_PASSWORD=''
-    echo "Dropping cockroach testdb database"
-    cockroach sql --insecure -e "DROP DATABASE IF EXISTS testdb; CREATE DATABASE testdb"
     ;;
   yb)
     export DARK_CONFIG_DB_HOST=192.168.215.2
