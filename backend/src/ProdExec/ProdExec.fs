@@ -54,6 +54,7 @@ let help () : unit =
   [ "USAGE:"
     "  ProdExec migrations list"
     "  ProdExec migrations run"
+    "  ProdExec add-canvas [domain]"
     "  ProdExec trigger-rollbar"
     "  ProdExec trigger-pageable-rollbar"
     "  ProdExec convert-st-to-rt [canvasID]"
@@ -64,6 +65,7 @@ let help () : unit =
 type Options =
   | MigrationList
   | MigrationsRun
+  | AddCanvas of domain : string
   | TriggerRollbar
   | TriggerPagingRollbar
   | InvalidUsage
@@ -75,6 +77,7 @@ let parse (args : string[]) : Options =
   match args with
   | [| "migrations"; "list" |] -> MigrationList
   | [| "migrations"; "run" |] -> MigrationsRun
+  | [| "add-canvas"; domain |] -> AddCanvas domain
   | [| "trigger-rollbar" |] -> TriggerRollbar
   | [| "trigger-paging-rollbar" |] -> TriggerPagingRollbar
   | [| "convert-st-to-rt"; "all" |] -> ConvertST2RTAll
@@ -85,7 +88,8 @@ let parse (args : string[]) : Options =
 let usesDB (options : Options) =
   match options with
   | MigrationList
-  | MigrationsRun -> true
+  | MigrationsRun
+  | AddCanvas _ -> true
   | TriggerRollbar
   | TriggerPagingRollbar
   | InvalidUsage
@@ -124,6 +128,17 @@ let run (options : Options) : Task<int> =
     | MigrationsRun ->
       runMigrations ()
       return 0
+
+    | AddCanvas domain ->
+      match! LibCloud.Canvas.canvasIDForDomain domain with
+      | Some _ ->
+        print "Domain already exists"
+        return 0
+      | None ->
+        let! accountID = LibCloud.Account.createUser ()
+        let! canvasID = LibCloud.Canvas.create accountID domain
+        print $"Created canvas {canvasID} for account {accountID}"
+        return 0
 
     | TriggerRollbar ->
       triggerRollbar ()
