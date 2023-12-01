@@ -17,8 +17,14 @@ echo "dark:$DARK_CONFIG_PRODEXEC_SSH_PASSWORD" | sudo chpasswd
 sudo service ssh start
 
 
-# Add config vars to env for users logging in
-env | grep DARK_CONFIG | sed 's/\(.*\)/export \1/g' >> ~/.bashrc
+# Add config vars to env for users logging in.  This loops through env vars, then
+# adds export and saves them. This handles newlines correctly, needed for certs and
+# other auth.
+env_vars=$(compgen -v | grep ^DARK_CONFIG)
+for var in $env_vars
+do
+  typeset -p $var | sed 's/^declare -x/export/' >> /home/dark/.bashrc
+done
 
 
 while true; do
