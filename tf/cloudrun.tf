@@ -95,7 +95,14 @@ resource "google_cloud_run_v2_service" "bwdserver" {
   depends_on = [google_project_service.apis["run.googleapis.com"]]
 }
 
+variable "create_prodexec" {
+  description = "Whether to create prodexec or not"
+  type        = bool
+  default     = false
+}
+
 resource "google_cloud_run_v2_service" "prodexec" {
+  count = var.create_prodexec ? 1 : 0
   lifecycle {
     ignore_changes = [
       template[0].containers[0].image, client, client_version
