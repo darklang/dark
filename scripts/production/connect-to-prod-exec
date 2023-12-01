@@ -3,6 +3,39 @@
 
 set -euo pipefail
 
+# To run commands in production, we run prodexec as a cloud run service. This
+# script connects to it over ssh. For security, we don't keep prodexec running,
+# just create it as needed and then delete the service when we're done.
+# Although this is addressable over the internet with a URL, access is
+# restricted to darklang google accounts. Ideally, it would only be addressable
+# internally (maybe with IAP?), but that doesn't seem to work.
+
+### Exit handler to ensure we don't leave it open on the internet very long
+exit_handler() {
+  echo "Exit handler triggered."
+  gcloud run services --region us-central1 update prodexec --ingress=internal
+}
+
+# Trap the EXIT signal
+trap exit_handler EXIT
+
+
+### Check if the service is running
+# Creating the service happens in terraform, so this script doesn't do it.
+output=$(gcloud run services list --region=us-central1 --filter="metadata.name=prodexec")
+if [[ $output == *"prodexec"* ]]; then
+  echo "Prodexec service running, continuing"
+else
+  echo "Prodexec service not running, you need to start it using terraform:"
+  echo "  $ cd tf"
+  echo "  $ terraform plan -var='create_prodexec=true' -out plan.out"
+  echo "  $ terraform apply plan.out"
+  exit 1
+fi
+
+
+### Prepare the data
+
 # we have a separate username and password for the chisel, HD server, and the ssh server
 username=$(gcloud secrets versions access latest --secret prodexec-chisel-username)
 password=$(gcloud secrets versions access latest --secret prodexec-chisel-password)
@@ -11,7 +44,22 @@ ssh_password=$(gcloud secrets versions access latest --secret prodexec-ssh-passw
 # Google won't let us reach the server unless we are authenticated
 header="Authorization: Bearer $(gcloud auth print-identity-token)"
 
+url=$(gcloud run services describe --region us-central1 prodexec --format="value(status.url)")
+
+
+### Allow request to make it
+gcloud run services --region us-central1 update prodexec --ingress=all
+
+
+### Make the request
 sshpass -p "$ssh_password" \
   ssh \
-  -o ProxyCommand="chisel client --auth '$username:$password' --header '$header' https://prodexec-d4mr6gl3ia-uc.a.run.app stdio:%h:%p" \
+  -o ProxyCommand="chisel client --auth '$username:$password' --header '$header' '$url' stdio:%h:%p" \
  "dark@localhost"
+
+### Disable access
+gcloud run services --region us-central1 update prodexec --ingress=internal
+
+### Disable access
+echo "We're done. Please delete prodexec when you're done."
+echo "  $ gcloud run services delete bwdserver"

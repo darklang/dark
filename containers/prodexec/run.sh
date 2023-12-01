@@ -13,7 +13,7 @@ nohup chisel server --authfile /home/dark/auth.json --port "$DARK_CONFIG_PRODEXE
 
 
 # Set up ssh auth
-RUN echo "dark:$DARK_CONFIG_PRODEXEC_SSH_PASSWORD" | sudo chpasswd
+echo "dark:$DARK_CONFIG_PRODEXEC_SSH_PASSWORD" | sudo chpasswd
 sudo service ssh start
 
 
