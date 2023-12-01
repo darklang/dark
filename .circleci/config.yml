@@ -218,9 +218,9 @@ jobs:
           paths:
             # Just enough for deploy
             - backend/Build/out/BwdServer/Release/net8.0/linux-x64/publish/
-            # - backend/Build/out/QueueWorker/Release/net8.0/linux-x64/publish/QueueWorker
-            # - backend/Build/out/CronChecker/Release/net8.0/linux-x64/publish/CronChecker
-            - backend/Build/out/ProdExec/Release/net8.0/linux-x64/publish/ProdExec
+            # - backend/Build/out/QueueWorker/Release/net8.0/linux-x64/publish/
+            # - backend/Build/out/CronChecker/Release/net8.0/linux-x64/publish/
+            - backend/Build/out/ProdExec/Release/net8.0/linux-x64/publish/
       - show-large-files-and-directories
       - save_cache:
           paths:
