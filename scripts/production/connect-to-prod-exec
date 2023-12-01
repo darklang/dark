@@ -12,7 +12,7 @@ set -euo pipefail
 
 ### Exit handler to ensure we don't leave it open on the internet very long
 exit_handler() {
-  echo "Exit handler triggered."
+  echo "Closing prodexec ingress"
   gcloud run services --region us-central1 update prodexec --ingress=internal
 }
 
@@ -20,7 +20,7 @@ exit_handler() {
 trap exit_handler EXIT
 
 
-### Check if the service is running
+echo "Checking prodexec service is running"
 # Creating the service happens in terraform, so this script doesn't do it.
 output=$(gcloud run services list --region=us-central1 --filter="metadata.name=prodexec")
 if [[ $output == *"prodexec"* ]]; then
@@ -35,6 +35,7 @@ fi
 
 
 ### Prepare the data
+echo "Fetching access data"
 
 # we have a separate username and password for the chisel, HD server, and the ssh server
 username=$(gcloud secrets versions access latest --secret prodexec-chisel-username)
@@ -48,6 +49,7 @@ url=$(gcloud run services describe --region us-central1 prodexec --format="value
 
 
 ### Allow request to make it
+echo "Opening prodexec ingress"
 gcloud run services --region us-central1 update prodexec --ingress=all
 
 
@@ -58,8 +60,5 @@ sshpass -p "$ssh_password" \
  "dark@localhost"
 
 ### Disable access
-gcloud run services --region us-central1 update prodexec --ingress=internal
-
-### Disable access
 echo "We're done. Please delete prodexec when you're done."
-echo "  $ gcloud run services delete bwdserver"
+echo "  $ gcloud run services --region=us-central1 delete prodexec"
