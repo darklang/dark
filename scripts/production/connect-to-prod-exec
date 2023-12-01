@@ -3,6 +3,21 @@
 
 set -euo pipefail
 
+# To run commands in production, we run prodexec. For security, we don't keep it
+# running, just create it as needed and then delete the project when we're done.
+# Creating the service happens in terraform, so this script doesn't do it.
+
+# Check if the service is running
+output=$(gcloud run services list --region=us-central1 --filter="metadata.name=prodexec")
+if [[ $output == *"prodexec"* ]]; then
+  echo "Prodexec service running, continuing"
+else
+  echo "Prodexec service not running, you need to start it using terraform:"
+  echo "  $ cd tf"
+  echo "  $ terraform plan -var='create_resource=true' -out plan.out"
+  echo "  $ terraform apply plan.out"
+fi
+
 # we have a separate username and password for the chisel, HD server, and the ssh server
 username=$(gcloud secrets versions access latest --secret prodexec-chisel-username)
 password=$(gcloud secrets versions access latest --secret prodexec-chisel-password)
@@ -11,7 +26,13 @@ ssh_password=$(gcloud secrets versions access latest --secret prodexec-ssh-passw
 # Google won't let us reach the server unless we are authenticated
 header="Authorization: Bearer $(gcloud auth print-identity-token)"
 
+url=$(gcloud run services describe --region us-central1 prodexec --format="value(status.url)")
+
 sshpass -p "$ssh_password" \
   ssh \
-  -o ProxyCommand="chisel client --auth '$username:$password' --header '$header' https://prodexec-d4mr6gl3ia-uc.a.run.app stdio:%h:%p" \
+  -o ProxyCommand="chisel client --auth '$username:$password' --header '$header' '$url' stdio:%h:%p" \
  "dark@localhost"
+
+
+echo "We're done. Please delete prodexec when you're done."
+echo "  $ gcloud run services delete bwdserver"
