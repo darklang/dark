@@ -20,6 +20,5 @@ let contents =
       Libs.Output.contents
       Libs.Stdin.contents
       Libs.LanguageServerProtocol.contents
-      Libs.Time.contents
-      Libs.LanguageTools.contents ]
+      Libs.Time.contents ]
     fnRenames
