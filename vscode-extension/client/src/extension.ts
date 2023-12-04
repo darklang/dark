@@ -38,6 +38,13 @@ export function activate(context: ExtensionContext) {
     traceOutputChannel: vscode.window.createOutputChannel(
       "Darklang LSP - Client",
     ),
+
+    // without this, VS Code will try to restart our extension 5 times,
+    // which can be really annoying while debugging
+    connectionOptions: {
+      cancellationStrategy: null,
+      maxRestartCount: 0,
+    },
   };
 
   // start the LSP client -- note: this will also launch the server
