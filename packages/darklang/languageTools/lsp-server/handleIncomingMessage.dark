@@ -1,0 +1,58 @@
+module Darklang =
+  module LanguageTools =
+    module LspServer =
+      /// This is how we handle incoming requests from the client.
+      ///
+      /// (this is the core of Darklang's LSP server)
+      let handleIncomingMessage
+        (state: LspState)
+        (r: JsonRPC.Request.Request)
+        : LspState =
+        match LanguageServerProtocol.parseIncomingMessage r with
+        | InitializeRequest ->
+          log "TODO: fail - we shouldn't be seeing a second one of these"
+          { state with initialized = true }
+
+        | Initialized -> // notification or request?
+          log "(ignore)"
+          state
+
+        | SetTrace -> // notification or request?
+          log "TODO we should do something with this"
+          state
+
+        | Shutdown -> // notification or request?
+          log "shutting down"
+          { state with shouldShutdown = true }
+
+
+        // -- textDocument synchronization
+        | TextDocumentDidOpenNotification requestParams ->
+          log $"adding/setting document {requestParams.textDocument.uri}"
+          DocSync.handleTextDocumentDidOpen state requestParams
+
+        | TextDocumentDidSaveNotification requestParams ->
+          DocSync.handleTextDocumentDidSave state requestParams
+
+        | TextDocumentDidCloseNotification requestParams ->
+          log $"removing document from documentsInScope"
+          DocSync.handleTextDocumentDidClose state requestParams
+
+
+        // -- completion (autocomplete)
+        | TextDocumentCompletionRequest(requestId, requestParams) ->
+          log $"got completion request for {requestParams.textDocument.uri}"
+          Completions.handleCompletionRequest state requestId requestParams
+
+
+        // -- semantic tokens (which provides syntax highlighting)
+        | TextDocumentSemanticTokensRequest(requestId, requestParams) ->
+          log $"got semanticTokens request for {requestParams.textDocument.uri}"
+          SemanticTokens.handleSemanticTokensRequest state requestId requestParams
+
+
+        // -- other
+        | Other jsonRpcRequest ->
+          log $"TODO: we don't yet support this method: {jsonRpcRequest.method}"
+          // TODO: log more than just the method
+          state

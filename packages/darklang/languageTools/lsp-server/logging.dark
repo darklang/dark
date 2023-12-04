@@ -1,0 +1,38 @@
+module Darklang =
+  module LanguageTools =
+    module LspServer =
+      let logFilePath = "/home/dark/app/rundir/logs/lsp-server.log"
+
+      let log (input: String) : Unit =
+        // returns Result -- ignored
+        let _logged = Builtin.File.appendText logFilePath (input ++ "\n")
+
+        ()
+
+
+      let logIncomingRequest (request: String) : Unit = log $"From client: {request}"
+
+
+      let logAndSendToClient (response: String) : Unit =
+        log $"To client: {response}"
+
+        let contentLengthInBytes =
+          response
+          |> Stdlib.String.toBytes_v0
+          |> Stdlib.List.length
+          |> Stdlib.Int64.toString
+
+        Builtin.print $"Content-Length: {contentLengthInBytes}\r\n\r\n{response}"
+
+(*
+  // These are (basically) the only things we're allowed to do before
+  // returning the initialize response
+  logAndSendToClient
+    """{ "jsonrpc": "2.0", "method": "$/logTrace", "params": { "message": "hi I'm an early trace" } }"""
+
+  logAndSendToClient
+    """{ "jsonrpc":"2.0", "method":"window/showMessage", "params":{"type":3,"message":"wow cool, a second message from the server came in"}}"""
+
+  logAndSendToClient
+    """{ "jsonrpc":"2.0", "method":"window/logMessage", "params":{"type":1,"message":"just logging a message"}}"""
+*)

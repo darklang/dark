@@ -1,0 +1,77 @@
+module Darklang =
+  module LanguageTools =
+    module LspServer =
+      module DocSync =
+        let hardcodedServerCapabilities
+          ()
+          : LanguageServerProtocol.Lifecycle.InitializeRequest.TextDocumentSyncServerCapabilities.TextDocumentSyncServerCapabilities =
+          LanguageServerProtocol
+            .Lifecycle
+            .InitializeRequest
+            .TextDocumentSyncServerCapabilities
+            .TextDocumentSyncServerCapabilities
+            .TextDocumentSyncOptions(
+              LanguageServerProtocol.DocumentSync.TextDocument.TextDocumentSyncOptions.TextDocumentSyncOptions
+                { openClose = Stdlib.Option.Option.Some true
+                  change =
+                    Stdlib.Option.Option.Some
+                      LanguageServerProtocol.DocumentSync.TextDocument.TextDocumentSyncKind.TextDocumentSyncKind.Full
+                  save =
+                    Stdlib.Option.Option.Some(
+                      LanguageServerProtocol
+                        .DocumentSync
+                        .TextDocument
+                        .TextDocumentSyncOptions
+                        .SaveOptionsOrBool
+                        .SaveOptionsOrBool
+                        .SaveOptions(
+                          LanguageServerProtocol.DocumentSync.TextDocument.SaveOptions.SaveOptions
+                            { includeText = Stdlib.Option.Option.Some true }
+                        )
+                    ) }
+            )
+
+        // -- message-handling
+
+        let handleTextDocumentDidOpen
+          (state: LspState)
+          (request:
+            LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
+          : LspState =
+          { state with
+              documentsInScope =
+                Stdlib.Dict.set
+                  state.documentsInScope
+                  request.textDocument.uri
+                  request.textDocument.text }
+
+
+        let handleTextDocumentDidSave
+          (state: LspState)
+          (request:
+            LanguageServerProtocol.DocumentSync.TextDocument.DidSaveTextDocumentNotification.DidSaveTextDocumentParams.DidSaveTextDocumentParams)
+          : LspState =
+          match request.text with
+          | None ->
+            log
+              "WARNING: no text in didSave, even though we configured to include text in these requests, in the `initialize` handshake"
+
+            state
+
+          | Some text ->
+            { state with
+                documentsInScope =
+                  Stdlib.Dict.set
+                    state.documentsInScope
+                    request.textDocument.uri
+                    text }
+
+
+        let handleTextDocumentDidClose
+          (state: LspState)
+          (request:
+            LanguageServerProtocol.DocumentSync.TextDocument.DidCloseTextDocumentNotification.DidCloseTextDocumentParams.DidCloseTextDocumentParams)
+          : LspState =
+          { state with
+              documentsInScope =
+                Stdlib.Dict.remove state.documentsInScope parsed.textDocument.uri }

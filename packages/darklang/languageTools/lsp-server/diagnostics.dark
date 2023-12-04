@@ -1,0 +1,56 @@
+module Darklang =
+  module LanguageTools =
+    module LspServer =
+      module Diagnostics =
+        let foo = "bar"
+
+(* future: report diagnostics on content update or save
+
+async function gatherAndReportDiagnostics(
+  textDocument: TextDocument,
+): Promise<void> {
+  const diagnosticsFromDarkResponse = await runDarkCli(
+    "@PACKAGE.Darklang.LanguageTools.LanguageServerProtocol.getDiagnostics",
+    textDocument.uri,
+    JSON.stringify(textDocument.getText()),
+  );
+
+  if (diagnosticsFromDarkResponse.stderr) {
+    console.error("stderr", diagnosticsFromDarkResponse.stderr);
+  } else {
+    console.log("got diagnostics back", diagnosticsFromDarkResponse.stdout);
+    const diagnosticsFromDark: ComputeDiagnosticsOutput = JSON.parse(
+      diagnosticsFromDarkResponse.stdout,
+    );
+    const diagnostics = diagnosticsFromDark.diagnostics.map(DT2LT.diagnostic);
+    connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+  }
+}
+
+// when a document is changed or saved, we want to re-run diagnostics
+let changeToProcessNext: null | TextDocumentChangeEvent<TextDocument> = null;
+let processing = false;
+const processChange = async () => {
+  if (processing || !changeToProcessNext) return;
+  processing = true;
+  try {
+    const doc = changeToProcessNext.document;
+    changeToProcessNext = null;
+    await gatherAndReportDiagnostics(doc);
+  } finally {
+    processing = false;
+    if (changeToProcessNext) {
+      processChange();
+    }
+  }
+};
+documents.onDidSave(change => {
+  changeToProcessNext = change;
+  processChange();
+});
+documents.onDidChangeContent(change => {
+  changeToProcessNext = change;
+  processChange();
+});
+
+*)
