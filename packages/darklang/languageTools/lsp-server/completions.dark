@@ -1,0 +1,54 @@
+module Darklang =
+  module LanguageTools =
+    module LspServer =
+      module Completions =
+        let hardcodedServerCapabilities
+          ()
+          : LanguageServerProtocol.Completions.CompletionOptions.CompletionOptions =
+          LanguageServerProtocol.Completions.CompletionOptions.CompletionOptions
+            { triggerCharacters = Stdlib.Option.Option.None
+              allCommitCharacters = Stdlib.Option.Option.None
+              resolveProvider = Stdlib.Option.Option.Some false // just return all info at once
+              completionItem = Stdlib.Option.Option.None }
+
+
+        /// handles `textDocument/completion` requests
+        let handleCompletionRequest
+          (state: LspState)
+          (requestId: JsonRPC.RequestId)
+          (_requestParams:
+            LanguageServerProtocol.Completions.CompletionRequest.CompletionParams.CompletionParams)
+          : LspState =
+          // TODO: prepare and return a 'real' response
+          let bogusResponse =
+            LanguageServerProtocol
+              .Completions
+              .CompletionRequest
+              .CompletionResult
+              .CompletionResult
+              .SimpleList(
+                [ LanguageServerProtocol.Completions.CompletionItem.CompletionItem
+                    { label =
+                        "bogus completion response | a b c d e f g h i j k l m n o p q r s t u v w x y z"
+                      detail = Stdlib.Option.Option.None
+                      preselect = Stdlib.Option.Option.Some true
+                      sortText = Stdlib.Option.Option.None
+                      filterText = Stdlib.Option.Option.None
+                      insertText = Stdlib.Option.Option.None
+                      insertTextFormat = Stdlib.Option.Option.None
+                      insertTextMode = Stdlib.Option.Option.None
+                      textEditText = Stdlib.Option.Option.None
+                      commitCharacters = Stdlib.Option.Option.None
+                      data = Stdlib.Option.Option.None } ]
+              )
+
+          let bogusResponseJson =
+            bogusResponse
+            |> LanguageServerProtocol.Completions.CompletionRequest.CompletionResult.toJson
+            |> (fun r ->
+              JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+            |> Stdlib.AltJson.format
+
+          logAndSendToClient bogusResponseJson
+
+          state

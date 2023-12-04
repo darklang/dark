@@ -34,7 +34,7 @@ module Darklang =
       ///
       /// Note: when the `id` is `None`, this is referred to as a "notification"
       type Request =
-        { id: Stdlib.Option.Option<RequestId>
+        { id: Stdlib.Option.Option<RequestId> // todo: rename to requestId
           method: String
           ``params``: Stdlib.Option.Option<RequestParams> }
 

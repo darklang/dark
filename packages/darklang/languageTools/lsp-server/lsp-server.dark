@@ -1,0 +1,111 @@
+module Darklang =
+  module LanguageTools =
+    /// This supports a Language Server for Darklang,
+    /// matching the 3.17 LSP (Language Server Protocol) spec.
+    ///
+    /// This LSP server is currently used by our in-progress VS Code Extension.
+    /// Namely, `LspServer.runServerCli` creates a long-running process that reads
+    /// incoming requests from stdin, and writes responses to stdout, following the LSP spec
+    module LspServer =
+      // <aliases>
+      type Json = Stdlib.AltJson.Json
+      // </aliases>
+
+      /// This is the main entrypoint for the Darklang LSP server.
+      ///
+      /// It reads incoming messages from stdin, and writes responses to stdout,
+      /// following the LSP spec. It also logs all incoming and outgoing messages
+      /// to `rundir/logs/lsp-server.log`, for local debugging.
+      let runServerCli (u: Unit) : Int64 =
+        // clear `lsp-server.log`, and write a timestamp of the start-up
+        let _deleted = Builtin.File.delete logFilePath
+
+        (Stdlib.DateTime.now_v0 ())
+        |> Stdlib.DateTime.toString
+        |> fun nowStr -> log $"Running Darklang LSP Server {nowStr}"
+
+
+        // The first thing we get is the `initialize` request,
+        // where the client tells us what capabilities it has,
+        // and we tell the client what capabilities we have,
+        // so the client knows which requests it can make.
+        let incomingMessageRaw = readMessageFromClient ()
+        logIncomingRequest incomingMessageRaw // TODO: parse, etc
+        let initialState = handleInitializeRequest ()
+
+
+        // now that _that_ is out of the way, we can start responding to normal requests
+        runServerCliLoop initialState
+
+
+
+      let runServerCliLoop (state: LspState) : Int64 =
+        log "---"
+
+        let incomingMessageRaw = readMessageFromClient ()
+        logIncomingRequest incomingMessageRaw
+
+        let updatedState =
+          // parse a json-rpc message from stdin, and call `handleIncomingMessage` on it when relevant
+          match JsonRPC.IncomingMessage.parse incomingMessageRaw with
+          // The json-rpc spec says to just ignore any incoming messages of `[]`
+          | EmptyBatch -> state
+
+          // # Things we want/expect
+          | SingleRequest(Ok jsonRpcRequest) ->
+            log $"Parsed incoming message as single JSON-RPC request"
+            handleIncomingMessage state jsonRpcRequest
+
+          | BatchOfRequests items ->
+            // TODO: need to reply in a batch as well
+            log "TODO - Got batch request; not yet set to handle these"
+            state
+
+
+          // # Errors
+
+          // was an object {} but not a valid json-rpc 2.0 _request_
+          // (note: could have been a valid _response_ though - we don't yet have good support for that)
+          | SingleRequest(Error singleRequestParseError) ->
+            // TODO match on singleRequestParseError, and return proper error-specific responses
+
+            log
+              $"Error parsing incoming message as json-rpc request:\n{incomingMessageRaw}"
+
+            logAndSendToClient
+              """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+            state
+
+
+          | NotJson ->
+            log
+              $"Error parsing incoming message as json:\n{incomingMessageRaw}\nError: {PACKAGE.Darklang.Stdlib.AltJson.ParseError.toString err}"
+
+            logAndSendToClient
+              """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+            state
+
+
+          | NotObjectOrArray ->
+            log $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}"
+
+            logAndSendToClient
+              """{"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": null}"""
+
+            state
+
+
+        // shut down if instructed, or listen for the next message
+        if updatedState.shouldShutdown then
+          0L
+        else
+          runServerCliLoop updatedState
+
+
+
+      // TODO maybe this should return a Result eventually,
+      // and Error if we don't get a proper LSP message
+      let readMessageFromClient () : String =
+        Builtin.Danger.LanguageServerProtocol.readNextMessage ()

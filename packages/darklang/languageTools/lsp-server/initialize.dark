@@ -1,0 +1,45 @@
+module Darklang =
+  module LanguageTools =
+    module LspServer =
+      let handleInitializeRequest
+        // TODO: (LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeParams.InitializeParams)
+        ()
+        : LspState =
+        let hardcodedInitializeResult =
+          LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeResult.InitializeResult
+            { serverInfo = Stdlib.Option.Option.None // TODO
+
+              capabilities =
+                LanguageServerProtocol.Lifecycle.InitializeRequest.ServerCapabilities.ServerCapabilities
+                  { textDocumentSync =
+                      Stdlib.Option.Option.Some(
+                        DocSync.hardcodedServerCapabilities ()
+                      )
+
+                    completionProvider =
+                      Stdlib.Option.Option.Some(
+                        Completions.hardcodedServerCapabilities ()
+                      )
+
+                    semanticTokensProvider =
+                      Stdlib.Option.Option.Some(
+                        SemanticTokens.hardcodedServerCapabilities ()
+                      ) } }
+
+
+        let initializeResponse =
+          hardcodedInitializeResult
+          |> LanguageServerProtocol.Lifecycle.InitializeRequest.InitializeResult.toJson
+          |> (fun r ->
+            JsonRPC.Response.Ok.make
+              (Stdlib.Option.Option.Some(JsonRPC.RequestId.Int 0L))
+              r)
+          |> Stdlib.AltJson.format
+
+        logAndSendToClient initializeResponse
+
+
+        LspState
+          { initialized = true
+            shouldShutdown = false
+            documentsInScope = Dict { } }
