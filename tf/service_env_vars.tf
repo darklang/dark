@@ -79,7 +79,7 @@ variable "service_env_vars" {
     "DARK_CONFIG_DB_POOL_SIZE"      = { value : "20" }
     "DARK_CONFIG_DB_SSL_REQUIRED"   = { value : "y" }
     "DARK_CONFIG_DB_ROOT_CERT_PATH" = { value : "/usr/local/share/ca-certificates/yugabyte.crt" }
-    "DARK_CONFIG_DB_LOG_LEVEL"      = { value : "debug" }
+    "DARK_CONFIG_DB_LOG_LEVEL"      = { value : "none" }
 
     # Queue / pubsub
     "DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID"        = { value : "darklang-next" }
