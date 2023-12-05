@@ -19,7 +19,7 @@ exec_sql() {
     user=$db_username \
     password=$db_password \
     sslmode=verify-full \
-    sslrootcert=root.crt" \
+    sslrootcert=containers/yugabyte.crt" \
     -c "$1"
 }
 
@@ -55,15 +55,15 @@ case $1 in
   1)
     echo "1. Connecting to DB"
     exec_sql "select 2 ;"
+   ;;
+  2)
+    echo "5. Add canvas"
+    run_canvas_hack dark-packages
     ;;
   3)
     echo "3. Setup account"
     # create account
-    ownerID=$(python3 -c "import uuid; print(uuid.uuid4())")
-    canvasID=$(python3 -c "import uuid; print(uuid.uuid4())")
-    echo "ownerID: $ownerID, canvasID: $canvasID"
-    exec_sql "INSERT INTO accounts_v0 (id) VALUES ('$ownerID')"
-    exec_sql "INSERT INTO canvases_v0 (id, account_id) VALUES ('$canvasID'::uuid, '$ownerID'::uuid)"
+    canvasID='11111111-1111-1111-1111-111111111112'
     exec_sql "INSERT INTO domains_v0 (canvas_id, domain) VALUES ('$canvasID'::uuid, '$domain')"
     ;;
   4)
@@ -74,10 +74,7 @@ case $1 in
     echo "4b. List packages"
     run_local_exec list-packages
     ;;
-  5)
-    echo "5. Add canvas"
-    run_canvas_hack dark-packages
-    ;;
+
   6)
     echo "6. Upload packages"
     run_local_exec load-packages-dark
