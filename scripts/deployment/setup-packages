@@ -3,69 +3,80 @@
 
 set -euo pipefail
 
-db_password="$POSTGRES_DB_PASSWORD"
-db_username=user1
-db_host=slim-elk-13135.5xj.cockroachlabs.cloud
-db_port=26257
-db_name=defaultdb
-db_url="postgres://$db_username:$db_password@$db_host:$db_port/$db_name"
+db_username=$(gcloud secrets versions access latest --secret db-username)
+db_password=$(gcloud secrets versions access latest --secret db-password)
+db_host=pub-us-central1.ac92fd1c-c9e2-48b4-8a62-ec6809031dcc.gcp.ybdb.io
+db_port=5433
+db_name=yugabyte
+# db_url="postgres://$db_username:$db_password@$db_host:$db_port/$db_name"
 
 exec_sql() {
-  cockroach sql --url "$db_url" -e "$1"
-}
-
-run_prod_exec() {
-  # Password DARK_CONFIG_DB_PASSWORD should be set in environment
-  DARK_CONFIG_DB_USER="$db_username" \
-  DARK_CONFIG_DB_PASSWORD="$db_password" \
-  DARK_CONFIG_DB_HOST="$db_host" \
-  DARK_CONFIG_DB_PORT="$db_port" \
-  DARK_CONFIG_DB_DBNAME="$db_name" \
-  DARK_CONFIG_TELEMETRY_EXPORTER=none \
-  DARK_CONFIG_ROLLBAR_ENABLED=n \
-  DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
-  ./scripts/run-prod-exec "$@"
+  /home/dark/yugabyte/bin/ysqlsh \
+    -a \
+    "host=$db_host \
+    port=$db_port \
+    dbname=$db_name \
+    user=$db_username \
+    password=$db_password \
+    sslmode=verify-full \
+    sslrootcert=root.crt" \
+    -c "$1"
 }
 
 run_local_exec() {
-  # Password DARK_CONFIG_DB_PASSWORD should be set in environment
+  DARK_CONFIG_DB_HOST=$db_host \
+  DARK_CONFIG_DB_PORT=$db_port \
+  DARK_CONFIG_DB_DBNAME=$db_name \
+  DARK_CONFIG_DB_USER=$db_username \
+  DARK_CONFIG_DB_PASSWORD=$db_password \
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
   DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
   ./scripts/run-local-exec "$@"
 }
 
-subdomain='jolly-hippo-481052'
+run_canvas_hack() {
+  DARK_CONFIG_DB_HOST=$db_host \
+  DARK_CONFIG_DB_PORT=$db_port \
+  DARK_CONFIG_DB_DBNAME=$db_name \
+  DARK_CONFIG_DB_USER=$db_username \
+  DARK_CONFIG_DB_PASSWORD=$db_password \
+  DARK_CONFIG_TELEMETRY_EXPORTER=none \
+  DARK_CONFIG_ROLLBAR_ENABLED=n \
+  DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
+  backend/Build/out/CanvasHack/Debug/net8.0/CanvasHack "$1"
+}
+
 domain='packages.darklang.com'
 
 # All the steps. Run this with `./scripts/deployment/setup-packages 1`` or
 # whatever step number to run.
 case $1 in
   1)
-    echo "1. Connecting to cockroach"
+    echo "1. Connecting to DB"
     exec_sql "select 2 ;"
     ;;
-  2)
-    echo "2. Run migrations"
-    run_prod_exec migrations run
-    run_prod_exec migrations list
-      ;;
   3)
     echo "3. Setup account"
     # create account
-    ownerID=$(exec_sql "INSERT INTO accounts_v0 (id) VALUES (NEW_GUID()) RETURNING id")
-    canvasID=$(exec_sql "INSERT INTO canvases_v0 (id, account_id) VALUES (NEW_GUID(), $ownerID) RETURNING id")
-    exec_sql "INSERT INTO domains_v0 (canvas_id, domain) VALUES ($canvasID, $subdomain)"
-    exec_sql "INSERT INTO domains_v0 (canvas_id, domain) VALUES ($canvasID, $domain)"
+    ownerID=$(python3 -c "import uuid; print(uuid.uuid4())")
+    canvasID=$(python3 -c "import uuid; print(uuid.uuid4())")
+    echo "ownerID: $ownerID, canvasID: $canvasID"
+    exec_sql "INSERT INTO accounts_v0 (id) VALUES ('$ownerID')"
+    exec_sql "INSERT INTO canvases_v0 (id, account_id) VALUES ('$canvasID'::uuid, '$ownerID'::uuid)"
+    exec_sql "INSERT INTO domains_v0 (canvas_id, domain) VALUES ('$canvasID'::uuid, '$domain')"
     ;;
   4)
     echo "4. Add old packages"
-    run_local_exec list-packages
     run_local_exec load-packages
+    ;;
+  4b)
+    echo "4b. List packages"
+    run_local_exec list-packages
     ;;
   5)
     echo "5. Add canvas"
-    ./scripts/run-canvas-hack dark-packages
+    run_canvas_hack dark-packages
     ;;
   6)
     echo "6. Upload packages"
