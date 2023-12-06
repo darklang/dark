@@ -247,6 +247,8 @@ NUGET
     Npgsql.OpenTelemetry (8.0.0-rc.2)
       Npgsql (>= 8.0.0-rc.2)
       OpenTelemetry.Api (>= 1.6)
+    NpgsqlYugabyteDB (8.0.0-yb-1-beta)
+      Microsoft.Extensions.Logging.Abstractions (>= 6.0)
     NReco.Logging.File (1.1.7)
       Microsoft.Extensions.Logging (>= 2.0)
       Microsoft.Extensions.Logging.Configuration (>= 2.0)
