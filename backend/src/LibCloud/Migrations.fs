@@ -19,13 +19,13 @@ let isInitialized () : bool =
   Sql.query
     "SELECT TRUE
      FROM pg_class
-     WHERE relname = 'system_migrations'"
+     WHERE relname = 'system_migrations_v0'"
   |> Sql.executeExistsSync
 
 let initializeMigrationsTable () : unit =
   Sql.query
     "CREATE TABLE IF NOT EXISTS
-     system_migrations
+     system_migrations_v0
      ( name TEXT PRIMARY KEY
      , execution_date TIMESTAMPTZ NOT NULL
      , sql TEXT NOT NULL)"
@@ -33,7 +33,7 @@ let initializeMigrationsTable () : unit =
 
 
 let alreadyRunMigrations () : List<string> =
-  Sql.query "SELECT name from system_migrations"
+  Sql.query "SELECT name from system_migrations_v0"
   |> Sql.execute (fun read -> read.string "name")
 
 let runSystemMigration (name : string) (sql : string) : unit =
@@ -43,7 +43,7 @@ let runSystemMigration (name : string) (sql : string) : unit =
   // Insert into the string because params don't work here for some reason.
   // On conflict, do nothing because another starting process might be running this migration as well.
   let recordMigrationStmt =
-    "INSERT INTO system_migrations
+    "INSERT INTO system_migrations_v0
        (name, execution_date, sql)
        VALUES (@name, CURRENT_TIMESTAMP, @sql)
        ON CONFLICT DO NOTHING"

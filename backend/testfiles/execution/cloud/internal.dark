@@ -23,7 +23,7 @@ module Infra =
   // correct number of tables
   PACKAGE.Darklang.Stdlib.Dict.size_v0 (
     Builtin.DarkInternal.Infra.getAndLogTableSizes_v0 ()
-  ) = 16L
+  ) = 15L
 
   // server build hash
   (match Builtin.DarkInternal.Infra.serverBuildHash_v0 () with
