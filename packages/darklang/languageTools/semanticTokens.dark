@@ -1,0 +1,47 @@
+module Darklang =
+  module LanguageTools =
+    module SemanticTokens =
+      // <aliases>
+      type SourceRange = Parser.Range
+      // <aliases>
+
+      type TokenType =
+        | Keyword
+        | Function
+        | Parameter
+        | Type
+        | String
+        | Operator
+        | Variable
+
+
+      /// The LSP[1] communicates in terms of 'relative' semantic tokens,
+      /// referring to 'deltas' of lines/characters since the previously-
+      /// mentioned token. It's a bit easier to think about and map to 'exact'
+      /// semantic tokens, though.
+      ///
+      /// [1] Semantic tokenization is currently only used for our language server,
+      /// which follows the Language Server Protocol. That said, it may prove useful
+      /// to tokenize for other reasons in the future and it's much easier to
+      /// tokenize into an intermediate format rather than mapping directly to the
+      /// data that the LSP expects.
+      ///
+      /// These tokens mean little without reference to a document where the
+      /// 'ranges' live within.
+      type SemanticToken =
+        { sourceRange: SourceRange
+          tokenType: TokenType }
+
+
+      // TODO: lots more mappings...
+
+      let fromParsedFile (wt: WrittenTypes.ParsedFile) : List<SemanticToken> =
+        match wt with
+        | PackageFunctions(_, _fns) ->
+          // TODO: make this real
+          [ SemanticToken
+              { sourceRange =
+                  Parser.Range
+                    { start = Parser.Point { row = 0L; column = 0L }
+                      end_ = Parser.Point { row = 0L; column = 3L } }
+                tokenType = TokenType.Keyword } ]

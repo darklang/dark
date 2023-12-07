@@ -24,7 +24,7 @@ module Darklang =
             /// The length of the token
             length: UInt64
 
-            /// The index in the `tokenTypes` array declared in the legend of the semantic token provider
+            /// The type of semantic token (i.e. keyword, string, operator, etc.)
             tokenType: 'TokenType
           }
 

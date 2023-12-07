@@ -17,49 +17,62 @@ module Darklang =
         let tokenModifiers = []
 
 
-        // (for quick reference while this is in progress)
-        // let double (i: Int) : Int = i + i
-        module WrittenTypesToRelativeSemanticTokens =
-          module TokenType =
-            type TokenType =
-              | Keyword
-              | Function
-              | Parameter
-              | Type
-              | String
-              | Operator
-              | Variable
+        /// Maps from "exact" semantic tokens that try to remain ignorant of
+        /// the LSP's data format, into the UInt64-based format that the LSP
+        /// _does_ expect.
+        module EncodeSemanticTokens =
+          let tokenType
+            (t: Darklang.LanguageTools.SemanticTokens.TokenType)
+            : UInt64 =
+            match t with
+            | Keyword -> 0UL
+            | Function -> 1UL
+            | Parameter -> 2UL
+            | Type -> 3UL
+            | String -> 4UL
+            | Operator -> 5UL
+            | Variable -> 6UL
 
-            let toUInt (t: TokenType) : UInt64 =
-              match t with
-              | Keyword -> 0UL
-              | Function -> 1UL
-              | Parameter -> 2UL
-              | Type -> 3UL
-              | String -> 4UL
-              | Operator -> 5UL
-              | Variable -> 6UL
 
-          module DarkToken =
-            type DarkToken =
-              LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.RelativeSemanticToken<TokenType.TokenType>
+          let toRelativeTokens
+            (tokens: List<LanguageTools.SemanticTokens.SemanticToken>)
+            : List<LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.RelativeSemanticToken<LanguageTools.SemanticTokens.TokenType>> =
+            (Stdlib.List.fold
+              tokens
+              (([], Parser.Point { row = 0L; column = 0L }))
+              (fun acc token ->
+                let (tokensSoFar, endOfLastToken) = acc
 
-            let mapListToFlatDataForResult (tokens: List<DarkToken>) : List<UInt64> =
-              LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.mapListToFlatDataForResult<TokenType.TokenType>
-                TokenType.toUInt
-                tokens
+                let (deltaLine, deltaStart) =
+                  match token.sourceRange.start.row - endOfLastToken.row with
+                  | 0L ->
+                    (0UL, token.sourceRange.start.column - endOfLastToken.column)
+                  | lineDiff -> (lineDiff, token.sourceRange.start.column)
 
-          let mapParsedFile
-            (wt: WrittenTypes.ParsedFile)
-            : List<DarkToken.DarkToken> =
-            match wt with
-            | PackageFunctions(_, fns) ->
-              // TODO: make this real
-              [ DarkToken.DarkToken
-                  { deltaLine = 0UL
-                    deltaStart = 0UL
-                    length = 3UL
-                    tokenType = TokenType.TokenType.Keyword } ]
+                let newToken =
+                  LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.RelativeSemanticToken //<LanguageTools.SemanticTokens.TokenType>
+                    { deltaLine = deltaLine
+                      deltaStart =
+                        deltaStart |> Stdlib.UInt64.fromInt64 |> Builtin.unwrap
+                      length =
+                        (token.sourceRange.end_.column
+                         - token.sourceRange.start.column)
+                        |> Stdlib.UInt64.fromInt64
+                        |> Builtin.unwrap
+                      tokenType = token.tokenType }
+
+                (Stdlib.List.push tokensSoFar newToken, token.sourceRange)))
+            |> Stdlib.Tuple2.first
+
+
+          let toLspFormat
+            (tokens:
+              List<LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.RelativeSemanticToken>)
+            : List<UInt64> =
+            LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.mapListToFlatDataForResult<Darklang.LanguageTools.SemanticTokens.TokenType>
+              (fun t -> tokenType t)
+              tokens
+
 
 
         let hardcodedServerCapabilities
@@ -114,8 +127,9 @@ module Darklang =
             | Ok parsedFile ->
               let data =
                 parsedFile
-                |> WrittenTypesToRelativeSemanticTokens.mapParsedFile
-                |> WrittenTypesToRelativeSemanticTokens.DarkToken.mapListToFlatDataForResult
+                |> LanguageTools.SemanticTokens.fromParsedFile
+                |> EncodeSemanticTokens.toRelativeTokens
+                |> EncodeSemanticTokens.toLspFormat
 
               let result =
                 LanguageServerProtocol

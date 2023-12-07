@@ -62,6 +62,7 @@ module Darklang =
       let toLowercase (s: String) : String = Builtin.String.toLowercase s
 
 
+      // TODO: UInt?
       /// Returns the length of the string
       let length (s: String) : Int64 = Builtin.String.length s
 
