@@ -389,6 +389,7 @@ USER dark
 RUN touch .bash_history
 RUN mkdir -p .config/gcloud
 RUN mkdir -p .config/configstore
+RUN mkdir -p .terraform.d/
 RUN mkdir -p app
 RUN mkdir -p app/backend/Build
 

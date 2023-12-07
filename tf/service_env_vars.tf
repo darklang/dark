@@ -72,14 +72,14 @@ variable "service_env_vars" {
 
     # DB
     "DARK_CONFIG_DB_DBNAME"         = { value : "yugabyte" }
-    "DARK_CONFIG_DB_HOST"           = { value : "us-central1.ac92fd1c-c9e2-48b4-8a62-ec6809031dcc.gcp.ybdb.io" }
+    "DARK_CONFIG_DB_HOST"           = { value : "us-central1.1c39714c-062a-40f3-b7ba-e320fce7ca3d.gcp.ybdb.io" }
     "DARK_CONFIG_DB_PORT"           = { value : "5433" }
     "DARK_CONFIG_DB_USER"           = { secret : "db-username" }
     "DARK_CONFIG_DB_PASSWORD"       = { secret : "db-password" }
-    "DARK_CONFIG_DB_POOL_SIZE"      = { value : "20" }
+    "DARK_CONFIG_DB_POOL_SIZE"      = { value : "10" }
     "DARK_CONFIG_DB_SSL_REQUIRED"   = { value : "y" }
     "DARK_CONFIG_DB_ROOT_CERT_PATH" = { value : "/usr/local/share/ca-certificates/yugabyte.crt" }
-    "DARK_CONFIG_DB_LOG_LEVEL"      = { value : "debug" }
+    "DARK_CONFIG_DB_LOG_LEVEL"      = { value : "none" }
 
     # Queue / pubsub
     "DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID"        = { value : "darklang-next" }

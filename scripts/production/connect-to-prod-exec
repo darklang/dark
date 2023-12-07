@@ -14,6 +14,10 @@ set -euo pipefail
 exit_handler() {
   echo "Closing prodexec ingress"
   gcloud run services --region us-central1 update prodexec --ingress=internal
+
+  ### Disable access
+  echo "We're done. Please delete prodexec when you're done."
+  echo "  $ gcloud run services --region=us-central1 delete prodexec"
 }
 
 # Trap the EXIT signal
@@ -56,9 +60,7 @@ gcloud run services --region us-central1 update prodexec --ingress=all
 ### Make the request
 sshpass -p "$ssh_password" \
   ssh \
+  -o StrictHostKeyChecking=no \
+  -o UserKnownHostsFile=/dev/null \
   -o ProxyCommand="chisel client --auth '$username:$password' --header '$header' '$url' stdio:%h:%p" \
  "dark@localhost"
-
-### Disable access
-echo "We're done. Please delete prodexec when you're done."
-echo "  $ gcloud run services --region=us-central1 delete prodexec"

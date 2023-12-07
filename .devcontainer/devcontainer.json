@@ -83,10 +83,9 @@
     // Docker-in-Docker - uncomment this to be able to build Dark's production containers
     // "type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock",
 
-    // gcloud - uncomment this to use scripts which require gcloud permissions
-    // "type=bind,src=${localEnv:HOME}${localEnv:USERPROFILE}/.config/gcloud,dst=/home/dark/.config/gcloud,consistency=cached",
-    // If using a remote DOCKER_HOST, you need to mount a directory on the remote host instead
-    // "type=bind,src=/home/paulbiggar/.config/gcloud,dst=/home/dark/.config/gcloud,consistency=cached",
+    // Credentials
+    "type=volume,src=gcloud_creds,dst=/home/dark/.config/gcloud",
+    "type=volume,src=terraform_creds,dst=/home/dark/.terraform.d",
 
     // Bash history - uncomment this to save bash history between container restarts
     // "type=bind,src=${localEnv:HOME}${localEnv:USERPROFILE}/.dark_bash_history,dst=/home/dark/.bash_history,consistency=cached",

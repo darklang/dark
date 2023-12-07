@@ -4,4 +4,4 @@ set -euo pipefail
 
 NAME=$1
 
-psql -d "$DARK_CONFIG_DB_DBNAME" -c "DELETE FROM system_migrations WHERE name LIKE '%$NAME.sql';"
+psql -d "$DARK_CONFIG_DB_DBNAME" -c "DELETE FROM system_migrations_v0 WHERE name LIKE '%$NAME.sql';"
