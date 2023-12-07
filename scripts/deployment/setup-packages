@@ -5,7 +5,7 @@ set -euo pipefail
 
 db_username=$(gcloud secrets versions access latest --secret db-username)
 db_password=$(gcloud secrets versions access latest --secret db-password)
-db_host=pub-us-central1.ac92fd1c-c9e2-48b4-8a62-ec6809031dcc.gcp.ybdb.io
+db_host=pub-us-central1.1c39714c-062a-40f3-b7ba-e320fce7ca3d.gcp.ybdb.io
 db_port=5433
 db_name=yugabyte
 # db_url="postgres://$db_username:$db_password@$db_host:$db_port/$db_name"
@@ -22,6 +22,19 @@ exec_sql() {
     sslrootcert=containers/yugabyte.crt" \
     -c "$1"
 }
+
+run_prod_exec() {
+  DARK_CONFIG_DB_HOST=$db_host \
+  DARK_CONFIG_DB_PORT=$db_port \
+  DARK_CONFIG_DB_DBNAME=$db_name \
+  DARK_CONFIG_DB_USER=$db_username \
+  DARK_CONFIG_DB_PASSWORD=$db_password \
+  DARK_CONFIG_TELEMETRY_EXPORTER=none \
+  DARK_CONFIG_ROLLBAR_ENABLED=n \
+  DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
+  ./scripts/run-prod-exec "$@"
+}
+
 
 run_local_exec() {
   DARK_CONFIG_DB_HOST=$db_host \
@@ -57,12 +70,16 @@ case $1 in
     exec_sql "select 2 ;"
    ;;
   2)
+    echo "2. Run migrations"
+    run_prod_exec migrations run
+    run_prod_exec migrations list
+      ;;
+  3)
     echo "5. Add canvas"
     run_canvas_hack dark-packages
     ;;
-  3)
+  3b)
     echo "3. Setup account"
-    # create account
     canvasID='11111111-1111-1111-1111-111111111112'
     exec_sql "INSERT INTO domains_v0 (canvas_id, domain) VALUES ('$canvasID'::uuid, '$domain')"
     ;;

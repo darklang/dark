@@ -7,7 +7,7 @@ set -euo pipefail
 username=$(gcloud --project darklang-next secrets versions access latest --secret db-username)
 password=$(gcloud --project darklang-next secrets versions access latest --secret db-password)
 
-~/yugabyte/bin/ysqlsh "host=pub-us-central1.ac92fd1c-c9e2-48b4-8a62-ec6809031dcc.gcp.ybdb.io \
+~/yugabyte/bin/ysqlsh "host=pub-us-central1.1c39714c-062a-40f3-b7ba-e320fce7ca3d.gcp.ybdb.io \
   user=$username \
   password=$password \
   dbname=yugabyte \
