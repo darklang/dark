@@ -117,6 +117,27 @@ let parse
       let nameToModules (p : PT.FQName.Package<'a>) : List<string> =
         "PACKAGE" :: p.owner :: p.modules
 
+      let fns =
+        modul.fns
+        |> List.map _.name
+        |> List.map LibExecution.ProgramTypesToRuntimeTypes.FnName.Package.toRT
+        |> Set
+      let types =
+        modul.types
+        |> List.map _.name
+        |> List.map LibExecution.ProgramTypesToRuntimeTypes.TypeName.Package.toRT
+        |> Set
+      let constants =
+        modul.constants
+        |> List.map _.name
+        |> List.map LibExecution.ProgramTypesToRuntimeTypes.ConstantName.Package.toRT
+        |> Set
+
+      let resolver =
+        { resolver with
+            hackLocallyDefinedPackageFns = fns
+            hackLocallyDefinedPackageTypes = types
+            hackLocallyDefinedPackageConstants = constants }
       let! fns =
         modul.fns
         |> Ply.List.mapSequentially (fun fn ->
