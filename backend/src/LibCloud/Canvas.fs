@@ -72,12 +72,12 @@ let allCanvasIDs () : Task<List<CanvasID>> =
   |> Sql.executeAsync (fun read -> read.uuid "id")
 
 
-let getOwner (id : CanvasID) : Task<UserID> =
+let getOwner (id : CanvasID) : Task<Option<UserID>> =
   Sql.query
     "SELECT account_id FROM canvases_v0
       WHERE id = @id"
   |> Sql.parameters [ "id", Sql.uuid id ]
-  |> Sql.executeRowAsync (fun read -> read.uuid "account_id")
+  |> Sql.executeRowOptionAsync (fun read -> read.uuid "account_id")
 
 /// <summary>
 /// Canvas data - contains metadata along with basic handlers, DBs, etc.

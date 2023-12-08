@@ -83,7 +83,12 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! owner = Canvas.getOwner canvasID
-            return DUuid owner
+            return
+              owner
+              |> Exception.unwrapOptionInternal
+                "Canvas owner not found"
+                [ "canvasID", canvasID ]
+              |> DUuid
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
