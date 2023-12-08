@@ -33,8 +33,5 @@ do
   fi
 done
 
-echo "Clearing canvas before loading from disk"
-./scripts/clear-canvas.sh "${CANVAS}"
-
 echo "Running canvashack"
 "${EXE}" "${CANVAS}"
