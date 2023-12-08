@@ -12,6 +12,14 @@ let range (s: Int64 * Int64) (e: Int64 * Int64) : Range =
       end_ = Point { row = endRow; column = endColumn } }
 
 
+let p (source: String) : PACKAGE.Darklang.LanguageTools.WrittenTypes.ParsedFile =
+  source
+  |> Builtin.Parser.parseToSimplifiedTree
+  |> PACKAGE.Darklang.LanguageTools.Parser.parseNodeToWrittenTypesSourceFile
+  |> Builtin.unwrap
+
+
+
 module ParseToSimplifiedTree =
   // super basic test just to make sure we don't throw an exception
   (let parsed =
@@ -22,6 +30,138 @@ module ParseToSimplifiedTree =
 
 
   // successful parse
+  (Builtin.Parser.parseToSimplifiedTree "type ID = Int") = ParsedNode
+    { typ = "source_file"
+      fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+      text = "type ID = Int"
+      sourceRange = range (0L, 0L) (0L, 13L)
+      children =
+        [ ParsedNode
+            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+              typ = "type_def"
+              text = "type ID = Int"
+              sourceRange = range (0L, 0L) (0L, 13L)
+              children =
+                [ ParsedNode
+                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+                      typ = "type"
+                      text = "type"
+                      sourceRange = range (0L, 0L) (0L, 4L)
+                      children = [] }
+
+                  ParsedNode
+                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.Some "name"
+                      typ = "type_identifier"
+                      text = "ID"
+                      sourceRange = range (0L, 5L) (0L, 7L)
+                      children = [] }
+
+                  ParsedNode
+                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+                      typ = "="
+                      text = "="
+                      sourceRange = range (0L, 8L) (0L, 9L)
+                      children = [] }
+
+                  ParsedNode
+                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.Some "typ"
+                      typ = "type"
+                      text = "Int"
+                      sourceRange = range (0L, 10L) (0L, 13L)
+                      children = [] } ] } ] }
+
+
+  (Builtin.Parser.parseToSimplifiedTree
+    "type MyID = PACKAGE.Darklang.LanguageTools.Test") = ParsedNode
+    { typ = "source_file"
+      fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+      text = "type MyID = PACKAGE.Darklang.LanguageTools.Test"
+      sourceRange = range (0L, 0L) (0L, 47L)
+      children =
+        [ ParsedNode
+            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+              typ = "type_def"
+              text = "type MyID = PACKAGE.Darklang.LanguageTools.Test"
+              sourceRange = range (0L, 0L) (0L, 47L)
+              children =
+                [ ParsedNode
+                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+                      typ = "type"
+                      text = "type"
+                      sourceRange = range (0L, 0L) (0L, 4L)
+                      children = [] }
+
+                  ParsedNode
+                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.Some "name"
+                      typ = "type_identifier"
+                      text = "MyID"
+                      sourceRange = range (0L, 5L) (0L, 9L)
+                      children = [] }
+
+                  ParsedNode
+                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+                      typ = "="
+                      text = "="
+                      sourceRange = range (0L, 10L) (0L, 11L)
+                      children = [] }
+
+                  ParsedNode
+                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.Some "typ"
+                      typ = "qualified_name"
+                      text = "PACKAGE.Darklang.LanguageTools.Test"
+                      sourceRange = range (0L, 12L) (0L, 47L)
+                      children =
+                        [ ParsedNode
+                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+                              typ = "identifier"
+                              text = "PACKAGE"
+                              sourceRange = range (0L, 12L) (0L, 19L)
+                              children = [] }
+
+                          ParsedNode
+                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+                              typ = "."
+                              text = "."
+                              sourceRange = range (0L, 19L) (0L, 20L)
+                              children = [] }
+
+                          ParsedNode
+                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+                              typ = "identifier"
+                              text = "Darklang"
+                              sourceRange = range (0L, 20L) (0L, 28L)
+                              children = [] }
+
+                          ParsedNode
+                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+                              typ = "."
+                              text = "."
+                              sourceRange = range (0L, 28L) (0L, 29L)
+                              children = [] }
+
+                          ParsedNode
+                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+                              typ = "identifier"
+                              text = "LanguageTools"
+                              sourceRange = range (0L, 29L) (0L, 42L)
+                              children = [] }
+
+                          ParsedNode
+                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+                              typ = "."
+                              text = "."
+                              sourceRange = range (0L, 42L) (0L, 43L)
+                              children = [] }
+
+                          ParsedNode
+                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+                              typ = "identifier"
+                              text = "Test"
+                              sourceRange = range (0L, 43L) (0L, 47L)
+                              children = [] } ] } ] } ] }
+
+
+
   (Builtin.Parser.parseToSimplifiedTree "let self (i: Int): Int =\n  i") = ParsedNode
     { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
       typ = "source_file"
@@ -285,13 +425,6 @@ module ParseToSimplifiedTree =
 
 
 module ParseNodeToWrittenTypes =
-  let p (source: String) : PACKAGE.Darklang.LanguageTools.WrittenTypes.ParsedFile =
-    source
-    |> Builtin.Parser.parseToSimplifiedTree
-    |> PACKAGE.Darklang.LanguageTools.Parser.parseNodeToWrittenTypesSourceFile
-    |> Builtin.unwrap
-
-
   (p "let self (i: Int64): Int64 = i") = PACKAGE
     .Darklang
     .LanguageTools
@@ -510,3 +643,91 @@ module ParseNodeToWrittenTypes =
                 )
               ) } ]
     )
+
+
+  (p "type MyID = PACKAGE.Darklang.LanguageTools.ID") = PACKAGE
+    .Darklang
+    .LanguageTools
+    .WrittenTypes
+    .ParsedFile
+    .PackageTypes(
+      range (0L, 0L) (0L, 45L),
+      [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageType
+          { sourceRange = range (0L, 0L) (0L, 45L)
+            name =
+              PACKAGE.Darklang.LanguageTools.WrittenTypes.Name.Unresolved(
+                range (0L, 5L) (0L, 9L),
+                [ "MyID" ]
+              )
+            declaration =
+              PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration
+                { definition =
+                    PACKAGE
+                      .Darklang
+                      .LanguageTools
+                      .WrittenTypes
+                      .TypeDeclaration
+                      .Definition
+                      .Alias(
+                        PACKAGE
+                          .Darklang
+                          .LanguageTools
+                          .WrittenTypes
+                          .TypeReference
+                          .TCustomType(
+                            PACKAGE
+                              .Darklang
+                              .LanguageTools
+                              .WrittenTypes
+                              .Name
+                              .Unresolved(
+                                range (0L, 12L) (0L, 45L),
+                                [ "PACKAGE"; "Darklang"; "LanguageTools"; "ID" ]
+                              ),
+                            []
+                          )
+                      ) } } ]
+    )
+
+
+  (p "type MyID = Int64") = PACKAGE
+    .Darklang
+    .LanguageTools
+    .WrittenTypes
+    .ParsedFile
+    .PackageTypes(
+      range (0L, 0L) (0L, 17L),
+      [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageType
+          { sourceRange = range (0L, 0L) (0L, 17L)
+            name =
+              PACKAGE.Darklang.LanguageTools.WrittenTypes.Name.Unresolved(
+                range (0L, 5L) (0L, 9L),
+                [ "MyID" ]
+              )
+            declaration =
+              PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration
+                { definition =
+                    PACKAGE
+                      .Darklang
+                      .LanguageTools
+                      .WrittenTypes
+                      .TypeDeclaration
+                      .Definition
+                      .Alias(
+                        PACKAGE
+                          .Darklang
+                          .LanguageTools
+                          .WrittenTypes
+                          .TypeReference
+                          .TCustomType(
+                            PACKAGE
+                              .Darklang
+                              .LanguageTools
+                              .WrittenTypes
+                              .Name
+                              .Unresolved(range (0L, 12L) (0L, 17L), [ "Int64" ]),
+                            []
+                          )
+                      ) } } ]
+    )
+
