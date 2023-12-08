@@ -3,7 +3,7 @@ module.exports = grammar({
 
   rules: {
     // TODO: should this be repeat1?
-    source_file: $ => repeat($.fn_def),
+    source_file: $ => repeat(choice($.fn_def, $.type_def)),
 
     // Function definitions
     fn_def: $ =>
@@ -15,6 +15,14 @@ module.exports = grammar({
         field("return_type", $.type),
         "=",
         field("body", $.expression),
+      ),
+
+    type_def: $ =>
+      seq(
+        "type",
+        field("name", $.type_identifier),
+        "=",
+        field("typ", choice($.type, $.qualified_name)),
       ),
 
     // fns need at least one param
@@ -55,7 +63,10 @@ module.exports = grammar({
     function_call: $ =>
       prec(
         1,
-        seq(field("fn", $.identifier), field("args", repeat1($.expression))),
+        seq(
+          field("fn", $.fn_call_identifier),
+          field("args", repeat1($.function_args)),
+        ),
       ),
 
     string_literal: $ => seq('"', field("value", /.*/), '"'),
@@ -69,10 +80,16 @@ module.exports = grammar({
           field("right", $.expression),
         ),
       ),
+    function_args: $ =>
+      prec.left(1, seq($.expression, repeat(seq(" ", $.expression)))),
 
+    qualified_name: $ => seq($.identifier, repeat(seq(".", $.identifier))),
     // Basics
     unit: $ => "()",
     type: $ => choice(/Unit/, /Int/, /Bool/, /Float/, /String/, /Char/),
     identifier: $ => /[a-zA-Z_][a-zA-Z0-9_]*/,
+    fn_call_identifier: $ =>
+      prec(2, seq($.identifier, repeat(seq(".", $.identifier)))),
+    type_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
   },
 });
