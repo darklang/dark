@@ -208,7 +208,7 @@ let _handler _req =
   let allItems =
     (Builtin.DB.query PackagesDB (fun v -> v.name.owner == owner))
     |> PACKAGE.Darklang.Stdlib.List.map (fun i ->
-      (i.owner, i.modules |> String.join ".", i.name))
+      (i.owner, i.modules |> PACKAGE.Darklang.Stdlib.String.join ".", i.name))
     |> PACKAGE.Darklang.Stdlib.List.map (fun m ->
       let (owner, modules, name) = m
       $"{owner}.{modules}.{name}")
