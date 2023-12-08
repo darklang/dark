@@ -80,16 +80,16 @@ module Darklang =
         | TFloat of SourceRange
         | TChar of SourceRange
         | TString of SourceRange
-      // | TDateTime
-      // | TUuid
+        // | TDateTime
+        // | TUuid
 
-      // | TList of SourceRange * TypeReference
-      // | TTuple of TypeReference * TypeReference * List<TypeReference>
-      // | TDict of TypeReference
-      // | TCustomType of Name * typeArgs: List<TypeReference>
-      // | TFn of List<TypeReference> * TypeReference
-      // | TDB of  TypeReference
-      // | TVariable of String
+        // | TList of SourceRange * TypeReference
+        // | TTuple of TypeReference * TypeReference * List<TypeReference>
+        // | TDict of TypeReference
+        | TCustomType of Name * typeArgs: List<TypeReference>
+        // | TFn of List<TypeReference> * TypeReference
+        // | TDB of  TypeReference
+        | TVariable of String
 
       type StringSegment = StringText of String
       //| StringInterpolation of Expr
@@ -181,30 +181,30 @@ module Darklang =
       //   | CTuple of Const * Const * List<Const>
       //   | CEnum of UnresolvedEnumTypeName * caseName: String * fields: List<Const>
 
-      // module TypeDeclaration =
-      //   type RecordField =
-      //     { name: String
-      //       typ: TypeReference
-      //       description: String }
+      module TypeDeclaration =
+        // type RecordField =
+        //   { name: String
+        //     typ: TypeReference
+        //     description: String }
 
-      //   type EnumField =
-      //     { typ: TypeReference
-      //       label: Stdlib.Option.Option<String>
-      //       description: String }
+        // type EnumField =
+        //   { typ: TypeReference
+        //     label: Stdlib.Option.Option<String>
+        //     description: String }
 
-      //   type EnumCase =
-      //     { name: String
-      //       fields: List<EnumField>
-      //       description: String }
+        // type EnumCase =
+        //   { name: String
+        //     fields: List<EnumField>
+        //     description: String }
 
-      //   type Definition =
-      //     | Alias of TypeReference
-      //     | Record of List<RecordField>
-      //     | Enum of List<EnumCase>
+        type Definition = Alias of TypeReference
+        // | Record of List<RecordField>
+        // | Enum of List<EnumCase>
 
-      //   type TypeDeclaration =
-      //     { typeParams: List<String>
-      //       definition: Definition }
+        type TypeDeclaration =
+          {
+            // typeParams: List<String>
+            definition: Definition }
 
 
 
@@ -226,10 +226,12 @@ module Darklang =
           ///description: String
           }
 
-      // type PackageType =
-      //   { name: ProgramTypes.TypeName.Package
-      //     declaration: TypeDeclaration.TypeDeclaration
-      //     description: String }
+      type PackageType =
+        { sourceRange: SourceRange
+          name: Name
+          declaration: TypeDeclaration.TypeDeclaration
+        // description: String
+        }
 
       // type PackageConstant =
       //   { name: ProgramTypes.ConstantName.Package
@@ -239,3 +241,4 @@ module Darklang =
 
       type ParsedFile =
         | PackageFunctions of SourceRange * fns: List<PackageFn.PackageFn>
+        | PackageTypes of SourceRange * types: List<PackageType>
