@@ -191,7 +191,7 @@ let main (args: List<String>) : Int64 =
     0L
 
   | LoadPackagesIntoDarkCanvas ->
-    let files = listPackageFilesOnDisk "/home/dark/app/packages"
+    let files = (listPackageFilesOnDisk "/home/dark/app/packages") |> PACKAGE.Darklang.Stdlib.List.sort
 
     // TODO: clear packages from dark canvas first?
 
