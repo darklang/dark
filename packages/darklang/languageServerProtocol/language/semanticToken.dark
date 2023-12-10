@@ -19,13 +19,19 @@ module Darklang =
       /// Note: our (Darklang's internal) use case does not yet use token modifiers,
       /// so we have not tried to implement that here,
       /// and hardcode "0" in the relevant `data` field parts.
+      ///
+      /// Note: the deltaLine and deltaStart fields are relative to the
+      /// _start_ of the previous token, not the end of it. This can be
+      /// surprising, but allows for overlapping tokens, which may be present
+      /// in some languages.
       module RelativeSemanticToken =
         type RelativeSemanticToken<'TokenType> =
           {
-            /// The difference in lines from the previous token
+            /// The difference in lines from the start of the previous token
             deltaLine: UInt64
 
-            /// The difference in characters (columns) from the previous token on the same line
+            /// The difference in characters (columns)
+            /// from the start of the previous token on the same line
             /// , or from the start of the line if it's the first token on that line
             deltaStart: UInt64
 

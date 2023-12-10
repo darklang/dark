@@ -53,12 +53,12 @@ module Darklang =
             |> (Stdlib.List.fold
               (([], Parser.Point { row = 0L; column = 0L }))
               (fun acc token ->
-                let (tokensSoFar, endOfLastToken) = acc
+                let (tokensSoFar, startOfLastToken) = acc
 
                 let (deltaLine, deltaStart) =
-                  match token.sourceRange.start.row - endOfLastToken.row with
+                  match token.sourceRange.start.row - startOfLastToken.row with
                   | 0L ->
-                    (0UL, token.sourceRange.start.column - endOfLastToken.column)
+                    (0UL, token.sourceRange.start.column - startOfLastToken.column)
                   | lineDiff -> (lineDiff, token.sourceRange.start.column)
 
                 let newToken =
@@ -73,7 +73,7 @@ module Darklang =
                         |> Builtin.unwrap
                       tokenType = token.tokenType }
 
-                (Stdlib.List.push tokensSoFar newToken, token.sourceRange.end_)))
+                (Stdlib.List.push tokensSoFar newToken, token.sourceRange.start)))
             |> Stdlib.Tuple2.first
             |> Stdlib.List.reverse
 
