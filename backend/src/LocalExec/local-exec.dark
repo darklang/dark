@@ -75,6 +75,14 @@ let loadPackageFileIntoDarkCanvas
   let fnResults =
     package.fns
     |> PACKAGE.Darklang.Stdlib.List.map (fun fn ->
+      let owner = fn.name.owner
+      let modules = fn.name.modules |> PACKAGE.Darklang.Stdlib.String.join "."
+      let name = match fn.name.name with
+                     | FnName name -> name
+      let version = PACKAGE.Darklang.Stdlib.Int64.toString_v0 fn.name.version
+      let name  = $"Function {owner}.{modules}.{name}_v{version}"
+
+      Builtin.printLine $"Saving {name}"
       fn
       |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
       |> saveItemToCanvas "function")
@@ -82,6 +90,14 @@ let loadPackageFileIntoDarkCanvas
   let typeResults =
     package.types
     |> PACKAGE.Darklang.Stdlib.List.map (fun t ->
+
+      let owner = t.name.owner
+      let modules = t.name.modules |> PACKAGE.Darklang.Stdlib.String.join "."
+      let name = match t.name.name with
+                     | TypeName name -> name
+      let version = PACKAGE.Darklang.Stdlib.Int64.toString_v0 t.name.version
+      let name  = $"Type {owner}.{modules}.{name}_v{version}"
+      Builtin.printLine $"Saving {name}"
       t
       |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
       |> saveItemToCanvas "type")
@@ -89,6 +105,13 @@ let loadPackageFileIntoDarkCanvas
   let constantResults =
     package.constants
     |> PACKAGE.Darklang.Stdlib.List.map (fun c ->
+      let owner = c.name.owner
+      let modules = c.name.modules |> PACKAGE.Darklang.Stdlib.String.join "."
+      let name = match c.name.name with
+                     | ConstantName name -> name
+      let version = PACKAGE.Darklang.Stdlib.Int64.toString_v0 c.name.version
+      let name  = $"Constant {owner}.{modules}.{name}_v{version}"
+      Builtin.printLine $"Saving {name}"
       c
       |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
       |> saveItemToCanvas "constant")
