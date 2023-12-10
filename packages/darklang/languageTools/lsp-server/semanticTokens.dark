@@ -37,8 +37,20 @@ module Darklang =
           let toRelativeTokens
             (tokens: List<LanguageTools.SemanticTokens.SemanticToken>)
             : List<LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.RelativeSemanticToken<LanguageTools.SemanticTokens.TokenType>> =
-            (Stdlib.List.fold
-              tokens
+            tokens
+            |> Stdlib.List.sortByComparator_v0 (fun a b ->
+              // TODO: sort by rows, too
+              // TODO: handle equality?
+              if
+                Stdlib.Int64.lessThan
+                  a.sourceRange.start.column
+                  b.sourceRange.start.column
+              then
+                -1L
+              else
+                1L)
+            |> Builtin.unwrap
+            |> (Stdlib.List.fold
               (([], Parser.Point { row = 0L; column = 0L }))
               (fun acc token ->
                 let (tokensSoFar, endOfLastToken) = acc
@@ -61,8 +73,9 @@ module Darklang =
                         |> Builtin.unwrap
                       tokenType = token.tokenType }
 
-                (Stdlib.List.push tokensSoFar newToken, token.sourceRange)))
+                (Stdlib.List.push tokensSoFar newToken, token.sourceRange.end_)))
             |> Stdlib.Tuple2.first
+            |> Stdlib.List.reverse
 
 
           let toLspFormat

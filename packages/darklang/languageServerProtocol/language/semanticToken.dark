@@ -4,6 +4,14 @@ module Darklang =
   module LanguageServerProtocol =
     module SemanticTokens =
 
+      // module TokenFormat =
+      //   type TokenFormat = | Relative
+
+      //   let toJson (f: TokenFormat) : Json =
+      //     match f with
+      //     | Relative -> Json.String "relative"
+
+
       /// This type doesn't directly correspond to any part of the LSP spec,
       /// but is a representation of the `data` represented in the `SemanticTokens` type,
       /// used when the client and server agree upon the `'relative'` `TokenFormat`.
@@ -370,10 +378,6 @@ module Darklang =
 
   //------- 'textDocument/semanticTokens' -----
 
-  export namespace TokenFormat {
-    export const Relative: 'relative' = 'relative';
-  }
-  export type TokenFormat = 'relative';
 
 
   /// @proposed

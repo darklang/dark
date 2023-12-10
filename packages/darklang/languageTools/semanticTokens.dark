@@ -33,15 +33,119 @@ module Darklang =
           tokenType: TokenType }
 
 
-      // TODO: lots more mappings...
 
-      let fromParsedFile (wt: WrittenTypes.ParsedFile) : List<SemanticToken> =
-        match wt with
-        | PackageFunctions(_, _fns) ->
-          // TODO: make this real
+      let fromName (name: WrittenTypes.Name) : List<SemanticToken> =
+        match name with
+        | Unresolved(range, _parts) ->
+          [ SemanticToken
+              { sourceRange = range
+                tokenType = TokenType.Variable } ]
+
+
+      let fromLetPattern (lp: WrittenTypes.LetPattern) : List<SemanticToken> =
+        // type LetPattern =
+        //   | LPVariable of SourceRange * name: String
+        []
+
+
+      let fromTypeReference (t: WrittenTypes.TypeReference) : List<SemanticToken> =
+        let tokenRange =
+          match t with
+          | TUnit r -> r
+          | TBool r -> r
+          | TInt64 r -> r
+          | TFloat r -> r
+          | TChar r -> r
+          | TString r -> r
+
+        [ SemanticToken
+            { sourceRange = tokenRange
+              tokenType = TokenType.Type } ]
+
+
+
+      let fromExpr (expr: WrittenTypes.Expr) : List<SemanticToken> =
+        // type Expr =
+        //   | EUnit of SourceRange
+        //   | EBool of SourceRange * Bool
+        //   | EInt64 of SourceRange * Int64
+        //   | EString of SourceRange * StringSegment
+
+        //   | ELet of SourceRange * LetPattern * Expr * Expr
+        //   | EVariable of SourceRange * String
+        //   | EFnName of Name
+        //   | EInfix of SourceRange * Infix * Expr * Expr
+        //   | EApply of
+        //     SourceRange *
+        //     Expr *
+        //     typeArgs: List<TypeReference> *
+        //     args: List<Expr>
+        []
+
+
+      /// assumptions:
+      /// - each param is not broken up with newlines
+      ///   (though newlines between them is OK)
+      ///
+      ///   if we want to allow for newlines in these defs,
+      ///   then we need to capture the sourceRange of the `name:String` as well
+      let fromPackageFnParam
+        (p: WrittenTypes.PackageFn.Parameter)
+        : List<SemanticToken> =
+        let namePart =
+          let namePartStart =
+            Parser.Point
+              { row = p.sourceRange.start.row
+                // skip the `(`
+                column = p.sourceRange.start.column + 1L }
+
+          let namePartEnd =
+            { namePartStart with
+                column = namePartStart.column + (Stdlib.String.length p.name) }
+
           [ SemanticToken
               { sourceRange =
                   Parser.Range
-                    { start = Parser.Point { row = 0L; column = 0L }
-                      end_ = Parser.Point { row = 0L; column = 3L } }
+                    { start = namePartStart
+                      end_ = namePartEnd }
+                tokenType = TokenType.Function } ]
+
+        let typePart = fromTypeReference p.typ
+
+        Stdlib.List.flatten [ namePart; typePart ]
+
+
+      let fromPackageFn
+        (fn: WrittenTypes.PackageFn.PackageFn)
+        : List<SemanticToken> =
+        let letParts =
+          [ SemanticToken
+              { sourceRange =
+                  Parser.Range
+                    { start = fn.sourceRange.start
+                      end_ =
+                        Parser.Point
+                          { row = fn.sourceRange.start.row
+                            column = fn.sourceRange.start.column + 3L } }
                 tokenType = TokenType.Keyword } ]
+
+        let nameParts = fromName fn.name
+
+        let paramsParts =
+          fn.parameters
+          |> Stdlib.List.map (fun p -> fromPackageFnParam p)
+          |> Stdlib.List.flatten
+
+        let returnTypeParts = fromTypeReference fn.returnType
+
+        let bodyParts = fromExpr fn.body
+
+        Stdlib.List.flatten
+          [ letParts; nameParts; paramsParts; returnTypeParts; bodyParts ]
+
+
+      let fromParsedFile (wt: WrittenTypes.ParsedFile) : List<SemanticToken> =
+        match wt with
+        | PackageFunctions(_, fns) ->
+          // the wrapper doesn't have any tokens itself
+          fns |> Stdlib.List.map (fun fn -> fromPackageFn fn) |> Stdlib.List.flatten
