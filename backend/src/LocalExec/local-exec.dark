@@ -24,6 +24,8 @@ let listPackageFilesOnDisk (dir: String) : List<String> =
 
 
 
+let host () : String = "http://dark-packages.dlio.localhost:11003"
+// let host () : String = "https://packages.darklang.com"
 
 let saveItemToCanvas
   (json: String)
@@ -32,7 +34,7 @@ let saveItemToCanvas
   let response =
     PACKAGE.Darklang.Stdlib.HttpClient.request
       "POST"
-      $"http://dark-packages.dlio.localhost:11003/{name}s"
+      $"{host ()}/{name}s"
       []
       (PACKAGE.Darklang.Stdlib.String.toBytes json)
 
@@ -216,8 +218,6 @@ let main (args: List<String>) : Int64 =
   | LoadPackagesIntoDarkCanvas ->
     let files = (listPackageFilesOnDisk "/home/dark/app/packages") |> PACKAGE.Darklang.Stdlib.List.sort
 
-    // TODO: clear packages from dark canvas first?
-
     // Wait for canvas to be ready
     let available =
       PACKAGE.Darklang.Stdlib.List.fold
@@ -229,7 +229,7 @@ let main (args: List<String>) : Int64 =
           | Error _ ->
             (PACKAGE.Darklang.Stdlib.HttpClient.request
               "GET"
-              "http://dark-packages.dlio.localhost:11003/health"
+              $"{host ()}/health"
               []
               [])
             |> PACKAGE.Darklang.Stdlib.Result.map (fun _ -> ())
