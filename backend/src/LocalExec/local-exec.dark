@@ -24,17 +24,15 @@ let listPackageFilesOnDisk (dir: String) : List<String> =
 
 
 
-let host () : String = "http://dark-packages.dlio.localhost:11003"
-// let host () : String = "https://packages.darklang.com"
-
 let saveItemToCanvas
+  (host: String)
   (json: String)
   (name: String)
   : PACKAGE.Darklang.Stdlib.Result.Result<Unit, String> =
   let response =
     PACKAGE.Darklang.Stdlib.HttpClient.request
       "POST"
-      $"{host ()}/{name}s"
+      $"{host}/{name}s"
       []
       (PACKAGE.Darklang.Stdlib.String.toBytes json)
 
@@ -64,6 +62,7 @@ let saveItemToCanvas
 
 
 let loadPackageFileIntoDarkCanvas
+  (host : string)
   (filename: String)
   : PACKAGE.Darklang.Stdlib.Result.Result<Unit, String> =
   let package =
@@ -87,7 +86,7 @@ let loadPackageFileIntoDarkCanvas
       Builtin.printLine $"Saving {name}"
       fn
       |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
-      |> saveItemToCanvas "function")
+      |> saveItemToCanvas host "function")
 
   let typeResults =
     package.types
@@ -102,7 +101,7 @@ let loadPackageFileIntoDarkCanvas
       Builtin.printLine $"Saving {name}"
       t
       |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
-      |> saveItemToCanvas "type")
+      |> saveItemToCanvas host "type")
 
   let constantResults =
     package.constants
@@ -116,7 +115,7 @@ let loadPackageFileIntoDarkCanvas
       Builtin.printLine $"Saving {name}"
       c
       |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
-      |> saveItemToCanvas "constant")
+      |> saveItemToCanvas host "constant")
 
   // Flatten all the result lists into one list
   let allResults =
@@ -175,7 +174,7 @@ let printAllPackagesInDb () : Unit =
 // parse args and execute
 type CliOptions =
   | Help
-  | LoadPackagesIntoDarkCanvas
+  | LoadPackagesIntoDarkCanvas of String
   | ListPackages
   | BadOption of String
 
@@ -184,7 +183,8 @@ let usage () : String =
 
     Options:
       -h, --help          Show this help message and exit
-      load-packages-dark  Load packages from disk into dark packages canvas
+      load-packages-dlio  Load packages from disk into local dark packages canvas
+      load-packages-darklang-com  Load packages from disk into production packages canvas
       list-packages       List packages
   "
 
@@ -199,7 +199,8 @@ let parseArgs (args: List<String>) : CliOptions =
   | [ "load-packages" ] ->
     CliOptions.BadOption
       "`load-packages` now executes in F# (not sure how you got here)"
-  | [ "load-packages-dark" ] -> CliOptions.LoadPackagesIntoDarkCanvas
+  | [ "load-packages-dlio" ] -> CliOptions.LoadPackagesIntoDarkCanvas "http://dark-packages.dlio.localhost:11003"
+  | [ "load-packages-darklang-com" ] -> CliOptions.LoadPackagesIntoDarkCanvas "https://packages.darklang.com"
 
   | _ -> CliOptions.BadOption "Invalid arguments"
 
@@ -215,7 +216,7 @@ let main (args: List<String>) : Int64 =
     printAllPackagesInDb ()
     0L
 
-  | LoadPackagesIntoDarkCanvas ->
+  | LoadPackagesIntoDarkCanvas host ->
     let files = (listPackageFilesOnDisk "/home/dark/app/packages") |> PACKAGE.Darklang.Stdlib.List.sort
 
     // Wait for canvas to be ready
@@ -229,7 +230,7 @@ let main (args: List<String>) : Int64 =
           | Error _ ->
             (PACKAGE.Darklang.Stdlib.HttpClient.request
               "GET"
-              $"{host ()}/health"
+              $"{host}/health"
               []
               [])
             |> PACKAGE.Darklang.Stdlib.Result.map (fun _ -> ())
@@ -258,7 +259,7 @@ let main (args: List<String>) : Int64 =
             match acc with
             | Error _err -> acc
             | Ok() ->
-              match loadPackageFileIntoDarkCanvas f with
+              match loadPackageFileIntoDarkCanvas host f with
               | Error err ->
                 PACKAGE.Darklang.Stdlib.Result.Result.Error(
                   $"Failed to load packages from {f}:\n" ++ err
