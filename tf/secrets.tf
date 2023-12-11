@@ -16,7 +16,8 @@ variable "secret_names" {
     "allowed-dark-internal-canvas-ids",
     "prodexec-chisel-username",
     "prodexec-chisel-password",
-    "prodexec-ssh-password"
+    "prodexec-ssh-password",
+    "packages-darklang-com-auth-password"
   ]
 }
 
