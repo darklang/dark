@@ -32,6 +32,13 @@ type NameResolver =
     ///   parse it as a variable as a fallback if nothing is found under that name.
     allowError : bool
 
+    // Since packages often use things that are defined in the same package, and
+    // those package items won't be in the package manager yet when we try to
+    // resolve them, we need another approach here.
+    hackLocallyDefinedPackageTypes : Set<RT.TypeName.Package>
+    hackLocallyDefinedPackageFns : Set<RT.FnName.Package>
+    hackLocallyDefinedPackageConstants : Set<RT.ConstantName.Package>
+
     packageManager : Option<RT.PackageManager>
   }
 
@@ -47,6 +54,10 @@ let empty : NameResolver =
 
     // CLEANUP this should probably default to `false`
     allowError = true
+
+    hackLocallyDefinedPackageTypes = Set.empty
+    hackLocallyDefinedPackageFns = Set.empty
+    hackLocallyDefinedPackageConstants = Set.empty
 
     packageManager = None }
 
@@ -71,6 +82,10 @@ let create
 
     allowError = allowError
 
+    hackLocallyDefinedPackageTypes = Set.empty
+    hackLocallyDefinedPackageFns = Set.empty
+    hackLocallyDefinedPackageConstants = Set.empty
+
     packageManager = packageManager }
 
 
@@ -88,6 +103,15 @@ let merge
     userConstants = Set.union a.userConstants b.userConstants
 
     allowError = a.allowError && b.allowError
+
+    hackLocallyDefinedPackageTypes =
+      Set.union a.hackLocallyDefinedPackageTypes b.hackLocallyDefinedPackageTypes
+    hackLocallyDefinedPackageFns =
+      Set.union a.hackLocallyDefinedPackageFns b.hackLocallyDefinedPackageFns
+    hackLocallyDefinedPackageConstants =
+      Set.union
+        a.hackLocallyDefinedPackageConstants
+        b.hackLocallyDefinedPackageConstants
 
     packageManager = packageManager }
 
@@ -112,6 +136,10 @@ let fromBuiltins
     userConstants = Set.empty
 
     allowError = true
+
+    hackLocallyDefinedPackageTypes = Set.empty
+    hackLocallyDefinedPackageFns = Set.empty
+    hackLocallyDefinedPackageConstants = Set.empty
 
     packageManager = None }
 
@@ -150,6 +178,10 @@ let fromExecutionState (state : RT.ExecutionState) : NameResolver =
       |> Set.ofList
 
     allowError = true
+
+    hackLocallyDefinedPackageFns = Set.empty
+    hackLocallyDefinedPackageTypes = Set.empty
+    hackLocallyDefinedPackageConstants = Set.empty
 
     packageManager = Some state.packageManager }
 
@@ -315,11 +347,17 @@ let resolve
 module TypeName =
   let packageTypeExists
     (pm : Option<RT.PackageManager>)
+    (hackLocallyDefinedPackageTypes : Set<RT.TypeName.Package>)
     (typeName : RT.TypeName.Package)
     : Ply<bool> =
-    match pm with
-    | None -> Ply false
-    | Some pm -> pm.getType typeName |> Ply.map (fun found -> found |> Option.isSome)
+    uply {
+      match pm with
+      | None -> return false
+      | Some pm ->
+        match! pm.getType typeName with
+        | None -> return Set.contains typeName hackLocallyDefinedPackageTypes
+        | Some _ -> return true
+    }
 
   let maybeResolve
     (resolver : NameResolver)
@@ -334,7 +372,9 @@ module TypeName =
       FS2WT.Expr.parseTypeName
       resolver.builtinTypes
       resolver.userTypes
-      (packageTypeExists resolver.packageManager)
+      (packageTypeExists
+        resolver.packageManager
+        resolver.hackLocallyDefinedPackageTypes)
       PT2RT.TypeName.Package.toRT
       true
       currentModule
@@ -353,7 +393,9 @@ module TypeName =
       FS2WT.Expr.parseTypeName
       resolver.builtinTypes
       resolver.userTypes
-      (packageTypeExists resolver.packageManager)
+      (packageTypeExists
+        resolver.packageManager
+        resolver.hackLocallyDefinedPackageTypes)
       PT2RT.TypeName.Package.toRT
       resolver.allowError
       currentModule
@@ -362,11 +404,17 @@ module TypeName =
 module FnName =
   let packageFnExists
     (pm : Option<RT.PackageManager>)
+    (hackLocallyDefinedPackageFns : Set<RT.FnName.Package>)
     (fnName : RT.FnName.Package)
     : Ply<bool> =
-    match pm with
-    | None -> Ply false
-    | Some pm -> pm.getFn fnName |> Ply.map (fun found -> found |> Option.isSome)
+    uply {
+      match pm with
+      | None -> return false
+      | Some pm ->
+        match! pm.getFn fnName with
+        | None -> return Set.contains fnName hackLocallyDefinedPackageFns
+        | Some _ -> return true
+    }
 
   let maybeResolve
     (resolver : NameResolver)
@@ -381,7 +429,7 @@ module FnName =
       FS2WT.Expr.parseFn
       resolver.builtinFns
       resolver.userFns
-      (packageFnExists resolver.packageManager)
+      (packageFnExists resolver.packageManager resolver.hackLocallyDefinedPackageFns)
       PT2RT.FnName.Package.toRT
       true
       currentModule
@@ -400,7 +448,7 @@ module FnName =
       FS2WT.Expr.parseFn
       resolver.builtinFns
       resolver.userFns
-      (packageFnExists resolver.packageManager)
+      (packageFnExists resolver.packageManager resolver.hackLocallyDefinedPackageFns)
       PT2RT.FnName.Package.toRT
       resolver.allowError
       currentModule
@@ -409,12 +457,18 @@ module FnName =
 module ConstantName =
   let packageConstExists
     (pm : Option<RT.PackageManager>)
+    (hackLocallyDefinedPackageConstants : Set<RT.ConstantName.Package>)
     (constName : RT.ConstantName.Package)
     : Ply<bool> =
-    match pm with
-    | None -> Ply false
-    | Some pm ->
-      pm.getConstant constName |> Ply.map (fun found -> found |> Option.isSome)
+    uply {
+      match pm with
+      | None -> return false
+      | Some pm ->
+        match! pm.getConstant constName with
+        | None -> return Set.contains constName hackLocallyDefinedPackageConstants
+        | Some _ -> return true
+    }
+
 
   let maybeResolve
     (resolver : NameResolver)
@@ -428,7 +482,9 @@ module ConstantName =
       FS2WT.Expr.parseFn // same format
       resolver.builtinConstants
       resolver.userConstants
-      (packageConstExists resolver.packageManager)
+      (packageConstExists
+        resolver.packageManager
+        resolver.hackLocallyDefinedPackageConstants)
       PT2RT.ConstantName.Package.toRT
       true
       currentModule
@@ -446,7 +502,9 @@ module ConstantName =
       FS2WT.Expr.parseFn // same format
       resolver.builtinConstants
       resolver.userConstants
-      (packageConstExists resolver.packageManager)
+      (packageConstExists
+        resolver.packageManager
+        resolver.hackLocallyDefinedPackageConstants)
       PT2RT.ConstantName.Package.toRT
       resolver.allowError
       currentModule

@@ -4,13 +4,11 @@
 set -euo pipefail
 
 PUBLISHED=false
-CANVAS=
 
 for i in "$@"
 do
   case "${i}" in
     --published) PUBLISHED=true ;;
-    *) CANVAS="${i}" ;;
   esac
 done
 
@@ -32,9 +30,7 @@ do
     sleep 0.01
   fi
 done
-
-echo "Clearing canvas before loading from disk"
-./scripts/clear-canvas.sh "${CANVAS}"
+set -x
 
 echo "Running canvashack"
-"${EXE}" "${CANVAS}"
+"${EXE}" "${@}"

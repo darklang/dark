@@ -34,6 +34,7 @@ let resolver : LibParser.NameResolver.NameResolver =
 
   let thisResolver =
     { LibParser.NameResolver.empty with
+        allowError = false
         builtinFns =
           Set
             [ LibExecution.ProgramTypes.FnName.builtIn
@@ -67,8 +68,6 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DString contents; DString path ] ->
           uply {
-            let resolver = { resolver with allowError = false }
-
             let! (fns, types, constants) =
               LibParser.Parser.parsePackageFile resolver path contents
 

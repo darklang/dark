@@ -14,9 +14,8 @@ type Range =
 /// An error raised by the parser
 type ParserException(message : string, metadata : Metadata, range : Option<Range>) =
   // to make sure this still gets captured by anything that's capturing InternalExceptions
-  inherit Exception.InternalException(message)
+  inherit Exception.InternalException(message, metadata)
 
-  member _.metadata = metadata
   member _.range = range
 
   new(message : string,
