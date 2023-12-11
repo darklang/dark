@@ -1,3 +1,5 @@
 version: 2
 id: 11111111-1111-1111-1111-111111111112
 main: main
+required-secrets:
+  - AUTH_PASSWORD

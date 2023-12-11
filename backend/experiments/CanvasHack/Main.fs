@@ -25,7 +25,10 @@ type CanvasHackConfig =
     CanvasId : Option<string>
 
     [<Legivel.Attributes.YamlField("main")>]
-    Main : string }
+    Main : string
+
+    [<Legivel.Attributes.YamlField("required-secrets")>]
+    requiredSecrets : Option<List<string>> }
 
 let parseYamlExn<'a> (filename : string) : 'a =
   let contents = System.IO.File.ReadAllText filename
@@ -56,7 +59,7 @@ let destroyCanvas (id : CanvasID) : Task<unit> =
   }
 
 
-let seedCanvas (canvasName : string) =
+let seedCanvas (canvasName : string) (secrets : Map<string, string>) =
   task {
     let canvasDir = $"{baseDir}/{canvasName}"
     let config = parseYamlExn<CanvasHackConfig> $"{canvasDir}/config.yml"
@@ -80,6 +83,21 @@ let seedCanvas (canvasName : string) =
 
     do! destroyCanvas canvasID
     do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
+
+    match config.requiredSecrets with
+    | Some requiredSecrets ->
+      do!
+        requiredSecrets
+        |> Task.iterSequentially (fun secretName ->
+          task {
+            let secretValue =
+              Map.find secretName secrets
+              |> Exception.unwrapOptionInternal
+                "secret not found"
+                [ "secretName", secretName ]
+            do! LibCloud.Secret.insert canvasID secretName secretValue 0
+          })
+    | None -> ()
 
     let resolver =
       let builtIns =
@@ -117,27 +135,6 @@ let seedCanvas (canvasName : string) =
     do! C.saveTLIDs canvasID tls
 
 
-    // now that the canvas has been seeded, load any secrets in a .secrets file
-    let secretsFileLocation = $"{canvasDir}/.secrets"
-
-    if System.IO.File.Exists secretsFileLocation then
-      // read this file
-      do!
-        secretsFileLocation
-        |> System.IO.File.ReadAllLines
-        |> Array.filter (String.startsWith "#" >> not)
-        |> Array.filter (String.isEmpty >> not)
-        |> Array.map (fun line ->
-          match line.Split('=') with
-          | [| key; value |] -> (key, value)
-          | _ -> Exception.raiseInternal "invalid .secrets file" [])
-        |> Array.toList
-        |> Task.iterSequentially (fun (k, v) ->
-          LibCloud.Secret.insert canvasID k v 0)
-    else
-      // we don't have secrets to load - we're done
-      ()
-
     let host = $"http://{domain}:{LibService.Config.bwdServerPort}"
     let experimentalHost = $"http://{domain}:{LibService.Config.bwdDangerServerPort}"
     print
@@ -152,15 +149,21 @@ let main (args : string[]) =
     initSerializers ()
 
     task {
-      match args with
-      | [||]
-      | [| "--help" |] ->
+      match Array.toList args with
+      | []
+      | [ "--help" ] ->
         print $"`canvas-hack {CommandNames.import}` to load dark-editor from disk"
 
-      | [| canvasName |]
-      | [| CommandNames.import; canvasName |] ->
+      | CommandNames.import :: canvasName :: secrets ->
         print $"Loading canvas {canvasName} from disk"
-        do! seedCanvas canvasName
+        let secrets =
+          secrets
+          |> List.map (fun s ->
+            match String.split "=" s with
+            | [ name; value ] -> name, value
+            | _ -> Exception.raiseInternal  $"Invalid secret {s}" [])
+          |> Map.ofList
+        do! seedCanvas canvasName secrets
 
       | _ ->
         let args = args |> Array.toList |> String.concat " "

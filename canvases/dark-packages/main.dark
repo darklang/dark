@@ -22,89 +22,123 @@ type Entry =
 [<DB>]
 type PackagesDB = Entry
 
+
+let isAuthorized
+  (headers: List<(String * String)>)
+  : PACKAGE.Darklang.Stdlib.Option.Option<Bool> =
+  headers
+  |> PACKAGE.Darklang.Stdlib.List.findFirst (fun (k,v) -> k == "authorization")
+  |> PACKAGE.Darklang.Stdlib.Option.map PACKAGE.Darklang.Stdlib.Tuple2.second
+  |> PACKAGE.Darklang.Stdlib.Option.map (fun x -> PACKAGE.Darklang.Stdlib.String.split x " ")
+  |> PACKAGE.Darklang.Stdlib.Option.andThen PACKAGE.Darklang.Stdlib.List.last
+  |> PACKAGE.Darklang.Stdlib.Option.map PACKAGE.Darklang.Stdlib.String.trim
+  |> PACKAGE.Darklang.Stdlib.Option.map (fun s -> s == AUTH_PASSWORD)
+
+
+let checkAuthorization
+  (headers: List<(String * String)>)
+  (f: Unit -> PACKAGE.Darklang.Stdlib.Http.Response)
+  : PACKAGE.Darklang.Stdlib.Http.Response =
+  match isAuthorized headers with
+  | None ->
+    PACKAGE.Darklang.Stdlib.Http.response
+      (PACKAGE.Darklang.Stdlib.String.toBytes "Authorization required")
+      400L
+  | Some false ->
+    PACKAGE.Darklang.Stdlib.Http.response
+      (PACKAGE.Darklang.Stdlib.String.toBytes "not authorized")
+      401L
+  | Some true -> f ()
+
 [<HttpHandler("POST", "/types")>]
-let _handler _req =
-  let value =
-    request.body
-    |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
-    |> Builtin.Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
-    |> Builtin.unwrap
+let _handler request =
+  checkAuthorization request.headers (fun () ->
+    let value =
+      request.body
+      |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
+      |> Builtin.Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
+      |> Builtin.unwrap
 
-  let item =
-    Entry
-      { name =
-          GenericName
-            { name =
-                value.name.name
-                |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.name
-              modules = value.name.modules
-              owner = value.name.owner
-              version = value.name.version }
-        package = PackageItem.Type value
-        category = Category.Type }
+    let item =
+      Entry
+        { name =
+            GenericName
+              { name =
+                  value.name.name
+                  |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.name
+                modules = value.name.modules
+                owner = value.name.owner
+                version = value.name.version }
+          package = PackageItem.Type value
+          category = Category.Type }
 
-  let key = Builtin.DB.generateKey_v0 ()
-  Builtin.DB.set item key PackagesDB
+    let key = Builtin.DB.generateKey_v0 ()
+    Builtin.DB.set item key PackagesDB
 
-  PACKAGE.Darklang.Stdlib.Http.response
-    (PACKAGE.Darklang.Stdlib.String.toBytes "added")
-    200L
+    PACKAGE.Darklang.Stdlib.Http.response
+      (PACKAGE.Darklang.Stdlib.String.toBytes "added")
+      200L)
+
+
+
 
 [<HttpHandler("POST", "/functions")>]
-let _handler _req =
-  let value =
-    request.body
-    |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
-    |> Builtin.Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
-    |> Builtin.unwrap
+let _handler request =
+  checkAuthorization request.headers (fun () ->
+    let value =
+      request.body
+      |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
+      |> Builtin.Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
+      |> Builtin.unwrap
 
-  let item =
-    Entry
-      { name =
-          GenericName
-            { name =
-                value.name.name
-                |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.name
-              modules = value.name.modules
-              owner = value.name.owner
-              version = value.name.version }
-        package = PackageItem.Fn value
-        category = Category.Fn }
+    let item =
+      Entry
+        { name =
+            GenericName
+              { name =
+                  value.name.name
+                  |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.name
+                modules = value.name.modules
+                owner = value.name.owner
+                version = value.name.version }
+          package = PackageItem.Fn value
+          category = Category.Fn }
 
-  let key = Builtin.DB.generateKey_v0 ()
-  Builtin.DB.set item key PackagesDB
+    let key = Builtin.DB.generateKey_v0 ()
+    Builtin.DB.set item key PackagesDB
 
-  PACKAGE.Darklang.Stdlib.Http.response
-    (PACKAGE.Darklang.Stdlib.String.toBytes "added")
-    200L
+    PACKAGE.Darklang.Stdlib.Http.response
+      (PACKAGE.Darklang.Stdlib.String.toBytes "added")
+      200L)
 
 [<HttpHandler("POST", "/constants")>]
-let _handler _req =
-  let value =
-    request.body
-    |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
-    |> Builtin.Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
-    |> Builtin.unwrap
+let _handler request =
+  checkAuthorization request.headers (fun () ->
+    let value =
+      request.body
+      |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
+      |> Builtin.Json.parse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
+      |> Builtin.unwrap
 
-  let item =
-    Entry
-      { name =
-          GenericName
-            { name =
-                value.name.name
-                |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name
-              modules = value.name.modules
-              owner = value.name.owner
-              version = value.name.version }
-        package = PackageItem.Constant value
-        category = Category.Constant }
+    let item =
+      Entry
+        { name =
+            GenericName
+              { name =
+                  value.name.name
+                  |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name
+                modules = value.name.modules
+                owner = value.name.owner
+                version = value.name.version }
+          package = PackageItem.Constant value
+          category = Category.Constant }
 
-  let key = Builtin.DB.generateKey_v0 ()
-  Builtin.DB.set item key PackagesDB
+    let key = Builtin.DB.generateKey_v0 ()
+    Builtin.DB.set item key PackagesDB
 
-  PACKAGE.Darklang.Stdlib.Http.response
-    (PACKAGE.Darklang.Stdlib.String.toBytes "added")
-    200L
+    PACKAGE.Darklang.Stdlib.Http.response
+      (PACKAGE.Darklang.Stdlib.String.toBytes "added")
+      200L)
 
 
 
