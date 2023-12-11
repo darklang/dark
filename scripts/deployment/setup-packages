@@ -93,6 +93,6 @@ case $1 in
 
   6)
     echo "6. Upload packages"
-    run_local_exec load-packages-darklang-com
+    run_local_exec load-packages-darklang-com "$packages_password"
     ;;
 esac
