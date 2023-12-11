@@ -27,9 +27,10 @@ let isAuthorized
   (headers: List<(String * String)>)
   : PACKAGE.Darklang.Stdlib.Option.Option<Bool> =
   headers
-  |> PACKAGE.Darklang.Stdlib.List.findFirst (fun (k,v) -> k == "authorization")
+  |> PACKAGE.Darklang.Stdlib.List.findFirst (fun (k, v) -> k == "authorization")
   |> PACKAGE.Darklang.Stdlib.Option.map PACKAGE.Darklang.Stdlib.Tuple2.second
-  |> PACKAGE.Darklang.Stdlib.Option.map (fun x -> PACKAGE.Darklang.Stdlib.String.split x " ")
+  |> PACKAGE.Darklang.Stdlib.Option.map (fun x ->
+    PACKAGE.Darklang.Stdlib.String.split x " ")
   |> PACKAGE.Darklang.Stdlib.Option.andThen PACKAGE.Darklang.Stdlib.List.last
   |> PACKAGE.Darklang.Stdlib.Option.map PACKAGE.Darklang.Stdlib.String.trim
   |> PACKAGE.Darklang.Stdlib.Option.map (fun s -> s == AUTH_PASSWORD)

@@ -161,7 +161,7 @@ let main (args : string[]) =
           |> List.map (fun s ->
             match String.split "=" s with
             | [ name; value ] -> name, value
-            | _ -> Exception.raiseInternal  $"Invalid secret {s}" [])
+            | _ -> Exception.raiseInternal $"Invalid secret {s}" [])
           |> Map.ofList
         do! seedCanvas canvasName secrets
 

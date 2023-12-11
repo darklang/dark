@@ -34,7 +34,7 @@ let saveItemToCanvas
     PACKAGE.Darklang.Stdlib.HttpClient.request
       "POST"
       $"{host}/{name}s"
-      [PACKAGE.Darklang.Stdlib.HttpClient.bearerToken password]
+      [ PACKAGE.Darklang.Stdlib.HttpClient.bearerToken password ]
       (PACKAGE.Darklang.Stdlib.String.toBytes json)
 
   let errMsg = $"Error saving {name} to canvas"
@@ -215,7 +215,10 @@ let parseArgs (args: List<String>) : CliOptions =
     CliOptions.BadOption
       "`load-packages` now executes in F# (not sure how you got here)"
   | [ "load-packages-dlio" ] ->
-    CliOptions.LoadPackagesIntoDarkCanvas("http://dark-packages.dlio.localhost:11003", "password")
+    CliOptions.LoadPackagesIntoDarkCanvas(
+      "http://dark-packages.dlio.localhost:11003",
+      "password"
+    )
   | [ "load-packages-darklang-com"; password ] ->
     CliOptions.LoadPackagesIntoDarkCanvas("https://packages.darklang.com", password)
 
