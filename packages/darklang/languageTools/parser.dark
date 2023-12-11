@@ -182,27 +182,7 @@ module Darklang =
 
         // TODO: This is not tested yet
         | "function_call" ->
-          let fnNameNode = (findNodeByFieldName parsed "fn") |> Builtin.unwrap
-
-          let args =
-            (findNodeByFieldName parsed "args")
-            |> Builtin.unwrap
-            |> fun argsNode -> argsNode.children
-            |> Stdlib.List.map (fun arg -> (parseExpr arg) |> Builtin.unwrap)
-
-          (WrittenTypes.Expr.EApply(
-            parsed.sourceRange,
-            WrittenTypes.Expr.EFnName(
-              WrittenTypes.Name.Unresolved(
-                fnNameNode.sourceRange,
-                [ "Darklang"; "Stdlib"; "Int"; getText fnNameNode ]
-              )
-
-            ),
-            [],
-            args
-          ))
-          |> Stdlib.Result.Result.Ok
+          Stdlib.Result.Result.Error "TODO : function_call not implemented"
 
 
         | uncaughtType ->
@@ -393,7 +373,7 @@ module Darklang =
               match packageFnDefs with
               | Error e -> Stdlib.Result.Result.Error e
               | Ok packageFnDefs ->
-                (WrittenTypes.ParsedFile.PackageFunctions(
+                (WrittenTypes.ParsedFile.PackageItems(
                   parsed.sourceRange,
                   Stdlib.List.reverse packageFnDefs
                 ))
@@ -417,8 +397,10 @@ module Darklang =
               match typeDefs with
               | Error e -> Stdlib.Result.Result.Error e
               | Ok typeDefs ->
-                (WrittenTypes.ParsedFile.PackageTypes(
+                (WrittenTypes.ParsedFile.PackageItems(
                   parsed.sourceRange,
                   Stdlib.List.reverse typeDefs
                 ))
                 |> Stdlib.Result.Result.Ok
+
+            | _ -> Stdlib.Result.Result.Error $"TODO : {child.typ} not implemented"

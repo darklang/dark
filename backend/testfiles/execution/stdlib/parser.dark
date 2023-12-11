@@ -430,7 +430,7 @@ module ParseNodeToWrittenTypes =
     .LanguageTools
     .WrittenTypes
     .ParsedFile
-    .PackageFunctions(
+    .PackageItems(
       range (0L, 0L) (0L, 30L),
       [ (PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.PackageFn
           { sourceRange = range (0L, 0L) (0L, 30L)
@@ -467,7 +467,7 @@ module ParseNodeToWrittenTypes =
     .LanguageTools
     .WrittenTypes
     .ParsedFile
-    .PackageFunctions(
+    .PackageItems(
       range (0L, 0L) (0L, 33L),
       [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.PackageFn
           { sourceRange = range (0L, 0L) (0L, 33L)
@@ -517,7 +517,7 @@ module ParseNodeToWrittenTypes =
     .LanguageTools
     .WrittenTypes
     .ParsedFile
-    .PackageFunctions(
+    .PackageItems(
       range (0L, 0L) (0L, 38L),
       [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.PackageFn
           { sourceRange = range (0L, 0L) (0L, 38L)
@@ -578,7 +578,7 @@ module ParseNodeToWrittenTypes =
     .LanguageTools
     .WrittenTypes
     .ParsedFile
-    .PackageFunctions(
+    .PackageItems(
       range (0L, 0L) (2L, 5L),
       [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.PackageFn
           { sourceRange = range (0L, 0L) (2L, 5L)
@@ -650,7 +650,7 @@ module ParseNodeToWrittenTypes =
     .LanguageTools
     .WrittenTypes
     .ParsedFile
-    .PackageTypes(
+    .PackageItems(
       range (0L, 0L) (0L, 45L),
       [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageType
           { sourceRange = range (0L, 0L) (0L, 45L)
@@ -695,7 +695,7 @@ module ParseNodeToWrittenTypes =
     .LanguageTools
     .WrittenTypes
     .ParsedFile
-    .PackageTypes(
+    .PackageItems(
       range (0L, 0L) (0L, 17L),
       [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageType
           { sourceRange = range (0L, 0L) (0L, 17L)

@@ -239,6 +239,8 @@ module Darklang =
       //     description: String }
 
 
-      type ParsedFile =
-        | PackageFunctions of SourceRange * fns: List<PackageFn.PackageFn>
-        | PackageTypes of SourceRange * types: List<PackageType>
+      type PackageItem =
+        | Function of PackageFn.PackageFn
+        | Type of PackageType
+
+      type ParsedFile = PackageItems of SourceRange * items: List<PackageItem>
