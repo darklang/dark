@@ -273,17 +273,19 @@ module Darklang =
           (errorCode: Int64)
           (errorMessage: String)
           (errorData: Stdlib.Option.Option<Json>)
-          : String =
+          : Json =
           let errorDetailFeilds =
-            [ Some(("code", Json.Number errorCode))
-              Some(("message", Json.String errorMessage))
+            [ Stdlib.Option.Option.Some(
+                ("code", Json.Number(Stdlib.Int64.toFloat errorCode))
+              )
+              Stdlib.Option.Option.Some(("message", Json.String errorMessage))
               (errorData |> Stdlib.Option.map (fun data -> ("data", data))) ]
             |> Stdlib.Option.values
 
           let fields =
             [ (requestId |> Stdlib.Option.map (fun id -> ("id", requestIdToJson id)))
-              Some(("jsonrpc", Json.String "2.0"))
-              Some(("error", Json.Object errorDetailFeilds)) ]
+              Stdlib.Option.Option.Some(("jsonrpc", Json.String "2.0"))
+              Stdlib.Option.Option.Some(("error", Json.Object errorDetailFeilds)) ]
             |> Stdlib.Option.values
 
-          (Json.Object fields) |> Stdlib.AltJson.format
+          Json.Object fields

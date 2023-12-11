@@ -69,9 +69,11 @@ module Darklang =
 
         let handleTextDocumentDidClose
           (state: LspState)
-          (request:
+          (requestParams:
             LanguageServerProtocol.DocumentSync.TextDocument.DidCloseTextDocumentNotification.DidCloseTextDocumentParams.DidCloseTextDocumentParams)
           : LspState =
           { state with
               documentsInScope =
-                Stdlib.Dict.remove state.documentsInScope parsed.textDocument.uri }
+                Stdlib.Dict.remove
+                  state.documentsInScope
+                  requestParams.textDocument.uri }

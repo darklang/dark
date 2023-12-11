@@ -4,6 +4,57 @@ module Darklang =
   module LanguageServerProtocol =
     module SemanticTokens =
 
+      // module TokenFormat =
+      //   type TokenFormat = | Relative
+
+      //   let toJson (f: TokenFormat) : Json =
+      //     match f with
+      //     | Relative -> Json.String "relative"
+
+
+      /// This type doesn't directly correspond to any part of the LSP spec,
+      /// but is a representation of the `data` represented in the `SemanticTokens` type,
+      /// used when the client and server agree upon the `'relative'` `TokenFormat`.
+      ///
+      /// Note: our (Darklang's internal) use case does not yet use token modifiers,
+      /// so we have not tried to implement that here,
+      /// and hardcode "0" in the relevant `data` field parts.
+      ///
+      /// Note: the deltaLine and deltaStart fields are relative to the
+      /// _start_ of the previous token, not the end of it. This can be
+      /// surprising, but allows for overlapping tokens, which may be present
+      /// in some languages.
+      module RelativeSemanticToken =
+        type RelativeSemanticToken<'TokenType> =
+          {
+            /// The difference in lines from the start of the previous token
+            deltaLine: UInt64
+
+            /// The difference in characters (columns)
+            /// from the start of the previous token on the same line
+            /// , or from the start of the line if it's the first token on that line
+            deltaStart: UInt64
+
+            /// The length of the token
+            length: UInt64
+
+            /// The type of semantic token (i.e. keyword, string, operator, etc.)
+            tokenType: 'TokenType
+          }
+
+        /// Maps a `List<RelativeSemanticToken>` to a flat `List<UInt>` list
+        /// representing the semantic tokens, with five numbers per token.
+        let mapListToFlatDataForResult<'TokenType>
+          (typeToValue: 'TokenType -> UInt64)
+          (tokens: List<RelativeSemanticToken<'TokenType>>)
+          : List<UInt64> =
+          tokens
+          |> Stdlib.List.map (fun t ->
+            [ t.deltaLine; t.deltaStart; t.length; typeToValue t.tokenType; 0UL ])
+          |> Stdlib.List.flatten
+
+
+
       module SemanticTokensLegend =
         type SemanticTokensLegend =
           {
@@ -333,11 +384,6 @@ module Darklang =
 
   //------- 'textDocument/semanticTokens' -----
 
-  export namespace TokenFormat {
-    export const Relative: 'relative' = 'relative';
-  }
-
-  export type TokenFormat = 'relative';
 
 
   /// @proposed
