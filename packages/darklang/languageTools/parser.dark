@@ -368,7 +368,8 @@ module Darklang =
                       match parsePackageFnDef packageFnDef with
                       | Error e -> Stdlib.Result.Result.Error e
                       | Ok parsed ->
-                        Stdlib.Result.Result.Ok(Stdlib.List.push defs parsed))
+                        let pkgItem = WrittenTypes.PackageItem.Function(parsed)
+                        Stdlib.Result.Result.Ok(Stdlib.List.push defs pkgItem))
 
               match packageFnDefs with
               | Error e -> Stdlib.Result.Result.Error e
@@ -392,7 +393,8 @@ module Darklang =
                       match parsePackageTypeDef typeDef with
                       | Error e -> Stdlib.Result.Result.Error e
                       | Ok parsed ->
-                        Stdlib.Result.Result.Ok(Stdlib.List.push defs parsed))
+                        let pkgItem = WrittenTypes.PackageItem.Type(parsed)
+                        Stdlib.Result.Result.Ok(Stdlib.List.push defs pkgItem))
 
               match typeDefs with
               | Error e -> Stdlib.Result.Result.Error e
