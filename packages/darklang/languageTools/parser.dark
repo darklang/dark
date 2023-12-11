@@ -94,7 +94,20 @@ module Darklang =
             (WrittenTypes.TypeReference.TChar(node.sourceRange))
             |> Stdlib.Option.Option.Some
 
-          | _ -> Stdlib.Option.Option.None // TODO: error?
+          | _ -> Stdlib.Option.Option.None
+
+        else if node.typ == "qualified_name" then
+          let parts =
+            node.children
+            |> Stdlib.List.filter (fun c -> c.typ == "identifier")
+            |> Stdlib.List.map (fun c -> c.text)
+
+
+          (WrittenTypes.TypeReference.TCustomType(
+            WrittenTypes.Name.Unresolved(node.sourceRange, parts),
+            []
+          ))
+          |> Stdlib.Option.Option.Some
         else
           Stdlib.Option.Option.None // TODO: error?
 
@@ -107,7 +120,6 @@ module Darklang =
         | "identifier" ->
           (WrittenTypes.Expr.EVariable(parsed.sourceRange, getText parsed))
           |> Stdlib.Result.Result.Ok
-
 
         | "infix_operation" ->
           let leftArg =
@@ -170,27 +182,7 @@ module Darklang =
 
         // TODO: This is not tested yet
         | "function_call" ->
-          let fnNameNode = (findNodeByFieldName parsed "fn") |> Builtin.unwrap
-
-          let args =
-            (findNodeByFieldName parsed "args")
-            |> Builtin.unwrap
-            |> fun argsNode -> argsNode.children
-            |> Stdlib.List.map (fun arg -> (parseExpr arg) |> Builtin.unwrap)
-
-          (WrittenTypes.Expr.EApply(
-            parsed.sourceRange,
-            WrittenTypes.Expr.EFnName(
-              WrittenTypes.Name.Unresolved(
-                fnNameNode.sourceRange,
-                [ "Darklang"; "Stdlib"; "Int"; getText fnNameNode ]
-              )
-
-            ),
-            [],
-            args
-          ))
-          |> Stdlib.Result.Result.Ok
+          Stdlib.Result.Result.Error "TODO : function_call not implemented"
 
 
         | uncaughtType ->
@@ -207,7 +199,7 @@ module Darklang =
           | [ single ] -> parseExprCase single
           | _ -> Stdlib.Result.Result.Error "Not a single expression"
         else
-          Stdlib.Result.Result.Error "Not an expression"
+          Stdlib.Result.Result.Error $"Not an expression: {parsed.typ}"
 
 
 
@@ -314,37 +306,103 @@ module Darklang =
         else
           Stdlib.Result.Result.Error parsed
 
+      let parsePackageTypeDef
+        (parsed: ParsedNode)
+        : Stdlib.Result.Result<WrittenTypes.PackageType, String> =
+        if parsed.typ == "type_def" then
+          let nameNode = parsed |> findNodeByFieldName "name" |> Builtin.unwrap
+
+          let typ =
+            (findNodeByFieldName parsed "typ")
+            |> Builtin.unwrap
+            |> parseTypeReference
+            |> Builtin.unwrap
+
+
+          (WrittenTypes.PackageType
+            { sourceRange = parsed.sourceRange
+              name =
+                WrittenTypes.Name.Unresolved(nameNode.sourceRange, [ nameNode.text ])
+              declaration =
+                WrittenTypes.TypeDeclaration.TypeDeclaration
+                  {
+                    // typeParams = []
+                    definition =
+                      PACKAGE
+                        .Darklang
+                        .LanguageTools
+                        .WrittenTypes
+                        .TypeDeclaration
+                        .Definition
+                        .Alias(typ) }
+            //description = ""
+            })
+
+          |> Stdlib.Result.Result.Ok
+        else
+          Stdlib.Result.Result.Error parsed
+
 
       /// Currently, all "source files"
-      /// are just a list of package function definitions
+      /// are just a list of package function definitions and type definitions
       ///
       /// TODO^
       let parseNodeToWrittenTypesSourceFile
         (parsed: ParsedNode)
         : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
         if parsed.typ == "source_file" then
-          let packageFnDefs =
-            Stdlib.List.fold
-              parsed.children
-              (Stdlib.Result.Result.Ok [])
-              (fun defs packageFnDef ->
-                match defs with
-                | Error e -> Stdlib.Result.Result.Error e
+          match parsed.children with
+          | [] -> Stdlib.Result.Result.Ok(fnDefs, typeDefs)
+          | child :: rest ->
+            match child.typ with
+            | "fn_def" ->
+              let packageFnDefs =
+                Stdlib.List.fold
+                  parsed.children
+                  (Stdlib.Result.Result.Ok [])
+                  (fun defs packageFnDef ->
+                    match defs with
+                    | Error e -> Stdlib.Result.Result.Error e
 
-                | Ok defs ->
-                  match parsePackageFnDef packageFnDef with
-                  | Error e -> Stdlib.Result.Result.Error e
-                  | Ok parsed ->
-                    Stdlib.Result.Result.Ok(Stdlib.List.push defs parsed))
+                    | Ok defs ->
+                      match parsePackageFnDef packageFnDef with
+                      | Error e -> Stdlib.Result.Result.Error e
+                      | Ok parsed ->
+                        let pkgItem = WrittenTypes.PackageItem.Function(parsed)
+                        Stdlib.Result.Result.Ok(Stdlib.List.push defs pkgItem))
 
-          match packageFnDefs with
-          | Error e -> Stdlib.Result.Result.Error e
-          | Ok packageFnDefs ->
-            (WrittenTypes.ParsedFile.PackageFunctions(
-              parsed.sourceRange,
-              Stdlib.List.reverse packageFnDefs
-            ))
-            |> Stdlib.Result.Result.Ok
+              match packageFnDefs with
+              | Error e -> Stdlib.Result.Result.Error e
+              | Ok packageFnDefs ->
+                (WrittenTypes.ParsedFile.PackageItems(
+                  parsed.sourceRange,
+                  Stdlib.List.reverse packageFnDefs
+                ))
+                |> Stdlib.Result.Result.Ok
 
-        else
-          Stdlib.Result.Result.Error "Not a source_file"
+            | "type_def" ->
+              let typeDefs =
+                Stdlib.List.fold
+                  parsed.children
+                  (Stdlib.Result.Result.Ok [])
+                  (fun defs typeDef ->
+                    match defs with
+                    | Error e -> Stdlib.Result.Result.Error e
+
+                    | Ok defs ->
+                      match parsePackageTypeDef typeDef with
+                      | Error e -> Stdlib.Result.Result.Error e
+                      | Ok parsed ->
+                        let pkgItem = WrittenTypes.PackageItem.Type(parsed)
+                        Stdlib.Result.Result.Ok(Stdlib.List.push defs pkgItem))
+
+              match typeDefs with
+              | Error e -> Stdlib.Result.Result.Error e
+              | Ok typeDefs ->
+                (WrittenTypes.ParsedFile.PackageItems(
+                  parsed.sourceRange,
+                  Stdlib.List.reverse typeDefs
+                ))
+                |> Stdlib.Result.Result.Ok
+
+            | _ -> Stdlib.Result.Result.Error $"TODO : {child.typ} not implemented"

@@ -1,0 +1,277 @@
+module Darklang =
+  module LanguageTools =
+    module WrittenTypesToProgramTypes =
+
+      let gid () : Int64 =
+        PACKAGE.Darklang.Stdlib.Int64.random 0L 9223372036854775807L
+
+
+      module InfixFnName =
+        let toPT
+          (name: LanguageTools.WrittenTypes.InfixFnName)
+          : LanguageTools.ProgramTypes.InfixFnName =
+          match name with
+          | ArithmeticPlus -> LanguageTools.ProgramTypes.InfixFnName.ArithmeticPlus
+          | ArithmeticMinus -> LanguageTools.ProgramTypes.InfixFnName.ArithmeticMinus
+      // | ArithmeticMultiply -> LanguageTools.ProgramTypes.InfixFnName.ArithmeticMultiply
+      // | ArithmeticDivide -> LanguageTools.ProgramTypes.InfixFnName.ArithmeticDivide
+      // | ArithmeticModulo -> LanguageTools.ProgramTypes.InfixFnName.ArithmeticModulo
+      // | ArithmeticPower -> LanguageTools.ProgramTypes.InfixFnName.ArithmeticPower
+      // | ComparisonGreaterThan -> LanguageTools.ProgramTypes.InfixFnName.ComparisonGreaterThan
+      // | ComparisonGreaterThanOrEqual -> LanguageTools.ProgramTypes.InfixFnName.ComparisonGreaterThanOrEqual
+      // | ComparisonLessThan -> LanguageTools.ProgramTypes.InfixFnName.ComparisonLessThan
+      // | ComparisonLessThanOrEqual -> LanguageTools.ProgramTypes.InfixFnName.ComparisonLessThanOrEqual
+      // | ComparisonEquals -> LanguageTools.ProgramTypes.InfixFnName.ComparisonEquals
+      // | ComparisonNotEquals -> LanguageTools.ProgramTypes.InfixFnName.ComparisonNotEquals
+      // | StringConcat -> LanguageTools.ProgramTypes.InfixFnName.StringConcat
+
+
+      module TypeReference =
+        let toPT
+          // (resolver: LanguageTools.NameResolver.NameResolver)
+          // (currentModule: List<String>)
+          (t: LanguageTools.WrittenTypes.TypeReference)
+          : LanguageTools.ProgramTypes.TypeReference =
+
+          match t with
+          | TUnit _ -> LanguageTools.ProgramTypes.TypeReference.TUnit
+          | TBool _ -> LanguageTools.ProgramTypes.TypeReference.TBool
+          | TInt64 _ -> LanguageTools.ProgramTypes.TypeReference.TInt64
+          // | TUInt64 _ -> LanguageTools.ProgramTypes.TypeReference.TUInt64
+          // | TInt8 _ -> LanguageTools.ProgramTypes.TypeReference.TInt8
+          // | TUInt8 _ -> LanguageTools.ProgramTypes.TypeReference.TUInt8
+          // | TInt16 _ -> LanguageTools.ProgramTypes.TypeReference.TInt16
+          // | TUInt16 _ -> LanguageTools.ProgramTypes.TypeReference.TUInt16
+          // | TInt32 _ -> LanguageTools.ProgramTypes.TypeReference.TInt32
+          // | TUInt32 _ -> LanguageTools.ProgramTypes.TypeReference.TUInt32
+          // | TInt128 _ -> LanguageTools.ProgramTypes.TypeReference.TInt128
+          // | TUInt128 _ -> LanguageTools.ProgramTypes.TypeReference.TUInt128
+          | TFloat _ -> LanguageTools.ProgramTypes.TypeReference.TFloat
+          | TChar _ -> LanguageTools.ProgramTypes.TypeReference.TChar
+          | TString _ -> LanguageTools.ProgramTypes.TypeReference.TString
+      // | TDateTime _ -> LanguageTools.ProgramTypes.TypeReference.TDateTime
+      // | TUuid _ -> LanguageTools.ProgramTypes.TypeReference.TUuid
+
+      // | TList (_, typ) -> "todo"
+      // | TTuple (_, typ1, typ2, typs) -> "todo"
+      // | TDict (_, typ) -> "todo"
+      // | TCustomType (_, typs) -> "todo"
+      // | TFn (_, typ) -> "todo"
+      // | TDB (_, typ) -> "todo"
+      // | TVariable (_, name) -> "todo"
+
+
+      // TODO: BinaryOperation
+
+      module Infix =
+        let toPT
+          (infix: LanguageTools.WrittenTypes.Infix)
+          : LanguageTools.ProgramTypes.Infix =
+          match infix with
+          | InfixFnCall name ->
+            LanguageTools.ProgramTypes.Infix.InfixFnCall(InfixFnName.toPT name)
+      // | BinOp (_, op) -> "todo"
+
+      // TODO : LetPattern
+      // module LetPattern =
+      //   let toPT
+      //     (p: LanguageTools.WrittenTypes.LetPattern)
+      //     : LanguageTools.ProgramTypes.LetPattern =
+      //     match p with
+      //     | LPVariable(_, name) ->
+      //       LanguageTools.ProgramTypes.LetPattern.LPVariable gid() name
+
+      // | LPTuple (_, first, second, rest) -> "todo"
+      // | LPUnit _ -> LanguageTools.ProgramTypes.LetPattern.LPUnit gid()
+
+
+      // TODO: MatchPattern
+
+
+      module Expr =
+        // let resolveTypeName
+        //   (resolver: LanguageTools.NameResolver.NameResolver)
+        //   (currentModule: List<String>)
+        //   (name: LanguageTools.WrittenTypes.Name)
+        //   : LanguageTools.ProgramTypes.Name = "todo"
+
+        let toPT
+          // (resolver: LanguageTools.NameResolver.NameResolver)
+          // (currentModule: List<String>)
+          (e: LanguageTools.WrittenTypes.Expr)
+          : LanguageTools.ProgramTypes.Expr =
+
+          match e with
+          | EChar(_, c) -> LanguageTools.ProgramTypes.Expr.EChar (gid ()) c
+          | EInt64(_, i) -> LanguageTools.ProgramTypes.Expr.EInt64 (gid ()) i
+          | EUInt64(_, i) -> LanguageTools.ProgramTypes.Expr.EUInt64 (gid ()) i
+          // | EInt8 (_, i) -> LanguageTools.ProgramTypes.Expr.EInt8 gid() i
+          // | EUInt8 (_, i) -> LanguageTools.ProgramTypes.Expr.EUInt8 gid() i
+          // | EInt16 (_, i) -> LanguageTools.ProgramTypes.Expr.EInt16 gid() i
+          // | EUInt16 (_, i) -> LanguageTools.ProgramTypes.Expr.EUInt16 gid() i
+          // | EInt32 (_, i) -> LanguageTools.ProgramTypes.Expr.EInt32 gid() i
+          // | EUInt32 (_, i) -> LanguageTools.ProgramTypes.Expr.EUInt32 gid() i
+          // | EInt128 (_, i) -> LanguageTools.ProgramTypes.Expr.EInt128 gid() i
+          // | EUInt128 (_, i) -> LanguageTools.ProgramTypes.Expr.EUInt128 gid() i
+          // | EString (_, s) ->
+          // TODO: string segments
+          // LanguageTools.ProgramTypes.Expr.EString gid() s
+          // | EFloat (_, sign, whole, fractional) ->
+          //   LanguageTools.ProgramTypes.Expr.EFloat gid() sign whole fractional
+          // | EBool (_, b) -> LanguageTools.ProgramTypes.Expr.EBool gid() b
+          | EUnit _ -> LanguageTools.ProgramTypes.Expr.EUnit 0L
+          | EVariable(_, var) ->
+            // TODO: userConstant
+            LanguageTools.ProgramTypes.Expr.EVariable 0L var // replace 0 with gid
+          // | EFieldAccess (_, obj, fieldname) -> "todo"
+          // | EApply  -> "todo"
+
+          // | EFnName (_, name) ->
+          //   let fnName = LanguageTools.NameResolver.FnName.maybeResolve resolver currentModule name
+
+          //   match fnName, name with
+          //   | Error _, Unresolved (_, parts) ->
+          //     LanguageTools.ProgramTypes.Expr.EVariable (gid() (PACKAGE.Darklang.Stdlib.List.last parts))
+          //   | _ , _ -> LanguageTools.ProgramTypes.Expr.EFnName gid() name
+
+          // | ELambda (_, pats, body) -> "todo"
+
+          | ELet(_, pat, rhs, body) ->
+            let pat = LetPattern.toPT pat
+            let rhs = toPT resolver currentModule rhs
+            let body = toPT resolver currentModule body
+
+            LanguageTools.ProgramTypes.Expr.ELet (gid ()) pat rhs body
+
+          // | EIf (_, cond, thenExpr, elseExpr) -> "todo"
+          // | EList (_, exprs) -> "todo"
+          // | ETuple (_, first, second, rest) -> "todo"
+          // | ERecord (_, name, fields) -> "todo"
+          // | ERecordUpdate (_, record, updates) -> "todo"
+          // | EPipe (_, expr, rest) -> "todo"
+          // | EEnum (_, typeName, caseName, fields) -> "todo"
+          // | EMatch (_, mexpr, cases) -> "todo"
+          | EInfix(_, infix, arg1, arg2) ->
+            let infix = Infix.toPT infix
+            // let arg1 = toPT resolver currentModule arg1
+            // let arg2 = toPT resolver currentModule arg2
+            let arg1 = toPT arg1
+            let arg2 = toPT arg2
+
+            LanguageTools.ProgramTypes.Expr.EInfix 0L infix arg1 arg2
+      // | EDict (_, pairs) -> "todo"
+      // | EPlaceHolder -> "todo"
+
+
+      let stringSegmentToPT
+        (s: LanguageTools.WrittenTypes.StringSegment)
+        : LanguageTools.ProgramTypes.StringSegment =
+        match s with
+        | StringText text -> LanguageTools.ProgramTypes.StringSegment.StringText text
+      // | StringInterpolation expr -> "todo"
+
+
+      // TODO : pipeExprToPT
+
+      // TODO: MatchCase
+
+      // TODO: Const
+
+      // TODO: TypeDeclaration
+
+      module TypeDeclaration =
+        module Definition =
+          let toPT
+            // (resolver: LanguageTools.NameResolver.NameResolver)
+            // (currentModule: List<String>)
+            (d: LanguageTools.WrittenTypes.TypeDeclaration.Definition)
+            : LanguageTools.ProgramTypes.TypeDeclaration.Definition =
+
+            match d with
+            | Alias typ ->
+              let typ = TypeReference.toPT typ
+              // let typ = TypeReference.toPT resolver currentModule typ
+
+              LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias typ
+
+
+        let toPT
+          // (resolver: LanguageTools.NameResolver.NameResolver)
+          // (currentModule: List<String>)
+          (d: LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration)
+          : LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration =
+
+          // let def = Definition.toPT resolver currentModule d.definition
+          let def = Definition.toPT d.definition
+
+          LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
+            { typeParams = d.typeParams
+              definition = def }
+
+
+
+      // module PackageFn =
+      //   module Parameter =
+      //     let toPT
+      //       (resolver: LanguageTools.NameResolver.NameResolver)
+      //       (currentModule: List<String>)
+      //       (p: LanguageTools.WrittenTypes.PackageFn.Parameter)
+      //       : LanguageTools.ProgramTypes.PackageFn.Parameter =
+
+      //       let typ = TypeReference.toPT resolver currentModule p.typ
+
+      //       LanguageTools.ProgramTypes.PackageFn.Parameter
+      //         { name = p.name
+      //           typ = typ
+      //           description = "" }
+
+      //   let toPT
+      //     (resolver: LanguageTools.NameResolver.NameResolver)
+      //     (currentModule: List<String>)
+      //     (fn: LanguageTools.WrittenTypes.PackageFn.PackageFn)
+      //     : LanguageTools.ProgramTypes.PackageFn.PackageFn =
+
+      //     let parameters =
+      //       fn.parameters
+      //       |> Darklang.Stdlib.List.map (
+      //         PackageFn.Parameter.toPT resolver currentModule
+      //       )
+
+      //     let returnType = TypeReference.toPT resolver currentModule fn.returnType
+      //     let body = Expr.toPT resolver currentModule fn.body
+
+      //     LanguageTools.ProgramTypes.PackageFn.PackageFn
+      //       { name = fn.name
+      //         typeParams = []
+      //         parameters = parameters
+      //         returnType = returnType
+      //         body = body
+      //         description = ""
+      //         deprecated = LanguageTools.ProgramTypes.Deprecation.NotDeprecated
+      //         id = gid ()
+      //         tlid = gid () }
+
+
+      module PackageType =
+        let toPT
+          // (resolver: LanguageTools.NameResolver.NameResolver)
+          // (currentModule: List<String>)
+          (pt: LanguageTools.WrittenTypes.PackageType)
+          : LanguageTools.ProgramTypes.PackageType =
+
+          let declaration = TypeDeclaration.toPT pt.declaration
+
+          // let declaration =
+          //   TypeDeclaration.toPT resolver currentModule pt.declaration
+
+
+          LanguageTools.ProgramTypes.PackageType
+            { name = pt.name
+              typeParams = []
+              declaration = declaration
+              deprecated = LanguageTools.ProgramTypes.Deprecation.NotDeprecated
+              id = gid ()
+              tlid = gid () }
+
+
+// TODO: PackageConstant

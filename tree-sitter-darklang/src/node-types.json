@@ -35,6 +35,21 @@
     }
   },
   {
+    "type": "fn_call_identifier",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "fn_def",
     "named": true,
     "fields": {
@@ -132,6 +147,21 @@
     }
   },
   {
+    "type": "function_args",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "function_call",
     "named": true,
     "fields": {
@@ -140,7 +170,7 @@
         "required": true,
         "types": [
           {
-            "type": "expression",
+            "type": "function_args",
             "named": true
           }
         ]
@@ -150,7 +180,7 @@
         "required": true,
         "types": [
           {
-            "type": "identifier",
+            "type": "fn_call_identifier",
             "named": true
           }
         ]
@@ -235,6 +265,21 @@
     }
   },
   {
+    "type": "qualified_name",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "source_file",
     "named": true,
     "fields": {},
@@ -244,6 +289,10 @@
       "types": [
         {
           "type": "fn_def",
+          "named": true
+        },
+        {
+          "type": "type_def",
           "named": true
         }
       ]
@@ -260,7 +309,41 @@
     "fields": {}
   },
   {
+    "type": "type_def",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_identifier",
+            "named": true
+          }
+        ]
+      },
+      "typ": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "qualified_name",
+            "named": true
+          },
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "\n",
+    "named": false
+  },
+  {
+    "type": " ",
     "named": false
   },
   {
@@ -284,6 +367,10 @@
     "named": false
   },
   {
+    "type": ".",
+    "named": false
+  },
+  {
     "type": ":",
     "named": false
   },
@@ -302,6 +389,14 @@
   {
     "type": "let",
     "named": false
+  },
+  {
+    "type": "type",
+    "named": false
+  },
+  {
+    "type": "type_identifier",
+    "named": true
   },
   {
     "type": "unit",
