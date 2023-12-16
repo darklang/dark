@@ -4,14 +4,19 @@
 set -euo pipefail
 
 PUBLISHED=false
+WHICH_PARSER=""
 
 for i in "$@"
 do
   case "${i}" in
     --published) shift; PUBLISHED=true ;;
+    --flag=*) WHICH_PARSER="${i#*=}" ;;
   esac
 done
 
+if [[ -n "$WHICH_PARSER" ]]; then
+  echo "Using parser: $WHICH_PARSER"
+fi
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 CLI_LOG="$LOGS/cli.log"
