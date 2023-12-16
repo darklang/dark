@@ -316,6 +316,8 @@ module Darklang =
 
         | ELambda of ID * List<LetPattern> * Expr
 
+        // TODO do typeArgs actually apply here?
+        // they definitely don't _always_ make sense.
         | EApply of ID * Expr * typeArgs: List<TypeReference> * args: List<Expr>
 
         | EFnName of ID * NameResolution<FnName.FnName>
