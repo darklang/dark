@@ -1,0 +1,33 @@
+==================
+unsupported plain integer
+==================
+
+0
+
+---
+
+(source_file
+  (ERROR (digits))
+)
+
+
+==================
+int64 literal (.net style)
+==================
+
+0L
+
+---
+
+(source_file (expression (int64_literal (digits) (symbol))))
+
+
+==================
+1900
+==================
+
+1900L
+
+---
+
+(source_file (expression (int64_literal (digits) (symbol))))

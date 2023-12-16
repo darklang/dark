@@ -1,0 +1,79 @@
+==================
+basic infix operation parsing
+==================
+
+a + b
+
+---
+
+(source_file
+  (expression
+    (infix_operation
+      (expression (variable_identifier))
+      (operator)
+      (expression (variable_identifier))
+    )
+  )
+)
+
+
+==================
+infix + is left associative
+i.e. `a + b + c` should be parsed as `(a + b) + c`
+==================
+
+a + b + c
+
+---
+
+(source_file
+  (expression
+    (infix_operation
+      (expression
+        (infix_operation
+          (expression (variable_identifier))
+          (operator)
+          (expression (variable_identifier))
+        )
+      )
+      (operator)
+      (expression (variable_identifier))
+    )
+  )
+)
+
+
+==================
+basic function call (hacky)
+==================
+
+(Bool.and true false)
+
+---
+
+(source_file
+  (expression
+    (function_call
+      (symbol)
+      (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+      (expression (bool_literal))
+      (expression (bool_literal))
+      (symbol)
+    )
+  )
+)
+
+==================
+how function calls _should_ work (broken)
+==================
+
+Bool.and true false
+
+---
+
+(source_file
+  (ERROR (symbol))
+  (expression (variable_identifier))
+  (expression (bool_literal))
+  (expression (bool_literal))
+)

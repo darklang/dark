@@ -1,0 +1,43 @@
+
+==================
+let expr and variable
+==================
+
+let sum = i + i
+sum
+
+---
+
+(source_file
+  (expression
+    (let_expression
+      (keyword)
+      (variable_identifier)
+      (symbol)
+      (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier))))
+      (expression (variable_identifier))
+    )
+  )
+)
+
+
+==================
+unfinished let expr (Error)
+(not sure why it assumed this should be followed by a bool literal)
+==================
+
+let sum = i + i
+
+---
+
+(source_file
+  (expression
+    (let_expression
+      (keyword)
+      (variable_identifier)
+      (symbol)
+      (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier))))
+      (expression (bool_literal (MISSING "bool_literal_token1")))
+    )
+  )
+)

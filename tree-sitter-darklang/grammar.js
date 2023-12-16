@@ -1,95 +1,183 @@
+// TODOs:
+// - int64 literals (e.g. `0L`)
+// - deal with keywords
+// - better support for partially-written code (i.e. `let x =`)
+
 module.exports = grammar({
   name: "darklang",
 
   rules: {
-    // TODO: should this be repeat1?
-    source_file: $ => repeat(choice($.fn_def, $.type_def)),
-
-    // Function definitions
-    fn_def: $ =>
+    source_file: $ =>
       seq(
-        "let",
-        field("name", $.identifier),
-        field("params", $.fn_params_def),
-        ":",
-        field("return_type", $.type),
-        "=",
+        // all type and fn defs first
+        repeat(choice($.type_decl, $.fn_decl)),
+
+        // then the expressions to evaluate, in order
+        repeat($.expression),
+      ),
+
+    //
+    // Function declarations
+    fn_decl: $ =>
+      seq(
+        field("keyword_let", alias("let", $.keyword)),
+        field("name", $.fn_identifier),
+        field("params", $.fn_decl_params),
+        field("symbol_colon", alias(":", $.symbol)),
+        field("return_type", $.type_reference),
+        field("symbol_equals", alias("=", $.symbol)),
         field("body", $.expression),
       ),
-
-    type_def: $ =>
+    fn_decl_params: $ => repeat1(choice($.unit, $.fn_decl_param)),
+    fn_decl_param: $ =>
       seq(
-        "type",
+        field("symbol_left_paren", alias("(", $.symbol)),
+        field("identifier", $.variable_identifier),
+        field("symbol_colon", alias(":", $.symbol)),
+        field("typ", $.type_reference),
+        field("symbol_right_paren", alias(")", $.symbol)),
+      ),
+
+    //
+    // Type declarations
+    type_decl: $ =>
+      seq(
+        field("keyword_type", alias("type", $.keyword)),
         field("name", $.type_identifier),
-        "=",
-        field("typ", choice($.type, $.qualified_name)),
+        field("symbol_equals", alias("=", $.symbol)),
+        field("typ", $.type_reference),
       ),
 
-    // fns need at least one param
-    // TODO: should this rule be enforced like this _in the parser_?
-    fn_params_def: $ => repeat1($.fn_param_def),
-
-    fn_param_def: $ =>
-      choice(
-        $.unit,
-        seq(
-          "(",
-          field("identifier", $.identifier),
-          ":",
-          field("typ", $.type),
-          ")",
-        ),
-      ),
-
+    //
     // Expressions
     expression: $ =>
       choice(
-        $.let_expression,
-        $.function_call,
-        $.infix_operation,
-        $.identifier,
-        $.string_literal,
+        $.paren_expression,
         $.unit,
+        $.bool_literal,
+        $.int64_literal,
+        $.string_literal,
+
+        $.let_expression,
+        $.variable_identifier,
+
+        $.infix_operation,
+        $.function_call,
       ),
-    let_expression: $ =>
+    paren_expression: $ =>
       seq(
-        "let",
-        field("identifier", $.identifier),
-        "=",
+        field("symbol_left_paren", alias("(", $.symbol)),
         field("expr", $.expression),
-        choice("in", "\n"),
-        field("body", $.expression),
-      ),
-    function_call: $ =>
-      prec(
-        1,
-        seq(
-          field("fn", $.fn_call_identifier),
-          field("args", repeat1($.function_args)),
-        ),
+        field("symbol_right_paren", alias(")", $.symbol)),
       ),
 
-    string_literal: $ => seq('"', field("value", /.*/), '"'),
-    infix_operator: $ => choice("+", "-"),
+    bool_literal: $ => choice(/true/, /false/),
+
+    /**
+     * e.g. `Int64.add 1 2
+     *
+     * This is currently a bit hacky, requiring parens around the function call,
+     * in order to help tree-sitter parse it correctly.
+     *
+     * There's certainly a better way to remove ambiguities. TODO
+     *
+     * TODO maybe call this "apply" instead
+     *      sometimes the thing we are 'applying' is not directly a function
+     */
+    function_call: $ =>
+      seq(
+        field("symbol_left_paren", alias("(", $.symbol)),
+        field("fn", $.qualified_fn_name),
+        field("args", repeat1($.expression)),
+        field("symbol_right_paren", alias(")", $.symbol)),
+      ),
+
+    let_expression: $ =>
+      seq(
+        field("keyword_let", alias("let", $.keyword)),
+        field("identifier", $.variable_identifier),
+        field("symbol_equals", alias("=", $.symbol)),
+        field("expr", $.expression),
+        "\n",
+        field("body", $.expression),
+      ),
+
+    //
+    // Strings
+    string_literal: $ =>
+      choice(
+        seq(
+          field("symbol_open_quote", alias('"', $.symbol)),
+          field("symbol_close_quote", alias('"', $.symbol)),
+        ),
+        seq(
+          field("symbol_open_quote", alias('"', $.symbol)),
+          field("content", $.string_content),
+          field("symbol_close_quote", alias('"', $.symbol)),
+        ),
+      ),
+    string_content: $ =>
+      repeat1(
+        choice(
+          // higher precedence than escape sequences
+          token.immediate(prec(1, /[^\\"\n]+/)),
+          $.string_escape_sequence,
+        ),
+      ),
+    string_escape_sequence: _ =>
+      token.immediate(seq("\\", /(\"|\\|\/|b|f|n|r|t|u)/)),
+
     infix_operation: $ =>
+      // given `1 + 2 * 3`, this will parse as `1 + (2 * 3)`
       prec.left(
         1,
         seq(
           field("left", $.expression),
-          field("operator", $.infix_operator),
-          field("right", $.expression),
+          field("operator", alias(choice("+", "-"), $.operator)), // TODO more operators.
+          field("right", $.expression), // TODO maybe optional
         ),
       ),
-    function_args: $ =>
-      prec.left(1, seq($.expression, repeat(seq(" ", $.expression)))),
 
-    qualified_name: $ => seq($.identifier, repeat(seq(".", $.identifier))),
-    // Basics
-    unit: $ => "()",
-    type: $ => choice(/Unit/, /Int/, /Bool/, /Float/, /String/, /Char/),
-    identifier: $ => /[a-zA-Z_][a-zA-Z0-9_]*/,
-    fn_call_identifier: $ =>
-      prec(2, seq($.identifier, repeat(seq(".", $.identifier)))),
+    int64_literal: $ =>
+      seq(field("digits", $.digits), field("suffix", alias("L", $.symbol))),
+
+    digits: $ => /\d+/,
+
+    //
+    // Common
+    type_reference: $ => choice($.builtin_type, $.qualified_type_name),
+
+    builtin_type: $ =>
+      choice(/Unit/, /Bool/, /Int64/, /Float/, /Char/, /String/),
+
+    //
+    // Identifiers
+    qualified_fn_name: $ =>
+      seq(
+        repeat(seq($.module_identifier, alias(".", $.symbol))),
+        $.fn_identifier,
+      ),
+
+    qualified_type_name: $ =>
+      seq(
+        repeat(seq($.module_identifier, alias(".", $.symbol))),
+        $.type_identifier,
+      ),
+
+    /** e.g. `x` in `let double (x: Int) = x + x`
+     *
+     * for let bindings, params, etc. */
+    variable_identifier: $ => /[a-z][a-zA-Z0-9_]*/,
+
+    // e.g. `double` in `let double (x: Int) = x + x`
+    fn_identifier: $ => /[a-z][a-zA-Z0-9_]*/,
+
+    // e.g. `Person` in `type MyPerson = ...`
     type_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
+
+    // e.g. `LanguageTools in `PACKAGE.Darklang.LanguageTools.SomeType`
+    module_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
+
+    unit: $ => "()",
   },
 });

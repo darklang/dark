@@ -1,0 +1,68 @@
+==================
+all builtin type references
+==================
+
+type MyUnit = Unit
+type MyBool = Bool
+type MyInt64 = Int64
+type MyFloat = Float
+type MyChar = Char
+type MyString = String
+
+---
+
+(source_file
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+)
+
+
+==================
+(simple) qualified type identifier
+==================
+
+type ID = Test
+
+---
+
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_reference (qualified_type_name (type_identifier)))
+  )
+)
+
+==================
+multi-part qualified type identifier
+==================
+
+type ID = PACKAGE.Darklang.Stdlib.Option.Option
+
+---
+
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_reference
+      (qualified_type_name
+        (module_identifier)
+        (symbol)
+        (module_identifier)
+        (symbol)
+        (module_identifier)
+        (symbol)
+        (module_identifier)
+        (symbol)
+        (type_identifier)
+      )
+    )
+  )
+)

@@ -1,0 +1,82 @@
+==================
+fn decl with single param
+==================
+
+let helloWorld (i: Int64): String = "Hello world"
+
+---
+
+(source_file
+  (fn_decl
+    (keyword)
+    (fn_identifier)
+    (fn_decl_params
+      (fn_decl_param
+        (symbol)
+        (variable_identifier)
+        (symbol)
+        (type_reference (builtin_type))
+        (symbol)
+      )
+    )
+    (symbol)
+    (type_reference (builtin_type))
+    (symbol)
+    (expression (string_literal (symbol) (string_content) (symbol)))
+  )
+)
+
+
+==================
+fn decl with single unit param
+==================
+
+let emptyString (): String = ""
+
+---
+
+(source_file
+  (fn_decl
+    (keyword)
+    (fn_identifier)
+    (fn_decl_params (unit))
+    (symbol)
+    (type_reference (builtin_type))
+    (symbol)
+    (expression (string_literal (symbol) (symbol)))
+  )
+)
+
+
+==================
+fn decl with multiple params
+==================
+
+let isHigher (a: Int64) (b: Int64): Bool =
+  (Int64.isGreaterThan a b)
+
+---
+
+(source_file
+  (fn_decl
+    (keyword)
+    (fn_identifier)
+    (fn_decl_params
+      (fn_decl_param (symbol) (variable_identifier) (symbol) (type_reference (builtin_type)) (symbol))
+      (fn_decl_param (symbol) (variable_identifier) (symbol) (type_reference (builtin_type)) (symbol))
+    )
+    (symbol)
+    (type_reference (builtin_type))
+    (symbol)
+    (expression
+      (function_call
+        (symbol)
+        (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+        (expression (variable_identifier))
+        (expression (variable_identifier))
+        (symbol)
+      )
+    )
+  )
+)
+
