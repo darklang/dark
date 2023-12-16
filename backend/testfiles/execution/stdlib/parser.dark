@@ -12,14 +12,12 @@ let range (s: Int64 * Int64) (e: Int64 * Int64) : Range =
       end_ = Point { row = endRow; column = endColumn } }
 
 
-let p (source: String) : PACKAGE.Darklang.LanguageTools.WrittenTypes.ParsedFile =
-  source
-  |> Builtin.Parser.parseToSimplifiedTree
-  |> PACKAGE.Darklang.LanguageTools.Parser.parseNodeToWrittenTypesSourceFile
-  |> Builtin.unwrap
 
-
-
+/// These tests are a huge pain to write and maintain
+/// Let's focus on roundtripping tests, largely,
+/// and just have one of these for some base-line checking.
+///
+/// TODO: make that one test much more comprehensive
 module ParseToSimplifiedTree =
   // super basic test just to make sure we don't throw an exception
   (let parsed =
@@ -29,22 +27,23 @@ module ParseToSimplifiedTree =
    parsed.typ) = "source_file"
 
 
-  // successful parse
-  (Builtin.Parser.parseToSimplifiedTree "type ID = Int") = ParsedNode
+  // simplest type alias
+  ("type ID = Int64" |> Builtin.Parser.parseToSimplifiedTree) = ParsedNode
     { typ = "source_file"
       fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-      text = "type ID = Int"
-      sourceRange = range (0L, 0L) (0L, 13L)
+      text = "type ID = Int64"
+      sourceRange = range (0L, 0L) (0L, 15L)
       children =
         [ ParsedNode
             { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-              typ = "type_def"
-              text = "type ID = Int"
-              sourceRange = range (0L, 0L) (0L, 13L)
+              typ = "type_decl"
+              text = "type ID = Int64"
+              sourceRange = range (0L, 0L) (0L, 15L)
               children =
                 [ ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                      typ = "type"
+                    { fieldName =
+                        PACKAGE.Darklang.Stdlib.Option.Option.Some "keyword_type"
+                      typ = "keyword"
                       text = "type"
                       sourceRange = range (0L, 0L) (0L, 4L)
                       children = [] }
@@ -57,620 +56,54 @@ module ParseToSimplifiedTree =
                       children = [] }
 
                   ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                      typ = "="
+                    { fieldName =
+                        PACKAGE.Darklang.Stdlib.Option.Option.Some "symbol_equals"
+                      typ = "symbol"
                       text = "="
                       sourceRange = range (0L, 8L) (0L, 9L)
                       children = [] }
 
                   ParsedNode
                     { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.Some "typ"
-                      typ = "type"
-                      text = "Int"
-                      sourceRange = range (0L, 10L) (0L, 13L)
-                      children = [] } ] } ] }
-
-
-  (Builtin.Parser.parseToSimplifiedTree
-    "type MyID = PACKAGE.Darklang.LanguageTools.Test") = ParsedNode
-    { typ = "source_file"
-      fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-      text = "type MyID = PACKAGE.Darklang.LanguageTools.Test"
-      sourceRange = range (0L, 0L) (0L, 47L)
-      children =
-        [ ParsedNode
-            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-              typ = "type_def"
-              text = "type MyID = PACKAGE.Darklang.LanguageTools.Test"
-              sourceRange = range (0L, 0L) (0L, 47L)
-              children =
-                [ ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                      typ = "type"
-                      text = "type"
-                      sourceRange = range (0L, 0L) (0L, 4L)
-                      children = [] }
-
-                  ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.Some "name"
-                      typ = "type_identifier"
-                      text = "MyID"
-                      sourceRange = range (0L, 5L) (0L, 9L)
-                      children = [] }
-
-                  ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                      typ = "="
-                      text = "="
-                      sourceRange = range (0L, 10L) (0L, 11L)
-                      children = [] }
-
-                  ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.Some "typ"
-                      typ = "qualified_name"
-                      text = "PACKAGE.Darklang.LanguageTools.Test"
-                      sourceRange = range (0L, 12L) (0L, 47L)
+                      typ = "type_reference"
+                      text = "Int64"
+                      sourceRange = range (0L, 10L) (0L, 15L)
                       children =
                         [ ParsedNode
                             { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                              typ = "identifier"
-                              text = "PACKAGE"
-                              sourceRange = range (0L, 12L) (0L, 19L)
-                              children = [] }
-
-                          ParsedNode
-                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                              typ = "."
-                              text = "."
-                              sourceRange = range (0L, 19L) (0L, 20L)
-                              children = [] }
-
-                          ParsedNode
-                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                              typ = "identifier"
-                              text = "Darklang"
-                              sourceRange = range (0L, 20L) (0L, 28L)
-                              children = [] }
-
-                          ParsedNode
-                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                              typ = "."
-                              text = "."
-                              sourceRange = range (0L, 28L) (0L, 29L)
-                              children = [] }
-
-                          ParsedNode
-                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                              typ = "identifier"
-                              text = "LanguageTools"
-                              sourceRange = range (0L, 29L) (0L, 42L)
-                              children = [] }
-
-                          ParsedNode
-                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                              typ = "."
-                              text = "."
-                              sourceRange = range (0L, 42L) (0L, 43L)
-                              children = [] }
-
-                          ParsedNode
-                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                              typ = "identifier"
-                              text = "Test"
-                              sourceRange = range (0L, 43L) (0L, 47L)
+                              typ = "builtin_type"
+                              text = "Int64"
+                              sourceRange = range (0L, 10L) (0L, 15L)
                               children = [] } ] } ] } ] }
 
 
 
-  (Builtin.Parser.parseToSimplifiedTree "let self (i: Int): Int =\n  i") = ParsedNode
-    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-      typ = "source_file"
-      text = "let self (i: Int): Int =\n  i"
-      sourceRange = range (0L, 0L) (1L, 3L)
-      children =
-        [ ParsedNode
-            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-              typ = "fn_def"
-              sourceRange = range (0L, 0L) (1L, 3L)
-              text = "let self (i: Int): Int =\n  i"
-              children =
-                [ ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                      typ = "let"
-                      text = "let"
-                      sourceRange = range (0L, 0L) (0L, 3L)
-                      children = [] }
-
-                  ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.Some "name"
-                      typ = "identifier"
-                      text = "self"
-                      sourceRange = range (0L, 4L) (0L, 8L)
-                      children = [] }
-
-                  ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.Some "params"
-                      typ = "fn_params_def"
-                      text = "(i: Int)"
-                      sourceRange = range (0L, 9L) (0L, 17L)
-                      children =
-                        [ ParsedNode
-                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                              typ = "fn_param_def"
-                              text = "(i: Int)"
-                              sourceRange = range (0L, 9L) (0L, 17L)
-                              children =
-                                [ ParsedNode
-                                    { children = []
-                                      fieldName =
-                                        PACKAGE.Darklang.Stdlib.Option.Option.None
-                                      text = "("
-                                      sourceRange = range (0L, 9L) (0L, 10L)
-                                      typ = "(" }
-
-                                  ParsedNode
-                                    { fieldName =
-                                        PACKAGE.Darklang.Stdlib.Option.Option.Some
-                                          "identifier"
-                                      typ = "identifier"
-                                      text = "i"
-                                      sourceRange = range (0L, 10L) (0L, 11L)
-                                      children = [] }
-
-                                  ParsedNode
-                                    { fieldName =
-                                        PACKAGE.Darklang.Stdlib.Option.Option.None
-                                      typ = ":"
-                                      text = ":"
-                                      sourceRange = range (0L, 11L) (0L, 12L)
-                                      children = [] }
-
-                                  ParsedNode
-                                    { typ = "type"
-                                      sourceRange = range (0L, 13L) (0L, 16L)
-                                      fieldName =
-                                        PACKAGE.Darklang.Stdlib.Option.Option.Some
-                                          "typ"
-                                      text = "Int"
-                                      children = [] }
-
-                                  ParsedNode
-                                    { children = []
-                                      fieldName =
-                                        PACKAGE.Darklang.Stdlib.Option.Option.None
-                                      text = ")"
-                                      sourceRange = range (0L, 16L) (0L, 17L)
-                                      typ = ")" } ] } ] }
-
-                  ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                      typ = ":"
-                      text = ":"
-                      sourceRange = range (0L, 17L) (0L, 18L)
-                      children = [] }
-
-                  ParsedNode
-                    { fieldName =
-                        PACKAGE.Darklang.Stdlib.Option.Option.Some "return_type"
-                      typ = "type"
-                      text = "Int"
-                      sourceRange = range (0L, 19L) (0L, 22L)
-                      children = [] }
-
-                  ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                      typ = "="
-                      text = "="
-                      sourceRange = range (0L, 23L) (0L, 24L)
-                      children = [] }
-
-                  ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.Some "body"
-                      typ = "expression"
-                      text = "i"
-                      sourceRange = range (1L, 2L) (1L, 3L)
-                      children =
-                        [ ParsedNode
-                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                              typ = "identifier"
-                              text = "i"
-                              sourceRange = range (1L, 2L) (1L, 3L)
-                              children = [] } ] } ] } ] }
-
-
-  // failing parse
-  // an ERROR exists here because the grammar doesn't support raw ints (`1`) yet
-  (Builtin.Parser.parseToSimplifiedTree "let increment (i: Int): Int =\n  i + 1") = ParsedNode
-    { typ = "source_file"
-      fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-      text = "let increment (i: Int): Int =\n  i + 1"
-      sourceRange = range (0L, 0L) (1L, 7L)
-      children =
-        [ ParsedNode
-            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-              typ = "fn_def"
-              sourceRange = range (0L, 0L) (1L, 3L)
-              text = "let increment (i: Int): Int =\n  i"
-              children =
-                [ ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                      typ = "let"
-                      text = "let"
-                      sourceRange = range (0L, 0L) (0L, 3L)
-                      children = [] }
-
-                  ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.Some "name"
-                      typ = "identifier"
-                      text = "increment"
-                      sourceRange = range (0L, 4L) (0L, 13L)
-                      children = [] }
-
-                  ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.Some "params"
-                      typ = "fn_params_def"
-                      text = "(i: Int)"
-                      sourceRange = range (0L, 14L) (0L, 22L)
-                      children =
-                        [ ParsedNode
-                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                              typ = "fn_param_def"
-                              text = "(i: Int)"
-                              sourceRange = range (0L, 14L) (0L, 22L)
-                              children =
-                                [ ParsedNode
-                                    { children = []
-                                      fieldName =
-                                        PACKAGE.Darklang.Stdlib.Option.Option.None
-                                      text = "("
-                                      sourceRange = range (0L, 14L) (0L, 15L)
-                                      typ = "(" }
-
-                                  ParsedNode
-                                    { fieldName =
-                                        PACKAGE.Darklang.Stdlib.Option.Option.Some
-                                          "identifier"
-                                      typ = "identifier"
-                                      text = "i"
-                                      sourceRange = range (0L, 15L) (0L, 16L)
-                                      children = [] }
-
-                                  ParsedNode
-                                    { fieldName =
-                                        PACKAGE.Darklang.Stdlib.Option.Option.None
-                                      typ = ":"
-                                      text = ":"
-                                      sourceRange = range (0L, 16L) (0L, 17L)
-                                      children = [] }
-
-                                  ParsedNode
-                                    { typ = "type"
-                                      sourceRange = range (0L, 18L) (0L, 21L)
-                                      fieldName =
-                                        PACKAGE.Darklang.Stdlib.Option.Option.Some
-                                          "typ"
-                                      text = "Int"
-                                      children = [] }
-
-                                  ParsedNode
-                                    { children = []
-                                      fieldName =
-                                        PACKAGE.Darklang.Stdlib.Option.Option.None
-                                      text = ")"
-                                      sourceRange = range (0L, 21L) (0L, 22L)
-                                      typ = ")" } ] } ] }
-
-                  ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                      typ = ":"
-                      text = ":"
-                      sourceRange = range (0L, 22L) (0L, 23L)
-                      children = [] }
-
-                  ParsedNode
-                    { fieldName =
-                        PACKAGE.Darklang.Stdlib.Option.Option.Some "return_type"
-                      typ = "type"
-                      text = "Int"
-                      sourceRange = range (0L, 24L) (0L, 27L)
-                      children = [] }
-
-                  ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                      typ = "="
-                      text = "="
-                      sourceRange = range (0L, 28L) (0L, 29L)
-                      children = [] }
-
-                  ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.Some "body"
-                      typ = "expression"
-                      text = "i"
-                      sourceRange = range (1L, 2L) (1L, 3L)
-                      children =
-                        [ ParsedNode
-                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                              typ = "identifier"
-                              text = "i"
-                              sourceRange = range (1L, 2L) (1L, 3L)
-                              children = [] } ] } ] }
-
-          ParsedNode
-            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-              typ = "ERROR"
-              text = "+ 1"
-              sourceRange = range (1L, 4L) (1L, 7L)
-              children =
-                [ ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                      typ = "infix_operator"
-                      text = "+"
-                      sourceRange = range (1L, 4L) (1L, 5L)
-                      children =
-                        [ ParsedNode
-                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                              typ = "+"
-                              text = "+"
-                              sourceRange = range (1L, 4L) (1L, 5L)
-                              children = [] } ] }
-
-                  ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
-                      typ = "ERROR"
-                      text = "1"
-                      sourceRange = range (1L, 6L) (1L, 7L)
-                      children = [] } ] } ] }
-
-
-
-
+// These tests are a huge pain to write and maintain
+// Let's focus on roundtripping tests, largely,
+// and just have one of these for some base-line checking.
+///
+/// TODO: make that one test much more comprehensive
 module ParseNodeToWrittenTypes =
-  (p "let self (i: Int64): Int64 = i") = PACKAGE
+  ("type MyID = Int64"
+   |> PACKAGE.Darklang.LanguageTools.Parser.parseToSimplifiedTree
+   |> PACKAGE.Darklang.LanguageTools.Parser.parseCliScript
+   |> Builtin.unwrap) = PACKAGE
     .Darklang
     .LanguageTools
     .WrittenTypes
     .ParsedFile
-    .PackageItems(
-      range (0L, 0L) (0L, 30L),
-      [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageItem.Function(
-          PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.PackageFn
-            { sourceRange = range (0L, 0L) (0L, 30L)
-              name =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.Name.Unresolved(
-                  range (0L, 4L) (0L, 8L),
-                  [ "self" ]
-                )
-              parameters =
-                [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter
-                    { sourceRange = range (0L, 9L) (0L, 19L) // TODO: is this needed? we don't need to highlight for anything... but I'm getting the idea we should just have a source range for EVERYTHING in WT..
-                      name = "i" // TODO: should include range?
-                      typ =
-                        PACKAGE
-                          .Darklang
-                          .LanguageTools
-                          .WrittenTypes
-                          .TypeReference
-                          .TInt64(range (0L, 13L) (0L, 16L)) } ]
-              returnType =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64(
-                  range (0L, 21L) (0L, 24L)
-                )
-              body =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(
-                  (range (0L, 29L) (0L, 30L)),
-                  "i"
-                ) }
-        ) ]
-    )
-
-
-  (p "let double1 (i: Int): Int = i + i") = PACKAGE
-    .Darklang
-    .LanguageTools
-    .WrittenTypes
-    .ParsedFile
-    .PackageItems(
-      range (0L, 0L) (0L, 33L),
-      [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageItem.Function(
-          PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.PackageFn
-            { sourceRange = range (0L, 0L) (0L, 33L)
-              name =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.Name.Unresolved(
-                  range (0L, 4L) (0L, 11L),
-                  [ "double1" ]
-                )
-
-              parameters =
-                [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter
-                    { sourceRange = range (0L, 12L) (0L, 20L)
-                      name = "i"
-                      typ =
-                        PACKAGE
-                          .Darklang
-                          .LanguageTools
-                          .WrittenTypes
-                          .TypeReference
-                          .TInt64(range (0L, 16L) (0L, 19L)) } ]
-
-              returnType =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64(
-                  range (0L, 22L) (0L, 25L)
-                )
-
-              body =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EInfix(
-                  range (0L, 28L) (0L, 33L),
-                  PACKAGE.Darklang.LanguageTools.WrittenTypes.Infix.InfixFnCall(
-                    PACKAGE.Darklang.LanguageTools.WrittenTypes.InfixFnName.ArithmeticPlus
-                  ),
-                  PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(
-                    range (0L, 28L) (0L, 29L),
-                    "i"
-                  ),
-                  PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(
-                    range (0L, 32L) (0L, 33L),
-                    "i"
-                  )
-                ) }
-        ) ]
-    )
-
-
-  (p "let add (a: Int) (b: Int): Int = a + b") = PACKAGE
-    .Darklang
-    .LanguageTools
-    .WrittenTypes
-    .ParsedFile
-    .PackageItems(
-      range (0L, 0L) (0L, 38L),
-      [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageItem.Function(
-          PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.PackageFn
-            { sourceRange = range (0L, 0L) (0L, 38L)
-              name =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.Name.Unresolved(
-                  range (0L, 4L) (0L, 7L),
-                  [ "add" ]
-                )
-
-              parameters =
-                [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter
-                    { sourceRange = range (0L, 8L) (0L, 16L)
-                      name = "a" // TODO: 9-10
-                      typ =
-                        PACKAGE
-                          .Darklang
-                          .LanguageTools
-                          .WrittenTypes
-                          .TypeReference
-                          .TInt64(range (0L, 12L) (0L, 15L)) }
-
-                  PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter
-                    { sourceRange = range (0L, 17L) (0L, 25L)
-                      name = "b" // TODO: 18-19
-                      typ =
-                        PACKAGE
-                          .Darklang
-                          .LanguageTools
-                          .WrittenTypes
-                          .TypeReference
-                          .TInt64(range (0L, 21L) (0L, 24L)) } ]
-
-              returnType =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64(
-                  range (0L, 27L) (0L, 30L)
-                )
-
-              body =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EInfix(
-                  range (0L, 33L) (0L, 38L),
-                  PACKAGE.Darklang.LanguageTools.WrittenTypes.Infix.InfixFnCall(
-                    PACKAGE.Darklang.LanguageTools.WrittenTypes.InfixFnName.ArithmeticPlus
-                  ),
-                  PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(
-                    range (0L, 33L) (0L, 34L),
-                    "a"
-                  ),
-                  PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(
-                    range (0L, 37L) (0L, 38L),
-                    "b"
-                  )
-                ) }
-        ) ]
-    )
-
-
-  (p "let add (a: Int) (b: Int): Int =\n  let sum = a + b\n  sum") = PACKAGE
-    .Darklang
-    .LanguageTools
-    .WrittenTypes
-    .ParsedFile
-    .PackageItems(
-      range (0L, 0L) (2L, 5L),
-      [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageItem.Function(
-          PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.PackageFn
-            { sourceRange = range (0L, 0L) (2L, 5L)
-              name =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.Name.Unresolved(
-                  range (0L, 4L) (0L, 7L),
-                  [ "add" ]
-                )
-
-              parameters =
-                [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter
-                    { sourceRange = range (0L, 8L) (0L, 16L)
-                      name = "a" // TODO: 9-10
-                      typ =
-                        PACKAGE
-                          .Darklang
-                          .LanguageTools
-                          .WrittenTypes
-                          .TypeReference
-                          .TInt64(range (0L, 12L) (0L, 15L)) }
-
-                  PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageFn.Parameter
-                    { sourceRange = range (0L, 17L) (0L, 25L)
-                      name = "b" // TODO: 18-19
-                      typ =
-                        PACKAGE
-                          .Darklang
-                          .LanguageTools
-                          .WrittenTypes
-                          .TypeReference
-                          .TInt64(range (0L, 21L) (0L, 24L)) } ]
-
-              returnType =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TInt64(
-                  range (0L, 27L) (0L, 30L)
-                )
-
-              body =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.ELet(
-                  range (1L, 2L) (2L, 5L),
-                  PACKAGE.Darklang.LanguageTools.WrittenTypes.LetPattern.LPVariable(
-                    range (1L, 6L) (1L, 9L),
-                    "sum"
-                  ),
-                  PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EInfix(
-                    range (1L, 12L) (1L, 17L),
-                    PACKAGE.Darklang.LanguageTools.WrittenTypes.Infix.InfixFnCall(
-                      PACKAGE.Darklang.LanguageTools.WrittenTypes.InfixFnName.ArithmeticPlus
-                    ),
-                    PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(
-                      range (1L, 12L) (1L, 13L),
-                      "a"
-                    ),
-                    PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(
-                      range (1L, 16L) (1L, 17L),
-                      "b"
-                    )
-                  ),
-                  PACKAGE.Darklang.LanguageTools.WrittenTypes.Expr.EVariable(
-                    range (2L, 2L) (2L, 5L),
-                    "sum"
-                  )
-                ) }
-        ) ]
-    )
-
-
-  (p "type MyID = PACKAGE.Darklang.LanguageTools.ID") = PACKAGE
-    .Darklang
-    .LanguageTools
-    .WrittenTypes
-    .ParsedFile
-    .PackageItems(
-      range (0L, 0L) (0L, 45L),
-      [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageItem.Type(
-          PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageType
-            { sourceRange = range (0L, 0L) (0L, 45L)
-              name =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.Name.Unresolved(
-                  range (0L, 5L) (0L, 9L),
-                  [ "MyID" ]
-                )
-              declaration =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration
-                  { definition =
+    .CliScript(
+      PACKAGE.Darklang.LanguageTools.WrittenTypes.CliScript
+        { range = range (0L, 0L) (0L, 17L)
+          typesAndFns =
+            [ PACKAGE.Darklang.LanguageTools.WrittenTypes.CliScriptTypeOrFn.Type(
+                (PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration
+                  { range = range (0L, 0L) (0L, 17L)
+                    name =
+                      PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeIdentifier
+                        { range = range (0L, 5L) (0L, 9L)
+                          name = "MyID" }
+                    definition =
                       PACKAGE
                         .Darklang
                         .LanguageTools
@@ -683,62 +116,165 @@ module ParseNodeToWrittenTypes =
                             .LanguageTools
                             .WrittenTypes
                             .TypeReference
-                            .TCustomType(
-                              PACKAGE
-                                .Darklang
-                                .LanguageTools
-                                .WrittenTypes
-                                .Name
-                                .Unresolved(
-                                  range (0L, 12L) (0L, 45L),
-                                  [ "PACKAGE"; "Darklang"; "LanguageTools"; "ID" ]
-                                ),
-                              []
-                            )
-                        ) } }
-        ) ]
-    )
-
-
-  (p "type MyID = Int64") = PACKAGE
-    .Darklang
-    .LanguageTools
-    .WrittenTypes
-    .ParsedFile
-    .PackageItems(
-      range (0L, 0L) (0L, 17L),
-      [ PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageItem.Type(
-          PACKAGE.Darklang.LanguageTools.WrittenTypes.PackageType
-            { sourceRange = range (0L, 0L) (0L, 17L)
-              name =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.Name.Unresolved(
-                  range (0L, 5L) (0L, 9L),
-                  [ "MyID" ]
-                )
-              declaration =
-                PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration
-                  { definition =
-                      PACKAGE
-                        .Darklang
-                        .LanguageTools
-                        .WrittenTypes
-                        .TypeDeclaration
-                        .Definition
-                        .Alias(
-                          PACKAGE
-                            .Darklang
-                            .LanguageTools
-                            .WrittenTypes
                             .TypeReference
-                            .TCustomType(
+                            .BuiltIn(
                               PACKAGE
                                 .Darklang
                                 .LanguageTools
                                 .WrittenTypes
-                                .Name
-                                .Unresolved(range (0L, 12L) (0L, 17L), [ "Int64" ]),
-                              []
+                                .TypeReference
+                                .BuiltIn
+                                .TInt64(range (0L, 12L) (0L, 17L))
                             )
-                        ) } }
-        ) ]
+                        )
+                    keywordType = range (0L, 0L) (0L, 4L)
+                    symbolEquals = range (0L, 10L) (0L, 11L) })
+              ) ]
+          exprsToEval = [] }
     )
+
+
+module TextToTextRoundtripping =
+  let prettyPrintCliScript
+    (parsedFile: PACKAGE.Darklang.LanguageTools.WrittenTypes.ParsedFile)
+    : String =
+    let script =
+      match parsedFile with
+      | CliScript script -> script
+
+    let typesAndFnsPart = // List<String>
+      (PACKAGE.Darklang.Stdlib.List.fold script.typesAndFns [] (fun acc typeOrFn ->
+        match typeOrFn with
+        | Type typeDecl ->
+          let prettyPrinted =
+            typeDecl
+            |> PACKAGE.Darklang.LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toUserTypePT
+            |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType
+
+          acc |> PACKAGE.Darklang.Stdlib.List.push prettyPrinted
+
+        | Function fnDecl ->
+          let prettyPrinted =
+            fnDecl
+            |> PACKAGE.Darklang.LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toUserFnPT
+            |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userFunction
+
+          acc |> PACKAGE.Darklang.Stdlib.List.push prettyPrinted))
+      |> PACKAGE.Darklang.Stdlib.List.reverse
+
+    let exprsPart = // List<String>
+      (PACKAGE.Darklang.Stdlib.List.fold script.exprsToEval [] (fun acc expr ->
+        let prettyPrinted =
+          expr
+          |> PACKAGE.Darklang.LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+          |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr
+
+        acc |> PACKAGE.Darklang.Stdlib.List.push prettyPrinted))
+      |> PACKAGE.Darklang.Stdlib.List.reverse
+
+    [ typesAndFnsPart; exprsPart ]
+    |> PACKAGE.Darklang.Stdlib.List.flatten
+    |> PACKAGE.Darklang.Stdlib.String.join "\n\n"
+
+
+  let roundtripCliScript (text: String) : String =
+    text
+    |> PACKAGE.Darklang.LanguageTools.Parser.parseToSimplifiedTree
+    |> PACKAGE.Darklang.LanguageTools.Parser.parseCliScript
+    |> Builtin.unwrap
+    |> prettyPrintCliScript
+
+
+  module TypeReference =
+    // all built-ins
+    ("type MyUnit = Unit" |> roundtripCliScript) = "type MyUnit =\n  Unit"
+    ("type MyBool = Bool" |> roundtripCliScript) = "type MyBool =\n  Bool"
+    ("type MyInt64 = Int64" |> roundtripCliScript) = "type MyInt64 =\n  Int64"
+    ("type MyFloat = Float" |> roundtripCliScript) = "type MyFloat =\n  Float"
+    ("type MyChar = Char" |> roundtripCliScript) = "type MyChar =\n  Char"
+    ("type MyString = String" |> roundtripCliScript) = "type MyString =\n  String"
+
+    // single-part qualified name
+    ("type ID = Test" |> roundtripCliScript) = "type ID =\n  Test"
+
+    // fully-qualified package name (multi-part)
+    ("type MyOption = PACKAGE.Darklang.Stdlib.Option.Option" |> roundtripCliScript) = "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option"
+
+
+  module TypeDeclaration =
+    ("type SimpleAlias = Unit" |> roundtripCliScript) = "type SimpleAlias =\n  Unit"
+
+
+  module Expr =
+    // units
+    ("()" |> roundtripCliScript) = "()"
+
+    // bools
+    ("true" |> roundtripCliScript) = "true"
+    ("false" |> roundtripCliScript) = "false"
+
+    // parens (disappear)
+    ("(true)" |> roundtripCliScript) = "true"
+
+    // int literals
+    ("0L" |> roundtripCliScript) = "0L"
+    ("1900L" |> roundtripCliScript) = "1900L"
+
+    // string literals
+    ("\"\"" |> roundtripCliScript) = "\"\""
+    ("\"hello\"" |> roundtripCliScript) = "\"hello\""
+    ("\"hello\\tworld\"" |> roundtripCliScript) = "\"hello\\tworld\""
+
+    // variables and let bindings
+    ("assumedlyAVariableName" |> roundtripCliScript) = "assumedlyAVariableName"
+    // TODO: this is ugly
+    ("let x = 1L\n  x" |> roundtripCliScript) = "let x =\n  1L\nx"
+
+    // fn calls
+    // TODO: these is ugly
+    ("1L + 2L" |> roundtripCliScript) = "(1L) + (2L)"
+    ("1L + b + 3L" |> roundtripCliScript) = "((1L) + (b)) + (3L)"
+    ("(and true false)" |> roundtripCliScript) = "and true false"
+    ("(Bool.and true false)" |> roundtripCliScript) = "Bool.and true false"
+
+
+  module FunctionDeclaration =
+    // single 'normal' param
+    ("let helloWorld (i: Int64): String = \"Hello world\"" |> roundtripCliScript) = "let helloWorld (i: Int64): String =\n  \"Hello world\""
+
+    // () param
+    ("let emptyString () : String = \"\"" |> roundtripCliScript) = "let emptyString (_: Unit): String =\n  \"\""
+
+
+    // multiple params
+    ("let isHigher (a: Int64) (b: Int64) : Bool = (Int64.isGreaterThan a b)"
+     |> roundtripCliScript) = "let isHigher (a: Int64) (b: Int64): Bool =\n  Int64.isGreaterThan a b"
+
+
+    module CliScript =
+      // TODO the output here is a bit broken
+      ("""
+type BookID = Int64
+
+let getTitle (bookId: BookID): String =
+  let book = (Library.getBook bookId)
+  (getNameFromBook book)
+
+let curiousGeorgeBookId = 101L
+(Builtin.printLine (getTitle curiousGeorgeBookId))
+
+0L
+"""
+       |> roundtripCliScript) = """type BookID =
+  Int64
+
+let getTitle (bookId: BookID): String =
+  let book =
+    Library.getBook bookId
+  getNameFromBook book
+
+let curiousGeorgeBookId =
+  101L
+Builtin.printLine getTitle curiousGeorgeBookId
+
+0L"""

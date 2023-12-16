@@ -1,0 +1,53 @@
+
+==================
+basic script with type decl, fn decl, and some exprs
+==================
+
+type MyInt = Int64
+
+let myFn (): String = "hello"
+
+"test"
+
+let x = 1L + 2L
+
+(Builtin.printLine (myFn ()))
+
+---
+
+(source_file
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (fn_decl
+    (keyword)
+    (fn_identifier)
+    (fn_decl_params (unit))
+    (symbol)
+    (type_reference (builtin_type))
+    (symbol)
+    (expression (string_literal (symbol) (string_content) (symbol)))
+  )
+  (expression (string_literal (symbol) (string_content) (symbol)))
+  (expression
+    (let_expression
+      (keyword)
+      (variable_identifier)
+      (symbol)
+      (expression
+        (infix_operation
+          (expression (int64_literal (digits) (symbol)))
+          (operator)
+          (expression (int64_literal (digits) (symbol)))
+        )
+      )
+      (expression
+        (function_call
+          (symbol)
+          (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+          (expression (function_call (symbol) (qualified_fn_name (fn_identifier)) (expression (unit)) (symbol)))
+          (symbol)
+        )
+      )
+    )
+  )
+)
+

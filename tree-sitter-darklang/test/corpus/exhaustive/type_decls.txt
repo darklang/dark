@@ -1,0 +1,64 @@
+==================
+type decl alias of builtin
+==================
+
+type ID = Int64
+
+---
+
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_reference
+      (builtin_type))))
+
+
+==================
+type decl alias of package type
+==================
+
+type MyID = PACKAGE.Darklang.LanguageTools.Test
+
+---
+
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_reference
+      (qualified_type_name
+        (module_identifier)
+        (symbol)
+        (module_identifier)
+        (symbol)
+        (module_identifier)
+        (symbol)
+        (type_identifier)
+      )
+    )
+  )
+)
+
+==================
+type def alias of local type
+==================
+
+type MyID = Test
+
+---
+
+(source_file
+  (type_decl
+    keyword_type: (keyword)
+    name: (type_identifier)
+    symbol_equals: (symbol)
+    typ: (type_reference
+      (qualified_type_name
+        (type_identifier)
+      )
+    )
+  )
+)

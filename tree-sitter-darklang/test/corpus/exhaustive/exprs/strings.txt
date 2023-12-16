@@ -1,0 +1,46 @@
+==================
+empty string
+==================
+
+""
+
+---
+
+(source_file
+  (expression (string_literal (symbol) (symbol)))
+)
+
+
+==================
+basic string
+==================
+
+"hello, world"
+
+---
+
+(source_file
+  (expression
+    (string_literal (symbol) (string_content) (symbol))
+  )
+)
+
+
+
+==================
+string with escape
+==================
+
+"hello\tworld"
+
+---
+
+(source_file
+  (expression
+    (string_literal
+      (symbol)
+      (string_content (string_escape_sequence))
+      (symbol)
+    )
+  )
+)

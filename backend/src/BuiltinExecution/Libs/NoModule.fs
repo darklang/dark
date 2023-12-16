@@ -364,46 +364,69 @@ let fns : List<BuiltInFn> =
         "Unwrap an Option or Result, returning the value or raising a RuntimeError if None"
       fn =
         (function
-        | _,
-          _,
-          [ DEnum(FQName.Package({ owner = "Darklang"
+        | _, _, [] -> incorrectArgs ()
+        | _, _, [ dval ] ->
+          match dval with
+
+          // success: extract `Some` out of an Option
+          | DEnum(FQName.Package({ owner = "Darklang"
                                    modules = [ "Stdlib"; "Option" ]
                                    name = TypeName.TypeName "Option"
                                    version = 0 }),
                   _,
-                  _typeArgsDEnumTODO,
-                  caseName,
-                  [ value ]) ] ->
-          uply {
-            match caseName with
-            | "Some" -> return value
-            | "None" ->
-              return
-                RuntimeError.oldError (DvalReprDeveloper.toRepr value)
-                |> raiseUntargetedRTE
-            | _ -> return raiseUntargetedRTE (RuntimeError.oldError "Invalid Option")
-          }
-        | _,
-          _,
-          [ DEnum(FQName.Package({ owner = "Darklang"
+                  _,
+                  "Some",
+                  [ value ]) -> Ply value
+
+          // success: extract `Ok` out of a Result
+          | DEnum(FQName.Package({ owner = "Darklang"
                                    modules = [ "Stdlib"; "Result" ]
                                    name = TypeName.TypeName "Result"
                                    version = 0 }),
                   _,
-                  _typeArgsDEnumTODO,
-                  caseName,
-                  [ value ]) ] ->
-          uply {
-            match caseName with
-            | "Ok" -> return value
-            | "Error" ->
-              return
-                RuntimeError.oldError (DvalReprDeveloper.toRepr value)
-                |> raiseUntargetedRTE
-            | _ -> return raiseUntargetedRTE (RuntimeError.oldError "Invalid Option")
-          }
-        | _ ->
-          RuntimeError.oldError "Unwrap called with non-Option/non-Result"
+                  _,
+                  "Ok",
+                  [ value ]) -> Ply value
+
+          // Error: expected Some, got None
+          | DEnum(FQName.Package({ owner = "Darklang"
+                                   modules = [ "Stdlib"; "Option" ]
+                                   name = TypeName.TypeName "Option"
+                                   version = 0 }),
+                  _,
+                  _,
+                  "None",
+                  []) ->
+            raiseUntargetedRTE (RuntimeError.oldError "expected Some, got None")
+
+          // Error: expected Ok, got Error
+          | DEnum(FQName.Package({ owner = "Darklang"
+                                   modules = [ "Stdlib"; "Result" ]
+                                   name = TypeName.TypeName "Result"
+                                   version = 0 }),
+                  _,
+                  _,
+                  "Error",
+                  [ value ]) ->
+            value
+            |> DvalReprDeveloper.toRepr
+            |> fun err ->
+                raiseUntargetedRTE (
+                  RuntimeError.oldError $"expected Ok, got Error:\n{err}"
+                )
+            |> RuntimeError.oldError
+            |> raiseUntargetedRTE
+
+
+          // Error: single dval, but not an Option or Result
+          | otherDval ->
+            RuntimeError.oldError
+              $"Unwrap called with non-Option/non-Result {otherDval}"
+            |> raiseUntargetedRTE
+
+        | multipleArgs ->
+          RuntimeError.oldError
+            $"unwrap called with multiple arguments: {multipleArgs}"
           |> raiseUntargetedRTE)
       sqlSpec = NotQueryable
       previewable = Pure

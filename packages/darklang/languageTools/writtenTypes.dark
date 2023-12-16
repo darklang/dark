@@ -5,242 +5,150 @@ module Darklang =
       type SourceRange = Parser.Range
       // <aliases>
 
-      type Name = Unresolved of SourceRange * parts: List<String>
 
-      //type UnresolvedEnumTypeName = List<String>
+      // Identifiers
 
-      type LetPattern =
-        // | LPUnit
-        | LPVariable of SourceRange * name: String
-      // | LPTuple of
-      //   first: LetPattern *
-      //   second: LetPattern *
-      //   theRest: List<LetPattern>
+      type ModuleIdentifier = { range: SourceRange; name: String }
 
-      // type MatchPattern =
-      //   | MPUnit
-      //   | MPBool of Bool
-      //   | MPInt64 of Int64
-      //   | MPUInt64 of UInt64
-      //   | MPInt8 of Int8
-      //   | MPUInt8 of UInt8
-      //   | MPInt16 of Int16
-      //   | MPUInt16 of UInt16
-      //   | MPInt32 of Int32
-      //   | MPUInt32 of UInt32
-      //   | MPInt128 of Int128
-      //   | MPUInt128 of UInt128
-      //   | MPFloat of Sign * String * String
-      //   | MPChar of String
-      //   | MPString of String
+      type TypeIdentifier = { range: SourceRange; name: String }
 
-      //   | MPList of List<MatchPattern>
-      //   | MPListCons of head: MatchPattern * tail: MatchPattern
-      //   | MPTuple of MatchPattern * MatchPattern * List<MatchPattern>
+      type QualifiedTypeIdentifier =
+        {
+          range: SourceRange
+          /// the SourceRange corresponds to the `.` after the module name
+          modules: List<ModuleIdentifier * SourceRange>
+          typ: TypeIdentifier
+        }
 
-      //   | MPVariable of String
+      type VariableIdentifier = { range: SourceRange; name: String }
 
-      //   | MPEnum of caseName: String * fieldPats: List<MatchPattern>
+      type FnIdentifier = { range: SourceRange; name: String }
 
-      // type BinaryOperation =
-      //   | BinOpAnd
-      //   | BinOpOr
+      type QualifiedFnIdentifier =
+        {
+          range: SourceRange
+          /// the sourceRange corresponds to the `.` after the module name
+          modules: List<ModuleIdentifier * SourceRange>
+          fn: FnIdentifier
+        }
 
-      type InfixFnName =
+
+      // Types
+      module TypeReference =
+        type BuiltIn =
+          | TUnit of SourceRange
+          | TBool of SourceRange
+          | TInt64 of SourceRange
+          | TFloat of SourceRange
+          | TChar of SourceRange
+          | TString of SourceRange
+
+        type TypeReference =
+          | BuiltIn of BuiltIn
+          | QualifiedName of QualifiedTypeIdentifier
+
+
+
+      module TypeDeclaration =
+        type Definition = Alias of TypeReference.TypeReference
+
+        type TypeDeclaration =
+          { range: SourceRange
+            name: TypeIdentifier
+            definition: Definition
+            keywordType: SourceRange
+            symbolEquals: SourceRange }
+
+
+      // Expressions
+      type LetPattern = LPVariable of SourceRange * name: String
+
+      type InfixOperator =
         | ArithmeticPlus
         | ArithmeticMinus
-      // | ArithmeticMultiply
-      // | ArithmeticDivide
-      // | ArithmeticModulo
-      // | ArithmeticPower
-      // | ComparisonGreaterThan
-      // | ComparisonGreaterThanOrEqual
-      // | ComparisonLessThan
-      // | ComparisonLessThanOrEqual
-      // | ComparisonEquals
-      // | ComparisonNotEquals
-      // | StringConcat
-
-      type Infix = InfixFnCall of InfixFnName
-      // | BinOp of SourceRange * BinaryOperation
-
-      type TypeReference =
-        | TUnit of SourceRange
-        | TBool of SourceRange
-        | TInt64 of SourceRange
-        // | TUInt64
-        // | TInt8
-        // | TUInt8
-        // | TInt16
-        // | TUInt16
-        // | TInt32
-        // | TUInt32
-        // | TInt128
-        // | TUInt128
-        | TFloat of SourceRange
-        | TChar of SourceRange
-        | TString of SourceRange
-        // | TDateTime
-        // | TUuid
-
-        // | TList of SourceRange * TypeReference
-        // | TTuple of TypeReference * TypeReference * List<TypeReference>
-        // | TDict of TypeReference
-        | TCustomType of Name * typeArgs: List<TypeReference>
-        // | TFn of List<TypeReference> * TypeReference
-        // | TDB of  TypeReference
-        | TVariable of String
-
-      type StringSegment = StringText of String
-      //| StringInterpolation of Expr
-
-      // type PipeExpr =
-      //   | EPipeInfix of Infix * Expr
-      //   | EPipeLambda of pats: List<LetPattern> * body: Expr
-
-      //   | EPipeEnum of
-      //     typeName: UnresolvedEnumTypeName *
-      //     caseName: String *
-      //     fields: List<Expr>
-
-      //   | EPipeFnCall of
-      //     fnName: Name *
-      //     typeArgs: List<TypeReference> *
-      //     args: List<Expr>
-
-      //   | EPipeVariableOrUserFunction of String
-
-      // type MatchCase =
-      //   { pat: MatchPattern
-      //     whenCondition: Stdlib.Option.Option<Expr>
-      //     rhs: Expr }
 
       type Expr =
         | EUnit of SourceRange
         | EBool of SourceRange * Bool
-        | EInt64 of SourceRange * Int64
-        // | EUInt64 of UInt64
-        // | EInt8 of Int8
-        // | EUInt8 of UInt8
-        // | EInt16 of Int16
-        // | EUInt16 of UInt16
-        // | EInt32 of Int32
-        // | EUInt32 of UInt32
-        // | EInt128 of Int128
-        // | EUInt128 of UInt128
-        // | EFloat of Sign * String * String
-        // | EChar of String
-        | EString of SourceRange * StringSegment
-        // | EList of  List<Expr>
-        // | EDict of List<String * Expr>
-        // | ETuple of Expr * Expr * List<Expr>
-        // | ERecord of Name * List<String * Expr>
-        // | ERecordUpdate of record: Expr * updates: List<String * Expr>
-        // | EEnum of
-        //   typeName: UnresolvedEnumTypeName *
-        //   caseName: String *
-        //   fields: List<Expr>
-
-        | ELet of SourceRange * LetPattern * Expr * Expr
-        | EVariable of SourceRange * String
-        // | EFieldAccess of Expr * String
-        // | EIf of
-        //   cond: Expr *
-        //   thenExpr: Expr *
-        //   elseExpr: Stdlib.Option.Option<Expr>
-        // | EPipe of Expr * List<PipeExpr>
-        // | EMatch of arg: Expr * cases: List<MatchCase>
-        | EFnName of Name
-        | EInfix of SourceRange * Infix * Expr * Expr
-        // | ELambda of List<LetPattern> * Expr
-        | EApply of
+        | EInt64 of
           SourceRange *
-          Expr *
-          typeArgs: List<TypeReference> *
-          args: List<Expr>
+          intPart: (SourceRange * Int64) *
+          /// for the L suffix
+          suffixPart: SourceRange
+        | EString of
+          SourceRange *
+          contents: Stdlib.Option.Option<SourceRange * String> *
+          symbolOpenQuote: SourceRange *
+          symbolCloseQuote: SourceRange
 
+        | ELet of
+          SourceRange *
+          LetPattern *
+          expr: Expr *
+          body: Expr *
+          keywordLet: SourceRange *
+          symbolEquals: SourceRange
 
-      // type Const =
-      //   | CUnit
-      //   | CBool of Bool
-      //   | CInt64 of Int64
-      //   | CUInt64 of UInt64
-      //   | CInt8 of Int8
-      //   | CUInt8 of UInt8
-      //   | CInt16 of Int16
-      //   | CUInt16 of UInt16
-      //   | CInt32 of Int32
-      //   | CUInt32 of UInt32
-      //   | CInt128 of Int128
-      //   | CUInt128 of UInt128
-      //   | CFloat of Sign * String * String
-      //   | CChar of Char
-      //   | CString of String
-      //   | CList of List<Const>
-      //   | CDict of List<String * Const>
-      //   | CTuple of Const * Const * List<Const>
-      //   | CEnum of UnresolvedEnumTypeName * caseName: String * fields: List<Const>
+        | EVariable of SourceRange * String
 
-      module TypeDeclaration =
-        // type RecordField =
-        //   { name: String
-        //     typ: TypeReference
-        //     description: String }
+        | EInfix of
+          SourceRange *
+          op: (SourceRange * InfixOperator) *
+          left: Expr *
+          right: Expr
 
-        // type EnumField =
-        //   { typ: TypeReference
-        //     label: Stdlib.Option.Option<String>
-        //     description: String }
+        // TODO: I accidentally got away from how we normally represent
+        // Expressions - switch to this instead.
+        // | EApply of SourceRange * lhs: Expr * args: List<Expr>
+        // | EFnName of QualifiedFnIdentifier
 
-        // type EnumCase =
-        //   { name: String
-        //     fields: List<EnumField>
-        //     description: String }
-
-        type Definition = Alias of TypeReference
-        // | Record of List<RecordField>
-        // | Enum of List<EnumCase>
-
-        type TypeDeclaration =
-          {
-            // typeParams: List<String>
-            definition: Definition }
+        | EFnCall of
+          SourceRange *
+          fnName: QualifiedFnIdentifier *
+          args: List<Expr> *
+          symbolLeftParen: SourceRange *
+          symbolRightParen: SourceRange
 
 
 
-      module PackageFn =
-        type Parameter =
-          { sourceRange: SourceRange
+      // Fn declarations
+      module FnDeclaration =
+        type UnitParameter = { range: SourceRange }
+
+        type NormalParameter =
+          { range: SourceRange
             name: String
-            typ: TypeReference
-          ///description: String
-          }
+            typ: TypeReference.TypeReference
+            symbolLeftParen: SourceRange
+            symbolColon: SourceRange
+            symbolRightParen: SourceRange }
 
-        type PackageFn =
-          { sourceRange: SourceRange
-            name: Name
-            //typeParams: List<String>
+        type Parameter =
+          | Unit of UnitParameter
+          | Normal of NormalParameter
+
+
+        type FnDeclaration =
+          { range: SourceRange
+            name: FnIdentifier
             parameters: List<Parameter>
-            returnType: TypeReference
+            returnType: TypeReference.TypeReference
             body: Expr
-          ///description: String
-          }
-
-      type PackageType =
-        { sourceRange: SourceRange
-          name: Name
-          declaration: TypeDeclaration.TypeDeclaration
-        // description: String
-        }
-
-      // type PackageConstant =
-      //   { name: ProgramTypes.ConstantName.Package
-      //     body: Const
-      //     description: String }
+            keywordLet: SourceRange
+            symbolColon: SourceRange
+            symbolEquals: SourceRange }
 
 
-      type PackageItem =
-        | Function of PackageFn.PackageFn
-        | Type of PackageType
+      // Cli scripts
+      type CliScriptTypeOrFn =
+        | Function of FnDeclaration.FnDeclaration
+        | Type of TypeDeclaration.TypeDeclaration
 
-      type ParsedFile = PackageItems of SourceRange * items: List<PackageItem>
+      type CliScript =
+        { range: SourceRange
+
+          typesAndFns: List<CliScriptTypeOrFn>
+          exprsToEval: List<Expr> }
+
+
+      type ParsedFile = CliScript of CliScript

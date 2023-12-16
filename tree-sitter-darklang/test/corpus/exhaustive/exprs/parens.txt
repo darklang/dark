@@ -1,0 +1,18 @@
+==================
+parens expr
+==================
+
+(true)
+
+---
+
+(source_file
+  (expression
+    (paren_expression
+      (symbol)
+      (expression (bool_literal))
+      (symbol)
+    )
+  )
+)
+

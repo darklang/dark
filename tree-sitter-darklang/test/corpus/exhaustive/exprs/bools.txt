@@ -1,0 +1,77 @@
+==================
+true
+==================
+
+true
+
+---
+
+(source_file (expression (bool_literal)))
+
+
+==================
+false
+==================
+
+false
+
+---
+
+(source_file (expression (bool_literal)))
+
+
+==================
+TRUE (error)
+==================
+
+TRUE
+
+---
+
+(source_file
+  (ERROR (UNEXPECTED 'T'))
+)
+
+
+==================
+FALSE (error)
+==================
+
+FALSE
+
+---
+
+(source_file
+  (ERROR
+    (UNEXPECTED 'A')
+    (symbol)
+    (UNEXPECTED 'E')
+  )
+)
+
+
+==================
+True (error)
+==================
+
+True
+
+---
+
+(source_file
+  (ERROR (UNEXPECTED 'T'))
+  (expression (variable_identifier))
+)
+
+==================
+False (error)
+==================
+
+False
+
+---
+
+(source_file
+  (ERROR (UNEXPECTED 'a'))
+  (expression (variable_identifier))
+)
