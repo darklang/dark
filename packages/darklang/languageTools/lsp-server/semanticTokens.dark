@@ -134,7 +134,7 @@ module Darklang =
 
           | Some docText ->
             let parsed =
-              docText |> Parser.parse |> Parser.parseNodeToWrittenTypesSourceFile
+              docText |> Parser.parseToSimplifiedTree |> Parser.parseCliScript
 
             match parsed with
             | Ok parsedFile ->

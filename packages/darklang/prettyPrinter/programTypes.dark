@@ -33,7 +33,7 @@ module Darklang =
               else
                 $"_v{PACKAGE.Darklang.Stdlib.Int64.toString t.version}"
 
-            $"{modulesPart}{namePart}{versionPart}"
+            $"Builtin.{modulesPart}{namePart}{versionPart}"
 
 
         module UserProgram =
@@ -671,8 +671,8 @@ module Darklang =
 
         // simple data
         | EBool(_id, b) -> PACKAGE.Darklang.Stdlib.Bool.toString b
-        | EInt64(_id, i) -> PACKAGE.Darklang.Stdlib.Int64.toString i
-        | EUInt64(_id, i) -> PACKAGE.Darklang.Stdlib.UInt64.toString i
+        | EInt64(_id, i) -> (PACKAGE.Darklang.Stdlib.Int64.toString i) ++ "L"
+        | EUInt64(_id, i) -> (PACKAGE.Darklang.Stdlib.UInt64.toString i) ++ "UL"
         | EInt8(_id, i) -> PACKAGE.Darklang.Stdlib.Int8.toString i
         | EUInt8(_id, i) -> PACKAGE.Darklang.Stdlib.UInt8.toString i
         | EInt16(_id, i) -> PACKAGE.Darklang.Stdlib.Int16.toString i
@@ -1111,7 +1111,7 @@ module Darklang =
           PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference u.returnType
 
         let bodyPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr u.body
-        $"let {namePart} {typeParamsPart} {paramsPart} : {retPart} =\n{PACKAGE.Darklang.PrettyPrinter.indent bodyPart}"
+        $"let {namePart}{typeParamsPart} {paramsPart}: {retPart} =\n{PACKAGE.Darklang.PrettyPrinter.indent bodyPart}"
 
       // module Toplevel =
       //   type T =
