@@ -1,5 +1,6 @@
 module Darklang =
   module LanguageTools =
+    // TODO: should this be UInt64?
     type ID = Int64
 
     type TLID = UInt64
