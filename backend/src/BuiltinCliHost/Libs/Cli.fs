@@ -311,7 +311,136 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn [ "Cli" ] "executeFunctionWithNewParser" 0
+      typeParams = []
+      parameters =
+        [ Param.make "functionName" TString ""
+          Param.make
+            "args"
+            (TList(
+              TCustomType(
+                Ok(
+                  FQName.Package
+                    { owner = "Darklang"
+                      modules = [ "LanguageTools"; "ProgramTypes" ]
+                      name = TypeName.TypeName "Expr"
+                      version = 0 }
+                ),
+                []
+              )
+            ))
+            "" ]
+      returnType =
+        TypeReference.result
+          TString
+          (TCustomType(Ok(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)), []))
+      description =
+        "Executes an arbitrary Dark package function using the new darklang parser"
+      fn =
+        let errType =
+          KTCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), [])
+        let resultOk = Dval.resultOk KTString errType
+        let resultError = Dval.resultError KTString errType
+
+        function
+        | state, [], [ DString functionName; DList(_vtTODO, args) ] ->
+          uply {
+            let err (msg : string) (metadata : List<string * string>) : Dval =
+              let fields =
+                [ ("msg", DString msg)
+                  ("metadata",
+                   DDict(
+                     VT.string,
+                     metadata |> List.map (Tuple2.mapSecond DString) |> Map
+                   )) ]
+
+              let typeName = FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)
+              DRecord(typeName, typeName, [], Map fields) |> resultError
+
+            let exnError (e : exn) : Dval =
+              let msg = Exception.getMessages e |> String.concat "\n"
+              let metadata =
+                Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
+              err msg metadata
+
+            try
+              let parts = functionName.Split('.') |> List.ofArray
+              let name =
+                NEList.ofListUnsafe
+                  "Can't call `Cli.executeFunction` with an empty function name"
+                  []
+                  parts
+
+              let resolver = LibParser.NameResolver.fromExecutionState state
+              let! fnName =
+                LibParser.NameResolver.FnName.resolve
+                  resolver
+                  []
+                  (WT.Unresolved name)
+
+              match fnName with
+              | Ok fnName ->
+                let! fn =
+                  match PT2RT.FnName.toRT fnName with
+                  | FQName.Package pkg ->
+                    uply {
+                      let! fn = state.packageManager.getFn pkg
+                      return Option.map packageFnToFn fn
+                    }
+                  | _ ->
+                    Exception.raiseInternal
+                      "Error constructing package function name"
+                      [ "fn", fn ]
+
+                match fn with
+                | None -> return DString "fn not found"
+                | Some f ->
+
+
+                  let newArgs =
+                    args
+                    |> List.collect (fun dval ->
+                      match dval with
+                      | DEnum(_, _, _, _, fields) -> fields |> List.tail
+                      | _ -> Exception.raiseInternal "Invalid Expr" [])
+
+                  let! result =
+                    Exe.executeFunction
+                      state
+                      None
+                      f.name
+                      []
+                      (NEList.ofList newArgs.Head newArgs.Tail)
+
+                  match result with
+                  | Error(_, e) ->
+                    // TODO we should probably return the error here as-is, and handle by calling the
+                    // toSegments on the error within the CLI
+                    return
+                      e
+                      |> RuntimeError.toDT
+                      |> LibExecution.DvalReprDeveloper.toRepr
+                      |> DString
+                      |> resultError
+                  | Ok value ->
+                    match value with
+                    | DString s -> return resultOk (DString s)
+                    | _ ->
+                      let asString = LibExecution.DvalReprDeveloper.toRepr value
+                      return resultOk (DString asString)
+              | _ -> return incorrectArgs ()
+            with e ->
+              return exnError e
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    ]
 
 let constants : List<BuiltInConstant> = []
 let contents = (fns, types, constants)

@@ -3,7 +3,7 @@ module Darklang =
     type Command =
       | Help
       | RunScript of String * List<String>
-      | RunFunction of fnName: String * args: List<String>
+      | RunFunction of fnName: String * args: List<String> * flagValue: String
       | Show of String
       | Infer of String * String
       | Invalid of List<String>
@@ -238,14 +238,57 @@ module Darklang =
       parsedPackages
 
 
-    let runFunction (fnName: String) (args: List<String>) : Int64 =
-      match Builtin.Cli.executeFunction fnName args with
-      | Ok result ->
-        Builtin.printLine result
-        0L
-      | Error err ->
-        Builtin.printLine err
-        1L
+    let runFunction
+      (fnName: String)
+      (args: List<String>)
+      (flagValue: String)
+      : Int64 =
+      match flagValue with
+      | "wip-parser" ->
+        let args =
+          args
+          |> PACKAGE.Darklang.Stdlib.List.map (fun arg ->
+            arg
+            |> Builtin.Parser.parseToSimplifiedTree
+            |> PACKAGE.Darklang.LanguageTools.Parser.parseNodeToWrittenTypesSourceFile
+            |> Builtin.unwrap)
+
+        let exprs =
+          (PACKAGE.Darklang.Stdlib.List.map args (fun arg ->
+            match arg with
+            | PackageItems(_, items) ->
+              PACKAGE.Darklang.Stdlib.List.map items (fun item ->
+                match item with
+                | Expression expr ->
+                  expr
+                  |> PACKAGE.Darklang.LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+                | _ ->
+                  Builtin.print "not an expression"
+                  1L)
+
+            | e ->
+              Builtin.print e
+              1L))
+
+          |> PACKAGE.Darklang.Stdlib.List.flatten
+
+
+        match Builtin.Cli.executeFunctionWithNewParser fnName exprs with
+        | Ok result ->
+          Builtin.printLine result
+          0L
+        | Error err ->
+          Builtin.printLine err
+          1L
+
+      | _ ->
+        match Builtin.Cli.executeFunction fnName args with
+        | Ok result ->
+          Builtin.printLine result
+          0L
+        | Error err ->
+          Builtin.printLine err
+          1L
 
 
     let generateCode (prompt: String) (scriptPath: String) : Int64 =
@@ -285,9 +328,34 @@ module Darklang =
           Command.Invalid [ "Invalid package name" ]
 
       | opt :: args ->
+        let hasFlag =
+          (PACKAGE.Darklang.Stdlib.List.last args)
+          |> Builtin.unwrap
+          |> PACKAGE.Darklang.Stdlib.String.startsWith "--flag"
+
+        let flagValue =
+          if hasFlag then
+            (PACKAGE.Darklang.Stdlib.List.last args)
+            |> Builtin.unwrap
+            |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 7L
+          else
+            ""
+
+        let flag =
+          if hasFlag then
+            (PACKAGE.Darklang.Stdlib.List.last args) |> Builtin.unwrap
+          else
+            ""
+
+        let args =
+          if flag == "" then
+            args
+          else
+            PACKAGE.Darklang.Stdlib.List.dropLast args
+
         if PACKAGE.Darklang.Stdlib.String.startsWith opt "@" then
           let name = opt |> PACKAGE.Darklang.Stdlib.String.dropFirst_v0 1L
-          Command.RunFunction name args
+          Command.RunFunction name args flagValue
         else
           Command.RunScript(opt, args)
 
@@ -390,7 +458,8 @@ Options:
           else
             PACKAGE.Darklang.Cli.showModule fullName
 
-      | RunFunction(fnName, args) -> PACKAGE.Darklang.Cli.runFunction fnName args
+      | RunFunction(fnName, args, flagValue) ->
+        PACKAGE.Darklang.Cli.runFunction fnName args flagValue
 
       | Infer(prompt, scriptPath) ->
         // let script = System.IO.File.ReadAllText scriptPath
