@@ -22,24 +22,24 @@ let testMultibyteCharacters =
     let rootNode = tree.Root
     let fnDefNode = rootNode.Child 0
 
-    Expect.equal fnDefNode.Kind "fn_def" "Expected 'fn_def'"
+    Expect.equal fnDefNode.Kind "fn_decl" "Expected 'fn_decl'"
 
     Expect.equal
       (fnDefNode.ChildByFieldName("return_type")).Kind
-      "type"
-      "Expected 'type'"
+      "type_reference"
+      "Expected 'type_reference'"
 
 let toStringTest =
   testCase "Basic function declaration parse test"
   <| fun _ ->
     let parser = new Parser(Language = DarklangLanguage.Create())
-    let source = "let increment (i: Int): Int =\n  i + 1" |> Encoding.UTF8.GetBytes
+    let source = "let increment (i: Int64): Int64 = i + 1L" |> Encoding.UTF8.GetBytes
 
     let tree = parser.Parse(source, InputEncoding.Utf8)
 
     Expect.equal
       (tree.Root.ToString())
-      "(source_file (fn_def name: (identifier) params: (fn_params_def (fn_param_def identifier: (identifier) typ: (type))) return_type: (type) body: (expression (identifier))) (ERROR (infix_operator) (UNEXPECTED '1')))"
+      "(source_file (fn_decl keyword_let: (keyword) name: (fn_identifier) params: (fn_decl_params (fn_decl_param symbol_left_paren: (symbol) identifier: (variable_identifier) symbol_colon: (symbol) typ: (type_reference (builtin_type)) symbol_right_paren: (symbol))) symbol_colon: (symbol) return_type: (type_reference (builtin_type)) symbol_equals: (symbol) body: (expression (infix_operation left: (expression (variable_identifier)) operator: (operator) right: (expression (int64_literal))))))"
       ""
 
 let tests = testList "TreeSitter" [ testMultibyteCharacters; toStringTest ]
