@@ -255,12 +255,11 @@ module Darklang =
             |> fun parsedFile ->
                 match parsedFile with
                 | CliScript script -> script.exprsToEval)
+          |> PACKAGE.Darklang.Stdlib.List.flatten
 
         let exprs =
           (PACKAGE.Darklang.Stdlib.List.map args (fun arg ->
             PACKAGE.Darklang.LanguageTools.WrittenTypesToProgramTypes.Expr.toPT arg))
-          |> PACKAGE.Darklang.Stdlib.List.flatten
-
 
         match Builtin.Cli.executeFunctionWithNewParser fnName exprs with
         | Ok result ->
