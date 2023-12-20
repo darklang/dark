@@ -58,7 +58,24 @@ module Darklang =
                     names = names }
               )
 
-          | "Builtin" :: modules -> Builtin.print "got here builtin todo"
+          | "Builtin" :: modules ->
+            // TODO : check if builtin exists
+            PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+              (ProgramTypes.FQName.BuiltIn
+                { modules = modules
+                  name = (constructor name)
+                  version = 0L })
+              |> ProgramTypes.FQName.FQName.BuiltIn
+            )
+
+          | modules ->
+            // TODO : check if user program exists
+            (ProgramTypes.FQName.UserProgram
+              { modules = modules
+                name = (constructor name)
+                version = 0L })
+            |> ProgramTypes.FQName.FQName.UserProgram
+
 
 
       let namesToTry
