@@ -16,60 +16,42 @@ module Darklang =
         module QualifiedType =
           /// TODO: name resolution
           let toPT
+            (resolver: NameResolver.NameResolver)
             (i: WrittenTypes.QualifiedTypeIdentifier)
             : ProgramTypes.TypeName.TypeName =
-            match Stdlib.List.map i.modules (fun (m, _) -> m.name) with
-            | "PACKAGE" :: owner :: rest ->
-              (ProgramTypes.FQName.Package
-                { owner = owner
-                  modules = rest
-                  name = ProgramTypes.TypeName.Name.TypeName i.typ.name
-                  version = 0L })
-              |> ProgramTypes.FQName.FQName.Package
+            let currentModule = Stdlib.List.map i.modules (fun (m, _) -> m.name)
+            let nametoResolve = [ i.typ.name ]
 
-            // | "Builtin" :: rest ->
-            //   (ProgramTypes.FQName.BuiltIn
-            //     { modules = rest
-            //       name = ProgramTypes.TypeName.Name.TypeName i.typ.name
-            //       version = 0L })
-            //   |> ProgramTypes.FQName.FQName.BuiltIn
+            let resolvedName =
+              NameResolver.TypeName.resolve
+                resolver
+                currentModule
+                (WrittenTypes.Name.Unresolved nametoResolve)
 
-            | modules ->
-              (ProgramTypes.FQName.UserProgram
-                { modules = modules
-                  name = ProgramTypes.TypeName.Name.TypeName i.typ.name
-                  version = 0L })
-              |> ProgramTypes.FQName.FQName.UserProgram
+            match resolvedName with
+            | Ok n -> n
+            | Error e -> e
 
         module Fn =
           let toPT (fn: WrittenTypes.FnIdentifier) : String = fn.name
 
         module QualifiedFn =
           let toPT
+            (resolver: NameResolver.NameResolver)
             (i: WrittenTypes.QualifiedFnIdentifier)
             : ProgramTypes.FQName.FQName =
-            match Stdlib.List.map i.modules (fun (m, _) -> m.name) with
-            | "PACKAGE" :: owner :: rest ->
-              (ProgramTypes.FQName.Package
-                { owner = owner
-                  modules = rest
-                  name = ProgramTypes.FnName.Name.FnName i.fn.name
-                  version = 0L })
-              |> ProgramTypes.FQName.FQName.Package
+            let modules = Stdlib.List.map i.modules (fun (m, _) -> m.name)
+            let nametoResolve = [ i.fn.name ]
 
-            | "Builtin" :: rest ->
-              (ProgramTypes.FQName.BuiltIn
-                { modules = rest
-                  name = ProgramTypes.FnName.Name.FnName i.fn.name
-                  version = 0L })
-              |> ProgramTypes.FQName.FQName.BuiltIn
+            let resolvedName =
+              NameResolver.FnName.resolve
+                resolver
+                modules
+                (WrittenTypes.Name.Unresolved nametoResolve)
 
-            | modules ->
-              (ProgramTypes.FQName.UserProgram
-                { modules = modules
-                  name = ProgramTypes.FnName.Name.FnName i.fn.name
-                  version = 0L })
-              |> ProgramTypes.FQName.FQName.UserProgram
+            match resolvedName with
+            | Ok name -> name
+            | Error e -> e
 
 
       module TypeReference =
@@ -87,13 +69,14 @@ module Darklang =
 
 
         let toPT
+          (resolver: NameResolver.NameResolver)
           (t: WrittenTypes.TypeReference.TypeReference)
           : ProgramTypes.TypeReference =
 
           match t with
           | BuiltIn b -> BuiltIn.toPT b
           | QualifiedName qn ->
-            let typeName = Identifiers.QualifiedType.toPT qn
+            let typeName = Identifiers.QualifiedType.toPT resolver qn
 
             ProgramTypes.TypeReference.TCustomType(
               Stdlib.Result.Result.Ok typeName,
@@ -104,25 +87,28 @@ module Darklang =
       module TypeDeclaration =
         module Definition =
           let toPT
+            (resolver: NameResolver.NameResolver)
             (d: WrittenTypes.TypeDeclaration.Definition)
             : ProgramTypes.TypeDeclaration.Definition =
 
             match d with
             | Alias typ ->
-              let typ = TypeReference.toPT typ
+              let typ = TypeReference.toPT resolver typ
 
               ProgramTypes.TypeDeclaration.Definition.Alias typ
 
         let toPT
+          (resolver: NameResolver.NameResolver)
           (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
           : ProgramTypes.TypeDeclaration.TypeDeclaration =
-          let def = Definition.toPT d.definition
+          let def = Definition.toPT resolver d.definition
 
           ProgramTypes.TypeDeclaration.TypeDeclaration
             { typeParams = []; definition = def }
 
 
         let toUserTypePT
+          (resolver: NameResolver.NameResolver)
           (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
           : ProgramTypes.UserType =
           ProgramTypes.UserType
@@ -136,7 +122,7 @@ module Darklang =
                       |> ProgramTypes.TypeName.Name.TypeName
                     version = 0L }
               description = ""
-              declaration = toPT d
+              declaration = toPT resolver d
               deprecated = ProgramTypes.Deprecation.NotDeprecated }
 
 
@@ -148,7 +134,10 @@ module Darklang =
             | LPVariable(_, name) -> ProgramTypes.LetPattern.LPVariable(gid (), name)
 
 
-        let toPT (e: WrittenTypes.Expr) : ProgramTypes.Expr =
+        let toPT
+          (resolver: NameResolver.NameResolver)
+          (e: WrittenTypes.Expr)
+          : ProgramTypes.Expr =
           match e with
           // simple
           | EUnit _ -> ProgramTypes.Expr.EUnit(gid ())
@@ -166,7 +155,12 @@ module Darklang =
 
           // declaring and accessing variables
           | ELet(_, pat, rhs, body, _, _) ->
-            ProgramTypes.Expr.ELet(gid (), LetPattern.toPT pat, toPT rhs, toPT body)
+            ProgramTypes.Expr.ELet(
+              gid (),
+              LetPattern.toPT pat,
+              toPT resolver rhs,
+              toPT resolver body
+            )
 
           | EVariable(_, var) -> ProgramTypes.Expr.EVariable (gid ()) var
 
@@ -183,10 +177,15 @@ module Darklang =
                 ProgramTypes.InfixFnName.ArithmeticMinus
                 |> ProgramTypes.Infix.InfixFnCall
 
-            ProgramTypes.Expr.EInfix(gid (), infix, toPT left, toPT right)
+            ProgramTypes.Expr.EInfix(
+              gid (),
+              infix,
+              toPT resolver left,
+              toPT resolver right
+            )
 
           | EFnCall(_, fnName, args, _, _) ->
-            let fnName = Identifiers.QualifiedFn.toPT fnName
+            let fnName = Identifiers.QualifiedFn.toPT resolver fnName
 
             let fnNameExpr =
               ProgramTypes.Expr.EFnName(gid (), Stdlib.Result.Result.Ok fnName)
@@ -195,13 +194,14 @@ module Darklang =
               gid (),
               fnNameExpr,
               [],
-              Stdlib.List.map args (fun a -> toPT a)
+              Stdlib.List.map args (fun a -> toPT resolver a)
             )
 
 
       module FunctionDeclaration =
         module Parameter =
           let toUserFnParamPT
+            (resolver: NameResolver.NameResolver)
             (p: WrittenTypes.FnDeclaration.Parameter)
             : ProgramTypes.UserFunction.Parameter =
 
@@ -215,10 +215,11 @@ module Darklang =
             | Normal p ->
               ProgramTypes.UserFunction.Parameter
                 { name = p.name.name
-                  typ = TypeReference.toPT p.typ
+                  typ = TypeReference.toPT resolver p.typ
                   description = "" }
 
         let toUserFnPT
+          (resolver: NameResolver.NameResolver)
           (fn: WrittenTypes.FnDeclaration.FnDeclaration)
           : ProgramTypes.UserFunction.UserFunction =
           ProgramTypes.UserFunction.UserFunction
@@ -234,8 +235,9 @@ module Darklang =
               typeParams = []
               parameters =
                 fn.parameters
-                |> Darklang.Stdlib.List.map (fun p -> Parameter.toUserFnParamPT p)
-              returnType = TypeReference.toPT fn.returnType
+                |> Darklang.Stdlib.List.map (fun p ->
+                  Parameter.toUserFnParamPT resolver p)
+              returnType = TypeReference.toPT resolver fn.returnType
               description = ""
               deprecated = ProgramTypes.Deprecation.NotDeprecated
-              body = Expr.toPT fn.body }
+              body = Expr.toPT resolver fn.body }

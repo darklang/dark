@@ -5,6 +5,7 @@ module Darklang =
       type SourceRange = Parser.Range
       // <aliases>
 
+      type Name = Unresolved of List<String>
 
       // Identifiers
 

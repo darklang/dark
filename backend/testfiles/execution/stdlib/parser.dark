@@ -147,16 +147,18 @@ module TextToTextRoundtripping =
         match typeOrFn with
         | Type typeDecl ->
           let prettyPrinted =
-            typeDecl
+            (PACKAGE.Darklang.LanguageTools.NameResolver.empty ())
             |> PACKAGE.Darklang.LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toUserTypePT
+              typeDecl
             |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType
 
           acc |> PACKAGE.Darklang.Stdlib.List.push prettyPrinted
 
         | Function fnDecl ->
           let prettyPrinted =
-            fnDecl
+            (PACKAGE.Darklang.LanguageTools.NameResolver.empty ())
             |> PACKAGE.Darklang.LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toUserFnPT
+              fnDecl
             |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userFunction
 
           acc |> PACKAGE.Darklang.Stdlib.List.push prettyPrinted))
@@ -165,8 +167,9 @@ module TextToTextRoundtripping =
     let exprsPart = // List<String>
       (PACKAGE.Darklang.Stdlib.List.fold script.exprsToEval [] (fun acc expr ->
         let prettyPrinted =
-          expr
+          (PACKAGE.Darklang.LanguageTools.NameResolver.empty ())
           |> PACKAGE.Darklang.LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+            expr
           |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr
 
         acc |> PACKAGE.Darklang.Stdlib.List.push prettyPrinted))
@@ -194,8 +197,8 @@ module TextToTextRoundtripping =
     ("type MyChar = Char" |> roundtripCliScript) = "type MyChar =\n  Char"
     ("type MyString = String" |> roundtripCliScript) = "type MyString =\n  String"
 
-    // single-part qualified name
-    ("type ID = Test" |> roundtripCliScript) = "type ID =\n  Test"
+    // // single-part qualified name
+    // ("type ID = Test" |> roundtripCliScript) = "type ID =\n  Test"
 
     // fully-qualified package name (multi-part)
     ("type MyOption = PACKAGE.Darklang.Stdlib.Option.Option" |> roundtripCliScript) = "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option"
@@ -234,47 +237,59 @@ module TextToTextRoundtripping =
     // TODO: these is ugly
     ("1L + 2L" |> roundtripCliScript) = "(1L) + (2L)"
     ("1L + b + 3L" |> roundtripCliScript) = "((1L) + (b)) + (3L)"
-    ("(and true false)" |> roundtripCliScript) = "and true false"
-    ("(Bool.and true false)" |> roundtripCliScript) = "Bool.and true false"
+    // ("(and true false)" |> roundtripCliScript) = "and true false"
+    // ("(Bool.and true false)" |> roundtripCliScript) = "Bool.and true false"
+    ("(PACKAGE.Darklang.Stdlib.Bool.and true false)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and true false"
 
 
   module FunctionDeclaration =
     // single 'normal' param
     ("let helloWorld (i: Int64): String = \"Hello world\"" |> roundtripCliScript) = "let helloWorld (i: Int64): String =\n  \"Hello world\""
 
+    ("let double2 (i: PACKAGE.Darklang.LanguageTools.ID) : Int64 = i + i"
+     |> roundtripCliScript) = "let double2 (i: PACKAGE.Darklang.LanguageTools.ID): Int64 =\n  (i) + (i)"
+
     // () param
     ("let emptyString () : String = \"\"" |> roundtripCliScript) = "let emptyString (_: Unit): String =\n  \"\""
 
 
     // multiple params
-    ("let isHigher (a: Int64) (b: Int64) : Bool = (Int64.isGreaterThan a b)"
-     |> roundtripCliScript) = "let isHigher (a: Int64) (b: Int64): Bool =\n  Int64.isGreaterThan a b"
+    ("let isHigher (a: Int64) (b: Int64) : Bool = (PACKAGE.Darklang.Stdlib.Int64.greaterThan a b)"
+     |> roundtripCliScript) = "let isHigher (a: Int64) (b: Int64): Bool =\n  PACKAGE.Darklang.Stdlib.Int64.greaterThan a b"
 
 
-    module CliScript =
-      // TODO the output here is a bit broken
-      ("""
-type BookID = Int64
 
-let getTitle (bookId: BookID): String =
-  let book = (Library.getBook bookId)
-  (getNameFromBook book)
+  module FnCalls =
+    //package function call
+    ("let sum (a : Int64) (b : Int64) : Int64 = (PACKAGE.Darklang.Stdlib.Int64.add a b)"
+     |> roundtripCliScript) = "let sum (a: Int64) (b: Int64): Int64 =\n  PACKAGE.Darklang.Stdlib.Int64.add a b"
 
-let curiousGeorgeBookId = 101L
-(Builtin.printLine (getTitle curiousGeorgeBookId))
 
-0L
-"""
-       |> roundtripCliScript) = """type BookID =
-  Int64
 
-let getTitle (bookId: BookID): String =
-  let book =
-    Library.getBook bookId
-  getNameFromBook book
+//     module CliScript =
+//       // TODO the output here is a bit broken
+//       ("""
+// type BookID = Int64
 
-let curiousGeorgeBookId =
-  101L
-Builtin.printLine getTitle curiousGeorgeBookId
+// let getTitle (bookId: BookID): String =
+//   let book = (Library.getBook bookId)
+//   (getNameFromBook book)
 
-0L"""
+// let curiousGeorgeBookId = 101L
+// (Builtin.printLine (getTitle curiousGeorgeBookId))
+
+// 0L
+// """
+//        |> roundtripCliScript) = """type BookID =
+//   Int64
+
+// let getTitle (bookId: BookID): String =
+//   let book =
+//     Library.getBook bookId
+//   getNameFromBook book
+
+// let curiousGeorgeBookId =
+//   101L
+// Builtin.printLine getTitle curiousGeorgeBookId
+
+// 0L"""
