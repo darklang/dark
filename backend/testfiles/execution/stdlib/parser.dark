@@ -240,8 +240,7 @@ module TextToTextRoundtripping =
     // ("(and true false)" |> roundtripCliScript) = "and true false"
     // ("(Bool.and true false)" |> roundtripCliScript) = "Bool.and true false"
     ("(PACKAGE.Darklang.Stdlib.Bool.and true false)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and true false"
-    ("(Builtin.Bool.and true false)" |> roundtripCliScript) = "Builtin.Bool.and true false"
-
+    ("(Builtin.Int64.add 1L 2L)" |> roundtripCliScript) = "Builtin.Int64.add 1L 2L"
 
   module FunctionDeclaration =
     // single 'normal' param
