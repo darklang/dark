@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-sha=`git rev-parse HEAD`
+sha=$(git rev-parse HEAD)
 
 release="alpha-$sha"
 
