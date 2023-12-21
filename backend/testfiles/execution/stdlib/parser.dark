@@ -201,7 +201,7 @@ module TextToTextRoundtripping =
     // ("type ID = Test" |> roundtripCliScript) = "type ID =\n  Test"
 
     // fully-qualified package name (multi-part)
-    ("type MyOption = PACKAGE.Darklang.Stdlib.Option.Option" |> roundtripCliScript) = "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option"
+    ("type MyOption = PACKAGE.Darklang.Stdlib.Option.Option" |> roundtripCliScript) = "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option_v0"
 
 
   module TypeDeclaration =
@@ -239,30 +239,30 @@ module TextToTextRoundtripping =
     ("1L + b + 3L" |> roundtripCliScript) = "((1L) + (b)) + (3L)"
     // ("(and true false)" |> roundtripCliScript) = "and true false"
     // ("(Bool.and true false)" |> roundtripCliScript) = "Bool.and true false"
-    ("(PACKAGE.Darklang.Stdlib.Bool.and true false)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and true false"
+    ("(PACKAGE.Darklang.Stdlib.Bool.and true false)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and_v0 true false"
     ("(Builtin.Int64.add 1L 2L)" |> roundtripCliScript) = "Builtin.Int64.add 1L 2L"
 
   module FunctionDeclaration =
     // single 'normal' param
     ("let helloWorld (i: Int64): String = \"Hello world\"" |> roundtripCliScript) = "let helloWorld (i: Int64): String =\n  \"Hello world\""
 
-    ("let double2 (i: PACKAGE.Darklang.LanguageTools.ID) : Int64 = i + i"
-     |> roundtripCliScript) = "let double2 (i: PACKAGE.Darklang.LanguageTools.ID): Int64 =\n  (i) + (i)"
+    ("let double2 (i: PACKAGE.Darklang.LanguageTools.ID_v0) : Int64 = i + i"
+     |> roundtripCliScript) = "let double2 (i: PACKAGE.Darklang.LanguageTools.ID_v0): Int64 =\n  (i) + (i)"
 
     // () param
     ("let emptyString () : String = \"\"" |> roundtripCliScript) = "let emptyString (_: Unit): String =\n  \"\""
 
 
     // multiple params
-    ("let isHigher (a: Int64) (b: Int64) : Bool = (PACKAGE.Darklang.Stdlib.Int64.greaterThan a b)"
-     |> roundtripCliScript) = "let isHigher (a: Int64) (b: Int64): Bool =\n  PACKAGE.Darklang.Stdlib.Int64.greaterThan a b"
+    ("let isHigher (a: Int64) (b: Int64) : Bool = (PACKAGE.Darklang.Stdlib.Int64.greaterThan_v0 a b)"
+     |> roundtripCliScript) = "let isHigher (a: Int64) (b: Int64): Bool =\n  PACKAGE.Darklang.Stdlib.Int64.greaterThan_v0 a b"
 
 
 
   module FnCalls =
     //package function call
     ("let sum (a : Int64) (b : Int64) : Int64 = (PACKAGE.Darklang.Stdlib.Int64.add a b)"
-     |> roundtripCliScript) = "let sum (a: Int64) (b: Int64): Int64 =\n  PACKAGE.Darklang.Stdlib.Int64.add a b"
+     |> roundtripCliScript) = "let sum (a: Int64) (b: Int64): Int64 =\n  PACKAGE.Darklang.Stdlib.Int64.add_v0 a b"
 
 
 

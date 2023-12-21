@@ -11,6 +11,7 @@ module Darklang =
       // helper fuctions for the resolve function
       let resolveName
         (constructor: String -> 'name)
+        (parser: String -> PACKAGE.Darklang.Stdlib.Result.Result<String>)
         (names: List<String>)
         (packageThingExists: String -> Bool)
         (builtinThingExists: String -> Bool)
@@ -32,10 +33,12 @@ module Darklang =
           match modules with
           | "PACKAGE" :: owner :: modules ->
 
+            let name = (parser name) |> Builtin.unwrap
+
             let fqName =
               [ owner ]
               |> PACKAGE.Darklang.Stdlib.List.append modules
-              |> PACKAGE.Darklang.Stdlib.List.append [ name ++ "_v0" ]
+              |> PACKAGE.Darklang.Stdlib.List.append [ name ]
               |> PACKAGE.Darklang.Stdlib.String.join "."
 
             let packageThingExists = packageThingExists fqName
@@ -109,6 +112,7 @@ module Darklang =
 
       let resolve
         (constructor: String -> 'name)
+        (parser: String -> PACKAGE.Darklang.Stdlib.Result.Result<String>)
         (nameErrorType: LanguageTools.RuntimeErrors.NameResolution.NameType)
         (packageThingExists: String -> Bool)
         (builtinThingExists: String -> Bool)
@@ -138,6 +142,7 @@ module Darklang =
                   let newResult =
                     resolveName
                       constructor
+                      parser
                       pathToTry
                       packageThingExists
                       builtinThingExists
@@ -195,6 +200,7 @@ module Darklang =
 
           NameResolver.resolve
             (fun name -> ProgramTypes.TypeName.Name.TypeName name)
+            LanguageTools.Parser.parseName
             LanguageTools.RuntimeErrors.NameResolution.NameType.Type
             TypeName.packageTypeExists
             TypeName.builtinThingExists
@@ -209,6 +215,7 @@ module Darklang =
           : LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName> =
           NameResolver.resolve
             (fun name -> ProgramTypes.TypeName.Name.TypeName name)
+            LanguageTools.Parser.parseName
             LanguageTools.RuntimeErrors.NameResolution.NameType.Type
             TypeName.packageTypeExists
             TypeName.builtinThingExists
@@ -254,6 +261,7 @@ module Darklang =
 
           NameResolver.resolve
             (fun name -> ProgramTypes.FnName.Name.FnName name)
+            LanguageTools.Parser.parseName
             LanguageTools.RuntimeErrors.NameResolution.NameType.Function
             FnName.packageFnExists
             FnName.builtinThingExists
@@ -269,6 +277,7 @@ module Darklang =
 
           NameResolver.resolve
             (fun name -> ProgramTypes.FnName.Name.FnName name)
+            LanguageTools.Parser.parseName
             LanguageTools.RuntimeErrors.NameResolution.NameType.Function
             FnName.packageFnExists
             FnName.builtinThingExists
