@@ -37,19 +37,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ DString fnName ] ->
-          let fnsSeq =
+          let fnsMap =
             state.builtIns.fns
-            |> Map.toSeq
-            |> Seq.filter (fun (key, data) ->
-              not (FnName.isInternalFn key) && data.deprecated = NotDeprecated)
-            |> Seq.map (fun (key, _) -> FnName.builtinToString key)
 
-          let result =
-            fnsSeq |> Seq.tryFind (fun name -> name = fnName) |> Option.map DString
-
-          match result with
-          | Some name -> Dval.optionSome KTString (name) |> Ply
-          | None -> Dval.optionNone KTString |> Ply
+          let exists = Map.exists (fun key _ -> FnName.builtinToString key = fnName) fnsMap
+          if exists then Dval.optionSome KTString (DString fnName) |> Ply
+          else Dval.optionNone KTString |> Ply
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
