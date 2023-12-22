@@ -37,12 +37,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ DString fnName ] ->
-          let fnsMap =
-            state.builtIns.fns
+          let fnsMap = state.builtIns.fns
 
-          let exists = Map.exists (fun key _ -> FnName.builtinToString key = fnName) fnsMap
-          if exists then Dval.optionSome KTString (DString fnName) |> Ply
-          else Dval.optionNone KTString |> Ply
+          let exists =
+            Map.exists (fun key _ -> FnName.builtinToString key = fnName) fnsMap
+          if exists then
+            Dval.optionSome KTString (DString fnName) |> Ply
+          else
+            Dval.optionNone KTString |> Ply
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

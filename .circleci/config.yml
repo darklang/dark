@@ -205,6 +205,8 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsdark.sln /p:DebugType=None /p:DebugSymbols=false
       # run backend server
       - run: scripts/run-backend-server --published
+      - run: sleep 5 # let migrations run
+      - run: scripts/build/reload-packages --published
       - run: scripts/run-backend-tests --published
       ## TODO: too many race conditions. Bring back later
       # Test package manager/cli integration works
