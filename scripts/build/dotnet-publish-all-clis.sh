@@ -17,6 +17,7 @@ mkdir -p clis
 runtimes="linux-x64 linux-arm64"
 for rt in $runtimes; do
   echo "Building for runtime: $rt"
+
   ./scripts/build/_dotnet-wrapper publish \
     -c Release \
     src/Cli/Cli.fsproj \
@@ -27,7 +28,9 @@ for rt in $runtimes; do
     /p:PublishReadyToRun=false \
     --self-contained true \
     --runtime "$rt"
+
   target="clis/darklang-$release-$rt"
-  mv backend/Build/out/Cli/Release/net8.0/$rt/publish/Cli "$target"
+  echo "Moving to $target"
+  mv "backend/Build/out/Cli/Release/net8.0/$rt/publish/Cli" "$target"
   gzip "$target"
 done
