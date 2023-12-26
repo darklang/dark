@@ -7,10 +7,7 @@ module Documentation =
   ) > 100L) = true
 
   ((Builtin.DarkInternal.Documentation.list_v0 ())
-   |> PACKAGE.Darklang.Stdlib.List.map (fun f -> (f.name, f))
-   |> PACKAGE.Darklang.Stdlib.Dict.fromList_v0
-   |> Builtin.unwrap
-   |> PACKAGE.Darklang.Stdlib.Dict.get "Int64.add"
+   |> PACKAGE.Darklang.Stdlib.List.findFirst (fun f -> f.name == "Int64.add")
    |> Builtin.unwrap
    |> (fun f -> f.parameters)) = [ PACKAGE.Darklang.Internal.Documentation.BuiltinFunctionParameter
                                      { name = "a"; ``type`` = "Int64" }
