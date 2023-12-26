@@ -278,6 +278,7 @@ jobs:
             - tree-sitter-darklang/build
           key: v4-cli-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
+      - store_artifacts: { path: clis }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
