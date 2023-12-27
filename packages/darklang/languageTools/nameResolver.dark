@@ -246,7 +246,9 @@ module Darklang =
 
         let builtinThingExists (fnName: String) : Bool =
 
-          let fnExists = Builtin.DarkEditor.builtinExists fnName
+          let fnExists =
+            (Builtin.DarkEditor.builtinsList ())
+            |> PACKAGE.Darklang.Stdlib.List.findFirst (fun f -> f.name == fnName)
 
           match fnExists with
           | Some _ -> true

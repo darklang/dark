@@ -28,29 +28,45 @@ let typ
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "builtinExists" 0
+  [ { name = fn "builtinsList" 0
       typeParams = []
-      parameters = [ Param.make "fnName" TString "" ]
-      returnType = TypeReference.option TString
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TList(TCustomType(Ok(typ [] "BuiltinFunction" 0), []))
       description =
-        "Returns the Some name of the builtin function if it exists, otherwise None."
+        "Returns a list of Function records, representing the functions available in the standard library."
       fn =
         (function
-        | state, _, [ DString fnName ] ->
-          let fnsMap = state.builtIns.fns
+        | state, _, [ DUnit ] ->
+          let typeNameToStr = LibExecution.DvalReprDeveloper.typeName
 
-          let exists =
-            Map.exists (fun key _ -> FnName.builtinToString key = fnName) fnsMap
-          if exists then
-            Dval.optionSome KTString (DString fnName) |> Ply
-          else
-            Dval.optionNone KTString |> Ply
+          let fnParamTypeName = typ [] "BuiltinFunctionParameter" 0
+          let fnTypeName = typ [] "BuiltinFunction" 0
 
+          let fns =
+            state.builtIns.fns
+            |> Map.toList
+            |> List.map (fun (key, data) ->
+              let parameters =
+                data.parameters
+                |> List.map (fun p ->
+                  let fields =
+                    [ "name", DString p.name
+                      "type", DString(typeNameToStr p.typ) ]
+                  DRecord(fnParamTypeName, fnParamTypeName, [], Map fields))
+                |> Dval.list (KTCustomType(fnParamTypeName, []))
+
+              let fields =
+                [ "name", DString(FnName.builtinToString key)
+                  "description", DString data.description
+                  "parameters", parameters
+                  "returnType", DString(typeNameToStr data.returnType) ]
+
+              DRecord(fnTypeName, fnTypeName, [], Map fields))
+
+          DList(VT.customType fnTypeName [], fns) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
-
-    ]
+      deprecated = NotDeprecated } ]
 
 let contents = (fns, types, constants)

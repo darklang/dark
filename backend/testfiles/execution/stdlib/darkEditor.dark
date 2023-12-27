@@ -1,0 +1,11 @@
+module Darklang =
+  module DarkEditor =
+
+    type BuiltinFunctionParameter = { name: String; ``type``: String }
+
+    /// A Darklang builtin function
+    type BuiltinFunction =
+      { name: String
+        description: String
+        parameters: List<BuiltinFunctionParameter>
+        returnType: String }
