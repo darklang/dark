@@ -1,1 +1,1 @@
-let double (i: Int) : Int = i + i
+let double (i: Int): Int = i + i

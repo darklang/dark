@@ -4,15 +4,28 @@ module Darklang =
     module LspServer =
       module SemanticTokens =
         /// note: these are referenced by their _index_!
-        /// i.e. 'keyword' is 0, 'string' is 4, etc.
+        /// i.e. 'keyword' is 1, 'string' is 5, etc.
+        ///
+        /// Most of these are part of a generally-known set of token types
+        /// defined by the LSP spec, but there are a few that are 'custom'
+        /// for our language:
+        /// - "symbol"
         let tokenTypes =
-          [ "keyword" // for words 'let' and 'in'
-            "function" // for function names/identifiers
-            "parameter" // for function parameter identifiers
-            "type" // for type names like Int, Bool, etc.
-            "string" // for string literals
-            "operator" // for operators like +, -
-            "variable" ] // for general identifiers
+          [ // universal
+            "symbol" // [0] for (, ), [, ], {, }, etc.
+            "keyword" // [1] for words 'let' and 'in'
+
+            // for types and type references
+            "namespace" // [2] for module names
+            "type" // [3] for type names like Int, Bool, etc.
+
+            // for fns and exprs
+            "operator" // [4] for operators like +, -
+            "string" // [5] for string literals
+            "number" // [6] for number literals
+            "parameter" // [7] for function parameter identifiers
+            "variable" // [8] for general identifiers
+            "function" ] // [9] for function names/identifiers
 
         let tokenModifiers = []
 
@@ -25,13 +38,18 @@ module Darklang =
             (t: Darklang.LanguageTools.SemanticTokens.TokenType)
             : UInt64 =
             match t with
-            | Keyword -> 0UL
-            | Function -> 1UL
-            | Parameter -> 2UL
-            | Type -> 3UL
-            | String -> 4UL
-            | Operator -> 5UL
-            | Variable -> 6UL
+            | Symbol -> 0UL
+            | Keyword -> 1UL
+
+            | ModuleName -> 2UL
+            | TypeName -> 3UL
+
+            | Operator -> 4UL
+            | String -> 5UL
+            | Number -> 6UL
+            | ParameterName -> 7UL
+            | VariableName -> 8UL
+            | FunctionName -> 9UL
 
 
           let toRelativeTokens
@@ -140,7 +158,7 @@ module Darklang =
             | Ok parsedFile ->
               let data =
                 parsedFile
-                |> LanguageTools.SemanticTokens.fromParsedFile
+                |> LanguageTools.SemanticTokens.ParsedFile.tokenize
                 |> EncodeSemanticTokens.toRelativeTokens
                 |> EncodeSemanticTokens.toLspFormat
 

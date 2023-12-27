@@ -113,6 +113,15 @@ module Darklang =
           let (modulesInReverse, lastNode) = extractModuleIdentifiersHelper [] nodes
           (Stdlib.List.reverse modulesInReverse, lastNode)
 
+        let parseVariable (n: ParsedNode) : WrittenTypes.VariableIdentifier =
+          WrittenTypes.VariableIdentifier { range = n.sourceRange; name = n.text }
+
+        let parseType (n: ParsedNode) : WrittenTypes.TypeIdentifier =
+          WrittenTypes.TypeIdentifier { range = n.sourceRange; name = n.text }
+
+        let parseFn (n: ParsedNode) : WrittenTypes.FnIdentifier =
+          WrittenTypes.FnIdentifier { range = n.sourceRange; name = n.text }
+
 
         let parseQualifiedType
           (node: ParsedNode)
@@ -124,10 +133,7 @@ module Darklang =
             (WrittenTypes.QualifiedTypeIdentifier
               { range = node.sourceRange
                 modules = modules
-                typ =
-                  WrittenTypes.TypeIdentifier
-                    { range = typeIdentifierNode.sourceRange
-                      name = typeIdentifierNode.text } })
+                typ = parseType typeIdentifierNode })
             |> Stdlib.Result.Result.Ok
           else
             Stdlib.Result.Result.Error
@@ -143,14 +149,12 @@ module Darklang =
             (WrittenTypes.QualifiedFnIdentifier
               { range = node.sourceRange
                 modules = modules
-                fn =
-                  WrittenTypes.FnIdentifier
-                    { range = fnIdentifierNode.sourceRange
-                      name = fnIdentifierNode.text } })
+                fn = parseFn fnIdentifierNode })
             |> Stdlib.Result.Result.Ok
           else
             Stdlib.Result.Result.Error
               $"Can't parse qualified_fn_name from {node.typ}"
+
 
 
       module TypeReference =
@@ -229,21 +233,14 @@ module Darklang =
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.TypeDeclaration.TypeDeclaration, String> =
           if node.typ == "type_decl" then
-            let keywordTypeNode =
-              node |> findNodeByFieldName "keyword_type" |> Builtin.unwrap
-
-            let nameNode = node |> findNodeByFieldName "name" |> Builtin.unwrap
-
-            let symbolEqualsNode =
-              node |> findNodeByFieldName "symbol_equals" |> Builtin.unwrap
-
             (WrittenTypes.TypeDeclaration.TypeDeclaration
               { range = node.sourceRange
 
                 name =
-                  WrittenTypes.TypeIdentifier
-                    { range = nameNode.sourceRange
-                      name = nameNode.text }
+                  node
+                  |> findNodeByFieldName "name"
+                  |> Builtin.unwrap
+                  |> Identifiers.parseType
 
                 definition =
                   node
@@ -252,8 +249,13 @@ module Darklang =
                   |> parseDefinition
                   |> Builtin.unwrap
 
-                keywordType = keywordTypeNode.sourceRange
-                symbolEquals = symbolEqualsNode.sourceRange })
+                keywordType =
+                  node |> findNodeByFieldName "keyword_type" |> Builtin.unwrap
+                symbolEquals =
+                  node
+                  |> findNodeByFieldName "symbol_equals"
+                  |> Builtin.unwrap
+                  |> getRange })
             |> Stdlib.Result.Result.Ok
           else
             Stdlib.Result.Result.Error $"Can't parse type_decl from {node.typ}"
@@ -500,7 +502,7 @@ module Darklang =
                 name =
                   (findNodeByFieldName node "identifier")
                   |> Builtin.unwrap
-                  |> getText
+                  |> Identifiers.parseVariable
 
                 typ =
                   (findNodeByFieldName node "typ")
@@ -565,14 +567,13 @@ module Darklang =
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.FnDeclaration.FnDeclaration, String> =
           if node.typ == "fn_decl" then
-            let fnNameNode = node |> findNodeByFieldName "name" |> Builtin.unwrap
-
             (WrittenTypes.FnDeclaration.FnDeclaration
               { range = node.sourceRange
                 name =
-                  WrittenTypes.FnIdentifier
-                    { range = fnNameNode.sourceRange
-                      name = fnNameNode.text }
+                  node
+                  |> findNodeByFieldName "name"
+                  |> Builtin.unwrap
+                  |> Identifiers.parseFn
                 parameters =
                   (findNodeByFieldName node "params")
                   |> Builtin.unwrap

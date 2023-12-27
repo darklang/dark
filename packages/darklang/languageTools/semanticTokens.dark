@@ -6,13 +6,31 @@ module Darklang =
       // <aliases>
 
       type TokenType =
+        // universal
+        | Symbol
         | Keyword
-        | Function
-        | Parameter
-        | Type
-        | String
+
+        // types
+        | ModuleName
+        | TypeName
+
+        // exprs and fns
         | Operator
-        | Variable
+        | String
+        | Number
+        | ParameterName
+        | VariableName
+        | FunctionName
+
+        // FUTURE: these are not yet used
+        | Comment
+
+        | TypeParameter
+
+        | EnumCase // in Option.Some, this would be `Some`
+        | Property // ? maybe this should be used for fields
+        | Method // ? or maybe this should be used for fields
+        | RegularExpression
 
 
       /// The LSP[1] communicates in terms of 'relative' semantic tokens,
@@ -32,129 +50,244 @@ module Darklang =
         { sourceRange: SourceRange
           tokenType: TokenType }
 
+      let makeToken (s: SourceRange) (t: TokenType) : SemanticToken =
+        SemanticToken { sourceRange = s; tokenType = t }
 
 
-      // let fromName (name: WrittenTypes.Name) : List<SemanticToken> =
-      //   match name with
-      //   | Unresolved(range, _parts) ->
-      //     [ SemanticToken
-      //         { sourceRange = range
-      //           tokenType = TokenType.Variable } ]
+      module ModuleIdentifier =
+        let tokenize (m: WrittenTypes.ModuleIdentifier) : List<SemanticToken> =
+          [ makeToken m.range TokenType.ModuleName ]
+
+      module TypeIdentifier =
+        let tokenize (t: WrittenTypes.TypeIdentifier) : List<SemanticToken> =
+          [ makeToken t.range TokenType.TypeName ]
+
+      module QualifiedTypeIdentifier =
+        // Darklang.Stdlib.Option
+        let tokenize
+          (q: WrittenTypes.QualifiedTypeIdentifier)
+          : List<SemanticToken> =
+          [ // Darklang.Stdlib.
+            (q.modules
+             |> Stdlib.List.map (fun (m, _) -> ModuleIdentifier.tokenize m)
+             |> Stdlib.List.flatten)
+
+            // Option
+            TypeIdentifier.tokenize q.typ ]
+          |> Stdlib.List.flatten
+
+      module VariableIdentifier =
+        let tokenize (v: WrittenTypes.VariableIdentifier) : List<SemanticToken> =
+          [ makeToken v.range TokenType.VariableName ]
+
+      module FnIdentifier =
+        let tokenize (fn: WrittenTypes.FnIdentifier) : List<SemanticToken> =
+          [ makeToken fn.range TokenType.FunctionName ]
+
+      module QualifiedFnIdentifier =
+        /// Darklang.Stdlib.List.map
+        let tokenize (q: WrittenTypes.QualifiedFnIdentifier) : List<SemanticToken> =
+          [ // Darklang.Stdlib.List.
+            (q.modules
+             |> Stdlib.List.map (fun (m, _) -> ModuleIdentifier.tokenize m)
+             |> Stdlib.List.flatten)
+
+            // map
+            FnIdentifier.tokenize q.fn ]
+          |> Stdlib.List.flatten
 
 
-      // let fromLetPattern (lp: WrittenTypes.LetPattern) : List<SemanticToken> =
-      //   // type LetPattern =
-      //   //   | LPVariable of SourceRange * name: String
-      //   []
+      module TypeReference =
+        module BuiltIn =
+          let tokenize
+            (t: WrittenTypes.TypeReference.BuiltIn)
+            : List<SemanticToken> =
+            match t with
+            | TUnit r -> [ makeToken r TokenType.TypeName ]
+            | TBool r -> [ makeToken r TokenType.TypeName ]
+            | TInt64 r -> [ makeToken r TokenType.TypeName ]
+            | TFloat r -> [ makeToken r TokenType.TypeName ]
+            | TChar r -> [ makeToken r TokenType.TypeName ]
+            | TString r -> [ makeToken r TokenType.TypeName ]
+
+        let tokenize
+          (t: WrittenTypes.TypeReference.TypeReference)
+          : List<SemanticToken> =
+          match t with
+          | BuiltIn b -> BuiltIn.tokenize b
+          | QualifiedName q -> QualifiedTypeIdentifier.tokenize q
 
 
-      // let fromTypeReference (t: WrittenTypes.TypeReference) : List<SemanticToken> =
-      //   let tokenRange =
-      //     match t with
-      //     | TUnit r -> r
-      //     | TBool r -> r
-      //     | TInt64 r -> r
-      //     | TFloat r -> r
-      //     | TChar r -> r
-      //     | TString r -> r
+      module TypeDeclaration =
+        let tokenizeDefinition
+          (d: WrittenTypes.TypeDeclaration.Definition)
+          : List<SemanticToken> =
+          match d with
+          | Alias typeRef -> TypeReference.tokenize typeRef
 
-      //   [ SemanticToken
-      //       { sourceRange = tokenRange
-      //         tokenType = TokenType.Type } ]
-
-
-
-      // let fromExpr (expr: WrittenTypes.Expr) : List<SemanticToken> =
-      //   // type Expr =
-      //   //   | EUnit of SourceRange
-      //   //   | EBool of SourceRange * Bool
-      //   //   | EInt64 of SourceRange * Int64
-      //   //   | EString of SourceRange * StringSegment
-
-      //   //   | ELet of SourceRange * LetPattern * Expr * Expr
-      //   //   | EVariable of SourceRange * String
-      //   //   | EFnName of Name
-      //   //   | EInfix of SourceRange * Infix * Expr * Expr
-      //   //   | EApply of
-      //   //     SourceRange *
-      //   //     Expr *
-      //   //     typeArgs: List<TypeReference> *
-      //   //     args: List<Expr>
-      //   []
+        // type ID = UInt64
+        let tokenize
+          (t: WrittenTypes.TypeDeclaration.TypeDeclaration)
+          : List<SemanticToken> =
+          [ // type
+            [ makeToken t.keywordType TokenType.Keyword ]
+            // ID
+            [ makeToken t.name.range TokenType.TypeName ]
+            // =
+            [ makeToken t.symbolEquals TokenType.Symbol ]
+            // UInt64
+            tokenizeDefinition t.definition ]
+          |> Stdlib.List.flatten
 
 
-      // /// assumptions:
-      // /// - each param is not broken up with newlines
-      // ///   (though newlines between them is OK)
-      // ///
-      // ///   if we want to allow for newlines in these defs,
-      // ///   then we need to capture the sourceRange of the `name:String` as well
-      // let fromPackageFnParam
-      //   (p: WrittenTypes.PackageFn.Parameter)
-      //   : List<SemanticToken> =
-      //   let namePart =
-      //     let namePartStart =
-      //       Parser.Point
-      //         { row = p.sourceRange.start.row
-      //           // skip the `(`
-      //           column = p.sourceRange.start.column + 1L }
 
-      //     let namePartEnd =
-      //       { namePartStart with
-      //           column = namePartStart.column + (Stdlib.String.length p.name) }
-
-      //     [ SemanticToken
-      //         { sourceRange =
-      //             Parser.Range
-      //               { start = namePartStart
-      //                 end_ = namePartEnd }
-      //           tokenType = TokenType.Parameter } ]
-
-      //   let typePart = fromTypeReference p.typ
-
-      //   Stdlib.List.flatten [ namePart; typePart ]
+      module Expr =
+        module LetPattern =
+          let tokenize (lp: WrittenTypes.LetPattern) : List<SemanticToken> =
+            match lp with
+            | LPVariable(range, _name) -> [ makeToken range TokenType.VariableName ]
 
 
-      // let fromPackageFn
-      //   (fn: WrittenTypes.PackageFn.PackageFn)
-      //   : List<SemanticToken> =
-      //   let letParts =
-      //     [ SemanticToken
-      //         { sourceRange =
-      //             Parser.Range
-      //               { start = fn.sourceRange.start
-      //                 end_ =
-      //                   Parser.Point
-      //                     { row = fn.sourceRange.start.row
-      //                       column = fn.sourceRange.start.column + 3L } }
-      //           tokenType = TokenType.Keyword } ]
+        let tokenize (e: WrittenTypes.Expr) : List<SemanticToken> =
+          match e with
+          // ()
+          | EUnit range -> [ makeToken range TokenType.Symbol ]
 
-      //   let nameParts = fromName fn.name
+          // true
+          | EBool(range, _b) -> [ makeToken range TokenType.Keyword ]
 
-      //   let paramsParts =
-      //     fn.parameters
-      //     |> Stdlib.List.map (fun p -> fromPackageFnParam p)
-      //     |> Stdlib.List.flatten
+          // 12L
+          | EInt64(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
 
-      //   let returnTypeParts = fromTypeReference fn.returnType
+          // "hello"
+          | EString(range, _contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+            [ // "
+              [ makeToken symbolOpenQuote TokenType.Symbol ]
 
-      //   let bodyParts = fromExpr fn.body
+              // hello
+              (match contentsMaybe with
+               | Some(contentsRange, _contents) ->
+                 [ makeToken contentsRange TokenType.String ]
+               | None -> [])
 
-      //   Stdlib.List.flatten
-      //     [ letParts; nameParts; paramsParts; returnTypeParts; bodyParts ]
+              // "
+              [ makeToken symbolCloseQuote TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
+          // let x = 2
+          // x + 1
+          | ELet(range, lp, expr, body, keywordLet, symbolEquals) ->
+            [ [ makeToken keywordLet TokenType.Keyword ]
+              LetPattern.tokenize lp
+              [ makeToken symbolEquals TokenType.Symbol ]
+              Expr.tokenize expr
+              Expr.tokenize body ]
+            |> Stdlib.List.flatten
+
+          // x
+          | EVariable(range, _varName) -> [ makeToken range TokenType.VariableName ]
+
+          // x + 1
+          | EInfix(_, (opRange, _op), left, right) ->
+            [ // x
+              Expr.tokenize left
+              // +
+              [ makeToken opRange TokenType.Operator ]
+              // 1
+              Expr.tokenize right ]
+            |> Stdlib.List.flatten
+
+          // hacky temp. syntax -- see `grammar.js`
+          // (Int64.add 1L 2L)
+          | EFnCall(range, fnName, args, symbolLeftParen, symbolRightParen) ->
+            [ // (
+              [ makeToken symbolLeftParen TokenType.Symbol ]
+              // Int64.add
+              QualifiedFnIdentifier.tokenize fnName
+              // 1L 2L
+              (args
+               |> Stdlib.List.map (fun arg -> Expr.tokenize arg)
+               |> Stdlib.List.flatten)
+              // )
+              [ makeToken symbolRightParen TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
 
 
-      // let fromTypeDeclaration (t: WrittenTypes.TypeDeclaration) : List<SemanticToken> =
-      //   // TODO
-      //   []
+
+      module FnDeclaration =
+        module UnitParameter =
+          // `()`
+          let tokenize
+            (p: WrittenTypes.FnDeclaration.UnitParameter)
+            : List<SemanticToken> =
+            [ makeToken p.range TokenType.Symbol ]
+
+        // `(a: Int64)`
+        module NormalParameter =
+          let tokenize
+            (p: WrittenTypes.FnDeclaration.NormalParameter)
+            : List<SemanticToken> =
+            [ // `(`
+              [ makeToken p.symbolLeftParen TokenType.Symbol ]
+              // `a`
+              [ makeToken p.name.range TokenType.ParameterName ]
+              // `:`
+              [ makeToken p.symbolColon TokenType.Symbol ]
+              // `Int64`
+              TypeReference.tokenize p.typ
+              // `)`
+              [ makeToken p.symbolRightParen TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
+        module Parameter =
+          let tokenize
+            (p: WrittenTypes.FnDeclaration.Parameter)
+            : List<SemanticToken> =
+            match p with
+            | Unit u -> UnitParameter.tokenize u
+            | Normal n -> NormalParameter.tokenize n
 
 
-      let fromParsedFile (wt: WrittenTypes.ParsedFile) : List<SemanticToken> =
-        match wt with
-        | CliScript cliScript ->
-          // cliScript.typesAndFns
-          // |> Stdlib.List.map (fun typeOrFn ->
-          //   match typeOrFn with
-          //   | type t -> fromTypeDeclaration t)
-          // |> Stdlib.List.flatten
-          []
+        // `let add (a: Int64) (b: Int64): Int64 = a + b`
+        let tokenize
+          (fn: WrittenTypes.FnDeclaration.FnDeclaration)
+          : List<SemanticToken> =
+          [ // `let`
+            [ makeToken fn.keywordLet TokenType.Keyword ]
+            // `add`
+            FnIdentifier.tokenize fn.name
+            // `(a: Int64) (b: Int64)`
+            (fn.parameters
+             |> Stdlib.List.map (fun p -> Parameter.tokenize p)
+             |> Stdlib.List.flatten)
+            // `:`
+            [ makeToken fn.symbolColon TokenType.Symbol ]
+            // `Int64`
+            TypeReference.tokenize fn.returnType
+            // `=`
+            [ makeToken fn.symbolEquals TokenType.Operator ]
+            // `a + b`
+            Expr.tokenize fn.body ]
+          |> Stdlib.List.flatten
+
+
+      module ParsedFile =
+        let tokenize (wt: WrittenTypes.ParsedFile) : List<SemanticToken> =
+          match wt with
+          | CliScript cliScript ->
+            let typesAndFnsPart =
+              cliScript.typesAndFns
+              |> Stdlib.List.map (fun typeOrFn ->
+                match typeOrFn with
+                | Type t -> TypeDeclaration.tokenize t
+                | Function fn -> FnDeclaration.tokenize fn)
+              |> Stdlib.List.flatten
+
+            let exprsPart =
+              cliScript.exprsToEval
+              |> Stdlib.List.map (fun expr -> Expr.tokenize expr)
+              |> Stdlib.List.flatten
+
+            Stdlib.List.flatten [ typesAndFnsPart; exprsPart ]
