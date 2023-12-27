@@ -117,7 +117,7 @@ module Darklang =
 
         type NormalParameter =
           { range: SourceRange
-            name: String
+            name: VariableIdentifier
             typ: TypeReference.TypeReference
             symbolLeftParen: SourceRange
             symbolColon: SourceRange
@@ -141,8 +141,8 @@ module Darklang =
 
       // Cli scripts
       type CliScriptTypeOrFn =
-        | Function of FnDeclaration.FnDeclaration
         | Type of TypeDeclaration.TypeDeclaration
+        | Function of FnDeclaration.FnDeclaration
 
       type CliScript =
         { range: SourceRange

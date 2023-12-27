@@ -214,7 +214,7 @@ module Darklang =
 
             | Normal p ->
               ProgramTypes.UserFunction.Parameter
-                { name = p.name
+                { name = p.name.name
                   typ = TypeReference.toPT p.typ
                   description = "" }
 

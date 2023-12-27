@@ -365,7 +365,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [] -> incorrectArgs ()
-        | _, _, [ dval ] ->
+        | state, _, [ dval ] ->
           match dval with
 
           // success: extract `Some` out of an Option
@@ -397,7 +397,9 @@ let fns : List<BuiltInFn> =
                   _,
                   "None",
                   []) ->
-            raiseUntargetedRTE (RuntimeError.oldError "expected Some, got None")
+            "expected Some, got None"
+            |> RuntimeError.oldError
+            |> raiseRTE state.caller
 
           // Error: expected Ok, got Error
           | DEnum(FQName.Package({ owner = "Darklang"
@@ -408,26 +410,22 @@ let fns : List<BuiltInFn> =
                   _,
                   "Error",
                   [ value ]) ->
-            value
-            |> DvalReprDeveloper.toRepr
-            |> fun err ->
-                raiseUntargetedRTE (
-                  RuntimeError.oldError $"expected Ok, got Error:\n{err}"
-                )
+            $"expected Ok, got Error:\n{value |> DvalReprDeveloper.toRepr}"
             |> RuntimeError.oldError
-            |> raiseUntargetedRTE
+            |> raiseRTE state.caller
 
 
           // Error: single dval, but not an Option or Result
           | otherDval ->
-            RuntimeError.oldError
-              $"Unwrap called with non-Option/non-Result {otherDval}"
-            |> raiseUntargetedRTE
+            $"Unwrap called with non-Option/non-Result {otherDval}"
+            |> RuntimeError.oldError
+            |> raiseRTE state.caller
 
-        | multipleArgs ->
-          RuntimeError.oldError
-            $"unwrap called with multiple arguments: {multipleArgs}"
-          |> raiseUntargetedRTE)
+        | state, _, multipleArgs ->
+          $"unwrap called with multiple arguments: {multipleArgs}"
+          |> RuntimeError.oldError
+          |> raiseRTE state.caller)
+
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]
