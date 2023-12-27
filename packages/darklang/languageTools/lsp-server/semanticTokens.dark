@@ -57,16 +57,19 @@ module Darklang =
             : List<LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.RelativeSemanticToken<LanguageTools.SemanticTokens.TokenType>> =
             tokens
             |> Stdlib.List.sortByComparator_v0 (fun a b ->
-              // TODO: sort by rows, too
-              // TODO: handle equality?
-              if
-                Stdlib.Int64.lessThan
-                  a.sourceRange.start.column
-                  b.sourceRange.start.column
-              then
+              let aStart = a.sourceRange.start
+              let bStart = b.sourceRange.start
+
+              if Stdlib.Int64.lessThan aStart.row bStart.row then
                 -1L
+              elif Stdlib.Int64.greaterThan aStart.row bStart.row then
+                1L
+              else if Stdlib.Int64.lessThan aStart.column bStart.column then
+                -1L
+              else if Stdlib.Int64.greaterThan aStart.column bStart.column then
+                1L
               else
-                1L)
+                0L)
             |> Builtin.unwrap
             |> (Stdlib.List.fold
               (([], Parser.Point { row = 0L; column = 0L }))
@@ -77,7 +80,11 @@ module Darklang =
                   match token.sourceRange.start.row - startOfLastToken.row with
                   | 0L ->
                     (0UL, token.sourceRange.start.column - startOfLastToken.column)
-                  | lineDiff -> (lineDiff, token.sourceRange.start.column)
+                  | lineDiff ->
+                    let lineDiff =
+                      lineDiff |> Stdlib.UInt64.fromInt64 |> Builtin.unwrap
+
+                    (lineDiff, token.sourceRange.start.column)
 
                 let newToken =
                   LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.RelativeSemanticToken //<LanguageTools.SemanticTokens.TokenType>

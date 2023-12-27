@@ -250,7 +250,10 @@ module Darklang =
                   |> Builtin.unwrap
 
                 keywordType =
-                  node |> findNodeByFieldName "keyword_type" |> Builtin.unwrap
+                  node
+                  |> findNodeByFieldName "keyword_type"
+                  |> Builtin.unwrap
+                  |> getRange
                 symbolEquals =
                   node
                   |> findNodeByFieldName "symbol_equals"
