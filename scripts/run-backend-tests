@@ -88,11 +88,20 @@ cd backend && \
   "${PRODEXEC}" migrations run > "$LOGS/test-migrations.log" 2>&1
 cd ..
 
+# Reload packages
 DARK_CONFIG_TELEMETRY_EXPORTER=none \
 DARK_CONFIG_ROLLBAR_ENABLED=n \
 DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
 DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
-./scripts/build/reload-packages --test $PUBLISHED_FLAG
+
+if [[ "$PUBLISHED" == "true" ]]; then
+  echo "Running backend server"
+  ./scripts/run-backend-server $PUBLISHED_FLAG
+  echo "Running reloading packages"
+  ./scripts/build/reload-packages $PUBLISHED_FLAG
+else
+  ./scripts/build/reload-packages --test $PUBLISHED_FLAG
+fi
 
 JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/backend.xml"
 
