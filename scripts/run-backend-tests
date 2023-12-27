@@ -89,10 +89,6 @@ cd backend && \
 cd ..
 
 # Reload packages
-DARK_CONFIG_TELEMETRY_EXPORTER=none \
-DARK_CONFIG_ROLLBAR_ENABLED=n \
-DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
-DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
 
 if [[ "$PUBLISHED" == "true" ]]; then
   echo "Running backend server"
@@ -100,6 +96,10 @@ if [[ "$PUBLISHED" == "true" ]]; then
   echo "Running reloading packages"
   ./scripts/build/reload-packages $PUBLISHED_FLAG
 else
+  DARK_CONFIG_TELEMETRY_EXPORTER=none \
+  DARK_CONFIG_ROLLBAR_ENABLED=n \
+  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
+  DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
   ./scripts/build/reload-packages --test $PUBLISHED_FLAG
 fi
 
