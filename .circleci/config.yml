@@ -204,6 +204,7 @@ jobs:
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsdark.sln /p:DebugType=None /p:DebugSymbols=false
       - run: scripts/run-backend-tests --published
+
       ## TODO: too many race conditions. Bring back later
       # Test package manager/cli integration works
       # - run: scripts/run-backend-server --published
