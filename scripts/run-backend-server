@@ -115,7 +115,7 @@ announce "Running migrations" "${MIGRATIONS_LOG}"
 # This has been made run in the background because it takes a full second to start
 # up. If this turns out not to be safe (eg bugs during initialization of dark server
 # processes), then make ir run in the foreground again.
-"${PRODEXEC_EXE}" migrations run > "${MIGRATIONS_LOG}" 2>&1 &
+"${PRODEXEC_EXE}" migrations run > "${MIGRATIONS_LOG}" 2>&1
 
 BWDSERVER_LOG="$LOGS/bwdserver.log"
 announce "Running bwdserver" "${BWDSERVER_LOG}"
