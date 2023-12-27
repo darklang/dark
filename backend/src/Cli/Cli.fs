@@ -114,21 +114,51 @@ let main (args : string[]) =
     match result with
     | Error(source, rte) ->
       let state = state ()
-      let source =
+
+      // Ideally, this would be done in Dark rather than F#
+      //
+      // TODO: pretty-print the source the expr.
+      let errorSourceStr =
         match source with
-        | Some(tlid, id) -> $"(source: {tlid}, {id})"
-        | None -> "(source unknown)"
+        | Some(tlid, id) ->
+          let foundProgramTL =
+            state.program.fns.Values |> Seq.tryFind (fun fn -> fn.tlid = tlid)
+
+          let foundPackageTL =
+            state.packageManager.getFnByTLID tlid
+            // TODO don't do this hacky stuff
+            |> Ply.toTask
+            |> Async.AwaitTask
+            |> Async.RunSynchronously
+
+          match foundProgramTL, foundPackageTL with
+          | Some programFn, _ ->
+            $"user fn {RT.FnName.userProgramToString programFn.name}, expr {id}"
+
+          | None, Some packageFn ->
+            $"package fn {RT.FnName.packageToString packageFn.name}, expr {id}"
+
+          | None, None -> $"tlid {tlid}, expr {id}"
+
+        | None -> "(unknown)"
+
+
       match (LibExecution.Execution.runtimeErrorToString state rte).Result with
-      | Ok(RT.DString s) -> System.Console.WriteLine $"Error {source}:\n  {s}"
+      | Ok(RT.DString s) ->
+        System.Console.WriteLine $"Error source: {errorSourceStr}\n  {s}"
+
       | Ok otherVal ->
         System.Console.WriteLine
-          $"Unexpected value while stringifying error {source}\n"
+          $"Unexpected value while stringifying error.\nSource: {errorSourceStr}\n"
         System.Console.WriteLine $"Original Error: {rte}"
         System.Console.WriteLine $"Value is:\n{otherVal}"
+
       | Error(_, newErr) ->
-        System.Console.WriteLine $"Error while stringifying error {source}\n"
+        System.Console.WriteLine
+          $"Error while stringifying error.\n Source: {errorSourceStr}\n"
         System.Console.WriteLine $"Original Error: {rte}"
         System.Console.WriteLine $"New Error is:\n{newErr}"
+
       1
     | Ok(RT.DInt64 i) -> (int i)
     | Ok dval ->
