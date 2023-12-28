@@ -8,3 +8,12 @@ module Darklang =
     type Sign =
       | Positive
       | Negative
+
+    type BuiltinFunctionParameter = { name: String; ``type``: String }
+
+    /// A Darklang builtin function
+    type BuiltinFunction =
+      { name: String
+        description: String
+        parameters: List<BuiltinFunctionParameter>
+        returnType: String }

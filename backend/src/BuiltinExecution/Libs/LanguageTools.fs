@@ -1,4 +1,4 @@
-module BuiltinExecution.Libs.DarkEditor
+module BuiltinExecution.Libs.LanguageTools
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -12,7 +12,7 @@ module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 
 
-let modules = [ "DarkEditor" ]
+let modules = [ "LanguageTools" ]
 let fn = fn modules
 let constant = constant modules
 
@@ -24,15 +24,11 @@ let typ
   (name : string)
   (version : int)
   : TypeName.TypeName =
-  TypeName.fqPackage
-    "Darklang"
-    ([ "Stdlib"; "DarkEditor" ] @ addlModules)
-    name
-    version
+  TypeName.fqPackage "Darklang" ([ "LanguageTools" ] @ addlModules) name version
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "builtinsList" 0
+  [ { name = fn "allBuiltinFns" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TList(TCustomType(Ok(typ [] "BuiltinFunction" 0), []))

@@ -18,7 +18,7 @@ let contents (httpConfig : Libs.HttpClient.Configuration) : Builtin.Contents =
       Libs.Char.contents
       Libs.DateTime.contents
       Libs.Dict.contents
-      Libs.DarkEditor.contents
+      Libs.LanguageTools.contents
       Libs.Float.contents
       Libs.HttpClient.contents httpConfig
       Libs.Json.contents

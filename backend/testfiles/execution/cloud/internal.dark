@@ -2,14 +2,14 @@
 // Misc
 // ---------------
 module Documentation =
-  (PACKAGE.Darklang.Stdlib.List.length_v0 (Builtin.DarkEditor.builtinsList ()) > 100L) = true
+  (PACKAGE.Darklang.Stdlib.List.length_v0 (Builtin.LanguageTools.allBuiltinFns ()) > 100L) = true
 
-  ((Builtin.DarkEditor.builtinsList ())
+  ((Builtin.LanguageTools.allBuiltinFns ())
    |> PACKAGE.Darklang.Stdlib.List.findFirst (fun f -> f.name == "Int64.add")
    |> Builtin.unwrap
-   |> (fun f -> f.parameters)) = [ PACKAGE.Darklang.Stdlib.DarkEditor.BuiltinFunctionParameter
+   |> (fun f -> f.parameters)) = [ PACKAGE.Darklang.LanguageTools.BuiltinFunctionParameter
                                      { name = "a"; ``type`` = "Int64" }
-                                   PACKAGE.Darklang.Stdlib.DarkEditor.BuiltinFunctionParameter
+                                   PACKAGE.Darklang.LanguageTools.BuiltinFunctionParameter
                                      { name = "b"; ``type`` = "Int64" } ]
 
 
