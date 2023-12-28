@@ -24,7 +24,11 @@ let typ
   (name : string)
   (version : int)
   : TypeName.TypeName =
-  TypeName.fqPackage "Darklang" ([ "DarkEditor" ] @ addlModules) name version
+  TypeName.fqPackage
+    "Darklang"
+    ([ "Stdlib"; "DarkEditor" ] @ addlModules)
+    name
+    version
 
 
 let fns : List<BuiltInFn> =
