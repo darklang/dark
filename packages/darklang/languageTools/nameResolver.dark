@@ -11,21 +11,21 @@ module Darklang =
       // helper fuctions for the resolve function
       let resolveName
         (constructor: String -> 'name)
-        (parser: String -> PACKAGE.Darklang.Stdlib.Result.Result<String>)
+        (parser: String -> Stdlib.Result.Result<String>)
         (names: List<String>)
         (packageThingExists: String -> Bool)
         (builtinThingExists: String -> Bool)
         (nameErrorType: LanguageTools.RuntimeErrors.NameResolution.NameType)
         : LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQName.FQName<'name>> =
-        let modules = PACKAGE.Darklang.Stdlib.List.dropLast names
-        let name = PACKAGE.Darklang.Stdlib.List.last names
+        let modules = Stdlib.List.dropLast names
+        let name = Stdlib.List.last names
 
         match name with
         | None ->
-          PACKAGE.Darklang.Stdlib.Result.Result.Error(
-            PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error
+          Stdlib.Result.Result.Error(
+            LanguageTools.RuntimeErrors.NameResolution.Error
               { errorType =
-                  PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
+                  LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
                 nameType = nameErrorType
                 names = names }
           )
@@ -37,14 +37,14 @@ module Darklang =
 
             let fqName =
               [ owner ]
-              |> PACKAGE.Darklang.Stdlib.List.append modules
-              |> PACKAGE.Darklang.Stdlib.List.append [ name ]
-              |> PACKAGE.Darklang.Stdlib.String.join "."
+              |> Stdlib.List.append modules
+              |> Stdlib.List.append [ name ]
+              |> Stdlib.String.join "."
 
             let packageThingExists = packageThingExists fqName
 
             if packageThingExists then
-              PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+              Stdlib.Result.Result.Ok(
                 (ProgramTypes.FQName.Package
                   { owner = owner
                     modules = modules
@@ -53,19 +53,17 @@ module Darklang =
                 |> ProgramTypes.FQName.FQName.Package
               )
             else
-              PACKAGE.Darklang.Stdlib.Result.Result.Error(
-                PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error
+              Stdlib.Result.Result.Error(
+                LanguageTools.RuntimeErrors.NameResolution.Error
                   { errorType =
-                      PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
+                      LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
                     nameType = nameErrorType
-                    names = PACKAGE.Darklang.Stdlib.List.append modules [ name ] }
+                    names = Stdlib.List.append modules [ name ] }
               )
 
           | "Builtin" :: modules ->
             let builtinName =
-              PACKAGE.Darklang.Stdlib.String.join
-                (PACKAGE.Darklang.Stdlib.List.append modules [ name ])
-                "."
+              Stdlib.String.join (Stdlib.List.append modules [ name ]) "."
 
             let builtinExists = builtinThingExists builtinName
 
@@ -76,22 +74,20 @@ module Darklang =
                     name = (constructor name)
                     version = 0L })
 
-              PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-                builtIn |> ProgramTypes.FQName.FQName.BuiltIn
-              )
+              Stdlib.Result.Result.Ok(builtIn |> ProgramTypes.FQName.FQName.BuiltIn)
 
             else
-              PACKAGE.Darklang.Stdlib.Result.Result.Error(
-                PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error
+              Stdlib.Result.Result.Error(
+                LanguageTools.RuntimeErrors.NameResolution.Error
                   { errorType =
-                      PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
+                      LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
                     nameType = nameErrorType
-                    names = PACKAGE.Darklang.Stdlib.List.append modules [ name ] }
+                    names = Stdlib.List.append modules [ name ] }
               )
 
           | modules ->
             // TODO : check if user program exists
-            PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+            Stdlib.Result.Result.Ok(
               (ProgramTypes.FQName.UserProgram
                 { modules = modules
                   name = (constructor name)
@@ -106,13 +102,13 @@ module Darklang =
         match modules with
         | [] -> [ given ]
         | _ ->
-          let rest = PACKAGE.Darklang.Stdlib.List.dropLast modules
-          let current = PACKAGE.Darklang.Stdlib.List.append modules given
-          PACKAGE.Darklang.Stdlib.List.append [ current ] (namesToTry given rest)
+          let rest = Stdlib.List.dropLast modules
+          let current = Stdlib.List.append modules given
+          Stdlib.List.append [ current ] (namesToTry given rest)
 
       let resolve
         (constructor: String -> 'name)
-        (parser: String -> PACKAGE.Darklang.Stdlib.Result.Result<String>)
+        (parser: String -> Stdlib.Result.Result<String>)
         (nameErrorType: LanguageTools.RuntimeErrors.NameResolution.NameType)
         (packageThingExists: String -> Bool)
         (builtinThingExists: String -> Bool)
@@ -124,14 +120,14 @@ module Darklang =
         match name with
         | Unresolved given ->
           let result =
-            PACKAGE.Darklang.Stdlib.List.fold
+            Stdlib.List.fold
               (NameResolver.namesToTry given currentModule)
 
-              (PACKAGE.Darklang.Stdlib.Result.Result.Error(
-                PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error
+              (Stdlib.Result.Result.Error(
+                LanguageTools.RuntimeErrors.NameResolution.Error
                   { nameType = nameErrorType
                     errorType =
-                      PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
+                      LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
                     names = given }
               ))
 
@@ -153,17 +149,15 @@ module Darklang =
                   | Error _ -> currentResult)
 
           match result with
-          | Ok result -> PACKAGE.Darklang.Stdlib.Result.Result.Ok result
+          | Ok result -> Stdlib.Result.Result.Ok result
           | Error err ->
             if allowError then
-              PACKAGE.Darklang.Stdlib.Result.Result.Error err
+              Stdlib.Result.Result.Error err
             else
-              PACKAGE.Darklang.Stdlib.Result.Result.Error "TODO: Raise exception"
+              Stdlib.Result.Result.Error "TODO: Raise exception"
 
 
-        | _ ->
-          PACKAGE.Darklang.Stdlib.Result.Result.Error
-            "TODO : builtin and user program"
+        | _ -> Stdlib.Result.Result.Error "TODO : builtin and user program"
 
 
 
@@ -171,7 +165,7 @@ module Darklang =
         let packageTypeExists (typeName: String) : Bool =
 
           let typ =
-            PACKAGE.Darklang.Stdlib.HttpClient.request
+            Stdlib.HttpClient.request
               "GET"
               ("http://dark-packages.dlio.localhost:11003/type/by-name/" ++ typeName)
               []
@@ -179,8 +173,7 @@ module Darklang =
 
           let statusCode =
             typ
-            |> PACKAGE.Darklang.Stdlib.Result.map (fun response ->
-              response.statusCode)
+            |> Stdlib.Result.map (fun response -> response.statusCode)
             |> Builtin.unwrap
 
           match statusCode with
@@ -196,7 +189,7 @@ module Darklang =
           (resolver: NameResolver.NameResolver)
           (currentModule: List<String>)
           (name: LanguageTools.WrittenTypes.Name)
-          : LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName> =
+          : LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.TypeName.TypeName> =
 
           NameResolver.resolve
             (fun name -> ProgramTypes.TypeName.Name.TypeName name)
@@ -212,7 +205,7 @@ module Darklang =
           (resolver: NameResolver.NameResolver)
           (currentModule: List<String>)
           (name: LanguageTools.WrittenTypes.Name)
-          : LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.TypeName> =
+          : LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.TypeName.TypeName> =
           NameResolver.resolve
             (fun name -> ProgramTypes.TypeName.Name.TypeName name)
             LanguageTools.Parser.parseName
@@ -228,7 +221,7 @@ module Darklang =
       module FnName =
         let packageFnExists (fnName: String) : Bool =
           let fn =
-            PACKAGE.Darklang.Stdlib.HttpClient.request
+            Stdlib.HttpClient.request
               "GET"
               ($"http://dark-packages.dlio.localhost:11003/function/by-name/{fnName}")
               []
@@ -236,8 +229,7 @@ module Darklang =
 
           let statusCode =
             fn
-            |> PACKAGE.Darklang.Stdlib.Result.map (fun response ->
-              response.statusCode)
+            |> Stdlib.Result.map (fun response -> response.statusCode)
             |> Builtin.unwrap
 
           match statusCode with
@@ -248,7 +240,7 @@ module Darklang =
 
           let fnExists =
             (Builtin.DarkEditor.builtinsList ())
-            |> PACKAGE.Darklang.Stdlib.List.findFirst (fun f -> f.name == fnName)
+            |> Stdlib.List.findFirst (fun f -> f.name == fnName)
 
           match fnExists with
           | Some _ -> true

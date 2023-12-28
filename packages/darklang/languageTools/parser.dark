@@ -30,14 +30,12 @@ module Darklang =
       let parseToSimplifiedTree (text: String) : ParsedNode =
         Builtin.Parser.parseToSimplifiedTree text
 
-      let parseName
-        (fnName: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<String> =
-        if (PACKAGE.Darklang.Stdlib.String.contains fnName "_v") then
+      let parseName (fnName: String) : Darklang.Stdlib.Result.Result<String> =
+        if (Darklang.Stdlib.String.contains fnName "_v") then
           // Todo : check if the name is valid
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok fnName
+          Darklang.Stdlib.Result.Result.Ok fnName
         else
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok(fnName ++ "_v0")
+          Darklang.Stdlib.Result.Result.Ok(fnName ++ "_v0")
 
       // // TODO: maybe re-frame this into expected/actual or something
       // type ParseError =
