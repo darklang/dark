@@ -8,15 +8,15 @@ module Darklang =
       let gtlid () : UInt64 =
         Stdlib.UInt64.random 0UL 9223372036854775807UL
 
+      type Name = Unresolved of List<String>
 
       module Identifiers =
         module Type =
           let toPT (typ: WrittenTypes.TypeIdentifier) : String = typ.name
 
         module QualifiedType =
-          /// TODO: name resolution
           let toPT
-            (resolver: NameResolver.NameResolver)
+            (resolver: NameResolver.NameResolutionSettings)
             (i: WrittenTypes.QualifiedTypeIdentifier)
             : ProgramTypes.TypeName.TypeName =
             let currentModule = Stdlib.List.map i.modules (fun (m, _) -> m.name)
@@ -26,18 +26,19 @@ module Darklang =
               NameResolver.TypeName.resolve
                 resolver
                 currentModule
-                (WrittenTypes.Name.Unresolved nametoResolve)
+                (WrittenTypesToProgramTypes.Name.Unresolved nametoResolve)
 
             match resolvedName with
             | Ok n -> n
-            | Error e -> e
+            // TODO: Handle errors properly
+            | Error e -> $"TODO: handle error {e}"
 
         module Fn =
           let toPT (fn: WrittenTypes.FnIdentifier) : String = fn.name
 
         module QualifiedFn =
           let toPT
-            (resolver: NameResolver.NameResolver)
+            (resolver: NameResolver.NameResolutionSettings)
             (i: WrittenTypes.QualifiedFnIdentifier)
             : ProgramTypes.FQName.FQName =
             let modules = Stdlib.List.map i.modules (fun (m, _) -> m.name)
@@ -47,7 +48,7 @@ module Darklang =
               NameResolver.FnName.resolve
                 resolver
                 modules
-                (WrittenTypes.Name.Unresolved nametoResolve)
+                (WrittenTypesToProgramTypes.Name.Unresolved nametoResolve)
 
             match resolvedName with
             | Ok name -> name
@@ -69,7 +70,7 @@ module Darklang =
 
 
         let toPT
-          (resolver: NameResolver.NameResolver)
+          (resolver: NameResolver.NameResolutionSettings)
           (t: WrittenTypes.TypeReference.TypeReference)
           : ProgramTypes.TypeReference =
 
@@ -87,7 +88,7 @@ module Darklang =
       module TypeDeclaration =
         module Definition =
           let toPT
-            (resolver: NameResolver.NameResolver)
+            (resolver: NameResolver.NameResolutionSettings)
             (d: WrittenTypes.TypeDeclaration.Definition)
             : ProgramTypes.TypeDeclaration.Definition =
 
@@ -98,7 +99,7 @@ module Darklang =
               ProgramTypes.TypeDeclaration.Definition.Alias typ
 
         let toPT
-          (resolver: NameResolver.NameResolver)
+          (resolver: NameResolver.NameResolutionSettings)
           (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
           : ProgramTypes.TypeDeclaration.TypeDeclaration =
           let def = Definition.toPT resolver d.definition
@@ -108,7 +109,7 @@ module Darklang =
 
 
         let toUserTypePT
-          (resolver: NameResolver.NameResolver)
+          (resolver: NameResolver.NameResolutionSettings)
           (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
           : ProgramTypes.UserType =
           ProgramTypes.UserType
@@ -135,7 +136,7 @@ module Darklang =
 
 
         let toPT
-          (resolver: NameResolver.NameResolver)
+          (resolver: NameResolver.NameResolutionSettings)
           (e: WrittenTypes.Expr)
           : ProgramTypes.Expr =
           match e with
@@ -201,7 +202,7 @@ module Darklang =
       module FunctionDeclaration =
         module Parameter =
           let toUserFnParamPT
-            (resolver: NameResolver.NameResolver)
+            (resolver: NameResolver.NameResolutionSettings)
             (p: WrittenTypes.FnDeclaration.Parameter)
             : ProgramTypes.UserFunction.Parameter =
 
@@ -219,7 +220,7 @@ module Darklang =
                   description = "" }
 
         let toUserFnPT
-          (resolver: NameResolver.NameResolver)
+          (resolver: NameResolver.NameResolutionSettings)
           (fn: WrittenTypes.FnDeclaration.FnDeclaration)
           : ProgramTypes.UserFunction.UserFunction =
           ProgramTypes.UserFunction.UserFunction

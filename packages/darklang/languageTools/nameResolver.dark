@@ -2,11 +2,11 @@ module Darklang =
   module LanguageTools =
     module NameResolver =
 
-      type NameResolver = { allowError: Bool }
+      type NameResolutionSettings = { allowError: Bool }
 
 
-      let empty () : NameResolver.NameResolver =
-        NameResolver.NameResolver { allowError = true }
+      let empty () : NameResolver.NameResolutionSettings =
+        NameResolver.NameResolutionSettings { allowError = true }
 
       // helper fuctions for the resolve function
       let resolveName
@@ -114,7 +114,7 @@ module Darklang =
         (builtinThingExists: String -> Bool)
         (allowError: Bool)
         (currentModule: List<String>)
-        (name: LanguageTools.WrittenTypes.Name)
+        (name: LanguageTools.WrittenTypesToProgramTypes.Name)
         : LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQName.FQName<'name>> =
 
         match name with
@@ -164,31 +164,18 @@ module Darklang =
       module TypeName =
         let packageTypeExists (typeName: String) : Bool =
 
-          let typ =
-            Stdlib.HttpClient.request
-              "GET"
-              ("http://dark-packages.dlio.localhost:11003/type/by-name/" ++ typeName)
-              []
-              []
+          match (LanguageTools.PackageManager.Type.byName typeName) with
+          | Ok _ -> true
+          | Error _ -> false
 
-          let statusCode =
-            typ
-            |> Stdlib.Result.map (fun response -> response.statusCode)
-            |> Builtin.unwrap
-
-          match statusCode with
-          | 200L -> true
-          | e -> false
-
-        let builtinThingExists (typeName: String) : Bool =
-          // TODO: check if builtin type exists
-          true
+        // We don't currently have any Builtin types, and don't expect to.
+        let builtinThingExists (typeName: String) : Bool = false
 
 
         let maybeResolve
-          (resolver: NameResolver.NameResolver)
+          (resolver: NameResolver.NameResolutionSettings)
           (currentModule: List<String>)
-          (name: LanguageTools.WrittenTypes.Name)
+          (name: LanguageTools.WrittenTypesToProgramTypes.Name)
           : LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.TypeName.TypeName> =
 
           NameResolver.resolve
@@ -202,9 +189,9 @@ module Darklang =
             name
 
         let resolve
-          (resolver: NameResolver.NameResolver)
+          (resolver: NameResolver.NameResolutionSettings)
           (currentModule: List<String>)
-          (name: LanguageTools.WrittenTypes.Name)
+          (name: LanguageTools.WrittenTypesToProgramTypes.Name)
           : LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.TypeName.TypeName> =
           NameResolver.resolve
             (fun name -> ProgramTypes.TypeName.Name.TypeName name)
@@ -220,37 +207,21 @@ module Darklang =
 
       module FnName =
         let packageFnExists (fnName: String) : Bool =
-          let fn =
-            Stdlib.HttpClient.request
-              "GET"
-              ($"http://dark-packages.dlio.localhost:11003/function/by-name/{fnName}")
-              []
-              []
+          match (LanguageTools.PackageManager.FnName.byName fnName) with
+          | Ok _ -> true
+          | Error _ -> false
 
-          let statusCode =
-            fn
-            |> Stdlib.Result.map (fun response -> response.statusCode)
-            |> Builtin.unwrap
-
-          match statusCode with
-          | 200L -> true
-          | e -> false
 
         let builtinThingExists (fnName: String) : Bool =
-
-          let fnExists =
-            (Builtin.LanguageTools.allBuiltinFns ())
-            |> Stdlib.List.findFirst (fun f -> f.name == fnName)
-
-          match fnExists with
-          | Some _ -> true
-          | None -> false
+          (Builtin.LanguageTools.allBuiltinFns ())
+          |> Stdlib.List.findFirst (fun f -> f.name == fnName)
+          |> Stdlib.Option.isSome
 
 
         let maybeResolve
-          (resolver: NameResolver.NameResolver)
+          (resolver: NameResolver.NameResolutionSettings)
           (currentModule: List<String>)
-          (name: LanguageTools.WrittenTypes.Name)
+          (name: LanguageTools.WrittenTypesToProgramTypes.Name)
           : LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FnName.FnName> =
 
           NameResolver.resolve
@@ -264,9 +235,9 @@ module Darklang =
             name
 
         let resolve
-          (resolver: NameResolver.NameResolver)
+          (resolver: NameResolver.NameResolutionSettings)
           (currentModule: List<String>)
-          (name: LanguageTools.WrittenTypes.Name)
+          (name: LanguageTools.WrittenTypesToProgramTypes.Name)
           : LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FnName.FnName> =
 
           NameResolver.resolve

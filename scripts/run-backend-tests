@@ -90,7 +90,7 @@ cd ..
 
 # Reload packages
 
-if [[ "$PUBLISHED" == "true" ]]; then
+if [[ -v CI ]]; then
   echo "Running backend server"
   ./scripts/run-backend-server $PUBLISHED_FLAG
   echo "Running reloading packages"
