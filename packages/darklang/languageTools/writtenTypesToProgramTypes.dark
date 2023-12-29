@@ -52,7 +52,8 @@ module Darklang =
 
             match resolvedName with
             | Ok name -> name
-            | Error e -> e
+            // TODO: Handle errors properly
+            | Error e -> $"TODO: handle error {e}"
 
 
       module TypeReference =
