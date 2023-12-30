@@ -1,48 +1,50 @@
-/// Builtin functions for documentation
-module BuiltinDarkInternal.Libs.Documentation
-
-open System.Threading.Tasks
+module BuiltinExecution.Libs.LanguageTools
 
 open Prelude
-
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
 module Dval = LibExecution.Dval
+module Interpreter = LibExecution.Interpreter
+module TypeChecker = LibExecution.TypeChecker
+module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
-let fn = fn [ "DarkInternal"; "Documentation" ]
 
-let packageDocType (addlModules : List<string>) (name : string) (version : int) =
-  TypeName.fqPackage
-    "Darklang"
-    ("Internal" :: "Documentation" :: addlModules)
-    name
-    version
+
+let modules = [ "LanguageTools" ]
+let fn = fn modules
+let constant = constant modules
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
+let typ
+  (addlModules : List<string>)
+  (name : string)
+  (version : int)
+  : TypeName.TypeName =
+  TypeName.fqPackage "Darklang" ([ "LanguageTools" ] @ addlModules) name version
+
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "list" 0
+  [ { name = fn "allBuiltinFns" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TCustomType(Ok(packageDocType [] "BuiltinFunction" 0), []))
+      returnType = TList(TCustomType(Ok(typ [] "BuiltinFunction" 0), []))
       description =
-        "Returns a list of Function records, representing the functions available in the standard library. Does not return DarkInternal functions"
+        "Returns a list of Function records, representing the functions available in the standard library."
       fn =
         (function
         | state, _, [ DUnit ] ->
           let typeNameToStr = LibExecution.DvalReprDeveloper.typeName
 
-          let fnParamTypeName = packageDocType [] "BuiltinFunctionParameter" 0
-          let fnTypeName = packageDocType [] "BuiltinFunction" 0
+          let fnParamTypeName = typ [] "BuiltinFunctionParameter" 0
+          let fnTypeName = typ [] "BuiltinFunction" 0
 
           let fns =
             state.builtIns.fns
             |> Map.toList
-            |> List.filter (fun (key, data) ->
-              (not (FnName.isInternalFn key)) && data.deprecated = NotDeprecated)
             |> List.map (fun (key, data) ->
               let parameters =
                 data.parameters

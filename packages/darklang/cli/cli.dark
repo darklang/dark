@@ -252,7 +252,8 @@ module Darklang =
 
         let exprs =
           (Stdlib.List.map args (fun arg ->
-            Darklang.LanguageTools.WrittenTypesToProgramTypes.Expr.toPT arg))
+            (Darklang.LanguageTools.NameResolver.empty ())
+            |> Darklang.LanguageTools.WrittenTypesToProgramTypes.Expr.toPT arg))
 
         match Builtin.Cli.executeFunctionWithNewParser fnName exprs with
         | Ok result ->

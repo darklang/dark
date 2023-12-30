@@ -34,7 +34,6 @@ let contents =
   Builtin.combine
     [ Libs.Canvases.contents
       Libs.DBs.contents
-      Libs.Documentation.contents
       Libs.Domains.contents
       Libs.F404.contents
       Libs.Infra.contents

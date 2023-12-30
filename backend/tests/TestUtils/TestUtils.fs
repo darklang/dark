@@ -139,7 +139,9 @@ let builtIns
 
 let cloudBuiltIns =
   let httpConfig =
-    { LibCloudExecution.HttpClient.configuration with timeoutInMs = 5000 }
+    { LibCloudExecution.HttpClient.configuration with
+        timeoutInMs = 5000
+        allowedIP = (fun _ -> true) }
   builtIns httpConfig
 
 let localBuiltIns =

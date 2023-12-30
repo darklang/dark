@@ -1,0 +1,46 @@
+module Darklang =
+  module LanguageTools =
+    module PackageManager =
+
+      module Type =
+
+        let byName
+          (typeName: String)
+          : Stdlib.Result.Result<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType, String> =
+          let typ =
+            Stdlib.HttpClient.request
+              "GET"
+              ($"http://dark-packages.dlio.localhost:11003/type/by-name/{typeName}")
+              []
+              []
+
+          let statusCode =
+            typ
+            |> Stdlib.Result.map (fun response -> response.statusCode)
+            |> Builtin.unwrap
+
+
+          match statusCode with
+          | 200L -> Stdlib.Result.Result.Ok typ
+          | e -> Stdlib.Result.Result.Error e
+
+
+      module FnName =
+        let byName
+          (fnName: String)
+          : Stdlib.Result.Result<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn, String> =
+          let fn =
+            Stdlib.HttpClient.request
+              "GET"
+              ($"http://dark-packages.dlio.localhost:11003/function/by-name/{fnName}")
+              []
+              []
+
+          let statusCode =
+            fn
+            |> Stdlib.Result.map (fun response -> response.statusCode)
+            |> Builtin.unwrap
+
+          match statusCode with
+          | 200L -> Stdlib.Result.Result.Ok fn
+          | e -> Stdlib.Result.Result.Error e

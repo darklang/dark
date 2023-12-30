@@ -8,7 +8,9 @@ PUBLISHED=false
 for i in "$@"
 do
   case "${i}" in
-    --published) PUBLISHED=true ;;
+    --published)
+    PUBLISHED=true
+    shift ;;
   esac
 done
 

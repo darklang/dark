@@ -20,7 +20,6 @@
     <Compile Include="Helpers/Permissions.fs" />
     <Compile Include="Libs/Canvases.fs" />
     <Compile Include="Libs/DBs.fs" />
-    <Compile Include="Libs/Documentation.fs" />
     <Compile Include="Libs/Domains.fs" />
     <Compile Include="Libs/F404s.fs" />
     <Compile Include="Libs/Infra.fs" />
