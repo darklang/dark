@@ -385,7 +385,9 @@ workflows:
       - static-checks
       - build-backend
       - build-cli
-      - publish-github-release
+      - publish-github-release:
+          requires:
+            - build-cli
       #   filters:
       #     branches:
       #       only: main
