@@ -388,9 +388,9 @@ workflows:
       - publish-github-release:
           requires:
             - build-cli
-      #   filters:
-      #     branches:
-      #       only: main
+          filters:
+            branches:
+              only: main
 
       - gcp-containers-test:
           # This is fully covered by push-containers-to-gcp, so no need to do it twice
