@@ -57,7 +57,7 @@ fi
 upload_url=$(echo $response | jq -r .upload_url | sed -e "s/{?name,label}//")
 
 ## Upload all files in the clis directory
-FILES_DIR="/Users/feriel/release/test-release/clis"
+FILES_DIR="/home/dark/app/clis"
 
 for FILE_PATH in "$FILES_DIR"/*; do
   if [[ -f "$FILE_PATH" ]]; then
