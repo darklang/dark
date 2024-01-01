@@ -100,7 +100,7 @@ These steps apply for all builds, VSCode or using `scripts/builder`:
 For more info check [the CanvasHack readme](backend/experiments/CanvasHack/README.md). But the main steps are:
 
 - Run `./scripts/run-canvas-hack load-from-disk`
-- Open http://dark-editor.dlio.localhost:11003/
+- Open http://dark-editor.dlio.localhost:11001/
 
 ### Using Dark scripts
 

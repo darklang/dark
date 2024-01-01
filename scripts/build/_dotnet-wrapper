@@ -14,7 +14,6 @@ cd backend && dotnet "$@" 2>&1 | while read -r line; do
   if [[ "$line" == *"warning MSB3026: Could not copy "* ]]; then
     echo "Saw a failed copy, killing servers"
     killall BwdServer || true
-    killall BwdDangerServer || true
     killall CronChecker || true
     killall QueueWorker || true
     killall Tests || true

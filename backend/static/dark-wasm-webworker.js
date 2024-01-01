@@ -133,7 +133,7 @@ var initWebWorkerBlazor = async function () {
 
     // add <script src="blazor.webassembly.js" autostart="false"></script>
     let s =
-      "http://dark-serve-static.dlio.localhost:11003/dark_wasm/blazor.webassembly.js";
+      "http://dark-serve-static.dlio.localhost:11001/dark_wasm/blazor.webassembly.js";
     let scriptEl = bodyEl.appendChild(document.createElement("script"));
     scriptEl.setAttribute("src", s);
     scriptEl.setAttribute("autostart", "false");
@@ -152,7 +152,7 @@ var initWebWorkerBlazor = async function () {
 
   await Blazor.start({
     loadBootResource: function (_type, name, _defaultUri, _integrity) {
-      return `http://dark-serve-static.dlio.localhost:11003/dark_wasm/${name}`;
+      return `http://dark-serve-static.dlio.localhost:11001/dark_wasm/${name}`;
     },
   });
 

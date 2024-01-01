@@ -20,10 +20,8 @@ variable "service_env_vars" {
     # Ports
 
     ## BwdServer
-    "DARK_CONFIG_BWDSERVER_BACKEND_PORT"           = { value : "11001" }
-    "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT"        = { value : "11002" }
-    "DARK_CONFIG_BWDSERVER_DANGER_BACKEND_PORT"    = { value : "11001" }
-    "DARK_CONFIG_BWDSERVER_DANGER_KUBERNETES_PORT" = { value : "11002" }
+    "DARK_CONFIG_BWDSERVER_BACKEND_PORT"    = { value : "11001" }
+    "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT" = { value : "11002" }
 
     ## CronChecker
     "DARK_CONFIG_CRONCHECKER_KUBERNETES_PORT" = { value : "12002" }

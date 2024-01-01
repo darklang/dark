@@ -46,9 +46,9 @@ echo -e "Loading packages into DB ${grey}($LOG_DB)${reset}"
 
 if [[ "$TEST" != "true" ]]; then
 
-  echo "Waiting for BwdDangerServer to be ready"
+  echo "Waiting for BwdServer to be ready"
   for i in {1..100}; do
-    if curl -s -o /dev/null "localhost:${DARK_CONFIG_BWDSERVER_DANGER_KUBERNETES_PORT}" ; then
+    if curl -s -o /dev/null "localhost:${DARK_CONFIG_BWDSERVER_KUBERNETES_PORT}" ; then
       break
     fi
     printf '.'
