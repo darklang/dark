@@ -268,7 +268,7 @@ module ProgramTypes =
     | CInt128 of System.Int128
     | CUInt128 of System.UInt128
     | CBool of bool
-    | Cstring of string
+    | CString of string
     | CChar of string
     | CFloat of Sign * string * string
     | CUnit
@@ -695,7 +695,7 @@ module ExternalTypesToProgramTypes =
       | EPT.CInt128 i -> PT.CInt128 i
       | EPT.CUInt128 i -> PT.CUInt128 i
       | EPT.CBool b -> PT.CBool b
-      | EPT.Cstring s -> PT.CString s
+      | EPT.CString s -> PT.CString s
       | EPT.CChar c -> PT.CChar c
       | EPT.CFloat(s, w, f) -> PT.CFloat(Sign.toPT s, w, f)
       | EPT.CUnit -> PT.CUnit
@@ -728,7 +728,10 @@ module ET2PT = ExternalTypesToProgramTypes
 // TODO: copy back to LibCloud/LibCloudExecution, or relocate somewhere central
 // TODO: what should we do when the shape of types at the corresponding endpoints change?
 
-let packageManager : RT.PackageManager =
+/// The baseUrl is expected to be something like
+/// - https://dark-packages.darklang.io normally
+/// - http://dark-packages.dlio.localhost:11001 for local dev
+let packageManager (baseUrl : string) : RT.PackageManager =
   let httpClient = new System.Net.Http.HttpClient() // CLEANUP pass this in as param? or mutate it externally?
 
   let withCache (f : 'name -> Ply<Option<'value>>) =
@@ -748,19 +751,11 @@ let packageManager : RT.PackageManager =
       }
 
   let fetch
-    (kind : string)
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    (version : int)
+    (url : string)
     (f : 'serverType -> 'cachedType)
     : Ply<Option<'cachedType>> =
     uply {
-      let modules = modules |> String.concat "."
-      let namestring = $"{owner}.{modules}.{name}_v{version}"
-      let! response =
-        $"http://dark-packages.dlio.localhost:11003/{kind}/by-name/{namestring}"
-        |> httpClient.GetAsync
+      let! response = url |> httpClient.GetAsync
 
       let! responseStr = response.Content.ReadAsStringAsync()
       try
@@ -784,26 +779,68 @@ let packageManager : RT.PackageManager =
             e
     }
 
+  let fetchByName
+    (kind : string)
+    (owner : string)
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    (f : 'serverType -> 'cachedType)
+    : Ply<Option<'cachedType>> =
+    let modules = modules |> String.concat "."
+    let namestring = $"{owner}.{modules}.{name}_v{version}"
+    let url = $"{baseUrl}/{kind}/by-name/{namestring}"
+    fetch url f
+
+  let fetchById
+    (kind : string)
+    (id : tlid)
+    (f : 'serverType -> 'cachedType)
+    : Ply<Option<'cachedType>> =
+    let url = $"{baseUrl}/{kind}/by-id/{id}"
+    fetch url f
+
+
   { getType =
       withCache (fun ({ name = RT.TypeName.TypeName typeName } as name) ->
         let conversionFn (parsed : EPT.PackageType) : RT.PackageType.T =
           parsed |> ET2PT.PackageType.toPT |> PT2RT.PackageType.toRT
-        fetch "type" name.owner name.modules typeName name.version conversionFn)
+        fetchByName
+          "type"
+          name.owner
+          name.modules
+          typeName
+          name.version
+          conversionFn)
 
     getFn =
       withCache (fun ({ name = RT.FnName.FnName fnName } as name) ->
         let conversionFn (parsed : EPT.PackageFn.PackageFn) : RT.PackageFn.T =
           parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT
-        fetch "function" name.owner name.modules fnName name.version conversionFn)
+        fetchByName
+          "function"
+          name.owner
+          name.modules
+          fnName
+          name.version
+          conversionFn)
 
     getFnByTLID =
-      withCache (fun _tlid ->
-        uply { return Exception.raiseInternal "TODO getFnByTLID" [] })
+      withCache (fun tlid ->
+        let conversionFn (parsed : EPT.PackageFn.PackageFn) : RT.PackageFn.T =
+          parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT
+        fetchById "function" tlid conversionFn)
 
     getConstant =
       withCache (fun ({ name = RT.ConstantName.ConstantName constName } as name) ->
         let conversionFn (parsed : EPT.PackageConstant) : RT.PackageConstant.T =
           parsed |> ET2PT.PackageConstant.toPT |> PT2RT.PackageConstant.toRT
-        fetch "constant" name.owner name.modules constName name.version conversionFn)
+        fetchByName
+          "constant"
+          name.owner
+          name.modules
+          constName
+          name.version
+          conversionFn)
 
     init = uply { return () } }
