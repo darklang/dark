@@ -8,11 +8,10 @@ expanding features, or otherwise contributing. Dark is [source available, not
 open source](https://github.com/darklang/dark/blob/main/LICENSE.md).
 
 Note that the production version of Darklang is not in this repo. That is
-currently in https://github.com/darklang/classic-dark.
-
-Darklang is currently undergoing an experimental shift to discern how AI
-technologies will change what Darklang does and how it operates. This is being
-tracked in https://darklang.com/magicbox.
+currently in https://github.com/darklang/classic-dark. Since Feb 2023, the
+Darklang team has been working on a new version of Darklang, which is in this repo.
+The new version is not yet ready for production use. Relevant work has so far been
+tracked [in Notion](https://darklang.com/magicbox).
 
 See also:
 
@@ -23,14 +22,20 @@ See also:
 
 ## Contributing
 
+The best way to contribute is to [join our Discord](https://darklang.com/discord-invite) and say hi!
+
 We are committed to make Dark easy to contribute to. Our
 [contributor docs](https://docs.darklang.com/contributing/getting-started)
 will help guide you through your first PR, find good projects to contribute to,
 and learn about the code base.
 
+That said, we are still in the early stages of building out the new version of
+Dark, and are a bit behind on our docs. If you have any questions, please touch base
+in Discord.
+
 ### Getting started
 
-The easiest way to get to get started is to [follow our VSCode setup instructions](docs/vscode-setup.md).
+The easiest way to get to get started is to [follow our VS Code setup instructions](docs/vscode-setup.md).
 
 Note that there are contribution instructions - if you just want to try darklang out,
 sign up at https://darklang.com.
@@ -95,12 +100,9 @@ These steps apply for all builds, VSCode or using `scripts/builder`:
   trying again will work. If not, ensure you have Docker configured to provide
   4GB or more of memory, then try again.
 
-### Trying out the AI prompt
+### Try the locally-built CLI
 
-For more info check [the CanvasHack readme](backend/experiments/CanvasHack/README.md). But the main steps are:
-
-- Run `./scripts/run-canvas-hack load-from-disk`
-- Open http://dark-editor.dlio.localhost:11001/
+- `./scripts/run-cli help`
 
 ### Using Dark scripts
 
