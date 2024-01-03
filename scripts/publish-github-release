@@ -11,6 +11,17 @@ TARGET_COMMITISH="main"
 NAME="cli-pre-release"
 BODY="TODO: add a release description"
 
+# Function to delete a release by ID
+delete_release() {
+  release_id=$1
+  echo "Deleting release: $release_id"
+  curl -s -L \
+    -X DELETE \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer $TOKEN" \
+    "https://api.github.com/repos/$OWNER/$REPO/releases/$release_id"
+}
+
 # Function to increment the tag number for a new release
 increment_tag() {
   ## Fetch latest release tag
@@ -44,6 +55,9 @@ response=$(curl -s -L \
 
 echo "Release creation response: $response"
 
+# Store the new release ID to delete the release if files upload fails
+new_release_id=$(echo $response | jq -r '.id')
+
 ## Check if release creation was successful
 if [ "$(echo "$response" | jq -r '.id')" == "null" ]; then
   echo "Release creation failed"
@@ -58,9 +72,11 @@ upload_url=$(echo $response | jq -r .upload_url | sed -e "s/{?name,label}//")
 
 ## Upload all files in the clis directory
 FILES_DIR="/home/dark/app/clis"
+FILES_FOUND=false
 
 for FILE_PATH in "$FILES_DIR"/*; do
   if [[ -f "$FILE_PATH" ]]; then
+    FILES_FOUND=true
     FILE_NAME=$(basename "$FILE_PATH")
     echo "Uploading file: $FILE_PATH"
 
@@ -71,17 +87,20 @@ for FILE_PATH in "$FILES_DIR"/*; do
         -H "Content-Type: application/octet-stream" \
         "$upload_url?name=$FILE_NAME" \
         --data-binary @"$FILE_PATH")
-
-    # Check if file upload was successful
-    if [ "$(echo "$upload_response" | jq -r '.state')" != "uploaded" ]; then
-      echo "Failed to upload file: $FILE_NAME"
-      exit 1
-    fi
   fi
 done
 
-echo "All files uploaded successfully"
 
+# Check if all executables uploaded successfully before deleting old releases
+if [ "$FILES_FOUND" = false ] || [ "$(echo "$upload_response" | jq -r '.state')" != "uploaded" ]; then
+    echo "Not all executables uploaded successfully."
+    echo "Deleting the newly created release..."
+    delete_release "$new_release_id"
+    echo "Deleted"
+    exit 1
+else
+    echo "All executables uploaded successfully"
+fi
 
 # Delete old releases
 
@@ -101,12 +120,7 @@ new_release_id=$(echo $response | jq -r '.id')
 ## Loop through all release IDs and delete them, except the new release
 for release_id in $release_ids; do
   if [ "$release_id" != "$new_release_id" ]; then
-    echo "Deleting release: $release_id"
-    curl -s -L \
-      -X DELETE \
-      -H "Accept: application/vnd.github+json" \
-      -H "Authorization: Bearer $TOKEN" \
-      "https://api.github.com/repos/$OWNER/$REPO/releases/$release_id"
+    delete_release "$release_id"
   fi
 done
 
