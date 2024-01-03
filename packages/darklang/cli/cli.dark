@@ -2,21 +2,33 @@ module Darklang =
   module Cli =
     type Command =
       | Help
-
       | PackageViewer of PackageViewer.Command
-
-      | RunFunction of
-        fnName: String *
-        flagValue: Stdlib.Option.Option<String> *
-        args: List<String>
-
+      | RunFunction of flags: List<String> * fnName: String * args: List<String>
       | RunScript of String * List<String>
-
       | Invalid of List<String>
 
 
-
     let parseArguments (args: List<String>) : Command =
+      // Extract "flags" value from last argument,
+      // which is used like `--flags=wip-parser,local-pm`.
+      //
+      // TODO: support flags as non-last arguments
+      // TODO: extract known flags out of this, into some structured data
+      let flags, args = // List<String>, List<String>
+        match Stdlib.List.last args with
+        | Some last ->
+          if Stdlib.String.startsWith "--flags=" last then
+            let flagsValue = Stdlib.String.dropFirst last 7L
+            let flags = Stdlib.String.split flagsValue ","
+
+            (flags, Stdlib.List.dropLast args)
+          else
+            ([], args)
+
+        // no args
+        | None -> ([], [])
+
+
       match args with
       | [ "help" ] -> Command.Help
 
@@ -25,41 +37,23 @@ module Darklang =
         | Ok command -> Command.PackageViewer command
         | Error _ -> Command.Invalid [ "Invalid package command" ]
 
-      | opt :: args ->
-        // Extract "flag" value from last argument,
-        // which is used like `--flag=wip-parser`.
-        //
-        // TODO: support flags as non-last arguments
-        let flagValue, args = // Option<String>, List<String>
-          match Stdlib.List.last args with
-          | Some last ->
-            if Stdlib.String.startsWith "--flag=" last then
-              let flagValue = Stdlib.String.dropFirst last 7L
-              (Stdlib.Option.Option.Some flagValue, Stdlib.List.dropLast args)
-            else
-              (Stdlib.Option.Option.None, args)
-
-          // no args
-          | None -> (Stdlib.Option.Option.None, args)
-
-
-        if Stdlib.String.startsWith opt "@" then
-          let fnName = opt |> Stdlib.String.dropFirst_v0 1L
-          Command.RunFunction(fnName, flagValue, args)
+      | thingToRun :: args ->
+        if Stdlib.String.startsWith thingToRun "@" then
+          let fnName = thingToRun |> Stdlib.String.dropFirst_v0 1L
+          Command.RunFunction(flags, fnName, args)
         else
-          Command.RunScript(opt, args)
+          Command.RunScript(thingToRun, args)
 
       | _ -> Command.Invalid [ "Invalid arguments" ]
 
 
 
     let runFunction
+      (flags: List<String>)
       (fnName: String)
-      (flagValue: Stdlib.Option.Option<String>)
       (args: List<String>)
       : Int64 =
-      match flagValue with
-      | Some "wip-parser" ->
+      if Stdlib.List.member_v0 flags "wip-parser" then
         let nameResolver = Darklang.LanguageTools.NameResolver.empty ()
 
         let args =
@@ -86,7 +80,7 @@ module Darklang =
           1L
 
       // Use old parser
-      | _ ->
+      else
         match Builtin.Cli.executeFunction fnName args with
         | Ok result ->
           Builtin.printLine result
@@ -142,7 +136,7 @@ darklang [script path]                            Run a .dark script
 
       | RunScript(scriptPath, args) -> runScript scriptPath args
 
-      | RunFunction(fnName, flagValue, args) -> runFunction fnName flagValue args
+      | RunFunction(flags, fnName, args) -> runFunction flags fnName args
 
       | Invalid args ->
         let args = args |> Stdlib.String.join " "

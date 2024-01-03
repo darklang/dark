@@ -102,6 +102,9 @@ variable "service_env_vars" {
     # Heap analytics
     "DARK_CONFIG_HEAPIO_ID" = { value : "477722926" }
 
+    # Package Manager
+    "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL" = { value : "https://packages.darklang.com" }
+
     # Config
     "DARK_CONFIG_ALLOWED_DARK_INTERNAL_CANVAS_IDS" = { secret : "allowed-dark-internal-canvas-ids" }
   }

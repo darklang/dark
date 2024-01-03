@@ -1,3 +1,5 @@
+/// Fetches package items from a web-based package manager
+/// hosted in a `dark-packages` canvas.
 module LibCliExecution.PackageManager
 
 open System.Threading.Tasks

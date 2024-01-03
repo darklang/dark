@@ -102,6 +102,9 @@ DARK_CONFIG_PUSHER_CLUSTER=us2
 # Heap analytics
 DARK_CONFIG_HEAPIO_ID=2080145903
 
+# Package manager
+DARK_CONFIG_PACKAGE_MANAGER_BASE_URL=http://dark-packages.dlio.localhost:11001
+
 ######################################
 # XXX: Changes won't take effect until you restart script/builder
 # or rebuild the vscode dev container

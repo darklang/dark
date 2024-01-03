@@ -54,9 +54,7 @@ let builtIns : RT.BuiltIns =
     constants = constants |> Map.fromListBy _.name }
 
 let packageManager =
-  // TODO stop hardcoding the URL
-  LibCliExecution.PackageManager.packageManager
-    "http://dark-packages.dlio.localhost:11001"
+  LibCliExecution.PackageManager.packageManager LibCloud.Config.packageManagerUrl
 
 let state () =
   let program : RT.Program =

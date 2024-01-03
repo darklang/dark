@@ -1,55 +1,14 @@
 module Darklang =
   module LanguageTools =
-    // module PackageManager =
-
-    //   module Type =
-
-    //     let byName
-    //       (typeName: String)
-    //       : Stdlib.Result.Result<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType, String> =
-    //       let typ =
-    //         Stdlib.HttpClient.request
-    //           "GET"
-    //           ($"http://dark-packages.dlio.localhost:11003/type/by-name/{typeName}")
-    //           []
-    //           []
-
-    //       let statusCode =
-    //         typ
-    //         |> Stdlib.Result.map (fun response -> response.statusCode)
-    //         |> Builtin.unwrap
-
-
-    //       match statusCode with
-    //       | 200L -> Stdlib.Result.Result.Ok typ
-    //       | e -> Stdlib.Result.Result.Error e
-
-
-    //   module FnName =
-    //     let byName
-    //       (fnName: String)
-    //       : Stdlib.Result.Result<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn, String> =
-    //       let fn =
-    //         Stdlib.HttpClient.request
-    //           "GET"
-    //           ($"http://dark-packages.dlio.localhost:11003/function/by-name/{fnName}")
-    //           []
-    //           []
-
-    //       let statusCode =
-    //         fn
-    //         |> Stdlib.Result.map (fun response -> response.statusCode)
-    //         |> Builtin.unwrap
-
-    //       match statusCode with
-    //       | 200L -> Stdlib.Result.Result.Ok fn
-    //       | e -> Stdlib.Result.Result.Error e
-
-
     /// For interacting with the `dark-packages` canvas,
-    /// usually at https://packages.darklang.com
-    /// or http://dark-packages.dlio.localhost:11001
+    /// where package items (types, constants, fns, etc) are maintained.
     module PackageManager =
+      // TODO: This is not the most elegant or complete solution. Revisit.
+      let baseUrl () : String =
+        match Builtin.Environment.get "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL" with
+        | Some baseUrl -> baseUrl
+        | None -> "https://packages.darklang.com"
+
       type FetchError =
         | HttpRequestError of Stdlib.HttpClient.RequestError
         | Not200 of Stdlib.HttpClient.Response
@@ -58,11 +17,10 @@ module Darklang =
 
       module Owner =
         let getListOfContents
-          (baseUrl: String)
           (owner: String)
           : Stdlib.Result.Result<String, FetchError> =
           let httpResponse =
-            Stdlib.HttpClient.request "GET" $"{baseUrl}/owner/{owner}" [] []
+            Stdlib.HttpClient.request "GET" $"{baseUrl ()}/owner/{owner}" [] []
 
           match httpResponse with
           | Ok response ->
@@ -78,13 +36,12 @@ module Darklang =
 
       module Module =
         let getByName
-          (baseUrl: String)
           (qualifiedModuleName: String)
           : Stdlib.Result.Result<Stdlib.Packages, FetchError> =
           let httpResponse =
             Stdlib.HttpClient.request
               "GET"
-              $"{baseUrl}/modules/{qualifiedModuleName}"
+              $"{baseUrl ()}/modules/{qualifiedModuleName}"
               []
               []
 
@@ -114,45 +71,83 @@ module Darklang =
       //     Error "TODO"
 
 
-      module Types =
-        let getAll
-          (baseUrl: String)
-          : Stdlib.Result.Result<List<ProgramTypes.PackageType>, FetchError> =
-          let httpResponse =
-            Stdlib.HttpClient.request "GET" $"{baseUrl}/types/" [] []
+      module Type =
+        // let getAll
+        //   ()
+        //   : Stdlib.Result.Result<List<ProgramTypes.PackageType>, FetchError> =
+        //   let httpResponse =
+        //     Stdlib.HttpClient.request "GET" $"{baseUrl ()}/types/" [] []
 
-          match httpResponse with
-          | Error err ->
-            (FetchError.HttpRequestError err) |> Stdlib.Result.Result.Error
-          | Ok response ->
-            if response.statusCode == 200L then
-              let parsedMaybe =
-                response.body
-                |> Builtin.String.fromBytesWithReplacement
-                |> Builtin.Json.parse<List<ProgramTypes.PackageType>>
+        //   match httpResponse with
+        //   | Error err ->
+        //     (FetchError.HttpRequestError err) |> Stdlib.Result.Result.Error
+        //   | Ok response ->
+        //     if response.statusCode == 200L then
+        //       let parsedMaybe =
+        //         response.body
+        //         |> Builtin.String.fromBytesWithReplacement
+        //         |> Builtin.Json.parse<List<ProgramTypes.PackageType>>
 
-              match parsedMaybe with
-              | Ok parsed -> Stdlib.Result.Result.Ok parsed
-              | Error err ->
-                (FetchError.JsonParseError err) |> Stdlib.Result.Result.Error
-            else
-              (FetchError.Not200 response) |> Stdlib.Result.Result.Error
+        //       match parsedMaybe with
+        //       | Ok parsed -> Stdlib.Result.Result.Ok parsed
+        //       | Error err ->
+        //         (FetchError.JsonParseError err) |> Stdlib.Result.Result.Error
+        //     else
+        //       (FetchError.Not200 response) |> Stdlib.Result.Result.Error
+
+        let byName
+          (typeName: String)
+          : Stdlib.Result.Result<ProgramTypes.PackageType, String> =
+          let typ =
+            Stdlib.HttpClient.request
+              "GET"
+              $"{baseUrl ()}/type/by-name/{typeName}"
+              []
+              []
+
+          let statusCode =
+            typ
+            |> Stdlib.Result.map (fun response -> response.statusCode)
+            |> Builtin.unwrap
+
+          match statusCode with
+          | 200L -> Stdlib.Result.Result.Ok typ
+          | e -> Stdlib.Result.Result.Error e
+
+      // let getByTlid (baseUrl: String) (tlid: String) : String = "TODO"
+
+      // let getByFullyQualifiedName (baseUrl: String) (qualifiedTypeName: String):
 
 
-// let getByTlid (baseUrl: String) (tlid: String) : String = "TODO"
-
-// let getByFullyQualifiedName (baseUrl: String) (qualifiedTypeName: String):
 
 
+      module Function =
+        // let getAll (baseUrl: String) : String = "TODO"
+
+        // let getByTlid (baseUrl: String) (tlid: String) : String = "TODO"
+
+        let byName
+          (fnName: String)
+          : Stdlib.Result.Result<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn, String> =
+          let fn =
+            Stdlib.HttpClient.request
+              "GET"
+              $"{baseUrl ()}/function/by-name/{fnName}"
+              []
+              []
+
+          let statusCode =
+            fn
+            |> Stdlib.Result.map (fun response -> response.statusCode)
+            |> Builtin.unwrap
+
+          match statusCode with
+          | 200L -> Stdlib.Result.Result.Ok fn
+          | e -> Stdlib.Result.Result.Error e
 
 
-// module Functions =
-//   let getAll (baseUrl: String) : String = "TODO"
-
-//   let getByTlid (baseUrl: String) (tlid: String) : String = "TODO"
-
-//   let getByFullyQualifiedName (baseUrl: String) (name: String) : String =
-//     "TODO"
+// let getByFullyQualifiedName (baseUrl: String) (name: String) : String =
+//   "TODO"
 
 
 // module Constants =

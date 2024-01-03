@@ -1,8 +1,6 @@
 module Darklang =
   module Cli =
     module PackageViewer =
-      let baseUrl = "http://dark-packages.dlio.localhost:11001"
-
       type Command =
         | Help
         // TODO: ShowStats
@@ -44,7 +42,7 @@ module Darklang =
       /// Pretty-prints the contents of a whole package
       /// (just the names of the contents, not the source code)
       let printPackage (owner: String) : Int64 =
-        match LanguageTools.PackageManager.Owner.getListOfContents baseUrl owner with
+        match LanguageTools.PackageManager.Owner.getListOfContents owner with
         | Ok packages ->
           Builtin.printLine packages
           0L
@@ -56,7 +54,7 @@ module Darklang =
       /// Pretty-prints the contents of a package module
       let printModule (qualifiedModuleName: String) : Int64 =
         let moduleContentsMaybe =
-          LanguageTools.PackageManager.Module.getByName baseUrl qualifiedModuleName
+          LanguageTools.PackageManager.Module.getByName qualifiedModuleName
 
         match moduleContentsMaybe with
         | Error _ ->
@@ -76,7 +74,7 @@ module Darklang =
 
       // /// Pretty-prints a type stored in the package manager
       // let printType (qualifiedTypeName: String): Int64 =
-      //   match LanguageTools.PackageManager.Types.getAll baseUrl with
+      //   match LanguageTools.PackageManager.Type.getAll () with
       //   | Error _todo ->
       //     Builtin.printLine "Error getting types"
       //     1L
