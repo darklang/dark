@@ -53,7 +53,8 @@ let builtIns : RT.BuiltIns =
     fns = fns |> Map.fromListBy _.name
     constants = constants |> Map.fromListBy _.name }
 
-let packageManager = LibCliExecution.PackageManager.packageManager
+let packageManager =
+  LibCliExecution.PackageManager.packageManager LibCloud.Config.packageManagerUrl
 
 let state () =
   let program : RT.Program =

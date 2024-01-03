@@ -105,7 +105,6 @@ let seedCanvas (canvasName : string) (secrets : Map<string, string>) =
           [ BuiltinExecution.Builtin.contents
               BuiltinExecution.Libs.HttpClient.defaultConfig
             BuiltinCloudExecution.Builtin.contents
-            BwdDangerServer.Builtin.contents
             BuiltinDarkInternal.Builtin.contents ]
           []
       LibParser.NameResolver.fromBuiltins builtIns
@@ -136,11 +135,7 @@ let seedCanvas (canvasName : string) (secrets : Map<string, string>) =
 
 
     let host = $"http://{domain}:{LibService.Config.bwdServerPort}"
-    let experimentalHost = $"http://{domain}:{LibService.Config.bwdDangerServerPort}"
-    print
-      $"Success saved canvas - endpoints available
-       at {host} (bwdserver)
-      and {experimentalHost} (bwd-danger-server)"
+    print $"Success, saved canvas - endpoints available at {host}"
   }
 
 [<EntryPoint>]

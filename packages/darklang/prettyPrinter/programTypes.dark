@@ -837,7 +837,7 @@ module Darklang =
                 (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr case.rhs)
                 |> PACKAGE.Darklang.PrettyPrinter.indent
 
-              $"| {patternPart}{whenPart} ->\n{bodyPart}")
+              $"| {patternPart}{whenPart} ->\n{rhsPart}")
 
           let casesPart = PACKAGE.Darklang.Stdlib.String.join cases "\n"
 

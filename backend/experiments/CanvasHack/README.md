@@ -2,11 +2,8 @@
 
 ## Usage
 
-- `./scripts/run-canvas-hack load-from-disk dark-editor`
-  This will clear the `dark-editor` canvas prior to import,
-  and then load the `dark-editor` canvas from disk (its handlers, fns, etc).
+- `./scripts/run-canvas-hack load-from-disk dark-packages AUTH_PASSWORD=[password]`
+  This will clear the `dark-packages` canvas prior to import,
+  and then load the `dark-packages` canvas from disk (its handlers, fns, etc).
 
-  after loading from disk, you may access the new endpoints at
-  http://dark-editor.dlio.localhost:11001/
-
-- `./scripts/run-canvas-hack save-from-disk`
+  after this completes, the canvas' URL base will be printed in the terminal

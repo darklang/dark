@@ -216,7 +216,7 @@ let parseArgs (args: List<String>) : CliOptions =
       "`load-packages` now executes in F# (not sure how you got here)"
   | [ "load-packages-dlio" ] ->
     CliOptions.LoadPackagesIntoDarkCanvas(
-      "http://dark-packages.dlio.localhost:11003",
+      "http://dark-packages.dlio.localhost:11001",
       "password"
     )
   | [ "load-packages-darklang-com"; password ] ->

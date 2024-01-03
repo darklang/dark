@@ -24,11 +24,5 @@ namespace LibTreeSitter
     public TreeSitterException(string message, Exception inner) : base(message, inner)
     {
     }
-
-    protected TreeSitterException(
-        SerializationInfo info,
-        StreamingContext context) : base(info, context)
-    {
-    }
   }
 }

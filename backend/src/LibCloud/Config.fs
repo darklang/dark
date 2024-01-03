@@ -1,4 +1,4 @@
-/// Provides central place to fetch known configuration values used in LibCloud
+/// Provides central place to fetch environment-specific configuration values
 module LibCloud.Config
 
 open LibService.ConfigDsl
@@ -141,3 +141,9 @@ let traceStorageCreateBucket = bool "DARK_CONFIG_TRACE_STORAGE_CREATE_BUCKET"
 
 let traceStorageCredentials =
   credentialsOption "DARK_CONFIG_TRACE_STORAGE_CREDENTIALS"
+
+
+// -------------------------
+// Package Manager
+// -------------------------
+let packageManagerUrl = string "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"

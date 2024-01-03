@@ -163,10 +163,7 @@ module Darklang =
 
       module TypeName =
         let packageTypeExists (typeName: String) : Bool =
-
-          match (LanguageTools.PackageManager.Type.byName typeName) with
-          | Ok _ -> true
-          | Error _ -> false
+          (LanguageTools.PackageManager.Type.byName typeName) |> Stdlib.Result.isOk
 
         // We don't currently have any Builtin types, and don't expect to.
         let builtinThingExists (typeName: String) : Bool = false
@@ -207,9 +204,7 @@ module Darklang =
 
       module FnName =
         let packageFnExists (fnName: String) : Bool =
-          match (LanguageTools.PackageManager.FnName.byName fnName) with
-          | Ok _ -> true
-          | Error _ -> false
+          (LanguageTools.PackageManager.Function.byName fnName) |> Stdlib.Result.isOk
 
 
         let builtinThingExists (fnName: String) : Bool =

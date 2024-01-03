@@ -20,10 +20,8 @@ variable "service_env_vars" {
     # Ports
 
     ## BwdServer
-    "DARK_CONFIG_BWDSERVER_BACKEND_PORT"           = { value : "11001" }
-    "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT"        = { value : "11002" }
-    "DARK_CONFIG_BWDSERVER_DANGER_BACKEND_PORT"    = { value : "11001" }
-    "DARK_CONFIG_BWDSERVER_DANGER_KUBERNETES_PORT" = { value : "11002" }
+    "DARK_CONFIG_BWDSERVER_BACKEND_PORT"    = { value : "11001" }
+    "DARK_CONFIG_BWDSERVER_KUBERNETES_PORT" = { value : "11002" }
 
     ## CronChecker
     "DARK_CONFIG_CRONCHECKER_KUBERNETES_PORT" = { value : "12002" }
@@ -103,6 +101,9 @@ variable "service_env_vars" {
 
     # Heap analytics
     "DARK_CONFIG_HEAPIO_ID" = { value : "477722926" }
+
+    # Package Manager
+    "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL" = { value : "https://packages.darklang.com" }
 
     # Config
     "DARK_CONFIG_ALLOWED_DARK_INTERNAL_CANVAS_IDS" = { secret : "allowed-dark-internal-canvas-ids" }

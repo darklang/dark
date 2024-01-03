@@ -29,8 +29,6 @@ if [[ $(pgrep BwdServer -c) -eq 0 ]]; then RUNNING=false; fi
 if [[ $(pgrep CronChecker -c) -eq 0 ]]; then RUNNING=false; fi
 if [[ $(pgrep QueueWorker -c) -eq 0 ]]; then RUNNING=false; fi
 
-if [[ $(pgrep BwdDangerServer -c) -eq 0 ]]; then RUNNING=false; fi
-
 
 if [[ "${RUNNING}" == "true" && "${RESTART}" == "false" ]]; then
   echo "Servers are running and we don't need to restart"
@@ -43,16 +41,12 @@ if [[ "$PUBLISHED" == "true" ]]; then
   QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Release/net8.0/linux-x64/publish"
   PRODEXEC_BINPATH="backend/Build/out/ProdExec/Release/net8.0/linux-x64/publish"
   LOCALEXEC_BINPATH="backend/Build/out/LocalExec/Release/net8.0/linux-x64/publish"
-
-  BWDDANGERSERVER_BINPATH="backend/Build/out/BwdDangerServer/Release/net8.0/linux-x64/publish"
 else
   BWDSERVER_BINPATH="backend/Build/out/BwdServer/Debug/net8.0"
   CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Debug/net8.0"
   QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Debug/net8.0"
   PRODEXEC_BINPATH="backend/Build/out/ProdExec/Debug/net8.0"
   LOCALEXEC_BINPATH="backend/Build/out/LocalExec/Debug/net8.0"
-
-  BWDDANGERSERVER_BINPATH="backend/Build/out/BwdDangerServer/Debug/net8.0"
 fi
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
@@ -63,14 +57,11 @@ QUEUEWORKER_EXE="${QUEUEWORKER_BINPATH}/QueueWorker"
 PRODEXEC_EXE="${PRODEXEC_BINPATH}/ProdExec"
 LOCALEXEC_EXE="${LOCALEXEC_BINPATH}/LocalExec"
 
-BWDDANGERSERVER_EXE="${BWDDANGERSERVER_BINPATH}/BwdDangerServer"
-
 # Stop the server processes
 echo "Stopping servers"
 sudo pkill -f "BwdServer" || true
 sudo pkill -f "CronChecker" || true
 sudo pkill -f "QueueWorker" || true
-sudo pkill -f "BwdDangerServer" || true
 
 ./scripts/run-pubsub-emulator
 ./scripts/run-cloud-storage-emulator
@@ -86,8 +77,7 @@ do
      || ! -f "${CRONCHECKER_EXE}" \
      || ! -f "${QUEUEWORKER_EXE}" \
      || ! -f "${PRODEXEC_EXE}" \
-     || ! -f "${LOCALEXEC_EXE}" \
-     || ! -f "${BWDDANGERSERVER_EXE}" ]]; then
+     || ! -f "${LOCALEXEC_EXE}" ]]; then
     sleep 0.01
   fi
 done
@@ -128,9 +118,5 @@ announce "Running cronchecker" "${CRONCHECKER_LOG}"
 QUEUEWORKER_LOG="$LOGS/queueworker.log"
 announce "Running queueworker" "${QUEUEWORKER_LOG}"
 "${QUEUEWORKER_EXE}" > "${QUEUEWORKER_LOG}" 2>&1 &
-
-BWDDANGERSERVER_LOG="$LOGS/bwddangerserver.log"
-announce "Running bwddangerserver" "${BWDDANGERSERVER_LOG}"
-"${BWDDANGERSERVER_EXE}" > "${BWDDANGERSERVER_LOG}" 2>&1 &
 
 echo "Finished loading servers"

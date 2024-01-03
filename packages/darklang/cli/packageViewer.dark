@@ -1,0 +1,225 @@
+module Darklang =
+  module Cli =
+    module PackageViewer =
+      type Command =
+        | Help
+        // TODO: ShowStats
+        | ShowPackage of owner: String
+        | ShowModule of qualifiedModuleName: String
+        | ShowType of qualifiedTypeName: String
+        | ShowConstant of qualifiedConstantName: String
+        | ShowFunction of qualifiedFnName: String
+
+
+      let parseCommand (args: List<String>) : Stdlib.Result.Result<Command, String> =
+        match args with
+        | [] -> Stdlib.Result.Result.Ok Command.Help
+        | [ "help" ] -> Stdlib.Result.Result.Ok Command.Help
+
+        // TODO: stats
+        //| [ "show"; "stats" ] -> ...
+
+        | [ "show"; "owner"; owner ] ->
+          (Command.ShowPackage owner) |> Stdlib.Result.Result.Ok
+
+        | [ "show"; "module"; qualifiedModuleName ] ->
+          (Command.ShowModule qualifiedModuleName) |> Stdlib.Result.Result.Ok
+
+        | [ "show"; "type"; qualifiedTypeName ] ->
+          (Command.ShowType qualifiedTypeName) |> Stdlib.Result.Result.Ok
+
+        | [ "show"; "constant"; qualifiedConstantName ] ->
+          (Command.ShowConstant qualifiedConstantName) |> Stdlib.Result.Result.Ok
+
+        | [ "show"; "function"; qualifiedFnName ] ->
+          (Command.ShowFunction qualifiedFnName) |> Stdlib.Result.Result.Ok
+
+        | _ -> Stdlib.Result.Result.Error "Invalid package command"
+
+
+
+
+      /// Pretty-prints the contents of a whole package
+      /// (just the names of the contents, not the source code)
+      let printPackage (owner: String) : Int64 =
+        match LanguageTools.PackageManager.Owner.getListOfContents owner with
+        | Ok packages ->
+          Builtin.printLine packages
+          0L
+        | Error _todo ->
+          Builtin.printLine "Error retrieving the package for the specified owner"
+          1L
+
+
+      /// Pretty-prints the contents of a package module
+      let printModule (qualifiedModuleName: String) : Int64 =
+        let moduleContentsMaybe =
+          LanguageTools.PackageManager.Module.getByName qualifiedModuleName
+
+        match moduleContentsMaybe with
+        | Error _ ->
+          Builtin.printLine "Error getting package modules"
+          1L
+        | Ok moduleContents ->
+          let emptyModule = Stdlib.Packages { types = []; fns = []; constants = [] }
+
+          if moduleContents == emptyModule then
+            Builtin.printLine "module not found"
+            1L
+          else
+            let result = Darklang.PrettyPrinter.packages moduleContents
+            Builtin.printLine result
+            0L
+
+
+      // /// Pretty-prints a type stored in the package manager
+      // let printType (qualifiedTypeName: String): Int64 =
+      //   match LanguageTools.PackageManager.Type.getAll () with
+      //   | Error _todo ->
+      //     Builtin.printLine "Error getting types"
+      //     1L
+
+      //   | Ok allTypes ->
+      //     let specificType =
+      //       allTypes
+      //       |> Stdlib.List.findFirst (fun t ->
+      //         t.name.owner == owner
+      //         && t.name.modules == modules
+      //         && t.name.name
+      //            == LanguageTools.ProgramTypes.TypeName.Name.TypeName name)
+
+      //     match specificType with
+      //     | Some t ->
+      //       Builtin.printLine (Darklang.PrettyPrinter.ProgramTypes.packageType t)
+      //       0L
+
+      //     | None ->
+      //       Builtin.printLine "Type not found"
+      //       1L
+
+
+      // /// Pretty-prints a constant stored in the package manager
+      // let printConstant
+      //   (name: String)
+      //   (owner: String)
+      //   (modules: List<String>)
+      //   : Int64 =
+      //   let constants = Stdlib.HttpClient.request "GET" "{baseUrl}/constants/" [] []
+
+      //   let statusCode =
+      //     constants
+      //     |> Stdlib.Result.map (fun response -> response.statusCode)
+      //     |> Builtin.unwrap
+
+      //   let parsedConstants =
+      //     if statusCode == 200L then
+      //       constants
+      //       |> Stdlib.Result.map (fun response -> response.body)
+      //       |> Builtin.unwrap
+      //       |> Stdlib.String.fromBytesWithReplacement
+      //       |> Builtin.Json.parse<List<Darklang.LanguageTools.ProgramTypes.PackageConstant>>
+      //       |> Builtin.unwrap
+      //       |> Stdlib.Option.Option.Some
+      //     else
+      //       Stdlib.Option.Option.None
+
+      //   match parsedConstants with
+      //   | None ->
+      //     Builtin.printLine "Error getting constants"
+      //     1L
+      //   | Some constants ->
+      //     let packageSpecificConstant =
+      //       (Stdlib.List.filter constants (fun c ->
+      //         c.name.name
+      //         == Darklang.LanguageTools.ProgramTypes.ConstantName.Name.ConstantName
+      //           name
+      //         && c.name.owner == owner
+      //         && c.name.modules == modules))
+      //       |> Stdlib.List.head
+
+      //     let result =
+      //       match packageSpecificConstant with
+      //       | Some c ->
+      //         Builtin.printLine (
+      //           Darklang.PrettyPrinter.ProgramTypes.packageConstant c
+      //         )
+
+      //         0L
+
+      //       | None ->
+      //         Builtin.printLine "Constant not found"
+      //         1L
+
+      //     result
+
+
+
+
+      // /// Pretty-prints a function stored in the package manager
+      // let printFn (name: String) (owner: String) (modules: List<String>) : Int64 =
+      //   let fns = Stdlib.HttpClient.request "GET" $"{baseUrl}/functions/" [] []
+
+      //   let statusCode =
+      //     fns
+      //     |> Stdlib.Result.map (fun response -> response.statusCode)
+      //     |> Builtin.unwrap
+
+      //   let parsedFns =
+      //     if statusCode == 200L then
+      //       fns
+      //       |> Stdlib.Result.map (fun response -> response.body)
+      //       |> Builtin.unwrap
+      //       |> Stdlib.String.fromBytesWithReplacement
+      //       |> Builtin.Json.parse<List<Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>>
+      //       |> Builtin.unwrap
+      //       |> Stdlib.Option.Option.Some
+      //     else
+      //       Stdlib.Option.Option.None
+
+      //   match parsedFns with
+      //   | None ->
+      //     Builtin.printLine "Error getting functions"
+      //     1L
+      //   | Some fn ->
+      //     let packageSpecificFunction =
+      //       (Stdlib.List.filter fn (fun f ->
+      //         f.name.name
+      //         == Darklang.LanguageTools.ProgramTypes.FnName.Name.FnName(name)
+      //         && f.name.owner == owner
+      //         && f.name.modules == modules))
+      //       |> Stdlib.List.head
+
+      //     let result =
+      //       match packageSpecificFunction with
+      //       | Some f ->
+      //         Builtin.printLine (Darklang.PrettyPrinter.ProgramTypes.packageFn f)
+
+      //         0L
+      //       | None ->
+      //         Builtin.printLine "Function not found"
+      //         1L
+
+      //     result
+
+
+
+      let executeCommand (command: Command) : Int64 =
+        match command with
+        | Help ->
+          Builtin.printLine "TODO"
+          0L
+
+        | ShowPackage owner -> printPackage owner
+        | ShowModule qualifiedModuleName -> printModule qualifiedModuleName
+
+        | ShowType _qualifiedTypeName ->
+          Builtin.printLine "TODO: ShowType"
+          1L
+
+        | ShowConstant _qualifiedConstName ->
+          Builtin.printLine "TODO: ShowConstant"
+          1L
+
+        | ShowFunction _qualifiedFnName ->
+          Builtin.printLine "TODO: ShowFunction"
+          1L

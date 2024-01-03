@@ -2,242 +2,60 @@ module Darklang =
   module Cli =
     type Command =
       | Help
+      | PackageViewer of PackageViewer.Command
+      | RunFunction of flags: List<String> * fnName: String * args: List<String>
       | RunScript of String * List<String>
-      | RunFunction of
-        fnName: String *
-        flagValue: Stdlib.Option.Option<String> *
-        args: List<String>
-      | Show of String
-      | Infer of String * String
       | Invalid of List<String>
 
 
-    let showFn (name: String) (owner: String) (modules: List<String>) : Int64 =
-      let fns =
-        Stdlib.HttpClient.request
-          "GET"
-          "http://dark-packages.dlio.localhost:11003/functions/"
-          []
-          []
+    let parseArguments (args: List<String>) : Command =
+      // Extract "flags" value from last argument,
+      // which is used like `--flags=wip-parser,local-pm`.
+      //
+      // TODO: support flags as non-last arguments
+      // TODO: extract known flags out of this, into some structured data
+      let flags, args = // List<String>, List<String>
+        match Stdlib.List.last args with
+        | Some last ->
+          if Stdlib.String.startsWith "--flags=" last then
+            let flagsValue = Stdlib.String.dropFirst last 7L
+            let flags = Stdlib.String.split flagsValue ","
 
-      let statusCode =
-        fns
-        |> Stdlib.Result.map (fun response -> response.statusCode)
-        |> Builtin.unwrap
+            (flags, Stdlib.List.dropLast args)
+          else
+            ([], args)
 
-      let parsedFns =
-        if statusCode == 200L then
-          fns
-          |> Stdlib.Result.map (fun response -> response.body)
-          |> Builtin.unwrap
-          |> Stdlib.String.fromBytesWithReplacement
-          |> Builtin.Json.parse<List<Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>>
-          |> Builtin.unwrap
-          |> Stdlib.Option.Option.Some
+        // no args
+        | None -> ([], [])
+
+
+      match args with
+      | [ "help" ] -> Command.Help
+
+      | "package" :: args ->
+        match PackageViewer.parseCommand args with
+        | Ok command -> Command.PackageViewer command
+        | Error _ -> Command.Invalid [ "Invalid package command" ]
+
+      | thingToRun :: args ->
+        if Stdlib.String.startsWith thingToRun "@" then
+          let fnName = thingToRun |> Stdlib.String.dropFirst_v0 1L
+          Command.RunFunction(flags, fnName, args)
         else
-          Stdlib.Option.Option.None
+          Command.RunScript(thingToRun, args)
 
-      match parsedFns with
-      | None ->
-        Builtin.printLine "Error getting functions"
-        1L
-      | Some fn ->
-        let packageSpecificFunction =
-          (Stdlib.List.filter fn (fun f ->
-            f.name.name
-            == Darklang.LanguageTools.ProgramTypes.FnName.Name.FnName(name)
-            && f.name.owner == owner
-            && f.name.modules == modules))
-          |> Stdlib.List.head
+      | _ -> Command.Invalid [ "Invalid arguments" ]
 
-        let result =
-          match packageSpecificFunction with
-          | Some f ->
-            Builtin.printLine (Darklang.PrettyPrinter.ProgramTypes.packageFn f)
-
-            0L
-          | None ->
-            Builtin.printLine "Function not found"
-            1L
-
-        result
-
-    let showType (name: String) (owner: String) (modules: List<String>) : Int64 =
-      let types =
-        Stdlib.HttpClient.request
-          "GET"
-          "http://dark-packages.dlio.localhost:11003/types/"
-          []
-          []
-
-      let statusCode =
-        types
-        |> Stdlib.Result.map (fun response -> response.statusCode)
-        |> Builtin.unwrap
-
-      let parsedTypes =
-        if statusCode == 200L then
-          types
-          |> Stdlib.Result.map (fun response -> response.body)
-          |> Builtin.unwrap
-          |> Stdlib.String.fromBytesWithReplacement
-          |> Builtin.Json.parse<List<Darklang.LanguageTools.ProgramTypes.PackageType>>
-          |> Builtin.unwrap
-          |> Stdlib.Option.Option.Some
-        else
-          Stdlib.Option.Option.None
-
-      match parsedTypes with
-      | None ->
-        Builtin.printLine "Error getting types"
-        1L
-      | Some types ->
-        let packageSpecificType =
-          (Stdlib.List.filter types (fun t ->
-            t.name.name == LanguageTools.ProgramTypes.TypeName.Name.TypeName(name)
-            && t.name.owner == owner
-            && t.name.modules == modules))
-          |> Stdlib.List.head
-
-        let result =
-          match packageSpecificType with
-          | Some t ->
-            Builtin.printLine (Darklang.PrettyPrinter.ProgramTypes.packageType t)
-
-            0L
-          | None ->
-            Builtin.printLine "Type not found"
-            1L
-
-        result
-
-    let showConstant (name: String) (owner: String) (modules: List<String>) : Int64 =
-      let constants =
-        Stdlib.HttpClient.request
-          "GET"
-          "http://dark-packages.dlio.localhost:11003/constants/"
-          []
-          []
-
-      let statusCode =
-        constants
-        |> Stdlib.Result.map (fun response -> response.statusCode)
-        |> Builtin.unwrap
-
-      let parsedConstants =
-        if statusCode == 200L then
-          constants
-          |> Stdlib.Result.map (fun response -> response.body)
-          |> Builtin.unwrap
-          |> Stdlib.String.fromBytesWithReplacement
-          |> Builtin.Json.parse<List<Darklang.LanguageTools.ProgramTypes.PackageConstant>>
-          |> Builtin.unwrap
-          |> Stdlib.Option.Option.Some
-        else
-          Stdlib.Option.Option.None
-
-      match parsedConstants with
-      | None ->
-        Builtin.printLine "Error getting constants"
-        1L
-      | Some constants ->
-        let packageSpecificConstant =
-          (Stdlib.List.filter constants (fun c ->
-            c.name.name
-            == Darklang.LanguageTools.ProgramTypes.ConstantName.Name.ConstantName
-              name
-            && c.name.owner == owner
-            && c.name.modules == modules))
-          |> Stdlib.List.head
-
-        let result =
-          match packageSpecificConstant with
-          | Some c ->
-            Builtin.printLine (Darklang.PrettyPrinter.ProgramTypes.packageConstant c)
-
-            0L
-
-          | None ->
-            Builtin.printLine "Constant not found"
-            1L
-
-        result
-
-    let showModule (name: String) : Int64 =
-      let modules =
-        Stdlib.HttpClient.request
-          "GET"
-          ("http://dark-packages.dlio.localhost:11003/modules/" ++ name)
-          []
-          []
-
-      let statusCode =
-        modules
-        |> Stdlib.Result.map (fun response -> response.statusCode)
-        |> Builtin.unwrap
-
-      let parsedModules =
-        if statusCode == 200L then
-          modules
-          |> Stdlib.Result.map (fun response -> response.body)
-          |> Builtin.unwrap
-          |> Stdlib.String.fromBytesWithReplacement
-          |> Builtin.Json.parse<Stdlib.Packages>
-          |> Builtin.unwrap
-          |> Stdlib.Option.Option.Some
-        else
-          Stdlib.Option.Option.None
-
-
-      match parsedModules with
-      | None ->
-        Builtin.printLine "Error getting package modules"
-        1L
-      | Some modules ->
-        if modules == Stdlib.Packages { types = []; fns = []; constants = [] } then
-          Builtin.printLine "module not found"
-          1L
-        else
-          let result = modules |> Darklang.PrettyPrinter.packages
-          Builtin.printLine result
-          0
-
-    let showPackage (owner: String) : Int64 =
-      let packages =
-        Stdlib.HttpClient.request
-          "GET"
-          $"http://dark-packages.dlio.localhost:11003/owner/{owner}"
-          []
-          []
-
-      let statusCode =
-        packages
-        |> Stdlib.Result.map (fun response -> response.statusCode)
-        |> Builtin.unwrap
-
-      let parsedPackages =
-        if statusCode == 200L then
-          packages
-          |> Stdlib.Result.map (fun response -> response.body)
-          |> Builtin.unwrap
-          |> Stdlib.String.fromBytesWithReplacement
-          |> Builtin.printLine
-
-          0L
-        else
-          Builtin.printLine "Error retrieving the package for the specified owner"
-          1L
-
-      parsedPackages
 
 
     let runFunction
+      (flags: List<String>)
       (fnName: String)
-      (flagValue: Stdlib.Option.Option<String>)
       (args: List<String>)
       : Int64 =
-      match flagValue with
-      | Some "wip-parser" ->
+      if Stdlib.List.member_v0 flags "wip-parser" then
+        let nameResolver = Darklang.LanguageTools.NameResolver.empty ()
+
         let args =
           args
           |> Stdlib.List.map (fun arg ->
@@ -249,192 +67,83 @@ module Darklang =
                 match parsedFile with
                 | CliScript script -> script.exprsToEval)
           |> Stdlib.List.flatten
+          |> Stdlib.List.map (fun arg ->
+            LanguageTools.WrittenTypesToProgramTypes.Expr.toPT nameResolver arg)
 
-        let exprs =
-          (Stdlib.List.map args (fun arg ->
-            (Darklang.LanguageTools.NameResolver.empty ())
-            |> Darklang.LanguageTools.WrittenTypesToProgramTypes.Expr.toPT arg))
-
-        match Builtin.Cli.executeFunctionWithNewParser fnName exprs with
+        match Builtin.Cli.executeFunctionWithNewParser fnName args with
         | Ok result ->
           Builtin.printLine result
           0L
+
         | Error err ->
           Builtin.printLine err
           1L
 
-      | _ ->
+      // Use old parser
+      else
         match Builtin.Cli.executeFunction fnName args with
         | Ok result ->
           Builtin.printLine result
           0L
+
         | Error err ->
           Builtin.printLine err
           1L
 
 
-    let generateCode (prompt: String) (scriptPath: String) : Int64 =
+    let runScript (scriptPath: String) (args: List<String>) : Int64 =
+      match Builtin.File.read scriptPath with
+      | Ok script ->
+        let scriptSourceCode = Stdlib.String.fromBytesWithReplacement script
 
-      let systemPrompt =
-        (Builtin.File.read "canvases/dark-editor/system-prompt-cli.txt")
-        |> Builtin.unwrap
-        |> Stdlib.String.fromBytesWithReplacement
+        let result =
+          Builtin.Cli.parseAndExecuteScript
+            scriptPath
+            scriptSourceCode
+            (Dict { args = args })
 
-      let prompt = prompt ++ "\n" ++ systemPrompt
+        match result with
+        | Ok exitCode -> exitCode
+        | Error e ->
+          Builtin.printLine (Darklang.LanguageTools.RuntimeErrors.Error.toString e)
 
-      let response = (PACKAGE.OpenAI.ChatCompletion.completion prompt)
+          1L
 
-      match response with
       | Error e ->
         Builtin.printLine e
         1L
-      | Ok response ->
-        Builtin.File.write (Stdlib.String.toBytes response) scriptPath
-
-        Builtin.printLine $"Generated code saved to {scriptPath}"
-        0L
-
-
-    let parseArguments (args: List<String>) : Command =
-      match args with
-      | [ "-h" ] -> Command.Help
-      | [ "--help" ] -> Command.Help
-      | [ "--prompt"; prompt; "--script"; scriptPath ] ->
-        Command.Infer(prompt, scriptPath)
-      | [ "show"; fnName ] ->
-        if Stdlib.String.startsWith fnName "@" then
-          Command.Show fnName
-        else
-          Command.Invalid [ "Invalid package name" ]
-
-      | opt :: args ->
-        // Extract "flag" value from last argument,
-        // which is used like `--flag=wip-parser`.
-        //
-        // TODO: support flags as non-last arguments
-        let flagValue, args = // Option<String>, List<String>
-          match Stdlib.List.last args with
-          | Some last ->
-            if Stdlib.String.startsWith "--flag=" last then
-              let flagValue = Stdlib.String.dropFirst last 7L
-              (Stdlib.Option.Option.Some flagValue, Stdlib.List.dropLast args)
-            else
-              (Stdlib.Option.Option.None, args)
-
-          | None -> (Stdlib.Option.Option.None, args)
-
-
-        if Stdlib.String.startsWith opt "@" then
-          let fnName = opt |> Stdlib.String.dropFirst_v0 1L
-          Command.RunFunction(fnName, flagValue, args)
-        else
-          Command.RunScript(opt, args)
-
-      | _ -> Command.Invalid [ "Invalid arguments" ]
 
 
     let executeCommand (command: Command) : Int64 =
       match command with
-      | RunScript(scriptPath, args) ->
-
-        match Builtin.File.read scriptPath with
-        | Error e ->
-          Builtin.printLine e
-          1L
-        | Ok script ->
-          let script = Stdlib.String.fromBytesWithReplacement script
-
-          match
-            Builtin.Cli.parseAndExecuteScript
-              scriptPath
-              script
-              (Dict { args = args })
-          with
-          | Ok exitCode -> exitCode
-          | Error e ->
-            Builtin.printLine (Darklang.LanguageTools.RuntimeErrors.Error.toString e)
-
-            1L
-
-
       | Help ->
-        let helpText =
-          """Usage: darklang [options] [SCRIPT]
-Options:
-  -h, --help                          Show this help message and exit
-  show                                Show a package, function, type, constant, or module
-  --prompt PROMPT  --script SCRIPT    Infer a script from the given prompt using OpenAI"""
+        Builtin.printLine
+          """Usage:
+darklang help                                     Show this help message and exit
 
-        Builtin.printLine helpText
+darklang [function name]                          Run a function in the package manager
+  i.e. `darklang @Darklang.Stdlib.Bool.and true false`
+
+darklang package                                  Explore the contents of the package manager
+
+darklang [script path]                            Run a .dark script
+  i.e. `darklang ./my-script.dark`
+"""
+
         0L
 
+      | PackageViewer command -> PackageViewer.executeCommand command
 
-      | Show name ->
+      | RunScript(scriptPath, args) -> runScript scriptPath args
 
-        let fullName = name |> Stdlib.String.dropFirst_v0 1L
-
-        let owner =
-          fullName |> Stdlib.String.split "." |> Stdlib.List.head |> Builtin.unwrap
-
-        let modules =
-          fullName
-          |> Stdlib.String.split "."
-          |> (Stdlib.List.drop 1L)
-          |> Stdlib.List.dropLast
-
-        let name =
-          name
-          |> Stdlib.String.dropFirst_v0 1L
-          |> Stdlib.String.split "."
-          |> Stdlib.List.last
-          |> Builtin.unwrap
-
-        let categoryRequest =
-          Stdlib.HttpClient.request
-            "GET"
-            $"http://dark-packages.dlio.localhost:11003/category/{fullName}"
-            []
-            []
-
-        let statusCode =
-          categoryRequest
-          |> Stdlib.Result.map (fun response -> response.statusCode)
-          |> Builtin.unwrap
-
-        let category =
-          if statusCode == 200L then
-            categoryRequest
-            |> Stdlib.Result.map (fun response -> response.body)
-            |> Builtin.unwrap
-            |> Stdlib.String.fromBytesWithReplacement
-          else
-            "Error" |> Stdlib.String.toBytes
-
-        match category with
-        | "fn" -> Darklang.Cli.showFn name owner modules
-        | "type" -> Darklang.Cli.showType name owner modules
-        | "constant" -> Darklang.Cli.showConstant name owner modules
-        | _ ->
-          let modules = fullName |> Stdlib.String.split "." |> (Stdlib.List.drop 1L)
-
-          if Stdlib.List.length modules == 0L then
-            Darklang.Cli.showPackage owner
-          else
-            Darklang.Cli.showModule fullName
-
-      | RunFunction(fnName, flagValue, args) ->
-        Darklang.Cli.runFunction fnName flagValue args
-
-      | Infer(prompt, scriptPath) ->
-        // let script = System.IO.File.ReadAllText scriptPath
-        // Call OpenAI API with the prompt and script to generate a new script
-        // let generatedScript = callOpenAI(prompt, script)
-        // Execute the generated script here
-        Darklang.Cli.generateCode prompt scriptPath
+      | RunFunction(flags, fnName, args) -> runFunction flags fnName args
 
       | Invalid args ->
         let args = args |> Stdlib.String.join " "
-        Builtin.printLine $"Invalid command {args}. Use --help for more information."
+
+        Builtin.printLine
+          $"Invalid command {args}. Use `darklang help` for more information."
+
         1L
 
 

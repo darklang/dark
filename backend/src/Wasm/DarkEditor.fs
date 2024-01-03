@@ -38,8 +38,8 @@ let builtin =
 /// the JS side of the editor.
 [<JSInvokable>]
 let LoadClient (canvasName : string) : Task<string> =
-  let sourceURL = $"http://{canvasName}.dlio.localhost:11003/assets/client.dark"
-  let parseURL = $"http://{canvasName}.dlio.localhost:11003/get-program-json"
+  let sourceURL = $"http://{canvasName}.dlio.localhost:11001/assets/client.dark"
+  let parseURL = $"http://{canvasName}.dlio.localhost:11001/get-program-json"
 
   task {
     let httpClient = new HttpClient()
