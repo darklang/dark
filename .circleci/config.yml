@@ -284,14 +284,14 @@ jobs:
       - deploy-lock-remove-on-fail
 
   # Publish cli via github releases
-  publish-github-release:
-    executor: in-container
-    steps:
-      - darkcheckout
-      - setup-app
-      - run: ./scripts/publish-github-release
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
+  # publish-github-release:
+  #   executor: in-container
+  #   steps:
+  #     - darkcheckout
+  #     - setup-app
+  #     - run: ./scripts/publish-github-release
+  #     - slack-notify-job-failure
+  #     - deploy-lock-remove-on-fail
 
   static-checks:
     executor: in-container
@@ -385,12 +385,12 @@ workflows:
       - static-checks
       - build-backend
       - build-cli
-      - publish-github-release:
-          requires:
-            - build-cli
-          filters:
-            branches:
-              only: main
+      # - publish-github-release:
+      #     requires:
+      #       - build-cli
+      #     filters:
+      #       branches:
+      #         only: main
 
       - gcp-containers-test:
           # This is fully covered by push-containers-to-gcp, so no need to do it twice
