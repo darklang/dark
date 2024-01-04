@@ -133,6 +133,28 @@ module ParseNodeToWrittenTypes =
           exprsToEval = [] }
     )
 
+let nameResolver
+  ()
+  : PACKAGE.Darklang.LanguageTools.NameResolver.NameResolutionSettings =
+  PACKAGE.Darklang.LanguageTools.NameResolver.create
+    true
+    [ (PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.UserProgram
+        { modules = []
+          name =
+            PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name.TypeName "Test"
+          version = 0L })
+      |> PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.FQName.UserProgram ]
+    [ (PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.UserProgram
+        { modules = [ "Bool" ]
+          name = PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name.FnName "and"
+          version = 0L })
+      |> PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.FQName.UserProgram
+
+      (PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.UserProgram
+        { modules = []
+          name = PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name.FnName "and"
+          version = 0L })
+      |> PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.FQName.UserProgram ]
 
 module TextToTextRoundtripping =
   let prettyPrintCliScript
@@ -147,7 +169,7 @@ module TextToTextRoundtripping =
         match typeOrFn with
         | Type typeDecl ->
           let prettyPrinted =
-            (PACKAGE.Darklang.LanguageTools.NameResolver.empty ())
+            (nameResolver ())
             |> PACKAGE.Darklang.LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toUserTypePT
               typeDecl
             |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType
@@ -156,7 +178,7 @@ module TextToTextRoundtripping =
 
         | Function fnDecl ->
           let prettyPrinted =
-            (PACKAGE.Darklang.LanguageTools.NameResolver.empty ())
+            (nameResolver ())
             |> PACKAGE.Darklang.LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toUserFnPT
               fnDecl
             |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userFunction
@@ -167,7 +189,7 @@ module TextToTextRoundtripping =
     let exprsPart = // List<String>
       (PACKAGE.Darklang.Stdlib.List.fold script.exprsToEval [] (fun acc expr ->
         let prettyPrinted =
-          (PACKAGE.Darklang.LanguageTools.NameResolver.empty ())
+          (nameResolver ())
           |> PACKAGE.Darklang.LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
             expr
           |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr
@@ -283,13 +305,13 @@ let curiousGeorgeBookId = 101L
        |> roundtripCliScript) = """type BookID =
   Int64
 
-let getTitle (bookId: BookID): String =
+let getTitle (bookId: Unresolved): String =
   let book =
-    Library.getBook bookId
-  getNameFromBook book
+    Unresolved bookId
+  Unresolved book
 
 let curiousGeorgeBookId =
   101L
-Builtin.printLine getTitle curiousGeorgeBookId
+Builtin.printLine Unresolved curiousGeorgeBookId
 
 0L"""

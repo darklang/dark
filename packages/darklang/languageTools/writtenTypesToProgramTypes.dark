@@ -18,7 +18,7 @@ module Darklang =
           let toPT
             (resolver: NameResolver.NameResolutionSettings)
             (i: WrittenTypes.QualifiedTypeIdentifier)
-            : ProgramTypes.TypeName.TypeName =
+            : ProgramTypes.FQName.FQName =
             let currentModule = Stdlib.List.map i.modules (fun (m, _) -> m.name)
             let nametoResolve = [ i.typ.name ]
 
@@ -29,9 +29,16 @@ module Darklang =
                 (WrittenTypesToProgramTypes.Name.Unresolved nametoResolve)
 
             match resolvedName with
-            | Ok n -> n
+            | Ok name -> name
             // TODO: Handle errors properly
-            | Error e -> $"TODO: handle error {e}"
+            | Error e ->
+              (ProgramTypes.FQName.UserProgram
+                { modules = []
+                  name =
+                    PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name.TypeName
+                      "Unresolved"
+                  version = 0L })
+              |> ProgramTypes.FQName.FQName.UserProgram
 
         module Fn =
           let toPT (fn: WrittenTypes.FnIdentifier) : String = fn.name
@@ -53,7 +60,14 @@ module Darklang =
             match resolvedName with
             | Ok name -> name
             // TODO: Handle errors properly
-            | Error e -> $"TODO: handle error {e}"
+            | Error e ->
+              (ProgramTypes.FQName.UserProgram
+                { modules = []
+                  name =
+                    PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name.FnName
+                      "Unresolved"
+                  version = 0L })
+              |> ProgramTypes.FQName.FQName.UserProgram
 
 
       module TypeReference =
@@ -80,10 +94,34 @@ module Darklang =
           | QualifiedName qn ->
             let typeName = Identifiers.QualifiedType.toPT resolver qn
 
-            ProgramTypes.TypeReference.TCustomType(
-              Stdlib.Result.Result.Ok typeName,
-              []
-            )
+            let name =
+              match typeName with
+              | UserProgram up ->
+                match up.name with
+                | TypeName n when n == "Unresolved" ->
+                  ProgramTypes.TypeReference.TCustomType(
+                    Stdlib.Result.Result.Error(
+                      LanguageTools.RuntimeErrors.NameResolution.Error
+                        { errorType =
+                            LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
+                          nameType =
+                            LanguageTools.RuntimeErrors.NameResolution.NameType.Type
+                          names = [ "Unresolved" ] }
+                    ),
+                    []
+                  )
+                | _ ->
+                  ProgramTypes.TypeReference.TCustomType(
+                    Stdlib.Result.Result.Ok typeName,
+                    []
+                  )
+              | _ ->
+                ProgramTypes.TypeReference.TCustomType(
+                  Stdlib.Result.Result.Ok typeName,
+                  []
+                )
+
+            name
 
 
       module TypeDeclaration =
@@ -189,15 +227,43 @@ module Darklang =
           | EFnCall(_, fnName, args, _, _) ->
             let fnName = Identifiers.QualifiedFn.toPT resolver fnName
 
-            let fnNameExpr =
-              ProgramTypes.Expr.EFnName(gid (), Stdlib.Result.Result.Ok fnName)
+            let expr =
+              ProgramTypes.Expr.EApply(
+                gid (),
+                ProgramTypes.Expr.EFnName(gid (), Stdlib.Result.Result.Ok fnName),
+                [],
+                Stdlib.List.map args (fun a -> toPT resolver a)
+              )
 
-            ProgramTypes.Expr.EApply(
-              gid (),
-              fnNameExpr,
-              [],
-              Stdlib.List.map args (fun a -> toPT resolver a)
-            )
+            let result =
+              match fnName with
+              | UserProgram up ->
+                match up.name with
+                | FnName n when n == "Unresolved" ->
+                  let fnNameExpr =
+                    ProgramTypes.Expr.EFnName(
+                      gid (),
+                      Stdlib.Result.Result.Error(
+                        LanguageTools.RuntimeErrors.NameResolution.Error
+                          { errorType =
+                              LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
+                            nameType =
+                              LanguageTools.RuntimeErrors.NameResolution.NameType.Function
+                            names = [ "Unresolved" ] }
+                      )
+                    )
+
+                  ProgramTypes.Expr.EApply(
+                    gid (),
+                    fnNameExpr,
+                    [],
+                    Stdlib.List.map args (fun a -> toPT resolver a)
+                  )
+
+                | _ -> expr
+              | _ -> expr
+
+            result
 
 
       module FunctionDeclaration =
