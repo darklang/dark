@@ -66,8 +66,7 @@ let builtIns : RT.BuiltIns =
     LibExecution.Builtin.combine
       [ libExecutionContents; BuiltinCli.Builtin.contents ]
       []
-  { types = types |> Map.fromListBy _.name
-    fns = fns |> Map.fromListBy _.name
+  { fns = fns |> Map.fromListBy _.name
     constants = constants |> Map.fromListBy _.name }
 
 let packageManager = LibCloud.PackageManager.packageManager
@@ -114,7 +113,6 @@ let execute
       return Error((None, rte))
   }
 
-let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn [ "Cli" ] "parseAndExecuteScript" 0
@@ -126,12 +124,12 @@ let fns : List<BuiltInFn> =
       returnType =
         TypeReference.result
           TInt64
-          (TCustomType(Ok(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)), []))
+          (TCustomType(Ok(FQTypeName.Package(typ [ "Cli" ] "ExecutionError" 0)), []))
       description =
         "Parses Dark code as a script, and and executes it, returning an exit code"
       fn =
         let errType =
-          KTCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), [])
+          KTCustomType(FQTypeName.Package(typ [ "Cli" ] "ExecutionError" 0), [])
         let resultOk = Dval.resultOk KTInt64 errType
         let resultError = Dval.resultError KTInt64 errType
         (function
@@ -185,11 +183,11 @@ let fns : List<BuiltInFn> =
       returnType =
         TypeReference.result
           TString
-          (TCustomType(Ok(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)), []))
+          (TCustomType(Ok(FQTypeName.Package(typ [ "Cli" ] "ExecutionError" 0)), []))
       description = "Executes an arbitrary Dark package function"
       fn =
         let errType =
-          KTCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), [])
+          KTCustomType(FQTypeName.Package(typ [ "Cli" ] "ExecutionError" 0), [])
         let resultOk = Dval.resultOk KTString errType
         let resultError = Dval.resultError KTString errType
 
@@ -205,7 +203,7 @@ let fns : List<BuiltInFn> =
                      metadata |> List.map (Tuple2.mapSecond DString) |> Map
                    )) ]
 
-              let typeName = FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)
+              let typeName = FQTypeName.Package(typ [ "Cli" ] "ExecutionError" 0)
               DRecord(typeName, typeName, [], Map fields) |> resultError
 
             let exnError (e : exn) : Dval =
@@ -232,8 +230,8 @@ let fns : List<BuiltInFn> =
               match fnName with
               | Ok fnName ->
                 let! fn =
-                  match PT2RT.FnName.toRT fnName with
-                  | FQName.Package pkg ->
+                  match PT2RT.FQFnName.toRT fnName with
+                  | FQFnName.Package pkg ->
                     uply {
                       let! fn = state.packageManager.getFn pkg
                       return Option.map packageFnToFn fn
@@ -336,12 +334,12 @@ let fns : List<BuiltInFn> =
       returnType =
         TypeReference.result
           TString
-          (TCustomType(Ok(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)), []))
+          (TCustomType(Ok(FQTypeName.Package(typ [ "Cli" ] "ExecutionError" 0)), []))
       description =
         "Executes an arbitrary Dark package function using the new darklang parser"
       fn =
         let errType =
-          KTCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), [])
+          KTCustomType(FQTypeName.Package(typ [ "Cli" ] "ExecutionError" 0), [])
         let resultOk = Dval.resultOk KTString errType
         let resultError = Dval.resultError KTString errType
 
@@ -357,7 +355,7 @@ let fns : List<BuiltInFn> =
                      metadata |> List.map (Tuple2.mapSecond DString) |> Map
                    )) ]
 
-              let typeName = FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0)
+              let typeName = FQTypeName.Package(typ [ "Cli" ] "ExecutionError" 0)
               DRecord(typeName, typeName, [], Map fields) |> resultError
 
             let exnError (e : exn) : Dval =
@@ -384,8 +382,8 @@ let fns : List<BuiltInFn> =
               match fnName with
               | Ok fnName ->
                 let! fn =
-                  match PT2RT.FnName.toRT fnName with
-                  | FQName.Package pkg ->
+                  match PT2RT.FQFnName.toRT fnName with
+                  | FQFnName.Package pkg ->
                     uply {
                       let! fn = state.packageManager.getFn pkg
                       return Option.map packageFnToFn fn
@@ -443,4 +441,4 @@ let fns : List<BuiltInFn> =
     ]
 
 let constants : List<BuiltInConstant> = []
-let contents = (fns, types, constants)
+let contents = (fns, constants)

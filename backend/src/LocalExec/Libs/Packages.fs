@@ -25,7 +25,6 @@ let packagePackagesType
     version
 
 
-let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn [ "LocalExec"; "Packages" ] "listFunctions" 0

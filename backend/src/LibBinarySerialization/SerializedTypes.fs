@@ -53,11 +53,37 @@ type NEList<'a> =
     tail : List<'a> }
 
 
-module TypeName =
-  // We avoid type trickery here, to ensure we understand changes in format
+module FQTypeName =
+  [<MessagePack.MessagePackObject>]
+  type UserProgram =
+    { [<MessagePack.Key 0>]
+      modules : List<string>
+      [<MessagePack.Key 1>]
+      name : string
+      [<MessagePack.Key 2>]
+      version : int }
 
   [<MessagePack.MessagePackObject>]
-  type BuiltIn =
+  type Package =
+    { [<MessagePack.Key 0>]
+      owner : string
+      [<MessagePack.Key 1>]
+      modules : List<string>
+      [<MessagePack.Key 2>]
+      name : string
+      [<MessagePack.Key 3>]
+      version : int }
+
+  [<MessagePack.MessagePackObject>]
+  type FQTypeName =
+    | UserProgram of UserProgram
+    | Package of Package
+
+
+
+module FQFnName =
+  [<MessagePack.MessagePackObject>]
+  type Builtin =
     { [<MessagePack.Key 0>]
       modules : List<string>
       [<MessagePack.Key 1>]
@@ -86,16 +112,15 @@ module TypeName =
       version : int }
 
   [<MessagePack.MessagePackObject>]
-  type TypeName =
-    | BuiltIn of BuiltIn
-    | UserProgram of UserProgram
+  type FQFnName =
+    | Builtin of Builtin
     | Package of Package
+    | UserProgram of UserProgram
 
-module FnName =
-  // We avoid type trickery here, to ensure we understand changes in format
 
+module FQConstantName =
   [<MessagePack.MessagePackObject>]
-  type BuiltIn =
+  type Builtin =
     { [<MessagePack.Key 0>]
       modules : List<string>
       [<MessagePack.Key 1>]
@@ -124,10 +149,10 @@ module FnName =
       version : int }
 
   [<MessagePack.MessagePackObject>]
-  type FnName =
-    | BuiltIn of BuiltIn
-    | UserProgram of UserProgram
+  type FQConstantName =
+    | Builtin of Builtin
     | Package of Package
+    | UserProgram of UserProgram
 
 
 module NameResolutionError =
@@ -158,47 +183,6 @@ module NameResolutionError =
 type NameResolution<'a> = Result<'a, NameResolutionError.Error>
 
 
-/// A Fully-Qualified Constant Name
-/// Includes package, module, and version information where relevant.
-module ConstantName =
-  // We avoid type trickery here, to ensure we understand changes in format
-  [<MessagePack.MessagePackObject>]
-  type BuiltIn =
-    { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
-  type UserProgram =
-    { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
-  type Package =
-    { [<MessagePack.Key 0>]
-      owner : string
-      [<MessagePack.Key 1>]
-      modules : List<string>
-      [<MessagePack.Key 2>]
-      name : string
-      [<MessagePack.Key 3>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
-  type ConstantName =
-    | UserProgram of UserProgram
-    | BuiltIn of BuiltIn
-    | Package of Package
-
-
-
 
 [<MessagePack.MessagePackObject>]
 type TypeReference =
@@ -223,7 +207,7 @@ type TypeReference =
   | TChar
   | TUuid
   | TCustomType of
-    typeName : NameResolution<TypeName.TypeName> *
+    typeName : NameResolution<FQTypeName.FQTypeName> *
     typeArgs : List<TypeReference>
   | TVariable of string
   | TFn of NEList<TypeReference> * TypeReference
@@ -311,7 +295,7 @@ type Expr =
   | EChar of id * string
   | EFloat of id * Sign * string * string
   | EUnit of id
-  | EConstant of id * NameResolution<ConstantName.ConstantName>
+  | EConstant of id * NameResolution<FQConstantName.FQConstantName>
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
   | ELambda of id * pats : NEList<LetPattern> * body : Expr
@@ -321,20 +305,20 @@ type Expr =
   | EList of id * List<Expr>
   | ERecord of
     id *
-    typeName : NameResolution<TypeName.TypeName> *
+    typeName : NameResolution<FQTypeName.FQTypeName> *
     fields : List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
   | EPipe of id * Expr * List<PipeExpr>
   | EEnum of
     id *
-    typeName : NameResolution<TypeName.TypeName> *
+    typeName : NameResolution<FQTypeName.FQTypeName> *
     caseName : string *
     fields : List<Expr>
   | EMatch of id * Expr * List<MatchCase>
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
   | EDict of id * List<string * Expr>
-  | EFnName of id * NameResolution<FnName.FnName>
+  | EFnName of id * NameResolution<FQFnName.FQFnName>
 
 and [<MessagePack.MessagePackObject>] MatchCase =
   { [<MessagePack.Key 0>]
@@ -354,12 +338,12 @@ and [<MessagePack.MessagePackObject>] PipeExpr =
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of
     id *
-    NameResolution<FnName.FnName> *
+    NameResolution<FQFnName.FQFnName> *
     typeArgs : List<TypeReference> *
     args : List<Expr>
   | EPipeEnum of
     id *
-    typeName : NameResolution<TypeName.TypeName> *
+    typeName : NameResolution<FQTypeName.FQTypeName> *
     caseName : string *
     fields : List<Expr>
 
@@ -460,13 +444,13 @@ module UserType =
     { [<MessagePack.Key 0>]
       tlid : tlid
       [<MessagePack.Key 1>]
-      name : TypeName.UserProgram
+      name : FQTypeName.UserProgram
       [<MessagePack.Key 3>]
       declaration : TypeDeclaration.T
       [<MessagePack.Key 4>]
       description : string
       [<MessagePack.Key 5>]
-      deprecated : Deprecation<TypeName.TypeName> }
+      deprecated : Deprecation<FQTypeName.FQTypeName> }
 
 [<MessagePack.MessagePackObject>]
 type Const =
@@ -486,7 +470,7 @@ type Const =
   | CFloat of Sign * string * string
   | CUnit
   | CTuple of first : Const * second : Const * rest : List<Const>
-  | CEnum of NameResolution<TypeName.TypeName> * caseName : string * List<Const>
+  | CEnum of NameResolution<FQTypeName.FQTypeName> * caseName : string * List<Const>
   | CList of List<Const>
   | CDict of List<string * Const>
 
@@ -496,11 +480,11 @@ module UserConstant =
     { [<MessagePack.Key 0>]
       tlid : tlid
       [<MessagePack.Key 1>]
-      name : ConstantName.UserProgram
+      name : FQConstantName.UserProgram
       [<MessagePack.Key 2>]
       description : string
       [<MessagePack.Key 3>]
-      deprecated : Deprecation<ConstantName.ConstantName>
+      deprecated : Deprecation<FQConstantName.FQConstantName>
       [<MessagePack.Key 4>]
       body : Const }
 
@@ -519,7 +503,7 @@ module UserFunction =
     { [<MessagePack.Key 0>]
       tlid : tlid
       [<MessagePack.Key 1>]
-      name : FnName.UserProgram
+      name : FQFnName.UserProgram
       [<MessagePack.Key 2>]
       typeParams : List<string>
       [<MessagePack.Key 3>]
@@ -529,7 +513,7 @@ module UserFunction =
       [<MessagePack.Key 5>]
       description : string
       [<MessagePack.Key 6>]
-      deprecated : Deprecation<FnName.FnName>
+      deprecated : Deprecation<FQFnName.FQFnName>
       [<MessagePack.Key 7>]
       body : Expr }
 
@@ -550,7 +534,7 @@ module PackageFn =
       [<MessagePack.Key 1>]
       id : System.Guid
       [<MessagePack.Key 2>]
-      name : FnName.Package
+      name : FQFnName.Package
       [<MessagePack.Key 3>]
       body : Expr
       [<MessagePack.Key 4>]
@@ -562,7 +546,7 @@ module PackageFn =
       [<MessagePack.Key 7>]
       description : string
       [<MessagePack.Key 8>]
-      deprecated : Deprecation<FnName.FnName> }
+      deprecated : Deprecation<FQFnName.FQFnName> }
 
 module PackageType =
   [<MessagePack.MessagePackObject>]
@@ -572,13 +556,13 @@ module PackageType =
       [<MessagePack.Key 1>]
       id : System.Guid
       [<MessagePack.Key 2>]
-      name : TypeName.Package
+      name : FQTypeName.Package
       [<MessagePack.Key 3>]
       declaration : TypeDeclaration.T
       [<MessagePack.Key 4>]
       description : string
       [<MessagePack.Key 5>]
-      deprecated : Deprecation<TypeName.TypeName> }
+      deprecated : Deprecation<FQTypeName.FQTypeName> }
 
 module PackageConstant =
   [<MessagePack.MessagePackObject>]
@@ -588,13 +572,13 @@ module PackageConstant =
       [<MessagePack.Key 1>]
       id : System.Guid
       [<MessagePack.Key 2>]
-      name : ConstantName.Package
+      name : FQConstantName.Package
       [<MessagePack.Key 3>]
       body : Const
       [<MessagePack.Key 4>]
       description : string
       [<MessagePack.Key 5>]
-      deprecated : Deprecation<ConstantName.ConstantName> }
+      deprecated : Deprecation<FQConstantName.FQConstantName> }
 
 module Toplevel =
   [<MessagePack.MessagePackObject>]

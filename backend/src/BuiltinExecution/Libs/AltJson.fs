@@ -14,8 +14,12 @@ let typ
   (addlModules : List<string>)
   (name : string)
   (version : int)
-  : TypeName.TypeName =
-  TypeName.fqPackage "Darklang" ([ "Stdlib"; "AltJson" ] @ addlModules) name version
+  : FQTypeName.FQTypeName =
+  FQTypeName.fqPackage
+    "Darklang"
+    ([ "Stdlib"; "AltJson" ] @ addlModules)
+    name
+    version
 
 
 module Json =
@@ -184,7 +188,6 @@ module Serialize =
 
 
 
-let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "AltJson" ]
@@ -226,4 +229,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let contents = (fns, types, constants)
+let contents = (fns, constants)

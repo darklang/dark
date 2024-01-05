@@ -16,15 +16,14 @@ let modules = [ "LanguageTools" ]
 let fn = fn modules
 let constant = constant modules
 
-let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let typ
   (addlModules : List<string>)
   (name : string)
   (version : int)
-  : TypeName.TypeName =
-  TypeName.fqPackage "Darklang" ([ "LanguageTools" ] @ addlModules) name version
+  : FQTypeName.FQTypeName =
+  FQTypeName.fqPackage "Darklang" ([ "LanguageTools" ] @ addlModules) name version
 
 
 let fns : List<BuiltInFn> =
@@ -56,7 +55,7 @@ let fns : List<BuiltInFn> =
                 |> Dval.list (KTCustomType(fnParamTypeName, []))
 
               let fields =
-                [ "name", DString(FnName.builtinToString key)
+                [ "name", DString(FQFnName.builtinToString key)
                   "description", DString data.description
                   "parameters", parameters
                   "returnType", DString(typeNameToStr data.returnType) ]
@@ -69,4 +68,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types, constants)
+let contents = (fns, constants)

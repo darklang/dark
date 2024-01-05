@@ -4,10 +4,10 @@ module LibExecution.Builtin
 open Prelude
 open RuntimeTypes
 
-type FnRenames = List<FnName.BuiltIn * FnName.BuiltIn>
+type FnRenames = List<FQFnName.Builtin * FQFnName.Builtin>
 
-/// All Libs should expose `contents`, which is a list of all the types and functions it provides
-type Contents = List<BuiltInFn> * List<BuiltInType> * List<BuiltInConstant>
+/// All Libs should expose `contents`, which is a list of all the constants and functions it provides
+type Contents = List<BuiltInFn> *  List<BuiltInConstant>
 
 
 // To cut down on the amount of code, when we rename a function and make no other
@@ -35,7 +35,7 @@ let renameFunctions
           oldName
           { newFn with
               name = oldName
-              deprecated = RenamedTo(FQName.BuiltIn newName) }
+              deprecated = RenamedTo(FQFnName.Builtin newName) }
           renamedFns)
       Map.empty
     |> Map.values
@@ -50,26 +50,19 @@ let checkFn (_fn : BuiltInFn) : unit =
 
 /// Provided a list of library contents, combine them (handling renames)
 let combine (libs : List<Contents>) (fnRenames : FnRenames) : Contents =
-  let (fns, types, constants) = List.unzip3 libs
+  let (fns, constants) = List.unzip libs
+
   fns |> List.concat |> List.iter checkFn
+
   (fns |> List.concat |> renameFunctions fnRenames,
-   types |> List.concat,
    constants |> List.concat)
 
 
 
 module Shortcuts =
-  let fn = FnName.builtIn
-  let typ = TypeName.builtIn
-  let constant = ConstantName.builtIn
+  let fn = FQFnName.builtin
+  let constant = FQConstantName.builtin
   let incorrectArgs = RuntimeTypes.incorrectArgs
 
   type Param = BuiltInParam
 
-
-  let stdlibTypeRef
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : TypeReference =
-    TCustomType(Ok(TypeName.fqBuiltIn modules name version), [])

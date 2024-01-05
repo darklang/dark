@@ -12,13 +12,12 @@ module NRE = LibExecution.NameResolutionError
 
 type NameResolver =
   {
-    builtinTypes : Set<PT.TypeName.BuiltIn>
-    builtinFns : Set<PT.FnName.BuiltIn>
-    builtinConstants : Set<PT.ConstantName.BuiltIn>
+    builtinFns : Set<PT.FQFnName.BuiltIn>
+    builtinConstants : Set<PT.FQConstantName.BuiltIn>
 
-    userTypes : Set<PT.TypeName.UserProgram>
-    userFns : Set<PT.FnName.UserProgram>
-    userConstants : Set<PT.ConstantName.UserProgram>
+    userTypes : Set<PT.FQTypeName.UserProgram>
+    userFns : Set<PT.FQFnName.UserProgram>
+    userConstants : Set<PT.FQConstantName.UserProgram>
 
     /// If a name is not found, should we raise an exception?
     ///
@@ -35,17 +34,16 @@ type NameResolver =
     // Since packages often use things that are defined in the same package, and
     // those package items won't be in the package manager yet when we try to
     // resolve them, we need another approach here.
-    hackLocallyDefinedPackageTypes : Set<RT.TypeName.Package>
-    hackLocallyDefinedPackageFns : Set<RT.FnName.Package>
-    hackLocallyDefinedPackageConstants : Set<RT.ConstantName.Package>
+    hackLocallyDefinedPackageTypes : Set<RT.FQTypeName.Package>
+    hackLocallyDefinedPackageFns : Set<RT.FQFnName.Package>
+    hackLocallyDefinedPackageConstants : Set<RT.FQConstantName.Package>
 
     packageManager : Option<RT.PackageManager>
   }
 
 
 let empty : NameResolver =
-  { builtinTypes = Set.empty
-    builtinFns = Set.empty
+  { builtinFns = Set.empty
     builtinConstants = Set.empty
 
     userTypes = Set.empty
@@ -63,17 +61,15 @@ let empty : NameResolver =
 
 
 let create
-  (builtinTypes : List<PT.TypeName.BuiltIn>)
-  (builtinFns : List<PT.FnName.BuiltIn>)
-  (builtinConstants : List<PT.ConstantName.BuiltIn>)
-  (userTypes : List<PT.TypeName.UserProgram>)
-  (userFns : List<PT.FnName.UserProgram>)
-  (userConstants : List<PT.ConstantName.UserProgram>)
+  (builtinFns : List<PT.FQFnName.BuiltIn>)
+  (builtinConstants : List<PT.FQConstantName.BuiltIn>)
+  (userTypes : List<PT.FQTypeName.UserProgram>)
+  (userFns : List<PT.FQFnName.UserProgram>)
+  (userConstants : List<PT.FQConstantName.UserProgram>)
   (allowError : bool)
   (packageManager : Option<RT.PackageManager>)
   : NameResolver =
-  { builtinTypes = Set.ofList builtinTypes
-    builtinFns = Set.ofList builtinFns
+  { builtinFns = Set.ofList builtinFns
     builtinConstants = Set.ofList builtinConstants
 
     userTypes = Set.ofList userTypes
@@ -94,8 +90,7 @@ let merge
   (b : NameResolver)
   (packageManager : Option<RT.PackageManager>)
   : NameResolver =
-  { builtinTypes = Set.union a.builtinTypes b.builtinTypes
-    builtinFns = Set.union a.builtinFns b.builtinFns
+  { builtinFns = Set.union a.builtinFns b.builtinFns
     builtinConstants = Set.union a.builtinConstants b.builtinConstants
 
     userTypes = Set.union a.userTypes b.userTypes
@@ -116,19 +111,13 @@ let merge
     packageManager = packageManager }
 
 
-let fromBuiltins
-  ((fns, types, constants) : LibExecution.Builtin.Contents)
-  : NameResolver =
-  { builtinTypes =
-      types
-      |> List.map (fun typ -> PT2RT.TypeName.BuiltIn.fromRT typ.name)
-      |> Set.ofList
-    builtinFns =
-      fns |> List.map (fun fn -> PT2RT.FnName.BuiltIn.fromRT fn.name) |> Set.ofList
+let fromBuiltins ((fns, constants) : LibExecution.Builtin.Contents) : NameResolver =
+  { builtinFns =
+      fns |> List.map (fun fn -> PT2RT.FQFnName.Builtin.fromRT fn.name) |> Set.ofList
 
     builtinConstants =
       constants
-      |> List.map (fun fn -> PT2RT.ConstantName.BuiltIn.fromRT fn.name)
+      |> List.map (fun fn -> PT2RT.FQConstantName.Builtin.fromRT fn.name)
       |> Set.ofList
 
     userTypes = Set.empty
@@ -145,36 +134,31 @@ let fromBuiltins
 
 
 let fromExecutionState (state : RT.ExecutionState) : NameResolver =
-  { builtinTypes =
-      state.builtIns.types
-      |> Map.keys
-      |> List.map PT2RT.TypeName.BuiltIn.fromRT
-      |> Set.ofList
-    builtinFns =
+  { builtinFns =
       state.builtIns.fns
       |> Map.keys
-      |> List.map PT2RT.FnName.BuiltIn.fromRT
+      |> List.map PT2RT.FQFnName.Builtin.fromRT
       |> Set.ofList
     builtinConstants =
       state.builtIns.constants
       |> Map.keys
-      |> List.map PT2RT.ConstantName.BuiltIn.fromRT
+      |> List.map PT2RT.FQConstantName.Builtin.fromRT
       |> Set.ofList
 
     userTypes =
       state.program.types
       |> Map.keys
-      |> List.map PT2RT.TypeName.UserProgram.fromRT
+      |> List.map PT2RT.FQTypeName.UserProgram.fromRT
       |> Set.ofList
     userFns =
       state.program.fns
       |> Map.keys
-      |> List.map PT2RT.FnName.UserProgram.fromRT
+      |> List.map PT2RT.FQFnName.UserProgram.fromRT
       |> Set.ofList
     userConstants =
       state.program.constants
       |> Map.keys
-      |> List.map PT2RT.ConstantName.UserProgram.fromRT
+      |> List.map PT2RT.FQConstantName.UserProgram.fromRT
       |> Set.ofList
 
     allowError = true
@@ -347,8 +331,8 @@ let resolve
 module TypeName =
   let packageTypeExists
     (pm : Option<RT.PackageManager>)
-    (hackLocallyDefinedPackageTypes : Set<RT.TypeName.Package>)
-    (typeName : RT.TypeName.Package)
+    (hackLocallyDefinedPackageTypes : Set<RT.FQTypeName.Package>)
+    (typeName : RT.FQTypeName.Package)
     : Ply<bool> =
     uply {
       match pm with
@@ -363,19 +347,19 @@ module TypeName =
     (resolver : NameResolver)
     (currentModule : List<string>)
     (name : WT.Name)
-    : Ply<PT.NameResolution<PT.TypeName.TypeName>> =
+    : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
     resolve
-      PT.TypeName.assert'
+      PT.FQTypeName.assert'
       NRE.Type
-      PT.TypeName.TypeName
+      PT.FQTypeName.FQTypeName
       // TODO: move parsing fn into PT or WT
       FS2WT.Expr.parseTypeName
-      resolver.builtinTypes
+      Set.empty
       resolver.userTypes
       (packageTypeExists
         resolver.packageManager
         resolver.hackLocallyDefinedPackageTypes)
-      PT2RT.TypeName.Package.toRT
+      PT2RT.FQTypeName.Package.toRT
       true
       currentModule
       name
@@ -384,14 +368,14 @@ module TypeName =
     (resolver : NameResolver)
     (currentModule : List<string>)
     (name : WT.Name)
-    : Ply<PT.NameResolution<PT.TypeName.TypeName>> =
+    : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
     resolve
-      PT.TypeName.assert'
+      PT.FQTypeName.assert'
       NRE.Type
-      PT.TypeName.TypeName
+      PT.FQTypeName.FQTypeName
       // TODO: move parsing fn into PT or WT
       FS2WT.Expr.parseTypeName
-      resolver.builtinTypes
+      Set.empty
       resolver.userTypes
       (packageTypeExists
         resolver.packageManager
@@ -404,8 +388,8 @@ module TypeName =
 module FnName =
   let packageFnExists
     (pm : Option<RT.PackageManager>)
-    (hackLocallyDefinedPackageFns : Set<RT.FnName.Package>)
-    (fnName : RT.FnName.Package)
+    (hackLocallyDefinedPackageFns : Set<RT.FQFnName.Package>)
+    (fnName : RT.FQFnName.Package)
     : Ply<bool> =
     uply {
       match pm with
@@ -420,17 +404,17 @@ module FnName =
     (resolver : NameResolver)
     (currentModule : List<string>)
     (name : WT.Name)
-    : Ply<PT.NameResolution<PT.FnName.FnName>> =
+    : Ply<PT.NameResolution<PT.FQFnName.FnName>> =
     resolve
-      PT.FnName.assert'
+      PT.FQFnName.assert'
       NRE.Function
-      PT.FnName.FnName
+      PT.FQFnName.FQFnName
       // TODO: move parsing fn into PT or WT
       FS2WT.Expr.parseFn
       resolver.builtinFns
       resolver.userFns
       (packageFnExists resolver.packageManager resolver.hackLocallyDefinedPackageFns)
-      PT2RT.FnName.Package.toRT
+      PT2RT.FQFnName.Package.toRT
       true
       currentModule
       name
@@ -439,17 +423,17 @@ module FnName =
     (resolver : NameResolver)
     (currentModule : List<string>)
     (name : WT.Name)
-    : Ply<PT.NameResolution<PT.FnName.FnName>> =
+    : Ply<PT.NameResolution<PT.FQFnName.FQFnName>> =
     resolve
-      PT.FnName.assert'
+      PT.FQFnName.assert'
       NRE.Function
-      PT.FnName.FnName
+      PT.FQFnName.FQFnName
       // TODO: move parsing fn into PT or WT
       FS2WT.Expr.parseFn
       resolver.builtinFns
       resolver.userFns
       (packageFnExists resolver.packageManager resolver.hackLocallyDefinedPackageFns)
-      PT2RT.FnName.Package.toRT
+      PT2RT.FQFnName.Package.toRT
       resolver.allowError
       currentModule
       name
@@ -474,18 +458,18 @@ module ConstantName =
     (resolver : NameResolver)
     (currentModule : List<string>)
     (name : WT.Name)
-    : Ply<PT.NameResolution<PT.ConstantName.ConstantName>> =
+    : Ply<PT.NameResolution<PT.FQConstantName.FQConstantName>> =
     resolve
-      PT.ConstantName.assert'
+      PT.FQConstantName.assert'
       NRE.Constant
-      PT.ConstantName.ConstantName
+      PT.FQConstantName.FQConstantName
       FS2WT.Expr.parseFn // same format
       resolver.builtinConstants
       resolver.userConstants
       (packageConstExists
         resolver.packageManager
         resolver.hackLocallyDefinedPackageConstants)
-      PT2RT.ConstantName.Package.toRT
+      PT2RT.FQConstantName.Package.toRT
       true
       currentModule
       name
@@ -494,18 +478,18 @@ module ConstantName =
     (resolver : NameResolver)
     (currentModule : List<string>)
     (name : WT.Name)
-    : Ply<PT.NameResolution<PT.ConstantName.ConstantName>> =
+    : Ply<PT.NameResolution<PT.FQConstantName.FQConstantName>> =
     resolve
-      PT.ConstantName.assert'
+      PT.FQConstantName.assert'
       NRE.Constant
-      PT.ConstantName.ConstantName
+      PT.FQConstantName.FQConstantName
       FS2WT.Expr.parseFn // same format
       resolver.builtinConstants
       resolver.userConstants
       (packageConstExists
         resolver.packageManager
         resolver.hackLocallyDefinedPackageConstants)
-      PT2RT.ConstantName.Package.toRT
+      PT2RT.FQConstantName.Package.toRT
       resolver.allowError
       currentModule
       name

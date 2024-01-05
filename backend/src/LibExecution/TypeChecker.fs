@@ -15,24 +15,24 @@ let combineErrorsUnit (l : NEList<Result<unit, 'err>>) : Result<unit, 'err> =
 type Location = Option<tlid * id>
 type Context =
   | FunctionCallParameter of
-    fnName : FnName.FnName *
+    fnName : FQFnName.FQFnName *
     parameter : Param *
     paramIndex : int *
     // caller : Option<tlid * id> * // TODO add caller
     location : Location
   | FunctionCallResult of
-    fnName : FnName.FnName *
+    fnName : FQFnName.FQFnName *
     returnType : TypeReference *
     // caller : Option<tlid * id> * // TODO add caller
     location : Location
   | RecordField of
-    recordTypeName : TypeName.TypeName *
+    recordTypeName : FQTypeName.FQTypeName *
     fieldName : string *
     fieldType : TypeReference *
     location : Location
   | DictKey of key : string * typ : TypeReference * Location
   | EnumField of
-    enumTypeName : TypeName.TypeName *
+    enumTypeName : FQTypeName.FQTypeName *
     caseName : string *
     fieldIndex : int *  // nth argument to the enum constructor
     fieldCount : int *
@@ -71,7 +71,7 @@ type Error =
     actualValue : Dval *
     expectedType : TypeReference *
     Context
-  | TypeDoesntExist of TypeName.TypeName * Context
+  | TypeDoesntExist of FQTypeName.FQTypeName * Context
 
 
 
@@ -96,20 +96,20 @@ module Error =
         match context with
         | FunctionCallParameter(fnName, param, paramIndex, location) ->
           "FunctionCallParameter",
-          [ RT2DT.FnName.toDT fnName
+          [ RT2DT.FQFnName.toDT fnName
             RT2DT.Param.toDT param
             DInt64 paramIndex
             Location.toDT location ]
 
         | FunctionCallResult(fnName, returnType, location) ->
           "FunctionCallResult",
-          [ RT2DT.FnName.toDT fnName
+          [ RT2DT.FQFnName.toDT fnName
             RT2DT.TypeReference.toDT returnType
             Location.toDT location ]
 
         | RecordField(recordTypeName, fieldName, fieldType, location) ->
           "RecordField",
-          [ RT2DT.TypeName.toDT recordTypeName
+          [ RT2DT.FQTypeName.toDT recordTypeName
             DString fieldName
             RT2DT.TypeReference.toDT fieldType
             Location.toDT location ]
@@ -125,7 +125,7 @@ module Error =
                     fieldType,
                     location) ->
           "EnumField",
-          [ RT2DT.TypeName.toDT enumTypeName
+          [ RT2DT.FQTypeName.toDT enumTypeName
             DString caseName
             DInt64 fieldIndex
             DInt64 fieldCount
@@ -170,7 +170,7 @@ module Error =
           Context.toDT context ]
 
       | TypeDoesntExist(typeName, context) ->
-        "TypeDoesntExist", [ RT2DT.TypeName.toDT typeName; Context.toDT context ]
+        "TypeDoesntExist", [ RT2DT.FQTypeName.toDT typeName; Context.toDT context ]
 
     let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
 
@@ -684,7 +684,7 @@ module DvalCreator =
   ///
   /// note: if provided, the typeArgs must match the # of typeArgs expected by the type
   let record
-    (typeName : TypeName.TypeName)
+    (typeName : FQTypeName.FQTypeName)
     (fields : List<string * Dval>)
     : Ply<Dval> =
     let resolvedTypeName = typeName // TODO: alias lookup, etc.
@@ -714,8 +714,8 @@ module DvalCreator =
 
 
   let enum
-    (resolvedTypeName : TypeName.TypeName) // todo: remove
-    (sourceTypeName : TypeName.TypeName)
+    (resolvedTypeName : FQTypeName.FQTypeName) // todo: remove
+    (sourceTypeName : FQTypeName.FQTypeName)
     (caseName : string)
     (fields : List<Dval>)
     : Ply<Dval> =

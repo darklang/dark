@@ -6,6 +6,8 @@ module LibExecution.DvalReprInternalRoundtrippable
 
 open Prelude
 
+// Note: we intentionally don't `open` RT here, so that we don't accidentally
+// confuse the types defined here and the types defined in RT.
 module RT = RuntimeTypes
 
 
@@ -20,105 +22,124 @@ module FormatV0 =
   //    us to be careful
   // 2. This needs to be backwards compatible, but we don't want to constrain how we
   //    change RT.Dval.
-  module FQName =
 
-    type BuiltIn<'name> = { modules : List<string>; name : 'name; version : int }
-    type UserProgram<'name> = { modules : List<string>; name : 'name; version : int }
-    type Package<'name> =
-      { owner : string; modules : List<string>; name : 'name; version : int }
+  module FQTypeName =
+    type UserProgram = { modules : List<string>; name : string; version : int }
 
-    type FQName<'name> =
-      | BuiltIn of BuiltIn<'name>
-      | UserProgram of UserProgram<'name>
-      | Package of Package<'name>
+    type Package =
+      { owner : string
+        modules : List<string>
+        name : string
+        version : int }
+
+    type FQTypeName =
+      | UserProgram of UserProgram
+      | Package of Package
 
 
-  module TypeName =
-    type Name = TypeName of string
-    type TypeName = FQName.FQName<Name>
-
-    let toRT (t : TypeName) : RT.TypeName.TypeName =
+    let toRT (t : FQTypeName) : RT.FQTypeName.FQTypeName =
       match t with
-      | FQName.BuiltIn { modules = modules; name = TypeName name; version = version } ->
-        RT.FQName.BuiltIn
-          { modules = modules; name = RT.TypeName.TypeName name; version = version }
-      | FQName.UserProgram { modules = modules
-                             name = TypeName name
-                             version = version } ->
-        RT.FQName.UserProgram
-          { modules = modules; name = RT.TypeName.TypeName name; version = version }
-      | FQName.Package { owner = owner
-                         modules = modules
-                         name = TypeName name
-                         version = version } ->
-        RT.FQName.Package
+      | UserProgram { modules = modules
+                      name = name
+                      version = version } ->
+        RT.FQTypeName.UserProgram
+          { modules = modules; name = name; version = version }
+
+      | Package { owner = owner
+                  modules = modules
+                  name = name
+                  version = version } ->
+        RT.FQTypeName.Package
           { owner = owner
             modules = modules
-            name = RT.TypeName.TypeName name
+            name = name
             version = version }
 
-    let fromRT (t : RT.TypeName.TypeName) : TypeName =
+
+    let fromRT (t : RT.FQTypeName.FQTypeName) : FQTypeName =
       match t with
-      | RT.FQName.BuiltIn { modules = modules
-                            name = RT.TypeName.TypeName name
-                            version = version } ->
-        FQName.BuiltIn { modules = modules; name = TypeName name; version = version }
-      | RT.FQName.UserProgram { modules = modules
-                                name = RT.TypeName.TypeName name
+      | RT.FQTypeName.UserProgram { modules = modules
+                                    name = name
+                                    version = version } ->
+        FQTypeName.UserProgram
+          { modules = modules; name = name; version = version }
+
+      | RT.FQTypeName.Package { owner = owner
+                                modules = modules
+                                name =  name
                                 version = version } ->
-        FQName.UserProgram
-          { modules = modules; name = TypeName name; version = version }
-      | RT.FQName.Package { owner = owner
-                            modules = modules
-                            name = RT.TypeName.TypeName name
-                            version = version } ->
-        FQName.Package
+        FQTypeName.Package
           { owner = owner
             modules = modules
-            name = TypeName name
+            name = name
             version = version }
 
-  module FnName =
-    type Name = FnName of string
-    type FnName = FQName.FQName<Name>
 
-    let toRT (t : FnName) : RT.FnName.FnName =
-      match t with
-      | FQName.BuiltIn { modules = modules; name = FnName name; version = version } ->
-        RT.FQName.BuiltIn
-          { modules = modules; name = RT.FnName.FnName name; version = version }
-      | FQName.UserProgram { modules = modules
-                             name = FnName name
-                             version = version } ->
-        RT.FQName.UserProgram
-          { modules = modules; name = RT.FnName.FnName name; version = version }
-      | FQName.Package { owner = owner
-                         modules = modules
-                         name = FnName name
-                         version = version } ->
-        RT.FQName.Package
+
+  module FQFnName =
+    type Builtin = { modules : List<string>; name : string; version : int }
+
+    type UserProgram = { modules : List<string>; name : string; version : int }
+
+    type Package =
+      { owner : string
+        modules : List<string>
+        name : string
+        version : int }
+
+    type FQFnName =
+      | Builtin of Builtin
+      | Package of Package
+      | UserProgram of UserProgram
+
+
+    let toRT (fn: FQFnName) : RT.FQFnName.FQFnName =
+      match fn with
+      | Builtin { modules = modules
+                  name = name
+                  version = version } ->
+        RT.FQFnName.Builtin
+          { modules = modules; name = name; version = version }
+
+      | UserProgram { modules = modules
+                      name = name
+                      version = version } ->
+        RT.FQFnName.UserProgram
+          { modules = modules; name = name; version = version }
+
+      | Package { owner = owner
+                  modules = modules
+                  name = name
+                  version = version } ->
+        RT.FQFnName.Package
           { owner = owner
             modules = modules
-            name = RT.FnName.FnName name
+            name = name
             version = version }
 
-    let fromRT (t : RT.FnName.FnName) : FnName =
-      match t with
-      | RT.FQName.BuiltIn { modules = modules
-                            name = RT.FnName.FnName name
-                            version = version } ->
-        FQName.BuiltIn { modules = modules; name = FnName name; version = version }
-      | RT.FQName.UserProgram { modules = modules
-                                name = RT.FnName.FnName name
-                                version = version } ->
-        FQName.UserProgram
-          { modules = modules; name = FnName name; version = version }
-      | RT.FQName.Package { owner = owner
-                            modules = modules
-                            name = RT.FnName.FnName name
-                            version = version } ->
-        FQName.Package
-          { owner = owner; modules = modules; name = FnName name; version = version }
+    let fromRT (fn : RT.FQFnName.FQFnName) : FQFnName =
+      match fn with
+      | RT.FQFnName.Builtin { modules = modules
+                              name = name
+                              version = version } ->
+        FQFnName.Builtin
+          { modules = modules; name = name; version = version }
+
+      | RT.FQFnName.UserProgram { modules = modules
+                                  name = name
+                                  version = version } ->
+        FQFnName.UserProgram
+          { modules = modules; name = name; version = version }
+
+      | RT.FQFnName.Package { owner = owner
+                              modules = modules
+                              name = name
+                              version = version } ->
+        FQFnName.Package
+          { owner = owner
+            modules = modules
+            name = name
+            version = version }
 
 
 
@@ -151,7 +172,7 @@ module FormatV0 =
 
         | KTFn of NEList<ValueType> * ValueType
 
-        | KTCustomType of TypeName.TypeName * typeArgs : List<ValueType>
+        | KTCustomType of FQTypeName.FQTypeName * typeArgs : List<ValueType>
 
         | KTDB of ValueType
 
@@ -188,7 +209,7 @@ module FormatV0 =
           RT.KTFn(NEList.map ValueType.toRT argTypes, ValueType.toRT returnType)
 
         | KTCustomType(typeName, typeArgs) ->
-          RT.KTCustomType(TypeName.toRT typeName, List.map ValueType.toRT typeArgs)
+          RT.KTCustomType(FQTypeName.toRT typeName, List.map ValueType.toRT typeArgs)
 
         | KTDB vt -> RT.KTDB(ValueType.toRT vt)
 
@@ -225,7 +246,7 @@ module FormatV0 =
           KTFn(NEList.map ValueType.fromRT argTypes, ValueType.fromRT returnType)
 
         | RT.KTCustomType(typeName, typeArgs) ->
-          KTCustomType(TypeName.fromRT typeName, List.map ValueType.fromRT typeArgs)
+          KTCustomType(FQTypeName.fromRT typeName, List.map ValueType.fromRT typeArgs)
 
         | RT.KTDB vt -> KTDB(ValueType.fromRT vt)
 
@@ -277,13 +298,13 @@ module FormatV0 =
     | DDateTime of NodaTime.LocalDateTime
     | DUuid of System.Guid
     | DRecord of
-      runtimeTypeName : TypeName.TypeName *
-      sourceTypeName : TypeName.TypeName *
+      runtimeTypeName : FQTypeName.FQTypeName *
+      sourceTypeName : FQTypeName.FQTypeName *
       typeArgs : List<ValueType.ValueType> *
       fields : DvalMap
     | DEnum of
-      runtimeTypeName : TypeName.TypeName *
-      sourceTypeName : TypeName.TypeName *
+      runtimeTypeName : FQTypeName.FQTypeName *
+      sourceTypeName : FQTypeName.FQTypeName *
       typeArgs : List<ValueType.ValueType> *
       caseName : string *
       fields : List<Dval>
@@ -324,15 +345,15 @@ module FormatV0 =
     | DDict(typ, entries) -> RT.DDict(ValueType.toRT typ, Map.map toRT entries)
     | DRecord(typeName, original, typeArgs, o) ->
       RT.DRecord(
-        TypeName.toRT typeName,
-        TypeName.toRT original,
+        FQTypeName.toRT typeName,
+        FQTypeName.toRT original,
         List.map ValueType.toRT typeArgs,
         Map.map toRT o
       )
     | DEnum(typeName, original, typeArgs, caseName, fields) ->
       RT.DEnum(
-        TypeName.toRT typeName,
-        TypeName.toRT original,
+        FQTypeName.toRT typeName,
+        FQTypeName.toRT original,
         List.map ValueType.toRT typeArgs,
         caseName,
         List.map toRT fields
@@ -367,15 +388,15 @@ module FormatV0 =
     | RT.DDict(typ, entries) -> DDict(ValueType.fromRT typ, Map.map fromRT entries)
     | RT.DRecord(typeName, original, typeArgs, o) ->
       DRecord(
-        TypeName.fromRT typeName,
-        TypeName.fromRT original,
+        FQTypeName.fromRT typeName,
+        FQTypeName.fromRT original,
         List.map ValueType.fromRT typeArgs,
         Map.map fromRT o
       )
     | RT.DEnum(typeName, original, typeArgs, caseName, fields) ->
       DEnum(
-        TypeName.fromRT typeName,
-        TypeName.fromRT original,
+        FQTypeName.fromRT typeName,
+        FQTypeName.fromRT original,
         List.map ValueType.fromRT typeArgs,
         caseName,
         List.map fromRT fields

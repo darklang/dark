@@ -14,7 +14,6 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 
 
-let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 
@@ -22,8 +21,8 @@ let packageFnType
   (addlModules : List<string>)
   (name : string)
   (version : int)
-  : TypeName.TypeName =
-  TypeName.fqPackage
+  : FQTypeName.FQTypeName =
+  FQTypeName.fqPackage
     "Darklang"
     ([ "LanguageTools"; "Parser" ] @ addlModules)
     name
@@ -110,4 +109,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types, constants)
+let contents = (fns, constants)

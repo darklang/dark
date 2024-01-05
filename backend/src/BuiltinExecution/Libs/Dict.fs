@@ -19,7 +19,6 @@ let modules = [ "Dict" ]
 let fn = fn modules
 let constant = constant modules
 
-let types : List<BuiltInType> = []
 
 let constants : List<BuiltInConstant> = []
 
@@ -334,18 +333,18 @@ let fns : List<BuiltInFn> =
                 let! result = Interpreter.applyFnVal state state.caller b [] args
 
                 match result with
-                | DEnum(FQName.Package { owner = "Darklang"
-                                         modules = [ "Stdlib"; "Option" ]
-                                         name = TypeName.TypeName "Option"
-                                         version = 0 },
+                | DEnum(FQTypeName.Package { owner = "Darklang"
+                                             modules = [ "Stdlib"; "Option" ]
+                                             name = "Option"
+                                             version = 0 },
                         _,
                         _typeArgsDEnumTODO,
                         "Some",
                         [ o ]) -> return Some o
-                | DEnum(FQName.Package { owner = "Darklang"
-                                         modules = [ "Stdlib"; "Option" ]
-                                         name = TypeName.TypeName "Option"
-                                         version = 0 },
+                | DEnum(FQTypeName.Package { owner = "Darklang"
+                                             modules = [ "Stdlib"; "Option" ]
+                                             name = "Option"
+                                             version = 0 },
                         _,
                         _typeArgsDEnumTODO,
                         "None",
@@ -432,4 +431,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types, constants)
+let contents = (fns, constants)

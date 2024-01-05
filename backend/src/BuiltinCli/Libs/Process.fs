@@ -12,7 +12,6 @@ module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 open System.Runtime.InteropServices
 
-let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn [ "Process" ] "run" 0
@@ -21,7 +20,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "command" TString "The command to run" ]
       returnType =
         TCustomType(
-          Ok(TypeName.fqPackage "Darklang" [ "Stdlib"; "Process" ] "Result" 0),
+          Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Process" ] "Result" 0),
           []
         )
       fn =
@@ -60,7 +59,7 @@ let fns : List<BuiltInFn> =
           p.WaitForExit()
 
           let typeName =
-            TypeName.fqPackage "Darklang" [ "Stdlib"; "Process" ] "Result" 0
+            FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Process" ] "Result" 0
           let fields =
             [ "exitCode", DInt64 p.ExitCode
               "stdout", DString stdout
@@ -72,4 +71,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 let constants : List<BuiltInConstant> = []
-let contents : Builtin.Contents = (fns, types, constants)
+let contents : Builtin.Contents = (fns,  constants)
