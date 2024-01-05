@@ -28,7 +28,6 @@ let writeBody (tlid : tlid) (expr : PT.Expr) : Task<unit> =
 let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
   fns
   |> Task.iterInParallel (fun fn ->
-    let (PT.FnName.FnName name) = fn.name.name
     Sql.query
       "INSERT INTO package_functions_v0 (tlid, id, owner, modules, fnname, version, definition)
        VALUES (@tlid, @id, @owner, @modules, @fnname, @version, @definition)"
@@ -37,7 +36,7 @@ let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
         "id", Sql.uuid fn.id
         "owner", Sql.string fn.name.owner
         "modules", Sql.string (fn.name.modules |> String.concat ".")
-        "fnname", Sql.string name
+        "fnname", Sql.string fn.name.name
         "version", Sql.int fn.name.version
         "definition", Sql.bytea (BinarySerialization.serializePackageFn fn) ]
     |> Sql.executeStatementAsync)
@@ -45,7 +44,6 @@ let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
 let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
   types
   |> Task.iterInParallel (fun typ ->
-    let (PT.TypeName.TypeName name) = typ.name.name
     Sql.query
       "INSERT INTO package_types_v0 (tlid, id, owner, modules, typename, version, definition)
        VALUES (@tlid, @id, @owner, @modules, @typename, @version, @definition)"
@@ -54,7 +52,7 @@ let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
         "id", Sql.uuid typ.id
         "owner", Sql.string typ.name.owner
         "modules", Sql.string (typ.name.modules |> String.concat ".")
-        "typename", Sql.string name
+        "typename", Sql.string typ.name.name
         "version", Sql.int typ.name.version
         "definition", Sql.bytea (BinarySerialization.serializePackageType typ) ]
     |> Sql.executeStatementAsync)
@@ -63,7 +61,6 @@ let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
 let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
   constants
   |> Task.iterInParallel (fun c ->
-    let (PT.ConstantName.ConstantName name) = c.name.name
     Sql.query
       "INSERT INTO package_constants_v0 (tlid, id, owner, modules, name, version, definition)
        VALUES (@tlid, @id, @owner, @modules, @name, @version, @definition)"
@@ -72,7 +69,7 @@ let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
         "id", Sql.uuid c.id
         "owner", Sql.string c.name.owner
         "modules", Sql.string (c.name.modules |> String.concat ".")
-        "name", Sql.string name
+        "name", Sql.string c.name.name
         "version", Sql.int c.name.version
         "definition", Sql.bytea (BinarySerialization.serializePackageConstant c) ]
     |> Sql.executeStatementAsync)
@@ -82,7 +79,7 @@ let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
 // Fetching
 // ------------------
 
-let getFn (name : PT.FnName.Package) : Ply<Option<PT.PackageFn.T>> =
+let getFn (name : PT.FQFnName.Package) : Ply<Option<PT.PackageFn.T>> =
   uply {
     let! fn =
       "SELECT id, definition
@@ -95,9 +92,7 @@ let getFn (name : PT.FnName.Package) : Ply<Option<PT.PackageFn.T>> =
       |> Sql.parameters
         [ "owner", Sql.string name.owner
           "modules", Sql.string (name.modules |> String.concat ".")
-          "name",
-          (match name.name with
-           | PT.FnName.FnName n -> Sql.string n)
+          "name", Sql.string name.name
           "version", Sql.int name.version ]
       |> Sql.executeRowOptionAsync (fun read ->
         (read.uuid "id", read.bytea "definition"))
@@ -125,7 +120,7 @@ let getFnByTLID (tlid : tlid) : Ply<Option<PT.PackageFn.T>> =
         BinarySerialization.deserializePackageFn id def)
   }
 
-let getType (name : PT.TypeName.Package) : Ply<Option<PT.PackageType.T>> =
+let getType (name : PT.FQTypeName.Package) : Ply<Option<PT.PackageType.T>> =
   uply {
     let! fn =
       "SELECT id, definition
@@ -138,9 +133,7 @@ let getType (name : PT.TypeName.Package) : Ply<Option<PT.PackageType.T>> =
       |> Sql.parameters
         [ "owner", Sql.string name.owner
           "modules", Sql.string (name.modules |> String.concat ".")
-          "name",
-          (match name.name with
-           | PT.TypeName.TypeName n -> Sql.string n)
+          "name", Sql.string name.name
           "version", Sql.int name.version ]
       |> Sql.executeRowOptionAsync (fun read ->
         (read.uuid "id", read.bytea "definition"))
@@ -152,7 +145,7 @@ let getType (name : PT.TypeName.Package) : Ply<Option<PT.PackageType.T>> =
   }
 
 let getConstant
-  (name : PT.ConstantName.Package)
+  (name : PT.FQConstantName.Package)
   : Ply<Option<PT.PackageConstant.T>> =
   uply {
     let! fn =
@@ -166,9 +159,7 @@ let getConstant
       |> Sql.parameters
         [ "owner", Sql.string name.owner
           "modules", Sql.string (name.modules |> String.concat ".")
-          "name",
-          (match name.name with
-           | PT.ConstantName.ConstantName n -> Sql.string n)
+          "name", Sql.string name.name
           "version", Sql.int name.version ]
       |> Sql.executeRowOptionAsync (fun read ->
         (read.uuid "id", read.bytea "definition"))
@@ -203,13 +194,13 @@ let packageManager : RT.PackageManager =
   { getType =
       withCache (fun name ->
         uply {
-          let! typ = name |> PT2RT.TypeName.Package.fromRT |> getType
+          let! typ = name |> PT2RT.FQTypeName.Package.fromRT |> getType
           return Option.map PT2RT.PackageType.toRT typ
         })
     getFn =
       withCache (fun name ->
         uply {
-          let! typ = name |> PT2RT.FnName.Package.fromRT |> getFn
+          let! typ = name |> PT2RT.FQFnName.Package.fromRT |> getFn
           return Option.map PT2RT.PackageFn.toRT typ
         })
     getFnByTLID =
@@ -222,7 +213,7 @@ let packageManager : RT.PackageManager =
     getConstant =
       withCache (fun name ->
         uply {
-          let! typ = name |> PT2RT.ConstantName.Package.fromRT |> getConstant
+          let! typ = name |> PT2RT.FQConstantName.Package.fromRT |> getConstant
           return Option.map PT2RT.PackageConstant.toRT typ
         })
 

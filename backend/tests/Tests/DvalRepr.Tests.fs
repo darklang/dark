@@ -37,8 +37,8 @@ let queryableRoundtripsSuccessfullyInRecord
     let typeName = S.userTypeName [] "MyType" 0
     let record =
       RT.DRecord(
-        RT.FQName.UserProgram typeName,
-        RT.FQName.UserProgram typeName,
+        RT.FQTypeName.UserProgram typeName,
+        RT.FQTypeName.UserProgram typeName,
         [],
         Map.ofList [ "field", dv ]
       )

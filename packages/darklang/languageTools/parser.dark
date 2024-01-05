@@ -166,31 +166,31 @@ module Darklang =
       module TypeReference =
         let parseBuiltIn
           (node: ParsedNode)
-          : Stdlib.Result.Result<WrittenTypes.TypeReference.BuiltIn, String> =
+          : Stdlib.Result.Result<WrittenTypes.TypeReference.Builtin, String> =
           if node.typ == "builtin_type" then
             match node.text with
             | "Unit" ->
-              (WrittenTypes.TypeReference.BuiltIn.TUnit node.sourceRange)
+              (WrittenTypes.TypeReference.Builtin.TUnit node.sourceRange)
               |> Stdlib.Result.Result.Ok
 
             | "Bool" ->
-              (WrittenTypes.TypeReference.BuiltIn.TBool node.sourceRange)
+              (WrittenTypes.TypeReference.Builtin.TBool node.sourceRange)
               |> Stdlib.Result.Result.Ok
 
             | "Int64" ->
-              (WrittenTypes.TypeReference.BuiltIn.TInt64 node.sourceRange)
+              (WrittenTypes.TypeReference.Builtin.TInt64 node.sourceRange)
               |> Stdlib.Result.Result.Ok
 
             | "Float" ->
-              (WrittenTypes.TypeReference.BuiltIn.TFloat node.sourceRange)
+              (WrittenTypes.TypeReference.Builtin.TFloat node.sourceRange)
               |> Stdlib.Result.Result.Ok
 
             | "Char" ->
-              (WrittenTypes.TypeReference.BuiltIn.TChar node.sourceRange)
+              (WrittenTypes.TypeReference.Builtin.TChar node.sourceRange)
               |> Stdlib.Result.Result.Ok
 
             | "String" ->
-              (WrittenTypes.TypeReference.BuiltIn.TString node.sourceRange)
+              (WrittenTypes.TypeReference.Builtin.TString node.sourceRange)
               |> Stdlib.Result.Result.Ok
 
             | _ -> Stdlib.Result.Result.Error "TODO : builtin_type not implemented"
@@ -207,7 +207,7 @@ module Darklang =
               if single.typ == "builtin_type" then
                 (parseBuiltIn single)
                 |> Builtin.unwrap
-                |> WrittenTypes.TypeReference.TypeReference.BuiltIn
+                |> WrittenTypes.TypeReference.TypeReference.Builtin
                 |> Stdlib.Result.Result.Ok
               elif single.typ == "qualified_type_name" then
                 (Identifiers.parseQualifiedType single)

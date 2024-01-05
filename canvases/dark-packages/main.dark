@@ -67,9 +67,7 @@ let _handler request =
       Entry
         { name =
             GenericName
-              { name =
-                  value.name.name
-                  |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.name
+              { name = value.name.name
                 modules = value.name.modules
                 owner = value.name.owner
                 version = value.name.version }
@@ -97,9 +95,7 @@ let _handler request =
       Entry
         { name =
             GenericName
-              { name =
-                  value.name.name
-                  |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.name
+              { name = value.name.name
                 modules = value.name.modules
                 owner = value.name.owner
                 version = value.name.version }
@@ -126,9 +122,7 @@ let _handler request =
       Entry
         { name =
             GenericName
-              { name =
-                  value.name.name
-                  |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name
+              { name = value.name.name
                 modules = value.name.modules
                 owner = value.name.owner
                 version = value.name.version }

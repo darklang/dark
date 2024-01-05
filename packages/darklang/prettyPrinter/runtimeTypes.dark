@@ -6,55 +6,14 @@ module Darklang =
         : String =
         PACKAGE.Darklang.Stdlib.String.join nr.names "."
 
-
-      module FQName =
-        let builtIn
-          (namePart: String)
-          (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.BuiltIn)
-          : String =
-          let modulesPart =
-            match t.modules with
-            | [] -> ""
-            | modules ->
-              modules
-              |> PACKAGE.Darklang.Stdlib.String.join "."
-              |> (fun parts -> $"{parts}.")
-
-          let versionPart =
-            if t.version == 0L then
-              ""
-            else
-              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString t.version}"
-
-          $"{modulesPart}{namePart}{versionPart}"
-
-
-        let userProgram
-          (namePart: String)
-          (u: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.UserProgram)
-          : String =
-          let modulesPart =
-            match u.modules with
-            | [] -> ""
-            | modules ->
-              modules
-              |> PACKAGE.Darklang.Stdlib.String.join "."
-              |> (fun parts -> $"{parts}.")
-
-          let versionPart =
-            if u.version == 0L then
-              ""
-            else
-              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString u.version}"
-
-          $"{modulesPart}{namePart}{versionPart}"
-
+      module FQTypeName =
 
         let package
-          (namePart: String)
-          (p: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQName.Package)
+          (p: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQTypeName.Package)
           : String =
           let modulesPart = PACKAGE.Darklang.Stdlib.String.join p.modules "."
+
+          let namePart = p.name
 
           let versionPart =
             if p.version == 0L then
@@ -65,113 +24,170 @@ module Darklang =
           $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
 
 
-      module TypeName =
-        let name
-          (name: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.Name)
-          : String =
-          match name with
-          | TypeName name -> name
-
-        let builtIn
-          (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.BuiltIn)
-          : String =
-          FQName.builtIn (name t.name) t
-
         let userProgram
-          (u: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.UserProgram)
+          (u: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQTypeName.UserProgram)
           : String =
-          FQName.userProgram (name u.name) u
+          let modulesPart =
+            match u.modules with
+            | [] -> ""
+            | modules ->
+              modules
+              |> PACKAGE.Darklang.Stdlib.String.join "."
+              |> (fun parts -> $"{parts}.")
 
-        let package
-          (p: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.Package)
-          : String =
-          FQName.package (name p.name) p
+          let namePart = u.name
 
+          let versionPart =
+            if u.version == 0L then
+              ""
+            else
+              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString u.version}"
 
+          $"{modulesPart}{namePart}{versionPart}"
+
+      // TODO rename to fqtypeName?
       let typeName
-        (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName)
+        (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
         : String =
         match t with
-        | BuiltIn b -> TypeName.builtIn b
-        | UserProgram u -> TypeName.userProgram u
-        | Package p -> TypeName.package p
-
-      // module ConstantName =
-      //   let name
-      //     (name: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Name)
-      //     : String =
-      //     match name with
-      //     | ConstantName name -> name
-
-      //   module BuiltIn =
-      //     let fullForReference
-      //       (c: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.BuiltIn)
-      //       : String =
-      //       PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.BuiltIn.fullForReference
-      //         (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name c.name)
-      //         c
-
-      //   module UserProgram =
-
-      //     let fullForReference
-      //       (u: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.UserProgram)
-      //       : String =
-      //       PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.UserProgram.fullForReference
-      //         (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name u.name)
-      //         u
-
-      //   module Package =
-      //     let fullForReference
-      //       (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.Package)
-      //       : String =
-      //       PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.Package.fullForReference
-      //         (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.name p.name)
-      //         p
-
-      // let constantName
-      //   (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.ConstantName)
-      //   : String =
-      //   match t with
-      //   | BuiltIn b ->
-      //     PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.BuiltIn.fullForReference
-      //       b
-      //   | UserProgram u ->
-      //     PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.UserProgram.fullForReference
-      //       u
-      //   | Package p ->
-      //     PACKAGE.Darklang.PrettyPrinter.ProgramTypes.ConstantName.Package.fullForReference
-      //       p
+        | UserProgram u -> FQTypeName.userProgram u
+        | Package p -> FQTypeName.package p
 
 
-      module FnName =
-        let name
-          (name: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.Name)
-          : String =
-          match name with
-          | FnName name -> name
-
+      module FQConstantName =
         let builtIn
-          (f: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.BuiltIn)
+          (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQConstantName.Builtin)
           : String =
-          FQName.builtIn (name f.name) f
+          let modulesPart =
+            match t.modules with
+            | [] -> ""
+            | modules ->
+              modules
+              |> PACKAGE.Darklang.Stdlib.String.join "."
+              |> (fun parts -> $"{parts}.")
 
-        let userProgram
-          (u: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.UserProgram)
-          : String =
-          FQName.userProgram (name u.name) u
+          let namePart = t.name
+
+          let versionPart =
+            if t.version == 0L then
+              ""
+            else
+              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString t.version}"
+
+          $"{modulesPart}{namePart}{versionPart}"
 
         let package
-          (p: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.Package)
+          (p: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQConstantName.Package)
           : String =
-          FQName.package (name p.name) p
+          let modulesPart = PACKAGE.Darklang.Stdlib.String.join p.modules "."
 
-      let fnName
-        (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.FnName)
+          let namePart = p.name
+
+          let versionPart =
+            if p.version == 0L then
+              ""
+            else
+              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString p.version}"
+
+          $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
+
+        let userProgram
+          (u: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQConstantName.UserProgram)
+          : String =
+          let modulesPart =
+            match u.modules with
+            | [] -> ""
+            | modules ->
+              modules
+              |> PACKAGE.Darklang.Stdlib.String.join "."
+              |> (fun parts -> $"{parts}.")
+
+          let namePart = u.name
+
+          let versionPart =
+            if u.version == 0L then
+              ""
+            else
+              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString u.version}"
+
+          $"{modulesPart}{namePart}{versionPart}"
+
+      // TODO rename to fqconstantName?
+      let constantName
+        (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQConstantName.FQConstantName)
         : String =
         match t with
-        | BuiltIn b -> FnName.builtIn b
-        | UserProgram u -> FnName.userProgram u
-        | Package p -> FnName.package p
+        | Builtin b -> FQConstantName.builtIn b
+        | UserProgram u -> FQConstantName.userProgram u
+        | Package p -> FQConstantName.package p
+
+
+      module FQFnName =
+        let builtIn
+          (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQFnName.Builtin)
+          : String =
+          let modulesPart =
+            match t.modules with
+            | [] -> ""
+            | modules ->
+              modules
+              |> PACKAGE.Darklang.Stdlib.String.join "."
+              |> (fun parts -> $"{parts}.")
+
+          let namePart = t.name
+
+          let versionPart =
+            if t.version == 0L then
+              ""
+            else
+              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString t.version}"
+
+          $"{modulesPart}{namePart}{versionPart}"
+
+        let package
+          (p: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQFnName.Package)
+          : String =
+          let modulesPart = PACKAGE.Darklang.Stdlib.String.join p.modules "."
+
+          let namePart = p.name
+
+          let versionPart =
+            if p.version == 0L then
+              ""
+            else
+              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString p.version}"
+
+          $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
+
+        let userProgram
+          (u: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQFnName.UserProgram)
+          : String =
+          let modulesPart =
+            match u.modules with
+            | [] -> ""
+            | modules ->
+              modules
+              |> PACKAGE.Darklang.Stdlib.String.join "."
+              |> (fun parts -> $"{parts}.")
+
+          let namePart = u.name
+
+          let versionPart =
+            if u.version == 0L then
+              ""
+            else
+              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString u.version}"
+
+          $"{modulesPart}{namePart}{versionPart}"
+
+      // TODO rename to fqfnName?
+      let fnName
+        (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQFnName.FQFnName)
+        : String =
+        match t with
+        | Builtin b -> FQFnName.builtIn b
+        | UserProgram u -> FQFnName.userProgram u
+        | Package p -> FQFnName.package p
 
       let typeReference
         (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference)

@@ -89,7 +89,7 @@ let testUserFn
   { tlid = gid ()
     body = body
     description = ""
-    name = PT.FnName.userProgram [] name 0
+    name = PT.FQFnName.userProgram [] name 0
     typeParams = typeParams
     deprecated = PT.NotDeprecated
     parameters =
@@ -99,7 +99,7 @@ let testUserFn
     returnType = returnType }
 
 let testUserRecordType
-  (name : PT.TypeName.UserProgram)
+  (name : PT.FQTypeName.UserProgram)
   (firstField : string * PT.TypeReference)
   (additionalFields : List<string * PT.TypeReference>)
   : PT.UserType.T =
@@ -125,7 +125,7 @@ let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
 let builtIns
   (httpConfig : BuiltinExecution.Libs.HttpClient.Configuration)
   : RT.BuiltIns =
-  let (fns, types, constants) =
+  let (fns, constants) =
     LibExecution.Builtin.combine
       [ LibTest.contents
         BuiltinExecution.Builtin.contents httpConfig
@@ -133,8 +133,7 @@ let builtIns
         BuiltinDarkInternal.Builtin.contents
         BuiltinCli.Builtin.contents ]
       []
-  { types = types |> Map.fromListBy _.name
-    fns = fns |> Map.fromListBy _.name
+  { fns = fns |> Map.fromListBy _.name
     constants = constants |> Map.fromListBy _.name }
 
 let cloudBuiltIns =
@@ -155,7 +154,6 @@ let packageManager = LibCloud.PackageManager.packageManager
 let nameResolver =
   { LibParser.NameResolver.fromBuiltins (
       Map.values localBuiltIns.fns,
-      Map.values localBuiltIns.types,
       Map.values localBuiltIns.constants
     ) with
       packageManager = Some packageManager }
@@ -166,9 +164,9 @@ let executionStateFor
   (internalFnsAllowed : bool)
   (allowLocalHttpAccess : bool)
   (dbs : Map<string, RT.DB.T>)
-  (userTypes : Map<RT.TypeName.UserProgram, RT.UserType.T>)
-  (userFunctions : Map<RT.FnName.UserProgram, RT.UserFunction.T>)
-  (userConstants : Map<RT.ConstantName.UserProgram, RT.UserConstant.T>)
+  (userTypes : Map<RT.FQTypeName.UserProgram, RT.UserType.T>)
+  (userFunctions : Map<RT.FQFnName.UserProgram, RT.UserFunction.T>)
+  (userConstants : Map<RT.FQConstantName.UserProgram, RT.UserConstant.T>)
   : Task<RT.ExecutionState> =
   task {
     let! domains = Canvas.domainsForCanvasID canvasID
@@ -348,7 +346,7 @@ let rec debugDval (v : Dval) : string =
     $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
 
   | DRecord(tn, _, typeArgs, o) ->
-    let typeStr = TypeName.toString tn
+    let typeStr = FQTypeName.toString tn
 
     let typeArgsPart =
       match typeArgs with
@@ -454,25 +452,23 @@ module Expect =
 
   let rec userTypeNameEqualityBaseFn
     (path : Path)
-    (actual : TypeName.TypeName)
-    (expected : TypeName.TypeName)
+    (actual : FQTypeName.FQTypeName)
+    (expected : FQTypeName.FQTypeName)
     (errorFn : Path -> string -> string -> unit)
     : unit =
     let err () = errorFn path (string actual) (string expected)
 
     match actual, expected with
-    | FQName.BuiltIn a, FQName.BuiltIn e -> if a.name <> e.name then err ()
-    | FQName.UserProgram a, FQName.UserProgram e ->
+    | FQTypeName.UserProgram a, FQTypeName.UserProgram e ->
       if a.name <> e.name then err ()
       if a.version <> e.version then err ()
-    | FQName.Package a, FQName.Package e ->
+    | FQTypeName.Package a, FQTypeName.Package e ->
       if a.owner <> e.owner then err ()
       if a.modules <> e.modules then err ()
       if a.name <> e.name then err ()
       if a.version <> e.version then err ()
-    | FQName.BuiltIn _, _
-    | FQName.UserProgram _, _
-    | FQName.Package _, _ -> err ()
+    | FQTypeName.UserProgram _, _
+    | FQTypeName.Package _, _ -> err ()
 
   let rec matchPatternEqualityBaseFn
     (checkIDs : bool)
@@ -1179,8 +1175,8 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                92356985UL,
                (EFnName(
                  957274UL,
-                 FQName.BuiltIn
-                   { modules = [ "List" ]; name = FnName.FnName "push"; version = 0 }
+                 FQFnName.Builtin
+                   { modules = [ "List" ]; name = "push"; version = 0 }
                )),
                [],
                NEList.singleton (
@@ -1188,8 +1184,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                    93459985UL,
                    (EFnName(
                      123123UL,
-                     FQName.BuiltIn
-                       { modules = []; name = FnName.FnName "+"; version = 0 }
+                     FQFnName.Builtin { modules = []; name = "+"; version = 0 }
                    )),
                    [],
                    (NEList.doubleton
@@ -1197,8 +1192,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                        394567785UL,
                        (EFnName(
                          95723UL,
-                         FQName.BuiltIn
-                           { modules = []; name = FnName.FnName "+"; version = 0 }
+                         FQFnName.Builtin { modules = []; name = "+"; version = 0 }
                        )),
                        [],
                        (NEList.doubleton
@@ -1206,10 +1200,8 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                            44444485UL,
                            (EFnName(
                              9473UL,
-                             FQName.BuiltIn
-                               { modules = []
-                                 name = FnName.FnName "+"
-                                 version = 0 }
+                             FQFnName.Builtin
+                               { modules = []; name = "+"; version = 0 }
                            )),
                            [],
                            (NEList.doubleton

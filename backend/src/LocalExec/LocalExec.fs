@@ -15,7 +15,7 @@ module BuiltinCli = BuiltinCli.Builtin
 
 
 let builtIns : RT.BuiltIns =
-  let (fns, types, constants) =
+  let (fns, constants) =
     LibExecution.Builtin.combine
       [ BuiltinExecution.Builtin.contents
           BuiltinExecution.Libs.HttpClient.defaultConfig
@@ -25,8 +25,7 @@ let builtIns : RT.BuiltIns =
         BuiltinCloudExecution.Builtin.contents
         TestUtils.LibTest.contents ]
       []
-  { types = types |> Map.fromListBy _.name
-    fns = fns |> Map.fromListBy _.name
+  { fns = fns |> Map.fromListBy _.name
     constants = constants |> Map.fromListBy _.name }
 
 
@@ -200,7 +199,6 @@ module PackageBootstrapping =
       let nameResolver =
         LibParser.NameResolver.fromBuiltins (
           Map.values builtIns.fns |> Seq.toList,
-          Map.values builtIns.types |> Seq.toList,
           Map.values builtIns.constants |> Seq.toList
         )
         |> fun nr -> { nr with allowError = true }
@@ -261,7 +259,6 @@ let runLocalExecScript (args : string[]) : Ply<int> =
       // TODO: this may need more builtins, and packages
       LibParser.NameResolver.fromBuiltins (
         Map.values builtIns.fns |> Seq.toList,
-        Map.values builtIns.types |> Seq.toList,
         Map.values builtIns.constants |> Seq.toList
       )
 

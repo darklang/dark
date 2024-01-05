@@ -19,7 +19,7 @@ module Darklang =
           [ Module
               { name =
                   (t.name
-                   |> PrettyPrinter.ProgramTypes.TypeName.Package.fullForReference)
+                   |> PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference)
                   ++ "has no modules"
                 types = []
                 fns = []
@@ -95,7 +95,7 @@ module Darklang =
           [ Module
               { name =
                   (f.name
-                   |> PrettyPrinter.ProgramTypes.TypeName.Package.fullForReference)
+                   |> PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference)
                   ++ "has no modules"
                 types = []
                 fns = []
@@ -169,7 +169,7 @@ module Darklang =
           [ Module
               { name =
                   (c.name
-                   |> PrettyPrinter.ProgramTypes.TypeName.Package.fullForReference)
+                   |> PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference)
                   ++ "has no modules"
                 types = []
                 fns = []

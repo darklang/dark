@@ -36,7 +36,7 @@ module BadHeader =
       | EmptyKey -> "EmptyKey", []
       | InvalidContentType -> "InvalidContentType", []
     let typeName =
-      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "BadHeader" 0
+      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "BadHeader" 0
     DEnum(typeName, typeName, [], caseName, fields)
 
 module BadUrl =
@@ -55,7 +55,7 @@ module BadUrl =
       | InvalidRequest -> "InvalidRequest", []
 
     let typeName =
-      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "BadUrlDetails" 0
+      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "BadUrlDetails" 0
     Dval.DEnum(typeName, typeName, [], caseName, fields)
 
 module RequestError =
@@ -82,7 +82,7 @@ module RequestError =
       | BadMethod -> "BadMethod", []
 
     let typeName =
-      TypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "RequestError" 0
+      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "RequestError" 0
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -382,7 +382,6 @@ let headersType = TList(TTuple(TString, TString, []))
 
 open LibExecution.Builtin.Shortcuts
 
-let types : List<BuiltInType> = []
 
 let fns (config : Configuration) : List<BuiltInFn> =
   let httpClient = BaseClient.create config
@@ -397,20 +396,20 @@ let fns (config : Configuration) : List<BuiltInFn> =
         TypeReference.result
           (TCustomType(
             Ok(
-              FQName.Package
+              FQTypeName.Package
                 { owner = "Darklang"
                   modules = [ "Stdlib"; "HttpClient" ]
-                  name = TypeName.TypeName "Response"
+                  name = "Response"
                   version = 0 }
             ),
             []
           ))
           (TCustomType(
             Ok(
-              FQName.Package
+              FQTypeName.Package
                 { owner = "Darklang"
                   modules = [ "Stdlib"; "HttpClient" ]
-                  name = TypeName.TypeName "RequestError"
+                  name = "RequestError"
                   version = 0 }
             ),
             []
@@ -420,8 +419,14 @@ let fns (config : Configuration) : List<BuiltInFn> =
         the response is wrapped in {{ Ok }} if a response was successfully
         received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
-        let responseType =
-          KTCustomType(FQName.BuiltIn(typ [ "HttpClient" ] "Response" 0), [])
+        let typ =
+          FQTypeName.Package
+            { owner = "Darklang"
+              modules = [ "Stdlib"; "HttpClient" ]
+              name = "Response"
+              version = 0 }
+
+        let responseType = KTCustomType(typ, [])
         let resultOk = Dval.resultOk responseType KTString
         let typeName = RuntimeError.name [ "HttpClient" ] "RequestError" 0
         let resultError = Dval.resultError responseType (KTCustomType(typeName, []))
@@ -445,7 +450,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                   | notAPair ->
                     let context =
                       TypeChecker.Context.FunctionCallParameter(
-                        (FnName.fqPackage
+                        (FQFnName.fqPackage
                           "Darklang"
                           [ "Stdlib"; "HttpClient" ]
                           "request"
@@ -494,10 +499,10 @@ let fns (config : Configuration) : List<BuiltInFn> =
                       |> Dval.list (KTTuple(VT.string, VT.string, []))
 
                     let typ =
-                      FQName.Package
+                      FQTypeName.Package
                         { owner = "Darklang"
                           modules = [ "Stdlib"; "HttpClient" ]
-                          name = TypeName.TypeName "Response"
+                          name = "Response"
                           version = 0 }
 
                     let fields =
@@ -530,4 +535,4 @@ let fns (config : Configuration) : List<BuiltInFn> =
 
 let constants : List<BuiltInConstant> = []
 
-let contents config = (fns config, types, constants)
+let contents config = (fns config, constants)

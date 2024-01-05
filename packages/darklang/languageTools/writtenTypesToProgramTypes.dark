@@ -18,7 +18,7 @@ module Darklang =
           let toPT
             (resolver: NameResolver.NameResolutionSettings)
             (i: WrittenTypes.QualifiedTypeIdentifier)
-            : ProgramTypes.TypeName.TypeName =
+            : ProgramTypes.FQTypeName.FQTypeName =
             let currentModule = Stdlib.List.map i.modules (fun (m, _) -> m.name)
             let nametoResolve = [ i.typ.name ]
 
@@ -40,7 +40,7 @@ module Darklang =
           let toPT
             (resolver: NameResolver.NameResolutionSettings)
             (i: WrittenTypes.QualifiedFnIdentifier)
-            : ProgramTypes.FQName.FQName =
+            : ProgramTypes.FQFnName.FQFnName =
             let modules = Stdlib.List.map i.modules (fun (m, _) -> m.name)
             let nametoResolve = [ i.fn.name ]
 
@@ -57,9 +57,9 @@ module Darklang =
 
 
       module TypeReference =
-        module BuiltIn =
+        module Builtin =
           let toPT
-            (t: WrittenTypes.TypeReference.BuiltIn)
+            (t: WrittenTypes.TypeReference.Builtin)
             : ProgramTypes.TypeReference =
             match t with
             | TUnit _range -> ProgramTypes.TypeReference.TUnit
@@ -76,7 +76,7 @@ module Darklang =
           : ProgramTypes.TypeReference =
 
           match t with
-          | BuiltIn b -> BuiltIn.toPT b
+          | Builtin b -> Builtin.toPT b
           | QualifiedName qn ->
             let typeName = Identifiers.QualifiedType.toPT resolver qn
 
@@ -116,12 +116,9 @@ module Darklang =
           ProgramTypes.UserType
             { tlid = gtlid ()
               name =
-                ProgramTypes.FQName.UserProgram
+                ProgramTypes.FQTypeName.UserProgram
                   { modules = []
-                    name =
-                      d.name
-                      |> Identifiers.Type.toPT
-                      |> ProgramTypes.TypeName.Name.TypeName
+                    name = d.name.name
                     version = 0L }
               description = ""
               declaration = toPT resolver d
@@ -227,12 +224,9 @@ module Darklang =
           ProgramTypes.UserFunction.UserFunction
             { tlid = gtlid ()
               name =
-                ProgramTypes.FQName.UserProgram
+                ProgramTypes.FQFnName.UserProgram
                   { modules = []
-                    name =
-                      fn.name
-                      |> Identifiers.Fn.toPT
-                      |> ProgramTypes.FnName.Name.FnName
+                    name = fn.name.name
                     version = 0L }
               typeParams = []
               parameters =

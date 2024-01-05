@@ -131,7 +131,7 @@ module Expr =
     (currentModule : List<string>)
     (names : List<string>)
     (caseName : string) // used for errors
-    : Ply<PT.NameResolution<PT.TypeName.TypeName>> =
+    : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
     match names with
     | [] ->
       Ply(

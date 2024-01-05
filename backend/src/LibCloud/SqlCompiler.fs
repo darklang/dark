@@ -314,7 +314,7 @@ let rec inline'
         uply {
           let arguments = args |> NEList.toList
           match fnName with
-          | FQName.Package p ->
+          | FQFnName.Package p ->
             match! fns.package p with
             | Some fn ->
               let parameters =
@@ -326,7 +326,7 @@ let rec inline'
                 |> Map.ofList
               return! inline' fns paramName paramToArgMap body
             | None -> return expr
-          | FQName.UserProgram u ->
+          | FQFnName.UserProgram u ->
             match Map.get u fns.userProgram with
             | Some fn ->
               let parameters =
@@ -372,9 +372,9 @@ let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
   match expr with
   | EApply(_,
            EFnName(_,
-                   FQName.BuiltIn({ modules = modules
-                                    name = FnName.FnName name
-                                    version = version })),
+                   FQFnName.Builtin({ modules = modules
+                                      name = name
+                                      version = version })),
            [],
            args) when modules = [ mName ] && name = fName && version = v -> Some args
   | _ -> None
@@ -419,20 +419,20 @@ let rec lambdaToSql
         match expr with
         | EConstant(id, (constantName)) ->
           let source = Some(tlid, id)
-          let nameStr = ConstantName.toString constantName
+          let nameStr = FQConstantName.toString constantName
 
           let! constant =
             uply {
               match constantName with
-              | FQName.BuiltIn b ->
+              | FQConstantName.Builtin b ->
                 match Map.get b constants.builtIn with
                 | None -> return! error $"No built-in constant {nameStr} found"
                 | Some c -> return c.body
-              | FQName.Package p ->
+              | FQConstantName.Package p ->
                 match! constants.package p with
                 | None -> return error $"No package constant {nameStr} found"
                 | Some c -> return LibExecution.Interpreter.evalConst source c.body
-              | FQName.UserProgram _ ->
+              | FQConstantName.UserProgram _ ->
                 return error $"User constants are not yet supported"
             }
           do! typecheckDval nameStr types constant expectedType
@@ -442,12 +442,12 @@ let rec lambdaToSql
           return ($"(@{newname})", [ newname, sqlValue ], actualType)
 
         | EApply(_, EFnName(_, fnName), [], args) ->
-          let nameStr = FnName.toString fnName
+          let nameStr = FQFnName.toString fnName
 
           let! (returnType, parameters, sqlSpec) =
             uply {
               match fnName with
-              | FQName.BuiltIn b ->
+              | FQFnName.Builtin b ->
                 match Map.get b fns.builtIn with
                 | Some fn ->
                   let parameters = fn.parameters |> List.map (fun p -> p.name, p.typ)
@@ -794,13 +794,13 @@ let rec lambdaToSql
                   return
                     error2
                       "The datastore's type is not a record - it's an enum"
-                      (TypeName.toString typeName)
+                      (FQTypeName.toString typeName)
 
                 | None ->
                   return
                     error2
                       "The datastore does not have a type named"
-                      (TypeName.toString typeName)
+                      (FQTypeName.toString typeName)
               | _ -> return error "The datastore is not a record"
             }
 

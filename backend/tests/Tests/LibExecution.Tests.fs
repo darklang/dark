@@ -74,7 +74,7 @@ let t
       let rtTypes =
         types
         |> List.map (fun typ ->
-          (PT2RT.TypeName.UserProgram.toRT typ.name, PT2RT.UserType.toRT typ))
+          (PT2RT.FQTypeName.UserProgram.toRT typ.name, PT2RT.UserType.toRT typ))
         |> Map.ofList
 
       let rtDBs =
@@ -83,13 +83,13 @@ let t
       let rtFunctions =
         functions
         |> List.map (fun fn ->
-          (PT2RT.FnName.UserProgram.toRT fn.name, PT2RT.UserFunction.toRT fn))
+          (PT2RT.FQFnName.UserProgram.toRT fn.name, PT2RT.UserFunction.toRT fn))
         |> Map.ofList
 
       let rtConstants =
         constants
         |> List.map (fun c ->
-          (PT2RT.ConstantName.UserProgram.toRT c.name, PT2RT.UserConstant.toRT c))
+          (PT2RT.FQConstantName.UserProgram.toRT c.name, PT2RT.UserConstant.toRT c))
         |> Map.ofList
 
       let! (state : RT.ExecutionState) =
@@ -158,7 +158,7 @@ let t
           | Error(_, actualRTE) ->
             let actual = RT.RuntimeError.toDT actualRTE
             let errorMessageFn =
-              RT.FnName.fqPackage
+              RT.FQFnName.fqPackage
                 "Darklang"
                 [ "LanguageTools"; "RuntimeErrors"; "Error" ]
                 "toErrorMessage"
@@ -168,7 +168,7 @@ let t
               let expected =
                 RT.TCustomType(
                   Ok(
-                    RT.TypeName.fqPackage
+                    RT.FQTypeName.fqPackage
                       "Darklang"
                       [ "LanguageTools"; "RuntimeErrors" ]
                       "Error"

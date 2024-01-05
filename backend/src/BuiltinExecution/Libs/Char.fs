@@ -12,7 +12,6 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 
 
-let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "Char" ]
@@ -140,4 +139,4 @@ let fns : List<BuiltInFn> =
 
     ]
 
-let contents = (fns, types, constants)
+let contents = (fns, constants)

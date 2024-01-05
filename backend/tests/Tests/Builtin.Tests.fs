@@ -26,7 +26,7 @@ let oldFunctionsAreDeprecated =
 
     fns
     |> List.iter (fun fn ->
-      let key = RT.FnName.builtinToString { fn.name with version = 0 }
+      let key = RT.FQFnName.builtinToString { fn.name with version = 0 }
 
       if fn.deprecated = RT.NotDeprecated then
         counts <-
@@ -43,29 +43,4 @@ let oldFunctionsAreDeprecated =
       counts
   }
 
-let oldTypesAreDeprecated =
-  testTask "old types are deprecated" {
-    let mutable counts = Map.empty
-
-    let types = localBuiltIns.types |> Map.values
-
-    types
-    |> List.iter (fun typ ->
-      let key = RT.TypeName.builtinToString { typ.name with version = 0 }
-
-      if typ.deprecated = RT.NotDeprecated then
-        counts <-
-          Map.update
-            key
-            (fun count -> count |> Option.defaultValue 0 |> (+) 1 |> Some)
-            counts
-
-      ())
-
-    Map.iter
-      (fun name count ->
-        Expect.equal count 1 $"{name} has more than one undeprecated type")
-      counts
-  }
-
-let tests = testList "builtin" [ oldFunctionsAreDeprecated; oldTypesAreDeprecated ]
+let tests = testList "builtin" [ oldFunctionsAreDeprecated ]

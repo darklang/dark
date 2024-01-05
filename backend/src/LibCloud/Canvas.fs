@@ -550,21 +550,21 @@ let toProgram (c : T) : Ply<RT.Program> =
       c.userFunctions
       |> Map.values
       |> List.map (fun f ->
-        (PT2RT.FnName.UserProgram.toRT f.name, PT2RT.UserFunction.toRT f))
+        (PT2RT.FQFnName.UserProgram.toRT f.name, PT2RT.UserFunction.toRT f))
       |> Map.ofList
 
     let userTypes =
       c.userTypes
       |> Map.values
       |> List.map (fun t ->
-        (PT2RT.TypeName.UserProgram.toRT t.name, PT2RT.UserType.toRT t))
+        (PT2RT.FQTypeName.UserProgram.toRT t.name, PT2RT.UserType.toRT t))
       |> Map.ofList
 
     let userConstants =
       c.userConstants
       |> Map.values
       |> List.map (fun c ->
-        (PT2RT.ConstantName.UserProgram.toRT c.name, PT2RT.UserConstant.toRT c))
+        (PT2RT.FQConstantName.UserProgram.toRT c.name, PT2RT.UserConstant.toRT c))
       |> Map.ofList
 
     let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT

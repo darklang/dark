@@ -13,18 +13,18 @@ module Darklang =
 
             let extraExplanation =
               let parse =
-                RuntimeTypes.FnName.FnName.BuiltIn(
-                  RuntimeTypes.FnName.BuiltIn
+                RuntimeTypes.FQFnName.FQFnName.Builtin(
+                  RuntimeTypes.FQFnName.Builtin
                     { modules = [ "Json" ]
-                      name = RuntimeTypes.FnName.Name.FnName "parse"
+                      name = "parse"
                       version = 0L }
                 )
 
               let serialize =
-                RuntimeTypes.FnName.FnName.BuiltIn(
-                  RuntimeTypes.FnName.BuiltIn
+                RuntimeTypes.FQFnName.FQFnName.Builtin(
+                  RuntimeTypes.FQFnName.Builtin
                     { modules = [ "Json" ]
-                      name = RuntimeTypes.FnName.Name.FnName "serialize"
+                      name = "serialize"
                       version = 0L }
                 )
 

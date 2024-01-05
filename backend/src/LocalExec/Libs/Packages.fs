@@ -17,15 +17,14 @@ let packagePackagesType
   (addlModules : List<string>)
   (name : string)
   (version : int)
-  : TypeName.TypeName =
-  TypeName.fqPackage
+  : FQTypeName.FQTypeName =
+  FQTypeName.fqPackage
     "Darklang"
     ("LocalExec" :: "Packages" :: addlModules)
     name
     version
 
 
-let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn [ "LocalExec"; "Packages" ] "listFunctions" 0
@@ -157,4 +156,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 let constants : List<BuiltInConstant> = []
-let contents : LibExecution.Builtin.Contents = (fns, types, constants)
+let contents : LibExecution.Builtin.Contents = (fns, constants)

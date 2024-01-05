@@ -18,8 +18,8 @@ let packageInternalType
   (addlModules : List<string>)
   (name : string)
   (version : int)
-  : TypeName.TypeName =
-  TypeName.fqPackage "Darklang" ("Internal" :: addlModules) name version
+  : FQTypeName.FQTypeName =
+  FQTypeName.fqPackage "Darklang" ("Internal" :: addlModules) name version
 
 
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
@@ -59,7 +59,6 @@ let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Dval =
   |> Dval.list (KTCustomType(typeName, []))
 
 
-let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn [ "DarkInternal"; "Canvas"; "Queue" ] "count" 0
@@ -144,4 +143,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 let constants : List<BuiltInConstant> = []
-let contents = (fns, types, constants)
+let contents = (fns, constants)

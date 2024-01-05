@@ -70,7 +70,7 @@ let executeExpr
 let executeFunction
   (state : RT.ExecutionState)
   (caller : RT.Source)
-  (name : RT.FnName.FnName)
+  (name : RT.FQFnName.FQFnName)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
   : Task<RT.ExecutionResult> =
@@ -94,7 +94,7 @@ let runtimeErrorToString
   : Task<Result<RT.Dval, RT.Source * RT.RuntimeError>> =
   task {
     let fnName =
-      RT.FnName.fqPackage
+      RT.FQFnName.fqPackage
         "Darklang"
         [ "LanguageTools"; "RuntimeErrors"; "Error" ]
         "toString"

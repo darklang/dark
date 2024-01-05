@@ -322,7 +322,6 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
 
 let varA = TVariable "a"
 
-let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fn = fn []
@@ -369,30 +368,30 @@ let fns : List<BuiltInFn> =
           match dval with
 
           // success: extract `Some` out of an Option
-          | DEnum(FQName.Package({ owner = "Darklang"
-                                   modules = [ "Stdlib"; "Option" ]
-                                   name = TypeName.TypeName "Option"
-                                   version = 0 }),
+          | DEnum(FQTypeName.Package({ owner = "Darklang"
+                                       modules = [ "Stdlib"; "Option" ]
+                                       name = "Option"
+                                       version = 0 }),
                   _,
                   _,
                   "Some",
                   [ value ]) -> Ply value
 
           // success: extract `Ok` out of a Result
-          | DEnum(FQName.Package({ owner = "Darklang"
-                                   modules = [ "Stdlib"; "Result" ]
-                                   name = TypeName.TypeName "Result"
-                                   version = 0 }),
+          | DEnum(FQTypeName.Package({ owner = "Darklang"
+                                       modules = [ "Stdlib"; "Result" ]
+                                       name = "Result"
+                                       version = 0 }),
                   _,
                   _,
                   "Ok",
                   [ value ]) -> Ply value
 
           // Error: expected Some, got None
-          | DEnum(FQName.Package({ owner = "Darklang"
-                                   modules = [ "Stdlib"; "Option" ]
-                                   name = TypeName.TypeName "Option"
-                                   version = 0 }),
+          | DEnum(FQTypeName.Package({ owner = "Darklang"
+                                       modules = [ "Stdlib"; "Option" ]
+                                       name = "Option"
+                                       version = 0 }),
                   _,
                   _,
                   "None",
@@ -402,10 +401,10 @@ let fns : List<BuiltInFn> =
             |> raiseRTE state.caller
 
           // Error: expected Ok, got Error
-          | DEnum(FQName.Package({ owner = "Darklang"
-                                   modules = [ "Stdlib"; "Result" ]
-                                   name = TypeName.TypeName "Result"
-                                   version = 0 }),
+          | DEnum(FQTypeName.Package({ owner = "Darklang"
+                                       modules = [ "Stdlib"; "Result" ]
+                                       name = "Result"
+                                       version = 0 }),
                   _,
                   _,
                   "Error",
@@ -431,4 +430,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let contents = (fns, types, constants)
+let contents = (fns, constants)

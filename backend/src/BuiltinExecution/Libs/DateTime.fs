@@ -25,7 +25,6 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
     Ok(DarkDateTime.fromDateTime (result.ToUniversalTime()))
   | _ -> Error()
 
-let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "DateTime" ]
@@ -399,4 +398,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types, constants)
+let contents = (fns, constants)

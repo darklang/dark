@@ -11,7 +11,6 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
 
-let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 
@@ -173,4 +172,4 @@ let fns : List<BuiltInFn> =
 
     ]
 
-let contents = (fns, types, constants)
+let contents = (fns, constants)

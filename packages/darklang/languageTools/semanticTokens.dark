@@ -98,9 +98,9 @@ module Darklang =
 
 
       module TypeReference =
-        module BuiltIn =
+        module Builtin =
           let tokenize
-            (t: WrittenTypes.TypeReference.BuiltIn)
+            (t: WrittenTypes.TypeReference.Builtin)
             : List<SemanticToken> =
             match t with
             | TUnit r -> [ makeToken r TokenType.TypeName ]
@@ -114,7 +114,7 @@ module Darklang =
           (t: WrittenTypes.TypeReference.TypeReference)
           : List<SemanticToken> =
           match t with
-          | BuiltIn b -> BuiltIn.tokenize b
+          | Builtin b -> Builtin.tokenize b
           | QualifiedName q -> QualifiedTypeIdentifier.tokenize q
 
 

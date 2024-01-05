@@ -282,7 +282,7 @@ module DB =
 
 module UserType =
   type T =
-    { name : PT.TypeName.UserProgram
+    { name : PT.FQTypeName.UserProgram
       declaration : TypeDeclaration.T
       description : string }
 
@@ -290,7 +290,7 @@ module UserFunction =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
   type T =
-    { name : PT.FnName.UserProgram
+    { name : PT.FQFnName.UserProgram
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference
@@ -298,14 +298,14 @@ module UserFunction =
       body : Expr }
 
 module UserConstant =
-  type T = { name : PT.ConstantName.UserProgram; description : string; body : Const }
+  type T = { name : PT.FQConstantName.UserProgram; description : string; body : Const }
 
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
   type T =
-    { name : PT.FnName.Package
+    { name : PT.FQFnName.Package
       body : Expr
       typeParams : List<string>
       parameters : NEList<Parameter>
@@ -314,9 +314,9 @@ module PackageFn =
 
 module PackageType =
   type T =
-    { name : PT.TypeName.Package
+    { name : PT.FQTypeName.Package
       declaration : TypeDeclaration.T
       description : string }
 
 module PackageConstant =
-  type T = { name : PT.ConstantName.Package; description : string; body : Const }
+  type T = { name : PT.FQConstantName.Package; description : string; body : Const }

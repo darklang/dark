@@ -10,7 +10,6 @@ open LibExecution.Builtin.Shortcuts
 module VT = ValueType
 module Dval = LibExecution.Dval
 
-let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "Uuid" ]
@@ -23,7 +22,7 @@ module ParseError =
       match e with
       | BadFormat -> "BadFormat", []
 
-    let typeName = TypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "ParseError" 0
+    let typeName = FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "ParseError" 0
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -52,10 +51,10 @@ let fns : List<BuiltInFn> =
           TInt64
           (TCustomType(
             Ok(
-              FQName.Package
+              FQTypeName.Package
                 { owner = "Darklang"
                   modules = [ "Stdlib"; "Uuid" ]
-                  name = TypeName.TypeName "ParseError"
+                  name =  "ParseError"
                   version = 0 }
             ),
             []
@@ -65,7 +64,7 @@ let fns : List<BuiltInFn> =
       fn =
         let resultOk = Dval.resultOk KTUuid KTString
         let typeName =
-          TypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "ParseError" 0
+          FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "ParseError" 0
         let resultError = Dval.resultError KTUuid (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->
@@ -94,4 +93,4 @@ let fns : List<BuiltInFn> =
 
     ]
 
-let contents = (fns, types, constants)
+let contents = (fns, constants)

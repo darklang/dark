@@ -205,16 +205,12 @@
                                                       {
                                                         "Ok": [
                                                           {
-                                                            "BuiltIn": [
+                                                            "Builtin": [
                                                               {
                                                                 "modules": [
                                                                   "Int64"
                                                                 ],
-                                                                "name": {
-                                                                  "FnName": [
-                                                                    "toString"
-                                                                  ]
-                                                                },
+                                                                "name": "toString",
                                                                 "version": 0
                                                               }
                                                             ]
@@ -315,39 +311,7 @@
                                                                         "modules": [
                                                                           "Mod"
                                                                         ],
-                                                                        "name": {
-                                                                          "TypeName": [
-                                                                            "User"
-                                                                          ]
-                                                                        },
-                                                                        "version": 0
-                                                                      }
-                                                                    ]
-                                                                  }
-                                                                ]
-                                                              },
-                                                              [
-                                                                {
-                                                                  "TBool": []
-                                                                }
-                                                              ]
-                                                            ]
-                                                          },
-                                                          {
-                                                            "TCustomType": [
-                                                              {
-                                                                "Ok": [
-                                                                  {
-                                                                    "BuiltIn": [
-                                                                      {
-                                                                        "modules": [
-                                                                          "Mod"
-                                                                        ],
-                                                                        "name": {
-                                                                          "TypeName": [
-                                                                            "User"
-                                                                          ]
-                                                                        },
+                                                                        "name": "User",
                                                                         "version": 0
                                                                       }
                                                                     ]
@@ -373,11 +337,7 @@
                                                                           "Mod1",
                                                                           "Mod2"
                                                                         ],
-                                                                        "name": {
-                                                                          "TypeName": [
-                                                                            "Pack"
-                                                                          ]
-                                                                        },
+                                                                        "name": "Pack",
                                                                         "version": 0
                                                                       }
                                                                     ]
@@ -559,16 +519,12 @@
                                                                   {
                                                                     "Ok": [
                                                                       {
-                                                                        "BuiltIn": [
+                                                                        "Builtin": [
                                                                           {
                                                                             "modules": [
                                                                               "Int64"
                                                                             ],
-                                                                            "name": {
-                                                                              "FnName": [
-                                                                                "add"
-                                                                              ]
-                                                                            },
+                                                                            "name": "add",
                                                                             "version": 0
                                                                           }
                                                                         ]
@@ -648,11 +604,7 @@
                                                               "dark",
                                                               "stdlib"
                                                             ],
-                                                            "name": {
-                                                              "TypeName": [
-                                                                "NonEmptyList"
-                                                              ]
-                                                            },
+                                                            "name": "NonEmptyList",
                                                             "version": 0
                                                           }
                                                         ]
@@ -747,16 +699,12 @@
                                                                 {
                                                                   "Ok": [
                                                                     {
-                                                                      "BuiltIn": [
+                                                                      "Builtin": [
                                                                         {
                                                                           "modules": [
                                                                             "Int64"
                                                                           ],
-                                                                          "name": {
-                                                                            "FnName": [
-                                                                              "add"
-                                                                            ]
-                                                                          },
+                                                                          "name": "add",
                                                                           "version": 0
                                                                         }
                                                                       ]
@@ -764,45 +712,6 @@
                                                                   ]
                                                                 },
                                                                 [],
-                                                                [
-                                                                  {
-                                                                    "EInt64": [
-                                                                      250221144,
-                                                                      6
-                                                                    ]
-                                                                  },
-                                                                  {
-                                                                    "EInt64": [
-                                                                      298149318,
-                                                                      2
-                                                                    ]
-                                                                  }
-                                                                ]
-                                                              ]
-                                                            },
-                                                            {
-                                                              "EPipeEnum": [
-                                                                1021880969,
-                                                                {
-                                                                  "Ok": [
-                                                                    {
-                                                                      "BuiltIn": [
-                                                                        {
-                                                                          "modules": [
-                                                                            "Int64"
-                                                                          ],
-                                                                          "name": {
-                                                                            "TypeName": [
-                                                                              "Result"
-                                                                            ]
-                                                                          },
-                                                                          "version": 0
-                                                                        }
-                                                                      ]
-                                                                    }
-                                                                  ]
-                                                                },
-                                                                "add",
                                                                 [
                                                                   {
                                                                     "EInt64": [
@@ -827,105 +736,26 @@
                                                       "enum",
                                                       {
                                                         "EEnum": [
-                                                          567764301,
+                                                          646107057,
                                                           {
                                                             "Ok": [
                                                               {
-                                                                "BuiltIn": [
+                                                                "Package": [
                                                                   {
-                                                                    "modules": [],
-                                                                    "name": {
-                                                                      "TypeName": [
-                                                                        "Result"
-                                                                      ]
-                                                                    },
+                                                                    "owner": "Darklang",
+                                                                    "modules": [
+                                                                      "Stdlib",
+                                                                      "Result"
+                                                                    ],
+                                                                    "name": "Result",
                                                                     "version": 0
                                                                   }
                                                                 ]
                                                               }
                                                             ]
                                                           },
-                                                          "Ok",
-                                                          [
-                                                            {
-                                                              "EEnum": [
-                                                                646107057,
-                                                                {
-                                                                  "Ok": [
-                                                                    {
-                                                                      "Package": [
-                                                                        {
-                                                                          "owner": "Darklang",
-                                                                          "modules": [
-                                                                            "Stdlib",
-                                                                            "Result"
-                                                                          ],
-                                                                          "name": {
-                                                                            "TypeName": [
-                                                                              "Result"
-                                                                            ]
-                                                                          },
-                                                                          "version": 0
-                                                                        }
-                                                                      ]
-                                                                    }
-                                                                  ]
-                                                                },
-                                                                "Error",
-                                                                [
-                                                                  {
-                                                                    "EEnum": [
-                                                                      689802831,
-                                                                      {
-                                                                        "Ok": [
-                                                                          {
-                                                                            "BuiltIn": [
-                                                                              {
-                                                                                "modules": [],
-                                                                                "name": {
-                                                                                  "TypeName": [
-                                                                                    "Option"
-                                                                                  ]
-                                                                                },
-                                                                                "version": 0
-                                                                              }
-                                                                            ]
-                                                                          }
-                                                                        ]
-                                                                      },
-                                                                      "Some",
-                                                                      [
-                                                                        {
-                                                                          "EEnum": [
-                                                                            957916875,
-                                                                            {
-                                                                              "Ok": [
-                                                                                {
-                                                                                  "BuiltIn": [
-                                                                                    {
-                                                                                      "modules": [],
-                                                                                      "name": {
-                                                                                        "TypeName": [
-                                                                                          "Option"
-                                                                                        ]
-                                                                                      },
-                                                                                      "version": 0
-                                                                                    }
-                                                                                  ]
-                                                                                }
-                                                                              ]
-                                                                            },
-                                                                            "None",
-                                                                            []
-                                                                          ]
-                                                                        }
-                                                                      ]
-                                                                    ]
-                                                                  }
-                                                                ]
-                                                              ]
-                                                            }
-                                                          ]
+                                                          "Error",
+                                                          []
                                                         ]
                                                       }
                                                     ]
@@ -984,16 +814,12 @@
                                                                   {
                                                                     "Ok": [
                                                                       {
-                                                                        "BuiltIn": [
+                                                                        "Builtin": [
                                                                           {
                                                                             "modules": [
                                                                               "Mod"
                                                                             ],
-                                                                            "name": {
-                                                                              "FnName": [
-                                                                                "function"
-                                                                              ]
-                                                                            },
+                                                                            "name": "function",
                                                                             "version": 2
                                                                           }
                                                                         ]

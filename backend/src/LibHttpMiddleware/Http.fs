@@ -17,7 +17,7 @@ let lowercaseHeaderKeys (headers : List<string * string>) : List<string * string
 
 module Request =
 
-  let typ = RT.TypeName.fqPackage "Darklang" [ "Stdlib"; "Http" ] "Request" 0
+  let typ = RT.FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Http" ] "Request" 0
 
   let fromRequest
     (uri : string)
@@ -46,10 +46,10 @@ module Response =
   let toHttpResponse (result : RT.Dval) : HttpResponse =
     match result with
     // Expected user response
-    | RT.DRecord(RT.FQName.Package { owner = "Darklang"
-                                     modules = [ "Stdlib"; "Http" ]
-                                     name = RT.TypeName.TypeName "Response"
-                                     version = 0 },
+    | RT.DRecord(RT.FQTypeName.Package { owner = "Darklang"
+                                         modules = [ "Stdlib"; "Http" ]
+                                         name = "Response"
+                                         version = 0 },
                  _,
                  [],
                  fields) ->

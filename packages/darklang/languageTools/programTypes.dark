@@ -1,60 +1,54 @@
 module Darklang =
   module LanguageTools =
     module ProgramTypes =
-      /// Used to name where type/function/etc lives, eg a BuiltIn module, a User module,
-      /// or a Package module.
-      module FQName =
 
-        /// A name that is built into the runtime
-        type BuiltIn<'name> =
-          { modules: List<String>
-            name: 'name
-            version: Int64 }
+      module FQTypeName =
 
-        /// Part of the user's program (eg canvas or cli)
-        type UserProgram<'name> =
-          { modules: List<String>
-            name: 'name
-            version: Int64 }
+        type UserProgram = { modules: List<String>; name: String; version: Int64 }
 
-        /// The name of a thing in the package manager
-        // TODO: We plan to use UUIDs for this, but this is a placeholder
-        type Package<'name> =
-          { owner: String
-            modules: List<String>
-            name: 'name
-            version: Int64 }
+        type Package =
+          { owner : String
+            modules : List<String>
+            name : String
+            version : Int64 }
 
-        type FQName<'name> =
-          | BuiltIn of FQName.BuiltIn<'name>
-          | UserProgram of FQName.UserProgram<'name>
-          | Package of FQName.Package<'name>
+        type FQTypeName =
+          | UserProgram of UserProgram
+          | Package of Package
+
+      module FQFnName =
+        type Builtin = { modules: List<String>; name: String; version: Int64 }
+
+        type Package =
+          { owner : String
+            modules : List<String>
+            name : String
+            version : Int64 }
+
+        type UserProgram = { modules: List<String>; name: String; version: Int64 }
+
+        type FQFnName =
+          | Builtin of Builtin
+          | UserProgram of UserProgram
+          | Package of Package
 
 
-      module TypeName =
-        type Name = TypeName of String
+      module FQConstantName =
+        type Builtin = { modules: List<String>; name: String; version: Int64 }
 
-        type TypeName = FQName.FQName<Name>
+        type Package =
+          { owner : String
+            modules : List<String>
+            name : String
+            version : Int64 }
 
-        type BuiltIn = FQName.BuiltIn<Name>
-        type UserProgram = FQName.UserProgram<Name>
-        type Package = FQName.Package<Name>
+        type UserProgram = { modules: List<String>; name: String; version: Int64 }
 
-      module FnName =
-        type Name = FnName of String
-        type FnName = FQName.FQName<Name>
+        type FQConstantName =
+          | Builtin of Builtin
+          | UserProgram of UserProgram
+          | Package of Package
 
-        type BuiltIn = FQName.BuiltIn<Name>
-        type UserProgram = FQName.UserProgram<Name>
-        type Package = FQName.Package<Name>
-
-      module ConstantName =
-        type Name = ConstantName of String
-        type ConstantName = FQName.FQName<Name>
-
-        type BuiltIn = FQName.BuiltIn<Name>
-        type UserProgram = FQName.UserProgram<Name>
-        type Package = FQName.Package<Name>
 
       type NameResolution<'a> =
         Stdlib.Result.Result<'a, PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error>
@@ -88,7 +82,7 @@ module Darklang =
         | TDict of TypeReference
 
         | TCustomType of
-          NameResolution<TypeName.TypeName> *
+          NameResolution<FQTypeName.FQTypeName> *
           typeArgs: List<TypeReference>
 
         | TDB of TypeReference
@@ -114,7 +108,7 @@ module Darklang =
         | CUnit
         | CTuple of Const * Const * List<Const>
         | CEnum of
-          NameResolution<TypeName.TypeName> *
+          NameResolution<FQTypeName.FQTypeName> *
           caseName: String *
           fields: List<Const>
         | CList of List<Const>
@@ -211,13 +205,13 @@ module Darklang =
 
         | EPipeFnCall of
           PACKAGE.Darklang.LanguageTools.ID *
-          NameResolution<FnName.FnName> *
+          NameResolution<FQFnName.FQFnName> *
           typeArgs: List<TypeReference> *
           args: List<Expr>
 
         | EPipeEnum of
           PACKAGE.Darklang.LanguageTools.ID *
-          typeName: NameResolution<TypeName.TypeName> *
+          typeName: NameResolution<FQTypeName.FQTypeName> *
           caseName: String *
           fields: List<Expr>
 
@@ -284,11 +278,11 @@ module Darklang =
 
         | ETuple of ID * Expr * Expr * List<Expr>
 
-        | ERecord of ID * NameResolution<TypeName.TypeName> * List<String * Expr>
+        | ERecord of ID * NameResolution<FQTypeName.FQTypeName> * List<String * Expr>
 
         | EEnum of
           ID *
-          typeName: NameResolution<TypeName.TypeName> *
+          typeName: NameResolution<FQTypeName.FQTypeName> *
           caseName: String *
           fields: List<Expr>
 
@@ -296,7 +290,7 @@ module Darklang =
         | ELet of ID * LetPattern * Expr * Expr
         | EFieldAccess of ID * Expr * String
         | EVariable of ID * String
-        | EConstant of ID * NameResolution<ConstantName.ConstantName>
+        | EConstant of ID * NameResolution<FQConstantName.FQConstantName>
 
         // control flow
         | EIf of
@@ -320,7 +314,7 @@ module Darklang =
         // they definitely don't _always_ make sense.
         | EApply of ID * Expr * typeArgs: List<TypeReference> * args: List<Expr>
 
-        | EFnName of ID * NameResolution<FnName.FnName>
+        | EFnName of ID * NameResolution<FQFnName.FQFnName>
 
         | ERecordUpdate of ID * record: Expr * updates: List<String * Expr>
 
@@ -431,10 +425,10 @@ module Darklang =
       /// A type that a User defined within a Canvas
       type UserType =
         { tlid: TLID
-          name: TypeName.UserProgram
+          name: FQTypeName.UserProgram
           description: String
           declaration: TypeDeclaration.TypeDeclaration
-          deprecated: Deprecation<TypeName.TypeName> }
+          deprecated: Deprecation<FQTypeName.FQTypeName> }
 
       module UserFunction =
         type Parameter =
@@ -444,19 +438,19 @@ module Darklang =
 
         type UserFunction =
           { tlid: TLID
-            name: FnName.UserProgram
+            name: FQFnName.UserProgram
             typeParams: List<String>
             parameters: List<Parameter>
             returnType: TypeReference
             description: String
-            deprecated: Deprecation<FnName.FnName>
+            deprecated: Deprecation<FQFnName.FQFnName>
             body: Expr }
 
       type UserConstant =
         { tlid: TLID
-          name: ConstantName.UserProgram
+          name: FQConstantName.UserProgram
           description: String
-          deprecated: Deprecation<FnName.FnName>
+          deprecated: Deprecation<FQFnName.FQFnName>
           body: Const }
 
 
@@ -484,10 +478,10 @@ module Darklang =
       type PackageType =
         { tlid: TLID
           id: Uuid
-          name: TypeName.Package
+          name: FQTypeName.Package
           declaration: TypeDeclaration.TypeDeclaration
           description: String
-          deprecated: Deprecation<TypeName.TypeName> }
+          deprecated: Deprecation<FQTypeName.FQTypeName> }
 
       module PackageFn =
         type Parameter =
@@ -498,18 +492,18 @@ module Darklang =
         type PackageFn =
           { tlid: TLID
             id: Uuid
-            name: FnName.Package
+            name: FQFnName.Package
             body: PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr
             typeParams: List<String>
             parameters: List<Parameter>
             returnType: TypeReference
             description: String
-            deprecated: Deprecation<FnName.FnName> }
+            deprecated: Deprecation<FQFnName.FQFnName> }
 
       type PackageConstant =
         { tlid: TLID
           id: Uuid
-          name: ConstantName.Package
+          name: FQConstantName.Package
           body: Const
           description: String
-          deprecated: Deprecation<FnName.FnName> }
+          deprecated: Deprecation<FQFnName.FQFnName> }

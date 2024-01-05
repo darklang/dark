@@ -10,7 +10,6 @@ open LibExecution.RuntimeTypes
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
-let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
@@ -30,4 +29,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let contents : Builtin.Contents = (fns, types, constants)
+let contents : Builtin.Contents = (fns, constants)

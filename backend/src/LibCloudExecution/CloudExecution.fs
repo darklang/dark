@@ -26,9 +26,8 @@ let builtins : LibExecution.Builtin.Contents =
       BuiltinDarkInternal.Builtin.contents ]
     []
 let builtIns : RT.BuiltIns =
-  let (fns, types, constants) = builtins
-  { types = types |> Map.fromListBy _.name
-    fns = fns |> Map.fromListBy _.name
+  let (fns, constants) = builtins
+  { fns = fns |> Map.fromListBy _.name
     constants = constants |> Map.fromListBy _.name }
 
 let packageManager = PackageManager.packageManager
@@ -138,10 +137,10 @@ let executeHandler
 
     let error (msg : string) : RT.Dval =
       let typeName =
-        RT.FQName.Package
+        RT.FQTypeName.Package
           { owner = "Darklang"
             modules = [ "Stdlib"; "Http" ]
-            name = RT.TypeName.TypeName "Response"
+            name = "Response"
             version = 0 }
 
       let fields =
@@ -211,7 +210,7 @@ let reexecuteFunction
   (callerID : id)
   (traceID : AT.TraceID.T)
   (rootTLID : tlid)
-  (name : RT.FnName.FnName)
+  (name : RT.FQFnName.FQFnName)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
   : Task<RT.ExecutionResult * Tracing.TraceResults.T> =

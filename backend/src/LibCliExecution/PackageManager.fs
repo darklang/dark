@@ -38,34 +38,31 @@ module NameResolutionError =
 module ProgramTypes =
   type NameResolution<'a> = Result<'a, NameResolutionError.Error>
 
-  module FQName =
-    type BuiltIn<'name> = { modules : List<string>; name : 'name; version : int }
+  module FQTypeName =
+    type Package =
+      { owner : string; modules : List<string>; name : string; version : int }
 
-    type Package<'name> =
-      { owner : string; modules : List<string>; name : 'name; version : int }
-
-    type FQName<'name> =
-      | BuiltIn of BuiltIn<'name>
-      | Package of Package<'name>
+    type FQTypeName = Package of Package
 
 
-  module TypeName =
-    type Name = TypeName of string
-    type TypeName = FQName.FQName<Name>
-    type BuiltIn = FQName.BuiltIn<Name>
-    type Package = FQName.Package<Name>
+  module FQFnName =
+    type Builtin = { modules : List<string>; name : string; version : int }
+    type Package =
+      { owner : string; modules : List<string>; name : string; version : int }
 
-  module FnName =
-    type Name = FnName of string
-    type FnName = FQName.FQName<Name>
-    type BuiltIn = FQName.BuiltIn<Name>
-    type Package = FQName.Package<Name>
+    type FQFnName =
+      | Builtin of Builtin
+      | Package of Package
 
-  module ConstantName =
-    type Name = ConstantName of string
-    type ConstantName = FQName.FQName<Name>
-    type BuiltIn = FQName.BuiltIn<Name>
-    type Package = FQName.Package<Name>
+
+  module FQConstantName =
+    type Builtin = { modules : List<string>; name : string; version : int }
+    type Package =
+      { owner : string; modules : List<string>; name : string; version : int }
+
+    type FQConstantName =
+      | Builtin of Builtin
+      | Package of Package
 
 
   type TypeReference =
@@ -91,7 +88,7 @@ module ProgramTypes =
     | TTuple of TypeReference * TypeReference * List<TypeReference>
     | TDict of TypeReference
     | TCustomType of
-      NameResolution<TypeName.TypeName> *
+      NameResolution<FQTypeName.FQTypeName> *
       typeArgs : List<TypeReference>
     | TDB of TypeReference
     | TFn of NEList<TypeReference> * TypeReference
@@ -155,12 +152,12 @@ module ProgramTypes =
     | EPipeInfix of ID * Infix * Expr
     | EPipeFnCall of
       ID *
-      NameResolution<FnName.FnName> *
+      NameResolution<FQFnName.FQFnName> *
       typeArgs : List<TypeReference> *
       args : List<Expr>
     | EPipeEnum of
       ID *
-      typeName : NameResolution<TypeName.TypeName> *
+      typeName : NameResolution<FQTypeName.FQTypeName> *
       caseName : string *
       fields : List<Expr>
 
@@ -183,15 +180,15 @@ module ProgramTypes =
     | EChar of ID * string
     | EString of ID * List<StringSegment>
 
-    | EConstant of ID * NameResolution<ConstantName.ConstantName>
+    | EConstant of ID * NameResolution<FQConstantName.FQConstantName>
 
     | EList of ID * List<Expr>
     | EDict of ID * List<string * Expr>
     | ETuple of ID * Expr * Expr * List<Expr>
-    | ERecord of ID * NameResolution<TypeName.TypeName> * List<string * Expr>
+    | ERecord of ID * NameResolution<FQTypeName.FQTypeName> * List<string * Expr>
     | EEnum of
       ID *
-      typeName : NameResolution<TypeName.TypeName> *
+      typeName : NameResolution<FQTypeName.FQTypeName> *
       caseName : string *
       fields : List<Expr>
 
@@ -206,7 +203,7 @@ module ProgramTypes =
     | EInfix of ID * Infix * Expr * Expr
     | ELambda of ID * pats : NEList<LetPattern> * body : Expr
     | EApply of ID * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
-    | EFnName of ID * NameResolution<FnName.FnName>
+    | EFnName of ID * NameResolution<FQFnName.FQFnName>
     | ERecordUpdate of ID * record : Expr * updates : NEList<string * Expr>
 
   and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
@@ -238,10 +235,10 @@ module ProgramTypes =
   type PackageType =
     { tlid : TLID
       id : System.Guid
-      name : TypeName.Package
+      name : FQTypeName.Package
       declaration : TypeDeclaration.TypeDeclaration
       description : string
-      deprecated : Deprecation<TypeName.TypeName> }
+      deprecated : Deprecation<FQTypeName.FQTypeName> }
 
 
   module PackageFn =
@@ -250,13 +247,13 @@ module ProgramTypes =
     type PackageFn =
       { tlid : TLID
         id : System.Guid
-        name : FnName.Package
+        name : FQFnName.Package
         body : Expr
         typeParams : List<string>
         parameters : NEList<Parameter>
         returnType : TypeReference
         description : string
-        deprecated : Deprecation<FnName.FnName> }
+        deprecated : Deprecation<FQFnName.FQFnName> }
 
   type Const =
     | CInt64 of int64
@@ -275,7 +272,10 @@ module ProgramTypes =
     | CFloat of Sign * string * string
     | CUnit
     | CTuple of first : Const * second : Const * rest : List<Const>
-    | CEnum of NameResolution<TypeName.TypeName> * caseName : string * List<Const>
+    | CEnum of
+      NameResolution<FQTypeName.FQTypeName> *
+      caseName : string *
+      List<Const>
     | CList of List<Const>
     | CDict of List<string * Const>
 
@@ -283,9 +283,9 @@ module ProgramTypes =
   type PackageConstant =
     { tlid : TLID
       id : System.Guid
-      name : ConstantName.Package
+      name : FQConstantName.Package
       description : string
-      deprecated : Deprecation<ConstantName.ConstantName>
+      deprecated : Deprecation<FQConstantName.FQConstantName>
       body : Const }
 
 module EPT = ProgramTypes
@@ -342,76 +342,44 @@ module ExternalTypesToProgramTypes =
       | Negative -> Prelude.Negative
 
   module TypeName =
-    module BuiltIn =
-      let toPT (b : EPT.TypeName.BuiltIn) : PT.TypeName.BuiltIn =
-        { modules = b.modules
-          name =
-            match b.name with
-            | EPT.TypeName.Name.TypeName name -> PT.TypeName.TypeName name
-          version = b.version }
-
     module Package =
-      let toPT (p : EPT.TypeName.Package) : PT.TypeName.Package =
-        { owner = p.owner
-          modules = p.modules
-          name =
-            match p.name with
-            | EPT.TypeName.Name.TypeName name -> PT.TypeName.TypeName name
-          version = p.version }
+      let toPT (p : EPT.FQTypeName.Package) : PT.FQTypeName.Package =
+        { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
 
-    let toPT (fqfn : EPT.TypeName.TypeName) : PT.TypeName.TypeName =
+    let toPT (fqfn : EPT.FQTypeName.FQTypeName) : PT.FQTypeName.FQTypeName =
       match fqfn with
-      | EPT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
-      | EPT.FQName.Package p -> PT.FQName.Package(Package.toPT p)
+      | EPT.FQTypeName.Package p -> PT.FQTypeName.Package(Package.toPT p)
 
 
   module FnName =
-    module BuiltIn =
-      let toPT (b : EPT.FnName.BuiltIn) : PT.FnName.BuiltIn =
-        { modules = b.modules
-          name =
-            match b.name with
-            | EPT.FnName.Name.FnName name -> PT.FnName.FnName name
-          version = b.version }
+    module Builtin =
+      let toPT (b : EPT.FQFnName.Builtin) : PT.FQFnName.Builtin =
+        { modules = b.modules; name = b.name; version = b.version }
 
     module Package =
-      let toPT (p : EPT.FnName.Package) : PT.FnName.Package =
-        { owner = p.owner
-          modules = p.modules
-          name =
-            match p.name with
-            | EPT.FnName.Name.FnName name -> PT.FnName.FnName name
-          version = p.version }
+      let toPT (p : EPT.FQFnName.Package) : PT.FQFnName.Package =
+        { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
 
-    let toPT (fqfn : EPT.FnName.FnName) : PT.FnName.FnName =
+    let toPT (fqfn : EPT.FQFnName.FQFnName) : PT.FQFnName.FQFnName =
       match fqfn with
-      | EPT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
-      | EPT.FQName.Package p -> PT.FQName.Package(Package.toPT p)
+      | EPT.FQFnName.Builtin s -> PT.FQFnName.Builtin(Builtin.toPT s)
+      | EPT.FQFnName.Package p -> PT.FQFnName.Package(Package.toPT p)
 
   module ConstantName =
-    module BuiltIn =
-      let toPT (b : EPT.ConstantName.BuiltIn) : PT.ConstantName.BuiltIn =
-        { modules = b.modules
-          name =
-            match b.name with
-            | EPT.ConstantName.Name.ConstantName name ->
-              PT.ConstantName.ConstantName name
-          version = b.version }
+    module Builtin =
+      let toPT (b : EPT.FQConstantName.Builtin) : PT.FQConstantName.Builtin =
+        { modules = b.modules; name = b.name; version = b.version }
 
     module Package =
-      let toPT (p : EPT.ConstantName.Package) : PT.ConstantName.Package =
-        { owner = p.owner
-          modules = p.modules
-          name =
-            match p.name with
-            | EPT.ConstantName.Name.ConstantName name ->
-              PT.ConstantName.ConstantName name
-          version = p.version }
+      let toPT (p : EPT.FQConstantName.Package) : PT.FQConstantName.Package =
+        { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
 
-    let toPT (fqfn : EPT.ConstantName.ConstantName) : PT.ConstantName.ConstantName =
+    let toPT
+      (fqfn : EPT.FQConstantName.FQConstantName)
+      : PT.FQConstantName.FQConstantName =
       match fqfn with
-      | EPT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
-      | EPT.FQName.Package p -> PT.FQName.Package(Package.toPT p)
+      | EPT.FQConstantName.Builtin s -> PT.FQConstantName.Builtin(Builtin.toPT s)
+      | EPT.FQConstantName.Package p -> PT.FQConstantName.Package(Package.toPT p)
 
 
 
@@ -804,26 +772,26 @@ let packageManager (baseUrl : string) : RT.PackageManager =
 
 
   { getType =
-      withCache (fun ({ name = RT.TypeName.TypeName typeName } as name) ->
+      withCache (fun name ->
         let conversionFn (parsed : EPT.PackageType) : RT.PackageType.T =
           parsed |> ET2PT.PackageType.toPT |> PT2RT.PackageType.toRT
         fetchByName
           "type"
           name.owner
           name.modules
-          typeName
+          name.name
           name.version
           conversionFn)
 
     getFn =
-      withCache (fun ({ name = RT.FnName.FnName fnName } as name) ->
+      withCache (fun (name) ->
         let conversionFn (parsed : EPT.PackageFn.PackageFn) : RT.PackageFn.T =
           parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT
         fetchByName
           "function"
           name.owner
           name.modules
-          fnName
+          name.name
           name.version
           conversionFn)
 
@@ -834,14 +802,14 @@ let packageManager (baseUrl : string) : RT.PackageManager =
         fetchById "function" tlid conversionFn)
 
     getConstant =
-      withCache (fun ({ name = RT.ConstantName.ConstantName constName } as name) ->
+      withCache (fun (name) ->
         let conversionFn (parsed : EPT.PackageConstant) : RT.PackageConstant.T =
           parsed |> ET2PT.PackageConstant.toPT |> PT2RT.PackageConstant.toRT
         fetchByName
           "constant"
           name.owner
           name.modules
-          constName
+          name.name
           name.version
           conversionFn)
 

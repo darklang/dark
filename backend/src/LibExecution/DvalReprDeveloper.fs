@@ -41,7 +41,7 @@ let rec typeName (t : TypeReference) : string =
         |> List.map (fun t -> typeName t)
         |> String.concat ", "
         |> fun betweenBrackets -> "<" + betweenBrackets + ">"
-    TypeName.toString t + typeArgsPortion
+    FQTypeName.toString t + typeArgsPortion
   | TCustomType(Error _nre, _) -> "(Error during function resolution)"
 
 
@@ -90,7 +90,7 @@ let rec knownTypeName (vt : KnownType) : string =
         |> String.concat ", "
         |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
-    TypeName.toString name + typeArgsPortion
+    FQTypeName.toString name + typeArgsPortion
 
 and valueTypeName (typ : ValueType) : string =
   match typ with
@@ -174,7 +174,7 @@ let toRepr (dv : Dval) : string =
         |> List.map (fun (key, value) -> ($"{key}: {toRepr_ indent value}"))
 
       let elems = String.concat $",{inl}" fields
-      let typeStr = TypeName.toString typeName
+      let typeStr = FQTypeName.toString typeName
       $"{typeStr} {{" + $"{inl}{elems}{nl}" + "}"
 
     | DDict(_valueTypeTODO, o) ->
@@ -206,7 +206,7 @@ let toRepr (dv : Dval) : string =
 
         let fieldStr = if fieldStr = "" then "" else $"({fieldStr})"
 
-        let typeStr = TypeName.toString typeName
+        let typeStr = FQTypeName.toString typeName
         $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
       if String.length short <= 80 then
@@ -219,7 +219,7 @@ let toRepr (dv : Dval) : string =
 
         let fieldStr = if fieldStr = "" then "" else $"({inl}{fieldStr}{nl})"
 
-        let typeStr = TypeName.toString typeName
+        let typeStr = FQTypeName.toString typeName
         $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
 
