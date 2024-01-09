@@ -61,7 +61,8 @@ module ExecutionError =
       | NonStringInStringInterpolation dv ->
         "NonStringInStringInterpolation", [ RT2DT.Dval.toDT dv ]
 
-      | ConstDoesntExist name -> "ConstDoesntExist", [ RT2DT.FQConstantName.toDT name ]
+      | ConstDoesntExist name ->
+        "ConstDoesntExist", [ RT2DT.FQConstantName.toDT name ]
 
     case caseName fields
 

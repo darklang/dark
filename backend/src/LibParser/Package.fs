@@ -137,7 +137,8 @@ let parse
       let constants =
         modul.constants
         |> List.map _.name
-        |> List.map LibExecution.ProgramTypesToRuntimeTypes.FQConstantName.Package.toRT
+        |> List.map
+          LibExecution.ProgramTypesToRuntimeTypes.FQConstantName.Package.toRT
         |> Set
 
       let resolver =

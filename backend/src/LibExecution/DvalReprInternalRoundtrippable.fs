@@ -27,10 +27,7 @@ module FormatV0 =
     type UserProgram = { modules : List<string>; name : string; version : int }
 
     type Package =
-      { owner : string
-        modules : List<string>
-        name : string
-        version : int }
+      { owner : string; modules : List<string>; name : string; version : int }
 
     type FQTypeName =
       | UserProgram of UserProgram
@@ -39,21 +36,13 @@ module FormatV0 =
 
     let toRT (t : FQTypeName) : RT.FQTypeName.FQTypeName =
       match t with
-      | UserProgram { modules = modules
-                      name = name
-                      version = version } ->
+      | UserProgram { modules = modules; name = name; version = version } ->
         RT.FQTypeName.UserProgram
           { modules = modules; name = name; version = version }
 
-      | Package { owner = owner
-                  modules = modules
-                  name = name
-                  version = version } ->
+      | Package { owner = owner; modules = modules; name = name; version = version } ->
         RT.FQTypeName.Package
-          { owner = owner
-            modules = modules
-            name = name
-            version = version }
+          { owner = owner; modules = modules; name = name; version = version }
 
 
     let fromRT (t : RT.FQTypeName.FQTypeName) : FQTypeName =
@@ -61,18 +50,14 @@ module FormatV0 =
       | RT.FQTypeName.UserProgram { modules = modules
                                     name = name
                                     version = version } ->
-        FQTypeName.UserProgram
-          { modules = modules; name = name; version = version }
+        FQTypeName.UserProgram { modules = modules; name = name; version = version }
 
       | RT.FQTypeName.Package { owner = owner
                                 modules = modules
-                                name =  name
+                                name = name
                                 version = version } ->
         FQTypeName.Package
-          { owner = owner
-            modules = modules
-            name = name
-            version = version }
+          { owner = owner; modules = modules; name = name; version = version }
 
 
 
@@ -82,10 +67,7 @@ module FormatV0 =
     type UserProgram = { modules : List<string>; name : string; version : int }
 
     type Package =
-      { owner : string
-        modules : List<string>
-        name : string
-        version : int }
+      { owner : string; modules : List<string>; name : string; version : int }
 
     type FQFnName =
       | Builtin of Builtin
@@ -93,53 +75,32 @@ module FormatV0 =
       | UserProgram of UserProgram
 
 
-    let toRT (fn: FQFnName) : RT.FQFnName.FQFnName =
+    let toRT (fn : FQFnName) : RT.FQFnName.FQFnName =
       match fn with
-      | Builtin { modules = modules
-                  name = name
-                  version = version } ->
-        RT.FQFnName.Builtin
-          { modules = modules; name = name; version = version }
+      | Builtin { modules = modules; name = name; version = version } ->
+        RT.FQFnName.Builtin { modules = modules; name = name; version = version }
 
-      | UserProgram { modules = modules
-                      name = name
-                      version = version } ->
-        RT.FQFnName.UserProgram
-          { modules = modules; name = name; version = version }
+      | UserProgram { modules = modules; name = name; version = version } ->
+        RT.FQFnName.UserProgram { modules = modules; name = name; version = version }
 
-      | Package { owner = owner
-                  modules = modules
-                  name = name
-                  version = version } ->
+      | Package { owner = owner; modules = modules; name = name; version = version } ->
         RT.FQFnName.Package
-          { owner = owner
-            modules = modules
-            name = name
-            version = version }
+          { owner = owner; modules = modules; name = name; version = version }
 
     let fromRT (fn : RT.FQFnName.FQFnName) : FQFnName =
       match fn with
-      | RT.FQFnName.Builtin { modules = modules
-                              name = name
-                              version = version } ->
-        FQFnName.Builtin
-          { modules = modules; name = name; version = version }
+      | RT.FQFnName.Builtin { modules = modules; name = name; version = version } ->
+        FQFnName.Builtin { modules = modules; name = name; version = version }
 
-      | RT.FQFnName.UserProgram { modules = modules
-                                  name = name
-                                  version = version } ->
-        FQFnName.UserProgram
-          { modules = modules; name = name; version = version }
+      | RT.FQFnName.UserProgram { modules = modules; name = name; version = version } ->
+        FQFnName.UserProgram { modules = modules; name = name; version = version }
 
       | RT.FQFnName.Package { owner = owner
                               modules = modules
                               name = name
                               version = version } ->
         FQFnName.Package
-          { owner = owner
-            modules = modules
-            name = name
-            version = version }
+          { owner = owner; modules = modules; name = name; version = version }
 
 
 
@@ -246,7 +207,10 @@ module FormatV0 =
           KTFn(NEList.map ValueType.fromRT argTypes, ValueType.fromRT returnType)
 
         | RT.KTCustomType(typeName, typeArgs) ->
-          KTCustomType(FQTypeName.fromRT typeName, List.map ValueType.fromRT typeArgs)
+          KTCustomType(
+            FQTypeName.fromRT typeName,
+            List.map ValueType.fromRT typeArgs
+          )
 
         | RT.KTDB vt -> KTDB(ValueType.fromRT vt)
 

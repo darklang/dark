@@ -233,4 +233,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let contents : Builtin.Contents = (fns,  constants)
+let contents : Builtin.Contents = (fns, constants)

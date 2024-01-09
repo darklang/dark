@@ -7,7 +7,7 @@ open RuntimeTypes
 type FnRenames = List<FQFnName.Builtin * FQFnName.Builtin>
 
 /// All Libs should expose `contents`, which is a list of all the constants and functions it provides
-type Contents = List<BuiltInFn> *  List<BuiltInConstant>
+type Contents = List<BuiltInFn> * List<BuiltInConstant>
 
 
 // To cut down on the amount of code, when we rename a function and make no other
@@ -54,8 +54,7 @@ let combine (libs : List<Contents>) (fnRenames : FnRenames) : Contents =
 
   fns |> List.concat |> List.iter checkFn
 
-  (fns |> List.concat |> renameFunctions fnRenames,
-   constants |> List.concat)
+  (fns |> List.concat |> renameFunctions fnRenames, constants |> List.concat)
 
 
 
@@ -65,4 +64,3 @@ module Shortcuts =
   let incorrectArgs = RuntimeTypes.incorrectArgs
 
   type Param = BuiltInParam
-

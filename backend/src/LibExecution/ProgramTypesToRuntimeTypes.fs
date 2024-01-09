@@ -10,23 +10,17 @@ module PT = ProgramTypes
 module FQTypeName =
   module Package =
     let toRT (p : PT.FQTypeName.Package) : RT.FQTypeName.Package =
-      { owner = p.owner
-        modules = p.modules
-        name = p.name
-        version = p.version }
+      { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
 
     let fromRT (p : RT.FQTypeName.Package) : PT.FQTypeName.Package =
-      { owner = p.owner
-        modules = p.modules
-        name = p.name
-        version = p.version }
+      { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
 
   module UserProgram =
     let toRT (u : PT.FQTypeName.UserProgram) : RT.FQTypeName.UserProgram =
       { modules = u.modules; name = u.name; version = u.version }
 
     let fromRT (u : RT.FQTypeName.UserProgram) : PT.FQTypeName.UserProgram =
-      { modules = u.modules; name =  u.name; version = u.version }
+      { modules = u.modules; name = u.name; version = u.version }
 
   let toRT (fqtn : PT.FQTypeName.FQTypeName) : RT.FQTypeName.FQTypeName =
     match fqtn with
@@ -36,44 +30,31 @@ module FQTypeName =
   let fromRT (fqtn : RT.FQTypeName.FQTypeName) : Option<PT.FQTypeName.FQTypeName> =
     match fqtn with
     | RT.FQTypeName.Package p -> PT.FQTypeName.Package(Package.fromRT p) |> Some
-    | RT.FQTypeName.UserProgram u -> PT.FQTypeName.UserProgram(UserProgram.fromRT u) |> Some
+    | RT.FQTypeName.UserProgram u ->
+      PT.FQTypeName.UserProgram(UserProgram.fromRT u) |> Some
 
 
 module FQConstantName =
   module Builtin =
     let toRT (c : PT.FQConstantName.Builtin) : RT.FQConstantName.Builtin =
-      { modules = c.modules
-        name = c.name
-        version = c.version }
+      { modules = c.modules; name = c.name; version = c.version }
 
     let fromRT (c : RT.FQConstantName.Builtin) : PT.FQConstantName.Builtin =
-      { modules = c.modules
-        name = c.name
-        version = c.version }
+      { modules = c.modules; name = c.name; version = c.version }
 
   module Package =
     let toRT (c : PT.FQConstantName.Package) : RT.FQConstantName.Package =
-      { owner = c.owner
-        modules = c.modules
-        name = c.name
-        version = c.version }
+      { owner = c.owner; modules = c.modules; name = c.name; version = c.version }
 
     let fromRT (c : RT.FQConstantName.Package) : PT.FQConstantName.Package =
-      { owner = c.owner
-        modules = c.modules
-        name = c.name
-        version = c.version }
+      { owner = c.owner; modules = c.modules; name = c.name; version = c.version }
 
   module UserProgram =
     let toRT (c : PT.FQConstantName.UserProgram) : RT.FQConstantName.UserProgram =
-      { modules = c.modules
-        name = c.name
-        version = c.version }
+      { modules = c.modules; name = c.name; version = c.version }
 
     let fromRT (c : RT.FQConstantName.UserProgram) : PT.FQConstantName.UserProgram =
-      { modules = c.modules
-        name = c.name
-        version = c.version }
+      { modules = c.modules; name = c.name; version = c.version }
 
   let toRT
     (name : PT.FQConstantName.FQConstantName)
@@ -81,7 +62,8 @@ module FQConstantName =
     match name with
     | PT.FQConstantName.Builtin s -> RT.FQConstantName.Builtin(Builtin.toRT s)
     | PT.FQConstantName.Package p -> RT.FQConstantName.Package(Package.toRT p)
-    | PT.FQConstantName.UserProgram u -> RT.FQConstantName.UserProgram(UserProgram.toRT u)
+    | PT.FQConstantName.UserProgram u ->
+      RT.FQConstantName.UserProgram(UserProgram.toRT u)
 
 
 module FQFnName =
@@ -94,16 +76,10 @@ module FQFnName =
 
   module Package =
     let toRT (p : PT.FQFnName.Package) : RT.FQFnName.Package =
-      { owner = p.owner
-        modules = p.modules
-        name = p.name
-        version = p.version }
+      { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
 
     let fromRT (p : RT.FQFnName.Package) : PT.FQFnName.Package =
-      { owner = p.owner
-        modules = p.modules
-        name = p.name
-        version = p.version }
+      { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
 
   module UserProgram =
     let toRT (u : PT.FQFnName.UserProgram) : RT.FQFnName.UserProgram =
@@ -265,9 +241,7 @@ module Expr =
     | PT.EInfix(id, PT.InfixFnCall fnName, left, right) ->
       let (modules, fn, version) = InfixFnName.toFnName fnName
       let name =
-        RT.FQFnName.Builtin(
-          { modules = modules; name = fn; version = version }
-        )
+        RT.FQFnName.Builtin({ modules = modules; name = fn; version = version })
       RT.EApply(
         id,
         RT.EFnName(id, name),
@@ -344,9 +318,7 @@ module Expr =
         | PT.EPipeInfix(id, PT.InfixFnCall fnName, expr) ->
           let (modules, fn, version) = InfixFnName.toFnName fnName
           let name =
-            PT.FQFnName.Builtin(
-              { modules = modules; name = fn; version = version }
-            )
+            PT.FQFnName.Builtin({ modules = modules; name = fn; version = version })
           RT.EApply(
             id,
             RT.EFnName(id, FQFnName.toRT name),

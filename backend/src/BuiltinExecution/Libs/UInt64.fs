@@ -308,7 +308,7 @@ let fns : List<BuiltInFn> =
               FQTypeName.Package
                 { owner = "Darklang"
                   modules = [ "Stdlib"; "UInt64" ]
-                  name =  "ParseError"
+                  name = "ParseError"
                   version = 0 }
             ),
             []

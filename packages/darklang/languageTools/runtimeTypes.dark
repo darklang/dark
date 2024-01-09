@@ -7,53 +7,68 @@ module Darklang =
 
       module FQTypeName =
 
-        type UserProgram = { modules: List<String>; name: String; version: Int64 }
-
         type Package =
-          { owner : String
-            modules : List<String>
-            name : String
-            version : Int64 }
+          { owner: String
+            modules: List<String>
+            name: String
+            version: Int64 }
+
+        type UserProgram =
+          { modules: List<String>
+            name: String
+            version: Int64 }
 
         type FQTypeName =
-          | UserProgram of UserProgram
           | Package of Package
+          | UserProgram of UserProgram
 
 
       module FQFnName =
-        type Builtin = { modules: List<String>; name: String; version: Int64 }
+        type Builtin =
+          { modules: List<String>
+            name: String
+            version: Int64 }
 
         type Package =
-          { owner : String
-            modules : List<String>
-            name : String
-            version : Int64 }
+          { owner: String
+            modules: List<String>
+            name: String
+            version: Int64 }
 
-        type UserProgram = { modules: List<String>; name: String; version: Int64 }
+        type UserProgram =
+          { modules: List<String>
+            name: String
+            version: Int64 }
 
         type FQFnName =
           | Builtin of Builtin
-          | UserProgram of UserProgram
           | Package of Package
+          | UserProgram of UserProgram
 
 
       /// A Fully-Qualified Constant Name
       /// Includes package, module, and version information where relevant.
       module FQConstantName =
-        type Builtin = { modules: List<String>; name: String; version: Int64 }
+        type Builtin =
+          { modules: List<String>
+            name: String
+            version: Int64 }
 
         type Package =
-          { owner : String
-            modules : List<String>
-            name : String
-            version : Int64 }
+          { owner: String
+            modules: List<String>
+            name: String
+            version: Int64 }
 
-        type UserProgram = { modules: List<String>; name: String; version: Int64 }
+        type UserProgram =
+          { modules: List<String>
+            name: String
+            version: Int64 }
 
         type FQConstantName =
           | Builtin of Builtin
-          | UserProgram of UserProgram
           | Package of Package
+          | UserProgram of UserProgram
 
 
       type NameResolution<'a> =

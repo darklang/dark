@@ -22,7 +22,8 @@ module ParseError =
       match e with
       | BadFormat -> "BadFormat", []
 
-    let typeName = FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "ParseError" 0
+    let typeName =
+      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "ParseError" 0
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -54,7 +55,7 @@ let fns : List<BuiltInFn> =
               FQTypeName.Package
                 { owner = "Darklang"
                   modules = [ "Stdlib"; "Uuid" ]
-                  name =  "ParseError"
+                  name = "ParseError"
                   version = 0 }
             ),
             []

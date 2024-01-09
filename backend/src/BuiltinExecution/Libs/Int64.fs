@@ -54,7 +54,8 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int64" ] "ParseError" 0
+    let typeName =
+      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int64" ] "ParseError" 0
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -392,16 +393,11 @@ let fns : List<BuiltInFn> =
       returnType =
         let errorType =
           FQTypeName.Package
-                { owner = "Darklang"
-                  modules = [ "Stdlib"; "Int64" ]
-                  name =  "ParseError"
-                  version = 0 }
-        TypeReference.result
-          TInt64
-          (TCustomType(
-            Ok errorType,
-            []
-          ))
+            { owner = "Darklang"
+              modules = [ "Stdlib"; "Int64" ]
+              name = "ParseError"
+              version = 0 }
+        TypeReference.result TInt64 (TCustomType(Ok errorType, []))
       description = "Returns the <type Int64> value of a <type String>"
       fn =
         let resultOk = Dval.resultOk KTInt64 KTString

@@ -12,7 +12,8 @@ module Darklang =
 
       type RTDval = PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
 
-      type RTTypeName = PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
+      type RTTypeName =
+        PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
 
       type RTFnName = PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQFnName.FQFnName
       type RTParam = PACKAGE.Darklang.LanguageTools.RuntimeTypes.Param

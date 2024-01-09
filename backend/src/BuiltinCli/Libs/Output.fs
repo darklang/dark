@@ -66,4 +66,4 @@ let fns : List<BuiltInFn> =
     ]
 
 
-let contents : Builtin.Contents = (fns,  constants)
+let contents : Builtin.Contents = (fns, constants)

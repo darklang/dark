@@ -50,8 +50,8 @@ module Darklang =
         (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
         : String =
         match t with
-        | UserProgram u -> FQTypeName.userProgram u
         | Package p -> FQTypeName.package p
+        | UserProgram u -> FQTypeName.userProgram u
 
 
       module FQConstantName =
@@ -118,8 +118,8 @@ module Darklang =
         : String =
         match t with
         | Builtin b -> FQConstantName.builtIn b
-        | UserProgram u -> FQConstantName.userProgram u
         | Package p -> FQConstantName.package p
+        | UserProgram u -> FQConstantName.userProgram u
 
 
       module FQFnName =
@@ -186,8 +186,8 @@ module Darklang =
         : String =
         match t with
         | Builtin b -> FQFnName.builtIn b
-        | UserProgram u -> FQFnName.userProgram u
         | Package p -> FQFnName.package p
+        | UserProgram u -> FQFnName.userProgram u
 
       let typeReference
         (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference)

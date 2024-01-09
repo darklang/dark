@@ -41,5 +41,5 @@ let contents =
       Libs.Users.contents
       Libs.Workers.contents ]
     fnRenames
-  |> (fun (fns,  constants) ->
-    (fns |> List.map (fun f -> { f with fn = internalFn f.fn }),constants))
+  |> (fun (fns, constants) ->
+    (fns |> List.map (fun f -> { f with fn = internalFn f.fn }), constants))

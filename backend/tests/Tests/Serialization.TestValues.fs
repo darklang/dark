@@ -554,8 +554,7 @@ module ProgramTypes =
                                    [],
                                    [ (PT.EInt64(250221144UL, 6L))
                                      (PT.EInt64(298149318UL, 2L)) ]
-                                 )
-                                 ]
+                                 ) ]
                              ))
                             ("enum",
                              PT.EEnum(

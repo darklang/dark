@@ -298,7 +298,8 @@ module UserFunction =
       body : Expr }
 
 module UserConstant =
-  type T = { name : PT.FQConstantName.UserProgram; description : string; body : Const }
+  type T =
+    { name : PT.FQConstantName.UserProgram; description : string; body : Const }
 
 
 module PackageFn =

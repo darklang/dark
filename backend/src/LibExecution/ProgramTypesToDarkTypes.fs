@@ -75,7 +75,7 @@ module FQTypeName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = ptTyp [ "FQTypeName" ] "Package" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : PT.FQTypeName.Package =
       match d with
@@ -94,7 +94,7 @@ module FQTypeName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = ptTyp [ "FQTypeName" ] "UserProgram" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : PT.FQTypeName.UserProgram =
       match d with
@@ -116,8 +116,7 @@ module FQTypeName =
 
   let fromDT (d : Dval) : PT.FQTypeName.FQTypeName =
     match d with
-    | DEnum(_, _, [], "Package", [ u ]) ->
-      PT.FQTypeName.Package(Package.fromDT u)
+    | DEnum(_, _, [], "Package", [ u ]) -> PT.FQTypeName.Package(Package.fromDT u)
 
     | DEnum(_, _, [], "UserProgram", [ u ]) ->
       PT.FQTypeName.UserProgram(UserProgram.fromDT u)
@@ -135,7 +134,7 @@ module FQFnName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = ptTyp [ "FQFnName" ] "Builtin" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : PT.FQFnName.Builtin =
       match d with
@@ -153,7 +152,7 @@ module FQFnName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = ptTyp [ "FQFnName" ] "Package" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : PT.FQFnName.Package =
       match d with
@@ -172,7 +171,7 @@ module FQFnName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = ptTyp [ "FQFnName" ] "UserProgram" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : PT.FQFnName.UserProgram =
       match d with
@@ -195,11 +194,9 @@ module FQFnName =
 
   let fromDT (d : Dval) : PT.FQFnName.FQFnName =
     match d with
-    | DEnum(_, _, [], "Builtin", [ u ]) ->
-      PT.FQFnName.Builtin(Builtin.fromDT u)
+    | DEnum(_, _, [], "Builtin", [ u ]) -> PT.FQFnName.Builtin(Builtin.fromDT u)
 
-    | DEnum(_, _, [], "Package", [ u ]) ->
-      PT.FQFnName.Package(Package.fromDT u)
+    | DEnum(_, _, [], "Package", [ u ]) -> PT.FQFnName.Package(Package.fromDT u)
 
     | DEnum(_, _, [], "UserProgram", [ u ]) ->
       PT.FQFnName.UserProgram(UserProgram.fromDT u)
@@ -217,7 +214,7 @@ module FQConstantName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = ptTyp [ "FQConstantName" ] "Builtin" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : PT.FQConstantName.Builtin =
       match d with
@@ -235,7 +232,7 @@ module FQConstantName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = ptTyp [ "FQConstantName" ] "Package" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : PT.FQConstantName.Package =
       match d with
@@ -253,7 +250,7 @@ module FQConstantName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = ptTyp [ "FQConstantName" ] "UserProgram" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : PT.FQConstantName.UserProgram =
       match d with
@@ -881,7 +878,8 @@ module Expr =
 
       | PT.EFnName(id, name) ->
         "EFnName",
-        [ DInt64(int64 id); NameResolution.toDT FQFnName.knownType FQFnName.toDT name ]
+        [ DInt64(int64 id)
+          NameResolution.toDT FQFnName.knownType FQFnName.toDT name ]
 
       | PT.ERecordUpdate(id, record, updates) ->
         let updates =
@@ -1538,7 +1536,8 @@ module PackageType =
         "name", FQTypeName.Package.toDT p.name
         "declaration", TypeDeclaration.toDT p.declaration
         "description", DString p.description
-        "deprecated", Deprecation.toDT FQTypeName.knownType FQTypeName.toDT p.deprecated ]
+        "deprecated",
+        Deprecation.toDT FQTypeName.knownType FQTypeName.toDT p.deprecated ]
     DRecord(typeName, typeName, [], Map fields)
 
 

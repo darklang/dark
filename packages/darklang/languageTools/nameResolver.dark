@@ -59,7 +59,7 @@ module Darklang =
                 (ProgramTypes.FQTypeName.Package
                   { owner = owner
                     modules = modules
-                    name =  name
+                    name = name
                     version = 0L })
                 |> ProgramTypes.FQTypeName.FQTypeName.Package
               )
@@ -217,7 +217,7 @@ module Darklang =
                 (ProgramTypes.FQFnName.Package
                   { owner = owner
                     modules = modules
-                    name =  name
+                    name = name
                     version = 0L })
                 |> ProgramTypes.FQFnName.FQFnName.Package
               )
@@ -243,7 +243,9 @@ module Darklang =
                     name = name
                     version = 0L })
 
-              Stdlib.Result.Result.Ok(builtIn |> ProgramTypes.FQFnName.FQFnName.Builtin)
+              Stdlib.Result.Result.Ok(
+                builtIn |> ProgramTypes.FQFnName.FQFnName.Builtin
+              )
 
             else
               Stdlib.Result.Result.Error(

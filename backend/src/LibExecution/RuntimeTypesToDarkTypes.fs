@@ -48,7 +48,7 @@ module FQTypeName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = rtTyp [ "FQTypeName" ] "Package" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQTypeName.Package =
       match d with
@@ -67,7 +67,7 @@ module FQTypeName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = rtTyp [ "FQTypeName" ] "UserProgram" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQTypeName.UserProgram =
       match d with
@@ -89,8 +89,7 @@ module FQTypeName =
 
   let fromDT (d : Dval) : FQTypeName.FQTypeName =
     match d with
-    | DEnum(_, _, [], "Package", [ u ]) ->
-      FQTypeName.Package(Package.fromDT u)
+    | DEnum(_, _, [], "Package", [ u ]) -> FQTypeName.Package(Package.fromDT u)
 
     | DEnum(_, _, [], "UserProgram", [ u ]) ->
       FQTypeName.UserProgram(UserProgram.fromDT u)
@@ -108,7 +107,7 @@ module FQFnName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = rtTyp [ "FQFnName" ] "Builtin" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQFnName.Builtin =
       match d with
@@ -126,7 +125,7 @@ module FQFnName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = rtTyp [ "FQFnName" ] "Package" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQFnName.Package =
       match d with
@@ -145,7 +144,7 @@ module FQFnName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = rtTyp [ "FQFnName" ] "UserProgram" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQFnName.UserProgram =
       match d with
@@ -168,11 +167,9 @@ module FQFnName =
 
   let fromDT (d : Dval) : FQFnName.FQFnName =
     match d with
-    | DEnum(_, _, [], "Builtin", [ u ]) ->
-      FQFnName.Builtin(Builtin.fromDT u)
+    | DEnum(_, _, [], "Builtin", [ u ]) -> FQFnName.Builtin(Builtin.fromDT u)
 
-    | DEnum(_, _, [], "Package", [ u ]) ->
-      FQFnName.Package(Package.fromDT u)
+    | DEnum(_, _, [], "Package", [ u ]) -> FQFnName.Package(Package.fromDT u)
 
     | DEnum(_, _, [], "UserProgram", [ u ]) ->
       FQFnName.UserProgram(UserProgram.fromDT u)
@@ -190,7 +187,7 @@ module FQConstantName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = rtTyp [ "FQConstantName" ] "Builtin" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQConstantName.Builtin =
       match d with
@@ -208,7 +205,7 @@ module FQConstantName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = rtTyp [ "FQConstantName" ] "Package" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQConstantName.Package =
       match d with
@@ -226,7 +223,7 @@ module FQConstantName =
           "name", DString u.name
           "version", DInt64 u.version ]
       let typeName = rtTyp [ "FQConstantName" ] "UserProgram" 0
-      DRecord(typeName, typeName, [ ], Map fields)
+      DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQConstantName.UserProgram =
       match d with
@@ -248,11 +245,9 @@ module FQConstantName =
 
   let fromDT (d : Dval) : FQConstantName.FQConstantName =
     match d with
-    | DEnum(_, _, [], "Builtin", [ u ]) ->
-      FQConstantName.Builtin(Builtin.fromDT u)
+    | DEnum(_, _, [], "Builtin", [ u ]) -> FQConstantName.Builtin(Builtin.fromDT u)
 
-    | DEnum(_, _, [], "Package", [ u ]) ->
-      FQConstantName.Package(Package.fromDT u)
+    | DEnum(_, _, [], "Package", [ u ]) -> FQConstantName.Package(Package.fromDT u)
 
     | DEnum(_, _, [], "UserProgram", [ u ]) ->
       FQConstantName.UserProgram(UserProgram.fromDT u)

@@ -784,7 +784,7 @@ let packageManager (baseUrl : string) : RT.PackageManager =
           conversionFn)
 
     getFn =
-      withCache (fun (name) ->
+      withCache (fun name ->
         let conversionFn (parsed : EPT.PackageFn.PackageFn) : RT.PackageFn.T =
           parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT
         fetchByName
@@ -802,7 +802,7 @@ let packageManager (baseUrl : string) : RT.PackageManager =
         fetchById "function" tlid conversionFn)
 
     getConstant =
-      withCache (fun (name) ->
+      withCache (fun name ->
         let conversionFn (parsed : EPT.PackageConstant) : RT.PackageConstant.T =
           parsed |> ET2PT.PackageConstant.toPT |> PT2RT.PackageConstant.toRT
         fetchByName

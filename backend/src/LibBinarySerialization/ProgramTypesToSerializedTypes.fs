@@ -93,117 +93,7 @@ module NameResolution =
     | Error err -> Error(NameResolutionError.Error.toPT err)
 
 
-(*
 module FQTypeName =
-  [<MessagePack.MessagePackObject>]
-  type Package =
-    { [<MessagePack.Key 0>]
-      owner : string
-      [<MessagePack.Key 1>]
-      modules : List<string>
-      [<MessagePack.Key 2>]
-      name : string
-      [<MessagePack.Key 3>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
-  type UserProgram =
-    { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
-  type FQTypeName =
-    | Package of Package
-    | UserProgram of UserProgram
-
-
-
-module FQFnName =
-  [<MessagePack.MessagePackObject>]
-  type Builtin =
-    { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
-  type Package =
-    { [<MessagePack.Key 0>]
-      owner : string
-      [<MessagePack.Key 1>]
-      modules : List<string>
-      [<MessagePack.Key 2>]
-      name : string
-      [<MessagePack.Key 3>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
-  type UserProgram =
-    { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
-  type FQFnName =
-    | Builtin of Builtin
-    | Package of Package
-    | UserProgram of UserProgram
-
-
-module FQConstantName =
-  [<MessagePack.MessagePackObject>]
-  type Builtin =
-    { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
-  type Package =
-    { [<MessagePack.Key 0>]
-      owner : string
-      [<MessagePack.Key 1>]
-      modules : List<string>
-      [<MessagePack.Key 2>]
-      name : string
-      [<MessagePack.Key 3>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
-  type UserProgram =
-    { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
-  type FQConstantName =
-    | Builtin of Builtin
-    | Package of Package
-    | UserProgram of UserProgram
-*)
-
-module FQTypeName =
-  module UserProgram =
-    let toST (name : PT.FQTypeName.UserProgram) : ST.FQTypeName.UserProgram =
-      { modules = name.modules; name = name.name; version = name.version }
-
-    let toPT (name : ST.FQTypeName.UserProgram) : PT.FQTypeName.UserProgram =
-      { modules = name.modules; name = name.name; version = name.version }
-
   module Package =
     let toST (name : PT.FQTypeName.Package) : ST.FQTypeName.Package =
       { owner = name.owner
@@ -217,6 +107,15 @@ module FQTypeName =
         name = name.name
         version = name.version }
 
+  module UserProgram =
+    let toST (name : PT.FQTypeName.UserProgram) : ST.FQTypeName.UserProgram =
+      { modules = name.modules; name = name.name; version = name.version }
+
+    let toPT (name : ST.FQTypeName.UserProgram) : PT.FQTypeName.UserProgram =
+      { modules = name.modules; name = name.name; version = name.version }
+
+
+
   let toST (name : PT.FQTypeName.FQTypeName) : ST.FQTypeName.FQTypeName =
     match name with
     | PT.FQTypeName.Package name -> ST.FQTypeName.Package(Package.toST name)
@@ -228,47 +127,6 @@ module FQTypeName =
     | ST.FQTypeName.Package name -> PT.FQTypeName.Package(Package.toPT name)
     | ST.FQTypeName.UserProgram name ->
       PT.FQTypeName.UserProgram(UserProgram.toPT name)
-
-
-module FQFnName =
-  module Builtin =
-    let toST (name : PT.FQFnName.Builtin) : ST.FQFnName.Builtin =
-      { modules = name.modules; name = name.name; version = name.version }
-
-    let toPT (name : ST.FQFnName.Builtin) : PT.FQFnName.Builtin =
-      { modules = name.modules; name = name.name; version = name.version }
-
-  module Package =
-    let toST (name : PT.FQFnName.Package) : ST.FQFnName.Package =
-      { owner = name.owner
-        modules = name.modules
-        name = name.name
-        version = name.version }
-
-    let toPT (name : ST.FQFnName.Package) : PT.FQFnName.Package =
-      { owner = name.owner
-        modules = name.modules
-        name = name.name
-        version = name.version }
-
-  module UserProgram =
-    let toST (name : PT.FQFnName.UserProgram) : ST.FQFnName.UserProgram =
-      { modules = name.modules; name = name.name; version = name.version }
-
-    let toPT (name : ST.FQFnName.UserProgram) : PT.FQFnName.UserProgram =
-      { modules = name.modules; name = name.name; version = name.version }
-
-  let toST (name : PT.FQFnName.FQFnName) : ST.FQFnName.FQFnName =
-    match name with
-    | PT.FQFnName.Builtin name -> ST.FQFnName.Builtin(Builtin.toST name)
-    | PT.FQFnName.Package name -> ST.FQFnName.Package(Package.toST name)
-    | PT.FQFnName.UserProgram name -> ST.FQFnName.UserProgram(UserProgram.toST name)
-
-  let toPT (name : ST.FQFnName.FQFnName) : PT.FQFnName.FQFnName =
-    match name with
-    | ST.FQFnName.Builtin name -> PT.FQFnName.Builtin(Builtin.toPT name)
-    | ST.FQFnName.Package name -> PT.FQFnName.Package(Package.toPT name)
-    | ST.FQFnName.UserProgram name -> PT.FQFnName.UserProgram(UserProgram.toPT name)
 
 
 module FQConstantName =
@@ -318,7 +176,45 @@ module FQConstantName =
       PT.FQConstantName.UserProgram(UserProgram.toPT name)
 
 
+module FQFnName =
+  module Builtin =
+    let toST (name : PT.FQFnName.Builtin) : ST.FQFnName.Builtin =
+      { modules = name.modules; name = name.name; version = name.version }
 
+    let toPT (name : ST.FQFnName.Builtin) : PT.FQFnName.Builtin =
+      { modules = name.modules; name = name.name; version = name.version }
+
+  module Package =
+    let toST (name : PT.FQFnName.Package) : ST.FQFnName.Package =
+      { owner = name.owner
+        modules = name.modules
+        name = name.name
+        version = name.version }
+
+    let toPT (name : ST.FQFnName.Package) : PT.FQFnName.Package =
+      { owner = name.owner
+        modules = name.modules
+        name = name.name
+        version = name.version }
+
+  module UserProgram =
+    let toST (name : PT.FQFnName.UserProgram) : ST.FQFnName.UserProgram =
+      { modules = name.modules; name = name.name; version = name.version }
+
+    let toPT (name : ST.FQFnName.UserProgram) : PT.FQFnName.UserProgram =
+      { modules = name.modules; name = name.name; version = name.version }
+
+  let toST (name : PT.FQFnName.FQFnName) : ST.FQFnName.FQFnName =
+    match name with
+    | PT.FQFnName.Builtin name -> ST.FQFnName.Builtin(Builtin.toST name)
+    | PT.FQFnName.Package name -> ST.FQFnName.Package(Package.toST name)
+    | PT.FQFnName.UserProgram name -> ST.FQFnName.UserProgram(UserProgram.toST name)
+
+  let toPT (name : ST.FQFnName.FQFnName) : PT.FQFnName.FQFnName =
+    match name with
+    | ST.FQFnName.Builtin name -> PT.FQFnName.Builtin(Builtin.toPT name)
+    | ST.FQFnName.Package name -> PT.FQFnName.Package(Package.toPT name)
+    | ST.FQFnName.UserProgram name -> PT.FQFnName.UserProgram(UserProgram.toPT name)
 
 
 module InfixFnName =
