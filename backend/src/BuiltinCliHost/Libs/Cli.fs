@@ -337,8 +337,7 @@ let fns : List<BuiltInFn> =
               )
             ))
             "" ]
-      returnType =
-        TypeReference.result TString ExecutionError.typeRef
+      returnType = TypeReference.result TString ExecutionError.typeRef
       description =
         "Executes an arbitrary Dark package function using the new darklang parser"
       fn =
