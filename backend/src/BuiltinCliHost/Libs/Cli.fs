@@ -19,9 +19,14 @@ module WT = LibParser.WrittenTypes
 module Json = BuiltinExecution.Libs.Json
 
 
-let typ =
-  FQTypeName.Package
-    { owner = "Darklang"; modules = [ "Cli" ]; name = "ExecutionError"; version = 0 }
+module ExecutionError =
+  let fqTypeName =
+    FQTypeName.Package
+      { owner = "Darklang"
+        modules = [ "Cli" ]
+        name = "ExecutionError"
+        version = 0 }
+  let typeRef = TCustomType(Ok fqTypeName, [])
 
 
 module CliRuntimeError =
@@ -126,11 +131,11 @@ let fns : List<BuiltInFn> =
         [ Param.make "filename" TString ""
           Param.make "code" TString ""
           Param.make "symtable" (TDict TString) "" ]
-      returnType = TypeReference.result TInt64 (TCustomType(Ok typ, []))
+      returnType = TypeReference.result TInt64 ExecutionError.typeRef
       description =
         "Parses Dark code as a script, and and executes it, returning an exit code"
       fn =
-        let errType = KTCustomType(typ, [])
+        let errType = KTCustomType(ExecutionError.fqTypeName, [])
         let resultOk = Dval.resultOk KTInt64 errType
         let resultError = Dval.resultError KTInt64 errType
         (function
@@ -181,10 +186,10 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "functionName" TString ""
           Param.make "args" (TList TString) "" ]
-      returnType = TypeReference.result TString (TCustomType(Ok typ, []))
+      returnType = TypeReference.result TString ExecutionError.typeRef
       description = "Executes an arbitrary Dark package function"
       fn =
-        let errType = KTCustomType(typ, [])
+        let errType = KTCustomType(ExecutionError.fqTypeName, [])
         let resultOk = Dval.resultOk KTString errType
         let resultError = Dval.resultError KTString errType
 
@@ -200,7 +205,12 @@ let fns : List<BuiltInFn> =
                      metadata |> List.map (Tuple2.mapSecond DString) |> Map
                    )) ]
 
-              DRecord(typ, typ, [], Map fields) |> resultError
+              DRecord(
+                ExecutionError.fqTypeName,
+                ExecutionError.fqTypeName,
+                [],
+                Map fields
+              )
 
             let exnError (e : exn) : Dval =
               let msg = Exception.getMessages e |> String.concat "\n"
@@ -327,11 +337,12 @@ let fns : List<BuiltInFn> =
               )
             ))
             "" ]
-      returnType = TypeReference.result TString (TCustomType(Ok typ, []))
+      returnType =
+        TypeReference.result TString ExecutionError.typeRef
       description =
         "Executes an arbitrary Dark package function using the new darklang parser"
       fn =
-        let errType = KTCustomType(typ, [])
+        let errType = KTCustomType(ExecutionError.fqTypeName, [])
         let resultOk = Dval.resultOk KTString errType
         let resultError = Dval.resultError KTString errType
 
@@ -347,7 +358,12 @@ let fns : List<BuiltInFn> =
                      metadata |> List.map (Tuple2.mapSecond DString) |> Map
                    )) ]
 
-              DRecord(typ, typ, [], Map fields) |> resultError
+              DRecord(
+                ExecutionError.fqTypeName,
+                ExecutionError.fqTypeName,
+                [],
+                Map fields
+              )
 
             let exnError (e : exn) : Dval =
               let msg = Exception.getMessages e |> String.concat "\n"

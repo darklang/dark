@@ -1,3 +1,4 @@
+// CLEANUP : there is room for refactoring here to reduce duplicated code
 /// Conversion functions from WrittenTypes to ProgramTypes
 module LibParser.NameResolver
 
