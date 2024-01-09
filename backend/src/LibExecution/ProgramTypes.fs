@@ -4,258 +4,139 @@ module LibExecution.ProgramTypes
 open Prelude
 
 
-/// Used to name where type/function/etc lives, eg a BuiltIn module, a User module,
-/// or a Package module.
-module FQName =
 
-  /// A name that is built into the runtime
-  type BuiltIn<'name> = { modules : List<string>; name : 'name; version : int }
+type NameValidator<'name> = 'name -> unit
+type NamePrinter<'name> = 'name -> string
 
-  /// Part of the user's program (eg canvas or cli)
-  type UserProgram<'name> = { modules : List<string>; name : 'name; version : int }
+// Lowercase starting letter for modules and users
+let modulePattern = @"^[A-Z][a-z0-9A-Z_]*$"
+let typeNamePattern = @"^[A-Z][a-z0-9A-Z_]*$"
+let fnNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
+let constantNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 
-  /// The name of a thing in the package manager
-  // TODO: We plan to use UUIDs for this, but this is a placeholder
-  type Package<'name> =
-    // Eg @darklang.latestVersion()
+let assert'
+  (modules : List<string>)
+  (name : string)
+  (version : int)
+  (nameValidator : string -> unit)
+  : unit =
+  List.iter (assertRe "modules name must match" modulePattern) modules
+  nameValidator name
+  assert_ "version can't be negative" [ "version", version ] (version >= 0)
+
+
+/// Fully-Qualified Type Name
+///
+/// Used to reference a type defined in a Package or by a User
+module FQTypeName =
+  /// The name of a type in the package manager
+  type Package =
+    // TODO: consider whether modules should be a NonEmptyList
     { owner : string
       modules : List<string>
-      name : 'name
+      name : string
       version : int }
 
-  type FQName<'name> =
-    | BuiltIn of BuiltIn<'name>
-    | UserProgram of UserProgram<'name>
-    | Package of Package<'name>
+  /// Part of the user's program (eg canvas or cli)
+  type UserProgram = { modules : List<string>; name : string; version : int }
 
-  type NameValidator<'name> = 'name -> unit
-  type NamePrinter<'name> = 'name -> string
+  type FQTypeName =
+    | Package of Package
+    | UserProgram of UserProgram
 
-  // Lowercase starting letter for modules and users
-  let modulePattern = @"^[A-Z][a-z0-9A-Z_]*$"
-  let assert'
-    (modules : List<string>)
-    (name : 'name)
-    (version : int)
-    (nameValidator : 'name -> unit)
-    : unit =
-    List.iter (assertRe "modules name must match" modulePattern) modules
-    nameValidator name
-    assert_ "version can't be negative" [ "version", version ] (version >= 0)
-
-  let builtin
-    (nameValidator : NameValidator<'name>)
-    (modules : List<string>)
-    (name : 'name)
-    (version : int)
-    : BuiltIn<'name> =
-    assert' modules name version nameValidator
-    { modules = modules; name = name; version = version }
-
-  let fqBuiltIn
-    (nameValidator : NameValidator<'name>)
-    (modules : List<string>)
-    (name : 'name)
-    (version : int)
-    : FQName<'name> =
-    BuiltIn(builtin nameValidator modules name version)
-
-  let userProgram
-    (nameValidator : NameValidator<'name>)
-    (modules : List<string>)
-    (name : 'name)
-    (version : int)
-    : UserProgram<'name> =
-    assert' modules name version nameValidator
-    { modules = modules; name = name; version = version }
-
-  let fqUserProgram
-    (nameValidator : NameValidator<'name>)
-    (modules : List<string>)
-    (name : 'name)
-    (version : int)
-    : FQName<'name> =
-    UserProgram(userProgram nameValidator modules name version)
+  let assertTypeName (name : string) : unit =
+    assertRe "type name must match" typeNamePattern name
 
   let package
-    (nameValidator : NameValidator<'name>)
     (owner : string)
     (modules : List<string>)
-    (name : 'name)
+    (name : string)
     (version : int)
-    : Package<'name> =
-    assert' modules name version nameValidator
+    : Package =
+    assert' modules name version assertTypeName
     { owner = owner; modules = modules; name = name; version = version }
 
   let fqPackage
-    (nameValidator : NameValidator<'name>)
     (owner : string)
     (modules : List<string>)
-    (name : 'name)
+    (name : string)
     (version : int)
-    : FQName<'name> =
-    Package(package nameValidator owner modules name version)
+    : FQTypeName =
+    Package(package owner modules name version)
 
-  let builtinToString (f : NamePrinter<'name>) (s : BuiltIn<'name>) : string =
-    let name = s.modules @ [ f s.name ] |> String.concat "."
+  let userProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : UserProgram =
+    assert' modules name version assertTypeName
+    { modules = modules; name = name; version = version }
+
+  let fqUserProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : FQTypeName =
+    UserProgram(userProgram modules name version)
+
+
+  let packageToString (s : Package) : string =
+    let name = ("PACKAGE" :: s.owner :: s.modules @ [ s.name ]) |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let userProgramToString
-    (f : NamePrinter<'name>)
-    (s : UserProgram<'name>)
-    : string =
-    let name = s.modules @ [ f s.name ] |> String.concat "."
+  let userProgramToString (s : UserProgram) : string =
+    let name = s.modules @ [ s.name ] |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let packageToString (f : NamePrinter<'name>) (s : Package<'name>) : string =
-    let name = [ "PACKAGE"; s.owner ] @ s.modules @ [ f s.name ] |> String.concat "."
-    if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let toString (f : NamePrinter<'name>) (name : FQName<'name>) : string =
+  let toString (name : FQTypeName) : string =
     match name with
-    | BuiltIn b -> builtinToString f b
-    | UserProgram user -> userProgramToString f user
-    | Package pkg -> packageToString f pkg
+    | Package p -> packageToString p
+    | UserProgram up -> userProgramToString up
 
-module TypeName =
-  type Name = TypeName of string
-  type TypeName = FQName.FQName<Name>
-  type BuiltIn = FQName.BuiltIn<Name>
-  type UserProgram = FQName.UserProgram<Name>
-  type Package = FQName.Package<Name>
-
-  let pattern = @"^[A-Z][a-z0-9A-Z_']*$"
-  let assert' (TypeName name : Name) : unit =
-    assertRe "type name must match" pattern name
-  let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
-    FQName.builtin assert' modules (TypeName name) version
-
-  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : TypeName =
-    FQName.fqBuiltIn assert' modules (TypeName name) version
-
-  let userProgram
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : UserProgram =
-    FQName.userProgram assert' modules (TypeName name) version
-
-  let fqUserProgram
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : TypeName =
-    FQName.fqUserProgram assert' modules (TypeName name) version
-
-  let package
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : Package =
-    FQName.package assert' owner modules (TypeName name) version
-
-  let fqPackage
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : TypeName =
-    FQName.fqPackage assert' owner modules (TypeName name) version
-
-  let nameToString (TypeName name) : string = name
-
-  let toString (name : TypeName) : string = FQName.toString nameToString name
-
-
-module FnName =
-  type Name = FnName of string
-  type FnName = FQName.FQName<Name>
-  type BuiltIn = FQName.BuiltIn<Name>
-  type UserProgram = FQName.UserProgram<Name>
-  type Package = FQName.Package<Name>
-
-  let pattern = @"^[a-z][a-z0-9A-Z_']*$"
-  let assert' (FnName name : Name) : unit =
-    assertRe "Fn name must match" pattern name
-
-  let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
-    FQName.builtin assert' modules (FnName name) version
-
-  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : FnName =
-    FQName.fqBuiltIn assert' modules (FnName name) version
-
-  let userProgram
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : UserProgram =
-    FQName.userProgram assert' modules (FnName name) version
-
-  let fqUserProgram
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : FnName =
-    FQName.fqUserProgram assert' modules (FnName name) version
-
-  let package
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : Package =
-    FQName.package assert' owner modules (FnName name) version
-
-  let fqPackage
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : FnName =
-    FQName.fqPackage assert' owner modules (FnName name) version
-
-  let nameToString (FnName name) : string = name
-
-  let toString (name : FnName) : string = FQName.toString nameToString name
 
 
 /// A Fully-Qualified Constant Name
-/// Includes package, module, and version information where relevant.
-module ConstantName =
-  type Name = ConstantName of string
-  type ConstantName = FQName.FQName<Name>
-  type BuiltIn = FQName.BuiltIn<Name>
-  type UserProgram = FQName.UserProgram<Name>
-  type Package = FQName.Package<Name>
+///
+/// Used to reference a constant defined by the runtime, in a Package, or by a User
+module FQConstantName =
+  /// A constant built into the runtime
+  ///
+  /// TODO: replace with just string * version ?
+  type Builtin = { modules : List<string>; name : string; version : int }
 
-  let pattern = @"^[a-z][a-z0-9A-Z_']*$"
-  let assert' (ConstantName name : Name) : unit =
-    assertRe "Constant name must match" pattern name
+  /// The name of a constant in the package manager
+  type Package =
+    { owner : string
+      modules : List<string> // TODO: consider whether modules should be a NonEmptyList
+      name : string
+      version : int }
 
-  let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
-    FQName.builtin assert' modules (ConstantName name) version
+  /// Part of the user's program (eg canvas or cli)
+  ///
+  /// TODO: consider whether modules should be a NonEmptyList
+  type UserProgram = { modules : List<string>; name : string; version : int }
+
+
+  type FQConstantName =
+    | Builtin of Builtin
+    | Package of Package
+    | UserProgram of UserProgram
+
+
+  let assertConstantName (name : string) : unit =
+    assertRe "Constant name must match" constantNamePattern name
+
+  let builtIn (modules : List<string>) (name : string) (version : int) : Builtin =
+    assert' modules name version assertConstantName
+    { modules = modules; name = name; version = version }
 
   let fqBuiltIn
     (modules : List<string>)
     (name : string)
     (version : int)
-    : ConstantName =
-    FQName.fqBuiltIn assert' modules (ConstantName name) version
-
-  let userProgram
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : UserProgram =
-    FQName.userProgram assert' modules (ConstantName name) version
-
-  let fqUserProgram
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : ConstantName =
-    FQName.fqUserProgram assert' modules (ConstantName name) version
+    : FQConstantName =
+    Builtin(builtIn modules name version)
 
   let package
     (owner : string)
@@ -263,39 +144,141 @@ module ConstantName =
     (name : string)
     (version : int)
     : Package =
-    FQName.package assert' owner modules (ConstantName name) version
+    assert' modules name version assertConstantName
+    { owner = owner; modules = modules; name = name; version = version }
 
   let fqPackage
     (owner : string)
     (modules : List<string>)
     (name : string)
     (version : int)
-    : ConstantName =
-    FQName.fqPackage assert' owner modules (ConstantName name) version
+    : FQConstantName =
+    Package(package owner modules name version)
 
-  let toString (name : ConstantName) : string =
-    FQName.toString (fun (ConstantName name) -> name) name
+  let userProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : UserProgram =
+    assert' modules name version assertConstantName
+    { modules = modules; name = name; version = version }
+
+  let fqUserProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : FQConstantName =
+    UserProgram(userProgram modules name version)
 
 
-  /// Used in a transformation from fn with the empty args list to constant
-  let fromFnName (name : FnName.FnName) : ConstantName =
+  let builtinToString (s : Builtin) : string =
+    let name = s.modules @ [ s.name ] |> String.concat "."
+    if s.version = 0 then name else $"{name}_v{s.version}"
+
+  let packageToString (s : Package) : string =
+    let name = ("PACKAGE" :: s.owner :: s.modules @ [ s.name ]) |> String.concat "."
+    if s.version = 0 then name else $"{name}_v{s.version}"
+
+  let userProgramToString (s : UserProgram) : string =
+    let name = s.modules @ [ s.name ] |> String.concat "."
+    if s.version = 0 then name else $"{name}_v{s.version}"
+
+
+  let toString (name : FQConstantName) : string =
     match name with
-    | FQName.BuiltIn fn ->
-      let (FnName.FnName fnName) = fn.name
-      let newBuiltIn =
-        FQName.builtin assert' fn.modules (ConstantName fnName) fn.version
-      FQName.BuiltIn newBuiltIn
-    | FQName.UserProgram fn ->
-      let (FnName.FnName fnName) = fn.name
-      let newUserProgram =
-        FQName.userProgram assert' fn.modules (ConstantName fnName) fn.version
-      FQName.UserProgram newUserProgram
-    | FQName.Package fn ->
-      let (FnName.FnName fnName) = fn.name
-      let newPackage =
-        FQName.package assert' fn.owner fn.modules (ConstantName fnName) fn.version
-      FQName.Package newPackage
+    | Builtin b -> builtinToString b
+    | Package p -> packageToString p
+    | UserProgram up -> userProgramToString up
 
+
+/// A Fully-Qualified Function Name
+///
+/// Used to reference a function defined by the runtime, in a Package, or by a User
+module FQFnName =
+  /// A function built into the runtime
+  ///
+  /// TODO: replace with just string * version ?
+  /// like `{ function_ = "__list_map"; version = 0 }`
+  type Builtin = { modules : List<string>; name : string; version : int }
+
+  /// The name of a function in the package manager
+  type Package =
+    { owner : string
+      modules : List<string> // TODO: consider whether modules should be a NonEmptyList
+      name : string
+      version : int }
+
+  /// Part of the user's program (eg canvas or cli)
+  type UserProgram = { modules : List<string>; name : string; version : int }
+
+
+  type FQFnName =
+    | Builtin of Builtin
+    | Package of Package
+    | UserProgram of UserProgram
+
+  let assertFnName (name : string) : unit =
+    assertRe "Fn name must match" fnNamePattern name
+
+
+  let builtIn (modules : List<string>) (name : string) (version : int) : Builtin =
+    assert' modules name version assertFnName
+    { modules = modules; name = name; version = version }
+
+  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : FQFnName =
+    Builtin(builtIn modules name version)
+
+  let package
+    (owner : string)
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : Package =
+    assert' modules name version assertFnName
+    { owner = owner; modules = modules; name = name; version = version }
+
+  let fqPackage
+    (owner : string)
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : FQFnName =
+    Package(package owner modules name version)
+
+  let userProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : UserProgram =
+    assert' modules name version assertFnName
+    { modules = modules; name = name; version = version }
+
+  let fqUserProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : FQFnName =
+    UserProgram(userProgram modules name version)
+
+
+  let builtinToString (s : Builtin) : string =
+    let name = s.modules @ [ s.name ] |> String.concat "."
+    if s.version = 0 then name else $"{name}_v{s.version}"
+
+  let packageToString (s : Package) : string =
+    let name = ("PACKAGE" :: s.owner :: s.modules @ [ s.name ]) |> String.concat "."
+    if s.version = 0 then name else $"{name}_v{s.version}"
+
+  let userProgramToString (s : UserProgram) : string =
+    let name = s.modules @ [ s.name ] |> String.concat "."
+    if s.version = 0 then name else $"{name}_v{s.version}"
+
+
+  let toString (name : FQFnName) : string =
+    match name with
+    | Builtin b -> builtinToString b
+    | Package p -> packageToString p
+    | UserProgram up -> userProgramToString up
 
 
 // In ProgramTypes, names (FnNames, TypeNames, ConstantNames) have already been
@@ -407,7 +390,9 @@ type TypeReference =
   /// A type defined by a standard library module, a canvas/user, or a package
   /// e.g. `Result<Int64, String>` is represented as `TCustomType("Result", [TInt64, TString])`
   /// `typeArgs` is the list of type arguments, if any
-  | TCustomType of NameResolution<TypeName.TypeName> * typeArgs : List<TypeReference>
+  | TCustomType of
+    NameResolution<FQTypeName.FQTypeName> *
+    typeArgs : List<TypeReference>
 
 
 /// Expressions - the main part of the language.
@@ -435,7 +420,7 @@ type Expr =
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
   | EFloat of id * Sign * string * string
 
-  | EConstant of id * NameResolution<ConstantName.ConstantName>
+  | EConstant of id * NameResolution<FQConstantName.FQConstantName>
 
   // <summary>
   // Composed of binding pattern, the expression to create bindings for,
@@ -467,7 +452,7 @@ type Expr =
 
   // This is a function call, the first expression is the value of the function.
   | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
-  | EFnName of id * NameResolution<FnName.FnName>
+  | EFnName of id * NameResolution<FQFnName.FQFnName>
 
   | EInfix of id * Infix * Expr * Expr
   | EPipe of id * Expr * List<PipeExpr>
@@ -478,7 +463,7 @@ type Expr =
   // See NameResolution comment above
   | ERecord of
     id *
-    NameResolution<TypeName.TypeName> *
+    NameResolution<FQTypeName.FQTypeName> *
     // User is allowed type `Name {}` even if that's an error
     List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
@@ -494,7 +479,7 @@ type Expr =
   ///   `EEnum(Some UserType.MyEnum, "C", [EInt64(1), EString("title")]`
   | EEnum of
     id *
-    typeName : NameResolution<TypeName.TypeName> *
+    typeName : NameResolution<FQTypeName.FQTypeName> *
     caseName : string *
     fields : List<Expr>
 
@@ -520,12 +505,12 @@ and PipeExpr =
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of
     id *
-    NameResolution<FnName.FnName> *
+    NameResolution<FQFnName.FQFnName> *
     typeArgs : List<TypeReference> *
     args : List<Expr>
   | EPipeEnum of
     id *
-    typeName : NameResolution<TypeName.TypeName> *
+    typeName : NameResolution<FQTypeName.FQTypeName> *
     caseName : string *
     fields : List<Expr>
 
@@ -650,10 +635,10 @@ module DB =
 module UserType =
   type T =
     { tlid : tlid
-      name : TypeName.UserProgram
+      name : FQTypeName.UserProgram
       declaration : TypeDeclaration.T
       description : string
-      deprecated : Deprecation<TypeName.TypeName> }
+      deprecated : Deprecation<FQTypeName.FQTypeName> }
 
 
 
@@ -675,16 +660,16 @@ type Const =
   | CFloat of Sign * string * string
   | CUnit
   | CTuple of first : Const * second : Const * rest : List<Const>
-  | CEnum of NameResolution<TypeName.TypeName> * caseName : string * List<Const>
+  | CEnum of NameResolution<FQTypeName.FQTypeName> * caseName : string * List<Const>
   | CList of List<Const>
   | CDict of List<string * Const>
 
 module UserConstant =
   type T =
     { tlid : tlid
-      name : ConstantName.UserProgram
+      name : FQConstantName.UserProgram
       description : string
-      deprecated : Deprecation<ConstantName.ConstantName>
+      deprecated : Deprecation<FQConstantName.FQConstantName>
       body : Const }
 
 module UserFunction =
@@ -692,12 +677,12 @@ module UserFunction =
 
   type T =
     { tlid : tlid
-      name : FnName.UserProgram
+      name : FQFnName.UserProgram
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference
       description : string
-      deprecated : Deprecation<FnName.FnName>
+      deprecated : Deprecation<FQFnName.FQFnName>
       body : Expr }
 
 module Toplevel =
@@ -723,9 +708,9 @@ module PackageConstant =
   type T =
     { tlid : tlid
       id : System.Guid
-      name : ConstantName.Package
+      name : FQConstantName.Package
       description : string
-      deprecated : Deprecation<ConstantName.ConstantName>
+      deprecated : Deprecation<FQConstantName.FQConstantName>
       body : Const }
 
 module PackageFn =
@@ -734,19 +719,19 @@ module PackageFn =
   type T =
     { tlid : tlid
       id : System.Guid
-      name : FnName.Package
+      name : FQFnName.Package
       body : Expr
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference
       description : string
-      deprecated : Deprecation<FnName.FnName> }
+      deprecated : Deprecation<FQFnName.FQFnName> }
 
 module PackageType =
   type T =
     { tlid : tlid
       id : System.Guid
-      name : TypeName.Package
+      name : FQTypeName.Package
       declaration : TypeDeclaration.T
       description : string
-      deprecated : Deprecation<TypeName.TypeName> }
+      deprecated : Deprecation<FQTypeName.FQTypeName> }

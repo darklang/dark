@@ -82,9 +82,7 @@ let loadPackageFileIntoDarkCanvas
       let owner = fn.name.owner
       let modules = fn.name.modules |> PACKAGE.Darklang.Stdlib.String.join "."
 
-      let name =
-        match fn.name.name with
-        | FnName name -> name
+      let name = fn.name.name
 
       let version = PACKAGE.Darklang.Stdlib.Int64.toString_v0 fn.name.version
       let name = $"Function {owner}.{modules}.{name}_v{version}"
@@ -102,10 +100,7 @@ let loadPackageFileIntoDarkCanvas
       let owner = t.name.owner
       let modules = t.name.modules |> PACKAGE.Darklang.Stdlib.String.join "."
 
-      let name =
-        match t.name.name with
-        | TypeName name -> name
-
+      let name = t.name.name
       let version = PACKAGE.Darklang.Stdlib.Int64.toString_v0 t.name.version
       let name = $"Type {owner}.{modules}.{name}_v{version}"
       Builtin.printLine $"Saving {name}"
@@ -120,9 +115,7 @@ let loadPackageFileIntoDarkCanvas
       let owner = c.name.owner
       let modules = c.name.modules |> PACKAGE.Darklang.Stdlib.String.join "."
 
-      let name =
-        match c.name.name with
-        | ConstantName name -> name
+      let name = c.name.name
 
       let version = PACKAGE.Darklang.Stdlib.Int64.toString_v0 c.name.version
       let name = $"Constant {owner}.{modules}.{name}_v{version}"

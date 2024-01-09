@@ -22,40 +22,23 @@ let tlid : tlid = 777777928475UL
 let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
 module RuntimeTypes =
-  let fqTypeNames : List<RT.TypeName.TypeName> =
-    [ RT.FQName.UserProgram
-        { modules = [ "X" ]; name = RT.TypeName.TypeName "userfn"; version = 0 }
-      RT.FQName.BuiltIn
-        { modules = [ "A" ]; name = RT.TypeName.TypeName "b"; version = 1 }
-      RT.FQName.Package
-        { owner = "a"
-          modules = [ "b"; "C" ]
-          name = RT.TypeName.TypeName "d"
-          version = 2 } ]
+  let fqTypeNames : List<RT.FQTypeName.FQTypeName> =
+    [ RT.FQTypeName.UserProgram { modules = [ "X" ]; name = "userfn"; version = 0 }
+      RT.FQTypeName.Package
+        { owner = "a"; modules = [ "b"; "C" ]; name = "d"; version = 2 } ]
 
-  let fqFnNames : List<RT.FnName.FnName> =
-    [ RT.FQName.UserProgram
-        { modules = [ "X" ]; name = RT.FnName.FnName "userfn"; version = 0 }
-      RT.FQName.BuiltIn
-        { modules = [ "A" ]; name = RT.FnName.FnName "b"; version = 1 }
-      RT.FQName.Package
-        { owner = "a"
-          modules = [ "b"; "C" ]
-          name = RT.FnName.FnName "d"
-          version = 2 } ]
+  let fqFnNames : List<RT.FQFnName.FQFnName> =
+    [ RT.FQFnName.UserProgram { modules = [ "X" ]; name = "userfn"; version = 0 }
+      RT.FQFnName.Builtin { modules = [ "A" ]; name = "b"; version = 1 }
+      RT.FQFnName.Package
+        { owner = "a"; modules = [ "b"; "C" ]; name = "d"; version = 2 } ]
 
-  let fqConstantNames : List<RT.ConstantName.ConstantName> =
-    [ RT.FQName.UserProgram
-        { modules = [ "X" ]
-          name = RT.ConstantName.ConstantName "userfn"
-          version = 0 }
-      RT.FQName.BuiltIn
-        { modules = [ "A" ]; name = RT.ConstantName.ConstantName "b"; version = 1 }
-      RT.FQName.Package
-        { owner = "a"
-          modules = [ "b"; "C" ]
-          name = RT.ConstantName.ConstantName "d"
-          version = 2 } ]
+  let fqConstantNames : List<RT.FQConstantName.FQConstantName> =
+    [ RT.FQConstantName.UserProgram
+        { modules = [ "X" ]; name = "userfn"; version = 0 }
+      RT.FQConstantName.Builtin { modules = [ "A" ]; name = "b"; version = 1 }
+      RT.FQConstantName.Package
+        { owner = "a"; modules = [ "b"; "C" ]; name = "d"; version = 2 } ]
 
   let typeReferences : List<RT.TypeReference> =
     [ RT.TInt64
@@ -77,25 +60,15 @@ module RuntimeTypes =
       RT.TDict RT.TBool
       RT.TDB RT.TBool
       RT.TCustomType(
-        Ok(
-          RT.FQName.UserProgram
-            { modules = []; name = RT.TypeName.TypeName "User"; version = 0 }
-        ),
+        Ok(RT.FQTypeName.UserProgram { modules = []; name = "User"; version = 0 }),
         [ RT.TBool ]
       )
       RT.TCustomType(
         Ok(
-          RT.FQName.BuiltIn
-            { modules = [ "Mod" ]; name = RT.TypeName.TypeName "User"; version = 0 }
-        ),
-        [ RT.TBool ]
-      )
-      RT.TCustomType(
-        Ok(
-          RT.FQName.Package
+          RT.FQTypeName.Package
             { owner = "dark"
               modules = [ "Mod1"; "Mod2" ]
-              name = RT.TypeName.TypeName "Pack"
+              name = "Pack"
               version = 0 }
         ),
         [ RT.TBool ]
@@ -203,8 +176,7 @@ module RuntimeTypes =
         128384UL,
         RT.EFnName(
           2236UL,
-          RT.FQName.UserProgram
-            { modules = []; name = RT.FnName.FnName "fn"; version = 0 }
+          RT.FQFnName.UserProgram { modules = []; name = "fn"; version = 0 }
         ),
         [],
         (NEList.singleton (RT.EUnit(7756UL)))
@@ -218,10 +190,8 @@ module RuntimeTypes =
       )
       RT.ERecord(
         8167384UL,
-        RT.FQName.UserProgram(
-          { modules = [ "MyModule"; "Name" ]
-            name = RT.TypeName.TypeName "NonEmptyList"
-            version = 0 }
+        RT.FQTypeName.UserProgram(
+          { modules = [ "MyModule"; "Name" ]; name = "NonEmptyList"; version = 0 }
         ),
         NEList.singleton ("a9df8", RT.EUnit(71631UL))
       )
@@ -229,14 +199,6 @@ module RuntimeTypes =
         619623640UL,
         RT.EVariable(81036610UL, "myRec"),
         NEList.singleton ("y", RT.EInt64(401690270UL, 2L))
-      )
-      RT.EEnum(
-        64617UL,
-        RT.FQName.BuiltIn(
-          { modules = []; name = RT.TypeName.TypeName "Option"; version = 0 }
-        ),
-        "Some",
-        [ RT.EUnit(8173UL) ]
       )
       RT.EMatch(
         712743UL,
@@ -250,8 +212,7 @@ module RuntimeTypes =
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
       RT.EEnum(
         8375723UL,
-        RT.FQName.UserProgram
-          { modules = []; name = RT.TypeName.TypeName "MyEnum"; version = 0 },
+        RT.FQTypeName.UserProgram { modules = []; name = "MyEnum"; version = 0 },
         "A",
         [ RT.EUnit(81264012UL) ]
       ) ]
@@ -283,13 +244,6 @@ module RuntimeTypes =
       known (RT.KnownType.KTTuple(ktUnit, ktUnit, []))
       known (RT.KnownType.KTFn(NEList.singleton ktUnit, ktUnit))
       known (RT.KnownType.KTDB ktUnit)
-      known (
-        RT.KnownType.KTCustomType(
-          RT.FQName.BuiltIn
-            { modules = [ "A" ]; name = RT.TypeName.TypeName "b"; version = 1 },
-          []
-        )
-      )
       known (RT.KnownType.KTDict ktUnit) ]
 
   let dvals : List<RT.Dval> =
@@ -298,8 +252,7 @@ module RuntimeTypes =
 
   let dval : RT.Dval =
     let typeName =
-      RT.FQName.UserProgram
-        { modules = []; name = RT.TypeName.TypeName "MyType"; version = 0 }
+      RT.FQTypeName.UserProgram { modules = []; name = "MyType"; version = 0 }
     sampleDvals
     |> List.map (fun (name, (dv, _)) -> name, dv)
     |> fun fields -> RT.DRecord(typeName, typeName, [], Map fields)
@@ -309,16 +262,11 @@ module ProgramTypes =
 
   let signs = [ Sign.Positive; Sign.Negative ]
 
-  let fqFnNames : List<PT.FnName.FnName> =
-    [ PT.FQName.UserProgram
-        { modules = []; name = PT.FnName.FnName "fn"; version = 0 }
-      PT.FQName.BuiltIn
-        { modules = [ "Int64" ]; name = PT.FnName.FnName "increment"; version = 1 }
-      PT.FQName.Package
-        { owner = "twilio"
-          modules = [ "Twilio" ]
-          name = PT.FnName.FnName "sms"
-          version = 1 } ]
+  let fqFnNames : List<PT.FQFnName.FQFnName> =
+    [ PT.FQFnName.UserProgram { modules = []; name = "fn"; version = 0 }
+      PT.FQFnName.Builtin { modules = [ "Int64" ]; name = "increment"; version = 1 }
+      PT.FQFnName.Package
+        { owner = "twilio"; modules = [ "Twilio" ]; name = "sms"; version = 1 } ]
 
 
   let letPatterns : List<PT.LetPattern> =
@@ -400,28 +348,17 @@ module ProgramTypes =
         PT.TDB PT.TBool
         PT.TCustomType(
           Ok(
-            PT.FQName.UserProgram
-              { modules = [ "Mod" ]
-                name = PT.TypeName.TypeName "User"
-                version = 0 }
+            PT.FQTypeName.UserProgram
+              { modules = [ "Mod" ]; name = "User"; version = 0 }
           ),
           [ PT.TBool ]
         )
         PT.TCustomType(
           Ok(
-            PT.FQName.BuiltIn
-              { modules = [ "Mod" ]
-                name = PT.TypeName.TypeName "User"
-                version = 0 }
-          ),
-          [ PT.TBool ]
-        )
-        PT.TCustomType(
-          Ok(
-            PT.FQName.Package
+            PT.FQTypeName.Package
               { owner = "dark"
                 modules = [ "Mod1"; "Mod2" ]
-                name = PT.TypeName.TypeName "Pack"
+                name = "Pack"
                 version = 0 }
           ),
           [ PT.TBool ]
@@ -496,9 +433,9 @@ module ProgramTypes =
                           PT.EFnName(
                             63953UL,
                             Ok(
-                              PT.FQName.BuiltIn
+                              PT.FQFnName.Builtin
                                 { modules = [ "Int64" ]
-                                  name = PT.FnName.FnName "toString"
+                                  name = "toString"
                                   version = 0 }
                             )
                           ),
@@ -549,9 +486,9 @@ module ProgramTypes =
                                 PT.EFnName(
                                   638434UL,
                                   Ok(
-                                    PT.FQName.BuiltIn
+                                    PT.FQFnName.Builtin
                                       { modules = [ "Int64" ]
-                                        name = PT.FnName.FnName "add"
+                                        name = "add"
                                         version = 0 }
                                   )
                                 ),
@@ -576,9 +513,9 @@ module ProgramTypes =
                         PT.ERecord(
                           109539183UL,
                           Ok(
-                            PT.FQName.UserProgram(
+                            PT.FQTypeName.UserProgram(
                               { modules = [ "dark"; "stdlib" ]
-                                name = PT.TypeName.TypeName "NonEmptyList"
+                                name = "NonEmptyList"
                                 version = 0 }
                             )
                           ),
@@ -609,74 +546,29 @@ module ProgramTypes =
                                  PT.EPipeFnCall(
                                    1021880969UL,
                                    Ok(
-                                     PT.FQName.BuiltIn
+                                     PT.FQFnName.Builtin
                                        { modules = [ "Int64" ]
-                                         name = PT.FnName.FnName "add"
+                                         name = "add"
                                          version = 0 }
                                    ),
                                    [],
-                                   [ (PT.EInt64(250221144UL, 6L))
-                                     (PT.EInt64(298149318UL, 2L)) ]
-                                 )
-                                 PT.EPipeEnum(
-                                   1021880969UL,
-                                   Ok(
-                                     PT.FQName.BuiltIn
-                                       { modules = [ "Int64" ]
-                                         name = PT.TypeName.TypeName "Result"
-                                         version = 0 }
-                                   ),
-                                   "add",
                                    [ (PT.EInt64(250221144UL, 6L))
                                      (PT.EInt64(298149318UL, 2L)) ]
                                  ) ]
                              ))
                             ("enum",
                              PT.EEnum(
-                               567764301UL,
+                               646107057UL,
                                Ok(
-                                 PT.FQName.BuiltIn(
-                                   { modules = []
-                                     name = PT.TypeName.TypeName "Result"
+                                 PT.FQTypeName.Package(
+                                   { owner = "Darklang"
+                                     modules = [ "Stdlib"; "Result" ]
+                                     name = "Result"
                                      version = 0 }
                                  )
                                ),
-                               "Ok",
-                               [ PT.EEnum(
-                                   646107057UL,
-                                   Ok(
-                                     PT.FQName.Package(
-                                       { owner = "Darklang"
-                                         modules = [ "Stdlib"; "Result" ]
-                                         name = PT.TypeName.TypeName "Result"
-                                         version = 0 }
-                                     )
-                                   ),
-                                   "Error",
-                                   [ PT.EEnum(
-                                       689802831UL,
-                                       Ok(
-                                         PT.FQName.BuiltIn(
-                                           { modules = []
-                                             name = PT.TypeName.TypeName "Option"
-                                             version = 0 }
-                                         )
-                                       ),
-                                       "Some",
-                                       [ PT.EEnum(
-                                           957916875UL,
-                                           Ok(
-                                             PT.FQName.BuiltIn(
-                                               { modules = []
-                                                 name = PT.TypeName.TypeName "Option"
-                                                 version = 0 }
-                                             )
-                                           ),
-                                           "None",
-                                           []
-                                         ) ]
-                                     ) ]
-                                 ) ]
+                               "Error",
+                               []
                              )) ]
                         ),
                         PT.ELet(
@@ -697,9 +589,9 @@ module ProgramTypes =
                                 PT.EFnName(
                                   342954UL,
                                   Ok(
-                                    PT.FQName.BuiltIn
+                                    PT.FQFnName.Builtin
                                       { modules = [ "Mod" ]
-                                        name = PT.FnName.FnName "function"
+                                        name = "function"
                                         version = 2 }
                                   )
                                 ),
@@ -974,7 +866,7 @@ module ProgramTypes =
 
   let userFunction : PT.UserFunction.T =
     { tlid = 0UL
-      name = { modules = []; name = PT.FnName.FnName "User"; version = 0 }
+      name = { modules = []; name = "user"; version = 0 }
       typeParams = [ "a" ]
       parameters =
         NEList.singleton
@@ -988,7 +880,7 @@ module ProgramTypes =
 
   let userRecordType : PT.UserType.T =
     { tlid = 0UL
-      name = { modules = []; name = PT.TypeName.TypeName "User"; version = 0 }
+      name = { modules = []; name = "User"; version = 0 }
       description = "test description"
       deprecated = PT.NotDeprecated
       declaration =
@@ -1000,7 +892,7 @@ module ProgramTypes =
 
   let userEnumType : PT.UserType.T =
     { tlid = 0UL
-      name = { modules = []; name = PT.TypeName.TypeName "User"; version = 0 }
+      name = { modules = []; name = "User"; version = 0 }
       deprecated = PT.NotDeprecated
       description = "test description"
       declaration =
@@ -1019,7 +911,7 @@ module ProgramTypes =
 
   let userConstant : PT.UserConstant.T =
     { tlid = 0UL
-      name = { modules = []; name = PT.ConstantName.ConstantName "Pi"; version = 0 }
+      name = { modules = []; name = "pi"; version = 0 }
       description = "constant description"
       deprecated = PT.DeprecatedBecause "some reason"
       body = constValue }
@@ -1033,7 +925,7 @@ module ProgramTypes =
     { name =
         { owner = "dark"
           modules = [ "stdlib"; "Int64"; "Int64" ]
-          name = PT.FnName.FnName "mod"
+          name = "mod"
           version = 0 }
       body = expr
       typeParams = [ "a" ]
@@ -1052,7 +944,7 @@ module ProgramTypes =
     { name =
         { owner = "darklang"
           modules = [ "stdlib"; "Int64"; "Int64" ]
-          name = PT.TypeName.TypeName "Int64"
+          name = "Int64"
           version = 0 }
       declaration =
         { typeParams = [ "a" ]
@@ -1076,7 +968,7 @@ module ProgramTypes =
     { name =
         { owner = "dark"
           modules = [ "stdlib"; "Int64"; "Int64" ]
-          name = PT.ConstantName.ConstantName "testConstant"
+          name = "testConstant"
           version = 0 }
       body = constValue
       description = "test"

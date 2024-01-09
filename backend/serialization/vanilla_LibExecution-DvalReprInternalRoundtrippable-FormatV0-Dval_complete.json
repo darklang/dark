@@ -4,11 +4,7 @@
       "UserProgram": [
         {
           "modules": [],
-          "name": {
-            "TypeName": [
-              "MyType"
-            ]
-          },
+          "name": "MyType",
           "version": 0
         }
       ]
@@ -17,11 +13,7 @@
       "UserProgram": [
         {
           "modules": [],
-          "name": {
-            "TypeName": [
-              "MyType"
-            ]
-          },
+          "name": "MyType",
           "version": 0
         }
       ]
@@ -7124,11 +7116,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7141,11 +7129,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7165,11 +7149,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7182,11 +7162,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7212,11 +7188,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7229,11 +7201,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7259,11 +7227,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7276,11 +7240,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7306,11 +7266,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7323,11 +7279,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7353,11 +7305,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7370,11 +7318,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7400,11 +7344,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7417,11 +7357,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7447,11 +7383,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7464,11 +7396,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7494,11 +7422,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7511,11 +7435,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7541,11 +7461,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7558,11 +7474,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7588,11 +7500,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7605,11 +7513,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7635,11 +7539,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7652,11 +7552,7 @@
                   "Stdlib",
                   "Option"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Option"
-                  ]
-                },
+                "name": "Option",
                 "version": 0
               }
             ]
@@ -7691,11 +7587,7 @@
                   "Two",
                   "Modules"
                 ],
-                "name": {
-                  "TypeName": [
-                    "Foo"
-                  ]
-                },
+                "name": "Foo",
                 "version": 0
               }
             ]
@@ -7707,11 +7599,7 @@
                   "Two",
                   "Modules"
                 ],
-                "name": {
-                  "TypeName": [
-                    "FooAlias"
-                  ]
-                },
+                "name": "FooAlias",
                 "version": 0
               }
             ]
@@ -7732,11 +7620,7 @@
             "UserProgram": [
               {
                 "modules": [],
-                "name": {
-                  "TypeName": [
-                    "Foo"
-                  ]
-                },
+                "name": "Foo",
                 "version": 0
               }
             ]
@@ -7745,11 +7629,7 @@
             "UserProgram": [
               {
                 "modules": [],
-                "name": {
-                  "TypeName": [
-                    "FooAlias"
-                  ]
-                },
+                "name": "FooAlias",
                 "version": 0
               }
             ]
@@ -7784,11 +7664,7 @@
             "UserProgram": [
               {
                 "modules": [],
-                "name": {
-                  "TypeName": [
-                    "Foo"
-                  ]
-                },
+                "name": "Foo",
                 "version": 0
               }
             ]
@@ -7797,11 +7673,7 @@
             "UserProgram": [
               {
                 "modules": [],
-                "name": {
-                  "TypeName": [
-                    "Foo"
-                  ]
-                },
+                "name": "Foo",
                 "version": 0
               }
             ]
@@ -7827,11 +7699,7 @@
             "UserProgram": [
               {
                 "modules": [],
-                "name": {
-                  "TypeName": [
-                    "Foo"
-                  ]
-                },
+                "name": "Foo",
                 "version": 0
               }
             ]
@@ -7840,11 +7708,7 @@
             "UserProgram": [
               {
                 "modules": [],
-                "name": {
-                  "TypeName": [
-                    "Foo"
-                  ]
-                },
+                "name": "Foo",
                 "version": 0
               }
             ]
@@ -7872,11 +7736,7 @@
                       "UserProgram": [
                         {
                           "modules": [],
-                          "name": {
-                            "TypeName": [
-                              "Foo"
-                            ]
-                          },
+                          "name": "Foo",
                           "version": 0
                         }
                       ]
@@ -7902,11 +7762,7 @@
             "UserProgram": [
               {
                 "modules": [],
-                "name": {
-                  "TypeName": [
-                    "Foo"
-                  ]
-                },
+                "name": "Foo",
                 "version": 0
               }
             ]
@@ -7915,11 +7771,7 @@
             "UserProgram": [
               {
                 "modules": [],
-                "name": {
-                  "TypeName": [
-                    "Foo"
-                  ]
-                },
+                "name": "Foo",
                 "version": 0
               }
             ]
@@ -8012,11 +7864,7 @@
                       "Stdlib",
                       "Result"
                     ],
-                    "name": {
-                      "TypeName": [
-                        "Result"
-                      ]
-                    },
+                    "name": "Result",
                     "version": 0
                   }
                 ]
@@ -8029,11 +7877,7 @@
                       "Stdlib",
                       "Result"
                     ],
-                    "name": {
-                      "TypeName": [
-                        "Result"
-                      ]
-                    },
+                    "name": "Result",
                     "version": 0
                   }
                 ]

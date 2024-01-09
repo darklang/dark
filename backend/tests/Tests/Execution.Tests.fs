@@ -25,9 +25,9 @@ type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
 
 let executionStateForPreview
   (dbs : Map<string, DB.T>)
-  (types : Map<TypeName.UserProgram, UserType.T>)
-  (fns : Map<FnName.UserProgram, UserFunction.T>)
-  (constants : Map<ConstantName.UserProgram, UserConstant.T>)
+  (types : Map<FQTypeName.UserProgram, UserType.T>)
+  (fns : Map<FQFnName.UserProgram, UserFunction.T>)
+  (constants : Map<FQConstantName.UserProgram, UserConstant.T>)
   : Task<AT.AnalysisResults * ExecutionState> =
   task {
     let canvasID = System.Guid.NewGuid()
@@ -80,7 +80,7 @@ let testExecFunctionTLIDs : Test =
       Exe.executeFunction
         state
         None
-        (FQName.UserProgram fn.name)
+        (FQFnName.UserProgram fn.name)
         []
         (NEList.singleton DUnit)
 

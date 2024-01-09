@@ -12,7 +12,6 @@ open LibExecution.Builtin.Shortcuts
 module VT = ValueType
 module Dval = LibExecution.Dval
 
-let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 module ParseError =
@@ -26,7 +25,8 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = TypeName.fqPackage "Darklang" [ "Stdlib"; "Int8" ] "ParseError" 0
+    let typeName =
+      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int8" ] "ParseError" 0
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -378,18 +378,13 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType =
-        TypeReference.result
-          TInt8
-          (TCustomType(
-            Ok(
-              FQName.Package
-                { owner = "Darklang"
-                  modules = [ "Stdlib"; "Int8" ]
-                  name = TypeName.TypeName "ParseError"
-                  version = 0 }
-            ),
-            []
-          ))
+        let errorType =
+          FQTypeName.Package
+            { owner = "Darklang"
+              modules = [ "Stdlib"; "Int8" ]
+              name = "ParseError"
+              version = 0 }
+        TypeReference.result TInt8 (TCustomType(Ok errorType, []))
       description = "Returns the <type Int8> value of a <type String>"
       fn =
         let resultOk = Dval.resultOk KTInt8 KTString
@@ -582,4 +577,4 @@ let fns : List<BuiltInFn> =
 
     ]
 
-let contents = (fns, types, constants)
+let contents = (fns, constants)

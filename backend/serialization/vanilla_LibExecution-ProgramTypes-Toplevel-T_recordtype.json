@@ -4,11 +4,7 @@
       "tlid": 0,
       "name": {
         "modules": [],
-        "name": {
-          "TypeName": [
-            "User"
-          ]
-        },
+        "name": "User",
         "version": 0
       },
       "declaration": {
@@ -111,39 +107,7 @@
                                     "modules": [
                                       "Mod"
                                     ],
-                                    "name": {
-                                      "TypeName": [
-                                        "User"
-                                      ]
-                                    },
-                                    "version": 0
-                                  }
-                                ]
-                              }
-                            ]
-                          },
-                          [
-                            {
-                              "TBool": []
-                            }
-                          ]
-                        ]
-                      },
-                      {
-                        "TCustomType": [
-                          {
-                            "Ok": [
-                              {
-                                "BuiltIn": [
-                                  {
-                                    "modules": [
-                                      "Mod"
-                                    ],
-                                    "name": {
-                                      "TypeName": [
-                                        "User"
-                                      ]
-                                    },
+                                    "name": "User",
                                     "version": 0
                                   }
                                 ]
@@ -169,11 +133,7 @@
                                       "Mod1",
                                       "Mod2"
                                     ],
-                                    "name": {
-                                      "TypeName": [
-                                        "Pack"
-                                      ]
-                                    },
+                                    "name": "Pack",
                                     "version": 0
                                   }
                                 ]

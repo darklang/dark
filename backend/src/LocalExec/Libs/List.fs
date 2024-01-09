@@ -15,7 +15,6 @@ module TypeChecker = LibExecution.TypeChecker
 
 let varA = TVariable "a"
 
-let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 
@@ -83,4 +82,4 @@ let fns : List<BuiltInFn> =
 
     ]
 
-let contents = (fns, types, constants)
+let contents = (fns, constants)

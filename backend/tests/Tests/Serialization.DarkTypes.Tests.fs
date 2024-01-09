@@ -30,13 +30,12 @@ module RoundtripTests =
   let types : RT.Types =
     { typeSymbolTable = Map.empty
 
-      builtIn = localBuiltIns.types
       package = packageManager.getType
       userProgram = Map.empty }
 
   let testRoundtrip
     (testName : string)
-    (typeName : RT.TypeName.TypeName)
+    (typeName : RT.FQTypeName.FQTypeName)
     (original : 'a)
     (toDT : 'a -> RT.Dval)
     (fromDT : RT.Dval -> 'a)
@@ -48,7 +47,7 @@ module RoundtripTests =
       let context =
         LibExecution.TypeChecker.Context.FunctionCallResult(
           fnName =
-            (RT.FnName.fqPackage
+            (RT.FQFnName.fqPackage
               "Darklang"
               [ "LanguageTools"; "ProgramTypes" ]
               "expr"
@@ -86,7 +85,7 @@ module RoundtripTests =
 
   let testRoundtripList
     (testName : string)
-    (typeName : RT.TypeName.TypeName)
+    (typeName : RT.FQTypeName.FQTypeName)
     (original : List<'a>)
     (toDT : 'a -> RT.Dval)
     (fromDT : RT.Dval -> 'a)
@@ -103,7 +102,7 @@ module RoundtripTests =
   module RuntimeTypes =
 
     let pkg mods name v =
-      RT.TypeName.fqPackage
+      RT.FQTypeName.fqPackage
         "Darklang"
         (([ "LanguageTools"; "RuntimeTypes" ] @ mods))
         name
@@ -111,27 +110,27 @@ module RoundtripTests =
 
     let tests =
       [ testRoundtripList
-          "RT.TypeName"
-          (pkg [ "TypeName" ] "TypeName" 0)
+          "RT.FQTypeName"
+          (pkg [ "FQTypeName" ] "FQTypeName" 0)
           V.RuntimeTypes.fqTypeNames
-          RT2DT.TypeName.toDT
-          RT2DT.TypeName.fromDT
+          RT2DT.FQTypeName.toDT
+          RT2DT.FQTypeName.fromDT
           None
 
         testRoundtripList
-          "RT.FnName"
-          (pkg [ "FnName" ] "FnName" 0)
+          "RT.FQFnName"
+          (pkg [ "FQFnName" ] "FQFnName" 0)
           V.RuntimeTypes.fqFnNames
-          RT2DT.FnName.toDT
-          RT2DT.FnName.fromDT
+          RT2DT.FQFnName.toDT
+          RT2DT.FQFnName.fromDT
           None
 
         testRoundtripList
-          "RT.ConstantName"
-          (pkg [ "ConstantName" ] "ConstantName" 0)
+          "RT.FQConstantName"
+          (pkg [ "FQConstantName" ] "FQConstantName" 0)
           V.RuntimeTypes.fqConstantNames
-          RT2DT.ConstantName.toDT
-          RT2DT.ConstantName.fromDT
+          RT2DT.FQConstantName.toDT
+          RT2DT.FQConstantName.fromDT
           None
 
         testRoundtripList
@@ -176,7 +175,7 @@ module RoundtripTests =
   module ProgramTypes =
 
     let pkg mods name v =
-      RT.TypeName.fqPackage
+      RT.FQTypeName.fqPackage
         "Darklang"
         (([ "LanguageTools"; "ProgramTypes" ] @ mods))
         name

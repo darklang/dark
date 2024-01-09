@@ -89,7 +89,7 @@ module JsonPath =
       | Field of string
 
     let typeName =
-      TypeName.fqPackage
+      FQTypeName.fqPackage
         "Darklang"
         [ "Stdlib"; "Json"; "ParseError"; "JsonPath"; "Part" ]
         "Part"
@@ -289,7 +289,7 @@ let rec serialize
 module ParseError =
   module RT2DT = LibExecution.RuntimeTypesToDarkTypes
   let typeName =
-    TypeName.fqPackage "Darklang" [ "Stdlib"; "Json"; "ParseError" ] "ParseError" 0
+    FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Json"; "ParseError" ] "ParseError" 0
   type ParseError =
     /// The json string can't be parsed as the given type.
     | CantMatchWithType of TypeReference * string * JsonPath.JsonPath
@@ -806,7 +806,6 @@ let parse
     }
 
 
-let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "Json" ]
@@ -863,4 +862,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let contents = (fns, types, constants)
+let contents = (fns, constants)

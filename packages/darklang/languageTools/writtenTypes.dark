@@ -34,7 +34,7 @@ module Darklang =
 
       // Types
       module TypeReference =
-        type BuiltIn =
+        type Builtin =
           | TUnit of SourceRange
           | TBool of SourceRange
           | TInt64 of SourceRange
@@ -43,7 +43,7 @@ module Darklang =
           | TString of SourceRange
 
         type TypeReference =
-          | BuiltIn of BuiltIn
+          | Builtin of Builtin
           | QualifiedName of QualifiedTypeIdentifier
 
 

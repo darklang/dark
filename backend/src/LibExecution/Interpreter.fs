@@ -34,11 +34,11 @@ module ExecutionError =
     | MatchExprPatternWrongType of string * Dval
     | MatchExprUnmatched of Dval
     | NonStringInStringInterpolation of Dval
-    | ConstDoesntExist of ConstantName.ConstantName
+    | ConstDoesntExist of FQConstantName.FQConstantName
 
   let toDT (e : Error) : RuntimeError =
     let typeName =
-      TypeName.fqPackage
+      FQTypeName.fqPackage
         "Darklang"
         [ "LanguageTools"; "RuntimeErrors"; "Execution" ]
         "Error"
@@ -61,7 +61,8 @@ module ExecutionError =
       | NonStringInStringInterpolation dv ->
         "NonStringInStringInterpolation", [ RT2DT.Dval.toDT dv ]
 
-      | ConstDoesntExist name -> "ConstDoesntExist", [ RT2DT.ConstantName.toDT name ]
+      | ConstDoesntExist name ->
+        "ConstDoesntExist", [ RT2DT.FQConstantName.toDT name ]
 
     case caseName fields
 
@@ -153,21 +154,21 @@ let rec eval
   let typeResolutionError
     (source : Source)
     (errorType : NameResolutionError.ErrorType)
-    (typeName : TypeName.TypeName)
+    (typeName : FQTypeName.FQTypeName)
     : Ply<'a> =
     let error : NameResolutionError.Error =
       { errorType = errorType
         nameType = NameResolutionError.Type
-        names = [ TypeName.toString typeName ] }
+        names = [ FQTypeName.toString typeName ] }
     error |> NameResolutionError.RTE.toRuntimeError |> raiseRTE source
 
   let recordMaybe
     (source : Source)
     (types : Types)
-    (typeName : TypeName.TypeName)
+    (typeName : FQTypeName.FQTypeName)
     // TypeName, typeParam list, fully-resolved (except for typeParam) field list
-    : Ply<TypeName.TypeName * List<string> * List<string * TypeReference>> =
-    let rec inner (typeName : TypeName.TypeName) =
+    : Ply<FQTypeName.FQTypeName * List<string> * List<string * TypeReference>> =
+    let rec inner (typeName : FQTypeName.FQTypeName) =
       uply {
         match! Types.find typeName types with
         | Some({ typeParams = outerTypeParams
@@ -232,9 +233,9 @@ let rec eval
   let enumMaybe
     (source : Source)
     (types : Types)
-    (typeName : TypeName.TypeName)
-    : Ply<TypeName.TypeName * List<string> * NEList<TypeDeclaration.EnumCase>> =
-    let rec inner (typeName : TypeName.TypeName) =
+    (typeName : FQTypeName.FQTypeName)
+    : Ply<FQTypeName.FQTypeName * List<string> * NEList<TypeDeclaration.EnumCase>> =
+    let rec inner (typeName : FQTypeName.FQTypeName) =
       uply {
         match! Types.find typeName types with
         | Some({ typeParams = outerTypeParams
@@ -309,17 +310,17 @@ let rec eval
     | EConstant(id, name) ->
       let source = sourceID id
       match name with
-      | FQName.UserProgram c ->
+      | FQConstantName.UserProgram c ->
         match Map.find c state.program.constants with
         | None ->
           return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
         | Some constant -> return evalConst source constant.body
-      | FQName.BuiltIn c ->
+      | FQConstantName.Builtin c ->
         match Map.find c state.builtIns.constants with
         | None ->
           return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
         | Some constant -> return constant.body
-      | FQName.Package c ->
+      | FQConstantName.Package c ->
         match! state.packageManager.getConstant c with
         | None ->
           return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
@@ -353,7 +354,7 @@ let rec eval
 
 
     | ERecord(id, typeName, fields) ->
-      let typeStr = TypeName.toString typeName
+      let typeStr = FQTypeName.toString typeName
       let types = ExecutionState.availableTypes state
       let source = sourceID id
 
@@ -398,7 +399,7 @@ let rec eval
       let! baseRecord = eval state tlid tst st baseRecord
       match baseRecord with
       | DRecord(typeName, _, typ, _) ->
-        let typeStr = TypeName.toString typeName
+        let typeStr = FQTypeName.toString typeName
         let types = ExecutionState.availableTypes state
 
         let! (_, _, expected) = recordMaybe source types typeName
@@ -468,7 +469,7 @@ let rec eval
           match Map.find fieldName fields with
           | Some v -> return v
           | None ->
-            let typeStr = TypeName.toString typeName
+            let typeStr = FQTypeName.toString typeName
             return errStr id $"No field named {fieldName} in {typeStr} record"
         | DDB _ ->
           let msg =
@@ -796,7 +797,7 @@ let rec eval
 
     | EEnum(id, sourceTypeName, caseName, fields) ->
       let source = sourceID id
-      let typeStr = TypeName.toString sourceTypeName
+      let typeStr = FQTypeName.toString sourceTypeName
       let types = ExecutionState.availableTypes state
 
       let! (resolvedTypeName, _, cases) = enumMaybe source types sourceTypeName
@@ -900,18 +901,18 @@ and callFn
   (state : ExecutionState)
   (tst : TypeSymbolTable)
   (caller : Source)
-  (desc : FnName.FnName)
+  (desc : FQFnName.FQFnName)
   (typeArgs : List<TypeReference>)
   (args : NEList<Dval>)
   : DvalTask =
   uply {
     let! fn =
       match desc with
-      | FQName.BuiltIn std ->
+      | FQFnName.Builtin std ->
         Map.find std state.builtIns.fns |> Option.map builtInFnToFn |> Ply
-      | FQName.UserProgram u ->
+      | FQFnName.UserProgram u ->
         Map.find u state.program.fns |> Option.map userFnToFn |> Ply
-      | FQName.Package pkg ->
+      | FQFnName.Package pkg ->
         uply {
           let! fn = state.packageManager.getFn pkg
           return Option.map packageFnToFn fn
@@ -927,7 +928,7 @@ and callFn
 
       if expectedTypeParams <> actualTypeArgs || expectedArgs <> actualArgs then
         let msg =
-          $"{FnName.toString desc} has {expectedTypeParams} type parameters and {expectedArgs} parameters, "
+          $"{FQFnName.toString desc} has {expectedTypeParams} type parameters and {expectedArgs} parameters, "
           + $"but here was called with {actualTypeArgs} type arguments and {actualArgs} arguments."
         raiseRTE caller (RuntimeError.oldError msg)
 
@@ -951,13 +952,13 @@ and callFn
         return
           raiseRTE
             caller
-            (RuntimeError.oldError $"Function {FnName.toString desc} is not found")
+            (RuntimeError.oldError $"Function {FQFnName.toString desc} is not found")
   }
 
 
 and execFn
   (state : ExecutionState)
-  (fnDesc : FnName.FnName)
+  (fnDesc : FQFnName.FQFnName)
   (caller : Source)
   (fn : Fn)
   (typeArgs : List<TypeReference>)

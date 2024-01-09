@@ -7,7 +7,6 @@ open LibExecution.Builtin.Shortcuts
 module VT = ValueType
 module Dval = LibExecution.Dval
 
-let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fn = fn [ "Float" ]
@@ -20,7 +19,8 @@ module ParseError =
       match e with
       | BadFormat -> "BadFormat", []
 
-    let typeName = TypeName.fqPackage "Darklang" [ "Stdlib"; "Float" ] "ParseError" 0
+    let typeName =
+      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Float" ] "ParseError" 0
     DEnum(typeName, typeName, [], caseName, fields)
 
 let fns : List<BuiltInFn> =
@@ -283,10 +283,10 @@ let fns : List<BuiltInFn> =
           TFloat
           (TCustomType(
             Ok(
-              FQName.Package
+              FQTypeName.Package
                 { owner = "Darklang"
                   modules = [ "Stdlib"; "Int64" ]
-                  name = TypeName.TypeName "ParseError"
+                  name = "ParseError"
                   version = 0 }
             ),
             []
@@ -348,4 +348,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types, constants)
+let contents = (fns, constants)

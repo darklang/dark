@@ -35,7 +35,7 @@ let parserTests =
             PT.EVariable(id, "x"),
             [ PT.EPipeFnCall(
                 id,
-                Ok(PT.FnName.fqPackage "Darklang" [ "Stdlib"; "List" ] "map" 0),
+                Ok(PT.FQFnName.fqPackage "Darklang" [ "Stdlib"; "List" ] "map" 0),
                 [],
                 [ PT.EInt64(id, 5L) ]
               ) ]

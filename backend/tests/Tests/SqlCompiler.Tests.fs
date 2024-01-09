@@ -35,8 +35,8 @@ let compile
   task {
     let canvasID = System.Guid.NewGuid()
 
-    let typeName : TypeName.UserProgram =
-      { modules = []; name = TypeName.TypeName "MyType"; version = 0 }
+    let typeName : FQTypeName.UserProgram =
+      { modules = []; name = "MyType"; version = 0 }
     let field : TypeDeclaration.RecordField = { name = rowName; typ = rowType }
     let userType : UserType.T =
       { tlid = gid ()
@@ -45,7 +45,7 @@ let compile
           { typeParams = []
             definition = TypeDeclaration.Record(NEList.singleton field) } }
     let userTypes = Map [ typeName, userType ]
-    let typeReference = TCustomType(Ok(FQName.UserProgram typeName), [])
+    let typeReference = TCustomType(Ok(FQTypeName.UserProgram typeName), [])
 
     let! state =
       executionStateFor canvasID false false Map.empty userTypes Map.empty Map.empty
@@ -259,7 +259,7 @@ let inlineWorksWithUserFunctions =
 
     let nr =
       { nameResolver with
-          userFns = Set.singleton (PT.FnName.userProgram [] "userAdd" 0) }
+          userFns = Set.singleton (PT.FQFnName.userProgram [] "userAdd" 0) }
 
     let! expr =
       parse
@@ -304,7 +304,7 @@ let inlineWorksWithPackageAndUserFunctions =
 
     let nr =
       { nameResolver with
-          userFns = Set.singleton (PT.FnName.userProgram [] "userAnd" 0) }
+          userFns = Set.singleton (PT.FQFnName.userProgram [] "userAnd" 0) }
 
     let! expr =
       parse
@@ -347,7 +347,7 @@ let inlineFunctionArguments =
 
     let nr =
       { nameResolver with
-          userFns = Set.singleton (PT.FnName.userProgram [] "userAdd" 0) }
+          userFns = Set.singleton (PT.FQFnName.userProgram [] "userAdd" 0) }
 
     let! expr = parse nr "let a = 1 in let b = 9 in (p.height == userAdd 6 (b - 4))"
 

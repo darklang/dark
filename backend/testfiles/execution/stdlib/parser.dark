@@ -117,13 +117,13 @@ module ParseNodeToWrittenTypes =
                             .WrittenTypes
                             .TypeReference
                             .TypeReference
-                            .BuiltIn(
+                            .Builtin(
                               PACKAGE
                                 .Darklang
                                 .LanguageTools
                                 .WrittenTypes
                                 .TypeReference
-                                .BuiltIn
+                                .Builtin
                                 .TInt64(range (0L, 12L) (0L, 17L))
                             )
                         )

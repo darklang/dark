@@ -10,7 +10,7 @@ module Darklang =
             expected: Int64 *
             actual: Int64
           | NonStringInStringInterpolation of RuntimeTypes.Dval.Dval
-          | ConstDoesntExist of RuntimeTypes.ConstantName.ConstantName
+          | ConstDoesntExist of RuntimeTypes.FQConstantName.FQConstantName
 
         let toSegments (e: Error) : ErrorOutput =
           match e with

@@ -114,23 +114,31 @@ let parse
 
       let modul : WTPackageModule = parseDecls baseModule decls
 
-      let nameToModules (p : PT.FQName.Package<'a>) : List<string> =
+
+      let typeNameToModules (p : PT.FQTypeName.Package) : List<string> =
+        "PACKAGE" :: p.owner :: p.modules
+
+      let fnNameToModules (p : PT.FQFnName.Package) : List<string> =
+        "PACKAGE" :: p.owner :: p.modules
+
+      let constantNameToModules (p : PT.FQConstantName.Package) : List<string> =
         "PACKAGE" :: p.owner :: p.modules
 
       let fns =
         modul.fns
         |> List.map _.name
-        |> List.map LibExecution.ProgramTypesToRuntimeTypes.FnName.Package.toRT
+        |> List.map LibExecution.ProgramTypesToRuntimeTypes.FQFnName.Package.toRT
         |> Set
       let types =
         modul.types
         |> List.map _.name
-        |> List.map LibExecution.ProgramTypesToRuntimeTypes.TypeName.Package.toRT
+        |> List.map LibExecution.ProgramTypesToRuntimeTypes.FQTypeName.Package.toRT
         |> Set
       let constants =
         modul.constants
         |> List.map _.name
-        |> List.map LibExecution.ProgramTypesToRuntimeTypes.ConstantName.Package.toRT
+        |> List.map
+          LibExecution.ProgramTypesToRuntimeTypes.FQConstantName.Package.toRT
         |> Set
 
       let resolver =
@@ -141,17 +149,20 @@ let parse
       let! fns =
         modul.fns
         |> Ply.List.mapSequentially (fun fn ->
-          WT2PT.PackageFn.toPT resolver (nameToModules fn.name) fn)
+          WT2PT.PackageFn.toPT resolver (fnNameToModules fn.name) fn)
 
       let! types =
         modul.types
         |> Ply.List.mapSequentially (fun typ ->
-          WT2PT.PackageType.toPT resolver (nameToModules typ.name) typ)
+          WT2PT.PackageType.toPT resolver (typeNameToModules typ.name) typ)
 
       let! constants =
         modul.constants
         |> Ply.List.mapSequentially (fun constant ->
-          WT2PT.PackageConstant.toPT resolver (nameToModules constant.name) constant)
+          WT2PT.PackageConstant.toPT
+            resolver
+            (constantNameToModules constant.name)
+            constant)
 
 
       return { fns = fns; types = types; constants = constants }

@@ -12,7 +12,6 @@ open LibExecution.Builtin.Shortcuts
 module VT = ValueType
 module Dval = LibExecution.Dval
 
-let types : List<BuiltInType> = []
 
 let modules = [ "UInt128" ]
 let fn = fn modules
@@ -32,7 +31,7 @@ module ParseError =
       | OutOfRange -> "OutOfRange", []
 
     let typeName =
-      TypeName.fqPackage "Darklang" [ "Stdlib"; "UInt128" ] "ParseError" 0
+      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "UInt128" ] "ParseError" 0
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -272,10 +271,10 @@ let fns : List<BuiltInFn> =
           TUInt128
           (TCustomType(
             Ok(
-              FQName.Package
+              FQTypeName.Package
                 { owner = "Darklang"
                   modules = [ "Stdlib"; "UInt128" ]
-                  name = TypeName.TypeName "ParseError"
+                  name = "ParseError"
                   version = 0 }
             ),
             []
@@ -357,4 +356,4 @@ let fns : List<BuiltInFn> =
 
     ]
 
-let contents = (fns, types, constants)
+let contents = (fns, constants)

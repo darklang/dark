@@ -13,97 +13,9 @@ module NEList =
 
   let toPT (l : ST.NEList<'a>) : NEList<'a> = { head = l.head; tail = l.tail }
 
-module TypeName =
-
-  module BuiltIn =
-    let toST (b : PT.TypeName.BuiltIn) : ST.TypeName.BuiltIn =
-      let (PT.TypeName.TypeName name) = b.name
-      { modules = b.modules; name = name; version = b.version }
-
-    let toPT (b : ST.TypeName.BuiltIn) : PT.TypeName.BuiltIn =
-      { modules = b.modules
-        name = PT.TypeName.TypeName b.name
-        version = b.version }
-
-  module UserProgram =
-    let toST (u : PT.TypeName.UserProgram) : ST.TypeName.UserProgram =
-      let (PT.TypeName.TypeName name) = u.name
-      { modules = u.modules; name = name; version = u.version }
-
-    let toPT (u : ST.TypeName.UserProgram) : PT.TypeName.UserProgram =
-      { modules = u.modules
-        name = PT.TypeName.TypeName u.name
-        version = u.version }
-
-  module Package =
-    let toST (p : PT.TypeName.Package) : ST.TypeName.Package =
-      let (PT.TypeName.TypeName name) = p.name
-      { owner = p.owner; modules = p.modules; name = name; version = p.version }
-
-    let toPT (p : ST.TypeName.Package) : PT.TypeName.Package =
-      { owner = p.owner
-        modules = p.modules
-        name = PT.TypeName.TypeName p.name
-        version = p.version }
-
-  let toST (fqtn : PT.TypeName.TypeName) : ST.TypeName.TypeName =
-    match fqtn with
-    | PT.FQName.BuiltIn s -> ST.TypeName.BuiltIn(BuiltIn.toST s)
-    | PT.FQName.UserProgram u -> ST.TypeName.UserProgram(UserProgram.toST u)
-    | PT.FQName.Package p -> ST.TypeName.Package(Package.toST p)
-
-  let toPT (fqfn : ST.TypeName.TypeName) : PT.TypeName.TypeName =
-    match fqfn with
-    | ST.TypeName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
-    | ST.TypeName.UserProgram u -> PT.FQName.UserProgram(UserProgram.toPT u)
-    | ST.TypeName.Package p -> PT.FQName.Package(Package.toPT p)
-
-
-
-module FnName =
-
-  module BuiltIn =
-    let toST (b : PT.FnName.BuiltIn) : ST.FnName.BuiltIn =
-      let (PT.FnName.FnName name) = b.name
-      { modules = b.modules; name = name; version = b.version }
-
-    let toPT (b : ST.FnName.BuiltIn) : PT.FnName.BuiltIn =
-      { modules = b.modules; name = PT.FnName.FnName b.name; version = b.version }
-
-  module UserProgram =
-    let toST (u : PT.FnName.UserProgram) : ST.FnName.UserProgram =
-      let (PT.FnName.FnName name) = u.name
-      { modules = u.modules; name = name; version = u.version }
-
-    let toPT (u : ST.FnName.UserProgram) : PT.FnName.UserProgram =
-      { modules = u.modules; name = PT.FnName.FnName u.name; version = u.version }
-
-  module Package =
-    let toST (p : PT.FnName.Package) : ST.FnName.Package =
-      let (PT.FnName.FnName name) = p.name
-      { owner = p.owner; modules = p.modules; name = name; version = p.version }
-
-    let toPT (p : ST.FnName.Package) : PT.FnName.Package =
-      { owner = p.owner
-        modules = p.modules
-        name = PT.FnName.FnName p.name
-        version = p.version }
-
-  let toST (fqfn : PT.FnName.FnName) : ST.FnName.FnName =
-    match fqfn with
-    | PT.FQName.BuiltIn s -> ST.FnName.BuiltIn(BuiltIn.toST s)
-    | PT.FQName.UserProgram u -> ST.FnName.UserProgram(UserProgram.toST u)
-    | PT.FQName.Package p -> ST.FnName.Package(Package.toST p)
-
-  let toPT (fqfn : ST.FnName.FnName) : PT.FnName.FnName =
-    match fqfn with
-    | ST.FnName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
-    | ST.FnName.UserProgram u -> PT.FQName.UserProgram(UserProgram.toPT u)
-    | ST.FnName.Package p -> PT.FQName.Package(Package.toPT p)
 
 
 module NameResolutionError =
-
   module NameType =
     let toST
       (nameType : LibExecution.NameResolutionError.NameType)
@@ -181,54 +93,128 @@ module NameResolution =
     | Error err -> Error(NameResolutionError.Error.toPT err)
 
 
+module FQTypeName =
+  module Package =
+    let toST (name : PT.FQTypeName.Package) : ST.FQTypeName.Package =
+      { owner = name.owner
+        modules = name.modules
+        name = name.name
+        version = name.version }
 
-module ConstantName =
-  module BuiltIn =
-    let toST (b : PT.ConstantName.BuiltIn) : ST.ConstantName.BuiltIn =
-      let (PT.ConstantName.ConstantName name) = b.name
-      { modules = b.modules; name = name; version = b.version }
-
-    let toPT (b : ST.ConstantName.BuiltIn) : PT.ConstantName.BuiltIn =
-      { modules = b.modules
-        name = PT.ConstantName.ConstantName b.name
-        version = b.version }
+    let toPT (name : ST.FQTypeName.Package) : PT.FQTypeName.Package =
+      { owner = name.owner
+        modules = name.modules
+        name = name.name
+        version = name.version }
 
   module UserProgram =
-    let toST (u : PT.ConstantName.UserProgram) : ST.ConstantName.UserProgram =
-      let (PT.ConstantName.ConstantName name) = u.name
-      { modules = u.modules; name = name; version = u.version }
+    let toST (name : PT.FQTypeName.UserProgram) : ST.FQTypeName.UserProgram =
+      { modules = name.modules; name = name.name; version = name.version }
 
-    let toPT (u : ST.ConstantName.UserProgram) : PT.ConstantName.UserProgram =
-      { modules = u.modules
-        name = PT.ConstantName.ConstantName u.name
-        version = u.version }
+    let toPT (name : ST.FQTypeName.UserProgram) : PT.FQTypeName.UserProgram =
+      { modules = name.modules; name = name.name; version = name.version }
+
+
+
+  let toST (name : PT.FQTypeName.FQTypeName) : ST.FQTypeName.FQTypeName =
+    match name with
+    | PT.FQTypeName.Package name -> ST.FQTypeName.Package(Package.toST name)
+    | PT.FQTypeName.UserProgram name ->
+      ST.FQTypeName.UserProgram(UserProgram.toST name)
+
+  let toPT (name : ST.FQTypeName.FQTypeName) : PT.FQTypeName.FQTypeName =
+    match name with
+    | ST.FQTypeName.Package name -> PT.FQTypeName.Package(Package.toPT name)
+    | ST.FQTypeName.UserProgram name ->
+      PT.FQTypeName.UserProgram(UserProgram.toPT name)
+
+
+module FQConstantName =
+  module Builtin =
+    let toST (name : PT.FQConstantName.Builtin) : ST.FQConstantName.Builtin =
+      { modules = name.modules; name = name.name; version = name.version }
+
+    let toPT (name : ST.FQConstantName.Builtin) : PT.FQConstantName.Builtin =
+      { modules = name.modules; name = name.name; version = name.version }
 
   module Package =
-    let toST (p : PT.ConstantName.Package) : ST.ConstantName.Package =
-      let (PT.ConstantName.ConstantName name) = p.name
-      { owner = p.owner; modules = p.modules; name = name; version = p.version }
+    let toST (name : PT.FQConstantName.Package) : ST.FQConstantName.Package =
+      { owner = name.owner
+        modules = name.modules
+        name = name.name
+        version = name.version }
 
-    let toPT (p : ST.ConstantName.Package) : PT.ConstantName.Package =
-      { owner = p.owner
-        modules = p.modules
-        name = PT.ConstantName.ConstantName p.name
-        version = p.version }
+    let toPT (name : ST.FQConstantName.Package) : PT.FQConstantName.Package =
+      { owner = name.owner
+        modules = name.modules
+        name = name.name
+        version = name.version }
+
+  module UserProgram =
+    let toST (name : PT.FQConstantName.UserProgram) : ST.FQConstantName.UserProgram =
+      { modules = name.modules; name = name.name; version = name.version }
+
+    let toPT (name : ST.FQConstantName.UserProgram) : PT.FQConstantName.UserProgram =
+      { modules = name.modules; name = name.name; version = name.version }
 
   let toST
-    (fqConstant : PT.ConstantName.ConstantName)
-    : ST.ConstantName.ConstantName =
-    match fqConstant with
-    | PT.FQName.BuiltIn s -> ST.ConstantName.BuiltIn(BuiltIn.toST s) // ConstantName.BuiltIn(BuiltIn.toST s)
-    | PT.FQName.UserProgram u -> ST.ConstantName.UserProgram(UserProgram.toST u)
-    | PT.FQName.Package p -> ST.ConstantName.Package(Package.toST p)
+    (name : PT.FQConstantName.FQConstantName)
+    : ST.FQConstantName.FQConstantName =
+    match name with
+    | PT.FQConstantName.Builtin name -> ST.FQConstantName.Builtin(Builtin.toST name)
+    | PT.FQConstantName.Package name -> ST.FQConstantName.Package(Package.toST name)
+    | PT.FQConstantName.UserProgram name ->
+      ST.FQConstantName.UserProgram(UserProgram.toST name)
 
   let toPT
-    (fqConstant : ST.ConstantName.ConstantName)
-    : PT.ConstantName.ConstantName =
-    match fqConstant with
-    | ST.ConstantName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
-    | ST.ConstantName.UserProgram u -> PT.FQName.UserProgram(UserProgram.toPT u)
-    | ST.ConstantName.Package p -> PT.FQName.Package(Package.toPT p)
+    (name : ST.FQConstantName.FQConstantName)
+    : PT.FQConstantName.FQConstantName =
+    match name with
+    | ST.FQConstantName.Builtin name -> PT.FQConstantName.Builtin(Builtin.toPT name)
+    | ST.FQConstantName.Package name -> PT.FQConstantName.Package(Package.toPT name)
+    | ST.FQConstantName.UserProgram name ->
+      PT.FQConstantName.UserProgram(UserProgram.toPT name)
+
+
+module FQFnName =
+  module Builtin =
+    let toST (name : PT.FQFnName.Builtin) : ST.FQFnName.Builtin =
+      { modules = name.modules; name = name.name; version = name.version }
+
+    let toPT (name : ST.FQFnName.Builtin) : PT.FQFnName.Builtin =
+      { modules = name.modules; name = name.name; version = name.version }
+
+  module Package =
+    let toST (name : PT.FQFnName.Package) : ST.FQFnName.Package =
+      { owner = name.owner
+        modules = name.modules
+        name = name.name
+        version = name.version }
+
+    let toPT (name : ST.FQFnName.Package) : PT.FQFnName.Package =
+      { owner = name.owner
+        modules = name.modules
+        name = name.name
+        version = name.version }
+
+  module UserProgram =
+    let toST (name : PT.FQFnName.UserProgram) : ST.FQFnName.UserProgram =
+      { modules = name.modules; name = name.name; version = name.version }
+
+    let toPT (name : ST.FQFnName.UserProgram) : PT.FQFnName.UserProgram =
+      { modules = name.modules; name = name.name; version = name.version }
+
+  let toST (name : PT.FQFnName.FQFnName) : ST.FQFnName.FQFnName =
+    match name with
+    | PT.FQFnName.Builtin name -> ST.FQFnName.Builtin(Builtin.toST name)
+    | PT.FQFnName.Package name -> ST.FQFnName.Package(Package.toST name)
+    | PT.FQFnName.UserProgram name -> ST.FQFnName.UserProgram(UserProgram.toST name)
+
+  let toPT (name : ST.FQFnName.FQFnName) : PT.FQFnName.FQFnName =
+    match name with
+    | ST.FQFnName.Builtin name -> PT.FQFnName.Builtin(Builtin.toPT name)
+    | ST.FQFnName.Package name -> PT.FQFnName.Package(Package.toPT name)
+    | ST.FQFnName.UserProgram name -> PT.FQFnName.UserProgram(UserProgram.toPT name)
 
 
 module InfixFnName =
@@ -290,7 +276,7 @@ module TypeReference =
     | PT.TChar -> ST.TChar
     | PT.TUuid -> ST.TUuid
     | PT.TCustomType(t, typeArgs) ->
-      ST.TCustomType(NameResolution.toST TypeName.toST t, List.map toST typeArgs)
+      ST.TCustomType(NameResolution.toST FQTypeName.toST t, List.map toST typeArgs)
     | PT.TVariable(name) -> ST.TVariable(name)
     | PT.TFn(paramTypes, returnType) ->
       ST.TFn(paramTypes |> NEList.map toST |> NEList.toST, toST returnType)
@@ -320,7 +306,7 @@ module TypeReference =
     | ST.TChar -> PT.TChar
     | ST.TUuid -> PT.TUuid
     | ST.TCustomType(t, typeArgs) ->
-      PT.TCustomType(NameResolution.toPT TypeName.toPT t, List.map toPT typeArgs)
+      PT.TCustomType(NameResolution.toPT FQTypeName.toPT t, List.map toPT typeArgs)
     | ST.TVariable(name) -> PT.TVariable(name)
     | ST.TFn(paramTypes, returnType) ->
       PT.TFn(paramTypes |> NEList.toPT |> NEList.map toPT, toPT returnType)
@@ -433,7 +419,7 @@ module Expr =
     | PT.EBool(id, b) -> ST.EBool(id, b)
     | PT.EUnit id -> ST.EUnit id
     | PT.EConstant(id, name) ->
-      ST.EConstant(id, NameResolution.toST ConstantName.toST name)
+      ST.EConstant(id, NameResolution.toST FQConstantName.toST name)
     | PT.EVariable(id, var) -> ST.EVariable(id, var)
     | PT.EFieldAccess(id, obj, fieldname) -> ST.EFieldAccess(id, toST obj, fieldname)
     | PT.EApply(id, fn, typeArgs, args) ->
@@ -459,7 +445,7 @@ module Expr =
     | PT.ERecord(id, typeName, fields) ->
       ST.ERecord(
         id,
-        NameResolution.toST TypeName.toST typeName,
+        NameResolution.toST FQTypeName.toST typeName,
         List.map (Tuple2.mapSecond toST) fields
       )
     | PT.ERecordUpdate(id, record, updates) ->
@@ -473,7 +459,7 @@ module Expr =
     | PT.EEnum(id, typeName, caseName, fields) ->
       ST.EEnum(
         id,
-        NameResolution.toST TypeName.toST typeName,
+        NameResolution.toST FQTypeName.toST typeName,
         caseName,
         List.map toST fields
       )
@@ -481,7 +467,7 @@ module Expr =
       ST.EMatch(id, toST mexpr, List.map matchCaseToST cases)
     | PT.EDict(id, fields) -> ST.EDict(id, List.map (Tuple2.mapSecond toST) fields)
     | PT.EFnName(id, fnName) ->
-      ST.EFnName(id, NameResolution.toST FnName.toST fnName)
+      ST.EFnName(id, NameResolution.toST FQFnName.toST fnName)
 
   and stringSegmentToST (segment : PT.StringSegment) : ST.StringSegment =
     match segment with
@@ -501,14 +487,14 @@ module Expr =
     | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
       ST.EPipeFnCall(
         id,
-        NameResolution.toST FnName.toST fnName,
+        NameResolution.toST FQFnName.toST fnName,
         List.map TypeReference.toST typeArgs,
         List.map toST args
       )
     | PT.EPipeEnum(id, typeName, caseName, fields) ->
       ST.EPipeEnum(
         id,
-        NameResolution.toST TypeName.toST typeName,
+        NameResolution.toST FQTypeName.toST typeName,
         caseName,
         List.map toST fields
       )
@@ -537,7 +523,7 @@ module Expr =
     | ST.EBool(id, b) -> PT.EBool(id, b)
     | ST.EUnit id -> PT.EUnit id
     | ST.EConstant(id, name) ->
-      PT.EConstant(id, NameResolution.toPT ConstantName.toPT name)
+      PT.EConstant(id, NameResolution.toPT FQConstantName.toPT name)
     | ST.EVariable(id, var) -> PT.EVariable(id, var)
     | ST.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
     | ST.EApply(id, fn, typeArgs, args) ->
@@ -559,7 +545,7 @@ module Expr =
     | ST.ERecord(id, typeName, fields) ->
       PT.ERecord(
         id,
-        NameResolution.toPT TypeName.toPT typeName,
+        NameResolution.toPT FQTypeName.toPT typeName,
         List.map (Tuple2.mapSecond toPT) fields
       )
     | ST.ERecordUpdate(id, record, updates) ->
@@ -573,7 +559,7 @@ module Expr =
     | ST.EEnum(id, typeName, caseName, exprs) ->
       PT.EEnum(
         id,
-        NameResolution.toPT TypeName.toPT typeName,
+        NameResolution.toPT FQTypeName.toPT typeName,
         caseName,
         List.map toPT exprs
       )
@@ -583,7 +569,7 @@ module Expr =
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
     | ST.EDict(id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
     | ST.EFnName(id, fnName) ->
-      PT.EFnName(id, NameResolution.toPT FnName.toPT fnName)
+      PT.EFnName(id, NameResolution.toPT FQFnName.toPT fnName)
 
   and stringSegmentToPT (segment : ST.StringSegment) : PT.StringSegment =
     match segment with
@@ -601,14 +587,14 @@ module Expr =
     | ST.EPipeFnCall(id, fnName, typeArgs, args) ->
       PT.EPipeFnCall(
         id,
-        NameResolution.toPT FnName.toPT fnName,
+        NameResolution.toPT FQFnName.toPT fnName,
         List.map TypeReference.toPT typeArgs,
         List.map toPT args
       )
     | ST.EPipeEnum(id, typeName, caseName, fields) ->
       PT.EPipeEnum(
         id,
-        NameResolution.toPT TypeName.toPT typeName,
+        NameResolution.toPT FQTypeName.toPT typeName,
         caseName,
         List.map toPT fields
       )
@@ -643,7 +629,7 @@ module Const =
       ST.Const.CTuple(toST first, toST second, List.map toST rest)
     | PT.Const.CEnum(typeName, caseName, fields) ->
       ST.Const.CEnum(
-        NameResolution.toST TypeName.toST typeName,
+        NameResolution.toST FQTypeName.toST typeName,
         caseName,
         List.map toST fields
       )
@@ -673,7 +659,7 @@ module Const =
       PT.Const.CTuple(toPT first, toPT second, List.map toPT rest)
     | ST.Const.CEnum(typeName, caseName, fields) ->
       PT.Const.CEnum(
-        NameResolution.toPT TypeName.toPT typeName,
+        NameResolution.toPT FQTypeName.toPT typeName,
         caseName,
         List.map toPT fields
       )
@@ -827,17 +813,17 @@ module DB =
 module UserType =
   let toST (t : PT.UserType.T) : ST.UserType.T =
     { tlid = t.tlid
-      name = TypeName.UserProgram.toST t.name
+      name = FQTypeName.UserProgram.toST t.name
       declaration = TypeDeclaration.toST t.declaration
       description = t.description
-      deprecated = Deprecation.toST TypeName.toST t.deprecated }
+      deprecated = Deprecation.toST FQTypeName.toST t.deprecated }
 
   let toPT (t : ST.UserType.T) : PT.UserType.T =
     { tlid = t.tlid
-      name = TypeName.UserProgram.toPT t.name
+      name = FQTypeName.UserProgram.toPT t.name
       declaration = TypeDeclaration.toPT t.declaration
       description = t.description
-      deprecated = Deprecation.toPT TypeName.toPT t.deprecated }
+      deprecated = Deprecation.toPT FQTypeName.toPT t.deprecated }
 
 
 module UserFunction =
@@ -850,37 +836,37 @@ module UserFunction =
 
   let toST (f : PT.UserFunction.T) : ST.UserFunction.T =
     { tlid = f.tlid
-      name = FnName.UserProgram.toST f.name
+      name = FQFnName.UserProgram.toST f.name
       typeParams = f.typeParams
       parameters = NEList.map Parameter.toST f.parameters |> NEList.toST
       returnType = TypeReference.toST f.returnType
       description = f.description
-      deprecated = Deprecation.toST FnName.toST f.deprecated
+      deprecated = Deprecation.toST FQFnName.toST f.deprecated
       body = Expr.toST f.body }
 
   let toPT (f : ST.UserFunction.T) : PT.UserFunction.T =
     { tlid = f.tlid
-      name = FnName.UserProgram.toPT f.name
+      name = FQFnName.UserProgram.toPT f.name
       typeParams = f.typeParams
       parameters = f.parameters |> NEList.toPT |> NEList.map Parameter.toPT
       returnType = TypeReference.toPT f.returnType
       description = f.description
-      deprecated = Deprecation.toPT FnName.toPT f.deprecated
+      deprecated = Deprecation.toPT FQFnName.toPT f.deprecated
       body = Expr.toPT f.body }
 
 module UserConstant =
   let toST (c : PT.UserConstant.T) : ST.UserConstant.T =
     { tlid = c.tlid
-      name = ConstantName.UserProgram.toST c.name
+      name = FQConstantName.UserProgram.toST c.name
       description = c.description
-      deprecated = Deprecation.toST ConstantName.toST c.deprecated
+      deprecated = Deprecation.toST FQConstantName.toST c.deprecated
       body = Const.toST c.body }
 
   let toPT (c : ST.UserConstant.T) : PT.UserConstant.T =
     { tlid = c.tlid
-      name = ConstantName.UserProgram.toPT c.name
+      name = FQConstantName.UserProgram.toPT c.name
       description = c.description
-      deprecated = Deprecation.toPT ConstantName.toPT c.deprecated
+      deprecated = Deprecation.toPT FQConstantName.toPT c.deprecated
       body = Const.toPT c.body }
 
 module Toplevel =
@@ -909,22 +895,22 @@ module PackageFn =
       { name = p.name; typ = TypeReference.toPT p.typ; description = p.description }
 
   let toST (fn : PT.PackageFn.T) : ST.PackageFn.T =
-    { name = FnName.Package.toST fn.name
+    { name = FQFnName.Package.toST fn.name
       parameters = NEList.map Parameter.toST fn.parameters |> NEList.toST
       returnType = TypeReference.toST fn.returnType
       description = fn.description
-      deprecated = Deprecation.toST FnName.toST fn.deprecated
+      deprecated = Deprecation.toST FQFnName.toST fn.deprecated
       body = Expr.toST fn.body
       typeParams = fn.typeParams
       id = fn.id
       tlid = fn.tlid }
 
   let toPT (fn : ST.PackageFn.T) : PT.PackageFn.T =
-    { name = FnName.Package.toPT fn.name
+    { name = FQFnName.Package.toPT fn.name
       parameters = fn.parameters |> NEList.toPT |> NEList.map Parameter.toPT
       returnType = TypeReference.toPT fn.returnType
       description = fn.description
-      deprecated = Deprecation.toPT FnName.toPT fn.deprecated
+      deprecated = Deprecation.toPT FQFnName.toPT fn.deprecated
       body = Expr.toPT fn.body
       typeParams = fn.typeParams
       id = fn.id
@@ -932,18 +918,18 @@ module PackageFn =
 
 module PackageType =
   let toST (pt : PT.PackageType.T) : ST.PackageType.T =
-    { name = TypeName.Package.toST pt.name
+    { name = FQTypeName.Package.toST pt.name
       description = pt.description
       declaration = TypeDeclaration.toST pt.declaration
-      deprecated = Deprecation.toST TypeName.toST pt.deprecated
+      deprecated = Deprecation.toST FQTypeName.toST pt.deprecated
       id = pt.id
       tlid = pt.tlid }
 
   let toPT (pt : ST.PackageType.T) : PT.PackageType.T =
-    { name = TypeName.Package.toPT pt.name
+    { name = FQTypeName.Package.toPT pt.name
       description = pt.description
       declaration = TypeDeclaration.toPT pt.declaration
-      deprecated = Deprecation.toPT TypeName.toPT pt.deprecated
+      deprecated = Deprecation.toPT FQTypeName.toPT pt.deprecated
       id = pt.id
       tlid = pt.tlid }
 
@@ -951,15 +937,15 @@ module PackageConstant =
   let toST (pc : PT.PackageConstant.T) : ST.PackageConstant.T =
     { tlid = pc.tlid
       id = pc.id
-      name = ConstantName.Package.toST pc.name
+      name = FQConstantName.Package.toST pc.name
       body = Const.toST pc.body
       description = pc.description
-      deprecated = Deprecation.toST ConstantName.toST pc.deprecated }
+      deprecated = Deprecation.toST FQConstantName.toST pc.deprecated }
 
   let toPT (pc : ST.PackageConstant.T) : PT.PackageConstant.T =
     { tlid = pc.tlid
       id = pc.id
-      name = ConstantName.Package.toPT pc.name
+      name = FQConstantName.Package.toPT pc.name
       body = Const.toPT pc.body
       description = pc.description
-      deprecated = Deprecation.toPT ConstantName.toPT pc.deprecated }
+      deprecated = Deprecation.toPT FQConstantName.toPT pc.deprecated }

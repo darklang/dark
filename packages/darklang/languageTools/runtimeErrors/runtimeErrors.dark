@@ -15,7 +15,8 @@ module Darklang =
           | Count of Int64 * singular: ErrorSegment * plural: ErrorSegment // 2 errors, 1 error, etc
 
           // -- Functions
-          | FunctionName of PACKAGE.Darklang.LanguageTools.RuntimeTypes.FnName.FnName
+          | FunctionName of
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQFnName.FQFnName
           /// Description from StdLib description fields.
           /// Has markers like <param name>, that should be parsed and displayed (TODO: why parse?)
           | Description of String
@@ -23,9 +24,10 @@ module Darklang =
           | InlineParamName of String
 
           // -- Types
-          | TypeName of PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName
+          | TypeName of
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
           | ShortTypeName of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeName.TypeName
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
           | TypeReference of
             PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
           | TypeOfValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
@@ -34,7 +36,7 @@ module Darklang =
 
           // -- Constants
           | ConstantName of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.ConstantName.ConstantName
+            PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQConstantName.FQConstantName
 
           // -- Variables
           | DBName of String

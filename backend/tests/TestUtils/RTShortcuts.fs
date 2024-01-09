@@ -8,14 +8,14 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 
-let eStdFnName (modules : List<string>) (name : string) (version : int) : Expr =
-  PT.FnName.fqBuiltIn modules name version
-  |> PT2RT.FnName.toRT
+let eBuiltinFnName (modules : List<string>) (name : string) (version : int) : Expr =
+  PT.FQFnName.fqBuiltIn modules name version
+  |> PT2RT.FQFnName.toRT
   |> fun x -> EFnName(gid (), x)
 
 let eUserFnName (name : string) : Expr =
-  PT.FnName.fqUserProgram [] name 0
-  |> PT2RT.FnName.toRT
+  PT.FQFnName.fqUserProgram [] name 0
+  |> PT2RT.FQFnName.toRT
   |> fun x -> EFnName(gid (), x)
 
 
@@ -27,7 +27,7 @@ let eFn'
   (args : List<Expr>)
   : Expr =
   let args = NEList.ofListUnsafe "eFn'" [] args
-  EApply(gid (), (eStdFnName modules function_ version), typeArgs, args)
+  EApply(gid (), (eBuiltinFnName modules function_ version), typeArgs, args)
 
 let eFn
   (modules : List<string>)
@@ -96,18 +96,22 @@ let eLambda (pats : List<LetPattern>) (body : Expr) : Expr =
   let pats = NEList.ofListUnsafe "eLambda" [] pats
   ELambda(gid (), pats, body)
 
-let eEnum (typeName : TypeName.TypeName) (name : string) (args : Expr list) : Expr =
+let eEnum
+  (typeName : FQTypeName.FQTypeName)
+  (name : string)
+  (args : Expr list)
+  : Expr =
   EEnum(gid (), typeName, name, args)
 
 let userTypeName
   (modules : List<string>)
   (name : string)
   (version : int)
-  : TypeName.UserProgram =
-  { modules = modules; name = TypeName.TypeName name; version = version }
+  : FQTypeName.UserProgram =
+  { modules = modules; name = name; version = version }
 
 let fqUserTypeName (modules : List<string>) (name : string) (version : int) =
-  FQName.UserProgram(userTypeName modules name version)
+  FQTypeName.UserProgram(userTypeName modules name version)
 
 let eTuple (first : Expr) (second : Expr) (theRest : Expr list) : Expr =
   ETuple(gid (), first, second, theRest)
@@ -136,5 +140,5 @@ let userTypeRecord
   (fields : List<string * TypeReference>)
   : UserType.T =
   { tlid = gid ()
-    name = { modules = modules; name = TypeName.TypeName name; version = version }
+    name = { modules = modules; name = name; version = version }
     declaration = customTypeRecord fields }

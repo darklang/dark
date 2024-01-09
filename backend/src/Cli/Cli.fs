@@ -42,15 +42,14 @@ let info () =
 // ---------------------
 
 let builtIns : RT.BuiltIns =
-  let (fns, types, constants) =
+  let (fns, constants) =
     LibExecution.Builtin.combine
       [ BuiltinExecution.Builtin.contents
           BuiltinExecution.Libs.HttpClient.defaultConfig
         BuiltinCli.Builtin.contents
         BuiltinCliHost.Builtin.contents ]
       []
-  { types = types |> Map.fromListBy _.name
-    fns = fns |> Map.fromListBy _.name
+  { fns = fns |> Map.fromListBy _.name
     constants = constants |> Map.fromListBy _.name }
 
 let packageManager =
@@ -86,7 +85,7 @@ let execute
   : Task<Result<RT.Dval, RT.Source * RT.RuntimeError>> =
   task {
     let state = state ()
-    let fnName = RT.FnName.fqPackage "Darklang" [ "Cli" ] "executeCliCommand" 0
+    let fnName = RT.FQFnName.fqPackage "Darklang" [ "Cli" ] "executeCliCommand" 0
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
     return! Exe.executeFunction state None fnName [] args
@@ -134,10 +133,10 @@ let main (args : string[]) =
 
           match foundProgramTL, foundPackageTL with
           | Some programFn, _ ->
-            $"user fn {RT.FnName.userProgramToString programFn.name}, expr {id}"
+            $"user fn {RT.FQFnName.userProgramToString programFn.name}, expr {id}"
 
           | None, Some packageFn ->
-            $"package fn {RT.FnName.packageToString packageFn.name}, expr {id}"
+            $"package fn {RT.FQFnName.packageToString packageFn.name}, expr {id}"
 
           | None, None -> $"tlid {tlid}, expr {id}"
 

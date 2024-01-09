@@ -13,7 +13,6 @@ module Dval = LibExecution.Dval
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
@@ -58,4 +57,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types, constants)
+let contents = (fns, constants)

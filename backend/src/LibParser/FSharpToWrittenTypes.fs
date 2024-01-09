@@ -844,7 +844,7 @@ module UserFunction =
     (b : SynBinding)
     : WT.UserFunction.T =
     let f = Function.fromSynBinding b
-    { name = PT.FnName.userProgram moduleName f.name f.version
+    { name = PT.FQFnName.userProgram moduleName f.name f.version
       typeParams = f.typeParams
       parameters =
         f.parameters
@@ -922,7 +922,7 @@ module UserConstant =
     (b : SynBinding)
     : WT.UserConstant.T =
     let c = Constant.fromSynBinding b
-    { name = PT.ConstantName.userProgram moduleName c.name c.version
+    { name = PT.FQConstantName.userProgram moduleName c.name c.version
       description = ""
       body = c.body }
 
@@ -934,7 +934,7 @@ module PackageFn =
     (b : SynBinding)
     : WT.PackageFn.T =
     let f = Function.fromSynBinding b
-    { name = PT.FnName.package owner modules f.name f.version
+    { name = PT.FQFnName.package owner modules f.name f.version
       typeParams = f.typeParams
       parameters =
         f.parameters
@@ -1075,7 +1075,7 @@ module UserType =
       |> Exception.unwrapResultInternal []
     let modules = moduleName @ names |> List.initial
 
-    { name = PT.TypeName.userProgram modules name version
+    { name = PT.FQTypeName.userProgram modules name version
       description = ""
       declaration = { definition = definition; typeParams = typeParams } }
 
@@ -1094,7 +1094,7 @@ module PackageType =
         [ "typeDef", typeDef ]
       |> Expr.parseTypeName
       |> Exception.unwrapResultInternal []
-    { name = PT.TypeName.package owner modules name version
+    { name = PT.FQTypeName.package owner modules name version
       description = ""
       declaration = { typeParams = typeParams; definition = definition } }
 
@@ -1105,6 +1105,6 @@ module PackageConstant =
     (b : SynBinding)
     : WT.PackageConstant.T =
     let c = Constant.fromSynBinding b
-    { name = PT.ConstantName.package owner modules c.name c.version
+    { name = PT.FQConstantName.package owner modules c.name c.version
       description = ""
       body = c.body }
