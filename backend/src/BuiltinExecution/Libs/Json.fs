@@ -205,7 +205,7 @@ let rec serialize
               cases
               |> NEList.find (fun c -> c.name = caseName)
               |> Exception.unwrapOptionInternal
-                $"Couldn't find matching case for {caseName}"
+                "Couldn't find matching case for"
                 [ "typeName", dTypeName ]
 
             do!
