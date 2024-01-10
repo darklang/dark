@@ -1,77 +1,77 @@
-// collecting some personal notes on ideas for representing and working with time spans in Dark
+// // collecting some personal notes on ideas for representing and working with time spans in Dark
 
-module Stachu =
-  type Int = Int64
+// module Stachu =
+//   type Int = Int64
 
-  module TimeSpan =
-    // TODO should `ticks` be an `Int` or `Float`?
-    type TimeSpan = { ticks: Int }
+//   module TimeSpan =
+//     // TODO should `ticks` be an `Int` or `Float`?
+//     type TimeSpan = { ticks: Int }
 
-    let fromTicks (ticks: Int) : TimeSpan = TimeSpan { ticks = ticks }
+//     let fromTicks (ticks: Int) : TimeSpan = TimeSpan { ticks = ticks }
 
-    let ticksPerMillisecond = 10000
-    let ticksPerSecond = 10000000
-    let ticksPerMinute = 600000000
-    let ticksPerHour = 36000000000
-    let ticksPerDay = 864000000000
-
-
-    let totalMilliseconds (ts: TimeSpan): Int = Int.divide ts.ticks ticksPerMillisecond
-    let totalSeconds (ts: TimeSpan): Int = Int.divide ts.ticks ticksPerSecond
-    let totalMinutes (ts: TimeSpan): Int = Int.divide ts.ticks ticksPerMinute
-    let totalHours (ts: TimeSpan): Int = Int.divide ts.ticks ticksPerHour
-    let totalDays (ts: TimeSpan): Int = Int.divide ts.ticks ticksPerDay
+//     let ticksPerMillisecond = 10000
+//     let ticksPerSecond = 10000000
+//     let ticksPerMinute = 600000000
+//     let ticksPerHour = 36000000000
+//     let ticksPerDay = 864000000000
 
 
-    let milliseconds (ts: TimeSpan) : Int =
-      match ts.ticks % ticksPerSecond with
-      | 0 -> 0
-      | msTicks -> Int.divide msTicks ticksPerMillisecond
-
-    let seconds (ts: TimeSpan) : Int =
-      match ts.ticks % ticksPerMinute with
-      | 0 -> 0
-      | sTicks -> Int.divide sTicks ticksPerSecond
-
-    let minutes (ts: TimeSpan) : Int =
-      match ts.ticks % ticksPerHour with
-      | 0 -> 0
-      | minTicks -> Int.divide minTicks ticksPerMinute
-
-    let hours (ts: TimeSpan) : Int =
-      match ts.ticks % ticksPerDay with
-      | 0 -> 0
-      | hrTicks -> Int.divide hrTicks ticksPerHour
-
-    let days (ts: TimeSpan) : Int =
-      match ts.ticks with
-      | 0 -> 0
-      | ticks -> Int.divide ticks ticksPerDay
+//     let totalMilliseconds (ts: TimeSpan): Int = Int.divide ts.ticks ticksPerMillisecond
+//     let totalSeconds (ts: TimeSpan): Int = Int.divide ts.ticks ticksPerSecond
+//     let totalMinutes (ts: TimeSpan): Int = Int.divide ts.ticks ticksPerMinute
+//     let totalHours (ts: TimeSpan): Int = Int.divide ts.ticks ticksPerHour
+//     let totalDays (ts: TimeSpan): Int = Int.divide ts.ticks ticksPerDay
 
 
-    let fromMilliseconds (milliseconds: Int): TimeSpan =
-      TimeSpan { ticks = milliseconds * ticksPerMillisecond }
+//     let milliseconds (ts: TimeSpan) : Int =
+//       match ts.ticks % ticksPerSecond with
+//       | 0 -> 0
+//       | msTicks -> Int.divide msTicks ticksPerMillisecond
 
-    let fromSeconds (seconds: Int): TimeSpan =
-      TimeSpan { ticks = seconds * ticksPerSecond }
+//     let seconds (ts: TimeSpan) : Int =
+//       match ts.ticks % ticksPerMinute with
+//       | 0 -> 0
+//       | sTicks -> Int.divide sTicks ticksPerSecond
 
-    let fromMinutes (minutes: Int): TimeSpan =
-      TimeSpan { ticks = minutes * ticksPerMinute }
+//     let minutes (ts: TimeSpan) : Int =
+//       match ts.ticks % ticksPerHour with
+//       | 0 -> 0
+//       | minTicks -> Int.divide minTicks ticksPerMinute
 
-    let fromHours (hours: Int): TimeSpan =
-      TimeSpan { ticks = hours * ticksPerHour }
+//     let hours (ts: TimeSpan) : Int =
+//       match ts.ticks % ticksPerDay with
+//       | 0 -> 0
+//       | hrTicks -> Int.divide hrTicks ticksPerHour
 
-    let fromDays (days: Int): TimeSpan = TimeSpan { ticks = days * ticksPerDay }
+//     let days (ts: TimeSpan) : Int =
+//       match ts.ticks with
+//       | 0 -> 0
+//       | ticks -> Int.divide ticks ticksPerDay
 
 
-    let toString (ts: TimeSpan) : String =
-      $"{days ts} days, {hours ts} hours, {minutes ts} minutes, {seconds ts} seconds, {milliseconds ts} ms"
+//     let fromMilliseconds (milliseconds: Int): TimeSpan =
+//       TimeSpan { ticks = milliseconds * ticksPerMillisecond }
+
+//     let fromSeconds (seconds: Int): TimeSpan =
+//       TimeSpan { ticks = seconds * ticksPerSecond }
+
+//     let fromMinutes (minutes: Int): TimeSpan =
+//       TimeSpan { ticks = minutes * ticksPerMinute }
+
+//     let fromHours (hours: Int): TimeSpan =
+//       TimeSpan { ticks = hours * ticksPerHour }
+
+//     let fromDays (days: Int): TimeSpan = TimeSpan { ticks = days * ticksPerDay }
+
+
+//     let toString (ts: TimeSpan) : String =
+//       $"{days ts} days, {hours ts} hours, {minutes ts} minutes, {seconds ts} seconds, {milliseconds ts} ms"
 
 
 
-(* some tests
-  PACKAGE.Darklang.Stdlib.TimeSpan.ticksPerDay = 0
+// (* some tests
+//   PACKAGE.Darklang.Stdlib.TimeSpan.ticksPerDay = 0
 
-  // ((PACKAGE.Darklang.Stdlib.TimeSpan.fromSeconds 5)
-  //  |> PACKAGE.Darklang.Stdlib.TimeSpan.toString) = "0 days, 0 hours, 0 minutes, 5 seconds, 0 ms"
-*)
+//   // ((PACKAGE.Darklang.Stdlib.TimeSpan.fromSeconds 5)
+//   //  |> PACKAGE.Darklang.Stdlib.TimeSpan.toString) = "0 days, 0 hours, 0 minutes, 5 seconds, 0 ms"
+// *)

@@ -289,6 +289,7 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
+      - attach_workspace: { at: "." }
       - run: ./scripts/publish-github-release
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
