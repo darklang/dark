@@ -1,0 +1,206 @@
+// recording some personal notes on ideas for working with JSON in Dark
+module Stachu =
+  module Json =
+    let todo = "uncomment and process below"
+
+// module JsonPath =
+//   module Part =
+//     type Part =
+//       | Root
+//       | Index of Int
+//       | Field of String
+
+//     let toString (part: Part) : String =
+//       match part with
+//       | Root -> "root"
+//       | Field name -> "." ++ name
+//       | Index index -> "[" ++ Int.toString index ++ "]"
+
+//   type JsonPath = List<Part.Part>
+
+//   let toString (path: JsonPath) : String =
+//     path |> List.reverse |> List.map Part.toString |> String.join ""
+
+
+// module JsonTokenization =
+//   type DetokenizationError =
+//     | DetokenizationError of
+//       /// where in the JSON could we not detokenize as expected?
+//       jsonPath: JsonPath.JsonPath *
+
+//       /// and what was the token?
+//       jt: JsonToken
+
+
+//   type JsonTokenizer<'T> = 'T -> JsonToken
+
+//   /// The path is needed in reporting the location of failed detokenizations
+//   type JsonDetokenizer<'T> =
+//     JsonPath.JsonPath -> JsonToken -> Result.Result<'T, DetokenizationError>
+
+
+//   module Unit =
+//     /// Tokenizes a Unit as Json `null`
+//     let tokenize (_unit: Unit) : JsonToken = JsonToken.Null
+
+//     /// Detokenizes a Json `null` as a Unit
+//     let detokenize
+//       (path: JsonPath.JsonPath)
+//       (token: JsonToken)
+//       : Result.Result<Unit, DetokenizationError> =
+//       match token with
+//       | Null -> Result.Result.Ok()
+//       | _ ->
+//         Result.Result.Error(
+//           DetokenizationError.DetokenizationError(path, token)
+//         )
+
+
+//   module Bool =
+//     /// Tokenizes a Bool as Json `true` or `false`
+//     let tokenize (value: Bool) : JsonToken = JsonToken.Bool value
+
+//     /// Detokenizes a Json `true` or `false` as a Bool
+//     let detokenize
+//       (path: JsonPath.JsonPath)
+//       (token: JsonToken)
+//       : Result.Result<Bool, DetokenizationError> =
+//       match token with
+//       | Bool b -> Result.Result.Ok b
+//       | _ ->
+//         Result.Result.Error(
+//           DetokenizationError.DetokenizationError(path, token)
+//         )
+
+
+//   module List =
+//     let tokenize<'Inner>
+//       (tokenizeInner: JsonTokenizer<'Inner>)
+//       (l: List<'Inner>)
+//       : JsonToken =
+//       //JsonToken.Array(List.map l tokenizeInner)
+//       JsonToken.Array []
+
+//     let detokenize<'Inner>
+//       (detokenizer: JsonDetokenizer<'Inner>)
+//       (path: JsonPath.JsonPath)
+//       (token: JsonToken)
+//       : Result.Result<List<'Inner>, DetokenizationError> =
+//       match token with
+//       | Array tokens ->
+//         tokens
+//         |> List.fold
+//           (fun acc currentToken ->
+//             match acc with
+//             | Error err -> Result.Result.Error e
+//             | Ok values ->
+//               let newPath =
+//                 path
+//                 |> List.push (JsonPath.JsonPath.Index(List.length values))
+
+//               match detokenizer newPath currentToken with
+//               | Ok value -> Result.Result.Ok(List.push values value)
+//               | Error e -> Result.Result.Error e)
+//           (Ok [])
+//         |> Result.map (fun l -> List.reverse l)
+//       | _ ->
+//         Result.Result.Error(
+//           DetokenizationError.DetokenizationError(path, token)
+//         )
+
+
+// type ParseError =
+//   | TokenParseError of TokenParseError.TokenParseError
+//   | DetokenizationError of JsonTokenization.DetokenizationError
+
+// let parse<'T>
+//   (detokenizer: JsonTokenization.JsonDetokenizer<'T>)
+//   (jsonStr: String)
+//   : Result.Result<'T, ParseError> =
+//   match Builtin.AltJson.parseToken jsonStr with
+//   | Ok jsonToken ->
+//     (detokenizer [ JsonPath.Part.Part.Root ] jsonToken)
+//     |> Result.mapError (fun e -> ParseError.DetokenizationError e)
+
+//   | Error tokenError ->
+//     Result.Result.Error(ParseError.TokenParseError tokenError)
+
+// let serialize<'T>
+//   (tokenizer: JsonTokenization.JsonTokenizer<'T>)
+//   (value: 'T)
+//   : String =
+//   value |> tokenizer |> Builtin.AltJson.serializeToken
+
+
+
+// // type-specific helpers
+
+// module Parse =
+//   let unit (jsonStr: String) : Result.Result<Unit, ParseError> =
+//     parse<Unit> JsonTokenization.Unit.detokenize jsonStr
+
+//   let bool (jsonStr: String) : Result.Result<Bool, ParseError> =
+//     parse<Bool> JsonTokenization.Bool.detokenize jsonStr
+
+//   let list<'Inner>
+//     (inner: JsonTokenization.JsonDetokenizer<'Inner>)
+//     (jsonStr: String)
+//     : Result.Result<List<JsonToken>, ParseError> =
+//     parse<List<'Inner>>
+//       (JsonTokenization.List.detokenize<'Inner> inner)
+//       jsonStr
+
+
+// module Serialize =
+//   let unit (u: Unit) : String =
+//     serialize<Unit> JsonTokenization.Unit.tokenize u
+
+//   let bool (b: Bool) : String =
+//     serialize<Bool> JsonTokenization.Bool.tokenize b
+
+//   let list<'Inner>
+//     (innerTokenizer: JsonTokenization.JsonTokenizer<'Inner>)
+//     (l: List<'Inner>)
+//     : String =
+//     serialize<List<'Inner>>
+//       (fun l -> JsonTokenization.List.tokenize<'Inner> innerTokenizer l)
+//       l
+
+
+
+(* tests
+
+  module Parsing =
+  // The long way - without any helpers
+  (PACKAGE.Darklang.Stdlib.AltJson.serialize<Bool>
+    PACKAGE.Darklang.Stdlib.AltJson.JsonTokenization.Bool.tokenize
+    true) = "true"
+
+  (PACKAGE.Darklang.Stdlib.AltJson.parse<Bool>
+    PACKAGE.Darklang.Stdlib.AltJson.JsonTokenization.Bool.detokenize
+    "true") = PACKAGE.Darklang.Stdlib.Result.Result.Ok true
+
+
+  module Unit =
+    PACKAGE.Darklang.Stdlib.AltJson.Serialize.unit () = "null"
+
+    PACKAGE.Darklang.Stdlib.AltJson.Parse.unit "null" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+      ()
+
+
+  module Bool =
+    PACKAGE.Darklang.Stdlib.AltJson.Serialize.bool true = "true"
+    PACKAGE.Darklang.Stdlib.AltJson.Serialize.bool false = "false"
+
+    (PACKAGE.Darklang.Stdlib.AltJson.Parse.bool "true") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+      true
+
+    (PACKAGE.Darklang.Stdlib.AltJson.Parse.bool "false") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+      false
+
+
+// module List =
+//   (PACKAGE.Darklang.Stdlib.AltJson.Serialize.list<Bool>
+//     PACKAGE.Darklang.Stdlib.AltJson.JsonTokenization.Bool.tokenize
+//     [ true; false; false; true ]) = "[true,false,false,true]"
+*)
