@@ -22,6 +22,16 @@ delete_release() {
     "https://api.github.com/repos/$OWNER/$REPO/releases/$release_id"
 }
 
+# Function to delete a tag
+delete_tag() {
+  tag_name=$1
+  echo "Deleting tag: $tag_name"
+  curl -s -L \
+    -X DELETE \
+    -H "Authorization: Bearer $TOKEN" \
+    "https://api.github.com/repos/$OWNER/$REPO/git/refs/tags/$tag_name"
+}
+
 # Function to increment the tag number for a new release
 increment_tag() {
   ## Fetch latest release tag
@@ -96,6 +106,8 @@ if [ "$FILES_FOUND" = false ] || [ "$(echo "$upload_response" | jq -r '.state')"
     echo "Not all executables uploaded successfully."
     echo "Deleting the newly created release..."
     delete_release "$new_release_id"
+    echo "Deleting the tag..."
+    delete_tag "$TAG"
     echo "Deleted"
     exit 1
 else
