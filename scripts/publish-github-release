@@ -30,7 +30,7 @@ delete_tag() {
   curl -s -L \
     -X DELETE \
     -H "Authorization: Bearer $TOKEN" \
-    -H "X-GitHub-Api-Version: 2022-11-28" \
+     -H "X-GitHub-Api-Version: 2022-11-28" \
     "https://api.github.com/repos/$OWNER/$REPO/git/refs/tags/$tag_name"
 }
 
@@ -123,6 +123,7 @@ list_releases_response=$(curl -s -L \
   -X GET \
   -H "Authorization: Bearer $TOKEN" \
   -H "Accept: application/vnd.github+json" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
   "https://api.github.com/repos/$OWNER/$REPO/releases")
 
 ## Extract release IDs
@@ -134,7 +135,36 @@ new_release_id=$(echo $response | jq -r '.id')
 ## Loop through all release IDs and delete them, except the new release
 for release_id in $release_ids; do
   if [ "$release_id" != "$new_release_id" ]; then
-    delete_release "$release_id"
+    # Fetch the tag name associated with the release
+    tag_name=$(curl -s -L \
+        -X GET \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Accept: application/vnd.github+json" \
+        -H "X-GitHub-Api-Version: 2022-11-28" \
+        "https://api.github.com/repos/$OWNER/$REPO/releases/$release_id" | jq -r '.tag_name')
+
+    # Check if tag name is valid
+    if [ -n "$tag_name" ] && [ "$tag_name" != "null" ]; then
+      delete_release "$release_id"
+
+      # Check if the release was successfully deleted
+      release_exists=$(curl -s -L \
+          -X GET \
+          -H "Authorization: Bearer $TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/repos/$OWNER/$REPO/releases/$release_id" | jq -r '.id')
+
+      if [ "$release_exists" = "null" ]; then
+        delete_tag "$tag_name"
+      else
+        echo "Failed to delete release: $release_id, skipping tag deletion"
+        exit 1
+      fi
+    else
+      echo "Failed to fetch tag name for release: $release_id, skipping release deletion"
+      exit 1
+    fi
   fi
 done
 
