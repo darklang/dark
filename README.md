@@ -3,6 +3,8 @@
 This is the main repo for [Dark](https://darklang.com), a combined language, editor,
 and infrastructure to make it easy to build backends.
 
+[![Ceasefire Now](https://badge.techforpalestine.org/ceasefire-now)](https://techforpalestine.org/learn-more)
+
 This repo is intended to help Dark users solve their needs by fixing bugs,
 expanding features, or otherwise contributing. Dark is [source available, not
 open source](https://github.com/darklang/dark/blob/main/LICENSE.md).
