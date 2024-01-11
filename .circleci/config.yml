@@ -160,6 +160,19 @@ commands:
 # Actual workflow
 ##########################
 jobs:
+  # Build parser
+  build-parser:
+    executor: in-container
+    steps:
+      - darkcheckout
+      - setup-app
+      - run: ./scripts/build/build-parser
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - backend/src/LibTreeSitter.Darklang
+      - slack-notify-job-failure
+
   # Build server binaries and run tests
   build-backend:
     executor: in-container
@@ -176,6 +189,7 @@ jobs:
       # TODO: think through an alternative or more nuanced approach.
       #- run: git restore-mtime
       - setup-app
+      - attach_workspace: { at: "." }
       - run:
           name: Setup backend build environment
           command: |
@@ -196,8 +210,6 @@ jobs:
             - v4-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
-      # For parser
-      - run: ./scripts/build/build-parser
       # For tests
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
@@ -241,6 +253,7 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
+      - attach_workspace: { at: "." }
       - run:
           name: Setup backend build environment
           command: |
@@ -258,8 +271,6 @@ jobs:
             - v4-cli-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
-      # For parser
-      - run: ./scripts/build/build-parser
       # For tests
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
@@ -384,8 +395,13 @@ workflows:
     jobs:
       # initial builds & tests
       - static-checks
-      - build-backend
-      - build-cli
+      - build-parser
+      - build-backend:
+          requires:
+            - build-parser
+      - build-cli:
+          requires:
+            - build-parser
       - publish-github-release:
           requires:
             - build-cli
