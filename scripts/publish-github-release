@@ -11,6 +11,9 @@ TARGET_COMMITISH="main"
 NAME="cli-pre-release"
 BODY="Pre-release of darklang executable"
 
+# Regex pattern to match release tags (e.g. v0.0.1)
+release_tag_pattern="^v[0-9]+\.[0-9]+\.[0-9]+$"
+
 # Function to delete a release by ID
 delete_release() {
   release_id=$1
@@ -144,7 +147,7 @@ for release_id in $release_ids; do
         "https://api.github.com/repos/$OWNER/$REPO/releases/$release_id" | jq -r '.tag_name')
 
     # Check if tag name is valid
-    if [ -n "$tag_name" ] && [ "$tag_name" != "null" ]; then
+    if [ -n "$tag_name" ] && [ "$tag_name" != "null" ] && [[ $tag_name =~ $release_tag_pattern ]]; then
       delete_release "$release_id"
 
       # Check if the release was successfully deleted
