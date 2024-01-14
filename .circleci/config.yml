@@ -166,11 +166,21 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
+      - run:
+          name: Setup backend build environment
+          command: |
+            set -x
+            if [[ -f /home/dark/tree-sitter.so && ! -f /home/dark/app/backend/src/LibTreeSitter/tree-sitter.so ]]; then
+              mv /home/dark/tree-sitter.so /home/dark/app/backend/src/LibTreeSitter/
+              else
+              echo "No action needed."
+            fi
       - run: ./scripts/build/build-parser
       - persist_to_workspace:
           root: "."
           paths:
             - backend/src/LibTreeSitter.Darklang
+            - backend/src/LibTreeSitter
       - slack-notify-job-failure
 
   # Build server binaries and run tests
@@ -197,11 +207,6 @@ jobs:
             scripts/devcontainer/_start-postgres
             # Disable for now since they're not used
             # scripts/devcontainer/_start-yugabyte
-            if [[ -f /home/dark/tree-sitter.so && ! -f /home/dark/app/backend/src/LibTreeSitter/tree-sitter.so ]]; then
-              mv /home/dark/tree-sitter.so /home/dark/app/backend/src/LibTreeSitter/
-              else
-              echo "No action needed."
-            fi
 
       # The date is used to get a fresh cache each week
       - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
@@ -254,15 +259,6 @@ jobs:
       - darkcheckout
       - setup-app
       - attach_workspace: { at: "." }
-      - run:
-          name: Setup backend build environment
-          command: |
-            set -x
-            if [[ -f /home/dark/tree-sitter.so && ! -f /home/dark/app/backend/src/LibTreeSitter/tree-sitter.so ]]; then
-              mv /home/dark/tree-sitter.so /home/dark/app/backend/src/LibTreeSitter/
-              else
-              echo "No action needed."
-            fi
 
       # The date is used to get a fresh cache each week
       - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
