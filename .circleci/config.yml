@@ -301,6 +301,17 @@ jobs:
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
+  # Publish VS Code Extension
+  publish-vs-code-extension:
+    executor: in-container
+    steps:
+      - darkcheckout
+      - setup-app
+      - attach_workspace: { at: "." }
+      - run: ./scripts/publish-vs-code-extension
+      - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
+
   static-checks:
     executor: in-container
     steps:
@@ -398,9 +409,21 @@ workflows:
       - build-cli:
           requires:
             - build-parser
+
+      # TODO: maybe put this into 'deploy' job,
+      # otherwise we're left in an awkward state if this succeeds
+      # and that fails
       - publish-github-release:
           requires:
             - build-cli
+          filters:
+            branches:
+              only: main
+
+      # TODO: maybe put this into 'deploy' job,
+      # otherwise we're left in an awkward state if this succeeds
+      # and that fails
+      - publish-vs-code-extension:
           filters:
             branches:
               only: main

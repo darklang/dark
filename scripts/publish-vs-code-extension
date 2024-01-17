@@ -1,0 +1,13 @@
+#! /usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+if [ -z "$VS_CODE_MARKETPLACE_TOKEN" ]; then
+    echo "Error: VS_CODE_MARKETPLACE_TOKEN is not set."
+    exit 1
+fi
+cd vscode-extension
+vsce package
+vsce publish -p $VS_CODE_MARKETPLACE_TOKEN
+echo "Published VS Code extension"
