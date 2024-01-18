@@ -16,7 +16,7 @@ let ptFQFnName =
   testMany
     "ProgramTypes.FnName.ToString"
     (fun name -> name |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString)
-    [ (PT.FQFnName.fqBuiltIn [ "String" ] "append" 1), "String.append_v1" ]
+    [ (PT.FQFnName.fqBuiltIn "stringAppend" 1), "stringAppend_v1" ]
 
 
 let testPipesToRuntimeTypes =
@@ -28,18 +28,15 @@ let testPipesToRuntimeTypes =
 
     let expected =
       S.eFn
-        [ "Int64" ]
-        "lessThan"
+        "int64LessThan"
         0
         []
         [ S.eFn
-            [ "Int64" ]
-            "add"
+            "int64Add"
             0
             []
             [ S.eFn
-                [ "Int64" ]
-                "subtract"
+                "int64Subtract"
                 0
                 []
                 [ S.eFieldAccess (S.eVar "value") "age"; S.eInt64 2 ]

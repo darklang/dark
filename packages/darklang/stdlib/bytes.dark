@@ -4,4 +4,4 @@ module Darklang =
 
       /// Hex (Base16) encodes <param bytes> using an uppercase alphabet. Complies
       /// with [RFC 4648 section 8](https://www.rfc-editor.org/rfc/rfc4648.html#section-8
-      let hexEncode (bytes: List<UInt8>) : String = Builtin.Bytes.hexEncode bytes
+      let hexEncode (bytes: List<UInt8>) : String = Builtin.bytesHexEncode bytes

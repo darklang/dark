@@ -9,23 +9,23 @@ module Darklang =
 
       /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
       /// The modulus <param b> must be greater than 0
-      let ``mod`` (a: UInt64) (b: UInt64) : UInt64 = Builtin.UInt64.``mod`` a b
+      let ``mod`` (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Mod a b
 
 
       /// Adds 64-bit unsigned integers together
-      let add (a: UInt64) (b: UInt64) : UInt64 = Builtin.UInt64.add a b
+      let add (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Add a b
 
 
       /// Subtracts 64-bit unsigned integers
-      let subtract (a: UInt64) (b: UInt64) : UInt64 = Builtin.UInt64.subtract a b
+      let subtract (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Subtract a b
 
 
       /// Multiplies 64-bit unsigned integers
-      let multiply (a: UInt64) (b: UInt64) : UInt64 = Builtin.UInt64.multiply a b
+      let multiply (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Multiply a b
 
 
       /// Divides 64-bit unsigned integers
-      let divide (a: UInt64) (b: UInt64) : UInt64 = Builtin.UInt64.divide a b
+      let divide (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Divide a b
 
 
       /// Raise <param base> to the power of <param exponent>.
@@ -35,37 +35,37 @@ module Darklang =
         if ``base`` == 0UL && exponent == 0UL then 1UL
         else if ``base`` == 0UL then 0UL
         else if ``base`` == 1UL then 1UL
-        else Builtin.UInt64.power ``base`` exponent
+        else Builtin.uint64Power ``base`` exponent
 
 
       /// Returns {{true}} if <param a> is greater than <param b>
-      let greaterThan (a: UInt64) (b: UInt64) : Bool = Builtin.UInt64.greaterThan a b
+      let greaterThan (a: UInt64) (b: UInt64) : Bool = Builtin.uint64GreaterThan a b
 
 
       /// Returns {{true}} if <param a> is greater than or equal to <param b>
       let greaterThanOrEqualTo (a: UInt64) (b: UInt64) : Bool =
-        Builtin.UInt64.greaterThanOrEqualTo a b
+        Builtin.uint64GreaterThanOrEqualTo a b
 
 
       /// Returns {{true}} if <param a> is less than <param b>
-      let lessThan (a: UInt64) (b: UInt64) : Bool = Builtin.UInt64.lessThan a b
+      let lessThan (a: UInt64) (b: UInt64) : Bool = Builtin.uint64LessThan a b
 
       /// Returns {{true}} if <param a> is less than or equal to <param b>
       let lessThanOrEqualTo (a: UInt64) (b: UInt64) : Bool =
-        Builtin.UInt64.lessThanOrEqualTo a b
+        Builtin.uint64LessThanOrEqualTo a b
 
 
       /// Returns a random integer between <param start> and <param end> (inclusive)
       let random (start: UInt64) (``end``: UInt64) : UInt64 =
-        Builtin.UInt64.random start ``end``
+        Builtin.uint64Random start ``end``
 
 
       /// Get the square root of an <type UInt64>
-      let sqrt (a: UInt64) : Float = Builtin.UInt64.sqrt a
+      let sqrt (a: UInt64) : Float = Builtin.uint64Sqrt a
 
 
       /// Converts an <type UInt64> to a <type Float>
-      let toFloat (a: UInt64) : Float = Builtin.UInt64.toFloat a
+      let toFloat (a: UInt64) : Float = Builtin.uint64ToFloat a
 
       /// Converts a <type Float> to an <type UInt64>
       let fromFloat (a: Float) : Stdlib.Option.Option<UInt64> =
@@ -75,17 +75,17 @@ module Darklang =
       /// Returns the sum of all the ints in the list
       let sum (lst: List<UInt64>) : UInt64 =
         PACKAGE.Darklang.Stdlib.List.fold lst 0UL (fun acc x ->
-          Builtin.UInt64.add acc x)
+          Builtin.uint64Add acc x)
 
 
       /// Returns the higher of <param a> and <param b>
       let max (a: UInt64) (b: UInt64) : UInt64 =
-        if Builtin.UInt64.greaterThan a b then a else b
+        if Builtin.uint64GreaterThan a b then a else b
 
 
       /// Returns the lower of <param a> and <param b>
       let min (a: UInt64) (b: UInt64) : UInt64 =
-        if Builtin.UInt64.lessThan a b then a else b
+        if Builtin.uint64LessThan a b then a else b
 
 
       /// If <param value> is within the range given by <param limitA> and <param
@@ -95,19 +95,19 @@ module Darklang =
       /// <param limitA> and <param limitB> can be provided in any order.
       let clamp (value: UInt64) (limitA: UInt64) (limitB: UInt64) : UInt64 =
         let min =
-          if Builtin.UInt64.lessThan limitA limitB then
+          if Builtin.uint64LessThan limitA limitB then
             limitA
           else
             limitB
 
         let max =
-          if Builtin.UInt64.greaterThan limitA limitB then
+          if Builtin.uint64GreaterThan limitA limitB then
             limitA
           else
             limitB
 
-        if Builtin.UInt64.lessThan value min then min
-        else if Builtin.UInt64.greaterThan value max then max
+        if Builtin.uint64LessThan value min then min
+        else if Builtin.uint64GreaterThan value max then max
         else value
 
 
@@ -115,50 +115,50 @@ module Darklang =
       let parse
         (s: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<UInt64, PACKAGE.Darklang.Stdlib.UInt64.ParseError> =
-        Builtin.UInt64.parse s
+        Builtin.uint64Parse s
 
 
       /// Stringify <param int>
-      let toString (uint64: UInt64) : String = Builtin.UInt64.toString uint64
+      let toString (uint64: UInt64) : String = Builtin.uint64ToString uint64
 
 
       /// Converts an <type Int8> to an <type UInt64>. Returns {{None}} if the value is less than 0
       let fromInt8 (i: Int8) : PACKAGE.Darklang.Stdlib.Option.Option<UInt64> =
-        Builtin.UInt64.fromInt8 i
+        Builtin.uint64FromInt8 i
 
 
       /// Converts a <type UInt8> to an <type UInt64>.
-      let fromUInt8 (i: UInt8) : UInt64 = Builtin.UInt64.fromUInt8 i
+      let fromUInt8 (i: UInt8) : UInt64 = Builtin.uint64FromUInt8 i
 
 
       /// Converts an <type Int16> to an <type UInt64>. Returns {{None}} if the value is less than 0
       let fromInt16 (i: Int16) : PACKAGE.Darklang.Stdlib.Option.Option<UInt64> =
-        Builtin.UInt64.fromInt16 i
+        Builtin.uint64FromInt16 i
 
 
       /// Converts a <type UInt16> to an <type UInt64>
-      let fromUInt16 (i: UInt16) : UInt64 = Builtin.UInt64.fromUInt16 i
+      let fromUInt16 (i: UInt16) : UInt64 = Builtin.uint64FromUInt16 i
 
 
       /// Converts an <type Int32> to an <type UInt64>. Returns {{None}} if the value is less than 0
       let fromInt32 (i: Int32) : PACKAGE.Darklang.Stdlib.Option.Option<UInt64> =
-        Builtin.UInt64.fromInt32 i
+        Builtin.uint64FromInt32 i
 
 
       /// Converts a <type UInt32> to an <type UInt64>.
-      let fromUInt32 (i: UInt32) : UInt64 = Builtin.UInt64.fromUInt32 i
+      let fromUInt32 (i: UInt32) : UInt64 = Builtin.uint64FromUInt32 i
 
 
       /// Converts an <type Int64> to an <type UInt64>. Returns {{None}} if the value is less than 0
       let fromInt64 (i: Int64) : PACKAGE.Darklang.Stdlib.Option.Option<UInt64> =
-        Builtin.UInt64.fromInt64 i
+        Builtin.uint64FromInt64 i
 
 
       /// Converts an <type Int128> to an <type UInt64>. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615
       let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<UInt64> =
-        Builtin.UInt64.fromInt128 i
+        Builtin.uint64FromInt128 i
 
 
       /// Converts a <type UInt128> to an <type UInt64>. Returns {{None}} if the value is greater than 18446744073709551615
       let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<UInt64> =
-        Builtin.UInt64.fromUInt128 i
+        Builtin.uint64FromUInt128 i

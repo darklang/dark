@@ -132,10 +132,10 @@ module FQTypeName =
 module FQConstantName =
   module Builtin =
     let toST (name : PT.FQConstantName.Builtin) : ST.FQConstantName.Builtin =
-      { modules = name.modules; name = name.name; version = name.version }
+      { name = name.name; version = name.version }
 
     let toPT (name : ST.FQConstantName.Builtin) : PT.FQConstantName.Builtin =
-      { modules = name.modules; name = name.name; version = name.version }
+      { name = name.name; version = name.version }
 
   module Package =
     let toST (name : PT.FQConstantName.Package) : ST.FQConstantName.Package =
@@ -179,10 +179,10 @@ module FQConstantName =
 module FQFnName =
   module Builtin =
     let toST (name : PT.FQFnName.Builtin) : ST.FQFnName.Builtin =
-      { modules = name.modules; name = name.name; version = name.version }
+      { name = name.name; version = name.version }
 
     let toPT (name : ST.FQFnName.Builtin) : PT.FQFnName.Builtin =
-      { modules = name.modules; name = name.name; version = name.version }
+      { name = name.name; version = name.version }
 
   module Package =
     let toST (name : PT.FQFnName.Package) : ST.FQFnName.Package =

@@ -11,13 +11,12 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 module Canvas = LibCloud.Canvas
 
-let fn = fn [ "DarkInternal"; "Canvas"; "Domain" ]
 
 
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "get" 0
+  [ { name = fn "darkInternalCanvasDomainGet" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TList TString
@@ -35,7 +34,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toCanvasID" 0
+    { name = fn "darkInternalCanvasDomainToCanvasID" 0
       typeParams = []
       parameters = [ Param.make "domain" TString "" ]
       returnType = TypeReference.result TUuid TString

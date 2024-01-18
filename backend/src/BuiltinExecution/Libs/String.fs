@@ -18,14 +18,11 @@ module TypeChecker = LibExecution.TypeChecker
 module Interpreter = LibExecution.Interpreter
 
 
-let modules = [ "String" ]
-let fn = fn modules
-let constant = constant modules
 
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "map" 0
+  [ { name = fn "stringMap" 0
       typeParams = []
       parameters =
         [ Param.make "s" TString ""
@@ -59,7 +56,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "toList" 0
+    { name = fn "stringToList" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TList TChar
@@ -79,7 +76,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "replaceAll" 0
+    { name = fn "stringReplaceAll" 0
       typeParams = []
       parameters =
         [ Param.make "s" TString "The string to operate on"
@@ -112,7 +109,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toUppercase" 0
+    { name = fn "stringToUppercase" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TString
@@ -126,7 +123,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toLowercase" 0
+    { name = fn "stringToLowercase" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TString
@@ -140,7 +137,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "length" 0
+    { name = fn "stringLength" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TInt64
@@ -155,7 +152,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "append" 0
+    { name = fn "stringAppend" 0
       typeParams = []
       parameters = [ Param.make "s1" TString ""; Param.make "s2" TString "" ]
       returnType = TString
@@ -175,7 +172,7 @@ let fns : List<BuiltInFn> =
 
     // CLEANUP move implementation to Darklang, in package space, in darklang stdlib
     // (blocked by lack of RegEx support in Dark)
-    { name = fn "slugify" 0
+    { name = fn "stringSlugify" 0
       typeParams = []
       parameters = [ Param.make "string" TString "" ]
       returnType = TString
@@ -206,7 +203,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "reverse" 0
+    { name = fn "stringReverse" 0
       typeParams = []
       parameters = [ Param.make "string" TString "" ]
       returnType = TString
@@ -221,7 +218,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "split" 0
+    { name = fn "stringSplit" 0
       typeParams = []
       parameters = [ Param.make "s" TString ""; Param.make "separator" TString "" ]
       returnType = TList TString
@@ -265,7 +262,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "join" 0
+    { name = fn "stringJoin" 0
       typeParams = []
       parameters =
         [ Param.make "l" (TList TString) ""; Param.make "separator" TString "" ]
@@ -289,7 +286,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "slice" 0
+    { name = fn "stringSlice" 0
       typeParams = []
       parameters =
         [ Param.make "string" TString ""
@@ -338,7 +335,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "trim" 0
+    { name = fn "stringTrim" 0
       typeParams = []
       parameters = [ Param.make "str" TString "" ]
       returnType = TString
@@ -356,7 +353,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "trimStart" 0
+    { name = fn "stringTrimStart" 0
       typeParams = []
       parameters = [ Param.make "str" TString "" ]
       returnType = TString
@@ -373,7 +370,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "trimEnd" 0
+    { name = fn "stringTrimEnd" 0
       typeParams = []
       parameters = [ Param.make "str" TString "" ]
       returnType = TString
@@ -390,7 +387,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toBytes" 0
+    { name = fn "stringToBytes" 0
       typeParams = []
       parameters = [ Param.make "str" TString "" ]
       returnType = TList TUInt8
@@ -407,7 +404,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromBytesWithReplacement" 0
+    { name = fn "stringFromBytesWithReplacement" 0
       typeParams = []
       parameters = [ Param.make "bytes" (TList TUInt8) "" ]
       returnType = TString
@@ -425,7 +422,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromBytes" 0
+    { name = fn "stringFromBytes" 0
       typeParams = []
       parameters = [ Param.make "bytes" (TList TUInt8) "" ]
       returnType = TypeReference.option TString
@@ -446,7 +443,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "indexOf" 0
+    { name = fn "stringIndexOf" 0
       typeParams = []
       parameters =
         [ Param.make "str" TString "The string to search in"
@@ -468,7 +465,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "head" 0
+    { name = fn "stringHead" 0
       typeParams = []
       parameters = [ Param.make "str" TString "" ]
       returnType = TypeReference.option TChar

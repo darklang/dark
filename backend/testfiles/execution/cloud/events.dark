@@ -1,18 +1,18 @@
 type FruitRecord = { fruits: List<String> }
 
 // getQueue works
-Builtin.Test.getQueue_v0 "TestWorker" = []
+Builtin.testGetQueue_v0 "TestWorker" = []
 
 // emit works
 (let _ = Builtin.emit "value" "TestWorker"
- let queue = Builtin.Test.getQueue_v0 "TestWorker"
+ let queue = Builtin.testGetQueue_v0 "TestWorker"
  queue) = [ "\"value\"" ]
 
 // emit works with mixed values
 (let _ = Builtin.emit "value" "TestWorker"
  let _ = Builtin.emit 1 "TestWorker"
  let _ = Builtin.emit (FruitRecord { fruits = [ "apple"; "banana" ] }) "TestWorker"
- let queue = Builtin.Test.getQueue_v0 "TestWorker"
+ let queue = Builtin.testGetQueue_v0 "TestWorker"
  PACKAGE.Darklang.Stdlib.List.sort queue) = [ "\"value\""
                                               "1"
                                               "FruitRecord {\n  fruits: [\n    \"apple\", \"banana\"\n  ]\n}" ]

@@ -368,15 +368,12 @@ let rec inline'
     identityPly
     expr
 
-let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
+let (|Fn|_|) (fName : string) (v : int) (expr : Expr) =
   match expr with
   | EApply(_,
-           EFnName(_,
-                   FQFnName.Builtin({ modules = modules
-                                      name = name
-                                      version = version })),
+           EFnName(_, FQFnName.Builtin({ name = name; version = version })),
            [],
-           args) when modules = [ mName ] && name = fName && version = v -> Some args
+           args) when name = fName && version = v -> Some args
   | _ -> None
 
 type CompiledSqlQuery =

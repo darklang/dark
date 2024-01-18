@@ -9,7 +9,6 @@ open LibExecution.Builtin.Shortcuts
 
 module Telemetry = LibService.Telemetry
 
-let fn = fn [ "DarkInternal"; "Canvas"; "F404" ]
 
 
 let constants : List<BuiltInConstant> = []

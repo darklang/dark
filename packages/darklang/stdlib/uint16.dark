@@ -11,19 +11,19 @@ module Darklang =
       /// The modulus <param b> must be greater than 0.
       /// Use <fn UInt16.remainder> if you want the remainder after division, which has
       /// a different behavior for negative numbers.
-      let ``mod`` (a: UInt16) (b: UInt16) : UInt16 = Builtin.UInt16.``mod`` a b
+      let ``mod`` (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Mod a b
 
 
       /// Adds two 16-bit unsigned integers together
-      let add (a: UInt16) (b: UInt16) : UInt16 = Builtin.UInt16.add a b
+      let add (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Add a b
 
 
       /// Subtracts two 16-bit unsigned  integers
-      let subtract (a: UInt16) (b: UInt16) : UInt16 = Builtin.UInt16.subtract a b
+      let subtract (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Subtract a b
 
 
       /// Multiplies two 16-bit unsigned  integers
-      let multiply (a: UInt16) (b: UInt16) : UInt16 = Builtin.UInt16.multiply a b
+      let multiply (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Multiply a b
 
 
       /// Raise <param base> to the power of <param exponent>.
@@ -33,42 +33,42 @@ module Darklang =
         if ``base`` == 0us && exponent == 0us then 1us
         else if ``base`` == 0us then 0us
         else if ``base`` == 1us then 1us
-        else Builtin.UInt16.power ``base`` exponent
+        else Builtin.uint16Power ``base`` exponent
 
 
       /// Divides two 16-bit unsigned integers
-      let divide (a: UInt16) (b: UInt16) : UInt16 = Builtin.UInt16.divide a b
+      let divide (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Divide a b
 
 
       /// Returns {{true}} if <param a> is greater than <param b>
-      let greaterThan (a: UInt16) (b: UInt16) : Bool = Builtin.UInt16.greaterThan a b
+      let greaterThan (a: UInt16) (b: UInt16) : Bool = Builtin.uint16GreaterThan a b
 
 
       /// Returns {{true}} if <param a> is greater than or equal to <param b>
       let greaterThanOrEqualTo (a: UInt16) (b: UInt16) : Bool =
-        Builtin.UInt16.greaterThanOrEqualTo a b
+        Builtin.uint16GreaterThanOrEqualTo a b
 
 
       /// Returns {{true}} if <param a> is less than <param b>
-      let lessThan (a: UInt16) (b: UInt16) : Bool = Builtin.UInt16.lessThan a b
+      let lessThan (a: UInt16) (b: UInt16) : Bool = Builtin.uint16LessThan a b
 
 
       /// Returns {{true}} if <param a> is less than or equal to <param b>
       let lessThanOrEqualTo (a: UInt16) (b: UInt16) : Bool =
-        Builtin.UInt16.lessThanOrEqualTo a b
+        Builtin.uint16LessThanOrEqualTo a b
 
 
       /// Returns a random 16-bit unsigned integer between <param start> and <param end> (inclusive)
       let random (start: UInt16) (``end``: UInt16) : UInt16 =
-        Builtin.UInt16.random start ``end``
+        Builtin.uint16Random start ``end``
 
 
       /// Get the square root of an <type UInt16>
-      let sqrt (a: UInt16) : Float = Builtin.UInt16.sqrt a
+      let sqrt (a: UInt16) : Float = Builtin.uint16Sqrt a
 
 
       /// Converts an <type UInt16> to a <type Float>
-      let toFloat (a: UInt16) : Float = Builtin.UInt16.toFloat a
+      let toFloat (a: UInt16) : Float = Builtin.uint16ToFloat a
 
 
       /// Returns the sum of all the ints in the list
@@ -123,52 +123,52 @@ module Darklang =
       let parse
         (s: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<UInt16, PACKAGE.Darklang.Stdlib.UInt16.ParseError> =
-        Builtin.UInt16.parse s
+        Builtin.uint16Parse s
 
 
       /// Stringify <param uint16>
-      let toString (uint16: UInt16) : String = Builtin.UInt16.toString uint16
+      let toString (uint16: UInt16) : String = Builtin.uint16ToString uint16
 
 
       /// Converts an <type Int8> to a <type UInt16>. Returns {{None}} if the value is less than 0.
       let fromInt8 (i: Int8) : PACKAGE.Darklang.Stdlib.Option.Option<UInt16> =
-        Builtin.UInt16.fromInt8 i
+        Builtin.uint16FromInt8 i
 
 
       /// Converts a <type UInt8> to a <type UInt16>.
-      let fromUInt8 (i: UInt8) : UInt16 = Builtin.UInt16.fromUInt8 i
+      let fromUInt8 (i: UInt8) : UInt16 = Builtin.uint16FromUInt8 i
 
 
       /// Converts an <type Int16> to a <type UInt16>. Returns {{None}} if the value is less than 0.
       let fromInt16 (i: Int16) : PACKAGE.Darklang.Stdlib.Option.Option<UInt16> =
-        Builtin.UInt16.fromInt16 i
+        Builtin.uint16FromInt16 i
 
 
       /// Converts an <type Int32> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 65535.
       let fromInt32 (i: Int32) : PACKAGE.Darklang.Stdlib.Option.Option<UInt16> =
-        Builtin.UInt16.fromInt32 i
+        Builtin.uint16FromInt32 i
 
 
       /// Converts a <type UInt32> to a <type UInt16>. Returns {{None}} if the value is greater than 65535.
       let fromUInt32 (i: UInt32) : PACKAGE.Darklang.Stdlib.Option.Option<UInt16> =
-        Builtin.UInt16.fromUInt32 i
+        Builtin.uint16FromUInt32 i
 
 
       /// Converts an <type Int64> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 65535.
       let fromInt64 (i: Int64) : PACKAGE.Darklang.Stdlib.Option.Option<UInt16> =
-        Builtin.UInt16.fromInt64 i
+        Builtin.uint16FromInt64 i
 
 
       /// Converts a <type UInt64> to a <type UInt16>. Returns {{None}} if the value is greater than 65535.
       let fromUInt64 (i: UInt64) : PACKAGE.Darklang.Stdlib.Option.Option<UInt16> =
-        Builtin.UInt16.fromUInt64 i
+        Builtin.uint16FromUInt64 i
 
 
       /// Converts an <type Int128> to a <type UInt16>. Returns {{None}} if the value is less than 0 or greater than 65535.
       let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<UInt16> =
-        Builtin.UInt16.fromInt128 i
+        Builtin.uint16FromInt128 i
 
 
       /// Converts a <type UInt128> to a <type UInt16>. Returns {{None}} if the value is greater than 65535.
       let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<UInt16> =
-        Builtin.UInt16.fromUInt128 i
+        Builtin.uint16FromUInt128 i

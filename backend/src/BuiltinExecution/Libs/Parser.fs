@@ -34,7 +34,7 @@ let rangeTypeName = packageFnType [] "Range" 0
 let parsedNodeTypeName = packageFnType [] "ParsedNode" 0
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "Parser" ] "parseToSimplifiedTree" 0
+  [ { name = fn "parserParseToSimplifiedTree" 0
       typeParams = []
       parameters = [ Param.make "sourceCode" TString "" ]
       returnType = TCustomType(Ok(packageFnType [] "ParsedNode" 0), [])

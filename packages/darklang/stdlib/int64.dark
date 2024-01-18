@@ -24,7 +24,7 @@ module Darklang =
         (value: Int64)
         (divisor: Int64)
         : PACKAGE.Darklang.Stdlib.Result.Result<Int64, String> =
-        Builtin.Int64.remainder value divisor
+        Builtin.int64Remainder value divisor
 
 
       /// Adds two integers together
@@ -40,7 +40,7 @@ module Darklang =
 
 
       /// Divides two integers
-      let divide (a: Int64) (b: Int64) : Int64 = Builtin.Int64.divide a b
+      let divide (a: Int64) (b: Int64) : Int64 = Builtin.int64Divide a b
 
 
       /// Raise <param base> to the power of <param exponent>.
@@ -84,15 +84,15 @@ module Darklang =
 
       /// Returns a random integer between <param start> and <param end> (inclusive)
       let random (start: Int64) (``end``: Int64) : Int64 =
-        Builtin.Int64.random start ``end``
+        Builtin.int64Random start ``end``
 
 
       /// Get the square root of an <type Int64>
-      let sqrt (a: Int64) : Float = Builtin.Int64.sqrt a
+      let sqrt (a: Int64) : Float = Builtin.int64Sqrt a
 
 
       /// Converts an <type Int64> to a <type Float>
-      let toFloat (a: Int64) : Float = Builtin.Int64.toFloat a
+      let toFloat (a: Int64) : Float = Builtin.int64ToFloat a
 
 
       /// Returns the sum of all the ints in the list
@@ -126,47 +126,47 @@ module Darklang =
       let parse
         (s: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<Int64, PACKAGE.Darklang.Stdlib.Int64.ParseError> =
-        Builtin.Int64.parse s
+        Builtin.int64Parse s
 
 
       /// Stringify <param int>
-      let toString (int: Int64) : String = Builtin.Int64.toString int
+      let toString (int: Int64) : String = Builtin.int64ToString int
 
 
       /// Converts an <type Int8> to an <type Int64>.
-      let fromInt8 (i: Int8) : Int64 = Builtin.Int64.fromInt8 i
+      let fromInt8 (i: Int8) : Int64 = Builtin.int64FromInt8 i
 
 
       /// Converts a <type UInt8> to an <type Int64>.
-      let fromUInt8 (i: UInt8) : Int64 = Builtin.Int64.fromUInt8 i
+      let fromUInt8 (i: UInt8) : Int64 = Builtin.int64FromUInt8 i
 
 
       /// Converts an <type Int16> to an <type Int64>.
-      let fromInt16 (i: Int16) : Int64 = Builtin.Int64.fromInt16 i
+      let fromInt16 (i: Int16) : Int64 = Builtin.int64FromInt16 i
 
 
       /// Converts a <type UInt16> to an <type Int64>.
-      let fromUInt16 (i: UInt16) : Int64 = Builtin.Int64.fromUInt16 i
+      let fromUInt16 (i: UInt16) : Int64 = Builtin.int64FromUInt16 i
 
 
       /// Converts an <type Int32> to an <type Int64>.
-      let fromInt32 (i: Int32) : Int64 = Builtin.Int64.fromInt32 i
+      let fromInt32 (i: Int32) : Int64 = Builtin.int64FromInt32 i
 
 
       /// Converts a <type UInt32> to an <type Int64>.
-      let fromUInt32 (i: UInt32) : Int64 = Builtin.Int64.fromUInt32 i
+      let fromUInt32 (i: UInt32) : Int64 = Builtin.int64FromUInt32 i
 
 
       /// Converts a <type UInt64> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
       let fromUInt64 (i: UInt64) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
-        Builtin.Int64.fromUInt64 i
+        Builtin.int64FromUInt64 i
 
 
       /// Converts an <type Int128> to an <type Int64>. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807
       let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
-        Builtin.Int64.fromInt128 i
+        Builtin.int64FromInt128 i
 
 
       /// Converts a <type UInt128> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
       let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
-        Builtin.Int64.fromUInt128 i
+        Builtin.int64FromUInt128 i

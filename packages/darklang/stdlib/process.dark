@@ -13,4 +13,4 @@ module Darklang =
       /// Runs a local process (i.e. `Process.runCommand "ls ."`)
       ///
       /// TODO consider returning a Stdlib.Result.Result instead
-      let runCommand (command: String) : Result = Builtin.Process.run command
+      let runCommand (command: String) : Result = Builtin.processRun command

@@ -27,7 +27,7 @@ let packagePackagesType
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "LocalExec"; "Packages" ] "listFunctions" 0
+  [ { name = fn "localExecPackagesListFunctions" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
@@ -71,7 +71,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn [ "LocalExec"; "Packages" ] "listTypes" 0
+    { name = fn "localExecPackagesListTypes" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TList(TCustomType(Ok(packagePackagesType [] "TypeName" 0), []))
@@ -113,7 +113,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn [ "LocalExec"; "Packages" ] "listConstants" 0
+    { name = fn "localExecPackagesListConstants" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =

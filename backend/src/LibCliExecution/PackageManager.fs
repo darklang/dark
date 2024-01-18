@@ -46,7 +46,7 @@ module ProgramTypes =
 
 
   module FQFnName =
-    type Builtin = { modules : List<string>; name : string; version : int }
+    type Builtin = { name : string; version : int }
     type Package =
       { owner : string; modules : List<string>; name : string; version : int }
 
@@ -56,7 +56,7 @@ module ProgramTypes =
 
 
   module FQConstantName =
-    type Builtin = { modules : List<string>; name : string; version : int }
+    type Builtin = { name : string; version : int }
     type Package =
       { owner : string; modules : List<string>; name : string; version : int }
 
@@ -354,7 +354,7 @@ module ExternalTypesToProgramTypes =
   module FnName =
     module Builtin =
       let toPT (b : EPT.FQFnName.Builtin) : PT.FQFnName.Builtin =
-        { modules = b.modules; name = b.name; version = b.version }
+        { name = b.name; version = b.version }
 
     module Package =
       let toPT (p : EPT.FQFnName.Package) : PT.FQFnName.Package =
@@ -368,7 +368,7 @@ module ExternalTypesToProgramTypes =
   module ConstantName =
     module Builtin =
       let toPT (b : EPT.FQConstantName.Builtin) : PT.FQConstantName.Builtin =
-        { modules = b.modules; name = b.name; version = b.version }
+        { name = b.name; version = b.version }
 
     module Package =
       let toPT (p : EPT.FQConstantName.Package) : PT.FQConstantName.Package =

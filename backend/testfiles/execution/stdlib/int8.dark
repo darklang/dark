@@ -1,7 +1,7 @@
 PACKAGE.Darklang.Stdlib.Int8.absoluteValue_v0 -5y = 5y
 PACKAGE.Darklang.Stdlib.Int8.absoluteValue_v0 5y = 5y
 
-PACKAGE.Darklang.Stdlib.Int8.absoluteValue_v0 -128y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.absoluteValue_v0 -128y = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.Int8.max_v0 5y 6y = 6y
@@ -33,7 +33,7 @@ PACKAGE.Darklang.Stdlib.Int8.negate_v0 5y = -5y
 PACKAGE.Darklang.Stdlib.Int8.negate_v0 0y = 0y
 PACKAGE.Darklang.Stdlib.Int8.negate_v0 -0y = 0y
 
-PACKAGE.Darklang.Stdlib.Int8.negate_v0 -128y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.negate_v0 -128y = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.Int8.remainder_v0 15y 6y = PACKAGE.Darklang.Stdlib.Result.Result.Ok
@@ -51,7 +51,7 @@ PACKAGE.Darklang.Stdlib.Int8.remainder_v0 -20y -8y = PACKAGE.Darklang.Stdlib.Res
 PACKAGE.Darklang.Stdlib.Int8.remainder_v0 -15y 6y = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   -3y
 
-PACKAGE.Darklang.Stdlib.Int8.remainder_v0 5y 0y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.remainder_v0 5y 0y = Builtin.testDerrorMessage
   "Division by zero"
 
 
@@ -64,16 +64,16 @@ PACKAGE.Darklang.Stdlib.Int8.add_v0 -55y 55y = 0y
 PACKAGE.Darklang.Stdlib.Int8.add_v0 55y 55y = 110y
 PACKAGE.Darklang.Stdlib.Int8.add_v0 PACKAGE.Darklang.Test.Constants.int8Const 5y = 10y
 
-PACKAGE.Darklang.Stdlib.Int8.add_v0 127y 1y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.add_v0 127y 1y = Builtin.testDerrorMessage
   "Out of range"
 
-PACKAGE.Darklang.Stdlib.Int8.add_v0 -128y -1y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.add_v0 -128y -1y = Builtin.testDerrorMessage
   "Out of range"
 
-PACKAGE.Darklang.Stdlib.Int8.add_v0 -100y -30y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.add_v0 -100y -30y = Builtin.testDerrorMessage
   "Out of range"
 
-PACKAGE.Darklang.Stdlib.Int8.add_v0 100y 30y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.add_v0 100y 30y = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.Int8.subtract_v0 10y 9y = 1y
@@ -82,19 +82,19 @@ PACKAGE.Darklang.Stdlib.Int8.subtract_v0 0y 1y = -1y
 PACKAGE.Darklang.Stdlib.Int8.subtract_v0 1y 0y = 1y
 PACKAGE.Darklang.Stdlib.Int8.subtract_v0 -55y -55y = 0y
 
-PACKAGE.Darklang.Stdlib.Int8.subtract_v0 -2y 127y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.subtract_v0 -2y 127y = Builtin.testDerrorMessage
   "Out of range"
 
-PACKAGE.Darklang.Stdlib.Int8.subtract_v0 -55y 100y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.subtract_v0 -55y 100y = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.Int8.multiply_v0 8y 8y = 64y
 PACKAGE.Darklang.Stdlib.Int8.multiply_v0 1y 0y = 0y
 
-PACKAGE.Darklang.Stdlib.Int8.multiply_v0 64y 2y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.multiply_v0 64y 2y = Builtin.testDerrorMessage
   "Out of range"
 
-PACKAGE.Darklang.Stdlib.Int8.multiply_v0 -128y -1y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.multiply_v0 -128y -1y = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.Int8.power_v0 2y 3y = 8y
@@ -106,13 +106,13 @@ PACKAGE.Darklang.Stdlib.Int8.power_v0 -1y 5y = -1y
 PACKAGE.Darklang.Stdlib.Int8.power_v0 -1y 6y = 1y
 PACKAGE.Darklang.Stdlib.Int8.power_v0 1y 127y = 1y
 
-PACKAGE.Darklang.Stdlib.Int8.power_v0 3y 5y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.power_v0 3y 5y = Builtin.testDerrorMessage
   "Out of range"
 
-PACKAGE.Darklang.Stdlib.Int8.power_v0 120y 20y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.power_v0 120y 20y = Builtin.testDerrorMessage
   "Out of range"
 
-PACKAGE.Darklang.Stdlib.Int8.power_v0 2y -3y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.power_v0 2y -3y = Builtin.testDerrorMessage
   "Negative exponent"
 
 
@@ -121,10 +121,10 @@ PACKAGE.Darklang.Stdlib.Int8.divide_v0 17y 3y = 5y
 PACKAGE.Darklang.Stdlib.Int8.divide_v0 -8y 5y = -1y
 PACKAGE.Darklang.Stdlib.Int8.divide_v0 0y 1y = 0y
 
-PACKAGE.Darklang.Stdlib.Int8.divide_v0 1y 0y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.divide_v0 1y 0y = Builtin.testDerrorMessage
   "Division by zero"
 
-PACKAGE.Darklang.Stdlib.Int8.divide_v0 -128y -1y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.divide_v0 -128y -1y = Builtin.testDerrorMessage
   "Out of range"
 
 
@@ -173,9 +173,9 @@ PACKAGE.Darklang.Stdlib.Int8.mod_v0 -1y 2y = 1y
 PACKAGE.Darklang.Stdlib.Int8.mod_v0 -128y 53y = 31y
 PACKAGE.Darklang.Stdlib.Int8.mod_v0 127y 3y = 1y
 
-PACKAGE.Darklang.Stdlib.Int8.mod_v0 5y 0y = Builtin.Test.derrorMessage "Zero modulus"
+PACKAGE.Darklang.Stdlib.Int8.mod_v0 5y 0y = Builtin.testDerrorMessage "Zero modulus"
 
-PACKAGE.Darklang.Stdlib.Int8.mod_v0 5y -5y = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int8.mod_v0 5y -5y = Builtin.testDerrorMessage
   "Negative modulus"
 
 (PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)

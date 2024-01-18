@@ -14,9 +14,9 @@ let unwrap (result: PACKAGE.Darklang.Stdlib.Result.Result<String, 'a>) : String 
 let main () : Int64 =
 
   let dockerfiles =
-    (Builtin.Directory.list "containers")
+    (Builtin.directoryList "containers")
     |> PACKAGE.Darklang.Stdlib.List.map (fun directory ->
-      Builtin.Directory.list directory)
+      Builtin.directoryList directory)
     |> PACKAGE.Darklang.Stdlib.List.flatten
     |> PACKAGE.Darklang.Stdlib.List.filter (fun filePath ->
       PACKAGE.Darklang.Stdlib.String.endsWith filePath "Dockerfile")
@@ -26,13 +26,13 @@ let main () : Int64 =
     |> PACKAGE.Darklang.Stdlib.List.map (fun dockerfile ->
       let buildCommand = $"docker build -q -f {dockerfile} ."
       let response = Posix.runCommandWithOutput buildCommand
-      let parsedResponse = Builtin.Json.parse<DockerBuildResponse> (response)
+      let parsedResponse = Builtin.jsonParse<DockerBuildResponse> (response)
       DockerImageID { imageID = parsedResponse.id })
 
-  let jsonImageIds = Builtin.Json.serialize<List<DockerImageId>> imageIds
+  let jsonImageIds = Builtin.jsonSerialize<List<DockerImageId>> imageIds
 
   let _ =
-    Builtin.File.write
+    Builtin.fileWrite
       (PACKAGE.Darklang.Stdlib.String.toBytes jsonImageIds)
       "ids.json"
 

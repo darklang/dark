@@ -13,7 +13,7 @@ open Builtin.Shortcuts
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "Stdin" ] "readLine" 0
+  [ { name = fn "stdinReadLine" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TString

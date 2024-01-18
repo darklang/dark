@@ -13,7 +13,7 @@ open Builtin.Shortcuts
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "Time" ] "sleep" 0
+  [ { name = fn "timeSleep" 0
       typeParams = []
       parameters = [ Param.make "delayInMs" TFloat "The delay in milliseconds" ]
       returnType = TUnit

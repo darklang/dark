@@ -29,14 +29,14 @@ module RuntimeTypes =
 
   let fqFnNames : List<RT.FQFnName.FQFnName> =
     [ RT.FQFnName.UserProgram { modules = [ "X" ]; name = "userfn"; version = 0 }
-      RT.FQFnName.Builtin { modules = [ "A" ]; name = "b"; version = 1 }
+      RT.FQFnName.Builtin { name = "aB"; version = 1 }
       RT.FQFnName.Package
         { owner = "a"; modules = [ "b"; "C" ]; name = "d"; version = 2 } ]
 
   let fqConstantNames : List<RT.FQConstantName.FQConstantName> =
     [ RT.FQConstantName.UserProgram
         { modules = [ "X" ]; name = "userfn"; version = 0 }
-      RT.FQConstantName.Builtin { modules = [ "A" ]; name = "b"; version = 1 }
+      RT.FQConstantName.Builtin { name = "aB"; version = 1 }
       RT.FQConstantName.Package
         { owner = "a"; modules = [ "b"; "C" ]; name = "d"; version = 2 } ]
 
@@ -264,7 +264,7 @@ module ProgramTypes =
 
   let fqFnNames : List<PT.FQFnName.FQFnName> =
     [ PT.FQFnName.UserProgram { modules = []; name = "fn"; version = 0 }
-      PT.FQFnName.Builtin { modules = [ "Int64" ]; name = "increment"; version = 1 }
+      PT.FQFnName.Builtin { name = "int64Increment"; version = 1 }
       PT.FQFnName.Package
         { owner = "twilio"; modules = [ "Twilio" ]; name = "sms"; version = 1 } ]
 
@@ -434,9 +434,7 @@ module ProgramTypes =
                             63953UL,
                             Ok(
                               PT.FQFnName.Builtin
-                                { modules = [ "Int64" ]
-                                  name = "toString"
-                                  version = 0 }
+                                { name = "int64ToString"; version = 0 }
                             )
                           ),
                           [ typeReference ],
@@ -487,9 +485,7 @@ module ProgramTypes =
                                   638434UL,
                                   Ok(
                                     PT.FQFnName.Builtin
-                                      { modules = [ "Int64" ]
-                                        name = "add"
-                                        version = 0 }
+                                      { name = "int64Add"; version = 0 }
                                   )
                                 ),
                                 [],
@@ -547,9 +543,7 @@ module ProgramTypes =
                                    1021880969UL,
                                    Ok(
                                      PT.FQFnName.Builtin
-                                       { modules = [ "Int64" ]
-                                         name = "add"
-                                         version = 0 }
+                                       { name = "int64Add"; version = 0 }
                                    ),
                                    [],
                                    [ (PT.EInt64(250221144UL, 6L))
@@ -590,9 +584,7 @@ module ProgramTypes =
                                   342954UL,
                                   Ok(
                                     PT.FQFnName.Builtin
-                                      { modules = [ "Mod" ]
-                                        name = "function"
-                                        version = 2 }
+                                      { name = "modFunction"; version = 2 }
                                   )
                                 ),
                                 [],

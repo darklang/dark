@@ -6,4 +6,4 @@ module Darklang =
       let pemCertificatePublicKey
         (cert: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
-        Builtin.X509.pemCertificatePublicKey cert
+        Builtin.x509PemCertificatePublicKey cert

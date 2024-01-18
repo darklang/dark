@@ -13,9 +13,6 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 
 
-let modules = [ "Int128" ]
-let fn = fn modules
-let constant = constant modules
 
 let constants : List<BuiltInConstant> = []
 
@@ -36,7 +33,7 @@ module ParseError =
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "mod" 0
+  [ { name = fn "int128Mod" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TInt128
@@ -70,7 +67,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "remainder" 0
+    { name = fn "int128Remainder" 0
       typeParams = []
       parameters = [ Param.make "value" TInt128 ""; Param.make "divisor" TInt128 "" ]
       returnType = TypeReference.result TInt128 TString
@@ -107,7 +104,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "add" 0
+    { name = fn "int128Add" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TInt128
@@ -130,7 +127,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "subtract" 0
+    { name = fn "int128Subtract" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TInt128
@@ -153,7 +150,7 @@ let fns : List<BuiltInFn> =
 
 
 
-    { name = fn "multiply" 0
+    { name = fn "int128Multiply" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TInt128
@@ -178,7 +175,7 @@ let fns : List<BuiltInFn> =
     // TODO: add power function
 
 
-    { name = fn "divide" 0
+    { name = fn "int128Divide" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TInt128
@@ -206,7 +203,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "negate" 0
+    { name = fn "int128Negate" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 "" ]
       returnType = TInt128
@@ -228,7 +225,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "greaterThan" 0
+    { name = fn "int128GreaterThan" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TBool
@@ -242,7 +239,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "greaterThanOrEqualTo" 0
+    { name = fn "int128GreaterThanOrEqualTo" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TBool
@@ -257,7 +254,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "lessThan" 0
+    { name = fn "int128LessThan" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TBool
@@ -271,7 +268,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "lessThanOrEqualTo" 0
+    { name = fn "int128LessThanOrEqualTo" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TBool
@@ -286,7 +283,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toString" 0
+    { name = fn "int128ToString" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 "" ]
       returnType = TString
@@ -300,7 +297,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toFloat" 0
+    { name = fn "int128ToFloat" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 "" ]
       returnType = TFloat
@@ -314,7 +311,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "sqrt" 0
+    { name = fn "int128Sqrt" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 "" ]
       returnType = TFloat
@@ -328,7 +325,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "parse" 0
+    { name = fn "int128Parse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType =
@@ -364,7 +361,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromInt8" 0
+    { name = fn "int128FromInt8" 0
       typeParams = []
       parameters = [ Param.make "a" TInt8 "" ]
       returnType = TInt128
@@ -378,7 +375,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromUInt8" 0
+    { name = fn "int128FromUInt8" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 "" ]
       returnType = TInt128
@@ -392,7 +389,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromInt16" 0
+    { name = fn "int128FromInt16" 0
       typeParams = []
       parameters = [ Param.make "a" TInt16 "" ]
       returnType = TInt128
@@ -406,7 +403,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromUInt16" 0
+    { name = fn "int128FromUInt16" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt16 "" ]
       returnType = TInt128
@@ -420,7 +417,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromInt32" 0
+    { name = fn "int128FromInt32" 0
       typeParams = []
       parameters = [ Param.make "a" TInt32 "" ]
       returnType = TInt128
@@ -434,7 +431,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromUInt32" 0
+    { name = fn "int128FromUInt32" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt32 "" ]
       returnType = TInt128
@@ -448,7 +445,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromInt64" 0
+    { name = fn "int128FromInt64" 0
       typeParams = []
       parameters = [ Param.make "a" TInt64 "" ]
       returnType = TInt128
@@ -462,7 +459,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromUInt64" 0
+    { name = fn "int128FromUInt64" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt64 "" ]
       returnType = TInt128

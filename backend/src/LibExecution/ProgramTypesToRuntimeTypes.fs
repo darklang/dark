@@ -37,10 +37,10 @@ module FQTypeName =
 module FQConstantName =
   module Builtin =
     let toRT (c : PT.FQConstantName.Builtin) : RT.FQConstantName.Builtin =
-      { modules = c.modules; name = c.name; version = c.version }
+      { name = c.name; version = c.version }
 
     let fromRT (c : RT.FQConstantName.Builtin) : PT.FQConstantName.Builtin =
-      { modules = c.modules; name = c.name; version = c.version }
+      { name = c.name; version = c.version }
 
   module Package =
     let toRT (c : PT.FQConstantName.Package) : RT.FQConstantName.Package =
@@ -69,10 +69,10 @@ module FQConstantName =
 module FQFnName =
   module Builtin =
     let toRT (s : PT.FQFnName.Builtin) : RT.FQFnName.Builtin =
-      { modules = s.modules; name = s.name; version = s.version }
+      { name = s.name; version = s.version }
 
     let fromRT (s : RT.FQFnName.Builtin) : PT.FQFnName.Builtin =
-      { modules = s.modules; name = s.name; version = s.version }
+      { name = s.name; version = s.version }
 
   module Package =
     let toRT (p : PT.FQFnName.Package) : RT.FQFnName.Package =
@@ -138,21 +138,21 @@ module TypeReference =
 
 
 module InfixFnName =
-  let toFnName (name : PT.InfixFnName) : (List<string> * string * int) =
+  let toFnName (name : PT.InfixFnName) : (string * int) =
     match name with
-    | PT.ArithmeticPlus -> ([ "Int64" ], "add", 0)
-    | PT.ArithmeticMinus -> ([ "Int64" ], "subtract", 0)
-    | PT.ArithmeticMultiply -> ([ "Int64" ], "multiply", 0)
-    | PT.ArithmeticDivide -> ([ "Float" ], "divide", 0)
-    | PT.ArithmeticModulo -> ([ "Int64" ], "mod", 0)
-    | PT.ArithmeticPower -> ([ "Int64" ], "power", 0)
-    | PT.ComparisonGreaterThan -> ([ "Int64" ], "greaterThan", 0)
-    | PT.ComparisonGreaterThanOrEqual -> ([ "Int64" ], "greaterThanOrEqualTo", 0)
-    | PT.ComparisonLessThan -> ([ "Int64" ], "lessThan", 0)
-    | PT.ComparisonLessThanOrEqual -> ([ "Int64" ], "lessThanOrEqualTo", 0)
-    | PT.StringConcat -> ([ "String" ], "append", 0)
-    | PT.ComparisonEquals -> ([], "equals", 0)
-    | PT.ComparisonNotEquals -> ([], "notEquals", 0)
+    | PT.ArithmeticPlus -> ("int64Add", 0)
+    | PT.ArithmeticMinus -> ("int64Subtract", 0)
+    | PT.ArithmeticMultiply -> ("int64Multiply", 0)
+    | PT.ArithmeticDivide -> ("floatDivide", 0)
+    | PT.ArithmeticModulo -> ("int64Mod", 0)
+    | PT.ArithmeticPower -> ("int64Power", 0)
+    | PT.ComparisonGreaterThan -> ("int64GreaterThan", 0)
+    | PT.ComparisonGreaterThanOrEqual -> ("int64GreaterThanOrEqualTo", 0)
+    | PT.ComparisonLessThan -> ("int64LessThan", 0)
+    | PT.ComparisonLessThanOrEqual -> ("int64LessThanOrEqualTo", 0)
+    | PT.StringConcat -> ("stringAppend", 0)
+    | PT.ComparisonEquals -> ("equals", 0)
+    | PT.ComparisonNotEquals -> ("notEquals", 0)
 
 
 module LetPattern =
@@ -239,9 +239,8 @@ module Expr =
 
     // CLEANUP tidy infix stuff - extract to another fn?
     | PT.EInfix(id, PT.InfixFnCall fnName, left, right) ->
-      let (modules, fn, version) = InfixFnName.toFnName fnName
-      let name =
-        RT.FQFnName.Builtin({ modules = modules; name = fn; version = version })
+      let (fn, version) = InfixFnName.toFnName fnName
+      let name = RT.FQFnName.Builtin({ name = fn; version = version })
       RT.EApply(
         id,
         RT.EFnName(id, name),
@@ -316,9 +315,8 @@ module Expr =
             exprs |> List.map toRT |> NEList.ofList prev
           )
         | PT.EPipeInfix(id, PT.InfixFnCall fnName, expr) ->
-          let (modules, fn, version) = InfixFnName.toFnName fnName
-          let name =
-            PT.FQFnName.Builtin({ modules = modules; name = fn; version = version })
+          let (fn, version) = InfixFnName.toFnName fnName
+          let name = PT.FQFnName.Builtin({ name = fn; version = version })
           RT.EApply(
             id,
             RT.EFnName(id, FQFnName.toRT name),

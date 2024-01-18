@@ -52,7 +52,7 @@ let export (unit: Unit) : Result<Unit, String> =
 
   Builtin.printLine "serializing data to export"
 
-  let json = Builtin.Json.serialize<DataExport> data
+  let json = Builtin.jsonSerialize<DataExport> data
 
   Builtin.printLine "exporting data to `dark-ai-backup`"
 
@@ -83,7 +83,7 @@ let import () : Result<ImportResults, String> =
 
   Builtin.printLine "deserializing response from `dark-ai-backup`"
 
-  let deserialized = (Builtin.Json.parse<DataExport> response) |> Builtin.unwrap
+  let deserialized = (Builtin.jsonParse<DataExport> response) |> Builtin.unwrap
 
   Builtin.printLine "parsing and importing packages"
 

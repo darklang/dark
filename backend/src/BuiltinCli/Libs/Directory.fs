@@ -13,10 +13,9 @@ open Builtin.Shortcuts
 
 let constants : List<BuiltInConstant> = []
 
-let fn = fn [ "Directory" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "current" 0
+  [ { name = fn "directoryCurrent" 0
       typeParams = []
       parameters = [ Param.make "" TUnit "" ]
       returnType = TString
@@ -34,7 +33,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "create" 0
+    { name = fn "directoryCreate" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TypeReference.result TUnit TString
@@ -57,7 +56,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "delete" 0
+    { name = fn "directoryDelete" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TypeReference.result TUnit TString
@@ -79,7 +78,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "list" 0
+    { name = fn "directoryList" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TList TString

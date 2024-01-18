@@ -12,9 +12,6 @@ module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 
 
-let modules = [ "LanguageTools" ]
-let fn = fn modules
-let constant = constant modules
 
 let constants : List<BuiltInConstant> = []
 
@@ -27,7 +24,7 @@ let typ
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "allBuiltinFns" 0
+  [ { name = fn "languageToolsAllBuiltinFns" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TList(TCustomType(Ok(typ [] "BuiltinFunction" 0), []))

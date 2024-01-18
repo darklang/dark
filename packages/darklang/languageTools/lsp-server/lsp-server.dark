@@ -18,7 +18,7 @@ module Darklang =
       /// to `rundir/logs/lsp-server.log`, for local debugging.
       let runServerCli (u: Unit) : Int64 =
         // clear `lsp-server.log`, and write a timestamp of the start-up
-        let _deleted = Builtin.File.delete logFilePath
+        let _deleted = Builtin.fileDelete logFilePath
 
         (Stdlib.DateTime.now_v0 ())
         |> Stdlib.DateTime.toString

@@ -13,12 +13,10 @@ module Dval = LibExecution.Dval
 
 let constants : List<BuiltInConstant> = []
 
-let modules = [ "Base64" ]
-let fn = fn modules
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "decode" 0
+  [ { name = fn "base64Decode" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TypeReference.result (TList TUInt8) TString
@@ -64,7 +62,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "encode" 0
+    { name = fn "base64Encode" 0
       typeParams = []
       parameters = [ Param.make "bytes" (TList TUInt8) "" ]
       returnType = TString
@@ -83,7 +81,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "urlEncode" 0
+    { name = fn "base64UrlEncode" 0
       typeParams = []
       parameters = [ Param.make "bytes" (TList TUInt8) "" ]
       returnType = TString

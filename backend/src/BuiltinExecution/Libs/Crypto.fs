@@ -18,10 +18,9 @@ module Dval = LibExecution.Dval
 
 let constants : List<BuiltInConstant> = []
 
-let fn = fn [ "Crypto" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "sha256" 0
+  [ { name = fn "cryptoSha256" 0
       typeParams = []
       parameters = [ Param.make "data" (TList TUInt8) "" ]
       returnType = TList TUInt8
@@ -38,7 +37,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "sha384" 0
+    { name = fn "cryptoSha384" 0
       typeParams = []
       parameters = [ Param.make "data" (TList TUInt8) "" ]
       returnType = (TList TUInt8)
@@ -55,7 +54,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "md5" 0
+    { name = fn "cryptoMd5" 0
       typeParams = []
       parameters = [ Param.make "data" (TList TUInt8) "" ]
       returnType = (TList TUInt8)
@@ -73,7 +72,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "sha256hmac" 0
+    { name = fn "cryptoSha256hmac" 0
       typeParams = []
       parameters =
         [ Param.make "key" (TList TUInt8) ""; Param.make "data" (TList TUInt8) "" ]
@@ -94,7 +93,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "sha1hmac" 0
+    { name = fn "cryptoSha1hmac" 0
       typeParams = []
       parameters =
         [ Param.make "key" (TList TUInt8) ""; Param.make "data" (TList TUInt8) "" ]

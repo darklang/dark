@@ -30,10 +30,9 @@ module ParseError =
     DEnum(typeName, typeName, [], caseName, fields)
 
 
-let fn = fn [ "UInt8" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "mod" 0
+  [ { name = fn "uint8Mod" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TUInt8
@@ -62,7 +61,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "add" 0
+    { name = fn "uint8Add" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TUInt8
@@ -83,7 +82,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "subtract" 0
+    { name = fn "uint8Subtract" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TUInt8
@@ -104,7 +103,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "multiply" 0
+    { name = fn "uint8Multiply" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TUInt8
@@ -125,7 +124,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "power" 0
+    { name = fn "uint8Power" 0
       typeParams = []
       parameters = [ Param.make "base" TUInt8 ""; Param.make "exponent" TUInt8 "" ]
       returnType = TUInt8
@@ -149,7 +148,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "divide" 0
+    { name = fn "uint8Divide" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TUInt8
@@ -177,7 +176,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "greaterThan" 0
+    { name = fn "uint8GreaterThan" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TBool
@@ -191,7 +190,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "greaterThanOrEqualTo" 0
+    { name = fn "uint8GreaterThanOrEqualTo" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TBool
@@ -206,7 +205,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "lessThan" 0
+    { name = fn "uint8LessThan" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TBool
@@ -220,7 +219,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "lessThanOrEqualTo" 0
+    { name = fn "uint8LessThanOrEqualTo" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TBool
@@ -235,7 +234,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toString" 0
+    { name = fn "uint8ToString" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 "" ]
       returnType = TString
@@ -249,7 +248,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toFloat" 0
+    { name = fn "uint8ToFloat" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 "" ]
       returnType = TFloat
@@ -263,7 +262,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "random" 0
+    { name = fn "uint8Random" 0
       typeParams = []
       parameters = [ Param.make "start" TUInt8 ""; Param.make "end" TUInt8 "" ]
       returnType = TUInt8
@@ -290,7 +289,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "sqrt" 0
+    { name = fn "uint8Sqrt" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt8 "" ]
       returnType = TFloat
@@ -304,7 +303,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "parse" 0
+    { name = fn "uint8Parse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType =
@@ -335,7 +334,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromInt8" 0
+    { name = fn "uint8FromInt8" 0
       typeParams = []
       parameters = [ Param.make "a" TInt8 "" ]
       returnType = TypeReference.option TUInt8
@@ -354,7 +353,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromInt16" 0
+    { name = fn "uint8FromInt16" 0
       typeParams = []
       parameters = [ Param.make "a" TInt16 "" ]
       returnType = TypeReference.option TUInt8
@@ -373,7 +372,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromUInt16" 0
+    { name = fn "uint8FromUInt16" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt16 "" ]
       returnType = TypeReference.option TUInt8
@@ -392,7 +391,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromInt32" 0
+    { name = fn "uint8FromInt32" 0
       typeParams = []
       parameters = [ Param.make "a" TInt32 "" ]
       returnType = TypeReference.option TUInt8
@@ -411,7 +410,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromUInt32" 0
+    { name = fn "uint8FromUInt32" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt32 "" ]
       returnType = TypeReference.option TUInt8
@@ -430,7 +429,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromInt64" 0
+    { name = fn "uint8FromInt64" 0
       typeParams = []
       parameters = [ Param.make "a" TInt64 "" ]
       returnType = TypeReference.option TUInt8
@@ -449,7 +448,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromUInt64" 0
+    { name = fn "uint8FromUInt64" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt64 "" ]
       returnType = TypeReference.option TUInt8
@@ -468,7 +467,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromInt128" 0
+    { name = fn "uint8FromInt128" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 "" ]
       returnType = TypeReference.option TUInt8
@@ -487,7 +486,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromUInt128" 0
+    { name = fn "uint8FromUInt128" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt128 "" ]
       returnType = TypeReference.option TUInt8

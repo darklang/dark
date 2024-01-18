@@ -118,14 +118,6 @@ module Darklang =
           let fullForReference
             (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.FQConstantName.Builtin)
             : String =
-            let modulesPart =
-              match t.modules with
-              | [] -> ""
-              | modules ->
-                modules
-                |> PACKAGE.Darklang.Stdlib.String.join "."
-                |> (fun parts -> $"{parts}.")
-
             let namePart = t.name
 
             let versionPart =
@@ -134,7 +126,7 @@ module Darklang =
               else
                 $"_v{PACKAGE.Darklang.Stdlib.Int64.toString t.version}"
 
-            $"Builtin.{modulesPart}{namePart}{versionPart}"
+            $"Builtin.{namePart}{versionPart}"
 
 
         module Package =
@@ -245,14 +237,6 @@ module Darklang =
           let fullForReference
             (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.FQFnName.Builtin)
             : String =
-            let modulesPart =
-              match t.modules with
-              | [] -> ""
-              | modules ->
-                modules
-                |> PACKAGE.Darklang.Stdlib.String.join "."
-                |> (fun parts -> $"{parts}.")
-
             let namePart = t.name
 
             let versionPart =
@@ -261,7 +245,7 @@ module Darklang =
               else
                 $"_v{PACKAGE.Darklang.Stdlib.Int64.toString t.version}"
 
-            $"Builtin.{modulesPart}{namePart}{versionPart}"
+            $"Builtin.{namePart}{versionPart}"
 
 
         module Package =

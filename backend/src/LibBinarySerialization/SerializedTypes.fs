@@ -80,52 +80,12 @@ module FQTypeName =
     | Package of Package
 
 
-
-module FQFnName =
-  [<MessagePack.MessagePackObject>]
-  type Builtin =
-    { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
-  type UserProgram =
-    { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
-  type Package =
-    { [<MessagePack.Key 0>]
-      owner : string
-      [<MessagePack.Key 1>]
-      modules : List<string>
-      [<MessagePack.Key 2>]
-      name : string
-      [<MessagePack.Key 3>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
-  type FQFnName =
-    | Builtin of Builtin
-    | Package of Package
-    | UserProgram of UserProgram
-
-
 module FQConstantName =
   [<MessagePack.MessagePackObject>]
   type Builtin =
     { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
       name : string
-      [<MessagePack.Key 2>]
+      [<MessagePack.Key 1>]
       version : int }
 
   [<MessagePack.MessagePackObject>]
@@ -150,6 +110,41 @@ module FQConstantName =
 
   [<MessagePack.MessagePackObject>]
   type FQConstantName =
+    | Builtin of Builtin
+    | Package of Package
+    | UserProgram of UserProgram
+
+
+module FQFnName =
+  [<MessagePack.MessagePackObject>]
+  type Builtin =
+    { [<MessagePack.Key 0>]
+      name : string
+      [<MessagePack.Key 1>]
+      version : int }
+
+  [<MessagePack.MessagePackObject>]
+  type UserProgram =
+    { [<MessagePack.Key 0>]
+      modules : List<string>
+      [<MessagePack.Key 1>]
+      name : string
+      [<MessagePack.Key 2>]
+      version : int }
+
+  [<MessagePack.MessagePackObject>]
+  type Package =
+    { [<MessagePack.Key 0>]
+      owner : string
+      [<MessagePack.Key 1>]
+      modules : List<string>
+      [<MessagePack.Key 2>]
+      name : string
+      [<MessagePack.Key 3>]
+      version : int }
+
+  [<MessagePack.MessagePackObject>]
+  type FQFnName =
     | Builtin of Builtin
     | Package of Package
     | UserProgram of UserProgram

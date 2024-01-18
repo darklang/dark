@@ -83,7 +83,7 @@ module NoInternal =
  |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   200L
 
-PACKAGE.Darklang.Stdlib.HttpClient.request "get" "https://darklang.com" [ 1L ] [] = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.HttpClient.request "get" "https://darklang.com" [ 1L ] [] = Builtin.testDerrorMessage
   "PACKAGE.Darklang.Stdlib.HttpClient.request's 3rd argument (`headers`) should be a List<(String * String)>. However, a List<Int64> ([  1]) was passed instead.
 
 Expected: (headers: List<(String * String)>)

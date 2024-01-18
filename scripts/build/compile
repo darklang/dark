@@ -256,7 +256,7 @@ def reload_canvas(f):
   f = os.path.normpath(f)
   f = os.path.relpath(f, "canvases")  # remove /canvases
   (f, _) = os.path.split(f)  # remove filename
-  return run_backend(start, f"scripts/run-canvas-hack load-from-disk {f}")
+  return run_backend(start, f"scripts/run-canvas-hack load-from-disk {f} AUTH_PASSWORD=password")
 
 
 class Should:

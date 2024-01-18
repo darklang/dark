@@ -38,13 +38,9 @@ let resolver : LibParser.NameResolver.NameResolver =
         builtinFns =
           Set
             [ LibExecution.ProgramTypes.FQFnName.builtIn
-                [ "LocalExec"; "Packages" ]
-                "parseAndSave"
+                "localExecPackagesParseAndSave"
                 0
-              LibExecution.ProgramTypes.FQFnName.builtIn
-                [ "LocalExec"; "Packages" ]
-                "parse"
-                0 ] }
+              LibExecution.ProgramTypes.FQFnName.builtIn "localExecPackagesParse" 0 ] }
 
   LibParser.NameResolver.merge builtinResolver thisResolver (Some packageManager)
 
@@ -56,7 +52,7 @@ let typ =
       version = 0 }
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "LocalExec"; "Packages" ] "parse" 0
+  [ { name = fn "localExecPackagesParse" 0
       typeParams = []
       parameters =
         [ Param.make "package source" TString "The source code of the package"

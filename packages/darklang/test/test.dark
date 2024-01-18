@@ -3,7 +3,7 @@ module Darklang =
   module Test =
     let stringFn (key: String) : String = key ++ " appended string"
 
-    let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a = Builtin.Json.parse<'a> arg
+    let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a = Builtin.jsonParse<'a> arg
 
     let twoStringFn (str1: String) (str2: String) : String =
       str1 ++ " appended " ++ str2
@@ -25,9 +25,9 @@ module Darklang =
       PACKAGE.Darklang.Stdlib.Result.Result.Error false
 
     let throwsException () : DateTime =
-      Builtin.Test.raiseException "throwsException message"
+      Builtin.testRaiseException "throwsException message"
 
-    let derrorFn (msg: String) : String = msg ++ Builtin.Test.runtimeError msg
+    let derrorFn (msg: String) : String = msg ++ Builtin.testRuntimeError msg
 
     type X<'a> =
       | A of Int64

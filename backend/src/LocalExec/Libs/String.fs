@@ -11,7 +11,7 @@ open LibExecution.Builtin.Shortcuts
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "LocalExec"; "BuiltIns"; "String" ] "endsWith" 0
+  [ { name = fn "localExecBuiltInsStringEndsWith" 0
       typeParams = []
       parameters =
         [ Param.make "subject" TString "String to test"

@@ -62,7 +62,7 @@ module FormatV0 =
 
 
   module FQFnName =
-    type Builtin = { modules : List<string>; name : string; version : int }
+    type Builtin = { name : string; version : int }
 
     type UserProgram = { modules : List<string>; name : string; version : int }
 
@@ -77,8 +77,8 @@ module FormatV0 =
 
     let toRT (fn : FQFnName) : RT.FQFnName.FQFnName =
       match fn with
-      | Builtin { modules = modules; name = name; version = version } ->
-        RT.FQFnName.Builtin { modules = modules; name = name; version = version }
+      | Builtin { name = name; version = version } ->
+        RT.FQFnName.Builtin { name = name; version = version }
 
       | UserProgram { modules = modules; name = name; version = version } ->
         RT.FQFnName.UserProgram { modules = modules; name = name; version = version }
@@ -89,8 +89,8 @@ module FormatV0 =
 
     let fromRT (fn : RT.FQFnName.FQFnName) : FQFnName =
       match fn with
-      | RT.FQFnName.Builtin { modules = modules; name = name; version = version } ->
-        FQFnName.Builtin { modules = modules; name = name; version = version }
+      | RT.FQFnName.Builtin { name = name; version = version } ->
+        FQFnName.Builtin { name = name; version = version }
 
       | RT.FQFnName.UserProgram { modules = modules; name = name; version = version } ->
         FQFnName.UserProgram { modules = modules; name = name; version = version }

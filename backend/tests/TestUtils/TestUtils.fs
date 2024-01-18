@@ -1175,24 +1175,20 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                92356985UL,
                (EFnName(
                  957274UL,
-                 FQFnName.Builtin
-                   { modules = [ "List" ]; name = "push"; version = 0 }
+                 FQFnName.Builtin { name = "listPush"; version = 0 }
                )),
                [],
                NEList.singleton (
                  EApply(
                    93459985UL,
-                   (EFnName(
-                     123123UL,
-                     FQFnName.Builtin { modules = []; name = "+"; version = 0 }
-                   )),
+                   (EFnName(123123UL, FQFnName.Builtin { name = "+"; version = 0 })),
                    [],
                    (NEList.doubleton
                      (EApply(
                        394567785UL,
                        (EFnName(
                          95723UL,
-                         FQFnName.Builtin { modules = []; name = "+"; version = 0 }
+                         FQFnName.Builtin { name = "+"; version = 0 }
                        )),
                        [],
                        (NEList.doubleton
@@ -1200,8 +1196,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                            44444485UL,
                            (EFnName(
                              9473UL,
-                             FQFnName.Builtin
-                               { modules = []; name = "+"; version = 0 }
+                             FQFnName.Builtin { name = "+"; version = 0 }
                            )),
                            [],
                            (NEList.doubleton

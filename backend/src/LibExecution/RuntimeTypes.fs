@@ -35,7 +35,16 @@ open Prelude
 let modulePattern = @"^[A-Z][a-z0-9A-Z_]*$"
 let typeNamePattern = @"^[A-Z][a-z0-9A-Z_]*$"
 let fnNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
+let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
 let constantNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
+
+let assertBuiltin'
+  (name : string)
+  (version : int)
+  (nameValidator : string -> unit)
+  : unit =
+  nameValidator name
+  assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
 let assert'
   (modules : List<string>)
@@ -132,8 +141,7 @@ module FQTypeName =
 module FQConstantName =
   /// A constant built into the runtime
   ///
-  /// TODO: replace with just string * version ?
-  type Builtin = { modules : List<string>; name : string; version : int }
+  type Builtin = { name : string; version : int }
 
   /// The name of a constant in the package manager
   type Package =
@@ -156,16 +164,12 @@ module FQConstantName =
   let assertConstantName (name : string) : unit =
     assertRe "Constant name must match" constantNamePattern name
 
-  let builtin (modules : List<string>) (name : string) (version : int) : Builtin =
-    assert' modules name version assertConstantName
-    { modules = modules; name = name; version = version }
+  let builtin (name : string) (version : int) : Builtin =
+    assertBuiltin' name version assertConstantName
+    { name = name; version = version }
 
-  let fqBuiltIn
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : FQConstantName =
-    Builtin(builtin modules name version)
+  let fqBuiltIn (name : string) (version : int) : FQConstantName =
+    Builtin(builtin name version)
 
   let package
     (owner : string)
@@ -200,7 +204,7 @@ module FQConstantName =
     UserProgram(userProgram modules name version)
 
   let builtinToString (s : Builtin) : string =
-    let name = s.modules @ [ s.name ] |> String.concat "."
+    let name = s.name
     if s.version = 0 then name else $"{name}_v{s.version}"
 
   let packageToString (s : Package) : string =
@@ -227,7 +231,7 @@ module FQFnName =
   ///
   /// TODO: replace with just string * version ?
   /// like `{ function_ = "__list_map"; version = 0 }`
-  type Builtin = { modules : List<string>; name : string; version : int }
+  type Builtin = { name : string; version : int }
 
   /// The name of a function in the package manager
   type Package =
@@ -247,14 +251,18 @@ module FQFnName =
 
 
   let assertFnName (name : string) : unit =
-    assertRe "Fn name must match" fnNamePattern name
+    assertRe $"Fn name must match" fnNamePattern name
 
-  let builtin (modules : List<string>) (name : string) (version : int) : Builtin =
-    assert' modules name version assertFnName
-    { modules = modules; name = name; version = version }
+  let assertBuiltinFnName (name : string) : unit =
+    assertRe $"Fn name must match" builtinNamePattern name
 
-  let fqBuiltin (modules : List<string>) (name : string) (version : int) : FQFnName =
-    Builtin(builtin modules name version)
+
+  let builtin (name : string) (version : int) : Builtin =
+    assertBuiltin' name version assertBuiltinFnName
+    { name = name; version = version }
+
+  let fqBuiltin (name : string) (version : int) : FQFnName =
+    Builtin(builtin name version)
 
   let package
     (owner : string)
@@ -290,7 +298,7 @@ module FQFnName =
 
 
   let builtinToString (s : Builtin) : string =
-    let name = s.modules @ [ s.name ] |> String.concat "."
+    let name = s.name
     if s.version = 0 then name else $"{name}_v{s.version}"
 
   let packageToString (s : Package) : string =
@@ -308,8 +316,7 @@ module FQFnName =
     | UserProgram user -> userProgramToString user
 
 
-  let isInternalFn (fnName : Builtin) : bool =
-    List.tryHead fnName.modules = Some "DarkInternal"
+  let isInternalFn (fnName : Builtin) : bool = fnName.name.Contains("darkInternal")
 
 
 

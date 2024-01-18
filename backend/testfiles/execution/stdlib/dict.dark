@@ -21,7 +21,7 @@ module FilterMap =
       if value == "y" then
         false
       else
-        PACKAGE.Darklang.Stdlib.Option.Option.Some(key ++ value))) = Builtin.Test.derrorMessage
+        PACKAGE.Darklang.Stdlib.Option.Option.Some(key ++ value))) = Builtin.testDerrorMessage
     """Function return value should be a PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, a Bool (false) was returned instead.
 
 Expected: PACKAGE.Darklang.Stdlib.Option.Option<'b>
@@ -40,7 +40,7 @@ module Filter =
   PACKAGE.Darklang.Stdlib.Dict.filter (Dict { }) (fun k v -> 0L) = (Dict { })
 
   PACKAGE.Darklang.Stdlib.Dict.filter (Dict { a = 1L; b = 2L; c = 3L }) (fun k v ->
-    2L) = Builtin.Test.derrorMessage
+    2L) = Builtin.testDerrorMessage
     """Function return value should be a Bool. However, an Int64 (2) was returned instead.
 
 Expected: Bool
@@ -58,16 +58,16 @@ module FromListOverwritingDuplicates =
   PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates_v0 [] = (Dict { })
 
   PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates_v0
-    [ Builtin.Test.runtimeError "" ] = Builtin.Test.derrorMessage ""
+    [ Builtin.testRuntimeError "" ] = Builtin.testDerrorMessage ""
 
   // In Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int64 (2) was passed instead.\n\nExpected: (String, 'b)\nActual: an Int64: 2
-  PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates_v0 [ (1L, 2L) ] = Builtin.Test.derrorMessage
+  PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates_v0 [ (1L, 2L) ] = Builtin.testDerrorMessage
     "PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st argument (`entries`) should be a List<(String * 'a)>. However, a List<(Int64, Int64)> ([  (1, 2)...) was passed instead.
 
 Expected: (entries: List<(String * 'a)>)
 Actual: a List<(Int64, Int64)>: [\n  (1, 2)\n]"
 
-  PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates_v0 [ 1L ] = Builtin.Test.derrorMessage
+  PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates_v0 [ 1L ] = Builtin.testDerrorMessage
     "PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st argument (`entries`) should be a List<(String * 'a)>. However, a List<Int64> ([  1]) was passed instead.
 
 Expected: (entries: List<(String * 'a)>)
@@ -105,12 +105,12 @@ module FromList =
     .Option
     .Some(Dict { })
 
-  PACKAGE.Darklang.Stdlib.Dict.fromList_v0 [ Builtin.Test.runtimeError "" ] = Builtin.Test.derrorMessage
+  PACKAGE.Darklang.Stdlib.Dict.fromList_v0 [ Builtin.testRuntimeError "" ] = Builtin.testDerrorMessage
     ""
 
   // CLEANUP this error message is the goal once Dvals include typeRefs:
   //Test.runtimeError "In Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int64 (1) was passed instead.\n\nExpected: String\nActual: an Int64: 1"
-  PACKAGE.Darklang.Stdlib.Dict.fromList_v0 [ (1L, 1L) ] = Builtin.Test.derrorMessage
+  PACKAGE.Darklang.Stdlib.Dict.fromList_v0 [ (1L, 1L) ] = Builtin.testDerrorMessage
     "PACKAGE.Darklang.Stdlib.Dict.fromList's 1st argument (`entries`) should be a List<(String * 'a)>. However, a List<(Int64, Int64)> ([  (1, 1)...) was passed instead.
 
 Expected: (entries: List<(String * 'a)>)

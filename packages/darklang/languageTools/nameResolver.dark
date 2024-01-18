@@ -224,18 +224,14 @@ module Darklang =
                       names = Stdlib.List.append modules [ name ] }
                 )
 
-            | "Builtin" :: modules ->
-              let builtinName =
-                Stdlib.String.join (Stdlib.List.append modules [ name ]) "."
+            | [ "Builtin" ] ->
+              let builtinName = name
 
               let builtinExists = builtinThingExists builtinName
 
               if builtinExists then
                 let builtIn =
-                  (ProgramTypes.FQFnName.Builtin
-                    { modules = modules
-                      name = name
-                      version = 0L })
+                  (ProgramTypes.FQFnName.Builtin { name = name; version = 0L })
 
                 Stdlib.Result.Result.Ok(
                   builtIn |> ProgramTypes.FQFnName.FQFnName.Builtin
@@ -247,7 +243,7 @@ module Darklang =
                     { errorType =
                         LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
                       nameType = nameErrorType
-                      names = Stdlib.List.append modules [ name ] }
+                      names = [ name ] }
                 )
 
             | modules ->
@@ -318,7 +314,7 @@ module Darklang =
 
 
         let builtinThingExists (fnName: String) : Bool =
-          (Builtin.LanguageTools.allBuiltinFns ())
+          (Builtin.languageToolsAllBuiltinFns ())
           |> Stdlib.List.findFirst (fun f -> f.name == fnName)
           |> Stdlib.Option.isSome
 

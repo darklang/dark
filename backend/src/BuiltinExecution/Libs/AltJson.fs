@@ -190,10 +190,9 @@ module Serialize =
 
 let constants : List<BuiltInConstant> = []
 
-let fn = fn [ "AltJson" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "format" 0
+  [ { name = fn "altJsonFormat" 0
       typeParams = []
       parameters = [ Param.make "json" Json.typeRef "" ]
       returnType = TString
@@ -210,7 +209,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "parse" 0
+    { name = fn "altJsonParse" 0
       typeParams = []
       parameters = [ Param.make "jsonString" TString "" ]
       returnType = TypeReference.result Json.typeRef ParseError.typeRef

@@ -25,10 +25,7 @@ module Darklang =
           | UserProgram of UserProgram
 
       module FQFnName =
-        type Builtin =
-          { modules: List<String>
-            name: String
-            version: Int64 }
+        type Builtin = { name: String; version: Int64 }
 
         type Package =
           { owner: String
@@ -48,10 +45,7 @@ module Darklang =
 
 
       module FQConstantName =
-        type Builtin =
-          { modules: List<String>
-            name: String
-            version: Int64 }
+        type Builtin = { name: String; version: Int64 }
 
         type Package =
           { owner: String

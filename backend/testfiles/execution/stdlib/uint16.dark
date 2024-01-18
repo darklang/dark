@@ -19,13 +19,13 @@ PACKAGE.Darklang.Stdlib.UInt16.add_v0 88us 9us = 97us
 PACKAGE.Darklang.Stdlib.UInt16.add_v0 1us 0us = 1us
 PACKAGE.Darklang.Stdlib.UInt16.add_v0 65534us 1us = 65535us
 
-PACKAGE.Darklang.Stdlib.UInt16.add_v0 65535us 1us = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt16.add_v0 65535us 1us = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.UInt16.subtract_v0 10us 9us = 1us
 PACKAGE.Darklang.Stdlib.UInt16.subtract_v0 88us 9us = 79us
 
-PACKAGE.Darklang.Stdlib.UInt16.subtract_v0 0us 1us = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt16.subtract_v0 0us 1us = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.UInt16.subtract_v0 1us 0us = 1us
@@ -35,10 +35,10 @@ PACKAGE.Darklang.Stdlib.UInt16.multiply_v0 8us 8us = 64us
 PACKAGE.Darklang.Stdlib.UInt16.multiply_v0 8us 0us = 0us
 PACKAGE.Darklang.Stdlib.UInt16.multiply_v0 32767us 2us = 65534us
 
-PACKAGE.Darklang.Stdlib.UInt16.multiply_v0 32768us 2us = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt16.multiply_v0 32768us 2us = Builtin.testDerrorMessage
   "Out of range"
 
-PACKAGE.Darklang.Stdlib.UInt16.multiply_v0 65535us 2us = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt16.multiply_v0 65535us 2us = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.UInt16.power_v0 2us 3us = 8us
@@ -47,7 +47,7 @@ PACKAGE.Darklang.Stdlib.UInt16.power_v0 1us 0us = 1us
 PACKAGE.Darklang.Stdlib.UInt16.power_v0 0us 0us = 1us
 PACKAGE.Darklang.Stdlib.UInt16.power_v0 1us 255us = 1us
 
-PACKAGE.Darklang.Stdlib.UInt16.power_v0 256us 2us = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt16.power_v0 256us 2us = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.UInt16.divide_v0 10us 5us = 2us
@@ -56,7 +56,7 @@ PACKAGE.Darklang.Stdlib.UInt16.divide_v0 8us 5us = 1us
 PACKAGE.Darklang.Stdlib.UInt16.divide_v0 0us 1us = 0us
 PACKAGE.Darklang.Stdlib.UInt16.divide_v0 65535us 2us = 32767us
 
-PACKAGE.Darklang.Stdlib.UInt16.divide_v0 1us 0us = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt16.divide_v0 1us 0us = Builtin.testDerrorMessage
   "Division by zero"
 
 PACKAGE.Darklang.Stdlib.UInt16.greaterThan_v0 20us 1us = true
@@ -102,7 +102,7 @@ PACKAGE.Darklang.Stdlib.UInt16.mod_v0 1us 2us = 1us
 PACKAGE.Darklang.Stdlib.UInt16.mod_v0 32768us 53us = 14us
 PACKAGE.Darklang.Stdlib.UInt16.mod_v0 65535us 3us = 0us
 
-PACKAGE.Darklang.Stdlib.UInt16.mod_v0 5us 0us = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt16.mod_v0 5us 0us = Builtin.testDerrorMessage
   "Zero modulus"
 
 
@@ -162,7 +162,7 @@ PACKAGE.Darklang.Stdlib.UInt16.mod_v0 5us 0us = Builtin.Test.derrorMessage
 
 PACKAGE.Darklang.Stdlib.UInt16.sum_v0 [ 1us; 2us ] = 3us
 
-PACKAGE.Darklang.Stdlib.UInt16.sum_v0 [ 1us; 65535us ] = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt16.sum_v0 [ 1us; 65535us ] = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.UInt16.parse_v0 "-129" = PACKAGE.Darklang.Stdlib.Result.Result.Error

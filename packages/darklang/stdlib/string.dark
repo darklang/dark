@@ -42,29 +42,29 @@ module Darklang =
 
       /// Iterate over each Char (EGC, not byte) in the string, performing the
       /// operation in <param fn> on each one.
-      let map (s: String) (fn: Char -> Char) : String = Builtin.String.map s fn
+      let map (s: String) (fn: Char -> Char) : String = Builtin.stringMap s fn
 
 
       /// Returns the list of Characters (EGC, not byte) in the string
-      let toList (s: String) : List<Char> = Builtin.String.toList s
+      let toList (s: String) : List<Char> = Builtin.stringToList s
 
 
       /// Replace all instances on <param searchFor> in <param s> with <param replaceWith>
       let replaceAll (s: String) (searchFor: String) (replaceWith: String) : String =
-        Builtin.String.replaceAll s searchFor replaceWith
+        Builtin.stringReplaceAll s searchFor replaceWith
 
 
       /// Returns the string, uppercased
-      let toUppercase (s: String) : String = Builtin.String.toUppercase s
+      let toUppercase (s: String) : String = Builtin.stringToUppercase s
 
 
       /// Returns the string, lowercased
-      let toLowercase (s: String) : String = Builtin.String.toLowercase s
+      let toLowercase (s: String) : String = Builtin.stringToLowercase s
 
 
       // TODO: UInt?
       /// Returns the length of the string
-      let length (s: String) : Int64 = Builtin.String.length s
+      let length (s: String) : Int64 = Builtin.stringLength s
 
 
       /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.
@@ -80,29 +80,29 @@ module Darklang =
       /// Turns a string into a prettified slug, including only lowercased
       /// alphanumeric characters, joined by hyphens
       // let slugify (s: String) : String =
-      //   Builtin.String.slugify s
+      //   Builtin.stringSlugify s
 
 
       /// Reverses <param string>
-      let reverse (string: String) : String = Builtin.String.reverse string
+      let reverse (string: String) : String = Builtin.stringReverse string
 
 
       /// Splits a string at the separator, returning a list of strings without the separator.
       /// If the separator is not present, returns a list containing only the initial string.
       let split (string: String) (separator: String) : List<String> =
-        Builtin.String.split string separator
+        Builtin.stringSplit string separator
 
 
       /// Combines a list of strings with the provided separator
       let join (l: List<String>) (separator: String) : String =
-        Builtin.String.join l separator
+        Builtin.stringJoin l separator
 
 
       /// Returns the list of characters as a string
       let fromList (lst: List<Char>) : String =
         (PACKAGE.Darklang.Stdlib.List.map lst (fun c ->
           PACKAGE.Darklang.Stdlib.Char.toString c))
-        |> Builtin.String.join ""
+        |> Builtin.stringJoin ""
 
 
       /// Converts a <type Char> to a <type String>
@@ -206,7 +206,7 @@ module Darklang =
 
       /// Checks if <param lookingIn> contains <param searchingFor>
       let contains (lookingIn: String) (searchingFor: String) : Bool =
-        Builtin.String.indexOf lookingIn searchingFor != -1L
+        Builtin.stringIndexOf lookingIn searchingFor != -1L
 
 
       /// Returns the substring of <param string> between the <param from> and <param to> indices.
@@ -224,7 +224,7 @@ module Darklang =
         let l = normalize ``to``
         let l = if f > l then f else l
 
-        string |> Builtin.String.slice f l
+        string |> Builtin.stringSlice f l
 
 
       /// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
@@ -329,37 +329,37 @@ module Darklang =
       /// removed. 'whitespace' here means all Unicode characters with the
       /// {{White_Space}} property, which includes {{\" \"}}, {{\"\\t\"}} and
       /// {{\"\\n\"}}
-      let trim (str: String) : String = Builtin.String.trim str
+      let trim (str: String) : String = Builtin.stringTrim str
 
 
       // TODO: re-write in dark
       /// Returns a copy of <param str> with all leading whitespace removed. 'whitespace'
       /// here means all Unicode characters with the {{White_Space}} property, which
       /// includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}
-      let trimStart (str: String) : String = Builtin.String.trimStart str
+      let trimStart (str: String) : String = Builtin.stringTrimStart str
 
 
       // TODO: re-write in dark
       /// Returns a copy of <param str> with all trailing whitespace removed.
       /// 'whitespace' here means all Unicode characters with the {{White_Space}}
       /// property, which includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}.
-      let trimEnd (str: String) : String = Builtin.String.trimEnd str
+      let trimEnd (str: String) : String = Builtin.stringTrimEnd str
 
 
       /// Converts the given unicode string to a UTF8-encoded byte sequence.
-      let toBytes (str: String) : List<UInt8> = Builtin.String.toBytes str
+      let toBytes (str: String) : List<UInt8> = Builtin.stringToBytes str
 
 
       /// Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters
       let fromBytesWithReplacement (bytes: List<UInt8>) : String =
-        Builtin.String.fromBytesWithReplacement bytes
+        Builtin.stringFromBytesWithReplacement bytes
 
 
       /// Converts the UTF8-encoded byte sequence into a string
       let fromBytes
         (bytes: List<UInt8>)
         : PACKAGE.Darklang.Stdlib.Option.Option<String> =
-        Builtin.String.fromBytes bytes
+        Builtin.stringFromBytes bytes
 
 
       /// Checks if <param subject> starts with <param prefix>
@@ -386,11 +386,11 @@ module Darklang =
         (str: String)
         (searchFor: String)
         : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
-        if (Builtin.String.indexOf str searchFor) == -1L then
+        if (Builtin.stringIndexOf str searchFor) == -1L then
           PACKAGE.Darklang.Stdlib.Option.Option.None
         else
           PACKAGE.Darklang.Stdlib.Option.Option.Some(
-            Builtin.String.indexOf str searchFor
+            Builtin.stringIndexOf str searchFor
           )
 
 

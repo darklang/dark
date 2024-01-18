@@ -8,7 +8,7 @@ module Darklang =
 
 
       /// Returns an approximation for the mathematical constant {{τ}}, the number of
-      /// radians in one turn. Equivalent to {{Float.multiply Builtin.Math.pi 2}}.
+      /// radians in one turn. Equivalent to {{Float.multiply Stdlib.Math.pi 2}}.
       let tau = 6.283185307179586
 
 
@@ -38,20 +38,20 @@ module Darklang =
       /// Returns the cosine of the given <param angleInRadians>.
       /// One interpretation of the result relates to a right triangle: the cosine is
       /// the ratio of the lengths of the side adjacent to the angle and the hypotenuse.
-      let cos (angleInRadians: Float) : Float = Builtin.Math.cos angleInRadians
+      let cos (angleInRadians: Float) : Float = Builtin.mathCos angleInRadians
 
 
       /// Returns the sine of the given <param angleInRadians>.
       /// One interpretation of the result relates to a right triangle: the sine is
       /// the ratio of the lengths of the side opposite the angle and the hypotenuse
-      let sin (angleInRadians: Float) : Float = Builtin.Math.sin angleInRadians
+      let sin (angleInRadians: Float) : Float = Builtin.mathSin angleInRadians
 
 
       /// Returns the tangent of the given <param angleInRadians>.
       /// One interpretation of the result relates to a right triangle: the tangent is
       /// the ratio of the lengths of the side opposite the angle and the side
       /// adjacent to the angle.
-      let tan (angleInRadians: Float) : Float = Builtin.Math.tan angleInRadians
+      let tan (angleInRadians: Float) : Float = Builtin.mathTan angleInRadians
 
 
       /// Returns the arc cosine of <param ratio>, as an <type Option>.
@@ -60,7 +60,7 @@ module Darklang =
       /// Math.pi>. Otherwise, returns {{Nothing}}.
       /// This function is the inverse of <fn Math.cos>.
       let acos (ratio: Float) : PACKAGE.Darklang.Stdlib.Option.Option<Float> =
-        Builtin.Math.acos ratio
+        Builtin.mathAcos ratio
 
 
       /// Returns the arc sine of <param ratio>, as an <type Option>.
@@ -69,14 +69,14 @@ module Darklang =
       /// {{Math.pi/2}}. Otherwise, returns {{Nothing}}.
       /// This function is the inverse of <fn Math.sin>.
       let asin (ratio: Float) : PACKAGE.Darklang.Stdlib.Option.Option<Float> =
-        Builtin.Math.asin ratio
+        Builtin.mathAsin ratio
 
 
       /// Returns the arc tangent of <param ratio>. The result is in radians and is between
       /// {{-Math.pi/2}} and {{Math.pi/2}}.
       /// This function is the inverse of <fn Math.tan>. Use <fn Math.atan2> to expand the
       /// output range, if you know the numerator and denominator of <param ratio>.
-      let atan (ratio: Float) : Float = Builtin.Math.atan ratio
+      let atan (ratio: Float) : Float = Builtin.mathAtan ratio
 
 
       /// Returns the arc tangent of {{y / x}}, using the signs of <param y> and
@@ -84,16 +84,16 @@ module Darklang =
       /// The result is in radians and is between {{-Math.pi}} and {{Math.pi}}.
       /// Consider <fn Math.atan> if you know the value of {{y / x}} but not the
       /// individual values <param x> and <param y>.
-      let atan2 (y: Float) (x: Float) : Float = Builtin.Math.atan2 y x
+      let atan2 (y: Float) (x: Float) : Float = Builtin.mathAtan2 y x
 
 
       /// Returns the hyperbolic cosine of <param angleInRadians>
-      let cosh (angleInRadians: Float) : Float = Builtin.Math.cosh angleInRadians
+      let cosh (angleInRadians: Float) : Float = Builtin.mathCosh angleInRadians
 
 
       /// Returns the hyperbolic sine of <param angleInRadians>
-      let sinh (angleInRadians: Float) : Float = Builtin.Math.sinh angleInRadians
+      let sinh (angleInRadians: Float) : Float = Builtin.mathSinh angleInRadians
 
 
       /// Returns the hyperbolic tangent of <param angleInRadians>
-      let tanh (angleInRadians: Float) : Float = Builtin.Math.tanh angleInRadians
+      let tanh (angleInRadians: Float) : Float = Builtin.mathTanh angleInRadians

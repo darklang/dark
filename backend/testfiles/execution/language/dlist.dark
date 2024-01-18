@@ -2,7 +2,7 @@
 [ 1L ] = [ 1L ]
 [ 1L; 2L ] = [ 1L; 2L ]
 [ 5L; PACKAGE.Darklang.Stdlib.Int64.add_v0 1L 5L; 0L ] = [ 5L; 6L; 0L ]
-[ 5L; Builtin.Test.runtimeError "test"; 0L ] = Builtin.Test.derrorMessage "test"
+[ 5L; Builtin.testRuntimeError "test"; 0L ] = Builtin.testDerrorMessage "test"
 
-[ 5L; Builtin.Test.runtimeError "1"; Builtin.Test.runtimeError "2" ] = Builtin.Test.derrorMessage
+[ 5L; Builtin.testRuntimeError "1"; Builtin.testRuntimeError "2" ] = Builtin.testDerrorMessage
   "1"

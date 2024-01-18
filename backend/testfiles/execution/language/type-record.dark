@@ -10,7 +10,7 @@ Cols2 { col1 = 1L; col2 = 3L } = Cols2 { col1 = 1L; col2 = 3L }
 
 Cols2
   { col1 = 2L
-    col2 = Builtin.Test.runtimeError "test" } = Builtin.Test.derrorMessage "test"
+    col2 = Builtin.testRuntimeError "test" } = Builtin.testDerrorMessage "test"
 
 module WithTypeArgs =
   type Owner<'a> = { item: 'a }
@@ -28,29 +28,29 @@ module WithTypeArgs =
 
 
 module InvalidCols =
-  Cols1 { col1 = 1L; col1 = 2L } = Builtin.Test.derrorMessage
+  Cols1 { col1 = 1L; col1 = 2L } = Builtin.testDerrorMessage
     "Duplicate field `col1` in Cols1"
 
-  Cols2 { col1 = 2L; ___ = 3L } = Builtin.Test.derrorMessage
+  Cols2 { col1 = 2L; ___ = 3L } = Builtin.testDerrorMessage
     "Unexpected field `` in Cols2"
 
-  Cols2 { col1 = 2L } = Builtin.Test.derrorMessage "Missing field `col2` in Cols2"
+  Cols2 { col1 = 2L } = Builtin.testDerrorMessage "Missing field `col2` in Cols2"
 
-  Cols2 { col1 = 2L; other = 3L } = Builtin.Test.derrorMessage
+  Cols2 { col1 = 2L; other = 3L } = Builtin.testDerrorMessage
     "Unexpected field `other` in Cols2"
 
-  Cols2 { col1 = 2L; col2 = 3L; col3 = 4L } = Builtin.Test.derrorMessage
+  Cols2 { col1 = 2L; col2 = 3L; col3 = 4L } = Builtin.testDerrorMessage
     "Unexpected field `col3` in Cols2"
 
-  Cols1 { col1 = "" } = Builtin.Test.derrorMessage
+  Cols1 { col1 = "" } = Builtin.testDerrorMessage
     "Cols1's `col1` field should be an Int64. However, a String (\"\") was passed instead.\n\nExpected: ({ col1: Int64; ... })\nActual: a String: \"\""
 
 
 module InvalidType =
-  MyNonExistantType { col1 = 2L } = Builtin.Test.derrorMessage
+  MyNonExistantType { col1 = 2L } = Builtin.testDerrorMessage
     "There is no type named MyNonExistantType"
 
-  AnEnum { col1 = 2L } = Builtin.Test.derrorMessage
+  AnEnum { col1 = 2L } = Builtin.testDerrorMessage
     "Expected a record but AnEnum is an enum"
 
 module Polymorphism =
@@ -106,11 +106,11 @@ module Update =
          z = 3L
          x = 42L
          y = 11L
-         p = 10L }) = Builtin.Test.derrorMessage
+         p = 10L }) = Builtin.testDerrorMessage
       "Unexpected field `p` in Update.RecordForUpdateMultipe"
 
-    (let myRec = RecordForUpdate { x = 4L; y = 1L } in { myRec with other = 2L }) = Builtin.Test.derrorMessage
+    (let myRec = RecordForUpdate { x = 4L; y = 1L } in { myRec with other = 2L }) = Builtin.testDerrorMessage
       "Unexpected field `other` in Update.RecordForUpdate"
 
-    (let myRec = RecordForUpdate { x = 4L; y = 1L } in { myRec with y = "2" }) = Builtin.Test.derrorMessage
+    (let myRec = RecordForUpdate { x = 4L; y = 1L } in { myRec with y = "2" }) = Builtin.testDerrorMessage
       "Update.RecordForUpdate's `y` field should be an Int64. However, a String (\"2\") was passed instead.\n\nExpected: ({ y: Int64; ... })\nActual: a String: \"2\""

@@ -70,7 +70,7 @@ module Darklang =
           |> Stdlib.List.map (fun arg ->
             LanguageTools.WrittenTypesToProgramTypes.Expr.toPT nameResolver arg)
 
-        match Builtin.Cli.executeFunctionWithNewParser fnName args with
+        match Builtin.cliExecuteFunctionWithNewParser fnName args with
         | Ok result ->
           Builtin.printLine result
           0L
@@ -81,7 +81,7 @@ module Darklang =
 
       // Use old parser
       else
-        match Builtin.Cli.executeFunction fnName args with
+        match Builtin.cliExecuteFunction fnName args with
         | Ok result ->
           Builtin.printLine result
           0L
@@ -92,12 +92,12 @@ module Darklang =
 
 
     let runScript (scriptPath: String) (args: List<String>) : Int64 =
-      match Builtin.File.read scriptPath with
+      match Builtin.fileRead scriptPath with
       | Ok script ->
         let scriptSourceCode = Stdlib.String.fromBytesWithReplacement script
 
         let result =
-          Builtin.Cli.parseAndExecuteScript
+          Builtin.cliParseAndExecuteScript
             scriptPath
             scriptSourceCode
             (Dict { args = args })

@@ -11,7 +11,7 @@ module Darklang =
       /// The modulus <param b> must be greater than 0.
       /// Use <fn Int8.remainder> if you want the remainder after division, which has
       /// a different behavior for negative numbers.
-      let ``mod`` (a: Int8) (b: Int8) : Int8 = Builtin.Int8.``mod`` a b
+      let ``mod`` (a: Int8) (b: Int8) : Int8 = Builtin.int8Mod a b
 
 
       /// Returns the integer remainder left over after dividing <param value> by
@@ -24,19 +24,19 @@ module Darklang =
         (value: Int8)
         (divisor: Int8)
         : PACKAGE.Darklang.Stdlib.Result.Result<Int8, String> =
-        Builtin.Int8.remainder value divisor
+        Builtin.int8Remainder value divisor
 
 
       /// Adds two 8-bit signed integers together
-      let add (a: Int8) (b: Int8) : Int8 = Builtin.Int8.add a b
+      let add (a: Int8) (b: Int8) : Int8 = Builtin.int8Add a b
 
 
       /// Subtracts two 8-bit signed integers
-      let subtract (a: Int8) (b: Int8) : Int8 = Builtin.Int8.subtract a b
+      let subtract (a: Int8) (b: Int8) : Int8 = Builtin.int8Subtract a b
 
 
       /// Multiplies two 8-bit signed integers
-      let multiply (a: Int8) (b: Int8) : Int8 = Builtin.Int8.multiply a b
+      let multiply (a: Int8) (b: Int8) : Int8 = Builtin.int8Multiply a b
 
 
       /// Raise <param base> to the power of <param exponent>.
@@ -53,58 +53,58 @@ module Darklang =
           0y
         else if ``base`` == 1y then
           1y
-        else if ``base`` == -1y && (Builtin.Int8.``mod`` exponent 2y == 0y) then
+        else if ``base`` == -1y && (Builtin.int8Mod exponent 2y == 0y) then
           1y
         else if ``base`` == -1y then
           -1y
         else
-          Builtin.Int8.power ``base`` exponent
+          Builtin.int8Power ``base`` exponent
 
 
       /// Divides two 8-bit signed integers
-      let divide (a: Int8) (b: Int8) : Int8 = Builtin.Int8.divide a b
+      let divide (a: Int8) (b: Int8) : Int8 = Builtin.int8Divide a b
 
 
       /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
       let absoluteValue (a: Int8) : Int8 =
-        if (Builtin.Int8.lessThan a 0y) then
-          Builtin.Int8.negate a
+        if (Builtin.int8LessThan a 0y) then
+          Builtin.int8Negate a
         else
           a
 
 
       /// Returns the negation of <param a>, {{-a}}
-      let negate (a: Int8) : Int8 = Builtin.Int8.negate a
+      let negate (a: Int8) : Int8 = Builtin.int8Negate a
 
 
       /// Returns {{true}} if <param a> is greater than <param b>
-      let greaterThan (a: Int8) (b: Int8) : Bool = Builtin.Int8.greaterThan a b
+      let greaterThan (a: Int8) (b: Int8) : Bool = Builtin.int8GreaterThan a b
 
 
       /// Returns {{true}} if <param a> is greater than or equal to <param b>
       let greaterThanOrEqualTo (a: Int8) (b: Int8) : Bool =
-        Builtin.Int8.greaterThanOrEqualTo a b
+        Builtin.int8GreaterThanOrEqualTo a b
 
 
       /// Returns {{true}} if <param a> is less than <param b>
-      let lessThan (a: Int8) (b: Int8) : Bool = Builtin.Int8.lessThan a b
+      let lessThan (a: Int8) (b: Int8) : Bool = Builtin.int8LessThan a b
 
       /// Returns {{true}} if <param a> is less than or equal to <param b>
       let lessThanOrEqualTo (a: Int8) (b: Int8) : Bool =
-        Builtin.Int8.lessThanOrEqualTo a b
+        Builtin.int8LessThanOrEqualTo a b
 
 
       /// Returns a random 8-bit signed integer between <param start> and <param end> (inclusive)
       let random (start: Int8) (``end``: Int8) : Int8 =
-        Builtin.Int8.random start ``end``
+        Builtin.int8Random start ``end``
 
 
       /// Get the square root of an <type Int8>
-      let sqrt (a: Int8) : Float = Builtin.Int8.sqrt a
+      let sqrt (a: Int8) : Float = Builtin.int8Sqrt a
 
 
       /// Converts an <type Int8> to a <type Float>
-      let toFloat (a: Int8) : Float = Builtin.Int8.toFloat a
+      let toFloat (a: Int8) : Float = Builtin.int8ToFloat a
 
 
       /// Returns the sum of all the ints in the list
@@ -155,53 +155,53 @@ module Darklang =
       let parse
         (s: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<Int8, PACKAGE.Darklang.Stdlib.Int8.ParseError> =
-        Builtin.Int8.parse s
+        Builtin.int8Parse s
 
 
       /// Stringify <param int8>
-      let toString (int8: Int8) : String = Builtin.Int8.toString int8
+      let toString (int8: Int8) : String = Builtin.int8ToString int8
 
 
       /// Converts a <type UInt8> to an <type Int8>. Returns {{None}} if the value is greater than 127.
       let fromUInt8 (i: UInt8) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
-        Builtin.Int8.fromUInt8 i
+        Builtin.int8FromUInt8 i
 
 
       /// Converts an <type Int16> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
       let fromInt16 (i: Int16) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
-        Builtin.Int8.fromInt16 i
+        Builtin.int8FromInt16 i
 
 
       /// Converts a <type UInt16> to an <type Int8>. Returns {{None}} if the value is greater than 127.
       let fromUInt16 (i: UInt16) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
-        Builtin.Int8.fromUInt16 i
+        Builtin.int8FromUInt16 i
 
 
       /// Converts an <type Int32> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
       let fromInt32 (i: Int32) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
-        Builtin.Int8.fromInt32 i
+        Builtin.int8FromInt32 i
 
 
       /// Converts a <type UInt32> to an <type Int8>. Returns {{None}} if the value is greater than 127.
       let fromUInt32 (i: UInt32) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
-        Builtin.Int8.fromUInt32 i
+        Builtin.int8FromUInt32 i
 
 
       /// Converts an <type Int64> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
       let fromInt64 (i: Int64) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
-        Builtin.Int8.fromInt64 i
+        Builtin.int8FromInt64 i
 
 
       /// Converts a <type UInt64> to an <type Int8>. Returns {{None}} if the value is greater than 127.
       let fromUInt64 (i: UInt64) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
-        Builtin.Int8.fromUInt64 i
+        Builtin.int8FromUInt64 i
 
 
       /// Converts an <type Int128> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
       let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
-        Builtin.Int8.fromInt128 i
+        Builtin.int8FromInt128 i
 
 
       /// Converts a <type UInt128> to an <type Int8>. Returns {{None}} if the value is greater than 127.
       let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<Int8> =
-        Builtin.Int8.fromUInt128 i
+        Builtin.int8FromUInt128 i

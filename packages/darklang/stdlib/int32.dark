@@ -11,7 +11,7 @@ module Darklang =
       /// The modulus <param b> must be greater than 0
       /// Use <fn Int32.remainder> if you want the remainder after division, which has
       /// a different behavior for negative numbers.
-      let ``mod`` (a: Int32) (b: Int32) : Int32 = Builtin.Int32.``mod`` a b
+      let ``mod`` (a: Int32) (b: Int32) : Int32 = Builtin.int32Mod a b
 
 
       /// Returns the integer remainder left over after dividing <param value> by
@@ -24,23 +24,23 @@ module Darklang =
         (value: Int32)
         (divisor: Int32)
         : PACKAGE.Darklang.Stdlib.Result.Result<Int32, String> =
-        Builtin.Int32.remainder value divisor
+        Builtin.int32Remainder value divisor
 
 
       /// Adds two integers together
-      let add (a: Int32) (b: Int32) : Int32 = Builtin.Int32.add a b
+      let add (a: Int32) (b: Int32) : Int32 = Builtin.int32Add a b
 
 
       /// Subtracts two integers
-      let subtract (a: Int32) (b: Int32) : Int32 = Builtin.Int32.subtract a b
+      let subtract (a: Int32) (b: Int32) : Int32 = Builtin.int32Subtract a b
 
 
       /// Multiplies two integers
-      let multiply (a: Int32) (b: Int32) : Int32 = Builtin.Int32.multiply a b
+      let multiply (a: Int32) (b: Int32) : Int32 = Builtin.int32Multiply a b
 
 
       /// Divides two integers
-      let divide (a: Int32) (b: Int32) : Int32 = Builtin.Int32.divide a b
+      let divide (a: Int32) (b: Int32) : Int32 = Builtin.int32Divide a b
 
 
       /// Raise <param base> to the power of <param exponent>.
@@ -57,70 +57,70 @@ module Darklang =
           0l
         else if ``base`` == 1l then
           1l
-        else if ``base`` == -1l && (Builtin.Int32.``mod`` exponent 2l == 0l) then
+        else if ``base`` == -1l && (Builtin.int32Mod exponent 2l == 0l) then
           1l
         else if ``base`` == -1l then
           -1l
         else
-          Builtin.Int32.power ``base`` exponent
+          Builtin.int32Power ``base`` exponent
 
 
       /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
       let absoluteValue (a: Int32) : Int32 =
-        if Builtin.Int32.lessThan a 0 then
-          Builtin.Int32.negate a
+        if Builtin.int32LessThan a 0 then
+          Builtin.int32Negate a
         else
           a
 
 
       /// Returns the negation of <param a>, {{-a}}
-      let negate (a: Int32) : Int32 = Builtin.Int32.negate a
+      let negate (a: Int32) : Int32 = Builtin.int32Negate a
 
 
       /// Returns {{true}} if <param a> is greater than <param b>
-      let greaterThan (a: Int32) (b: Int32) : Bool = Builtin.Int32.greaterThan a b
+      let greaterThan (a: Int32) (b: Int32) : Bool = Builtin.int32GreaterThan a b
 
 
       /// Returns {{true}} if <param a> is greater than or equal to <param b>
       let greaterThanOrEqualTo (a: Int32) (b: Int32) : Bool =
-        Builtin.Int32.greaterThanOrEqualTo a b
+        Builtin.int32GreaterThanOrEqualTo a b
 
 
       /// Returns {{true}} if <param a> is less than <param b>
-      let lessThan (a: Int32) (b: Int32) : Bool = Builtin.Int32.lessThan a b
+      let lessThan (a: Int32) (b: Int32) : Bool = Builtin.int32LessThan a b
 
       /// Returns {{true}} if <param a> is less than or equal to <param b>
       let lessThanOrEqualTo (a: Int32) (b: Int32) : Bool =
-        Builtin.Int32.lessThanOrEqualTo a b
+        Builtin.int32LessThanOrEqualTo a b
 
 
       /// Returns a random integer between <param start> and <param end> (inclusive)
       let random (start: Int32) (``end``: Int32) : Int32 =
-        Builtin.Int32.random start ``end``
+        Builtin.int32Random start ``end``
 
 
       /// Get the square root of an <type Int32>
-      let sqrt (a: Int32) : Float = Builtin.Int32.sqrt a
+      let sqrt (a: Int32) : Float = Builtin.int32Sqrt a
 
 
       /// Converts an <type Int32> to a <type Float>
-      let toFloat (a: Int32) : Float = Builtin.Int32.toFloat a
+      let toFloat (a: Int32) : Float = Builtin.int32ToFloat a
 
 
       /// Returns the sum of all the ints in the list
       let sum (lst: List<Int32>) : Int32 =
         PACKAGE.Darklang.Stdlib.List.fold lst 0l (fun acc x ->
-          Builtin.Int32.add acc x)
+          Builtin.int32Add acc x)
 
 
       /// Returns the higher of <param a> and <param b>
       let max (a: Int32) (b: Int32) : Int32 =
-        if Builtin.Int32.greaterThan a b then a else b
+        if Builtin.int32GreaterThan a b then a else b
 
 
       /// Returns the lower of <param a> and <param b>
       let min (a: Int32) (b: Int32) : Int32 =
-        if Builtin.Int32.lessThan a b then a else b
+        if Builtin.int32LessThan a b then a else b
 
 
       /// If <param value> is within the range given by <param limitA> and <param
@@ -130,19 +130,19 @@ module Darklang =
       /// <param limitA> and <param limitB> can be provided in any order.
       let clamp (value: Int32) (limitA: Int32) (limitB: Int32) : Int32 =
         let min =
-          if Builtin.Int32.lessThan limitA limitB then
+          if Builtin.int32LessThan limitA limitB then
             limitA
           else
             limitB
 
         let max =
-          if Builtin.Int32.greaterThan limitA limitB then
+          if Builtin.int32GreaterThan limitA limitB then
             limitA
           else
             limitB
 
-        if Builtin.Int32.lessThan value min then min
-        else if Builtin.Int32.greaterThan value max then max
+        if Builtin.int32LessThan value min then min
+        else if Builtin.int32GreaterThan value max then max
         else value
 
 
@@ -150,49 +150,49 @@ module Darklang =
       let parse
         (s: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<Int32, PACKAGE.Darklang.Stdlib.Int32.ParseError> =
-        Builtin.Int32.parse s
+        Builtin.int32Parse s
 
 
       /// Stringify <param int>
-      let toString (int: Int32) : String = Builtin.Int32.toString int
+      let toString (int: Int32) : String = Builtin.int32ToString int
 
 
       /// Converts an <type Int8> to a <type Int32>.
-      let fromInt8 (i: Int8) : Int32 = Builtin.Int32.fromInt8 i
+      let fromInt8 (i: Int8) : Int32 = Builtin.int32FromInt8 i
 
 
       /// Converts a <type UInt8> to a <type Int32>.
-      let fromUInt8 (i: UInt8) : Int32 = Builtin.Int32.fromUInt8 i
+      let fromUInt8 (i: UInt8) : Int32 = Builtin.int32FromUInt8 i
 
 
       /// Converts an <type Int16> to a <type Int32>.
-      let fromInt16 (i: Int16) : Int32 = Builtin.Int32.fromInt16 i
+      let fromInt16 (i: Int16) : Int32 = Builtin.int32FromInt16 i
 
 
       /// Converts a <type UInt16> to a <type Int32>.
-      let fromUInt16 (i: UInt16) : Int32 = Builtin.Int32.fromUInt16 i
+      let fromUInt16 (i: UInt16) : Int32 = Builtin.int32FromUInt16 i
 
 
       /// Converts a <type UInt32> to a <type Int32>. Returns {{None}} if the value is greater than 2147483647.
       let fromUInt32 (i: UInt32) : PACKAGE.Darklang.Stdlib.Option.Option<Int32> =
-        Builtin.Int32.fromUInt32 i
+        Builtin.int32FromUInt32 i
 
 
       /// Converts an <type Int64> to a <type Int32>. Returns {{None}} if the value is less than -2147483648 or greater than 2147483647.
       let fromInt64 (i: Int64) : PACKAGE.Darklang.Stdlib.Option.Option<Int32> =
-        Builtin.Int32.fromInt64 i
+        Builtin.int32FromInt64 i
 
 
       /// Converts a <type UInt64> to a <type Int32>. Returns {{None}} if the value is greater than 2147483647.
       let fromUInt64 (i: UInt64) : PACKAGE.Darklang.Stdlib.Option.Option<Int32> =
-        Builtin.Int32.fromUInt64 i
+        Builtin.int32FromUInt64 i
 
 
       /// Converts an <type Int128> to a <type Int32>. Returns {{None}} if the value is less than -2147483648 or greater than 2147483647.
       let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<Int32> =
-        Builtin.Int32.fromInt128 i
+        Builtin.int32FromInt128 i
 
 
       /// Converts a <type UInt128> to a <type Int32>. Returns {{None}} if the value is greater than 2147483647.
       let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<Int32> =
-        Builtin.Int32.fromUInt128 i
+        Builtin.int32FromUInt128 i

@@ -1,14 +1,14 @@
 let listDirectoryRecursive (dir: String) : List<String> =
-  let contents = Builtin.Directory.list dir
+  let contents = Builtin.directoryList dir
 
   let (files, dirs) =
     contents
-    |> PACKAGE.Darklang.Stdlib.List.partition (fun x -> Builtin.File.isNormal x)
+    |> PACKAGE.Darklang.Stdlib.List.partition (fun x -> Builtin.fileIsNormal x)
 
   let nested =
     dirs
     |> PACKAGE.Darklang.Stdlib.List.map (fun d -> listDirectoryRecursive d)
-    |> Builtin.LocalExec.BuiltIns.List.flatten
+    |> Builtin.localExecBuiltInsListFlatten
 
   dirs
   |> PACKAGE.Darklang.Stdlib.List.append files
@@ -20,7 +20,7 @@ let listPackageFilesOnDisk (dir: String) : List<String> =
   dir
   |> listDirectoryRecursive
   |> PACKAGE.Darklang.Stdlib.List.filter (fun x ->
-    x |> Builtin.LocalExec.BuiltIns.String.endsWith ".dark")
+    x |> Builtin.localExecBuiltInsStringEndsWith ".dark")
 
 
 
@@ -70,10 +70,10 @@ let loadPackageFileIntoDarkCanvas
   : PACKAGE.Darklang.Stdlib.Result.Result<Unit, String> =
   let package =
     filename
-    |> Builtin.File.read
+    |> Builtin.fileRead
     |> Builtin.unwrap
     |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
-    |> Builtin.LocalExec.Packages.parse filename
+    |> Builtin.localExecPackagesParse filename
     |> Builtin.unwrap
 
   let fnResults =
@@ -90,7 +90,7 @@ let loadPackageFileIntoDarkCanvas
       Builtin.printLine $"Saving {name}"
 
       fn
-      |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
+      |> Builtin.jsonSerialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
       |> saveItemToCanvas host password "function")
 
   let typeResults =
@@ -106,7 +106,7 @@ let loadPackageFileIntoDarkCanvas
       Builtin.printLine $"Saving {name}"
 
       t
-      |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
+      |> Builtin.jsonSerialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
       |> saveItemToCanvas host password "type")
 
   let constantResults =
@@ -122,7 +122,7 @@ let loadPackageFileIntoDarkCanvas
       Builtin.printLine $"Saving {name}"
 
       c
-      |> Builtin.Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
+      |> Builtin.jsonSerialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
       |> saveItemToCanvas host password "constant")
 
   // Flatten all the result lists into one list
@@ -165,18 +165,16 @@ let printPackageConstant
     $"Package Constant {p.owner}.{modules}.{p.name}_v{PACKAGE.Darklang.Stdlib.Int64.toString_v0 p.version}"
 
 let printAllPackagesInDb () : Unit =
-  let functions = Builtin.LocalExec.Packages.listFunctions ()
+  let functions = Builtin.localExecPackagesListFunctions ()
 
-  functions
-  |> Builtin.LocalExec.BuiltIns.List.iter (fun p -> printPackageFunction p)
+  functions |> Builtin.localExecBuiltInsListIter (fun p -> printPackageFunction p)
 
-  let types = Builtin.LocalExec.Packages.listTypes ()
-  types |> Builtin.LocalExec.BuiltIns.List.iter (fun p -> printPackageType p)
+  let types = Builtin.localExecPackagesListTypes ()
+  types |> Builtin.localExecBuiltInsListIter (fun p -> printPackageType p)
 
-  let constants = Builtin.LocalExec.Packages.listConstants ()
+  let constants = Builtin.localExecPackagesListConstants ()
 
-  constants
-  |> Builtin.LocalExec.BuiltIns.List.iter (fun p -> printPackageConstant p)
+  constants |> Builtin.localExecBuiltInsListIter (fun p -> printPackageConstant p)
 
 
 // parse args and execute
@@ -250,7 +248,7 @@ let main (args: List<String>) : Int64 =
             |> PACKAGE.Darklang.Stdlib.Result.mapError (fun err ->
               let errMsg = PACKAGE.Darklang.Stdlib.HttpClient.toString err
               Builtin.printLine $"Error: {errMsg}"
-              Builtin.Time.sleep 1000.0
+              Builtin.timeSleep 1000.0
               err))
 
 

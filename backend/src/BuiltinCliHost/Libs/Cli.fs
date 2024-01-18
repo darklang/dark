@@ -125,7 +125,7 @@ let execute
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "Cli" ] "parseAndExecuteScript" 0
+  [ { name = fn "cliParseAndExecuteScript" 0
       typeParams = []
       parameters =
         [ Param.make "filename" TString ""
@@ -181,7 +181,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn [ "Cli" ] "executeFunction" 0
+    { name = fn "cliExecuteFunction" 0
       typeParams = []
       parameters =
         [ Param.make "functionName" TString ""
@@ -318,7 +318,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn [ "Cli" ] "executeFunctionWithNewParser" 0
+    { name = fn "cliExecuteFunctionWithNewParser" 0
       typeParams = []
       parameters =
         [ Param.make "functionName" TString ""

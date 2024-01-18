@@ -8,17 +8,17 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
 (let y = (fun x -> x + 1L) in
  PACKAGE.Darklang.Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] y) = [ 2L; 3L; 4L; 5L ]
 
-(let y = (fun msg -> Builtin.Test.runtimeError msg) in
- PACKAGE.Darklang.Stdlib.List.map_v0 [ "1"; "2"; "3"; "4" ] y) = Builtin.Test.derrorMessage
+(let y = (fun msg -> Builtin.testRuntimeError msg) in
+ PACKAGE.Darklang.Stdlib.List.map_v0 [ "1"; "2"; "3"; "4" ] y) = Builtin.testDerrorMessage
   "1"
 
-(let y = (fun msg -> Builtin.Test.runtimeError msg) in
+(let y = (fun msg -> Builtin.testRuntimeError msg) in
  PACKAGE.Darklang.Stdlib.List.map_v0 [] y) = []
 // (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
 (let y = (fun a b -> a * b) in
  PACKAGE.Darklang.Stdlib.List.fold_v0 [ 1L; 2L; 3L; 4L ] 1L y) = 24L
 
-(PACKAGE.Darklang.Stdlib.List.fold_v0 [ 4L ] 1L (Builtin.Test.runtimeError "test")) = Builtin.Test.derrorMessage
+(PACKAGE.Darklang.Stdlib.List.fold_v0 [ 4L ] 1L (Builtin.testRuntimeError "test")) = Builtin.testDerrorMessage
   "test"
 
 (let x = 5L in
@@ -35,11 +35,11 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
       )))
   "") = "SOME STRING"
 
-(let y = (fun c -> if c > 2L then Builtin.Test.runtimeError "err" else 18L)
- [ 1L; 2L; 3L; 4L ] |> PACKAGE.Darklang.Stdlib.List.map_v0 y) = Builtin.Test.derrorMessage
+(let y = (fun c -> if c > 2L then Builtin.testRuntimeError "err" else 18L)
+ [ 1L; 2L; 3L; 4L ] |> PACKAGE.Darklang.Stdlib.List.map_v0 y) = Builtin.testDerrorMessage
   "err"
 
-(let y = (fun c -> if c > 2L then Builtin.Test.runtimeError "err" else 18L)
+(let y = (fun c -> if c > 2L then Builtin.testRuntimeError "err" else 18L)
  [ 1L; 2L ] |> PACKAGE.Darklang.Stdlib.List.map_v0 y) = [ 18L; 18L ]
 
 (let t = true in PACKAGE.Darklang.Stdlib.List.all [ 1L; 2L ] (fun _ -> t)) = true
@@ -99,7 +99,7 @@ PACKAGE.Darklang.Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -
  let transformer =
    fun (num, str) -> $"{PACKAGE.Darklang.Stdlib.Int64.toString num}:{str}" in
 
- PACKAGE.Darklang.Stdlib.List.map_v0 triplets transformer) = Builtin.Test.derrorMessage
+ PACKAGE.Darklang.Stdlib.List.map_v0 triplets transformer) = Builtin.testDerrorMessage
   "Tuple pattern has wrong number of elements"
 
 PACKAGE.Darklang.Stdlib.Dict.map_v0
