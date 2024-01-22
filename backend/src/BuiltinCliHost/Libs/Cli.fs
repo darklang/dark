@@ -79,7 +79,6 @@ let builtIns : RT.BuiltIns =
   { fns = fns |> Map.fromListBy _.name
     constants = constants |> Map.fromListBy _.name }
 
-let packageManager = LibCloud.PackageManager.packageManager
 
 let execute
   (parentState : RT.ExecutionState)
@@ -103,7 +102,7 @@ let execute
     let state =
       Exe.createState
         builtIns
-        packageManager
+        LibCliExecution.PackageManager.packageManager
         Exe.noTracing
         sendException
         notify
