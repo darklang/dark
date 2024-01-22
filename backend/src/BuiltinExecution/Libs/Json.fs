@@ -808,10 +808,9 @@ let parse
 
 let constants : List<BuiltInConstant> = []
 
-let fn = fn [ "Json" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "serialize" 0
+  [ { name = fn "jsonSerialize" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "arg" (TVariable "a") "" ]
       returnType = TString
@@ -834,7 +833,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "parse" 0
+    { name = fn "jsonParse" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "json" TString "" ]
       returnType =

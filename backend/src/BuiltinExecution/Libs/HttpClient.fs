@@ -385,7 +385,7 @@ open LibExecution.Builtin.Shortcuts
 
 let fns (config : Configuration) : List<BuiltInFn> =
   let httpClient = BaseClient.create config
-  [ { name = fn [ "HttpClient" ] "request" 0
+  [ { name = fn "httpClientRequest" 0
       typeParams = []
       parameters =
         [ Param.make "method" TString ""

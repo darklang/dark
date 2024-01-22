@@ -46,8 +46,8 @@ module Darklang =
 
           | MissingEnumModuleName caseName ->
             let name =
-              let names = Builtin.List.append e.names [ caseName ]
-              ErrorSegment.ErrorSegment.VarName(Builtin.String.join names ".")
+              let names = Builtin.listAppend e.names [ caseName ]
+              ErrorSegment.ErrorSegment.VarName(Builtin.stringJoin names ".")
 
             let summary =
               [ ErrorSegment.ErrorSegment.String "Missing type name for enum case"

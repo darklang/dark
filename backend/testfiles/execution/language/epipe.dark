@@ -16,7 +16,7 @@ let userFn () : Int64 = 6L
    PACKAGE.Darklang.Stdlib.Int64.add_v0 1L ((+) 1L 3L)
  )) = [ 5L ]
 
-([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Builtin.Test.runtimeError "err")) = Builtin.Test.derrorMessage
+([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Builtin.testRuntimeError "err")) = Builtin.testDerrorMessage
   "err"
 
 // general
@@ -32,11 +32,11 @@ let userFn () : Int64 = 6L
 // lambda in variable
 (let x = fun a -> a + 1L in (5L |> x |> x |> (+) 3L)) = 10L
 
-(let x = fun a b -> a + 1L in (7L |> x)) = Builtin.Test.derrorMessage
+(let x = fun a b -> a + 1L in (7L |> x)) = Builtin.testDerrorMessage
   "Expected 2 arguments, got 1"
 
 // only lambda might be placed into the variable used in the middle of the pipe
-(let x = 1L in (5L |> x |> x |> (+) 3L)) = Builtin.Test.derrorMessage
+(let x = 1L in (5L |> x |> x |> (+) 3L)) = Builtin.testDerrorMessage
   "Expected a function value, got something else: 1"
 
 // dict

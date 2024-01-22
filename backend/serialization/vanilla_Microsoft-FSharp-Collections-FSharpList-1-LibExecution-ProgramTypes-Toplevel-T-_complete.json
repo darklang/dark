@@ -208,10 +208,7 @@
                                                             {
                                                               "Builtin": [
                                                                 {
-                                                                  "modules": [
-                                                                    "Int64"
-                                                                  ],
-                                                                  "name": "toString",
+                                                                  "name": "int64ToString",
                                                                   "version": 0
                                                                 }
                                                               ]
@@ -522,10 +519,7 @@
                                                                         {
                                                                           "Builtin": [
                                                                             {
-                                                                              "modules": [
-                                                                                "Int64"
-                                                                              ],
-                                                                              "name": "add",
+                                                                              "name": "int64Add",
                                                                               "version": 0
                                                                             }
                                                                           ]
@@ -702,10 +696,7 @@
                                                                       {
                                                                         "Builtin": [
                                                                           {
-                                                                            "modules": [
-                                                                              "Int64"
-                                                                            ],
-                                                                            "name": "add",
+                                                                            "name": "int64Add",
                                                                             "version": 0
                                                                           }
                                                                         ]
@@ -817,10 +808,7 @@
                                                                         {
                                                                           "Builtin": [
                                                                             {
-                                                                              "modules": [
-                                                                                "Mod"
-                                                                              ],
-                                                                              "name": "function",
+                                                                              "name": "modFunction",
                                                                               "version": 2
                                                                             }
                                                                           ]
@@ -1722,10 +1710,7 @@
                                                             {
                                                               "Builtin": [
                                                                 {
-                                                                  "modules": [
-                                                                    "Int64"
-                                                                  ],
-                                                                  "name": "toString",
+                                                                  "name": "int64ToString",
                                                                   "version": 0
                                                                 }
                                                               ]
@@ -2036,10 +2021,7 @@
                                                                         {
                                                                           "Builtin": [
                                                                             {
-                                                                              "modules": [
-                                                                                "Int64"
-                                                                              ],
-                                                                              "name": "add",
+                                                                              "name": "int64Add",
                                                                               "version": 0
                                                                             }
                                                                           ]
@@ -2216,10 +2198,7 @@
                                                                       {
                                                                         "Builtin": [
                                                                           {
-                                                                            "modules": [
-                                                                              "Int64"
-                                                                            ],
-                                                                            "name": "add",
+                                                                            "name": "int64Add",
                                                                             "version": 0
                                                                           }
                                                                         ]
@@ -2331,10 +2310,7 @@
                                                                         {
                                                                           "Builtin": [
                                                                             {
-                                                                              "modules": [
-                                                                                "Mod"
-                                                                              ],
-                                                                              "name": "function",
+                                                                              "name": "modFunction",
                                                                               "version": 2
                                                                             }
                                                                           ]
@@ -3239,10 +3215,7 @@
                                                             {
                                                               "Builtin": [
                                                                 {
-                                                                  "modules": [
-                                                                    "Int64"
-                                                                  ],
-                                                                  "name": "toString",
+                                                                  "name": "int64ToString",
                                                                   "version": 0
                                                                 }
                                                               ]
@@ -3553,10 +3526,7 @@
                                                                         {
                                                                           "Builtin": [
                                                                             {
-                                                                              "modules": [
-                                                                                "Int64"
-                                                                              ],
-                                                                              "name": "add",
+                                                                              "name": "int64Add",
                                                                               "version": 0
                                                                             }
                                                                           ]
@@ -3733,10 +3703,7 @@
                                                                       {
                                                                         "Builtin": [
                                                                           {
-                                                                            "modules": [
-                                                                              "Int64"
-                                                                            ],
-                                                                            "name": "add",
+                                                                            "name": "int64Add",
                                                                             "version": 0
                                                                           }
                                                                         ]
@@ -3848,10 +3815,7 @@
                                                                         {
                                                                           "Builtin": [
                                                                             {
-                                                                              "modules": [
-                                                                                "Mod"
-                                                                              ],
-                                                                              "name": "function",
+                                                                              "name": "modFunction",
                                                                               "version": 2
                                                                             }
                                                                           ]
@@ -4753,10 +4717,7 @@
                                                             {
                                                               "Builtin": [
                                                                 {
-                                                                  "modules": [
-                                                                    "Int64"
-                                                                  ],
-                                                                  "name": "toString",
+                                                                  "name": "int64ToString",
                                                                   "version": 0
                                                                 }
                                                               ]
@@ -5067,10 +5028,7 @@
                                                                         {
                                                                           "Builtin": [
                                                                             {
-                                                                              "modules": [
-                                                                                "Int64"
-                                                                              ],
-                                                                              "name": "add",
+                                                                              "name": "int64Add",
                                                                               "version": 0
                                                                             }
                                                                           ]
@@ -5247,10 +5205,7 @@
                                                                       {
                                                                         "Builtin": [
                                                                           {
-                                                                            "modules": [
-                                                                              "Int64"
-                                                                            ],
-                                                                            "name": "add",
+                                                                            "name": "int64Add",
                                                                             "version": 0
                                                                           }
                                                                         ]
@@ -5362,10 +5317,7 @@
                                                                         {
                                                                           "Builtin": [
                                                                             {
-                                                                              "modules": [
-                                                                                "Mod"
-                                                                              ],
-                                                                              "name": "function",
+                                                                              "name": "modFunction",
                                                                               "version": 2
                                                                             }
                                                                           ]
@@ -6750,10 +6702,7 @@
                                                             {
                                                               "Builtin": [
                                                                 {
-                                                                  "modules": [
-                                                                    "Int64"
-                                                                  ],
-                                                                  "name": "toString",
+                                                                  "name": "int64ToString",
                                                                   "version": 0
                                                                 }
                                                               ]
@@ -7064,10 +7013,7 @@
                                                                         {
                                                                           "Builtin": [
                                                                             {
-                                                                              "modules": [
-                                                                                "Int64"
-                                                                              ],
-                                                                              "name": "add",
+                                                                              "name": "int64Add",
                                                                               "version": 0
                                                                             }
                                                                           ]
@@ -7244,10 +7190,7 @@
                                                                       {
                                                                         "Builtin": [
                                                                           {
-                                                                            "modules": [
-                                                                              "Int64"
-                                                                            ],
-                                                                            "name": "add",
+                                                                            "name": "int64Add",
                                                                             "version": 0
                                                                           }
                                                                         ]
@@ -7359,10 +7302,7 @@
                                                                         {
                                                                           "Builtin": [
                                                                             {
-                                                                              "modules": [
-                                                                                "Mod"
-                                                                              ],
-                                                                              "name": "function",
+                                                                              "name": "modFunction",
                                                                               "version": 2
                                                                             }
                                                                           ]

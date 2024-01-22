@@ -42,10 +42,10 @@ module Darklang =
       type ComputeDiagnosticsOutput = { diagnostics: List<Diagnostic> }
 
       let getDiagnostics (uri: String) (text: String) : String =
-        match Builtin.LanguageTools.parseCliScript text with
+        match Builtin.languageToolsParseCliScript text with
         | Ok() ->
           (ComputeDiagnosticsOutput { diagnostics = [] })
-          |> Builtin.Json.serialize<ComputeDiagnosticsOutput>
+          |> Builtin.jsonSerialize<ComputeDiagnosticsOutput>
 
         | Error parseError ->
           // to be used when the range is otherwise unknown
@@ -80,7 +80,7 @@ module Darklang =
                     message = $"Can't parse -- {msg}" } ]
 
           (ComputeDiagnosticsOutput { diagnostics = diagnostics })
-          |> Builtin.Json.serialize<ComputeDiagnosticsOutput>
+          |> Builtin.jsonSerialize<ComputeDiagnosticsOutput>
 
 
 // </Diagnostics>

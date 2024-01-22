@@ -28,7 +28,7 @@ module Darklang =
 
 
       let parseToSimplifiedTree (text: String) : ParsedNode =
-        Builtin.Parser.parseToSimplifiedTree text
+        Builtin.parserParseToSimplifiedTree text
 
       let parseName (fnName: String) : Darklang.Stdlib.Result.Result<String> =
         if (Darklang.Stdlib.String.contains fnName "_v") then

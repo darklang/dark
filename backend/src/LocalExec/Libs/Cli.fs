@@ -72,7 +72,7 @@ let constants : List<BuiltInConstant> = []
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "LocalExec"; "File" ] "read" 0
+  [ { name = fn "localExecFileRead" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TList TUInt8

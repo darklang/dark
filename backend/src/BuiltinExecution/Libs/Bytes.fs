@@ -11,13 +11,10 @@ module Dval = LibExecution.Dval
 
 let constants : List<BuiltInConstant> = []
 
-let modules = [ "Bytes" ]
-let fn = fn modules
-let constant = constant modules
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "hexEncode" 0
+  [ { name = fn "bytesHexEncode" 0
       typeParams = []
       parameters = [ Param.make "bytes" (TList TUInt8) "" ]
       returnType = TString

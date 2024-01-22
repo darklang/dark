@@ -50,7 +50,7 @@ PACKAGE.Darklang.Stdlib.Int32.remainder_v0 -20l -8l = PACKAGE.Darklang.Stdlib.Re
 PACKAGE.Darklang.Stdlib.Int32.remainder_v0 -15l 6l = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   -3l
 
-PACKAGE.Darklang.Stdlib.Int32.remainder_v0 5l 0l = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int32.remainder_v0 5l 0l = Builtin.testDerrorMessage
   "Division by zero"
 
 
@@ -61,10 +61,9 @@ PACKAGE.Darklang.Stdlib.Int32.mod_v0 -1l 2l = 1l
 PACKAGE.Darklang.Stdlib.Int32.mod_v0 -754l 53l = 41l
 PACKAGE.Darklang.Stdlib.Int32.mod_v0 222222222l 3l = 0l
 
-PACKAGE.Darklang.Stdlib.Int32.mod_v0 5l 0l = Builtin.Test.derrorMessage
-  "Zero modulus"
+PACKAGE.Darklang.Stdlib.Int32.mod_v0 5l 0l = Builtin.testDerrorMessage "Zero modulus"
 
-PACKAGE.Darklang.Stdlib.Int32.mod_v0 5l -5l = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int32.mod_v0 5l -5l = Builtin.testDerrorMessage
   "Negative modulus"
 
 PACKAGE.Darklang.Stdlib.Int32.power_v0 2l 3l = 8l
@@ -76,13 +75,13 @@ PACKAGE.Darklang.Stdlib.Int32.power_v0 -1l 5l = -1l
 PACKAGE.Darklang.Stdlib.Int32.power_v0 -1l 6l = 1l
 PACKAGE.Darklang.Stdlib.Int32.power_v0 1l 2147483647l = 1l
 
-PACKAGE.Darklang.Stdlib.Int32.power_v0 2l 31l = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int32.power_v0 2l 31l = Builtin.testDerrorMessage
   "Out of range"
 
-PACKAGE.Darklang.Stdlib.Int32.power_v0 120l 20l = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int32.power_v0 120l 20l = Builtin.testDerrorMessage
   "Out of range"
 
-PACKAGE.Darklang.Stdlib.Int32.power_v0 2l -3l = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int32.power_v0 2l -3l = Builtin.testDerrorMessage
   "Negative exponent"
 
 
@@ -149,7 +148,7 @@ PACKAGE.Darklang.Stdlib.Int32.divide_v0 17l 3l = 5l
 PACKAGE.Darklang.Stdlib.Int32.divide_v0 -8l 5l = -1l
 PACKAGE.Darklang.Stdlib.Int32.divide_v0 0l 1l = 0l
 
-PACKAGE.Darklang.Stdlib.Int32.divide_v0 1l 0l = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int32.divide_v0 1l 0l = Builtin.testDerrorMessage
   "Division by zero"
 
 (PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)

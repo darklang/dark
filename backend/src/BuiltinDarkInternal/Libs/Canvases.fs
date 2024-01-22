@@ -15,7 +15,6 @@ module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
-let fn = fn [ "DarkInternal"; "Canvas" ]
 
 
 let ptTyp
@@ -40,7 +39,7 @@ let packageCanvasType (addlModules : List<string>) (name : string) (version : in
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "list" 0
+  [ { name = fn "darkInternalCanvasList" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TList TUuid
@@ -58,7 +57,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "create" 0
+    { name = fn "darkInternalCanvasCreate" 0
       typeParams = []
       parameters = [ Param.make "owner" TUuid ""; Param.make "name" TString "" ]
       returnType = TUuid
@@ -76,7 +75,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "owner" 0
+    { name = fn "darkInternalCanvasOwner" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TUuid
@@ -102,7 +101,7 @@ let fns : List<BuiltInFn> =
     // ---------------------
     // Toplevels
     // ---------------------
-    { name = fn "deleteToplevelForever" 0
+    { name = fn "darkInternalCanvasDeleteToplevelForever" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TUInt64 "" ]
       returnType = TBool
@@ -133,7 +132,7 @@ let fns : List<BuiltInFn> =
     // ---------------------
     // Programs
     // ---------------------
-    { name = fn "darkEditorCanvasID" 0
+    { name = fn "darkInternalCanvasDarkEditorCanvasID" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TUuid
@@ -147,7 +146,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fullProgram" 0
+    { name = fn "darkInternalCanvasFullProgram" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType =

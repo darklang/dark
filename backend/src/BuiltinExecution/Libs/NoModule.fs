@@ -324,7 +324,6 @@ let varA = TVariable "a"
 
 let constants : List<BuiltInConstant> = []
 
-let fn = fn []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "equals" 0

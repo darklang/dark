@@ -1,6 +1,6 @@
-(let x = Builtin.Test.runtimeError "a" in 5L) = Builtin.Test.derrorMessage "a"
+(let x = Builtin.testRuntimeError "a" in 5L) = Builtin.testDerrorMessage "a"
 
-(let x = Builtin.Test.runtimeError "a" in Builtin.Test.runtimeError "b") = Builtin.Test.derrorMessage
+(let x = Builtin.testRuntimeError "a" in Builtin.testRuntimeError "b") = Builtin.testDerrorMessage
   "a"
 
 module Variables =
@@ -21,13 +21,13 @@ module Tuples =
   (let (d, d, d) = (2L, 1L, 3L) in d) = 3L
   (let (_, _, _) = (1L, 2L, 3L) in 2L) = 2L
 
-  (let (_, _, _) = (1L, 2L, Builtin.Test.runtimeError "test") in 2L) = Builtin.Test.derrorMessage
+  (let (_, _, _) = (1L, 2L, Builtin.testRuntimeError "test") in 2L) = Builtin.testDerrorMessage
     "test"
 
   (let (_, _, _) =
-    (Builtin.Test.runtimeError "test1", 2L, Builtin.Test.runtimeError "test2") in
+    (Builtin.testRuntimeError "test1", 2L, Builtin.testRuntimeError "test2") in
 
-   2L) = Builtin.Test.derrorMessage "test1"
+   2L) = Builtin.testDerrorMessage "test1"
 
   // With multiple levels of nested destructuring
   (let ((a, ((b, (c, d)), e)), f) = ((1L, ((2L, (3L, 4L)), 5L)), 6L) in c) = 3L

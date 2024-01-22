@@ -15,7 +15,7 @@ let constants : List<BuiltInConstant> = []
 // TODO reimplement this in Darklang, without any custom built-in function. I had
 // some difficulties around this - I forget what - but this got the job done for now
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "Danger"; "LanguageServerProtocol" ] "readNextMessage" 0
+  [ { name = fn "dangerLanguageServerProtocolReadNextMessage" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TString

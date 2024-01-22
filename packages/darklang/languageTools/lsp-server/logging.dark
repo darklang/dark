@@ -5,7 +5,7 @@ module Darklang =
 
       let log (input: String) : Unit =
         // returns Result -- ignored
-        let _logged = Builtin.File.appendText logFilePath (input ++ "\n")
+        let _logged = Builtin.fileAppendText logFilePath (input ++ "\n")
 
         ()
 

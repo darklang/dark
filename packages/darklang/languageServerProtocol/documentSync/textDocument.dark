@@ -63,7 +63,7 @@ module Darklang =
               : Stdlib.Result.Result<DidOpenTextDocumentParams, Unit> =
               let jsonAsText = Stdlib.AltJson.format json // TODO: manually parse the JSON so we have better control
 
-              match Builtin.Json.parse<DidOpenTextDocumentParams> jsonAsText with
+              match Builtin.jsonParse<DidOpenTextDocumentParams> jsonAsText with
               | Ok params -> Stdlib.Result.Result.Ok params
               | Error _ -> Stdlib.Result.Result.Error()
 
@@ -93,7 +93,7 @@ module Darklang =
               : Stdlib.Result.Result<DidCloseTextDocumentParams, Unit> =
               let jsonAsText = Stdlib.AltJson.format json // TODO: manually parse the JSON so we have better control
 
-              match Builtin.Json.parse<DidCloseTextDocumentParams> jsonAsText with
+              match Builtin.jsonParse<DidCloseTextDocumentParams> jsonAsText with
               | Ok params -> Stdlib.Result.Result.Ok params
               | Error _ -> Stdlib.Result.Result.Error()
 

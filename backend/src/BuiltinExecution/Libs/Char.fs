@@ -14,10 +14,9 @@ module Dval = LibExecution.Dval
 
 let constants : List<BuiltInConstant> = []
 
-let fn = fn [ "Char" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "toUppercase" 0
+  [ { name = fn "charToUppercase" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
@@ -32,7 +31,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toLowercase" 0
+    { name = fn "charToLowercase" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
@@ -47,7 +46,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toAsciiCode" 0
+    { name = fn "charToAsciiCode" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TypeReference.option TInt64
@@ -67,7 +66,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "isLessThan" 0
+    { name = fn "charIsLessThan" 0
       typeParams = []
       parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
       returnType = TBool
@@ -81,7 +80,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "isLessThanOrEqualTo" 0
+    { name = fn "charIsLessThanOrEqualTo" 0
       typeParams = []
       parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
       returnType = TBool
@@ -95,7 +94,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "isGreaterThan" 0
+    { name = fn "charIsGreaterThan" 0
       typeParams = []
       parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
       returnType = TBool
@@ -109,7 +108,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "isGreaterThanOrEqualTo" 0
+    { name = fn "charIsGreaterThanOrEqualTo" 0
       typeParams = []
       parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
       returnType = TBool
@@ -123,7 +122,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toString" 0
+    { name = fn "charToString" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TString

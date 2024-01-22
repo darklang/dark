@@ -188,7 +188,7 @@ let resolveTypeName
   : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
   uply {
     match name with
-    | WT.KnownBuiltin(_modules, _name, _version) ->
+    | WT.KnownBuiltin(_name, _version) ->
       // todo this is not supposed to happen as we don't allow builtin types
       return
         Error({ nameType = nameErrorType; errorType = NRE.NotFound; names = [] })
@@ -312,8 +312,8 @@ let resolveConstantName
   uply {
     // These are named exactly during parsing
     match name with
-    | WT.KnownBuiltin(modules, name, version) ->
-      return Ok(PT.FQConstantName.fqBuiltIn modules name version)
+    | WT.KnownBuiltin(name, version) ->
+      return Ok(PT.FQConstantName.fqBuiltIn name version)
 
     | WT.Unresolved given ->
       let resolve
@@ -346,9 +346,9 @@ let resolveConstantName
                       errorType = NRE.NotFound
                       names = NEList.toList names }
                   )
-            | "Builtin" :: modules ->
+            | [ "Builtin" ] ->
               let (builtIn : PT.FQConstantName.Builtin) =
-                { modules = modules; name = name; version = version }
+                { name = name; version = version }
 
               if Set.contains builtIn builtinConstants then
                 return Ok(PT.FQConstantName.Builtin builtIn)
@@ -447,8 +447,7 @@ let resolveFnName
   uply {
     // These are named exactly during parsing
     match name with
-    | WT.KnownBuiltin(modules, name, version) ->
-      return Ok(PT.FQFnName.fqBuiltIn modules name version)
+    | WT.KnownBuiltin(name, version) -> return Ok(PT.FQFnName.fqBuiltIn name version)
 
     | WT.Unresolved given ->
       let resolve
@@ -480,9 +479,9 @@ let resolveFnName
                       errorType = NRE.NotFound
                       names = NEList.toList names }
                   )
-            | "Builtin" :: modules ->
+            | [ "Builtin" ] ->
               let (builtIn : PT.FQFnName.Builtin) =
-                { modules = modules; name = name; version = version }
+                { name = name; version = version }
 
               if Set.contains builtIn builtinFns then
                 return Ok(PT.FQFnName.Builtin builtIn)

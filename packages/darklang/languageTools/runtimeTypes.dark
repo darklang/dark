@@ -24,10 +24,7 @@ module Darklang =
 
 
       module FQFnName =
-        type Builtin =
-          { modules: List<String>
-            name: String
-            version: Int64 }
+        type Builtin = { name: String; version: Int64 }
 
         type Package =
           { owner: String
@@ -49,10 +46,7 @@ module Darklang =
       /// A Fully-Qualified Constant Name
       /// Includes package, module, and version information where relevant.
       module FQConstantName =
-        type Builtin =
-          { modules: List<String>
-            name: String
-            version: Int64 }
+        type Builtin = { name: String; version: Int64 }
 
         type Package =
           { owner: String

@@ -270,14 +270,11 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 let varC = TVariable "c"
 
-let modules = [ "List" ]
-let fn = fn modules
-let constant = constant modules
 
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "uniqueBy" 0
+  [ { name = fn "listUniqueBy" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -316,7 +313,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "length" 0
+    { name = fn "listLength" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TInt64
@@ -330,7 +327,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "unique" 0
+    { name = fn "listUnique" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TList varA
@@ -351,7 +348,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "sort" 0
+    { name = fn "listSort" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TList varA
@@ -375,7 +372,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "sortBy" 0
+    { name = fn "listSortBy" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -418,7 +415,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "sortByComparator" 0
+    { name = fn "listSortByComparator" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -474,7 +471,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "append" 0
+    { name = fn "listAppend" 0
       typeParams = []
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varA) "" ]
@@ -494,108 +491,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "filter" 0
-      typeParams = []
-      parameters =
-        [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, TBool)) "" [ "val" ] ]
-      returnType = TList varA
-      description =
-        "Calls <param f> on every <var val> in <param list>, returning a list of only
-         those values for which {{fn val}} returns {{true}}.
-
-         Preserves the order of values that were not dropped. Consider <fn
-         List.filterMap> if you also want to transform the values."
-      fn =
-        (function
-        | state, _, [ DList(vt, l); DFnVal fn ] ->
-          uply {
-            let f (dv : Dval) : Ply<bool> =
-              uply {
-                let args = NEList.singleton dv
-                let! result = Interpreter.applyFnVal state state.caller fn [] args
-
-                match result with
-                | DBool b -> return b
-                | v ->
-                  return!
-                    TypeChecker.raiseFnValResultNotExpectedType state.caller v TBool
-              }
-
-            let! result = Ply.List.filterSequentially f l
-            return DList(vt, result)
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "filterMap" 0
-      typeParams = []
-      parameters =
-        [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs
-            "fn"
-            (TFn(NEList.singleton varA, TypeReference.option varB))
-            ""
-            [ "val" ] ]
-      returnType = TList varB
-      description =
-        "Calls <param fn> on every <var val> in <param list>, returning a list that
-         drops some values (filter) and transforms others (map).
-
-         If {{fn val}} returns {{None}}, drops <var val> from the list.
-
-         If {{fn val}} returns {{Some newValue}}, replaces <var val> with <var newValue>.
-
-         Preserves the order of values that were not dropped.
-
-         This function combines <fn List.filter> and <fn List.map>."
-      fn =
-        (function
-        | state, _, [ DList(_, l); DFnVal b ] ->
-          uply {
-            let f (dv : Dval) : Ply<Option<Dval>> =
-              uply {
-                let args = NEList.singleton dv
-                let! result = Interpreter.applyFnVal state state.caller b [] args
-
-                match result with
-                | DEnum(FQTypeName.Package { owner = "Darklang"
-                                             modules = [ "Stdlib"; "Option" ]
-                                             name = "Option"
-                                             version = 0 },
-                        _,
-                        _typeArgsDEnumTODO,
-                        "Some",
-                        [ o ]) -> return Some o
-                | DEnum(FQTypeName.Package { owner = "Darklang"
-                                             modules = [ "Stdlib"; "Option" ]
-                                             name = "Option"
-                                             version = 0 },
-                        _,
-                        _typeArgsDEnumTODO,
-                        "None",
-                        []) -> return None
-                | v ->
-                  return!
-                    TypeChecker.raiseFnValResultNotExpectedType
-                      state.caller
-                      v
-                      (TypeReference.option varB)
-              }
-
-            let! result = Ply.List.filterMapSequentially f l
-            return TypeChecker.DvalCreator.list VT.unknownTODO result
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "indexedMap" 0
+    { name = fn "listIndexedMap" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -631,7 +527,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "map2shortest" 0
+    { name = fn "listMap2shortest" 0
       typeParams = []
       parameters =
         [ Param.make "as" (TList varA) ""
@@ -678,7 +574,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "map2" 0
+    { name = fn "listMap2" 0
       typeParams = []
       parameters =
         [ Param.make "as" (TList varA) ""
@@ -728,7 +624,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "randomElement" 0
+    { name = fn "listRandomElement" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TypeReference.option varA
@@ -753,7 +649,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "groupByWithKey" 0
+    { name = fn "listGroupByWithKey" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""

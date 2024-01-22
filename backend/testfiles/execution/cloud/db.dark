@@ -62,14 +62,14 @@ type TestNestedAliasRecord = AliasOfRecord
 
 module NestedRecordFieldAccess =
   // can use lambda like (fun p -> p.details.numbers.age)
-  (Builtin.DB.set
+  (Builtin.dbSet
     (OuterRecord
       { name = "joe"
         details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 41L } } })
     "jjj"
     TestNestedRecord
 
-   Builtin.DB.set
+   Builtin.dbSet
      (OuterRecord
        { name = "frank"
          details = InnerRecord { numbers = VeryInnerRecord { age = 22L } } })
@@ -77,19 +77,19 @@ module NestedRecordFieldAccess =
      TestNestedRecord
 
    let shouldBeJustJoe =
-     Builtin.DB.query TestNestedRecord (fun p -> p.details.numbers.age == 41L)
+     Builtin.dbQuery TestNestedRecord (fun p -> p.details.numbers.age == 41L)
 
    PACKAGE.Darklang.Stdlib.List.length shouldBeJustJoe) = 1L
 
   // same as above, but with aliases
-  (Builtin.DB.set
+  (Builtin.dbSet
     (AliasOfRecord
       { name = "jeremy"
         details = InnerRecord { numbers = VeryInnerRecord { age = 38L } } })
     "ignored"
     TestNestedAliasRecord
 
-   Builtin.DB.set
+   Builtin.dbSet
      (AliasOfRecord
        { name = "josephine"
          details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 29L } } })
@@ -97,7 +97,7 @@ module NestedRecordFieldAccess =
      TestNestedAliasRecord
 
    let shouldBeJustJeremy =
-     Builtin.DB.query TestNestedAliasRecord (fun p -> p.details.numbers.age == 38L)
+     Builtin.dbQuery TestNestedAliasRecord (fun p -> p.details.numbers.age == 38L)
 
    PACKAGE.Darklang.Stdlib.List.length shouldBeJustJeremy) = 1L
 
@@ -111,19 +111,19 @@ type RecordWithGenericThing = GenericThing<String>
 type TestRecordWithGenericThing = RecordWithGenericThing
 
 module AccessDataInGenericField =
-  (Builtin.DB.set
+  (Builtin.dbSet
     (RecordWithGenericThing { name = "joe" })
     "jjj"
     TestRecordWithGenericThing
 
-   Builtin.DB.set
+   Builtin.dbSet
      (RecordWithGenericThing { name = "frank" })
      "fff"
      TestRecordWithGenericThing
 
-   Builtin.DB.query TestRecordWithGenericThing (fun p -> p.name == "joe")) = [ RecordWithGenericThing
-                                                                                 { name =
-                                                                                     "joe" } ]
+   Builtin.dbQuery TestRecordWithGenericThing (fun p -> p.name == "joe")) = [ RecordWithGenericThing
+                                                                                { name =
+                                                                                    "joe" } ]
 
 module AccessRecordInGenericField =
   type RecordThing = { nested: String }
@@ -132,23 +132,23 @@ module AccessRecordInGenericField =
   type TestDB = GenericThing<RecordThing>
 
 
-  (Builtin.DB.set
+  (Builtin.dbSet
     (GenericThing { name = RecordThing { nested = "joe" } })
     "jjj"
     TestDB
 
-   Builtin.DB.set
+   Builtin.dbSet
      (GenericThing { name = RecordThing { nested = "frank" } })
      "fff"
      TestDB
 
    let nestedValue = RecordThing { nested = "joe" }
 
-   Builtin.DB.query TestDB (fun p -> p.name == nestedValue)) = [ GenericThing
-                                                                   { name =
-                                                                       RecordThing
-                                                                         { nested =
-                                                                             "joe" } } ]
+   Builtin.dbQuery TestDB (fun p -> p.name == nestedValue)) = [ GenericThing
+                                                                  { name =
+                                                                      RecordThing
+                                                                        { nested =
+                                                                            "joe" } } ]
 
 module AccessEnumInGenericField =
   type EnumThing = A of String
@@ -157,83 +157,83 @@ module AccessEnumInGenericField =
   type TestDB = GenericThing<EnumThing>
 
 
-  (Builtin.DB.set (GenericThing { name = EnumThing.A "joe" }) "jjj" TestDB
-   Builtin.DB.set (GenericThing { name = EnumThing.A "frank" }) "fff" TestDB
+  (Builtin.dbSet (GenericThing { name = EnumThing.A "joe" }) "jjj" TestDB
+   Builtin.dbSet (GenericThing { name = EnumThing.A "frank" }) "fff" TestDB
 
    let nestedValue = EnumThing.A "joe"
 
-   Builtin.DB.query TestDB (fun p -> p.name == nestedValue)) = [ GenericThing
-                                                                   { name =
-                                                                       EnumThing.A
-                                                                         "joe" } ]
+   Builtin.dbQuery TestDB (fun p -> p.name == nestedValue)) = [ GenericThing
+                                                                  { name =
+                                                                      EnumThing.A
+                                                                        "joe" } ]
 
 
 module AddToTestEnumDBs =
   (let test1 =
-    Builtin.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
+    Builtin.dbSet (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
 
    let test2 =
-     Builtin.DB.set
+     Builtin.dbSet
        (EnumTestRecord { x = "goodbye"; y = MyEnum.B })
        "test2"
        TestEnumDB in
 
-   (Builtin.DB.getAll TestEnumDB) |> PACKAGE.Darklang.Stdlib.List.sort) = [ EnumTestRecord
-                                                                              { x =
-                                                                                  "goodbye"
-                                                                                y =
-                                                                                  MyEnum.B }
-                                                                            EnumTestRecord
-                                                                              { x =
-                                                                                  "hello"
-                                                                                y =
-                                                                                  MyEnum.A } ]
+   (Builtin.dbGetAll TestEnumDB) |> PACKAGE.Darklang.Stdlib.List.sort) = [ EnumTestRecord
+                                                                             { x =
+                                                                                 "goodbye"
+                                                                               y =
+                                                                                 MyEnum.B }
+                                                                           EnumTestRecord
+                                                                             { x =
+                                                                                 "hello"
+                                                                               y =
+                                                                                 MyEnum.A } ]
 
   (let test1 =
-    Builtin.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
+    Builtin.dbSet (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
 
    let test2 =
-     Builtin.DB.set
+     Builtin.dbSet
        (EnumTestRecord { x = "goodbye"; y = MyEnum.B })
        "test2"
        TestEnumDB in
 
-   (Builtin.DB.get "test1" TestEnumDB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+   (Builtin.dbGet "test1" TestEnumDB)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
     EnumTestRecord { x = "hello"; y = MyEnum.A }
   )
 
-  (let test1 = Builtin.DB.set MyEnum.A "test1" TestEnumDB2 in
-   let test2 = Builtin.DB.set MyEnum.B "test2" TestEnumDB2 in
-   (Builtin.DB.getAll TestEnumDB2) |> PACKAGE.Darklang.Stdlib.List.sort) = [ MyEnum.A
-                                                                             MyEnum.B ]
+  (let test1 = Builtin.dbSet MyEnum.A "test1" TestEnumDB2 in
+   let test2 = Builtin.dbSet MyEnum.B "test2" TestEnumDB2 in
+   (Builtin.dbGetAll TestEnumDB2) |> PACKAGE.Darklang.Stdlib.List.sort) = [ MyEnum.A
+                                                                            MyEnum.B ]
 
-  (let test1 = Builtin.DB.set MyEnum.C "test1" TestEnumDB2 in
-   let test2 = Builtin.DB.set MyEnum.B "test2" TestEnumDB2 in
-   (Builtin.DB.get "test1" TestEnumDB2)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+  (let test1 = Builtin.dbSet MyEnum.C "test1" TestEnumDB2 in
+   let test2 = Builtin.dbSet MyEnum.B "test2" TestEnumDB2 in
+   (Builtin.dbGet "test1" TestEnumDB2)) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
     MyEnum.C
   )
 
-  (let test1 = Builtin.DB.set MyEnum2.D "test1" TestEnumDB3 in
-   let test2 = Builtin.DB.set MyEnum2.E "test2" TestEnumDB3 in
-   let test3 = Builtin.DB.set (MyEnum2.F MyEnum.A) "test3" TestEnumDB3 in
-   (Builtin.DB.getAll TestEnumDB3) |> PACKAGE.Darklang.Stdlib.List.sort) = [ MyEnum2.D
-                                                                             MyEnum2.E
-                                                                             MyEnum2.F
-                                                                               MyEnum.A ]
+  (let test1 = Builtin.dbSet MyEnum2.D "test1" TestEnumDB3 in
+   let test2 = Builtin.dbSet MyEnum2.E "test2" TestEnumDB3 in
+   let test3 = Builtin.dbSet (MyEnum2.F MyEnum.A) "test3" TestEnumDB3 in
+   (Builtin.dbGetAll TestEnumDB3) |> PACKAGE.Darklang.Stdlib.List.sort) = [ MyEnum2.D
+                                                                            MyEnum2.E
+                                                                            MyEnum2.F
+                                                                              MyEnum.A ]
 
   (let testQuery =
-    Builtin.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
+    Builtin.dbSet (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
 
-   (Builtin.DB.query TestEnumDB (fun p -> p.x == "hello"))) = [ EnumTestRecord
+   (Builtin.dbQuery TestEnumDB (fun p -> p.x == "hello"))) = [ EnumTestRecord
+                                                                 { x = "hello"
+                                                                   y = MyEnum.A } ]
+
+  (let testQuery =
+    Builtin.dbSet (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
+
+   (Builtin.dbQuery TestEnumDB (fun p -> p.y == MyEnum.A))) = [ EnumTestRecord
                                                                   { x = "hello"
                                                                     y = MyEnum.A } ]
-
-  (let testQuery =
-    Builtin.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
-
-   (Builtin.DB.query TestEnumDB (fun p -> p.y == MyEnum.A))) = [ EnumTestRecord
-                                                                   { x = "hello"
-                                                                     y = MyEnum.A } ]
 
 
 
@@ -244,8 +244,8 @@ type MyTlid =
 type MyTlidDB = MyTlid
 
 module addToTest =
-  (let test = Builtin.DB.set (MyTlid { mytlid = 1234UL }) "test" MyTlidDB in
-   (Builtin.DB.getAll MyTlidDB)) = [ MyTlid { mytlid = 1234UL } ]
+  (let test = Builtin.dbSet (MyTlid { mytlid = 1234UL }) "test" MyTlidDB in
+   (Builtin.dbGetAll MyTlidDB)) = [ MyTlid { mytlid = 1234UL } ]
 
 
 module Roundtrip =
@@ -300,9 +300,9 @@ module Roundtrip =
         uint128 = 340282366920938463463374607431768211455Z
         float = 3.0
         negZero = -0.0
-        nan = Builtin.Test.nan
-        infinity = Builtin.Test.infinity
-        negInfinity = Builtin.Test.negativeInfinity
+        nan = Builtin.testNan
+        infinity = Builtin.testInfinity
+        negInfinity = Builtin.testNegativeInfinity
         ``true`` = true
         ``false`` = false
         list = [ 1L; 2L; 3L ]
@@ -312,7 +312,7 @@ module Roundtrip =
         option = PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
         record = MyTlid { mytlid = 1234UL }
         tuple = (1L, "hello")
-        emojiChar = (Builtin.Test.toChar "👍") |> Builtin.unwrap
+        emojiChar = (Builtin.testToChar "👍") |> Builtin.unwrap
         uuid =
           (PACKAGE.Darklang.Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
           |> Builtin.unwrap
@@ -360,36 +360,36 @@ module Roundtrip =
 
   // TODO: Add roundtrip for bytes (Bytes values not supported yet)
   (let v = sample ()
-   let z = Builtin.DB.set v "all" SampleDB in
-   (z, Builtin.DB.get "all" SampleDB)) = (sample (),
-                                          PACKAGE.Darklang.Stdlib.Option.Option.Some(
-                                            sample ()
-                                          ))
+   let z = Builtin.dbSet v "all" SampleDB in
+   (z, Builtin.dbGet "all" SampleDB)) = (sample (),
+                                         PACKAGE.Darklang.Stdlib.Option.Option.Some(
+                                           sample ()
+                                         ))
 
 
   module QueryEquality =
     let fetch (fn: 'a -> Bool) : List<'a> =
-      let z = Builtin.DB.set (sample ()) "sample" SampleDB in
-      let z = Builtin.DB.set (otherSample ()) "other" SampleDB in
-      Builtin.DB.query SampleDB fn
+      let z = Builtin.dbSet (sample ()) "sample" SampleDB in
+      let z = Builtin.dbSet (otherSample ()) "other" SampleDB in
+      Builtin.dbQuery SampleDB fn
 
     // invalid type comparisons errors
     // these work, but the DError has a random string in it that we can't match
     // fetch (fun p -> 5 == "str") =
-    //   Builtin.Test.derrorSqlMessage "Incorrect type in variable, expected Bool, but got a Error"
+    //   Builtin.testDerrorSqlMessage "Incorrect type in variable, expected Bool, but got a Error"
     // fetch (fun p -> 5 != "str") =
-    //   Builtin.Test.derrorSqlMessage "Incorrect type in variable, expected Bool, but got a Error"
+    //   Builtin.testDerrorSqlMessage "Incorrect type in variable, expected Bool, but got a Error"
 
-    fetch (fun p -> p.int == "str") = Builtin.Test.derrorSqlMessage
+    fetch (fun p -> p.int == "str") = Builtin.testDerrorSqlMessage
       "Incorrect type in String \"str\", expected Int64, but got a String"
 
-    fetch (fun p -> p.int != "str") = Builtin.Test.derrorSqlMessage
+    fetch (fun p -> p.int != "str") = Builtin.testDerrorSqlMessage
       "Incorrect type in String \"str\", expected Int64, but got a String"
 
-    fetch (fun p -> "str" == p.int) = Builtin.Test.derrorSqlMessage
+    fetch (fun p -> "str" == p.int) = Builtin.testDerrorSqlMessage
       "Incorrect type in int, expected String, but got a Int64"
 
-    fetch (fun p -> "str" == p.int) = Builtin.Test.derrorSqlMessage
+    fetch (fun p -> "str" == p.int) = Builtin.testDerrorSqlMessage
       "Incorrect type in int, expected String, but got a Int64"
 
     fetch (fun p -> p.iNsEnSiTiVe == "iNsEnSiTiVe") = [ sample () ]
@@ -453,17 +453,17 @@ module Roundtrip =
     fetch (fun p -> p.negZero == 19000.0) = []
 
     // CLEANUP: nan shouldn't be equal
-    fetch (fun p -> p.nan == Builtin.Test.nan) = [ sample () ]
-    fetch (fun p -> p.nan != Builtin.Test.nan) = [ otherSample () ]
+    fetch (fun p -> p.nan == Builtin.testNan) = [ sample () ]
+    fetch (fun p -> p.nan != Builtin.testNan) = [ otherSample () ]
     fetch (fun p -> p.nan == 14.0) = []
 
-    fetch (fun p -> p.infinity == Builtin.Test.infinity) = [ sample () ]
-    fetch (fun p -> p.infinity != Builtin.Test.infinity) = [ otherSample () ]
+    fetch (fun p -> p.infinity == Builtin.testInfinity) = [ sample () ]
+    fetch (fun p -> p.infinity != Builtin.testInfinity) = [ otherSample () ]
     fetch (fun p -> p.infinity == 1.0) = []
 
-    fetch (fun p -> p.negInfinity == Builtin.Test.negativeInfinity) = [ sample () ]
+    fetch (fun p -> p.negInfinity == Builtin.testNegativeInfinity) = [ sample () ]
 
-    fetch (fun p -> p.negInfinity != Builtin.Test.negativeInfinity) = [ otherSample () ]
+    fetch (fun p -> p.negInfinity != Builtin.testNegativeInfinity) = [ otherSample () ]
 
     fetch (fun p -> p.negInfinity == 1.0) = []
 
@@ -482,9 +482,9 @@ module Roundtrip =
     fetch (fun p -> p.char != 'c') = [ otherSample () ]
     fetch (fun p -> p.char == 'x') = []
 
-    fetch (fun p -> p.emojiChar == ((Builtin.Test.toChar "👍") |> Builtin.unwrap)) = [ sample () ]
+    fetch (fun p -> p.emojiChar == ((Builtin.testToChar "👍") |> Builtin.unwrap)) = [ sample () ]
 
-    fetch (fun p -> p.emojiChar != ((Builtin.Test.toChar "👍") |> Builtin.unwrap)) = [ otherSample () ]
+    fetch (fun p -> p.emojiChar != ((Builtin.testToChar "👍") |> Builtin.unwrap)) = [ otherSample () ]
 
     fetch (fun p -> p.emojiChar == 'x') = []
 
@@ -545,33 +545,33 @@ module Roundtrip =
 
 module ValueMissingColumnGivesGoodError =
   // TYPESCLEANUP: can we test a missing column against the DB anymore?
-  // (Builtin.DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.Test.runtimeError "Found but did not expect: [y]"
+  // (Builtin.dbSet (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.Test.runtimeError "Found but did not expect: [y]"
 
-  (Builtin.DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.Test.derrorMessage
+  (Builtin.dbSet (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.testDerrorMessage
     "DB XDB's value should be a X. However, a XY (XY {  x: ...) was passed instead.\n\nExpected: X\nActual: a XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
 
 
 module SetDoesUpsert =
-  (let old = Builtin.DB.set (X { x = "hello" }) "hello" XDB in
-   let newval = Builtin.DB.set (X { x = "goodbye" }) "hello" XDB in
-   Builtin.DB.getAllWithKeys XDB) = Dict { hello = X { x = "goodbye" } }
+  (let old = Builtin.dbSet (X { x = "hello" }) "hello" XDB in
+   let newval = Builtin.dbSet (X { x = "goodbye" }) "hello" XDB in
+   Builtin.dbGetAllWithKeys XDB) = Dict { hello = X { x = "goodbye" } }
 
 module SetCharUpserts =
-  (let old = Builtin.DB.set (Z { x = 'a' }) "a" ZDB in
-   let newval = Builtin.DB.set (Z { x = 'b' }) "a" ZDB in
-   Builtin.DB.getAllWithKeys ZDB) = Dict { a = Z { x = 'b' } }
+  (let old = Builtin.dbSet (Z { x = 'a' }) "a" ZDB in
+   let newval = Builtin.dbSet (Z { x = 'b' }) "a" ZDB in
+   Builtin.dbGetAllWithKeys ZDB) = Dict { a = Z { x = 'b' } }
 
 
 
 module Get =
   // return none for empty store
-  (Builtin.DB.get "lol" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.None
+  (Builtin.dbGet "lol" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
   // return none for invalid key
-  (let _ = Builtin.DB.set (X { x = "hello" }) "key" XDB in Builtin.DB.get "lol" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.None
+  (let _ = Builtin.dbSet (X { x = "hello" }) "key" XDB in Builtin.dbGet "lol" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
   // returns single value
-  (let _ = Builtin.DB.set (X { x = "hello" }) "key" XDB in Builtin.DB.get "key" XDB) = PACKAGE
+  (let _ = Builtin.dbSet (X { x = "hello" }) "key" XDB in Builtin.dbGet "key" XDB) = PACKAGE
     .Darklang
     .Stdlib
     .Option
@@ -579,17 +579,17 @@ module Get =
     .Some(X { x = "hello" })
 
   // returns correct value given reassigned entry
-  (let _ = Builtin.DB.set (X { x = "hello" }) "key" XDB in
-   let _ = Builtin.DB.set (X { x = "goodbye" }) "key" XDB in
-   Builtin.DB.get "key" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+  (let _ = Builtin.dbSet (X { x = "hello" }) "key" XDB in
+   let _ = Builtin.dbSet (X { x = "goodbye" }) "key" XDB in
+   Builtin.dbGet "key" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
     X { x = "goodbye" }
   )
 
   // returns value given multiple entries
-  (let _ = Builtin.DB.set (X { x = "pancake" }) "key1" XDB in
-   let _ = Builtin.DB.set (X { x = "waffle" }) "key2" XDB in
-   let _ = Builtin.DB.set (X { x = "scone" }) "key3" XDB in
-   Builtin.DB.get "key2" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+  (let _ = Builtin.dbSet (X { x = "pancake" }) "key1" XDB in
+   let _ = Builtin.dbSet (X { x = "waffle" }) "key2" XDB in
+   let _ = Builtin.dbSet (X { x = "scone" }) "key3" XDB in
+   Builtin.dbGet "key2" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
     X { x = "waffle" }
   )
 
@@ -600,21 +600,21 @@ module Params =
   [<DB>]
   type ParamDB = Param<String>
 
-  (let _ = Builtin.DB.set (Param { x = "hello"; b = 5L }) "key" ParamDB
-   Builtin.DB.get "key" ParamDB) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
+  (let _ = Builtin.dbSet (Param { x = "hello"; b = 5L }) "key" ParamDB
+   Builtin.dbGet "key" ParamDB) = PACKAGE.Darklang.Stdlib.Option.Option.Some(
     Param { x = "hello"; b = 5L }
   )
 
 
 
 module GetAll =
-  (let one = Builtin.DB.set (SortedX { x = "hello"; sortBy = 0L }) "one" SortedXDB in
-   let two = Builtin.DB.set (SortedX { x = "goodbye"; sortBy = 1L }) "two" SortedXDB in
+  (let one = Builtin.dbSet (SortedX { x = "hello"; sortBy = 0L }) "one" SortedXDB in
 
-   let three =
-     Builtin.DB.set (SortedX { x = "howdy"; sortBy = 2L }) "three" SortedXDB in
+   let two = Builtin.dbSet (SortedX { x = "goodbye"; sortBy = 1L }) "two" SortedXDB in
 
-   (Builtin.DB.getAll SortedXDB)
+   let three = Builtin.dbSet (SortedX { x = "howdy"; sortBy = 2L }) "three" SortedXDB in
+
+   (Builtin.dbGetAll SortedXDB)
    |> PACKAGE.Darklang.Stdlib.List.sortBy_v0 (fun x -> x.sortBy)) = [ (SortedX
                                                                         { x = "hello"
                                                                           sortBy = 0L })
@@ -628,90 +628,90 @@ module GetAll =
 
 
 module GetAllKeys =
-  (let one = Builtin.DB.set (X { x = "hello" }) "one" XDB in
-   let two = Builtin.DB.set (X { x = "goodbye" }) "two" XDB in
-   (Builtin.DB.keys XDB) |> PACKAGE.Darklang.Stdlib.List.sort_v0) = [ "one"; "two" ]
+  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB in
+   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB in
+   (Builtin.dbKeys XDB) |> PACKAGE.Darklang.Stdlib.List.sort_v0) = [ "one"; "two" ]
 
 
 module GetAllWithKeys =
-  (let one = Builtin.DB.set (X { x = "hello" }) "one" XDB in
-   let two = Builtin.DB.set (X { x = "goodbye" }) "two" XDB in
-   Builtin.DB.getAllWithKeys XDB) = Dict
+  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB in
+   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB in
+   Builtin.dbGetAllWithKeys XDB) = Dict
     { one = X { x = "hello" }
       two = X { x = "goodbye" } }
 
 
 module GetManyWithKeys =
-  (let one = Builtin.DB.set (X { x = "hello" }) "one" XDB in
-   let two = Builtin.DB.set (X { x = "goodbye" }) "two" XDB in
-   Builtin.DB.getManyWithKeys [ "one"; "two" ] XDB) = Dict
+  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB in
+   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB in
+   Builtin.dbGetManyWithKeys [ "one"; "two" ] XDB) = Dict
     { one = (X { x = "hello" })
       two = (X { x = "goodbye" }) }
 
 
 module GetExisting =
-  (let one = Builtin.DB.set (X { x = "hello" }) "one" XDB in
-   let two = Builtin.DB.set (X { x = "goodbye" }) "two" XDB in
-   Builtin.DB.getExisting_v0 [ "three"; "two" ] XDB) = [ (X { x = "goodbye" }) ]
+  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB in
+   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB in
+   Builtin.dbGetExisting_v0 [ "three"; "two" ] XDB) = [ (X { x = "goodbye" }) ]
 
 
 module GetMany =
-  (let one = Builtin.DB.set (X { x = "hello" }) "one" XDB in
-   let two = Builtin.DB.set (X { x = "goodbye" }) "two" XDB in
-   Builtin.DB.getMany [ "three"; "two" ] XDB) = PACKAGE.Darklang.Stdlib.Option.Option.None
+  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB in
+   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB in
+   Builtin.dbGetMany [ "three"; "two" ] XDB) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
-  (let one = Builtin.DB.set (X { x = "hello" }) "one" XDB in
-   let two = Builtin.DB.set (X { x = "goodbye" }) "two" XDB in
+  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB in
+   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB in
 
-   (Builtin.DB.getMany [ "one"; "two" ] XDB)
+   (Builtin.dbGetMany [ "one"; "two" ] XDB)
    |> Builtin.unwrap
    |> PACKAGE.Darklang.Stdlib.List.sortBy (fun v -> v.x)) = [ (X { x = "goodbye" })
                                                               (X { x = "hello" }) ]
 
 
 module Delete =
-  (let one = Builtin.DB.set (X { x = "hello" }) "one" XDB in
-   let delete = Builtin.DB.delete "one" XDB in
-   Builtin.DB.getAllWithKeys XDB) = Dict { }
+  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB in
+   let delete = Builtin.dbDelete "one" XDB in
+   Builtin.dbGetAllWithKeys XDB) = Dict { }
 
   // delete nothing
-  (let one = Builtin.DB.set (X { x = "hello" }) "one" XDB in
-   let delete = Builtin.DB.delete "two" XDB in
-   Builtin.DB.getAllWithKeys XDB) = Dict { one = (X { x = "hello" }) }
+  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB in
+   let delete = Builtin.dbDelete "two" XDB in
+   Builtin.dbGetAllWithKeys XDB) = Dict { one = (X { x = "hello" }) }
 
   // deletes only one
-  (let one = Builtin.DB.set (X { x = "hello" }) "one" XDB in
-   let two = Builtin.DB.set (X { x = "goodbye" }) "two" XDB in
-   let delete = Builtin.DB.delete "one" XDB in
-   Builtin.DB.getAllWithKeys XDB) = Dict { two = (X { x = "goodbye" }) }
+  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB in
+   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB in
+   let delete = Builtin.dbDelete "one" XDB in
+   Builtin.dbGetAllWithKeys XDB) = Dict { two = (X { x = "goodbye" }) }
 
 module DeleteAll =
-  (let one = Builtin.DB.set (X { x = "hello" }) "one" XDB in
-   let delete = Builtin.DB.deleteAll XDB in
-   Builtin.DB.getAll XDB) = []
+  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB in
+   let delete = Builtin.dbDeleteAll XDB in
+   Builtin.dbGetAll XDB) = []
 
   // deletes all
-  (let one = Builtin.DB.set (X { x = "hello" }) "one" XDB in
-   let two = Builtin.DB.set (X { x = "goodbye" }) "two" XDB in
-   let delete = Builtin.DB.deleteAll XDB in
-   Builtin.DB.getAll XDB) = []
+  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB in
+   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB in
+   let delete = Builtin.dbDeleteAll XDB in
+   Builtin.dbGetAll XDB) = []
 
   // when empty
-  (let delete = Builtin.DB.deleteAll XDB in Builtin.DB.getAll XDB) = []
+  (let delete = Builtin.dbDeleteAll XDB in Builtin.dbGetAll XDB) = []
 
 module Count =
   // empty
-  Builtin.DB.count XDB = 0L
+  Builtin.dbCount XDB = 0L
 
   // one entries
-  (let _ = Builtin.DB.set (X { x = "hello" }) "one" XDB in Builtin.DB.count XDB) = 1L
+  (let _ = Builtin.dbSet (X { x = "hello" }) "one" XDB in Builtin.dbCount XDB) = 1L
 
   // multiple entries
-  (let _ = Builtin.DB.set (X { x = "hello" }) "one" XDB in
-   let _ = Builtin.DB.set (X { x = "goodbye" }) "two" XDB in
-   let _ = Builtin.DB.set (X { x = "howdy" }) "three" XDB in
-   let _ = Builtin.DB.set (X { x = "cheers" }) "four" XDB in
-   Builtin.DB.count XDB) = 4L
+  (let _ = Builtin.dbSet (X { x = "hello" }) "one" XDB in
+   let _ = Builtin.dbSet (X { x = "goodbye" }) "two" XDB in
+   let _ = Builtin.dbSet (X { x = "howdy" }) "three" XDB in
+   let _ = Builtin.dbSet (X { x = "cheers" }) "four" XDB in
+   Builtin.dbCount XDB) = 4L
 
 // ------------
 // SqlCompiler queries
@@ -747,7 +747,7 @@ let addFriend
         income = income
         age = age } in
 
-  Builtin.DB.set obj key PersonDB
+  Builtin.dbSet obj key PersonDB
 
 let prepFriends () : Unit =
   (let _ = addFriend "ross" "Ross" 73L true "1967-05-12T00:00:00Z" 100.0 33L in
@@ -763,12 +763,12 @@ let d (datestr: String) : DateTime =
 let rossDOB () : DateTime = d "1967-05-12T00:00:00Z"
 
 let friendsError (lambda: ('a -> Bool)) : List<Person> =
-  let _ = prepFriends () in Builtin.DB.query PersonDB lambda
+  let _ = prepFriends () in Builtin.dbQuery PersonDB lambda
 
 let friends (lambda: ('a -> Bool)) : List<String> =
   let _ = prepFriends () in
 
-  (Builtin.DB.query PersonDB lambda)
+  (Builtin.dbQuery PersonDB lambda)
   |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun p -> p.name)
   |> PACKAGE.Darklang.Stdlib.List.sort_v0
 
@@ -828,7 +828,7 @@ module FindAll =
     PACKAGE.Darklang.Stdlib.String.contains_v0 user.name str
 
   let userLessThan (user: Person) (height: Int64) : Bool =
-    Builtin.Int64.lessThan_v0 user height
+    Builtin.int64LessThan_v0 user height
 
   let userAdd (a: Int64) (b: Int64) : Int64 = a + b
 
@@ -909,15 +909,15 @@ module FindAll =
                                                                                        "Ross" ]
 
   (let x = "not int"
-   friends (fun p -> p.height > x)) = Builtin.Test.derrorSqlMessage
+   friends (fun p -> p.height > x)) = Builtin.testDerrorSqlMessage
     "Variable `x` should be an Int64. However, a String (\"not int\") was passed instead.\n\nExpected: (x: Int64)\nActual: a String: \"not int\""
 
   // lambda doesnt return a bool
-  friendsError (fun p -> "x") = Builtin.Test.derrorSqlMessage
+  friendsError (fun p -> "x") = Builtin.testDerrorSqlMessage
     "Incorrect type in String \"x\", expected Bool, but got a String"
 
   // bad variable name
-  friendsError (fun p -> let x = 32L in true && p.height > y) = Builtin.Test.derrorSqlMessage
+  friendsError (fun p -> let x = 32L in true && p.height > y) = Builtin.testDerrorSqlMessage
     "This variable is not defined: y"
 
   // sql injection
@@ -1137,7 +1137,7 @@ module PartialEvaluation =
   (let _ = prepFriends ()
    let x = Y { y = Z { z = A { a = 5L } } }
 
-   ((Builtin.DB.query PersonDB (fun p -> x.y.z.a < p.height))
+   ((Builtin.dbQuery PersonDB (fun p -> x.y.z.a < p.height))
     |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun p -> p.name)
     |> PACKAGE.Darklang.Stdlib.List.sort_v0)) = [ " Chandler "
                                                   "GrumpyCat"
@@ -1165,10 +1165,10 @@ module PartialEvaluation =
 
 
 module QueryOne =
-  (let _ = prepFriends () in Builtin.DB.queryOne PersonDB (fun p -> p.name == "bob")) = PACKAGE.Darklang.Stdlib.Option.Option.None
+  (let _ = prepFriends () in Builtin.dbQueryOne PersonDB (fun p -> p.name == "bob")) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
   (let _ = prepFriends () in
-   Builtin.DB.queryOne PersonDB (fun p -> p.name == "Rachel"))
+   Builtin.dbQueryOne PersonDB (fun p -> p.name == "Rachel"))
   |> PACKAGE.Darklang.Stdlib.Option.map (fun v -> v.name) = PACKAGE.Darklang.Stdlib.Option.Option.Some
     "Rachel"
 
@@ -1177,23 +1177,23 @@ module QueryOne =
   (let _ = prepFriends ()
    let test = "ache"
 
-   (Builtin.DB.queryOne PersonDB (fun p -> p.name == $"R{test}l"))
+   (Builtin.dbQueryOne PersonDB (fun p -> p.name == $"R{test}l"))
    |> PACKAGE.Darklang.Stdlib.Option.map (fun v -> v.name)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
     "Rachel"
 
 
 module QueryOneWithKey =
   // multiple
-  (let _ = prepFriends () in Builtin.DB.queryOneWithKey PersonDB (fun p -> p.human)) = PACKAGE.Darklang.Stdlib.Option.Option.None
+  (let _ = prepFriends () in Builtin.dbQueryOneWithKey PersonDB (fun p -> p.human)) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
   // none
   (let _ = prepFriends () in
-   Builtin.DB.queryOneWithKey PersonDB (fun p -> p.name == "bob")) = PACKAGE.Darklang.Stdlib.Option.Option.None
+   Builtin.dbQueryOneWithKey PersonDB (fun p -> p.name == "bob")) = PACKAGE.Darklang.Stdlib.Option.Option.None
 
   // one
   (let _ = prepFriends () in
 
-   (Builtin.DB.queryOneWithKey PersonDB (fun p -> p.name == "Rachel"))
+   (Builtin.dbQueryOneWithKey PersonDB (fun p -> p.name == "Rachel"))
    |> Builtin.unwrap
    |> (fun v -> (PACKAGE.Darklang.Stdlib.Tuple2.second v).name)) = "Rachel"
 
@@ -1201,7 +1201,7 @@ module QueryOneWithKey =
   (let _ = prepFriends ()
    let test = "ache"
 
-   (Builtin.DB.queryOneWithKey PersonDB (fun p -> p.name == $"R{test}l"))
+   (Builtin.dbQueryOneWithKey PersonDB (fun p -> p.name == $"R{test}l"))
    |> PACKAGE.Darklang.Stdlib.Option.map (fun v ->
      (PACKAGE.Darklang.Stdlib.Tuple2.second v).name)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
     "Rachel"
@@ -1210,24 +1210,24 @@ module QueryOneWithKey =
 module QueryWithKey =
   // none
   (let _ = prepFriends () in
-   Builtin.DB.queryWithKey PersonDB (fun p -> p.name == "bob")) = PACKAGE.Darklang.Stdlib.Dict.empty
+   Builtin.dbQueryWithKey PersonDB (fun p -> p.name == "bob")) = PACKAGE.Darklang.Stdlib.Dict.empty
 
   // one
   (let _ = prepFriends () in
 
-   (Builtin.DB.queryWithKey PersonDB (fun p -> p.name == "Rachel"))
-   |> Builtin.Dict.toList_v0
+   (Builtin.dbQueryWithKey PersonDB (fun p -> p.name == "Rachel"))
+   |> Builtin.dictToList_v0
    |> PACKAGE.Darklang.Stdlib.List.map (fun v ->
      (PACKAGE.Darklang.Stdlib.Tuple2.second v).name)) = [ "Rachel" ]
 
 module QueryCount =
   // none
   (let _ = prepFriends () in
-   Builtin.DB.queryCount_v0 PersonDB (fun p -> p.name == "bob")) = 0L
+   Builtin.dbQueryCount_v0 PersonDB (fun p -> p.name == "bob")) = 0L
 
   // one
   (let _ = prepFriends () in
-   Builtin.DB.queryCount_v0 PersonDB (fun p -> p.height > 3L)) = 4L
+   Builtin.dbQueryCount_v0 PersonDB (fun p -> p.height > 3L)) = 4L
 
 
-((Builtin.DB.generateKey_v0 ()) |> PACKAGE.Darklang.Stdlib.String.length) = 36L
+((Builtin.dbGenerateKey_v0 ()) |> PACKAGE.Darklang.Stdlib.String.length) = 36L

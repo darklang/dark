@@ -104,7 +104,6 @@ let compileTests =
 
         let expr =
           S.eFn
-            []
             "equals"
             0
             []
@@ -222,7 +221,7 @@ let inlineWorksWithPackageFunctionsSqlFunction =
       p
         """let x = "package" in (let y = "e" in (PACKAGE.Darklang.Stdlib.String.replaceAll_v0 x y "es"))"""
 
-    let! expected = p """Builtin.String.replaceAll_v0 "package" "e" "es" """
+    let! expected = p """Builtin.stringReplaceAll_v0 "package" "e" "es" """
     let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
     return Expect.equalExprIgnoringIDs result expected
   }

@@ -12,7 +12,6 @@ module Dval = LibExecution.Dval
 
 let constants : List<BuiltInConstant> = []
 
-let fn = fn [ "Uuid" ]
 
 module ParseError =
   type ParseError = | BadFormat
@@ -28,7 +27,7 @@ module ParseError =
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "generate" 0
+  [ { name = fn "uuidGenerate" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TUuid
@@ -44,7 +43,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "parse" 0
+    { name = fn "uuidParse" 0
       typeParams = []
       parameters = [ Param.make "uuid" TString "" ]
       returnType =
@@ -78,7 +77,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toString" 0
+    { name = fn "uuidToString" 0
       typeParams = []
       parameters = [ Param.make "uuid" TUuid "" ]
       returnType = TString

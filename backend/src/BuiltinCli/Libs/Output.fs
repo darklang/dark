@@ -13,7 +13,7 @@ open Builtin.Shortcuts
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [] "printLine" 0
+  [ { name = fn "printLine" 0
       typeParams = []
       parameters = [ Param.make "value" TString "The value to be printed." ]
       returnType = TUnit
@@ -30,7 +30,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn [] "print" 0
+    { name = fn "print" 0
       typeParams = []
       parameters = [ Param.make "value" TString "The value to be printed." ]
       returnType = TUnit
@@ -46,7 +46,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn [] "debug" 0
+    { name = fn "debug" 0
       typeParams = []
       parameters =
         [ Param.make "value" (TVariable "a") "The value to be printed."

@@ -429,7 +429,7 @@ module Expr =
     | SynExprLongIdentPat [ "op_UnaryNegation" ] ->
       WT.EApply(
         id,
-        WT.EFnName(gid (), WT.KnownBuiltin([ "Int64" ], "negate", 0)),
+        WT.EFnName(gid (), WT.KnownBuiltin("int64Negate", 0)),
         [],
         NEList.singleton WT.EPlaceHolder
       )

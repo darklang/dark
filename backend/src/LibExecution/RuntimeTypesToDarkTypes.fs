@@ -102,19 +102,14 @@ module FQFnName =
 
   module Builtin =
     let toDT (u : FQFnName.Builtin) : Dval =
-      let fields =
-        [ "modules", DList(VT.string, List.map DString u.modules)
-          "name", DString u.name
-          "version", DInt64 u.version ]
+      let fields = [ "name", DString u.name; "version", DInt64 u.version ]
       let typeName = rtTyp [ "FQFnName" ] "Builtin" 0
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQFnName.Builtin =
       match d with
       | DRecord(_, _, _, fields) ->
-        { modules = modulesField fields
-          name = nameField fields
-          version = versionField fields }
+        { name = nameField fields; version = versionField fields }
       | _ -> Exception.raiseInternal "Invalid FQFnName.Builtin" []
 
   module Package =
@@ -182,19 +177,14 @@ module FQConstantName =
 
   module Builtin =
     let toDT (u : FQConstantName.Builtin) : Dval =
-      let fields =
-        [ "modules", DList(VT.string, List.map DString u.modules)
-          "name", DString u.name
-          "version", DInt64 u.version ]
+      let fields = [ "name", DString u.name; "version", DInt64 u.version ]
       let typeName = rtTyp [ "FQConstantName" ] "Builtin" 0
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQConstantName.Builtin =
       match d with
       | DRecord(_, _, _, fields) ->
-        { modules = modulesField fields
-          name = nameField fields
-          version = versionField fields }
+        { name = nameField fields; version = versionField fields }
       | _ -> Exception.raiseInternal "Invalid FQConstantName.Builtin" []
 
   module Package =

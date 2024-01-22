@@ -61,7 +61,7 @@ let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Dval =
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "DarkInternal"; "Canvas"; "Queue" ] "count" 0
+  [ { name = fn "darkInternalCanvasQueueCount" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TUInt64 "" ]
       returnType = TList TInt64
@@ -80,7 +80,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn [ "DarkInternal"; "Canvas"; "Queue"; "SchedulingRule" ] "list" 0
+    { name = fn "darkInternalCanvasQueueSchedulingRuleList" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TList schedulingRuleTypeRef
@@ -99,7 +99,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn [ "DarkInternal"; "Infra"; "SchedulingRule"; "Block" ] "insert" 0
+    { name = fn "darkInternalInfraSchedulingRuleBlockInsert" 0
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TString "" ]
@@ -112,7 +112,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn [ "DarkInternal"; "Infra"; "SchedulingRule"; "Block" ] "delete" 0
+    { name = fn "darkInternalInfraSchedulingRuleBlockDelete" 0
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TString "" ]
@@ -125,7 +125,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn [ "DarkInternal"; "Infra"; "SchedulingRule" ] "list" 0
+    { name = fn "darkInternalInfraSchedulingRuleList" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TList schedulingRuleTypeRef

@@ -12,7 +12,7 @@ module PT = LibExecution.ProgramTypes
 
 type Name =
   // Used when a syntactic construct turns into a function (eg some operators)
-  | KnownBuiltin of List<string> * string * int
+  | KnownBuiltin of string * int
   // Basically all names are unresolved at this point, and will be resolved during
   // WrittenTypesToProgramTypes
   | Unresolved of NEList<string>

@@ -15,15 +15,12 @@ module Dval = LibExecution.Dval
 let varA = TVariable "a"
 
 
-let modules = [ "Math" ]
-let fn = fn modules
-let constant = constant modules
 
 let constants : List<BuiltInConstant> = []
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "cos" 0
+  [ { name = fn "mathCos" 0
       typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
@@ -42,7 +39,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "sin" 0
+    { name = fn "mathSin" 0
       typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
@@ -60,7 +57,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "tan" 0
+    { name = fn "mathTan" 0
       typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
@@ -79,7 +76,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "acos" 0
+    { name = fn "mathAcos" 0
       typeParams = []
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TypeReference.option TFloat
@@ -106,7 +103,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "asin" 0
+    { name = fn "mathAsin" 0
       typeParams = []
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TypeReference.option TFloat
@@ -133,7 +130,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "atan" 0
+    { name = fn "mathAtan" 0
       typeParams = []
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TFloat
@@ -152,7 +149,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "atan2" 0
+    { name = fn "mathAtan2" 0
       typeParams = []
       parameters = [ Param.make "y" TFloat ""; Param.make "x" TFloat "" ]
       returnType = TFloat
@@ -173,7 +170,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "cosh" 0
+    { name = fn "mathCosh" 0
       typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
@@ -187,7 +184,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "sinh" 0
+    { name = fn "mathSinh" 0
       typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
@@ -201,7 +198,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "tanh" 0
+    { name = fn "mathTanh" 0
       typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat

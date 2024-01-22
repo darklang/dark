@@ -8,12 +8,11 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-let fn = fn [ "DarkInternal"; "User" ]
 
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "create" 0
+  [ { name = fn "darkInternalUserCreate" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TUuid

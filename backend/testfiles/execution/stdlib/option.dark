@@ -27,7 +27,7 @@ PACKAGE.Darklang.Stdlib.Option.andThen_v0
   (fun x ->
     PACKAGE.Darklang.Stdlib.Option.Option.Some(
       PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 0L
-    )) = Builtin.Test.derrorMessage "Division by zero"
+    )) = Builtin.testDerrorMessage "Division by zero"
 
 
 PACKAGE.Darklang.Stdlib.Option.andThen2_v0

@@ -10,13 +10,12 @@ open LibExecution.Builtin.Shortcuts
 module Dval = LibExecution.Dval
 module UserDB = LibCloud.UserDB
 
-let fn = fn [ "DarkInternal"; "Canvas"; "DB" ]
 
 
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "list" 0
+  [ { name = fn "darkInternalCanvasDBList" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TList TInt64
@@ -34,7 +33,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "unlocked" 0
+    { name = fn "darkInternalCanvasDBUnlocked" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TList TInt64

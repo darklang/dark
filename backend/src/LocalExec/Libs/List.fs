@@ -19,7 +19,7 @@ let constants : List<BuiltInConstant> = []
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "LocalExec"; "BuiltIns"; "List" ] "iter" 0
+  [ { name = fn "localExecBuiltInsListIter" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -59,7 +59,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn [ "LocalExec"; "BuiltIns"; "List" ] "flatten" 0
+    { name = fn "localExecBuiltInsListFlatten" 0
       typeParams = []
       parameters = [ Param.make "list" (TList(TList varA)) "" ]
       returnType = TList varA

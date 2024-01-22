@@ -6,103 +6,103 @@ module Darklang =
       let parse
         (s: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<DateTime, String> =
-        Builtin.DateTime.parse s
+        Builtin.dateTimeParse s
 
 
       /// Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}}
-      let toString (date: DateTime) : String = Builtin.DateTime.toString date
+      let toString (date: DateTime) : String = Builtin.dateTimeToString date
 
 
       /// Stringify <param date> to the ISO 8601 basic format {{YYYYMMDD'T'hhmmss'Z'}}
       let toStringISO8601BasicDateTime (date: DateTime) : String =
-        Builtin.DateTime.toStringISO8601BasicDateTime date
+        Builtin.dateTimeToStringISO8601BasicDateTime date
 
 
       /// Stringify <param date> to the ISO 8601 basic format YYYYMMDD
       let toStringISO8601BasicDate (date: DateTime) : String =
-        Builtin.DateTime.toStringISO8601BasicDate date
+        Builtin.dateTimeToStringISO8601BasicDate date
 
 
       /// Returns the current time
-      let now () : DateTime = Builtin.DateTime.now ()
+      let now () : DateTime = Builtin.dateTimeNow ()
 
 
       /// Returns the <type Date> with the time set to midnight
-      let today () : DateTime = Builtin.DateTime.today ()
+      let today () : DateTime = Builtin.dateTimeToday ()
 
 
       /// Returns a <type Date> <param seconds> seconds after <param d>
       let addSeconds (d: DateTime) (seconds: Int64) : DateTime =
-        Builtin.DateTime.addSeconds d seconds
+        Builtin.dateTimeAddSeconds d seconds
 
 
       /// Returns a <type Date> <param seconds> seconds before <param d>
       let subtractSeconds (d: DateTime) (seconds: Int64) : DateTime =
-        Builtin.DateTime.subtractSeconds d seconds
+        Builtin.dateTimeSubtractSeconds d seconds
 
 
       /// Returns whether {{<param d1> > <param d2>}}
       let greaterThan (d1: DateTime) (d2: DateTime) : Bool =
-        Builtin.DateTime.greaterThan d1 d2
+        Builtin.dateTimeGreaterThan d1 d2
 
 
       /// Returns whether {{<param d1> < <param d2>}}
       let lessThan (d1: DateTime) (d2: DateTime) : Bool =
-        Builtin.DateTime.lessThan d1 d2
+        Builtin.dateTimeLessThan d1 d2
 
 
       /// Returns whether {{<param d1> >= <param d2>}}
       let greaterThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
-        Builtin.DateTime.greaterThanOrEqualTo d1 d2
+        Builtin.dateTimeGreaterThanOrEqualTo d1 d2
 
 
       /// Returns whether {{<param d1> <= <param d2>}}
       let lessThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
-        Builtin.DateTime.lessThanOrEqualTo d1 d2
+        Builtin.dateTimeLessThanOrEqualTo d1 d2
 
 
       /// Converts <param date> to an <type Int64> representing seconds since the Unix epoch
-      let toSeconds (date: DateTime) : Int64 = Builtin.DateTime.toSeconds date
+      let toSeconds (date: DateTime) : Int64 = Builtin.dateTimeToSeconds date
 
 
       /// Converts an <type Int64> representing seconds since the Unix epoch into a <type Date>
       let fromSeconds (seconds: Int64) : DateTime =
-        Builtin.DateTime.fromSeconds seconds
+        Builtin.dateTimeFromSeconds seconds
 
 
       /// Returns the year portion of <param date> as an <type Int64>
-      let year (date: DateTime) : Int64 = Builtin.DateTime.year date
+      let year (date: DateTime) : Int64 = Builtin.dateTimeYear date
 
 
       /// Returns the month portion of <param date> as an <type Int64> between {{1}} and {{12}}
-      let month (date: DateTime) : Int64 = Builtin.DateTime.month date
+      let month (date: DateTime) : Int64 = Builtin.dateTimeMonth date
 
 
       /// Returns the day portion of <param date> as an <type Int64>
-      let day (date: DateTime) : Int64 = Builtin.DateTime.day date
+      let day (date: DateTime) : Int64 = Builtin.dateTimeDay date
 
 
       /// Returns the weekday of <param date> as an <type Int64>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601
-      let weekday (date: DateTime) : Int64 = Builtin.DateTime.weekday date
+      let weekday (date: DateTime) : Int64 = Builtin.dateTimeWeekday date
 
 
       /// Returns the hour portion of <param date> as an <type Int64>
-      let hour (date: DateTime) : Int64 = Builtin.DateTime.hour date
+      let hour (date: DateTime) : Int64 = Builtin.dateTimeHour date
 
 
       /// Returns the minute portion of <param date> as an <type Int64>
-      let minute (date: DateTime) : Int64 = Builtin.DateTime.minute date
+      let minute (date: DateTime) : Int64 = Builtin.dateTimeMinute date
 
 
       /// Returns the second portion of <param date> as an <type Int64>
-      let second (date: DateTime) : Int64 = Builtin.DateTime.second date
+      let second (date: DateTime) : Int64 = Builtin.dateTimeSecond date
 
 
       /// Returns <type date> with the time set to midnight
       let atStartOfDay (date: DateTime) : DateTime =
-        Builtin.DateTime.atStartOfDay date
+        Builtin.dateTimeAtStartOfDay date
 
 
       /// Returns the difference of the two dates, in seconds
       let subtract (d1: DateTime) (d2: DateTime) : Int64 =
-        Builtin.DateTime.subtract d1 d2
+        Builtin.dateTimeSubtract d1 d2

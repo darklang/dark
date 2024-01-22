@@ -19,13 +19,13 @@ PACKAGE.Darklang.Stdlib.UInt8.add_v0 88uy 9uy = 97uy
 PACKAGE.Darklang.Stdlib.UInt8.add_v0 1uy 0uy = 1uy
 PACKAGE.Darklang.Stdlib.UInt8.add_v0 254uy 1uy = 255uy
 
-PACKAGE.Darklang.Stdlib.UInt8.add_v0 255uy 1uy = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt8.add_v0 255uy 1uy = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.UInt8.subtract_v0 10uy 9uy = 1uy
 PACKAGE.Darklang.Stdlib.UInt8.subtract_v0 88uy 9uy = 79uy
 
-PACKAGE.Darklang.Stdlib.UInt8.subtract_v0 0uy 1uy = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt8.subtract_v0 0uy 1uy = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.UInt8.subtract_v0 1uy 0uy = 1uy
@@ -35,10 +35,10 @@ PACKAGE.Darklang.Stdlib.UInt8.multiply_v0 8uy 8uy = 64uy
 PACKAGE.Darklang.Stdlib.UInt8.multiply_v0 8uy 0uy = 0uy
 PACKAGE.Darklang.Stdlib.UInt8.multiply_v0 127uy 2uy = 254uy
 
-PACKAGE.Darklang.Stdlib.UInt8.multiply_v0 128uy 2uy = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt8.multiply_v0 128uy 2uy = Builtin.testDerrorMessage
   "Out of range"
 
-PACKAGE.Darklang.Stdlib.UInt8.multiply_v0 255uy 2uy = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt8.multiply_v0 255uy 2uy = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.UInt8.power_v0 2uy 3uy = 8uy
@@ -47,7 +47,7 @@ PACKAGE.Darklang.Stdlib.UInt8.power_v0 1uy 0uy = 1uy
 PACKAGE.Darklang.Stdlib.UInt8.power_v0 0uy 0uy = 1uy
 PACKAGE.Darklang.Stdlib.UInt8.power_v0 1uy 255uy = 1uy
 
-PACKAGE.Darklang.Stdlib.UInt8.power_v0 16uy 2uy = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt8.power_v0 16uy 2uy = Builtin.testDerrorMessage
   "Out of range"
 
 
@@ -57,7 +57,7 @@ PACKAGE.Darklang.Stdlib.UInt8.divide_v0 8uy 5uy = 1uy
 PACKAGE.Darklang.Stdlib.UInt8.divide_v0 0uy 1uy = 0uy
 PACKAGE.Darklang.Stdlib.UInt8.divide_v0 255uy 2uy = 127uy
 
-PACKAGE.Darklang.Stdlib.UInt8.divide_v0 1uy 0uy = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt8.divide_v0 1uy 0uy = Builtin.testDerrorMessage
   "Division by zero"
 
 PACKAGE.Darklang.Stdlib.UInt8.greaterThan_v0 20uy 1uy = true
@@ -103,7 +103,7 @@ PACKAGE.Darklang.Stdlib.UInt8.mod_v0 1uy 2uy = 1uy
 PACKAGE.Darklang.Stdlib.UInt8.mod_v0 128uy 53uy = 22uy
 PACKAGE.Darklang.Stdlib.UInt8.mod_v0 255uy 3uy = 0uy
 
-PACKAGE.Darklang.Stdlib.UInt8.mod_v0 5uy 0uy = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt8.mod_v0 5uy 0uy = Builtin.testDerrorMessage
   "Zero modulus"
 
 
@@ -163,7 +163,7 @@ PACKAGE.Darklang.Stdlib.UInt8.mod_v0 5uy 0uy = Builtin.Test.derrorMessage
 
 PACKAGE.Darklang.Stdlib.UInt8.sum_v0 [ 1uy; 2uy ] = 3uy
 
-PACKAGE.Darklang.Stdlib.UInt8.sum_v0 [ 1uy; 255uy ] = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt8.sum_v0 [ 1uy; 255uy ] = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.UInt8.parse_v0 "-129" = PACKAGE.Darklang.Stdlib.Result.Result.Error

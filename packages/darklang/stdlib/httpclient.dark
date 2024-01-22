@@ -61,7 +61,7 @@ module Darklang =
         (headers: List<String * String>)
         (body: List<UInt8>)
         : Stdlib.Result.Result<Response, RequestError> =
-        Builtin.HttpClient.request method uri headers body
+        Builtin.httpClientRequest method uri headers body
 
 
       let get (uri: String) : Stdlib.Result.Result<Response, RequestError> =

@@ -50,7 +50,7 @@ PACKAGE.Darklang.Stdlib.Int64.remainder_v0 -20L -8L = PACKAGE.Darklang.Stdlib.Re
 PACKAGE.Darklang.Stdlib.Int64.remainder_v0 -15L 6L = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   -3L
 
-PACKAGE.Darklang.Stdlib.Int64.remainder_v0 5L 0L = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int64.remainder_v0 5L 0L = Builtin.testDerrorMessage
   "Division by zero"
 
 PACKAGE.Darklang.Stdlib.List.map_v0
@@ -110,18 +110,17 @@ PACKAGE.Darklang.Stdlib.Int64.mod_v0 -1L 2L = 1L
 PACKAGE.Darklang.Stdlib.Int64.mod_v0 -754L 53L = 41L
 PACKAGE.Darklang.Stdlib.Int64.mod_v0 9999999999998L 3L = 2L
 
-PACKAGE.Darklang.Stdlib.Int64.mod_v0 5L 0L = Builtin.Test.derrorMessage
-  "Zero modulus"
+PACKAGE.Darklang.Stdlib.Int64.mod_v0 5L 0L = Builtin.testDerrorMessage "Zero modulus"
 
-PACKAGE.Darklang.Stdlib.Int64.mod_v0 5L -5L = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int64.mod_v0 5L -5L = Builtin.testDerrorMessage
   "Negative modulus"
 
 // PACKAGE.Darklang.Stdlib.List.map_v0 (PACKAGE.Darklang.Stdlib.List.range_v0 -5L 5L) (fun v ->
 //  PACKAGE.Darklang.Stdlib.Int64.mod_v0 v 4L) = [ 3L 0L 1L 2L 3L 0L 1L 2L 3L 0L 1L ]
 
 15L % 5L = 0L
-5L % 0L = Builtin.Test.derrorMessage "Zero modulus"
-5L % -5L = Builtin.Test.derrorMessage "Negative modulus"
+5L % 0L = Builtin.testDerrorMessage "Zero modulus"
+5L % -5L = Builtin.testDerrorMessage "Negative modulus"
 
 PACKAGE.Darklang.Stdlib.List.map_v0
   (PACKAGE.Darklang.Stdlib.List.range_v0 -5L 5L)
@@ -134,7 +133,7 @@ PACKAGE.Darklang.Stdlib.Int64.power_v0 1L 0L = 1L
 PACKAGE.Darklang.Stdlib.Int64.power_v0 1000L 0L = 1L
 PACKAGE.Darklang.Stdlib.Int64.power_v0 -8L 5L = -32768L
 
-PACKAGE.Darklang.Stdlib.Int64.power_v0 200L 20L = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int64.power_v0 200L 20L = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.Int64.power_v0 200L 7L = 12800000000000000L
@@ -143,7 +142,7 @@ PACKAGE.Darklang.Stdlib.Int64.power_v0 1L 2147483649L = 1L
 
 PACKAGE.Darklang.Stdlib.Int64.power_v0 -1L 2147483649L = -1L
 
-PACKAGE.Darklang.Stdlib.Int64.power_v0 2L -3L = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int64.power_v0 2L -3L = Builtin.testDerrorMessage
   "Negative exponent"
 
 5L ^ 2L = 25L
@@ -235,8 +234,8 @@ PACKAGE.Darklang.Stdlib.Int64.subtract_v0 -55L -55L = 0L
 PACKAGE.Darklang.Stdlib.Int64.multiply_v0 8L 8L = 64L
 PACKAGE.Darklang.Stdlib.Int64.multiply_v0 5145L 5145L = 26471025L
 
-1L * 1.0 = Builtin.Test.derrorMessage
-  "Int64.multiply's 2nd argument (`b`) should be an Int64. However, a Float (1.0) was passed instead.
+1L * 1.0 = Builtin.testDerrorMessage
+  "int64Multiply's 2nd argument (`b`) should be an Int64. However, a Float (1.0) was passed instead.
 
 Expected: (b: Int64)
 Actual: a Float: 1.0"
@@ -247,7 +246,7 @@ PACKAGE.Darklang.Stdlib.Int64.divide_v0 17L 3L = 5L
 PACKAGE.Darklang.Stdlib.Int64.divide_v0 -8L 5L = -1L
 PACKAGE.Darklang.Stdlib.Int64.divide_v0 0L 1L = 0L
 
-PACKAGE.Darklang.Stdlib.Int64.divide_v0 1L 0L = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int64.divide_v0 1L 0L = Builtin.testDerrorMessage
   "Division by zero"
 
 (PACKAGE.Darklang.Stdlib.List.range_v0 1L 5L)

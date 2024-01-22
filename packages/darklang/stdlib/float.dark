@@ -5,36 +5,36 @@ module Darklang =
       type ParseError = | BadFormat
 
       /// Round up to an integer value
-      let ceiling (a: Float) : Int64 = Builtin.Float.ceiling a
+      let ceiling (a: Float) : Int64 = Builtin.floatCeiling a
 
 
       /// Round up to an integer value
-      let roundUp (a: Float) : Int64 = Builtin.Float.roundUp a
+      let roundUp (a: Float) : Int64 = Builtin.floatRoundUp a
 
       /// Round down to an integer value.
       /// Consider <fn Float.truncate> if your goal
       /// is to discard the fractional part of a number: {{Float.floor -1.9 == -2.0}}
       /// but {{Float.truncate -1.9 == -1.0}}
-      let floor (a: Float) : Int64 = Builtin.Float.floor a
+      let floor (a: Float) : Int64 = Builtin.floatFloor a
 
 
       /// Round down to an integer value.
       /// Consider <fn Float.truncate> if your goal is to discard the fractional part
       /// of a number: {{Float.floor -1.9 == -2.0}} but {{Float.truncate -1.9 ==
       /// -1.0}}
-      let roundDown (a: Float) : Int64 = Builtin.Float.roundDown a
+      let roundDown (a: Float) : Int64 = Builtin.floatRoundDown a
 
 
       /// Round to the nearest integer value
-      let round (a: Float) : Int64 = Builtin.Float.round a
+      let round (a: Float) : Int64 = Builtin.floatRound a
 
 
       /// Returns the <type Float> value wrapped in a {{Result}} of the <type String>
-      let roundTowardsZero (a: Float) : Int64 = Builtin.Float.roundTowardsZero a
+      let roundTowardsZero (a: Float) : Int64 = Builtin.floatRoundTowardsZero a
 
 
       /// Discard the fractional portion of the float, rounding towards zero
-      let truncate (a: Float) : Int64 = Builtin.Float.truncate a
+      let truncate (a: Float) : Int64 = Builtin.floatTruncate a
 
 
       /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
@@ -57,45 +57,45 @@ module Darklang =
 
 
       /// Get the square root of a float
-      let sqrt (a: Float) : Float = Builtin.Float.sqrt a
+      let sqrt (a: Float) : Float = Builtin.floatSqrt a
 
 
       /// Add <type Float> <param a> to <type Float> <param b>
-      let add (a: Float) (b: Float) : Float = Builtin.Float.add a b
+      let add (a: Float) (b: Float) : Float = Builtin.floatAdd a b
 
 
       /// Subtract <type Float> <param b> from <type Float> <param a>
-      let subtract (a: Float) (b: Float) : Float = Builtin.Float.subtract a b
+      let subtract (a: Float) (b: Float) : Float = Builtin.floatSubtract a b
 
 
       /// Multiply <type Float> <param a> by <type Float> <param b>
-      let multiply (a: Float) (b: Float) : Float = Builtin.Float.multiply a b
+      let multiply (a: Float) (b: Float) : Float = Builtin.floatMultiply a b
 
 
       /// Returns <param base> raised to the power of <param exponent>
       let power (``base``: Float) (exponent: Float) : Float =
-        Builtin.Float.power ``base`` exponent
+        Builtin.floatPower ``base`` exponent
 
 
       /// Divide <type Float> <param a> by <type Float> <param b>
-      let divide (a: Float) (b: Float) : Float = Builtin.Float.divide a b
+      let divide (a: Float) (b: Float) : Float = Builtin.floatDivide a b
 
 
       /// Returns true if a is greater than b
-      let greaterThan (a: Float) (b: Float) : Bool = Builtin.Float.greaterThan a b
+      let greaterThan (a: Float) (b: Float) : Bool = Builtin.floatGreaterThan a b
 
       /// Returns true if a is greater than or equal to b
       let greaterThanOrEqualTo (a: Float) (b: Float) : Bool =
-        Builtin.Float.greaterThanOrEqualTo a b
+        Builtin.floatGreaterThanOrEqualTo a b
 
 
       /// Returns true if a is less than b
-      let lessThan (a: Float) (b: Float) : Bool = Builtin.Float.lessThan a b
+      let lessThan (a: Float) (b: Float) : Bool = Builtin.floatLessThan a b
 
 
       /// Returns true if a is less than or equal to b
       let lessThanOrEqualTo (a: Float) (b: Float) : Bool =
-        Builtin.Float.lessThanOrEqualTo a b
+        Builtin.floatLessThanOrEqualTo a b
 
 
       /// Returns the lesser of <type Float> <param a> and <type Float> <param b>
@@ -148,12 +148,12 @@ module Darklang =
 
       /// Returns the <type Float> value wrapped in a {{Result}} of the <type String>
       let parse (s: String) : PACKAGE.Darklang.Stdlib.Result.Result<Float, String> =
-        Builtin.Float.parse s
+        Builtin.floatParse s
 
 
       /// Stringify <param float>
-      let toString (a: Float) : String = Builtin.Float.toString a
+      let toString (a: Float) : String = Builtin.floatToString a
 
 
       /// Returns true if <param f> is NaN
-      let isNaN (f: Float) : Bool = Builtin.Float.isNaN f
+      let isNaN (f: Float) : Bool = Builtin.floatIsNaN f

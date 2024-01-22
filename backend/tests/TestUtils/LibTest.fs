@@ -24,31 +24,28 @@ open LibCloud.Db
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let modules = [ "Test" ]
-let constant = constant modules
-let fn = fn modules
 
 let constants : List<BuiltInConstant> =
-  [ { name = constant "nan" 0
+  [ { name = constant "testNan" 0
       typ = TFloat
       description = "Return a NaN"
       body = DFloat(System.Double.NaN)
       deprecated = NotDeprecated }
 
-    { name = constant "infinity" 0
+    { name = constant "testInfinity" 0
       typ = TFloat
       description = "Returns positive infitity"
       body = DFloat(System.Double.PositiveInfinity)
       deprecated = NotDeprecated }
 
-    { name = constant "negativeInfinity" 0
+    { name = constant "testNegativeInfinity" 0
       typ = TFloat
       description = "Returns negative infinity"
       body = DFloat(System.Double.NegativeInfinity)
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "derrorMessage" 0
+  [ { name = fn "testDerrorMessage" 0
       typeParams = []
       parameters = [ Param.make "errorMessage" TString "" ]
       returnType =
@@ -65,7 +62,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
     // CLEANUP consider renaming to `oldError` or something more clear
-    { name = fn "runtimeError" 0
+    { name = fn "testRuntimeError" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
       returnType = TInt64
@@ -79,7 +76,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "derrorSqlMessage" 0
+    { name = fn "testDerrorSqlMessage" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
       returnType =
@@ -96,7 +93,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "toChar" 0
+    { name = fn "testToChar" 0
       typeParams = []
       parameters = [ Param.make "c" TString "" ]
       returnType = TypeReference.option TChar
@@ -121,7 +118,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "incrementSideEffectCounter" 0
+    { name = fn "testIncrementSideEffectCounter" 0
       typeParams = []
       parameters =
         [ Param.make "passThru" (TVariable "a") "Ply which will be returned" ]
@@ -139,7 +136,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "sideEffectCount" 0
+    { name = fn "testSideEffectCount" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TInt64
@@ -153,7 +150,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "inspect" 0
+    { name = fn "testInspect" 0
       typeParams = []
       parameters = [ Param.make "var" varA ""; Param.make "msg" TString "" ]
       returnType = varA
@@ -169,7 +166,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "deleteUser" 0
+    { name = fn "testDeleteUser" 0
       typeParams = []
       parameters = [ Param.make "username" TString "" ]
       returnType = TypeReference.result TUnit varB
@@ -192,7 +189,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "getQueue" 0
+    { name = fn "testGetQueue" 0
       typeParams = []
       parameters = [ Param.make "eventName" TString "" ]
       returnType = TList TString
@@ -216,7 +213,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "raiseException" 0
+    { name = fn "testRaiseException" 0
       typeParams = []
       parameters = [ Param.make "message" TString "" ]
       returnType = TVariable "a"
@@ -230,7 +227,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "regexReplace" 0
+    { name = fn "testRegexReplace" 0
       typeParams = []
       parameters =
         [ Param.make "subject" TString ""
@@ -248,7 +245,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "getCanvasID" 0
+    { name = fn "testGetCanvasID" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TUuid
@@ -262,7 +259,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "setExpectedExceptionCount" 0
+    { name = fn "testSetExpectedExceptionCount" 0
       typeParams = []
       parameters = [ Param.make "count" TInt64 "" ]
       returnType = TUnit

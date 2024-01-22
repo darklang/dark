@@ -19,13 +19,13 @@ PACKAGE.Darklang.Stdlib.UInt32.add_v0 88ul 9ul = 97ul
 PACKAGE.Darklang.Stdlib.UInt32.add_v0 1ul 0ul = 1ul
 PACKAGE.Darklang.Stdlib.UInt32.add_v0 4294967294ul 1ul = 4294967295ul
 
-PACKAGE.Darklang.Stdlib.UInt32.add_v0 4294967295ul 1ul = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt32.add_v0 4294967295ul 1ul = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.UInt32.subtract_v0 10ul 9ul = 1ul
 PACKAGE.Darklang.Stdlib.UInt32.subtract_v0 88ul 9ul = 79ul
 
-PACKAGE.Darklang.Stdlib.UInt32.subtract_v0 0ul 1ul = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt32.subtract_v0 0ul 1ul = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.UInt32.subtract_v0 1ul 0ul = 1ul
@@ -35,7 +35,7 @@ PACKAGE.Darklang.Stdlib.UInt32.multiply_v0 8ul 8ul = 64ul
 PACKAGE.Darklang.Stdlib.UInt32.multiply_v0 8ul 0ul = 0ul
 PACKAGE.Darklang.Stdlib.UInt32.multiply_v0 2147483647ul 2ul = 4294967294ul
 
-PACKAGE.Darklang.Stdlib.UInt32.multiply_v0 2147483648ul 2ul = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt32.multiply_v0 2147483648ul 2ul = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.UInt32.power_v0 2ul 3ul = 8ul
@@ -44,7 +44,7 @@ PACKAGE.Darklang.Stdlib.UInt32.power_v0 1ul 0ul = 1ul
 PACKAGE.Darklang.Stdlib.UInt32.power_v0 0ul 0ul = 1ul
 PACKAGE.Darklang.Stdlib.UInt32.power_v0 1ul 255ul = 1ul
 
-PACKAGE.Darklang.Stdlib.UInt32.power_v0 65536ul 2ul = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt32.power_v0 65536ul 2ul = Builtin.testDerrorMessage
   "Out of range"
 
 
@@ -54,7 +54,7 @@ PACKAGE.Darklang.Stdlib.UInt32.divide_v0 8ul 5ul = 1ul
 PACKAGE.Darklang.Stdlib.UInt32.divide_v0 0ul 1ul = 0ul
 PACKAGE.Darklang.Stdlib.UInt32.divide_v0 4294967295ul 2ul = 2147483647ul
 
-PACKAGE.Darklang.Stdlib.UInt32.divide_v0 1ul 0ul = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt32.divide_v0 1ul 0ul = Builtin.testDerrorMessage
   "Division by zero"
 
 PACKAGE.Darklang.Stdlib.UInt32.greaterThan_v0 20ul 1ul = true
@@ -100,7 +100,7 @@ PACKAGE.Darklang.Stdlib.UInt32.mod_v0 1ul 2ul = 1ul
 PACKAGE.Darklang.Stdlib.UInt32.mod_v0 32768ul 53ul = 14ul
 PACKAGE.Darklang.Stdlib.UInt32.mod_v0 4294967295ul 3ul = 0ul
 
-PACKAGE.Darklang.Stdlib.UInt32.mod_v0 5ul 0ul = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt32.mod_v0 5ul 0ul = Builtin.testDerrorMessage
   "Zero modulus"
 
 
@@ -160,7 +160,7 @@ PACKAGE.Darklang.Stdlib.UInt32.mod_v0 5ul 0ul = Builtin.Test.derrorMessage
 
 PACKAGE.Darklang.Stdlib.UInt32.sum_v0 [ 1ul; 2ul ] = 3ul
 
-PACKAGE.Darklang.Stdlib.UInt32.sum_v0 [ 1ul; 4294967295ul ] = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.UInt32.sum_v0 [ 1ul; 4294967295ul ] = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.UInt32.parse_v0 "-129" = PACKAGE.Darklang.Stdlib.Result.Result.Error

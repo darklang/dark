@@ -11,7 +11,7 @@ module Darklang =
       /// The modulus <param b> must be greater than 0.
       /// Use <fn Int16.remainder> if you want the remainder after division, which has
       /// a different behavior for negative numbers.
-      let ``mod`` (a: Int16) (b: Int16) : Int16 = Builtin.Int16.``mod`` a b
+      let ``mod`` (a: Int16) (b: Int16) : Int16 = Builtin.int16Mod a b
 
 
       /// Returns the integer remainder left over after dividing <param value> by
@@ -24,19 +24,19 @@ module Darklang =
         (value: Int16)
         (divisor: Int16)
         : PACKAGE.Darklang.Stdlib.Result.Result<Int16, String> =
-        Builtin.Int16.remainder value divisor
+        Builtin.int16Remainder value divisor
 
 
       /// Adds two 16-bit signed integers together
-      let add (a: Int16) (b: Int16) : Int16 = Builtin.Int16.add a b
+      let add (a: Int16) (b: Int16) : Int16 = Builtin.int16Add a b
 
 
       /// Subtracts two 16-bit signed integers
-      let subtract (a: Int16) (b: Int16) : Int16 = Builtin.Int16.subtract a b
+      let subtract (a: Int16) (b: Int16) : Int16 = Builtin.int16Subtract a b
 
 
       /// Multiplies two 16-bit signed integers
-      let multiply (a: Int16) (b: Int16) : Int16 = Builtin.Int16.multiply a b
+      let multiply (a: Int16) (b: Int16) : Int16 = Builtin.int16Multiply a b
 
 
       /// Raise <param base> to the power of <param exponent>.
@@ -53,58 +53,58 @@ module Darklang =
           0s
         else if ``base`` == 1s then
           1s
-        else if ``base`` == -1s && (Builtin.Int16.``mod`` exponent 2s == 0s) then
+        else if ``base`` == -1s && (Builtin.int16Mod exponent 2s == 0s) then
           1s
         else if ``base`` == -1s then
           -1s
         else
-          Builtin.Int16.power ``base`` exponent
+          Builtin.int16Power ``base`` exponent
 
 
       /// Divides two 16-bit signed integers
-      let divide (a: Int16) (b: Int16) : Int16 = Builtin.Int16.divide a b
+      let divide (a: Int16) (b: Int16) : Int16 = Builtin.int16Divide a b
 
 
       /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
       let absoluteValue (a: Int16) : Int16 =
-        if (Builtin.Int16.lessThan a 0s) then
-          Builtin.Int16.negate a
+        if (Builtin.int16LessThan a 0s) then
+          Builtin.int16Negate a
         else
           a
 
 
       /// Returns the negation of <param a>, {{-a}}
-      let negate (a: Int16) : Int16 = Builtin.Int16.negate a
+      let negate (a: Int16) : Int16 = Builtin.int16Negate a
 
 
       /// Returns {{true}} if <param a> is greater than <param b>
-      let greaterThan (a: Int16) (b: Int16) : Bool = Builtin.Int16.greaterThan a b
+      let greaterThan (a: Int16) (b: Int16) : Bool = Builtin.int16GreaterThan a b
 
 
       /// Returns {{true}} if <param a> is greater than or equal to <param b>
       let greaterThanOrEqualTo (a: Int16) (b: Int16) : Bool =
-        Builtin.Int16.greaterThanOrEqualTo a b
+        Builtin.int16GreaterThanOrEqualTo a b
 
 
       /// Returns {{true}} if <param a> is less than <param b>
-      let lessThan (a: Int16) (b: Int16) : Bool = Builtin.Int16.lessThan a b
+      let lessThan (a: Int16) (b: Int16) : Bool = Builtin.int16LessThan a b
 
       /// Returns {{true}} if <param a> is less than or equal to <param b>
       let lessThanOrEqualTo (a: Int16) (b: Int16) : Bool =
-        Builtin.Int16.lessThanOrEqualTo a b
+        Builtin.int16LessThanOrEqualTo a b
 
 
       /// Returns a random 16-bit signed integer between <param start> and <param end> (inclusive)
       let random (start: Int16) (``end``: Int16) : Int16 =
-        Builtin.Int16.random start ``end``
+        Builtin.int16Random start ``end``
 
 
       /// Get the square root of an <type Int16>
-      let sqrt (a: Int16) : Float = Builtin.Int16.sqrt a
+      let sqrt (a: Int16) : Float = Builtin.int16Sqrt a
 
 
       /// Converts an <type Int16> to a <type Float>
-      let toFloat (a: Int16) : Float = Builtin.Int16.toFloat a
+      let toFloat (a: Int16) : Float = Builtin.int16ToFloat a
 
 
       /// Returns the sum of all the ints in the list
@@ -158,51 +158,51 @@ module Darklang =
       let parse
         (s: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<Int16, PACKAGE.Darklang.Stdlib.Int16.ParseError> =
-        Builtin.Int16.parse s
+        Builtin.int16Parse s
 
 
       /// Stringify <param int16>
-      let toString (int16: Int16) : String = Builtin.Int16.toString int16
+      let toString (int16: Int16) : String = Builtin.int16ToString int16
 
 
       /// Converts an <type Int8> to an <type Int16>.
-      let fromInt8 (i: Int8) : Int16 = Builtin.Int16.fromInt8 i
+      let fromInt8 (i: Int8) : Int16 = Builtin.int16FromInt8 i
 
 
       /// Converts a <type UInt8> to an <type Int16>.
-      let fromUInt8 (i: UInt8) : Int16 = Builtin.Int16.fromUInt8 i
+      let fromUInt8 (i: UInt8) : Int16 = Builtin.int16FromUInt8 i
 
 
       /// Converts a <type UInt16> to an <type Int16>. Returns {{None}} if the value is greater than 32767.
       let fromUInt16 (i: UInt16) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
-        Builtin.Int16.fromUInt16 i
+        Builtin.int16FromUInt16 i
 
 
       /// Converts an <type Int32> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
       let fromInt32 (i: Int32) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
-        Builtin.Int16.fromInt32 i
+        Builtin.int16FromInt32 i
 
 
       /// Converts a <type UInt32> to an <type Int16>. Returns {{None}} if the value is greater than 32767.
       let fromUInt32 (i: UInt32) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
-        Builtin.Int16.fromUInt32 i
+        Builtin.int16FromUInt32 i
 
 
       /// Converts an <type Int64> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
       let fromInt64 (i: Int64) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
-        Builtin.Int16.fromInt64 i
+        Builtin.int16FromInt64 i
 
 
       /// Converts a <type UInt64> to an <type Int16>. Returns {{None}} if the value is greater than 32767.
       let fromUInt64 (i: UInt64) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
-        Builtin.Int16.fromUInt64 i
+        Builtin.int16FromUInt64 i
 
 
       /// Converts an <type Int128> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
       let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
-        Builtin.Int16.fromInt128 i
+        Builtin.int16FromInt128 i
 
 
       /// Converts a <type UInt128> to an <type Int16>. Returns {{None}} if the value is greater than 32767.
       let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
-        Builtin.Int16.fromUInt128 i
+        Builtin.int16FromUInt128 i

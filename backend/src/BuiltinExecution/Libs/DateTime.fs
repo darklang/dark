@@ -27,10 +27,9 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
 
 let constants : List<BuiltInConstant> = []
 
-let fn = fn [ "DateTime" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "parse" 0
+  [ { name = fn "dateTimeParse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TypeReference.result TDateTime TString
@@ -52,7 +51,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toString" 0
+    { name = fn "dateTimeToString" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TString
@@ -71,7 +70,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toStringISO8601BasicDateTime" 0
+    { name = fn "dateTimeToStringISO8601BasicDateTime" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TString
@@ -89,7 +88,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toStringISO8601BasicDate" 0
+    { name = fn "dateTimeToStringISO8601BasicDate" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TString
@@ -104,7 +103,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "now" 0
+    { name = fn "dateTimeNow" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDateTime
@@ -119,7 +118,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "today" 0
+    { name = fn "dateTimeToday" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDateTime
@@ -135,7 +134,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "addSeconds" 0
+    { name = fn "dateTimeAddSeconds" 0
       typeParams = []
       parameters = [ Param.make "d" TDateTime ""; Param.make "seconds" TInt64 "" ]
       returnType = TDateTime
@@ -152,10 +151,10 @@ let fns : List<BuiltInFn> =
 
     // Note: this was was previously named `Date.subtract_v0`.
     // A new DateTime.subtract_v1 was created to replace this, and subtract_v0 got
-    // replaced with this .subtractSeconds_v0. "DateTime.subtract" implies that
+    // replaced with this dateTimeSubtractSeconds_v0. "dateTimeSubtract" implies that
     // you are subtracting one date from another, so subtracting anything else
     // should include the name of the relevant unit in the fn name.
-    { name = fn "subtractSeconds" 0
+    { name = fn "dateTimeSubtractSeconds" 0
       typeParams = []
       parameters = [ Param.make "d" TDateTime ""; Param.make "seconds" TInt64 "" ]
       returnType = TDateTime
@@ -170,7 +169,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "greaterThan" 0
+    { name = fn "dateTimeGreaterThan" 0
       typeParams = []
       parameters = [ Param.make "d1" TDateTime ""; Param.make "d2" TDateTime "" ]
       returnType = TBool
@@ -184,7 +183,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "lessThan" 0
+    { name = fn "dateTimeLessThan" 0
       typeParams = []
       parameters = [ Param.make "d1" TDateTime ""; Param.make "d2" TDateTime "" ]
       returnType = TBool
@@ -198,7 +197,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "greaterThanOrEqualTo" 0
+    { name = fn "dateTimeGreaterThanOrEqualTo" 0
       typeParams = []
       parameters = [ Param.make "d1" TDateTime ""; Param.make "d2" TDateTime "" ]
       returnType = TBool
@@ -212,7 +211,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "lessThanOrEqualTo" 0
+    { name = fn "dateTimeLessThanOrEqualTo" 0
       typeParams = []
       parameters = [ Param.make "d1" TDateTime ""; Param.make "d2" TDateTime "" ]
       returnType = TBool
@@ -226,7 +225,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "toSeconds" 0
+    { name = fn "dateTimeToSeconds" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt64
@@ -242,7 +241,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fromSeconds" 0
+    { name = fn "dateTimeFromSeconds" 0
       typeParams = []
       parameters = [ Param.make "seconds" TInt64 "" ]
       returnType = TDateTime
@@ -262,7 +261,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "year" 0
+    { name = fn "dateTimeYear" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt64
@@ -276,7 +275,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "month" 0
+    { name = fn "dateTimeMonth" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt64
@@ -291,7 +290,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "day" 0
+    { name = fn "dateTimeDay" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt64
@@ -305,7 +304,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "weekday" 0
+    { name = fn "dateTimeWeekday" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt64
@@ -320,7 +319,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "hour" 0
+    { name = fn "dateTimeHour" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt64
@@ -334,7 +333,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "minute" 0
+    { name = fn "dateTimeMinute" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt64
@@ -348,7 +347,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "second" 0
+    { name = fn "dateTimeSecond" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt64
@@ -362,7 +361,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "atStartOfDay" 0
+    { name = fn "dateTimeAtStartOfDay" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TDateTime
@@ -382,7 +381,7 @@ let fns : List<BuiltInFn> =
     //
     // Note: the SQL here would be `EPOCH FROM (end - start)`, but we don't
     // currently support such a complex sqlSpec in Dark fns.
-    { name = fn "subtract" 0
+    { name = fn "dateTimeSubtract" 0
       typeParams = []
       parameters = [ Param.make "end" TDateTime ""; Param.make "start" TDateTime "" ]
       returnType = TInt64

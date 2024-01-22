@@ -14,7 +14,7 @@ open System.Runtime.InteropServices
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "Process" ] "run" 0
+  [ { name = fn "processRun" 0
       description = "Runs a process, return exitCode, stdout and stderr"
       typeParams = []
       parameters = [ Param.make "command" TString "The command to run" ]

@@ -12,7 +12,6 @@ module Dval = LibExecution.Dval
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Telemetry = LibService.Telemetry
 
-let fn = fn [ "DarkInternal"; "Infra" ]
 
 let packageInfraType (addlModules : List<string>) (name : string) (version : int) =
   FQTypeName.fqPackage "Darklang" ("Internal" :: "Infra" :: addlModules) name version
@@ -20,7 +19,7 @@ let packageInfraType (addlModules : List<string>) (name : string) (version : int
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "log" 0
+  [ { name = fn "darkInternalInfraLog" 0
       typeParams = []
       parameters =
         [ Param.make "level" TString ""
@@ -47,7 +46,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "getAndLogTableSizes" 0
+    { name = fn "darkInternalInfraGetAndLogTableSizes" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDict(TCustomType(Ok(packageInfraType [] "TableSize" 0), []))
@@ -102,7 +101,7 @@ human-readable data."
       deprecated = NotDeprecated }
 
 
-    { name = fn "raiseInternalException" 0
+    { name = fn "darkInternalInfraRaiseInternalException" 0
       typeParams = []
       parameters = [ Param.make "argument" (TVariable "a") "Added as a tag" ]
       returnType = TUnit
@@ -121,7 +120,7 @@ human-readable data."
       deprecated = NotDeprecated }
 
 
-    { name = fn "serverBuildHash" 0
+    { name = fn "darkInternalInfraServerBuildHash" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TString

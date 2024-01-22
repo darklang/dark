@@ -6,7 +6,6 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-let fn = fn [ "Bool" ]
 
 let varA = TVariable "a"
 
@@ -14,7 +13,7 @@ let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   // TODO: Maybe Expose ENot
-  [ { name = fn "not" 0
+  [ { name = fn "boolNot" 0
       typeParams = []
       parameters = [ Param.make "b" TBool "" ]
       returnType = TBool

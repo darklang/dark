@@ -12,7 +12,17 @@ type NamePrinter<'name> = 'name -> string
 let modulePattern = @"^[A-Z][a-z0-9A-Z_]*$"
 let typeNamePattern = @"^[A-Z][a-z0-9A-Z_]*$"
 let fnNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
+let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
 let constantNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
+
+let assertBuiltin
+  (name : string)
+  (version : int)
+  (nameValidator : string -> unit)
+  : unit =
+  nameValidator name
+  assert_ "version can't be negative" [ "version", version ] (version >= 0)
+
 
 let assert'
   (modules : List<string>)
@@ -103,7 +113,7 @@ module FQConstantName =
   /// A constant built into the runtime
   ///
   /// TODO: replace with just string * version ?
-  type Builtin = { modules : List<string>; name : string; version : int }
+  type Builtin = { name : string; version : int }
 
   /// The name of a constant in the package manager
   type Package =
@@ -127,16 +137,12 @@ module FQConstantName =
   let assertConstantName (name : string) : unit =
     assertRe "Constant name must match" constantNamePattern name
 
-  let builtIn (modules : List<string>) (name : string) (version : int) : Builtin =
-    assert' modules name version assertConstantName
-    { modules = modules; name = name; version = version }
+  let builtIn (name : string) (version : int) : Builtin =
+    assertBuiltin name version assertConstantName
+    { name = name; version = version }
 
-  let fqBuiltIn
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : FQConstantName =
-    Builtin(builtIn modules name version)
+  let fqBuiltIn (name : string) (version : int) : FQConstantName =
+    Builtin(builtIn name version)
 
   let package
     (owner : string)
@@ -172,7 +178,7 @@ module FQConstantName =
 
 
   let builtinToString (s : Builtin) : string =
-    let name = s.modules @ [ s.name ] |> String.concat "."
+    let name = s.name
     if s.version = 0 then name else $"{name}_v{s.version}"
 
   let packageToString (s : Package) : string =
@@ -199,7 +205,7 @@ module FQFnName =
   ///
   /// TODO: replace with just string * version ?
   /// like `{ function_ = "__list_map"; version = 0 }`
-  type Builtin = { modules : List<string>; name : string; version : int }
+  type Builtin = { name : string; version : int }
 
   /// The name of a function in the package manager
   type Package =
@@ -218,15 +224,17 @@ module FQFnName =
     | UserProgram of UserProgram
 
   let assertFnName (name : string) : unit =
-    assertRe "Fn name must match" fnNamePattern name
+    assertRe $"Fn name must match" fnNamePattern name
 
+  let assertBuiltinFnName (name : string) : unit =
+    assertRe $"Builtin Fn name must match" builtinNamePattern name
 
-  let builtIn (modules : List<string>) (name : string) (version : int) : Builtin =
-    assert' modules name version assertFnName
-    { modules = modules; name = name; version = version }
+  let builtIn (name : string) (version : int) : Builtin =
+    assertBuiltin name version assertFnName
+    { name = name; version = version }
 
-  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : FQFnName =
-    Builtin(builtIn modules name version)
+  let fqBuiltIn (name : string) (version : int) : FQFnName =
+    Builtin(builtIn name version)
 
   let package
     (owner : string)
@@ -262,7 +270,7 @@ module FQFnName =
 
 
   let builtinToString (s : Builtin) : string =
-    let name = s.modules @ [ s.name ] |> String.concat "."
+    let name = s.name
     if s.version = 0 then name else $"{name}_v{s.version}"
 
   let packageToString (s : Package) : string =

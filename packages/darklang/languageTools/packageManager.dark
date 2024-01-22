@@ -5,7 +5,7 @@ module Darklang =
     module PackageManager =
       // TODO: This is not the most elegant or complete solution. Revisit.
       let baseUrl () : String =
-        match Builtin.Environment.get "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL" with
+        match Builtin.environmentGet "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL" with
         | Some baseUrl -> baseUrl
         | None -> "https://packages.darklang.com"
 
@@ -26,7 +26,7 @@ module Darklang =
           | Ok response ->
             if response.statusCode == 200L then
               response.body
-              |> Builtin.String.fromBytesWithReplacement
+              |> Stdlib.String.fromBytesWithReplacement
               |> Stdlib.Result.Result.Ok
             else
               (FetchError.Not200 response) |> Stdlib.Result.Result.Error
@@ -50,8 +50,8 @@ module Darklang =
             if response.statusCode == 200L then
               let parsedMaybe =
                 response.body
-                |> Builtin.String.fromBytesWithReplacement
-                |> Builtin.Json.parse<Stdlib.Packages>
+                |> Stdlib.String.fromBytesWithReplacement
+                |> Builtin.jsonParse<Stdlib.Packages>
 
               match parsedMaybe with
               | Ok parsed -> Stdlib.Result.Result.Ok parsed

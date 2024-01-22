@@ -18,7 +18,7 @@ module Darklang =
           | NotJson -> "Not JSON"
 
 
-      let format (j: Json) : String = Builtin.AltJson.format j
+      let format (j: Json) : String = Builtin.altJsonFormat j
 
       let parse (jsonString: String) : Result.Result<Json, ParseError.ParseError> =
-        Builtin.AltJson.parse jsonString
+        Builtin.altJsonParse jsonString

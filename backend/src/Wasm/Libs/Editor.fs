@@ -33,10 +33,9 @@ type UserProgramSource =
 let mutable editor : Editor =
   { Types = []; Functions = []; Constants = []; CurrentState = DUnit }
 
-let fn = fn [ "WASM"; "Editor" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "getState" 0
+  [ { name = fn "wasmEditorGetState" 0
       typeParams = [ "state" ]
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TypeReference.result (TVariable "a") TString
@@ -78,7 +77,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "callJSFunction" 0
+    { name = fn "wasmEditorCallJSFunction" 0
       typeParams = []
       parameters =
         [ Param.make "functionName" TString ""
@@ -123,7 +122,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "evalUserProgram" 0
+    { name = fn "wasmEditorEvalUserProgram" 0
       typeParams = []
       parameters = [ Param.make "program" TString "" ]
       returnType = TypeReference.result TString TString

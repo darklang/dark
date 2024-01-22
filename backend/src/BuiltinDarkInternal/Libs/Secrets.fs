@@ -11,7 +11,6 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 module Secret = LibCloud.Secret
 
-let fn = fn [ "DarkInternal"; "Canvas"; "Secret" ]
 
 
 let packageSecretType (addlModules : List<string>) (name : string) (version : int) =
@@ -25,7 +24,7 @@ let packageSecretType (addlModules : List<string>) (name : string) (version : in
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "getAll" 0
+  [ { name = fn "darkInternalCanvasSecretGetAll" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TList(TCustomType(Ok(packageSecretType [] "Secret" 0), []))
@@ -53,7 +52,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "delete" 0
+    { name = fn "darkInternalCanvasSecretDelete" 0
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid ""
@@ -74,7 +73,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "insert" 0
+    { name = fn "darkInternalCanvasSecretInsert" 0
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid ""

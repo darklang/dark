@@ -251,7 +251,7 @@
                                                               0,
                                                               [
                                                                 [
-                                                                  "int64ToString",
+                                                                  "__int64_toString",
                                                                   0
                                                                 ]
                                                               ]
@@ -627,7 +627,7 @@
                                                                       0,
                                                                       [
                                                                         [
-                                                                          "int64Add",
+                                                                          "__int64_add",
                                                                           0
                                                                         ]
                                                                       ]
@@ -834,7 +834,7 @@
                                                                         0,
                                                                         [
                                                                           [
-                                                                            "int64Add",
+                                                                            "__int64_add",
                                                                             0
                                                                           ]
                                                                         ]
@@ -964,7 +964,7 @@
                                                                           0,
                                                                           [
                                                                             [
-                                                                              "modFunction",
+                                                                              "__mod_function",
                                                                               2
                                                                             ]
                                                                           ]
@@ -2007,7 +2007,7 @@
                                                               0,
                                                               [
                                                                 [
-                                                                  "int64ToString",
+                                                                  "__int64_toString",
                                                                   0
                                                                 ]
                                                               ]
@@ -2383,7 +2383,7 @@
                                                                       0,
                                                                       [
                                                                         [
-                                                                          "int64Add",
+                                                                          "__int64_add",
                                                                           0
                                                                         ]
                                                                       ]
@@ -2590,7 +2590,7 @@
                                                                         0,
                                                                         [
                                                                           [
-                                                                            "int64Add",
+                                                                            "__int64_add",
                                                                             0
                                                                           ]
                                                                         ]
@@ -2720,7 +2720,7 @@
                                                                           0,
                                                                           [
                                                                             [
-                                                                              "modFunction",
+                                                                              "__mod_function",
                                                                               2
                                                                             ]
                                                                           ]
@@ -3767,7 +3767,7 @@
                                                               0,
                                                               [
                                                                 [
-                                                                  "int64ToString",
+                                                                  "__int64_toString",
                                                                   0
                                                                 ]
                                                               ]
@@ -4143,7 +4143,7 @@
                                                                       0,
                                                                       [
                                                                         [
-                                                                          "int64Add",
+                                                                          "__int64_add",
                                                                           0
                                                                         ]
                                                                       ]
@@ -4350,7 +4350,7 @@
                                                                         0,
                                                                         [
                                                                           [
-                                                                            "int64Add",
+                                                                            "__int64_add",
                                                                             0
                                                                           ]
                                                                         ]
@@ -4480,7 +4480,7 @@
                                                                           0,
                                                                           [
                                                                             [
-                                                                              "modFunction",
+                                                                              "__mod_function",
                                                                               2
                                                                             ]
                                                                           ]
@@ -5523,7 +5523,7 @@
                                                               0,
                                                               [
                                                                 [
-                                                                  "int64ToString",
+                                                                  "__int64_toString",
                                                                   0
                                                                 ]
                                                               ]
@@ -5899,7 +5899,7 @@
                                                                       0,
                                                                       [
                                                                         [
-                                                                          "int64Add",
+                                                                          "__int64_add",
                                                                           0
                                                                         ]
                                                                       ]
@@ -6106,7 +6106,7 @@
                                                                         0,
                                                                         [
                                                                           [
-                                                                            "int64Add",
+                                                                            "__int64_add",
                                                                             0
                                                                           ]
                                                                         ]
@@ -6236,7 +6236,7 @@
                                                                           0,
                                                                           [
                                                                             [
-                                                                              "modFunction",
+                                                                              "__mod_function",
                                                                               2
                                                                             ]
                                                                           ]
@@ -7879,7 +7879,7 @@
                                                               0,
                                                               [
                                                                 [
-                                                                  "int64ToString",
+                                                                  "__int64_toString",
                                                                   0
                                                                 ]
                                                               ]
@@ -8255,7 +8255,7 @@
                                                                       0,
                                                                       [
                                                                         [
-                                                                          "int64Add",
+                                                                          "__int64_add",
                                                                           0
                                                                         ]
                                                                       ]
@@ -8462,7 +8462,7 @@
                                                                         0,
                                                                         [
                                                                           [
-                                                                            "int64Add",
+                                                                            "__int64_add",
                                                                             0
                                                                           ]
                                                                         ]
@@ -8592,7 +8592,7 @@
                                                                           0,
                                                                           [
                                                                             [
-                                                                              "modFunction",
+                                                                              "__mod_function",
                                                                               2
                                                                             ]
                                                                           ]

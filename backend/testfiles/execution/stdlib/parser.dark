@@ -21,14 +21,14 @@ let range (s: Int64 * Int64) (e: Int64 * Int64) : Range =
 module ParseToSimplifiedTree =
   // super basic test just to make sure we don't throw an exception
   (let parsed =
-    Builtin.Parser.parseToSimplifiedTree
+    Builtin.parserParseToSimplifiedTree
       "let add (a: Int) (b: Int): Int =\n  let sum = a + b\n  sum"
 
    parsed.typ) = "source_file"
 
 
   // simplest type alias
-  ("type ID = Int64" |> Builtin.Parser.parseToSimplifiedTree) = ParsedNode
+  ("type ID = Int64" |> Builtin.parserParseToSimplifiedTree) = ParsedNode
     { typ = "source_file"
       fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
       text = "type ID = Int64"
@@ -240,7 +240,7 @@ module TextToTextRoundtripping =
     ("(and true false)" |> roundtripCliScript) = "and true false"
     ("(Bool.and true false)" |> roundtripCliScript) = "Bool.and true false"
     ("(PACKAGE.Darklang.Stdlib.Bool.and true false)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and_v0 true false"
-    ("(Builtin.Int64.add 1L 2L)" |> roundtripCliScript) = "Builtin.Int64.add 1L 2L"
+    ("(Builtin.int64Add 1L 2L)" |> roundtripCliScript) = "Builtin.int64Add 1L 2L"
 
   module FunctionDeclaration =
     // single 'normal' param

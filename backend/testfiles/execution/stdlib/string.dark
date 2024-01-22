@@ -1,5 +1,5 @@
 let c (arg: String) : Char =
-  (Builtin.Test.toChar_v0 arg) |> Builtin.unwrap
+  (Builtin.testToChar_v0 arg) |> Builtin.unwrap
 
 module Equality =
   "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
@@ -201,7 +201,7 @@ module Map =
     'c') = "cccc"
 
   PACKAGE.Darklang.Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x ->
-    5L) = Builtin.Test.derrorMessage
+    5L) = Builtin.testDerrorMessage
     """Function return value should be a Char. However, an Int64 (5) was returned instead.
 
 Expected: Char
@@ -210,9 +210,9 @@ Actual: an Int64: 5"""
   // Check that map executes the right number of times
   (let v =
     PACKAGE.Darklang.Stdlib.String.map "a string" (fun x ->
-      let _ = Builtin.Test.incrementSideEffectCounter_v0 false in 'c') in
+      let _ = Builtin.testIncrementSideEffectCounter_v0 false in 'c') in
 
-   (v, Builtin.Test.sideEffectCount_v0 ())) = ("cccccccc", 8L)
+   (v, Builtin.testSideEffectCount_v0 ())) = ("cccccccc", 8L)
 
 
 module FromChar =
@@ -480,33 +480,33 @@ module ReplaceAll =
 
 
 module Slugify =
-  Builtin.String.slugify
+  Builtin.stringSlugify
     "  M@y  'super'  Really- exce+llent *Uber_ ama\"zing* ~very   5x5 ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-5x5-clever-thing-coffee"
 
-  Builtin.String.slugify
+  Builtin.stringSlugify
     "  m@y  'super'  really- excellent *uber_ amazing* ~very  ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-clever-thing-coffee"
 
-  Builtin.String.slugify "" = ""
-  Builtin.String.slugify "ABCD-45646sassa" = "abcd-45646sassa"
-  Builtin.String.slugify "ddsd516ds125sd12sd12Ü" = "ddsd516ds125sd12sd12"
-  Builtin.String.slugify "q=\u0002$\u001a<+MC" = "qmc"
-  Builtin.String.slugify "🎁🎄Ǣʚ231" = "231"
-  Builtin.String.slugify "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = ""
-  Builtin.String.slugify "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "zlo"
-  Builtin.String.slugify "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = ""
-  Builtin.String.slugify "🧟‍♀️🧟‍♂️" = ""
-  Builtin.String.slugify "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = ""
+  Builtin.stringSlugify "" = ""
+  Builtin.stringSlugify "ABCD-45646sassa" = "abcd-45646sassa"
+  Builtin.stringSlugify "ddsd516ds125sd12sd12Ü" = "ddsd516ds125sd12sd12"
+  Builtin.stringSlugify "q=\u0002$\u001a<+MC" = "qmc"
+  Builtin.stringSlugify "🎁🎄Ǣʚ231" = "231"
+  Builtin.stringSlugify "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = ""
+  Builtin.stringSlugify "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "zlo"
+  Builtin.stringSlugify "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = ""
+  Builtin.stringSlugify "🧟‍♀️🧟‍♂️" = ""
+  Builtin.stringSlugify "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = ""
 
-  Builtin.String.slugify
+  Builtin.stringSlugify
     "b\x01c\x02d\x03e\x04f\x05g\x06h\x07i\x08j\x09k\x0Al\x0Bm\x0Cn\x0Do\x0Ep\x0Fq" = "bcdefghij-k-lm-n-opq"
 
-  Builtin.String.slugify
+  Builtin.stringSlugify
     "a\x10b\x11c\x12d\x13e\x14f\x15g\x16h\x17i\x18j\x19k\x1Al\x1Bm\x1Cn\x1Do\x1Ep\x1Fq" = "abcdefghijklmnopq"
 
-  Builtin.String.slugify "!\"#$%&'()*+,-./" = "-"
-  Builtin.String.slugify ":;<=>?@" = ""
-  Builtin.String.slugify "[\\]^_`" = "-"
-  Builtin.String.slugify "{|}~\x7F" = ""
+  Builtin.stringSlugify "!\"#$%&'()*+,-./" = "-"
+  Builtin.stringSlugify ":;<=>?@" = ""
+  Builtin.stringSlugify "[\\]^_`" = "-"
+  Builtin.stringSlugify "{|}~\x7F" = ""
 
 
 module FromList =
@@ -516,7 +516,7 @@ module FromList =
   PACKAGE.Darklang.Stdlib.String.fromList
     [ c "👩‍👩‍👧‍👦"; c "🏳️‍⚧️‍️"; c "👱🏾"; c "Z̤͔ͧ̑̓" ] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
 
-  PACKAGE.Darklang.Stdlib.String.fromList [ "a" ] = Builtin.Test.derrorMessage
+  PACKAGE.Darklang.Stdlib.String.fromList [ "a" ] = Builtin.testDerrorMessage
     "PACKAGE.Darklang.Stdlib.String.fromList's 1st argument (`lst`) should be a List<Char>. However, a List<String> ([  \"a\"]) was passed instead.
 
 Expected: (lst: List<Char>)

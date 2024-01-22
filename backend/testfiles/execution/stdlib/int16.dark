@@ -1,7 +1,7 @@
 PACKAGE.Darklang.Stdlib.Int16.absoluteValue_v0 -5s = 5s
 PACKAGE.Darklang.Stdlib.Int16.absoluteValue_v0 5s = 5s
 
-PACKAGE.Darklang.Stdlib.Int16.absoluteValue_v0 -32768s = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int16.absoluteValue_v0 -32768s = Builtin.testDerrorMessage
   "Out of range"
 
 
@@ -41,10 +41,10 @@ PACKAGE.Darklang.Stdlib.Int16.add_v0 -55s 55s = 0s
 PACKAGE.Darklang.Stdlib.Int16.add_v0 30000s 2767s = 32767s
 PACKAGE.Darklang.Stdlib.Int16.add_v0 -30000s -2768s = -32768s
 
-PACKAGE.Darklang.Stdlib.Int16.add_v0 -30000s -2769s = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int16.add_v0 -30000s -2769s = Builtin.testDerrorMessage
   "Out of range"
 
-PACKAGE.Darklang.Stdlib.Int16.add_v0 30000s 2768s = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int16.add_v0 30000s 2768s = Builtin.testDerrorMessage
   "Out of range"
 
 
@@ -54,14 +54,14 @@ PACKAGE.Darklang.Stdlib.Int16.subtract_v0 0s 1s = -1s
 PACKAGE.Darklang.Stdlib.Int16.subtract_v0 1s 0s = 1s
 PACKAGE.Darklang.Stdlib.Int16.subtract_v0 -55s -55s = 0s
 
-PACKAGE.Darklang.Stdlib.Int16.subtract_v0 -2769s 30000s = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int16.subtract_v0 -2769s 30000s = Builtin.testDerrorMessage
   "Out of range"
 
 
 PACKAGE.Darklang.Stdlib.Int16.multiply_v0 8s 8s = 64s
 PACKAGE.Darklang.Stdlib.Int16.multiply_v0 1s 0s = 0s
 
-PACKAGE.Darklang.Stdlib.Int16.multiply_v0 5145s 5145s = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int16.multiply_v0 5145s 5145s = Builtin.testDerrorMessage
   "Out of range"
 
 
@@ -74,13 +74,13 @@ PACKAGE.Darklang.Stdlib.Int16.power_v0 -1s 5s = -1s
 PACKAGE.Darklang.Stdlib.Int16.power_v0 -1s 6s = 1s
 PACKAGE.Darklang.Stdlib.Int16.power_v0 1s 32767s = 1s
 
-PACKAGE.Darklang.Stdlib.Int16.power_v0 2s 15s = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int16.power_v0 2s 15s = Builtin.testDerrorMessage
   "Out of range"
 
-PACKAGE.Darklang.Stdlib.Int16.power_v0 120s 20s = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int16.power_v0 120s 20s = Builtin.testDerrorMessage
   "Out of range"
 
-PACKAGE.Darklang.Stdlib.Int16.power_v0 2s -3s = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int16.power_v0 2s -3s = Builtin.testDerrorMessage
   "Negative exponent"
 
 
@@ -89,10 +89,10 @@ PACKAGE.Darklang.Stdlib.Int16.divide_v0 17s 3s = 5s
 PACKAGE.Darklang.Stdlib.Int16.divide_v0 -8s 5s = -1s
 PACKAGE.Darklang.Stdlib.Int16.divide_v0 0s 1s = 0s
 
-PACKAGE.Darklang.Stdlib.Int16.divide_v0 1s 0s = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int16.divide_v0 1s 0s = Builtin.testDerrorMessage
   "Division by zero"
 
-PACKAGE.Darklang.Stdlib.Int16.divide_v0 -32768s -1s = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int16.divide_v0 -32768s -1s = Builtin.testDerrorMessage
   "Out of range"
 
 PACKAGE.Darklang.Stdlib.Int16.divide_v0 -32768s 1s = -32768s
@@ -103,7 +103,7 @@ PACKAGE.Darklang.Stdlib.Int16.negate_v0 5s = -5s
 PACKAGE.Darklang.Stdlib.Int16.negate_v0 0s = 0s
 PACKAGE.Darklang.Stdlib.Int16.negate_v0 -0s = 0s
 
-PACKAGE.Darklang.Stdlib.Int16.negate_v0 -32768s = Builtin.Test.derrorMessage
+PACKAGE.Darklang.Stdlib.Int16.negate_v0 -32768s = Builtin.testDerrorMessage
   "Out of range"
 
 

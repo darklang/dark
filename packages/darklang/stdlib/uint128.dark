@@ -11,50 +11,50 @@ module Darklang =
       /// The modulus <param b> must be greater than 0.
       /// Use <fn UInt128.remainder> if you want the remainder after division, which has
       /// a different behavior for negative numbers.
-      let ``mod`` (a: UInt128) (b: UInt128) : UInt128 = Builtin.UInt128.``mod`` a b
+      let ``mod`` (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Mod a b
 
 
       /// Adds two 128-bit unsigned integers together
-      let add (a: UInt128) (b: UInt128) : UInt128 = Builtin.UInt128.add a b
+      let add (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Add a b
 
 
       /// Subtracts two 128-bit unsigned integers
-      let subtract (a: UInt128) (b: UInt128) : UInt128 = Builtin.UInt128.subtract a b
+      let subtract (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Subtract a b
 
 
       /// Multiplies two 128-bit unsigned integers
-      let multiply (a: UInt128) (b: UInt128) : UInt128 = Builtin.UInt128.multiply a b
+      let multiply (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Multiply a b
 
 
       /// Divides two 128-bit unsigned integers
-      let divide (a: UInt128) (b: UInt128) : UInt128 = Builtin.UInt128.divide a b
+      let divide (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Divide a b
 
 
       /// Returns {{true}} if <param a> is greater than <param b>
       let greaterThan (a: UInt128) (b: UInt128) : Bool =
-        Builtin.UInt128.greaterThan a b
+        Builtin.uint128GreaterThan a b
 
 
       /// Returns {{true}} if <param a> is greater than or equal to <param b>
       let greaterThanOrEqualTo (a: UInt128) (b: UInt128) : Bool =
-        Builtin.UInt128.greaterThanOrEqualTo a b
+        Builtin.uint128GreaterThanOrEqualTo a b
 
 
       /// Returns {{true}} if <param a> is less than <param b>
-      let lessThan (a: UInt128) (b: UInt128) : Bool = Builtin.UInt128.lessThan a b
+      let lessThan (a: UInt128) (b: UInt128) : Bool = Builtin.uint128LessThan a b
 
 
       /// Returns {{true}} if <param a> is less than or equal to <param b>
       let lessThanOrEqualTo (a: UInt128) (b: UInt128) : Bool =
-        Builtin.UInt128.lessThanOrEqualTo a b
+        Builtin.uint128LessThanOrEqualTo a b
 
 
       /// Get the square root of an <type UInt128>
-      let sqrt (a: UInt128) : Float = Builtin.UInt128.sqrt a
+      let sqrt (a: UInt128) : Float = Builtin.uint128Sqrt a
 
 
       /// Converts a <type UInt128> to a <type Float>
-      let toFloat (a: UInt128) : Float = Builtin.UInt128.toFloat a
+      let toFloat (a: UInt128) : Float = Builtin.uint128ToFloat a
 
 
       /// Returns the sum of all the ints in the list
@@ -105,27 +105,27 @@ module Darklang =
 
 
       /// Stringify <param uint128>
-      let toString (uint128: UInt128) : String = Builtin.UInt128.toString uint128
+      let toString (uint128: UInt128) : String = Builtin.uint128ToString uint128
 
 
       /// Returns the <type UInt128> value of a <type String>
       let parse
         (s: String)
         : PACKAGE.Darklang.Stdlib.Result.Result<UInt128, PACKAGE.Darklang.Stdlib.UInt128.ParseError> =
-        Builtin.UInt128.parse s
+        Builtin.uint128Parse s
 
 
       /// Converts a <type UInt8> to an <type UInt128>.
-      let fromUInt8 (i: UInt8) : UInt128 = Builtin.UInt128.fromUInt8 i
+      let fromUInt8 (i: UInt8) : UInt128 = Builtin.uint128FromUInt8 i
 
 
       /// Converts a <type UInt16> to an <type UInt128>.
-      let fromUInt16 (i: UInt16) : UInt128 = Builtin.UInt128.fromUInt16 i
+      let fromUInt16 (i: UInt16) : UInt128 = Builtin.uint128FromUInt16 i
 
 
       /// Converts a <type UInt32> to an <type UInt128>.
-      let fromUInt32 (i: UInt32) : UInt128 = Builtin.UInt128.fromUInt32 i
+      let fromUInt32 (i: UInt32) : UInt128 = Builtin.uint128FromUInt32 i
 
 
       /// Converts a <type UInt64> to an <type UInt128>.
-      let fromUInt64 (i: UInt64) : UInt128 = Builtin.UInt128.fromUInt64 i
+      let fromUInt64 (i: UInt64) : UInt128 = Builtin.uint128FromUInt64 i

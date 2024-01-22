@@ -8,8 +8,8 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 
-let eBuiltinFnName (modules : List<string>) (name : string) (version : int) : Expr =
-  PT.FQFnName.fqBuiltIn modules name version
+let eBuiltinFnName (name : string) (version : int) : Expr =
+  PT.FQFnName.fqBuiltIn name version
   |> PT2RT.FQFnName.toRT
   |> fun x -> EFnName(gid (), x)
 
@@ -20,23 +20,21 @@ let eUserFnName (name : string) : Expr =
 
 
 let eFn'
-  (modules : List<string>)
   (function_ : string)
   (version : int)
   (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : Expr =
   let args = NEList.ofListUnsafe "eFn'" [] args
-  EApply(gid (), (eBuiltinFnName modules function_ version), typeArgs, args)
+  EApply(gid (), (eBuiltinFnName function_ version), typeArgs, args)
 
 let eFn
-  (modules : List<string>)
   (function_ : string)
   (version : int)
   (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : Expr =
-  eFn' modules function_ version typeArgs args
+  eFn' function_ version typeArgs args
 
 let eUserFn
   (function_ : string)

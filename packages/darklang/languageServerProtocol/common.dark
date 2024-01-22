@@ -139,7 +139,7 @@ module Darklang =
         |> Json.Object
 
       let fromJson (json: Json) : Stdlib.Result.Result<TextDocumentItem, Unit> =
-        match Builtin.Json.parse<TextDocumentItem> json with
+        match Builtin.jsonParse<TextDocumentItem> json with
         | Ok item -> Stdlib.Result.Result.Ok item
         | Error _ -> Stdlib.Result.Result.Error()
 

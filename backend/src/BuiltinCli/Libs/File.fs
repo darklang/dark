@@ -13,10 +13,9 @@ open Builtin.Shortcuts
 
 let constants : List<BuiltInConstant> = []
 
-let fn = fn [ "File" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "read" 0
+  [ { name = fn "fileRead" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TypeReference.result (TList TUInt8) TString
@@ -40,7 +39,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "write" 0
+    { name = fn "fileWrite" 0
       typeParams = []
       parameters =
         [ Param.make "contents" (TList TUInt8) ""; Param.make "path" TString "" ]
@@ -69,7 +68,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "delete" 0
+    { name = fn "fileDelete" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TypeReference.result TUnit TString
@@ -94,7 +93,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "appendText" 0
+    { name = fn "fileAppendText" 0
       typeParams = []
       parameters = [ Param.make "path" TString ""; Param.make "content" TString "" ]
       returnType = TypeReference.result TUnit TString
@@ -118,7 +117,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "createTemp" 0
+    { name = fn "fileCreateTemp" 0
       typeParams = []
       parameters = [ Param.make "" TUnit "" ]
       returnType = TypeReference.result TString TString
@@ -140,7 +139,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "isDirectory" 0
+    { name = fn "fileIsDirectory" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TBool
@@ -163,7 +162,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "isNormal" 0
+    { name = fn "fileIsNormal" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TBool
@@ -188,7 +187,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "exists" 0
+    { name = fn "fileExists" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TBool
@@ -211,7 +210,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "size" 0
+    { name = fn "fileSize" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TypeReference.result TInt64 TString
