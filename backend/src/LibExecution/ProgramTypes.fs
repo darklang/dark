@@ -743,3 +743,15 @@ module PackageType =
       declaration : TypeDeclaration.T
       description : string
       deprecated : Deprecation<FQTypeName.FQTypeName> }
+
+
+type Packages =
+  { types : List<PackageType.T>
+    constants : List<PackageConstant.T>
+    fns : List<PackageFn.T> }
+
+  static member combine(packages : List<Packages>) : Packages =
+    let types = packages |> List.map (fun p -> p.types) |> List.concat
+    let fns = packages |> List.map (fun p -> p.fns) |> List.concat
+    let constants = packages |> List.map (fun p -> p.constants) |> List.concat
+    { types = types; fns = fns; constants = constants }

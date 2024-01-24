@@ -16,30 +16,6 @@ module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT = LibExecution.RuntimeTypes
 
-let writeBody (tlid : tlid) (expr : PT.Expr) : Task<unit> =
-  task {
-    let binary = BinarySerialization.serializeExpr tlid expr
-    return!
-      Sql.query "UPDATE package_functions_v0 SET body = @body where tlid = @tlid"
-      |> Sql.parameters [ "body", Sql.bytea binary; "tlid", Sql.tlid tlid ]
-      |> Sql.executeStatementAsync
-  }
-
-let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
-  fns
-  |> Task.iterInParallel (fun fn ->
-    Sql.query
-      "INSERT INTO package_functions_v0 (tlid, id, owner, modules, fnname, version, definition)
-       VALUES (@tlid, @id, @owner, @modules, @fnname, @version, @definition)"
-    |> Sql.parameters
-      [ "tlid", Sql.tlid fn.tlid
-        "id", Sql.uuid fn.id
-        "owner", Sql.string fn.name.owner
-        "modules", Sql.string (fn.name.modules |> String.concat ".")
-        "fnname", Sql.string fn.name.name
-        "version", Sql.int fn.name.version
-        "definition", Sql.bytea (BinarySerialization.serializePackageFn fn) ]
-    |> Sql.executeStatementAsync)
 
 let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
   types
@@ -73,6 +49,41 @@ let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
         "version", Sql.int c.name.version
         "definition", Sql.bytea (BinarySerialization.serializePackageConstant c) ]
     |> Sql.executeStatementAsync)
+
+let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
+  fns
+  |> Task.iterInParallel (fun fn ->
+    Sql.query
+      "INSERT INTO package_functions_v0 (tlid, id, owner, modules, fnname, version, definition)
+       VALUES (@tlid, @id, @owner, @modules, @fnname, @version, @definition)"
+    |> Sql.parameters
+      [ "tlid", Sql.tlid fn.tlid
+        "id", Sql.uuid fn.id
+        "owner", Sql.string fn.name.owner
+        "modules", Sql.string (fn.name.modules |> String.concat ".")
+        "fnname", Sql.string fn.name.name
+        "version", Sql.int fn.name.version
+        "definition", Sql.bytea (BinarySerialization.serializePackageFn fn) ]
+    |> Sql.executeStatementAsync)
+
+
+let purge () : Task<unit> =
+  task {
+    do!
+      Sql.query "DELETE FROM package_types_v0"
+      |> Sql.parameters []
+      |> Sql.executeStatementAsync
+
+    do!
+      Sql.query "DELETE FROM package_constants_v0"
+      |> Sql.parameters []
+      |> Sql.executeStatementAsync
+
+    do!
+      Sql.query "DELETE FROM package_functions_v0"
+      |> Sql.parameters []
+      |> Sql.executeStatementAsync
+  }
 
 
 // ------------------

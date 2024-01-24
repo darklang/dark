@@ -1,156 +1,34 @@
-type PackageItem =
-  | Fn of PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
-  | Type of PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType
-  | Constant of PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant
+// TODO migrate more of this to package space
 
-type Category =
-  | Fn
-  | Type
-  | Constant
-
-type GenericName =
-  { owner: String
-    modules: List<String>
-    name: String
-    version: Int64 }
-
-type Entry =
-  { name: GenericName
-    package: PackageItem // TODO: consider renaming to `item` or something else. (package implies container)
-    category: Category }
-
+// Note: this is filled in via underground DB.sets in LocalExec.fs
 [<DB>]
-type PackagesDB = Entry
+type PackageEntriesDB = PACKAGE.Darklang.DarkPackages.Entry
 
 
-let isAuthorized
-  (headers: List<(String * String)>)
-  : PACKAGE.Darklang.Stdlib.Option.Option<Bool> =
-  headers
-  |> PACKAGE.Darklang.Stdlib.List.findFirst (fun (k, v) -> k == "authorization")
-  |> PACKAGE.Darklang.Stdlib.Option.map PACKAGE.Darklang.Stdlib.Tuple2.second
-  |> PACKAGE.Darklang.Stdlib.Option.map (fun x ->
-    PACKAGE.Darklang.Stdlib.String.split x " ")
-  |> PACKAGE.Darklang.Stdlib.Option.andThen PACKAGE.Darklang.Stdlib.List.last
-  |> PACKAGE.Darklang.Stdlib.Option.map PACKAGE.Darklang.Stdlib.String.trim
-  |> PACKAGE.Darklang.Stdlib.Option.map (fun s -> s == AUTH_PASSWORD)
 
+[<HttpHandler("GET", "/ping")>]
+let _handler _req =
+  let body = "pong" |> PACKAGE.Darklang.Stdlib.String.toBytes
 
-let checkAuthorization
-  (headers: List<(String * String)>)
-  (f: Unit -> PACKAGE.Darklang.Stdlib.Http.Response)
-  : PACKAGE.Darklang.Stdlib.Http.Response =
-  match isAuthorized headers with
-  | None ->
-    PACKAGE.Darklang.Stdlib.Http.response
-      (PACKAGE.Darklang.Stdlib.String.toBytes "Authorization required")
-      400L
-  | Some false ->
-    PACKAGE.Darklang.Stdlib.Http.response
-      (PACKAGE.Darklang.Stdlib.String.toBytes "not authorized")
-      401L
-  | Some true -> f ()
-
-
-// endpoints for adding package items
-
-[<HttpHandler("POST", "/types")>]
-let _handler request =
-  checkAuthorization request.headers (fun () ->
-    let value =
-      request.body
-      |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
-      |> Builtin.jsonParse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
-      |> Builtin.unwrap
-
-    let item =
-      Entry
-        { name =
-            GenericName
-              { name = value.name.name
-                modules = value.name.modules
-                owner = value.name.owner
-                version = value.name.version }
-          package = PackageItem.Type value
-          category = Category.Type }
-
-    let key = Builtin.dbGenerateKey_v0 ()
-    Builtin.dbSet item key PackagesDB
-
-    PACKAGE.Darklang.Stdlib.Http.response
-      (PACKAGE.Darklang.Stdlib.String.toBytes "added")
-      200L)
-
-
-[<HttpHandler("POST", "/functions")>]
-let _handler request =
-  checkAuthorization request.headers (fun () ->
-    let value =
-      request.body
-      |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
-      |> Builtin.jsonParse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
-      |> Builtin.unwrap
-
-    let item =
-      Entry
-        { name =
-            GenericName
-              { name = value.name.name
-                modules = value.name.modules
-                owner = value.name.owner
-                version = value.name.version }
-          package = PackageItem.Fn value
-          category = Category.Fn }
-
-    let key = Builtin.dbGenerateKey_v0 ()
-    Builtin.dbSet item key PackagesDB
-
-    PACKAGE.Darklang.Stdlib.Http.response
-      (PACKAGE.Darklang.Stdlib.String.toBytes "added")
-      200L)
-
-[<HttpHandler("POST", "/constants")>]
-let _handler request =
-  checkAuthorization request.headers (fun () ->
-    let value =
-      request.body
-      |> PACKAGE.Darklang.Stdlib.String.fromBytesWithReplacement
-      |> Builtin.jsonParse<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
-      |> Builtin.unwrap
-
-    let item =
-      Entry
-        { name =
-            GenericName
-              { name = value.name.name
-                modules = value.name.modules
-                owner = value.name.owner
-                version = value.name.version }
-          package = PackageItem.Constant value
-          category = Category.Constant }
-
-    let key = Builtin.dbGenerateKey_v0 ()
-    Builtin.dbSet item key PackagesDB
-
-    PACKAGE.Darklang.Stdlib.Http.response
-      (PACKAGE.Darklang.Stdlib.String.toBytes "added")
-      200L)
+  PACKAGE.Darklang.Stdlib.Http.response body 200L
 
 
 // expose some metadata to quickly check if things seem to be working
 [<HttpHandler("GET", "/stats")>]
 let _handler _req =
   let types =
-    Builtin.dbQueryCount PackagesDB (fun entry -> entry.category == Category.Type)
+    Builtin.dbQueryCount PackageEntriesDB (fun e ->
+      e.category == PACKAGE.Darklang.DarkPackages.Category.Type)
 
   let fns =
-    Builtin.dbQueryCount PackagesDB (fun entry -> entry.category == Category.Fn)
+    Builtin.dbQueryCount PackageEntriesDB (fun e ->
+      e.category == PACKAGE.Darklang.DarkPackages.Category.Fn)
 
   let constants =
-    Builtin.dbQueryCount PackagesDB (fun entry ->
-      entry.category == Category.Constant)
+    Builtin.dbQueryCount PackageEntriesDB (fun e ->
+      e.category == PACKAGE.Darklang.DarkPackages.Category.Constant)
 
-  let items = Builtin.dbCount PackagesDB
+  let items = Builtin.dbCount PackageEntriesDB
 
   let body =
     $"Package stats:\ntypes: {Builtin.int64ToString types}, fns: {Builtin.int64ToString fns}, constants: {Builtin.int64ToString constants}\n\ntotal items in DB: {Builtin.int64ToString items}\n"
@@ -159,133 +37,82 @@ let _handler _req =
   PACKAGE.Darklang.Stdlib.Http.response body 200L
 
 
-let parseVersion (name: String) : (String * Int64) =
-  let parts = PACKAGE.Darklang.Stdlib.String.split name "_v"
-  let name = (PACKAGE.Darklang.Stdlib.List.head parts) |> Builtin.unwrap
-
-  let version =
-    (PACKAGE.Darklang.Stdlib.List.last parts)
-    |> Builtin.unwrap
-    |> Builtin.int64Parse
-    |> Builtin.unwrap
-
-  (name, version)
-
-
-let parseName (name: String) : GenericName =
-  let parts = PACKAGE.Darklang.Stdlib.String.split name "."
-  let owner = (PACKAGE.Darklang.Stdlib.List.head parts) |> Builtin.unwrap
-  let name = (PACKAGE.Darklang.Stdlib.List.last parts) |> Builtin.unwrap
-
-  let modules =
-    parts
-    |> PACKAGE.Darklang.Stdlib.List.tail
-    |> Builtin.unwrap
-    |> PACKAGE.Darklang.Stdlib.List.dropLast
-
-  let (name, version) = parseVersion name
-
-  GenericName
-    { owner = owner
-      modules = modules
-      name = name
-      version = version }
-
-
-/// Support function for fetchByName and fetchById
-let makeResponseForEntryMaybe
-  (entry: PACKAGE.Darklang.Stdlib.Option.Option<Entry>)
-  : PACKAGE.Darklang.Stdlib.Http.Response =
-  match entry with
-  | None ->
-    PACKAGE.Darklang.Stdlib.Http.response
-      (PACKAGE.Darklang.Stdlib.String.toBytes "not found")
-      404L
-  | Some entry ->
-    let json =
-      match entry.package with
-      | Fn fn ->
-        Builtin.jsonSerialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
-          fn
-      | Constant const' ->
-        Builtin.jsonSerialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
-          const'
-      | Type typ ->
-        Builtin.jsonSerialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
-          typ
-
-    let respBody = json |> PACKAGE.Darklang.Stdlib.String.toBytes
-
-    PACKAGE.Darklang.Stdlib.Http.response respBody 200L
-
 
 let fetchByName
-  (category: Category)
+  (category: PACKAGE.Darklang.DarkPackages.Category)
   (name: String)
   : PACKAGE.Darklang.Stdlib.Http.Response =
-  let name = parseName name
+  let name = PACKAGE.Darklang.DarkPackages.parseName name
 
   let foundMaybe =
-    Builtin.dbQueryOne PackagesDB (fun v -> v.category == category && v.name == name)
+    Builtin.dbQueryOne PackageEntriesDB (fun v ->
+      v.category == category && v.name == name)
 
-  makeResponseForEntryMaybe foundMaybe
+  PACKAGE.Darklang.DarkPackages.makeResponseForEntryMaybe foundMaybe
 
 
 let fetchByTlid
-  (category: Category)
+  (category: PACKAGE.Darklang.DarkPackages.Category)
   (tlid: String)
   : PACKAGE.Darklang.Stdlib.Http.Response =
   let tlid = (PACKAGE.Darklang.Stdlib.UInt64.parse tlid) |> Builtin.unwrap
 
-  let itemsInCategory = Builtin.dbQuery PackagesDB (fun v -> v.category == category)
+  let entriesInCategory =
+    Builtin.dbQuery PackageEntriesDB (fun v -> v.category == category)
 
   let foundMaybe =
-    itemsInCategory
-    |> PACKAGE.Darklang.Stdlib.List.findFirst (fun item ->
-      match item.package with
+    entriesInCategory
+    |> PACKAGE.Darklang.Stdlib.List.findFirst (fun entry ->
+      match entry.item with
       | Fn fn -> fn.id == id
       | Constant c -> c.id == id
       | Type typ -> typ.id == id)
 
-  makeResponseForEntryMaybe foundMaybe
+  PACKAGE.Darklang.DarkPackages.makeResponseForEntryMaybe foundMaybe
 
 
 
 // fetch types
 [<HttpHandler("GET", "/type/by-name/:name")>]
-let _handler _req = fetchByName Category.Type name
+let _handler _req =
+  fetchByName PACKAGE.Darklang.DarkPackages.Category.Type name
 
 [<HttpHandler("GET", "/type/by-tlid/:tlid")>]
-let _handler _req = fetchByTlid Category.Type tlid
+let _handler _req =
+  fetchByTlid PACKAGE.Darklang.DarkPackages.Category.Type tlid
 
 // fetch constants
 [<HttpHandler("GET", "/constant/by-name/:name")>]
-let _handler _req = fetchByName Category.Constant name
+let _handler _req =
+  fetchByName PACKAGE.Darklang.DarkPackages.Category.Constant name
 
 [<HttpHandler("GET", "/constant/by-tlid/:tlid")>]
-let _handler _req = fetchByTlid Category.Constant tlid
+let _handler _req =
+  fetchByTlid PACKAGE.Darklang.DarkPackages.Category.Constant tlid
 
 // fetch functions
 [<HttpHandler("GET", "/function/by-name/:name")>]
-let _handler _req = fetchByName Category.Fn name
+let _handler _req =
+  fetchByName PACKAGE.Darklang.DarkPackages.Category.Fn name
 
 [<HttpHandler("GET", "/function/by-tlid/:tlid")>]
-let _handler _req = fetchByTlid Category.Fn tlid
+let _handler _req =
+  fetchByTlid PACKAGE.Darklang.DarkPackages.Category.Fn tlid
 
 
 [<HttpHandler("GET", "/owner/:owner")>]
 let _handler _req =
   let allItems =
-    (Builtin.dbQuery PackagesDB (fun item -> item.name.owner == owner))
-    |> PACKAGE.Darklang.Stdlib.List.map (fun item ->
+    (Builtin.dbQuery PackageEntriesDB (fun entry -> entry.name.owner == owner))
+    |> PACKAGE.Darklang.Stdlib.List.map (fun entry ->
       let typeOfItem =
-        match item.package with
+        match entry.item with
         | Fn _ -> "fn"
         | Type _ -> "type"
         | Constant _ -> "const"
 
-      let modules = PACKAGE.Darklang.Stdlib.String.join item.name.modules "."
-      $"{typeOfItem} {item.name.owner}.{modules}.{item.name.name}")
+      let modules = PACKAGE.Darklang.Stdlib.String.join entry.name.modules "."
+      $"{typeOfItem} {entry.name.owner}.{modules}.{entry.name.name}")
     |> PACKAGE.Darklang.Stdlib.List.sort
     |> PACKAGE.Darklang.Stdlib.String.join "\n"
 
@@ -306,26 +133,29 @@ let _handler _req =
   let modules = names |> PACKAGE.Darklang.Stdlib.List.drop 1L
 
   let fns =
-    (Builtin.dbQuery PackagesDB (fun v ->
-      v.name.owner == owner && v.category == Category.Fn))
+    (Builtin.dbQuery PackageEntriesDB (fun v ->
+      v.name.owner == owner
+      && v.category == PACKAGE.Darklang.DarkPackages.Category.Fn))
     |> PACKAGE.Darklang.Stdlib.List.filter (fun v -> v.name.modules == modules)
     |> PACKAGE.Darklang.Stdlib.List.filterMap (fun v ->
-      match v.package with
+      match v.item with
       | Fn f -> PACKAGE.Darklang.Stdlib.Option.Option.Some f
       | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None)
 
   let types =
-    (Builtin.dbQuery PackagesDB (fun v ->
-      v.name.owner == owner && v.category == Category.Type))
+    (Builtin.dbQuery PackageEntriesDB (fun v ->
+      v.name.owner == owner
+      && v.category == PACKAGE.Darklang.DarkPackages.Category.Type))
     |> PACKAGE.Darklang.Stdlib.List.filter (fun v -> v.name.modules == modules)
     |> PACKAGE.Darklang.Stdlib.List.filterMap (fun v ->
-      match v.package with
+      match v.item with
       | Type t -> PACKAGE.Darklang.Stdlib.Option.Option.Some t
       | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None)
 
   let constants =
-    (Builtin.dbQuery PackagesDB (fun v ->
-      v.name.owner == owner && v.category == Category.Constant))
+    (Builtin.dbQuery PackageEntriesDB (fun v ->
+      v.name.owner == owner
+      && v.category == PACKAGE.Darklang.DarkPackages.Category.Constant))
     |> PACKAGE.Darklang.Stdlib.List.filter (fun v -> v.name.modules == modules)
     |> PACKAGE.Darklang.Stdlib.List.filterMap (fun v ->
       match v.package with
@@ -333,11 +163,11 @@ let _handler _req =
       | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None)
 
   let respBody =
-    (PACKAGE.Darklang.Stdlib.Packages
+    (PACKAGE.Darklang.LanguageTools.ProgramTypes.Packages
       { types = types
         fns = fns
         constants = constants })
-    |> Builtin.jsonSerialize<PACKAGE.Darklang.Stdlib.Packages>
+    |> Builtin.jsonSerialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.Packages>
     |> PACKAGE.Darklang.Stdlib.String.toBytes
 
   PACKAGE.Darklang.Stdlib.Http.response respBody 200L

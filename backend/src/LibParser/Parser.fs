@@ -36,15 +36,15 @@ let parseRTExpr
   |> parsePTExpr resolver filename
   |> Ply.map LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
 
-type Packages =
-  List<PT.PackageFn.T> * List<PT.PackageType.T> * List<PT.PackageConstant.T>
+
 
 let parsePackageFile
   (resolver : NameResolver.NameResolver)
   (path : string)
   (contents : string)
-  : Ply<Packages> =
+  : Ply<PT.Packages> =
   uply {
     let! pModule = Package.parse resolver path contents
-    return (pModule.fns, pModule.types, pModule.constants)
+    return
+      { types = pModule.types; constants = pModule.constants; fns = pModule.fns }
   }

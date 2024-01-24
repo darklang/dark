@@ -18,7 +18,6 @@ backend/.paket/load/
 backend/Build/
 backend/src/**/obj
 backend/tests/**/obj
-backend/experiments/**/obj
 backend/static/dark_wasm/
 backend/static/tree-sitter/
 

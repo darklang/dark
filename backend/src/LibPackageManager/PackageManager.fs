@@ -1,6 +1,9 @@
 /// Fetches package items from a web-based package manager
 /// hosted in a `dark-packages` canvas.
-module LibCliExecution.PackageManager
+///
+/// TODO: this currently assumes that the package items match the shape
+/// of Dark types defined in @Darklang.LanguageTools.ProgramTypes
+module LibPackageManager
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -10,6 +13,9 @@ open Prelude
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
+
+
 
 type ID = uint64
 type TLID = uint64
@@ -695,20 +701,14 @@ module ExternalTypesToProgramTypes =
 module ET2PT = ExternalTypesToProgramTypes
 
 
+
 // TODO: copy back to LibCloud/LibCloudExecution, or relocate somewhere central
 // TODO: what should we do when the shape of types at the corresponding endpoints change?
 
 /// The baseUrl is expected to be something like
 /// - https://dark-packages.darklang.io normally
 /// - http://dark-packages.dlio.localhost:11001 for local dev
-let baseUrl =
-  match
-    System.Environment.GetEnvironmentVariable "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
-  with
-  | null -> "https://packages.darklang.com"
-  | var -> var
-
-let packageManager : RT.PackageManager =
+let packageManager (baseUrl : string) : RT.PackageManager =
   let httpClient = new System.Net.Http.HttpClient() // CLEANUP pass this in as param? or mutate it externally?
 
   let withCache (f : 'name -> Ply<Option<'value>>) =

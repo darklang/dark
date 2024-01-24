@@ -30,5 +30,7 @@ SCRIPT+="DELETE FROM package_functions_v0 WHERE author_id IN (SELECT id FROM acc
 WHERE username = 'test_admin');";
 SCRIPT+="DELETE FROM package_types_v0 WHERE author_id IN (SELECT id FROM accounts_v0
 WHERE username = 'test_admin');";
+SCRIPT+="DELETE FROM package_constants_v0 WHERE author_id IN (SELECT id FROM accounts_v0
+WHERE username = 'test_admin');";
 
 run_sql "$SCRIPT";
