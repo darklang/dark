@@ -746,13 +746,13 @@ let packageManager (baseUrl : string) : RT.PackageManager =
           return
             Exception.raiseInternal
               "Failed to fetch package"
-              [ "responseStr", responseStr ]
+              [ "responseStr", responseStr; "url", url ]
               null
       with e ->
         return
           Exception.raiseInternal
             "Failed to deserialize package"
-            [ "responseStr", responseStr ]
+            [ "responseStr", responseStr; "url", url; "exception", e ]
             e
     }
 
