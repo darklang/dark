@@ -521,3 +521,9 @@ module Darklang =
           body: Const
           description: String
           deprecated: Deprecation<FQFnName.FQFnName> }
+
+
+      type Packages =
+        { types: List<PackageType>
+          constants: List<PackageConstant>
+          fns: List<PackageFn.PackageFn> }

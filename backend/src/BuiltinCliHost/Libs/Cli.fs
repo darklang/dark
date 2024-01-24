@@ -79,6 +79,15 @@ let builtIns : RT.BuiltIns =
   { fns = fns |> Map.fromListBy _.name
     constants = constants |> Map.fromListBy _.name }
 
+// TODO: de-dupe with _other_ Cli.fs
+let packageManagerBaseUrl =
+  match
+    System.Environment.GetEnvironmentVariable "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
+  with
+  | null -> "https://packages.darklang.com"
+  | var -> var
+
+let packageManager = LibPackageManager.packageManager packageManagerBaseUrl
 
 let execute
   (parentState : RT.ExecutionState)
@@ -102,7 +111,7 @@ let execute
     let state =
       Exe.createState
         builtIns
-        LibCliExecution.PackageManager.packageManager
+        packageManager
         Exe.noTracing
         sendException
         notify

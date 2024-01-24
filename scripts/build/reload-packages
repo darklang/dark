@@ -7,7 +7,6 @@ grey="\033[1;30m"
 reset="\033[0m"
 
 TEST=false
-PUBLISHED=false
 PUBLISHED_FLAG=
 
 for i in "$@"
@@ -18,34 +17,22 @@ do
     shift
     ;;
     --published)
-    PUBLISHED=true
     PUBLISHED_FLAG=$i
     ;;
   esac
 done
 
 if [[ "$TEST" == "true" ]]; then
-  LOG_DB="${DARK_CONFIG_RUNDIR}/logs/test-packages-db.log"
   LOG_CANVAS="${DARK_CONFIG_RUNDIR}/logs/test-packages-canvas.log"
 else
-  LOG_DB="${DARK_CONFIG_RUNDIR}/logs/packages-db.log"
   LOG_CANVAS="${DARK_CONFIG_RUNDIR}/logs/packages-canvas.log"
 fi
 
 
-# Note: doesn't support release/published
-if [[ "$PUBLISHED" == "true" ]]; then
-  LOCALEXEC_EXE="backend/Build/out/LocalExec/Release/net8.0/linux-x64/LocalExec"
-else
-  LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net8.0/LocalExec"
-fi
-
-echo -e "Loading packages into DB ${grey}($LOG_DB)${reset}"
-"${LOCALEXEC_EXE}" load-packages > $LOG_DB 2>&1
+./scripts/run-local-exec $PUBLISHED_FLAG load-packages-to-internal-sql-tables > $LOG_CANVAS 2>&1
 
 
 if [[ "$TEST" != "true" ]]; then
-
   echo "Waiting for BwdServer to be ready"
   for i in {1..100}; do
     if curl -s -o /dev/null "localhost:${DARK_CONFIG_BWDSERVER_KUBERNETES_PORT}" ; then
@@ -55,9 +42,6 @@ if [[ "$TEST" != "true" ]]; then
     sleep 0.1
   done
 
-  # make sure the target canvas exists and is cleared
-  ./scripts/run-canvas-hack $PUBLISHED_FLAG load-from-disk dark-packages AUTH_PASSWORD=password
-
-  echo -e "Loading packages into Dark canvas ${grey}($LOG_CANVAS)${reset}"
-  ./scripts/run-local-exec $PUBLISHED_FLAG load-packages-dlio > $LOG_CANVAS 2>&1
+  echo -e "Reloading dark-packages canvas ${grey}($LOG_CANVAS)${reset}"
+  ./scripts/run-local-exec $PUBLISHED_FLAG reload-dark-packages >> $LOG_CANVAS 2>&1
 fi

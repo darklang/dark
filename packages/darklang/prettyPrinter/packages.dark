@@ -237,7 +237,7 @@ module Darklang =
 
 
 
-      let toModules (p: Stdlib.Packages) : List<Module> =
+      let toModules (p: LanguageTools.ProgramTypes.Packages) : List<Module> =
         let empty = []
 
         let modulesAfterTypes =
@@ -306,9 +306,9 @@ module Darklang =
 
         $"module {m.name} =\n{bodyPart}"
 
-    let packages (p: Stdlib.Packages) : String =
+    let packages (p: LanguageTools.ProgramTypes.Packages) : String =
       let withOwnerStuffRepresentedAsRootLevelModule =
-        Stdlib.Packages
+        LanguageTools.ProgramTypes.Packages
           { types =
               p.types
               |> Stdlib.List.map (fun t ->

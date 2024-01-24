@@ -37,7 +37,7 @@ module Darklang =
       module Module =
         let getByName
           (qualifiedModuleName: String)
-          : Stdlib.Result.Result<Stdlib.Packages, FetchError> =
+          : Stdlib.Result.Result<LanguageTools.ProgramTypes.Packages, FetchError> =
           let httpResponse =
             Stdlib.HttpClient.request
               "GET"
@@ -51,7 +51,7 @@ module Darklang =
               let parsedMaybe =
                 response.body
                 |> Stdlib.String.fromBytesWithReplacement
-                |> Builtin.jsonParse<Stdlib.Packages>
+                |> Builtin.jsonParse<LanguageTools.ProgramTypes.Packages>
 
               match parsedMaybe with
               | Ok parsed -> Stdlib.Result.Result.Ok parsed

@@ -34,7 +34,6 @@ let foldSequentially
     list
 
 let mapSequentially (f : 'a -> Task<'b>) (list : List<'a>) : Task<List<'b>> =
-
   list
   |> foldSequentially
     (fun (accum : List<'b>) (arg : 'a) ->

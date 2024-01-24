@@ -55,7 +55,7 @@ nuget Sodium.Core = 1.3.4
 nuget Google.Cloud.PubSub.V1 = 3.8.0
 nuget Google.Cloud.Storage.V1 = 4.7.0
 
-// CanvasHack
+// LocalExec
 nuget Legivel = 0.4.6
 
 // Wasm

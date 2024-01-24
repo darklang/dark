@@ -52,7 +52,16 @@ let builtIns : RT.BuiltIns =
   { fns = fns |> Map.fromListBy _.name
     constants = constants |> Map.fromListBy _.name }
 
-let packageManager = LibCliExecution.PackageManager.packageManager
+// TODO: de-dupe with _other_ Cli.fs
+let packageManagerBaseUrl =
+  match
+    System.Environment.GetEnvironmentVariable "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
+  with
+  | null -> "https://packages.darklang.com"
+  | var -> var
+
+let packageManager = LibPackageManager.packageManager packageManagerBaseUrl
+
 
 let state () =
   let program : RT.Program =
@@ -91,12 +100,13 @@ let execute
   }
 
 let initSerializers () =
-  Json.Vanilla.allow<List<LibCliExecution.PackageManager.ProgramTypes.PackageType>>
-    "PackageManager"
-  Json.Vanilla.allow<List<LibCliExecution.PackageManager.ProgramTypes.PackageFn.PackageFn>>
-    "PackageManager"
-  Json.Vanilla.allow<List<LibCliExecution.PackageManager.ProgramTypes.PackageConstant>>
-    "PackageManager"
+  // Json.Vanilla.allow<List<LibCliExecution.PackageManager.ProgramTypes.PackageType>>
+  //   "PackageManager"
+  // Json.Vanilla.allow<List<LibCliExecution.PackageManager.ProgramTypes.PackageFn.PackageFn>>
+  //   "PackageManager"
+  // Json.Vanilla.allow<List<LibCliExecution.PackageManager.ProgramTypes.PackageConstant>>
+  //   "PackageManager"
+  ()
 
 [<EntryPoint>]
 let main (args : string[]) =

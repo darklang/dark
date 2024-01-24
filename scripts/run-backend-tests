@@ -93,9 +93,10 @@ cd ..
 if [[ -v CI ]]; then
   echo "Running backend server"
   ./scripts/run-backend-server $PUBLISHED_FLAG
-  echo "Running reloading packages"
+  echo "Reloading packages"
   ./scripts/build/reload-packages $PUBLISHED_FLAG
 else
+  echo "Reloading packages"
   ./scripts/build/reload-packages --test $PUBLISHED_FLAG
 fi
 
