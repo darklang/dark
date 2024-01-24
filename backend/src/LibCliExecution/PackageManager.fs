@@ -701,7 +701,14 @@ module ET2PT = ExternalTypesToProgramTypes
 /// The baseUrl is expected to be something like
 /// - https://dark-packages.darklang.io normally
 /// - http://dark-packages.dlio.localhost:11001 for local dev
-let packageManager (baseUrl : string) : RT.PackageManager =
+let baseUrl =
+  match
+    System.Environment.GetEnvironmentVariable "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
+  with
+  | null -> "https://packages.darklang.com"
+  | var -> var
+
+let packageManager : RT.PackageManager =
   let httpClient = new System.Net.Http.HttpClient() // CLEANUP pass this in as param? or mutate it externally?
 
   let withCache (f : 'name -> Ply<Option<'value>>) =
