@@ -108,4 +108,4 @@ module Darklang =
       // TODO maybe this should return a Result eventually,
       // and Error if we don't get a proper LSP message
       let readMessageFromClient () : String =
-        Builtin.Danger.LanguageServerProtocol.readNextMessage ()
+        Builtin.dangerLanguageServerProtocolReadNextMessage ()
