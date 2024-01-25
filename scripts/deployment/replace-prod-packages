@@ -15,7 +15,7 @@ set -euo pipefail
 
 db_username=$(gcloud secrets versions access latest --secret db-username)
 db_password=$(gcloud secrets versions access latest --secret db-password)
-db_host=us-east-1.656d5877-d77c-470a-8838-3ffcea845c19.aws.ybdb.io
+db_host=pub-us-central1.1c39714c-062a-40f3-b7ba-e320fce7ca3d.gcp.ybdb.io
 db_port=5433
 db_name=yugabyte
 
@@ -63,7 +63,7 @@ run_local_exec() {
 case $1 in
   1)
     echo "1. Prove we can connect to the DB"
-    exec_sql "select 2;"
+    exec_sql "select 2 ;"
     #exec_sql "select count(1) from user_data_v0;"
    ;;
 
