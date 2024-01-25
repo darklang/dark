@@ -69,8 +69,9 @@ variable "service_env_vars" {
     "DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT" = { value : "sample-none" }
 
     # DB
-    "DARK_CONFIG_DB_DBNAME"         = { value : "yugabyte" }
-    "DARK_CONFIG_DB_HOST"           = { value : "us-east-1.656d5877-d77c-470a-8838-3ffcea845c19.aws.ybdb.io" }
+    "DARK_CONFIG_DB_DBNAME" = { value : "yugabyte" }
+    "DARK_CONFIG_DB_HOST"   = { value : "us-central1.1c39714c-062a-40f3-b7ba-e320fce7ca3d.gcp.ybdb.io" }
+
     "DARK_CONFIG_DB_PORT"           = { value : "5433" }
     "DARK_CONFIG_DB_USER"           = { secret : "db-username" }
     "DARK_CONFIG_DB_PASSWORD"       = { secret : "db-password" }
