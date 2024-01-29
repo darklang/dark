@@ -256,6 +256,7 @@ module Vanilla =
     with _ ->
       System.Console.Write("error allowing Vanilla type")
 
+
   let assertSerializable (t : System.Type) : unit =
     if not (isSerializable t) then
       Exception.sendRollbarError

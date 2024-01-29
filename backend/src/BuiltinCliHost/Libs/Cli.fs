@@ -87,7 +87,8 @@ let packageManagerBaseUrl =
   | null -> "https://packages.darklang.com"
   | var -> var
 
-let packageManager = LibPackageManager.packageManager packageManagerBaseUrl
+let packageManager =
+  LibPackageManager.PackageManager.packageManager packageManagerBaseUrl
 
 let execute
   (parentState : RT.ExecutionState)

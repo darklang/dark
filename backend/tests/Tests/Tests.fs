@@ -51,6 +51,7 @@ let main (args : string array) : int =
         Tests.SqlCompiler.tests
         Tests.TreeSitter.tests
         Tests.Builtin.tests
+        Tests.PackageManager.tests
         Tests.StorageTraces.tests ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()

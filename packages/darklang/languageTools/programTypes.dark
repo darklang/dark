@@ -101,6 +101,7 @@ module Darklang =
 
         | TDB of TypeReference
 
+        // TODO: this should be an NEList
         | TFn of List<TypeReference> * TypeReference
 
 
