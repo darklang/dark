@@ -101,11 +101,11 @@ let execute
   }
 
 let initSerializers () =
-  Json.Vanilla.allow<List<LibPackageManager.ProgramTypes.PackageType>>
+  Json.Vanilla.allow<List<LibPackageManager.Types.ProgramTypes.PackageType>>
     "PackageManager"
-  Json.Vanilla.allow<List<LibPackageManager.ProgramTypes.PackageFn.PackageFn>>
+  Json.Vanilla.allow<List<LibPackageManager.Types.ProgramTypes.PackageFn.PackageFn>>
     "PackageManager"
-  Json.Vanilla.allow<List<LibPackageManager.ProgramTypes.PackageConstant>>
+  Json.Vanilla.allow<List<LibPackageManager.Types.ProgramTypes.PackageConstant>>
     "PackageManager"
   ()
 
