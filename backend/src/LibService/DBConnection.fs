@@ -19,10 +19,15 @@ let connectionString () : string =
   sb.SslMode <- if Config.pgSslRequired then SslMode.VerifyFull else SslMode.Allow
   sb.LoadBalanceHosts <- true
 
+  debuG "Host" Config.pgHost
+  debuG "Database" Config.pgDBName
+  debuG "User" Config.pgUser
+
   match Config.pgRootCertPath with
   | Some rootCert -> sb.RootCertificate <- rootCert
   | None -> ()
   sb.IncludeErrorDetail <- true
+  // TODO revisit this now that we're in yugabyte
   // Our DB in GCP supports 800 connections at once. We plan to have 2
   // BwdServers, 2 QueueWorkers, and 1 CronChecker
   sb.Pooling <- true

@@ -17,7 +17,6 @@ open Npgsql.FSharp
 open Npgsql
 open LibCloud.Db
 
-
 let typ name = RT.FQTypeName.fqPackage "Darklang" [ "DarkPackages" ] name 0
 
 let genericNameTypeName = typ "GenericName"
@@ -58,8 +57,8 @@ let fillDarkPackagesCanvasWithData
   canvasId
   dbTlid
   (packagesToManuallyInsert : PT.Packages)
-  : Ply<unit> =
-  uply {
+  : Task<unit> =
+  task {
     let packages = packagesToManuallyInsert
 
     let typeEntries =
@@ -129,7 +128,10 @@ let fillDarkPackagesCanvasWithData
             (id, canvas_id, table_tlid, user_version, dark_version, key, data, updated_at)
           VALUES
             (@id, @canvasID, @tlid, @userVersion, @darkVersion, @key, @data, NOW())"
-      Sql.query query |> Sql.executeTransaction [ query, batch ] |> ignore<int list>)
+      LibService.DBConnection.dataSource
+      |> Sql.fromDataSource
+      |> Sql.executeTransaction [ query, batch ]
+      |> ignore<int list>)
 
     print "Done inserting entries"
   }

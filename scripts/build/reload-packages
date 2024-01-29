@@ -31,9 +31,8 @@ fi
 
 ./scripts/run-local-exec $PUBLISHED_FLAG load-packages-to-internal-sql-tables > $LOG_CANVAS 2>&1
 
-
 if [[ "$TEST" != "true" ]]; then
-  echo "Waiting for BwdServer to be ready"
+  echo "Waiting for BwdServer to be ready" >> $LOG_CANVAS 2>&1
   for i in {1..100}; do
     if curl -s -o /dev/null "localhost:${DARK_CONFIG_BWDSERVER_KUBERNETES_PORT}" ; then
       break

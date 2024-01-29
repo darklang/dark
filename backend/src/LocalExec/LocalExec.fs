@@ -100,7 +100,7 @@ let main (args : string[]) : int =
       name
       LibService.Telemetry.DontTraceDBQueries
 
-    (LibCloud.Db.waitUntilConnected ()).Result
+    let _ = (LibCloud.Init.waitForDB LibCloud.Init.WaitForDB).Result
 
     let handleCommand
       (description : string)
