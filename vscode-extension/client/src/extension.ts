@@ -18,7 +18,8 @@ export function activate(context: ExtensionContext) {
     command: "bash",
     args: [
       "./scripts/run-cli",
-      "./user-code/darklang/scripts/language-server.dark",
+      "@PACKAGE.Darklang.LanguageTools.LspServer.runServerCli",
+      "null", // 'parses' to () - TODO clean this up once we switch over to new parser
     ],
     transport: TransportKind.stdio,
   };

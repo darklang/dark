@@ -375,6 +375,16 @@ RUN set -e; \
 
 ENV PATH "$PATH:~/zig"
 
+
+############################
+# VSCE, used for publishing VS Code extension
+#
+# TODO reassess whether this should be done here,
+#   or in `publish-vs-code-extension`.
+############################
+RUN sudo npm install -g @vscode/vsce
+
+
 ############################
 # Environment
 ############################
