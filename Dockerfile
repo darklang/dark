@@ -209,7 +209,7 @@ COPY --chown=dark:dark --chmod=755 ./scripts/installers/* .
 # Yugabyte
 ############################
 
-RUN /home/dark/install-yugabyte --version=2.20.0.0 --build=b76
+RUN /home/dark/install-yugabyte --version=2.20.1.3 --build=b3
 
 ############################
 # Terraform
