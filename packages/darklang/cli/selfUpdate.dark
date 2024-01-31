@@ -85,7 +85,7 @@ module Darklang =
 
 
       // get local release version from config.json
-      let getLocalVersion () : String =
+      let getLocalVersion () : Stdlib.Result.Result<String, String> =
 
         let config =
           (Builtin.fileRead configPath)
@@ -98,12 +98,10 @@ module Darklang =
               |> PACKAGE.Darklang.Stdlib.Dict.get "version"
               |> Stdlib.Option.withDefault "v0.0.0")))
 
-        let localVersion =
-          match config with
-          | Ok version -> version |> Stdlib.Result.withDefault "v0.0.0"
-          | Error e -> "v0.0.0"
+        match config with
+        | Ok version -> version
+        | Error e -> Stdlib.Result.Result.Error "Failed to get local version"
 
-        localVersion
 
 
       // check if we should skip self update (if we've updated in the last 24 hours don't update)
@@ -167,7 +165,7 @@ module Darklang =
 
 
       let isLatestVersion () : Bool =
-        let localVersion = getLocalVersion ()
+        let localVersion = (getLocalVersion ()) |> Builtin.unwrap
         let latestVersion = (getLatestReleaseTag ()) |> Builtin.unwrap
 
         localVersion == latestVersion

@@ -1,6 +1,6 @@
 module Darklang =
   module Cli =
-    module zipUtils =
+    module ZipUtils =
 
       let gunzip
         (option: String)
