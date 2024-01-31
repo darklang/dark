@@ -168,9 +168,17 @@ module Darklang =
 
       let isLatestVersion () : Bool =
         let localVersion = (getLocalVersion ()) |> Builtin.unwrap
-        let latestVersion = (getLatestReleaseTag ()) |> Builtin.unwrap
+        let latestVersion = (getLatestReleaseTag ())
 
-        localVersion == latestVersion
+        let isLatest =
+          match latestVersion with
+          | Ok version -> localVersion == version
+          | Error e ->
+            Stdlib.Result.Result.Error e
+            false
+
+        isLatest
+
 
 
       let downloadAndReplaceRelease () : Int64 =
