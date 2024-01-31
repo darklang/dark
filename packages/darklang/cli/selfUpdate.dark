@@ -29,7 +29,9 @@ module Darklang =
           match releases with
           | Ok r -> r.body |> Darklang.Stdlib.String.fromBytesWithReplacement
 
-          | Error e -> Builtin.printLine "Failed to get releases"
+          | Error e ->
+            Builtin.printLine "Failed to get releases"
+            ""
 
 
         // get latest release tag name from list of releases
