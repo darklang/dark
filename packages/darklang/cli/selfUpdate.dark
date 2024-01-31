@@ -203,7 +203,8 @@ module Darklang =
               let executablePath = $".darklang/bin/darklang/{assetNameWithoutExt}"
               let zipPath = $".darklang/bin/darklang/{assetName}"
 
-              let gunzip = Darklang.Cli.ZipUtils.gunzip "-c" zipPath executablePath
+              let gunzip =
+                Darklang.Cli.ZipUtils.gunzipToFile "-c" zipPath executablePath
 
               if gunzip.exitCode == 0L then
 

@@ -2,10 +2,21 @@ module Darklang =
   module Cli =
     module ZipUtils =
 
+      /// Unzip a file in place
       let gunzip
         (option: String)
-        (pathToZip: String)
-        (destinationPath: String)
+        (zipFilePath: String)
         : Darklang.Stdlib.Process.Result =
 
-        Stdlib.Process.runCommand $"gunzip {option} {pathToZip} > {destinationPath}"
+        Stdlib.Process.runCommand $"gunzip {option} {zipFilePath}"
+
+
+      /// Unzip a file to a specified destination path
+      let gunzipToFile
+        (option: String)
+        (zipFilePath: String)
+        (destinationFilePath: String)
+        : Darklang.Stdlib.Process.Result =
+
+        Stdlib.Process.runCommand
+          $"gunzip {option} {zipFilePath} > {destinationFilePath}"
