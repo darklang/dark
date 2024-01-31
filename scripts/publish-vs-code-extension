@@ -9,6 +9,6 @@ if [ -z "$VS_CODE_MARKETPLACE_PUBLISH_TOKEN" ]; then
 fi
 cd vscode-extension
 npm i
-vsce package
+vsce package --skip-license
 vsce publish -p $VS_CODE_MARKETPLACE_PUBLISH_TOKEN
 echo "Published VS Code extension"
