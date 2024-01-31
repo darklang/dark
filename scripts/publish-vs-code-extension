@@ -10,5 +10,5 @@ fi
 cd vscode-extension
 npm i
 vsce package --skip-license
-vsce publish -p $VS_CODE_MARKETPLACE_PUBLISH_TOKEN
+vsce publish --skip-license -p $VS_CODE_MARKETPLACE_PUBLISH_TOKEN
 echo "Published VS Code extension"
