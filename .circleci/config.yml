@@ -297,7 +297,7 @@ jobs:
       - darkcheckout
       - setup-app
       - attach_workspace: { at: "." }
-      - run: ./scripts/publish-github-release
+      - run: ./scripts/deployment/publish-github-release
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
@@ -308,7 +308,7 @@ jobs:
       - darkcheckout
       - setup-app
       - attach_workspace: { at: "." }
-      - run: ./scripts/publish-vs-code-extension
+      - run: ./scripts/deployment/publish-vs-code-extension
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 

@@ -1,0 +1,29 @@
+#! /usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+# Fetch the latest version from the Marketplace
+LATEST_MARKETPLACE_VERSION=$(vsce show darklang.darklang-vs-code-extension --json | jq -r '.versions[0].version')
+echo "Latest Marketplace version: $LATEST_MARKETPLACE_VERSION"
+
+# Extract the current project version
+PROJECT_VERSION=$(jq -r '.version' vscode-extension/package.json)
+echo "Project version: $PROJECT_VERSION"
+
+# Compare versions and publish if the project version is newer
+if [ "$PROJECT_VERSION" != "$LATEST_MARKETPLACE_VERSION" ]; then
+  if [ -z "$VS_CODE_MARKETPLACE_PUBLISH_TOKEN" ]; then
+    echo "Error: VS_CODE_MARKETPLACE_PUBLISH_TOKEN is not set."
+    exit 1
+  fi
+
+  cd vscode-extension
+  npm i
+  vsce package --skip-license --pre-release
+  vsce publish --skip-license --pre-release -p $VS_CODE_MARKETPLACE_PUBLISH_TOKEN
+
+  echo "Published VS Code extension because $PROJECT_VERSION is newer than $LATEST_MARKETPLACE_VERSION"
+else
+  echo "No need to publish. The project version ($PROJECT_VERSION) is not newer than the Marketplace version ($LATEST_MARKETPLACE_VERSION)."
+fi
