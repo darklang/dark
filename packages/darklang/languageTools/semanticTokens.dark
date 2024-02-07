@@ -167,10 +167,7 @@ module Darklang =
               [ makeToken symbolOpenQuote TokenType.Symbol ]
 
               // hello
-              (match contentsMaybe with
-               | Some(contentsRange, _contents) ->
-                 [ makeToken contentsRange TokenType.String ]
-               | None -> [])
+              [ makeToken range TokenType.String ]
 
               // "
               [ makeToken symbolCloseQuote TokenType.Symbol ] ]

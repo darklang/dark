@@ -130,6 +130,7 @@ module ParseNodeToWrittenTypes =
                     keywordType = range (0L, 0L) (0L, 4L)
                     symbolEquals = range (0L, 10L) (0L, 11L) })
               ) ]
+          unparseableStuff = []
           exprsToEval = [] }
     )
 

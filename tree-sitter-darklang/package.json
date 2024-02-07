@@ -5,7 +5,8 @@
   "main": "bindings/node",
   "scripts": {
     "build-parser": "tree-sitter generate",
-    "test": "tree-sitter test"
+    "test": "tree-sitter test",
+    "parse": "tree-sitter parse"
   },
   "repository": {
     "type": "git",
