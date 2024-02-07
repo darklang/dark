@@ -9,7 +9,7 @@
       ]
     },
     "dotnet-trace": {
-      "version": "8.0.505301",
+      "version": "8.0.510501",
       "commands": [
         "dotnet-trace"
       ]
