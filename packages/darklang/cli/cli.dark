@@ -152,5 +152,11 @@ darklang [script path]                            Run a .dark script
       args |> Darklang.Cli.parseArguments |> Darklang.Cli.executeCommand
 
     let executeCliCommand (args: List<String>) : Int64 =
-      Darklang.Cli.SelfUpdate.ensureDarklangSetup ()
-      processNormally args
+      if Stdlib.List.member_v0 args "--skip-self-update" then
+        let newArgs =
+          args |> Stdlib.List.filter (fun arg -> arg != "--skip-self-update")
+
+        processNormally newArgs
+      else
+        Darklang.Cli.SelfUpdate.ensureDarklangSetup ()
+        processNormally args
